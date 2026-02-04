@@ -151,6 +151,8 @@ export class ChatApiClient {
     participantIds: string[]
     description?: string
     avatarUrl?: string
+    contextEntity?: string
+    contextEntityId?: string
   }) {
     try {
       const response = await this.client.post<Conversation>('/conversations/group', data)

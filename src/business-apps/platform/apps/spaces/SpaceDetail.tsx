@@ -1,10 +1,11 @@
 /**
  * SpaceDetail - Individual Space Entry Page
  *
- * Beautiful entry page with hero, stats, pinned content, activity, and content browser
+ * Beautiful entry page with hero, stats, pinned content, activity, and content browser.
+ * Includes team collaboration features (chat, calls, calendar) for dimension-based spaces.
  */
 
-import React, { useState, useCallback, useMemo } from 'react'
+import React, { useState, useCallback, useMemo, useEffect } from 'react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@newwork/nw-design-system'
@@ -17,7 +18,12 @@ import {
   SpaceActivity,
   SpaceDriveView,
   SpaceMembers,
-  AddContentDialog
+  AddContentDialog,
+  SpaceCalendar,
+  ScheduleMeetingButton,
+  SpaceRealTimeActivity,
+  SpaceTeamChatPanel,
+  SpaceTeamPresence
 } from './components'
 import { InviteMemberDialog } from './components/InviteMemberDialog'
 import { MoveContentDialog } from './components/MoveContentDialog'
@@ -28,6 +34,8 @@ import { useSpace } from './hooks/useSpace'
 import { useSpaceContent } from './hooks/useSpaceContent'
 import { useSpaceActivity } from './hooks/useSpaceActivity'
 import { useSpaceUserLookup } from './hooks/useSpaceUserLookup'
+import { useLinkedGroupChat } from './hooks/useLinkedGroupChat'
+import { useSpaceCall } from './hooks/useSpaceCall'
 import type {
   SpaceContentItem,
   AddMemberInput,
@@ -55,6 +63,7 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
   const [addContentDialogOpen, setAddContentDialogOpen] = useState(false)
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<'overview' | 'drive'>('overview')
+  const [additionalUserIds, setAdditionalUserIds] = useState<string[]>([])
 
   const currentUserId = userInfo?.id || userInfo?.employeeDetails?.employeeId || ''
 
@@ -79,15 +88,62 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
   } = useSpaceContent(spaceId, accessToken, space, refreshSpace)
   const { activities, isLoading: activityLoading } = useSpaceActivity(spaceId, accessToken, 20)
 
-  // Collect user IDs to look up (owner + members)
+  // Get space dimension info for team collaboration features
+  const spaceDimension = space?.settings?.dimension
+
+  // Find linked group chat for dimension-based spaces
+  const {
+    conversation: linkedConversation,
+    isLoading: chatLoading,
+    error: chatError
+  } = useLinkedGroupChat(spaceDimension, accessToken)
+
+  // Hook for starting calls from space
+  const { startAudioCall, startVideoCall, canStartCall } = useSpaceCall(linkedConversation)
+
+  // Whether this space has team collaboration features (dimension-based)
+  const hasTeamCollaboration = !!spaceDimension
+
+  // Debug: prove SpaceDetail is running + whether the collaboration section is mounted
+  useEffect(() => {
+    let debugEnabled = false
+    try {
+      debugEnabled = window.localStorage?.getItem('gba:debug:space-activity') === '1'
+    } catch {
+      debugEnabled = false
+    }
+    if (!debugEnabled) return
+    console.error('[SpaceActivity] SpaceDetail debug', {
+      spaceId,
+      hasTeamCollaboration,
+      allContentCount: allContent.length,
+      href: window.location.href
+    })
+  }, [spaceId, hasTeamCollaboration, allContent.length])
+
+  // Collect user IDs to look up (owner + members + message senders)
   const userIdsToLookup = useMemo(() => {
     const ids: string[] = []
     if (space?.ownerId) ids.push(space.ownerId)
     space?.members?.forEach(m => {
       if (m.userId) ids.push(m.userId)
     })
+    // Include additional IDs (e.g., message senders)
+    additionalUserIds.forEach(id => {
+      if (id) ids.push(id)
+    })
     return [...new Set(ids)]
-  }, [space])
+  }, [space, additionalUserIds])
+
+  // Callback when new user IDs need to be looked up (e.g., message senders)
+  const handleUserIdsNeeded = useCallback((newIds: string[]) => {
+    setAdditionalUserIds(prev => {
+      const existingSet = new Set(prev)
+      const uniqueNewIds = newIds.filter(id => !existingSet.has(id))
+      if (uniqueNewIds.length === 0) return prev
+      return [...prev, ...uniqueNewIds]
+    })
+  }, [])
 
   // Lookup user info for owner and members
   const { getUserInfo } = useSpaceUserLookup({
@@ -194,35 +250,41 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
     [removeMember]
   )
 
-  const handleItemClick = useCallback((item: SpaceContentItem) => {
-    const isProduction = process.env.NODE_ENV === 'production'
-    let url: string
+  const handleItemClick = useCallback(
+    (item: SpaceContentItem) => {
+      const isProduction = process.env.NODE_ENV === 'production'
+      let url: string
+      const spaceParam = `spaceId=${encodeURIComponent(spaceId)}`
 
-    switch (item.type) {
-      case 'document':
-        url = isProduction
-          ? `/platform/documents?docId=${item.id}&view=editor`
-          : `/platform/apps/document-apps?docId=${item.id}&view=editor`
-        break
-      case 'note':
-        url = isProduction
-          ? `/platform/notes?noteId=${item.id}&view=editor`
-          : `/platform/apps/note-apps?noteId=${item.id}&view=editor`
-        break
-      case 'spreadsheet':
-        url = isProduction
-          ? `/platform/spreadsheets?appId=${item.id}&view=viewer`
-          : `/platform/apps/spreadsheet-apps?appId=${item.id}&view=viewer`
-        break
-      case 'slide':
-        url = isProduction
-          ? `/platform/slides?slideId=${item.id}&view=editor`
-          : `/platform/apps/slide-apps?slideId=${item.id}&view=editor`
-        break
-    }
+      switch (item.type) {
+        case 'document':
+          url = isProduction
+            ? `/platform/documents?docId=${item.id}&view=editor`
+            : `/platform/apps/document-apps?docId=${item.id}&view=editor`
+          break
+        case 'note':
+          url = isProduction
+            ? `/platform/notes?noteId=${item.id}&view=editor`
+            : `/platform/apps/note-apps?noteId=${item.id}&view=editor`
+          break
+        case 'spreadsheet':
+          url = isProduction
+            ? `/platform/spreadsheets?appId=${item.id}&view=viewer`
+            : `/platform/apps/spreadsheet-apps?appId=${item.id}&view=viewer`
+          break
+        case 'slide':
+          url = isProduction
+            ? `/platform/slides?slideId=${item.id}&view=editor`
+            : `/platform/apps/slide-apps?slideId=${item.id}&view=editor`
+          break
+      }
 
-    navigateTo(buildPlatformUrl(url))
-  }, [])
+      // Always include spaceId so editors can broadcast activity for the correct Space
+      const urlWithSpace = url.includes('?') ? `${url}&${spaceParam}` : `${url}?${spaceParam}`
+      navigateTo(buildPlatformUrl(urlWithSpace))
+    },
+    [spaceId]
+  )
 
   const handleMoveContent = useCallback(
     async (input: MoveContentInput) => {
@@ -307,6 +369,64 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
               recentActivity={stats.recentActivity}
               data-testid={`${testId}-stats`}
             />
+
+            {/* Team Collaboration Section - Only for dimension-based spaces */}
+            {hasTeamCollaboration && (
+              <section data-testid={`${testId}-team-collaboration`} className="gba:space-y-4">
+                {/* Header with Schedule Meeting */}
+                <div className="gba:flex gba:items-center gba:justify-between">
+                  <h2 className="gba:text-lg gba:font-semibold gba:text-foreground">Team Collaboration</h2>
+                  <ScheduleMeetingButton
+                    spaceId={spaceId}
+                    spaceName={space.name}
+                    members={space.members || []}
+                    data-testid={`${testId}-schedule-meeting`}
+                  />
+                </div>
+
+                {/* Team Presence Indicator - shows who's online (via chat WebSocket) */}
+                <SpaceTeamPresence members={enrichedMembers} maxAvatars={7} data-testid={`${testId}-team-presence`} />
+
+                {/* Two Column Layout: Chat Panel + Calendar/Activity */}
+                <div className="gba:grid gba:grid-cols-1 gba:lg:grid-cols-2 gba:gap-4">
+                  {/* Left: Combined Team Chat Panel with messages */}
+                  <SpaceTeamChatPanel
+                    conversation={linkedConversation}
+                    isLoading={chatLoading}
+                    error={chatError}
+                    onStartAudioCall={canStartCall ? startAudioCall : undefined}
+                    onStartVideoCall={canStartCall ? startVideoCall : undefined}
+                    memberCount={space.members?.length}
+                    accessToken={accessToken}
+                    maxMessages={8}
+                    getUserInfo={getUserInfo}
+                    onUserIdsNeeded={handleUserIdsNeeded}
+                    data-testid={`${testId}-team-chat-panel`}
+                  />
+
+                  {/* Right: Calendar and Live Activity stacked */}
+                  <div className="gba:space-y-4">
+                    {/* Team Calendar */}
+                    <SpaceCalendar
+                      spaceId={spaceId}
+                      members={space.members || []}
+                      accessToken={accessToken}
+                      maxMeetings={3}
+                      data-testid={`${testId}-team-calendar`}
+                    />
+
+                    {/* Live Activity */}
+                    <SpaceRealTimeActivity
+                      spaceId={spaceId}
+                      spaceContent={allContent}
+                      currentUserId={currentUserId}
+                      maxActivities={5}
+                      data-testid={`${testId}-realtime-activity`}
+                    />
+                  </div>
+                </div>
+              </section>
+            )}
 
             {/* Pinned Content */}
             {pinnedItems.length > 0 && (

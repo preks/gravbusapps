@@ -981,7 +981,14 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
   )
 
   const createGroupConversation = useCallback(
-    async (name: string, participantIds: string[], description?: string, avatarUrl?: string) => {
+    async (
+      name: string,
+      participantIds: string[],
+      description?: string,
+      avatarUrl?: string,
+      contextEntity?: string,
+      contextEntityId?: string
+    ) => {
       if (!apiClientRef.current) {
         throw new Error('Chat client not initialized')
       }
@@ -992,7 +999,9 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
           name,
           participantIds,
           description,
-          avatarUrl
+          avatarUrl,
+          contextEntity,
+          contextEntityId
         })
 
         // Reload conversation with full participant data including user objects

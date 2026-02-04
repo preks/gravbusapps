@@ -476,3 +476,23 @@ calendar-pending-invitations = Invitații în așteptare
 calendar-accept = Acceptă
 calendar-decline = Refuză
 calendar-tentative = Tentativ
+
+# Calendar - Agenda
+calendar-agenda = Agendă
+calendar-agendaOptional = Agendă (opțional)
+calendar-addAgendaItem = Adaugă punct pe agendă
+calendar-agendaItemTitle = Subiect
+calendar-agendaItemTitlePlaceholder = Introdu subiectul...
+calendar-agendaItemDuration = Durată (min)
+calendar-agendaItemAssignee = Atribuie la
+calendar-agendaItemUnassigned = Neatribuit
+calendar-agendaItemRemove = Elimină
+calendar-agendaItemMoveUp = Mută sus
+calendar-agendaItemMoveDown = Mută jos
+calendar-agendaItems = {$count ->
+  [one] {$count} punct pe agendă
+  *[other] {$count} puncte pe agendă
+}
+calendar-agendaTotalDuration = Total: {$minutes} min
+calendar-agendaAssignedTo = Atribuit lui {$name}
+calendar-noAgenda = Niciun punct pe agendă
