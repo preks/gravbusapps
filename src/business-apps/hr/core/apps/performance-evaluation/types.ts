@@ -22,8 +22,18 @@ export interface PerformanceCycle {
   stages: EvaluationStage[]
   status: CycleStatus
   deactivated?: boolean
+  recordState?: string
   ratingScaleId?: string
   valueIds?: string[]
+  /** Raw API participants with id/version for updates */
+  _apiParticipants?: Array<{
+    id: string
+    version: number | null
+    participantType: string | null
+    enabled: boolean | null
+  }>
+  /** Raw API company values with id/version for updates */
+  _apiCompanyValues?: Array<{ id: string; version: number | null; companyValueId: string | null }>
 }
 
 export interface RatingScale {
@@ -38,5 +48,5 @@ export interface ValueItemStored {
   version?: number
   title: string
   description: string
-  active: boolean
+  recordState: string
 }

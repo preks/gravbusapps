@@ -95,11 +95,12 @@ const ExpenseItemContent: React.FC<{ onClose?: (shouldRefetch?: boolean) => void
           <div style={{ width: '48px', height: '32px', flexShrink: 0 }}>
             {currentStep === FORM_STEPS.FORM && (
               <Button
-                variant="ghost"
+                variant="text"
                 onClick={() => {
                   setCurrentStep(FORM_STEPS.START)
                   setFileList([])
                 }}
+                style={{ padding: '0', height: 'auto', minWidth: 'auto' }}
                 className="gba:z-[1] gba:relative"
                 data-testid="back-button"
               >
@@ -109,9 +110,10 @@ const ExpenseItemContent: React.FC<{ onClose?: (shouldRefetch?: boolean) => void
                     'lowcoder:expense_calculation_rule.expense_calculation_rule_modal.affected_expense_modal.back_btn',
                     'Back'
                   )}
-                  className="gba:w-6 gba:h-6"
+                  style={{ width: '24px', height: '24px' }}
                   width="24"
                   height="24"
+                  data-testid="back-button-icon"
                 />
               </Button>
             )}

@@ -31,12 +31,13 @@ export interface GroupCallInvite {
   from: { id: string; odId: string; odName: string; avatarUrl?: string }
   conversationName?: string
   conversationId?: string // The actual conversation ID for backend tracking
+  conversationType?: 'direct' | 'group' | 'meeting' // Type of conversation
 }
 
 export interface GroupCallUIState {
   roomId: string | null
   callType: CallType
-  status: 'idle' | 'joining' | 'connected' | 'reconnecting' | 'ended'
+  status: 'idle' | 'setup' | 'joining' | 'connected' | 'reconnecting' | 'ended'
   participants: GroupCallParticipant[]
   hostId: string | null // ID of the user who started the call
   isMuted: boolean
@@ -49,6 +50,8 @@ export interface GroupCallUIState {
   remoteHandsRaised: Record<string, boolean> // Map of participantId -> handRaised for remote participants
   handRaisedOrder?: Record<string, { order: number; timestamp: number }> // Map of participantId -> order and timestamp
   startTime: number | null
+  conversationName?: string // Name of the conversation/meeting
+  conversationType?: 'direct' | 'group' | 'meeting' // Type of conversation
   duration: number
   callImplementation: 'mesh' | 'realtime-kit' | '1-on-1' // Track which implementation is used
   calendarMeetingId?: string | null // Calendar meeting ID for AI transcription (only for calls started from calendar)
@@ -89,7 +92,37 @@ export interface UseGroupCallReturn {
   activeSpeakerId?: string | null // Current active speaker ID (RTK only)
   activeSpeakerHistory?: string[] // Recent speakers for sorting (RTK only)
   /**
-   * Start a new group call
+   * Initiate call setup - Shows pre-call setup dialog (RTK only)
+   * @param roomId - The room/conversation ID for the call
+   * @param callType - Type of call (audio or video)
+   * @param participants - List of participants to invite
+   * @param conversationName - Optional name of the conversation
+   * @param calendarMeetingId - Optional calendar meeting ID for linking to AI transcription (RealtimeKit only)
+   * @param conversationType - Optional type of conversation (direct, group, or meeting)
+   */
+  initiateCall?: (
+    roomId: string,
+    callType: CallType,
+    participants: CallParticipant[],
+    conversationName?: string,
+    calendarMeetingId?: string | null,
+    conversationType?: 'direct' | 'group' | 'meeting'
+  ) => void
+  /**
+   * Confirm and start call with user preferences (RTK only)
+   * @param preferences - User preferences for mic, camera, and background
+   */
+  confirmStartCall?: (preferences: {
+    micEnabled: boolean
+    cameraEnabled: boolean
+    backgroundEnabled: boolean
+  }) => Promise<void>
+  /**
+   * Cancel pre-call setup (RTK only)
+   */
+  cancelSetup?: () => void
+  /**
+   * Start a new group call (legacy, use initiateCall + confirmStartCall for RTK)
    * @param roomId - The room/conversation ID for the call
    * @param callType - Type of call (audio or video)
    * @param participants - List of participants to invite

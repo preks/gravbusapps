@@ -219,11 +219,49 @@ export const buildAdvancePaymentsListQuery = (
           id
           code
           title
+          startDate
+          endDate
           totalAmount
           currency { code }
           costCenter { name }
           project { name }
-          expenseRequest { id }
+          employee {
+            id
+            code
+            firstName
+            lastName
+            fullName
+            employeePosition {
+              jobPosition { name }
+              organizationalUnit { name }
+            }
+          }
+          expenseRequestTrip(orderBy: { tripOrder: ASC }, where: { isDeleted: { _eq: false } }) {
+            id
+            address
+            pointType
+            countryRef
+            tripDateTime
+            tripOrder
+            tripDirection
+            travelRegion { value }
+            country { value }
+          }
+          expenseRequest(where: { isDeleted: { _eq: false } }) {
+            id
+            code
+            expenseRequestTrip(orderBy: { tripOrder: ASC }, where: { isDeleted: { _eq: false } }) {
+              id
+              address
+              pointType
+              countryRef
+              tripDateTime
+              tripOrder
+              tripDirection
+              travelRegion { value }
+              country { value }
+            }
+          }
         }
         expensePlanId
       }

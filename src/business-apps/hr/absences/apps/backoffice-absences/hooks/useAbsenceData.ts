@@ -7,6 +7,20 @@ import {
 } from '../queries/absenceQueries'
 import { EnhancedAbsence } from '../types'
 
+// Extracted helper to module scope to avoid recreation on each render
+const extractColorFromObjectValue = (objectValue: any): string => {
+  if (!objectValue || typeof objectValue !== 'object') {
+    return 'var(--nw-muted-foreground)'
+  }
+
+  const color = objectValue.color
+  if (!color) {
+    return 'var(--nw-muted-foreground)'
+  }
+
+  return color.startsWith('#') ? color : `#${color}`
+}
+
 export interface UseAbsenceDataProps {
   accessToken: string
   filters: {
@@ -80,19 +94,6 @@ export const useAbsenceData = ({ accessToken, filters, onDataChange }: UseAbsenc
   useEffect(() => {
     onDataChangeRef.current = onDataChange
   }, [onDataChange])
-
-  const extractColorFromObjectValue = (objectValue: any): string => {
-    if (!objectValue || typeof objectValue !== 'object') {
-      return 'var(--nw-muted-foreground)'
-    }
-
-    const color = objectValue.color
-    if (!color) {
-      return 'var(--nw-muted-foreground)'
-    }
-
-    return color.startsWith('#') ? color : `#${color}`
-  }
 
   const fetchAbsences = useCallback(async () => {
     if (!accessToken) {
