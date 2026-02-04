@@ -25,7 +25,8 @@ import {
   Button,
   Tooltip,
   TooltipTrigger,
-  TooltipContent
+  TooltipContent,
+  Badge
 } from '@newwork/nw-design-system'
 import translations from '../_i18n'
 import { StarIcon } from 'lucide-react'
@@ -334,14 +335,14 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
               employee.employeePosition.employeeCapabilities
                 .filter(capItem => capItem.capability)
                 .map((capItem: EmployeeCapability, index: number) => (
-                  <TagItem
+                  <Badge
                     key={capItem.capability?.id || `capability-${index}`}
-                    icon={<BookmarksIcon className="gba:h-4 gba:w-4 gba:text-muted-foreground" size={16} />}
-                    label={capItem.capability!.name}
-                    bgColorClass="gba:bg-success-secondary"
-                    textColorClass="gba:text-success"
-                    testId={`capability-${capItem.capability!.id}`}
-                  />
+                    variant="secondary"
+                    data-testid={`capability-${capItem.capability!.id}`}
+                  >
+                    <BookmarksIcon className="gba:h-4 gba:w-4 gba:mr-1" size={16} />
+                    {capItem.capability!.name}
+                  </Badge>
                 ))
             ) : (
               <span className="gba:text-muted-foreground gba:text-sm" data-testid="no-capabilities-message">
@@ -359,14 +360,14 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
               employee.skills
                 .filter(skillItem => skillItem.skill)
                 .map((skillItem: EmployeeSkill, index: number) => (
-                  <TagItem
+                  <Badge
                     key={skillItem.skill?.id || `skill-${index}`}
-                    icon={<StarIcon className="gba:h-4 gba:w-4 gba:text-muted-foreground" />}
-                    label={skillItem.skill.name}
-                    bgColorClass="gba:bg-info-secondary"
-                    textColorClass="gba:text-info"
-                    testId={`skill-${skillItem.skill.id}`}
-                  />
+                    variant="decorative"
+                    data-testid={`skill-${skillItem.skill.id}`}
+                  >
+                    <StarIcon className="gba:h-4 gba:w-4 gba:mr-1" />
+                    {skillItem.skill.name}
+                  </Badge>
                 ))
             ) : (
               <span className="gba:text-muted-foreground gba:text-sm" data-testid="no-skills-message">
