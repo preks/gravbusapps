@@ -406,20 +406,11 @@ const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
     }
   }
 
-  // Determine if task is overdue based on timing type
-  const getTaskDate = () => {
-    return task.timingType?.toUpperCase() === 'SCHEDULED' && task.scheduleDate ? task.scheduleDate : task.dueDate
-  }
-
-  const taskDate = getTaskDate()
-
   // Extract status, priority, type from common relation fields (CatalogEntry objects)
   // Supports both CRM (status/priority/type) and IRM (taskStatus/taskPriority/taskType) naming
   const taskStatus = (task as any).taskStatus as CatalogEntry
   const taskPriority = (task as any).taskPriority as CatalogEntry
   const taskType = (task as any).taskType as CatalogEntry
-
-  const isOverdue = !!taskDate && dayjs().isAfter(dayjs(taskDate)) && taskStatus?.type !== 'COMPLETED'
 
   const handleReferenceClick = () => {
     if (!task.reference || !buildReferenceUrl) return
@@ -463,16 +454,9 @@ const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
               testId={`${dataTestId || DATA_TEST_ID_PREFIX}-status-field`}
             >
               {taskStatus ? (
-                <>
-                  <Badge variant={getTaskStatusBadgeVariant(taskStatus.type as string)}>
-                    {getCatalogEntryValue(taskStatus as any)}
-                  </Badge>
-                  {isOverdue && (
-                    <Badge variant="destructive" className="gba:ml-2">
-                      Overdue
-                    </Badge>
-                  )}
-                </>
+                <Badge variant={getTaskStatusBadgeVariant(taskStatus.type as string)}>
+                  {getCatalogEntryValue(taskStatus as any)}
+                </Badge>
               ) : (
                 <span className="gba:text-sm gba:text-muted-foreground">-</span>
               )}
@@ -566,9 +550,7 @@ const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
                 label="Scheduled"
                 testId={`${dataTestId || DATA_TEST_ID_PREFIX}-schedule-date-field`}
               >
-                <span
-                  className={`gba:text-sm ${isOverdue ? 'gba:text-destructive gba:font-medium' : 'gba:text-foreground'}`}
-                >
+                <span className="gba:text-sm gba:text-foreground">
                   {formatDate(task.scheduleDate || task.dueDate || '')}
                 </span>
               </FieldRow>
@@ -578,11 +560,7 @@ const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
                 label="Due Date"
                 testId={`${dataTestId || DATA_TEST_ID_PREFIX}-due-date-field`}
               >
-                <span
-                  className={`gba:text-sm ${isOverdue ? 'gba:text-destructive gba:font-medium' : 'gba:text-foreground'}`}
-                >
-                  {formatDate(task.dueDate || '')}
-                </span>
+                <span className="gba:text-sm gba:text-foreground">{formatDate(task.dueDate || '')}</span>
               </FieldRow>
             )}
 
