@@ -164,7 +164,6 @@ flow-detail-flow-steps = Pași flux de lucru
 flow-detail-step = Pasul {$number}: {$title}
 flow-detail-assigned-to = Atribuit către: {$name}
 flow-detail-completed-by = Finalizat de: {$name}
-flow-detail-id = ID: {$id}
 
 # TaskDetailDialog Component
 task-dialog-completed-success = ✓ Sarcină finalizată cu succes!
@@ -189,6 +188,8 @@ completed-load-more = Încarcă mai multe
 task-details-related-to = Legat de
 task-details-attachments = Atașamente ({$count})
 task-details-form = Formular
+task-due-date-label = Scadență
+task-start-date-label = Începe
 task-details-read-only = Doar citire
 task-details-form-loading = Se încarcă...
 task-details-add-comment = Adaugă comentariu
@@ -256,3 +257,21 @@ formatter-priority-normal = Normal
 formatter-priority-high = Ridicat
 formatter-priority-medium = Mediu
 formatter-priority-low = Scăzut
+
+# Due Date Labels
+due-date-days-overdue = { $days ->
+    [one] { $days }z întârziere
+   *[other] { $days }z întârziere
+}
+due-date-hours-overdue = { $hours ->
+    [one] { $hours }h întârziere
+   *[other] { $hours }h întârziere
+}
+due-date-hours-left = { $hours ->
+    [one] { $hours }h rămase
+   *[other] { $hours }h rămase
+}
+due-date-days-left = { $days ->
+    [one] { $days }z rămase
+   *[other] { $days }z rămase
+}

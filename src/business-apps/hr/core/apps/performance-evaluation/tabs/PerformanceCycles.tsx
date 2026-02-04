@@ -215,15 +215,19 @@ export const PerformanceCycles: React.FC<PerformanceCyclesProps> = ({
                 startDate: editing.startDate,
                 endDate: editing.endDate,
                 frequency:
-                  (String(editing.frequency).toUpperCase() === 'QUARTERLY'
+                  (String(editing.frequency).toUpperCase().includes('QUARTERLY')
                     ? 'Quarterly'
-                    : String(editing.frequency).toUpperCase() === 'ANNUAL'
+                    : String(editing.frequency).toUpperCase().includes('ANNUAL')
                       ? 'Annual'
-                      : (editing.frequency as EditorFrequencyType)) ?? 'Annual',
+                      : String(editing.frequency).toUpperCase().includes('CUSTOM')
+                        ? 'Custom'
+                        : (editing.frequency as EditorFrequencyType)) ?? 'Annual',
                 participants: editing.participants as EditorParticipantType[],
                 stages: editing.stages as unknown as EditorStage[],
                 ratingScaleId: editing.ratingScaleId,
-                valueIds: editing.valueIds ?? []
+                valueIds: editing.valueIds ?? [],
+                _apiParticipants: editing._apiParticipants,
+                _apiCompanyValues: editing._apiCompanyValues
               }
             : undefined
         }

@@ -131,6 +131,30 @@ export interface TaskRecordProps extends BusinessAppContextProps {
 }
 
 /**
+ * System task data interface for AI AGENT and FUNCTION tasks
+ * Provides type safety for system task-specific fields
+ */
+interface SystemTaskData {
+  isSystemTask?: boolean
+  taskType?: 'AI_AGENT' | 'FUNCTION' | 'USER'
+  executionDetails?: {
+    success?: boolean
+    durationMs?: number
+    startedAt?: string
+    completedAt?: string
+    status?: string
+    resultData?: Record<string, unknown>
+    error?: string
+  }
+  inputData?: Record<string, unknown>
+  resultData?: Record<string, unknown>
+  durationMs?: number
+  startTime?: string
+  endTime?: string
+  error?: string
+}
+
+/**
  * Task Record - Comprehensive task detail view using Simple Page layout
  * Shows all task information with beautiful KPI cards and organized content sections
  */
@@ -571,28 +595,31 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({ taskId, accessToken, use
       console.log(`[TaskRecord] 📥 Step data response:`, stepDataResponse)
 
       if (stepDataResponse.data && stepDataResponse.data.length > 0) {
-        const stepData = stepDataResponse.data[0]
+        const stepData = stepDataResponse.data[0] as any
         const taskId = stepData.taskId
 
         console.log(`[TaskRecord] ✅ Found task ID for step ${stepIndex}: ${taskId}`)
 
-        // Navigate to the task detail
+        // Validate taskId before navigation
+        if (!taskId || typeof taskId !== 'string' || taskId.trim() === '') {
+          console.warn(`[TaskRecord] ⚠️ Step ${stepIndex} has no valid taskId`)
+          message.info(`No task details available for this step.`)
+          return
+        }
+
+        // Navigate to the task detail (works for both user tasks and system tasks)
         if (onTaskChange) {
           console.log(`[TaskRecord] 🔄 Using onTaskChange callback`)
           onTaskChange(taskId)
         } else {
           console.log(`[TaskRecord] 🔄 Using URL parameter navigation to taskId=${taskId}`)
 
-          // Update URL parameters to navigate to the new task
           const url = new URL(window.location.href)
           url.searchParams.set('taskId', taskId)
 
           console.log(`[TaskRecord] 🔄 Navigating to URL: ${url.toString()}`)
 
-          // Use pushState to navigate without page reload
           window.history.pushState({}, '', url.toString())
-
-          // Trigger a popstate event to notify the ServiceDesk component
           window.dispatchEvent(new PopStateEvent('popstate', { state: {} }))
 
           console.log(`[TaskRecord] 🔄 Navigation completed to task: ${taskId}`)
@@ -848,42 +875,192 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({ taskId, accessToken, use
                   </div>
                 )}
 
-                {/* Submitted Form Data - Show for completed tasks */}
-                {ticket.formData && Object.keys(ticket.formData).length > 0 && (
-                  <div className="gba:mt-6 gba:space-y-3">
-                    <div className="gba:flex gba:items-center gba:gap-2">
-                      <div className="gba:w-2 gba:h-2 gba:bg-green-500 gba:rounded-full"></div>
-                      <h4 className="gba:text-sm gba:font-medium gba:text-foreground">Submitted Form Data</h4>
-                      <Badge variant="secondary" className="gba:text-xs">
-                        Completed
-                      </Badge>
+                {/* System Task Execution Details - Show for AI AGENT and FUNCTION tasks */}
+                {(() => {
+                  const systemTask = ticket as unknown as SystemTaskData
+                  if (!systemTask.isSystemTask) return null
+
+                  // Extract values once for cleaner code
+                  const execDetails = systemTask.executionDetails || {}
+                  const isSuccess = execDetails.success === true
+                  const taskType = systemTask.taskType || 'AI_AGENT'
+                  const durationMs = execDetails.durationMs ?? systemTask.durationMs
+                  const startedAt = execDetails.startedAt ?? systemTask.startTime
+                  const completedAt = execDetails.completedAt ?? systemTask.endTime
+                  const errorMessage = execDetails.error ?? systemTask.error
+                  const inputData = systemTask.inputData || {}
+                  const resultData = systemTask.resultData || execDetails.resultData || {}
+                  const hasInputData = Object.keys(inputData).length > 0
+                  const hasResultData = Object.keys(resultData).length > 0
+
+                  return (
+                    <div className="gba:mt-6 gba:space-y-4">
+                      {/* Execution Summary */}
+                      <div className="gba:space-y-3">
+                        <div className="gba:flex gba:items-center gba:gap-2">
+                          <div
+                            className={`gba:w-2 gba:h-2 gba:rounded-full ${isSuccess ? 'gba:bg-green-500' : 'gba:bg-red-500'}`}
+                          ></div>
+                          <h4 className="gba:text-sm gba:font-medium gba:text-foreground">Execution Summary</h4>
+                          <Badge variant={isSuccess ? 'secondary' : 'destructive'} className="gba:text-xs">
+                            {taskType}
+                          </Badge>
+                        </div>
+                        <div
+                          className={`gba:p-4 gba:rounded-lg gba:border ${isSuccess ? 'gba:bg-green-50 gba:border-green-200' : 'gba:bg-red-50 gba:border-red-200'}`}
+                        >
+                          <div className="gba:grid gba:grid-cols-2 gba:gap-4">
+                            <div>
+                              <Text type="secondary" className="gba:text-xs">
+                                Status
+                              </Text>
+                              <div className="gba:flex gba:items-center gba:gap-2 gba:mt-1">
+                                {isSuccess ? (
+                                  <CheckCircleIcon className="gba:w-5 gba:h-5 gba:text-green-600" />
+                                ) : (
+                                  <WarningCircleIcon className="gba:w-5 gba:h-5 gba:text-red-600" />
+                                )}
+                                <Text strong>{isSuccess ? 'Completed Successfully' : 'Failed'}</Text>
+                              </div>
+                            </div>
+                            <div>
+                              <Text type="secondary" className="gba:text-xs">
+                                Duration
+                              </Text>
+                              <div className="gba:flex gba:items-center gba:gap-2 gba:mt-1">
+                                <ClockIcon className="gba:w-5 gba:h-5 gba:text-gray-500" />
+                                <Text strong>
+                                  {durationMs ? `${(durationMs / 1000).toFixed(2)} seconds` : 'Unknown'}
+                                </Text>
+                              </div>
+                            </div>
+                            <div>
+                              <Text type="secondary" className="gba:text-xs">
+                                Started At
+                              </Text>
+                              <Text className="gba:block gba:mt-1">
+                                {startedAt ? formatDateTime(startedAt) : 'Unknown'}
+                              </Text>
+                            </div>
+                            <div>
+                              <Text type="secondary" className="gba:text-xs">
+                                Completed At
+                              </Text>
+                              <Text className="gba:block gba:mt-1">
+                                {completedAt ? formatDateTime(completedAt) : 'Unknown'}
+                              </Text>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Error Details (if any) */}
+                      {errorMessage && (
+                        <Alert variant="destructive">
+                          <WarningCircleIcon className="gba:h-4 gba:w-4" />
+                          <div className="gba:ml-2">
+                            <Text strong className="gba:text-red-700">
+                              Error
+                            </Text>
+                            <Text className="gba:block gba:text-red-600 gba:mt-1">{errorMessage}</Text>
+                          </div>
+                        </Alert>
+                      )}
+
+                      {/* Input Data */}
+                      {hasInputData && (
+                        <div className="gba:space-y-3">
+                          <div className="gba:flex gba:items-center gba:gap-2">
+                            <div className="gba:w-2 gba:h-2 gba:bg-blue-500 gba:rounded-full"></div>
+                            <h4 className="gba:text-sm gba:font-medium gba:text-foreground">Input Data</h4>
+                          </div>
+                          <div className="gba:p-4 gba:rounded-lg gba:border gba:bg-blue-50 gba:border-blue-200">
+                            <Descriptions column={1} size="small" bordered>
+                              {Object.entries(inputData).map(([key, value]) => (
+                                <Descriptions.Item key={`input-${key}`} label={key}>
+                                  {typeof value === 'object' ? (
+                                    <pre className="gba:text-xs gba:bg-white gba:p-2 gba:rounded gba:overflow-auto gba:max-h-32">
+                                      {JSON.stringify(value, null, 2)}
+                                    </pre>
+                                  ) : (
+                                    String(value) || <Text type="secondary">(empty)</Text>
+                                  )}
+                                </Descriptions.Item>
+                              ))}
+                            </Descriptions>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Result Data */}
+                      {hasResultData && (
+                        <div className="gba:space-y-3">
+                          <div className="gba:flex gba:items-center gba:gap-2">
+                            <div className="gba:w-2 gba:h-2 gba:bg-green-500 gba:rounded-full"></div>
+                            <h4 className="gba:text-sm gba:font-medium gba:text-foreground">Result Data</h4>
+                            <Badge variant="secondary" className="gba:text-xs">
+                              Output
+                            </Badge>
+                          </div>
+                          <div className="gba:p-4 gba:rounded-lg gba:border gba:bg-green-50 gba:border-green-200">
+                            <Descriptions column={1} size="small" bordered>
+                              {Object.entries(resultData).map(([key, value]) => (
+                                <Descriptions.Item key={`result-${key}`} label={key}>
+                                  {typeof value === 'object' ? (
+                                    <pre className="gba:text-xs gba:bg-white gba:p-2 gba:rounded gba:overflow-auto gba:max-h-32">
+                                      {JSON.stringify(value, null, 2)}
+                                    </pre>
+                                  ) : (
+                                    String(value) || <Text type="secondary">(empty)</Text>
+                                  )}
+                                </Descriptions.Item>
+                              ))}
+                            </Descriptions>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    <Step0DataRenderer
-                      stepData={{ formData: ticket.formData }}
-                      theme={{
-                        containerBg: 'gba:bg-green-50',
-                        containerBorder: 'gba:border-green-200',
-                        labelColor: 'gba:text-green-800',
-                        valueColor: 'gba:text-green-700',
-                        fileBadge: {
-                          bg: 'gba:bg-blue-100',
-                          text: 'gba:text-blue-700',
-                          border: 'gba:border-blue-300'
-                        },
-                        arrayBadge: {
-                          bg: 'gba:bg-green-100',
-                          text: 'gba:text-green-700',
-                          border: 'gba:border-green-300'
-                        },
-                        fileContainer: {
-                          bg: 'gba:bg-green-100',
-                          border: 'gba:border-green-300'
-                        }
-                      }}
-                      testIdPrefix="task-record-completed"
-                    />
-                  </div>
-                )}
+                  )
+                })()}
+
+                {/* Submitted Form Data - Show for completed user tasks (not system tasks) */}
+                {!(ticket as unknown as SystemTaskData).isSystemTask &&
+                  ticket.formData &&
+                  Object.keys(ticket.formData).length > 0 && (
+                    <div className="gba:mt-6 gba:space-y-3">
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <div className="gba:w-2 gba:h-2 gba:bg-green-500 gba:rounded-full"></div>
+                        <h4 className="gba:text-sm gba:font-medium gba:text-foreground">Submitted Form Data</h4>
+                        <Badge variant="secondary" className="gba:text-xs">
+                          Completed
+                        </Badge>
+                      </div>
+                      <Step0DataRenderer
+                        stepData={{ formData: ticket.formData }}
+                        theme={{
+                          containerBg: 'gba:bg-green-50',
+                          containerBorder: 'gba:border-green-200',
+                          labelColor: 'gba:text-green-800',
+                          valueColor: 'gba:text-green-700',
+                          fileBadge: {
+                            bg: 'gba:bg-blue-100',
+                            text: 'gba:text-blue-700',
+                            border: 'gba:border-blue-300'
+                          },
+                          arrayBadge: {
+                            bg: 'gba:bg-green-100',
+                            text: 'gba:text-green-700',
+                            border: 'gba:border-green-300'
+                          },
+                          fileContainer: {
+                            bg: 'gba:bg-green-100',
+                            border: 'gba:border-green-300'
+                          }
+                        }}
+                        testIdPrefix="task-record-completed"
+                      />
+                    </div>
+                  )}
               </CardContent>
             </Card>
 

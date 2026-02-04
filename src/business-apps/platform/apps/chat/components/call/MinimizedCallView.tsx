@@ -10,6 +10,7 @@
  */
 
 import React, { useRef, useEffect, useMemo, useState, useCallback } from 'react'
+import { rtkDebug } from '../../utils/rtkDebug'
 import {
   UserIcon,
   MicrophoneIcon,
@@ -42,6 +43,8 @@ export interface MinimizedCallViewProps {
   remotePeerCount: number
   /** Call start timestamp (Unix ms) - used to calculate live duration */
   callStartTime: number | null
+  /** Call type: 'audio' or 'video' */
+  callType?: 'audio' | 'video'
   /** Whether local mic is muted */
   isMuted: boolean
   /** Whether local video is enabled */
@@ -74,6 +77,7 @@ export const MinimizedCallView: React.FC<MinimizedCallViewProps> = React.memo(
     firstRemoteStream,
     remotePeerCount,
     callStartTime,
+    callType = 'video',
     isMuted,
     isVideoEnabled,
     isHandRaised = false,
@@ -92,12 +96,28 @@ export const MinimizedCallView: React.FC<MinimizedCallViewProps> = React.memo(
     // Calculate live duration independently to avoid parent re-renders
     const [duration, setDuration] = useState(0)
 
+    // Constrain position within viewport boundaries
+    const constrainPosition = useCallback((x: number, y: number) => {
+      const maxX = window.innerWidth - MODAL_WIDTH
+      const maxY = window.innerHeight - MODAL_HEIGHT
+
+      return {
+        x: Math.max(0, Math.min(x, maxX)),
+        y: Math.max(0, Math.min(y, maxY))
+      }
+    }, [])
+
     // Drag state
     const [position, setPosition] = useState(() => {
       const saved = localStorage.getItem(STORAGE_KEY)
       if (saved) {
         try {
-          return JSON.parse(saved)
+          const parsed = JSON.parse(saved)
+          // CRITICAL: Constrain saved position to current viewport
+          return {
+            x: Math.max(0, Math.min(parsed.x, window.innerWidth - MODAL_WIDTH)),
+            y: Math.max(0, Math.min(parsed.y, window.innerHeight - MODAL_HEIGHT))
+          }
         } catch {
           // Ignore invalid JSON
         }
@@ -143,13 +163,13 @@ export const MinimizedCallView: React.FC<MinimizedCallViewProps> = React.memo(
 
       // Only update if the video track ID is different
       if (currentVideoTrackId !== newVideoTrackId) {
-        console.log('[MinimizedCallView] Updating video stream', {
+        rtkDebug.log('[MinimizedCallView] Updating video stream', {
           oldTrackId: currentVideoTrackId,
           newTrackId: newVideoTrackId
         })
         videoElement.srcObject = firstRemoteStream
       } else {
-        console.log('[MinimizedCallView] Video stream already correct, skipping update')
+        rtkDebug.log('[MinimizedCallView] Video stream already correct, skipping update')
       }
     }, [firstRemoteStream])
 
@@ -157,17 +177,6 @@ export const MinimizedCallView: React.FC<MinimizedCallViewProps> = React.memo(
     const hasRemoteVideo = useMemo(() => {
       return firstRemoteStream?.getVideoTracks().some(t => t.enabled) ?? false
     }, [firstRemoteStream])
-
-    // Constrain position within viewport boundaries
-    const constrainPosition = useCallback((x: number, y: number) => {
-      const maxX = window.innerWidth - MODAL_WIDTH
-      const maxY = window.innerHeight - MODAL_HEIGHT
-
-      return {
-        x: Math.max(0, Math.min(x, maxX)),
-        y: Math.max(0, Math.min(y, maxY))
-      }
-    }, [])
 
     // Handle drag start
     const handleMouseDown = useCallback(
@@ -345,24 +354,26 @@ export const MinimizedCallView: React.FC<MinimizedCallViewProps> = React.memo(
               )}
             </button>
 
-            {/* Video button */}
-            <button
-              onClick={onToggleVideo}
-              onMouseDown={e => e.stopPropagation()}
-              className={`gba:p-2 gba:rounded-full gba:transition-all ${
-                !isVideoEnabled
-                  ? 'gba:bg-destructive gba:text-destructive-foreground'
-                  : 'gba:bg-secondary gba:text-secondary-foreground hover:gba:bg-accent'
-              }`}
-              title={isVideoEnabled ? t('groupCall-turnOffVideo') : t('groupCall-turnOnVideo')}
-              data-testid={`${prefixDataTestId}-minimized-video-btn`}
-            >
-              {isVideoEnabled ? (
-                <VideoCameraIcon className="gba:h-4 gba:w-4" weight="fill" />
-              ) : (
-                <VideoCameraSlashIcon className="gba:h-4 gba:w-4" weight="fill" />
-              )}
-            </button>
+            {/* Video button - only show for video calls */}
+            {callType === 'video' && (
+              <button
+                onClick={onToggleVideo}
+                onMouseDown={e => e.stopPropagation()}
+                className={`gba:p-2 gba:rounded-full gba:transition-all ${
+                  !isVideoEnabled
+                    ? 'gba:bg-destructive gba:text-destructive-foreground'
+                    : 'gba:bg-secondary gba:text-secondary-foreground hover:gba:bg-accent'
+                }`}
+                title={isVideoEnabled ? t('groupCall-turnOffVideo') : t('groupCall-turnOnVideo')}
+                data-testid={`${prefixDataTestId}-minimized-video-btn`}
+              >
+                {isVideoEnabled ? (
+                  <VideoCameraIcon className="gba:h-4 gba:w-4" weight="fill" />
+                ) : (
+                  <VideoCameraSlashIcon className="gba:h-4 gba:w-4" weight="fill" />
+                )}
+              </button>
+            )}
           </div>
 
           {/* Right side - expand & end call */}

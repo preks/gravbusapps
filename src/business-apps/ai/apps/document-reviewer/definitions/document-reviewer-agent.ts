@@ -251,7 +251,8 @@ Provides structured annotations for:
 Returns JSON with precise text positions for visual highlighting and commenting in the UI.`,
   workspaceId,
   modelId,
-  tools: ['document_observer'], // Attach the document_observer tool
+  // Tool is provided by functions-service (not persisted in prompt-manager)
+  tools: ['function.document_observer'],
   systemContent: DOCUMENT_REVIEWER_SYSTEM_PROMPT,
   userContent: DOCUMENT_REVIEWER_USER_PROMPT,
   responseSchema: DOCUMENT_REVIEWER_RESPONSE_SCHEMA,
