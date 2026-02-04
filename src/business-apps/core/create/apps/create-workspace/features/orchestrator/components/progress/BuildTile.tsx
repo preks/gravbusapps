@@ -29,8 +29,8 @@ import {
   Link2,
   type LucideIcon
 } from 'lucide-react'
-import { CircularProgress } from '../CircularProgress'
-import type { ComponentTileInfo, BuildStatus } from '../../types/orchestrator'
+import { CircularProgress } from '../widgets/CircularProgress'
+import type { ComponentTileInfo, BuildStatus } from '../../types'
 
 export interface BuildTileProps {
   tile: ComponentTileInfo

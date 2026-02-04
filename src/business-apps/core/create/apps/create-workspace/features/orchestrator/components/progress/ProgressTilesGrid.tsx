@@ -10,8 +10,8 @@
 import React from 'react'
 import { Progress, Badge } from '@newwork/nw-design-system'
 import { CheckCircle2, XCircle, Clock, Loader2, Search, Link2, Recycle } from 'lucide-react'
-import { BuildTile } from './tiles'
-import type { TileState, ComponentType, BuildStatus, BuildPhase } from '../types/orchestrator'
+import { BuildTile } from './BuildTile'
+import type { TileState, ComponentType, BuildStatus, BuildPhase } from '../../types'
 
 export interface ProgressTilesGridProps {
   tiles: TileState
