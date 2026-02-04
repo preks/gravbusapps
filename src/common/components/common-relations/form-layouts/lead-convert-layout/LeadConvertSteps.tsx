@@ -26,7 +26,8 @@ export interface LeadConvertAccountStepProps {
   customSegments?: Array<{ id: string; title: string; content: React.ReactNode }>
   avatarFileRef?: React.MutableRefObject<{ file: File; thumbnail: string } | null>
   isActive?: boolean
-  accountContext?: 'crm' | 'irm'
+  // REQUIRED: Must be explicitly set to 'crm' or 'irm' to ensure correct labels
+  accountContext: 'crm' | 'irm'
 }
 
 export const LeadConvertAccountStep: React.FC<LeadConvertAccountStepProps> = ({

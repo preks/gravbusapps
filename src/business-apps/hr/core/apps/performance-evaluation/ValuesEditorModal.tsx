@@ -18,7 +18,7 @@ export interface ValueEditorValues {
   version?: number
   title: string
   description: string
-  active: boolean
+  recordState: string
 }
 
 interface ValuesEditorModalProps {
@@ -32,13 +32,13 @@ const ValuesEditorModal: React.FC<ValuesEditorModalProps> = ({ open, onOpenChang
   const { t } = useTranslation(translations)
   const [title, setTitle] = useState(initialValues?.title || '')
   const [description, setDescription] = useState(initialValues?.description || '')
-  const [active, setActive] = useState<boolean>(initialValues?.active ?? true)
+  const [recordState, setRecordState] = useState<string>(initialValues?.recordState ?? 'active')
 
   useEffect(() => {
     if (!open) return
     setTitle(initialValues?.title || '')
     setDescription(initialValues?.description || '')
-    setActive(initialValues?.active ?? true)
+    setRecordState(initialValues?.recordState ?? 'active')
   }, [open, initialValues])
 
   const handleSave = () => {
@@ -48,7 +48,7 @@ const ValuesEditorModal: React.FC<ValuesEditorModalProps> = ({ open, onOpenChang
       version: initialValues?.version,
       title: title.trim(),
       description: description.trim(),
-      active
+      recordState
     })
     onOpenChange(false)
   }
@@ -74,7 +74,10 @@ const ValuesEditorModal: React.FC<ValuesEditorModalProps> = ({ open, onOpenChang
               <Input id="value-description" value={description} onChange={e => setDescription(e.target.value)} />
             </div>
             <label className="gba:flex gba:items-center gba:gap-2">
-              <Checkbox checked={active} onCheckedChange={(v: boolean) => setActive(!!v)} />
+              <Checkbox
+                checked={recordState === 'active'}
+                onCheckedChange={(v: boolean) => setRecordState(v ? 'active' : 'ARCHIVED')}
+              />
               <span>{t('field-active')}</span>
             </label>
           </div>
