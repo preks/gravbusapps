@@ -10,7 +10,7 @@ import { Employee, EmployeeAbsenceEntitlement } from '../../hooks/useEmployeeDat
 dayjs.extend(isSameOrAfter)
 dayjs.extend(isSameOrBefore)
 import { Avatar } from '@newwork/gravity-ui-catalog'
-import { Card } from '@newwork/nw-design-system'
+import { Card, useTranslation } from '@newwork/nw-design-system'
 import {
   PiBriefcase,
   PiStack,
@@ -26,7 +26,6 @@ import {
 } from 'react-icons/pi'
 import { ArrowCircleLeftIcon } from '@phosphor-icons/react'
 import { UserInfoProps } from '@/common/BusinessAppContext'
-import { useTranslation } from '@newwork/nw-design-system'
 import translations from '../../_i18n'
 import { AppAction } from '@/components/app-action/AppAction'
 import { AppActionMenu } from '@/components/app-action-menu'

@@ -2,11 +2,10 @@
 
 import React from 'react'
 import dayjs from 'dayjs'
-import { Card } from '@newwork/nw-design-system'
+import { Card, useTranslation } from '@newwork/nw-design-system'
 import { Employee } from '../../hooks/useEmployeeData'
 import { formatPhoneNumberWithCountryCode, getTranslatedValue } from '../../utils/formatters'
 import useEmployeePermissions, { SECTION_KEYS } from '../../hooks/useEmployeePermissions'
-import { useTranslation } from '@newwork/nw-design-system'
 import translations from '../../_i18n'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
