@@ -28,7 +28,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ 'data-testid': testId 
       <style>{keyframesStyles}</style>
       <section className="gba:relative gba:py-10 gba:px-6" data-testid={testId}>
         {/* Animated gradient background */}
-        <div className="gba:absolute gba:inset-0 gba:bg-gradient-to-br gba:from-ai/5 gba:via-background gba:to-primary/5" />
+        <div className="gba:absolute gba:inset-0 gba:bg-linear-to-br gba:from-ai/5 gba:via-background gba:to-primary/5" />
 
         {/* Animated mesh gradient overlay */}
         <div
@@ -61,7 +61,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ 'data-testid': testId 
               </span>
               <h1 className="gba:text-5xl gba:sm:text-6xl gba:lg:text-7xl gba:font-bold gba:tracking-tight">
                 <span
-                  className="gba:bg-gradient-to-r gba:from-ai gba:via-primary gba:to-ai gba:bg-clip-text gba:text-transparent"
+                  className="gba:bg-linear-to-r gba:from-ai gba:via-primary gba:to-ai gba:bg-clip-text gba:text-transparent"
                   style={{
                     backgroundSize: '200% 100%',
                     animation: 'gradient-shift 4s ease infinite'
