@@ -28,6 +28,14 @@ export type ProgressEventType =
   | 'publish_completed'
   | 'publish_error'
   | 'publish_skipped'
+  // AI Builder streaming events
+  | 'ai_builder_started'
+  | 'ai_builder_response' // Streaming AI text chunks
+  | 'ai_builder_tool_call'
+  | 'ai_builder_tool_result'
+  | 'ai_builder_done'
+  | 'ai_builder_error'
+  | 'screen_generation_complete'
   // Final event
   | 'build_complete'
 
@@ -49,6 +57,9 @@ export interface BuildProgressEvent {
   resource_url?: string // URL path for the published screen
   azure_url?: string // Azure CDN URL
   files_published?: number // Number of files published
+
+  // AI Builder streaming data
+  content?: string // Streaming text content from AI Builder responses
 
   // Summary for build_complete event
   total_components?: number

@@ -176,6 +176,14 @@ export function useBuildProgress({
         publish_completed: () => setPhaseMessage(event.message),
         publish_error: () => setPhaseMessage(event.message),
         publish_skipped: () => setPhaseMessage(event.message),
+        // AI Builder streaming events
+        ai_builder_started: () => setPhaseMessage(event.message),
+        ai_builder_response: () => setPhaseMessage(event.content || event.message),
+        ai_builder_tool_call: () => setPhaseMessage(event.message),
+        ai_builder_tool_result: () => setPhaseMessage(event.message),
+        ai_builder_done: () => setPhaseMessage(event.message),
+        ai_builder_error: () => setPhaseMessage(event.message),
+        screen_generation_complete: () => setPhaseMessage(event.message),
         build_complete: () => {
           setCurrentPhase('complete')
           setIsBuilding(false)
