@@ -5,19 +5,9 @@ export type { UseOrchestratorClientOptions, UseOrchestratorClientResult } from '
 export { useBuildProgress } from './useBuildProgress'
 export type { UseBuildProgressOptions, UseBuildProgressResult } from './useBuildProgress'
 
-// New refactored state hooks (for OrchestratorViewEnhanced)
+// State management hooks
 export { useOrchestratorState } from './useOrchestratorState'
-export type { UseOrchestratorStateOptions, UseOrchestratorStateResult } from './useOrchestratorState'
-
-export { useThinkingSteps } from './useThinkingSteps'
-export type { UseThinkingStepsResult } from './useThinkingSteps'
-
-export { useBuildLogs } from './useBuildLogs'
-export type { UseBuildLogsResult } from './useBuildLogs'
-
-// Legacy state hook (for OrchestratorViewConversational)
-export { useOrchestratorStateOld } from './useOrchestratorStateOld'
-export type { OrchestratorState, UseOrchestratorStateOldOptions } from './useOrchestratorStateOld'
+export type { OrchestratorState, UseOrchestratorStateOptions } from './useOrchestratorState'
 
 export { useOrchestratorHandlers } from './useOrchestratorHandlers'
 export type { OrchestratorHandlers, OrchestratorHandlerDeps } from './useOrchestratorHandlers'

@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from 'react'
-import type { OrchestratorState } from './useOrchestratorStateOld'
+import type { OrchestratorState } from './useOrchestratorState'
 import type { UseBuildProgressResult } from './useBuildProgress'
 import type { BuildPhase } from '../types'
 
