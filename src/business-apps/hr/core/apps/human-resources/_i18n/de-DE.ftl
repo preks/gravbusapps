@@ -136,6 +136,7 @@ hr-analytics-compensation-analysis = Vergütungsanalyse
 hr-analytics-compensation-description = Umfassende Vergütungskennzahlen, Gehaltsanalysen und Lohnkosten-Insights
 hr-analytics-total-payroll = Gesamtlohnkosten
 hr-analytics-annual-payroll = Jährliche Lohnkosten
+hr-analytics-coming-soon = Kommt bald
 hr-analytics-median-salary = Mediangehalt
 hr-analytics-company-median = Unternehmensmedian
 hr-analytics-avg-salary = Durchschnittsgehalt

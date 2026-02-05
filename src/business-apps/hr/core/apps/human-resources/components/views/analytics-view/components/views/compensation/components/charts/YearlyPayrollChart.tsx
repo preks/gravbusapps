@@ -8,10 +8,14 @@ import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
 const { Title, Text } = Typography
 
+interface YearlyPayrollChartProps extends BusinessAppContextProps {
+  showComingSoon?: boolean
+}
+
 /**
  * A bar chart component that displays the yearly payroll data for the last 5 years
  */
-const YearlyPayrollChart: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
+const YearlyPayrollChart: React.FC<YearlyPayrollChartProps> = ({ accessToken, showComingSoon = false }) => {
   // Fetch yearly payroll data
   const { data, loading, error } = useYearlyPayroll(accessToken)
   const { t } = useTranslation(hrTranslations)
@@ -28,7 +32,8 @@ const YearlyPayrollChart: React.FC<BusinessAppContextProps> = ({ accessToken }) 
   }
 
   // Custom tooltip formatter
-  const tooltipFormatter = (value: number) => {
+  const tooltipFormatter = (value: number | undefined) => {
+    if (value === undefined || value === null) return ''
     return formatCurrency(value)
   }
 
@@ -45,7 +50,11 @@ const YearlyPayrollChart: React.FC<BusinessAppContextProps> = ({ accessToken }) 
       </div>
 
       {/* Chart Content */}
-      {loading ? (
+      {showComingSoon ? (
+        <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-96">
+          <Text className="gba:text-muted-foreground gba:text-lg">{t('hr-analytics-coming-soon')}</Text>
+        </div>
+      ) : loading ? (
         <div className="gba:flex gba:items-center gba:justify-center gba:h-96">
           <Spin size="large" />
         </div>
@@ -72,7 +81,10 @@ const YearlyPayrollChart: React.FC<BusinessAppContextProps> = ({ accessToken }) 
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="year" name={t('hr-analytics-chart-year')} />
               <YAxis name={t('hr-analytics-total-payroll')} tickFormatter={tooltipFormatter} />
-              <Tooltip formatter={tooltipFormatter} labelFormatter={label => `${t('hr-analytics-chart-year')}: ${label}`} />
+              <Tooltip
+                formatter={tooltipFormatter}
+                labelFormatter={label => `${t('hr-analytics-chart-year')}: ${label}`}
+              />
               <Legend />
               <Bar
                 name={t('hr-analytics-total-payroll')}

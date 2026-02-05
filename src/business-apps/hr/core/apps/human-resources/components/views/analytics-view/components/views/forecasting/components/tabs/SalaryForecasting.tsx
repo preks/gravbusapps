@@ -71,7 +71,6 @@ export const SalaryForecasting: React.FC<SalaryForecastingProps> = props => {
     const activeEmployees = employees.filter(wc => !wc.exitDate || new Date(wc.exitDate) > today)
 
     const totalMonthlySalary = activeEmployees.reduce((sum, wc) => sum + (wc.monthlyGrossSalary || 0), 0)
-    const totalAnnualSalary = activeEmployees.reduce((sum, wc) => sum + (wc.annualGrossSalary || 0), 0)
 
     const currencyCode =
       activeEmployees.length && activeEmployees[0].currency && (activeEmployees[0].currency as any).code
@@ -96,7 +95,7 @@ export const SalaryForecasting: React.FC<SalaryForecastingProps> = props => {
       {
         id: 'total-annual-payroll',
         title: t('hr-analytics-forecasting-kpi-total-annual-payroll'),
-        value: activeEmployees.length === 0 ? '-' : `${formatSalary(totalAnnualSalary)} ${currencyCode}`,
+        value: t('hr-analytics-coming-soon'),
         icon: <Icon icon={UsersIcon} size="sm" decorative />,
         iconColor: 'var(--nw-chart-1)',
         footer: t('hr-analytics-annual-employee-compensation')
@@ -104,7 +103,7 @@ export const SalaryForecasting: React.FC<SalaryForecastingProps> = props => {
       {
         id: 'total-monthly-salary',
         title: t('hr-analytics-forecasting-kpi-total-monthly-salary'),
-        value: activeEmployees.length === 0 ? '-' : `${formatSalary(totalMonthlySalary)} ${currencyCode}`,
+        value: t('hr-analytics-coming-soon'),
         icon: <Icon icon={UsersIcon} size="sm" decorative />,
         iconColor: 'var(--nw-chart-2)',
         footer: t('hr-analytics-current-monthly-payroll')

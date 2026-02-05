@@ -241,6 +241,7 @@ hr-analytics-compensation-analysis = Analiza compensațiilor
 hr-analytics-compensation-description = Metrici de compensație, analize salariale și insight-uri de payroll
 hr-analytics-total-payroll = Costuri salariale totale
 hr-analytics-annual-payroll = Costuri salariale anuale
+hr-analytics-coming-soon = În curând
 hr-analytics-median-salary = Salariu median
 hr-analytics-company-median = Mediana companiei
 hr-analytics-avg-salary = Salariu mediu

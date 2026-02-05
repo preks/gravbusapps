@@ -23,7 +23,7 @@ interface CompensationProps extends BusinessAppContextProps {
 export const Compensation: React.FC<CompensationProps> = ({ accessToken, prefixDataTestId = 'Compensation' }) => {
   const { t } = useTranslation(hrTranslations)
   // Use separate hooks for each metric
-  const { totalPayroll, loading: payrollLoading, error: payrollError } = useTotalPayroll(accessToken)
+  const { loading: payrollLoading, error: payrollError } = useTotalPayroll(accessToken)
   const { medianSalary, loading: medianLoading, error: medianError } = useMedianSalary(accessToken)
   const { averageSalary, loading: avgSalaryLoading, error: avgSalaryError } = useAverageSalary(accessToken)
   const {
@@ -49,14 +49,6 @@ export const Compensation: React.FC<CompensationProps> = ({ accessToken, prefixD
     }
   }, [averageSalary])
 
-  // Format total payroll in millions
-  const formattedTotalPayroll = useMemo(() => {
-    return {
-      value: totalPayroll / 1000000, // Convert to millions
-      label: 'Annual payroll'
-    }
-  }, [totalPayroll])
-
   // Format median salary in thousands
   const formattedMedianSalary = useMemo(() => {
     return {
@@ -71,7 +63,7 @@ export const Compensation: React.FC<CompensationProps> = ({ accessToken, prefixD
       {
         id: 'total-payroll',
         title: t('hr-analytics-total-payroll'),
-        value: loading ? t('hr-data-filter-loading') : `${formattedTotalPayroll.value.toFixed(1)}M`,
+        value: t('hr-analytics-coming-soon'),
         icon: <Icon icon={CurrencyDollarIcon} size="sm" decorative />,
         iconColor: 'var(--nw-chart-1)',
         footer: t('hr-analytics-annual-payroll')
@@ -101,7 +93,7 @@ export const Compensation: React.FC<CompensationProps> = ({ accessToken, prefixD
         footer: t('hr-analytics-average-increase')
       }
     ],
-    [loading, formattedTotalPayroll, formattedMedianSalary, formattedAverageSalary, meritIncreases, t]
+    [loading, formattedMedianSalary, formattedAverageSalary, meritIncreases, t]
   )
 
   if (error) {
@@ -138,7 +130,7 @@ export const Compensation: React.FC<CompensationProps> = ({ accessToken, prefixD
       </div>
 
       {/* Yearly Payroll Chart */}
-      <YearlyPayrollChart accessToken={accessToken} />
+      <YearlyPayrollChart accessToken={accessToken} showComingSoon={true} />
 
       {/* Average Salary by Org Unit Chart */}
       <SalaryByOrgUnitChart data={salaryByOrgUnit} loading={salaryByOrgUnitLoading} error={salaryByOrgUnitError} />
