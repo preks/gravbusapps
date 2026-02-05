@@ -175,6 +175,11 @@ const EmployeeForm: React.FC = () => {
         payload.employee.displayName = `${formValues.firstName} ${formValues.lastName}`
       }
 
+      window.dispatchEvent(
+        new CustomEvent('com.newwork.employeeForm.saveEmployeePayload', {
+          detail: { payload }
+        })
+      )
       dispatchProcessContinueEvent('pse_submit', payload)
     } catch (err) {
       console.error('Error submitting employee form:', err)
