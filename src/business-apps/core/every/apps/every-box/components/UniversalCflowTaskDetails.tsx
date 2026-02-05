@@ -722,7 +722,7 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
   // For Blink tasks, use the simple view from every-box
   if (isBlinkTask) {
     return (
-      <div className="gba:flex gba:flex-col gba:h-full" data-testid="universal-cflow-task-details">
+      <div className="gba:flex gba:flex-col gba:flex-1 gba:min-h-0" data-testid="universal-cflow-task-details">
         {/* Task Header */}
         <TaskDetailHeader
           title={taskTitle}
@@ -917,7 +917,7 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
 
   // For non-Blink cFlow tasks, use the full form view
   return (
-    <div className="gba:flex gba:flex-col gba:h-full" data-testid="universal-cflow-task-details">
+    <div className="gba:flex gba:flex-col gba:flex-1 gba:min-h-0" data-testid="universal-cflow-task-details">
       {/* Task Header - Using shared TaskDetailHeader component */}
       <TaskDetailHeader
         title={taskTitle}

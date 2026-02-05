@@ -337,6 +337,10 @@ ai-assistant-send = Send
 ai-assistant-cancel = Cancel
 ai-assistant-ai-assisted = AI-assisted
 ai-assistant-applied = Applied
+ai-assistant-draft-helper = AI Writing Assistant
+ai-assistant-draft-placeholder = Use AI to help draft your response...
+ai-assistant-copy = Copy
+ai-assistant-copied = Copied to clipboard
 
 # AI Predictions
 ai-prediction-helpful = Was this helpful?
