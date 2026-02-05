@@ -28,12 +28,11 @@ import { useAppActionData } from '@/common/hooks/useAppActionData'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { env } from '@/common/env/EnvUtils'
 import { buildFileUrl } from '@/common/utils/fileUtils'
+import { getDocumentIcon } from '@/common/utils/documentIconUtils'
 import { FileInfo } from '@/common/types/FileTypes'
 import {
   Eye,
   MoreHorizontal,
-  File,
-  Folder,
   Upload,
   ListTree,
   List,
@@ -42,102 +41,12 @@ import {
   Search,
   Expand,
   Minimize,
-  FileText,
-  FileSpreadsheet,
-  FileImage,
-  FileVideo,
-  FileAudio,
-  Archive,
-  Code,
-  Download
+  Download,
+  Folder,
+  File
 } from 'lucide-react'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system'
 import { DebouncedInput } from '@/components/debounced-input/DebouncedInput'
-
-// Function to get appropriate icon based on file type
-const getFileIcon = (document: DocumentItem) => {
-  if (document.folder) {
-    return <Folder className="gba:h-4 gba:w-4" style={{ color: 'var(--nw-warning)' }} />
-  }
-
-  const fileName = document.name?.toLowerCase() || ''
-  const mimeType = document.mimeType?.toLowerCase() || ''
-
-  // PDF files
-  if (fileName.endsWith('.pdf') || mimeType.includes('pdf')) {
-    return <FileText className="gba:h-4 gba:w-4" style={{ color: 'var(--nw-destructive)' }} />
-  }
-
-  // Word documents
-  if (
-    fileName.endsWith('.doc') ||
-    fileName.endsWith('.docx') ||
-    mimeType.includes('msword') ||
-    mimeType.includes('wordprocessingml')
-  ) {
-    return <FileText className="gba:h-4 gba:w-4" style={{ color: 'var(--nw-info)' }} />
-  }
-
-  // Excel files
-  if (
-    fileName.endsWith('.xls') ||
-    fileName.endsWith('.xlsx') ||
-    fileName.endsWith('.csv') ||
-    mimeType.includes('excel') ||
-    mimeType.includes('spreadsheetml') ||
-    mimeType.includes('csv')
-  ) {
-    return <FileSpreadsheet className="gba:h-4 gba:w-4" style={{ color: 'var(--nw-success)' }} />
-  }
-
-  // PowerPoint files
-  if (
-    fileName.endsWith('.ppt') ||
-    fileName.endsWith('.pptx') ||
-    mimeType.includes('powerpoint') ||
-    mimeType.includes('presentationml')
-  ) {
-    return <FileText className="gba:h-4 gba:w-4" style={{ color: 'var(--nw-warning)' }} />
-  }
-
-  // Image files
-  if (fileName.match(/\.(jpg|jpeg|png|gif|bmp|svg|webp)$/) || mimeType.startsWith('image/')) {
-    return <FileImage className="gba:h-4 gba:w-4" style={{ color: 'var(--nw-chart-5)' }} />
-  }
-
-  // Video files
-  if (fileName.match(/\.(mp4|avi|mov|wmv|flv|webm|mkv)$/) || mimeType.startsWith('video/')) {
-    return <FileVideo className="gba:h-4 gba:w-4" style={{ color: 'var(--nw-chart-7)' }} />
-  }
-
-  // Audio files
-  if (fileName.match(/\.(mp3|wav|flac|aac|ogg|wma)$/) || mimeType.startsWith('audio/')) {
-    return <FileAudio className="gba:h-4 gba:w-4" style={{ color: 'var(--nw-chart-2)' }} />
-  }
-
-  // Archive files
-  if (fileName.match(/\.(zip|rar|7z|tar|gz|bz2)$/) || mimeType.includes('zip') || mimeType.includes('compressed')) {
-    return <Archive className="gba:h-4 gba:w-4" style={{ color: 'var(--nw-muted-foreground)' }} />
-  }
-
-  // Code files
-  if (
-    fileName.match(/\.(js|ts|jsx|tsx|html|css|scss|json|xml|sql|py|java|cpp|c|php|rb|go|rs)$/) ||
-    mimeType.includes('javascript') ||
-    mimeType.includes('json') ||
-    mimeType.includes('xml')
-  ) {
-    return <Code className="gba:h-4 gba:w-4" style={{ color: 'var(--nw-chart-3)' }} />
-  }
-
-  // Text files
-  if (fileName.endsWith('.txt') || mimeType.includes('text/plain')) {
-    return <FileText className="gba:h-4 gba:w-4" style={{ color: 'var(--nw-muted-foreground)' }} />
-  }
-
-  // Default file icon
-  return <File className="gba:h-4 gba:w-4" style={{ color: 'var(--nw-muted-foreground)' }} />
-}
 
 // Custom column interface for document table
 export interface DocumentColumn {
@@ -350,7 +259,7 @@ export const DocumentSection: React.FC<DocumentSectionProps> = ({
             ) : null}
 
             {/* File/Folder icon with proper type-based styling */}
-            {getFileIcon(document)}
+            {getDocumentIcon({ name: document.name, mimeType: document.mimeType, isFolder: document.folder })}
 
             {/* Document name */}
             <span
