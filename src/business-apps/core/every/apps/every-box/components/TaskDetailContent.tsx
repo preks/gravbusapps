@@ -509,9 +509,9 @@ export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
 
     if (screenMetadata?.builderType === 'NATIVE_SCREEN' && screenMetadata.componentPath) {
       return (
-        <div className="gba:flex gba:flex-col gba:h-full">
-          {/* AI Section for tasks with custom screens */}
-          <div className="gba:p-4 gba:space-y-3">
+        <div className="gba:flex gba:flex-col gba:h-full gba:overflow-hidden">
+          {/* AI Section for tasks with custom screens - shrinks to fit content */}
+          <div className="gba:p-4 gba:space-y-3 gba:flex-shrink-0">
             <TaskAiSection
               taskId={task.id}
               source={task.source}
@@ -523,7 +523,8 @@ export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
             {/* AI Draft Assistant for composing responses */}
             <AiDraftAssistant taskId={task.id} source={task.source} accessToken={accessToken} />
           </div>
-          <div className="gba:flex-1 gba:min-h-0">
+          {/* Screen content - takes remaining space and scrolls */}
+          <div className="gba:flex-1 gba:min-h-0 gba:overflow-auto">
             <RemoteScreenLoader
               componentPath={screenMetadata.componentPath}
               version={screenMetadata.version}
@@ -542,9 +543,9 @@ export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
 
     if (screenMetadata?.builderType === 'LOWCODER' && screenMetadata.appId) {
       return (
-        <div className="gba:flex gba:flex-col gba:h-full">
-          {/* AI Section for tasks with custom screens */}
-          <div className="gba:p-4 gba:space-y-3">
+        <div className="gba:flex gba:flex-col gba:h-full gba:overflow-hidden">
+          {/* AI Section for tasks with custom screens - shrinks to fit content */}
+          <div className="gba:p-4 gba:space-y-3 gba:flex-shrink-0">
             <TaskAiSection
               taskId={task.id}
               source={task.source}
@@ -556,7 +557,8 @@ export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
             {/* AI Draft Assistant for composing responses */}
             <AiDraftAssistant taskId={task.id} source={task.source} accessToken={accessToken} />
           </div>
-          <div className="gba:flex-1 gba:min-h-0">
+          {/* Screen content - takes remaining space and scrolls */}
+          <div className="gba:flex-1 gba:min-h-0 gba:overflow-auto">
             <LowcoderScreenLoader
               appId={screenMetadata.appId}
               appName={screenMetadata.appName || t('task-dialog-lowcoder-screen')}
