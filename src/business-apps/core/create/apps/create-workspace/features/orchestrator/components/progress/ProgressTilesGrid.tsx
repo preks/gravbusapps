@@ -9,7 +9,7 @@
 
 import React from 'react'
 import { Progress, Badge } from '@newwork/nw-design-system'
-import { CheckCircle2, XCircle, Clock, Loader2, Search, Link2, Recycle } from 'lucide-react'
+import { CheckCircle2, Clock, Loader2, Search, Link2, Recycle } from 'lucide-react'
 import { BuildTile } from './BuildTile'
 import type { TileState, ComponentType, BuildStatus, BuildPhase } from '../../types'
 
@@ -88,16 +88,6 @@ export const ProgressTilesGrid: React.FC<ProgressTilesGridProps> = ({
       <div className="gba:space-y-3">
         <div className="gba:flex gba:items-center gba:justify-between">
           <div className="gba:flex gba:items-center gba:gap-3">
-            {/* Animated focal point - monochrome spinner */}
-            {overallStatus === 'building' && (
-              <div className="gba:relative gba:w-5 gba:h-5">
-                <Loader2 className="gba:w-5 gba:h-5 gba:text-foreground gba:animate-spin" />
-              </div>
-            )}
-            {overallStatus === 'completed' && <CheckCircle2 className="gba:w-5 gba:h-5 gba:text-foreground" />}
-            {overallStatus === 'error' && <XCircle className="gba:w-5 gba:h-5 gba:text-foreground" />}
-            {overallStatus === 'pending' && <Clock className="gba:w-5 gba:h-5 gba:text-muted-foreground" />}
-
             <div>
               <div className="gba:flex gba:items-center gba:gap-2">
                 <h3 className="gba:font-semibold gba:text-foreground">

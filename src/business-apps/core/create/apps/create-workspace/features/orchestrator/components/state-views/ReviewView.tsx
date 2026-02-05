@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { Button, Textarea } from '@newwork/nw-design-system'
 import { Edit2, X, Check } from 'lucide-react'
 import { Canvas } from '../layouts/Canvas'
-import { BuildPlanReview } from '../widgets/BuildPlanReview'
+import { BuildPlanReview } from '../widgets/buildPlanReview'
 import { EditPlanModal } from '../modals/EditPlanModal'
 import { FloatingActionButton } from '../widgets/FloatingActionButton'
 import type { BuildPlan, ComponentSpec } from '../../types'
@@ -81,11 +81,9 @@ export const ReviewView: React.FC<ReviewViewProps> = ({
           : 'Review the proposed components and make any adjustments'
       }
       actions={
-        <>
-          <Button variant="ghost" onClick={onReset} disabled={isAnalyzing || isRefining}>
-            ← Start Over
-          </Button>
-        </>
+        <Button variant="ghost" onClick={onReset} disabled={isAnalyzing || isRefining}>
+          ← Start Over
+        </Button>
       }
       showGradientFade={true}
       floatingAction={
@@ -102,26 +100,7 @@ export const ReviewView: React.FC<ReviewViewProps> = ({
         {/* Show User Prompt */}
         {userPrompt && (
           <div className="gba:p-4 gba:bg-muted gba:rounded-xl gba:border gba:border-border gba:mt-4 gba:relative">
-            {!isEditingPrompt ? (
-              <div className="gba:flex gba:items-start gba:justify-between gba:gap-4">
-                <div className="gba:flex-1">
-                  <p className="gba:text-xs gba:text-muted-foreground gba:mb-2 gba:uppercase gba:tracking-wider gba:font-semibold">
-                    Building:
-                  </p>
-                  <p className="gba:text-sm gba:text-foreground gba:leading-relaxed">"{userPrompt}"</p>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleEditPromptClick}
-                  disabled={isAnalyzing || isRefining}
-                  className="gba:text-xs gba:shrink-0"
-                >
-                  <Edit2 className="gba:w-3 gba:h-3 gba:mr-1.5" />
-                  Edit Prompt
-                </Button>
-              </div>
-            ) : (
+            {isEditingPrompt ? (
               <div className="gba:space-y-3">
                 <p className="gba:text-xs gba:text-muted-foreground gba:uppercase gba:tracking-wider gba:font-semibold">
                   Edit Your Request:
@@ -149,6 +128,25 @@ export const ReviewView: React.FC<ReviewViewProps> = ({
                     Update & Re-analyze
                   </Button>
                 </div>
+              </div>
+            ) : (
+              <div className="gba:flex gba:items-start gba:justify-between gba:gap-4">
+                <div className="gba:flex-1">
+                  <p className="gba:text-xs gba:text-muted-foreground gba:mb-2 gba:uppercase gba:tracking-wider gba:font-semibold">
+                    Building:
+                  </p>
+                  <p className="gba:text-sm gba:text-foreground gba:leading-relaxed">"{userPrompt}"</p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleEditPromptClick}
+                  disabled={isAnalyzing || isRefining}
+                  className="gba:text-xs gba:shrink-0"
+                >
+                  <Edit2 className="gba:w-3 gba:h-3 gba:mr-1.5" />
+                  Edit Prompt
+                </Button>
               </div>
             )}
           </div>

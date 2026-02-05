@@ -109,11 +109,11 @@ export const IdleCanvas: React.FC<IdleCanvasProps> = ({
             {isLoading ? (
               <>
                 <span className="gba:animate-spin gba:mr-2">⏳</span>
-                Analyzing...
+                <span>Analyzing...</span>
               </>
             ) : (
               <>
-                Analyze & Build
+                <span>Analyze & Build</span>
                 <ArrowRight className="gba:ml-2 gba:w-4 gba:h-4" />
               </>
             )}
@@ -128,23 +128,26 @@ export const IdleCanvas: React.FC<IdleCanvasProps> = ({
           <span className="gba:text-sm gba:font-medium gba:text-muted-foreground">Try these examples:</span>
         </div>
         <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 gba:gap-3">
-          {examplePrompts.map((prompt, index) => (
-            <button
-              key={index}
-              onClick={() => handleExampleClick(prompt)}
-              disabled={isLoading}
-              className={cn(
-                'gba:p-4 gba:text-left gba:text-sm gba:text-muted-foreground gba:bg-muted gba:rounded-xl',
-                'gba:border gba:border-border hover:gba:border-foreground/30 hover:gba:bg-muted/80',
-                'gba:transition-all gba:duration-200',
-                'gba:disabled:opacity-50 gba:disabled:cursor-not-allowed',
-                'hover:gba:shadow-sm'
-              )}
-              data-testid={`${testId}-example-${index}`}
-            >
-              "{prompt}"
-            </button>
-          ))}
+          {examplePrompts.map((prompt, index) => {
+            const promptKey = `example-${prompt.slice(0, 20).replace(/\s+/g, '-')}-${index}`
+            return (
+              <button
+                key={promptKey}
+                onClick={() => handleExampleClick(prompt)}
+                disabled={isLoading}
+                className={cn(
+                  'gba:p-4 gba:text-left gba:text-sm gba:text-muted-foreground gba:bg-muted gba:rounded-xl',
+                  'gba:border gba:border-border hover:gba:border-foreground/30 hover:gba:bg-muted/80',
+                  'gba:transition-all gba:duration-200',
+                  'gba:disabled:opacity-50 gba:disabled:cursor-not-allowed',
+                  'hover:gba:shadow-sm'
+                )}
+                data-testid={`${testId}-example-${index}`}
+              >
+                "{prompt}"
+              </button>
+            )
+          })}
         </div>
       </div>
     </div>

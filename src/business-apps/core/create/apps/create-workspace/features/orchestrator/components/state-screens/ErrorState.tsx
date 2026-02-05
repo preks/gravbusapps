@@ -120,12 +120,15 @@ export const ErrorState: React.FC<ErrorStateProps> = ({
                 How to fix it:
               </h4>
               <ul className="gba:space-y-2">
-                {matchedIssue.fixes.map((fix, i) => (
-                  <li key={i} className="gba:flex gba:items-start gba:gap-2 gba:text-sm">
-                    <CheckCircle2 className="gba:w-4 gba:h-4 gba:mt-0.5 gba:text-success gba:shrink-0" />
-                    <span className="gba:text-foreground">{fix}</span>
-                  </li>
-                ))}
+                {matchedIssue.fixes.map((fix, i) => {
+                  const fixKey = `fix-${fix.slice(0, 15).replace(/\s+/g, '-')}-${i}`
+                  return (
+                    <li key={fixKey} className="gba:flex gba:items-start gba:gap-2 gba:text-sm">
+                      <CheckCircle2 className="gba:w-4 gba:h-4 gba:mt-0.5 gba:text-success gba:shrink-0" />
+                      <span className="gba:text-foreground">{fix}</span>
+                    </li>
+                  )
+                })}
               </ul>
             </div>
           )}
@@ -156,7 +159,7 @@ export const ErrorState: React.FC<ErrorStateProps> = ({
               <Info className="gba:h-4 gba:w-4 gba:text-info" />
               <AlertTitle>Partial Success</AlertTitle>
               <AlertDescription>
-                {completedCount} component{completedCount !== 1 ? 's were' : ' was'} created successfully before the
+                {completedCount} component{completedCount === 1 ? ' was' : 's were'} created successfully before the
                 error occurred. You can view {completedCount === 1 ? 'it' : 'them'} below.
               </AlertDescription>
             </Alert>

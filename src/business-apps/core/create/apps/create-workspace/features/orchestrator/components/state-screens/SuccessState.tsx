@@ -104,7 +104,7 @@ export const SuccessState: React.FC<SuccessStateProps> = ({
                   {createdComponents[0]?.name || 'Your Design'}
                 </h2>
                 <p className="gba:text-sm gba:text-muted-foreground">
-                  Built {completedCount} component{completedCount !== 1 ? 's' : ''} in{' '}
+                  Built {completedCount} component{completedCount === 1 ? '' : 's'} in{' '}
                   {Math.round(buildDuration / 1000)}s
                 </p>
               </div>
