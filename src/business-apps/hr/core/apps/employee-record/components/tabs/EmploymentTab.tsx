@@ -2,7 +2,8 @@
 
 import React from 'react'
 import dayjs from 'dayjs'
-import { Card, useTranslation } from '@newwork/nw-design-system'
+import { Card } from '@newwork/gravity-ui-catalog'
+import { useTranslation } from '@newwork/nw-design-system'
 import { Employee } from '../../hooks/useEmployeeData'
 import { AppAction } from '@/components/app-action/AppAction'
 import translations from '../../_i18n'
