@@ -31,6 +31,26 @@ const colorMap = {
   destructive: 'var(--nw-destructive)'
 }
 
+const getDefaultStrokeWidth = (size: 'sm' | 'md' | 'lg' | 'xl'): number => {
+  const strokeWidths: Record<typeof size, number> = {
+    sm: 3,
+    md: 4,
+    lg: 5,
+    xl: 6
+  }
+  return strokeWidths[size]
+}
+
+const getFontSize = (size: 'sm' | 'md' | 'lg' | 'xl'): string => {
+  const fontSizes: Record<typeof size, string> = {
+    sm: '0.625rem',
+    md: '0.75rem',
+    lg: '0.875rem',
+    xl: '1rem'
+  }
+  return fontSizes[size]
+}
+
 export const CircularProgress: React.FC<CircularProgressProps> = ({
   value,
   size = 'md',
@@ -41,11 +61,12 @@ export const CircularProgress: React.FC<CircularProgressProps> = ({
   'data-testid': testId = 'circular-progress'
 }) => {
   const dimension = sizeMap[size]
-  const defaultStrokeWidth = size === 'sm' ? 3 : size === 'md' ? 4 : size === 'lg' ? 5 : 6
+  const defaultStrokeWidth = getDefaultStrokeWidth(size)
   const stroke = strokeWidth || defaultStrokeWidth
   const radius = (dimension - stroke) / 2
   const circumference = 2 * Math.PI * radius
   const offset = circumference - (value / 100) * circumference
+  const fontSize = getFontSize(size)
 
   return (
     <div
@@ -83,10 +104,7 @@ export const CircularProgress: React.FC<CircularProgressProps> = ({
         />
       </svg>
       {showPercentage && (
-        <span
-          className="gba:absolute gba:text-xs gba:font-semibold gba:text-foreground"
-          style={{ fontSize: size === 'sm' ? '0.625rem' : size === 'md' ? '0.75rem' : '0.875rem' }}
-        >
+        <span className="gba:absolute gba:text-xs gba:font-semibold gba:text-foreground" style={{ fontSize }}>
           {Math.round(value)}%
         </span>
       )}

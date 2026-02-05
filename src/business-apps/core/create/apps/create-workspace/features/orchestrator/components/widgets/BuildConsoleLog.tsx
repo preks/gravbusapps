@@ -87,10 +87,11 @@ export const BuildConsoleLog: React.FC<BuildConsoleLogProps> = ({
             {logs.map((log, index) => {
               const Icon = logIcons[log.type]
               const colorClass = logColors[log.type]
+              const logKey = `${log.timestamp}-${log.type}-${index}`
 
               return (
                 <div
-                  key={index}
+                  key={logKey}
                   className={cn(
                     'gba:flex gba:items-start gba:gap-2 gba:text-xs gba:leading-relaxed gba:animate-in gba:slide-in-from-left-2 gba:duration-200',
                     index === logs.length - 1 && 'gba:opacity-100',
