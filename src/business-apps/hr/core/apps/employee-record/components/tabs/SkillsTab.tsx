@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react'
-import { Card, useTranslation } from '@newwork/nw-design-system'
+import { Card } from '@newwork/gravity-ui-catalog'
+import { useTranslation } from '@newwork/nw-design-system'
 import { Empty, Progress } from 'antd'
 import { Employee } from '../../hooks/useEmployeeData'
 import { AppAction } from '@/components/app-action/AppAction'

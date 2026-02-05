@@ -24,6 +24,13 @@ interface StartGroupCallPayload {
   conversationName?: string
 }
 
+/** Payload for joining a calendar meeting from the dashboard */
+interface JoinMeetingPayload {
+  meetingId: string
+  conversationId?: string
+  title?: string
+}
+
 interface UseStartCallFromPlatformProps {
   initiateGroupCall?: (
     conversationId: string,
@@ -146,13 +153,45 @@ export const useStartCallFromPlatform = ({
       window.dispatchEvent(new CustomEvent('chat:group-call-started', { detail: { conversationId } }))
     }
 
+    // Handle joining a calendar meeting from the dashboard (Upcoming Meetings section)
+    const handleJoinMeeting = (event: Event) => {
+      const customEvent = event as CustomEvent<JoinMeetingPayload>
+      const { meetingId, conversationId, title } = customEvent.detail
+
+      if (!initiateGroupCall) {
+        console.warn('[useStartCallFromPlatform] Cannot join meeting - initiateGroupCall not available')
+        return
+      }
+
+      if (!isConnected) {
+        console.warn('[useStartCallFromPlatform] Cannot join meeting - not connected')
+        return
+      }
+
+      // Use conversationId if available, otherwise use meetingId as the room identifier
+      const roomId = conversationId || meetingId
+
+      // Join the calendar meeting with video by default
+      // Pass the meetingId as calendarMeetingId so the call is linked to the calendar event
+      initiateGroupCall(
+        roomId,
+        'video', // Calendar meetings default to video
+        [], // Empty participants - we're joining an existing meeting room
+        title, // Use meeting title as the conversation name
+        meetingId, // Pass the calendar meeting ID to link the call
+        'meeting' // Mark as a calendar meeting
+      )
+    }
+
     // Listen for the custom events from platform
     window.addEventListener('chat:start-call-with-user', handleStartCallWithUser)
     window.addEventListener('chat:start-group-call', handleStartGroupCall)
+    window.addEventListener('chat:join-meeting', handleJoinMeeting)
 
     return () => {
       window.removeEventListener('chat:start-call-with-user', handleStartCallWithUser)
       window.removeEventListener('chat:start-group-call', handleStartGroupCall)
+      window.removeEventListener('chat:join-meeting', handleJoinMeeting)
     }
   }, [initiateGroupCall, createDirectConversation, isConnected])
 }

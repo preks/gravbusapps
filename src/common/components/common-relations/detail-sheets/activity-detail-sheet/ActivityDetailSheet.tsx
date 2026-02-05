@@ -32,7 +32,8 @@ import {
   Icon as PhosphorIcon
 } from '@phosphor-icons/react'
 import { Activity, ActivityDocument } from './types'
-import { buildFileUrl, getFileIcon } from '@/common/utils/fileUtils'
+import { buildFileUrl } from '@/common/utils/fileUtils'
+import { getDocumentIcon } from '@/common/utils/documentIconUtils'
 import {
   getActivityTypeBadgeVariant,
   getReferenceTypeBadgeVariant,
@@ -93,7 +94,7 @@ export const ActivityDetailSheet: React.FC<ActivityDetailSheetProps> = ({
   flowContext
 }) => {
   return (
-    <Sheet open={open} onOpenChange={onOpenChange} title="Activity Details">
+    <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="gba:!w-[500px] gba:sm:!w-[500px] gba:!max-w-[90vw] gba:p-0 gba:flex gba:flex-col">
         <SheetHeader className="gba:px-6 gba:py-6 gba:border-b gba:border-border gba:shrink-0">
           <SheetTitle className="gba:text-xl gba:font-semibold gba:text-left gba:mb-3">
@@ -322,30 +323,27 @@ const ActivityDetailContent: React.FC<ActivityDetailContentProps> = ({
             </CardHeader>
             <CardContent>
               <div className="gba:space-y-2">
-                {activity.documents.map(doc => {
-                  const FileIcon = getFileIcon(doc.mimeType)
-                  return (
-                    <button
-                      key={doc.id}
-                      type="button"
-                      onClick={() => handleDocumentClick(doc)}
-                      className="gba:w-full gba:flex gba:items-center gba:gap-3 gba:p-3 gba:bg-muted gba:rounded gba:hover:bg-accent gba:transition-colors gba:border-0 gba:text-left gba:group"
-                      data-testid={`${dataTestId || DATA_TEST_ID_PREFIX}-document-${doc.id}`}
-                    >
-                      <div className="gba:flex gba:items-center gba:justify-center gba:size-8 gba:bg-background gba:rounded gba:shrink-0">
-                        <FileIcon size={16} />
-                      </div>
-                      <div className="gba:flex-1 gba:min-w-0">
-                        <div className="gba:text-sm gba:font-medium gba:truncate">{doc.name}</div>
-                        {doc.mimeType && <div className="gba:text-xs gba:text-muted-foreground">{doc.mimeType}</div>}
-                      </div>
-                      <ArrowSquareOutIcon
-                        size={16}
-                        className="gba:text-muted-foreground gba:opacity-0 group-hover:gba:opacity-100 gba:transition-opacity gba:shrink-0"
-                      />
-                    </button>
-                  )
-                })}
+                {activity.documents.map(doc => (
+                  <button
+                    key={doc.id}
+                    type="button"
+                    onClick={() => handleDocumentClick(doc)}
+                    className="gba:w-full gba:flex gba:items-center gba:gap-3 gba:p-3 gba:bg-muted gba:rounded gba:hover:bg-accent gba:transition-colors gba:border-0 gba:text-left gba:group"
+                    data-testid={`${dataTestId || DATA_TEST_ID_PREFIX}-document-${doc.id}`}
+                  >
+                    <div className="gba:flex gba:items-center gba:justify-center gba:size-8 gba:bg-background gba:rounded gba:shrink-0">
+                      {getDocumentIcon({ name: doc.name, mimeType: doc.mimeType, size: 16 })}
+                    </div>
+                    <div className="gba:flex-1 gba:min-w-0">
+                      <div className="gba:text-sm gba:font-medium gba:truncate">{doc.name}</div>
+                      {doc.mimeType && <div className="gba:text-xs gba:text-muted-foreground">{doc.mimeType}</div>}
+                    </div>
+                    <ArrowSquareOutIcon
+                      size={16}
+                      className="gba:text-muted-foreground gba:opacity-0 group-hover:gba:opacity-100 gba:transition-opacity gba:shrink-0"
+                    />
+                  </button>
+                ))}
               </div>
             </CardContent>
           </Card>

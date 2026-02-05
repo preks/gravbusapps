@@ -83,11 +83,13 @@ export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
     accessToken,
     onSuccess: () => {
       toast.success(t('task-dialog-completed-success'))
-      onClose()
-      onTaskUpdated()
+      // Call onTaskCompleted first for instant UI feedback (removes from local state)
+      // Don't call onTaskUpdated - it triggers a slow full refetch that's not needed
+      // handleTaskCompleted already calls onCompletedRefresh for background sync
       if (onTaskCompleted && task?.id) {
         onTaskCompleted(task.id)
       }
+      onClose()
     },
     onError: (error: Error) => {
       console.error('Error continuing process:', error)
@@ -126,11 +128,11 @@ export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
 
           if (response.ok) {
             toast.success(t('task-dialog-completed-success'))
-            onClose()
-            onTaskUpdated()
+            // Call onTaskCompleted first for instant UI feedback
             if (onTaskCompleted && task.id) {
               onTaskCompleted(task.id)
             }
+            onClose()
           } else {
             throw new Error('Failed to complete task')
           }
@@ -139,11 +141,11 @@ export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
           toast.error(t('task-dialog-action-failed'))
         }
       } else {
-        onClose()
-        onTaskUpdated()
+        // Call onTaskCompleted first for instant UI feedback
         if (onTaskCompleted && task?.id) {
           onTaskCompleted(task.id)
         }
+        onClose()
       }
     }
 
@@ -348,11 +350,12 @@ export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
 
       toast.success(t('task-dialog-blink-completed-success'))
 
+      // Call onTaskCompleted first for instant UI feedback (removes from local state)
+      // Don't call onTaskUpdated - it triggers a slow full refetch that's not needed
       if (onTaskCompleted && task.id) {
         onTaskCompleted(task.id)
       }
 
-      onTaskUpdated()
       onClose()
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error'
