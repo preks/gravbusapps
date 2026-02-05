@@ -55,19 +55,19 @@ export const PerformanceCycles: React.FC<PerformanceCyclesProps> = ({
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editing, setEditing] = useState<PerformanceCycle | null>(null)
 
-  const canStartCycle = (cycle: PerformanceCycle): boolean => {
-    if (cycle.status !== 'Active') return false
+  const isDateWithinCyclePeriod = (cycle: PerformanceCycle): boolean => {
     const today = new Date()
     const start = new Date(cycle.startDate)
     const end = new Date(cycle.endDate)
     return today >= start && today <= end
   }
 
+  const canStartCycle = (cycle: PerformanceCycle): boolean => {
+    return cycle.status === 'Active' && isDateWithinCyclePeriod(cycle)
+  }
+
   const canActivateCycle = (cycle: PerformanceCycle): boolean => {
-    const today = new Date()
-    const start = new Date(cycle.startDate)
-    const end = new Date(cycle.endDate)
-    return today >= start && today <= end
+    return isDateWithinCyclePeriod(cycle)
   }
 
   const handleActivateClick = (cycle: PerformanceCycle) => {

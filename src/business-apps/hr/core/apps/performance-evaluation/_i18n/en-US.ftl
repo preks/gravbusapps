@@ -82,6 +82,7 @@ cycle-saved-to-database = Performance cycle "{ $name }" saved.
 cycle-activated-to-database = "{ $name }" activated.
 cycle-deactivated-to-database = "{ $name }" deactivated.
 cycle-deleted-to-database = "{ $name }" deleted.
+cycle-started = Starting cycle: { $name }
 value-saved-to-database = Company value "{ $title }" saved.
 value-deleted-to-database = "{ $title }" deleted.
 value-activated-to-database = "{ $title }" activated.

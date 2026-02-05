@@ -83,6 +83,7 @@ cycle-saved-to-database = Leistungszyklus "{ $name }" gespeichert.
 cycle-activated-to-database = "{ $name }" aktiviert.
 cycle-deactivated-to-database = "{ $name }" deaktiviert.
 cycle-deleted-to-database = "{ $name }" gelöscht.
+cycle-started = Zyklus wird gestartet: { $name }
 value-saved-to-database = Firmenwert "{ $title }" gespeichert.
 value-deleted-to-database = "{ $title }" gelöscht.
 value-activated-to-database = "{ $title }" aktiviert.

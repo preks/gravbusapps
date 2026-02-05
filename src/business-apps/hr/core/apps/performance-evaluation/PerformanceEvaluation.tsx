@@ -198,7 +198,7 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
     const cycle = cycles.find(c => c.id === cycleId)
     if (!cycle) return
     // TODO: Navigate to the performance evaluation flow or open the cycle
-    toast.info(`Starting cycle: ${cycle.name}`)
+    toast.info(t('cycle-started', { name: cycle.name }) ?? `Starting cycle: ${cycle.name}`)
   }
 
   const handleSaveFromScaleModal = async (values: RatingScaleValues) => {
