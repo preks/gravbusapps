@@ -14,6 +14,7 @@ import { useKogitoProcess } from '../hooks/useKogitoProcess'
 import { env } from '@/common/env/EnvUtils'
 import { UniversalCflowTaskDetails } from './UniversalCflowTaskDetails'
 import { useFlowStepData } from '../hooks/useFlowStepData'
+import { TaskAiSection } from './TaskAiSection'
 import translations from '../_i18n'
 
 interface TaskDetailContentProps {
@@ -391,32 +392,56 @@ export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
 
     if (screenMetadata?.builderType === 'NATIVE_SCREEN' && screenMetadata.componentPath) {
       return (
-        <RemoteScreenLoader
-          componentPath={screenMetadata.componentPath}
-          version={screenMetadata.version}
-          accessToken={accessToken}
-          userInfo={userInfo}
-          additionalData={nativeScreenAdditionalData}
-          onClose={onClose}
-          onTaskCompleted={onTaskCompleted}
-          onTaskUpdated={onTaskUpdated}
-          isLoadingMetadata={false}
-        />
+        <div className="gba:flex gba:flex-col gba:h-full">
+          {/* AI Section for tasks with custom screens */}
+          <TaskAiSection task={task} accessToken={accessToken} isAiAvailable={true} />
+          <div className="gba:flex-1 gba:min-h-0">
+            <RemoteScreenLoader
+              componentPath={screenMetadata.componentPath}
+              version={screenMetadata.version}
+              accessToken={accessToken}
+              userInfo={userInfo}
+              additionalData={nativeScreenAdditionalData}
+              onClose={onClose}
+              onTaskCompleted={onTaskCompleted}
+              onTaskUpdated={onTaskUpdated}
+              isLoadingMetadata={false}
+            />
+          </div>
+        </div>
       )
     }
 
     if (screenMetadata?.builderType === 'LOWCODER' && screenMetadata.appId) {
       return (
-        <LowcoderScreenLoader
-          appId={screenMetadata.appId}
-          appName={screenMetadata.appName || t('task-dialog-lowcoder-screen')}
-          accessToken={accessToken}
-          userInfo={userInfo}
-          additionalData={lowcoderScreenAdditionalData}
-          onClose={onClose}
-          onTaskCompleted={onTaskCompleted}
-          onTaskUpdated={onTaskUpdated}
-        />
+        <div className="gba:flex gba:flex-col gba:h-full">
+          {/* AI Section for tasks with custom screens */}
+          <TaskAiSection task={task} accessToken={accessToken} isAiAvailable={true} />
+          <div className="gba:flex-1 gba:min-h-0">
+            <LowcoderScreenLoader
+              appId={screenMetadata.appId}
+              appName={screenMetadata.appName || t('task-dialog-lowcoder-screen')}
+              accessToken={accessToken}
+              userInfo={userInfo}
+              additionalData={lowcoderScreenAdditionalData}
+              onClose={onClose}
+              onTaskCompleted={onTaskCompleted}
+              onTaskUpdated={onTaskUpdated}
+            />
+          </div>
+        </div>
+      )
+    }
+
+    // Fallback for kogito tasks without custom screens
+    if (task.source === 'kogito') {
+      return (
+        <div className="gba:p-4">
+          <TaskAiSection task={task} accessToken={accessToken} isAiAvailable={true} />
+          <div className="gba:mt-4 gba:text-muted-foreground gba:text-center">
+            {t('task-dialog-no-screen-available')}
+          </div>
+        </div>
       )
     }
 
