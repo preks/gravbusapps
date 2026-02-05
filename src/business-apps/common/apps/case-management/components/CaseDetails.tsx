@@ -634,9 +634,12 @@ export const CaseDetails: React.FC<CaseDetailsProps> = ({
                       )
                     })}
                     {activeFlows.length > 3 && (
-                      <p className="nw:text-xs nw:text-muted-foreground nw:text-center nw:pt-1">
+                      <button
+                        className="nw:text-xs nw:text-primary nw:text-center nw:pt-1 nw:w-full hover:nw:underline nw:cursor-pointer"
+                        onClick={() => setActiveTab('flows')}
+                      >
                         +{activeFlows.length - 3} more flows
-                      </p>
+                      </button>
                     )}
                   </div>
                 </div>

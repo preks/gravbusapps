@@ -713,7 +713,7 @@ export const FlowGanttChart: React.FC<FlowGanttChartProps> = props => {
 
               <div className="gba:border-x gba:border-border gba:h-full gba:flex gba:items-center">
                 <Select value={zoomLevel} onValueChange={v => setZoomLevel(v as ZoomLevel)}>
-                  <SelectTrigger className="gba:h-full gba:w-[90px] gba:border-0 gba:rounded-none gba:bg-transparent gba:font-medium gba:text-sm focus:gba:ring-0 focus:gba:ring-offset-0">
+                  <SelectTrigger className="gba:h-full gba:w-[120px] gba:border-0 gba:rounded-none gba:bg-transparent gba:font-medium gba:text-sm gba:justify-center focus:gba:ring-0 focus:gba:ring-offset-0">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent align="center">
