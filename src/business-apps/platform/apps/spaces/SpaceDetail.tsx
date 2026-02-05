@@ -92,6 +92,21 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
   } = useSpaceContent(spaceId, accessToken, space, refreshSpace)
   const { activities, isLoading: activityLoading } = useSpaceActivity(spaceId, accessToken, 20)
 
+  // Add activity user IDs to lookup when activities load
+  useEffect(() => {
+    if (activities.length > 0) {
+      const activityUserIds = activities.map(a => a.userId).filter(Boolean)
+      if (activityUserIds.length > 0) {
+        setAdditionalUserIds(prev => {
+          const existingSet = new Set(prev)
+          const newIds = activityUserIds.filter(id => !existingSet.has(id))
+          if (newIds.length === 0) return prev
+          return [...prev, ...newIds]
+        })
+      }
+    }
+  }, [activities])
+
   // Get space dimension info for team collaboration features
   const spaceDimension = space?.settings?.dimension
 
@@ -512,7 +527,13 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
             <section>
               <h2 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-4">Recent Activity</h2>
               <div className="gba:rounded-lg gba:bg-card gba:p-4">
-                <SpaceActivity activities={activities} isLoading={activityLoading} data-testid={`${testId}-activity`} />
+                <SpaceActivity
+                  activities={activities}
+                  isLoading={activityLoading}
+                  spaceId={spaceId}
+                  getUserInfo={getUserInfo}
+                  data-testid={`${testId}-activity`}
+                />
               </div>
             </section>
           </TabsContent>

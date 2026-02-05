@@ -501,7 +501,7 @@ export const SpaceMembersTab: React.FC<SpaceMembersTabProps> = ({
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
                         onClick={() => handleRemove(member.userId, member.id)}
-                        className="gba:text-destructive focus:gba:text-destructive gba:gap-2"
+                        className="gba:text-destructive gba:focus:text-destructive gba:gap-2"
                         data-testid={`${testId}-remove-${member.id}`}
                       >
                         <UserMinus className="gba:w-4 gba:h-4" />
