@@ -105,16 +105,19 @@ export const AIQuickStart: React.FC<AIQuickStartProps> = ({
             <span className="gba:text-sm">Try one of these examples:</span>
           </div>
           <div className="gba:flex gba:flex-wrap gba:gap-2">
-            {EXAMPLE_PROMPTS.map((example, index) => (
-              <button
-                key={index}
-                onClick={() => handleExampleClick(example)}
-                className="gba:px-3 gba:py-1.5 gba:text-sm gba:rounded-full gba:border gba:border-border gba:bg-muted/50 gba:text-muted-foreground hover:gba:bg-muted hover:gba:text-foreground hover:gba:border-border gba:transition-all gba:duration-200"
-                data-testid={`${testId}-example-${index}`}
-              >
-                {example.length > 50 ? `${example.substring(0, 50)}...` : example}
-              </button>
-            ))}
+            {EXAMPLE_PROMPTS.map((example, index) => {
+              const exampleKey = `example-${example.slice(0, 20).replace(/\s+/g, '-')}-${index}`
+              return (
+                <button
+                  key={exampleKey}
+                  onClick={() => handleExampleClick(example)}
+                  className="gba:px-3 gba:py-1.5 gba:text-sm gba:rounded-full gba:border gba:border-border gba:bg-muted/50 gba:text-muted-foreground hover:gba:bg-muted hover:gba:text-foreground hover:gba:border-border gba:transition-all gba:duration-200"
+                  data-testid={`${testId}-example-${index}`}
+                >
+                  {example.length > 50 ? `${example.substring(0, 50)}...` : example}
+                </button>
+              )
+            })}
           </div>
         </div>
       </div>

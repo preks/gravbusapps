@@ -91,7 +91,7 @@ export const NeuralBackground: React.FC<NeuralBackgroundProps> = ({ className = 
           if (i >= j) return
           const dx = other.x - node.x
           const dy = other.y - node.y
-          const distance = Math.sqrt(dx * dx + dy * dy)
+          const distance = Math.hypot(dx, dy)
           const maxDistance = 150
 
           if (distance < maxDistance) {

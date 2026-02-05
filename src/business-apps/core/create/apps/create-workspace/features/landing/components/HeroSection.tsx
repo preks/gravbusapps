@@ -89,8 +89,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ 'data-testid': testId 
             style={{ animation: 'fadeInUp 0.6s ease-out 0.15s both' }}
             data-testid={`${testId}-headline`}
           >
-            Build anything.
-            <span className="gba:text-muted-foreground"> Ship everything.</span>
+            Build anything. <span className="gba:text-muted-foreground">Ship everything.</span>
           </h2>
 
           {/* Subtitle */}

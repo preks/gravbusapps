@@ -74,7 +74,7 @@ export const ToolCard: React.FC<ToolCardProps> = ({
       onClick()
     } else if (href) {
       // Use platform navigation
-      window.location.href = href
+      globalThis.location.href = href
     }
   }
 

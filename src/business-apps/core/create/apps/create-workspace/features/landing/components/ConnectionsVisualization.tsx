@@ -285,9 +285,10 @@ export const ConnectionsVisualization: React.FC<ConnectionsVisualizationProps> =
               const isHovered = hoveredNode === tool.id
 
               return (
-                <div
+                <button
                   key={tool.id}
-                  className="gba:absolute gba:cursor-pointer gba:transition-all gba:duration-300"
+                  type="button"
+                  className="gba:absolute gba:cursor-pointer gba:transition-all gba:duration-300 gba:border-0 gba:bg-transparent gba:p-0"
                   style={{
                     left: pos.x - 36,
                     top: pos.y - 36,
@@ -298,6 +299,9 @@ export const ConnectionsVisualization: React.FC<ConnectionsVisualizationProps> =
                   }}
                   onMouseEnter={() => handleNodeHover(tool.id)}
                   onMouseLeave={() => handleNodeHover(null)}
+                  onFocus={() => handleNodeHover(tool.id)}
+                  onBlur={() => handleNodeHover(null)}
+                  aria-label={`${tool.name} tool`}
                   data-testid={`${testId}-node-${tool.id}`}
                 >
                   {/* Node background with glow */}
@@ -337,7 +341,7 @@ export const ConnectionsVisualization: React.FC<ConnectionsVisualizationProps> =
                       </p>
                     </div>
                   )}
-                </div>
+                </button>
               )
             })}
           </div>
