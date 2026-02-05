@@ -187,6 +187,20 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
   // Get current user ID
   const currentUserId = userInfo?.id || userInfo?.employeeDetails?.employeeId || ''
 
+  // Clear space return URL if not opened from a space
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(globalThis.window.location.search)
+      const spaceId = params.get('spaceId')
+      if (!spaceId) {
+        // Document opened from hub, not from a space - clear any stale return URL
+        sessionStorage.removeItem('space_return_url')
+      }
+    } catch (e) {
+      console.warn('Failed to check/clear space_return_url:', e)
+    }
+  }, [])
+
   // Entity context: prop > URL ?entityContext= > category-derived (when editing a template) > default
   const urlEntityContext = useMemo(() => {
     if (typeof globalThis.window === 'undefined') return undefined
@@ -198,8 +212,8 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
     urlEntityContext ??
     (templateBeingEdited
       ? (templateBeingEdited.context ??
-        getContextForEntityKeys(extractEntityKeysFromContent(templateBeingEdited.content)) ??
         sessionEntityContext ??
+        getContextForEntityKeys(extractEntityKeysFromContent(templateBeingEdited.content)) ??
         getContextForCategory(templateBeingEdited.category))
       : undefined) ??
     'candidate'
@@ -393,9 +407,32 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
   }, [])
 
   /**
-   * Go back to list
+   * Go back to list or return URL
    */
   const handleBack = useCallback(() => {
+    // Check if there's a space return URL in sessionStorage (takes priority)
+    try {
+      const spaceReturnUrl = sessionStorage.getItem('space_return_url')
+      if (spaceReturnUrl) {
+        sessionStorage.removeItem('space_return_url')
+        globalThis.window.location.href = spaceReturnUrl
+        return
+      }
+    } catch (e) {
+      console.warn('Failed to read space_return_url from sessionStorage:', e)
+    }
+
+    // Fallback: Check if there's a returnUrl parameter
+    const params = new URLSearchParams(globalThis.window.location.search)
+    const returnUrl = params.get('returnUrl')
+
+    if (returnUrl) {
+      // Navigate back to the specified URL (e.g., space)
+      globalThis.window.location.href = returnUrl
+      return
+    }
+
+    // Otherwise, go back to the list view
     clearCurrentDocument()
     resetLoadAttempt()
     setSelectedDocumentId(null)

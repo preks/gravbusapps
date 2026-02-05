@@ -117,7 +117,8 @@ export type StepInstance = {
   // Flow-related fields from custom-flow-engine API response
   flowId?: string // Main workflow instance ID
   flowName?: string // Human-readable workflow name
-  flowInitiatedBy?: string // UUID of the person who initiated the flow
+  flowInitiatedById?: string // UUID of the person who initiated the flow (use for employee resolution)
+  flowInitiatedBy?: string // Display name of the person who initiated the flow (readable string from API)
 
   // Additional rich data fields for detailed display
   description?: string

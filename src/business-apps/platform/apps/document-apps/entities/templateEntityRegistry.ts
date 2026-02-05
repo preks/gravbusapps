@@ -28,6 +28,24 @@ export type TemplateEntityDomain =
   | 'nw_recruiting'
   | 'nw_catalog'
 
+/** Display names for grouping entities in the Insert field panel by origin/schema */
+export const DOMAIN_DISPLAY_NAMES: Record<TemplateEntityDomain, string> = {
+  nw_orgchart: 'Org Chart',
+  nw_employee: 'Employee',
+  nw_employee_expense: 'Expenses',
+  nw_recruiting: 'Recruiting',
+  nw_catalog: 'Catalog'
+}
+
+/** Order of domains for consistent grouping in the UI */
+export const DOMAIN_ORDER: TemplateEntityDomain[] = [
+  'nw_orgchart',
+  'nw_employee',
+  'nw_recruiting',
+  'nw_employee_expense',
+  'nw_catalog'
+]
+
 /**
  * Known context tags for scoping which entities appear in the Insert Field panel.
  * Add new contexts here and assign them to entities in the registry.

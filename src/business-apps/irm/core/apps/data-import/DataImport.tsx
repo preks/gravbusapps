@@ -1,23 +1,40 @@
 /**
  * Data Import App
  * Main entry point for IRM data import functionality
- * Supports multiple entity types: Lead, Contact, Account
+ * Supports multiple entity types: Lead, Contact, Account, Real Estate Investment, Equity Investment, Liquid Fund Investment
  */
 
 import React, { useState, useEffect } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { SettingsLayout } from '@/components/layout/settings-layout'
-import { FileArrowUpIcon, UserIcon, IdentificationCardIcon, BuildingsIcon } from '@phosphor-icons/react'
+import { FileArrowUpIcon, UserIcon, IdentificationCardIcon, BuildingsIcon, TrendUpIcon } from '@phosphor-icons/react'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { LeadImportView } from './views/lead-import-view'
 import { ContactImportView } from './views/contact-import-view'
 import { AccountImportView } from './views/account-import-view'
+import { RealEstateInvestmentImportView } from './views/real-estate-investment-import-view/RealEstateInvestmentImportView'
+import { EquityInvestmentImportView } from './views/equity-investment-import-view/EquityInvestmentImportView'
+import { LiquidFundInvestmentImportView } from './views/liquid-fund-investment-import-view/LiquidFundInvestmentImportView'
 
 export type DataImportProps = BusinessAppContextProps
 
-type EntityType = 'lead' | 'contact' | 'account' | null
+type EntityType =
+  | 'lead'
+  | 'contact'
+  | 'account'
+  | 'real-estate-investment'
+  | 'equity-investment'
+  | 'liquid-fund-investment'
+  | null
 
-const VALID_ENTITIES = new Set<EntityType>(['lead', 'contact', 'account'])
+const VALID_ENTITIES = new Set<EntityType>([
+  'lead',
+  'contact',
+  'account',
+  'real-estate-investment',
+  'equity-investment',
+  'liquid-fund-investment'
+])
 
 // Get initial entity from URL
 const getInitialEntity = (): EntityType => {
@@ -111,6 +128,27 @@ export const DataImport: React.FC<DataImportProps> = props => {
             onClick: () => handleEntitySelect('account')
           }
         ]
+      },
+      {
+        title: 'Import Investments',
+        description:
+          'Import real estate properties, equity investments, or liquid funds with AI-powered field mapping. Choose your investment type to get started.',
+        icon: TrendUpIcon,
+        iconSize: 'md' as const,
+        entries: [
+          {
+            label: 'Real Estate Investments',
+            onClick: () => handleEntitySelect('real-estate-investment')
+          },
+          {
+            label: 'Equity Investments',
+            onClick: () => handleEntitySelect('equity-investment')
+          },
+          {
+            label: 'Liquid Fund Investments',
+            onClick: () => handleEntitySelect('liquid-fund-investment')
+          }
+        ]
       }
     ]
 
@@ -143,6 +181,18 @@ export const DataImport: React.FC<DataImportProps> = props => {
 
   if (selectedEntity === 'account') {
     return <AccountImportView {...props} onBack={handleBackToSelector} />
+  }
+
+  if (selectedEntity === 'real-estate-investment') {
+    return <RealEstateInvestmentImportView {...props} onBack={handleBackToSelector} />
+  }
+
+  if (selectedEntity === 'equity-investment') {
+    return <EquityInvestmentImportView {...props} onBack={handleBackToSelector} />
+  }
+
+  if (selectedEntity === 'liquid-fund-investment') {
+    return <LiquidFundInvestmentImportView {...props} onBack={handleBackToSelector} />
   }
 
   return null

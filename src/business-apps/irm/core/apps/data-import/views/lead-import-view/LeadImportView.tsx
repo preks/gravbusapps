@@ -4,7 +4,7 @@
  */
 
 import React from 'react'
-import { PageLayout, Alert, AlertDescription } from '@newwork/nw-design-system'
+import { PageLayout, Alert, AlertDescription, useTranslation } from '@newwork/nw-design-system'
 import { XCircleIcon, SparkleIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useEntityImport, useEntityMappings } from '@/common/components/common-relations/apps/data-import/hooks'
@@ -15,6 +15,7 @@ import {
 } from '@/common/components/common-relations/apps/data-import/components'
 import { leadImportConfig } from './config/leadImportConfig'
 import { ConvertedLead } from './types/leadImportTypes'
+import translations from './_i18n'
 
 export interface LeadImportViewProps extends BusinessAppContextProps {
   onBack?: () => void
@@ -26,6 +27,8 @@ export const LeadImportView: React.FC<LeadImportViewProps> = ({
   'data-testid': testId = 'lead-import-view',
   ...context
 }) => {
+  const { t } = useTranslation(translations)
+
   // Main import hook
   const {
     file,
@@ -65,8 +68,8 @@ export const LeadImportView: React.FC<LeadImportViewProps> = ({
   return (
     <PageLayout
       headerIcon={SparkleIcon}
-      headerTitle="Investment Lead Import with AI Mapping"
-      headerDescription="Upload a CSV file, let AI analyze and map the fields including investment-specific data, then convert to InvestmentLead format"
+      headerTitle={t('page-title')}
+      headerDescription={t('page-description')}
       // @ts-expect-error - onBack is supported at runtime but not in type definitions
       onBack={onBack}
       data-testid={testId}
@@ -97,7 +100,7 @@ export const LeadImportView: React.FC<LeadImportViewProps> = ({
           mappings={mappings}
           targetFieldsConfig={leadImportConfig.targetFields}
           parsedDataCount={parsedData.length}
-          entityType="leads"
+          entityType={t('entity-type')}
           isLoading={isLoading}
           onUpdateMapping={updateMapping}
           onRemoveMapping={removeMapping}
@@ -113,7 +116,7 @@ export const LeadImportView: React.FC<LeadImportViewProps> = ({
         <ConversionResultStep
           convertedEntities={convertedLeads}
           targetFieldsConfig={leadImportConfig.targetFields}
-          entityType="lead"
+          entityType={t('entity-type-singular')}
           isLoading={isLoading}
           importResult={importResult}
           onDownloadJSON={downloadJSON}

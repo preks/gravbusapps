@@ -218,7 +218,7 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({ taskId, accessToken, use
     // Add assignment users
     if (ticket.assignedToUserId) userIds.push(ticket.assignedToUserId)
     if (ticket.claimedByUserId) userIds.push(ticket.claimedByUserId)
-    if (ticket.flowInitiatedBy) userIds.push(ticket.flowInitiatedBy)
+    if (ticket.flowInitiatedById) userIds.push(ticket.flowInitiatedById)
 
     // Add assignment history users (changedBy and changedTo)
     const assignmentHistory = (ticket as any).assignment?.assignmentHistory
@@ -235,7 +235,7 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({ taskId, accessToken, use
     ticket?.comments,
     ticket?.assignedToUserId,
     ticket?.claimedByUserId,
-    ticket?.flowInitiatedBy,
+    ticket?.flowInitiatedById,
     (ticket as any)?.assignment?.assignmentHistory
   ])
 
@@ -1407,16 +1407,21 @@ export const TaskRecord: React.FC<TaskRecordProps> = ({ taskId, accessToken, use
                       Requested By:
                     </div>
                     <div className="gba:flex gba:items-center gba:gap-2 gba:flex-1">
-                      {ticket.flowInitiatedBy ? (
+                      {ticket.flowInitiatedById ? (
                         <EnhancedEmployeeDisplay
-                          userId={ticket.flowInitiatedBy}
+                          userId={ticket.flowInitiatedById}
                           displayName={
-                            batchedDisplayNames.get(ticket.flowInitiatedBy) || ticket.requesterName || 'Unknown User'
+                            batchedDisplayNames.get(ticket.flowInitiatedById) ||
+                            ticket.flowInitiatedBy ||
+                            ticket.requesterName ||
+                            'Unknown User'
                           }
-                          employeeData={batchedEmployees.get(ticket.flowInitiatedBy)}
+                          employeeData={batchedEmployees.get(ticket.flowInitiatedById)}
                           testId="task-requester"
                           showTooltip={true}
                         />
+                      ) : ticket.flowInitiatedBy ? (
+                        <span className="gba:text-foreground">{ticket.flowInitiatedBy}</span>
                       ) : (
                         <span className="gba:text-muted-foreground">Unknown</span>
                       )}

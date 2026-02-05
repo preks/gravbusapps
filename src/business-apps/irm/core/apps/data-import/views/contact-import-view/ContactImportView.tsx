@@ -4,7 +4,7 @@
  */
 
 import React from 'react'
-import { PageLayout, Alert, AlertDescription } from '@newwork/nw-design-system'
+import { PageLayout, Alert, AlertDescription, useTranslation } from '@newwork/nw-design-system'
 import { XCircleIcon, SparkleIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useEntityImport, useEntityMappings } from '@/common/components/common-relations/apps/data-import/hooks'
@@ -15,6 +15,7 @@ import {
 } from '@/common/components/common-relations/apps/data-import/components'
 import { contactImportConfig } from './config/contactImportConfig'
 import { ConvertedContact } from './types/contactImportTypes'
+import translations from './_i18n'
 
 export interface ContactImportViewProps extends BusinessAppContextProps {
   onBack?: () => void
@@ -26,6 +27,8 @@ export const ContactImportView: React.FC<ContactImportViewProps> = ({
   'data-testid': testId = 'contact-import-view',
   ...context
 }) => {
+  const { t } = useTranslation(translations)
+
   // Main import hook
   const {
     file,
@@ -65,8 +68,8 @@ export const ContactImportView: React.FC<ContactImportViewProps> = ({
   return (
     <PageLayout
       headerIcon={SparkleIcon}
-      headerTitle="Investment Contact Import with AI Mapping"
-      headerDescription="Upload a CSV file, let AI analyze and map the fields, then convert to InvestmentContact format"
+      headerTitle={t('page-title')}
+      headerDescription={t('page-description')}
       // @ts-expect-error - onBack is supported at runtime but not in type definitions
       onBack={onBack}
       data-testid={testId}
@@ -97,7 +100,7 @@ export const ContactImportView: React.FC<ContactImportViewProps> = ({
           mappings={mappings}
           targetFieldsConfig={contactImportConfig.targetFields}
           parsedDataCount={parsedData.length}
-          entityType="contacts"
+          entityType={t('entity-type')}
           isLoading={isLoading}
           onUpdateMapping={updateMapping}
           onRemoveMapping={removeMapping}
@@ -113,7 +116,7 @@ export const ContactImportView: React.FC<ContactImportViewProps> = ({
         <ConversionResultStep
           convertedEntities={convertedContacts}
           targetFieldsConfig={contactImportConfig.targetFields}
-          entityType="contact"
+          entityType={t('entity-type-singular')}
           isLoading={isLoading}
           importResult={importResult}
           onDownloadJSON={downloadJSON}

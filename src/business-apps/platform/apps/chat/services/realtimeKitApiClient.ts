@@ -15,6 +15,7 @@ export interface CreateMeetingResponse {
     sessionId: string // Database call session ID
     meetingId: string // Cloudflare meeting ID
     hostAuthToken: string
+    meetingName?: string // Backend-generated meeting name (for 1-on-1 calls)
   }
 }
 

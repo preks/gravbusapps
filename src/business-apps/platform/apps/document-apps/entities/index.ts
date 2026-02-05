@@ -4,6 +4,8 @@
 
 export {
   TEMPLATE_ENTITY_REGISTRY,
+  DOMAIN_DISPLAY_NAMES,
+  DOMAIN_ORDER,
   formatTemplatePlaceholder,
   getTemplateEntities,
   getTemplateEntity
