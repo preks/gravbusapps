@@ -42,7 +42,7 @@ import { useRestClient } from '@/common/network/rest/useRestClient'
 import { env } from '@/common/env/EnvUtils'
 import { useGetInvestmentDocumentsByOpportunityId } from '@/common/data/investment/hooks/useInvestmentOpportunities'
 import { useSearchInvestmentDocuments } from '@/common/data/investment/hooks/useSearchInvestmentDocuments'
-import { buildFileUrl } from '@/common/utils/fileUtils'
+import { handleDocumentClick as handleDocumentClickUtil } from '@/common/utils/documentClickHandler'
 import {
   GridFourIcon,
   ListIcon,
@@ -605,44 +605,19 @@ export const OpportunityDocuments: React.FC<OpportunityDocumentsProps> = ({ oppo
 
   // Document utility functions moved to separate utils file
 
-  const handleViewDocument = (document: Document) => {
-    if (!document.fileInfo) {
-      console.error('No file information available for document:', document)
-      toast.warning('No file available to view')
-      return
-    }
-
-    try {
-      const fileUrl = buildFileUrl(document.fileInfo)
-      window.open(fileUrl, '_blank', 'rel=noopener noreferrer')
-    } catch (error) {
-      console.error('Error building document URL for view:', error)
-      toast.error('Failed to open document')
-    }
+  // Unified document handler for both view and download
+  const handleViewDocument = async (document: Document) => {
+    await handleDocumentClickUtil(document, context.accessToken, {
+      showToast: true,
+      onError: error => {
+        console.error('Error opening document:', error)
+        toast.error('Failed to open document')
+      }
+    })
   }
 
-  const handleDownloadDocument = (document: Document) => {
-    if (!document.fileInfo) {
-      console.error('No file information available for document:', document)
-      toast.warning('No file available to download')
-      return
-    }
-
-    try {
-      const fileUrl = buildFileUrl(document.fileInfo)
-      const downloadFilename = document.name || 'document'
-      const link = window.document.createElement('a')
-      link.href = fileUrl
-      link.download = downloadFilename
-      window.document.body.appendChild(link)
-      link.click()
-      window.document.body.removeChild(link)
-      toast.success(`Downloading ${downloadFilename}`)
-    } catch (error) {
-      console.error('Error building document URL for download:', error)
-      toast.error('Failed to download document')
-    }
-  }
+  // Alias for backwards compatibility
+  const handleDownloadDocument = handleViewDocument
 
   const handleDeleteDocument = (document: Document) => {
     if (document.id?.startsWith('mock-')) {

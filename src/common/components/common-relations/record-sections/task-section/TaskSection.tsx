@@ -12,7 +12,7 @@ import {
 import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
 import type { AppActionCommonProps } from '@/common/hooks/useAppActionData'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { buildFileUrl } from '@/common/utils/fileUtils'
+import { handleDocumentClick as handleDocumentClickUtil } from '@/common/utils/documentClickHandler'
 import { getDocumentIcon } from '@/common/utils/documentIconUtils'
 import {
   TaskDetailSheet,
@@ -236,19 +236,9 @@ const TaskSection: React.FC<TaskSectionProps> = ({
   )
 
   // Handle document download
-  const handleDocumentClick = (document: TaskDocument, e: React.MouseEvent) => {
+  const handleDocumentClick = async (document: TaskDocument, e: React.MouseEvent) => {
     e.stopPropagation()
-
-    if (!document.fileInfo) {
-      return
-    }
-
-    try {
-      const fileUrl = buildFileUrl(document.fileInfo)
-      window.open(fileUrl, '_blank')
-    } catch {
-      // Silent fail - fileInfo structure invalid
-    }
+    await handleDocumentClickUtil(document, accessToken, { showToast: true })
   }
 
   // Determine color and icon based on status

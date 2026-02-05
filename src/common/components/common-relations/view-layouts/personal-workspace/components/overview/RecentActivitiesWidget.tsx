@@ -13,13 +13,14 @@ import type { GenericActivity, PersonalWorkspaceConfig } from '../../types'
 import dayjs from 'dayjs'
 import { PhoneIcon, EnvelopeIcon, CalendarBlankIcon, UserIcon } from '@phosphor-icons/react'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
-import { buildFileUrl } from '@/common/utils/fileUtils'
+import { handleDocumentClick as handleDocumentClickUtil } from '@/common/utils/documentClickHandler'
 import { getDocumentIcon } from '@/common/utils/documentIconUtils'
 
 export interface RecentActivitiesWidgetProps {
   activities: GenericActivity[]
   loading: boolean
   config: PersonalWorkspaceConfig
+  accessToken?: string
 }
 
 // Icon components for activity types
@@ -41,7 +42,12 @@ const getActivityIcon = (activityType: string) => {
  * Extends ActivitySection functionality with workspace-specific entity badges
  * Reuses document rendering pattern from ActivitySection
  */
-export const RecentActivitiesWidget: React.FC<RecentActivitiesWidgetProps> = ({ activities, loading, config }) => {
+export const RecentActivitiesWidget: React.FC<RecentActivitiesWidgetProps> = ({
+  activities,
+  loading,
+  config,
+  accessToken
+}) => {
   const getOwnerName = (ownerEmployee: any) => {
     if (!ownerEmployee) return 'Unknown'
     const fullName = `${ownerEmployee.firstName || ''} ${ownerEmployee.lastName || ''}`.trim()
@@ -53,17 +59,13 @@ export const RecentActivitiesWidget: React.FC<RecentActivitiesWidgetProps> = ({ 
     navigateTo(buildPlatformUrl('/platform/hr/core/employees/employee-record', { employeeId }))
   }, [])
 
-  const handleDocumentClick = useCallback((document: any, e: React.MouseEvent) => {
-    e.stopPropagation()
-    if (!document.fileInfo) return
-
-    try {
-      const fileUrl = buildFileUrl(document.fileInfo)
-      window.open(fileUrl, '_blank')
-    } catch {
-      // Silent fail - fileInfo structure invalid
-    }
-  }, [])
+  const handleDocumentClick = useCallback(
+    async (document: any, e: React.MouseEvent) => {
+      e.stopPropagation()
+      await handleDocumentClickUtil(document, accessToken, { showToast: true })
+    },
+    [accessToken]
+  )
 
   // Helper function to render activity documents - reduces nesting depth
   const renderActivityDocuments = useCallback(
@@ -105,7 +107,7 @@ export const RecentActivitiesWidget: React.FC<RecentActivitiesWidgetProps> = ({ 
             })}
             onClick={e => {
               e.preventDefault()
-              handleEmployeeClick(activity.ownerEmployee.id)
+              handleEmployeeClick(activity.ownerEmployee?.id || '')
             }}
             className="gba:font-medium gba:text-primary hover:gba:underline gba:cursor-pointer"
           >
@@ -122,7 +124,7 @@ export const RecentActivitiesWidget: React.FC<RecentActivitiesWidgetProps> = ({ 
           <div className="gba:flex gba:flex-col gba:gap-2">
             {activity.description && <span>{activity.description}</span>}
             {/* Document rendering - reused pattern from ActivitySection */}
-            {renderActivityDocuments(activity.id, activity.documents)}
+            {activity.documents && renderActivityDocuments(activity.id, activity.documents)}
           </div>
         ),
         icon: getActivityIcon(activityTypeLabel)

@@ -92,6 +92,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ config, employeeId, 
           activities={recentActivitiesResult.activities} // Show all 10 fetched activities
           loading={recentActivitiesResult.loading}
           config={config}
+          accessToken={accessToken}
         />
 
         {/* Calendar */}
