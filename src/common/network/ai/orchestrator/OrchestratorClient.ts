@@ -41,18 +41,18 @@ function parseErrorResponse(errorData: any, fallbackMessage: string): string {
   }
 
   // If detail is an object with message and errors array
-  if (typeof detail === 'object' && detail.message && Array.isArray(detail.errors)) {
+  if (typeof detail === 'object' && detail?.message && Array.isArray(detail?.errors)) {
     const errorList = detail.errors.join('\n• ')
     return `${detail.message}:\n• ${errorList}`
   }
 
   // If detail is an object with just errors array
-  if (typeof detail === 'object' && Array.isArray(detail.errors)) {
+  if (typeof detail === 'object' && Array.isArray(detail?.errors)) {
     return detail.errors.join('\n• ')
   }
 
   // If detail is an object with just message
-  if (typeof detail === 'object' && detail.message) {
+  if (typeof detail === 'object' && detail?.message) {
     return detail.message
   }
 
