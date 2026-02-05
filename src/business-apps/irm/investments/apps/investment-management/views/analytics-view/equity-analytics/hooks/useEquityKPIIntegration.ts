@@ -25,8 +25,23 @@ const DEFAULT_EQUITY_KPI: EquityKPIData = {
   averageDuration: 0
 }
 
-export const useEquityKPIIntegration = (context: BusinessAppContextProps, currency?: string): EquityKPIIntegration => {
-  const { fetchEquityKPIs } = useGetEquityKPIs(context, currency)
+export const useEquityKPIIntegration = (
+  context: BusinessAppContextProps,
+  currency?: string,
+  filters?: Record<string, any>,
+  enabled: boolean = true
+): EquityKPIIntegration => {
+  const { fetchEquityKPIs } = useGetEquityKPIs(context)
 
-  return useKPIIntegration<EquityKPIData>(context, fetchEquityKPIs, DEFAULT_EQUITY_KPI, [currency])
+  // Calculate comparison date (91 days ago)
+  const comparisonDate = new Date()
+  comparisonDate.setDate(comparisonDate.getDate() - 91)
+  const comparisonDateString = comparisonDate.toISOString()
+
+  // Wrapper that calls fetchEquityKPIs with the right parameters
+  const fetcher = async () => {
+    return await fetchEquityKPIs(comparisonDateString, currency, filters)
+  }
+
+  return useKPIIntegration<EquityKPIData>(context, fetcher, DEFAULT_EQUITY_KPI, [currency, filters], enabled)
 }
