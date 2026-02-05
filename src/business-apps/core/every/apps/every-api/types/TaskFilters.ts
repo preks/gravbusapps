@@ -94,6 +94,13 @@ export interface TaskFilters {
    * Include only tasks assigned to the user
    */
   assignedOnly?: boolean
+
+  /**
+   * Opaque cursor for cursor-based pagination.
+   * When provided, the backend resumes from a stored session instead of
+   * re-computing from scratch. Takes precedence over offset if both are present.
+   */
+  cursor?: string
 }
 
 /**
@@ -112,6 +119,7 @@ export interface ParsedTaskFilters
       | 'createdAt'
       | 'claimableOnly'
       | 'assignedOnly'
+      | 'cursor'
     >
   > {
   status?: TaskStatus
@@ -129,6 +137,7 @@ export interface ParsedTaskFilters
   }
   claimableOnly?: boolean
   assignedOnly?: boolean
+  cursor?: string
 }
 
 /**
