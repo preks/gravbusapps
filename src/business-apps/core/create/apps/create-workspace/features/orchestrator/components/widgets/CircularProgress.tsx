@@ -6,24 +6,27 @@
 import React from 'react'
 import { cn } from '@newwork/nw-design-system'
 
+type CircularProgressSize = 'sm' | 'md' | 'lg' | 'xl'
+type CircularProgressColor = 'primary' | 'success' | 'info' | 'warning' | 'destructive'
+
 export interface CircularProgressProps {
   value: number // 0-100
-  size?: 'sm' | 'md' | 'lg' | 'xl'
+  size?: CircularProgressSize
   showPercentage?: boolean
   strokeWidth?: number
   className?: string
-  color?: 'primary' | 'success' | 'info' | 'warning' | 'destructive'
+  color?: CircularProgressColor
   'data-testid'?: string
 }
 
-const sizeMap = {
+const sizeMap: Record<CircularProgressSize, number> = {
   sm: 32,
   md: 48,
   lg: 64,
   xl: 96
 }
 
-const colorMap = {
+const colorMap: Record<CircularProgressColor, string> = {
   primary: 'currentColor', // Monochrome - uses foreground color
   success: 'var(--nw-success)',
   info: 'var(--nw-info)',
@@ -31,8 +34,8 @@ const colorMap = {
   destructive: 'var(--nw-destructive)'
 }
 
-const getDefaultStrokeWidth = (size: 'sm' | 'md' | 'lg' | 'xl'): number => {
-  const strokeWidths: Record<typeof size, number> = {
+const getDefaultStrokeWidth = (size: CircularProgressSize): number => {
+  const strokeWidths: Record<CircularProgressSize, number> = {
     sm: 3,
     md: 4,
     lg: 5,
@@ -41,8 +44,8 @@ const getDefaultStrokeWidth = (size: 'sm' | 'md' | 'lg' | 'xl'): number => {
   return strokeWidths[size]
 }
 
-const getFontSize = (size: 'sm' | 'md' | 'lg' | 'xl'): string => {
-  const fontSizes: Record<typeof size, string> = {
+const getFontSize = (size: CircularProgressSize): string => {
+  const fontSizes: Record<CircularProgressSize, string> = {
     sm: '0.625rem',
     md: '0.75rem',
     lg: '0.875rem',

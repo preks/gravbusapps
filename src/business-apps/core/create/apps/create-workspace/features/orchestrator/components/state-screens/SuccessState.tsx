@@ -76,6 +76,13 @@ export const SuccessState: React.FC<SuccessStateProps> = ({
   const reusedComponents = components.filter(c => c.status === 'reused')
 
   const handleOpenComponent = (component: ComponentSpec) => {
+    // For screens with resource_url, navigate directly to the built screen
+    if (component.type === 'screen' && component.resource_url) {
+      navigateTo(buildPlatformUrl(component.resource_url))
+      return
+    }
+
+    // For other components or screens without resource_url, use admin route
     if (!component.created_id && !component.existing_id) return
 
     const id = component.created_id || component.existing_id!
@@ -188,10 +195,41 @@ export const SuccessState: React.FC<SuccessStateProps> = ({
                         <p className="gba:text-sm gba:text-muted-foreground gba:line-clamp-2 gba:mb-2">
                           {component.description}
                         </p>
-                        <div className="gba:flex gba:items-center gba:gap-2">
-                          <code className="gba:text-xs gba:text-muted-foreground gba:font-mono gba:bg-muted gba:px-2 gba:py-1 gba:rounded">
-                            {component.created_id?.slice(0, 16)}...
-                          </code>
+                        <div className="gba:space-y-1">
+                          {/* Resource URL (for screens) */}
+                          {component.resource_url && (
+                            <div className="gba:flex gba:items-center gba:gap-2">
+                              <ExternalLink className="gba:w-3 gba:h-3 gba:text-info" />
+                              <code className="gba:text-xs gba:text-info gba:font-mono">{component.resource_url}</code>
+                            </div>
+                          )}
+                          {/* Component ID */}
+                          <div className="gba:flex gba:items-center gba:gap-2">
+                            <code className="gba:text-xs gba:text-muted-foreground gba:font-mono gba:bg-muted gba:px-2 gba:py-1 gba:rounded">
+                              {component.created_id?.slice(0, 16)}...
+                            </code>
+                          </div>
+                          {/* Azure CDN URL (if published) */}
+                          {component.azure_url && (
+                            <div className="gba:flex gba:items-center gba:gap-2 gba:text-xs gba:text-muted-foreground">
+                              <span>CDN:</span>
+                              <a
+                                href={component.azure_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="gba:text-info hover:gba:underline gba:font-mono gba:truncate"
+                                onClick={e => e.stopPropagation()}
+                              >
+                                {component.azure_url.slice(0, 40)}...
+                              </a>
+                            </div>
+                          )}
+                          {/* Published files count */}
+                          {component.published_file_count !== undefined && (
+                            <div className="gba:text-xs gba:text-muted-foreground">
+                              Published {component.published_file_count} files
+                            </div>
+                          )}
                         </div>
                       </div>
 
