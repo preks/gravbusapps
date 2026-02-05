@@ -5,7 +5,7 @@
  * Following NEWWORK design system.
  */
 
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useCallback } from 'react'
 import { format } from 'date-fns'
 import {
   Button,
@@ -13,7 +13,8 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  Input
+  Input,
+  Checkbox
 } from '@newwork/nw-design-system'
 import {
   Search,
@@ -27,7 +28,8 @@ import {
   ArrowDown,
   FileType,
   MoreHorizontal,
-  FolderInput
+  FolderInput,
+  Trash2
 } from 'lucide-react'
 import type { SpaceContentItem } from '../types/space.types'
 
@@ -36,6 +38,8 @@ export interface SpaceContentProps {
   isLoading?: boolean
   onItemClick?: (item: SpaceContentItem) => void
   onMoveToFolderClick?: (item: SpaceContentItem) => void
+  onMoveMultipleToFolder?: (items: SpaceContentItem[]) => void
+  onRemoveContent?: (item: SpaceContentItem) => void
   'data-testid'?: string
 }
 
@@ -63,12 +67,15 @@ export const SpaceContent: React.FC<SpaceContentProps> = ({
   isLoading = false,
   onItemClick,
   onMoveToFolderClick,
+  onMoveMultipleToFolder,
+  onRemoveContent,
   'data-testid': testId = 'space-content'
 }) => {
   const [activeTab, setActiveTab] = useState<ContentTab>('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [sortField, setSortField] = useState<SortField>('updatedAt')
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set())
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -130,6 +137,33 @@ export const SpaceContent: React.FC<SpaceContentProps> = ({
     }),
     [items]
   )
+
+  const toggleSelectItem = useCallback((itemId: string) => {
+    setSelectedItems(prev => {
+      const next = new Set(prev)
+      if (next.has(itemId)) {
+        next.delete(itemId)
+      } else {
+        next.add(itemId)
+      }
+      return next
+    })
+  }, [])
+
+  const selectAll = useCallback(() => {
+    setSelectedItems(new Set(filteredItems.map(item => item.id)))
+  }, [filteredItems])
+
+  const clearSelection = useCallback(() => {
+    setSelectedItems(new Set())
+  }, [])
+
+  const handleMoveSelectedToFolder = useCallback(() => {
+    if (selectedItems.size === 0 || !onMoveMultipleToFolder) return
+    const itemsToMove = items.filter(item => selectedItems.has(item.id))
+    onMoveMultipleToFolder(itemsToMove)
+    clearSelection()
+  }, [selectedItems, items, onMoveMultipleToFolder, clearSelection])
 
   if (isLoading) {
     return (
@@ -215,12 +249,42 @@ export const SpaceContent: React.FC<SpaceContentProps> = ({
         </div>
       )}
 
+      {/* Selection Toolbar */}
+      {selectedItems.size > 0 && (
+        <div className="gba:flex gba:items-center gba:gap-3 gba:px-4 gba:py-3 gba:bg-primary/10 gba:border gba:border-primary/20 gba:rounded-lg">
+          <span className="gba:text-sm gba:font-medium gba:text-foreground">
+            {selectedItems.size} item{selectedItems.size !== 1 ? 's' : ''} selected
+          </span>
+          <div className="gba:flex gba:gap-2 gba:ml-auto">
+            {onMoveMultipleToFolder && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleMoveSelectedToFolder}
+                data-testid={`${testId}-move-selected`}
+              >
+                <FolderInput className="gba:w-4 gba:h-4 gba:mr-2" />
+                Move to folder
+              </Button>
+            )}
+            <Button variant="ghost" size="sm" onClick={clearSelection} data-testid={`${testId}-clear-selection`}>
+              Clear
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Content table */}
       {filteredItems.length > 0 && (
         <div className="gba:rounded-xl gba:border gba:border-border/50 gba:overflow-hidden gba:bg-card">
           {/* Table header */}
           <div className="gba:grid gba:grid-cols-12 gba:gap-4 gba:px-4 gba:py-3 gba:bg-muted/30 gba:border-b gba:border-border/50">
-            <div className="gba:col-span-6 gba:sm:col-span-5">
+            <div className="gba:col-span-6 gba:sm:col-span-5 gba:flex gba:items-center gba:gap-3">
+              <Checkbox
+                checked={selectedItems.size === filteredItems.length && filteredItems.length > 0}
+                onCheckedChange={checked => (checked ? selectAll() : clearSelection())}
+                data-testid={`${testId}-select-all`}
+              />
               <button
                 type="button"
                 onClick={() => handleSort('title')}
@@ -268,12 +332,38 @@ export const SpaceContent: React.FC<SpaceContentProps> = ({
               return (
                 <div
                   key={item.id}
+                  draggable={!!onMoveToFolderClick}
+                  onDragStart={e => {
+                    if (onMoveToFolderClick) {
+                      e.dataTransfer.effectAllowed = 'move'
+                      // If item is selected, drag all selected items
+                      if (selectedItems.has(item.id)) {
+                        const itemsToDrag = items.filter(i => selectedItems.has(i.id))
+                        e.dataTransfer.setData('application/json', JSON.stringify(itemsToDrag))
+                      } else {
+                        e.dataTransfer.setData('application/json', JSON.stringify([item]))
+                      }
+                      e.currentTarget.style.opacity = '0.5'
+                    }
+                  }}
+                  onDragEnd={e => {
+                    e.currentTarget.style.opacity = '1'
+                  }}
                   onClick={() => onItemClick?.(item)}
-                  className="gba:grid gba:grid-cols-12 gba:gap-4 gba:px-4 gba:py-3 gba:cursor-pointer gba:transition-colors gba:hover:bg-muted/30"
+                  className={`gba:group gba:grid gba:grid-cols-12 gba:gap-4 gba:px-4 gba:py-3 gba:cursor-pointer gba:transition-colors gba:hover:bg-muted/30 ${
+                    selectedItems.has(item.id) ? 'gba:bg-primary/10' : ''
+                  }`}
                   data-testid={`${testId}-item-${item.id}`}
                 >
                   {/* Name */}
                   <div className="gba:col-span-6 gba:sm:col-span-5 gba:flex gba:items-center gba:gap-3 gba:min-w-0">
+                    <div onClick={e => e.stopPropagation()}>
+                      <Checkbox
+                        checked={selectedItems.has(item.id)}
+                        onCheckedChange={() => toggleSelectItem(item.id)}
+                        data-testid={`${testId}-select-${item.id}`}
+                      />
+                    </div>
                     <div
                       className={`gba:w-8 gba:h-8 gba:rounded-lg gba:flex gba:items-center gba:justify-center gba:flex-shrink-0 ${
                         item.isPdf && item.type === 'document' ? 'gba:bg-destructive/10' : 'gba:bg-muted/50'
@@ -309,29 +399,37 @@ export const SpaceContent: React.FC<SpaceContentProps> = ({
 
                   {/* Actions */}
                   <div
-                    className="gba:col-span-2 gba:sm:col-span-1 gba:flex gba:items-center gba:justify-end"
+                    className="gba:col-span-2 gba:sm:col-span-1 gba:flex gba:items-center gba:justify-end gba:gap-1"
                     onClick={e => e.stopPropagation()}
                   >
-                    {onMoveToFolderClick && (
+                    {(onMoveToFolderClick || onRemoveContent) && (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="gba:h-8 gba:w-8 gba:opacity-0 gba:group-hover:opacity-100"
+                            className="gba:h-8 gba:w-8 gba:opacity-60 hover:gba:opacity-100 gba:group-hover:opacity-100"
                             data-testid={`${testId}-item-actions-${item.id}`}
                           >
                             <MoreHorizontal className="gba:w-4 gba:h-4" />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="gba:w-44">
-                          <DropdownMenuItem
-                            onClick={() => onMoveToFolderClick(item)}
-                            data-testid={`${testId}-item-move-${item.id}`}
-                          >
-                            <FolderInput className="gba:w-4 gba:h-4 gba:mr-2" />
-                            Move to folder
-                          </DropdownMenuItem>
+                        <DropdownMenuContent align="end">
+                          {onMoveToFolderClick && (
+                            <DropdownMenuItem onClick={() => onMoveToFolderClick(item)}>
+                              <FolderInput className="gba:w-4 gba:h-4 gba:mr-2" />
+                              Move to folder
+                            </DropdownMenuItem>
+                          )}
+                          {onRemoveContent && (
+                            <DropdownMenuItem
+                              onClick={() => onRemoveContent(item)}
+                              className="gba:text-destructive focus:gba:text-destructive"
+                            >
+                              <Trash2 className="gba:w-4 gba:h-4 gba:mr-2" />
+                              Remove from space
+                            </DropdownMenuItem>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     )}

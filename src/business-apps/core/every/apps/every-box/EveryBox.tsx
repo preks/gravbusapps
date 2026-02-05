@@ -85,17 +85,18 @@ const updateViewUrl = (view: ViewType) => {
 }
 
 // Staggered polling intervals for different data types
+// PERFORMANCE: Intervals increased to reduce backend load; hooks have internal throttling
 const POLLING_CONFIG = {
   activeTasks: {
-    interval: 15000, // 15 seconds - Most critical
+    interval: 30000, // 30 seconds - Background refresh (hooks have 10s throttle)
     enabled: true
   },
   completedTasks: {
-    interval: 60000, // 60 seconds - Less urgent
+    interval: 90000, // 90 seconds - Less urgent
     enabled: true
   },
   outboxFlows: {
-    interval: 30000, // 30 seconds - Moderate
+    interval: 45000, // 45 seconds - Moderate
     enabled: true
   }
 }

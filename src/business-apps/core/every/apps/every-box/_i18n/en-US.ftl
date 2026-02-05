@@ -46,6 +46,7 @@ inbox-new-completed-tasks-description = New completed tasks have arrived. Click 
 inbox-error-title = Error Loading Tasks
 inbox-showing-tasks = Showing {$current} of {$total}{$hasMore} tasks
 inbox-load-more = Load More
+inbox-loading-more = Loading more tasks...
 inbox-no-task-selected = No task selected
 inbox-select-task-prompt = Select a task from the list to view details
 inbox-task-no-title = Untitled Task

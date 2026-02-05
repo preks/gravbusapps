@@ -26,6 +26,7 @@ export interface SpaceDriveViewProps {
   canEdit: boolean
   onItemClick: (item: SpaceContentItem) => void
   onMoveItemToFolder: (item: SpaceContentItem, folderId: string | null) => Promise<void>
+  onRemoveContent?: (item: SpaceContentItem) => void
   'data-testid'?: string
 }
 
@@ -38,6 +39,7 @@ export const SpaceDriveView: React.FC<SpaceDriveViewProps> = ({
   canEdit,
   onItemClick,
   onMoveItemToFolder,
+  onRemoveContent,
   'data-testid': testId = 'space-drive-view'
 }) => {
   const { folders, createFolder, updateFolder, deleteFolder, isSupported, error } = useSpaceFolders(
@@ -46,7 +48,6 @@ export const SpaceDriveView: React.FC<SpaceDriveViewProps> = ({
     space
   )
 
-  const [mode, setMode] = useState<'all' | 'drive'>('drive')
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null)
 
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
@@ -56,27 +57,20 @@ export const SpaceDriveView: React.FC<SpaceDriveViewProps> = ({
   const [renameFolderId, setRenameFolderId] = useState<string | null>(null)
 
   const [moveDialogOpen, setMoveDialogOpen] = useState(false)
-  const [moveItem, setMoveItem] = useState<SpaceContentItem | null>(null)
+  const [moveItems, setMoveItems] = useState<SpaceContentItem[]>([])
 
   const folderById = useMemo(() => new Map(folders.map(f => [f.id, f])), [folders])
 
   const visibleItems = useMemo(() => {
-    if (mode === 'all') return items
     if (!selectedFolderId) return items.filter(i => !i.folderId)
     return items.filter(i => i.folderId === selectedFolderId)
-  }, [items, mode, selectedFolderId])
-
-  const handleSelectAll = useCallback(() => {
-    setMode('all')
-  }, [])
+  }, [items, selectedFolderId])
 
   const handleSelectRoot = useCallback(() => {
-    setMode('drive')
     setSelectedFolderId(null)
   }, [])
 
   const handleSelectFolder = useCallback((folderId: string) => {
-    setMode('drive')
     setSelectedFolderId(folderId)
   }, [])
 
@@ -115,17 +109,25 @@ export const SpaceDriveView: React.FC<SpaceDriveViewProps> = ({
   const handleMoveToFolderClick = useCallback(
     (item: SpaceContentItem) => {
       if (!canEdit) return
-      setMoveItem(item)
+      setMoveItems([item])
+      setMoveDialogOpen(true)
+    },
+    [canEdit]
+  )
+
+  const handleMoveMultipleToFolder = useCallback(
+    (items: SpaceContentItem[]) => {
+      if (!canEdit || items.length === 0) return
+      setMoveItems(items)
       setMoveDialogOpen(true)
     },
     [canEdit]
   )
 
   const currentFolderName = useMemo(() => {
-    if (mode !== 'drive') return 'Showing all content'
     if (!selectedFolderId) return 'Root directory'
     return folderById.get(selectedFolderId)?.name ?? 'Folder'
-  }, [folderById, mode, selectedFolderId])
+  }, [folderById, selectedFolderId])
 
   const itemCount = visibleItems.length
   const folderCount = folders.filter(f => (f.parentId ?? null) === selectedFolderId).length
@@ -138,9 +140,7 @@ export const SpaceDriveView: React.FC<SpaceDriveViewProps> = ({
       <SpaceFolderSidebar
         folders={folders}
         selectedFolderId={selectedFolderId}
-        mode={mode}
         canEdit={canEdit}
-        onSelectAll={handleSelectAll}
         onSelectRoot={handleSelectRoot}
         onSelectFolder={handleSelectFolder}
         onCreateFolder={handleCreateFolder}
@@ -179,8 +179,8 @@ export const SpaceDriveView: React.FC<SpaceDriveViewProps> = ({
                     {currentFolderName}
                   </h2>
                   <p className="gba:text-xs gba:text-muted-foreground">
-                    {mode === 'drive' && folderCount > 0 && `${folderCount} folder${folderCount !== 1 ? 's' : ''}`}
-                    {mode === 'drive' && folderCount > 0 && itemCount > 0 && ' · '}
+                    {folderCount > 0 && `${folderCount} folder${folderCount !== 1 ? 's' : ''}`}
+                    {folderCount > 0 && itemCount > 0 && ' · '}
                     {itemCount > 0 && `${itemCount} item${itemCount !== 1 ? 's' : ''}`}
                     {itemCount === 0 && folderCount === 0 && 'Empty'}
                   </p>
@@ -189,7 +189,6 @@ export const SpaceDriveView: React.FC<SpaceDriveViewProps> = ({
               <SpaceBreadcrumbs
                 folders={folders}
                 selectedFolderId={selectedFolderId}
-                mode={mode}
                 onSelectRoot={handleSelectRoot}
                 onSelectFolder={handleSelectFolder}
                 data-testid={`${testId}-breadcrumbs`}
@@ -200,22 +199,25 @@ export const SpaceDriveView: React.FC<SpaceDriveViewProps> = ({
 
         {/* Content area */}
         <div className="gba:flex-1 gba:p-6 gba:space-y-6 gba:overflow-y-auto">
-          {mode === 'drive' && (
-            <SpaceFolderGrid
-              folders={folders}
-              parentId={selectedFolderId}
-              canEdit={canEdit}
-              onOpenFolder={handleSelectFolder}
-              onCreateFolder={pid => handleCreateFolder(pid)}
-              data-testid={`${testId}-folder-grid`}
-            />
-          )}
+          <SpaceFolderGrid
+            folders={folders}
+            parentId={selectedFolderId}
+            canEdit={canEdit}
+            onOpenFolder={handleSelectFolder}
+            onCreateFolder={pid => handleCreateFolder(pid)}
+            onDropItem={async (item, folderId) => {
+              await onMoveItemToFolder(item, folderId)
+            }}
+            data-testid={`${testId}-folder-grid`}
+          />
 
           <SpaceContent
             items={visibleItems}
             isLoading={isLoading}
             onItemClick={onItemClick}
             onMoveToFolderClick={canEdit ? handleMoveToFolderClick : undefined}
+            onMoveMultipleToFolder={canEdit ? handleMoveMultipleToFolder : undefined}
+            onRemoveContent={canEdit ? onRemoveContent : undefined}
             data-testid={`${testId}-content`}
           />
         </div>
@@ -249,17 +251,26 @@ export const SpaceDriveView: React.FC<SpaceDriveViewProps> = ({
       />
 
       {/* Move */}
-      {moveItem && (
+      {moveItems.length > 0 && (
         <MoveToFolderDialog
           open={moveDialogOpen}
           onOpenChange={open => {
             setMoveDialogOpen(open)
-            if (!open) setMoveItem(null)
+            if (!open) setMoveItems([])
           }}
           folders={folders}
-          itemLabel={moveItem.title ? `"${moveItem.title}"` : 'this item'}
+          itemLabel={
+            moveItems.length === 1
+              ? moveItems[0].title
+                ? `"${moveItems[0].title}"`
+                : 'this item'
+              : `${moveItems.length} items`
+          }
           onMove={async folderId => {
-            await onMoveItemToFolder(moveItem, folderId)
+            // Move all selected items
+            for (const item of moveItems) {
+              await onMoveItemToFolder(item, folderId)
+            }
           }}
           data-testid={`${testId}-move-to-folder`}
         />

@@ -28,7 +28,6 @@ import {
   Plus,
   Trash2,
   Edit3,
-  Layers,
   FolderTree
 } from 'lucide-react'
 import type { SpaceFolder } from '../types/space.types'
@@ -36,9 +35,7 @@ import type { SpaceFolder } from '../types/space.types'
 export interface SpaceFolderSidebarProps {
   folders: SpaceFolder[]
   selectedFolderId: string | null
-  mode: 'all' | 'drive'
   canEdit: boolean
-  onSelectAll: () => void
   onSelectRoot: () => void
   onSelectFolder: (folderId: string) => void
   onCreateFolder: (parentId?: string) => void
@@ -82,9 +79,7 @@ const buildTree = (folders: SpaceFolder[]): FolderNode[] => {
 export const SpaceFolderSidebar: React.FC<SpaceFolderSidebarProps> = ({
   folders,
   selectedFolderId,
-  mode,
   canEdit,
-  onSelectAll,
   onSelectRoot,
   onSelectFolder,
   onCreateFolder,
@@ -107,7 +102,7 @@ export const SpaceFolderSidebar: React.FC<SpaceFolderSidebarProps> = ({
 
   const FolderRow: React.FC<{ node: FolderNode; depth: number }> = ({ node, depth }) => {
     const isExpanded = expandedIds.has(node.id)
-    const isSelected = selectedFolderId === node.id && mode === 'drive'
+    const isSelected = selectedFolderId === node.id
     const hasChildren = node.children.length > 0
 
     return (
@@ -248,30 +243,9 @@ export const SpaceFolderSidebar: React.FC<SpaceFolderSidebarProps> = ({
           Quick access
         </p>
         <button
-          onClick={onSelectAll}
-          className={`gba:w-full gba:flex gba:items-center gba:gap-2 gba:py-2 gba:px-2 gba:rounded-lg gba:text-sm gba:transition-all gba:duration-150 ${
-            mode === 'all'
-              ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
-              : 'gba:hover:bg-muted/60 gba:text-foreground'
-          }`}
-          data-testid={`${testId}-all-content`}
-          type="button"
-        >
-          <div
-            className={`gba:w-6 gba:h-6 gba:rounded-md gba:flex gba:items-center gba:justify-center ${
-              mode === 'all' ? 'gba:bg-primary/20' : 'gba:bg-muted'
-            }`}
-          >
-            <Layers
-              className={`gba:w-3.5 gba:h-3.5 ${mode === 'all' ? 'gba:text-primary' : 'gba:text-muted-foreground'}`}
-            />
-          </div>
-          All content
-        </button>
-        <button
           onClick={onSelectRoot}
           className={`gba:w-full gba:flex gba:items-center gba:gap-2 gba:py-2 gba:px-2 gba:rounded-lg gba:text-sm gba:transition-all gba:duration-150 ${
-            mode === 'drive' && selectedFolderId === null
+            selectedFolderId === null
               ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
               : 'gba:hover:bg-muted/60 gba:text-foreground'
           }`}
@@ -280,12 +254,12 @@ export const SpaceFolderSidebar: React.FC<SpaceFolderSidebarProps> = ({
         >
           <div
             className={`gba:w-6 gba:h-6 gba:rounded-md gba:flex gba:items-center gba:justify-center ${
-              mode === 'drive' && selectedFolderId === null ? 'gba:bg-primary/20' : 'gba:bg-muted'
+              selectedFolderId === null ? 'gba:bg-primary/20' : 'gba:bg-muted'
             }`}
           >
             <Folder
               className={`gba:w-3.5 gba:h-3.5 ${
-                mode === 'drive' && selectedFolderId === null ? 'gba:text-primary' : 'gba:text-muted-foreground'
+                selectedFolderId === null ? 'gba:text-primary' : 'gba:text-muted-foreground'
               }`}
             />
           </div>

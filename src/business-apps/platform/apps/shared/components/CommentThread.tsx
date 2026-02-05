@@ -20,7 +20,6 @@ import { MoreVertical, Reply, CheckCircle, Trash2, Edit2, User, Quote } from 'lu
 import type { Comment } from '../types/versioning'
 import { formatDistanceToNow } from 'date-fns'
 import { CommentEditor } from './CommentEditor'
-import { fixUtf8Encoding } from '@/common/utils/textUtils'
 
 /**
  * ReplyItem - Individual reply (avatar comes from backend)
@@ -29,16 +28,14 @@ const ReplyItem: React.FC<{ reply: Comment }> = ({ reply }) => {
   return (
     <div className="gba:flex gba:items-start gba:gap-2.5">
       <Avatar className="gba:h-7 gba:w-7 gba:ring-1 gba:ring-background">
-        {reply.createdByAvatar && (
-          <AvatarImage src={reply.createdByAvatar} alt={fixUtf8Encoding(reply.createdByName) || 'User'} />
-        )}
+        {reply.createdByAvatar && <AvatarImage src={reply.createdByAvatar} alt={reply.createdByName || 'User'} />}
         <AvatarFallback className="gba:bg-muted gba:text-muted-foreground">
           <User className="gba:h-3.5 gba:w-3.5" />
         </AvatarFallback>
       </Avatar>
       <div className="gba:flex-1 gba:min-w-0">
         <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
-          <span className="gba:font-semibold gba:text-xs">{fixUtf8Encoding(reply.createdByName) || 'User'}</span>
+          <span className="gba:font-semibold gba:text-xs">{reply.createdByName || 'User'}</span>
           <span className="gba:text-xs gba:text-muted-foreground">
             {formatDistanceToNow(new Date(reply.createdAt), { addSuffix: true })}
           </span>
@@ -130,7 +127,7 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
       <div className="gba:flex gba:items-start gba:gap-3 gba:mb-3">
         <Avatar className="gba:h-9 gba:w-9 gba:ring-2 gba:ring-background">
           {comment.createdByAvatar && (
-            <AvatarImage src={comment.createdByAvatar} alt={fixUtf8Encoding(comment.createdByName) || 'User'} />
+            <AvatarImage src={comment.createdByAvatar} alt={comment.createdByName || 'User'} />
           )}
           <AvatarFallback className="gba:bg-gradient-to-br gba:from-primary gba:to-primary/70 gba:text-primary-foreground">
             <User className="gba:h-4 gba:w-4" />
@@ -139,7 +136,7 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
 
         <div className="gba:flex-1 gba:min-w-0">
           <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-            <span className="gba:font-semibold gba:text-sm">{fixUtf8Encoding(comment.createdByName) || 'User'}</span>
+            <span className="gba:font-semibold gba:text-sm">{comment.createdByName || 'User'}</span>
             <span className="gba:text-xs gba:text-muted-foreground">
               {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}
             </span>

@@ -37,6 +37,8 @@ export interface FetchTasksResult {
   warnings: string[]
   hasMore: boolean // Indicates if more tasks might be available
   prefetchPromise?: Promise<UnifiedTask[]> // Background prefetch for next batch
+  /** Opaque cursor for fetching the next page. Null/undefined if no more pages. */
+  nextCursor?: string | null
 }
 
 export interface FetchTaskStatsResult {
@@ -67,7 +69,8 @@ function toEveryboxQuery(filters?: Partial<TaskFilters>): Record<string, string 
     sortBy: filters.sortBy,
     sortOrder: filters.sortOrder,
     claimableOnly: filters.claimableOnly,
-    assignedOnly: filters.assignedOnly
+    assignedOnly: filters.assignedOnly,
+    cursor: filters.cursor
   }
 }
 

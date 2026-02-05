@@ -1,6 +1,9 @@
 import { useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { isValidDate } from '@/common/utils/dateFormatter'
+import { buildWhere } from '@/common/network/graphql/queryHelpers'
+import { INVESTMENT_DESCRIPTORS } from '@/common/data/investment/types/investmentTypes.new'
 
 export interface RealEstateKPIData {
   totalInvestments: number
@@ -14,22 +17,114 @@ export interface RealEstateKPIComparison {
   previous: RealEstateKPIData
 }
 
-const GET_REAL_ESTATE_KPIS_WITH_COMPARISON = (comparisonDate: string, currencyFilter?: string): string => {
-  // Currency filter condition
-  const currencyCondition = currencyFilter ? `{ currency: { code: { _eq: "${currencyFilter}" } } }` : ''
+interface RealEstateKPIQueryResult {
+  query: string
+  variables: Record<string, any>
+}
 
-  return `
-    query GetRealEstateKPIsWithComparison {
+const buildRealEstateKPIQuery = (
+  comparisonDate: string,
+  currencyFilter?: string,
+  filters?: Record<string, any>
+): RealEstateKPIQueryResult => {
+  // Validate comparison date
+  if (!isValidDate(comparisonDate)) {
+    throw new Error('Invalid comparison date format')
+  }
+
+  const variables = { ...filters }
+
+  // Build custom conditions for real estate investment type and currency
+  const customConditions: Record<string, any>[] = [{ realEstateInvestment: {} }]
+
+  if (currencyFilter) {
+    customConditions.push({ currency: { code: { _eq: currencyFilter } } })
+  }
+
+  // Build where clauses for Investment entity
+  const currentWhere = buildWhere({
+    variables,
+    descriptors: INVESTMENT_DESCRIPTORS,
+    customConditions,
+    isDeleted: true
+  })
+
+  const previousWhere = buildWhere({
+    variables,
+    descriptors: INVESTMENT_DESCRIPTORS,
+    customConditions: [...customConditions, { createdAt: { _lte: comparisonDate } }],
+    isDeleted: true
+  })
+
+  // For RealEstateInvestment entity - need to build custom where
+  // since we don't have descriptors for this entity yet
+  const realEstateCustomConditions: any = {
+    isDeleted: { _eq: false },
+    occupancyPercent: { _gte: 0 },
+    investment: { isDeleted: { _eq: false } }
+  }
+
+  // Apply filters to nested investment for real estate queries
+  if (currencyFilter) {
+    realEstateCustomConditions.investment.currency = { code: { _eq: currencyFilter } }
+  }
+
+  // Apply ID-based filters to nested investment
+  if (filters?.ownerEmployeeIds && Array.isArray(filters.ownerEmployeeIds) && filters.ownerEmployeeIds.length > 0) {
+    realEstateCustomConditions.investment.ownerEmployee = { id: { _in: filters.ownerEmployeeIds } }
+  }
+  if (filters?.investmentTypeIds && Array.isArray(filters.investmentTypeIds) && filters.investmentTypeIds.length > 0) {
+    realEstateCustomConditions.investment.investmentType = { id: { _in: filters.investmentTypeIds } }
+  }
+  if (
+    filters?.investmentStatusIds &&
+    Array.isArray(filters.investmentStatusIds) &&
+    filters.investmentStatusIds.length > 0
+  ) {
+    realEstateCustomConditions.investment.investmentStatus = { id: { _in: filters.investmentStatusIds } }
+  }
+  if (
+    filters?.investmentAccountIds &&
+    Array.isArray(filters.investmentAccountIds) &&
+    filters.investmentAccountIds.length > 0
+  ) {
+    realEstateCustomConditions.investment.investmentAccounts = {
+      investmentAccount: { id: { _in: filters.investmentAccountIds } }
+    }
+  }
+  if (filters?.opportunityIds && Array.isArray(filters.opportunityIds) && filters.opportunityIds.length > 0) {
+    realEstateCustomConditions.investment.investmentOpportunity = { id: { _in: filters.opportunityIds } }
+  }
+
+  // Date range filters for real estate queries
+  if (filters?.acquisitionDateFrom && isValidDate(filters.acquisitionDateFrom)) {
+    if (!realEstateCustomConditions.investment.acquisitionDate) {
+      realEstateCustomConditions.investment.acquisitionDate = {}
+    }
+    realEstateCustomConditions.investment.acquisitionDate._gte = filters.acquisitionDateFrom
+  }
+  if (filters?.acquisitionDateTo && isValidDate(filters.acquisitionDateTo)) {
+    if (!realEstateCustomConditions.investment.acquisitionDate) {
+      realEstateCustomConditions.investment.acquisitionDate = {}
+    }
+    realEstateCustomConditions.investment.acquisitionDate._lte = filters.acquisitionDateTo
+  }
+
+  const currentRealEstateWhere = { ...realEstateCustomConditions }
+  const previousRealEstateWhere = {
+    ...realEstateCustomConditions,
+    createdAt: { _lte: comparisonDate }
+  }
+
+  const query = `
+    query GetRealEstateKPIsWithComparison(
+      $currentWhere: InvestmentBoolExp,
+      $previousWhere: InvestmentBoolExp,
+      $currentRealEstateWhere: RealEstateInvestmentBoolExp,
+      $previousRealEstateWhere: RealEstateInvestmentBoolExp
+    ) {
       # Current data (real estate investments only)
-      currentAggregate: InvestmentAggregate(
-        where: {
-          _and: [
-            { isDeleted: { _eq: false } }
-            { realEstateInvestment: {} }
-            ${currencyCondition}
-          ]
-        }
-      ) {
+      currentAggregate: InvestmentAggregate(where: $currentWhere) {
         aggregate {
           count
           sum {
@@ -39,35 +134,18 @@ const GET_REAL_ESTATE_KPIS_WITH_COMPARISON = (comparisonDate: string, currencyFi
         }
       }
       
-      # Current average occupancy rate from real estate table (exclude nulls, include zeros)
-      currentRealEstateAggregate: RealEstateInvestmentAggregate(
-        where: {
-          _and: [
-            { isDeleted: { _eq: false } }
-            { occupancyPercent: { _gte: 0 } }
-            { investment: { isDeleted: { _eq: false } } }
-          ]
-        }
-      ) {
+      # Current real estate data for occupancy
+      currentRealEstateAggregate: RealEstateInvestmentAggregate(where: $currentRealEstateWhere) {
         aggregate {
+          count
           avg {
             occupancyPercent
           }
-          count
         }
       }
       
-      # Previous period data (real estate investments existing 91 days ago)
-      previousAggregate: InvestmentAggregate(
-        where: {
-          _and: [
-            { isDeleted: { _eq: false } }
-            { createdAt: { _lte: "${comparisonDate}" } }
-            { realEstateInvestment: {} }
-            ${currencyCondition}
-          ]
-        }
-      ) {
+      # Previous period data
+      previousAggregate: InvestmentAggregate(where: $previousWhere) {
         aggregate {
           count
           sum {
@@ -77,110 +155,82 @@ const GET_REAL_ESTATE_KPIS_WITH_COMPARISON = (comparisonDate: string, currencyFi
         }
       }
       
-      # Previous average occupancy rate from real estate table (exclude nulls, include zeros)
-      previousRealEstateAggregate: RealEstateInvestmentAggregate(
-        where: {
-          _and: [
-            { isDeleted: { _eq: false } }
-            { occupancyPercent: { _gte: 0 } }
-            { createdAt: { _lte: "${comparisonDate}" } }
-            { investment: { isDeleted: { _eq: false } } }
-          ]
-        }
-      ) {
+      # Previous real estate data for occupancy
+      previousRealEstateAggregate: RealEstateInvestmentAggregate(where: $previousRealEstateWhere) {
         aggregate {
+          count
           avg {
             occupancyPercent
           }
-          count
         }
       }
     }
   `
-}
 
-export interface RealEstateKPIResponse {
-  currentAggregate: {
-    aggregate: {
-      count: number
-      sum: {
-        totalInvestmentAmount: number | null
-        investmentMarketValue: number | null
-      }
-    }
-  }
-  currentRealEstateAggregate: {
-    aggregate: {
-      avg: {
-        occupancyPercent: number | null
-      }
-      count: number
-    }
-  }
-  previousAggregate: {
-    aggregate: {
-      count: number
-      sum: {
-        totalInvestmentAmount: number | null
-        investmentMarketValue: number | null
-      }
-    }
-  }
-  previousRealEstateAggregate: {
-    aggregate: {
-      avg: {
-        occupancyPercent: number | null
-      }
-      count: number
+  return {
+    query,
+    variables: {
+      currentWhere,
+      previousWhere,
+      currentRealEstateWhere,
+      previousRealEstateWhere
     }
   }
 }
 
-export const useGetRealEstateKPIs = (context: BusinessAppContextProps, currency?: string) => {
+const AVERAGE_OCCUPANCY_FALLBACK = 0
+
+/**
+ * Hook to fetch real estate KPI data with period comparison
+ * Uses standard descriptor-based filtering from common where applicable
+ */
+export const useGetRealEstateKPIs = (context: BusinessAppContextProps) => {
   const graphqlClient = useGraphQLClient(context.accessToken)
 
-  const fetchRealEstateKPIs = useCallback(async (): Promise<RealEstateKPIComparison> => {
-    // Calculate date 91 days ago for comparison
-    const quarterAgo = new Date()
-    quarterAgo.setDate(quarterAgo.getDate() - 91)
-    const comparisonDate = quarterAgo.toISOString()
-
-    const query = GET_REAL_ESTATE_KPIS_WITH_COMPARISON(comparisonDate, currency)
-    try {
-      const result = await graphqlClient.request<RealEstateKPIResponse>(query)
-
-      // Transform current data
-      const currentCount = result.currentAggregate.aggregate.count
-      const currentTotalAmount = result.currentAggregate.aggregate.sum.totalInvestmentAmount || 0
-      const currentMarketValue = result.currentAggregate.aggregate.sum.investmentMarketValue || 0
-      const currentAvgOccupancy = result.currentRealEstateAggregate.aggregate.avg.occupancyPercent || 0
-
-      const current: RealEstateKPIData = {
-        totalInvestments: currentCount,
-        totalAmountInvested: currentTotalAmount,
-        totalMarketValue: currentMarketValue,
-        averageOccupancyRate: currentAvgOccupancy
+  const fetchRealEstateKPIs = useCallback(
+    async (
+      comparisonDate: string,
+      currencyFilter?: string,
+      filters?: Record<string, any>
+    ): Promise<RealEstateKPIComparison> => {
+      if (!context.accessToken) {
+        throw new Error('[useGetRealEstateKPIs] Access token is required')
       }
 
-      // Use actual historical data
-      const previousCount = result.previousAggregate.aggregate.count
-      const previousTotalAmount = result.previousAggregate.aggregate.sum.totalInvestmentAmount || 0
-      const previousMarketValue = result.previousAggregate.aggregate.sum.investmentMarketValue || 0
-      const previousAvgOccupancy = result.previousRealEstateAggregate.aggregate.avg.occupancyPercent || 0
+      const { query, variables } = buildRealEstateKPIQuery(comparisonDate, currencyFilter, filters)
 
-      const previous: RealEstateKPIData = {
-        totalInvestments: previousCount,
-        totalAmountInvested: previousTotalAmount,
-        totalMarketValue: previousMarketValue,
-        averageOccupancyRate: previousAvgOccupancy
+      try {
+        const result = await graphqlClient.request<any>(query, variables)
+
+        // Process current KPIs
+        const currentData: RealEstateKPIData = {
+          totalInvestments: result.currentAggregate.aggregate.count || 0,
+          totalAmountInvested: result.currentAggregate.aggregate.sum?.totalInvestmentAmount || 0,
+          totalMarketValue: result.currentAggregate.aggregate.sum?.investmentMarketValue || 0,
+          averageOccupancyRate:
+            result.currentRealEstateAggregate.aggregate.avg?.occupancyPercent || AVERAGE_OCCUPANCY_FALLBACK
+        }
+
+        // Process previous KPIs
+        const previousData: RealEstateKPIData = {
+          totalInvestments: result.previousAggregate.aggregate.count || 0,
+          totalAmountInvested: result.previousAggregate.aggregate.sum?.totalInvestmentAmount || 0,
+          totalMarketValue: result.previousAggregate.aggregate.sum?.investmentMarketValue || 0,
+          averageOccupancyRate:
+            result.previousRealEstateAggregate.aggregate.avg?.occupancyPercent || AVERAGE_OCCUPANCY_FALLBACK
+        }
+
+        return {
+          current: currentData,
+          previous: previousData
+        }
+      } catch (error) {
+        console.error('[useGetRealEstateKPIs] Error fetching real estate KPIs:', error)
+        throw error
       }
-
-      return { current, previous }
-    } catch (error) {
-      console.error('Error fetching real estate KPIs:', error)
-      throw error
-    }
-  }, [graphqlClient, currency])
+    },
+    [context.accessToken, graphqlClient]
+  )
 
   return { fetchRealEstateKPIs }
 }

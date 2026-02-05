@@ -17,7 +17,7 @@ import {
   SpacePinned,
   SpaceActivity,
   SpaceDriveView,
-  SpaceMembers,
+  SpaceMembersTab,
   AddContentDialog,
   SpaceCalendar,
   ScheduleMeetingButton,
@@ -43,6 +43,7 @@ import type {
   SpaceMemberRole,
   UpdateSpaceInput
 } from './types/space.types'
+import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
 
 export interface SpaceDetailProps extends BusinessAppContextProps {
   spaceId: string
@@ -62,7 +63,7 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
   const [moveDialogOpen, setMoveDialogOpen] = useState(false)
   const [addContentDialogOpen, setAddContentDialogOpen] = useState(false)
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false)
-  const [activeTab, setActiveTab] = useState<'overview' | 'drive'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'drive' | 'members'>('overview')
   const [additionalUserIds, setAdditionalUserIds] = useState<string[]>([])
 
   const currentUserId = userInfo?.id || userInfo?.employeeDetails?.employeeId || ''
@@ -84,9 +85,27 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
     slides,
     allContent,
     isLoading: contentLoading,
-    moveContent
+    moveContent,
+    removeContent,
+    addItemsToLocalState,
+    refresh: refreshContent
   } = useSpaceContent(spaceId, accessToken, space, refreshSpace)
   const { activities, isLoading: activityLoading } = useSpaceActivity(spaceId, accessToken, 20)
+
+  // Add activity user IDs to lookup when activities load
+  useEffect(() => {
+    if (activities.length > 0) {
+      const activityUserIds = activities.map(a => a.userId).filter(Boolean)
+      if (activityUserIds.length > 0) {
+        setAdditionalUserIds(prev => {
+          const existingSet = new Set(prev)
+          const newIds = activityUserIds.filter(id => !existingSet.has(id))
+          if (newIds.length === 0) return prev
+          return [...prev, ...newIds]
+        })
+      }
+    }
+  }, [activities])
 
   // Get space dimension info for team collaboration features
   const spaceDimension = space?.settings?.dimension
@@ -164,7 +183,9 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
       return {
         ...member,
         userName: info?.name,
-        userAvatar: info?.avatar
+        userAvatar: info?.avatar,
+        jobTitle: info?.jobTitle,
+        department: info?.department
       }
     })
   }, [space?.members, getUserInfo])
@@ -256,6 +277,17 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
       let url: string
       const spaceParam = `spaceId=${encodeURIComponent(spaceId)}`
 
+      // Store the current space URL in sessionStorage for the back button
+      const currentSpaceUrl = isProduction
+        ? `/platform/spaces?spaceId=${encodeURIComponent(spaceId)}`
+        : `/platform/apps/spaces?spaceId=${encodeURIComponent(spaceId)}`
+
+      try {
+        sessionStorage.setItem('space_return_url', currentSpaceUrl)
+      } catch (e) {
+        console.warn('Failed to store return URL in sessionStorage:', e)
+      }
+
       switch (item.type) {
         case 'document':
           url = isProduction
@@ -279,9 +311,9 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
           break
       }
 
-      // Always include spaceId so editors can broadcast activity for the correct Space
-      const urlWithSpace = url.includes('?') ? `${url}&${spaceParam}` : `${url}?${spaceParam}`
-      navigateTo(buildPlatformUrl(urlWithSpace))
+      // Include spaceId parameter
+      const urlWithParams = url.includes('?') ? `${url}&${spaceParam}` : `${url}?${spaceParam}`
+      navigateTo(buildPlatformUrl(urlWithParams))
     },
     [spaceId]
   )
@@ -293,14 +325,65 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
     [moveContent]
   )
 
-  const handleAddContent = useCallback(
-    async (items: { type: 'document' | 'note' | 'spreadsheet' | 'slide'; id: string }[]) => {
-      // Add each item to the space
-      for (const item of items) {
-        await moveContent({ contentType: item.type, entityId: item.id })
+  const handleRemoveContent = useCallback(
+    async (item: SpaceContentItem) => {
+      const entityType = item.type === 'spreadsheet' ? 'spreadsheet_app' : item.type
+      const confirmed = confirm(`Remove "${item.title}" from this space?`)
+      if (!confirmed) return
+
+      const success = await removeContent(entityType, item.id)
+      if (success) {
+        // Content is already removed from local state by the hook
       }
     },
-    [moveContent]
+    [removeContent]
+  )
+
+  const handleAddContent = useCallback(
+    async (
+      items: { type: 'document' | 'note' | 'spreadsheet' | 'slide'; id: string; title?: string; name?: string }[]
+    ) => {
+      if (items.length === 0) return
+
+      try {
+        const API_URL = getDocumentServiceApiUrl()
+
+        // Add items to local state immediately for instant UI update
+        addItemsToLocalState(items)
+
+        const response = await fetch(`${API_URL}/spaces/${spaceId}/content/bulk`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            items: items.map(item => ({
+              entityType: item.type === 'spreadsheet' ? 'spreadsheet_app' : item.type,
+              entityId: item.id
+            }))
+          })
+        })
+
+        if (response.ok) {
+          // Fetch full data in background to get accurate info
+          await refreshContent()
+          return
+        }
+
+        // Fallback: add items individually
+        for (const item of items) {
+          await moveContent({ contentType: item.type, entityId: item.id })
+        }
+      } catch (error) {
+        console.error('Failed to add content:', error)
+        // Fallback to individual calls
+        for (const item of items) {
+          await moveContent({ contentType: item.type, entityId: item.id })
+        }
+      }
+    },
+    [spaceId, accessToken, moveContent, addItemsToLocalState, refreshContent]
   )
 
   // Loading state
@@ -347,7 +430,7 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
       <main className="gba:max-w-7xl gba:mx-auto gba:px-6 gba:py-8 gba:space-y-8">
         <Tabs
           value={activeTab}
-          onValueChange={value => setActiveTab(value as 'overview' | 'drive')}
+          onValueChange={value => setActiveTab(value as 'overview' | 'drive' | 'members')}
           className="gba:space-y-6"
         >
           <TabsList className="gba:w-fit" data-testid={`${testId}-tabs`}>
@@ -356,6 +439,9 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
             </TabsTrigger>
             <TabsTrigger value="drive" data-testid={`${testId}-tab-drive`}>
               Drive
+            </TabsTrigger>
+            <TabsTrigger value="members" data-testid={`${testId}-tab-members`}>
+              Members ({space.members?.length || 0})
             </TabsTrigger>
           </TabsList>
 
@@ -419,6 +505,7 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
                     <SpaceRealTimeActivity
                       spaceId={spaceId}
                       spaceContent={allContent}
+                      accessToken={accessToken}
                       currentUserId={currentUserId}
                       maxActivities={5}
                       data-testid={`${testId}-realtime-activity`}
@@ -436,37 +523,19 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
               </section>
             )}
 
-            {/* Two Column Layout: Activity & Members */}
-            <div className="gba:grid gba:grid-cols-1 gba:lg:grid-cols-3 gba:gap-8">
-              {/* Left: Activity Feed */}
-              <section className="gba:lg:col-span-2">
-                <h2 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-4">Recent Activity</h2>
-                <div className="gba:rounded-lg gba:bg-card gba:p-4">
-                  <SpaceActivity
-                    activities={activities}
-                    isLoading={activityLoading}
-                    data-testid={`${testId}-activity`}
-                  />
-                </div>
-              </section>
-
-              {/* Right: Members */}
-              <section>
-                <h2 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-4">Members</h2>
-                <div className="gba:rounded-lg gba:bg-card gba:p-4">
-                  <SpaceMembers
-                    members={enrichedMembers}
-                    currentUserId={currentUserId}
-                    isOwner={isOwner}
-                    canManageMembers={canManageMembers}
-                    onInvite={() => setInviteDialogOpen(true)}
-                    onUpdateRole={handleUpdateMemberRole}
-                    onRemoveMember={handleRemoveMember}
-                    data-testid={`${testId}-members`}
-                  />
-                </div>
-              </section>
-            </div>
+            {/* Activity Feed - Full Width */}
+            <section>
+              <h2 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-4">Recent Activity</h2>
+              <div className="gba:rounded-lg gba:bg-card gba:p-4">
+                <SpaceActivity
+                  activities={activities}
+                  isLoading={activityLoading}
+                  spaceId={spaceId}
+                  getUserInfo={getUserInfo}
+                  data-testid={`${testId}-activity`}
+                />
+              </div>
+            </section>
           </TabsContent>
 
           <TabsContent value="drive" data-testid={`${testId}-tab-content-drive`}>
@@ -481,7 +550,22 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
               onMoveItemToFolder={async (item, folderId) => {
                 await moveContent({ contentType: item.type, entityId: item.id, folderId })
               }}
+              onRemoveContent={handleRemoveContent}
               data-testid={`${testId}-drive`}
+            />
+          </TabsContent>
+
+          <TabsContent value="members" data-testid={`${testId}-tab-content-members`}>
+            <SpaceMembersTab
+              members={enrichedMembers}
+              activities={activities}
+              currentUserId={currentUserId}
+              isOwner={isOwner}
+              canManageMembers={canManageMembers}
+              onInvite={() => setInviteDialogOpen(true)}
+              onUpdateRole={handleUpdateMemberRole}
+              onRemoveMember={handleRemoveMember}
+              data-testid={`${testId}-members-tab`}
             />
           </TabsContent>
         </Tabs>
