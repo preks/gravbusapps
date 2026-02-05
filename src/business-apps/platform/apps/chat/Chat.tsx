@@ -1281,9 +1281,16 @@ const ChatInner: React.FC<ChatProps> = memo(
           const url = new URL(window.location.href)
           url.searchParams.set('conversationId', conversation.id)
           window.history.replaceState({}, '', url.toString())
+
+          // Mark conversation as read when opening it
+          if (apiClient && (conversation.unreadCount ?? 0) > 0) {
+            apiClient.markAsRead(conversation.id).catch(error => {
+              console.error('[Chat] Failed to mark conversation as read:', error)
+            })
+          }
         })
       },
-      [setActiveConversation]
+      [setActiveConversation, apiClient]
     )
 
     const handleBack = useCallback(() => {
