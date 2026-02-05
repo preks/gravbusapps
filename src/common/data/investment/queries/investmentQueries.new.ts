@@ -460,8 +460,9 @@ export interface InvestmentQueryVariables extends BaseQueryVariables {
 
   // Investment type filters (passed as customConditions to buildWhere)
   // These are direct GraphQL objects, not processed by descriptors
-  liquidFundInvestment?: { id: { _isNull: false } }
-  realEstateInvestment?: { id: { _isNull: false } }
-  equityInvestment?: { id: { _isNull: false } }
+  // Use {} to check if relationship array has any items (Hasura "exists" syntax)
+  liquidFundInvestment?: Record<string, any>
+  realEstateInvestment?: Record<string, any>
+  equityInvestment?: Record<string, any>
   planedExit?: boolean
 }

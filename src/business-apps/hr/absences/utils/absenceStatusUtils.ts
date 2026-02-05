@@ -18,6 +18,50 @@ export interface AbsenceStatusConfig {
 }
 
 /**
+ * Status configuration map - defines all status properties in one place
+ */
+const STATUS_CONFIG_MAP: Record<
+  string,
+  { i18nKey: string; defaultLabel: string; variant: BadgeProps['variant']; color: string; type: string }
+> = {
+  PLANNED: {
+    i18nKey: 'lowcoder:expense_statuses.draft',
+    defaultLabel: 'Draft',
+    variant: 'secondary',
+    color: 'var(--nw-muted-foreground)',
+    type: 'draft'
+  },
+  PENDING: {
+    i18nKey: 'lowcoder:expense_statuses.in_approval',
+    defaultLabel: 'In Approval',
+    variant: 'secondary',
+    color: 'var(--nw-muted-foreground)',
+    type: 'pending'
+  },
+  APPROVED: {
+    i18nKey: 'lowcoder:expense_statuses.approved',
+    defaultLabel: 'Approved',
+    variant: 'success',
+    color: 'var(--nw-success)',
+    type: 'approved'
+  },
+  REJECTED: {
+    i18nKey: 'lowcoder:expense_statuses.rejected',
+    defaultLabel: 'Rejected',
+    variant: 'destructive',
+    color: 'var(--nw-destructive)',
+    type: 'rejected'
+  },
+  CANCELLED: {
+    i18nKey: 'lowcoder:absence_calendar.cancelled',
+    defaultLabel: 'Cancelled',
+    variant: 'secondary',
+    color: 'var(--nw-muted-foreground)',
+    type: 'cancelled'
+  }
+}
+
+/**
  * Maps absence statuses to appropriate Badge display configuration
  * Based on the exact status mapping provided with correct labels and colors
  * @param status - The absence status
@@ -34,60 +78,26 @@ export function getAbsenceStatusConfig(status?: string): AbsenceStatusConfig {
     }
   }
 
-  switch (status.toUpperCase()) {
-    case 'PLANNED':
-      return {
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.draft', 'Draft'),
-        variant: 'secondary', // Gray - indicates draft/planned state
-        color: 'var(--nw-muted-foreground)',
-        type: 'draft',
-        status: 'PLANNED'
-      }
+  const upperStatus = status.toUpperCase()
+  const config = STATUS_CONFIG_MAP[upperStatus]
 
-    case 'PENDING':
-      return {
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.in_approval', 'In Approval'),
-        variant: 'warning', // Orange - indicates pending approval
-        color: 'var(--nw-warning)',
-        type: 'pending',
-        status: 'PENDING'
-      }
+  if (config) {
+    return {
+      label: getTranslationFromI18nKeyAndLabel(config.i18nKey, config.defaultLabel),
+      variant: config.variant,
+      color: config.color,
+      type: config.type,
+      status: upperStatus
+    }
+  }
 
-    case 'APPROVED':
-      return {
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.approved', 'Approved'),
-        variant: 'success', // Green - indicates approved
-        color: 'var(--nw-success)',
-        type: 'approved',
-        status: 'APPROVED'
-      }
-
-    case 'REJECTED':
-      return {
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:expense_statuses.rejected', 'Rejected'),
-        variant: 'destructive', // Red - indicates rejected
-        color: 'var(--nw-destructive)',
-        type: 'rejected',
-        status: 'REJECTED'
-      }
-
-    case 'CANCELLED':
-      return {
-        label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_calendar.cancelled', 'Cancelled'),
-        variant: 'secondary', // Gray - indicates cancelled
-        color: 'var(--nw-muted-foreground)',
-        type: 'cancelled',
-        status: 'CANCELLED'
-      }
-
-    default:
-      return {
-        label: status ? status.charAt(0).toUpperCase() + status.slice(1).toLowerCase() : 'Unknown',
-        variant: 'secondary',
-        color: 'var(--nw-muted-foreground)',
-        type: 'unknown',
-        status: status ? status.toUpperCase() : 'UNKNOWN'
-      }
+  // Default case for unknown statuses
+  return {
+    label: status.charAt(0).toUpperCase() + status.slice(1).toLowerCase(),
+    variant: 'secondary',
+    color: 'var(--nw-muted-foreground)',
+    type: 'unknown',
+    status: upperStatus
   }
 }
 
@@ -110,6 +120,19 @@ export function getAbsenceStatusBadgeVariant(status?: string): BadgeProps['varia
 }
 
 /**
+ * Badge variant to background class mapping
+ * Uses secondary colors with /80 opacity to match Badge component styling
+ */
+const BADGE_VARIANT_BG_MAP: Record<string, string> = {
+  success: 'gba:bg-success-secondary/80',
+  warning: 'gba:bg-warning-secondary/80',
+  destructive: 'gba:bg-destructive-secondary/80',
+  info: 'gba:bg-info-secondary/80',
+  offline: 'gba:bg-offline-secondary/80',
+  secondary: 'gba:bg-secondary'
+}
+
+/**
  * Get the Tailwind background class for a Badge variant (matches Badge component styling)
  * Uses secondary colors with /80 opacity to exactly match Badge component background colors
  * The Badge component internally maps variants like "success" to "bg-success-secondary/80"
@@ -118,17 +141,7 @@ export function getAbsenceStatusBadgeVariant(status?: string): BadgeProps['varia
  */
 export function getBadgeVariantBackgroundClass(variant: BadgeProps['variant']): string {
   if (!variant) return 'gba:bg-muted'
-
-  // For semantic variants, use the secondary color with /80 opacity (matches Badge component background exactly)
-  // Badge component uses: bg-{variant}-secondary/80 for these variants
-  if (variant === 'success') return 'gba:bg-success-secondary/80'
-  if (variant === 'warning') return 'gba:bg-warning-secondary/80'
-  if (variant === 'destructive') return 'gba:bg-destructive-secondary/80'
-  if (variant === 'info') return 'gba:bg-info-secondary/80'
-  if (variant === 'offline') return 'gba:bg-offline-secondary/80'
-
-  // For other variants, use muted
-  return 'gba:bg-muted'
+  return BADGE_VARIANT_BG_MAP[variant] || 'gba:bg-muted'
 }
 
 /**

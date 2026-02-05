@@ -100,10 +100,12 @@ export interface RealEstateInvestmentKPIs {
 
 interface RealEstateInvestmentsReportProps extends BusinessAppContextProps {
   prefixDataTestId?: string
+  isActive?: boolean
 }
 
 const RealEstateInvestmentsReport: React.FC<RealEstateInvestmentsReportProps> = props => {
   const prefixDataTestId = props.prefixDataTestId || 'RealEstateInvestmentsReport'
+  const isActive = props.isActive ?? true
   const [activeTab, setActiveTab] = useState('distribution')
   const [selectedCurrency, setSelectedCurrency] = useState<string>('EUR')
 
@@ -124,7 +126,7 @@ const RealEstateInvestmentsReport: React.FC<RealEstateInvestmentsReportProps> = 
     isLoading: kpiLoading,
     error: kpiError,
     refetch: refetchKpis
-  } = useRealEstateKPIIntegration(props, selectedCurrency)
+  } = useRealEstateKPIIntegration(props, selectedCurrency, undefined, isActive)
 
   const { fetchInvestments } = useGetInvestments(props)
 

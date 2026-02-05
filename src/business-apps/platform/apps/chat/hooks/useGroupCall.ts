@@ -31,6 +31,7 @@ export interface GroupCallInvite {
   from: { id: string; odId: string; odName: string; avatarUrl?: string }
   conversationName?: string
   conversationId?: string // The actual conversation ID for backend tracking
+  conversationType?: 'direct' | 'group' | 'meeting' // Type of conversation
 }
 
 export interface GroupCallUIState {
@@ -49,6 +50,8 @@ export interface GroupCallUIState {
   remoteHandsRaised: Record<string, boolean> // Map of participantId -> handRaised for remote participants
   handRaisedOrder?: Record<string, { order: number; timestamp: number }> // Map of participantId -> order and timestamp
   startTime: number | null
+  conversationName?: string // Name of the conversation/meeting
+  conversationType?: 'direct' | 'group' | 'meeting' // Type of conversation
   duration: number
   callImplementation: 'mesh' | 'realtime-kit' | '1-on-1' // Track which implementation is used
   calendarMeetingId?: string | null // Calendar meeting ID for AI transcription (only for calls started from calendar)
@@ -95,13 +98,15 @@ export interface UseGroupCallReturn {
    * @param participants - List of participants to invite
    * @param conversationName - Optional name of the conversation
    * @param calendarMeetingId - Optional calendar meeting ID for linking to AI transcription (RealtimeKit only)
+   * @param conversationType - Optional type of conversation (direct, group, or meeting)
    */
   initiateCall?: (
     roomId: string,
     callType: CallType,
     participants: CallParticipant[],
     conversationName?: string,
-    calendarMeetingId?: string | null
+    calendarMeetingId?: string | null,
+    conversationType?: 'direct' | 'group' | 'meeting'
   ) => void
   /**
    * Confirm and start call with user preferences (RTK only)

@@ -5,7 +5,7 @@
  */
 
 import { useState, useCallback, useEffect } from 'react'
-import type { Space, CreateSpaceInput, UpdateSpaceInput } from '../types/space.types'
+import type { Space, CreateSpaceInput, UpdateSpaceInput, SpaceMemberRole } from '../types/space.types'
 import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
 
 const API_URL = getDocumentServiceApiUrl()
@@ -82,20 +82,76 @@ export function useSpaces(accessToken: string | undefined, options: UseSpacesOpt
       }
 
       try {
+        // Prepare the create payload - store dimension info in settings
+        const createPayload = {
+          name: input.name,
+          description: input.description,
+          icon: input.icon,
+          color: input.color,
+          coverImage: input.coverImage,
+          isPublic: input.isPublic,
+          // Store dimension info in settings if provided
+          settings: input.dimension
+            ? {
+                dimension: {
+                  type: input.dimension.type,
+                  id: input.dimension.id,
+                  name: input.dimension.name
+                }
+              }
+            : undefined
+        }
+
         const response = await fetch(`${API_URL}/spaces`, {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${accessToken}`,
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify(input)
+          body: JSON.stringify(createPayload)
         })
 
         if (!response.ok) {
           throw new Error(`Failed to create space: ${response.statusText}`)
         }
 
-        const space = await response.json()
+        let space = await response.json()
+
+        // If memberIds provided, add them via bulk endpoint
+        if (input.memberIds && input.memberIds.length > 0) {
+          try {
+            const membersPayload = input.memberIds.map(userId => ({
+              userId,
+              role: 'editor' as SpaceMemberRole
+            }))
+
+            const membersResponse = await fetch(`${API_URL}/spaces/${space.id}/members/bulk`, {
+              method: 'POST',
+              headers: {
+                Authorization: `Bearer ${accessToken}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({ members: membersPayload })
+            })
+
+            if (membersResponse.ok) {
+              // Refresh the space to get updated member list
+              const refreshResponse = await fetch(`${API_URL}/spaces/${space.id}?includeMembers=true`, {
+                headers: {
+                  Authorization: `Bearer ${accessToken}`,
+                  'Content-Type': 'application/json'
+                }
+              })
+              if (refreshResponse.ok) {
+                space = await refreshResponse.json()
+              }
+            }
+          } catch (memberErr) {
+            // Log but don't fail the whole operation - space was created
+            console.error('[useSpaces] Error adding members:', memberErr)
+          }
+        }
+
         setSpaces(prev => [space, ...prev])
         return space
       } catch (err) {

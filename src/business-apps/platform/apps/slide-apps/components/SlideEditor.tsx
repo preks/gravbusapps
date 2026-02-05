@@ -52,7 +52,8 @@ import {
   Clock,
   CheckCircle,
   Download,
-  FileDown
+  FileDown,
+  X
 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -642,9 +643,16 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   if (isPresentMode) {
     return (
       <div className="gba:fixed gba:inset-0 gba:z-50 gba:bg-black">
-        <div className="gba:absolute gba:top-4 gba:right-4 gba:z-10">
-          <Button variant="secondary" size="sm" onClick={() => setIsPresentMode(false)}>
-            Exit (ESC)
+        {/* Exit button in top-right - positioned below platform header */}
+        <div className="gba:absolute gba:top-20 gba:right-6 gba:z-[9999]">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setIsPresentMode(false)}
+            className="gba:bg-white/10 gba:text-white/90 gba:hover:bg-white/20 gba:backdrop-blur-sm gba:border gba:border-white/20 gba:rounded-full"
+            data-testid={`${testId}-present-exit`}
+          >
+            <X className="gba:w-4 gba:h-4" />
           </Button>
         </div>
         <div className="gba:h-full gba:flex gba:items-center gba:justify-center">
@@ -680,6 +688,17 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
             className="gba:text-white"
           >
             Next →
+          </Button>
+          <div className="gba:w-px gba:h-6 gba:bg-white/30 gba:mx-2" />
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setIsPresentMode(false)}
+            className="gba:text-white/90 gba:hover:text-white gba:hover:bg-white/10"
+            data-testid={`${testId}-present-exit-bottom`}
+          >
+            <X className="gba:w-4 gba:h-4 gba:mr-1.5" />
+            Exit
           </Button>
         </div>
       </div>

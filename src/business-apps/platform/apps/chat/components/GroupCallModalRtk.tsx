@@ -88,6 +88,7 @@ interface GroupCallModalRtkProps {
   apiClient?: ChatApiClient
   activeConversation?: any // For looking up avatar URLs from conversation participants
   activeExperts?: any[] // Every AI experts for mentions in chat
+  hideReactionsAndHandRaise?: boolean // Hide reactions and hand-raising UI (for 1-on-1 calls)
 }
 
 // Helper to get screen share track from peer
@@ -188,7 +189,8 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
   currentUserId,
   currentUser,
   activeConversation,
-  activeExperts
+  activeExperts,
+  hideReactionsAndHandRaise = false
 }) => {
   // Create conversation object for the call based on roomId
   // Use the call's conversation, NOT the active conversation from sidebar
@@ -2402,10 +2404,10 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
         callType={callState.callType}
         isMuted={callState.isMuted}
         isVideoEnabled={callState.isVideoEnabled}
-        isHandRaised={isFirstPeerHandRaised}
-        handRaisedOrderNumber={firstPeerHandRaisedOrderNumber}
+        isHandRaised={hideReactionsAndHandRaise ? false : isFirstPeerHandRaised}
+        handRaisedOrderNumber={hideReactionsAndHandRaise ? undefined : firstPeerHandRaisedOrderNumber}
         isRemotePeerMuted={isFirstPeerMuted}
-        reactions={firstPeerReactions}
+        reactions={hideReactionsAndHandRaise ? [] : firstPeerReactions}
         onToggleMute={onToggleMute}
         onToggleVideo={onToggleVideo}
         onExpand={onToggleMinimize || NOOP}
@@ -2452,6 +2454,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
             <div className="gba:bg-background gba:border-b gba:flex-shrink-0">
               <CallHeader
                 conversationName={conversationName}
+                conversationType={callState.conversationType}
                 callStartTime={callState.startTime}
                 participantCount={stableRemotePeers.length + 1}
                 availableParticipantsCount={availableParticipants?.length || 0}
@@ -2554,12 +2557,12 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
                               hasAudioTrack: item.hasAudioTrack || false,
                               type: item.type,
                               screenShareTrack: item.screenShareTrack,
-                              isHandRaised: isParticipantHandRaised(item.peerId, item.userId, item.customParticipantId),
-                              handRaisedOrderNumber: getHandRaisedOrderNumber(
-                                item.peerId,
-                                item.userId,
-                                item.customParticipantId
-                              ),
+                              isHandRaised: hideReactionsAndHandRaise
+                                ? false
+                                : isParticipantHandRaised(item.peerId, item.userId, item.customParticipantId),
+                              handRaisedOrderNumber: hideReactionsAndHandRaise
+                                ? undefined
+                                : getHandRaisedOrderNumber(item.peerId, item.userId, item.customParticipantId),
                               isActiveSpeaker: item.isActiveSpeaker
                             })) as any
                         }
@@ -2578,7 +2581,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
                           setFocusedScreenShareId(peerId)
                         }}
                         activeSpeakerId={activeSpeakerId}
-                        reactions={activeReactions}
+                        reactions={hideReactionsAndHandRaise ? [] : activeReactions}
                         t={t}
                         prefixDataTestId={`${prefixDataTestId}-filmstrip`}
                         isMinimized={callState.isMinimized}
@@ -2612,14 +2615,18 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
                           screenShareTrack={item.screenShareTrack}
                           isFocusedScreenShare={false}
                           totalScreenShares={allScreenShares.length}
-                          isHandRaised={isParticipantHandRaised(item.peerId, item.userId, item.customParticipantId)}
-                          handRaisedOrderNumber={getHandRaisedOrderNumber(
-                            item.peerId,
-                            item.userId,
-                            item.customParticipantId
-                          )}
+                          isHandRaised={
+                            hideReactionsAndHandRaise
+                              ? false
+                              : isParticipantHandRaised(item.peerId, item.userId, item.customParticipantId)
+                          }
+                          handRaisedOrderNumber={
+                            hideReactionsAndHandRaise
+                              ? undefined
+                              : getHandRaisedOrderNumber(item.peerId, item.userId, item.customParticipantId)
+                          }
                           isActiveSpeaker={item.isActiveSpeaker}
-                          reactions={activeReactions}
+                          reactions={hideReactionsAndHandRaise ? [] : activeReactions}
                           isMinimized={callState.isMinimized}
                           onScreenShareClick={() => {
                             if (item.screenShareTrack) {
@@ -2674,9 +2681,9 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
                       onMuteAll={handleMuteAll}
                       activeSpeakerId={activeSpeakerId}
                       activeSpeakerHistory={activeSpeakerHistory}
-                      remoteHandsRaised={callState.remoteHandsRaised}
-                      handRaisedOrder={callState.handRaisedOrder}
-                      localHandRaised={callState.handRaised}
+                      remoteHandsRaised={hideReactionsAndHandRaise ? {} : callState.remoteHandsRaised}
+                      handRaisedOrder={hideReactionsAndHandRaise ? {} : callState.handRaisedOrder}
+                      localHandRaised={hideReactionsAndHandRaise ? false : callState.handRaised}
                       localUserId={meeting?.self?.userId}
                       activeConversation={activeConversation}
                       t={t}
@@ -2708,14 +2715,14 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
                 isVideoEnabled={callState.isVideoEnabled}
                 isScreenSharing={callState.isScreenSharing}
                 backgroundEnabled={callState.backgroundEnabled}
-                handRaised={callState.handRaised}
+                handRaised={hideReactionsAndHandRaise ? false : callState.handRaised}
                 transcriptionActive={transcriptionEnabled}
                 onToggleMute={onToggleMute}
                 onToggleVideo={onToggleVideo}
                 onToggleScreenShare={onToggleScreenShare}
                 onToggleBackground={onToggleBackground}
-                onToggleRaiseHand={onToggleRaiseHand}
-                onSendReaction={onSendReaction}
+                onToggleRaiseHand={hideReactionsAndHandRaise ? undefined : onToggleRaiseHand}
+                onSendReaction={hideReactionsAndHandRaise ? undefined : onSendReaction}
                 onEndCall={onEndCall}
                 prefixDataTestId={prefixDataTestId}
                 t={t}

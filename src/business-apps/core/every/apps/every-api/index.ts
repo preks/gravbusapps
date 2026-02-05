@@ -23,6 +23,7 @@ export * from './types'
 // Export services
 export * from './services/UnifiedTaskService'
 export * from './services/TaskAdapterService'
+export * from './services/EveryboxUserStateService'
 
 // Export utilities
 export * from './utils/CflowClient'

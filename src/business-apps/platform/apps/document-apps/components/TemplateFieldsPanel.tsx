@@ -13,6 +13,8 @@ import {
   getTemplateEntities,
   getTemplateEntity,
   formatTemplatePlaceholder,
+  DOMAIN_DISPLAY_NAMES,
+  DOMAIN_ORDER,
   type TemplateEntityContext,
   type TemplateEntityDefinition,
   type TemplateEntityDomain
@@ -171,8 +173,18 @@ export const TemplateFieldsPanel: React.FC<TemplateFieldsPanelProps> = ({
   'data-testid': testId = 'template-fields-panel'
 }) => {
   const [expandedEntities, setExpandedEntities] = useState<Set<string>>(new Set())
+  const [expandedDomains, setExpandedDomains] = useState<Set<TemplateEntityDomain>>(new Set())
 
   const entityList = useMemo(() => getTemplateEntities(domain, context), [domain, context])
+  const entitiesByDomain = useMemo(() => {
+    const map = new Map<TemplateEntityDomain, TemplateEntityDefinition[]>()
+    for (const entity of entityList) {
+      const list = map.get(entity.domain) ?? []
+      list.push(entity)
+      map.set(entity.domain, list)
+    }
+    return DOMAIN_ORDER.filter(d => map.has(d)).map(d => ({ domain: d, entities: map.get(d)! }))
+  }, [entityList])
   const entitiesUsedInContent = useMemo(
     () => (templateContent ? extractEntityKeysFromContent(templateContent) : []),
     [templateContent]
@@ -187,6 +199,23 @@ export const TemplateFieldsPanel: React.FC<TemplateFieldsPanelProps> = ({
     })
   }
 
+  const toggleDomain = (d: TemplateEntityDomain) => {
+    setExpandedDomains(prev => {
+      const next = new Set(prev)
+      if (next.has(d)) next.delete(d)
+      else next.add(d)
+      return next
+    })
+  }
+
+  const isDomainExpanded = (d: TemplateEntityDomain) => expandedDomains.size === 0 || expandedDomains.has(d)
+  const ensureDomainsInitialized = (domains: { domain: TemplateEntityDomain }[]) => {
+    setExpandedDomains(prev => {
+      if (prev.size > 0) return prev
+      return new Set(domains.map(({ domain }) => domain))
+    })
+  }
+
   return (
     <aside
       className="gba:w-64 gba:h-full gba:min-h-0 gba:flex-shrink-0 gba:border-r gba:bg-card gba:flex gba:flex-col gba:overflow-hidden"
@@ -194,9 +223,6 @@ export const TemplateFieldsPanel: React.FC<TemplateFieldsPanelProps> = ({
     >
       <div className="gba:flex-shrink-0 gba:px-3 gba:py-3 gba:border-b">
         <h3 className="gba:text-sm gba:font-semibold gba:text-foreground">Insert field</h3>
-        <p className="gba:text-xs gba:text-muted-foreground gba:mt-0.5">
-          Choose an entity; fields come from GraphQL (e.g. {`{{job_candidate.firstName}}`}).
-        </p>
         {entitiesUsedInContent.length > 0 && (
           <div className="gba:mt-2 gba:pt-2 gba:border-t gba:border-border">
             <p className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-1">
@@ -224,32 +250,59 @@ export const TemplateFieldsPanel: React.FC<TemplateFieldsPanelProps> = ({
         {entityList.length === 0 ? (
           <p className="gba:px-3 gba:text-xs gba:text-muted-foreground">No entity types available.</p>
         ) : (
-          <div className="gba:space-y-0.5">
-            {entityList.map((entity: TemplateEntityDefinition) => {
-              const isExpanded = expandedEntities.has(entity.entityKey)
+          <div className="gba:space-y-1">
+            {entitiesByDomain.map(({ domain, entities }) => {
+              const domainExpanded = isDomainExpanded(domain)
               return (
-                <div key={entity.entityKey} className="gba:rounded-md gba:overflow-hidden">
+                <div key={domain} className="gba:rounded-md gba:overflow-hidden">
                   <button
                     type="button"
-                    onClick={() => toggleEntity(entity.entityKey)}
-                    className="gba:w-full gba:flex gba:items-center gba:gap-2 gba:px-3 gba:py-2 gba:text-left gba:text-sm hover:gba:bg-muted/60 gba:transition-colors"
-                    data-testid={`${testId}-entity-${entity.entityKey}`}
+                    onClick={() => {
+                      ensureDomainsInitialized(entitiesByDomain)
+                      toggleDomain(domain)
+                    }}
+                    className="gba:w-full gba:flex gba:items-center gba:gap-2 gba:px-3 gba:py-2 gba:text-left gba:text-xs gba:font-semibold gba:text-muted-foreground gba:uppercase gba:tracking-wide hover:gba:bg-muted/60 gba:transition-colors"
+                    data-testid={`${testId}-domain-${domain}`}
                   >
-                    {isExpanded ? (
-                      <ChevronDown className="gba:w-4 gba:h-4 gba:flex-shrink-0 gba:text-muted-foreground" />
+                    {domainExpanded ? (
+                      <ChevronDown className="gba:w-4 gba:h-4 gba:flex-shrink-0" />
                     ) : (
-                      <ChevronRight className="gba:w-4 gba:h-4 gba:flex-shrink-0 gba:text-muted-foreground" />
+                      <ChevronRight className="gba:w-4 gba:h-4 gba:flex-shrink-0" />
                     )}
-                    <Database className="gba:w-4 gba:h-4 gba:flex-shrink-0 gba:text-primary/70" />
-                    <span className="gba:font-medium gba:truncate">{entity.displayName}</span>
+                    <span>{DOMAIN_DISPLAY_NAMES[domain]}</span>
                   </button>
-                  {isExpanded && (
-                    <EntityFieldsList
-                      entityKey={entity.entityKey}
-                      accessToken={accessToken}
-                      onInsert={onInsertField}
-                      testId={testId}
-                    />
+                  {domainExpanded && (
+                    <div className="gba:pl-4 gba:border-l-2 gba:border-l-border gba:ml-2 gba:space-y-0.5">
+                      {entities.map((entity: TemplateEntityDefinition) => {
+                        const isExpanded = expandedEntities.has(entity.entityKey)
+                        return (
+                          <div key={entity.entityKey} className="gba:rounded-md gba:overflow-hidden">
+                            <button
+                              type="button"
+                              onClick={() => toggleEntity(entity.entityKey)}
+                              className="gba:w-full gba:flex gba:items-center gba:gap-2 gba:px-3 gba:py-2 gba:text-left gba:text-sm hover:gba:bg-muted/60 gba:transition-colors"
+                              data-testid={`${testId}-entity-${entity.entityKey}`}
+                            >
+                              {isExpanded ? (
+                                <ChevronDown className="gba:w-4 gba:h-4 gba:flex-shrink-0 gba:text-muted-foreground" />
+                              ) : (
+                                <ChevronRight className="gba:w-4 gba:h-4 gba:flex-shrink-0 gba:text-muted-foreground" />
+                              )}
+                              <Database className="gba:w-4 gba:h-4 gba:flex-shrink-0 gba:text-primary/70" />
+                              <span className="gba:font-medium gba:truncate">{entity.displayName}</span>
+                            </button>
+                            {isExpanded && (
+                              <EntityFieldsList
+                                entityKey={entity.entityKey}
+                                accessToken={accessToken}
+                                onInsert={onInsertField}
+                                testId={testId}
+                              />
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
                   )}
                 </div>
               )

@@ -8,6 +8,17 @@ every-box-tab-outflows = OutFlows
 every-box-blink-description = Create and assign a quick task instantly
 every-box-hero-tagline = Your unified inbox for tasks and workflows
 every-box-search-placeholder = Search...
+every-box-sort-label = Sort
+every-box-sort-newest = Newest first
+every-box-sort-oldest = Oldest first
+every-box-sort-priority = Priority
+every-box-refresh-label = Refresh
+every-box-due-filter-label = Due date
+every-box-due-filter-any = Any
+every-box-due-filter-overdue = Overdue
+every-box-due-filter-due-soon = Due in <24h
+every-box-due-filter-has = Has due date
+every-box-due-filter-none = No due date
 
 # Filters Dropdown
 filters-dropdown-label = Filters
@@ -35,6 +46,7 @@ inbox-new-completed-tasks-description = New completed tasks have arrived. Click 
 inbox-error-title = Error Loading Tasks
 inbox-showing-tasks = Showing {$current} of {$total}{$hasMore} tasks
 inbox-load-more = Load More
+inbox-loading-more = Loading more tasks...
 inbox-no-task-selected = No task selected
 inbox-select-task-prompt = Select a task from the list to view details
 inbox-task-no-title = Untitled Task
@@ -79,9 +91,28 @@ blink-upload-error = Failed to upload attachments: {$error}
 task-card-overdue = Overdue
 task-card-due-soon = Due soon
 task-card-due = Due {$date}
+task-card-due-in-hours = Due in {$hours}h
+task-card-overdue-hours = Overdue {$hours}h
+task-card-due-in-days = Due in {$days}d
+task-card-overdue-days = Overdue {$days}d
+task-card-tooltip-due-hours = Due in {$hours} hours
+task-card-tooltip-due-days = Due in {$days} days
+task-card-tooltip-overdue-hours = Overdue: {$hours} hours
+task-card-tooltip-overdue-days = Overdue: {$days} days
+
+# Task meta actions (Everybox-service)
+task-meta-pin = Pin
+task-meta-unpin = Unpin
+task-meta-mark-unread = Mark unread
+task-meta-priority = Priority
+task-meta-priority-none = None
+task-meta-priority-high = High
+task-meta-priority-medium = Medium
+task-meta-priority-low = Low
 task-card-blink = Blink
 task-card-unknown-creator = Unknown
 task-card-untitled = Untitled Task
+task-card-pinned = Pinned
 
 # FlowCard Component
 flow-card-blink = Blink

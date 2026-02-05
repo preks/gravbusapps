@@ -74,7 +74,12 @@ export interface EnhancedInvestmentSummary {
   opportunityName?: string
 }
 
-export const useInvestmentPortfolioIntegration = (context: BusinessAppContextProps, selectedCurrency?: string) => {
+export const useInvestmentPortfolioIntegration = (
+  context: BusinessAppContextProps,
+  selectedCurrency?: string,
+  filters?: Record<string, any>,
+  enabled: boolean = true
+) => {
   const [investments, setInvestments] = useState<EnhancedInvestmentSummary[]>([])
   const [kpis, setKPIs] = useState<InvestmentPortfolioKPIs>({
     totalPortfolioValue: 0,
@@ -92,7 +97,7 @@ export const useInvestmentPortfolioIntegration = (context: BusinessAppContextPro
     averageInvestmentValue: 0,
     averageMarketValue: 0
   })
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(enabled)
   const [error, setError] = useState<string | null>(null)
 
   // Prevent duplicate queries (React Strict Mode calls effects twice)
@@ -195,7 +200,7 @@ export const useInvestmentPortfolioIntegration = (context: BusinessAppContextPro
               direction: (o.direction || 'DESC') as 'ASC' | 'DESC'
             }))
           }),
-          fetchPortfolioKPIs(selectedCurrency)
+          fetchPortfolioKPIs(selectedCurrency, filters)
         ])
 
         // Process investment data for list display
@@ -214,14 +219,16 @@ export const useInvestmentPortfolioIntegration = (context: BusinessAppContextPro
         isLoadingRef.current = false
       }
     },
-    [context.accessToken, fetchInvestments, fetchPortfolioKPIs, transformInvestmentData, selectedCurrency]
+    [context.accessToken, fetchInvestments, fetchPortfolioKPIs, transformInvestmentData, selectedCurrency, filters]
   )
 
   useEffect(() => {
-    if (context.accessToken) {
+    if (enabled && context.accessToken) {
       void loadData()
+    } else if (!enabled) {
+      setIsLoading(false)
     }
-  }, [context.accessToken, selectedCurrency])
+  }, [enabled, context.accessToken, selectedCurrency, filters])
 
   return {
     investments,
