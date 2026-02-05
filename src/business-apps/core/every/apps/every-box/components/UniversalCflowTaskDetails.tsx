@@ -398,10 +398,11 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
 
     toast.success(t('task-dialog-completed-success'))
 
+    // Call onTaskCompleted for instant UI feedback (removes from local state)
+    // Don't call onTaskUpdated - it triggers a slow full refetch that's not needed
     if (onTaskCompleted && task.id) {
       onTaskCompleted(task.id)
     }
-    onTaskUpdated()
     onClose()
   }
 
@@ -429,10 +430,11 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
 
     toast.success(t('task-details-task-rejected'))
 
+    // Call onTaskCompleted for instant UI feedback (removes from local state)
+    // Don't call onTaskUpdated - it triggers a slow full refetch that's not needed
     if (onTaskCompleted && task.id) {
       onTaskCompleted(task.id)
     }
-    onTaskUpdated()
     onClose()
   }
 
