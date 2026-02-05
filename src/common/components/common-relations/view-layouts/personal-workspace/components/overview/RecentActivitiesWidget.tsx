@@ -13,7 +13,8 @@ import type { GenericActivity, PersonalWorkspaceConfig } from '../../types'
 import dayjs from 'dayjs'
 import { PhoneIcon, EnvelopeIcon, CalendarBlankIcon, UserIcon } from '@phosphor-icons/react'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
-import { getFileIcon, buildFileUrl } from '@/common/utils/fileUtils'
+import { buildFileUrl } from '@/common/utils/fileUtils'
+import { getDocumentIcon } from '@/common/utils/documentIconUtils'
 
 export interface RecentActivitiesWidgetProps {
   activities: GenericActivity[]
@@ -71,21 +72,18 @@ export const RecentActivitiesWidget: React.FC<RecentActivitiesWidgetProps> = ({ 
 
       return (
         <div className="gba:flex gba:flex-wrap gba:gap-2">
-          {documents.map((doc: any) => {
-            const FileIcon = getFileIcon(doc.mimeType)
-            return (
-              <button
-                key={doc.id}
-                onClick={e => handleDocumentClick(doc, e)}
-                className="gba:flex gba:items-center gba:gap-1 gba:px-2 gba:py-1 gba:text-xs gba:bg-muted gba:rounded gba:hover:bg-accent gba:transition-colors"
-                data-testid={`activity-document-${activityId}-${doc.id}`}
-                title={doc.name}
-              >
-                <FileIcon size={14} weight="bold" />
-                <span className="gba:truncate gba:max-w-[150px]">{doc.name}</span>
-              </button>
-            )
-          })}
+          {documents.map((doc: any) => (
+            <button
+              key={doc.id}
+              onClick={e => handleDocumentClick(doc, e)}
+              className="gba:flex gba:items-center gba:gap-1 gba:px-2 gba:py-1 gba:text-xs gba:bg-muted gba:rounded gba:hover:bg-accent gba:transition-colors"
+              data-testid={`activity-document-${activityId}-${doc.id}`}
+              title={doc.name}
+            >
+              {getDocumentIcon({ name: doc.name, mimeType: doc.mimeType, size: 14 })}
+              <span className="gba:truncate gba:max-w-[150px]">{doc.name}</span>
+            </button>
+          ))}
         </div>
       )
     },

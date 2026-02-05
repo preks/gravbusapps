@@ -6,7 +6,8 @@ import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
 import type { AppActionCommonProps } from '@/common/hooks/useAppActionData'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
-import { buildFileUrl, getFileIcon } from '@/common/utils/fileUtils'
+import { buildFileUrl } from '@/common/utils/fileUtils'
+import { getDocumentIcon } from '@/common/utils/documentIconUtils'
 import { FileInfo } from '@/common/types/FileTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import type { Note } from '@/common/data/relations/types/noteTypes'
@@ -175,21 +176,18 @@ const NoteSection: React.FC<NoteSectionProps> = props => {
               </div>
               {note.documents && note.documents.length > 0 && (
                 <div className="gba:flex gba:flex-wrap gba:gap-2 gba:mt-3" data-testid={`note-documents-${note.id}`}>
-                  {note.documents.map(doc => {
-                    const FileIcon = getFileIcon(doc.mimeType)
-                    return (
-                      <button
-                        key={doc.id}
-                        onClick={e => handleDocumentClick(doc, e)}
-                        className="gba:flex gba:items-center gba:gap-1 gba:px-2 gba:py-1 gba:text-xs gba:bg-muted gba:rounded gba:hover:bg-accent gba:transition-colors"
-                        data-testid={`note-document-${note.id}-${doc.id}`}
-                        title={doc.name}
-                      >
-                        <FileIcon size={14} weight="bold" />
-                        <span className="gba:truncate gba:max-w-[150px]">{doc.name}</span>
-                      </button>
-                    )
-                  })}
+                  {note.documents.map(doc => (
+                    <button
+                      key={doc.id}
+                      onClick={e => handleDocumentClick(doc, e)}
+                      className="gba:flex gba:items-center gba:gap-1 gba:px-2 gba:py-1 gba:text-xs gba:bg-muted gba:rounded gba:hover:bg-accent gba:transition-colors"
+                      data-testid={`note-document-${note.id}-${doc.id}`}
+                      title={doc.name}
+                    >
+                      {getDocumentIcon({ name: doc.name, mimeType: doc.mimeType, size: 14 })}
+                      <span className="gba:truncate gba:max-w-[150px]">{doc.name}</span>
+                    </button>
+                  ))}
                 </div>
               )}{' '}
             </CardContent>
