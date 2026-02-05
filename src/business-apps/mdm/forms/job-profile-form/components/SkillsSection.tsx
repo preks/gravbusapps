@@ -11,35 +11,13 @@ import {
   FileUpload
 } from '@newwork/nw-design-system'
 import { DebouncedInput } from '@/components/debounced-input'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { SEARCH_SKILLS_QUERY } from '@/business-apps/hr/core/forms/add-skill/AddSkillQueries'
 
 interface SkillsSectionProps {
   dataTestId: string
   accessToken?: string
 }
-
-// Mock skills data for dropdown
-const MOCK_SKILLS: Array<{ id: string; name: string }> = [
-  { id: 'skill-1', name: 'JavaScript' },
-  { id: 'skill-2', name: 'TypeScript' },
-  { id: 'skill-3', name: 'React' },
-  { id: 'skill-4', name: 'Node.js' },
-  { id: 'skill-5', name: 'Python' },
-  { id: 'skill-6', name: 'Java' },
-  { id: 'skill-7', name: 'C#' },
-  { id: 'skill-8', name: 'SQL' },
-  { id: 'skill-9', name: 'AWS' },
-  { id: 'skill-10', name: 'Docker' },
-  { id: 'skill-11', name: 'Kubernetes' },
-  { id: 'skill-12', name: 'Git' },
-  { id: 'skill-13', name: 'Agile' },
-  { id: 'skill-14', name: 'Scrum' },
-  { id: 'skill-15', name: 'Project Management' },
-  { id: 'skill-16', name: 'Leadership' },
-  { id: 'skill-17', name: 'Communication' },
-  { id: 'skill-18', name: 'Problem Solving' },
-  { id: 'skill-19', name: 'UI/UX Design' },
-  { id: 'skill-20', name: 'Data Analysis' }
-]
 
 const getSkillValidationError = (name: string): string | null => {
   const trimmed = (name || '').trim()
@@ -49,8 +27,9 @@ const getSkillValidationError = (name: string): string | null => {
   return null
 }
 
-const SkillsSection: React.FC<SkillsSectionProps> = ({ dataTestId }) => {
+const SkillsSection: React.FC<SkillsSectionProps> = ({ dataTestId, accessToken }) => {
   const form = useFormContext()
+  const graphqlClient = useGraphQLClient(accessToken)
   const { fields, append, remove } = useFieldArray({
     control: form.control,
     name: 'skills'
@@ -97,15 +76,22 @@ const SkillsSection: React.FC<SkillsSectionProps> = ({ dataTestId }) => {
       setIsSearching(true)
       const mySeq = ++searchSeqRef.current
       try {
-        // Simulate API delay
-        await new Promise(resolve => setTimeout(resolve, 200))
-
-        // Filter mock skills by search term
-        const filtered = MOCK_SKILLS.filter(skill => skill.name.toLowerCase().includes(term.toLowerCase()))
+        // Search skills from GraphQL API
+        const pattern = `%${term}%`
+        const result = await graphqlClient.request<{ skill: Array<{ id: string; name: string; version: number }> }>(
+          SEARCH_SKILLS_QUERY,
+          { search: pattern, limit: 50 }
+        )
 
         if (!isActive || mySeq !== searchSeqRef.current) return
-        setSearchResults(filtered)
+        setSearchResults(result?.skill || [])
         setIsDropdownOpen(true)
+      } catch (error) {
+        console.error('Error searching skills:', error)
+        if (isActive && mySeq === searchSeqRef.current) {
+          setSearchResults([])
+          setIsDropdownOpen(false)
+        }
       } finally {
         if (isActive && mySeq === searchSeqRef.current) setIsSearching(false)
       }
@@ -114,7 +100,7 @@ const SkillsSection: React.FC<SkillsSectionProps> = ({ dataTestId }) => {
     return () => {
       isActive = false
     }
-  }, [searchTerm])
+  }, [searchTerm, graphqlClient])
 
   const handleSelectSkill = (skill: { id: string; name: string }) => {
     append({
@@ -131,7 +117,7 @@ const SkillsSection: React.FC<SkillsSectionProps> = ({ dataTestId }) => {
     setInputKey(prev => prev + 1)
   }
 
-  const handleAddNewSkill = () => {
+  const handleAddNewSkill = async () => {
     const name = searchTerm.trim()
     if (!name) return
 
@@ -143,14 +129,24 @@ const SkillsSection: React.FC<SkillsSectionProps> = ({ dataTestId }) => {
 
     setAddError(null)
 
-    // Check if skill with this name already exists
-    const existingSkill = MOCK_SKILLS.find(s => s.name.toLowerCase() === name.toLowerCase())
-    if (existingSkill) {
-      handleSelectSkill(existingSkill)
-      return
+    try {
+      // Check if skill with this exact name already exists in the database
+      const pattern = `%${name}%`
+      const result = await graphqlClient.request<{ skill: Array<{ id: string; name: string; version: number }> }>(
+        SEARCH_SKILLS_QUERY,
+        { search: pattern, limit: 10 }
+      )
+
+      const existingSkill = result?.skill?.find(s => s.name.toLowerCase() === name.toLowerCase())
+      if (existingSkill) {
+        handleSelectSkill(existingSkill)
+        return
+      }
+    } catch (error) {
+      console.error('Error checking existing skills:', error)
     }
 
-    // Add as new skill
+    // Add as new skill (will be created in the backend when form is submitted)
     const newId = `new-${nextNewIdRef.current++}`
     append({
       skillId: newId,
