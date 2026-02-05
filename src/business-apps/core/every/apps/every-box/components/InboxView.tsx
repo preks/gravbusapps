@@ -29,7 +29,8 @@ import {
   Badge
 } from '@newwork/nw-design-system'
 import translations from '../_i18n'
-import { Pin, Mail } from 'lucide-react'
+import { Pin, Mail, Sparkles } from 'lucide-react'
+import type { TaskSearchResult } from '@/business-apps/core/every/apps/every-api/services/AiService'
 import { UnifiedTask } from '../types'
 import { TaskCard } from './TaskCard'
 import { TaskDetailContent } from './TaskDetailContent'
@@ -71,6 +72,10 @@ interface InboxViewProps extends BusinessAppContextProps {
   // Global search and filters from parent
   globalSearch?: string
   selectedFilters?: FilterType[]
+  // AI Search results - when provided, filters task list directly
+  aiSearchResults?: TaskSearchResult[]
+  aiSearchMode?: 'semantic' | 'lexical' | null
+  aiIsSearching?: boolean
 }
 
 /**
@@ -153,7 +158,11 @@ export const InboxView: React.FC<InboxViewProps> = ({
   globalSearch = '',
   selectedFilters = ['all'],
   accessToken,
-  userInfo
+  userInfo,
+  // AI Search
+  aiSearchResults = [],
+  aiSearchMode = null,
+  aiIsSearching = false
 }) => {
   const { t } = useTranslation(translations)
   const { locale } = useLocale()
@@ -690,8 +699,31 @@ export const InboxView: React.FC<InboxViewProps> = ({
   // Batch fetch all employee avatars in one request (handles both userIds and employeeIds)
   const { employeeMap, isLoading: areAvatarsLoading } = useEmployeeAvatarsBatch(accessToken || '', userIds, employeeIds)
 
+  // Check if we have active AI search results
+  const hasAiSearchResults = aiSearchResults.length > 0 && globalSearch.trim().length > 0
+
   // Filter tasks (tasks are already sorted by date from the API)
   const allFilteredTasks = useMemo(() => {
+    // When AI search results are available, filter tasks to only show matches
+    if (hasAiSearchResults) {
+      // Create a set of task IDs from AI search results for fast lookup
+      const aiResultIds = new Set(aiSearchResults.map(r => r.taskId))
+
+      // Filter current tasks to only include those in AI search results
+      // and maintain the order from AI search (by relevance/similarity)
+      const matchingTasks = currentTasks.filter(task => aiResultIds.has(task.id))
+
+      // Sort by AI search relevance (order from aiSearchResults)
+      const taskOrder = new Map(aiSearchResults.map((r, i) => [r.taskId, i]))
+      matchingTasks.sort((a, b) => {
+        const orderA = taskOrder.get(a.id) ?? 999
+        const orderB = taskOrder.get(b.id) ?? 999
+        return orderA - orderB
+      })
+
+      return matchingTasks
+    }
+
     // Note: currentTasks is either localTasks or localCompletedTasks, both already filtered
     // by completion status (filterActiveTasks and filterCompletedTasks), so no additional
     // completion check needed here
@@ -712,7 +744,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
     // No additional sorting needed here
 
     return result
-  }, [currentTasks, globalSearch, filterType, employeeMap, applyTypeFilter])
+  }, [currentTasks, globalSearch, filterType, employeeMap, applyTypeFilter, hasAiSearchResults, aiSearchResults])
 
   // Slice to displayedCount for pagination (show 20 initially, load more on demand)
   const filteredTasks = useMemo(() => {
@@ -899,9 +931,33 @@ export const InboxView: React.FC<InboxViewProps> = ({
 
         {/* Task List - Scrollable */}
         <div ref={scrollContainerRef} className="gba:flex-1 gba:overflow-y-auto gba:px-3 gba:py-2">
+          {/* AI Search Mode Indicator */}
+          {(hasAiSearchResults || aiIsSearching) && globalSearch.trim() && (
+            <div className="gba:flex gba:items-center gba:gap-2 gba:px-3 gba:py-2 gba:mb-2 gba:rounded-lg gba:bg-sky-50/60 gba:border gba:border-sky-100">
+              <div className="gba:flex gba:items-center gba:justify-center gba:h-6 gba:w-6 gba:rounded-md gba:bg-sky-100">
+                {aiIsSearching ? (
+                  <div className="gba:h-3.5 gba:w-3.5 gba:rounded-full gba:border-2 gba:border-sky-200 gba:border-t-sky-600 gba:animate-spin" />
+                ) : (
+                  <Sparkles className="gba:h-3.5 gba:w-3.5 gba:text-sky-600" />
+                )}
+              </div>
+              <div className="gba:flex-1 gba:min-w-0">
+                <span className="gba:text-xs gba:font-medium gba:text-sky-700">
+                  {aiSearchMode === 'semantic' ? t('ai-search-mode-semantic') : t('ai-search-mode-lexical')}
+                </span>
+                {!aiIsSearching && hasAiSearchResults && (
+                  <span className="gba:text-xs gba:text-sky-600 gba:ml-2">
+                    {filteredTasks.length} {filteredTasks.length === 1 ? 'result' : 'results'}
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
           {filteredTasks.length === 0 ? (
             <EmptyState type="inbox" message={getEmptyStateMessage(filterType)} />
           ) : (
+            /* Task List */
             <>
               <div data-testid="inbox-task-list">
                 {filteredTasks.map(task => (

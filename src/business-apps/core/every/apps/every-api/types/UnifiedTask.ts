@@ -116,6 +116,30 @@ export interface UnifiedTask {
     readAt: string | null
     pinnedAt: string | null
   }
+
+  /**
+   * AI/enrichment fields (cached per user/task, computed by everybox-service)
+   */
+  ai?: {
+    urgencyScore?: number | null
+    clusterId?: string | null
+    suggestedActions?: SuggestedAction[] | null
+    summaryShort?: string | null
+    explanations?: {
+      urgency?: { reasons?: string[] }
+      cluster?: { reasons?: string[] }
+    } | null
+  }
+}
+
+/**
+ * AI-generated suggested action
+ */
+export interface SuggestedAction {
+  label: string
+  actionType: 'view' | 'reply' | 'approve' | 'reject' | 'delegate' | 'complete' | 'other'
+  replyText?: string
+  rationale?: string
 }
 
 /**
