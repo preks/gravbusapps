@@ -12,7 +12,6 @@ import React from 'react'
 import type { BuildPlan } from '../../../types'
 import { useBuildPlanReviewState } from './useBuildPlanReviewState'
 import { UserSummaryView } from './UserSummaryView'
-import { TechnicalSummaryView } from './TechnicalSummaryView'
 
 export interface BuildPlanReviewProps {
   plan: BuildPlan
@@ -68,51 +67,25 @@ export const BuildPlanReview: React.FC<BuildPlanReviewProps> = ({
     onSkippedComponentsChange
   })
 
-  // Check if plan has user-friendly summary
-  const hasUserSummary = !!plan.user_summary
-
-  // Render user-friendly summary layout
-  if (hasUserSummary) {
-    return (
-      <UserSummaryView
-        plan={plan}
-        answers={answers}
-        skippedComponents={skippedComponents}
-        feedback={feedback}
-        hasQuestions={hasQuestions}
-        allQuestionsAnswered={allQuestionsAnswered}
-        isLoading={isLoading}
-        isRefining={isRefining}
-        refinementSummary={refinementSummary}
-        refineError={refineError}
-        hideActions={hideActions}
-        onAnswerChange={handleAnswerChange}
-        onToggleComponent={toggleComponentSkip}
-        onReanalyze={handleReanalyze}
-        onEdit={onEdit}
-        onRefine={onRefine}
-        onFeedbackChange={setFeedback}
-        onConfirm={handleConfirm}
-        onCancel={onCancel}
-        testId={testId}
-      />
-    )
-  }
-
-  // Render technical layout if no user_summary
   return (
-    <TechnicalSummaryView
+    <UserSummaryView
       plan={plan}
       answers={answers}
       skippedComponents={skippedComponents}
+      feedback={feedback}
       hasQuestions={hasQuestions}
       allQuestionsAnswered={allQuestionsAnswered}
       isLoading={isLoading}
+      isRefining={isRefining}
+      refinementSummary={refinementSummary}
+      refineError={refineError}
       hideActions={hideActions}
       onAnswerChange={handleAnswerChange}
       onToggleComponent={toggleComponentSkip}
       onReanalyze={handleReanalyze}
       onEdit={onEdit}
+      onRefine={onRefine}
+      onFeedbackChange={setFeedback}
       onConfirm={handleConfirm}
       onCancel={onCancel}
       testId={testId}

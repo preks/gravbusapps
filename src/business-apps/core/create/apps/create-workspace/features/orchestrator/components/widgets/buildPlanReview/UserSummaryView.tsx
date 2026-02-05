@@ -57,7 +57,11 @@ export const UserSummaryView: React.FC<UserSummaryViewProps> = ({
 }) => {
   const { user_summary } = plan
 
-  if (!user_summary) return null
+  // user_summary is always provided by the backend
+  if (!user_summary) {
+    console.error('BuildPlan missing user_summary - this should not happen')
+    return null
+  }
 
   return (
     <div className="gba:space-y-4" data-testid={testId}>
