@@ -45,6 +45,7 @@ inbox-new-completed-tasks-description = Neue erledigte Aufgaben sind eingegangen
 inbox-error-title = Fehler beim Laden der Aufgaben
 inbox-showing-tasks = Zeige {$current} von {$total}{$hasMore} Aufgaben
 inbox-load-more = Mehr laden
+inbox-loading-more = Lade weitere Aufgaben...
 
 # Inbox Empty States
 inbox-empty-no-results = Keine Aufgaben gefunden für "{$query}"

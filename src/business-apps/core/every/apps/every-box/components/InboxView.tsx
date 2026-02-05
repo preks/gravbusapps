@@ -232,6 +232,11 @@ export const InboxView: React.FC<InboxViewProps> = ({
 
   const TASKS_PER_PAGE = 20
 
+  // Infinite scroll refs
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null)
+  const sentinelRef = useRef<HTMLDivElement | null>(null)
+  const loadMoreLockRef = useRef(false) // Prevent multiple concurrent load more calls
+
   // Reset displayedCount when filter changes
   useEffect(() => {
     setDisplayedCount(20)
@@ -718,15 +723,68 @@ export const InboxView: React.FC<InboxViewProps> = ({
   const hasMoreLocal = allFilteredTasks.length > displayedCount
 
   // Handle "Load more" - first show more from local cache, then fetch from API if needed
-  const handleLoadMore = useCallback(() => {
+  // Guarded to prevent multiple concurrent loads (important for infinite scroll)
+  const handleLoadMore = useCallback(async () => {
+    if (loadMoreLockRef.current || currentIsLoading) {
+      return
+    }
+
     if (hasMoreLocal) {
       // Show more from already fetched tasks
       setDisplayedCount(prev => prev + TASKS_PER_PAGE)
     } else if (currentHasMore) {
       // Fetch more from API
-      currentOnLoadMore()
+      loadMoreLockRef.current = true
+      try {
+        await Promise.resolve(currentOnLoadMore())
+      } finally {
+        // Always release the lock even if loadMore returns early (no-op) or throws
+        loadMoreLockRef.current = false
+      }
     }
-  }, [hasMoreLocal, currentHasMore, currentOnLoadMore])
+  }, [hasMoreLocal, currentHasMore, currentOnLoadMore, currentIsLoading])
+
+  // Infinite scroll using scroll position (more reliable than IntersectionObserver in nested scroll containers/webviews)
+  useEffect(() => {
+    // Don't enable infinite scroll if searching (keeps existing behavior)
+    if (globalSearch.trim()) return
+
+    const scrollContainer = scrollContainerRef.current
+    if (!scrollContainer) return
+
+    const canLoadMore = hasMoreLocal || currentHasMore
+    if (!canLoadMore) return
+
+    const THRESHOLD_PX = 200
+    let rafId: number | null = null
+
+    const checkNearBottom = () => {
+      rafId = null
+      if (loadMoreLockRef.current || currentIsLoading) return
+
+      const { scrollTop, clientHeight, scrollHeight } = scrollContainer
+      const distanceToBottom = scrollHeight - (scrollTop + clientHeight)
+      if (distanceToBottom <= THRESHOLD_PX) {
+        void handleLoadMore()
+      }
+    }
+
+    const onScroll = () => {
+      if (rafId !== null) return
+      rafId = globalThis.requestAnimationFrame(checkNearBottom)
+    }
+
+    scrollContainer.addEventListener('scroll', onScroll, { passive: true })
+    // Run once in case the list is already near the bottom (e.g. short lists)
+    onScroll()
+
+    return () => {
+      if (rafId !== null) {
+        globalThis.cancelAnimationFrame(rafId)
+      }
+      scrollContainer.removeEventListener('scroll', onScroll)
+    }
+  }, [globalSearch, hasMoreLocal, currentHasMore, currentIsLoading, handleLoadMore])
 
   // Helper: Calculate next task index for keyboard navigation
   const getNextTaskIndex = (currentIndex: number, direction: 'up' | 'down', maxIndex: number): number => {
@@ -840,7 +898,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
         )}
 
         {/* Task List - Scrollable */}
-        <div className="gba:flex-1 gba:overflow-y-auto gba:px-3 gba:py-2">
+        <div ref={scrollContainerRef} className="gba:flex-1 gba:overflow-y-auto gba:px-3 gba:py-2">
           {filteredTasks.length === 0 ? (
             <EmptyState type="inbox" message={getEmptyStateMessage(filterType)} />
           ) : (
@@ -885,18 +943,33 @@ export const InboxView: React.FC<InboxViewProps> = ({
                 ))}
               </div>
 
-              {/* Load More - Simplified */}
+              {/* Infinite Scroll Sentinel + Fallback Button */}
               {!globalSearch.trim() && (hasMoreLocal || currentHasMore) && (
                 <div className="gba:mt-2">
-                  <Button
-                    variant="ghost"
-                    onClick={handleLoadMore}
-                    disabled={currentIsLoading}
-                    className="gba:w-full"
-                    data-testid="inbox-load-more-button"
-                  >
-                    {t('inbox-load-more')}
-                  </Button>
+                  {/* Sentinel element for IntersectionObserver - triggers automatic loading */}
+                  <div
+                    ref={sentinelRef}
+                    className="gba:h-4"
+                    data-testid="inbox-infinite-scroll-sentinel"
+                    aria-hidden="true"
+                  />
+                  {/* Loading indicator shown while fetching more tasks */}
+                  {currentIsLoading && (
+                    <div className="gba:flex gba:justify-center gba:py-4" data-testid="inbox-loading-more">
+                      <span className="gba:text-sm gba:text-muted-foreground">{t('inbox-loading-more')}</span>
+                    </div>
+                  )}
+                  {/* Fallback button in case IntersectionObserver doesn't trigger or user prefers manual loading */}
+                  {!currentIsLoading && (
+                    <Button
+                      variant="ghost"
+                      onClick={handleLoadMore}
+                      className="gba:w-full"
+                      data-testid="inbox-load-more-button"
+                    >
+                      {t('inbox-load-more')}
+                    </Button>
+                  )}
                 </div>
               )}
             </>

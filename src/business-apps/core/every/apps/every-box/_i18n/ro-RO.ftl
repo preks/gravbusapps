@@ -45,6 +45,7 @@ inbox-new-completed-tasks-description = Au sosit sarcini finalizate noi. Apăsa�
 inbox-error-title = Eroare la încărcarea sarcinilor
 inbox-showing-tasks = Afișare {$current} din {$total}{$hasMore} sarcini
 inbox-load-more = Încarcă mai multe
+inbox-loading-more = Se încarcă mai multe sarcini...
 
 # Inbox Empty States
 inbox-empty-no-results = Nu s-au găsit sarcini pentru "{$query}"
