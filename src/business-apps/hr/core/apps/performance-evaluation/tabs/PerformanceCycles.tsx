@@ -16,7 +16,7 @@ import {
   toast,
   Spinner
 } from '@newwork/nw-design-system'
-import { CalendarBlank, PencilSimple, Plus, Warning as WarningIcon } from '@phosphor-icons/react'
+import { CalendarBlank, PencilSimple, Play, Plus, Warning as WarningIcon } from '@phosphor-icons/react'
 import type { PerformanceCycle, RatingScale, ValueItemStored } from '../types'
 import CycleEditorModal, {
   CycleEditorValues,
@@ -36,6 +36,7 @@ export interface PerformanceCyclesProps {
   onActivate: (cycleId: string) => Promise<void>
   onDeactivate: (cycleId: string) => Promise<void>
   onDeleteCycle: (cycle: PerformanceCycle) => Promise<void>
+  onStartCycle: (cycleId: string) => void
 }
 
 export const PerformanceCycles: React.FC<PerformanceCyclesProps> = ({
@@ -47,11 +48,39 @@ export const PerformanceCycles: React.FC<PerformanceCyclesProps> = ({
   onSaveFromModal,
   onActivate,
   onDeactivate,
-  onDeleteCycle
+  onDeleteCycle,
+  onStartCycle
 }) => {
   const { t } = useTranslation(translations)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editing, setEditing] = useState<PerformanceCycle | null>(null)
+
+  const canStartCycle = (cycle: PerformanceCycle): boolean => {
+    if (cycle.status !== 'Active') return false
+    const today = new Date()
+    const start = new Date(cycle.startDate)
+    const end = new Date(cycle.endDate)
+    return today >= start && today <= end
+  }
+
+  const canActivateCycle = (cycle: PerformanceCycle): boolean => {
+    const today = new Date()
+    const start = new Date(cycle.startDate)
+    const end = new Date(cycle.endDate)
+    return today >= start && today <= end
+  }
+
+  const handleActivateClick = (cycle: PerformanceCycle) => {
+    if (!canActivateCycle(cycle)) {
+      toast.warning(t('error-activate-out-of-period'), {
+        position: 'bottom-right',
+        className: 'gba:text-base',
+        icon: <WarningIcon size={18} weight="fill" className="gba:text-warning" />
+      })
+      return
+    }
+    onActivate(cycle.id)
+  }
 
   const handleEdit = (cycle: PerformanceCycle) => {
     setEditing(cycle)
@@ -167,7 +196,7 @@ export const PerformanceCycles: React.FC<PerformanceCyclesProps> = ({
                               <Button
                                 variant="secondary"
                                 size="sm"
-                                onClick={() => onActivate(c.id)}
+                                onClick={() => handleActivateClick(c)}
                                 data-testid={`cycle-activate-${c.id}`}
                               >
                                 {t('button-activate')}
@@ -182,6 +211,16 @@ export const PerformanceCycles: React.FC<PerformanceCyclesProps> = ({
                                 {t('button-deactivate')}
                               </Button>
                             )}
+                            <Button
+                              variant="default"
+                              size="sm"
+                              onClick={() => onStartCycle(c.id)}
+                              disabled={!canStartCycle(c)}
+                              data-testid={`cycle-start-${c.id}`}
+                            >
+                              <Play weight="fill" className="gba:mr-1" size={16} />
+                              {t('button-start')}
+                            </Button>
                             <Button
                               variant="destructive"
                               size="sm"
