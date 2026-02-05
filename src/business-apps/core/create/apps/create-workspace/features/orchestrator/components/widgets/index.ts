@@ -1,6 +1,6 @@
 // Reusable orchestrator widgets
-export { BuildPlanReview } from './BuildPlanReview'
-export type { BuildPlanReviewProps } from './BuildPlanReview'
+export { BuildPlanReview } from './buildPlanReview'
+export type { BuildPlanReviewProps } from './buildPlanReview'
 export { ThinkingSteps } from './ThinkingSteps'
 export type { ThinkingStepsProps, ThinkingStep } from './ThinkingSteps'
 export { PhaseTimeline } from './PhaseTimeline'
