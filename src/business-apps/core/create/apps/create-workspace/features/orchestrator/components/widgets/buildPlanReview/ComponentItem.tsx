@@ -26,8 +26,8 @@ export const ComponentItem: React.FC<ComponentItemProps> = ({
     return (
       <div
         className={cn(
-          'gba:flex gba:items-start gba:gap-2.5 gba:py-2 gba:px-3 gba:rounded-lg gba:border gba:border-border gba:cursor-pointer gba:transition-all hover:gba:bg-muted/30',
-          isSkipped && 'gba:opacity-40 gba:bg-muted/10'
+          'gba:flex gba:items-start gba:gap-2.5 gba:py-2.5 gba:px-3 gba:rounded-lg gba:border gba:border-border gba:cursor-pointer gba:transition-all hover:gba:bg-secondary/20 gba:bg-secondary/40',
+          isSkipped && 'gba:opacity-80'
         )}
         onClick={() => onToggle(component.id)}
       >
@@ -79,7 +79,7 @@ export const ComponentItem: React.FC<ComponentItemProps> = ({
         >
           {component.name}
         </div>
-        <div className="gba:text-xs gba:text-muted-foreground gba:leading-[1.5]">{description}</div>
+        <div className="gba:text-xs gba:text-muted-foreground gba:leading-normal">{description}</div>
       </div>
     </div>
   )
