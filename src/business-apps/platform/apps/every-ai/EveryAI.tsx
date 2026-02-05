@@ -12,6 +12,7 @@ import { VoiceOverlay } from './components/voice/VoiceOverlay'
 import type { OutputItem, AnswerOutput, NavigationData } from './types/models'
 import { VoiceFormProvider, useVoiceForm } from './context/VoiceFormContext'
 import { HeroSection } from './components/HeroSection'
+import { FlowProposalFileUploadProvider } from './context/FlowProposalFileUploadContext'
 
 export interface EveryAIProps extends BusinessAppContextProps {
   className?: string
@@ -54,6 +55,7 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
     isPrechatLoading,
     sessionId,
     attachFiles,
+    attachFilesForFlowProposalField,
     cancelGeneration,
     cancelledMessageText,
     clearCancelledMessage
@@ -567,58 +569,60 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
       />
 
       <FormSubmissionProvider>
-        {/* Conversation Area with subtle gradient */}
-        <div
-          ref={scrollRef}
-          className="gba:flex-1 gba:overflow-y-auto gba:relative gba:z-10 gba:flex gba:flex-col"
-          data-testid="conversation-area"
-        >
-          {conversation.length === 0 && !isLoading ? (
-            <div className="gba:flex-1 gba:flex gba:flex-col">
-              <HeroSection data-testid="every-ai-hero" />
-            </div>
-          ) : (
-            <div className="gba:p-6">
-              <ConversationRenderer
-                turns={extendedConversation}
-                accessToken={accessToken}
-                sendMessage={sendMessage}
-                editMessage={editMessage}
-                userInfo={userInfo}
-                pictureThumbnail={pictureThumbnail}
-                isVoiceMode={isSpeechMode}
-                sessionId={sessionId ?? undefined}
-                onCancelGeneration={cancelGeneration}
-                isAgentGenerating={isLoading}
-              />
-            </div>
-          )}
-        </div>
+        <FlowProposalFileUploadProvider upload={attachFilesForFlowProposalField}>
+          {/* Conversation Area with subtle gradient */}
+          <div
+            ref={scrollRef}
+            className="gba:flex-1 gba:overflow-y-auto gba:relative gba:z-10 gba:flex gba:flex-col"
+            data-testid="conversation-area"
+          >
+            {conversation.length === 0 && !isLoading ? (
+              <div className="gba:flex-1 gba:flex gba:flex-col">
+                <HeroSection data-testid="every-ai-hero" />
+              </div>
+            ) : (
+              <div className="gba:p-6">
+                <ConversationRenderer
+                  turns={extendedConversation}
+                  accessToken={accessToken}
+                  sendMessage={sendMessage}
+                  editMessage={editMessage}
+                  userInfo={userInfo}
+                  pictureThumbnail={pictureThumbnail}
+                  isVoiceMode={isSpeechMode}
+                  sessionId={sessionId ?? undefined}
+                  onCancelGeneration={cancelGeneration}
+                  isAgentGenerating={isLoading}
+                />
+              </div>
+            )}
+          </div>
 
-        {/* Input Area with premium styling - seamless transition from hero */}
-        <div className="gba:flex-shrink-0 gba:bg-background gba:backdrop-blur-md gba:pt-2 gba:px-6 gba:pb-6 gba:relative gba:z-10">
-          <ChatInput
-            onSend={handleSend}
-            onClear={clearConversation}
-            disabled={isLoading}
-            suggestions={nextStepProposals}
-            isPrechatLoading={isPrechatLoading}
-            placeholder="Ask EveryAI anything..."
-            // Voice mode props
-            isSpeechMode={isSpeechMode}
-            isListening={voiceInput.isListening}
-            isSpeaking={voiceSynthesis.isSpeaking}
-            isVoiceLoading={voiceSynthesis.isLoading}
-            voiceVolume={voiceInput.volume}
-            onToggleVoiceMode={toggleSpeechMode}
-            onStopSpeaking={voiceSynthesis.stop}
-            // Pre-upload files as soon as they are attached for faster first answers.
-            onFilesAttached={files => attachFiles(files)}
-            // Cancel restoration props
-            cancelledMessageText={cancelledMessageText}
-            onClearCancelledMessage={clearCancelledMessage}
-          />
-        </div>
+          {/* Input Area with premium styling - seamless transition from hero */}
+          <div className="gba:flex-shrink-0 gba:bg-background gba:backdrop-blur-md gba:pt-2 gba:px-6 gba:pb-6 gba:relative gba:z-10">
+            <ChatInput
+              onSend={handleSend}
+              onClear={clearConversation}
+              disabled={isLoading}
+              suggestions={nextStepProposals}
+              isPrechatLoading={isPrechatLoading}
+              placeholder="Ask EveryAI anything..."
+              // Voice mode props
+              isSpeechMode={isSpeechMode}
+              isListening={voiceInput.isListening}
+              isSpeaking={voiceSynthesis.isSpeaking}
+              isVoiceLoading={voiceSynthesis.isLoading}
+              voiceVolume={voiceInput.volume}
+              onToggleVoiceMode={toggleSpeechMode}
+              onStopSpeaking={voiceSynthesis.stop}
+              // Pre-upload files as soon as they are attached for faster first answers.
+              onFilesAttached={files => attachFiles(files)}
+              // Cancel restoration props
+              cancelledMessageText={cancelledMessageText}
+              onClearCancelledMessage={clearCancelledMessage}
+            />
+          </div>
+        </FlowProposalFileUploadProvider>
       </FormSubmissionProvider>
     </div>
   )

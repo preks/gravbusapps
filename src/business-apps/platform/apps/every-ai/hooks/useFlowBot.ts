@@ -227,6 +227,61 @@ async function uploadFilesToFlowbotSession(
   return (data?.sessionId as string | undefined) ?? sessionId ?? ''
 }
 
+export type FlowProposalFileUploadHints = {
+  endpoint?: string
+  flowProposalIdParam?: string
+  fieldKeyParam?: string
+  sessionIdParam?: string
+  fileParam?: string
+}
+
+export type FlowProposalFileBinding = {
+  flowProposalId: string
+  fieldKey: string
+  hints?: FlowProposalFileUploadHints
+}
+
+async function uploadFilesToFlowbotWithBinding(params: {
+  files: File[]
+  sessionId: string | null
+  accessToken: string
+  binding: FlowProposalFileBinding
+}): Promise<string> {
+  const { files, sessionId, accessToken, binding } = params
+  if (!files.length) return sessionId ?? ''
+
+  const baseUrl = resolveFlowbotBaseUrl()
+
+  const endpoint = binding.hints?.endpoint || '/flowbot/api/agent/add_files'
+  const url = endpoint.startsWith('http') ? endpoint : `${baseUrl}${endpoint.startsWith('/') ? '' : '/'}${endpoint}`
+
+  const sessionIdParam = binding.hints?.sessionIdParam || 'session_id'
+  const fileParam = binding.hints?.fileParam || 'files'
+  const flowProposalIdParam = binding.hints?.flowProposalIdParam || 'flow_proposal_id'
+  const fieldKeyParam = binding.hints?.fieldKeyParam || 'field_key'
+
+  const form = new FormData()
+  files.forEach(file => form.append(fileParam, file))
+  form.append(sessionIdParam, sessionId ?? '')
+  form.append(flowProposalIdParam, binding.flowProposalId)
+  form.append(fieldKeyParam, binding.fieldKey)
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`
+    },
+    body: form
+  })
+
+  if (!res.ok) {
+    throw new Error(`add_files failed: ${res.status} ${res.statusText}`)
+  }
+
+  const data = await res.json().catch(() => null)
+  return (data?.sessionId as string | undefined) ?? sessionId ?? ''
+}
+
 type AnalyticsEntityInput = {
   type: string
   id: string
@@ -859,12 +914,39 @@ export function useFlowBot(accessToken: string) {
     [accessToken, state.sessionId, updateSessionId, sessionIdRef]
   )
 
+  /**
+   * Upload files for a specific CFLOW FlowProposal FILE field.
+   * Backend uses (flow_proposal_id, field_key) to bind uploaded files to the correct field.
+   */
+  const attachFilesForFlowProposalField = useCallback(
+    async (files: File[], binding: FlowProposalFileBinding) => {
+      if (!files.length) return
+      if (!binding?.flowProposalId || !binding?.fieldKey) {
+        throw new Error('Missing flowProposalId or fieldKey for flow proposal file upload')
+      }
+
+      const effectiveSessionId = sessionIdRef.current ?? state.sessionId
+      const newSessionId = await uploadFilesToFlowbotWithBinding({
+        files,
+        sessionId: effectiveSessionId,
+        accessToken,
+        binding
+      })
+
+      if (newSessionId && newSessionId !== state.sessionId) {
+        updateSessionId(newSessionId)
+      }
+    },
+    [accessToken, state.sessionId, updateSessionId, sessionIdRef]
+  )
+
   return {
     conversation: state.conversation,
     isLoading,
     sendMessage,
     editMessage,
     attachFiles,
+    attachFilesForFlowProposalField,
     clearConversation,
     nextStepProposals,
     isPrechatLoading,
