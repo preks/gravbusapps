@@ -5,7 +5,7 @@
  * based on incoming progress events.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { OrchestratorClient } from '@/common/network/ai/orchestrator/OrchestratorClient'
 import type {
   BuildPlan,
@@ -142,9 +142,25 @@ export function useBuildProgress({
 
   const totalCount = plan?.components.length || 0
 
-  // Include reused components in overall progress
-  const overallProgress =
-    totalCount > 0 ? Math.round(((completedCount + failedCount + reusedCount) / totalCount) * 100) : 0
+  // Calculate overall progress including in-progress work
+  const overallProgress = useMemo(() => {
+    if (totalCount === 0) return 0
+
+    // Count fully completed/failed/reused components (100% each)
+    const fullyDoneCount = completedCount + failedCount + reusedCount
+
+    // Count in-progress components (give them 30% credit for being started)
+    const inProgressCount = Object.values(tiles).reduce((count, tile) => {
+      const inProgress = tile.items.filter(
+        (item: any) => item.status === 'building' || item.status === 'pending'
+      ).length
+      return count + inProgress
+    }, 0)
+
+    const inProgressCredit = inProgressCount * 0.3
+
+    return Math.round(((fullyDoneCount + inProgressCredit) / totalCount) * 100)
+  }, [totalCount, completedCount, failedCount, reusedCount, tiles])
 
   /**
    * Handle phase-level events

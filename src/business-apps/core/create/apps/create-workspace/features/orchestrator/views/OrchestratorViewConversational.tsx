@@ -15,7 +15,6 @@ import { useOrchestratorHandlers } from '../hooks/useOrchestratorHandlers'
 import { useOrchestratorEffects } from '../hooks/useOrchestratorEffects'
 import { IdleCanvas } from '../components/layouts'
 import { AnalyzingView, ReviewView, BuildingView, CompleteView, ErrorView } from '../components/state-views'
-import type { ComponentSpec } from '../types'
 
 export interface OrchestratorViewConversationalProps {
   accessToken: string
@@ -156,9 +155,7 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
               orchestratorClient.analyzeError ||
               'An error occurred'
             }
-            partialComponents={orchestratorClient.currentPlan?.components.filter(
-              (c: ComponentSpec) => c.status === 'completed'
-            )}
+            partialComponents={orchestratorClient.currentPlan?.components}
             onReset={handlers.handleReset}
             onModifyPlan={() => state.setViewState('review')}
           />

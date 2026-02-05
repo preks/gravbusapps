@@ -4,7 +4,7 @@
  */
 
 import React from 'react'
-import { AlertTriangle, RotateCcw, Edit, MessageCircle, CheckCircle2, Code, Info } from 'lucide-react'
+import { AlertTriangle, RotateCcw, Edit, MessageCircle, CheckCircle2, Code, Info, XCircle } from 'lucide-react'
 import {
   Card,
   CardHeader,
@@ -81,6 +81,8 @@ export const ErrorState: React.FC<ErrorStateProps> = ({
 
   const hasPartialSuccess = partialComponents.length > 0
   const completedCount = partialComponents.filter(c => c.status === 'completed').length
+  const failedComponents = partialComponents.filter(c => c.status === 'error')
+  const hasFailures = failedComponents.length > 0
 
   return (
     <div className={cn('gba:space-y-6 gba:animate-in gba:fade-in gba:duration-300', className)} data-testid={testId}>
@@ -187,11 +189,51 @@ export const ErrorState: React.FC<ErrorStateProps> = ({
         </CardContent>
       </Card>
 
+      {/* Show failed components */}
+      {hasFailures && (
+        <Card className="gba:border-destructive/50">
+          <CardHeader>
+            <CardTitle className="gba:text-lg gba:flex gba:items-center gba:gap-2 gba:text-destructive">
+              <XCircle className="gba:w-5 gba:h-5" />
+              Failed Components ({failedComponents.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="gba:space-y-3">
+              {failedComponents.map(component => (
+                <div
+                  key={component.id}
+                  className="gba:p-4 gba:bg-destructive/5 gba:border gba:border-destructive/20 gba:rounded-lg"
+                >
+                  <div className="gba:flex gba:items-start gba:justify-between gba:mb-2">
+                    <div>
+                      <div className="gba:font-medium gba:text-foreground gba:flex gba:items-center gba:gap-2">
+                        <XCircle className="gba:w-4 gba:h-4 gba:text-destructive" />
+                        {component.name}
+                      </div>
+                      <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">{component.type}</div>
+                    </div>
+                  </div>
+                  {component.error_message && (
+                    <div className="gba:mt-2 gba:p-3 gba:bg-background gba:rounded gba:border gba:border-border">
+                      <p className="gba:text-xs gba:text-muted-foreground gba:font-mono">{component.error_message}</p>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Show partial results if any */}
       {hasPartialSuccess && (
         <Card>
           <CardHeader>
-            <CardTitle className="gba:text-lg">Completed Components ({completedCount})</CardTitle>
+            <CardTitle className="gba:text-lg gba:flex gba:items-center gba:gap-2">
+              <CheckCircle2 className="gba:w-5 gba:h-5 gba:text-success" />
+              Completed Components ({completedCount})
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="gba:space-y-2">
