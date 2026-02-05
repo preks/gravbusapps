@@ -22,6 +22,8 @@ export interface DocumentActivity {
   userId: string
   userName: string
   userAvatar?: string
+  /** Where this activity came from (internal) */
+  source?: 'presence' | 'broadcast'
   /** Document being worked on */
   documentId: string
   documentTitle: string
@@ -136,6 +138,20 @@ function getActivityChannel(): BroadcastChannel | null {
   return activityChannel
 }
 
+function parseMaybeDate(value: unknown): Date | undefined {
+  if (!value) return undefined
+  if (value instanceof Date && !isNaN(value.getTime())) return value
+  if (typeof value === 'number') {
+    const d = new Date(value)
+    return isNaN(d.getTime()) ? undefined : d
+  }
+  if (typeof value === 'string') {
+    const d = new Date(value)
+    return isNaN(d.getTime()) ? undefined : d
+  }
+  return undefined
+}
+
 /**
  * Hook to track real-time document activity in a space
  *
@@ -160,6 +176,8 @@ export function useSpaceDocumentActivity(
   const collaborationClientRef = useRef<CollaborationClient | null>(null)
   const socketRef = useRef<ReturnType<CollaborationClient['connect']> | null>(null)
   const avatarCacheRef = useRef<Map<string, string | undefined>>(new Map())
+  // Track when we first saw each activity (key -> first seen timestamp)
+  const firstSeenTimesRef = useRef<Map<string, Date>>(new Map())
   const debugEnabledRef = useRef<boolean>(false)
 
   // Update content IDs ref when content changes
@@ -213,21 +231,36 @@ export function useSpaceDocumentActivity(
       }
 
       try {
+        if (debugEnabledRef.current) {
+          console.warn('[SpaceActivity] Fetching avatars for', uncachedIds.length, 'users:', uncachedIds)
+        }
+
         const response = await graphQLClient.request<{
           Employee: Array<{ userId?: string; pictureThumbnail?: string }>
         }>(GET_EMPLOYEES_AVATARS, { userIds: uncachedIds })
+
+        if (debugEnabledRef.current) {
+          console.warn('[SpaceActivity] Avatar response:', response?.Employee?.length, 'employees found')
+        }
 
         for (const emp of response?.Employee ?? []) {
           if (!emp.userId) continue
           const avatar = normalizeImageSrc(emp.pictureThumbnail)
           cache.set(emp.userId, avatar)
           result.set(emp.userId, avatar)
+
+          if (debugEnabledRef.current && !avatar) {
+            console.warn('[SpaceActivity] No avatar for user:', emp.userId)
+          }
         }
 
         // Cache undefined for users not found
         for (const id of uncachedIds) {
           if (!cache.has(id)) {
             cache.set(id, undefined)
+            if (debugEnabledRef.current) {
+              console.warn('[SpaceActivity] User not found in Employee table:', id)
+            }
           }
         }
 
@@ -316,7 +349,8 @@ export function useSpaceDocumentActivity(
           updated[existingIndex] = {
             ...updated[existingIndex],
             activityType: data.activityType,
-            lastUpdatedAt: now
+            lastUpdatedAt: now,
+            source: updated[existingIndex].source ?? 'broadcast'
           }
           return updated
         }
@@ -334,7 +368,8 @@ export function useSpaceDocumentActivity(
             documentType: data.documentType,
             activityType: data.activityType,
             startedAt: now,
-            lastUpdatedAt: now
+            lastUpdatedAt: now,
+            source: 'broadcast'
           }
         ]
       })
@@ -477,7 +512,19 @@ export function useSpaceDocumentActivity(
           console.warn('[SpaceActivity] User left via WebSocket', { spaceId, userId: data.userId })
         }
         // Remove activities for this user
-        setActivities(prev => prev.filter(a => a.userId !== data.userId))
+        setActivities(prev => {
+          const filtered = prev.filter(a => a.userId !== data.userId)
+
+          // Clean up firstSeenTimes for removed activities
+          const firstSeenTimes = firstSeenTimesRef.current
+          for (const activity of prev) {
+            if (activity.userId === data.userId) {
+              firstSeenTimes.delete(activity.key)
+            }
+          }
+
+          return filtered
+        })
       })
     } catch (error) {
       console.error('[SpaceActivity] Failed to initialize WebSocket presence:', error)
@@ -521,7 +568,16 @@ export function useSpaceDocumentActivity(
           success: boolean
           presence?: Record<
             string,
-            Array<{ odId: string; userId: string; userName: string; userColor: string; avatar?: string }>
+            Array<{
+              odId?: string
+              userId?: string
+              userName: string
+              userColor: string
+              avatar?: string
+              lastActiveAt?: string | number | Date
+              joinedAt?: string | number | Date
+              connectedAt?: string | number | Date
+            }>
           >
           error?: string
         }) => {
@@ -539,22 +595,27 @@ export function useSpaceDocumentActivity(
             })
           }
 
-          // Collect unique user IDs from presence data
-          const userIds = new Set<string>()
+          // Collect unique IDs we can use to resolve avatars.
+          // Some environments use odId as the Employee.userId (same ID as Space members use),
+          // while others populate userId. We query with both to be robust.
+          const idsForAvatarLookup = new Set<string>()
           for (const participants of Object.values(response.presence)) {
             for (const p of participants) {
-              if (p.odId) userIds.add(p.odId)
-              if (p.userId) userIds.add(p.userId)
+              if (p.odId) idsForAvatarLookup.add(p.odId)
+              if (p.userId) idsForAvatarLookup.add(p.userId)
             }
           }
 
-          // Fetch avatars for all users
           const avatarMap =
-            userIds.size > 0 ? await fetchAvatars(Array.from(userIds)) : new Map<string, string | undefined>()
+            idsForAvatarLookup.size > 0
+              ? await fetchAvatars(Array.from(idsForAvatarLookup))
+              : new Map<string, string | undefined>()
 
           // Convert presence response to activities
           const now = new Date()
           const presenceActivities: DocumentActivity[] = []
+          const firstSeenTimes = firstSeenTimesRef.current
+          const presenceKeys = new Set<string>()
 
           for (const [entityKey, participants] of Object.entries(response.presence)) {
             // entityKey format: "entityType:entityId"
@@ -564,51 +625,83 @@ export function useSpaceDocumentActivity(
             const contentItem = entitiesForPresence.find(e => e.entityId === entityId && e.entityType === entityType)
 
             for (const participant of participants) {
-              const key = `${participant.userId}:${entityId}`
+              const resolvedUserId = participant.odId || participant.userId
+              if (!resolvedUserId) continue
 
-              // Get avatar from our fetched map
-              const avatar = avatarMap.get(participant.odId) || avatarMap.get(participant.userId)
+              const key = `${resolvedUserId}:${entityId}`
+              presenceKeys.add(key)
+
+              // Resolve avatar: prefer resolvedUserId, fallback to the other id if needed
+              const avatar =
+                avatarMap.get(resolvedUserId) ||
+                (participant.odId ? avatarMap.get(participant.userId || '') : avatarMap.get(participant.odId || ''))
+
+              // Prefer server timestamps when available
+              const lastActiveAt =
+                parseMaybeDate(participant.lastActiveAt) ||
+                parseMaybeDate(participant.connectedAt) ||
+                parseMaybeDate(participant.joinedAt)
+
+              // Track when we first saw this activity
+              if (!firstSeenTimes.has(key)) {
+                firstSeenTimes.set(key, now)
+              }
+
+              const startedAt =
+                parseMaybeDate(participant.joinedAt) ||
+                parseMaybeDate(participant.connectedAt) ||
+                firstSeenTimes.get(key) ||
+                now
+
+              // Use lastActiveAt when provided; otherwise treat presence poll as activity
+              const effectiveLastUpdatedAt = lastActiveAt || now
 
               presenceActivities.push({
                 key,
-                userId: participant.userId,
+                userId: resolvedUserId,
                 userName: participant.userName,
                 userAvatar: avatar,
                 documentId: entityId,
                 documentTitle: contentItem?.title || 'Unknown',
                 documentType: entityType as DocumentType,
                 activityType: 'editing', // Assume editing since they're connected
-                startedAt: now,
-                lastUpdatedAt: now
+                startedAt,
+                lastUpdatedAt: effectiveLastUpdatedAt,
+                source: 'presence'
               })
             }
           }
 
-          // Merge with existing activities (prefer newer data, but keep startedAt from existing)
+          // Apply presence snapshot as authoritative:
+          // - Keep broadcast activities (cross-tab local signals)
+          // - Replace ALL presence activities with the current snapshot
           setActivities(prev => {
-            const merged = new Map<string, DocumentActivity>()
+            const next = new Map<string, DocumentActivity>()
 
-            // Add existing activities (from BroadcastChannel)
-            for (const activity of prev) {
-              merged.set(activity.key, activity)
-            }
-
-            // Add/update with presence activities (from WebSocket)
-            for (const activity of presenceActivities) {
-              const existing = merged.get(activity.key)
-              if (existing) {
-                // Keep the original startedAt time to show accurate duration
-                merged.set(activity.key, {
-                  ...activity,
-                  startedAt: existing.startedAt,
-                  lastUpdatedAt: activity.lastUpdatedAt
-                })
-              } else {
-                merged.set(activity.key, activity)
+            for (const a of prev) {
+              if (a.source === 'broadcast' || !a.source) {
+                next.set(a.key, a)
               }
             }
 
-            return Array.from(merged.values())
+            for (const a of presenceActivities) {
+              const existing = next.get(a.key)
+              if (existing) {
+                const earliest = existing.startedAt < a.startedAt ? existing.startedAt : a.startedAt
+                next.set(a.key, { ...a, startedAt: earliest })
+              } else {
+                next.set(a.key, a)
+              }
+            }
+
+            // Clean up firstSeenTimes for presence keys that disappeared
+            for (const [k] of Array.from(firstSeenTimes.entries())) {
+              if (!presenceKeys.has(k)) {
+                firstSeenTimes.delete(k)
+              }
+            }
+
+            return Array.from(next.values())
           })
         }
       )

@@ -17,7 +17,7 @@ import {
   SpacePinned,
   SpaceActivity,
   SpaceDriveView,
-  SpaceMembers,
+  SpaceMembersTab,
   AddContentDialog,
   SpaceCalendar,
   ScheduleMeetingButton,
@@ -63,7 +63,7 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
   const [moveDialogOpen, setMoveDialogOpen] = useState(false)
   const [addContentDialogOpen, setAddContentDialogOpen] = useState(false)
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false)
-  const [activeTab, setActiveTab] = useState<'overview' | 'drive'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'drive' | 'members'>('overview')
   const [additionalUserIds, setAdditionalUserIds] = useState<string[]>([])
 
   const currentUserId = userInfo?.id || userInfo?.employeeDetails?.employeeId || ''
@@ -168,7 +168,9 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
       return {
         ...member,
         userName: info?.name,
-        userAvatar: info?.avatar
+        userAvatar: info?.avatar,
+        jobTitle: info?.jobTitle,
+        department: info?.department
       }
     })
   }, [space?.members, getUserInfo])
@@ -413,7 +415,7 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
       <main className="gba:max-w-7xl gba:mx-auto gba:px-6 gba:py-8 gba:space-y-8">
         <Tabs
           value={activeTab}
-          onValueChange={value => setActiveTab(value as 'overview' | 'drive')}
+          onValueChange={value => setActiveTab(value as 'overview' | 'drive' | 'members')}
           className="gba:space-y-6"
         >
           <TabsList className="gba:w-fit" data-testid={`${testId}-tabs`}>
@@ -422,6 +424,9 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
             </TabsTrigger>
             <TabsTrigger value="drive" data-testid={`${testId}-tab-drive`}>
               Drive
+            </TabsTrigger>
+            <TabsTrigger value="members" data-testid={`${testId}-tab-members`}>
+              Members ({space.members?.length || 0})
             </TabsTrigger>
           </TabsList>
 
@@ -503,37 +508,13 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
               </section>
             )}
 
-            {/* Two Column Layout: Activity & Members */}
-            <div className="gba:grid gba:grid-cols-1 gba:lg:grid-cols-3 gba:gap-8">
-              {/* Left: Activity Feed */}
-              <section className="gba:lg:col-span-2">
-                <h2 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-4">Recent Activity</h2>
-                <div className="gba:rounded-lg gba:bg-card gba:p-4">
-                  <SpaceActivity
-                    activities={activities}
-                    isLoading={activityLoading}
-                    data-testid={`${testId}-activity`}
-                  />
-                </div>
-              </section>
-
-              {/* Right: Members */}
-              <section>
-                <h2 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-4">Members</h2>
-                <div className="gba:rounded-lg gba:bg-card gba:p-4">
-                  <SpaceMembers
-                    members={enrichedMembers}
-                    currentUserId={currentUserId}
-                    isOwner={isOwner}
-                    canManageMembers={canManageMembers}
-                    onInvite={() => setInviteDialogOpen(true)}
-                    onUpdateRole={handleUpdateMemberRole}
-                    onRemoveMember={handleRemoveMember}
-                    data-testid={`${testId}-members`}
-                  />
-                </div>
-              </section>
-            </div>
+            {/* Activity Feed - Full Width */}
+            <section>
+              <h2 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-4">Recent Activity</h2>
+              <div className="gba:rounded-lg gba:bg-card gba:p-4">
+                <SpaceActivity activities={activities} isLoading={activityLoading} data-testid={`${testId}-activity`} />
+              </div>
+            </section>
           </TabsContent>
 
           <TabsContent value="drive" data-testid={`${testId}-tab-content-drive`}>
@@ -550,6 +531,20 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
               }}
               onRemoveContent={handleRemoveContent}
               data-testid={`${testId}-drive`}
+            />
+          </TabsContent>
+
+          <TabsContent value="members" data-testid={`${testId}-tab-content-members`}>
+            <SpaceMembersTab
+              members={enrichedMembers}
+              activities={activities}
+              currentUserId={currentUserId}
+              isOwner={isOwner}
+              canManageMembers={canManageMembers}
+              onInvite={() => setInviteDialogOpen(true)}
+              onUpdateRole={handleUpdateMemberRole}
+              onRemoveMember={handleRemoveMember}
+              data-testid={`${testId}-members-tab`}
             />
           </TabsContent>
         </Tabs>
