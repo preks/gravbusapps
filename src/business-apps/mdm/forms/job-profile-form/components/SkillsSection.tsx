@@ -12,7 +12,9 @@ import {
 } from '@newwork/nw-design-system'
 import { DebouncedInput } from '@/components/debounced-input'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { SEARCH_SKILLS_QUERY } from '@/business-apps/hr/core/forms/add-skill/AddSkillQueries'
+import { SEARCH_SKILLS_QUERY, GET_SKILLS_BY_NAMES } from '@/business-apps/hr/core/forms/add-skill/AddSkillQueries'
+import { useRestClient } from '@/common/network/rest/useRestClient'
+import { env } from '@/common/env/EnvUtils'
 
 interface SkillsSectionProps {
   dataTestId: string
@@ -30,6 +32,7 @@ const getSkillValidationError = (name: string): string | null => {
 const SkillsSection: React.FC<SkillsSectionProps> = ({ dataTestId, accessToken }) => {
   const form = useFormContext()
   const graphqlClient = useGraphQLClient(accessToken)
+  const restClient = useRestClient(env('NEXT_PUBLIC_BASE_URL'))
   const { fields, append, remove } = useFieldArray({
     control: form.control,
     name: 'skills'
@@ -43,7 +46,6 @@ const SkillsSection: React.FC<SkillsSectionProps> = ({ dataTestId, accessToken }
   const [inputKey, setInputKey] = useState(0)
   const suppressOpenRef = useRef(false)
   const searchSeqRef = useRef(0)
-  const nextNewIdRef = useRef(1)
 
   // Get currently selected skill IDs to filter them out
   const selectedSkillIds = useMemo(() => {
@@ -128,6 +130,7 @@ const SkillsSection: React.FC<SkillsSectionProps> = ({ dataTestId, accessToken }
     }
 
     setAddError(null)
+    setIsSearching(true)
 
     try {
       // Check if skill with this exact name already exists in the database
@@ -142,25 +145,37 @@ const SkillsSection: React.FC<SkillsSectionProps> = ({ dataTestId, accessToken }
         handleSelectSkill(existingSkill)
         return
       }
+
+      // Save new skill to backend
+      await restClient.post(
+        '/processes/employee/saveSkill',
+        { skill: { name: name } },
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      )
+
+      // Fetch the newly created skill to get its ID
+      const fetchResult = await graphqlClient.request<{ skill: Array<{ id: string; name: string; version: number }> }>(
+        GET_SKILLS_BY_NAMES,
+        { names: [name] }
+      )
+
+      const newSkill = fetchResult?.skill?.[0]
+      if (newSkill) {
+        handleSelectSkill(newSkill)
+      } else {
+        setAddError('Failed to create skill. Please try again.')
+      }
     } catch (error) {
-      console.error('Error checking existing skills:', error)
+      console.error('Error creating skill:', error)
+      setAddError('Failed to create skill. Please try again.')
+    } finally {
+      setIsSearching(false)
     }
-
-    // Add as new skill (will be created in the backend when form is submitted)
-    const newId = `new-${nextNewIdRef.current++}`
-    append({
-      skillId: newId,
-      skillName: name,
-      level: null
-    })
-
-    suppressOpenRef.current = true
-    searchSeqRef.current += 1
-    setIsDropdownOpen(false)
-    setSearchTerm('')
-    setSearchResults([])
-    setIsSearching(false)
-    setInputKey(prev => prev + 1)
   }
 
   const handleRemoveSkill = (index: number) => {

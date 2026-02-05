@@ -129,7 +129,8 @@ const JobProfileForm: React.FC<JobProfileFormProps> = ({
         .filter((skill: JobProfileSkill) => skill.skillId && skill.skillId.length > 0)
         .map((skill: JobProfileSkill) => ({
           skillId: skill.skillId,
-          level: skill.level || null
+          skillName: skill.skillName || null,
+          requiredLevel: skill.level !== undefined && skill.level !== null ? skill.level : null
         }))
 
       const payload = {
@@ -174,14 +175,18 @@ const JobProfileForm: React.FC<JobProfileFormProps> = ({
             contractTypeRef: jobProfile.contractTypeRef,
             employmentTypeRef: jobProfile.employmentTypeRef,
             active: jobProfile.recordState ? 'active' : 'inactive',
-            skills: (jobProfile as any).skills
-              ? ((jobProfile as any).skills as Array<{ skillId: string; skillName?: string; level?: number }>).map(
-                  skill => ({
-                    skillId: skill.skillId,
-                    skillName: skill.skillName || '',
-                    level: skill.level ?? null
-                  })
-                )
+            skills: (jobProfile as any).jobProfileSkills
+              ? (
+                  (jobProfile as any).jobProfileSkills as Array<{
+                    skillId: string
+                    requiredLevel?: number | null
+                    skill?: { id: string; name: string }
+                  }>
+                ).map(profileSkill => ({
+                  skillId: profileSkill.skillId,
+                  skillName: profileSkill.skill?.name || '',
+                  level: profileSkill.requiredLevel ?? null
+                }))
               : []
           }
         : { skills: [] },
