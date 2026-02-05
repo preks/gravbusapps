@@ -83,7 +83,7 @@ export const PhaseTimeline: React.FC<PhaseTimelineProps> = ({
         variant="default"
         mode="manual"
         activeStageProgress={activeStageProgress}
-        className="gba:gap-0"
+        className="gba:gap-0 gba:items-center"
       >
         {phases.map((phase, index) => {
           const isDisabled = getPhaseDisabled(phase.value)
@@ -98,20 +98,20 @@ export const PhaseTimeline: React.FC<PhaseTimelineProps> = ({
                 disabled={isDisabled}
                 tooltip={phase.tooltip}
                 className={cn(
-                  // Monochrome styling overrides
-                  'gba:border-0 gba:bg-transparent',
-                  'gba:min-w-[140px]'
+                  // Visible border (always gray) and background
+                  'gba:border gba:border-border gba:bg-card',
+                  'gba:min-w-[140px]',
+                  // Lighter green backgrounds only for active/completed states
+                  isCompleted && 'gba:bg-success-secondary/10',
+                  currentPhase === phase.value && 'gba:bg-success-secondary/20'
                 )}
               />
 
-              {/* Connector line between stages */}
+              {/* Connector line between stages - vertically centered */}
               {index < phases.length - 1 && (
-                <div
-                  className={cn(
-                    'gba:h-0.5 gba:w-8 gba:transition-all gba:duration-300 gba:self-center gba:shrink-0',
-                    isCompleted ? 'gba:bg-foreground' : 'gba:bg-border'
-                  )}
-                />
+                <div className="gba:flex gba:items-center gba:self-center gba:shrink-0 gba:px-2">
+                  <div className="gba:h-0.5 gba:w-8 gba:bg-border" />
+                </div>
               )}
             </React.Fragment>
           )
