@@ -14,7 +14,7 @@ import { Button, Card, CardContent, cn } from '@newwork/nw-design-system'
 import { Sparkles, ArrowLeft, CheckCircle2, XCircle, RotateCcw } from 'lucide-react'
 import { useOrchestratorClient } from '../hooks/useOrchestratorClient'
 import { useBuildProgress } from '../hooks/useBuildProgress'
-import { BuildPlanReview } from '../components/widgets/BuildPlanReview'
+import { BuildPlanReview } from '../components/widgets/buildPlanReview'
 import { ProgressTilesGrid } from '../components/progress/ProgressTilesGrid'
 import type { OrchestratorViewState } from '../types'
 
@@ -165,10 +165,11 @@ export const OrchestratorView: React.FC<OrchestratorViewProps> = ({
         <Card className="gba:border-dashed">
           <CardContent className="gba:p-8">
             <div className="gba:space-y-4">
-              <label className="gba:block gba:text-sm gba:font-medium gba:text-foreground">
+              <label htmlFor="prompt-input" className="gba:block gba:text-sm gba:font-medium gba:text-foreground">
                 What do you want to build?
               </label>
               <textarea
+                id="prompt-input"
                 value={prompt}
                 onChange={e => setPrompt(e.target.value)}
                 placeholder="Describe what you need... For example: 'Create a lead management system with a capture form, AI qualification assistant, and approval workflow'"
@@ -258,7 +259,7 @@ export const OrchestratorView: React.FC<OrchestratorViewProps> = ({
               <CheckCircle2 className="gba:w-16 gba:h-16 gba:text-success gba:mx-auto gba:mb-4" />
               <h2 className="gba:text-2xl gba:font-bold gba:text-foreground gba:mb-2">Build Complete!</h2>
               <p className="gba:text-muted-foreground">
-                Successfully created {completedCount} component{completedCount !== 1 ? 's' : ''}
+                Successfully created {completedCount} component{completedCount === 1 ? '' : 's'}
                 {reusedCount > 0 && ` (${reusedCount} reused)`}
               </p>
             </CardContent>

@@ -10,7 +10,7 @@
 import React from 'react'
 import { useOrchestratorClient } from '../hooks/useOrchestratorClient'
 import { useBuildProgress } from '../hooks/useBuildProgress'
-import { useOrchestratorState } from '../hooks/useOrchestratorState'
+import { useOrchestratorStateOld } from '../hooks/useOrchestratorStateOld'
 import { useOrchestratorHandlers } from '../hooks/useOrchestratorHandlers'
 import { useOrchestratorEffects } from '../hooks/useOrchestratorEffects'
 import { IdleCanvas } from '../components/layouts'
@@ -32,8 +32,8 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
   onComplete,
   'data-testid': testId = 'orchestrator-conversational'
 }) => {
-  // Initialize state
-  const state = useOrchestratorState(initialPrompt)
+  // Initialize state (using legacy hook for backward compatibility)
+  const state = useOrchestratorStateOld({ initialPrompt })
 
   // Orchestrator client
   const orchestratorClient = useOrchestratorClient({
