@@ -70,8 +70,11 @@ export const UserSummaryView: React.FC<UserSummaryViewProps> = ({
         <div className="gba:space-y-1.5">
           <h3 className="gba:text-sm gba:font-semibold gba:text-foreground">What You're Getting</h3>
           <ul className="gba:space-y-1">
-            {user_summary.what_you_get.map((item, i) => (
-              <li key={i} className="gba:flex gba:gap-2 gba:text-sm gba:text-foreground gba:leading-relaxed">
+            {user_summary.what_you_get.map(item => (
+              <li
+                key={`getting-${item.slice(0, 30)}`}
+                className="gba:flex gba:gap-2 gba:text-sm gba:text-foreground gba:leading-relaxed"
+              >
                 <span className="gba:text-muted-foreground gba:mt-0.5">•</span>
                 <span className="gba:flex-1">{item}</span>
               </li>
@@ -82,8 +85,11 @@ export const UserSummaryView: React.FC<UserSummaryViewProps> = ({
         <div className="gba:space-y-1.5">
           <h3 className="gba:text-sm gba:font-semibold gba:text-foreground">What You Can Do</h3>
           <ul className="gba:space-y-1">
-            {user_summary.what_you_can_do.map((item, i) => (
-              <li key={i} className="gba:flex gba:gap-2 gba:text-sm gba:text-foreground gba:leading-relaxed">
+            {user_summary.what_you_can_do.map(item => (
+              <li
+                key={`cando-${item.slice(0, 30)}`}
+                className="gba:flex gba:gap-2 gba:text-sm gba:text-foreground gba:leading-relaxed"
+              >
                 <span className="gba:text-muted-foreground gba:mt-0.5">•</span>
                 <span className="gba:flex-1">{item}</span>
               </li>

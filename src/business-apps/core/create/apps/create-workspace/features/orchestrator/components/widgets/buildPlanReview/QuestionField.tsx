@@ -22,10 +22,10 @@ export const QuestionField: React.FC<QuestionFieldProps> = ({ question, value, o
         </Label>
         {question.context && <p className="gba:text-sm gba:text-muted-foreground">{question.context}</p>}
         <RadioGroup value={value} onValueChange={onChange}>
-          {question.options.map((option, i) => (
-            <div key={i} className="gba:flex gba:items-center gba:space-x-2">
-              <RadioGroupItem value={option} id={`${question.id}-${i}`} />
-              <Label htmlFor={`${question.id}-${i}`} className="gba:font-normal">
+          {question.options.map(option => (
+            <div key={`${question.id}-${option}`} className="gba:flex gba:items-center gba:space-x-2">
+              <RadioGroupItem value={option} id={`${question.id}-${option}`} />
+              <Label htmlFor={`${question.id}-${option}`} className="gba:font-normal">
                 {option}
               </Label>
             </div>

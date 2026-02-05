@@ -24,9 +24,10 @@ export const ComponentItem: React.FC<ComponentItemProps> = ({
 }) => {
   if (variant === 'flat') {
     return (
-      <div
+      <button
+        type="button"
         className={cn(
-          'gba:flex gba:items-start gba:gap-2.5 gba:py-2.5 gba:px-3 gba:rounded-lg gba:border gba:border-border gba:cursor-pointer gba:transition-all hover:gba:bg-secondary/20 gba:bg-secondary/40',
+          'gba:flex gba:items-start gba:gap-2.5 gba:py-2.5 gba:px-3 gba:rounded-lg gba:border gba:border-border gba:cursor-pointer gba:transition-all hover:gba:bg-secondary/20 gba:bg-secondary/40 gba:w-full gba:text-left',
           isSkipped && 'gba:opacity-80'
         )}
         onClick={() => onToggle(component.id)}
@@ -50,14 +51,15 @@ export const ComponentItem: React.FC<ComponentItemProps> = ({
           </div>
           <div className="gba:text-xs gba:text-muted-foreground gba:leading-tight gba:flex-1">{description}</div>
         </div>
-      </div>
+      </button>
     )
   }
 
   return (
-    <div
+    <button
+      type="button"
       className={cn(
-        'gba:flex gba:items-start gba:gap-3 gba:py-3 gba:px-2 gba:rounded-md gba:group gba:relative gba:cursor-pointer gba:transition-colors hover:gba:bg-muted/50',
+        'gba:flex gba:items-start gba:gap-3 gba:py-3 gba:px-2 gba:rounded-md gba:group gba:relative gba:cursor-pointer gba:transition-colors hover:gba:bg-muted/50 gba:w-full gba:text-left',
         isSkipped && 'gba:opacity-40'
       )}
       onClick={() => onToggle(component.id)}
@@ -81,6 +83,6 @@ export const ComponentItem: React.FC<ComponentItemProps> = ({
         </div>
         <div className="gba:text-xs gba:text-muted-foreground gba:leading-normal">{description}</div>
       </div>
-    </div>
+    </button>
   )
 }
