@@ -7,6 +7,17 @@ every-box-tab-inflows = Eingang
 every-box-tab-outflows = Ausgang
 every-box-blink-description = Schnelle Aufgabe erstellen und zuweisen
 every-box-search-placeholder = Suchen...
+every-box-sort-label = Sortieren
+every-box-sort-newest = Neueste zuerst
+every-box-sort-oldest = Älteste zuerst
+every-box-sort-priority = Priorität
+every-box-refresh-label = Aktualisieren
+every-box-due-filter-label = Fälligkeit
+every-box-due-filter-any = Alle
+every-box-due-filter-overdue = Überfällig
+every-box-due-filter-due-soon = Fällig in <24h
+every-box-due-filter-has = Mit Fälligkeitsdatum
+every-box-due-filter-none = Ohne Fälligkeitsdatum
 
 # Filters Dropdown
 filters-dropdown-label = Filter
@@ -34,6 +45,7 @@ inbox-new-completed-tasks-description = Neue erledigte Aufgaben sind eingegangen
 inbox-error-title = Fehler beim Laden der Aufgaben
 inbox-showing-tasks = Zeige {$current} von {$total}{$hasMore} Aufgaben
 inbox-load-more = Mehr laden
+inbox-loading-more = Lade weitere Aufgaben...
 
 # Inbox Empty States
 inbox-empty-no-results = Keine Aufgaben gefunden für "{$query}"
@@ -73,9 +85,28 @@ blink-upload-error = Anhänge konnten nicht hochgeladen werden: {$error}
 task-card-overdue = Überfällig
 task-card-due-soon = Bald fällig
 task-card-due = Fällig {$date}
+task-card-due-in-hours = Fällig in {$hours}h
+task-card-overdue-hours = Überfällig {$hours}h
+task-card-due-in-days = Fällig in {$days}d
+task-card-overdue-days = Überfällig {$days}d
+task-card-tooltip-due-hours = Fällig in {$hours} Stunden
+task-card-tooltip-due-days = Fällig in {$days} Tagen
+task-card-tooltip-overdue-hours = Überfällig: {$hours} Stunden
+task-card-tooltip-overdue-days = Überfällig: {$days} Tage
+
+# Task meta actions (Everybox-service)
+task-meta-pin = Anheften
+task-meta-unpin = Lösen
+task-meta-mark-unread = Als ungelesen markieren
+task-meta-priority = Priorität
+task-meta-priority-none = Keine
+task-meta-priority-high = Hoch
+task-meta-priority-medium = Mittel
+task-meta-priority-low = Niedrig
 task-card-blink = Blink
 task-card-unknown-creator = Unbekannt
 task-card-untitled = Aufgabe ohne Titel
+task-card-pinned = Angeheftet
 
 # FlowCard Component
 flow-card-blink = Blink

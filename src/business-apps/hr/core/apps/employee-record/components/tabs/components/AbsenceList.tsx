@@ -1,5 +1,6 @@
 import React from 'react'
 import { Pagination } from 'antd'
+import { IconAvatar } from '@newwork/nw-design-system'
 import { AbsenceListProps } from '../../../queries/types'
 import { formatDate, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import {
@@ -55,16 +56,11 @@ const AbsenceList: React.FC<AbsenceListProps> = ({
           {paginatedAbsenceList.map((absence, idx) => (
             <div
               key={idx + (currentPage - 1) * pageSize}
-              className="gba:absence-card gba:border gba:rounded gba:p-4 gba:shadow-sm gba:bg-white gba:hover:shadow-md gba:transition-shadow"
+              className="gba:absence-card gba:border gba:rounded gba:p-4"
               data-testid={`absence-card-${idx}`}
             >
               <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-                <div
-                  className="gba:icon-container gba:p-2 gba:rounded-full"
-                  style={{ backgroundColor: `${absence.typeColor}20` }}
-                >
-                  <span className="gba:icon">{absence.icon}</span>
-                </div>
+                <IconAvatar icon={absence.icon} variant="decorative" size="md" />
                 <h4 className="gba:text-lg gba:font-medium">{absence.title}</h4>
               </div>
 

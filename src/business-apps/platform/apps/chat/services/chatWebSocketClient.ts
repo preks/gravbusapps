@@ -234,6 +234,10 @@ export class ChatWebSocketClient {
     this.socket?.on('conversation_created', handler)
   }
 
+  onConversationRead(handler: (data: { conversationId: string; userId: string; readAt: string }) => void) {
+    this.socket?.on('conversation:read', handler)
+  }
+
   onConversationCallStarted(handler: (data: ActiveCall) => void) {
     this.socket?.on('conversation:call-started', handler)
   }
@@ -258,6 +262,14 @@ export class ChatWebSocketClient {
 
   leaveConversation(conversationId: string) {
     this.socket?.emit('leave_conversation', { conversationId })
+  }
+
+  markConversationAsRead(conversationId: string) {
+    if (!this.socket || !this.socket.connected) {
+      return
+    }
+
+    this.socket.emit('conversation:mark-read', { conversationId })
   }
 
   sendMessage(

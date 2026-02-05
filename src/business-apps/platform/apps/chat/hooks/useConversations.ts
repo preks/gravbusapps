@@ -20,6 +20,7 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
   const [currentPage, setCurrentPage] = useState(1)
   const isLoadingRef = useRef(false)
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false)
+  const loadConversationsPromiseRef = useRef<Promise<void> | null>(null)
   const LIMIT = 20
 
   // Use user management client to fetch real user data
@@ -168,90 +169,118 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
   const loadConversations = useCallback(async () => {
     if (!enabled || isLoadingRef.current || !apiClient) return
 
-    try {
-      isLoadingRef.current = true
-      setIsLoading(true)
-      setError(null)
-      setCurrentPage(1)
+    // Request deduplication: if a request is already in flight, return that promise
+    if (loadConversationsPromiseRef.current) {
+      return loadConversationsPromiseRef.current
+    }
 
-      const response = await apiClient.getConversations(1, LIMIT)
-      // Handle both response structures: { data: [...] } or { conversations: [...] }
-      const conversationsData = response.data || (response as any).conversations || []
-      const total = response.total || 0
+    const loadPromise = (async () => {
+      try {
+        isLoadingRef.current = true
+        setIsLoading(true)
+        setError(null)
+        setCurrentPage(1)
 
-      // Log backend response for debugging sorting issues
-      if (process.env.NODE_ENV === 'development') {
-        rtkDebug.debug(
-          '[useConversations] Backend returned conversations:',
-          conversationsData.slice(0, 3).map((c: any) => ({
-            id: c.id?.substring(0, 8),
-            hasLastMessage: !!c.lastMessage,
-            lastMessageCreatedAt: c.lastMessage?.createdAt,
-            updatedAt: c.updatedAt,
-            createdAt: c.createdAt
-          }))
-        )
-      }
+        const response = await apiClient.getConversations(1, LIMIT)
+        // Handle both response structures: { data: [...] } or { conversations: [...] }
+        const conversationsData = response.data || (response as any).conversations || []
+        const total = response.total || 0
 
-      // Check if there are more conversations to load
-      setHasMore(conversationsData.length === LIMIT && conversationsData.length < total)
-
-      // For initial load, use fast avatar-only enrichment (synchronous, no blocking)
-      // The API returns full user data, so we don't need to fetch placeholder users
-      // This prevents the "no conversation" flash while waiting for enrichment
-      const enrichedConversations = !hasLoadedOnce
-        ? enrichConversationsWithAvatarsOnly(conversationsData)
-        : await enrichConversations(conversationsData)
-
-      // Sort by most recent activity
-      // Priority: lastMessage.createdAt > lastMessageAt > updatedAt > createdAt
-      // This ensures proper ordering even if backend's lastMessageAt is stale
-      const sortedConversations = enrichedConversations.sort((a, b) => {
-        // Use lastMessage.createdAt as the source of truth (most accurate)
-        const aTime = a.lastMessage?.createdAt || a.lastMessageAt || a.updatedAt || a.createdAt
-        const bTime = b.lastMessage?.createdAt || b.lastMessageAt || b.updatedAt || b.createdAt
-        const aTimestamp = new Date(aTime).getTime()
-        const bTimestamp = new Date(bTime).getTime()
-
+        // Log backend response for debugging sorting issues
         if (process.env.NODE_ENV === 'development') {
-          // Log if we're using fallback time sources (not lastMessage.createdAt)
-          const aSource = a.lastMessage?.createdAt
-            ? 'lastMessage'
-            : a.lastMessageAt
-              ? 'lastMessageAt'
-              : a.updatedAt
-                ? 'updatedAt'
-                : 'createdAt'
-          const bSource = b.lastMessage?.createdAt
-            ? 'lastMessage'
-            : b.lastMessageAt
-              ? 'lastMessageAt'
-              : b.updatedAt
-                ? 'updatedAt'
-                : 'createdAt'
-
-          if (aSource !== 'lastMessage' || bSource !== 'lastMessage') {
-            rtkDebug.debug('[useConversations] Sorting fallback used:', {
-              convA: { id: a.id.substring(0, 8), source: aSource, time: aTime },
-              convB: { id: b.id.substring(0, 8), source: bSource, time: bTime }
-            })
-          }
+          rtkDebug.debug(
+            '[useConversations] Backend returned conversations:',
+            conversationsData.slice(0, 3).map((c: any) => ({
+              id: c.id?.substring(0, 8),
+              hasLastMessage: !!c.lastMessage,
+              lastMessageCreatedAt: c.lastMessage?.createdAt,
+              lastReadAt: c.lastReadAt,
+              unreadCount: c.unreadCount,
+              updatedAt: c.updatedAt,
+              createdAt: c.createdAt
+            }))
+          )
         }
 
-        return bTimestamp - aTimestamp
-      })
+        // Check if there are more conversations to load
+        setHasMore(conversationsData.length === LIMIT && conversationsData.length < total)
 
-      // Set conversations and clear loading in same tick to prevent flash
-      setConversations(sortedConversations)
-      setHasLoadedOnce(true)
-      setIsLoading(false)
-      isLoadingRef.current = false
-    } catch (err) {
-      setError(err instanceof Error ? err : new Error('Failed to load conversations'))
-      setIsLoading(false)
-      isLoadingRef.current = false
-    }
-  }, [apiClient, accessToken, enabled, enrichConversations, LIMIT])
+        // For initial load, use fast avatar-only enrichment (synchronous, no blocking)
+        // The API returns full user data, so we don't need to fetch placeholder users
+        // This prevents the "no conversation" flash while waiting for enrichment
+        const enrichedConversations = !hasLoadedOnce
+          ? enrichConversationsWithAvatarsOnly(conversationsData)
+          : await enrichConversations(conversationsData)
+
+        // Debug: Log after enrichment to verify data preservation
+        if (process.env.NODE_ENV === 'development') {
+          rtkDebug.debug(
+            '[useConversations] After enrichment:',
+            enrichedConversations.slice(0, 3).map((c: any) => ({
+              id: c.id?.substring(0, 8),
+              lastReadAt: c.lastReadAt,
+              unreadCount: c.unreadCount
+            }))
+          )
+        }
+
+        // Sort by most recent activity
+        // Priority: lastMessage.createdAt > lastMessageAt > updatedAt > createdAt
+        // This ensures proper ordering even if backend's lastMessageAt is stale
+        const sortedConversations = enrichedConversations.sort((a, b) => {
+          // Use lastMessage.createdAt as the source of truth (most accurate)
+          const aTime = a.lastMessage?.createdAt || a.lastMessageAt || a.updatedAt || a.createdAt
+          const bTime = b.lastMessage?.createdAt || b.lastMessageAt || b.updatedAt || b.createdAt
+          const aTimestamp = new Date(aTime).getTime()
+          const bTimestamp = new Date(bTime).getTime()
+
+          if (process.env.NODE_ENV === 'development') {
+            // Log if we're using fallback time sources (not lastMessage.createdAt)
+            const aSource = a.lastMessage?.createdAt
+              ? 'lastMessage'
+              : a.lastMessageAt
+                ? 'lastMessageAt'
+                : a.updatedAt
+                  ? 'updatedAt'
+                  : 'createdAt'
+            const bSource = b.lastMessage?.createdAt
+              ? 'lastMessage'
+              : b.lastMessageAt
+                ? 'lastMessageAt'
+                : b.updatedAt
+                  ? 'updatedAt'
+                  : 'createdAt'
+
+            if (aSource !== 'lastMessage' || bSource !== 'lastMessage') {
+              rtkDebug.debug('[useConversations] Sorting fallback used:', {
+                convA: { id: a.id.substring(0, 8), source: aSource, time: aTime },
+                convB: { id: b.id.substring(0, 8), source: bSource, time: bTime }
+              })
+            }
+          }
+
+          return bTimestamp - aTimestamp
+        })
+
+        // Set conversations and clear loading in same tick to prevent flash
+        setConversations(sortedConversations)
+        setHasLoadedOnce(true)
+        setIsLoading(false)
+        isLoadingRef.current = false
+      } catch (err) {
+        setError(err instanceof Error ? err : new Error('Failed to load conversations'))
+        setIsLoading(false)
+        isLoadingRef.current = false
+      } finally {
+        // Clear the promise ref when done
+        loadConversationsPromiseRef.current = null
+      }
+    })()
+
+    // Store the promise for deduplication
+    loadConversationsPromiseRef.current = loadPromise
+    return loadPromise
+  }, [apiClient, accessToken, enabled, enrichConversations, enrichConversationsWithAvatarsOnly, hasLoadedOnce, LIMIT])
 
   const loadMoreConversations = useCallback(async () => {
     if (!enabled || isLoadingMore || !hasMore || !apiClient) return
@@ -424,10 +453,14 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
 
   // Load conversations on mount
   useEffect(() => {
-    if (enabled) {
+    if (enabled && apiClient) {
       loadConversations()
     }
-  }, [enabled])
+    // Cleanup: clear the promise ref on unmount to ensure fresh loads
+    return () => {
+      loadConversationsPromiseRef.current = null
+    }
+  }, [enabled, apiClient, loadConversations])
 
   // Re-enrich conversations when avatars are loaded from cache
   // Use fast enrichment to avoid re-fetching user data

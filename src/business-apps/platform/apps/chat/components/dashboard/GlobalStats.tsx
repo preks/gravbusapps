@@ -190,7 +190,7 @@ export const GlobalStats: React.FC<GlobalStatsProps> = ({
   return (
     <section data-testid={testId}>
       <h3 className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-4 gba:uppercase gba:tracking-wide">
-        Platform activity
+        Company activity
       </h3>
 
       <div className="gba:space-y-4">

@@ -64,15 +64,10 @@ export class ChatApiClient {
     >('/conversations', {
       params: {
         page,
-        limit,
-        // Cache-busting: Ensure we always get fresh data for ordering
-        _t: Date.now()
-      },
-      headers: {
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        Pragma: 'no-cache',
-        Expires: '0'
+        limit
       }
+      // Removed aggressive cache-busting for performance
+      // WebSocket updates handle real-time changes, so HTTP caching is safe
     })
     // Backend returns { conversations: [...] } but we expect { data: [...] }
     if ('conversations' in response.data) {
@@ -156,6 +151,8 @@ export class ChatApiClient {
     participantIds: string[]
     description?: string
     avatarUrl?: string
+    contextEntity?: string
+    contextEntityId?: string
   }) {
     try {
       const response = await this.client.post<Conversation>('/conversations/group', data)

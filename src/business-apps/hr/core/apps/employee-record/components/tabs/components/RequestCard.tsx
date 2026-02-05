@@ -1,5 +1,6 @@
 import React from 'react'
-import { Card, Avatar } from '@newwork/gravity-ui-catalog'
+import { Avatar } from '@newwork/gravity-ui-catalog'
+import { Card } from '@newwork/nw-design-system'
 
 export interface ReviewerAvatar {
   id?: string
