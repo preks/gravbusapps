@@ -28,19 +28,32 @@ export interface LiquidFundKPIIntegration {
  */
 export const useLiquidFundKPIIntegration = (
   context: BusinessAppContextProps,
-  currency?: string
+  currency?: string,
+  filters?: Record<string, any>,
+  enabled: boolean = true
 ): LiquidFundKPIIntegration => {
-  const { fetchLiquidFundKPIs } = useGetLiquidFundKPIs(context, currency)
+  const { fetchLiquidFundKPIs } = useGetLiquidFundKPIs(context)
+
+  // Calculate comparison date (91 days ago)
+  const comparisonDate = new Date()
+  comparisonDate.setDate(comparisonDate.getDate() - 91)
+  const comparisonDateString = comparisonDate.toISOString()
+
+  // Wrapper that calls fetchLiquidFundKPIs with the right parameters
+  const fetcher = async () => {
+    return await fetchLiquidFundKPIs(comparisonDateString, currency, filters)
+  }
 
   return useKPIIntegration<LiquidFundKPIData>(
     context,
-    fetchLiquidFundKPIs,
+    fetcher,
     {
       totalInvestments: 0,
       totalAmountInvested: 0,
       averageInvestmentValue: 0,
       activeInvestments: 0
     },
-    [currency]
+    [currency, filters],
+    enabled
   )
 }

@@ -1,5 +1,4 @@
-import React from 'react'
-import { PaperClipOutlined } from '@ant-design/icons'
+import { CalendarBlankIcon } from '@phosphor-icons/react'
 import dayjs from 'dayjs'
 import isSameOrAfter from 'dayjs/plugin/isSameOrAfter'
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore'
@@ -36,11 +35,7 @@ export const transformAbsenceData = (absences: any[]): AbsenceListCardAbsence[] 
         }`
       : '',
     description: absence.description || '',
-    icon: React.createElement(PaperClipOutlined, {
-      style: {
-        color: absence.type?.objectValue?.color ? `#${absence.type.objectValue.color}` : 'var(--nw-info)'
-      }
-    }),
+    icon: CalendarBlankIcon,
     typeColor: absence.type?.objectValue?.color ? absence.type.objectValue.color : 'blue',
     statusColor: getAbsenceStatusConfig(absence.status).color,
     requestDate: absence.createdAt
@@ -71,9 +66,7 @@ export const transformEntitlementsData = (employeeAbsenceEntitlement: EmployeeAb
     total: ent.total,
     pending: ent.pending,
     available: ent.available,
-    icon: React.createElement(PaperClipOutlined, {
-      style: { color: `#${ent.type?.objectValue?.color || '1976d2'}` }
-    }),
+    icon: CalendarBlankIcon,
     checkEntitlement: ent.type?.objectValue?.checkEntitlement
   }))
 }

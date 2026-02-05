@@ -35,7 +35,7 @@ interface DimensionPickerProps {
   isLoadingMembers: boolean
   selectedMembers: OrgUserBasic[]
   onDimensionSelect: (type: DimensionType, dimensionId: string) => void
-  onConfirm: (members: OrgUserBasic[], dimensionName: string) => void
+  onConfirm: (members: OrgUserBasic[], dimensionName: string, dimensionType: DimensionType, dimensionId: string) => void
   onCancel: () => void
   currentUserId?: string | null
   prefixDataTestId?: string
@@ -156,8 +156,8 @@ export const DimensionPicker: React.FC<DimensionPickerProps> = ({
 
   // Handle confirm
   const handleConfirm = () => {
-    if (selectedDimension && filteredMembers.length > 0) {
-      onConfirm(filteredMembers, selectedDimension.name)
+    if (selectedDimension && selectedType && filteredMembers.length > 0) {
+      onConfirm(filteredMembers, selectedDimension.name, selectedType, selectedDimension.id)
     }
   }
 

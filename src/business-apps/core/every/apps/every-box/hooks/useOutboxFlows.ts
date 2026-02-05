@@ -7,6 +7,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { Flow, FlowStatus } from '../types'
 import { getCflowEndpoint } from '../../every-api/utils/config'
+import { getEveryboxServiceApiUrl } from '../../every-api/utils/everyboxServiceUrl'
 
 const FLOW_ENGINE_API = getCflowEndpoint()
 
@@ -30,8 +31,20 @@ export const useOutboxFlows = (context: BusinessAppContextProps) => {
     }
 
     try {
-      // Reduce limit to 50 and add timeout to prevent 524 errors
-      const url = `${FLOW_ENGINE_API}/api/flows/user/${userId}/initiated?limit=50&offset=0`
+      // Prefer everybox-service (server-side normalization + grouping + caching)
+      const everyboxApi = (() => {
+        try {
+          return getEveryboxServiceApiUrl()
+        } catch {
+          return null
+        }
+      })()
+
+      if (!everyboxApi) {
+        throw new Error('Everybox service URL not configured')
+      }
+
+      const url = `${everyboxApi}/flows/user/${userId}/initiated?limit=50&offset=0`
 
       // Add timeout to prevent hanging requests
       const controller = new AbortController()
@@ -48,23 +61,47 @@ export const useOutboxFlows = (context: BusinessAppContextProps) => {
       clearTimeout(timeoutId)
 
       if (!response.ok) {
-        if (response.status === 524) {
-          throw new Error('Flow engine is taking too long to respond. Please try again.')
-        }
-        throw new Error(`Flow engine API error: ${response.status}`)
+        throw new Error(`Everybox service API error: ${response.status}`)
       }
 
       const data = await response.json()
-      // API response structure: { status: "success", data: { flows: [...], totalCount: N } }
-      const rawFlows: any[] = data.data?.flows || []
-
-      return rawFlows.map(flow => transformFlow(flow))
+      const flowsFromService: Flow[] = data.flows || []
+      return flowsFromService
     } catch (err) {
       if (err instanceof Error && err.name === 'AbortError') {
         throw new Error('Request timed out. The server is taking too long to respond.')
       }
 
-      throw err
+      // Fallback to Flow Engine direct call if everybox-service is not routed yet
+      try {
+        const url = `${FLOW_ENGINE_API}/api/flows/user/${userId}/initiated?limit=50&offset=0`
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 30000)
+
+        const response = await fetch(url, {
+          headers: {
+            'Content-Type': 'application/json',
+            ...(context.accessToken && { Authorization: `Bearer ${context.accessToken}` })
+          },
+          signal: controller.signal
+        })
+
+        clearTimeout(timeoutId)
+
+        if (!response.ok) {
+          if (response.status === 524) {
+            throw new Error('Flow engine is taking too long to respond. Please try again.')
+          }
+          throw new Error(`Flow engine API error: ${response.status}`)
+        }
+
+        const data = await response.json()
+        const rawFlows: any[] = data.data?.flows || []
+        const transformed = rawFlows.map(flow => transformFlow(flow))
+        return groupFlowsByBlinkId(transformed)
+      } catch {
+        throw err
+      }
     }
   }, [userId, context.accessToken])
 
@@ -77,9 +114,7 @@ export const useOutboxFlows = (context: BusinessAppContextProps) => {
 
     try {
       const initiatedFlows = await fetchInitiatedFlows()
-
-      // Group flows by blinkGroupId
-      const groupedFlows = groupFlowsByBlinkId(initiatedFlows)
+      const groupedFlows = initiatedFlows
 
       // Only update state if data has actually changed (optimization for polling)
       const newFlowData = JSON.stringify(

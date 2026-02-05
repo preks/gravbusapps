@@ -1,6 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react'
-import { DataDisplay, Spinner, AiButton } from '@newwork/nw-design-system'
-import { UploadIcon } from '@phosphor-icons/react'
+import { DataDisplay, Spinner } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { EquityAnalyticsFilters } from './types'
 import { InvestmentReportTable } from '../../components/shared/InvestmentReportTable'
@@ -335,29 +334,6 @@ export const EquityReport: React.FC<EquityReportProps> = ({
     )
   }, [accessToken])
 
-  // Secondary action for "UploadIcon Report" - using AiButton like in record
-  const secondaryActions = useMemo(() => {
-    return (
-      <AppAction
-        contexts={[{ context: FlowContextName.investmentReportUploadIcon, contextData: {} }]}
-        accessToken={accessToken || ''}
-        emptyState="hide"
-        prefixDataTestId="report-view-upload-report"
-      >
-        <AiButton
-          variant="default"
-          size="default"
-          showIcon={true}
-          icon={<UploadIcon style={{ height: '1rem', width: '1rem' }} />}
-          iconPosition="before"
-          data-testid="report-view-upload-report-button"
-        >
-          {getTranslationFromI18nKeyAndLabel('investment.reports.uploadReport', 'UploadIcon Report')}
-        </AiButton>
-      </AppAction>
-    )
-  }, [accessToken])
-
   // Don't render filter-dependent content until filters are initialized
   if (!localReportFilters.filtersInitialized) {
     return (
@@ -391,7 +367,6 @@ export const EquityReport: React.FC<EquityReportProps> = ({
         visibleColumns={visibleColumns}
         onVisibleColumnsChange={handleVisibleColumnsChange}
         primaryAction={primaryActions}
-        secondaryActions={secondaryActions}
         toolbarDensity="default"
       >
         {effectiveInvestmentTypes.map(type => (

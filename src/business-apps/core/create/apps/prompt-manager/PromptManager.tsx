@@ -1,20 +1,20 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import '@newwork/nw-design-system/style'
-import { PageLayout, Button, useTranslation } from '@newwork/nw-design-system'
-import { Bot, WrenchIcon } from 'lucide-react'
+import { PageLayout, Tabs, TabsList, TabsTrigger, TabsContent, useTranslation } from '@newwork/nw-design-system'
+import { Bot } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { TaskExpertsSpace } from './components/TaskExpertsSpace'
 import { TaskExpertEditor } from './components/TaskExpertEditor'
-import { InternalToolsPanel } from './components/InternalToolsPanel'
+import { ToolsSpace } from './components/ToolsSpace'
 import translations from './_i18n'
 
 const TaskExpertStudio: React.FC<BusinessAppContextProps> = context => {
   const { t } = useTranslation(translations)
-  const [showInternalTools, setShowInternalTools] = useState(false)
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [editingPromptId, setEditingPromptId] = useState<string | null>(null)
   const [editingPromptName, setEditingPromptName] = useState<string>('')
   const [shouldRefresh, setShouldRefresh] = useState(0)
+  const [activeTab, setActiveTab] = useState<'task-experts' | 'tools'>('task-experts')
 
   // Legacy tab param cleanup
   useEffect(() => {
@@ -80,17 +80,19 @@ const TaskExpertStudio: React.FC<BusinessAppContextProps> = context => {
     setShouldRefresh(prev => prev + 1)
   }, [])
 
-  // Create mode
+  const renderToolsTab = () => <ToolsSpace {...context} />
+
+  // Create mode (keep editor mounted; allow switching to Tools tab)
   if (isCreateOpen) {
     return (
-      <div data-testid="prompt-manager-app" className="gba:w-full">
+      <div data-testid="prompt-manager-app" className="gba:w-full gba:bg-muted/50">
         <PageLayout
           headerIcon={Bot}
           headerTitle={t('create-task-expert')}
           headerDescription={t('page-description')}
           onBack={onEditorClosed}
           variant="default"
-          className="gba:min-h-screen"
+          className="gba:min-h-screen gba:bg-muted/50"
         >
           <TaskExpertEditor
             {...context}
@@ -106,17 +108,17 @@ const TaskExpertStudio: React.FC<BusinessAppContextProps> = context => {
     )
   }
 
-  // Edit mode
+  // Edit mode (keep editor mounted; allow switching to Tools tab)
   if (editingPromptId) {
     return (
-      <div data-testid="prompt-manager-app" className="gba:w-full">
+      <div data-testid="prompt-manager-app" className="gba:w-full gba:bg-muted/50">
         <PageLayout
           headerIcon={Bot}
           headerTitle={editingPromptName || t('edit-task-expert')}
           headerDescription={t('page-description')}
           onBack={onEditorClosed}
           variant="default"
-          className="gba:min-h-screen"
+          className="gba:min-h-screen gba:bg-muted/50"
         >
           <TaskExpertEditor
             {...context}
@@ -132,39 +134,39 @@ const TaskExpertStudio: React.FC<BusinessAppContextProps> = context => {
 
   // List mode
   return (
-    <div data-testid="prompt-manager-app" className="gba:w-full">
+    <div data-testid="prompt-manager-app" className="gba:w-full gba:bg-muted/50">
       <PageLayout
         headerIcon={Bot}
         headerTitle={t('page-title')}
         headerDescription={t('page-description')}
-        headerContent={
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowInternalTools(true)}
-            data-testid="prompt-manager-internal-tools-button"
-          >
-            <WrenchIcon className="gba:w-4 gba:h-4 gba:mr-2" />
-            {t('internal-tools')}
-          </Button>
-        }
         variant="default"
-        className="gba:min-h-screen"
+        className="gba:min-h-screen gba:bg-muted/50"
       >
-        <TaskExpertsSpace
-          {...context}
-          translations={translations}
-          onCreateTaskExpert={onCreateTaskExpert}
-          onEditPrompt={onEditPrompt}
-          refreshKey={shouldRefresh}
-        />
-      </PageLayout>
+        <Tabs value={activeTab} onValueChange={v => setActiveTab(v as any)} className="gba:w-full">
+          <TabsList className="gba:mb-4" data-testid="prompt-manager-tabs">
+            <TabsTrigger value="task-experts" data-testid="prompt-manager-tab-task-experts">
+              {t('tab-task-experts')}
+            </TabsTrigger>
+            <TabsTrigger value="tools" data-testid="prompt-manager-tab-tools">
+              {t('tab-tools')}
+            </TabsTrigger>
+          </TabsList>
 
-      <InternalToolsPanel
-        open={showInternalTools}
-        onClose={() => setShowInternalTools(false)}
-        accessToken={context.accessToken}
-      />
+          <TabsContent value="task-experts" data-testid="prompt-manager-tab-content-task-experts">
+            <TaskExpertsSpace
+              {...context}
+              translations={translations}
+              onCreateTaskExpert={onCreateTaskExpert}
+              onEditPrompt={onEditPrompt}
+              refreshKey={shouldRefresh}
+            />
+          </TabsContent>
+
+          <TabsContent value="tools" data-testid="prompt-manager-tab-content-tools">
+            {renderToolsTab()}
+          </TabsContent>
+        </Tabs>
+      </PageLayout>
     </div>
   )
 }

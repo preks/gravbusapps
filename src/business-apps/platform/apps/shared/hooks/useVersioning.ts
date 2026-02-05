@@ -19,6 +19,9 @@ async function deleteOldAutoSaveVersionsIfNeeded(params: {
   maxAutoSaveVersions: number
   deleteVersion?: (id: string, versionNumber: number) => Promise<boolean>
 }): Promise<Set<number>> {
+  // If backend deletion isn't available, don't attempt pruning (and don't hide versions locally).
+  if (!params.deleteVersion) return new Set()
+
   const autoSaveVersions = params.versions.filter(v => v.isAutoSave)
   if (autoSaveVersions.length < params.maxAutoSaveVersions) return new Set()
 

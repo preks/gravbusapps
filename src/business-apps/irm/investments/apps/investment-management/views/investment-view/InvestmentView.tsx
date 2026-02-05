@@ -37,6 +37,7 @@ import { useInvestmentSectionState } from './data/investment-data/useInvestmentS
 import { useLiquidFundSectionState } from './data/liquid-fund-data/useLiquidFundSectionState'
 import { useRealEstateSectionState } from './data/real-estate-data/useRealEstateSectionState'
 import { useEquitySectionState } from './data/equity-data/useEquitySectionState'
+import { useInvestmentTypeCount } from './hooks/useInvestmentTypeCount'
 
 export interface InvestmentViewProps extends BusinessAppContextProps {
   initialSubTab?: string
@@ -53,13 +54,90 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
   }, [])
 
   const [currentSection, setCurrentSection] = useState(normalize(initialSubTab))
-  const [selectedCurrency, setSelectedCurrency] = useState<string>('EUR')
+
+  // Separate currency state for each tab (currency filter applies only to active tab)
+  const [overviewCurrency, setOverviewCurrency] = useState<string>('EUR')
+  const [equityCurrency, setEquityCurrency] = useState<string>('EUR')
+  const [liquidFundCurrency, setLiquidFundCurrency] = useState<string>('EUR')
+  const [realEstateCurrency, setRealEstateCurrency] = useState<string>('EUR')
+
+  // Separate filter state for each tab
+  const [overviewFilters, setOverviewFilters] = useState<Record<string, any>>({})
+  const [equityFilters, setEquityFilters] = useState<Record<string, any>>({})
+  const [liquidFundFilters, setLiquidFundFilters] = useState<Record<string, any>>({})
+  const [realEstateFilters, setRealEstateFilters] = useState<Record<string, any>>({})
+  const [filtersReady, setFiltersReady] = useState(false)
+
+  // Get current tab's currency
+  const getSelectedCurrency = () => {
+    switch (currentSection) {
+      case 'overview':
+        return overviewCurrency
+      case 'equity':
+        return equityCurrency
+      case 'liquid-funds':
+        return liquidFundCurrency
+      case 'real-estate':
+        return realEstateCurrency
+      default:
+        return overviewCurrency
+    }
+  }
+  const selectedCurrency = getSelectedCurrency()
+
+  // Fetch count for each investment type independently
+  // Each tab fetches its count after initial filters are ready and refetches when its filters change
+  const { count: overviewCount, isLoading: overviewCountLoading } = useInvestmentTypeCount(
+    context,
+    'overview',
+    overviewCurrency,
+    overviewFilters,
+    filtersReady
+  )
+  const { count: equityCount, isLoading: equityCountLoading } = useInvestmentTypeCount(
+    context,
+    'equity',
+    equityCurrency,
+    equityFilters,
+    filtersReady
+  )
+  const { count: liquidFundCount, isLoading: liquidFundCountLoading } = useInvestmentTypeCount(
+    context,
+    'liquidFund',
+    liquidFundCurrency,
+    liquidFundFilters,
+    filtersReady
+  )
+  const { count: realEstateCount, isLoading: realEstateCountLoading } = useInvestmentTypeCount(
+    context,
+    'realEstate',
+    realEstateCurrency,
+    realEstateFilters,
+    filtersReady
+  )
 
   // Fetch KPIs for each section using Analytics View hooks (single source of truth)
-  const overviewKPIs = useInvestmentPortfolioIntegration(context, selectedCurrency)
-  const equityKPIs = useEquityKPIIntegration(context, selectedCurrency)
-  const liquidFundKPIs = useLiquidFundKPIIntegration(context, selectedCurrency)
-  const realEstateKPIs = useRealEstateKPIIntegration(context, selectedCurrency)
+  // Pass tab-specific filters AND currencies to ensure KPIs reflect the filtered data for that tab only
+  // Only fetch KPIs for the active tab to improve performance
+  const overviewKPIs = useInvestmentPortfolioIntegration(
+    context,
+    overviewCurrency,
+    overviewFilters,
+    currentSection === 'overview'
+  )
+  const equityKPIs = useEquityKPIIntegration(context, equityCurrency, equityFilters, currentSection === 'equity')
+  const liquidFundKPIs = useLiquidFundKPIIntegration(
+    context,
+    liquidFundCurrency,
+    liquidFundFilters,
+    currentSection === 'liquid-funds'
+  )
+  const realEstateKPIs = useRealEstateKPIIntegration(
+    context,
+    realEstateCurrency,
+    realEstateFilters,
+    currentSection === 'real-estate'
+  )
 
   // Fetch available currencies efficiently using distinctOn (full format to get IDs)
   const { currencies: availableCurrencies } = useAvailableCurrencies(context, {
@@ -71,27 +149,24 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
     setCurrentSection(normalize(initialSubTab))
   }, [initialSubTab, normalize])
 
-  // Unified filter state for all tabs
-  // Initialize with currency filter immediately if available, otherwise wait
-  const [selectedFilters, setSelectedFilters] = useState<Record<string, any>>({})
-  const [filtersReady, setFiltersReady] = useState(false)
-
   // Set initial currency filter when currencies are loaded (only once)
+  // Each tab gets EUR as default currency
   useEffect(() => {
     if (!filtersReady && availableCurrencies && availableCurrencies.length > 0) {
       const currencyObj = (Array.isArray(availableCurrencies) ? availableCurrencies : []).find(
-        (c): c is { id: string; code: string; value: string } => typeof c !== 'string' && c?.code === selectedCurrency
+        (c): c is { id: string; code: string; value: string } => typeof c !== 'string' && c?.code === 'EUR'
       )
       if (currencyObj) {
-        // Preserve any existing filters while adding currency filter
-        setSelectedFilters(prev => ({
-          ...prev,
-          currencyIds: [currencyObj.id]
-        }))
+        const currencyFilter = { currencyIds: [currencyObj.id] }
+        // Set default EUR currency filter for all tabs
+        setOverviewFilters(prev => ({ ...prev, ...currencyFilter }))
+        setEquityFilters(prev => ({ ...prev, ...currencyFilter }))
+        setLiquidFundFilters(prev => ({ ...prev, ...currencyFilter }))
+        setRealEstateFilters(prev => ({ ...prev, ...currencyFilter }))
       }
       setFiltersReady(true)
     }
-  }, [availableCurrencies, selectedCurrency, filtersReady])
+  }, [availableCurrencies, filtersReady])
 
   const handleSectionChange = useCallback(
     (value: string) => {
@@ -132,22 +207,22 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
 
   const overviewState = useInvestmentSectionState({
     accessToken: shouldFetchOverview ? accessToken || '' : '',
-    selectedFilters
+    selectedFilters: overviewFilters
   })
 
   const liquidFundState = useLiquidFundSectionState({
     accessToken: shouldFetchLiquidFund ? accessToken || '' : '',
-    selectedFilters
+    selectedFilters: liquidFundFilters
   })
 
   const realEstateState = useRealEstateSectionState({
     accessToken: shouldFetchRealEstate ? accessToken || '' : '',
-    selectedFilters
+    selectedFilters: realEstateFilters
   })
 
   const equityState = useEquitySectionState({
     accessToken: shouldFetchEquity ? accessToken || '' : '',
-    selectedFilters
+    selectedFilters: equityFilters
   })
 
   // Column definitions
@@ -204,16 +279,25 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
       <Select
         value={selectedCurrency}
         onValueChange={newCurrency => {
-          setSelectedCurrency(newCurrency)
-          // Find currency object and set currencyIds filter
+          // Find currency object and set currencyIds filter for CURRENT tab only
           const currencyObj = (Array.isArray(availableCurrencies) ? availableCurrencies : []).find(
             (c): c is { id: string; code: string; value: string } => typeof c !== 'string' && c?.code === newCurrency
           )
-          if (currencyObj) {
-            setSelectedFilters(prev => ({
-              ...prev,
-              currencyIds: [currencyObj.id]
-            }))
+          const currencyFilter = currencyObj ? { currencyIds: [currencyObj.id] } : {}
+
+          // Update currency and filters for ONLY the current active tab
+          if (currentSection === 'overview') {
+            setOverviewCurrency(newCurrency)
+            setOverviewFilters(prev => ({ ...prev, ...currencyFilter }))
+          } else if (currentSection === 'equity') {
+            setEquityCurrency(newCurrency)
+            setEquityFilters(prev => ({ ...prev, ...currencyFilter }))
+          } else if (currentSection === 'liquid-funds') {
+            setLiquidFundCurrency(newCurrency)
+            setLiquidFundFilters(prev => ({ ...prev, ...currencyFilter }))
+          } else if (currentSection === 'real-estate') {
+            setRealEstateCurrency(newCurrency)
+            setRealEstateFilters(prev => ({ ...prev, ...currencyFilter }))
           }
         }}
       >
@@ -234,34 +318,61 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
     </div>
   )
 
-  // Filter change handler - unified for all tabs
-  const handleFilterChange = useCallback(
-    (newFilters: Record<string, any>) => {
-      setSelectedFilters(newFilters)
-      // Reset to page 1 when filters change
-      if (currentSection === 'overview') {
-        overviewState.handlePaginationChange({ pageIndex: 0, pageSize: overviewState.pageSize })
-      } else if (currentSection === 'liquid-funds') {
-        liquidFundState.handlePaginationChange({ pageIndex: 0, pageSize: liquidFundState.pageSize })
-      } else if (currentSection === 'real-estate') {
-        realEstateState.handlePaginationChange({ pageIndex: 0, pageSize: realEstateState.pageSize })
-      } else if (currentSection === 'equity') {
-        equityState.handlePaginationChange({ pageIndex: 0, pageSize: equityState.pageSize })
-      }
-    },
-    [currentSection, overviewState, liquidFundState, realEstateState, equityState]
-  )
-
-  // Get current section state
-  const getCurrentSectionState = () => {
+  // Memoized helper functions to get current section state
+  const getCurrentSectionState = useCallback(() => {
     if (currentSection === 'overview') return overviewState
     if (currentSection === 'liquid-funds') return liquidFundState
     if (currentSection === 'real-estate') return realEstateState
     if (currentSection === 'equity') return equityState
     return overviewState
-  }
+  }, [currentSection, overviewState, liquidFundState, realEstateState, equityState])
+
+  // Memoized helper function to get current section filters
+  const getCurrentSectionFilters = useCallback(() => {
+    if (currentSection === 'overview') return overviewFilters
+    if (currentSection === 'liquid-funds') return liquidFundFilters
+    if (currentSection === 'real-estate') return realEstateFilters
+    if (currentSection === 'equity') return equityFilters
+    return overviewFilters
+  }, [currentSection, overviewFilters, liquidFundFilters, realEstateFilters, equityFilters])
+
+  // Memoized helper function to get current section filter setter
+  const getCurrentSectionFilterSetter = useCallback(() => {
+    if (currentSection === 'overview') return setOverviewFilters
+    if (currentSection === 'liquid-funds') return setLiquidFundFilters
+    if (currentSection === 'real-estate') return setRealEstateFilters
+    if (currentSection === 'equity') return setEquityFilters
+    return setOverviewFilters
+  }, [currentSection])
 
   const currentState = getCurrentSectionState()
+  const selectedFilters = getCurrentSectionFilters()
+
+  // Filter change handler - only updates current tab's filters
+  const handleFilterChange = useCallback(
+    (newFilters: Record<string, any>) => {
+      // Preserve currency filter if not explicitly changed
+      // When user clears filters, the default currency should remain
+      const finalFilters = { ...newFilters }
+      if (!finalFilters.currencyIds && availableCurrencies && availableCurrencies.length > 0) {
+        const currencyObj = (Array.isArray(availableCurrencies) ? availableCurrencies : []).find(
+          (c): c is { id: string; code: string; value: string } => typeof c !== 'string' && c?.code === selectedCurrency
+        )
+        if (currencyObj) {
+          finalFilters.currencyIds = [currencyObj.id]
+        }
+      }
+
+      // Update filters for current tab only
+      const setter = getCurrentSectionFilterSetter()
+      setter(finalFilters)
+
+      // Reset to page 1 when filters change for current tab only
+      const state = getCurrentSectionState()
+      state.handlePaginationChange({ pageIndex: 0, pageSize: state.pageSize })
+    },
+    [getCurrentSectionFilterSetter, getCurrentSectionState, availableCurrencies, selectedCurrency]
+  )
 
   // Define all action contexts - loaded once for all sections
   const overviewActionContexts = useMemo(
@@ -447,39 +558,39 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
         </div>
       </div>
 
-      {/* DataDisplay with titleSections - Using KPI data for counts */}
+      {/* DataDisplay with titleSections - Using lightweight counts for tab badges */}
       <DataDisplay
         titleSections={[
           {
             id: 'overview',
             label: 'Overview',
             metadata: {
-              count: overviewKPIs.kpis.totalInvestments,
-              isLoading: overviewKPIs.isLoading
+              count: overviewCount,
+              isLoading: overviewCountLoading
             }
           },
           {
             id: 'liquid-funds',
             label: 'Liquid Fund',
             metadata: {
-              count: liquidFundKPIs.current.totalInvestments,
-              isLoading: liquidFundKPIs.isLoading
+              count: liquidFundCount,
+              isLoading: liquidFundCountLoading
             }
           },
           {
             id: 'real-estate',
             label: 'Real Estate',
             metadata: {
-              count: realEstateKPIs.current.totalInvestments,
-              isLoading: realEstateKPIs.isLoading
+              count: realEstateCount,
+              isLoading: realEstateCountLoading
             }
           },
           {
             id: 'equity',
             label: 'Equity',
             metadata: {
-              count: equityKPIs.current.totalInvestments,
-              isLoading: equityKPIs.isLoading
+              count: equityCount,
+              isLoading: equityCountLoading
             }
           }
         ]}

@@ -1,6 +1,15 @@
 import { io, Socket } from 'socket.io-client'
-import type { Message, TypingIndicator, PresenceStatus, ActiveCall } from '../types'
+import type {
+  Message,
+  TypingIndicator,
+  PresenceStatus,
+  ActiveCall,
+  UserStatusChangeEvent,
+  UserStatus,
+  SetUserStatusPayload
+} from '../types'
 import type { CallSignal, CallType, CallParticipant } from './webrtcClient'
+import { rtkDebug } from '../utils/rtkDebug'
 
 // Client version for tracking
 const CLIENT_VERSION = '2'
@@ -225,6 +234,10 @@ export class ChatWebSocketClient {
     this.socket?.on('conversation_created', handler)
   }
 
+  onConversationRead(handler: (data: { conversationId: string; userId: string; readAt: string }) => void) {
+    this.socket?.on('conversation:read', handler)
+  }
+
   onConversationCallStarted(handler: (data: ActiveCall) => void) {
     this.socket?.on('conversation:call-started', handler)
   }
@@ -249,6 +262,14 @@ export class ChatWebSocketClient {
 
   leaveConversation(conversationId: string) {
     this.socket?.emit('leave_conversation', { conversationId })
+  }
+
+  markConversationAsRead(conversationId: string) {
+    if (!this.socket || !this.socket.connected) {
+      return
+    }
+
+    this.socket.emit('conversation:mark-read', { conversationId })
   }
 
   sendMessage(
@@ -289,6 +310,105 @@ export class ChatWebSocketClient {
 
   requestActiveCalls() {
     this.socket?.emit('conversation:get-active-calls')
+  }
+
+  // ==================== User Status Events ====================
+
+  /**
+   * Listen for user status changes
+   */
+  onUserStatusChange(handler: (data: UserStatusChangeEvent) => void) {
+    const wrappedHandler = (data: UserStatusChangeEvent) => {
+      rtkDebug.log('[ChatWebSocket] 📡 Received user_status_change event:', data)
+      handler(data)
+    }
+    this.socket?.on('user_status_change', wrappedHandler)
+    return () => {
+      this.socket?.off('user_status_change', wrappedHandler)
+    }
+  }
+
+  /**
+   * Listen for initial status on connection
+   */
+  onUserStatusInitialized(handler: (data: UserStatus) => void) {
+    this.socket?.on('user_status_initialized', handler)
+    return () => {
+      this.socket?.off('user_status_initialized', handler)
+    }
+  }
+
+  /**
+   * Set user's manual status
+   */
+  setUserStatus(payload: SetUserStatusPayload): Promise<{ success: boolean; status?: string }> {
+    return new Promise((resolve, reject) => {
+      if (!this.socket || !this.socket.connected) {
+        reject(new Error('Socket not connected'))
+        return
+      }
+
+      rtkDebug.log('[ChatWebSocket] 📤 Sending user:set_status:', payload)
+      this.socket.emit('user:set_status', payload, (response: any) => {
+        rtkDebug.log('[ChatWebSocket] ✅ Received response from user:set_status:', response)
+        if (response?.success) {
+          resolve(response)
+        } else {
+          reject(new Error('Failed to set status'))
+        }
+      })
+    })
+  }
+
+  /**
+   * Get a user's current status
+   */
+  getUserStatus(userId: string): Promise<UserStatus> {
+    return new Promise((resolve, reject) => {
+      if (!this.socket || !this.socket.connected) {
+        reject(new Error('Socket not connected'))
+        return
+      }
+
+      this.socket.emit('user:get_status', { userId }, (response: UserStatus) => {
+        resolve(response)
+      })
+    })
+  }
+
+  /**
+   * Get bulk user statuses (for contact lists)
+   */
+  getBulkUserStatuses(userIds: string[]): Promise<{ statuses: Record<string, UserStatus> }> {
+    return new Promise((resolve, reject) => {
+      if (!this.socket || !this.socket.connected) {
+        reject(new Error('Socket not connected'))
+        return
+      }
+
+      this.socket.emit('user:get_bulk_statuses', { userIds }, (response: { statuses: Record<string, UserStatus> }) => {
+        resolve(response)
+      })
+    })
+  }
+
+  /**
+   * Request initial status for all conversation participants
+   * Used when client listener is ready to avoid missing broadcasts
+   */
+  requestAllStatuses(): Promise<{ success: boolean; userCount: number }> {
+    return new Promise((resolve, reject) => {
+      if (!this.socket || !this.socket.connected) {
+        reject(new Error('Socket not connected'))
+        return
+      }
+
+      rtkDebug.log('[ChatWebSocket] 📤 Requesting all user statuses')
+      this.socket.emit('user:request_all_statuses', (response: { success: boolean; userCount: number }) => {
+        rtkDebug.log('[ChatWebSocket] ✅ Received response from user:request_all_statuses:', response)
+        resolve(response)
+      })
+    })
   }
 
   // ==================== Call Signaling Events ====================

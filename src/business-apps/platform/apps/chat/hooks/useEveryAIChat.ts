@@ -106,6 +106,7 @@ export interface ScheduledMeeting {
   participants: string[]
   meetingLink?: string
   description?: string
+  metadata?: Record<string, any> // Optional metadata including agenda items
 }
 
 /**

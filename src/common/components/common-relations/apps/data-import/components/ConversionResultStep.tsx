@@ -4,7 +4,16 @@
  */
 
 import React, { useMemo } from 'react'
-import { Card, CardHeader, CardTitle, CardContent, Button, Spinner, Badge } from '@newwork/nw-design-system'
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  Button,
+  Spinner,
+  Badge,
+  useTranslation
+} from '@newwork/nw-design-system'
 import {
   CheckCircleIcon,
   DownloadIcon,
@@ -23,9 +32,10 @@ import {
 } from '@/common/components/common-relations/apps/data-import/types'
 import { calculateDataQuality } from '@/common/components/common-relations/apps/data-import/utils/dataQualityCalculator'
 import { pluralize } from '@/common/utils/pluralize'
+import translations from './ConversionResultStep/_i18n'
 
-export interface ConversionResultStepProps {
-  convertedEntities: ConvertedEntity[]
+export interface ConversionResultStepProps<T = ConvertedEntity> {
+  convertedEntities: T[]
   targetFieldsConfig: TargetFieldDefinition[]
   entityType: string
   isLoading: boolean
@@ -36,7 +46,7 @@ export interface ConversionResultStepProps {
   'data-testid'?: string
 }
 
-export const ConversionResultStep: React.FC<ConversionResultStepProps> = ({
+export const ConversionResultStep = <T = ConvertedEntity,>({
   convertedEntities,
   targetFieldsConfig,
   entityType,
@@ -46,7 +56,9 @@ export const ConversionResultStep: React.FC<ConversionResultStepProps> = ({
   onImportToBackend,
   onReset,
   'data-testid': testId = 'conversion-result-step'
-}) => {
+}: ConversionResultStepProps<T>) => {
+  const { t } = useTranslation(translations)
+
   // State for expandable warnings
   const [showAllWarnings, setShowAllWarnings] = React.useState(false)
 
@@ -66,14 +78,14 @@ export const ConversionResultStep: React.FC<ConversionResultStepProps> = ({
       <Card>
         <CardHeader>
           <div className="gba:flex gba:justify-between gba:items-center">
-            <CardTitle>Step 3: Conversion Result</CardTitle>
+            <CardTitle>{t('step-title')}</CardTitle>
             <div className="gba:flex gba:gap-2">
               <Button variant="outline" size="sm" onClick={onDownloadJSON} data-testid={`${testId}-download-button`}>
                 <DownloadIcon className="gba:w-4 gba:h-4 gba:mr-2" />
-                Download JSON
+                {t('download-json-button')}
               </Button>
               <Button variant="outline" size="sm" onClick={onReset} data-testid={`${testId}-reset-button`}>
-                Start Over
+                {t('start-over-button')}
               </Button>
             </div>
           </div>
@@ -87,10 +99,14 @@ export const ConversionResultStep: React.FC<ConversionResultStepProps> = ({
                   <div className="gba:flex gba:flex-col gba:items-center gba:gap-4 gba:text-center">
                     <CheckCircleIcon className="gba:w-16 gba:h-16 gba:text-success" weight="fill" />
                     <div>
-                      <h3 className="gba:text-2xl gba:font-semibold gba:text-success gba:mb-2">Import Successful!</h3>
+                      <h3 className="gba:text-2xl gba:font-semibold gba:text-success gba:mb-2">
+                        {t('import-success-title')}
+                      </h3>
                       <p className="gba:text-base gba:text-foreground">
-                        Successfully imported <strong>{importResult.successCount}</strong>{' '}
-                        {importResult.successCount === 1 ? entityLabelSingular.toLowerCase() : entityLabel} to CRM
+                        {t('import-success-message', {
+                          count: importResult.successCount,
+                          entityType: importResult.successCount === 1 ? entityLabelSingular.toLowerCase() : entityLabel
+                        })}
                       </p>
                     </div>
                     <div className="gba:flex gba:gap-3 gba:w-full gba:max-w-md gba:mt-2">
@@ -101,10 +117,10 @@ export const ConversionResultStep: React.FC<ConversionResultStepProps> = ({
                         data-testid={`${testId}-import-more-button`}
                       >
                         <ArrowCounterClockwiseIcon className="gba:w-4 gba:h-4 gba:mr-2" />
-                        Import More
+                        {t('import-more-button')}
                       </Button>
                       <Button onClick={onReset} className="gba:flex-1" data-testid={`${testId}-done-button`}>
-                        Done
+                        {t('done-button')}
                       </Button>
                     </div>
                   </div>
@@ -116,7 +132,7 @@ export const ConversionResultStep: React.FC<ConversionResultStepProps> = ({
             {!importResult && (
               <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-success">
                 <CheckCircleIcon className="gba:w-5 gba:h-5 gba:text-success" weight="fill" />
-                Successfully converted {convertedEntities.length} {entityLabel}
+                {t('conversion-success-message', { count: convertedEntities.length, entityType: entityLabel })}
               </div>
             )}
 
@@ -126,7 +142,7 @@ export const ConversionResultStep: React.FC<ConversionResultStepProps> = ({
                 {/* Entity Preview Cards */}
                 <div className="gba:space-y-2">
                   <h3 className="gba:text-sm gba:font-medium">
-                    Preview (First {previewEntities.length} {entityLabel})
+                    {t('preview-title', { count: previewEntities.length, entityType: entityLabel })}
                   </h3>
                   {previewEntities.map((entity, idx) => (
                     <Card key={idx} data-testid={`${testId}-preview-${idx}`}>
@@ -151,12 +167,12 @@ export const ConversionResultStep: React.FC<ConversionResultStepProps> = ({
                               <span>{entity.companyName}</span>
                               {entity.industryRef && (
                                 <Badge variant="success" size="sm">
-                                  Industry
+                                  {t('industry-badge')}
                                 </Badge>
                               )}
                               {entity.numberOfEmployeesRef && (
                                 <Badge variant="info" size="sm">
-                                  Size
+                                  {t('size-badge')}
                                 </Badge>
                               )}
                             </div>
@@ -199,7 +215,7 @@ export const ConversionResultStep: React.FC<ConversionResultStepProps> = ({
                   ))}
                   {convertedEntities.length > 3 && (
                     <div className="gba:text-sm gba:text-muted-foreground gba:text-center gba:py-2">
-                      ... and {convertedEntities.length - 3} more {entityLabel}
+                      {t('preview-more-text', { count: convertedEntities.length - 3, entityType: entityLabel })}
                     </div>
                   )}
                 </div>
@@ -208,7 +224,7 @@ export const ConversionResultStep: React.FC<ConversionResultStepProps> = ({
                 {dataQuality.warnings.length > 0 && (
                   <Card>
                     <CardHeader>
-                      <CardTitle className="gba:text-base">Data Quality Warnings</CardTitle>
+                      <CardTitle className="gba:text-base">{t('data-quality-warnings-title')}</CardTitle>
                     </CardHeader>
                     <CardContent>
                       <div className="gba:space-y-2">
@@ -233,8 +249,8 @@ export const ConversionResultStep: React.FC<ConversionResultStepProps> = ({
                             data-testid={`${testId}-toggle-warnings-button`}
                           >
                             {showAllWarnings
-                              ? 'Show less'
-                              : `... and ${dataQuality.warnings.length - 10} more warnings`}
+                              ? t('show-less-button')
+                              : t('more-warnings-text', { count: dataQuality.warnings.length - 10 })}
                           </Button>
                         )}
                       </div>
@@ -247,7 +263,7 @@ export const ConversionResultStep: React.FC<ConversionResultStepProps> = ({
                     <CardContent className="gba:p-4">
                       <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-success-foreground">
                         <CheckCircleIcon className="gba:w-5 gba:h-5" weight="fill" />
-                        <span>All fields have good coverage - ready to import!</span>
+                        <span>{t('all-fields-good-message')}</span>
                       </div>
                     </CardContent>
                   </Card>
@@ -263,12 +279,12 @@ export const ConversionResultStep: React.FC<ConversionResultStepProps> = ({
                   {isLoading ? (
                     <>
                       <Spinner className="gba:w-4 gba:h-4 gba:mr-2" />
-                      Importing to CRM...
+                      {t('importing-button')}
                     </>
                   ) : (
                     <>
                       <UploadIcon className="gba:w-4 gba:h-4 gba:mr-2" />
-                      Import {convertedEntities.length} {entityLabelSingular}s to CRM
+                      {t('import-button', { count: convertedEntities.length, entityType: `${entityLabelSingular}s` })}
                     </>
                   )}
                 </Button>

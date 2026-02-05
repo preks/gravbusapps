@@ -62,7 +62,12 @@ export class ChatApiClient {
       | PaginatedResponse<Conversation>
       | { conversations: Conversation[]; total: number; page: number; limit: number; totalPages: number }
     >('/conversations', {
-      params: { page, limit }
+      params: {
+        page,
+        limit
+      }
+      // Removed aggressive cache-busting for performance
+      // WebSocket updates handle real-time changes, so HTTP caching is safe
     })
     // Backend returns { conversations: [...] } but we expect { data: [...] }
     if ('conversations' in response.data) {
@@ -146,6 +151,8 @@ export class ChatApiClient {
     participantIds: string[]
     description?: string
     avatarUrl?: string
+    contextEntity?: string
+    contextEntityId?: string
   }) {
     try {
       const response = await this.client.post<Conversation>('/conversations/group', data)
@@ -344,6 +351,27 @@ export class ChatApiClient {
     const response = await this.client.get<GlobalStatsResponse>('/analytics/global')
     return response.data
   }
+
+  // ==================== TRANSCRIPT / MEETING MINUTES ENDPOINTS ====================
+
+  /**
+   * Get parsed transcript data with participant info (for debugging/viewing)
+   */
+  async getCallSessionTranscriptData(sessionId: string): Promise<TranscriptDataResponse> {
+    const response = await this.client.get<TranscriptDataResponse>(`/call-sessions/${sessionId}/transcript-data`)
+    return response.data
+  }
+
+  /**
+   * Create meeting minutes from call transcript
+   * Backend fetches CSV, parses, calls document-service, stores noteId, and sends system message
+   */
+  async createMeetingMinutes(sessionId: string): Promise<CreateMeetingMinutesResponse> {
+    const response = await this.client.post<CreateMeetingMinutesResponse>(
+      `/call-sessions/${sessionId}/create-meeting-minutes`
+    )
+    return response.data
+  }
 }
 
 export interface UploadedAttachment {
@@ -425,4 +453,38 @@ export interface GlobalStatsResponse {
   messagesLast24h: number
   activeUsersNow: number
   topReactions: EmojiCount[]
+}
+
+// ==================== TRANSCRIPT / MEETING MINUTES TYPES ====================
+
+export interface TranscriptParticipant {
+  participantId: string
+  userId: string
+  displayName: string
+  email: string
+}
+
+export interface TranscriptEntry {
+  timestamp: number
+  participantId: string
+  userId: string
+  speakerName: string
+  text: string
+}
+
+export interface TranscriptDataResponse {
+  sessionId: string
+  sessionName: string
+  startedAt: string
+  durationSeconds: number
+  participants: TranscriptParticipant[]
+  transcriptEntries: TranscriptEntry[]
+}
+
+export interface CreateMeetingMinutesResponse {
+  sessionId: string
+  noteId: string
+  transcriptId: string
+  transcriptionStatus: 'COMPLETED' | 'PROCESSING' | 'FAILED'
+  message: string
 }

@@ -125,8 +125,8 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
   const token = getAuthToken()
   const apiUrl = getOrInitApiUrl()
 
-  // Log auth state for debugging on iPad
-  console.log('[NoteApiService] Making request:', {
+  // Debug-only request logging
+  debugLog('Making request', {
     endpoint,
     apiUrl,
     hasToken: !!token,
@@ -155,7 +155,9 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ message: response.statusText }))
-      console.error('[NoteApiService] API Error:', response.status, error)
+      // Some endpoints (e.g. version deletion) may not be supported in all environments.
+      // Keep this debug-only to avoid console spam in production.
+      debugLog('API Error', response.status, error)
       throw new Error(error.message || `API Error: ${response.status}`)
     }
 
@@ -164,7 +166,7 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
     return text ? JSON.parse(text) : null
   } catch (fetchError) {
     // Provide more helpful error for CORS/network issues
-    console.error('[NoteApiService] Fetch failed:', fetchError)
+    debugLog('Fetch failed', fetchError)
     if (fetchError instanceof TypeError && fetchError.message === 'Load failed') {
       throw new Error('Network error - check if you have internet access or try refreshing')
     }
@@ -882,21 +884,9 @@ export const NoteApiService = {
     }
   },
 
-  /**
-   * Delete a version (admin only, use with caution)
-   */
-  async deleteVersion(noteId: string, versionNumber: number): Promise<boolean> {
-    try {
-      debugLog('deleteVersion', noteId, versionNumber)
-      await apiRequest(`/versions/note/${noteId}/${versionNumber}`, {
-        method: 'DELETE'
-      })
-      return true
-    } catch (error) {
-      console.error('Failed to delete version:', error)
-      return false
-    }
-  },
+  // NOTE: DELETE for note versions is not supported in all environments.
+  // We intentionally do NOT expose a deleteVersion implementation here to avoid
+  // repeated 404s from auto-save pruning logic.
 
   // ============ Comments ============
 

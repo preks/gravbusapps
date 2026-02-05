@@ -26,11 +26,7 @@ const AbsenceCharts: React.FC<ChartsSectionProps> = ({ entitlements, absenceList
   return (
     <div className="gba:charts-section gba:mb-8" data-testid="absence-charts-section">
       <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-6">
-        <Card
-          variant="outlined"
-          className="gba:border gba:border-border gba:shadow-md gba:hover:shadow-lg gba:transition-all gba:p-4"
-          data-testid="annual-leave-chart"
-        >
+        <Card variant="outlined" className="gba:p-4" data-testid="annual-leave-chart">
           <div className="gba:text-lg gba:font-medium gba:mb-2">
             {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.annual_leave', 'Annual Leave')}
           </div>
@@ -59,7 +55,7 @@ const AbsenceCharts: React.FC<ChartsSectionProps> = ({ entitlements, absenceList
             const totalUsed = approved + pending
             const remaining = total - totalUsed
 
-            const chartColors = ['var(--nw-success)', 'var(--nw-warning)']
+            const chartColors = ['var(--nw-chart-1)', 'var(--nw-chart-2)']
 
             const data = [
               {
@@ -87,7 +83,7 @@ const AbsenceCharts: React.FC<ChartsSectionProps> = ({ entitlements, absenceList
                         cy="50%"
                         innerRadius={50}
                         outerRadius={70}
-                        fill="var(--nw-color-chart-1)"
+                        fill="var(--nw-chart-1)"
                       >
                         {data.map((_, index) => (
                           <Cell key={`cell-${index}`} fill={chartColors[index % chartColors.length]} />
@@ -104,13 +100,13 @@ const AbsenceCharts: React.FC<ChartsSectionProps> = ({ entitlements, absenceList
                 </div>
                 <div className="gba:flex gba:justify-center gba:items-center gba:gap-2 gba:mt-2">
                   <div className="gba:flex gba:items-center gba:gap-1.5">
-                    <div className="gba:w-3 gba:h-3 gba:rounded-full gba:bg-success"></div>
+                    <div className="gba:w-3 gba:h-3 gba:rounded-full" style={{ backgroundColor: chartColors[0] }}></div>
                     <span className="gba:text-sm">
                       {remaining} {getTranslationFromI18nKeyAndLabel('lowcoder:new_goal.remaining', 'Remaining')}
                     </span>
                   </div>
                   <div className="gba:flex gba:items-center gba:gap-1.5">
-                    <div className="gba:w-3 gba:h-3 gba:rounded-full gba:bg-warning"></div>
+                    <div className="gba:w-3 gba:h-3 gba:rounded-full" style={{ backgroundColor: chartColors[1] }}></div>
                     <span className="gba:text-sm">
                       {totalUsed} {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.used_annual_leave', 'Used')}{' '}
                       ({getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.pending', 'Pending')} +{' '}
@@ -123,11 +119,7 @@ const AbsenceCharts: React.FC<ChartsSectionProps> = ({ entitlements, absenceList
           })()}
         </Card>
 
-        <Card
-          variant="outlined"
-          className="gba:border gba:border-border gba:shadow-md gba:hover:shadow-lg gba:transition-all gba:p-4"
-          data-testid="absence-distribution-chart"
-        >
+        <Card variant="outlined" className="gba:p-4" data-testid="absence-distribution-chart">
           <div className="gba:text-lg gba:font-medium gba:mb-2">
             {getTranslationFromI18nKeyAndLabel(
               'lowcoder:absence_management_hub_manager.absence_distribution',
@@ -138,7 +130,16 @@ const AbsenceCharts: React.FC<ChartsSectionProps> = ({ entitlements, absenceList
             {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.by_type', 'By Type')}
           </div>
           {(() => {
-            const absenceByTypeId: Record<string, { count: number; translatedName: string; color: string }> = {}
+            const chartColors = [
+              'var(--nw-chart-1)',
+              'var(--nw-chart-2)',
+              'var(--nw-chart-3)',
+              'var(--nw-chart-4)',
+              'var(--nw-chart-5)',
+              'var(--nw-chart-6)'
+            ]
+
+            const absenceByTypeId: Record<string, { count: number; translatedName: string }> = {}
             absenceList.forEach(absence => {
               const originalStatus = absence.originalStatus || ''
               const isApproved =
@@ -154,30 +155,19 @@ const AbsenceCharts: React.FC<ChartsSectionProps> = ({ entitlements, absenceList
                 if (!absenceByTypeId[typeId]) {
                   absenceByTypeId[typeId] = {
                     count: 0,
-                    translatedName: translatedName,
-                    color: 'var(--nw-color-chart-3)'
+                    translatedName: translatedName
                   }
                 }
                 const durationMatch = absence.duration?.match(/(\d+\.?\d*)/)
                 const duration = durationMatch ? parseFloat(durationMatch[1]) : 0
                 absenceByTypeId[typeId].count += duration
-
-                let color = absence.typeColor || 'var(--nw-color-chart-3)'
-                if (color && typeof color === 'string') {
-                  if (!color.startsWith('#') && /^([0-9A-Fa-f]{6})$/.test(color)) {
-                    color = `#${color}`
-                  }
-                } else {
-                  color = 'var(--nw-color-chart-3)'
-                }
-                absenceByTypeId[typeId].color = color
               }
             })
 
-            const data = Object.keys(absenceByTypeId).map(typeId => ({
+            const data = Object.keys(absenceByTypeId).map((typeId, index) => ({
               name: absenceByTypeId[typeId].translatedName,
               value: absenceByTypeId[typeId].count,
-              color: absenceByTypeId[typeId].color
+              color: chartColors[index % chartColors.length]
             }))
 
             return (
@@ -193,7 +183,7 @@ const AbsenceCharts: React.FC<ChartsSectionProps> = ({ entitlements, absenceList
                         cy="50%"
                         innerRadius={50}
                         outerRadius={70}
-                        fill="var(--nw-color-chart-1)"
+                        fill="var(--nw-chart-1)"
                       >
                         {data.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.color} />
@@ -221,11 +211,7 @@ const AbsenceCharts: React.FC<ChartsSectionProps> = ({ entitlements, absenceList
           })()}
         </Card>
 
-        <Card
-          variant="outlined"
-          className="gba:border gba:border-border gba:shadow-md gba:hover:shadow-lg gba:transition-all gba:p-4"
-          data-testid="absences-by-status-chart"
-        >
+        <Card variant="outlined" className="gba:p-4" data-testid="absences-by-status-chart">
           <div className="gba:text-lg gba:font-medium gba:mb-2">
             {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.absence_status', 'Absence Status')}
           </div>
@@ -245,11 +231,11 @@ const AbsenceCharts: React.FC<ChartsSectionProps> = ({ entitlements, absenceList
               absenceByStatus[translatedStatus] += duration
             })
             const chartColors = [
-              'var(--nw-success)',
-              'var(--nw-warning)',
-              'var(--nw-destructive)',
-              'var(--nw-muted)',
-              'var(--nw-info)'
+              'var(--nw-chart-1)',
+              'var(--nw-chart-2)',
+              'var(--nw-chart-3)',
+              'var(--nw-chart-4)',
+              'var(--nw-chart-5)'
             ]
             const getStatusColorIndex = (originalStatus: string): number => {
               const statusUpper = originalStatus.toUpperCase()
@@ -309,7 +295,7 @@ const AbsenceCharts: React.FC<ChartsSectionProps> = ({ entitlements, absenceList
                         cy="50%"
                         innerRadius={50}
                         outerRadius={70}
-                        fill="var(--nw-color-chart-1)"
+                        fill="var(--nw-chart-1)"
                       >
                         {data.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.color} />

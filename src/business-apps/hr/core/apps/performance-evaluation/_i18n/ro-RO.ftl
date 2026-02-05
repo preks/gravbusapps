@@ -67,7 +67,7 @@ scale-preview = Previzualizare
 participant-self = Auto
 participant-peer = Coleg
 participant-manager = Manager
-participant-team = Echipa
+participant-hr-team = Echipa HR
 
 # Frecvență
 frequency-annual = Anual
@@ -76,6 +76,16 @@ frequency-custom = Personalizat
 
 # Tabel scale de evaluare
 empty-no-rating-scales = Nu există încă scale de evaluare definite.
+scale-saved-to-database = Scala de evaluare "{ $name }" a fost salvată.
+scale-deleted-to-database = Scala de evaluare "{ $name }" a fost ștearsă.
+cycle-saved-to-database = Ciclul de performanță "{ $name }" a fost salvat.
+cycle-activated-to-database = "{ $name }" a fost activat.
+cycle-deactivated-to-database = "{ $name }" a fost dezactivat.
+cycle-deleted-to-database = "{ $name }" a fost șters.
+value-saved-to-database = Valoarea companiei "{ $title }" a fost salvată.
+value-deleted-to-database = "{ $title }" a fost ștearsă.
+value-activated-to-database = "{ $title }" a fost activată.
+value-deactivated-to-database = "{ $title }" a fost dezactivată.
 table-values = Valori
 button-edit = Editează
 

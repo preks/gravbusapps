@@ -6,7 +6,16 @@ import {
   getCurrentActiveUserLocale
 } from '@/common/utils/windowUtils'
 import FormHeader from '../components/FormHeader'
-import { FileUpload, FormField, FormItem, LocalizationProvider, useTranslation } from '@newwork/nw-design-system'
+import {
+  FileUpload,
+  FormField,
+  FormItem,
+  LocalizationProvider,
+  useTranslation,
+  FormLabel,
+  FormControl,
+  Combobox
+} from '@newwork/nw-design-system'
 import flowIconUrl from '@/assets/icons/flowSmall.svg'
 import { ChangePersonalDataProvider, useChangePersonalData } from './ChangePersonalDataContext'
 import { useForm } from 'react-hook-form'
@@ -54,6 +63,10 @@ const ChangePersonalDataForm: React.FC<ChangePersonalDataFormProps> = ({ accessT
   const [fileList, setFileList] = useState<any[]>([])
   const { t } = useTranslation(translations)
 
+  const getCatalogValue = useCallback((entry: CatalogEntry): string => {
+    return entry?.translations?.[0]?.value || entry?.value || ''
+  }, [])
+
   const employee = data?.employee?.EmployeeByPk
   const employeePosition = data?.employee?.EmployeePosition?.[0]
   const catalogSalutation: CatalogEntry[] = data?.catalogs?.salutation || []
@@ -63,7 +76,9 @@ const ChangePersonalDataForm: React.FC<ChangePersonalDataFormProps> = ({ accessT
     language: data?.catalogs?.language || [],
     maritalStatus: data?.catalogs?.maritalStatus || [],
     schoolQualification: data?.catalogs?.schoolQualification || [],
-    academicTitle: data?.catalogs?.academicTitle || []
+    academicTitle: data?.catalogs?.academicTitle || [],
+    documentGroup: data?.catalogs?.documentGroup || [],
+    documentType: data?.catalogs?.documentType || []
   }
 
   const normalizeDate = (value?: string | null): string => {
@@ -105,9 +120,11 @@ const ChangePersonalDataForm: React.FC<ChangePersonalDataFormProps> = ({ accessT
     academicTitleRefs: Array.isArray(employee?.academicTitleRef)
       ? employee.academicTitleRef.map(String)
       : employee?.academicTitleRef
-      ? [String(employee.academicTitleRef)]
-      : [],
-    comment: employee?.notes ?? ''
+        ? [String(employee.academicTitleRef)]
+        : [],
+    comment: employee?.notes ?? '',
+    documentGroupId: null,
+    documentTypeId: null
   }
 
   const fileClient = useFileClient({ accessToken } as any)
@@ -194,11 +211,23 @@ const ChangePersonalDataForm: React.FC<ChangePersonalDataFormProps> = ({ accessT
       severelyDisabilityDegree: v.severelyDisabilityDegree === '' ? '' : v.severelyDisabilityDegree,
       schoolQualificationRef: v.schoolQualificationRef || null,
       academicTitleRefs: sortedAcademicTitles,
-      comment: v.comment || ''
+      comment: v.comment || '',
+      documentGroupId: v.documentGroupId || null,
+      documentTypeId: v.documentTypeId || null
     }
   }
 
   const watchedValues = form.watch()
+  const selectedDocumentGroupId = form.watch('documentGroupId')
+
+  // Filter document types based on selected document group
+  const filteredDocumentTypes = useMemo(
+    () =>
+      (catalogs.documentType || []).filter(
+        t => !selectedDocumentGroupId || t.parentEntryId === selectedDocumentGroupId
+      ),
+    [catalogs.documentType, selectedDocumentGroupId]
+  )
 
   useEffect(() => {
     const subscription = form.watch((value, { name }) => {
@@ -216,6 +245,13 @@ const ChangePersonalDataForm: React.FC<ChangePersonalDataFormProps> = ({ accessT
       JSON.stringify(normalizeForCompare(initialRef.current))
     )
   }, [watchedValues])
+
+  const isDocumentInfoMissing = useMemo(() => {
+    const hasFile = fileList && fileList.length > 0
+    if (!hasFile) return false
+    const values = form.getValues()
+    return !values.documentGroupId || !values.documentTypeId
+  }, [fileList, form])
 
   const title = useMemo(
     () =>
@@ -261,7 +297,7 @@ const ChangePersonalDataForm: React.FC<ChangePersonalDataFormProps> = ({ accessT
             'Cancel'
           )}
           submitButtonText={getTranslationFromI18nKeyAndLabel('lowcoder:hr_absences.create_absence.submit', 'Submit')}
-          isSubmitDisabled={!form.formState.isValid || isUnchangedNow}
+          isSubmitDisabled={!form.formState.isValid || isUnchangedNow || isDocumentInfoMissing}
           onSuccess={() => {
             hasUserInteractedRef.current = false
           }}
@@ -294,8 +330,8 @@ const ChangePersonalDataForm: React.FC<ChangePersonalDataFormProps> = ({ accessT
                 const body = {
                   employeeDocument: {
                     employeeId: employeeId,
-                    documentGroup: 'DocumentGroup:v1:PERSONAL',
-                    type: 'DocumentType:v1:17',
+                    documentGroup: values.documentGroupId || null,
+                    type: values.documentTypeId || null,
                     description: '',
                     name: uploadResp?.fileInfo?.fileMetadata?.originalFileName,
                     file: uploadResp?.fileInfo?.fileId,
@@ -413,23 +449,109 @@ const ChangePersonalDataForm: React.FC<ChangePersonalDataFormProps> = ({ accessT
               catalogs={{ schoolQualification: catalogs.schoolQualification, academicTitle: catalogs.academicTitle }}
             />
 
-            <FormField
-              name={'fileUpload'}
-              render={() => (
-                <FormItem>
-                  <div data-testid="flw_changePersonalData_uploadFile">
-                    <FileUpload
-                      multiple={false}
-                      maxFiles={1}
-                      accept={acceptedFileTypes}
-                      layout="list"
-                      preview="icon"
-                      onFilesChange={handleDesignSystemFilesChange as any}
-                    />
-                  </div>
-                </FormItem>
+            {/* Document Upload Section */}
+            <div className="gba:space-y-4 gba:pt-4 gba:border-t">
+              <div className="gba:text-sm gba:font-medium gba:text-foreground">
+                {getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:change_personal_data.supporting_documents',
+                  'Supporting Documents'
+                )}
+              </div>
+
+              <FormField
+                name={'fileUpload'}
+                render={() => (
+                  <FormItem>
+                    <FormLabel>
+                      {getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:change_personal_data.upload_document',
+                        'Upload Document'
+                      )}
+                    </FormLabel>
+                    <div data-testid="flw_changePersonalData_uploadFile">
+                      <FileUpload
+                        multiple={false}
+                        maxFiles={1}
+                        accept={acceptedFileTypes}
+                        layout="list"
+                        preview="icon"
+                        onFilesChange={handleDesignSystemFilesChange as any}
+                      />
+                    </div>
+                  </FormItem>
+                )}
+              ></FormField>
+
+              {fileList && fileList.length > 0 && (
+                <>
+                  <FormField
+                    control={form.control as any}
+                    name="documentGroupId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>
+                          {getTranslationFromI18nKeyAndLabel(
+                            'lowcoder:change_personal_data.document_group',
+                            'Document Category'
+                          )}
+                        </FormLabel>
+                        <FormControl>
+                          <Combobox
+                            className="gba:w-full"
+                            options={(catalogs.documentGroup || []).map(g => ({
+                              value: String(g.id),
+                              label: getCatalogValue(g)
+                            }))}
+                            value={field.value || ''}
+                            onValueChange={v => {
+                              field.onChange(v)
+                              form.setValue('documentTypeId', null as any, { shouldValidate: true } as any)
+                            }}
+                            placeholder={getTranslationFromI18nKeyAndLabel(
+                              'lowcoder:change_personal_data.select_document_group',
+                              'Select Document Category'
+                            )}
+                            data-testid="flw_changePersonalData_fld_documentGroup"
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control as any}
+                    name="documentTypeId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>
+                          {getTranslationFromI18nKeyAndLabel(
+                            'lowcoder:change_personal_data.document_type',
+                            'Document Type'
+                          )}
+                        </FormLabel>
+                        <FormControl>
+                          <Combobox
+                            className="gba:w-full"
+                            options={(filteredDocumentTypes || []).map(t => ({
+                              value: String(t.id),
+                              label: getCatalogValue(t)
+                            }))}
+                            value={field.value || ''}
+                            onValueChange={v => field.onChange(v)}
+                            placeholder={getTranslationFromI18nKeyAndLabel(
+                              'lowcoder:change_personal_data.select_document_type',
+                              'Select Document Type'
+                            )}
+                            data-testid="flw_changePersonalData_fld_documentType"
+                            disabled={!selectedDocumentGroupId}
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                </>
               )}
-            ></FormField>
+            </div>
           </div>
         </AppActionForm>
       </div>

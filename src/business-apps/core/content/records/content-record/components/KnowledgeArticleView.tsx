@@ -19,6 +19,7 @@ interface KnowledgeArticleViewProps {
   targetLanguage?: string | null
   translatedTexts?: TranslatedTexts | null
   onTranslateComments?: (commentTexts: string[], targetLanguage: string) => Promise<string[]>
+  onReactionSuccess?: () => void
 }
 
 /**
@@ -32,6 +33,7 @@ const KnowledgeArticleView: React.FC<KnowledgeArticleViewProps> = ({
   employeeId,
   allowedReactions,
   reactionCatalogMap,
+  onReactionSuccess,
   targetLanguage,
   translatedTexts,
   onTranslateComments
@@ -173,6 +175,7 @@ const KnowledgeArticleView: React.FC<KnowledgeArticleViewProps> = ({
           employeeId={employeeId}
           allowedReactions={allowedReactions}
           reactionCatalogMap={reactionCatalogMap}
+          onReactionSuccess={onReactionSuccess}
         />
 
         {/* Content */}

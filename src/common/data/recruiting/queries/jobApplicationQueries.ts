@@ -151,10 +151,24 @@ export const buildJobApplicationFragment = (fields: string[]): string => {
     ? 'id\n      code\n      firstName\n      lastName\n      displayName\n      userId\n      additionalProperties'
     : 'id\n      code\n      firstName\n      lastName'
 
-  // Determine fragment for jobPosting
+  // Determine fragment for jobPosting (jobRequest includes plannedHireDate and contractType for document generation)
   const jobPostingFragment = isInterviewForm
     ? 'id\n      title\n      jobRequestId\n      jobRequest {\n        id\n        name\n        jobPositionId\n        jobPosition {\n          id\n          name\n        }\n      }'
-    : 'id\n      title'
+    : `id
+      title
+      jobRequestId
+      jobRequest {
+        companyId
+        name
+        plannedHireDate
+        contractTypeRef
+        contractType {
+          id
+          code
+          value
+          additionalValue2
+        }
+      }`
 
   // Build JobApplicationDocument fragment (has jobApplicationId, NOT jobCandidateId)
   const documentFragment = `

@@ -47,6 +47,53 @@ export const useDocumentChat = ({ userId, accessToken }: UseDocumentChatProps) =
   const streamingContentRef = useRef('')
   const streamingRafRef = useRef<number | null>(null)
   const pendingUserMessageRef = useRef<{ tempId: string; sessionId: string; content: string } | null>(null)
+  const currentSessionRef = useRef<ChatSession | null>(null)
+  const titleRefreshAttemptsRef = useRef<Set<string>>(new Set())
+
+  useEffect(() => {
+    currentSessionRef.current = currentSession
+  }, [currentSession])
+
+  const isDefaultSessionTitle = (title: string | undefined): boolean => {
+    const t = (title ?? '').trim().toLowerCase()
+    return t.length === 0 || t === 'new chat'
+  }
+
+  /**
+   * Fallback for providers that might not emit `session-updated` (or emit it unreliably):
+   * After the first assistant response completes, re-fetch the session once to pick up
+   * any server-side title update.
+   */
+  const refreshSessionTitleIfNeeded = useCallback(
+    async (sessionId: string) => {
+      const session = currentSessionRef.current
+      if (!session || session.id !== sessionId) return
+      if (!isDefaultSessionTitle(session.title)) return
+      if (titleRefreshAttemptsRef.current.has(sessionId)) return
+
+      titleRefreshAttemptsRef.current.add(sessionId)
+
+      const apiUrl = getDocumentServiceApiUrl()
+      try {
+        const sessionResponse = await fetch(`${apiUrl}/chat/sessions/${sessionId}`, {
+          headers: {
+            Authorization: `Bearer ${accessToken}`
+          }
+        })
+
+        if (!sessionResponse.ok) return
+
+        const freshSession: ChatSession = await sessionResponse.json()
+        if (freshSession?.title && freshSession.title !== session.title) {
+          setLastSessionTitleUpdate({ sessionId, title: freshSession.title })
+        }
+        setCurrentSession(prev => (prev?.id === sessionId ? { ...prev, ...freshSession } : prev))
+      } catch (e) {
+        console.error('Failed to refresh session title:', e)
+      }
+    },
+    [accessToken]
+  )
 
   const upsertById = (prev: ChatMessage[], next: ChatMessage): ChatMessage[] => {
     const idx = prev.findIndex(m => m.id === next.id)
@@ -169,6 +216,9 @@ export const useDocumentChat = ({ userId, accessToken }: UseDocumentChatProps) =
       setStreamingContent('')
       streamingContentRef.current = ''
       pendingUserMessageRef.current = null
+
+      // Title update fallback (non-blocking)
+      void refreshSessionTitleIfNeeded(data.userMessage.sessionId)
     })
 
     newSocket.on('session-updated', (data: { sessionId: string; title: string }) => {
@@ -194,7 +244,7 @@ export const useDocumentChat = ({ userId, accessToken }: UseDocumentChatProps) =
       }
       newSocket.disconnect()
     }
-  }, [userId, accessToken])
+  }, [userId, accessToken, refreshSessionTitleIfNeeded])
 
   // Create new session
   const createSession = useCallback(

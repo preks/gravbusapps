@@ -40,8 +40,11 @@ export const ContentArticleAnalyzer: React.FC<ContentArticleAnalyzerProps> = ({
   const [analysis, setAnalysis] = useState<ContentArticleAnalyzerOutput | null>(null)
   const serviceRef = useRef<ContentArticleAnalyzerService | null>(null)
 
-  // Fetch all descendants (comments and replies)
-  const { descendants, isLoading: isLoadingDescendants } = useContentDescendants(contentEntry.id, accessToken)
+  // Fetch all descendants (comments and replies) - only when popover is open
+  const { descendants, isLoading: isLoadingDescendants } = useContentDescendants(
+    isPopoverOpen ? contentEntry.id : undefined,
+    isPopoverOpen ? accessToken : undefined
+  )
 
   // Initialize service
   useEffect(() => {

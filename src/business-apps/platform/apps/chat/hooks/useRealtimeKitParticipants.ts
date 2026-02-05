@@ -19,9 +19,10 @@ export interface UseRealtimeKitParticipantsOptions {
   callType: CallType
   currentUser: CallParticipant | null
   localStream: MediaStream | null
-  callStatus: 'idle' | 'joining' | 'connected' | 'reconnecting' | 'ended'
+  callStatus: 'idle' | 'setup' | 'joining' | 'connected' | 'reconnecting' | 'ended'
   emitSocketEvent: (event: string, data: any) => void
   cleanupParticipantHandState?: (participantId: string, peerId?: string, userId?: string) => void
+  calendarMeetingId?: string | null // Calendar meeting ID for AI transcription
 }
 
 export interface UseRealtimeKitParticipantsReturn {
@@ -33,8 +34,10 @@ export interface UseRealtimeKitParticipantsReturn {
     conversationName?: string,
     overrideMeetingId?: string,
     overrideRoomId?: string,
-    overrideCallType?: 'audio' | 'video'
+    overrideCallType?: 'audio' | 'video',
+    overrideCalendarMeetingId?: string | null
   ) => void
+  addPendingInvites: (participants: CallParticipant[]) => void
   reconnectParticipant: (participantId: string) => Promise<void>
   handleDeclinedInvite: (participantId: string, status?: 'declined' | 'not-answered') => void
 }
@@ -62,7 +65,8 @@ export const useRealtimeKitParticipants = ({
   localStream,
   callStatus,
   emitSocketEvent,
-  cleanupParticipantHandState
+  cleanupParticipantHandState,
+  calendarMeetingId
 }: UseRealtimeKitParticipantsOptions): UseRealtimeKitParticipantsReturn => {
   const [participants, setParticipants] = useState<GroupCallParticipant[]>([])
   const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(new Map())
@@ -143,7 +147,45 @@ export const useRealtimeKitParticipants = ({
         conversationName
       })
     },
-    [emitSocketEvent, roomId, meetingId, callType, currentUser, participants]
+    [emitSocketEvent, roomId, meetingId, callType, currentUser, participants, calendarMeetingId]
+  )
+
+  /**
+   * Add participants to pending invites without sending WebSocket event
+   * Used when starting a call to populate the UI before invites are sent
+   */
+  const addPendingInvites = useCallback(
+    (participantsToAdd: CallParticipant[]) => {
+      const now = Date.now()
+      const activeParticipantIds = new Set(participants.map(p => p.odId))
+
+      setPendingInvites(prev => {
+        const updated = new Map(prev)
+        for (const p of participantsToAdd) {
+          // Skip if already in call
+          if (activeParticipantIds.has(p.odId)) {
+            rtkDebug.log('[RTK] Skipping pending invite - already in call:', p.odId)
+            continue
+          }
+
+          updated.set(p.odId, {
+            id: p.odId,
+            odId: p.odId,
+            odName: p.odName,
+            avatarUrl: p.avatarUrl,
+            invitedAt: now,
+            status: 'pending'
+          })
+        }
+        return updated
+      })
+
+      rtkDebug.log('[RTK] Added pending invites:', {
+        count: participantsToAdd.length,
+        participants: participantsToAdd.map(p => ({ id: p.id, odId: p.odId, odName: p.odName }))
+      })
+    },
+    [participants]
   )
 
   /**
@@ -431,6 +473,7 @@ export const useRealtimeKitParticipants = ({
     remoteStreams,
     pendingInvites,
     inviteToCall,
+    addPendingInvites,
     reconnectParticipant,
     handleDeclinedInvite
   }

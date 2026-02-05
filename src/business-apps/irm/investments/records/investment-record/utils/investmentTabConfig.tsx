@@ -13,7 +13,6 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import {
   GenerateOnePagerButton,
-  UploadReportButton,
   InvestmentTileSection,
   InvestmentHomeTab,
   InvestmentReportsTab
@@ -265,27 +264,20 @@ export const createInvestmentTabsConfig = (
             investment={investment}
             typeSpecificData={typeSpecificData}
             filterHeaderActions={
-              <div className="gba:flex gba:items-center gba:gap-2">
-                <UploadReportButton
-                  investmentId={investment?.id}
-                  accessToken={props.accessToken}
-                  data-testid="investment-upload-report-button"
-                />
-                <AppAction
-                  variant="create-primary"
-                  contexts={[
-                    {
-                      context: FlowContextName.investmentReportCreate,
-                      contextData: { investmentId: investment?.id }
-                    }
-                  ]}
-                  accessToken={props.accessToken || ''}
-                  data-testid="investment-record-add-report-action"
-                  emptyState="hide"
-                >
-                  {getTranslationFromI18nKeyAndLabel('investment.reports.addReport', 'Add Report')}
-                </AppAction>
-              </div>
+              <AppAction
+                variant="create-primary"
+                contexts={[
+                  {
+                    context: FlowContextName.investmentReportCreate,
+                    contextData: { investmentId: investment?.id }
+                  }
+                ]}
+                accessToken={props.accessToken || ''}
+                data-testid="investment-record-add-report-action"
+                emptyState="hide"
+              >
+                {getTranslationFromI18nKeyAndLabel('investment.reports.addReport', 'Add Report')}
+              </AppAction>
             }
             accessToken={props.accessToken}
             userInfo={props.userInfo}
