@@ -29,7 +29,7 @@ function getBaseUrl(): string {
  * Handles both simple string errors and complex validation error structures
  */
 function parseErrorResponse(errorData: any, fallbackMessage: string): string {
-  if (!errorData || !errorData.detail) {
+  if (!errorData?.detail) {
     return fallbackMessage
   }
 

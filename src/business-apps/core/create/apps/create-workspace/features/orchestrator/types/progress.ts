@@ -3,8 +3,8 @@
  * Defines SSE progress events and build job status.
  */
 
-import type { BuildStatus, BuildPhase } from './build'
-import type { ComponentType, ComponentSpec } from './components'
+import type { BuildPhase } from './build'
+import type { ComponentType, ComponentSpec, BuildStatus } from './components'
 
 // Event types for SSE progress events
 export type ProgressEventType =
@@ -22,6 +22,12 @@ export type ProgressEventType =
   | 'wiring_started'
   | 'wiring_progress'
   | 'wiring_completed'
+  // Publish phase events (deployment)
+  | 'publish_started'
+  | 'publish_progress'
+  | 'publish_completed'
+  | 'publish_error'
+  | 'publish_skipped'
   // Final event
   | 'build_complete'
 
@@ -38,6 +44,11 @@ export interface BuildProgressEvent {
   progress_percent?: number
   created_id?: string
   error_details?: string
+
+  // Publish/deployment data
+  resource_url?: string // URL path for the published screen
+  azure_url?: string // Azure CDN URL
+  files_published?: number // Number of files published
 
   // Summary for build_complete event
   total_components?: number

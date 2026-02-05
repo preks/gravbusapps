@@ -132,4 +132,9 @@ export interface ComponentSpec {
   error_message?: string
   build_started_at?: string
   build_completed_at?: string
+
+  // Publish/deployment results
+  resource_url?: string // URL path for the screen (e.g., /screens/user-profile)
+  azure_url?: string // Azure CDN URL where assets are deployed
+  published_file_count?: number // Number of files published
 }

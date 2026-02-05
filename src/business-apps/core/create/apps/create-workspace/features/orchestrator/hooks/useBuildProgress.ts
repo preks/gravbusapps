@@ -167,6 +167,15 @@ export function useBuildProgress({
         },
         wiring_progress: () => setPhaseMessage(event.message),
         wiring_completed: () => setPhaseMessage(event.message),
+        // Publish phase events (deployment)
+        publish_started: () => {
+          setCurrentPhase('wiring') // Keep showing wiring phase during publish
+          setPhaseMessage(event.message)
+        },
+        publish_progress: () => setPhaseMessage(event.message),
+        publish_completed: () => setPhaseMessage(event.message),
+        publish_error: () => setPhaseMessage(event.message),
+        publish_skipped: () => setPhaseMessage(event.message),
         build_complete: () => {
           setCurrentPhase('complete')
           setIsBuilding(false)
@@ -263,7 +272,20 @@ export function useBuildProgress({
         },
         component_completed: handleComponentCompleted,
         component_error: handleComponentError,
-        component_progress: handleComponentProgress
+        component_progress: handleComponentProgress,
+        // Capture publish results (URLs from deployment)
+        publish_progress: (t, e) => {
+          t.currentOperation = e.message
+          // Update component with publish results
+          if (plan && e.component_id) {
+            const component = plan.components.find(c => c.id === e.component_id)
+            if (component) {
+              component.resource_url = e.resource_url
+              component.azure_url = e.azure_url
+              component.published_file_count = e.files_published
+            }
+          }
+        }
       }
 
       const handler = eventHandlers[event.event_type]
