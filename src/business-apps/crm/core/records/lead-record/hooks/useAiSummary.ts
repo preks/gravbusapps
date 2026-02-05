@@ -1,3 +1,4 @@
+import { useCallback } from 'react'
 import * as z from 'zod'
 import useInformationExtraction, { UseInformationExtractionReturn } from '@/common/hooks/useInformationExtraction'
 import { useGetSalesActivities } from '../queries/SalesActivityQueries'
@@ -6,9 +7,18 @@ import { useGetSalesTasks } from '../queries/SalesTaskQueries'
 import { GET_LEAD_BY_ID, GetLeadByIdResponse } from '../queries/GetLeadByIdQueries'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
-const taskDescription = `You are an assistant that summarises CRM lead timelines. 
-Provide a concise executive summary in plain language, the total number of activities mentioned, 
-and up to 5 key insights or next steps as an array of strings. 
+const taskDescription = `You are a sales qualification assistant analyzing a sales prospect.
+
+Analyze all available lead data including prospect profile, company information, engagement signals, activities, notes, and tasks to provide:
+1. A concise executive summary covering the prospect profile, lead quality indicators, qualification status, and conversion readiness
+2. Up to 5 key insights covering:
+   - Lead qualification signals and buying intent
+   - Company fit and revenue potential
+   - Engagement responsiveness and interest level
+   - Information gaps or qualification requirements
+   - Recommended next steps for lead nurturing or conversion
+
+Focus on sales qualification and lead conversion potential.
 Respond strictly in JSON conforming to the provided schema.`
 
 const summarySchema = z.object({
@@ -24,7 +34,7 @@ export function useAiSummary(leadId: string, accessToken: string): UseAiSummaryR
   const { fetchCrmNotes } = useGetCrmNotes({ accessToken })
   const { fetchSalesTasks } = useGetSalesTasks({ accessToken })
 
-  const generateInputData = async () => {
+  const generateInputData = useCallback(async () => {
     // get lead data
     const lead = await graphQLClient.request<GetLeadByIdResponse>(GET_LEAD_BY_ID, { id: leadId })
 
@@ -51,8 +61,11 @@ Activities: ${JSON.stringify(sortedActivities)}
 Notes: ${JSON.stringify(sortedNotes)}
 Tasks: ${JSON.stringify(sortedTasks)}`
 
+    if (process.env.NODE_ENV === 'development') {
+      console.debug('AI Summary Input Data Length:', inputData.length, 'characters')
+    }
     return inputData
-  }
+  }, [leadId, graphQLClient, fetchSalesActivities, fetchCrmNotes, fetchSalesTasks])
 
   return useInformationExtraction(taskDescription, summarySchema, generateInputData, accessToken, 'gpt-4.1')
 }

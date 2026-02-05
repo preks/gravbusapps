@@ -33,7 +33,9 @@ search_documents = Bereiche durchsuchen...
 search_questions = Fragen durchsuchen...
 
 # Content sections
+content_overview = Inhaltsübersicht
 recent_content = Aktuelle Inhalte
+recent_comments = Aktuelle Kommentare
 latest_announcements = Neueste Ankündigungen
 featured_news = Aktuelle Nachrichten
 trending_now = Angesagt
@@ -66,6 +68,7 @@ no_questions_found = Noch keine Fragen. Sei der Erste!
 votes = Stimmen
 views = Aufrufe
 asked_by = Gefragt von
+answers = Antworten
 
 # Content
 knowledge_image = Wissensbeitragsbild
@@ -91,6 +94,10 @@ current = Aktuell
 points = Punkte
 error = Fehler
 retry = Erneut versuchen
+my-content = Mein Content
+show-my-content-description = Alle von Ihnen erstellten Content-Einträge anzeigen
+no-my-content-found = Sie haben noch keinen Content erstellt.
+other = Andere
 
 # Glossary
 glossary = Glossar
@@ -111,6 +118,7 @@ viewing-as = Angezeigt als
 all = Alle
 search = Suchen
 loading = Laden...
+loading_more = Lädt weitere...
 refresh = Aktualisieren
 edit = Bearbeiten
 cancel = Abbrechen

@@ -10,7 +10,7 @@ import {
   TooltipProvider,
   TooltipTrigger
 } from '@newwork/nw-design-system'
-import { Search, Plus, FileText, FileSpreadsheet, StickyNote, X, ArrowRight, Clock } from 'lucide-react'
+import { Search, Plus, FileText, FileSpreadsheet, StickyNote, Presentation, X, ArrowRight, Clock } from 'lucide-react'
 import type { ContentItem } from '../hooks/useDeskData'
 import { useDocumentPresence } from '../hooks/useDocumentPresence'
 
@@ -20,6 +20,7 @@ interface QuickActionsProps {
   onCreateDocument: () => void
   onCreateSpreadsheet: () => void
   onCreateNote: () => void
+  onCreateSlide: () => void
   searchResults?: ContentItem[]
   onItemClick?: (item: ContentItem) => void
   isLoading?: boolean
@@ -45,6 +46,12 @@ const typeConfig = {
     color: 'gba:text-amber-600',
     bg: 'gba:bg-amber-500/10',
     label: 'Note'
+  },
+  slide: {
+    icon: Presentation,
+    color: 'gba:text-info',
+    bg: 'gba:bg-info/10',
+    label: 'Presentation'
   }
 }
 
@@ -192,6 +199,7 @@ export const QuickActions: React.FC<QuickActionsProps> = ({
   onCreateDocument,
   onCreateSpreadsheet,
   onCreateNote,
+  onCreateSlide,
   searchResults = [],
   onItemClick,
   isLoading = false,
@@ -214,8 +222,13 @@ export const QuickActions: React.FC<QuickActionsProps> = ({
 
   // Fetch presence when search results change (debounced via entityListKey)
   useEffect(() => {
-    console.log('[QuickActions] Presence fetch effect triggered. Connected:', isConnected, 'Results:', limitedResults.length)
-    
+    console.log(
+      '[QuickActions] Presence fetch effect triggered. Connected:',
+      isConnected,
+      'Results:',
+      limitedResults.length
+    )
+
     if (!entityListKey || !isConnected) {
       if (!isConnected) {
         console.warn('[QuickActions] ⚠️ Presence service not connected yet')
@@ -227,7 +240,7 @@ export const QuickActions: React.FC<QuickActionsProps> = ({
       entityType: item.type,
       entityId: item.id
     }))
-    
+
     if (entities.length > 0) {
       console.log('[QuickActions] 📞 Requesting presence for', entities.length, 'search results')
       fetchPresence(entities)
@@ -236,15 +249,17 @@ export const QuickActions: React.FC<QuickActionsProps> = ({
 
   // Group results by type
   const groupedResults = useMemo(() => {
-    const groups: { type: 'document' | 'spreadsheet' | 'note'; items: ContentItem[] }[] = []
+    const groups: { type: 'document' | 'spreadsheet' | 'note' | 'slide'; items: ContentItem[] }[] = []
 
     const docs = limitedResults.filter(r => r.type === 'document')
     const sheets = limitedResults.filter(r => r.type === 'spreadsheet')
     const notesItems = limitedResults.filter(r => r.type === 'note')
+    const slidesItems = limitedResults.filter(r => r.type === 'slide')
 
     if (docs.length > 0) groups.push({ type: 'document', items: docs })
     if (sheets.length > 0) groups.push({ type: 'spreadsheet', items: sheets })
     if (notesItems.length > 0) groups.push({ type: 'note', items: notesItems })
+    if (slidesItems.length > 0) groups.push({ type: 'slide', items: slidesItems })
 
     return groups
   }, [limitedResults])
@@ -372,36 +387,79 @@ export const QuickActions: React.FC<QuickActionsProps> = ({
 
             {/* Quick create buttons */}
             <div className="gba:flex gba:items-center gba:gap-1">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="gba:gap-1.5 gba:text-muted-foreground hover:gba:text-sky-600 hover:gba:bg-sky-500/10"
-                onClick={onCreateDocument}
-                data-testid={`${testId}-create-doc`}
-              >
-                <Plus className="gba:w-3.5 gba:h-3.5" />
-                <FileText className="gba:w-4 gba:h-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="gba:gap-1.5 gba:text-muted-foreground hover:gba:text-teal-600 hover:gba:bg-teal-500/10"
-                onClick={onCreateSpreadsheet}
-                data-testid={`${testId}-create-sheet`}
-              >
-                <Plus className="gba:w-3.5 gba:h-3.5" />
-                <FileSpreadsheet className="gba:w-4 gba:h-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="gba:gap-1.5 gba:text-muted-foreground hover:gba:text-amber-600 hover:gba:bg-amber-500/10"
-                onClick={onCreateNote}
-                data-testid={`${testId}-create-note`}
-              >
-                <Plus className="gba:w-3.5 gba:h-3.5" />
-                <StickyNote className="gba:w-4 gba:h-4" />
-              </Button>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="gba:gap-1.5 gba:text-muted-foreground hover:gba:text-sky-600 hover:gba:bg-sky-500/10"
+                      onClick={onCreateDocument}
+                      data-testid={`${testId}-create-doc`}
+                    >
+                      <Plus className="gba:w-3.5 gba:h-3.5" />
+                      <FileText className="gba:w-4 gba:h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Create Document</p>
+                  </TooltipContent>
+                </Tooltip>
+
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="gba:gap-1.5 gba:text-muted-foreground hover:gba:text-teal-600 hover:gba:bg-teal-500/10"
+                      onClick={onCreateSpreadsheet}
+                      data-testid={`${testId}-create-sheet`}
+                    >
+                      <Plus className="gba:w-3.5 gba:h-3.5" />
+                      <FileSpreadsheet className="gba:w-4 gba:h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Create Spreadsheet</p>
+                  </TooltipContent>
+                </Tooltip>
+
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="gba:gap-1.5 gba:text-muted-foreground hover:gba:text-amber-600 hover:gba:bg-amber-500/10"
+                      onClick={onCreateNote}
+                      data-testid={`${testId}-create-note`}
+                    >
+                      <Plus className="gba:w-3.5 gba:h-3.5" />
+                      <StickyNote className="gba:w-4 gba:h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Create Note</p>
+                  </TooltipContent>
+                </Tooltip>
+
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="gba:gap-1.5 gba:text-muted-foreground hover:gba:text-purple-600 hover:gba:bg-purple-500/10"
+                      onClick={onCreateSlide}
+                      data-testid={`${testId}-create-slide`}
+                    >
+                      <Plus className="gba:w-3.5 gba:h-3.5" />
+                      <Presentation className="gba:w-4 gba:h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Create Presentation</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
           </div>
         </div>

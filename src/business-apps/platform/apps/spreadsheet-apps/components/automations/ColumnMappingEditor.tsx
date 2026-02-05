@@ -94,9 +94,7 @@ export const ColumnMappingEditor: React.FC<ColumnMappingEditorProps> = ({
   // Update column mapping
   const updateColumnMapping = useCallback(
     (index: number, updates: Partial<ColumnWorkflowMapping>) => {
-      const updated = columnMappings.map((mapping, i) =>
-        i === index ? { ...mapping, ...updates } : mapping
-      )
+      const updated = columnMappings.map((mapping, i) => (i === index ? { ...mapping, ...updates } : mapping))
       onColumnMappingsChange(updated)
     },
     [columnMappings, onColumnMappingsChange]
@@ -125,9 +123,7 @@ export const ColumnMappingEditor: React.FC<ColumnMappingEditorProps> = ({
   // Update result mapping
   const updateResultMapping = useCallback(
     (index: number, updates: Partial<ResultMapping>) => {
-      const updated = resultMappings.map((mapping, i) =>
-        i === index ? { ...mapping, ...updates } : mapping
-      )
+      const updated = resultMappings.map((mapping, i) => (i === index ? { ...mapping, ...updates } : mapping))
       onResultMappingsChange(updated)
     },
     [resultMappings, onResultMappingsChange]
@@ -149,9 +145,7 @@ export const ColumnMappingEditor: React.FC<ColumnMappingEditorProps> = ({
           <div className="gba:flex gba:items-center gba:justify-between">
             <div>
               <CardTitle className="gba:text-base">Column Mappings</CardTitle>
-              <CardDescription>
-                Map spreadsheet columns to workflow parameters
-              </CardDescription>
+              <CardDescription>Map spreadsheet columns to workflow parameters</CardDescription>
             </div>
             <Button size="sm" variant="outline" onClick={addColumnMapping}>
               <Plus className="gba:w-4 gba:h-4 gba:mr-1" />
@@ -163,20 +157,13 @@ export const ColumnMappingEditor: React.FC<ColumnMappingEditorProps> = ({
           {columnMappings.length === 0 ? (
             <div className="gba:text-center gba:py-8 gba:text-muted-foreground">
               <p className="gba:mb-3">No column mappings defined.</p>
-              <p className="gba:text-sm">
-                Mappings allow data to flow between your spreadsheet and workflows.
-              </p>
+              <p className="gba:text-sm">Mappings allow data to flow between your spreadsheet and workflows.</p>
             </div>
           ) : (
             <div className="gba:space-y-4">
               {columnMappings.map((mapping, index) => {
-                const DirectionIcon = DIRECTION_OPTIONS.find(d => d.value === mapping.direction)?.icon || ArrowRight
-
                 return (
-                  <div
-                    key={index}
-                    className="gba:flex gba:items-end gba:gap-3 gba:p-4 gba:bg-muted/50 gba:rounded-lg"
-                  >
+                  <div key={index} className="gba:flex gba:items-end gba:gap-3 gba:p-4 gba:bg-muted/50 gba:rounded-lg">
                     {/* Source Column */}
                     <div className="gba:flex-1">
                       <Label className="gba:text-xs gba:text-muted-foreground gba:mb-1 gba:block">
@@ -212,14 +199,10 @@ export const ColumnMappingEditor: React.FC<ColumnMappingEditorProps> = ({
 
                     {/* Direction */}
                     <div className="gba:w-32">
-                      <Label className="gba:text-xs gba:text-muted-foreground gba:mb-1 gba:block">
-                        Direction
-                      </Label>
+                      <Label className="gba:text-xs gba:text-muted-foreground gba:mb-1 gba:block">Direction</Label>
                       <Select
                         value={mapping.direction}
-                        onValueChange={(value: MappingDirection) =>
-                          updateColumnMapping(index, { direction: value })
-                        }
+                        onValueChange={(value: MappingDirection) => updateColumnMapping(index, { direction: value })}
                       >
                         <SelectTrigger>
                           <SelectValue />
@@ -254,13 +237,13 @@ export const ColumnMappingEditor: React.FC<ColumnMappingEditorProps> = ({
 
                     {/* Transform */}
                     <div className="gba:w-28">
-                      <Label className="gba:text-xs gba:text-muted-foreground gba:mb-1 gba:block">
-                        Transform
-                      </Label>
+                      <Label className="gba:text-xs gba:text-muted-foreground gba:mb-1 gba:block">Transform</Label>
                       <Select
                         value={mapping.transform || ''}
                         onValueChange={value =>
-                          updateColumnMapping(index, { transform: value || undefined } as Partial<ColumnWorkflowMapping>)
+                          updateColumnMapping(index, {
+                            transform: value || undefined
+                          } as Partial<ColumnWorkflowMapping>)
                         }
                       >
                         <SelectTrigger>
@@ -300,9 +283,7 @@ export const ColumnMappingEditor: React.FC<ColumnMappingEditorProps> = ({
             <div className="gba:flex gba:items-center gba:justify-between">
               <div>
                 <CardTitle className="gba:text-base">Result Mappings</CardTitle>
-                <CardDescription>
-                  Write workflow results back to spreadsheet columns
-                </CardDescription>
+                <CardDescription>Write workflow results back to spreadsheet columns</CardDescription>
               </div>
               <Button size="sm" variant="outline" onClick={addResultMapping}>
                 <Plus className="gba:w-4 gba:h-4 gba:mr-1" />
@@ -314,17 +295,12 @@ export const ColumnMappingEditor: React.FC<ColumnMappingEditorProps> = ({
             {resultMappings.length === 0 ? (
               <div className="gba:text-center gba:py-8 gba:text-muted-foreground">
                 <p className="gba:mb-3">No result mappings defined.</p>
-                <p className="gba:text-sm">
-                  Result mappings update your spreadsheet when workflows complete.
-                </p>
+                <p className="gba:text-sm">Result mappings update your spreadsheet when workflows complete.</p>
               </div>
             ) : (
               <div className="gba:space-y-4">
                 {resultMappings.map((mapping, index) => (
-                  <div
-                    key={index}
-                    className="gba:flex gba:items-end gba:gap-3 gba:p-4 gba:bg-muted/50 gba:rounded-lg"
-                  >
+                  <div key={index} className="gba:flex gba:items-end gba:gap-3 gba:p-4 gba:bg-muted/50 gba:rounded-lg">
                     {/* Workflow Output Path */}
                     <div className="gba:flex-1">
                       <Label className="gba:text-xs gba:text-muted-foreground gba:mb-1 gba:block">
@@ -332,9 +308,7 @@ export const ColumnMappingEditor: React.FC<ColumnMappingEditorProps> = ({
                       </Label>
                       <Input
                         value={mapping.workflowOutputPath}
-                        onChange={e =>
-                          updateResultMapping(index, { workflowOutputPath: e.target.value })
-                        }
+                        onChange={e => updateResultMapping(index, { workflowOutputPath: e.target.value })}
                         placeholder="e.g., step_0.formData.decision"
                       />
                     </div>
@@ -346,14 +320,10 @@ export const ColumnMappingEditor: React.FC<ColumnMappingEditorProps> = ({
 
                     {/* Target Column */}
                     <div className="gba:flex-1">
-                      <Label className="gba:text-xs gba:text-muted-foreground gba:mb-1 gba:block">
-                        Target Column
-                      </Label>
+                      <Label className="gba:text-xs gba:text-muted-foreground gba:mb-1 gba:block">Target Column</Label>
                       <Select
                         value={mapping.targetColumnId}
-                        onValueChange={value =>
-                          updateResultMapping(index, { targetColumnId: value })
-                        }
+                        onValueChange={value => updateResultMapping(index, { targetColumnId: value })}
                       >
                         <SelectTrigger>
                           <SelectValue />
@@ -375,14 +345,10 @@ export const ColumnMappingEditor: React.FC<ColumnMappingEditorProps> = ({
 
                     {/* Aggregation */}
                     <div className="gba:w-32">
-                      <Label className="gba:text-xs gba:text-muted-foreground gba:mb-1 gba:block">
-                        Aggregation
-                      </Label>
+                      <Label className="gba:text-xs gba:text-muted-foreground gba:mb-1 gba:block">Aggregation</Label>
                       <Select
                         value={mapping.aggregation || 'latest'}
-                        onValueChange={(value: AggregationMethod) =>
-                          updateResultMapping(index, { aggregation: value })
-                        }
+                        onValueChange={(value: AggregationMethod) => updateResultMapping(index, { aggregation: value })}
                       >
                         <SelectTrigger>
                           <SelectValue />

@@ -233,7 +233,9 @@ const mapFlowItemsToActionOptions = (
             processName: flowItem.processName,
             domain: flowItem.domain,
             payload,
-            builderType: uiBuilder
+            builderType: uiBuilder,
+            targetDesktop: flowItem.targetDesktop,
+            targetMobile: flowItem.targetMobile
           })
         }
         break
@@ -247,7 +249,9 @@ const mapFlowItemsToActionOptions = (
       processName: flowItem.processName,
       domain: flowItem.domain,
       category: flowItem.flowType,
-      payload
+      payload,
+      targetDesktop: flowItem.targetDesktop,
+      targetMobile: flowItem.targetMobile
     } as ActionOption
   })
 }

@@ -1,6 +1,16 @@
 import React from 'react'
 import { Card, CardContent, Badge, Button, Spinner } from '@newwork/nw-design-system'
-import { FileText, FileSpreadsheet, StickyNote, Clock, ArrowRight, Inbox, Search } from 'lucide-react'
+import {
+  FileText,
+  FileSpreadsheet,
+  StickyNote,
+  Presentation,
+  Clock,
+  ArrowRight,
+  Inbox,
+  Search,
+  FileType
+} from 'lucide-react'
 import type { ContentItem } from '../hooks/useDeskData'
 
 interface RecentItemsProps {
@@ -35,6 +45,13 @@ const typeConfig = {
     bg: 'gba:bg-amber-500/10',
     borderHover: 'hover:gba:border-amber-500/30',
     label: 'Note'
+  },
+  slide: {
+    icon: Presentation,
+    color: 'gba:text-info',
+    bg: 'gba:bg-info/10',
+    borderHover: 'hover:gba:border-info/30',
+    label: 'Presentation'
   }
 }
 
@@ -171,7 +188,10 @@ export const RecentItems: React.FC<RecentItemsProps> = ({
           <div className="gba:grid gba:grid-cols-1 gba:sm:grid-cols-2 gba:lg:grid-cols-3 gba:gap-4">
             {items.map((item, index) => {
               const config = typeConfig[item.type]
-              const Icon = config.icon
+              const isPdfDoc = item.type === 'document' && item.isPdf
+              const Icon = isPdfDoc ? FileType : config.icon
+              const iconColor = isPdfDoc ? 'gba:text-red-600' : config.color
+              const iconBg = isPdfDoc ? 'gba:bg-red-500/10' : config.bg
 
               return (
                 <Card
@@ -185,9 +205,9 @@ export const RecentItems: React.FC<RecentItemsProps> = ({
                     <div className="gba:flex gba:items-start gba:gap-3">
                       {/* Icon */}
                       <div
-                        className={`gba:w-10 gba:h-10 gba:rounded-lg ${config.bg} gba:flex gba:items-center gba:justify-center gba:flex-shrink-0`}
+                        className={`gba:w-10 gba:h-10 gba:rounded-lg ${iconBg} gba:flex gba:items-center gba:justify-center gba:flex-shrink-0`}
                       >
-                        <Icon className={`gba:w-5 gba:h-5 ${config.color}`} />
+                        <Icon className={`gba:w-5 gba:h-5 ${iconColor}`} />
                       </div>
 
                       {/* Content */}

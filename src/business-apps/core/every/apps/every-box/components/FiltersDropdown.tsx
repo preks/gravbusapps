@@ -13,6 +13,9 @@ import {
   DropdownMenuSeparator,
   Button,
   Badge,
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
   useTranslation
 } from '@newwork/nw-design-system'
 import { Filter } from 'lucide-react'
@@ -52,17 +55,25 @@ export const FiltersDropdown: React.FC<FiltersDropdownProps> = ({
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm" className="gba:gap-2" data-testid={`${prefixDataTestId}-trigger`}>
-          <Filter className="gba:h-4 gba:w-4" />
-          <span className="gba:hidden sm:gba:inline">{t('filters-dropdown-label')}</span>
-          {activeFilterCount > 0 && (
-            <Badge variant="secondary" className="gba:ml-1 gba:h-5 gba:min-w-5 gba:px-1">
-              {activeFilterCount}
-            </Badge>
-          )}
-        </Button>
-      </DropdownMenuTrigger>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="gba:h-8 gba:w-8 gba:relative"
+              data-testid={`${prefixDataTestId}-trigger`}
+              aria-label={t('filters-dropdown-label')}
+            >
+              <Filter className="gba:h-4 gba:w-4" />
+              {activeFilterCount > 0 && (
+                <span className="gba:absolute gba:top-0.5 gba:right-0.5 gba:h-2 gba:w-2 gba:rounded-full gba:bg-primary" />
+              )}
+            </Button>
+          </DropdownMenuTrigger>
+        </TooltipTrigger>
+        <TooltipContent>{t('filters-dropdown-label')}</TooltipContent>
+      </Tooltip>
       <DropdownMenuContent align="end" className="gba:w-56" data-testid={`${prefixDataTestId}-content`}>
         <DropdownMenuRadioGroup value={selectedFilter} onValueChange={handleFilterChange}>
           <DropdownMenuRadioItem value="all" data-testid={`${prefixDataTestId}-all`}>

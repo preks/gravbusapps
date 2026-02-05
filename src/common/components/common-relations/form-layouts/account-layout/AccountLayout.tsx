@@ -50,6 +50,10 @@ interface AccountLayoutProps {
   // Ref to store current file and thumbnail (for handlePreSubmit in form component)
   avatarFileRef?: React.MutableRefObject<{ file: File; thumbnail: string } | null>
 
+  // Context for prospective field label (determines non-prospective label)
+  // REQUIRED: Must be explicitly set to 'crm' or 'irm' to ensure correct labels
+  accountContext: 'crm' | 'irm'
+
   // Loading state - shows skeletons while data is being fetched
   loading?: boolean
   isStepActive?: boolean
@@ -69,6 +73,7 @@ const AccountLayout: React.FC<AccountLayoutProps> = ({
   communicationCustomFields,
   customSegments = [],
   avatarFileRef,
+  accountContext,
   loading = false,
   isStepActive = true
 }) => {
@@ -114,6 +119,7 @@ const AccountLayout: React.FC<AccountLayoutProps> = ({
         customFields={accountInformationCustomFields}
         avatarFileRef={avatarFileRef}
         accountPriorityCatalogIdentifier={accountPriorityCatalogIdentifier}
+        accountContext={accountContext}
       />
 
       {/* Other Segments */}

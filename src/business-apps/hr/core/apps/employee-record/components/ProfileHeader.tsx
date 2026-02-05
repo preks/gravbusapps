@@ -1,35 +1,36 @@
 'use client'
 
-import React, { useState, useCallback, useEffect } from 'react'
+import React, { useMemo } from 'react'
 import dayjs from 'dayjs'
 import {
-  PiEnvelopeSimple,
-  PiPhone,
-  PiBuildings,
-  PiUser,
-  PiMapPin,
-  PiCalendar,
-  PiVideoCamera,
-  PiChat,
-  PiCurrencyDollar,
-  PiGlobeHemisphereWest,
-  PiBookmarks,
-  PiCameraFill
-} from 'react-icons/pi'
-import { Avatar } from '@newwork/gravity-ui-catalog'
+  EnvelopeSimpleIcon,
+  PhoneIcon,
+  BuildingsIcon,
+  UserIcon,
+  MapPinIcon,
+  CalendarIcon,
+  CurrencyDollarIcon,
+  GlobeHemisphereWestIcon,
+  BookmarksIcon,
+  ChatCircleIcon,
+  VideoCameraIcon
+} from '@phosphor-icons/react'
 import { Employee } from '../hooks/useEmployeeData'
-import { formatPhoneNumber, getEmployeeFullName } from '../utils/formatters'
+import { formatPhoneNumber } from '../utils/formatters'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { useOpenChat } from '@/modules/chat-sidebar/utils/hooks/useOpenChat'
-import { useEmployeeWorkCommunications } from '../hooks/useEmployeeWorkCommunications'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { notification } from 'antd'
+import {
+  HeaderSlot,
+  type HeaderSlotItemGroup,
+  useTranslation,
+  Button,
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+  Badge
+} from '@newwork/nw-design-system'
+import translations from '../_i18n'
 import { StarIcon } from 'lucide-react'
 import { TeamOutlined } from '@ant-design/icons'
-import AppAction from '@/components/app-action/AppAction'
-import { useTranslation } from '@newwork/nw-design-system'
-import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
 // Team item type
 interface MatrixUnitEmployee {
@@ -58,17 +59,8 @@ interface EmployeeSkill {
 
 interface ProfileHeaderProps {
   employee: Employee
-  isSelfView: boolean
-}
-
-interface ProfileInfoItemProps {
-  icon: React.ReactNode
-  label: string
-  value: string
-  linkTo?: string
-  onClick?: () => void
-  openInNewTab?: boolean
-  className?: string
+  employeeEmail?: string
+  employeePhone?: string
 }
 
 interface TagItemProps {
@@ -78,6 +70,85 @@ interface TagItemProps {
   textColorClass?: string
   borderColorClass?: string
   testId?: string
+}
+
+export interface ProfileHeaderActionsProps {
+  commsLoading: boolean
+  isSelfView: boolean
+  onChat: () => void
+  onAudioCall: () => void
+  onVideoCall: () => void
+}
+
+export const ProfileHeaderActions: React.FC<ProfileHeaderActionsProps> = ({
+  commsLoading,
+  isSelfView,
+  onChat,
+  onAudioCall,
+  onVideoCall
+}) => {
+  const { t } = useTranslation(translations)
+  return (
+    <div className="gba:flex gba:items-center gba:gap-2">
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="gba:inline-flex">
+            <Button
+              size="iconSm"
+              variant="outline"
+              onClick={onChat}
+              disabled={commsLoading || isSelfView}
+              aria-label={t('employee-record-chat-button')}
+              data-testid="employee-chat-button"
+            >
+              <ChatCircleIcon size={16} />
+            </Button>
+          </span>
+        </TooltipTrigger>
+        <TooltipContent>
+          {isSelfView ? t('employee-record-chat-cannot-self') : t('employee-record-chat-tooltip')}
+        </TooltipContent>
+      </Tooltip>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="gba:inline-flex">
+            <Button
+              size="iconSm"
+              variant="outline"
+              onClick={onAudioCall}
+              disabled={commsLoading || isSelfView}
+              aria-label={t('employee-record-audio-call-button')}
+              data-testid="employee-audio-call-button"
+            >
+              <PhoneIcon size={16} />
+            </Button>
+          </span>
+        </TooltipTrigger>
+        <TooltipContent>
+          {isSelfView ? t('employee-record-audio-cannot-self') : t('employee-record-audio-tooltip')}
+        </TooltipContent>
+      </Tooltip>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="gba:inline-flex">
+            <Button
+              size="iconSm"
+              variant="outline"
+              onClick={onVideoCall}
+              disabled={commsLoading || isSelfView}
+              aria-label={t('employee-record-video-call-button')}
+              data-testid="employee-video-call-button"
+            >
+              <VideoCameraIcon size={16} />
+            </Button>
+          </span>
+        </TooltipTrigger>
+        <TooltipContent>
+          {isSelfView ? t('employee-record-video-cannot-self') : t('employee-record-video-tooltip')}
+        </TooltipContent>
+      </Tooltip>
+    </div>
+  )
 }
 
 const TagItem: React.FC<TagItemProps> = ({
@@ -99,125 +170,12 @@ const TagItem: React.FC<TagItemProps> = ({
   )
 }
 
-const ProfileInfoItem: React.FC<ProfileInfoItemProps> = ({
-  icon,
-  label,
-  value,
-  linkTo,
-  onClick,
-  className,
-  openInNewTab = false
-}) => {
-  return (
-    <div className={`gba:flex gba:items-center gba:gap-2 ${className}`}>
-      <div className="gba:shrink-0 gba:text-muted-foreground">{icon}</div>
-      <div className="gba:grow">
-        <div className="gba:text-xs gba:text-muted-foreground">{label}</div>
-        {linkTo ? (
-          <a
-            href={linkTo}
-            className="gba:text-sm gba:text-info gba:inline-flex gba:items-baseline gba:flex-wrap gba:hover:underline"
-            target={openInNewTab ? '_blank' : undefined}
-            rel={openInNewTab ? 'noopener noreferrer' : undefined}
-          >
-            <span className="gba:whitespace-normal font-medium">{value}</span>
-          </a>
-        ) : onClick ? (
-          <a
-            href="#"
-            onClick={e => {
-              e.preventDefault()
-              onClick()
-            }}
-            className="gba:text-sm gba:text-info gba:inline-flex gba:items-baseline gba:flex-wrap"
-            data-testid={`profile-info-${label.toLowerCase()}-link`}
-          >
-            <span className="gba:whitespace-normal">{value}</span>
-          </a>
-        ) : (
-          <div className="gba:text-sm gba:text-foreground">{value}</div>
-        )}
-      </div>
-    </div>
-  )
-}
-
 const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
-  userInfo,
   employee,
-  accessToken,
-  isSelfView
+  employeeEmail,
+  employeePhone
 }) => {
-  // Translation helper
-  const t = (key: string) => getTranslationFromI18nKeyAndLabel(key, key)
-  const { t: tDesign } = useTranslation(hrTranslations)
-  const [employeeEmail, setEmployeeEmail] = useState<string | undefined>()
-
-  // Use the openChat hook for direct Teams integration
-  const { openChatWithUser, openAudioConferenceWithUser, openVideoConferenceWithUser } = useOpenChat()
-
-  // Use the hook to fetch employee work communications
-  const { employee: employeeWithComms, loading } = useEmployeeWorkCommunications({
-    accessToken,
-    employeeId: employee?.id || ''
-  })
-
-  // Communication handlers that directly use the hook methods
-  const handleChat = useCallback(() => {
-    // Use the email from GraphQL response if available, fallback to userInfo
-    const userEmail = employeeEmail || (userInfo && (userInfo as any).email)
-    const userId = employee.additionalProperties?.userId || employee.id || ''
-
-    if (!userEmail) {
-      notification.error({
-        message: 'Cannot start chat',
-        description: 'No email address associated with this employee',
-        className: 'employee-chat-error-notification',
-        placement: 'bottomRight'
-      })
-      return
-    }
-
-    // Call will succeed even if email is undefined (will use userId as fallback)
-    openChatWithUser(userId, userEmail)
-  }, [employee, userInfo, employeeEmail, openChatWithUser, t])
-
-  const handleAudioCall = useCallback(() => {
-    // Use the email from GraphQL response if available, fallback to userInfo
-    const userEmail = employeeEmail || (userInfo && (userInfo as any).email)
-    const userId = employee.additionalProperties?.userId || employee.id || ''
-
-    if (!userEmail) {
-      notification.error({
-        message: 'Cannot start audio call',
-        description: 'No email address associated with this employee',
-        className: 'employee-audio-call-error-notification',
-        placement: 'bottomRight'
-      })
-      return
-    }
-
-    // Call will succeed even if email is undefined (will use userId as fallback)
-    openAudioConferenceWithUser(userId, userEmail)
-  }, [employee, userInfo, employeeEmail, openAudioConferenceWithUser, t])
-
-  const handleVideoCall = useCallback(() => {
-    // Use the email from GraphQL response if available, fallback to userInfo
-    const userEmail = employeeEmail || (userInfo && (userInfo as any).email)
-    const userId = employee.additionalProperties?.userId || employee.id || ''
-
-    if (!userEmail) {
-      notification.error({
-        message: 'Cannot start video call',
-        description: 'No email address associated with this employee',
-        className: 'employee-video-call-error-notification'
-      })
-      return
-    }
-
-    // Call will succeed even if email is undefined (will use userId as fallback)
-    openVideoConferenceWithUser(userId, userEmail)
-  }, [employee, userInfo, employeeEmail, openVideoConferenceWithUser, t])
+  const { t } = useTranslation(translations)
 
   const calculateTimeSince = () => {
     if (!employee.workingCondition[0]?.hireDate) return ''
@@ -231,376 +189,190 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
     let result = ''
 
     if (years > 0) {
-      result += `${years} ${years === 1 ? 'year' : 'years'}`
+      result += `${years} ${years === 1 ? t('profile-header-year') : t('profile-header-years')}`
     }
 
     if (months > 0 || years === 0) {
       if (years > 0) result += ' '
-      result += `${months} ${months === 1 ? 'month' : 'months'}`
+      result += `${months} ${months === 1 ? t('profile-header-month') : t('profile-header-months')}`
     }
 
     return result
   }
 
-  // We don't need to manage the profile picture state anymore as EmployeeAvatar handles it
+  const notAssigned = t('employee-record-not-assigned')
+  const na = t('profile-header-na')
 
-  // Update work communications when employee data is loaded
-  useEffect(() => {
-    if (employeeWithComms) {
-      // Set the email directly from the enhanced employee data
-      if (employeeWithComms.email) {
-        setEmployeeEmail(employeeWithComms.email)
+  // Build detail groups for HeaderSlot
+  const detailGroups: HeaderSlotItemGroup[] = useMemo(() => {
+    return [
+      {
+        id: 'contact',
+        items: [
+          {
+            id: 'email',
+            label: t('profile-header-work-email'),
+            value: employeeEmail || na,
+            icon: EnvelopeSimpleIcon,
+            href: employeeEmail ? `mailto:${employeeEmail}` : undefined
+          },
+          {
+            id: 'phone',
+            label: t('profile-header-work-phone'),
+            value: employeePhone ? formatPhoneNumber(employeePhone) : na,
+            icon: PhoneIcon,
+            href: employeePhone ? `tel:${employeePhone}` : undefined
+          }
+        ]
+      },
+      {
+        id: 'organizational',
+        items: [
+          {
+            id: 'organization',
+            label: t('profile-header-organization'),
+            value: employee.employeePosition?.organizationalUnit?.name ?? notAssigned,
+            icon: BuildingsIcon,
+            href: employee.employeePosition?.organizationalUnitId
+              ? `/platform/orgchart/active/organization?organizationUnitId=${employee.employeePosition.organizationalUnitId}`
+              : undefined
+          },
+          {
+            id: 'location',
+            label: t('profile-header-location'),
+            value: employee.employeePosition?.siteLocation?.name || notAssigned,
+            icon: GlobeHemisphereWestIcon,
+            href: employee.employeePosition?.siteLocation?.id
+              ? `/platform/orgchart/active/location?siteLocationId=${employee.employeePosition.siteLocation.id}`
+              : undefined
+          }
+        ]
+      },
+      {
+        id: 'employment',
+        items: [
+          {
+            id: 'manager',
+            label: t('profile-header-manager'),
+            value:
+              employee.employeePosition?.supervisor?.id && employee.employeePosition.supervisor.id !== employee.id
+                ? employee.employeePosition.supervisor.displayName ||
+                  `${employee.employeePosition.supervisor.firstName ?? ''} ${
+                    employee.employeePosition.supervisor.lastName ?? ''
+                  }`.trim() ||
+                  notAssigned
+                : t('profile-header-no-manager'),
+            icon: UserIcon,
+            href:
+              employee.employeePosition?.supervisor?.id && employee.employeePosition.supervisor.id !== employee.id
+                ? `${window.location.pathname}?employeeId=${employee.employeePosition?.supervisor?.id || ''}`
+                : undefined
+          },
+          {
+            id: 'jobPosition',
+            label: t('profile-header-job-position'),
+            value: employee.employeePosition?.jobPosition?.name ?? notAssigned,
+            icon: MapPinIcon
+          },
+          {
+            id: 'costCenter',
+            label: t('profile-header-cost-center'),
+            value: employee.employeePosition?.costCenter?.name ?? notAssigned,
+            icon: CurrencyDollarIcon,
+            href: employee.employeePosition?.costCenter?.id
+              ? `/platform/orgchart/active/finance?costCenterDataId=${employee.employeePosition.costCenter.id}`
+              : undefined
+          },
+          {
+            id: 'hireDate',
+            label: t('profile-header-hire-date'),
+            value: employee.workingCondition[0]?.hireDate
+              ? `${dayjs(employee.workingCondition[0].hireDate).format('MMM D, YYYY')} - ${calculateTimeSince()}`
+              : na,
+            icon: CalendarIcon
+          }
+        ]
       }
-    }
-  }, [employeeWithComms])
+    ]
+  }, [employee, employeeEmail, employeePhone, t, notAssigned, na])
 
   return (
     <div className="gba:w-full gba:relative">
-      <div className="gba:relative gba:pb-4 gba:mt-4 gba:flex gba:flex-col gba:md:flex-row gba:md:items-end">
-        <div className="gba:flex gba:flex-col gba:items-center">
-          <div className="gba:flex gba:flex-col gba:items-center">
-            <div className="gba:shrink-0 gba:mb-4 gba:z-10">
-              <div className="gba:relative">
-                <div className="gba:relative">
-                  {/* Use the Avatar component */}
-                  <div className="gba:relative gba:group" style={{ width: '144px', height: '144px' }}>
-                    <Avatar
-                      src={employee.pictureThumbnail ? `data:image/gif;base64,${employee.pictureThumbnail}` : undefined}
-                      initials={`${employee.firstName?.[0] || ''}${employee.lastName?.[0] || ''}`}
-                      alt={`${employee.firstName} ${employee.lastName}`}
-                      // @ts-expect-error - Type issue in gravity-ui-catalog for contentType
-                      contentType={employee.pictureThumbnail ? 'image' : 'initials'}
-                      // @ts-expect-error - Type issue in gravity-ui-catalog for size
-                      size="xl"
-                      // @ts-expect-error - Type issue in gravity-ui-catalog for shape
-                      shape="rounded"
-                      // @ts-expect-error - Type issue in gravity-ui-catalog for appearance
-                      appearance="gradient"
-                      style={{
-                        width: '144px',
-                        height: '144px',
-                        fontSize: '3rem'
-                      }}
-                    />
+      {/* Detail Groups using HeaderSlot */}
+      <HeaderSlot headerSlotItemGroups={detailGroups} orientation="vertical" />
 
-                    {/* Edit button overlay */}
-                    <AppAction
-                      mode="trigger"
-                      data-testid="employee-profile-picture-edit-button"
-                      contexts={[
-                        { context: FlowContextName.employeeProfilePicture, contextData: { employeeId: employee?.id } }
-                      ]}
-                      prefixDataTestId="employee-profile-picture-edit"
-                      autoExecute={true}
-                      accessToken={accessToken}
-                      emptyState="hide"
-                      className="gba:absolute gba:inset-0 gba:rounded-xl gba:flex gba:items-center gba:justify-center gba:opacity-0 gba:bg-black/60 gba:text-white gba:group-hover:opacity-100 gba:transition-opacity gba:transition-duration-200 gba:transition-ease-in-out gba:cursor-pointer"
-                    >
-                      <div className="gba:p-4 gba:flex gba:flex-col gba:items-center gba:gap-2">
-                        <PiCameraFill className="gba:h-6 gba:w-6" />
-                        <span className="gba:text-xs gba:font-semibold gba:uppercase gba:text-center">
-                          {tDesign('employee-edit-picture')}
-                        </span>
-                      </div>
-                    </AppAction>
-                  </div>
-                </div>
-
-                {/* Communication Actions - Only visible when viewing someone else's profile */}
-                {!isSelfView && (
-                  <div className="gba:mt-3 gba:flex gba:justify-center gba:gap-3" data-testid="communication-buttons">
-                    {loading ? (
-                      <div className="gba:text-xs gba:text-muted-foreground" data-testid="loading-communications">
-                        Loading communications...
-                      </div>
-                    ) : (
-                      <>
-                        <button
-                          onClick={handleChat}
-                          className="gba:bg-muted gba:hover:bg-info-secondary gba:rounded-full gba:p-2.5 gba:shadow-sm gba:transition-colors"
-                          title="Chat"
-                          aria-label="Chat"
-                          data-testid="employee-chat-button"
-                        >
-                          <PiChat className="gba:h-5 gba:w-5" />
-                        </button>
-                        <button
-                          onClick={handleAudioCall}
-                          className="gba:bg-muted gba:hover:bg-info-secondary gba:rounded-full gba:p-2.5 gba:shadow-sm gba:transition-colors"
-                          title="Audio Call"
-                          aria-label="Audio Call"
-                          data-testid="employee-audio-call-button"
-                        >
-                          <PiPhone className="gba:h-5 gba:w-5" />
-                        </button>
-                        <button
-                          onClick={handleVideoCall}
-                          className="gba:bg-muted gba:hover:bg-info-secondary gba:rounded-full gba:p-2.5 gba:shadow-sm gba:transition-colors"
-                          title="Video Call"
-                          aria-label="Video Call"
-                          data-testid="employee-video-call-button"
-                        >
-                          <PiVideoCamera className="gba:h-5 gba:w-5" />
-                        </button>
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
+      {/* Teams, Capabilities and Skills */}
+      <div className="gba:w-full gba:mt-6" data-testid="skills-capabilities-container">
+        {/* Teams Section - if available */}
+        {employee.employeePosition?.matrixUnitEmployees && employee.employeePosition.matrixUnitEmployees.length > 0 && (
+          <div className="gba:mb-4">
+            <div className="gba:text-sm gba:font-semibold gba:text-foreground gba:mb-2">
+              {t('profile-header-teams')}
             </div>
-
-            {/* Profile Info */}
-            <div className="gba:grow gba:text-center">
-              <div className="gba:text-xl gba:font-bold gba:mb-1 gba:text-foreground" data-testid="employee-name">
-                {getEmployeeFullName(employee)}
-              </div>
-              <p className="gba:text-muted-foreground gba:mb-4 gba:text-sm">
-                {employee.employeePosition?.jobPosition?.name ??
-                  getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:employee_profile.left_side_bar.not_assigned',
-                    'Not assigned'
-                  )}
-              </p>
-
-              {/* Profile Info Grid */}
-              <div className="gba:grid gba:grid-cols-1 gba:gap-4 gba:w-full gba:mt-3 gba:text-left">
-                {/* Organization */}
-                <ProfileInfoItem
-                  icon={<PiBuildings className="gba:h-4 gba:w-4" />}
-                  className="gba:text-info"
-                  label={'Organization'}
-                  value={
-                    employee.employeePosition?.organizationalUnit?.name ??
-                    getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:employee_profile.left_side_bar.not_assigned',
-                      'Not assigned'
-                    )
-                  }
-                  linkTo={
-                    employee.employeePosition?.organizationalUnitId
-                      ? `/platform/orgchart/active/organization?organizationUnitId=${employee.employeePosition.organizationalUnitId}`
-                      : undefined
-                  }
+            <div className="gba:flex gba:flex-wrap gba:gap-2">
+              {employee.employeePosition.matrixUnitEmployees.map((teamItem: MatrixUnitEmployee, index: number) => (
+                <TagItem
+                  key={teamItem.matrixUnit?.id || `team-${index}`}
+                  icon={<TeamOutlined className="gba:h-4 gba:w-4 gba:text-muted-foreground" />}
+                  label={teamItem.matrixUnit.name}
+                  bgColorClass="gba:bg-info-secondary"
+                  textColorClass="gba:text-info"
+                  testId={`team-${teamItem.matrixUnit.id}`}
                 />
-
-                {/* Location */}
-                <ProfileInfoItem
-                  data-testid="employee-location-info"
-                  icon={<PiGlobeHemisphereWest className="gba:h-4 gba:w-4" />}
-                  className="gba:text-info"
-                  label={'Location'}
-                  value={
-                    employee.employeePosition?.siteLocation?.name ||
-                    getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:employee_profile.left_side_bar.not_assigned',
-                      'Not assigned'
-                    )
-                  }
-                  linkTo={
-                    employee.employeePosition?.siteLocation?.id
-                      ? `/platform/orgchart/active/location?siteLocationId=${employee.employeePosition.siteLocation.id}`
-                      : undefined
-                  }
-                />
-                {/* Email */}
-                <ProfileInfoItem
-                  icon={<PiEnvelopeSimple className="gba:h-4 gba:w-4" />}
-                  className="gba:text-info"
-                  label={'Work Email'}
-                  value={employeeWithComms?.email ? employeeWithComms.email : 'N/A'}
-                  linkTo={employeeWithComms?.email ? `mailto:${employeeWithComms.email}` : undefined}
-                  data-testid="employee-email-info"
-                />
-
-                <ProfileInfoItem
-                  icon={<PiPhone className="gba:h-4 gba:w-4" />}
-                  className="gba:text-info"
-                  label={'Work Phone'}
-                  value={employeeWithComms?.phone ? formatPhoneNumber(employeeWithComms.phone) : 'N/A'}
-                  linkTo={employeeWithComms?.phone ? `tel:${employeeWithComms.phone}` : undefined}
-                  data-testid="employee-phone-info"
-                />
-
-                {/* Manager */}
-                <ProfileInfoItem
-                  icon={<PiUser className="gba:h-4 gba:w-4" />}
-                  className="gba:text-info"
-                  label={'Manager'}
-                  value={
-                    employee.employeePosition?.supervisor?.id && employee.employeePosition.supervisor.id !== employee.id
-                      ? employee.employeePosition.supervisor.displayName ||
-                        `${employee.employeePosition.supervisor.firstName ?? ''} ${
-                          employee.employeePosition.supervisor.lastName ?? ''
-                        }`.trim() ||
-                        getTranslationFromI18nKeyAndLabel(
-                          'lowcoder:employee_profile.left_side_bar.not_assigned',
-                          'Not assigned'
-                        )
-                      : 'No manager'
-                  }
-                  linkTo={
-                    employee.employeePosition?.supervisor?.id && employee.employeePosition.supervisor.id !== employee.id
-                      ? `${window.location.pathname}?employeeId=${employee.employeePosition?.supervisor?.id || ''}`
-                      : undefined
-                  }
-                />
-                {/* Job Position */}
-                <ProfileInfoItem
-                  icon={<PiMapPin className="gba:h-4 gba:w-4" />}
-                  label={'Job Position'}
-                  value={
-                    employee.employeePosition?.jobPosition?.name ??
-                    getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:employee_profile.left_side_bar.not_assigned',
-                      'Not assigned'
-                    )
-                  }
-                  //linkTo={employee.employeePosition?.siteLocation?.id ? `/orgchart/active/location?siteLocationId=${employee.employeePosition.siteLocation.id}` : undefined}
-                />
-                {/* Cost Center */}
-                <ProfileInfoItem
-                  icon={<PiCurrencyDollar className="gba:h-4 gba:w-4" />}
-                  className="gba:text-info"
-                  label={'Cost Center'}
-                  value={
-                    employee.employeePosition?.costCenter?.name ??
-                    getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:employee_profile.left_side_bar.not_assigned',
-                      'Not assigned'
-                    )
-                  }
-                  linkTo={
-                    employee.employeePosition?.costCenter?.id
-                      ? `/platform/orgchart/active/finance?costCenterDataId=${employee.employeePosition.costCenter.id}`
-                      : undefined
-                  }
-                />
-                {/* Hire Date */}
-                <ProfileInfoItem
-                  icon={<PiCalendar className="gba:h-4 gba:w-4" />}
-                  label={'Hire Date'}
-                  value={
-                    employee.workingCondition[0]?.hireDate
-                      ? `${dayjs(employee.workingCondition[0].hireDate).format(
-                          'MMM D, YYYY'
-                        )} - ${calculateTimeSince()}`
-                      : 'N/A'
-                  }
-                />
-                {/* Fixed Term until */}
-                <ProfileInfoItem
-                  icon={<PiCalendar className="gba:h-4 gba:w-4" />}
-                  label={'Fixed Term until'}
-                  value={
-                    employee.workingCondition[0]?.exitDate
-                      ? dayjs(employee.workingCondition[0].exitDate).format('MMM D, YYYY')
-                      : 'N/A'
-                  }
-                />
-              </div>
-
-              {/* Teams, Capabilities and Skills (scroll with the left column) */}
-              <div className="gba:w-full" data-testid="skills-capabilities-container">
-                {/* Teams Section - if available */}
-                {employee.employeePosition?.matrixUnitEmployees &&
-                  employee.employeePosition.matrixUnitEmployees.length > 0 && (
-                    <div className="gba:mt-4">
-                      <div className="gba:flex gba:items-start gba:p-1">
-                        <div className="gba:flex-1">
-                          <div className="gba:text-sm gba:font-semibold gba:text-foreground gba:text-left">Teams</div>
-                          <div className="gba:text-sm gba:text-foreground">
-                            <div className="gba:flex gba:flex-wrap gba:gap-2 gba:mt-1">
-                              {employee.employeePosition.matrixUnitEmployees.map(
-                                (teamItem: MatrixUnitEmployee, index: number) => (
-                                  <TagItem
-                                    key={teamItem.matrixUnit?.id || `team-${index}`}
-                                    icon={<TeamOutlined className="gba:h-4 gba:w-4 gba:text-muted-foreground" />}
-                                    label={teamItem.matrixUnit.name}
-                                    bgColorClass="gba:bg-info-secondary"
-                                    textColorClass="gba:text-info"
-                                    testId={`team-${teamItem.matrixUnit.id}`}
-                                  />
-                                )
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                {/* Capabilities Section - always displayed */}
-                <div className="gba:mt-4" data-testid="capabilities-section">
-                  <div className="gba:flex gba:items-start">
-                    <div className="gba:flex-1">
-                      <div className="gba:text-sm gba:font-semibold gba:text-foreground gba:text-left">
-                        Capabilities
-                      </div>
-                      <div className="gba:text-sm gba:text-foreground">
-                        <div className="gba:flex gba:flex-wrap gba:gap-2 gba:mt-1">
-                          {employee.employeePosition?.employeeCapabilities &&
-                          employee.employeePosition.employeeCapabilities.filter(cap => cap.capability).length > 0 ? (
-                            employee.employeePosition.employeeCapabilities
-                              .filter(capItem => capItem.capability)
-                              .map((capItem: EmployeeCapability, index: number) => (
-                                <TagItem
-                                  key={capItem.capability?.id || `capability-${index}`}
-                                  icon={<PiBookmarks className="gba:h-4 gba:w-4 gba:text-muted-foreground" />}
-                                  label={capItem.capability!.name}
-                                  bgColorClass="gba:bg-success-secondary"
-                                  textColorClass="gba:text-success"
-                                  testId={`capability-${capItem.capability!.id}`}
-                                />
-                              ))
-                          ) : (
-                            <span
-                              className="gba:text-muted-foreground gba:text-sm gba:text-left gba:block"
-                              data-testid="no-capabilities-message"
-                            >
-                              No capabilities assigned
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Skills Section - always displayed */}
-                <div className="gba:mt-4" data-testid="skills-section">
-                  <div className="gba:flex gba:items-start">
-                    <div className="gba:flex-1">
-                      <div className="gba:text-sm gba:font-semibold gba:text-foreground gba:text-left">Skills</div>
-                      <div className="gba:text-sm gba:text-foreground">
-                        <div className="gba:flex gba:flex-wrap gba:gap-2 gba:mt-1">
-                          {employee.skills?.filter(skill => skill.skill).length > 0 ? (
-                            employee.skills
-                              .filter(skillItem => skillItem.skill)
-                              .map((skillItem: EmployeeSkill, index: number) => (
-                                <TagItem
-                                  key={skillItem.skill?.id || `skill-${index}`}
-                                  icon={<StarIcon className="gba:h-4 gba:w-4 gba:text-muted-foreground" />}
-                                  label={skillItem.skill.name}
-                                  bgColorClass="gba:bg-info-secondary"
-                                  textColorClass="gba:text-info"
-                                  testId={`skill-${skillItem.skill.id}`}
-                                />
-                              ))
-                          ) : (
-                            <span
-                              className="gba:text-muted-foreground gba:text-sm gba:text-left gba:block"
-                              data-testid="no-skills-message"
-                            >
-                              No skills assigned
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              ))}
             </div>
+          </div>
+        )}
+
+        {/* Capabilities Section - always displayed */}
+        <div className="gba:mb-4" data-testid="capabilities-section">
+          <div className="gba:text-sm gba:font-semibold gba:text-foreground gba:mb-2">
+            {t('profile-header-capabilities')}
+          </div>
+          <div className="gba:flex gba:flex-wrap gba:gap-2">
+            {employee.employeePosition?.employeeCapabilities &&
+            employee.employeePosition.employeeCapabilities.filter(cap => cap.capability).length > 0 ? (
+              employee.employeePosition.employeeCapabilities
+                .filter(capItem => capItem.capability)
+                .map((capItem: EmployeeCapability, index: number) => {
+                  const capabilityId = capItem.capability?.id || `capability-${index}`
+                  return (
+                    <Badge key={capabilityId} variant="secondary" data-testid={`capability-${capabilityId}`}>
+                      <BookmarksIcon className="gba:h-4 gba:w-4 gba:mr-1" size={16} />
+                      {capItem.capability?.name}
+                    </Badge>
+                  )
+                })
+            ) : (
+              <span className="gba:text-muted-foreground gba:text-sm" data-testid="no-capabilities-message">
+                {t('profile-header-no-capabilities')}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Skills Section - always displayed */}
+        <div className="gba:mb-4" data-testid="skills-section">
+          <div className="gba:text-sm gba:font-semibold gba:text-foreground gba:mb-2">{t('profile-header-skills')}</div>
+          <div className="gba:flex gba:flex-wrap gba:gap-2">
+            {employee.skills?.filter(skill => skill.skill).length > 0 ? (
+              employee.skills
+                .filter(skillItem => skillItem.skill)
+                .map((skillItem: EmployeeSkill, index: number) => (
+                  <Badge
+                    key={skillItem.skill?.id || `skill-${index}`}
+                    variant="decorative"
+                    data-testid={`skill-${skillItem.skill.id}`}
+                  >
+                    <StarIcon className="gba:h-4 gba:w-4 gba:mr-1" />
+                    {skillItem.skill.name}
+                  </Badge>
+                ))
+            ) : (
+              <span className="gba:text-muted-foreground gba:text-sm" data-testid="no-skills-message">
+                {t('profile-header-no-skills')}
+              </span>
+            )}
           </div>
         </div>
       </div>

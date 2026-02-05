@@ -1,23 +1,34 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useEmployeeData } from './hooks/useEmployeeData'
 import { useEmployeePermissions } from './hooks/useEmployeePermissions'
 import { useCompensationPermissions } from './components/tabs/compensation/hooks/useCompensationPermissions'
-import ProfileHeader from './components/ProfileHeader'
-import { ScreenBody, Spinner, notification, Tabs } from '@newwork/gravity-ui-catalog'
-import { ProfileLayout } from '@/components/layout/profileLayout'
+import ProfileHeader, { ProfileHeaderActions } from './components/ProfileHeader'
+import {
+  RecordLayout,
+  Avatar,
+  AvatarImage,
+  AvatarFallback,
+  Spinner,
+  toast,
+  useTranslation
+} from '@newwork/nw-design-system'
 import { useScopePermissionCheck } from '@/common/hooks/useScopePermissionCheck'
 import {
-  PiUser,
-  PiBriefcase,
-  PiChartBar,
-  PiCalendar,
-  PiClockCounterClockwise,
-  PiReceipt,
-  PiPackage,
-  PiCurrencyEur
-} from 'react-icons/pi'
+  CameraIcon,
+  UserIcon,
+  BriefcaseIcon,
+  ChartBarIcon,
+  CalendarIcon,
+  ClockCounterClockwiseIcon,
+  ReceiptIcon,
+  PackageIcon,
+  CurrencyEurIcon
+} from '@phosphor-icons/react'
+import { AppAction } from '@/components/app-action/AppAction'
+import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { useEmployeeWorkCommunications } from './hooks/useEmployeeWorkCommunications'
 import SummaryTab from './components/tabs/SummaryTab'
 import AbsencesTab from './components/tabs/AbsencesTab'
 import ServiceRequestsTab from './components/tabs/ServiceRequestsTab'
@@ -26,7 +37,9 @@ import HrGrowthTab from './components/tabs/HrGrowthTab'
 import CompensationTab from './components/tabs/CompensationTab'
 import AssetsTab from './components/tabs/AssetsTab'
 import { BusinessAppContextProps } from '../../../../../common/BusinessAppContext'
-import { getCurrentActiveStructureId, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
+import translations from './_i18n'
+import { getEmployeeFullName } from './utils/formatters'
 import { useFeature } from '@/common/hooks/useFeature'
 import TimeTrackingTab from './components/tabs/TimeTrackingTab'
 import { Feature } from '@/common/types/constants/FeatureHub'
@@ -44,7 +57,7 @@ const TAB_KEYS = {
 
 const getUrlParams = () => {
   if (typeof window === 'undefined') return { tab: null, employeeId: null, subView: null }
-  const searchParams = new URLSearchParams(window.location.search)
+  const searchParams = new URLSearchParams(globalThis.location.search)
   return {
     tab: searchParams.get('tab'),
     employeeId: searchParams.get('employeeId') ?? searchParams.get('id'),
@@ -54,43 +67,37 @@ const getUrlParams = () => {
 
 const LoadingUI = () => (
   <div className="gba:flex gba:justify-center gba:items-center gba:h-full">
-    <Spinner size="small" />
+    <Spinner />
   </div>
 )
 
-const ErrorUI = () => {
+interface ErrorUIProps {
+  title: string
+  message: string
+}
+
+const ErrorUI: React.FC<ErrorUIProps> = ({ title, message }) => {
   React.useEffect(() => {
-    notification.error({
-      message: getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.error.title', 'Error'),
-      description: getTranslationFromI18nKeyAndLabel(
-        'lowcoder:employee_profile.error.loading_data',
-        'Error loading employee data.'
-      ),
-      placement: 'bottomRight'
-    })
-  }, [])
+    toast.error(message)
+  }, [message])
 
   return (
     <div className="gba:flex gba:justify-center gba:items-center gba:h-full gba:text-destructive">
-      <p className="gba:text-xl gba:font-medium">
-        {getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.error.title', 'Error')}
-      </p>
-      <p>
-        {getTranslationFromI18nKeyAndLabel(
-          'lowcoder:employee_profile.error.loading_data',
-          'Error loading employee data.'
-        )}
-      </p>
+      <p className="gba:text-xl gba:font-medium">{title}</p>
+      <p>{message}</p>
     </div>
   )
 }
 
-const NotFoundUI = () => (
+interface NotFoundUIProps {
+  title: string
+  message: string
+}
+
+const NotFoundUI: React.FC<NotFoundUIProps> = ({ title, message }) => (
   <div className="gba:flex gba:justify-center gba:items-center gba:h-full gba:text-muted-foreground">
-    <p className="gba:text-xl gba:font-medium">
-      {getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.not_found.title', 'Not Found')}
-    </p>
-    <p>{getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.not_found.message', 'Employee not found.')}</p>
+    <p className="gba:text-xl gba:font-medium">{title}</p>
+    <p>{message}</p>
   </div>
 )
 
@@ -102,11 +109,11 @@ export const EmployeeRecord: React.FC<BusinessAppContextProps> = props => {
 
   const updateUrlWithSubView = (targetTab: string, subView: string) => {
     if (typeof window !== 'undefined') {
-      const searchParams = new URLSearchParams(window.location.search)
+      const searchParams = new URLSearchParams(globalThis.location.search)
       searchParams.set('tab', targetTab)
       searchParams.set('subView', subView)
-      const newUrl = `${window.location.pathname}?${searchParams.toString()}`
-      window.history.replaceState({}, '', newUrl)
+      const newUrl = `${globalThis.location.pathname}?${searchParams.toString()}`
+      globalThis.history.replaceState({}, '', newUrl)
     }
   }
 
@@ -183,11 +190,13 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
   userInfo,
   additionalData
 }) => {
+  const { t } = useTranslation(translations)
   const [activeTab, setActiveTab] = useState(initialActiveTab)
   const activeStructureId = getCurrentActiveStructureId() || ''
   const devFeatureFlag = useFeature(Feature.Dev.Enabled.Key)
   const changeLogFeatureFlag = useFeature('dev.employee-record.changelog.enabled')
   const servicesFeatureFlag = useFeature('services.enabled')
+  const attendanceFeatureFlag = useFeature('human-resources.attendance.enabled')
   const compensationFeatureFlagRaw = useFeature<boolean>(Feature.HCM.Compensation.Key)
 
   // Handle undefined as true (enabled by default until FeatureHub loads)
@@ -196,7 +205,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
   useEffect(() => {
     if (typeof window === 'undefined') return
 
-    const searchParams = new URLSearchParams(window.location.search)
+    const searchParams = new URLSearchParams(globalThis.location.search)
     searchParams.set('tab', activeTab)
 
     if (activeTab !== TAB_KEYS.hrAdmin && activeTab !== TAB_KEYS.hrGrowth && activeTab !== TAB_KEYS.compensation) {
@@ -210,8 +219,8 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
       searchParams.delete('id')
     }
 
-    const newUrl = `${window.location.pathname}?${searchParams.toString()}`
-    window.history.replaceState({}, '', newUrl)
+    const newUrl = `${globalThis.location.pathname}?${searchParams.toString()}`
+    globalThis.history.replaceState({}, '', newUrl)
   }, [activeTab, employeeIdToShow, currentUserEmployeeId])
 
   const { loading, error, employee, feedback, absenceEntitlements, performanceGoals, refetch } = useEmployeeData(
@@ -229,12 +238,70 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
       }
     }
 
-    window.addEventListener('com.newwork.process.processCompletion', handleProcessCompletion)
+    globalThis.addEventListener('com.newwork.process.processCompletion', handleProcessCompletion)
 
     return () => {
-      window.removeEventListener('com.newwork.process.processCompletion', handleProcessCompletion)
+      globalThis.removeEventListener('com.newwork.process.processCompletion', handleProcessCompletion)
     }
   }, [refetch])
+
+  // Use the hook to fetch employee work communications
+  const { employee: employeeWithComms, loading: commsLoading } = useEmployeeWorkCommunications({
+    accessToken,
+    employeeId: employeeIdToShow || ''
+  })
+
+  // Communication handlers - Open internal chat
+  const handleChat = useCallback(() => {
+    if (!employee?.userId) return
+
+    const userName = getEmployeeFullName(employee)
+
+    globalThis.postMessage(
+      {
+        type: 'OPEN_CHAT_WITH_USER',
+        payload: {
+          userId: employee.userId,
+          userName
+        }
+      },
+      globalThis.location.origin
+    )
+  }, [employee])
+
+  const handleAudioCall = useCallback(() => {
+    if (!employee?.userId) return
+
+    const userName = getEmployeeFullName(employee)
+
+    globalThis.postMessage(
+      {
+        type: 'OPEN_CHAT_WITH_USER',
+        payload: {
+          userId: employee.userId,
+          userName
+        }
+      },
+      globalThis.location.origin
+    )
+  }, [employee])
+
+  const handleVideoCall = useCallback(() => {
+    if (!employee?.userId) return
+
+    const userName = getEmployeeFullName(employee)
+
+    globalThis.postMessage(
+      {
+        type: 'OPEN_CHAT_WITH_USER',
+        payload: {
+          userId: employee.userId,
+          userName
+        }
+      },
+      globalThis.location.origin
+    )
+  }, [employee])
 
   const renderContent = () => {
     if (loading) {
@@ -242,25 +309,104 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
     }
 
     if (error) {
-      return <ErrorUI />
+      return <ErrorUI title={t('employee-record-error-title')} message={t('employee-record-error-loading-data')} />
     }
 
     if (!employee) {
-      return <NotFoundUI />
+      return (
+        <NotFoundUI title={t('employee-record-not-found-title')} message={t('employee-record-not-found-message')} />
+      )
     }
 
+    const chatActions = (
+      <ProfileHeaderActions
+        commsLoading={commsLoading}
+        isSelfView={isSelfView}
+        onChat={handleChat}
+        onAudioCall={handleAudioCall}
+        onVideoCall={handleVideoCall}
+      />
+    )
+
+    // AppAction Button
+    const actionButton = (
+      <AppAction
+        variant="header"
+        data-testid="employee-actions-button"
+        contexts={[
+          {
+            context: FlowContextName.employeeEntity,
+            contextData: {
+              employeeId: employee?.id,
+              managerId: employee?.employeePosition?.supervisor?.id,
+              organizationalUnitId: employee?.employeePosition?.organizationalUnitId
+            }
+          }
+        ]}
+        shareContext={{
+          entityType: 'employee',
+          entityId: employee?.id || '',
+          entityName: getEmployeeFullName(employee),
+          entityUrl: `/platform/hr/employee-record?employeeId=${employee?.id}`
+        }}
+        prefixDataTestId="employee-actions"
+        accessToken={accessToken}
+      />
+    )
+
     return (
-      <div className="gba:employee-profile gba:w-full gba:h-full">
-        <ScreenBody className="gba:h-full gba:w-full">
-          <ProfileLayout
-            headerContent={<ProfileHeader accessToken={accessToken} employee={employee} isSelfView={isSelfView} />}
-            contentHeader={tabNavigation}
-            contentContainer={getTabContent()}
-            headerPlacement="left"
-            className="gba:w-full gba:max-w-full gba:mx-auto gba:px-4"
+      <RecordLayout
+        headerOrientation="vertical"
+        headerActions={chatActions}
+        headerActionButton={actionButton}
+        className="gba:w-full"
+        headerAvatar={
+          <div className="gba:relative gba:group gba:w-[144px] gba:h-[144px]">
+            <Avatar size="2xl" className="gba:!w-[144px] gba:!h-[144px]">
+              {employee.pictureThumbnail ? (
+                <AvatarImage
+                  src={`data:image/gif;base64,${employee.pictureThumbnail}`}
+                  alt={`${employee.firstName} ${employee.lastName}`}
+                />
+              ) : null}
+              <AvatarFallback className="gba:text-5xl">{`${employee.firstName?.[0] || ''}${employee.lastName?.[0] || ''}`}</AvatarFallback>
+            </Avatar>
+            <AppAction
+              mode="trigger"
+              data-testid="employee-profile-picture-edit-button"
+              contexts={[
+                { context: FlowContextName.employeeProfilePicture, contextData: { employeeId: employee?.id } }
+              ]}
+              prefixDataTestId="employee-profile-picture-edit"
+              autoExecute={true}
+              accessToken={accessToken}
+              emptyState="hide"
+              className="gba:absolute gba:inset-0 gba:rounded-full gba:flex gba:items-center gba:justify-center gba:opacity-0 gba:bg-black/60 gba:text-white gba:group-hover:opacity-100 gba:transition-opacity gba:transition-duration-200 gba:transition-ease-in-out gba:cursor-pointer"
+            >
+              <div className="gba:flex gba:flex-col gba:items-center gba:gap-1 gba:px-2">
+                <CameraIcon className="gba:h-6 gba:w-6" size={24} />
+                <span className="gba:text-[11px] gba:font-semibold gba:uppercase gba:text-center gba:leading-tight">
+                  {t('employee-record-edit-picture')}
+                </span>
+              </div>
+            </AppAction>
+          </div>
+        }
+        headerTitle={getEmployeeFullName(employee)}
+        headerSubtitle={employee.employeePosition?.jobPosition?.name ?? t('employee-record-not-assigned')}
+        headerSlotMain={
+          <ProfileHeader
+            accessToken={accessToken}
+            employee={employee}
+            userInfo={userInfo}
+            employeeEmail={employeeWithComms?.email}
+            employeePhone={employeeWithComms?.phone}
           />
-        </ScreenBody>
-      </div>
+        }
+        views={tabItems}
+        defaultView={activeTab}
+        onViewChange={setActiveTab}
+      />
     )
   }
 
@@ -338,36 +484,26 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
 
     const allTabs = [
       {
-        key: TAB_KEYS.summary,
-        label: (
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <PiUser className="gba:text-xl gba:inline-block gba:align-middle" />
-            <span className="gba:inline-block gba:align-middle">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.employee_tabs.summary', 'Summary')}
-            </span>
+        value: TAB_KEYS.summary,
+        label: t('employee-record-tab-summary'),
+        icon: <UserIcon className="gba:mr-2" size={20} />,
+        content: (
+          <div className="gba:col-span-full">
+            <SummaryTab
+              employee={employee}
+              employeeAbsenceEntitlement={absenceEntitlements ?? []}
+              accessToken={accessToken}
+              currentUserEmployeeId={currentUserEmployeeId}
+              userInfo={userInfo}
+            />
           </div>
-        ),
-        children: (
-          <SummaryTab
-            employee={employee}
-            employeeAbsenceEntitlement={absenceEntitlements ?? []}
-            accessToken={accessToken}
-            currentUserEmployeeId={currentUserEmployeeId}
-            userInfo={userInfo}
-          />
         )
       },
       {
-        key: TAB_KEYS.hrAdmin,
-        label: (
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <PiBriefcase className="gba:text-xl gba:inline-block gba:align-middle" />
-            <span className="gba:inline-block gba:align-middle">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.employee_tabs.hr_admin', 'HR Admin')}
-            </span>
-          </div>
-        ),
-        children: (() => {
+        value: TAB_KEYS.hrAdmin,
+        label: t('employee-record-tab-hr-admin'),
+        icon: <BriefcaseIcon className="gba:mr-2" size={20} />,
+        content: (() => {
           let hasHrNotesAccess = false
           if (!scopePermissionLoading && !isSelfView) {
             const hasRegularPermission = tabPermissions?.['hrNotes']?.hasAccess === true
@@ -383,139 +519,118 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
           }
 
           return (
-            <HrAdminTab
+            <div className="gba:col-span-full">
+              <HrAdminTab
+                employee={employee}
+                employeeId={employeeIdToShow}
+                accessToken={accessToken}
+                userInfo={userInfo}
+                isSelfView={isSelfView}
+                changeLogTabFeatureFlag={changeLogFeatureFlag as boolean}
+                hasHrNotesAccess={hasHrNotesAccess}
+                scopePermissionLoading={scopePermissionLoading || employeeRecordHrBackoffice.loading}
+                employeeRecordHrBackoffice={employeeRecordHrBackoffice}
+                additionalData={additionalData}
+              />
+            </div>
+          )
+        })()
+      },
+      {
+        value: TAB_KEYS.hrGrowth,
+        label: t('employee-record-tab-hr-growth'),
+        icon: <ChartBarIcon className="gba:mr-2" size={20} />,
+        content: (
+          <div className="gba:col-span-full">
+            <HrGrowthTab
               employee={employee}
               employeeId={employeeIdToShow}
               accessToken={accessToken}
               userInfo={userInfo}
               isSelfView={isSelfView}
-              changeLogTabFeatureFlag={changeLogFeatureFlag as boolean}
-              hasHrNotesAccess={hasHrNotesAccess}
-              scopePermissionLoading={scopePermissionLoading || employeeRecordHrBackoffice.loading}
-              employeeRecordHrBackoffice={employeeRecordHrBackoffice}
-              additionalData={additionalData}
+              devFeatureFlag={devFeatureFlag as boolean}
+              employeePerformanceGoals={performanceGoals}
+              feedback={feedback}
             />
-          )
-        })()
-      },
-      {
-        key: TAB_KEYS.hrGrowth,
-        label: (
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <PiChartBar className="gba:text-xl gba:inline-block gba:align-middle" />
-            <span className="gba:inline-block gba:align-middle">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:employee_profile.employee_tabs.hr_growth', 'HR Growth')}
-            </span>
           </div>
-        ),
-        children: (
-          <HrGrowthTab
-            employee={employee}
-            employeeId={employeeIdToShow}
-            accessToken={accessToken}
-            userInfo={userInfo}
-            isSelfView={isSelfView}
-            devFeatureFlag={devFeatureFlag as boolean}
-            employeePerformanceGoals={performanceGoals}
-            feedback={feedback}
-          />
         )
       },
       ...(compensationFeatureFlag
         ? [
             {
-              key: TAB_KEYS.compensation,
-              label: (
-                <div className="gba:flex gba:items-center gba:gap-2">
-                  <PiCurrencyEur className="gba:text-xl gba:inline-block gba:align-middle" />
-                  <span className="gba:inline-block gba:align-middle">
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:human_resources_page.analytics_section.compensation_tab_label',
-                      'Compensation'
-                    )}
-                  </span>
+              value: TAB_KEYS.compensation,
+              label: t('employee-record-tab-compensation'),
+              icon: <CurrencyEurIcon className="gba:mr-2" size={20} />,
+              content: (
+                <div className="gba:col-span-full">
+                  <CompensationTab
+                    employeeId={employeeIdToShow}
+                    accessToken={accessToken}
+                    userInfo={userInfo}
+                    compensationFeatureFlag={compensationFeatureFlag as boolean}
+                    employeeRecordHrBackoffice={employeeRecordHrBackoffice}
+                    additionalData={additionalData}
+                    employeeGrowthPermission={employeeGrowthPermission}
+                    employeeRecordAllHrBackoffice={employeeRecordAllHrBackoffice}
+                    compensationPermissions={compensationPermissions}
+                  />
                 </div>
-              ),
-              children: (
-                <CompensationTab
-                  employeeId={employeeIdToShow}
-                  accessToken={accessToken}
-                  userInfo={userInfo}
-                  compensationFeatureFlag={compensationFeatureFlag as boolean}
-                  employeeRecordHrBackoffice={employeeRecordHrBackoffice}
-                  additionalData={additionalData}
-                  employeeGrowthPermission={employeeGrowthPermission}
-                  employeeRecordAllHrBackoffice={employeeRecordAllHrBackoffice}
-                  compensationPermissions={compensationPermissions}
-                />
               )
             }
           ]
         : []),
-      ...(devFeatureFlag
+      ...(attendanceFeatureFlag
         ? [
             {
-              key: TAB_KEYS.timeTracking,
-              label: (
-                <div className="gba:flex gba:items-center gba:gap-2">
-                  <PiClockCounterClockwise className="gba:text-xl gba:inline-block gba:align-middle" />
-                  <span className="gba:inline-block gba:align-middle">
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:time_tracking.title', 'Time Tracking')}
-                  </span>
+              value: TAB_KEYS.timeTracking,
+              label: t('employee-record-tab-time-tracking'),
+              icon: <ClockCounterClockwiseIcon className="gba:mr-2" size={20} />,
+              content: (
+                <div className="gba:col-span-full">
+                  <TimeTrackingTab
+                    employee={employee}
+                    accessToken={accessToken}
+                    employeeId={employeeIdToShow}
+                    userId={userInfo?.id || ''}
+                    isSelfView={isSelfView}
+                  />
                 </div>
-              ),
-              children: (
-                <TimeTrackingTab
-                  employee={employee}
-                  accessToken={accessToken}
-                  employeeId={employeeIdToShow}
-                  userId={userInfo?.id || ''}
-                  isSelfView={isSelfView}
-                />
               )
             }
           ]
         : []),
       {
-        key: TAB_KEYS.absences,
-        label: (
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <PiCalendar className="gba:text-xl gba:inline-block gba:align-middle" />
-            <span className="gba:inline-block gba:align-middle">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.title', 'Absences')}
-            </span>
+        value: TAB_KEYS.absences,
+        label: t('employee-record-tab-absences'),
+        icon: <CalendarIcon className="gba:mr-2" size={20} />,
+        content: (
+          <div className="gba:col-span-full">
+            <AbsencesTab
+              employee={employee}
+              employeeAbsenceEntitlement={absenceEntitlements ?? []}
+              accessToken={accessToken}
+              employeeId={employeeIdToShow}
+              userInfo={userInfo}
+              isSelfView={isSelfView}
+            />
           </div>
-        ),
-        children: (
-          <AbsencesTab
-            employee={employee}
-            employeeAbsenceEntitlement={absenceEntitlements ?? []}
-            accessToken={accessToken}
-            employeeId={employeeIdToShow}
-            userInfo={userInfo}
-            isSelfView={isSelfView}
-          />
         )
       },
       ...(devFeatureFlag
         ? [
             {
-              key: TAB_KEYS.assets,
-              label: (
-                <div className="gba:flex gba:items-center gba:gap-2">
-                  <PiPackage className="gba:text-xl gba:inline-block gba:align-middle" />
-                  <span className="gba:inline-block gba:align-middle">
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.assets_tab', 'Assets')}
-                  </span>
+              value: TAB_KEYS.assets,
+              label: t('employee-record-tab-assets'),
+              icon: <PackageIcon className="gba:mr-2" size={20} />,
+              content: (
+                <div className="gba:col-span-full">
+                  <AssetsTab
+                    employee={employee}
+                    accessToken={accessToken}
+                    employeeId={employeeIdToShow}
+                    isSelfView={isSelfView}
+                  />
                 </div>
-              ),
-              children: (
-                <AssetsTab
-                  employee={employee}
-                  accessToken={accessToken}
-                  employeeId={employeeIdToShow}
-                  isSelfView={isSelfView}
-                />
               )
             }
           ]
@@ -523,33 +638,26 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
       ...(servicesFeatureFlag
         ? [
             {
-              key: TAB_KEYS.serviceRequests,
-              label: (
-                <div className="gba:flex gba:items-center gba:gap-2">
-                  <PiReceipt className="gba:text-xl gba:inline-block gba:align-middle" />
-                  <span className="gba:inline-block gba:align-middle">
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:employee_profile.employee_tabs.service_requests',
-                      'Service Requests'
-                    )}
-                  </span>
+              value: TAB_KEYS.serviceRequests,
+              label: t('employee-record-tab-service-requests'),
+              icon: <ReceiptIcon className="gba:mr-2" size={20} />,
+              content: (
+                <div className="gba:col-span-full">
+                  <ServiceRequestsTab
+                    employee={employee}
+                    accessToken={accessToken}
+                    employeeId={employeeIdToShow}
+                    userInfo={userInfo}
+                    isSelfView={isSelfView}
+                  />
                 </div>
-              ),
-              children: (
-                <ServiceRequestsTab
-                  employee={employee}
-                  accessToken={accessToken}
-                  employeeId={employeeIdToShow}
-                  userInfo={userInfo}
-                  isSelfView={isSelfView}
-                />
               )
             }
           ]
         : [])
     ]
     return allTabs.filter(tab => {
-      const tabKey = tab.key as string
+      const tabKey = tab.value
 
       if (isSelfView) {
         return true
@@ -627,30 +735,13 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
   useEffect(() => {
     if (tabItems.length === 0) return
 
-    const activeTabExists = tabItems.some(tab => tab.key === activeTab)
+    const activeTabExists = tabItems.some(tab => tab.value === activeTab)
 
     if (!activeTabExists) {
-      const firstVisibleTab = tabItems[0]?.key || TAB_KEYS.summary
+      const firstVisibleTab = tabItems[0]?.value || TAB_KEYS.summary
       setActiveTab(firstVisibleTab)
     }
   }, [tabItems, activeTab])
-
-  const tabNavigation = (
-    <Tabs
-      activeKey={activeTab}
-      onChange={setActiveTab}
-      items={tabItems.map(item => ({ key: item.key, label: item.label }))}
-      className="gba:w-full"
-      destroyOnHidden
-    />
-  )
-
-  const getTabContent = () => {
-    const activeTabItem = tabItems.find(tab => tab.key === activeTab)
-    return activeTabItem ? (
-      <div className="gba:bg-primary-foreground gba:p-4 gba:rounded-md">{activeTabItem.children}</div>
-    ) : null
-  }
 
   return renderContent()
 }

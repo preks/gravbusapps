@@ -4,9 +4,8 @@
  */
 
 import React from 'react'
-import { Button, cn, useTranslation } from '@newwork/nw-design-system'
+import { Button, cn, toast, useTranslation } from '@newwork/nw-design-system'
 import { CheckCircle } from 'lucide-react'
-import { message } from 'antd'
 import { UnifiedTask } from '../types'
 import { useScreenManagementApi } from '../hooks/useScreenManagementApi'
 import { RemoteScreenLoader } from './RemoteScreenLoader'
@@ -83,22 +82,18 @@ export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
     task: task ?? emptyTask,
     accessToken,
     onSuccess: () => {
-      message.success({
-        content: t('task-dialog-completed-success'),
-        duration: 3
-      })
-      onClose()
-      onTaskUpdated()
+      toast.success(t('task-dialog-completed-success'))
+      // Call onTaskCompleted first for instant UI feedback (removes from local state)
+      // Don't call onTaskUpdated - it triggers a slow full refetch that's not needed
+      // handleTaskCompleted already calls onCompletedRefresh for background sync
       if (onTaskCompleted && task?.id) {
         onTaskCompleted(task.id)
       }
+      onClose()
     },
     onError: (error: Error) => {
       console.error('Error continuing process:', error)
-      message.error({
-        content: t('task-dialog-complete-error', { error: error.message || 'Unknown error' }),
-        duration: 5
-      })
+      toast.error(t('task-dialog-complete-error', { error: error.message || 'Unknown error' }))
     }
   })
 
@@ -132,25 +127,25 @@ export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
           })
 
           if (response.ok) {
-            message.success(t('task-dialog-completed-success'))
-            onClose()
-            onTaskUpdated()
+            toast.success(t('task-dialog-completed-success'))
+            // Call onTaskCompleted first for instant UI feedback
             if (onTaskCompleted && task.id) {
               onTaskCompleted(task.id)
             }
+            onClose()
           } else {
             throw new Error('Failed to complete task')
           }
         } catch (error) {
           console.error('Failed to complete cFlow task:', error)
-          message.error(t('task-dialog-action-failed'))
+          toast.error(t('task-dialog-action-failed'))
         }
       } else {
-        onClose()
-        onTaskUpdated()
+        // Call onTaskCompleted first for instant UI feedback
         if (onTaskCompleted && task?.id) {
           onTaskCompleted(task.id)
         }
+        onClose()
       }
     }
 
@@ -325,7 +320,7 @@ export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
 
   const handleCompleteBlinkTask = async () => {
     if (!task?.id || !userId) {
-      message.error(t('task-dialog-missing-user-info'))
+      toast.error(t('task-dialog-missing-user-info'))
       return
     }
 
@@ -353,23 +348,18 @@ export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
         throw new Error(errorData.error || 'Failed to complete task')
       }
 
-      message.success({
-        content: t('task-dialog-blink-completed-success'),
-        duration: 3
-      })
+      toast.success(t('task-dialog-blink-completed-success'))
 
+      // Call onTaskCompleted first for instant UI feedback (removes from local state)
+      // Don't call onTaskUpdated - it triggers a slow full refetch that's not needed
       if (onTaskCompleted && task.id) {
         onTaskCompleted(task.id)
       }
 
-      onTaskUpdated()
       onClose()
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error'
-      message.error({
-        content: t('task-dialog-complete-error', { error: errorMessage }),
-        duration: 5
-      })
+      toast.error(t('task-dialog-complete-error', { error: errorMessage }))
     } finally {
       setIsCompleting(false)
     }
@@ -434,12 +424,12 @@ export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
   }
 
   return (
-    <div className={cn('gba:h-full gba:flex gba:flex-col', className)} data-testid="task-detail-content">
+    <div className={cn('gba:flex-1 gba:flex gba:flex-col gba:min-h-0', className)} data-testid="task-detail-content">
       <div
         className={cn(
           'gba:flex-1 gba:min-h-0',
           screenMetadata?.builderType === 'NATIVE_SCREEN'
-            ? 'gba:overflow-y-auto'
+            ? 'gba:overflow-hidden gba:flex gba:flex-col'
             : task.source === 'cflow' && !screenMetadata && !loadingScreen
               ? 'gba:overflow-hidden gba:flex gba:flex-col'
               : 'gba:overflow-y-auto'

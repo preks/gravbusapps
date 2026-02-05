@@ -212,13 +212,16 @@ export function useEntityDataSource(options: UseEntityDataSourceOptions): UseEnt
 
       // Handle different response formats
       let entities: Record<string, any> | any[] = {}
-      
+
       if (Array.isArray(data)) {
         // If response is an array, convert to object
-        entities = data.reduce((acc, entity) => {
-          acc[entity.type || entity.name] = entity
-          return acc
-        }, {} as Record<string, any>)
+        entities = data.reduce(
+          (acc, entity) => {
+            acc[entity.type || entity.name] = entity
+            return acc
+          },
+          {} as Record<string, any>
+        )
       } else if (data.entities) {
         entities = data.entities
       } else if (data.schemas) {

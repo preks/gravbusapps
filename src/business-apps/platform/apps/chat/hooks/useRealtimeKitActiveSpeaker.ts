@@ -45,8 +45,8 @@ export const useRealtimeKitActiveSpeaker = ({
    * Subscribe to active speaker events
    */
   useEffect(() => {
+    // Early return if not in an active call - this is expected on page load
     if (!meeting?.participants) {
-      rtkDebug.warn('[RTK Active Speaker] Cannot attach listener: no meeting.participants')
       return
     }
 

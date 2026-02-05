@@ -172,6 +172,9 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
             selectedEndDate={selectedEndDate}
             setSelectedEndDate={setSelectedEndDate}
             holidayDates={holidayDates}
+            employeeAbsenceEntitlement={employeeAbsenceEntitlement}
+            employee={employee}
+            accessToken={accessToken}
           />
         </div>
       )

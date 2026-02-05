@@ -214,6 +214,15 @@ export const createContactDescriptors = (
     optionDistinctOn: [fields.department],
     kind: 'inIds'
   },
+  {
+    key: 'jobPositions',
+    path: fields.jobPosition,
+    filterLabel: 'Job Position',
+    optionSelectPaths: [`${fields.jobPosition}`],
+    optionSearchPaths: [`${fields.jobPosition}`],
+    optionDistinctOn: [fields.jobPosition],
+    kind: 'inIds'
+  },
 
   {
     key: 'languageIds',

@@ -7,6 +7,7 @@ import {
   DialogDescription,
   Button,
   Input,
+  DateInput,
   Label,
   Checkbox,
   Combobox,
@@ -15,7 +16,7 @@ import {
 } from '@newwork/nw-design-system'
 
 export type FrequencyType = 'Annual' | 'Quarterly' | 'Custom'
-export type ParticipantType = 'Self' | 'Peer' | 'Manager' | 'Calibration' | 'Team'
+export type ParticipantType = 'Self' | 'Peer' | 'Manager'
 
 export interface EvaluationStage {
   id: string
@@ -25,6 +26,7 @@ export interface EvaluationStage {
 
 export interface CycleEditorValues {
   id?: string
+  version?: number
   name: string
   startDate: string
   endDate: string
@@ -33,36 +35,64 @@ export interface CycleEditorValues {
   stages: EvaluationStage[]
   ratingScaleId?: string
   valueIds?: string[]
+  /** Raw API participants with id/version for updates */
+  _apiParticipants?: Array<{
+    id: string
+    version: number | null
+    participantType: string | null
+    enabled: boolean | null
+  }>
+  /** Raw API company values with id/version for updates */
+  _apiCompanyValues?: Array<{ id: string; version: number | null; companyValueId: string | null }>
 }
 
 const frequencyOptions: FrequencyType[] = ['Annual', 'Quarterly', 'Custom']
-const participantOptions: ParticipantType[] = ['Self', 'Peer', 'Manager', 'Team']
+const participantOptions: ParticipantType[] = ['Self', 'Peer', 'Manager']
 
 // Stages are managed outside this modal; no stage templates here.
 
 // (no-op helper previously used for stages removed)
 import translations from './_i18n'
 
+/** Value option for the cycle editor (from API; id, title, active). */
+export interface CycleEditorValueOption {
+  id: string
+  title: string
+  active?: boolean
+}
+
 interface CycleEditorModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onSave: (values: CycleEditorValues) => void
   initialValues?: CycleEditorValues
+  /** Values for the Valori dropdown (from DB). When provided, localStorage is not used. */
+  availableValues?: CycleEditorValueOption[]
 }
 
-export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({ open, onOpenChange, onSave, initialValues }) => {
+function defaultParticipantsState(initialValues?: CycleEditorValues): Record<ParticipantType, boolean> {
+  return {
+    Self: initialValues?.participants?.includes('Self') ?? true,
+    Peer: initialValues?.participants?.includes('Peer') ?? true,
+    Manager: initialValues?.participants?.includes('Manager') ?? true
+  }
+}
+
+export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
+  open,
+  onOpenChange,
+  onSave,
+  initialValues,
+  availableValues: availableValuesProp = []
+}) => {
   const { t } = useTranslation(translations)
   const [name, setName] = useState(initialValues?.name || '')
   const [startDate, setStartDate] = useState(initialValues?.startDate || '')
   const [endDate, setEndDate] = useState(initialValues?.endDate || '')
   const [frequency, setFrequency] = useState<FrequencyType>(initialValues?.frequency || 'Annual')
-  const [participantsState, setParticipantsState] = useState<Record<ParticipantType, boolean>>({
-    Self: initialValues?.participants?.includes('Self') ?? true,
-    Peer: initialValues?.participants?.includes('Peer') ?? true,
-    Manager: initialValues?.participants?.includes('Manager') ?? true,
-    Calibration: false,
-    Team: initialValues?.participants?.includes('Team') ?? true
-  })
+  const [participantsState, setParticipantsState] = useState<Record<ParticipantType, boolean>>(() =>
+    defaultParticipantsState(initialValues)
+  )
   const initialStages: EvaluationStage[] = initialValues?.stages ?? []
 
   // Rating scales (managed in Rating Scales tab)
@@ -71,36 +101,81 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({ open, onOpen
   const [availableScales, setAvailableScales] = useState<RatingScale[]>([])
   const [selectedScaleId, setSelectedScaleId] = useState<string | undefined>(initialValues?.ratingScaleId)
 
-  // Values (managed in Values tab)
-  const VALUES_STORAGE_KEY = 'hr.performance.values.v1'
-  type LocalValue = { id: string; title: string; description: string; active: boolean }
-  const [availableValues, setAvailableValues] = useState<LocalValue[]>([])
+  // Values: from prop (real data from DB via parent's valuesStore)
   const [selectedValueIds, setSelectedValueIds] = useState<string[]>(initialValues?.valueIds ?? [])
+  const availableValues = availableValuesProp
 
-  // Auto-calc end date based on start date and selected frequency (Annual = +12 months, Quarterly = +3 months).
+  // Populate form when modal opens: from initialValues (edit) or empty (create)
   useEffect(() => {
-    if (!startDate) return
-    if (frequency === 'Custom') return
-    const parts = startDate.split('-')
-    if (parts.length !== 3) return
-    const y = Number(parts[0])
-    const m = Number(parts[1]) // 1-12
-    const d = Number(parts[2])
-    if (Number.isNaN(y) || Number.isNaN(m) || Number.isNaN(d)) return
+    if (!open) return
+    if (initialValues) {
+      setName(initialValues.name || '')
+      setStartDate(initialValues.startDate || '')
+      setEndDate(initialValues.endDate || '')
+      setFrequency(initialValues.frequency || 'Annual')
+      setParticipantsState(defaultParticipantsState(initialValues))
+      setSelectedScaleId(initialValues.ratingScaleId)
+      setSelectedValueIds(initialValues.valueIds ?? [])
+    } else {
+      setName('')
+      setStartDate('')
+      setEndDate('')
+      setFrequency('Annual')
+      setParticipantsState(defaultParticipantsState())
+      setSelectedScaleId(undefined)
+      setSelectedValueIds([])
+    }
+  }, [open])
 
+  /** Parse date string in YYYY-MM-DD, ISO datetime (YYYY-MM-DDTHH:mm:...), or MM/DD/YYYY to { y, m, d }. */
+  const parseStartDate = (dateStr: string): { y: number; m: number; d: number } | null => {
+    if (!dateStr?.trim()) return null
+    const s = dateStr.trim()
+    // ISO datetime from DateInput with outputFormat="iso": take date part only
+    const datePart = s.includes('T') ? s.split('T')[0].trim() : s
+    const byDash = datePart.split('-')
+    const bySlash = s.split('/')
+    if (byDash.length === 3) {
+      const y = Number(byDash[0])
+      const m = Number(byDash[1])
+      const d = Number(byDash[2])
+      if (!Number.isNaN(y) && !Number.isNaN(m) && !Number.isNaN(d)) return { y, m, d }
+    }
+    if (bySlash.length === 3 && !s.includes('T')) {
+      const a = Number(bySlash[0])
+      const b = Number(bySlash[1])
+      const c = Number(bySlash[2])
+      if (Number.isNaN(a) || Number.isNaN(b) || Number.isNaN(c)) return null
+      // MM/DD/YYYY (US) when first part <= 12; else DD/MM/YYYY
+      const m = a <= 12 ? a : b
+      const d = a <= 12 ? b : a
+      const y = c
+      if (m >= 1 && m <= 12 && d >= 1 && d <= 31) return { y, m, d }
+    }
+    return null
+  }
+
+  /** Compute end date from { y, m, d } and frequency (Annual +12 months, Quarterly +3). */
+  const computeEndDateFromStart = (parsed: { y: number; m: number; d: number }, freq: FrequencyType): string | null => {
     let addMonths = 0
-    if (frequency === 'Annual') addMonths = 12
-    else if (frequency === 'Quarterly') addMonths = 3
-    else return
-
-    const totalMonths = y * 12 + (m - 1) + addMonths
+    if (freq === 'Annual') addMonths = 12
+    else if (freq === 'Quarterly') addMonths = 3
+    else return null
+    const totalMonths = parsed.y * 12 + (parsed.m - 1) + addMonths
     const newYear = Math.floor(totalMonths / 12)
-    const newMonthZeroBased = totalMonths % 12 // 0-11
+    const newMonthZeroBased = totalMonths % 12
     const daysInNewMonth = new Date(newYear, newMonthZeroBased + 1, 0).getDate()
-    const newDay = Math.min(d, daysInNewMonth)
+    const newDay = Math.min(parsed.d, daysInNewMonth)
     const pad2 = (n: number) => n.toString().padStart(2, '0')
-    const computed = `${newYear.toString().padStart(4, '0')}-${pad2(newMonthZeroBased + 1)}-${pad2(newDay)}`
-    setEndDate(computed)
+    return `${newYear.toString().padStart(4, '0')}-${pad2(newMonthZeroBased + 1)}-${pad2(newDay)}`
+  }
+
+  // Auto-calc end date when start date or frequency changes (e.g. from useEffect or when user changes frequency).
+  useEffect(() => {
+    const parsed = parseStartDate(startDate)
+    if (!parsed) return
+    const computed = computeEndDateFromStart(parsed, frequency)
+    if (computed) setEndDate(computed)
   }, [startDate, frequency])
 
   // Load available rating scales when modal opens
@@ -115,24 +190,15 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({ open, onOpen
     }
   }, [open])
 
-  // Load available values when modal opens
-  useEffect(() => {
-    if (!open) return
-    try {
-      const rawValues = localStorage.getItem(VALUES_STORAGE_KEY)
-      const parsedValues = rawValues ? (JSON.parse(rawValues) as LocalValue[]) : []
-      setAvailableValues(Array.isArray(parsedValues) ? parsedValues : [])
-    } catch {
-      setAvailableValues([])
-    }
-  }, [open])
-
   const selectedParticipants = useMemo(() => participantOptions.filter(p => participantsState[p]), [participantsState])
 
   const handleSave = () => {
     if (!name.trim() || !startDate || !endDate) return
+    // Send only the currently selected value IDs (deduped) so backend receives exact selection
+    const valueIdsToSave = [...new Set(selectedValueIds)]
     onSave({
       id: initialValues?.id,
+      version: initialValues?.version,
       name: name.trim(),
       startDate,
       endDate,
@@ -140,7 +206,10 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({ open, onOpen
       participants: selectedParticipants,
       stages: initialStages,
       ratingScaleId: selectedScaleId,
-      valueIds: selectedValueIds
+      valueIds: valueIdsToSave,
+      // Preserve API metadata for optimistic locking
+      _apiParticipants: initialValues?._apiParticipants,
+      _apiCompanyValues: initialValues?._apiCompanyValues
     })
     onOpenChange(false)
   }
@@ -155,8 +224,6 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({ open, onOpen
         return t('participant-peer')
       case 'Manager':
         return t('participant-manager')
-      case 'Team':
-        return t('participant-team')
       default:
         return p
     }
@@ -196,7 +263,24 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({ open, onOpen
             </div>
             <div className="gba:space-y-2">
               <Label>{t('field-start-date')} *</Label>
-              <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
+              <DateInput
+                type="date"
+                value={startDate}
+                onChange={(value: string | [string | null, string | null] | null) => {
+                  const raw = typeof value === 'string' ? value : Array.isArray(value) ? (value[0] ?? '') : ''
+                  const parsed = parseStartDate(raw)
+                  if (parsed) {
+                    const pad2 = (n: number) => n.toString().padStart(2, '0')
+                    const isoStart = `${parsed.y.toString().padStart(4, '0')}-${pad2(parsed.m)}-${pad2(parsed.d)}`
+                    setStartDate(isoStart)
+                    const end = computeEndDateFromStart(parsed, frequency)
+                    if (end) setEndDate(end)
+                  } else {
+                    setStartDate(raw)
+                  }
+                }}
+                outputFormat="iso"
+              />
             </div>
             <div className="gba:space-y-2">
               <Label>{t('field-frequency')} *</Label>
@@ -209,7 +293,15 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({ open, onOpen
             </div>
             <div className="gba:space-y-2">
               <Label>{t('field-end-date')} *</Label>
-              <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
+              <DateInput
+                type="date"
+                value={endDate}
+                onChange={(value: string | [string | null, string | null] | null) => {
+                  const raw = typeof value === 'string' ? value : Array.isArray(value) ? (value[0] ?? '') : ''
+                  setEndDate(raw)
+                }}
+                outputFormat="iso"
+              />
             </div>
           </div>
 
@@ -227,19 +319,30 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({ open, onOpen
 
           <div className="gba:space-y-2">
             <Label>{t('field-values')}</Label>
-            {availableValues.filter(v => v.active).length === 0 ? (
-              <div className="gba:text-sm gba:text-muted-foreground">{t('placeholder-no-values')}</div>
-            ) : (
-              <Combobox
-                mode="multiple"
-                value={selectedValueIds}
-                onValueChange={(ids: string[]) => setSelectedValueIds(ids)}
-                options={availableValues.filter(v => v.active).map(v => ({ label: v.title, value: v.id }))}
-                placeholder="Select values"
-                searchPlaceholder="Type to search values..."
-                emptyText="No results"
-              />
-            )}
+            {(() => {
+              const hasValues = availableValues.filter(v => v.recordState === 'active').length > 0
+              const cycleValuesKey = open ? (initialValues?.id ?? 'new') : 'closed'
+              if (!hasValues) {
+                return <div className="gba:text-sm gba:text-muted-foreground">{t('placeholder-no-values')}</div>
+              }
+              return (
+                <Combobox
+                  key={`cycle-values-${cycleValuesKey}`}
+                  mode="multiple"
+                  value={selectedValueIds}
+                  onValueChange={(ids: string[] | string) => {
+                    const next = Array.isArray(ids) ? ids : ids ? [ids] : []
+                    setSelectedValueIds([...new Set(next)])
+                  }}
+                  options={availableValues
+                    .filter(v => v.recordState === 'active')
+                    .map(v => ({ label: v.title, value: v.id }))}
+                  placeholder="Select values"
+                  searchPlaceholder="Type to search values..."
+                  emptyText="No results"
+                />
+              )
+            })()}
           </div>
 
           <div className="gba:space-y-3">

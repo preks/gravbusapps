@@ -11,9 +11,9 @@ const isDebugEnabled = (): boolean => {
   if (typeof globalThis.window === 'undefined') return false
 
   try {
-    return (
-      localStorage.getItem('RTK_DEBUG') === 'true' || (import.meta.env.DEV && import.meta.env.VITE_RTK_DEBUG === 'true')
-    )
+    // Only enable if explicitly set in localStorage
+    // Removed automatic enabling in DEV mode to prevent logs showing in UI
+    return localStorage.getItem('RTK_DEBUG') === 'true'
   } catch {
     return false
   }
@@ -36,7 +36,7 @@ export const rtkDebug = {
   },
 
   error: (...args: unknown[]) => {
-    // Always log errors
+    // Always log errors regardless of debug mode
     console.error(...args)
   },
 

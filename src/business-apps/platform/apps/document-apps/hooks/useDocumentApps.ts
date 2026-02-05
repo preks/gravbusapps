@@ -56,6 +56,10 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
     storageMode: 'database'
   })
 
+  useEffect(() => {
+    DocumentApiService.setAccessToken(accessToken || null)
+  }, [accessToken])
+
   /**
    * Load all documents from the backend
    */
@@ -115,14 +119,6 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
           // Backend returns 'admin' for owner, which gets mapped to 'owner' in the API service
           // Default to 'owner' if not specified (for newly created documents)
           const permission = document.permission || 'owner'
-          
-          console.log('[useDocumentApps] loadDocument:', {
-            id: document.id,
-            createdBy: document.createdBy,
-            userId,
-            backendPermission: document.permission,
-            resolvedPermission: permission
-          })
 
           setState(prev => ({
             ...prev,
@@ -261,9 +257,7 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
       if (!accessToken) return false
 
       try {
-        console.log('[useDocumentApps] shareDocument called with:', { id, userIds, permission })
         const shares = userIds.map(userId => ({ userId, permission }))
-        console.log('[useDocumentApps] shareDocument shares array:', shares)
         const success = await DocumentApiService.shareDocument(id, shares)
         if (success) {
           toast.success('Document shared successfully')

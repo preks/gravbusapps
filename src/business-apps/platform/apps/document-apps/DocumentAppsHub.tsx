@@ -5,7 +5,7 @@
  * Modern OneDrive-inspired design with sidebar navigation.
  */
 
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import { toast } from 'sonner'
 import {
   Card,
@@ -55,18 +55,24 @@ import {
   Archive,
   Send,
   Sparkles,
-  ChevronLeft
+  ChevronLeft,
+  FileType,
+  PanelLeftClose,
+  PanelLeft
 } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo } from '@/common/utils/navigationUtils'
 
 // Components
 import { WordUploader } from './components/WordUploader'
+import { PdfUploader } from './components/PdfUploader'
 import { TemplateGallery } from './components/TemplateGallery'
+import { CreateTemplateDialog } from './components/CreateTemplateDialog'
 import { SendForApprovalDialog } from './components/SendForApprovalDialog'
 import { ShareDocumentDialog } from './components/ShareDocumentDialog'
 import { ManageSharesDialog } from './components/ManageSharesDialog'
-import { PagedDocumentEditor } from './components/PagedDocumentEditor'
+import type { PagedDocumentEditorRef } from './components/PagedDocumentEditor'
+import { DocumentAppsHubEditorView } from './components/DocumentAppsHubEditorView'
 
 // Hooks
 import { useDocumentApps } from './hooks/useDocumentApps'
@@ -77,6 +83,10 @@ import { useDocumentAppsHubFavorites } from './hooks/useDocumentAppsHubFavorites
 import { useDocumentAppsHubFiltering } from './hooks/useDocumentAppsHubFiltering'
 import { useDocumentAppsHubUrlState } from './hooks/useDocumentAppsHubUrlState'
 
+// Entities / context
+import { getContextForCategory, getContextForEntityKeys } from './entities'
+import { extractEntityKeysFromContent } from './utils/templatePlaceholders'
+
 // Types
 import type { DocumentTemplate, ParsedWordDocument, DocumentSummary } from './types'
 
@@ -84,7 +94,7 @@ export interface DocumentAppsHubProps extends BusinessAppContextProps {
   'data-testid'?: string
 }
 
-type HubView = 'list' | 'upload' | 'editor' | 'templates'
+type HubView = 'list' | 'upload' | 'upload-pdf' | 'editor' | 'templates'
 type SidebarSection = 'home' | 'my-documents' | 'shared' | 'templates' | 'favorites' | 'recent' | 'archived'
 
 /** Get initials from a name */
@@ -142,6 +152,7 @@ function formatDate(dateString: string): string {
 export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
   accessToken,
   userInfo,
+  entityContext,
   'data-testid': testId = 'document-apps-hub'
 }) => {
   // View state
@@ -151,6 +162,10 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
   const [activeSection, setActiveSection] = useState<SidebarSection>('my-documents')
   const [selectedDocuments, setSelectedDocuments] = useState<Set<string>>(new Set())
   const [sortBy, setSortBy] = useState<'name' | 'modified' | 'created'>('modified')
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+    const saved = localStorage.getItem('document-hub-sidebar-collapsed')
+    return saved === 'true'
+  })
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
   const { favorites, setFavorites } = useDocumentAppsHubFavorites()
 
@@ -163,9 +178,45 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
   const [documentForShare, setDocumentForShare] = useState<string | null>(null)
   const [manageSharesDialogOpen, setManageSharesDialogOpen] = useState(false)
   const [documentForManageShares, setDocumentForManageShares] = useState<string | null>(null)
+  const [createTemplateDialogOpen, setCreateTemplateDialogOpen] = useState(false)
+  const [templateBeingEdited, setTemplateBeingEdited] = useState<DocumentTemplate | null>(null)
+  /** Context chosen in create modal; used only to pick entities in the editor (not sent to API). */
+  const [sessionEntityContext, setSessionEntityContext] = useState<string | null>(null)
+  const templateEditorRef = useRef<PagedDocumentEditorRef>(null)
 
   // Get current user ID
   const currentUserId = userInfo?.id || userInfo?.employeeDetails?.employeeId || ''
+
+  // Clear space return URL if not opened from a space
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(globalThis.window.location.search)
+      const spaceId = params.get('spaceId')
+      if (!spaceId) {
+        // Document opened from hub, not from a space - clear any stale return URL
+        sessionStorage.removeItem('space_return_url')
+      }
+    } catch (e) {
+      console.warn('Failed to check/clear space_return_url:', e)
+    }
+  }, [])
+
+  // Entity context: prop > URL ?entityContext= > category-derived (when editing a template) > default
+  const urlEntityContext = useMemo(() => {
+    if (typeof globalThis.window === 'undefined') return undefined
+    const params = new URLSearchParams(globalThis.window.location.search)
+    return params.get('entityContext') ?? undefined
+  }, [typeof globalThis.window === 'undefined' ? '' : globalThis.window.location.search])
+  const effectiveEntityContext =
+    entityContext ??
+    urlEntityContext ??
+    (templateBeingEdited
+      ? (templateBeingEdited.context ??
+        sessionEntityContext ??
+        getContextForEntityKeys(extractEntityKeysFromContent(templateBeingEdited.content)) ??
+        getContextForCategory(templateBeingEdited.category))
+      : undefined) ??
+    'candidate'
 
   // Hooks
   const {
@@ -185,15 +236,32 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
     refreshDocuments
   } = useDocumentApps(accessToken, currentUserId)
 
-  const { templates, createDocumentFromTemplate } = useDocumentTemplates(accessToken, currentUserId)
+  const { templates, createTemplate, updateTemplate, loadTemplate, createDocumentFromTemplate } = useDocumentTemplates(
+    accessToken,
+    currentUserId
+  )
   const { updateUrl, resetLoadAttempt } = useDocumentAppsHubUrlState({
     currentView,
     currentDocumentId: currentDocument?.id || null,
     isLoadingDocument: isLoadingDocuments,
     loadDocumentById: loadDocument,
     setCurrentView,
-    setSelectedDocumentId
+    setSelectedDocumentId,
+    activeSection,
+    setActiveSection
   })
+
+  // Update URL whenever activeSection changes (when user clicks sidebar)
+  useEffect(() => {
+    if (currentView === 'list' && !selectedDocumentId) {
+      updateUrl(null)
+    }
+  }, [activeSection, currentView, selectedDocumentId, updateUrl])
+
+  // Persist sidebar collapsed state
+  useEffect(() => {
+    localStorage.setItem('document-hub-sidebar-collapsed', String(isSidebarCollapsed))
+  }, [isSidebarCollapsed])
 
   const { ownerInfoMap, sharedUsersMap, refreshSharedUsersForDocument } = useDocumentAppsHubUserLookup({
     accessToken,
@@ -249,6 +317,21 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
       }
     },
     [createDocumentFromTemplate, loadDocument, updateUrl]
+  )
+
+  /**
+   * Handle edit template: load full template and open in editor
+   */
+  const handleEditTemplate = useCallback(
+    async (template: { id: string }) => {
+      const full = await loadTemplate(template.id)
+      if (full) {
+        setSessionEntityContext(null)
+        setTemplateBeingEdited(full)
+        setCurrentView('editor')
+      }
+    },
+    [loadTemplate]
   )
 
   /**
@@ -324,9 +407,32 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
   }, [])
 
   /**
-   * Go back to list
+   * Go back to list or return URL
    */
   const handleBack = useCallback(() => {
+    // Check if there's a space return URL in sessionStorage (takes priority)
+    try {
+      const spaceReturnUrl = sessionStorage.getItem('space_return_url')
+      if (spaceReturnUrl) {
+        sessionStorage.removeItem('space_return_url')
+        globalThis.window.location.href = spaceReturnUrl
+        return
+      }
+    } catch (e) {
+      console.warn('Failed to read space_return_url from sessionStorage:', e)
+    }
+
+    // Fallback: Check if there's a returnUrl parameter
+    const params = new URLSearchParams(globalThis.window.location.search)
+    const returnUrl = params.get('returnUrl')
+
+    if (returnUrl) {
+      // Navigate back to the specified URL (e.g., space)
+      globalThis.window.location.href = returnUrl
+      return
+    }
+
+    // Otherwise, go back to the list view
     clearCurrentDocument()
     resetLoadAttempt()
     setSelectedDocumentId(null)
@@ -336,11 +442,18 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
   }, [clearCurrentDocument, resetLoadAttempt, updateUrl])
 
   /**
-   * Start upload flow
+   * Start upload flow (Word)
    */
   const handleStartUpload = useCallback(() => {
     setParsedWordDocument(null)
     setCurrentView('upload')
+  }, [])
+
+  /**
+   * Start PDF upload flow
+   */
+  const handleStartPdfUpload = useCallback(() => {
+    setCurrentView('upload-pdf')
   }, [])
 
   /**
@@ -423,87 +536,31 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
 
   // Render editor view
   if (currentView === 'editor') {
-    const canEdit = currentDocumentPermission === 'owner' || currentDocumentPermission === 'edit'
-
-    // If we have a parsed Word document (from upload), create a new document with that content
-    if (parsedWordDocument && !currentDocument) {
-      return (
-        <PagedDocumentEditor
-          initialContent={parsedWordDocument.html}
-          initialTitle={parsedWordDocument.fileName.replace(/\.(docx?|doc)$/i, '')}
-          onSave={async (title, content) => {
-            const newDoc = await createDocument({
-              title,
-              content,
-              status: 'draft',
-              createdBy: currentUserId,
-              sourceFile: {
-                originalName: parsedWordDocument.fileName,
-                fileSize: parsedWordDocument.fileSize,
-                mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                uploadedAt: new Date().toISOString()
-              }
-            })
-            if (newDoc) {
-              setParsedWordDocument(null)
-              setSelectedDocumentId(newDoc.id)
-              await loadDocument(newDoc.id)
-              updateUrl(newDoc.id, 'editor')
-            }
-          }}
-          onBack={handleBack}
-          onSendForApproval={() => {
-            toast.info('Please save the document first before sending for approval')
-          }}
-          accessToken={accessToken}
-          userInfo={userInfo}
-          data-testid={`${testId}-editor`}
-        />
-      )
-    }
-
-    // If we have a current document loaded
-    if (currentDocument) {
-      return (
-        <PagedDocumentEditor
-          key={currentDocument.id}
-          document={currentDocument}
-          onSave={async (title, content) => {
-            await updateDocument(currentDocument.id, { title, content })
-          }}
-          onBack={handleBack}
-          onSendForApproval={() => handleSendForApprovalClick(currentDocument.id)}
-          isReadOnly={!canEdit}
-          accessToken={accessToken}
-          userInfo={userInfo}
-          data-testid={`${testId}-editor`}
-        />
-      )
-    }
-
-    // Fallback - new document
     return (
-      <PagedDocumentEditor
-        onSave={async (title, content) => {
-          const newDoc = await createDocument({
-            title,
-            content,
-            status: 'draft',
-            createdBy: currentUserId
-          })
-          if (newDoc) {
-            setSelectedDocumentId(newDoc.id)
-            await loadDocument(newDoc.id)
-            updateUrl(newDoc.id, 'editor')
-          }
-        }}
-        onBack={handleBack}
-        onSendForApproval={() => {
-          toast.info('Please save the document first before sending for approval')
-        }}
+      <DocumentAppsHubEditorView
+        templateBeingEdited={templateBeingEdited}
+        setTemplateBeingEdited={setTemplateBeingEdited}
+        setSessionEntityContext={setSessionEntityContext}
+        parsedWordDocument={parsedWordDocument}
+        setParsedWordDocument={setParsedWordDocument}
+        setSelectedDocumentId={setSelectedDocumentId}
+        currentDocument={currentDocument}
+        currentDocumentPermission={currentDocumentPermission ?? ''}
+        createDocument={async opts => createDocument(opts as Parameters<typeof createDocument>[0])}
+        loadDocument={loadDocument}
+        updateDocument={updateDocument}
+        updateTemplate={updateTemplate}
+        updateUrl={(docId, view) => updateUrl(docId, view as HubView | undefined)}
+        setCurrentView={v => setCurrentView(v as HubView)}
+        setActiveSection={s => setActiveSection(s as SidebarSection)}
+        handleBack={handleBack}
+        handleSendForApprovalClick={handleSendForApprovalClick}
+        currentUserId={currentUserId}
         accessToken={accessToken}
         userInfo={userInfo}
-        data-testid={`${testId}-editor`}
+        templateEditorRef={templateEditorRef}
+        effectiveEntityContext={effectiveEntityContext ?? ''}
+        testId={testId}
       />
     )
   }
@@ -511,37 +568,81 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
   return (
     <div className="gba:flex gba:h-full gba:bg-background" data-testid={testId}>
       {/* Sidebar */}
-      <aside className="gba:w-60 gba:border-r gba:bg-card gba:flex gba:flex-col gba:flex-shrink-0">
+      <aside
+        className={`gba:border-r gba:bg-card gba:flex gba:flex-col gba:flex-shrink-0 gba:transition-all gba:duration-300 ${isSidebarCollapsed ? 'gba:w-16' : 'gba:w-60'}`}
+      >
         {/* Logo / Brand */}
-        <div className="gba:p-4 gba:border-b">
-          {/* Back button row */}
-          <button
-            onClick={() => navigateTo('/platform/apps/platform/apps/desk')}
-            className="gba:flex gba:items-center gba:gap-1.5 gba:text-sm gba:text-muted-foreground hover:gba:text-foreground gba:transition-colors gba:mb-3"
+        <div className={`gba:border-b ${isSidebarCollapsed ? 'gba:p-2' : 'gba:p-4'}`}>
+          {/* Back button and collapse toggle row */}
+          <div
+            className={`gba:flex gba:items-center gba:mb-2 ${isSidebarCollapsed ? 'gba:justify-center' : 'gba:justify-between'}`}
           >
-            <ChevronLeft className="gba:w-4 gba:h-4" />
-            <span>Back to Desk</span>
-          </button>
-
-          {/* Existing brand section */}
-          <div className="gba:flex gba:items-center gba:gap-3">
-            <div className="gba:w-10 gba:h-10 gba:rounded-xl gba:bg-gradient-to-br gba:from-blue-500 gba:to-indigo-600 gba:flex gba:items-center gba:justify-center">
-              <FileText className="gba:w-5 gba:h-5 gba:text-white" />
-            </div>
-            <div>
-              <h1 className="gba:font-semibold gba:text-foreground">Documents</h1>
-              <p className="gba:text-xs gba:text-muted-foreground">NEWWORK Apps</p>
-            </div>
+            <TooltipProvider>
+              {!isSidebarCollapsed && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => navigateTo('/platform/every-office')}
+                      data-testid={`${testId}-back-to-desk`}
+                    >
+                      <ChevronLeft className="gba:w-4 gba:h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Back to Desk</TooltipContent>
+                </Tooltip>
+              )}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                    data-testid={`${testId}-toggle-sidebar`}
+                  >
+                    {isSidebarCollapsed ? (
+                      <PanelLeft className="gba:w-4 gba:h-4" />
+                    ) : (
+                      <PanelLeftClose className="gba:w-4 gba:h-4" />
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
+
+          {/* Brand section */}
+          {!isSidebarCollapsed && (
+            <div className="gba:flex gba:items-center gba:gap-3">
+              <div className="gba:w-10 gba:h-10 gba:rounded-xl gba:bg-gradient-to-br gba:from-blue-500 gba:to-indigo-600 gba:flex gba:items-center gba:justify-center">
+                <FileText className="gba:w-5 gba:h-5 gba:text-white" />
+              </div>
+              <div>
+                <h1 className="gba:font-semibold gba:text-foreground">Documents</h1>
+                <p className="gba:text-xs gba:text-muted-foreground">NEWWORK Apps</p>
+              </div>
+            </div>
+          )}
+          {isSidebarCollapsed && (
+            <div className="gba:flex gba:justify-center">
+              <div className="gba:w-10 gba:h-10 gba:rounded-xl gba:bg-gradient-to-br gba:from-blue-500 gba:to-indigo-600 gba:flex gba:items-center gba:justify-center">
+                <FileText className="gba:w-5 gba:h-5 gba:text-white" />
+              </div>
+            </div>
+          )}
         </div>
 
         {/* New Button */}
-        <div className="gba:p-3">
+        <div className={isSidebarCollapsed ? 'gba:p-2' : 'gba:p-3'}>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button className="gba:w-full gba:justify-start gba:gap-2 gba:bg-gradient-to-r gba:from-blue-500 gba:to-indigo-600 gba:text-white hover:gba:from-blue-600 hover:gba:to-indigo-700">
+              <Button
+                className={`gba:w-full gba:gap-2 gba:bg-gradient-to-r gba:from-blue-500 gba:to-indigo-600 gba:text-white hover:gba:from-blue-600 hover:gba:to-indigo-700 ${isSidebarCollapsed ? 'gba:justify-center gba:px-0' : 'gba:justify-start'}`}
+              >
                 <Plus className="gba:w-4 gba:h-4" />
-                New
+                {!isSidebarCollapsed && 'New'}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="gba:w-56">
@@ -559,11 +660,28 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                   <div className="gba:text-xs gba:text-muted-foreground">Import .docx or .doc file</div>
                 </div>
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleStartPdfUpload}>
+                <FileText className="gba:w-4 gba:h-4 gba:mr-2 gba:text-red-500" />
+                <div>
+                  <div className="gba:font-medium">Upload PDF</div>
+                  <div className="gba:text-xs gba:text-muted-foreground">Import PDF for search & Q&A</div>
+                </div>
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setActiveSection('templates')}>
                 <Sparkles className="gba:w-4 gba:h-4 gba:mr-2 gba:text-purple-500" />
                 <div>
                   <div className="gba:font-medium">From Template</div>
                   <div className="gba:text-xs gba:text-muted-foreground">Choose a template</div>
+                </div>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setCreateTemplateDialogOpen(true)}
+                data-testid="document-apps-hub-new-create-template"
+              >
+                <LayoutTemplate className="gba:w-4 gba:h-4 gba:mr-2 gba:text-purple-500" />
+                <div>
+                  <div className="gba:font-medium">Create Template</div>
+                  <div className="gba:text-xs gba:text-muted-foreground">Create a new template</div>
                 </div>
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -573,127 +691,216 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
         {/* Navigation */}
         <nav className="gba:flex-1 gba:overflow-y-auto gba:px-2 gba:py-2">
           <div className="gba:space-y-1">
-            <button
-              onClick={() => setActiveSection('home')}
-              className={`gba:w-full gba:flex gba:items-center gba:gap-3 gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${
-                activeSection === 'home'
-                  ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
-                  : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
-              }`}
-            >
-              <Home className="gba:w-4 gba:h-4" />
-              Home
-            </button>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => setActiveSection('home')}
+                    className={`gba:w-full gba:flex gba:items-center gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${isSidebarCollapsed ? 'gba:justify-center' : 'gba:gap-3'} ${
+                      activeSection === 'home'
+                        ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
+                        : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
+                    }`}
+                  >
+                    <Home className="gba:w-4 gba:h-4" />
+                    {!isSidebarCollapsed && 'Home'}
+                  </button>
+                </TooltipTrigger>
+                {isSidebarCollapsed && <TooltipContent side="right">Home</TooltipContent>}
+              </Tooltip>
 
-            <button
-              onClick={() => setActiveSection('my-documents')}
-              className={`gba:w-full gba:flex gba:items-center gba:gap-3 gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${
-                activeSection === 'my-documents'
-                  ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
-                  : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
-              }`}
-            >
-              <FolderClosed className="gba:w-4 gba:h-4" />
-              My Documents
-            </button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => setActiveSection('my-documents')}
+                    className={`gba:w-full gba:flex gba:items-center gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${isSidebarCollapsed ? 'gba:justify-center' : 'gba:gap-3'} ${
+                      activeSection === 'my-documents'
+                        ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
+                        : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
+                    }`}
+                  >
+                    <FolderClosed className="gba:w-4 gba:h-4" />
+                    {!isSidebarCollapsed && 'My Documents'}
+                  </button>
+                </TooltipTrigger>
+                {isSidebarCollapsed && <TooltipContent side="right">My Documents</TooltipContent>}
+              </Tooltip>
 
-            <button
-              onClick={() => setActiveSection('shared')}
-              className={`gba:w-full gba:flex gba:items-center gba:gap-3 gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${
-                activeSection === 'shared'
-                  ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
-                  : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
-              }`}
-            >
-              <Users className="gba:w-4 gba:h-4" />
-              Shared with me
-              {sharedDocuments.length > 0 && (
-                <Badge variant="secondary" className="gba:ml-auto gba:text-xs">
-                  {sharedDocuments.length}
-                </Badge>
-              )}
-            </button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => setActiveSection('shared')}
+                    className={`gba:w-full gba:flex gba:items-center gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${isSidebarCollapsed ? 'gba:justify-center' : 'gba:gap-3'} ${
+                      activeSection === 'shared'
+                        ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
+                        : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
+                    }`}
+                  >
+                    <Users className="gba:w-4 gba:h-4" />
+                    {!isSidebarCollapsed && (
+                      <>
+                        Shared with me
+                        {sharedDocuments.length > 0 && (
+                          <Badge variant="secondary" className="gba:ml-auto gba:text-xs">
+                            {sharedDocuments.length}
+                          </Badge>
+                        )}
+                      </>
+                    )}
+                  </button>
+                </TooltipTrigger>
+                {isSidebarCollapsed && (
+                  <TooltipContent side="right">
+                    Shared with me {sharedDocuments.length > 0 && `(${sharedDocuments.length})`}
+                  </TooltipContent>
+                )}
+              </Tooltip>
 
-            <button
-              onClick={() => setActiveSection('templates')}
-              className={`gba:w-full gba:flex gba:items-center gba:gap-3 gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${
-                activeSection === 'templates'
-                  ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
-                  : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
-              }`}
-            >
-              <LayoutTemplate className="gba:w-4 gba:h-4" />
-              Templates
-              {templates.length > 0 && (
-                <Badge variant="secondary" className="gba:ml-auto gba:text-xs">
-                  {templates.length}
-                </Badge>
-              )}
-            </button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => setActiveSection('templates')}
+                    className={`gba:w-full gba:flex gba:items-center gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${isSidebarCollapsed ? 'gba:justify-center' : 'gba:gap-3'} ${
+                      activeSection === 'templates'
+                        ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
+                        : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
+                    }`}
+                  >
+                    <LayoutTemplate className="gba:w-4 gba:h-4" />
+                    {!isSidebarCollapsed && (
+                      <>
+                        Templates
+                        {templates.length > 0 && (
+                          <Badge variant="secondary" className="gba:ml-auto gba:text-xs">
+                            {templates.length}
+                          </Badge>
+                        )}
+                      </>
+                    )}
+                  </button>
+                </TooltipTrigger>
+                {isSidebarCollapsed && (
+                  <TooltipContent side="right">
+                    Templates {templates.length > 0 && `(${templates.length})`}
+                  </TooltipContent>
+                )}
+              </Tooltip>
 
-            <button
-              onClick={() => setActiveSection('favorites')}
-              className={`gba:w-full gba:flex gba:items-center gba:gap-3 gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${
-                activeSection === 'favorites'
-                  ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
-                  : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
-              }`}
-            >
-              <Star className="gba:w-4 gba:h-4" />
-              Favorites
-            </button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => setActiveSection('favorites')}
+                    className={`gba:w-full gba:flex gba:items-center gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${isSidebarCollapsed ? 'gba:justify-center' : 'gba:gap-3'} ${
+                      activeSection === 'favorites'
+                        ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
+                        : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
+                    }`}
+                  >
+                    <Star className="gba:w-4 gba:h-4" />
+                    {!isSidebarCollapsed && (
+                      <>
+                        Favorites
+                        {favorites.size > 0 && (
+                          <Badge variant="secondary" className="gba:ml-auto gba:text-xs">
+                            {favorites.size}
+                          </Badge>
+                        )}
+                      </>
+                    )}
+                  </button>
+                </TooltipTrigger>
+                {isSidebarCollapsed && (
+                  <TooltipContent side="right">Favorites {favorites.size > 0 && `(${favorites.size})`}</TooltipContent>
+                )}
+              </Tooltip>
 
-            <button
-              onClick={() => setActiveSection('recent')}
-              className={`gba:w-full gba:flex gba:items-center gba:gap-3 gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${
-                activeSection === 'recent'
-                  ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
-                  : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
-              }`}
-            >
-              <Clock className="gba:w-4 gba:h-4" />
-              Recent
-            </button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => setActiveSection('recent')}
+                    className={`gba:w-full gba:flex gba:items-center gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${isSidebarCollapsed ? 'gba:justify-center' : 'gba:gap-3'} ${
+                      activeSection === 'recent'
+                        ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
+                        : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
+                    }`}
+                  >
+                    <Clock className="gba:w-4 gba:h-4" />
+                    {!isSidebarCollapsed && 'Recent'}
+                  </button>
+                </TooltipTrigger>
+                {isSidebarCollapsed && <TooltipContent side="right">Recent</TooltipContent>}
+              </Tooltip>
 
-            <button
-              onClick={() => setActiveSection('archived')}
-              className={`gba:w-full gba:flex gba:items-center gba:gap-3 gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${
-                activeSection === 'archived'
-                  ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
-                  : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
-              }`}
-            >
-              <Archive className="gba:w-4 gba:h-4" />
-              Archived
-            </button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => setActiveSection('archived')}
+                    className={`gba:w-full gba:flex gba:items-center gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${isSidebarCollapsed ? 'gba:justify-center' : 'gba:gap-3'} ${
+                      activeSection === 'archived'
+                        ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
+                        : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
+                    }`}
+                  >
+                    <Archive className="gba:w-4 gba:h-4" />
+                    {!isSidebarCollapsed && 'Archived'}
+                  </button>
+                </TooltipTrigger>
+                {isSidebarCollapsed && <TooltipContent side="right">Archived</TooltipContent>}
+              </Tooltip>
+            </TooltipProvider>
           </div>
 
-          <div className="gba:mt-6 gba:pt-4 gba:border-t">
-            <p className="gba:px-3 gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-2">Storage</p>
-            <div className="gba:px-3 gba:py-2 gba:rounded-lg gba:bg-muted/30">
-              <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-                <Database
-                  className={`gba:w-4 gba:h-4 ${storageMode === 'database' ? 'gba:text-blue-500' : 'gba:text-amber-500'}`}
-                />
-                <span className="gba:text-xs gba:text-muted-foreground">
-                  {storageMode === 'database' ? 'Cloud storage' : 'Local storage'}
-                </span>
+          {!isSidebarCollapsed && (
+            <div className="gba:mt-6 gba:pt-4 gba:border-t">
+              <p className="gba:px-3 gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-2">Storage</p>
+              <div className="gba:px-3 gba:py-2 gba:rounded-lg gba:bg-muted/30">
+                <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
+                  <Database
+                    className={`gba:w-4 gba:h-4 ${storageMode === 'database' ? 'gba:text-blue-500' : 'gba:text-amber-500'}`}
+                  />
+                  <span className="gba:text-xs gba:text-muted-foreground">
+                    {storageMode === 'database' ? 'Cloud storage' : 'Local storage'}
+                  </span>
+                </div>
+                <div className="gba:h-1.5 gba:bg-muted gba:rounded-full gba:overflow-hidden">
+                  <div
+                    className="gba:h-full gba:bg-gradient-to-r gba:from-blue-500 gba:to-indigo-500 gba:rounded-full"
+                    style={{ width: `${Math.min((documents.length / 50) * 100, 100)}%` }}
+                  />
+                </div>
+                <p className="gba:text-[10px] gba:text-muted-foreground gba:mt-1">{documents.length} documents</p>
               </div>
-              <div className="gba:h-1.5 gba:bg-muted gba:rounded-full gba:overflow-hidden">
-                <div
-                  className="gba:h-full gba:bg-gradient-to-r gba:from-blue-500 gba:to-indigo-500 gba:rounded-full"
-                  style={{ width: `${Math.min((documents.length / 50) * 100, 100)}%` }}
-                />
-              </div>
-              <p className="gba:text-[10px] gba:text-muted-foreground gba:mt-1">{documents.length} documents</p>
             </div>
-          </div>
+          )}
+          {isSidebarCollapsed && (
+            <div className="gba:mt-6 gba:pt-4 gba:border-t gba:flex gba:justify-center">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="gba:p-2">
+                      <Database
+                        className={`gba:w-4 gba:h-4 ${storageMode === 'database' ? 'gba:text-blue-500' : 'gba:text-amber-500'}`}
+                      />
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">
+                    <div>
+                      <p className="gba:font-medium">
+                        {storageMode === 'database' ? 'Cloud storage' : 'Local storage'}
+                      </p>
+                      <p className="gba:text-xs gba:text-muted-foreground">{documents.length} documents</p>
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+          )}
         </nav>
       </aside>
 
       {/* Main Content */}
       <main className="gba:flex-1 gba:flex gba:flex-col gba:min-w-0 gba:overflow-hidden">
-        {/* Upload View */}
+        {/* Upload View (Word) */}
         {currentView === 'upload' && (
           <div className="gba:flex-1 gba:overflow-auto gba:p-8">
             <div className="gba:max-w-2xl gba:mx-auto gba:space-y-6">
@@ -719,6 +926,38 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
           </div>
         )}
 
+        {/* Upload PDF View */}
+        {currentView === 'upload-pdf' && (
+          <div className="gba:flex-1 gba:overflow-auto gba:p-8">
+            <div className="gba:max-w-2xl gba:mx-auto gba:space-y-6">
+              <div className="gba:text-center gba:mb-8">
+                <div className="gba:w-16 gba:h-16 gba:rounded-2xl gba:bg-gradient-to-br gba:from-red-500 gba:to-red-600 gba:flex gba:items-center gba:justify-center gba:mx-auto gba:mb-4">
+                  <FileText className="gba:w-8 gba:h-8 gba:text-white" />
+                </div>
+                <h2 className="gba:text-2xl gba:font-bold gba:text-foreground gba:mb-2">Upload PDF Document</h2>
+                <p className="gba:text-muted-foreground">
+                  Upload a PDF to make it searchable and available for Q&A in Desk
+                </p>
+              </div>
+
+              <PdfUploader
+                accessToken={accessToken}
+                onUploadComplete={async document => {
+                  // Navigate to the document viewer
+                  setSelectedDocumentId(document.id)
+                  await loadDocument(document.id)
+                  setCurrentView('editor')
+                  updateUrl(document.id, 'editor')
+                  toast.success('PDF uploaded successfully')
+                }}
+                onError={error => toast.error(error)}
+                onCancel={handleBack}
+                data-testid={`${testId}-pdf-uploader`}
+              />
+            </div>
+          </div>
+        )}
+
         {/* Templates View */}
         {currentView === 'list' && activeSection === 'templates' && (
           <>
@@ -733,9 +972,22 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
               <TemplateGallery
                 templates={templates}
                 onSelectTemplate={handleSelectTemplate}
+                onEditTemplate={handleEditTemplate}
                 data-testid={`${testId}-templates`}
               />
             </div>
+            <CreateTemplateDialog
+              open={createTemplateDialogOpen}
+              onOpenChange={setCreateTemplateDialogOpen}
+              createTemplate={createTemplate}
+              currentUserId={currentUserId}
+              onCreated={(template, options) => {
+                setSessionEntityContext(options?.entityContext ?? null)
+                setTemplateBeingEdited(template)
+                setCurrentView('editor')
+              }}
+              data-testid={`${testId}-create-template-dialog`}
+            />
           </>
         )}
 
@@ -969,8 +1221,14 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
 
                           {/* Name & Icon */}
                           <div className="gba:flex-1 gba:min-w-0 gba:flex gba:items-center gba:gap-3">
-                            <div className="gba:w-10 gba:h-10 gba:rounded-lg gba:bg-blue-500/10 gba:flex gba:items-center gba:justify-center gba:flex-shrink-0">
-                              <FileText className="gba:w-5 gba:h-5 gba:text-blue-600" />
+                            <div
+                              className={`gba:w-10 gba:h-10 gba:rounded-lg gba:flex gba:items-center gba:justify-center gba:flex-shrink-0 ${doc.isPdf ? 'gba:bg-red-500/10' : 'gba:bg-blue-500/10'}`}
+                            >
+                              {doc.isPdf ? (
+                                <FileType className="gba:w-5 gba:h-5 gba:text-red-600" />
+                              ) : (
+                                <FileText className="gba:w-5 gba:h-5 gba:text-blue-600" />
+                              )}
                             </div>
                             <div className="gba:min-w-0">
                               <div className="gba:flex gba:items-center gba:gap-2">
@@ -1150,8 +1408,14 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                         onClick={() => handleOpenDocument(doc.id)}
                       >
                         {/* Preview area */}
-                        <div className="gba:relative gba:aspect-[4/3] gba:bg-gradient-to-br gba:from-blue-500/10 gba:to-indigo-500/10 gba:flex gba:items-center gba:justify-center gba:rounded-t-lg">
-                          <FileText className="gba:w-16 gba:h-16 gba:text-blue-500/50" />
+                        <div
+                          className={`gba:relative gba:aspect-[4/3] gba:bg-gradient-to-br gba:flex gba:items-center gba:justify-center gba:rounded-t-lg ${doc.isPdf ? 'gba:from-red-500/10 gba:to-red-600/10' : 'gba:from-blue-500/10 gba:to-indigo-500/10'}`}
+                        >
+                          {doc.isPdf ? (
+                            <FileType className="gba:w-16 gba:h-16 gba:text-red-500/50" />
+                          ) : (
+                            <FileText className="gba:w-16 gba:h-16 gba:text-blue-500/50" />
+                          )}
 
                           {/* Hover overlay */}
                           <div className="gba:absolute gba:inset-0 gba:bg-black/0 group-hover:gba:bg-black/5 gba:transition-colors gba:rounded-t-lg" />

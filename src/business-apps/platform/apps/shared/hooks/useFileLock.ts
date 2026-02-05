@@ -29,7 +29,7 @@ function markUnlocked(lock: FileLock | null): FileLock | null {
 
 export interface UseFileLockOptions {
   entityId: string
-  entityType: 'document' | 'note' | 'spreadsheet_app'
+  entityType: 'document' | 'note' | 'spreadsheet_app' | 'slide'
   currentUserId?: string
   apiService?: {
     lockFile: (id: string, input?: LockFileInput) => Promise<FileLock | null>

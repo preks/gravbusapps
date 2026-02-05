@@ -33,6 +33,7 @@ const CONFIGS: Record<string, Array<keyof ContentEntry>> = {
     'allowComment',
     'allowReaction',
     'descendantContentEntriesAggregate',
+    'contentEntryReactions',
     'contentEntryReactionCounts',
     'childContentEntriesAggregate'
   ],
@@ -221,7 +222,9 @@ function buildRelationFields(fields: Array<keyof ContentEntry>, limit: number, o
         offset: ${offset}
       ) {
         id
+        version
         contentReactionRef
+        createdBy
         creatorEmployeeId
         creatorEmployee {
           ${EMPLOYEE_REF}

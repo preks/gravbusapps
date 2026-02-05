@@ -76,6 +76,29 @@ const EmployeeForm: React.FC = () => {
 
   const isEmailFieldValid = !formValues.email || isEmailValid(formValues.email)
 
+  // Validate fixed-term dates
+  const fixedTermDateError = (() => {
+    if (!formValues.fixedTermUntil) return null
+
+    // If fixed-term date is set but hire date is not, require hire date
+    if (!formValues.hireDate) {
+      return t('employee-form-hire-date-required')
+    }
+
+    // If both dates are set, validate that fixed-term >= hire date
+    if (formValues.hireDate && formValues.fixedTermUntil) {
+      const hireDate = new Date(formValues.hireDate)
+      const fixedTermDate = new Date(formValues.fixedTermUntil)
+      if (fixedTermDate < hireDate) {
+        return t('employee-form-fixed-term-before-hire')
+      }
+    }
+
+    return null
+  })()
+
+  const hasFixedTermDateError = !!fixedTermDateError
+
   // Generate email suggestion based on first and last name
   // Format: first letter of first name + last name @ newwork.com
   const generateEmailSuggestion = (firstName: string, lastName: string): string => {
@@ -154,6 +177,9 @@ const EmployeeForm: React.FC = () => {
       const hireDateFormatted = formatDateToMidnight(hireDateToUse)
       const fixedTermUntilFormatted = formatDateToMidnight(formValues.fixedTermUntil)
 
+      // Auto-set fixedTermReason to "Fixed-Term Employment" when fixedTermUntil is present
+      const fixedTermReason = formValues.fixedTermUntil ? 'Fixed-Term Employment' : formValues.fixedTermReason
+
       const payload: any = {
         employee: {
           firstName: formValues.firstName,
@@ -175,7 +201,8 @@ const EmployeeForm: React.FC = () => {
               contractTypeRef: formValues.contractTypeId,
               employmentTypeRef: formValues.employmentTypeId,
               hireDate: hireDateFormatted,
-              exitDate: fixedTermUntilFormatted
+              exitDate: fixedTermUntilFormatted,
+              additionalProperties: fixedTermReason ? { fixedTermReason: fixedTermReason } : undefined
             }
           ]
         },
@@ -364,19 +391,6 @@ const EmployeeForm: React.FC = () => {
                 captionLayout="dropdown"
               />
             </div>
-
-            <div>
-              <label className="gba:block gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-1">
-                {t('employee-form-fixed-term-until')}
-              </label>
-              <DateInput
-                type="date"
-                value={formValues.fixedTermUntil || ''}
-                onChange={v => setFormValues({ fixedTermUntil: typeof v === 'string' ? v : '' })}
-                className="gba:w-full"
-                captionLayout="dropdown"
-              />
-            </div>
           </div>
 
           <Collapsible open={showAdditionalAttributes} onOpenChange={setShowAdditionalAttributes}>
@@ -470,6 +484,22 @@ const EmployeeForm: React.FC = () => {
                       <div className="gba:text-destructive gba:text-sm gba:mt-1">{contractTypesError}</div>
                     )}
                   </div>
+
+                  <div>
+                    <label className="gba:block gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-1">
+                      {t('employee-form-fixed-term-end-date')}
+                    </label>
+                    <DateInput
+                      type="date"
+                      value={formValues.fixedTermUntil || ''}
+                      onChange={v => setFormValues({ fixedTermUntil: typeof v === 'string' ? v : '' })}
+                      className={`gba:w-full ${hasFixedTermDateError ? 'gba:border-destructive' : ''}`}
+                      captionLayout="dropdown"
+                    />
+                    {fixedTermDateError && (
+                      <div className="gba:text-destructive gba:text-sm gba:mt-1">{fixedTermDateError}</div>
+                    )}
+                  </div>
                 </div>
               </CollapsibleContent>
             </div>
@@ -485,7 +515,7 @@ const EmployeeForm: React.FC = () => {
         <div className="gba:mt-6 gba:pt-4 gba:border-t gba:border-border">
           <Button
             variant="default"
-            disabled={!isFormValid || !isEmailFieldValid || loading}
+            disabled={!isFormValid || !isEmailFieldValid || hasFixedTermDateError || loading}
             className="gba:w-full"
             onClick={handleSubmit}
           >

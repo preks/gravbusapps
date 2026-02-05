@@ -88,6 +88,7 @@ interface UseTeamCoverageDataReturn {
   matrixCoverage: CoverageData[]
   matrixTeamImpacts: MatrixTeamImpact[] // New field for impact analysis
   orgUnitImpacts: OrgUnitImpact[] // New field for org unit impact analysis
+  teamMemberIds: string[]
   isLoading: boolean
   error: string | null
   refetch: () => Promise<void>
@@ -102,6 +103,7 @@ export const useTeamCoverageData = (context: BusinessAppContextProps): UseTeamCo
   const [matrixCoverage] = useState<CoverageData[]>([])
   const [matrixTeamImpacts, setMatrixTeamImpacts] = useState<MatrixTeamImpact[]>([])
   const [orgUnitImpacts, setOrgUnitImpacts] = useState<OrgUnitImpact[]>([]) // Initialize new state
+  const [teamMemberIds, setTeamMemberIds] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -140,6 +142,9 @@ export const useTeamCoverageData = (context: BusinessAppContextProps): UseTeamCo
       }
 
       const employees = result.employees || []
+      // Expose team member IDs for downstream manager analytics hooks
+      const ids: string[] = employees.map((e: any) => e.id).filter(Boolean)
+      setTeamMemberIds(ids)
       const currentAbsences = result.currentAbsences || []
 
       // Create set of absent employee IDs for quick lookup
@@ -614,6 +619,7 @@ export const useTeamCoverageData = (context: BusinessAppContextProps): UseTeamCo
     matrixCoverage,
     matrixTeamImpacts,
     orgUnitImpacts, // Add orgUnitImpacts to return
+    teamMemberIds,
     isLoading,
     error,
     refetch: fetchTeamCoverageData

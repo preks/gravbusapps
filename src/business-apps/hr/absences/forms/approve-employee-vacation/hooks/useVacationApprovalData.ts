@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect } from 'react'
-import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { getCatalogValue } from '@/common/utils/windowUtils'
 
 interface UseVacationApprovalDataProps {
@@ -38,7 +38,7 @@ export const useVacationApprovalData = ({
   const [isLoadingSubstitute, setIsLoadingSubstitute] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const graphqlClient = useGraphqlClient(accessToken)
+  const graphqlClient = useGraphQLClient(accessToken)
 
   // Fetch employee data
   useEffect(() => {

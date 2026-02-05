@@ -17,12 +17,20 @@ export type DocumentStatus = 'draft' | 'saved' | 'pending_approval' | 'approved'
 
 /**
  * Document file source information
+ * Extended with file service fields for PDF preview/download
  */
 export interface DocumentFileInfo {
   originalName: string
   fileSize: number
   mimeType: string
   uploadedAt: string
+  // File service fields for downloading/previewing stored files (PDFs, etc.)
+  path?: string
+  fileId?: string
+  accessScope?: string
+  appName?: string
+  folderPath?: string
+  pageCount?: number
 }
 
 /**
@@ -148,21 +156,27 @@ export interface DocumentSummary {
   isShared?: boolean // Whether this doc was shared with current user
   sharedBy?: string // User ID of person who shared (if shared)
   sharedByName?: string // Display name of person who shared (if shared)
+  sourceFile?: DocumentFileInfo // Source file info for PDFs
+  isPdf?: boolean // Shorthand for sourceFile?.mimeType === 'application/pdf'
 }
 
 /**
- * Template category for organization
+ * Template category for organization.
+ * Values match the document API: GET /document/api/v1/templates?category=
  */
-export type TemplateCategory =
-  | 'contracts'
-  | 'agreements'
-  | 'letters'
-  | 'reports'
-  | 'proposals'
-  | 'policies'
-  | 'procedures'
-  | 'forms'
-  | 'other'
+export const TEMPLATE_CATEGORY_API_VALUES = [
+  'contracts',
+  'agreements',
+  'letters',
+  'reports',
+  'proposals',
+  'policies',
+  'procedures',
+  'forms',
+  'other'
+] as const
+
+export type TemplateCategory = (typeof TEMPLATE_CATEGORY_API_VALUES)[number]
 
 /**
  * Document template definition
@@ -173,6 +187,8 @@ export interface DocumentTemplate {
   description?: string
   content: string // HTML content
   category: TemplateCategory
+  /** Optional entity context for "Insert field" panel (e.g. candidate, employee). When set, overrides derivation from category. */
+  context?: string
   tags?: string[]
   thumbnail?: string // Preview image URL
   createdAt: string
@@ -206,6 +222,7 @@ export interface TemplateSummary {
   name: string
   description?: string
   category: TemplateCategory
+  context?: string
   tags?: string[]
   thumbnail?: string
   createdAt: string

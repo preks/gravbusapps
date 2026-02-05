@@ -249,20 +249,9 @@ const TaskSection: React.FC<TaskSectionProps> = ({
     }
   }
 
-  // Check if task is overdue based on due date and completion status
-  const isTaskOverdue = (dueDate?: string, statusCode?: string): boolean => {
-    if (!dueDate || statusCode === 'COMPLETED') {
-      return false
-    }
-    const now = dayjs()
-    const due = dayjs(dueDate)
-    return due.isValid() && due.isBefore(now)
-  }
-
-  // Determine color and icon based on status (with overdue calculation)
-  const getStatusColorAndIcon = (statusCode?: string, dueDate?: string) => {
-    // Check if task is overdue regardless of status code
-    if (isTaskOverdue(dueDate, statusCode)) {
+  // Determine color and icon based on status
+  const getStatusColorAndIcon = (statusCode?: string) => {
+    if (statusCode === 'OVERDUE') {
       return {
         color: 'destructive',
         icon: (props: any) => <WarningIcon weight="bold" {...props} />
@@ -434,23 +423,16 @@ const TaskSection: React.FC<TaskSectionProps> = ({
     }
   }
 
-  // Map task status type to badge variant (with overdue calculation)
-  const getStatusBadgeVariant = (
-    status?: CatalogEntry,
-    dueDate?: string,
-    statusCode?: string
-  ): 'success' | 'info' | 'destructive' | 'warning' => {
-    // Check if task is overdue regardless of status badge
-    if (isTaskOverdue(dueDate, statusCode)) {
-      return 'destructive'
-    }
-
+  // Map task status type to badge variant
+  const getStatusBadgeVariant = (status?: CatalogEntry): 'success' | 'info' | 'destructive' | 'warning' => {
     const type = status?.type?.toUpperCase()
     switch (type) {
       case 'COMPLETED':
         return 'success'
       case 'IN_PROGRESS':
         return 'info'
+      case 'OVERDUE':
+        return 'destructive'
       case 'PENDING':
         return 'warning'
       default:
@@ -470,7 +452,7 @@ const TaskSection: React.FC<TaskSectionProps> = ({
                 const descParts = buildTaskDescription(due)
                 const code = t.statusCode
 
-                const { color, icon } = getStatusColorAndIcon(code, t.due)
+                const { color, icon } = getStatusColorAndIcon(code)
 
                 const assigneeName = getTaskAssigneeDisplayName(t.assigneeEmployee, {
                   fallback: t.assignee,
@@ -563,8 +545,8 @@ const TaskSection: React.FC<TaskSectionProps> = ({
                         ) : (
                           /* Show regular status for single or no assignee tasks */
                           t.taskStatus && (
-                            <Badge variant={getStatusBadgeVariant(t.taskStatus, t.due, t.statusCode)} size="sm">
-                              {isTaskOverdue(t.due, t.statusCode) ? 'Overdue' : t.taskStatus.value || t.taskStatus.code}
+                            <Badge variant={getStatusBadgeVariant(t.taskStatus)} size="sm">
+                              {t.taskStatus.value || t.taskStatus.code}
                             </Badge>
                           )
                         )}

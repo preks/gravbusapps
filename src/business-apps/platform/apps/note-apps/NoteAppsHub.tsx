@@ -5,7 +5,7 @@
  * Modern OneDrive-inspired design with sidebar navigation.
  */
 
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { toast } from 'sonner'
 import {
   Card,
@@ -51,21 +51,29 @@ import {
   Link2,
   User,
   LayoutGrid,
-  ChevronLeft
+  PenTool,
+  ChevronLeft,
+  PanelLeftClose,
+  PanelLeft,
+  Database
 } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo } from '@/common/utils/navigationUtils'
 
 // Components
+import { type SharedUserInfo } from './components/NotePreviewCard'
 import { NoteEditor } from './NoteEditor'
+import { HandwritingNote } from './components/HandwritingNote'
 import { ShareNoteDialog, type SharedNoteUser } from './components/ShareNoteDialog'
+import type { PaperStyle, StrokeData } from './components/handwriting'
 
 // Hooks
 import { useNotes } from './hooks/useNotes'
-import { useNoteAppsHubUserLookup } from './hooks/useNoteAppsHubUserLookup'
-import { useNoteAppsHubFavorites } from './hooks/useNoteAppsHubFavorites'
-import { useNoteAppsHubFiltering } from './hooks/useNoteAppsHubFiltering'
 import { useNoteAppsHubUrlState } from './hooks/useNoteAppsHubUrlState'
+
+// GraphQL
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { GET_EMPLOYEE_LIGHT_BY_USER_ID } from '@/common/data/employee/queries/employeeQueries'
 
 // Services
 import { NoteApiService } from './services/NoteApiService'
@@ -145,10 +153,37 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
   const [selectedNotes, setSelectedNotes] = useState<Set<string>>(new Set())
   const [sortBy, setSortBy] = useState<'name' | 'modified' | 'created'>('modified')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
-  const { favorites, setFavorites } = useNoteAppsHubFavorites()
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+    const saved = localStorage.getItem('note-hub-sidebar-collapsed')
+    return saved === 'true'
+  })
+  const [favorites, setFavorites] = useState<Set<string>>(() => {
+    try {
+      const saved = localStorage.getItem('note-favorites')
+      return saved ? new Set(JSON.parse(saved)) : new Set()
+    } catch {
+      return new Set()
+    }
+  })
+
+  // Clear space return URL if not opened from a space
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(globalThis.window.location.search)
+      const spaceId = params.get('spaceId')
+      if (!spaceId) {
+        // Note opened from hub, not from a space - clear any stale return URL
+        sessionStorage.removeItem('space_return_url')
+      }
+    } catch (e) {
+      console.warn('Failed to check/clear space_return_url:', e)
+    }
+  }, [])
 
   // Data state
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null)
+  const [sharedUsersMap] = useState<Record<string, SharedUserInfo[]>>({})
+  const [ownerInfoMap, setOwnerInfoMap] = useState<Map<string, { name: string; avatar?: string }>>(new Map())
 
   // Share dialog state
   const [shareDialogOpen, setShareDialogOpen] = useState(false)
@@ -157,6 +192,18 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
 
   // Get current user ID
   const currentUserId = userInfo?.id || userInfo?.employeeDetails?.employeeId || ''
+
+  // Store access token for NoteApiService to use (iPad Safari doesn't have it in localStorage)
+  useEffect(() => {
+    if (accessToken) {
+      try {
+        localStorage.setItem('business-app-ide-access-token', accessToken)
+        console.log('[NoteAppsHub] Stored access token in localStorage, length:', accessToken.length)
+      } catch (e) {
+        console.warn('[NoteAppsHub] Failed to store access token in localStorage:', e)
+      }
+    }
+  }, [accessToken])
 
   // Hooks
   const {
@@ -177,35 +224,188 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
     shareNote,
     getSharedUsers
   } = useNotes({ accessToken, userId: currentUserId })
-  const { ownerInfoMap, sharedUsersMap } = useNoteAppsHubUserLookup({ accessToken, notes })
+
   const { updateUrl, resetLoadAttempt } = useNoteAppsHubUrlState({
     currentView,
-    currentNoteId: currentNote?.id || null,
+    currentNoteId: selectedNoteId,
     isLoadingNote: isLoadingNotes,
     loadNoteById: loadNote,
     setCurrentView,
-    setSelectedNoteId
+    setSelectedNoteId,
+    activeSection,
+    setActiveSection
   })
 
-  const { sharedNotes, pinnedNotes, filteredNotes } = useNoteAppsHubFiltering({
-    notes,
-    currentUserId,
-    activeSection,
-    favorites,
-    searchQuery,
-    sortBy,
-    sortOrder
-  })
+  // Update URL whenever activeSection changes (when user clicks sidebar)
+  useEffect(() => {
+    if (currentView === 'list' && !selectedNoteId) {
+      updateUrl(null)
+    }
+  }, [activeSection, currentView, selectedNoteId, updateUrl])
+
+  // Persist sidebar collapsed state
+  useEffect(() => {
+    localStorage.setItem('note-hub-sidebar-collapsed', String(isSidebarCollapsed))
+  }, [isSidebarCollapsed])
+
+  // GraphQL client for fetching user info
+  const graphqlClient = useGraphQLClient(accessToken)
+
+  // Save favorites to localStorage
+  useEffect(() => {
+    localStorage.setItem('note-favorites', JSON.stringify(Array.from(favorites)))
+  }, [favorites])
+
+  // Fetch owner info for notes - match spreadsheet pattern
+  const loadingOwnerInfoRef = useRef<Set<string>>(new Set())
+  useEffect(() => {
+    if (!graphqlClient) return
+
+    const loadOwnerInfo = async () => {
+      for (const note of notes) {
+        const ownerId = note.ownerId
+        if (!ownerId || ownerInfoMap.has(ownerId) || loadingOwnerInfoRef.current.has(ownerId)) continue
+        loadingOwnerInfoRef.current.add(ownerId)
+
+        try {
+          const query = GET_EMPLOYEE_LIGHT_BY_USER_ID(ownerId)
+          const result = await graphqlClient.request<{
+            Employee: Array<{ displayName: string; pictureThumbnail?: string }>
+          }>(query)
+          const emp = result.Employee?.[0]
+          setOwnerInfoMap(prev =>
+            new Map(prev).set(ownerId, {
+              name: emp?.displayName || `User ${ownerId.slice(0, 8)}`,
+              avatar: emp?.pictureThumbnail
+                ? emp.pictureThumbnail.startsWith('data:')
+                  ? emp.pictureThumbnail
+                  : `data:image/png;base64,${emp.pictureThumbnail}`
+                : undefined
+            })
+          )
+        } catch {
+          // Ignore errors - just show fallback
+          setOwnerInfoMap(prev =>
+            new Map(prev).set(ownerId, {
+              name: `User ${ownerId.slice(0, 8)}`
+            })
+          )
+        } finally {
+          loadingOwnerInfoRef.current.delete(ownerId)
+        }
+      }
+    }
+
+    loadOwnerInfo()
+  }, [notes, graphqlClient, ownerInfoMap])
+
+  // Separate notes into categories
+  const { myNotes, sharedNotes, pinnedNotes, archivedNotes, recentNotes } = useMemo(() => {
+    const my: NoteSummary[] = []
+    const shared: NoteSummary[] = []
+    const pinned: NoteSummary[] = []
+    const archived: NoteSummary[] = []
+    const recent: NoteSummary[] = []
+
+    // Sort by updatedAt for recent
+    const sortedByDate = [...notes].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+    const recentSet = new Set(sortedByDate.slice(0, 10).map(n => n.id))
+
+    notes.forEach(note => {
+      if (note.isArchived) {
+        archived.push(note)
+        return
+      }
+      if (note.isPinned) {
+        pinned.push(note)
+      }
+      if (recentSet.has(note.id)) {
+        recent.push(note)
+      }
+      const isSharedWithMe = note.isShared === true || (note.ownerId !== currentUserId && note.permission !== 'owner')
+      if (isSharedWithMe) {
+        shared.push(note)
+      } else {
+        my.push(note)
+      }
+    })
+
+    return { myNotes: my, sharedNotes: shared, pinnedNotes: pinned, archivedNotes: archived, recentNotes: recent }
+  }, [notes, currentUserId])
+
+  // Filter and sort notes based on current section
+  const filteredNotes = useMemo(() => {
+    let baseNotes: NoteSummary[] = []
+
+    switch (activeSection) {
+      case 'home':
+        baseNotes = [...myNotes, ...sharedNotes]
+        break
+      case 'pinned':
+        baseNotes = pinnedNotes
+        break
+      case 'shared':
+        baseNotes = sharedNotes
+        break
+      case 'archived':
+        baseNotes = archivedNotes
+        break
+      case 'recent':
+        baseNotes = recentNotes
+        break
+      default:
+        baseNotes = myNotes
+    }
+
+    // Filter by search
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase()
+      baseNotes = baseNotes.filter(
+        note =>
+          note.title?.toLowerCase().includes(query) ||
+          note.preview?.toLowerCase().includes(query) ||
+          note.tags?.some(tag => tag.toLowerCase().includes(query))
+      )
+    }
+
+    // Sort
+    baseNotes.sort((a, b) => {
+      let comparison = 0
+      switch (sortBy) {
+        case 'name':
+          comparison = (a.title || '').localeCompare(b.title || '')
+          break
+        case 'modified':
+          comparison = new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+          break
+        case 'created':
+          comparison = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          break
+      }
+      return sortOrder === 'asc' ? -comparison : comparison
+    })
+
+    return baseNotes
+  }, [myNotes, sharedNotes, pinnedNotes, archivedNotes, recentNotes, activeSection, searchQuery, sortBy, sortOrder])
 
   /**
    * Create new note
    */
   const handleCreateNew = useCallback(
-    async (options?: { color?: NoteColor }) => {
+    async (options?: { color?: NoteColor; noteType?: 'text' | 'handwriting'; paperStyle?: PaperStyle }) => {
       const input: CreateNoteInput = {
         title: '',
         content: '<p></p>',
         color: options?.color
+      }
+
+      // For handwriting notes, store noteType and paperStyle in contentJson
+      if (options?.noteType === 'handwriting') {
+        ;(input as CreateNoteInput & { contentJson?: unknown }).contentJson = {
+          _noteType: 'handwriting',
+          _paperStyle: options.paperStyle || 'lined',
+          strokes: []
+        }
       }
 
       const newNote = await createNote(input)
@@ -294,9 +494,32 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
   )
 
   /**
-   * Go back to list
+   * Go back to list or return URL
    */
   const handleBack = useCallback(() => {
+    // Check if there's a space return URL in sessionStorage (takes priority)
+    try {
+      const spaceReturnUrl = sessionStorage.getItem('space_return_url')
+      if (spaceReturnUrl) {
+        sessionStorage.removeItem('space_return_url')
+        globalThis.window.location.href = spaceReturnUrl
+        return
+      }
+    } catch (e) {
+      console.warn('Failed to read space_return_url from sessionStorage:', e)
+    }
+
+    // Fallback: Check if there's a returnUrl parameter
+    const params = new URLSearchParams(globalThis.window.location.search)
+    const returnUrl = params.get('returnUrl')
+
+    if (returnUrl) {
+      // Navigate back to the specified URL (e.g., space)
+      globalThis.window.location.href = returnUrl
+      return
+    }
+
+    // Otherwise, go back to the list view
     clearCurrentNote()
     resetLoadAttempt()
     setSelectedNoteId(null)
@@ -469,79 +692,239 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
     const canEdit = effectivePermission === 'owner' || effectivePermission === 'edit'
     const isOwner = currentNote.ownerId === currentUserId || effectivePermission === 'owner'
 
+    // Check if this is a handwriting note
+    const contentJson = currentNote.contentJson as
+      | {
+          _noteType?: string
+          _paperStyle?: PaperStyle
+          strokes?: StrokeData[]
+          _summary?: string | null
+          _translation?: any[]
+          actionItemFlows?: any[]
+        }
+      | undefined
+    const noteType = currentNote.noteType || contentJson?._noteType || 'text'
+
     console.log('[NoteAppsHub] Editor permissions:', {
       currentNotePermission,
       effectivePermission,
       canEdit,
       isOwner,
       noteOwnerId: currentNote.ownerId,
-      currentUserId
+      currentUserId,
+      noteType
     })
 
+    // Render HandwritingNote for handwriting notes
+    if (noteType === 'handwriting') {
+      return (
+        <>
+          <HandwritingNote
+            noteId={currentNote.id}
+            title={currentNote.title}
+            initialStrokes={contentJson?.strokes || []}
+            initialPaperStyle={contentJson?._paperStyle || 'lined'}
+            initialSummary={contentJson?._summary || null}
+            initialTranslations={(contentJson?._translation as any[]) || []}
+            initialActionItemFlows={(contentJson?.actionItemFlows as any[]) || []}
+            onPersist={async ({ title, strokes, paperStyle, summary, translations, actionItemFlows }) => {
+              await updateNote(currentNote.id, {
+                title,
+                contentJson: {
+                  _noteType: 'handwriting',
+                  _paperStyle: paperStyle,
+                  strokes,
+                  ...(summary ? { _summary: summary } : {}),
+                  ...(translations.length > 0 ? { _translation: translations } : {}),
+                  ...(actionItemFlows.length > 0 ? { actionItemFlows } : {})
+                }
+              })
+            }}
+            onBack={handleBack}
+            onConvertToText={async text => {
+              // Convert handwriting note to text note
+              await updateNote(currentNote.id, {
+                title: currentNote.title,
+                content: `<p>${text.replace(/\n/g, '</p><p>')}</p>`,
+                contentJson: { _noteType: 'text' }
+              })
+              // Refresh the current note to switch to text editor
+              loadNote(currentNote.id)
+            }}
+            onCreateTextNote={async (text, title) => {
+              // Create a new text note from handwriting
+              const input: CreateNoteInput = {
+                title,
+                content: `<p>${text.replace(/\n/g, '</p><p>')}</p>`
+              }
+              const newNote = await createNote(input)
+              if (newNote) {
+                toast.success('Text note created')
+              }
+            }}
+            accessToken={accessToken}
+            userInfo={userInfo}
+            data-testid={`${testId}-handwriting-editor`}
+          />
+
+          {/* Share dialog must also be mounted in editor view */}
+          {noteToShare && (
+            <ShareNoteDialog
+              open={shareDialogOpen}
+              onOpenChange={setShareDialogOpen}
+              noteId={noteToShare.id}
+              noteTitle={noteToShare.title || 'Untitled Note'}
+              accessToken={accessToken}
+              currentUserId={currentUserId}
+              currentUserName={userInfo?.employeeDetails?.displayName}
+              isOwner={noteToShare.ownerId === currentUserId || noteToShare.permission === 'owner'}
+              sharedUsers={shareDialogSharedUsers}
+              onShare={handleShareSubmit}
+              onUnshare={handleUnshare}
+              onRefreshShares={refreshShares}
+            />
+          )}
+        </>
+      )
+    }
+
+    // Render NoteEditor for text notes
     return (
-      <NoteEditor
-        note={currentNote}
-        onSave={async (title, content, contentJson) => {
-          await updateNote(currentNote.id, { title, content, contentJson })
-        }}
-        onBack={handleBack}
-        onTogglePin={() => handleTogglePin(currentNote.id)}
-        onArchive={() => handleArchiveNote(currentNote.id)}
-        onDelete={() => handleDeleteNote(currentNote.id)}
-        onShare={isOwner ? () => handleShareNote(currentNote.id) : undefined}
-        onDuplicate={() => handleDuplicateNote(currentNote.id)}
-        isReadOnly={!canEdit}
-        accessToken={accessToken}
-        userInfo={userInfo}
-        data-testid={`${testId}-editor`}
-      />
+      <>
+        <NoteEditor
+          note={currentNote}
+          onSave={async (title, content, contentJson) => {
+            await updateNote(currentNote.id, { title, content, contentJson })
+          }}
+          onBack={handleBack}
+          onTogglePin={() => handleTogglePin(currentNote.id)}
+          onArchive={() => handleArchiveNote(currentNote.id)}
+          onDelete={() => handleDeleteNote(currentNote.id)}
+          onShare={isOwner ? () => handleShareNote(currentNote.id) : undefined}
+          onDuplicate={() => handleDuplicateNote(currentNote.id)}
+          isReadOnly={!canEdit}
+          accessToken={accessToken}
+          userInfo={userInfo}
+          data-testid={`${testId}-editor`}
+        />
+
+        {/* Share dialog must also be mounted in editor view */}
+        {noteToShare && (
+          <ShareNoteDialog
+            open={shareDialogOpen}
+            onOpenChange={setShareDialogOpen}
+            noteId={noteToShare.id}
+            noteTitle={noteToShare.title || 'Untitled Note'}
+            accessToken={accessToken}
+            currentUserId={currentUserId}
+            currentUserName={userInfo?.employeeDetails?.displayName}
+            isOwner={noteToShare.ownerId === currentUserId || noteToShare.permission === 'owner'}
+            sharedUsers={shareDialogSharedUsers}
+            onShare={handleShareSubmit}
+            onUnshare={handleUnshare}
+            onRefreshShares={refreshShares}
+          />
+        )}
+      </>
     )
   }
 
   return (
     <div className="gba:flex gba:h-full gba:bg-background" data-testid={testId}>
       {/* Sidebar */}
-      <aside className="gba:w-60 gba:border-r gba:bg-card gba:flex gba:flex-col gba:flex-shrink-0">
+      <aside
+        className={`gba:border-r gba:bg-card gba:flex gba:flex-col gba:flex-shrink-0 gba:transition-all gba:duration-300 ${isSidebarCollapsed ? 'gba:w-16' : 'gba:w-60'}`}
+      >
         {/* Logo / Brand */}
-        <div className="gba:p-4 gba:border-b">
-          {/* Back button row */}
-          <button
-            onClick={() => navigateTo('/platform/apps/platform/apps/desk')}
-            className="gba:flex gba:items-center gba:gap-1.5 gba:text-sm gba:text-muted-foreground hover:gba:text-foreground gba:transition-colors gba:mb-3"
+        <div className={`gba:border-b ${isSidebarCollapsed ? 'gba:p-2' : 'gba:p-4'}`}>
+          {/* Back button and collapse toggle row */}
+          <div
+            className={`gba:flex gba:items-center gba:mb-2 ${isSidebarCollapsed ? 'gba:justify-center' : 'gba:justify-between'}`}
           >
-            <ChevronLeft className="gba:w-4 gba:h-4" />
-            <span>Back to Desk</span>
-          </button>
-
-          {/* Existing brand section */}
-          <div className="gba:flex gba:items-center gba:gap-3">
-            <div className="gba:w-10 gba:h-10 gba:rounded-xl gba:bg-gradient-to-br gba:from-amber-500 gba:to-orange-600 gba:flex gba:items-center gba:justify-center">
-              <StickyNote className="gba:w-5 gba:h-5 gba:text-white" />
-            </div>
-            <div>
-              <h1 className="gba:font-semibold gba:text-foreground">Notes</h1>
-              <p className="gba:text-xs gba:text-muted-foreground">NEWWORK Apps</p>
-            </div>
+            <TooltipProvider>
+              {!isSidebarCollapsed && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => navigateTo('/platform/every-office')}
+                      data-testid={`${testId}-back-to-desk`}
+                    >
+                      <ChevronLeft className="gba:w-4 gba:h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Back to Desk</TooltipContent>
+                </Tooltip>
+              )}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                    data-testid={`${testId}-toggle-sidebar`}
+                  >
+                    {isSidebarCollapsed ? (
+                      <PanelLeft className="gba:w-4 gba:h-4" />
+                    ) : (
+                      <PanelLeftClose className="gba:w-4 gba:h-4" />
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
+
+          {/* Brand section */}
+          {!isSidebarCollapsed && (
+            <div className="gba:flex gba:items-center gba:gap-3">
+              <div className="gba:w-10 gba:h-10 gba:rounded-xl gba:bg-gradient-to-br gba:from-amber-500 gba:to-orange-600 gba:flex gba:items-center gba:justify-center">
+                <StickyNote className="gba:w-5 gba:h-5 gba:text-white" />
+              </div>
+              <div>
+                <h1 className="gba:font-semibold gba:text-foreground">Notes</h1>
+                <p className="gba:text-xs gba:text-muted-foreground">NEWWORK Apps</p>
+              </div>
+            </div>
+          )}
+          {isSidebarCollapsed && (
+            <div className="gba:flex gba:justify-center">
+              <div className="gba:w-10 gba:h-10 gba:rounded-xl gba:bg-gradient-to-br gba:from-amber-500 gba:to-orange-600 gba:flex gba:items-center gba:justify-center">
+                <StickyNote className="gba:w-5 gba:h-5 gba:text-white" />
+              </div>
+            </div>
+          )}
         </div>
 
         {/* New Button */}
-        <div className="gba:p-3">
+        <div className={isSidebarCollapsed ? 'gba:p-2' : 'gba:p-3'}>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button className="gba:w-full gba:justify-start gba:gap-2 gba:bg-gradient-to-r gba:from-amber-500 gba:to-orange-600 gba:text-white hover:gba:from-amber-600 hover:gba:to-orange-700">
+              <Button
+                className={`gba:w-full gba:gap-2 gba:bg-gradient-to-r gba:from-amber-500 gba:to-orange-600 gba:text-white hover:gba:from-amber-600 hover:gba:to-orange-700 ${isSidebarCollapsed ? 'gba:justify-center gba:px-0' : 'gba:justify-start'}`}
+              >
                 <Plus className="gba:w-4 gba:h-4" />
-                New
+                {!isSidebarCollapsed && 'New'}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="gba:w-56">
               <DropdownMenuItem onClick={() => handleCreateNew()}>
                 <FileText className="gba:w-4 gba:h-4 gba:mr-2 gba:text-amber-500" />
                 <div>
-                  <div className="gba:font-medium">Blank Note</div>
-                  <div className="gba:text-xs gba:text-muted-foreground">Start from scratch</div>
+                  <div className="gba:font-medium">Text Note</div>
+                  <div className="gba:text-xs gba:text-muted-foreground">Type with keyboard</div>
                 </div>
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleCreateNew({ noteType: 'handwriting', paperStyle: 'lined' })}>
+                <PenTool className="gba:w-4 gba:h-4 gba:mr-2 gba:text-blue-500" />
+                <div>
+                  <div className="gba:font-medium">Handwriting Note</div>
+                  <div className="gba:text-xs gba:text-muted-foreground">Write with Apple Pencil</div>
+                </div>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => handleCreateNew({ color: 'yellow' })}>
                 <Sparkles className="gba:w-4 gba:h-4 gba:mr-2 gba:text-purple-500" />
                 <div>
@@ -556,105 +939,174 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
         {/* Navigation */}
         <nav className="gba:flex-1 gba:overflow-y-auto gba:px-2 gba:py-2">
           <div className="gba:space-y-1">
-            <button
-              onClick={() => setActiveSection('home')}
-              className={`gba:w-full gba:flex gba:items-center gba:gap-3 gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${
-                activeSection === 'home'
-                  ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
-                  : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
-              }`}
-            >
-              <Home className="gba:w-4 gba:h-4" />
-              Home
-            </button>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => setActiveSection('home')}
+                    className={`gba:w-full gba:flex gba:items-center gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${isSidebarCollapsed ? 'gba:justify-center' : 'gba:gap-3'} ${
+                      activeSection === 'home'
+                        ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
+                        : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
+                    }`}
+                  >
+                    <Home className="gba:w-4 gba:h-4" />
+                    {!isSidebarCollapsed && 'Home'}
+                  </button>
+                </TooltipTrigger>
+                {isSidebarCollapsed && <TooltipContent side="right">Home</TooltipContent>}
+              </Tooltip>
 
-            <button
-              onClick={() => setActiveSection('my-notes')}
-              className={`gba:w-full gba:flex gba:items-center gba:gap-3 gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${
-                activeSection === 'my-notes'
-                  ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
-                  : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
-              }`}
-            >
-              <FolderClosed className="gba:w-4 gba:h-4" />
-              My Notes
-            </button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => setActiveSection('my-notes')}
+                    className={`gba:w-full gba:flex gba:items-center gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${isSidebarCollapsed ? 'gba:justify-center' : 'gba:gap-3'} ${
+                      activeSection === 'my-notes'
+                        ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
+                        : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
+                    }`}
+                  >
+                    <FolderClosed className="gba:w-4 gba:h-4" />
+                    {!isSidebarCollapsed && 'My Notes'}
+                  </button>
+                </TooltipTrigger>
+                {isSidebarCollapsed && <TooltipContent side="right">My Notes</TooltipContent>}
+              </Tooltip>
 
-            <button
-              onClick={() => setActiveSection('shared')}
-              className={`gba:w-full gba:flex gba:items-center gba:gap-3 gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${
-                activeSection === 'shared'
-                  ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
-                  : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
-              }`}
-            >
-              <Users className="gba:w-4 gba:h-4" />
-              Shared with me
-              {sharedNotes.length > 0 && (
-                <Badge variant="secondary" className="gba:ml-auto gba:text-xs">
-                  {sharedNotes.length}
-                </Badge>
-              )}
-            </button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => setActiveSection('shared')}
+                    className={`gba:w-full gba:flex gba:items-center gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${isSidebarCollapsed ? 'gba:justify-center' : 'gba:gap-3'} ${
+                      activeSection === 'shared'
+                        ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
+                        : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
+                    }`}
+                  >
+                    <Users className="gba:w-4 gba:h-4" />
+                    {!isSidebarCollapsed && (
+                      <>
+                        Shared with me
+                        {sharedNotes.length > 0 && (
+                          <Badge variant="secondary" className="gba:ml-auto gba:text-xs">
+                            {sharedNotes.length}
+                          </Badge>
+                        )}
+                      </>
+                    )}
+                  </button>
+                </TooltipTrigger>
+                {isSidebarCollapsed && (
+                  <TooltipContent side="right">
+                    Shared with me {sharedNotes.length > 0 && `(${sharedNotes.length})`}
+                  </TooltipContent>
+                )}
+              </Tooltip>
 
-            <button
-              onClick={() => setActiveSection('pinned')}
-              className={`gba:w-full gba:flex gba:items-center gba:gap-3 gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${
-                activeSection === 'pinned'
-                  ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
-                  : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
-              }`}
-            >
-              <Pin className="gba:w-4 gba:h-4" />
-              Pinned
-              {pinnedNotes.length > 0 && (
-                <Badge variant="secondary" className="gba:ml-auto gba:text-xs">
-                  {pinnedNotes.length}
-                </Badge>
-              )}
-            </button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => setActiveSection('pinned')}
+                    className={`gba:w-full gba:flex gba:items-center gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${isSidebarCollapsed ? 'gba:justify-center' : 'gba:gap-3'} ${
+                      activeSection === 'pinned'
+                        ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
+                        : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
+                    }`}
+                  >
+                    <Pin className="gba:w-4 gba:h-4" />
+                    {!isSidebarCollapsed && (
+                      <>
+                        Pinned
+                        {pinnedNotes.length > 0 && (
+                          <Badge variant="secondary" className="gba:ml-auto gba:text-xs">
+                            {pinnedNotes.length}
+                          </Badge>
+                        )}
+                      </>
+                    )}
+                  </button>
+                </TooltipTrigger>
+                {isSidebarCollapsed && (
+                  <TooltipContent side="right">
+                    Pinned {pinnedNotes.length > 0 && `(${pinnedNotes.length})`}
+                  </TooltipContent>
+                )}
+              </Tooltip>
 
-            <button
-              onClick={() => setActiveSection('recent')}
-              className={`gba:w-full gba:flex gba:items-center gba:gap-3 gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${
-                activeSection === 'recent'
-                  ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
-                  : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
-              }`}
-            >
-              <Clock className="gba:w-4 gba:h-4" />
-              Recent
-            </button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => setActiveSection('recent')}
+                    className={`gba:w-full gba:flex gba:items-center gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${isSidebarCollapsed ? 'gba:justify-center' : 'gba:gap-3'} ${
+                      activeSection === 'recent'
+                        ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
+                        : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
+                    }`}
+                  >
+                    <Clock className="gba:w-4 gba:h-4" />
+                    {!isSidebarCollapsed && 'Recent'}
+                  </button>
+                </TooltipTrigger>
+                {isSidebarCollapsed && <TooltipContent side="right">Recent</TooltipContent>}
+              </Tooltip>
 
-            <button
-              onClick={() => setActiveSection('archived')}
-              className={`gba:w-full gba:flex gba:items-center gba:gap-3 gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${
-                activeSection === 'archived'
-                  ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
-                  : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
-              }`}
-            >
-              <Archive className="gba:w-4 gba:h-4" />
-              Archived
-            </button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => setActiveSection('archived')}
+                    className={`gba:w-full gba:flex gba:items-center gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${isSidebarCollapsed ? 'gba:justify-center' : 'gba:gap-3'} ${
+                      activeSection === 'archived'
+                        ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
+                        : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
+                    }`}
+                  >
+                    <Archive className="gba:w-4 gba:h-4" />
+                    {!isSidebarCollapsed && 'Archived'}
+                  </button>
+                </TooltipTrigger>
+                {isSidebarCollapsed && <TooltipContent side="right">Archived</TooltipContent>}
+              </Tooltip>
+            </TooltipProvider>
           </div>
 
-          <div className="gba:mt-6 gba:pt-4 gba:border-t">
-            <p className="gba:px-3 gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-2">Summary</p>
-            <div className="gba:px-3 gba:py-2 gba:rounded-lg gba:bg-muted/30">
-              <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-                <StickyNote className="gba:w-4 gba:h-4 gba:text-amber-500" />
-                <span className="gba:text-xs gba:text-muted-foreground">Real-time collaboration</span>
+          {!isSidebarCollapsed && (
+            <div className="gba:mt-6 gba:pt-4 gba:border-t">
+              <p className="gba:px-3 gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-2">Storage</p>
+              <div className="gba:px-3 gba:py-2 gba:rounded-lg gba:bg-muted/30">
+                <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
+                  <Database className="gba:w-4 gba:h-4 gba:text-amber-500" />
+                  <span className="gba:text-xs gba:text-muted-foreground">Cloud storage</span>
+                </div>
+                <div className="gba:h-1.5 gba:bg-muted gba:rounded-full gba:overflow-hidden">
+                  <div
+                    className="gba:h-full gba:bg-gradient-to-r gba:from-amber-500 gba:to-orange-500 gba:rounded-full"
+                    style={{ width: `${Math.min((notes.length / 50) * 100, 100)}%` }}
+                  />
+                </div>
+                <p className="gba:text-[10px] gba:text-muted-foreground gba:mt-1">{notes.length} notes</p>
               </div>
-              <div className="gba:h-1.5 gba:bg-muted gba:rounded-full gba:overflow-hidden">
-                <div
-                  className="gba:h-full gba:bg-gradient-to-r gba:from-amber-500 gba:to-orange-500 gba:rounded-full"
-                  style={{ width: `${Math.min((notes.length / 50) * 100, 100)}%` }}
-                />
-              </div>
-              <p className="gba:text-[10px] gba:text-muted-foreground gba:mt-1">{notes.length} notes</p>
             </div>
-          </div>
+          )}
+          {isSidebarCollapsed && (
+            <div className="gba:mt-6 gba:pt-4 gba:border-t gba:flex gba:justify-center">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="gba:p-2">
+                      <Database className="gba:w-4 gba:h-4 gba:text-amber-500" />
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">
+                    <div>
+                      <p className="gba:font-medium">Cloud storage</p>
+                      <p className="gba:text-xs gba:text-muted-foreground">{notes.length} notes</p>
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+          )}
         </nav>
       </aside>
 
@@ -879,7 +1331,12 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
                       {/* Name & Icon */}
                       <div className="gba:flex-1 gba:min-w-0 gba:flex gba:items-center gba:gap-3">
                         <div className="gba:w-10 gba:h-10 gba:rounded-lg gba:bg-amber-500/10 gba:flex gba:items-center gba:justify-center gba:flex-shrink-0">
-                          <span className="gba:text-lg">{note.icon || '📝'}</span>
+                          {note.noteType === 'handwriting' ||
+                          (note.contentJson as { _noteType?: string } | undefined)?._noteType === 'handwriting' ? (
+                            <PenTool className="gba:w-5 gba:h-5 gba:text-amber-600" />
+                          ) : (
+                            <span className="gba:text-lg">{note.icon || '📝'}</span>
+                          )}
                         </div>
                         <div className="gba:min-w-0">
                           <div className="gba:flex gba:items-center gba:gap-2">
@@ -1045,7 +1502,12 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
                   >
                     {/* Preview area */}
                     <div className="gba:relative gba:aspect-[4/3] gba:bg-gradient-to-br gba:from-amber-500/10 gba:to-orange-500/10 gba:flex gba:items-center gba:justify-center gba:rounded-t-lg">
-                      <span className="gba:text-4xl">{note.icon || '📝'}</span>
+                      {note.noteType === 'handwriting' ||
+                      (note.contentJson as { _noteType?: string } | undefined)?._noteType === 'handwriting' ? (
+                        <PenTool className="gba:w-12 gba:h-12 gba:text-amber-600" />
+                      ) : (
+                        <span className="gba:text-4xl">{note.icon || '📝'}</span>
+                      )}
 
                       {/* Hover overlay */}
                       <div className="gba:absolute gba:inset-0 gba:bg-black/0 group-hover:gba:bg-black/5 gba:transition-colors gba:rounded-t-lg" />

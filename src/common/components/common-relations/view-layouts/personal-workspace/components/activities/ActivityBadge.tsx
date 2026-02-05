@@ -38,7 +38,7 @@ export const ActivityBadge: React.FC<ActivityBadgeProps> = ({ activity, config, 
 
   if (isUnlinked) {
     return (
-      <Badge variant="outline" data-testid={dataTestId}>
+      <Badge variant="secondary" data-testid={dataTestId}>
         General
       </Badge>
     )
@@ -48,7 +48,7 @@ export const ActivityBadge: React.FC<ActivityBadgeProps> = ({ activity, config, 
   if (activity.accountId && activity.account) {
     return (
       <Badge
-        variant="outline"
+        variant="secondary"
         data-testid={dataTestId}
         onClick={handleEntityClick}
         className="gba:cursor-pointer hover:gba:opacity-80"
@@ -61,7 +61,7 @@ export const ActivityBadge: React.FC<ActivityBadgeProps> = ({ activity, config, 
   if (activity.contactId && activity.contact) {
     return (
       <Badge
-        variant="outline"
+        variant="secondary"
         data-testid={dataTestId}
         onClick={handleEntityClick}
         className="gba:cursor-pointer hover:gba:opacity-80"
@@ -74,7 +74,7 @@ export const ActivityBadge: React.FC<ActivityBadgeProps> = ({ activity, config, 
   if (activity.leadId && activity.lead) {
     return (
       <Badge
-        variant="outline"
+        variant="secondary"
         data-testid={dataTestId}
         onClick={handleEntityClick}
         className="gba:cursor-pointer hover:gba:opacity-80"
@@ -87,7 +87,7 @@ export const ActivityBadge: React.FC<ActivityBadgeProps> = ({ activity, config, 
   if (activity.opportunityId && activity.opportunity) {
     return (
       <Badge
-        variant="outline"
+        variant="secondary"
         data-testid={dataTestId}
         onClick={handleEntityClick}
         className="gba:cursor-pointer hover:gba:opacity-80"

@@ -1,5 +1,8 @@
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { isValidDate } from '@/common/utils/dateFormatter'
+import { buildWhere } from '@/common/network/graphql/queryHelpers'
+import { INVESTMENT_DESCRIPTORS } from '@/common/data/investment/types/investmentTypes.new'
 
 export interface PortfolioKPIData {
   totalPortfolioValue: number
@@ -15,21 +18,73 @@ export interface PortfolioKPIComparison {
   previous: PortfolioKPIData
 }
 
-export const GET_PORTFOLIO_KPIS_WITH_COMPARISON = (comparisonDate: string, currencyCode?: string): string => {
-  // Build currency filter if provided
-  const currencyFilter = currencyCode ? `currency: { code: { _eq: "${currencyCode}" } }` : ''
+interface PortfolioKPIQueryResult {
+  query: string
+  variables: Record<string, any>
+}
 
-  return `
-    query GetPortfolioKPIsWithComparison {
-      # Current data (all investments - no date filter)
-      currentAggregate: InvestmentAggregate(
-        where: {
-          _and: [
-            { isDeleted: { _eq: false } }
-            ${currencyFilter ? `{ ${currencyFilter} }` : ''}
-          ]
-        }
-      ) {
+const buildPortfolioKPIQuery = (
+  comparisonDate: string,
+  currencyCode?: string,
+  filters?: Record<string, any>
+): PortfolioKPIQueryResult => {
+  // Validate comparison date
+  if (!isValidDate(comparisonDate)) {
+    throw new Error('Invalid comparison date format')
+  }
+
+  const variables = { ...filters }
+
+  // Build custom conditions for currency
+  const customConditions: Record<string, any>[] = []
+
+  if (currencyCode) {
+    customConditions.push({ currency: { code: { _eq: currencyCode } } })
+  }
+
+  // Build where clauses using standard buildWhere from common
+  // Note: investmentGroupIds is already handled by INVESTMENT_DESCRIPTORS
+  const currentWhere = buildWhere({
+    variables,
+    descriptors: INVESTMENT_DESCRIPTORS,
+    customConditions,
+    isDeleted: true
+  })
+
+  const currentActiveWhere = buildWhere({
+    variables,
+    descriptors: INVESTMENT_DESCRIPTORS,
+    customConditions: [...customConditions, { investmentStatus: { value: { _eq: 'Active' } } }],
+    isDeleted: true
+  })
+
+  const previousWhere = buildWhere({
+    variables,
+    descriptors: INVESTMENT_DESCRIPTORS,
+    customConditions: [...customConditions, { createdAt: { _lte: comparisonDate } }],
+    isDeleted: true
+  })
+
+  const previousActiveWhere = buildWhere({
+    variables,
+    descriptors: INVESTMENT_DESCRIPTORS,
+    customConditions: [
+      ...customConditions,
+      { createdAt: { _lte: comparisonDate } },
+      { investmentStatus: { value: { _eq: 'Active' } } }
+    ],
+    isDeleted: true
+  })
+
+  const query = `
+    query GetPortfolioKPIsWithComparison(
+      $currentWhere: InvestmentBoolExp,
+      $currentActiveWhere: InvestmentBoolExp,
+      $previousWhere: InvestmentBoolExp,
+      $previousActiveWhere: InvestmentBoolExp
+    ) {
+      # Current data (all investments)
+      currentAggregate: InvestmentAggregate(where: $currentWhere) {
         aggregate {
           count
           sum {
@@ -40,30 +95,14 @@ export const GET_PORTFOLIO_KPIS_WITH_COMPARISON = (comparisonDate: string, curre
       }
       
       # Current active investments count
-      currentActiveAggregate: InvestmentAggregate(
-        where: {
-          _and: [
-            { isDeleted: { _eq: false } }
-            { investmentStatus: { value: { _eq: "Active" } } }
-            ${currencyFilter ? `{ ${currencyFilter} }` : ''}
-          ]
-        }
-      ) {
+      currentActiveAggregate: InvestmentAggregate(where: $currentActiveWhere) {
         aggregate {
           count
         }
       }
       
       # Previous period data (investments that existed 91 days ago)
-      previousAggregate: InvestmentAggregate(
-        where: {
-          _and: [
-            { isDeleted: { _eq: false } }
-            { createdAt: { _lte: "${comparisonDate}" } }
-            ${currencyFilter ? `{ ${currencyFilter} }` : ''}
-          ]
-        }
-      ) {
+      previousAggregate: InvestmentAggregate(where: $previousWhere) {
         aggregate {
           count
           sum {
@@ -73,102 +112,94 @@ export const GET_PORTFOLIO_KPIS_WITH_COMPARISON = (comparisonDate: string, curre
         }
       }
       
-      # Previous active investments count (investments that were active 91 days ago)
-      previousActiveAggregate: InvestmentAggregate(
-        where: {
-          _and: [
-            { isDeleted: { _eq: false } }
-            { createdAt: { _lte: "${comparisonDate}" } }
-            { investmentStatus: { value: { _eq: "Active" } } }
-            ${currencyFilter ? `{ ${currencyFilter} }` : ''}
-          ]
-        }
-      ) {
+      # Previous active investments count
+      previousActiveAggregate: InvestmentAggregate(where: $previousActiveWhere) {
         aggregate {
           count
         }
       }
     }
   `
-}
 
-export interface PortfolioKPIResponse {
-  currentAggregate: {
-    aggregate: {
-      count: number
-      sum: {
-        totalInvestmentAmount: number
-        investmentMarketValue: number
-      }
-    }
-  }
-  currentActiveAggregate: {
-    aggregate: {
-      count: number
-    }
-  }
-  previousAggregate: {
-    aggregate: {
-      count: number
-      sum: {
-        totalInvestmentAmount: number | null
-        investmentMarketValue: number | null
-      }
-    }
-  }
-  previousActiveAggregate: {
-    aggregate: {
-      count: number
+  return {
+    query,
+    variables: {
+      currentWhere,
+      currentActiveWhere,
+      previousWhere,
+      previousActiveWhere
     }
   }
 }
 
+const AVERAGE_FALLBACK = 0
+
+/**
+ * Hook to fetch portfolio KPI data with period comparison
+ * Uses standard descriptor-based filtering from common
+ */
 export const useGetPortfolioKPIs = (context: BusinessAppContextProps) => {
   const graphqlClient = useGraphQLClient(context.accessToken)
 
-  const fetchPortfolioKPIs = async (currencyCode?: string): Promise<PortfolioKPIComparison> => {
-    // Calculate date 91 days ago for comparison
-    const quarterAgo = new Date()
-    quarterAgo.setDate(quarterAgo.getDate() - 91)
-    const comparisonDate = quarterAgo.toISOString()
+  const fetchPortfolioKPIs = async (
+    currencyCode?: string,
+    filters?: Record<string, any>
+  ): Promise<PortfolioKPIComparison> => {
+    // Calculate comparison date (91 days ago)
+    const comparisonDate = new Date()
+    comparisonDate.setDate(comparisonDate.getDate() - 91)
+    const comparisonDateString = comparisonDate.toISOString()
+    if (!context.accessToken) {
+      throw new Error('[useGetPortfolioKPIs] Access token is required')
+    }
 
-    const query = GET_PORTFOLIO_KPIS_WITH_COMPARISON(comparisonDate, currencyCode)
+    const { query, variables } = buildPortfolioKPIQuery(comparisonDateString, currencyCode, filters)
+
     try {
-      const result = await graphqlClient.request<PortfolioKPIResponse>(query)
+      const result = await graphqlClient.request<any>(query, variables)
 
-      // Transform current data
-      const currentCount = result.currentAggregate.aggregate.count
-      const currentTotalAmount = result.currentAggregate.aggregate.sum.totalInvestmentAmount || 0
-      const currentMarketValue = result.currentAggregate.aggregate.sum.investmentMarketValue || 0
-
-      const current: PortfolioKPIData = {
-        totalPortfolioValue: currentMarketValue,
-        totalInvestments: currentCount,
-        totalAmountInvested: currentTotalAmount,
-        activeInvestments: result.currentActiveAggregate.aggregate.count,
-        // Calculate averages from aggregates (efficient!)
-        averageInvestmentValue: currentCount > 0 ? currentTotalAmount / currentCount : 0,
-        averageMarketValue: currentCount > 0 ? currentMarketValue / currentCount : 0
+      // Process current KPIs
+      const currentData: PortfolioKPIData = {
+        totalPortfolioValue: result.currentAggregate.aggregate.sum?.investmentMarketValue || 0,
+        totalInvestments: result.currentAggregate.aggregate.count || 0,
+        totalAmountInvested: result.currentAggregate.aggregate.sum?.totalInvestmentAmount || 0,
+        activeInvestments: result.currentActiveAggregate.aggregate.count || 0,
+        averageInvestmentValue:
+          result.currentAggregate.aggregate.count > 0
+            ? (result.currentAggregate.aggregate.sum?.totalInvestmentAmount || 0) /
+              result.currentAggregate.aggregate.count
+            : AVERAGE_FALLBACK,
+        averageMarketValue:
+          result.currentAggregate.aggregate.count > 0
+            ? (result.currentAggregate.aggregate.sum?.investmentMarketValue || 0) /
+              result.currentAggregate.aggregate.count
+            : AVERAGE_FALLBACK
       }
 
-      // Transform previous data (handle null values)
-      const previousCount = result.previousAggregate.aggregate.count
-      const previousTotalAmount = result.previousAggregate.aggregate.sum.totalInvestmentAmount || 0
-      const previousMarketValue = result.previousAggregate.aggregate.sum.investmentMarketValue || 0
-
-      const previous: PortfolioKPIData = {
-        totalPortfolioValue: previousMarketValue,
-        totalInvestments: previousCount,
-        totalAmountInvested: previousTotalAmount,
-        activeInvestments: result.previousActiveAggregate.aggregate.count,
-        // Calculate averages from aggregates (efficient!)
-        averageInvestmentValue: previousCount > 0 ? previousTotalAmount / previousCount : 0,
-        averageMarketValue: previousCount > 0 ? previousMarketValue / previousCount : 0
+      // Process previous KPIs
+      const previousData: PortfolioKPIData = {
+        totalPortfolioValue: result.previousAggregate.aggregate.sum?.investmentMarketValue || 0,
+        totalInvestments: result.previousAggregate.aggregate.count || 0,
+        totalAmountInvested: result.previousAggregate.aggregate.sum?.totalInvestmentAmount || 0,
+        activeInvestments: result.previousActiveAggregate.aggregate.count || 0,
+        averageInvestmentValue:
+          result.previousAggregate.aggregate.count > 0
+            ? (result.previousAggregate.aggregate.sum?.totalInvestmentAmount || 0) /
+              result.previousAggregate.aggregate.count
+            : AVERAGE_FALLBACK,
+        averageMarketValue:
+          result.previousAggregate.aggregate.count > 0
+            ? (result.previousAggregate.aggregate.sum?.investmentMarketValue || 0) /
+              result.previousAggregate.aggregate.count
+            : AVERAGE_FALLBACK
       }
 
-      return { current, previous }
+      return {
+        current: currentData,
+        previous: previousData
+      }
     } catch (error) {
-      console.error('Error fetching portfolio KPIs:', error)
+      console.error('[useGetPortfolioKPIs] Error fetching portfolio KPIs:', error)
       throw error
     }
   }

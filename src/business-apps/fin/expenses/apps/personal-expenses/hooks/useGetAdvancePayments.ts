@@ -28,11 +28,49 @@ export interface AdvancePayment {
     id?: string
     code?: string
     title?: string
+    startDate?: string | null
+    endDate?: string | null
     totalAmount?: number | null
     currency?: { code?: string } | null
     costCenter?: { name?: string } | null
     project?: { name?: string } | null
-    expenseRequest?: Array<{ id?: string | null }> | null
+    employee?: {
+      id?: string
+      code?: string
+      firstName?: string | null
+      lastName?: string | null
+      fullName?: string | null
+      employeePosition?: {
+        jobPosition?: { name?: string | null } | null
+        organizationalUnit?: { name?: string | null } | null
+      } | null
+    } | null
+    expenseRequestTrip?: Array<{
+      id?: string
+      address?: string | null
+      pointType?: string | null
+      countryRef?: string | null
+      tripDateTime?: string | null
+      tripOrder?: number | null
+      tripDirection?: string | null
+      travelRegion?: { value?: string | null } | null
+      country?: { value?: string | null } | null
+    }> | null
+    expenseRequest?: Array<{
+      id?: string | null
+      code?: string | null
+      expenseRequestTrip?: Array<{
+        id?: string
+        address?: string | null
+        pointType?: string | null
+        countryRef?: string | null
+        tripDateTime?: string | null
+        tripOrder?: number | null
+        tripDirection?: string | null
+        travelRegion?: { value?: string | null } | null
+        country?: { value?: string | null } | null
+      }> | null
+    }> | null
   } | null
   expensePlanId?: string | null
 }
