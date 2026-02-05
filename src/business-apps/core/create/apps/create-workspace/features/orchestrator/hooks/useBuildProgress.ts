@@ -147,121 +147,157 @@ export function useBuildProgress({
     totalCount > 0 ? Math.round(((completedCount + failedCount + reusedCount) / totalCount) * 100) : 0
 
   /**
-   * Handle incoming progress event
+   * Handle phase-level events
    */
-  const handleProgressEvent = useCallback(
+  const handlePhaseEvent = useCallback(
     (event: BuildProgressEvent) => {
-      // Handle phase-level events
-      switch (event.event_type) {
-        case 'discovery_started':
+      const phaseHandlers: Record<string, () => void> = {
+        discovery_started: () => {
           setCurrentPhase('discovery')
           setPhaseMessage(event.message)
-          return
-
-        case 'discovery_complete':
-          setPhaseMessage(event.message)
-          return
-
-        case 'build_started':
+        },
+        discovery_complete: () => setPhaseMessage(event.message),
+        build_started: () => {
           setCurrentPhase('building')
           setPhaseMessage(event.message)
-          return
-
-        case 'wiring_started':
+        },
+        wiring_started: () => {
           setCurrentPhase('wiring')
           setPhaseMessage(event.message)
-          return
-
-        case 'wiring_progress':
-          setPhaseMessage(event.message)
-          return
-
-        case 'wiring_completed':
-          setPhaseMessage(event.message)
-          return
-
-        case 'build_complete':
+        },
+        wiring_progress: () => setPhaseMessage(event.message),
+        wiring_completed: () => setPhaseMessage(event.message),
+        build_complete: () => {
           setCurrentPhase('complete')
           setIsBuilding(false)
           setPhaseMessage(event.message)
           const success = event.status === 'completed'
           onComplete?.(success)
-          return
-      }
-
-      // Handle component-level events
-      setTiles(prevTiles => {
-        const newTiles = { ...prevTiles }
-
-        if (event.component_type) {
-          const tile = newTiles[event.component_type]
-          if (tile) {
-            // Handle component reused (from discovery phase)
-            if (event.event_type === 'component_reused') {
-              tile.status = 'completed' // Mark as done since we're reusing
-              tile.currentOperation = event.message
-              const item = tile.items.find(i => i.id === event.component_id)
-              if (item) {
-                item.status = 'reused'
-                item.createdId = event.created_id
-                item.reused = true
-              }
-              tile.reusedCount = (tile.reusedCount || 0) + 1
-            }
-            // Handle component started
-            else if (event.event_type === 'component_started') {
-              tile.status = 'building'
-              tile.currentOperation = event.message
-            }
-            // Handle component completed
-            else if (event.event_type === 'component_completed') {
-              tile.currentOperation = undefined
-              const item = tile.items.find(i => i.id === event.component_id)
-              if (item) {
-                item.status = 'completed'
-                item.createdId = event.created_id
-              }
-              // Check if all items in tile are done
-              const allDone = tile.items.every(
-                i => i.status === 'completed' || i.status === 'reused' || i.status === 'error' || i.status === 'skipped'
-              )
-              if (allDone) {
-                const hasErrors = tile.items.some(i => i.status === 'error')
-                tile.status = hasErrors ? 'error' : 'completed'
-              }
-            }
-            // Handle component error
-            else if (event.event_type === 'component_error') {
-              tile.currentOperation = undefined
-              const item = tile.items.find(i => i.id === event.component_id)
-              if (item) {
-                item.status = 'error'
-                item.error = event.error_details
-              }
-            }
-            // Handle component progress
-            else if (event.event_type === 'component_progress') {
-              tile.currentOperation = event.message
-              if (event.progress_percent !== undefined) {
-                tile.progressPercent = event.progress_percent
-              }
-            }
-          }
         }
-
-        return newTiles
-      })
-
-      // Update counts
-      if (event.event_type === 'component_completed') {
-        setCompletedCount(prev => prev + 1)
-      } else if (event.event_type === 'component_error') {
-        setFailedCount(prev => prev + 1)
-      } else if (event.event_type === 'component_reused') {
-        setReusedCount(prev => prev + 1)
       }
+
+      const handler = phaseHandlers[event.event_type]
+      if (handler) {
+        handler()
+        return true
+      }
+      return false
     },
     [onComplete]
+  )
+
+  /**
+   * Handle component reused event
+   */
+  const handleComponentReused = (tile: any, event: BuildProgressEvent) => {
+    tile.status = 'completed'
+    tile.currentOperation = event.message
+    const item = tile.items.find((i: any) => i.id === event.component_id)
+    if (item) {
+      item.status = 'reused'
+      item.createdId = event.created_id
+      item.reused = true
+    }
+    tile.reusedCount = (tile.reusedCount || 0) + 1
+  }
+
+  /**
+   * Handle component completed event
+   */
+  const handleComponentCompleted = (tile: any, event: BuildProgressEvent) => {
+    tile.currentOperation = undefined
+    const item = tile.items.find((i: any) => i.id === event.component_id)
+    if (item) {
+      item.status = 'completed'
+      item.createdId = event.created_id
+    }
+    // Check if all items in tile are done
+    const allDone = tile.items.every(
+      (i: any) => i.status === 'completed' || i.status === 'reused' || i.status === 'error' || i.status === 'skipped'
+    )
+    if (allDone) {
+      const hasErrors = tile.items.some((i: any) => i.status === 'error')
+      tile.status = hasErrors ? 'error' : 'completed'
+    }
+  }
+
+  /**
+   * Handle component error event
+   */
+  const handleComponentError = (tile: any, event: BuildProgressEvent) => {
+    tile.currentOperation = undefined
+    const item = tile.items.find((i: any) => i.id === event.component_id)
+    if (item) {
+      item.status = 'error'
+      item.error = event.error_details
+    }
+  }
+
+  /**
+   * Handle component progress event
+   */
+  const handleComponentProgress = (tile: any, event: BuildProgressEvent) => {
+    tile.currentOperation = event.message
+    if (event.progress_percent !== undefined) {
+      tile.progressPercent = event.progress_percent
+    }
+  }
+
+  /**
+   * Handle component-level events
+   */
+  const handleComponentEvent = useCallback((event: BuildProgressEvent) => {
+    setTiles(prevTiles => {
+      const newTiles = { ...prevTiles }
+
+      if (!event.component_type) return newTiles
+
+      const tile = newTiles[event.component_type]
+      if (!tile) return newTiles
+
+      const eventHandlers: Record<string, (tile: any, event: BuildProgressEvent) => void> = {
+        component_reused: handleComponentReused,
+        component_started: (t, e) => {
+          t.status = 'building'
+          t.currentOperation = e.message
+        },
+        component_completed: handleComponentCompleted,
+        component_error: handleComponentError,
+        component_progress: handleComponentProgress
+      }
+
+      const handler = eventHandlers[event.event_type]
+      if (handler) {
+        handler(tile, event)
+      }
+
+      return newTiles
+    })
+
+    // Update counts
+    const countUpdaters: Record<string, () => void> = {
+      component_completed: () => setCompletedCount(prev => prev + 1),
+      component_error: () => setFailedCount(prev => prev + 1),
+      component_reused: () => setReusedCount(prev => prev + 1)
+    }
+
+    const updater = countUpdaters[event.event_type]
+    if (updater) updater()
+  }, [])
+
+  /**
+   * Handle incoming progress event
+   */
+  const handleProgressEvent = useCallback(
+    (event: BuildProgressEvent) => {
+      // Try to handle as phase event first
+      const isPhaseEvent = handlePhaseEvent(event)
+      if (isPhaseEvent) return
+
+      // Otherwise handle as component event
+      handleComponentEvent(event)
+    },
+    [handlePhaseEvent, handleComponentEvent]
   )
 
   /**

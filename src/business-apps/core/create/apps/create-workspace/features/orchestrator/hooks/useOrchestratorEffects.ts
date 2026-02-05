@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from 'react'
-import type { OrchestratorState } from './useOrchestratorState'
+import type { OrchestratorState } from './useOrchestratorStateOld'
 import type { UseBuildProgressResult } from './useBuildProgress'
 import type { BuildPhase } from '../types'
 
@@ -13,6 +13,29 @@ export interface OrchestratorEffectsDeps {
 }
 
 export const useOrchestratorEffects = ({ state, handlers, buildProgress, initialPrompt }: OrchestratorEffectsDeps) => {
+  // Helper to update thinking steps
+  const updateThinkingSteps = (prev: any[]) => {
+    const nextPending = prev.findIndex(s => s.status === 'pending')
+    if (nextPending === -1) return prev
+    const updated = [...prev]
+    const currentActive = prev.findIndex(s => s.status === 'active')
+    if (currentActive !== -1) {
+      updated[currentActive] = {
+        ...updated[currentActive],
+        status: 'complete',
+        duration: Math.floor(Math.random() * 500 + 200)
+      }
+    }
+    updated[nextPending] = { ...updated[nextPending], status: 'active' }
+    return updated
+  }
+
+  // Helper to update analysis progress
+  const updateAnalysisProgress = (prev: number) => {
+    if (prev >= 90) return prev
+    return Math.min(prev + 10, 90)
+  }
+
   // Initialize thinking steps when analysis starts
   useEffect(() => {
     if (state.viewState === 'analyzing') {
@@ -25,25 +48,8 @@ export const useOrchestratorEffects = ({ state, handlers, buildProgress, initial
       state.setAnalysisProgress(25)
 
       const progressInterval = setInterval(() => {
-        state.setAnalysisProgress(prev => {
-          if (prev >= 90) return prev
-          return Math.min(prev + 10, 90)
-        })
-        state.setThinkingSteps(prev => {
-          const nextPending = prev.findIndex(s => s.status === 'pending')
-          if (nextPending === -1) return prev
-          const updated = [...prev]
-          const currentActive = prev.findIndex(s => s.status === 'active')
-          if (currentActive !== -1) {
-            updated[currentActive] = {
-              ...updated[currentActive],
-              status: 'complete',
-              duration: Math.floor(Math.random() * 500 + 200)
-            }
-          }
-          updated[nextPending] = { ...updated[nextPending], status: 'active' }
-          return updated
-        })
+        state.setAnalysisProgress(updateAnalysisProgress)
+        state.setThinkingSteps(updateThinkingSteps)
       }, 1500)
 
       return () => clearInterval(progressInterval)

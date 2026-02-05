@@ -1,5 +1,5 @@
 import { useCallback } from 'react'
-import type { OrchestratorState } from './useOrchestratorState'
+import type { OrchestratorState } from './useOrchestratorStateOld'
 import type { UseOrchestratorClientResult } from './useOrchestratorClient'
 import type { UseBuildProgressResult } from './useBuildProgress'
 import type { ComponentSpec } from '../types'
