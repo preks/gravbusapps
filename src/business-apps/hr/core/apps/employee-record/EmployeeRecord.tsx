@@ -194,8 +194,10 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
   const [activeTab, setActiveTab] = useState(initialActiveTab)
   const activeStructureId = getCurrentActiveStructureId() || ''
   const devFeatureFlag = useFeature(Feature.Dev.Enabled.Key)
+  const assetsFeatureFlag = useFeature(Feature.HCM.Assets.Key)
   const changeLogFeatureFlag = useFeature('dev.employee-record.changelog.enabled')
   const servicesFeatureFlag = useFeature('services.enabled')
+  const attendanceFeatureFlag = useFeature('human-resources.attendance.enabled')
   const compensationFeatureFlagRaw = useFeature<boolean>(Feature.HCM.Compensation.Key)
 
   // Handle undefined as true (enabled by default until FeatureHub loads)
@@ -578,22 +580,26 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
             }
           ]
         : []),
-      {
-        value: TAB_KEYS.timeTracking,
-        label: t('employee-record-tab-time-tracking'),
-        icon: <ClockCounterClockwiseIcon className="gba:mr-2" size={20} />,
-        content: (
-          <div className="gba:col-span-full">
-            <TimeTrackingTab
-              employee={employee}
-              accessToken={accessToken}
-              employeeId={employeeIdToShow}
-              userId={userInfo?.id || ''}
-              isSelfView={isSelfView}
-            />
-          </div>
-        )
-      },
+      ...(attendanceFeatureFlag
+        ? [
+            {
+              value: TAB_KEYS.timeTracking,
+              label: t('employee-record-tab-time-tracking'),
+              icon: <ClockCounterClockwiseIcon className="gba:mr-2" size={20} />,
+              content: (
+                <div className="gba:col-span-full">
+                  <TimeTrackingTab
+                    employee={employee}
+                    accessToken={accessToken}
+                    employeeId={employeeIdToShow}
+                    userId={userInfo?.id || ''}
+                    isSelfView={isSelfView}
+                  />
+                </div>
+              )
+            }
+          ]
+        : []),
       {
         value: TAB_KEYS.absences,
         label: t('employee-record-tab-absences'),
@@ -611,7 +617,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
           </div>
         )
       },
-      ...(devFeatureFlag
+      ...(assetsFeatureFlag
         ? [
             {
               value: TAB_KEYS.assets,

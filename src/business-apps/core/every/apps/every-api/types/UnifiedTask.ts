@@ -64,6 +64,19 @@ export interface UnifiedTask {
   createdAt?: string
   completedAt?: string
 
+  /**
+   * Backend-computed due date metadata (everybox-service).
+   * Keeps frontend rendering fast (no client-side date math).
+   */
+  dueMeta?: {
+    status: 'dueSoon24h' | 'overdue'
+    dueAt: string
+    hoursRemaining?: number
+    daysRemaining?: number
+    hoursOverdue?: number
+    daysOverdue?: number
+  }
+
   // Content
   message?: string
   description?: string
@@ -92,6 +105,41 @@ export interface UnifiedTask {
   sourceMetadata?: {
     [key: string]: any
   }
+
+  /**
+   * Per-user task state persisted by everybox-service
+   */
+  userState?: {
+    isRead: boolean
+    isPinned: boolean
+    userPriority: number | null
+    readAt: string | null
+    pinnedAt: string | null
+  }
+
+  /**
+   * AI/enrichment fields (cached per user/task, computed by everybox-service)
+   */
+  ai?: {
+    urgencyScore?: number | null
+    clusterId?: string | null
+    suggestedActions?: SuggestedAction[] | null
+    summaryShort?: string | null
+    explanations?: {
+      urgency?: { reasons?: string[] }
+      cluster?: { reasons?: string[] }
+    } | null
+  }
+}
+
+/**
+ * AI-generated suggested action
+ */
+export interface SuggestedAction {
+  label: string
+  actionType: 'view' | 'reply' | 'approve' | 'reject' | 'delegate' | 'complete' | 'other'
+  replyText?: string
+  rationale?: string
 }
 
 /**

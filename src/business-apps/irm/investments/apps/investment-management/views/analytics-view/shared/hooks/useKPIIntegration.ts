@@ -101,11 +101,12 @@ export function useKPIIntegration<T>(
   context: BusinessAppContextProps,
   fetcher: KPIFetcher<T>,
   initialState: T,
-  dependencies: any[] = []
+  dependencies: any[] = [],
+  enabled: boolean = true
 ): KPIIntegrationResult<T> {
   const [current, setCurrent] = useState<T>(initialState)
   const [previous, setPrevious] = useState<T>(initialState)
-  const [isLoading, setIsLoading] = useState<boolean>(true)
+  const [isLoading, setIsLoading] = useState<boolean>(enabled)
   const [error, setError] = useState<string | null>(null)
 
   /**
@@ -142,14 +143,16 @@ export function useKPIIntegration<T>(
   }, [context.accessToken, fetcher, initialState, ...dependencies])
 
   /**
-   * Trigger data load when context or dependencies change
+   * Trigger data load when context or dependencies change, but only if enabled
    * Note: loadData is intentionally excluded to prevent circular dependencies
    */
   useEffect(() => {
-    if (context.accessToken) {
+    if (enabled && context.accessToken) {
       void loadData()
+    } else if (!enabled) {
+      setIsLoading(false)
     }
-  }, [context.accessToken, ...dependencies])
+  }, [enabled, context.accessToken, ...dependencies])
 
   return {
     current,

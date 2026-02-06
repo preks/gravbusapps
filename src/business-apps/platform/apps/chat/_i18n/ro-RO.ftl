@@ -185,6 +185,8 @@ chat-lastOwnerInfo = Ești singurul proprietar. Pentru a părăsi acest grup, f�
 # Call Features
 chat-audioCall = Apel Audio
 chat-videoCall = Apel Video
+chat-directCall = Apel
+chat-meeting = Întâlnire
 chat-groupCall = Apel de Grup
 chat-endCall = Închide Apel
 chat-mute = Mut
@@ -234,11 +236,24 @@ call-shareScreen = Partajează ecranul
 call-endCall = Închide apel
 call-initiating = Se pornește apelul...
 call-connecting = Se conectează...
+call-startingCall = Se pornește apelul
+call-startingVideoCall = Se pornește apelul video
+call-startingAudioCall = Se pornește apelul audio
+call-startVideoCall = Pornește apel video
+call-startAudioCall = Pornește apel audio
+call-setupYourCallSettings = Configurați setările apelului înainte de a vă alătura
+call-readyToStart = Gata de pornire
+call-starting = Se pornește...
+call-start = Pornește
+call-cancel = Anulează
+call-backgroundWillBeApplied = Fundalul va fi aplicat în apel
 call-ended = Apel încheiat
 call-failed = Apel eșuat
 call-disconnected = Deconectat
 
 # Call Settings
+call-video = video
+call-audio = audio
 call-videoQuality = Calitate Video
 call-highQuality = Calitate Înaltă
 call-highQualityDesc = 720p, 30fps - Optimal pentru conexiuni rapide
@@ -307,11 +322,34 @@ participants-declined-invite = Invitație refuzată
 participants-not-answered = Nu a răspuns
 participants-ringing = Sună...
 participants-available-to-invite = Disponibili pentru invitare
+participants-mute-all-confirm-title = Mut toți participanții?
+participants-mute-all-confirm-message = Sigur doriți să mut toți ceilalți participanți? Aceștia vor trebui să se demuteze singuri pentru a vorbi.
+participants-muted-by = Ai fost mut de {$name}
+participants-muted-by-all = Ai fost mut de {$name} (mut toți)
+participants-mute-failed = Nu s-a putut muta microfonul
+participants-cancel = Anulează
+participants-not-answered = Nu a răspuns
+participants-ringing = Sună...
+participants-available-to-invite = Disponibili pentru invitare
 
 # Video Grid
 videogrid-page-info = Pagina {$current} din {$total}
 videogrid-previous-page = Pagina anterioară
 videogrid-next-page = Pagina următoare
+
+# Transcription
+chat-call-enableTranscription = Activează transcrierea
+chat-call-transcriptionActive = Înregistrare
+chat-call-recording = Înregistrare
+chat-transcript-ready = Transcriere gata: { $sessionName }
+chat-transcript-view = Vezi transcrierea
+chat-transcript-saved = Transcrierea întâlnirii a fost salvată
+chat-transcript-create-minutes-description = Creează notițe de întâlnire din transcrierea apelului în notițe
+chat-transcript-create-minutes-button = Creează notițe de întâlnire
+chat-transcript-generating-minutes = Se generează notițele de întâlnire...
+chat-transcript-generating-minutes-status = Se generează notițele de întâlnire...
+chat-transcript-failed-create-minutes = Eroare la crearea notițelor de întâlnire
+chat-transcript-retry = Reîncearcă
 
 # Notifications
 notifications-title = Notificări
@@ -438,3 +476,23 @@ calendar-pending-invitations = Invitații în așteptare
 calendar-accept = Acceptă
 calendar-decline = Refuză
 calendar-tentative = Tentativ
+
+# Calendar - Agenda
+calendar-agenda = Agendă
+calendar-agendaOptional = Agendă (opțional)
+calendar-addAgendaItem = Adaugă punct pe agendă
+calendar-agendaItemTitle = Subiect
+calendar-agendaItemTitlePlaceholder = Introdu subiectul...
+calendar-agendaItemDuration = Durată (min)
+calendar-agendaItemAssignee = Atribuie la
+calendar-agendaItemUnassigned = Neatribuit
+calendar-agendaItemRemove = Elimină
+calendar-agendaItemMoveUp = Mută sus
+calendar-agendaItemMoveDown = Mută jos
+calendar-agendaItems = {$count ->
+  [one] {$count} punct pe agendă
+  *[other] {$count} puncte pe agendă
+}
+calendar-agendaTotalDuration = Total: {$minutes} min
+calendar-agendaAssignedTo = Atribuit lui {$name}
+calendar-noAgenda = Niciun punct pe agendă

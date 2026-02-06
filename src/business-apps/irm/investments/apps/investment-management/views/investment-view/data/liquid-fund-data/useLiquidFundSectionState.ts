@@ -57,6 +57,13 @@ export const useLiquidFundSectionState = ({
 
   // Query variables
   const queryVariables: InvestmentQueryVariables = useMemo(() => {
+    // Remove investment type filters from selectedFilters to avoid conflicts
+    const otherFilters = Object.fromEntries(
+      Object.entries(selectedFilters).filter(
+        ([key]) => !['realEstateInvestment', 'liquidFundInvestment', 'equityInvestment'].includes(key)
+      )
+    )
+
     return {
       limit: pageSize,
       offset: (currentPage - 1) * pageSize,
@@ -69,9 +76,10 @@ export const useLiquidFundSectionState = ({
             }
           ]
         : [{ field: 'createdAt', direction: 'DESC_NULLS_LAST' }],
-      // Default filter for liquid fund investments
-      liquidFundInvestment: { id: { _isNull: false } },
-      ...selectedFilters
+      ...otherFilters,
+      // Always enforce liquid fund investment filter for this tab
+      // Check that at least one related record exists (Hasura array relationship filter)
+      liquidFundInvestment: { id: { _isNull: false } }
     }
   }, [currentPage, pageSize, search, sortField, sortOrder, selectedFilters])
 

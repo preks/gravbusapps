@@ -3,91 +3,123 @@ import { TabComponentProps } from '../../../types'
 import { DashboardData } from '../../../types'
 
 import PersonalKeyInsightsSection from '../../../../personal-absences/components/KeyInsightsSection'
+import type { AbsenceListCardAbsence } from '../../../../personal-absences/types/absenceTypes'
 import OrgWorkPatternsPanel from './OrgWorkPatternsPanel'
 import { OrgYearComparisonCard } from './OrgYearComparisonCard'
 import { StatisticsDataProvider, useStatisticsData } from './StatisticsDataProvider'
 import dayjs from 'dayjs'
 import { Card, CardHeader, CardTitle, CardContent } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { useAbsenceTypeCatalog } from '../../../../personal-absences/hooks/useAbsenceTypeCatalog'
 
-interface AbsenceListCardAbsence {
-  type: string
-  status: string
-  title: string
-  startDate: string
-  endDate: string
-  duration: string
-  description: string
-  requestedInfo: string
-  icon?: React.ReactNode
-  typeColor?: string
-  statusColor?: string
-  requestDate?: string
-}
-
-const StatisticsContent: React.FC<{ dashboardData: DashboardData }> = ({ dashboardData }) => {
-  const { data, isLoading, error } = useStatisticsData()
+const StatisticsContent: React.FC<{ dashboardData: DashboardData; accessToken?: string }> = ({
+  dashboardData,
+  accessToken
+}) => {
+  const { data, error } = useStatisticsData()
   const userLocale = getCurrentActiveUserLocale() ?? 'en-US'
   const currentYear = dayjs().year()
+  const { mapType } = useAbsenceTypeCatalog(accessToken)
 
-  const getTranslatedLeaveTypeName = (typeName: string): string => {
+  const getTranslatedLeaveTypeName = (typeRefOrName: string): string => {
+    const mapped = mapType(typeRefOrName)
+    if (mapped?.label) return mapped.label
+    // Fallback: try raw absences pool
     const matchingAbsence = dashboardData?.rawAbsences?.find(
-      (absence: any) => absence.typeName === typeName || absence.groupName === typeName
+      (absence: any) => absence.typeName === typeRefOrName || absence.groupName === typeRefOrName
     )
-
     if (matchingAbsence?.type?.translations) {
       const translation = matchingAbsence.type.translations.find((t: any) => t.localeCode === userLocale)
-      return translation?.value || matchingAbsence.type.value || typeName
+      return translation?.value || matchingAbsence.type.value || typeRefOrName
     }
-
-    return typeName
+    return typeRefOrName
   }
 
   const absences: AbsenceListCardAbsence[] = useMemo(() => {
     const items = dashboardData?.rawAbsences || []
-    return items.map((a: any) => ({
-      type: a.typeName || a.groupName || '',
-      status: a.status || '',
-      title: a.typeName || a.groupName || 'Absence',
-      startDate: a.startDate,
-      endDate: a.endDate,
-      duration: String(Number(a.effectiveDays) || 0),
-      description: a.employeeName ? `Employee: ${a.employeeName}` : '',
-      requestedInfo: a.createdAt || ''
-    }))
+    return items.map((a: any) => {
+      const typeRef = a?.type?.id || a?.type?.parentEntryId || a?.type?.value || a.typeName || a.groupName || ''
+      const mapped = mapType(typeRef)
+      let statusColor = 'var(--nw-muted-foreground)'
+      const statusUpper = String(a.status || '').toUpperCase()
+      if (statusUpper === 'APPROVED') {
+        statusColor = 'var(--nw-success)'
+      } else if (statusUpper === 'PENDING') {
+        statusColor = 'var(--nw-warning)'
+      } else if (statusUpper === 'REJECTED') {
+        statusColor = 'var(--nw-destructive)'
+      }
+
+      return {
+        type: a.typeName || a.groupName || '',
+        status: a.status || '',
+        title: a.typeName || a.groupName || 'Absence',
+        startDate: a.startDate,
+        endDate: a.endDate,
+        duration: String(Number(a.effectiveDays) || 0),
+        description: a.employeeName ? `Employee: ${a.employeeName}` : '',
+        requestedInfo: a.createdAt || '',
+        icon: <></>,
+        typeColor: mapped?.color || 'var(--nw-chart-4)',
+        statusColor,
+        requestDate: a.createdAt || ''
+      }
+    })
   }, [dashboardData?.rawAbsences])
 
-  if (isLoading) {
-    return <div>Loading statistics...</div>
-  }
+  const distributionEntries = useMemo(() => {
+    const items = dashboardData?.rawAbsences || []
+    const currentYearOnly = items.filter(
+      a => String(a.status || '').toUpperCase() === 'APPROVED' && dayjs(a.startDate).year() === currentYear
+    )
+    const counts: Record<string, number> = {}
+    currentYearOnly.forEach(a => {
+      // Prefer stable identifiers so catalog mapping resolves: id -> parentEntryId -> value/name
+      const key = a?.type?.id || a?.type?.parentEntryId || a.typeName || a.groupName || a?.type?.value || 'UNKNOWN'
+      counts[key] = (counts[key] || 0) + 1
+    })
+    const entries = Object.entries(counts).map(([key, count]) => ({
+      key,
+      label: getTranslatedLeaveTypeName(key),
+      count
+    }))
+    entries.sort((a, b) => b.count - a.count)
+    return entries
+  }, [dashboardData?.rawAbsences, currentYear, mapType, userLocale])
 
+  // Do not block rendering while loading; we still show local calculations
   if (error) {
     return <div>Error loading statistics: {error}</div>
   }
 
   if (!data) {
-    return <div>No statistics data available</div>
+    // We can still render local panels (work patterns, YOY, distribution) without provider
+    // so do not early-return here; proceed to render with defaults
   }
 
   return (
     <div className="gba:statisticsRoot" data-testid="backoffice-statistics-tab">
       <div className="gba:pb-6" data-testid="backoffice-statistics-key-insights">
-        <PersonalKeyInsightsSection
-          absences={absences as any[]}
-          overrides={{
-            plannedPct: data.keyStats.plannedPct,
-            unplannedPct: data.keyStats.unplannedPct,
-            avgDaysPerRequest: data.keyStats.avgDaysPerRequest,
-            approvalRatePct: data.keyStats.approvalRatePct,
-            vacationCount: data.keyStats.vacationCount,
-            sickCount: data.keyStats.sickCount
-          }}
-          disableLocalCalc
-        />
+        {data?.keyStats ? (
+          <PersonalKeyInsightsSection
+            absences={absences}
+            overrides={{
+              plannedPct: data.keyStats.plannedPct,
+              unplannedPct: data.keyStats.unplannedPct,
+              avgDaysPerRequest: data.keyStats.avgDaysPerRequest,
+              approvalRatePct: data.keyStats.approvalRatePct,
+              vacationCount: data.keyStats.vacationCount,
+              sickCount: data.keyStats.sickCount
+            }}
+            disableLocalCalc
+          />
+        ) : (
+          <PersonalKeyInsightsSection absences={absences} />
+        )}
       </div>
       {/* Work Patterns and Monthly Patterns side by side (custom panel) */}
       <div className="gba:statisticsSection" data-testid="backoffice-statistics-workpatterns-grid">
-        <OrgWorkPatternsPanel absences={absences as any[]} accessToken={undefined} />
+        <OrgWorkPatternsPanel absences={absences} accessToken={undefined} />
       </div>
       {/* Year comparison + Leave Type Distribution side by side */}
       <div
@@ -95,7 +127,7 @@ const StatisticsContent: React.FC<{ dashboardData: DashboardData }> = ({ dashboa
         data-testid="backoffice-statistics-yoy-and-leave-grid"
       >
         <div className="gba:statisticsSection" data-testid="backoffice-statistics-year-comparison">
-          <OrgYearComparisonCard absences={absences as any[]} accessToken={undefined} />
+          <OrgYearComparisonCard absences={absences} accessToken={undefined} />
         </div>
         <div className="gba:statisticsSection" data-testid="backoffice-statistics-leave-type-distribution">
           <Card>
@@ -110,16 +142,16 @@ const StatisticsContent: React.FC<{ dashboardData: DashboardData }> = ({ dashboa
             </CardHeader>
             <CardContent className="gba:pt-0">
               <div className="gba:flex gba:flex-col gba:gap-2.5">
-                {Object.keys(data.typeCounts).length === 0 ? (
+                {distributionEntries.length === 0 ? (
                   <div className="gba:text-sm gba:text-destructive">No data</div>
                 ) : (
                   (() => {
-                    const maxVal = Math.max(...Object.values(data.typeCounts))
-                    return Object.entries(data.typeCounts).map(([type, cnt]) => {
-                      const pct = maxVal > 0 ? Math.max(4, Math.round((Number(cnt) / maxVal) * 100)) : 0
-                      const translatedType = getTranslatedLeaveTypeName(type)
+                    const maxVal = Math.max(...distributionEntries.map(e => e.count))
+                    return distributionEntries.map(({ key, label, count }) => {
+                      const pct = maxVal > 0 ? Math.max(4, Math.round((Number(count) / maxVal) * 100)) : 0
+                      const translatedType = label
                       return (
-                        <div key={type} className="gba:flex gba:items-center">
+                        <div key={key} className="gba:flex gba:items-center">
                           <div className="gba:w-28 gba:text-sm gba:text-foreground">{translatedType}</div>
                           <div className="gba:flex-1 gba:px-3">
                             <div className="gba:bg-muted gba:rounded">
@@ -133,7 +165,7 @@ const StatisticsContent: React.FC<{ dashboardData: DashboardData }> = ({ dashboa
                               />
                             </div>
                           </div>
-                          <div className="gba:w-20 gba:text-right gba:text-sm gba:text-foreground">{cnt}</div>
+                          <div className="gba:w-20 gba:text-right gba:text-sm gba:text-foreground">{count}</div>
                         </div>
                       )
                     })
@@ -180,7 +212,7 @@ export const StatisticsTab: React.FC<TabComponentProps & { dashboardData: Dashbo
       vacationGroupIds={[FIXED_VACATION_GROUP_ID]}
       sickGroupIds={[FIXED_SICK_GROUP_ID]}
     >
-      <StatisticsContent dashboardData={dashboardData} />
+      <StatisticsContent dashboardData={dashboardData} accessToken={accessToken} />
     </StatisticsDataProvider>
   )
 }

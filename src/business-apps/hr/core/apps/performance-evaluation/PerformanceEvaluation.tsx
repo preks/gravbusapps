@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect } from 'react'
 import { PageLayout, useTranslation, toast } from '@newwork/nw-design-system'
 import { ListChecks } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -20,47 +20,6 @@ import type { ValueEditorValues } from './ValuesEditorModal'
 import { PerformanceCycles } from './tabs/PerformanceCycles'
 import { RatingScales } from './tabs/RatingScales'
 import { CompanyValues } from './tabs/CompanyValues'
-
-const STORAGE_KEY = 'hr.performance.cycles.v1'
-const RATING_SCALES_STORAGE_KEY = 'hr.performance.ratingScales.v1'
-
-function loadCycles(): PerformanceCycle[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return []
-    const parsed = JSON.parse(raw) as PerformanceCycle[]
-    return Array.isArray(parsed) ? parsed : []
-  } catch {
-    return []
-  }
-}
-
-function saveCycles(cycles: PerformanceCycle[]) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(cycles))
-  } catch {
-    // ignore persistence errors
-  }
-}
-
-function loadRatingScales(): RatingScale[] {
-  try {
-    const raw = localStorage.getItem(RATING_SCALES_STORAGE_KEY)
-    if (!raw) return []
-    const parsed = JSON.parse(raw) as RatingScale[]
-    return Array.isArray(parsed) ? parsed : []
-  } catch {
-    return []
-  }
-}
-
-function saveRatingScales(scales: RatingScale[]) {
-  try {
-    localStorage.setItem(RATING_SCALES_STORAGE_KEY, JSON.stringify(scales))
-  } catch {
-    // ignore
-  }
-}
 
 function computeStatus(cycle: Omit<PerformanceCycle, 'status'> & { deactivated?: boolean }) {
   if (cycle.deactivated) return 'Inactive' as const
@@ -105,7 +64,7 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
   } = useCompanyValues(accessToken)
   const { saveRatingScale } = useInsertRatingScale(accessToken)
   const { savePerformanceCycle, updateCycleActive, deletePerformanceCycle } = useSavePerformanceCycle(accessToken)
-  const { saveCompanyValue, deleteCompanyValue, updateCompanyValueActive } = useSaveCompanyValue(accessToken)
+  const { saveCompanyValue, deleteCompanyValue, updateCompanyValueRecordState } = useSaveCompanyValue(accessToken)
 
   const [cycles, setCycles] = useState<PerformanceCycle[]>([])
   const [ratingScales, setRatingScales] = useState<RatingScale[]>([])
@@ -120,28 +79,21 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
     }
   }, [valuesLoading, apiValues])
 
-  const apiScaleIds = useMemo(() => new Set(apiRatingScales.map(s => s.id)), [apiRatingScales])
+  // Rating Scales: use only API data (no localStorage merge) to always show live data
   useEffect(() => {
     if (!ratingScalesLoading) {
-      const localOnly = loadRatingScales().filter(s => !apiScaleIds.has(s.id))
-      setRatingScales([...apiRatingScales, ...localOnly])
+      setRatingScales(apiRatingScales)
     }
-  }, [ratingScalesLoading, apiRatingScales, apiScaleIds])
+  }, [ratingScalesLoading, apiRatingScales])
 
-  const apiCycleIds = useMemo(() => new Set(apiCycles.map(c => c.id)), [apiCycles])
+  // Cycles: use only API data (no localStorage merge) to always show live data
   useEffect(() => {
     if (!cyclesLoading) {
-      const localOnly = loadCycles().filter(c => !apiCycleIds.has(c.id))
-      setCycles([...apiCycles, ...localOnly])
+      setCycles(apiCycles)
     }
-  }, [cyclesLoading, apiCycles, apiCycleIds])
+  }, [cyclesLoading, apiCycles])
 
-  useEffect(() => {
-    saveCycles(cycles)
-  }, [cycles])
-  useEffect(() => {
-    saveRatingScales(ratingScales)
-  }, [ratingScales])
+  // Remove localStorage persistence - use API as single source of truth for all data
 
   const pageTitle = t('title')
   const pageSubtitle = t('subtitle')
@@ -242,6 +194,13 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
     }
   }
 
+  const handleStartCycle = (cycleId: string) => {
+    const cycle = cycles.find(c => c.id === cycleId)
+    if (!cycle) return
+    // TODO: Navigate to the performance evaluation flow or open the cycle
+    toast.info(t('cycle-started', { name: cycle.name }) ?? `Starting cycle: ${cycle.name}`)
+  }
+
   const handleSaveFromScaleModal = async (values: RatingScaleValues) => {
     const isNewScale = !values.id || values.id.startsWith('scale_')
     if (accessToken && isNewScale) {
@@ -324,7 +283,7 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
     const value = valuesStore.find(v => v.id === id)
     if (accessToken && value) {
       try {
-        await updateCompanyValueActive(value, true)
+        await updateCompanyValueRecordState(value, 'active')
         await refetchValues()
         toast.success(t('value-activated-to-database', { title: value.title }) ?? `"${value.title}" activated.`)
       } catch (err) {
@@ -340,7 +299,7 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
     const value = valuesStore.find(v => v.id === id)
     if (accessToken && value) {
       try {
-        await updateCompanyValueActive(value, false)
+        await updateCompanyValueRecordState(value, 'archived')
         await refetchValues()
         toast.success(t('value-deactivated-to-database', { title: value.title }) ?? `"${value.title}" deactivated.`)
       } catch (err) {
@@ -383,6 +342,7 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
             onActivate={handleActivate}
             onDeactivate={handleDeactivate}
             onDeleteCycle={handleDeleteCycle}
+            onStartCycle={handleStartCycle}
           />
         )}
         {activeTab === PerformanceTabEnum.RatingScales && (

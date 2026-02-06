@@ -11,6 +11,7 @@ import {
   IconAvatar,
   Spinner
 } from '@newwork/nw-design-system'
+import { rtkDebug } from '../utils/rtkDebug'
 import {
   MicrophoneIcon,
   MicrophoneSlashIcon,
@@ -63,7 +64,7 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = m
     const [ringCount, setRingCount] = useState(0)
     const [isJoining, setIsJoining] = useState(false)
     const [micEnabled, setMicEnabled] = useState(true)
-    const [cameraEnabled, setCameraEnabled] = useState(invite.callType === 'video')
+    const [cameraEnabled, setCameraEnabled] = useState(invite?.callType === 'video')
     const [backgroundEnabled, setBackgroundEnabled] = useState(true)
     const [isLoadingPreview, setIsLoadingPreview] = useState(false)
 
@@ -71,17 +72,70 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = m
     const streamTracksRef = useRef<MediaStreamTrack[]>([])
 
     const callerName = invite.from.odName || 'Unknown'
-    const groupName = invite.conversationName || t('chat-groupCall')
     const isVideoCall = invite.callType === 'video'
+    const conversationType = invite.conversationType || 'group' // Default to group for backward compatibility
+
+    // Determine the call title based on conversation type
+    const getCallTitle = (): string => {
+      switch (conversationType) {
+        case 'direct':
+          // 1-on-1 call - show the full conversation name (e.g., "Call Mo Salah | Xmir Sali")
+          return invite.conversationName || t('chat-directCall') || '1-on-1 Call'
+        case 'meeting':
+          // Calendar meeting
+          return invite.conversationName || t('chat-meeting') || 'Meeting'
+        case 'group':
+        default:
+          // Group call
+          return invite.conversationName || t('chat-groupCall') || 'Group Call'
+      }
+    }
+
+    const callTitle = getCallTitle()
+
+    // Determine call type label (e.g., "Group video call", "1-on-1 audio call")
+    const getCallTypeLabel = (): string => {
+      const mediaType = isVideoCall ? t('call-video') || 'video' : t('call-audio') || 'audio'
+
+      switch (conversationType) {
+        case 'direct':
+          return `1-on-1 ${mediaType} call`
+        case 'meeting':
+          return `${t('chat-meeting') || 'Meeting'} ${mediaType} call`
+        case 'group':
+        default:
+          return `${t('chat-group') || 'Group'} ${mediaType} call`
+      }
+    }
+
+    const callTypeLabel = getCallTypeLabel()
+
+    // CRITICAL: Reset state when invite changes
+    // This ensures fresh defaults for each new invite
+    useEffect(() => {
+      if (invite) {
+        rtkDebug.log('[IncomingGroupCallDialog] Invite received - resetting to defaults', {
+          callType: invite.callType,
+          willSetMic: true,
+          willSetCamera: invite.callType === 'video',
+          willSetBackground: true
+        })
+        setRingCount(0)
+        setIsJoining(false)
+        setMicEnabled(true)
+        setCameraEnabled(invite.callType === 'video')
+        setBackgroundEnabled(true)
+      }
+    }, [invite])
 
     const handleAccept = () => {
       if (isJoining) {
-        console.log('[IncomingGroupCallDialog] Already joining, ignoring duplicate click')
+        rtkDebug.log('[IncomingGroupCallDialog] Already joining, ignoring duplicate click')
         return
       }
 
       setIsJoining(true)
-      console.log('[IncomingGroupCallDialog] Joining with preferences:', {
+      rtkDebug.log('[IncomingGroupCallDialog] Joining with preferences:', {
         micEnabled,
         cameraEnabled,
         backgroundEnabled
@@ -95,7 +149,7 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = m
 
     const handleDecline = () => {
       if (isJoining) {
-        console.log('[IncomingGroupCallDialog] Already joining, ignoring decline')
+        rtkDebug.log('[IncomingGroupCallDialog] Already joining, ignoring decline')
         return
       }
 
@@ -105,7 +159,7 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = m
 
     // Cleanup preview stream
     const cleanupPreview = useCallback(() => {
-      console.log('[IncomingGroupCallDialog] Cleaning up preview')
+      rtkDebug.log('[IncomingGroupCallDialog] Cleaning up preview')
 
       // Stop all tracks
       streamTracksRef.current.forEach(track => {
@@ -120,8 +174,9 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = m
     }, [])
 
     // Setup camera preview when camera is enabled
+    // CRITICAL: Include invite in dependencies to re-initialize preview for each new invite
     useEffect(() => {
-      if (!cameraEnabled || isJoining) {
+      if (!invite || !cameraEnabled || isJoining) {
         cleanupPreview()
         return
       }
@@ -131,7 +186,7 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = m
 
       const initPreview = async () => {
         try {
-          console.log('[IncomingGroupCallDialog] Requesting camera access for preview')
+          rtkDebug.log('[IncomingGroupCallDialog] Requesting camera access for preview')
 
           const stream = await navigator.mediaDevices.getUserMedia({
             video: { width: 640, height: 360 },
@@ -155,7 +210,7 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = m
             videoRef.current.srcObject = stream
           }
 
-          console.log('[IncomingGroupCallDialog] Camera preview ready')
+          rtkDebug.log('[IncomingGroupCallDialog] Camera preview ready')
         } catch (error) {
           console.error('[IncomingGroupCallDialog] Failed to access camera:', error)
         } finally {
@@ -171,7 +226,7 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = m
         isMounted = false
         cleanupPreview()
       }
-    }, [cameraEnabled, isJoining, cleanupPreview])
+    }, [invite, cameraEnabled, isJoining, cleanupPreview])
 
     // Ring animation counter
     useEffect(() => {
@@ -240,13 +295,13 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = m
         >
           <DialogTitle className="gba:sr-only">{t('chat-incomingGroupCall') || 'Incoming Group Call'}</DialogTitle>
           <DialogDescription className="gba:sr-only">
-            {callerName} {t('chat-isCallingYou') || 'is calling you'} to join {groupName}
+            {callerName} {t('chat-isCallingYou') || 'is calling you'} to join {callTitle}
           </DialogDescription>
           <div className="gba:flex gba:flex-col gba:items-center gba:py-6 gba:px-6">
             {/* Call Type Indicator */}
             <div className="gba:flex gba:items-center gba:gap-2 gba:text-gray-400 gba:text-sm gba:mb-4">
               <UsersThreeIcon className="gba:w-4 gba:h-4" weight="fill" />
-              <span>{isVideoCall ? t('call-incomingGroupVideoCall') : t('call-incomingGroupAudioCall')}</span>
+              <span>{callTypeLabel}</span>
             </div>
 
             {/* Video Preview or Caller Avatar */}
@@ -283,7 +338,9 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = m
                         {backgroundEnabled && (
                           <div className="gba:flex gba:items-center gba:gap-1 gba:px-2 gba:py-1 gba:rounded gba:bg-primary/90 gba:shadow-lg">
                             <MagicWandIcon className="gba:w-3.5 gba:h-3.5 gba:text-primary-foreground" weight="fill" />
-                            <span className="gba:text-xs gba:text-primary-foreground">Preview</span>
+                            <span className="gba:text-xs gba:text-primary-foreground">
+                              {t('call-backgroundWillBeApplied') || 'Background will be applied in call'}
+                            </span>
                           </div>
                         )}
                       </div>
@@ -291,9 +348,20 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = m
                   ) : (
                     <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-full gba:bg-gray-800">
                       <Avatar className="gba:w-24 gba:h-24 gba:ring-4 gba:ring-white/10">
-                        {userAvatarUrl && <AvatarImage src={userAvatarUrl} alt={userName || 'User'} />}
+                        {/* For direct calls, show caller's avatar; for group/meeting, show your avatar */}
+                        {conversationType === 'direct' && invite.from.avatarUrl ? (
+                          <AvatarImage src={invite.from.avatarUrl} alt={callerName} />
+                        ) : conversationType !== 'direct' && userAvatarUrl ? (
+                          <AvatarImage src={userAvatarUrl} alt={userName || 'User'} />
+                        ) : null}
                         <AvatarFallback className="gba:text-3xl gba:bg-gray-700 gba:text-white">
-                          {userName ? getInitials(userName) : <UserIcon className="gba:w-12 gba:h-12" weight="fill" />}
+                          {conversationType === 'direct' ? (
+                            getInitials(callerName)
+                          ) : userName ? (
+                            getInitials(userName)
+                          ) : (
+                            <UserIcon className="gba:w-12 gba:h-12" weight="fill" />
+                          )}
                         </AvatarFallback>
                       </Avatar>
                       {/* Status indicators overlay - mic only */}
@@ -312,7 +380,7 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = m
                 </div>
 
                 {/* Group Name */}
-                <h2 className="gba:text-lg gba:font-semibold gba:text-white gba:mb-1">{groupName}</h2>
+                <h2 className="gba:text-lg gba:font-semibold gba:text-white gba:mb-1">{callTitle}</h2>
 
                 {/* Caller Name */}
                 <p className="gba:text-gray-400 gba:text-sm gba:mb-3">
@@ -322,8 +390,8 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = m
                 {/* Ringing indicator / Joining status */}
                 {isJoining ? (
                   <div className="gba:flex gba:items-center gba:gap-2 gba:mb-4">
-                    <Spinner className="gba:w-4 gba:h-4 gba:text-primary" />
-                    <p className="gba:text-primary gba:text-sm gba:font-medium">
+                    <Spinner className="gba:w-4 gba:h-4 gba:text-white" />
+                    <p className="gba:text-white gba:text-sm gba:font-medium">
                       {t('call-joiningCall') || 'Joining call...'}
                     </p>
                   </div>
@@ -356,7 +424,7 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = m
                 </div>
 
                 {/* Group Name */}
-                <h2 className="gba:text-xl gba:font-semibold gba:text-white gba:mb-1">{groupName}</h2>
+                <h2 className="gba:text-xl gba:font-semibold gba:text-white gba:mb-1">{callTitle}</h2>
 
                 {/* Caller Name */}
                 <p className="gba:text-gray-400 gba:text-sm gba:mb-2">
@@ -366,8 +434,8 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = m
                 {/* Ringing indicator / Joining status */}
                 {isJoining ? (
                   <div className="gba:flex gba:items-center gba:gap-2 gba:mb-6">
-                    <Spinner className="gba:w-4 gba:h-4 gba:text-success" />
-                    <p className="gba:text-success gba:text-sm gba:font-medium">
+                    <Spinner className="gba:w-4 gba:h-4 gba:text-white" />
+                    <p className="gba:text-white gba:text-sm gba:font-medium">
                       {t('call-joiningCall') || 'Joining call...'}
                     </p>
                   </div>
@@ -473,7 +541,7 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = m
                     <PhoneIcon className="gba:w-7 gba:h-7 gba:text-white" weight="fill" />
                   )}
                 </Button>
-                <span className="gba:text-xs gba:text-gray-400">
+                <span className="gba:text-xs gba:text-white">
                   {isJoining ? t('call-joining') || 'Joining...' : t('call-join')}
                 </span>
               </div>

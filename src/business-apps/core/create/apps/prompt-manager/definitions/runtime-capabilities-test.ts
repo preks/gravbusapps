@@ -11,7 +11,7 @@
  * - What context/config is available
  */
 
-import type { FunctionToolDetails, SchemaConfig } from '@/common/network/ai/prompt-manager/PromptManagerClient'
+import type { SchemaConfig } from '@/common/network/ai/prompt-manager/PromptManagerClient'
 
 /**
  * Input schema
@@ -454,41 +454,9 @@ async function testCreateLead(input) {
 `
 
 /**
- * Complete tool definition for registering in Prompt Manager
+ * This tool used to be a prompt-manager persisted function tool (js-runtime).
+ *
+ * Prompt Manager no longer persists function tools; functions are discovered from functions-service.
+ * Keep the schema/source here for reference when implementing a functions-service tool.
  */
-export const RUNTIME_CAPABILITIES_TEST_TOOL: FunctionToolDetails = {
-  name: 'runtime_capabilities_test',
-  description: `Tests the prompt-manager js-runtime capabilities.
-
-Use this tool to discover:
-- What built-in functions are available (graphqlRequest, fetch, etc.)
-- Whether GraphQL queries work
-- Whether GraphQL mutations work  
-- Whether REST API calls work
-- What context/config values are accessible
-
-Test types:
-- capabilities: Lists all available functions and context
-- graphql_query: Tests a GraphQL query
-- graphql_mutation: Tests a GraphQL mutation
-- rest_call: Tests a REST API call
-- create_lead: Attempts to create a CRM lead`,
-  type: 'function',
-  config: {
-    runtime: 'js-runtime',
-    source: RUNTIME_TEST_SOURCE
-  },
-  settings: {
-    config: {
-      // These would be set when registering the tool
-      // API_BASE_URL: 'https://platform.dev-01.newwork.io/kogito/api/v1',
-      // GRAPHQL_ENDPOINT: 'https://platform.dev-01.newwork.io/graphql'
-    }
-  },
-  schemaConfig: {
-    input: RUNTIME_TEST_INPUT_SCHEMA,
-    output: RUNTIME_TEST_OUTPUT_SCHEMA
-  }
-}
-
-export default RUNTIME_CAPABILITIES_TEST_TOOL
+export const RUNTIME_CAPABILITIES_TEST_FUNCTION_CODE = 'function.runtime_capabilities_test'

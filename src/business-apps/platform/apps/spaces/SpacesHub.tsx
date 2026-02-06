@@ -272,6 +272,8 @@ export const SpacesHub: React.FC<SpacesHubProps> = ({
         open={createDialogOpen}
         onOpenChange={setCreateDialogOpen}
         onCreate={handleCreateSpace}
+        accessToken={accessToken}
+        currentUserId={currentUserId}
         data-testid={`${testId}-create-dialog`}
       />
     </div>

@@ -163,6 +163,10 @@ export interface InvestmentReportQueryVariables {
   liquidFundInvestmentIds?: string[]
   realEstateInvestmentIds?: string[]
 
+  // Liquid Fund Type Filters (for filtering by liquidFundInvestmentReport.investmentLiquidFundType)
+  liquidFundTypeIds?: string[]
+  liquidFundTypeIdsExclude?: string[]
+
   // Pagination
   limit?: number
   offset?: number
@@ -172,6 +176,9 @@ export interface InvestmentReportQueryVariables {
     field: string
     direction: 'ASC' | 'DESC' | 'ASC_NULLS_LAST' | 'DESC_NULLS_LAST'
   }>
+
+  // Allow dynamic number range filters from descriptors
+  [key: string]: any
 }
 
 // Build where conditions for InvestmentReport queries
@@ -339,6 +346,22 @@ export const buildInvestmentReportWhereCondition = (variables: InvestmentReportQ
         .join(', ')
       conditions.push(
         `realEstateInvestmentReport: { realEstateInvestmentId: { _in: [${safeRealEstateInvestmentIds}] } }`
+      )
+    }
+
+    // Liquid Fund Type Filters - filter by liquidFundInvestmentReport.investmentLiquidFundType
+    if (variables.liquidFundTypeIds?.length) {
+      const safeLiquidFundTypeIds = variables.liquidFundTypeIds.map(id => `"${escapeGraphQLString(id)}"`).join(', ')
+      conditions.push(
+        `liquidFundInvestmentReport: { investmentLiquidFundType: { id: { _in: [${safeLiquidFundTypeIds}] } } }`
+      )
+    }
+    if (variables.liquidFundTypeIdsExclude?.length) {
+      const safeLiquidFundTypeIdsExclude = variables.liquidFundTypeIdsExclude
+        .map(id => `"${escapeGraphQLString(id)}"`)
+        .join(', ')
+      conditions.push(
+        `liquidFundInvestmentReport: { investmentLiquidFundType: { id: { _nin: [${safeLiquidFundTypeIdsExclude}] } } }`
       )
     }
 

@@ -11,7 +11,6 @@
 
 import React, { useState } from 'react'
 import {
-  XIcon,
   MagnifyingGlassIcon,
   MicrophoneIcon,
   MicrophoneSlashIcon,
@@ -31,7 +30,14 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger
+  DropdownMenuTrigger,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  Button
 } from '@newwork/nw-design-system'
 import { useRealtimeKitSelector } from '@cloudflare/realtimekit-react'
 import { getInitials } from '../../utils/callUtils'
@@ -54,8 +60,6 @@ export interface ParticipantsPanelProps {
   meeting: any
   /** Whether the panel is open */
   isOpen: boolean
-  /** Callback when panel is closed */
-  onClose: () => void
   /** Data test ID prefix */
   prefixDataTestId?: string
   /** Available participants to invite */
@@ -89,7 +93,6 @@ export interface ParticipantsPanelProps {
 export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
   meeting,
   isOpen,
-  onClose,
   prefixDataTestId = 'rtk-group-call',
   availableParticipants = [],
   pendingInvites,
@@ -107,7 +110,24 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState('')
   const [invitingParticipantIds, setInvitingParticipantIds] = useState<Set<string>>(new Set())
+  const [showMuteAllConfirm, setShowMuteAllConfirm] = useState(false)
   const inviteTimeoutsRef = React.useRef<Map<string, NodeJS.Timeout>>(new Map())
+
+  // Handler to mute all participants with confirmation
+  const handleMuteAllClick = () => {
+    setShowMuteAllConfirm(true)
+  }
+
+  const handleMuteAllConfirm = () => {
+    setShowMuteAllConfirm(false)
+    if (onMuteAll) {
+      onMuteAll()
+    }
+  }
+
+  const handleMuteAllCancel = () => {
+    setShowMuteAllConfirm(false)
+  }
 
   // Keep a persistent record of everyone who's been in the call
   // This ensures they remain visible even after leaving
@@ -131,6 +151,16 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
   // Handler for inviting a participant with loading state - supports multiple simultaneous invites
   const handleInviteClick = async (participant: CallParticipant) => {
     if (!onInviteParticipant || invitingParticipantIds.has(participant.odId)) return
+
+    // [DEBUG] Log participant data being sent to backend AND current stored data
+    console.log('[ParticipantsPanel] 📤 Inviting participant:', {
+      id: participant.id,
+      odId: participant.odId,
+      odName: participant.odName,
+      fullParticipant: participant,
+      allSeenParticipantsKeys: Array.from(allSeenParticipantsRef.current.keys()),
+      allSeenParticipantsValues: Array.from(allSeenParticipantsRef.current.values())
+    })
 
     // Add to inviting set
     setInvitingParticipantIds(prev => new Set([...prev, participant.odId]))
@@ -285,19 +315,129 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
   // Update the persistent record with current active participants from SDK
   // This helps track participants who join and leave
   React.useEffect(() => {
-    activeParticipants.forEach((p: any) => {
-      // Use userId as the primary key for SDK participants
-      const key = p.userId || p.customParticipantId || p.id
-      if (key && !allSeenParticipantsRef.current.has(key)) {
-        allSeenParticipantsRef.current.set(key, {
-          id: p.userId || p.id,
-          odId: p.userId || p.customParticipantId || p.id,
-          odName: p.name || 'Unknown',
+    // Build a complete list of conversation participants from both availableParticipants and activeConversation
+    // This ensures we can match even when availableParticipants is empty (e.g., call initiator)
+    const conversationParticipants = [...availableParticipants]
+
+    // Add participants from activeConversation if available
+    if (activeConversation?.participants) {
+      activeConversation.participants.forEach((cp: any) => {
+        const user = cp.user
+        const participantId = user?.id || cp.userId
+
+        // Only add if not already in availableParticipants
+        if (participantId && !conversationParticipants.find(p => p.id === participantId || p.odId === participantId)) {
+          conversationParticipants.push({
+            id: participantId,
+            odId: participantId,
+            odName: user
+              ? user.displayName ||
+                `${user.firstName || ''} ${user.lastName || ''}`.trim() ||
+                user.username ||
+                'Unknown'
+              : 'User'
+          })
+        }
+      })
+    }
+
+    console.log('[ParticipantsPanel] 🔍 Matching SDK participants to conversation participants:', {
+      activeParticipantsCount: activeParticipants.length,
+      availableParticipantsCount: availableParticipants.length,
+      conversationParticipantsCount: conversationParticipants.length,
+      activeParticipants: activeParticipants.map((p: any) => ({
+        userId: p.userId,
+        customParticipantId: p.customParticipantId,
+        id: p.id,
+        name: p.name
+      })),
+      conversationParticipants: conversationParticipants.map((p: any) => ({
+        id: p.id,
+        odId: p.odId,
+        odName: p.odName
+      }))
+    })
+
+    activeParticipants.forEach((sdkParticipant: any) => {
+      // CRITICAL FIX: Match SDK participant to conversation participant to get the REAL user ID
+      // The SDK uses internal IDs which don't match our database user IDs
+      const conversationParticipant = conversationParticipants.find(
+        cp =>
+          cp.odId === sdkParticipant.userId ||
+          cp.odId === sdkParticipant.customParticipantId ||
+          cp.id === sdkParticipant.userId ||
+          cp.odName?.toLowerCase() === sdkParticipant.name?.toLowerCase()
+      )
+
+      console.log('[ParticipantsPanel] 🔎 Matching result for participant:', {
+        sdkParticipant: {
+          userId: sdkParticipant.userId,
+          customParticipantId: sdkParticipant.customParticipantId,
+          id: sdkParticipant.id,
+          name: sdkParticipant.name
+        },
+        conversationParticipant: conversationParticipant
+          ? {
+              id: conversationParticipant.id,
+              odId: conversationParticipant.odId,
+              odName: conversationParticipant.odName
+            }
+          : null,
+        foundMatch: !!conversationParticipant
+      })
+
+      // Use the conversation participant's ID if found, otherwise fall back to SDK IDs
+      // CRITICAL: customParticipantId is the REAL user ID set by us, userId is SDK's internal ID
+      // Priority: conversationParticipant.id > customParticipantId > userId (as last resort)
+      const realUserId = conversationParticipant?.id || sdkParticipant.customParticipantId || sdkParticipant.userId
+      const realOdId = conversationParticipant?.odId || sdkParticipant.customParticipantId || sdkParticipant.userId
+
+      // CRITICAL FIX: Always update if we have a real user ID, even if already stored
+      // This handles the case where the initiator was stored with SDK ID initially
+      if (realUserId) {
+        const participantData = {
+          id: realUserId,
+          odId: realOdId || realUserId,
+          odName: conversationParticipant?.odName || sdkParticipant.name || 'Unknown',
           lastSeen: Date.now()
-        })
+        }
+
+        // If we found a conversation match and have a different ID stored, clean up old SDK IDs
+        if (conversationParticipant) {
+          // Remove any old entries with SDK IDs
+          const sdkIds = [sdkParticipant.userId, sdkParticipant.customParticipantId, sdkParticipant.id]
+          sdkIds.forEach(sdkId => {
+            if (sdkId && sdkId !== realUserId && allSeenParticipantsRef.current.has(sdkId)) {
+              console.log('[ParticipantsPanel] 🧹 Cleaning up old SDK ID:', {
+                sdkId,
+                realUserId,
+                participantName: conversationParticipant.odName
+              })
+              allSeenParticipantsRef.current.delete(sdkId)
+            }
+          })
+        }
+
+        const isNewEntry = !allSeenParticipantsRef.current.has(realUserId)
+
+        // [DEBUG] Log when adding/updating seen participants
+        console.log(
+          isNewEntry
+            ? '[ParticipantsPanel] 👀 Adding to allSeenParticipants:'
+            : '[ParticipantsPanel] 🔄 Updating allSeenParticipants:',
+          {
+            key: realUserId,
+            participantData,
+            rawSdkParticipant: sdkParticipant,
+            matchedConversationParticipant: conversationParticipant,
+            isNewEntry
+          }
+        )
+
+        allSeenParticipantsRef.current.set(realUserId, participantData)
       }
     })
-  }, [activeParticipants])
+  }, [activeParticipants, availableParticipants, activeConversation])
 
   // Get IDs of participants currently in call
   const activeParticipantIds = new Set<string>()
@@ -329,12 +469,43 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
     )
 
     const entry = {
-      id: conversationParticipant?.id || participant.userId || participant.id,
-      odId: conversationParticipant?.odId || participant.userId || participant.customParticipantId || participant.id,
+      id: conversationParticipant?.id || participant.customParticipantId || participant.userId || participant.id,
+      odId: conversationParticipant?.odId || participant.customParticipantId || participant.userId || participant.id,
       odName: conversationParticipant?.odName || participant.name || 'Unknown',
       status: 'in-call' as const,
       activeParticipant: participant,
       inviteDetails: null
+    }
+
+    // CRITICAL FIX: If we found a conversation participant match, UPDATE allSeenParticipantsRef
+    // This corrects any previously stored SDK IDs with the real user IDs
+    if (conversationParticipant) {
+      // Remove any old entries with SDK IDs
+      if (participant.userId && participant.userId !== conversationParticipant.id) {
+        allSeenParticipantsRef.current.delete(participant.userId)
+      }
+      if (participant.customParticipantId && participant.customParticipantId !== conversationParticipant.id) {
+        allSeenParticipantsRef.current.delete(participant.customParticipantId)
+      }
+      if (participant.id && participant.id !== conversationParticipant.id) {
+        allSeenParticipantsRef.current.delete(participant.id)
+      }
+
+      // Store/update with the REAL user ID
+      allSeenParticipantsRef.current.set(conversationParticipant.id, {
+        id: conversationParticipant.id,
+        odId: conversationParticipant.odId,
+        odName: conversationParticipant.odName,
+        lastSeen: Date.now()
+      })
+
+      console.log('[ParticipantsPanel] 🔄 Updated allSeenParticipants with real ID:', {
+        removedSdkIds: [participant.userId, participant.customParticipantId, participant.id].filter(
+          id => id !== conversationParticipant.id
+        ),
+        storedRealId: conversationParticipant.id,
+        conversationParticipant
+      })
     }
 
     // CRITICAL FIX: Mark ALL possible IDs as processed to prevent duplicates
@@ -401,27 +572,20 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
   })
 
   // Step 5: Add any previously seen participants who aren't in any of the above lists
-  // These are people who were in the call but left, and aren't in the conversation list
-  // CRITICAL: Must check against ALL ID variants to prevent duplicates
+  // These are people who were in the call but left
+  // CRITICAL: Only check processedOdIds to prevent duplicates, not availableParticipants
+  // This ensures participants who left the call remain visible even if they're in the conversation
   const previouslySeenEntries: any[] = []
   allSeenParticipantsRef.current.forEach((seenParticipant, seenKey) => {
     // Check if this participant is already processed under ANY ID
+    // ONLY check against processedOdIds (participants already added to the list)
     const isAlreadyProcessed =
-      processedOdIds.has(seenKey) ||
-      processedOdIds.has(seenParticipant.odId) ||
-      processedOdIds.has(seenParticipant.id) ||
-      // Also check if they match any conversation participant by name (fallback)
-      availableParticipants.some(
-        cp =>
-          cp.odId === seenParticipant.odId ||
-          cp.id === seenParticipant.id ||
-          (cp.odName && seenParticipant.odName && cp.odName.toLowerCase() === seenParticipant.odName.toLowerCase())
-      )
+      processedOdIds.has(seenKey) || processedOdIds.has(seenParticipant.odId) || processedOdIds.has(seenParticipant.id)
 
     if (!isAlreadyProcessed) {
       previouslySeenEntries.push({
         ...seenParticipant,
-        status: 'available' as const,
+        status: 'left' as const, // Mark as 'left' instead of 'available' to distinguish them
         inviteDetails: null,
         activeParticipant: null
       })
@@ -449,7 +613,22 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
   const filteredInvitedParticipants = filteredAllParticipants.filter(
     p => p.status === 'invited' || p.status === 'declined' || p.status === 'not-answered'
   )
-  const filteredAvailableParticipants = filteredAllParticipants.filter(p => p.status === 'available')
+  const filteredAvailableParticipants = filteredAllParticipants.filter(
+    p => p.status === 'available' || p.status === 'left'
+  )
+
+  // [DEBUG] Log participant lists for debugging
+  console.log('[ParticipantsPanel] 📊 Participant lists:', {
+    allSeenCount: allSeenParticipantsRef.current.size,
+    allSeenKeys: Array.from(allSeenParticipantsRef.current.keys()),
+    allSeenValues: Array.from(allSeenParticipantsRef.current.values()),
+    previouslySeenEntriesCount: previouslySeenEntries.length,
+    previouslySeenEntries,
+    activeCount: filteredActiveParticipants.length,
+    invitedCount: filteredInvitedParticipants.length,
+    availableCount: filteredAvailableParticipants.length,
+    allParticipantsCount: allParticipantsWithStatus.length
+  })
 
   if (!isOpen) return null
 
@@ -462,27 +641,17 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
       <div className="gba:px-4 gba:pt-2.5 gba:pb-4 gba:border-b gba:flex-shrink-0">
         <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
           <h3 className="gba:font-semibold gba:text-sm">{t('groupCall-participants')}</h3>
-          <div className="gba:flex gba:items-center gba:gap-2">
-            {onMuteAll && activeParticipants.length > 0 && (
-              <button
-                onClick={onMuteAll}
-                className="gba:px-3 gba:py-1 gba:text-sm gba:bg-destructive-secondary gba:text-destructive-secondary-foreground hover:gba:bg-destructive gba:rounded gba:transition-colors"
-                aria-label={t('participants-mute-all')}
-                data-testid={`${prefixDataTestId}-mute-all-btn`}
-              >
-                <SpeakerXIcon className="gba:h-4 gba:w-4 gba:inline gba:mr-1" weight="fill" />
-                {t('participants-mute-all')}
-              </button>
-            )}
+          {onMuteAll && activeParticipants.length > 0 && (
             <button
-              onClick={onClose}
-              className="gba:p-1 hover:gba:bg-muted gba:rounded gba:transition-colors"
-              aria-label={t('participants-close')}
-              data-testid={`${prefixDataTestId}-participants-panel-close`}
+              onClick={handleMuteAllClick}
+              className="gba:px-3 gba:py-1 gba:text-sm gba:bg-destructive-secondary gba:text-destructive-secondary-foreground hover:gba:bg-destructive gba:rounded gba:transition-colors"
+              aria-label={t('participants-mute-all')}
+              data-testid={`${prefixDataTestId}-mute-all-btn`}
             >
-              <XIcon className="gba:h-5 gba:w-5" />
+              <SpeakerXIcon className="gba:h-4 gba:w-4 gba:inline gba:mr-1" weight="fill" />
+              {t('participants-mute-all')}
             </button>
-          </div>
+          )}
         </div>
 
         {/* Search Input */}
@@ -800,6 +969,36 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
           </>
         )}
       </div>
+
+      {/* Mute All Confirmation Dialog */}
+      <Dialog open={showMuteAllConfirm} onOpenChange={setShowMuteAllConfirm}>
+        <DialogContent data-testid={`${prefixDataTestId}-mute-all-confirm-dialog`}>
+          <DialogHeader>
+            <DialogTitle>{t('participants-mute-all-confirm-title') || 'Mute all participants?'}</DialogTitle>
+            <DialogDescription>
+              {t('participants-mute-all-confirm-message') ||
+                'Are you sure you want to mute all other participants? They will need to unmute themselves to speak.'}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={handleMuteAllCancel}
+              data-testid={`${prefixDataTestId}-mute-all-cancel-btn`}
+            >
+              {t('participants-cancel') || 'Cancel'}
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleMuteAllConfirm}
+              data-testid={`${prefixDataTestId}-mute-all-confirm-btn`}
+            >
+              <SpeakerXIcon className="gba:h-4 gba:w-4 gba:mr-2" weight="fill" />
+              {t('participants-mute-all') || 'Mute all'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

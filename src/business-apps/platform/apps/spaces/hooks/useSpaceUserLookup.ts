@@ -12,6 +12,8 @@ export interface UserInfo {
   userId: string
   name: string
   avatar?: string
+  jobTitle?: string
+  department?: string
 }
 
 type UserInfoMap = Map<string, UserInfo>
@@ -54,16 +56,26 @@ export function useSpaceUserLookup(params: UseSpaceUserLookupParams): UseSpaceUs
             lastName?: string
             userId: string
             pictureThumbnail?: string
+            employeePosition?: {
+              jobPosition?: { name?: string }
+              organizationalUnit?: { id?: string; name?: string }
+            }
           }>
         }>(query)
 
         const emp = result.Employee?.[0]
         if (!emp) return null
 
+        // Get job title and department from employee position
+        const jobTitle = emp.employeePosition?.jobPosition?.name
+        const department = emp.employeePosition?.organizationalUnit?.name
+
         return {
           userId: emp.userId || userId,
           name: emp.displayName || `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || 'Unknown',
-          avatar: toAvatarDataUrl(emp.pictureThumbnail)
+          avatar: toAvatarDataUrl(emp.pictureThumbnail),
+          jobTitle,
+          department
         }
       } catch (err) {
         console.error('[useSpaceUserLookup] Error fetching user:', userId, err)

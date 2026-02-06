@@ -202,7 +202,7 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
   const sortedAllocations = [...allocations].sort((a, b) => dayjs(b.startDate).diff(dayjs(a.startDate)))
 
   return (
-    <Sheet open={isOpen} onOpenChange={onClose} title="">
+    <Sheet open={isOpen} onOpenChange={onClose}>
       <SheetContent
         className="gba:w-full sm:gba:max-w-xl gba:flex gba:flex-col gba:p-0 gba:h-full"
         data-testid="asset-detail-panel"
@@ -355,7 +355,10 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
 
                 <div>
                   <p className="gba:text-sm gba:font-medium">
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.expiry_date', 'Expiry Date')}
+                    {getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:hr_assets.end_of_warranty_period',
+                      'End of warranty period'
+                    )}
                   </p>
                   <p className="gba:text-sm gba:text-muted-foreground" data-testid="warranty-expiry-date">
                     {formatDate(warrantyExpiryDate.toISOString()) || warrantyExpiryDate.toISOString()}
