@@ -54,7 +54,9 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
     } else {
       setSelectedOption(null)
     }
-  }, [value, options, selectedOption?.value])
+    // selectedOption?.value is intentionally excluded to avoid re-renders
+    // We check it inside the effect instead
+  }, [value, options])
 
   // Handle selection change
   const handleChange = useCallback(

@@ -674,7 +674,10 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
                             />
                           </FormControl>
                           <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">
-                            Lower numbers have higher priority. Each order must be unique.
+                            {getTranslationFromI18nKeyAndLabel(
+                              'expense-settings:assignment_order_hint',
+                              'Lower numbers have higher priority. Each order must be unique.'
+                            )}
                           </p>
                           <FormMessage />
                         </FormItem>
