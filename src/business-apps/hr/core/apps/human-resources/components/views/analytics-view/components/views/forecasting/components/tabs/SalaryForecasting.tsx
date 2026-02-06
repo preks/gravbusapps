@@ -3,7 +3,6 @@ import { Typography } from 'antd'
 import { SectionKpiCards, KpiCardData, useTranslation, Icon } from '@newwork/nw-design-system'
 import { UsersIcon, CalendarIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useTotalPayroll } from '../../../../../hooks/useTotalPayroll'
 import { useMonthlySalaryForecastEmployee } from '../../../../../hooks/useMonthlySalaryForecastEmployee'
 import SalaryForecastChart from '../SalaryForecastChart'
 import SalaryChangesChart from '../SalaryChangesChart'
@@ -22,17 +21,16 @@ interface SalaryForecastingProps extends BusinessAppContextProps {
 export const SalaryForecasting: React.FC<SalaryForecastingProps> = props => {
   const { prefixDataTestId = 'SalaryForecasting' } = props
   const { t } = useTranslation(hrTranslations)
-  const { loading: payrollLoading } = useTotalPayroll(props.accessToken)
 
   // Calculate date ranges
   const today = dayjs()
   const currentMonthStart = today.startOf('month')
   const nextMonthStart = currentMonthStart.add(1, 'month')
   const sixMonthsEnd = currentMonthStart.add(6, 'month').endOf('month')
-  const yearEnd = currentMonthStart.add(11, 'month').endOf('month')
+  const yearEnd = today.endOf('year')
 
-  // Fetch data for the full year (for the chart)
-  const fullYearStart = currentMonthStart.format('YYYY-MM-DD')
+  // Fetch data for the full year (for the chart and KPI calculations) - start from beginning of current year
+  const fullYearStart = today.startOf('year').format('YYYY-MM-DD')
   const fullYearEnd = yearEnd.format('YYYY-MM-DD')
   const { data: fullYearData, loading: fullYearLoading } = useMonthlySalaryForecastEmployee(
     props.accessToken,
@@ -40,25 +38,21 @@ export const SalaryForecasting: React.FC<SalaryForecastingProps> = props => {
     fullYearEnd
   )
 
-  // Fetch data for next month only
-  const nextMonthStartStr = nextMonthStart.format('YYYY-MM-DD')
-  const nextMonthEndStr = nextMonthStart.endOf('month').format('YYYY-MM-DD')
-  const { data: nextMonthData, loading: nextMonthLoading } = useMonthlySalaryForecastEmployee(
-    props.accessToken,
-    nextMonthStartStr,
-    nextMonthEndStr
-  )
+  // Calculate next month and 6-month data from full year data
+  const nextMonthData = useMemo(() => {
+    if (!fullYearData || fullYearData.length === 0) return []
+    const nextMonthStr = nextMonthStart.format('YYYY-MM')
+    return fullYearData.filter(item => item.month === nextMonthStr)
+  }, [fullYearData, nextMonthStart])
 
-  // Fetch data for 6 months
-  const sixMonthsStartStr = nextMonthStart.format('YYYY-MM-DD')
-  const sixMonthsEndStr = sixMonthsEnd.format('YYYY-MM-DD')
-  const { data: sixMonthsData, loading: sixMonthsLoading } = useMonthlySalaryForecastEmployee(
-    props.accessToken,
-    sixMonthsStartStr,
-    sixMonthsEndStr
-  )
+  const sixMonthsData = useMemo(() => {
+    if (!fullYearData || fullYearData.length === 0) return []
+    const nextMonthStr = nextMonthStart.format('YYYY-MM')
+    const sixMonthsEndStr = sixMonthsEnd.format('YYYY-MM')
+    return fullYearData.filter(item => item.month >= nextMonthStr && item.month <= sixMonthsEndStr)
+  }, [fullYearData, nextMonthStart, sixMonthsEnd])
 
-  const loading = payrollLoading || fullYearLoading || nextMonthLoading || sixMonthsLoading
+  const loading = fullYearLoading
 
   // Calculate Salary-related KPI metrics
   const salaryKpiCards: KpiCardData[] = useMemo(() => {

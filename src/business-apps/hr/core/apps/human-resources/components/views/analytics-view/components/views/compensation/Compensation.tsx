@@ -5,7 +5,6 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { SectionKpiCards, KpiCardData, Icon } from '@newwork/nw-design-system'
 import { CalendarIcon, CurrencyDollarIcon } from '@phosphor-icons/react'
 import { useCompensationMetrics } from '../../../hooks/useCompensationMetrics'
-import { useTotalPayroll } from '../../../hooks/useTotalPayroll'
 import { useSalaryByOrgUnit } from '../../../hooks/useSalaryByOrgUnit'
 import YearlyPayrollChart from './components/charts/YearlyPayrollChart'
 import SalaryByOrgUnitChart from './components/charts/SalaryByOrgUnitChart'
@@ -29,7 +28,6 @@ export const Compensation: React.FC<CompensationProps> = ({ accessToken, prefixD
     loading: salaryLoading,
     error: salaryError
   } = useCompensationMetrics(accessToken)
-  const { loading: payrollLoading, error: payrollError } = useTotalPayroll(accessToken)
   const {
     salaryByOrgUnit,
     loading: salaryByOrgUnitLoading,
@@ -37,10 +35,10 @@ export const Compensation: React.FC<CompensationProps> = ({ accessToken, prefixD
   } = useSalaryByOrgUnit(accessToken)
 
   // Combine loading states
-  const loading = payrollLoading || salaryLoading || salaryByOrgUnitLoading
+  const loading = salaryLoading || salaryByOrgUnitLoading
 
   // Combine errors (show first one that occurs)
-  const error = payrollError || salaryError || salaryByOrgUnitError
+  const error = salaryError || salaryByOrgUnitError
 
   // Format merit increases
   const meritIncreases = useMemo(
@@ -140,7 +138,7 @@ export const Compensation: React.FC<CompensationProps> = ({ accessToken, prefixD
       </div>
 
       {/* Yearly Payroll Chart */}
-      <YearlyPayrollChart accessToken={accessToken} showComingSoon={true} />
+      <YearlyPayrollChart showComingSoon={true} />
 
       {/* Average Salary by Org Unit Chart */}
       <SalaryByOrgUnitChart data={salaryByOrgUnit} loading={salaryByOrgUnitLoading} error={salaryByOrgUnitError} />
