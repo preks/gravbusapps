@@ -7,6 +7,63 @@ import { useQueryExecutionClient, QueryType, Services } from '@/common/network/d
 type DatasetRow = { category?: string; value?: number; employee_count?: number; [key: string]: any }
 
 /**
+ * Compensation metrics extracted from dataset
+ */
+interface CompensationMetrics {
+  median: number
+  average: number
+  meritIncrease: number
+  count: number
+}
+
+/**
+ * Find dataset row by category name (case-insensitive)
+ */
+const findRowByCategory = (rows: DatasetRow[], category: string): DatasetRow | undefined => {
+  return rows.find(
+    r =>
+      String(r.category || '')
+        .trim()
+        .toLowerCase() === category
+  )
+}
+
+/**
+ * Extract compensation metrics from dataset rows
+ */
+const extractCompensationMetrics = (rows: DatasetRow[]): CompensationMetrics => {
+  const medianRow = findRowByCategory(rows, 'median salary')
+  const averageRow = findRowByCategory(rows, 'average salary')
+  const meritIncreaseRow = findRowByCategory(rows, 'average merit increase')
+
+  const median = medianRow ? Number(medianRow.value ?? 0) : 0
+  const average = averageRow ? Number(averageRow.value ?? 0) : 0
+  const meritIncrease = meritIncreaseRow ? Number(meritIncreaseRow.value ?? 0) : 0
+
+  // Use employee_count from median or average row (they should be the same)
+  let count = 0
+  if (medianRow?.employee_count) {
+    count = Number(medianRow.employee_count)
+  } else if (averageRow?.employee_count) {
+    count = Number(averageRow.employee_count)
+  }
+
+  return { median, average, meritIncrease, count }
+}
+
+/**
+ * Round compensation metrics to appropriate precision
+ */
+const roundCompensationMetrics = (metrics: CompensationMetrics): CompensationMetrics => {
+  return {
+    median: Math.round(metrics.median),
+    average: Math.round(metrics.average),
+    meritIncrease: Math.round(metrics.meritIncrease * 10) / 10, // Round to 1 decimal place
+    count: metrics.count
+  }
+}
+
+/**
  * Hook to fetch compensation metrics (median salary, average salary, and average merit increase) from the dataset API
  * Uses the medianAvgSalaryAvgMeritEmployees query which returns all three values
  *
@@ -52,43 +109,16 @@ export const useCompensationMetrics = (accessToken: string) => {
 
       const rows: DatasetRow[] = ds.data
 
-      // Find median, average, and merit increase rows
-      const findRowByCategory = (category: string) => {
-        return rows.find(
-          r =>
-            String(r.category || '')
-              .trim()
-              .toLowerCase() === category
-        )
-      }
-
-      const medianRow = findRowByCategory('median salary')
-      const averageRow = findRowByCategory('average salary')
-      const meritIncreaseRow = findRowByCategory('average merit increase')
-
-      const median = medianRow ? Number(medianRow.value ?? 0) : 0
-      const average = averageRow ? Number(averageRow.value ?? 0) : 0
-      const meritIncrease = meritIncreaseRow ? Number(meritIncreaseRow.value ?? 0) : 0
-
-      // Use employee_count from median or average row (they should be the same)
-      let count = 0
-      if (medianRow?.employee_count) {
-        count = Number(medianRow.employee_count)
-      } else if (averageRow?.employee_count) {
-        count = Number(averageRow.employee_count)
-      }
-
-      // Round to whole numbers (no decimals for salaries, keep 1 decimal for merit increase percentage)
-      const roundedMedian = Math.round(median)
-      const roundedAverage = Math.round(average)
-      const roundedMeritIncrease = Math.round(meritIncrease * 10) / 10 // Round to 1 decimal place
+      // Extract and process compensation metrics
+      const metrics = extractCompensationMetrics(rows)
+      const roundedMetrics = roundCompensationMetrics(metrics)
 
       // Update state if component is still mounted
       if (isMounted.current) {
-        setMedianSalary(roundedMedian)
-        setAverageSalary(roundedAverage)
-        setAverageMeritIncrease(roundedMeritIncrease)
-        setEmployeeCount(count)
+        setMedianSalary(roundedMetrics.median)
+        setAverageSalary(roundedMetrics.average)
+        setAverageMeritIncrease(roundedMetrics.meritIncrease)
+        setEmployeeCount(metrics.count)
         setError(null)
       }
     } catch (err) {

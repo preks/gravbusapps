@@ -48,6 +48,99 @@ const DEPARTMENT_COLORS = [
 ]
 
 /**
+ * Group dataset rows by month and department
+ */
+const groupDataByMonthAndDepartment = (
+  rows: DatasetRow[]
+): Map<string, Map<string, { id: string; name: string; salary: number }>> => {
+  const monthlyDataMap = new Map<string, Map<string, { id: string; name: string; salary: number }>>()
+
+  rows.forEach((row: DatasetRow) => {
+    const month = String(row.category || '')
+    const departmentId = String(row.department_id || 'unknown')
+    const departmentName = String(row.department_name || 'Unknown')
+    const salary = Number(row.value ?? 0)
+
+    if (!month || salary <= 0) return
+
+    if (!monthlyDataMap.has(month)) {
+      monthlyDataMap.set(month, new Map())
+    }
+
+    const departmentMap = monthlyDataMap.get(month)!
+    if (departmentMap.has(departmentId)) {
+      // Sum salaries if department appears multiple times in same month
+      const existing = departmentMap.get(departmentId)!
+      existing.salary += salary
+    } else {
+      departmentMap.set(departmentId, {
+        id: departmentId,
+        name: departmentName,
+        salary
+      })
+    }
+  })
+
+  return monthlyDataMap
+}
+
+/**
+ * Transform grouped data to MonthlyDepartmentSalaryStack format
+ */
+const transformToMonthlyStacks = (
+  monthlyDataMap: Map<string, Map<string, { id: string; name: string; salary: number }>>
+): MonthlyDepartmentSalaryStack[] => {
+  const transformMonthData = (
+    month: string,
+    departmentMap: Map<string, { id: string; name: string; salary: number }>
+  ) => {
+    const departments = Array.from(departmentMap.values())
+    const totalSalary = departments.reduce((sum, dept) => sum + dept.salary, 0)
+
+    // Assign colors and calculate percentages
+    const departmentsWithMetadata: DepartmentSalary[] = departments.map((dept, index) => ({
+      ...dept,
+      color: DEPARTMENT_COLORS[index % DEPARTMENT_COLORS.length],
+      percent: totalSalary > 0 ? (dept.salary / totalSalary) * 100 : 0,
+      change: 0 // Will be calculated later
+    }))
+
+    // Sort by salary descending
+    const sortedDepartments = [...departmentsWithMetadata].sort((a, b) => b.salary - a.salary)
+
+    return {
+      month,
+      totalSalary,
+      departments: sortedDepartments,
+      change: 0 // Will be calculated later
+    }
+  }
+
+  return Array.from(monthlyDataMap.entries())
+    .map(([month, departmentMap]) => transformMonthData(month, departmentMap))
+    .sort((a, b) => a.month.localeCompare(b.month)) // Sort by month
+}
+
+/**
+ * Calculate month-over-month changes for total and department salaries
+ */
+const calculateMonthlyChanges = (monthlyStacks: MonthlyDepartmentSalaryStack[]): void => {
+  for (let i = 0; i < monthlyStacks.length; i++) {
+    const current = monthlyStacks[i]
+    const previous = i > 0 ? monthlyStacks[i - 1] : null
+
+    // Calculate total change
+    current.change = previous ? current.totalSalary - previous.totalSalary : 0
+
+    // Calculate department changes
+    current.departments.forEach(dept => {
+      const prevDept = previous?.departments.find(pd => pd.id === dept.id)
+      dept.change = prevDept ? dept.salary - prevDept.salary : 0
+    })
+  }
+}
+
+/**
  * Hook to fetch monthly salary by department from dataset API
  * Uses the monthlySalarybyDepartment query
  *
@@ -94,79 +187,13 @@ export const useMonthlySalaryByDepartment = (accessToken: string, startDate: str
       const rows: DatasetRow[] = ds.data
 
       // Group data by month and department
-      const monthlyDataMap = new Map<string, Map<string, { id: string; name: string; salary: number }>>()
-
-      rows.forEach((row: DatasetRow) => {
-        const month = String(row.category || '')
-        const departmentId = String(row.department_id || 'unknown')
-        const departmentName = String(row.department_name || 'Unknown')
-        const salary = Number(row.value ?? 0)
-
-        if (!month || salary <= 0) return
-
-        if (!monthlyDataMap.has(month)) {
-          monthlyDataMap.set(month, new Map())
-        }
-
-        const departmentMap = monthlyDataMap.get(month)!
-        if (departmentMap.has(departmentId)) {
-          // Sum salaries if department appears multiple times in same month
-          const existing = departmentMap.get(departmentId)!
-          existing.salary += salary
-        } else {
-          departmentMap.set(departmentId, {
-            id: departmentId,
-            name: departmentName,
-            salary
-          })
-        }
-      })
+      const monthlyDataMap = groupDataByMonthAndDepartment(rows)
 
       // Transform to MonthlyDepartmentSalaryStack format
-      const transformMonthData = (
-        month: string,
-        departmentMap: Map<string, { id: string; name: string; salary: number }>
-      ) => {
-        const departments = Array.from(departmentMap.values())
-        const totalSalary = departments.reduce((sum, dept) => sum + dept.salary, 0)
-
-        // Assign colors and calculate percentages
-        const departmentsWithMetadata: DepartmentSalary[] = departments.map((dept, index) => ({
-          ...dept,
-          color: DEPARTMENT_COLORS[index % DEPARTMENT_COLORS.length],
-          percent: totalSalary > 0 ? (dept.salary / totalSalary) * 100 : 0,
-          change: 0 // Will be calculated later
-        }))
-
-        // Sort by salary descending
-        const sortedDepartments = [...departmentsWithMetadata].sort((a, b) => b.salary - a.salary)
-
-        return {
-          month,
-          totalSalary,
-          departments: sortedDepartments,
-          change: 0 // Will be calculated later
-        }
-      }
-
-      const monthlyStacks: MonthlyDepartmentSalaryStack[] = Array.from(monthlyDataMap.entries())
-        .map(([month, departmentMap]) => transformMonthData(month, departmentMap))
-        .sort((a, b) => a.month.localeCompare(b.month)) // Sort by month
+      const monthlyStacks = transformToMonthlyStacks(monthlyDataMap)
 
       // Calculate month-over-month changes
-      for (let i = 0; i < monthlyStacks.length; i++) {
-        const current = monthlyStacks[i]
-        const previous = i > 0 ? monthlyStacks[i - 1] : null
-
-        // Calculate total change
-        current.change = previous ? current.totalSalary - previous.totalSalary : 0
-
-        // Calculate department changes
-        current.departments.forEach(dept => {
-          const prevDept = previous?.departments.find(pd => pd.id === dept.id)
-          dept.change = prevDept ? dept.salary - prevDept.salary : 0
-        })
-      }
+      calculateMonthlyChanges(monthlyStacks)
 
       if (isMounted.current) {
         setData(monthlyStacks)
