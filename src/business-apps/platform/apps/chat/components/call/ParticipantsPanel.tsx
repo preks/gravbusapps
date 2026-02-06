@@ -537,7 +537,13 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
       }
 
       const status =
-        invite.status === 'declined' ? 'declined' : invite.status === 'not-answered' ? 'not-answered' : 'invited'
+        invite.status === 'declined'
+          ? 'declined'
+          : invite.status === 'not-answered'
+            ? 'not-answered'
+            : invite.status === 'left'
+              ? 'left'
+              : 'invited'
 
       pendingInviteEntries.push({
         id: invite.id,
@@ -611,11 +617,9 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
   // Separate into sections for rendering
   const filteredActiveParticipants = filteredAllParticipants.filter(p => p.status === 'in-call')
   const filteredInvitedParticipants = filteredAllParticipants.filter(
-    p => p.status === 'invited' || p.status === 'declined' || p.status === 'not-answered'
+    p => p.status === 'invited' || p.status === 'declined' || p.status === 'not-answered' || p.status === 'left'
   )
-  const filteredAvailableParticipants = filteredAllParticipants.filter(
-    p => p.status === 'available' || p.status === 'left'
-  )
+  const filteredAvailableParticipants = filteredAllParticipants.filter(p => p.status === 'available')
 
   // [DEBUG] Log participant lists for debugging
   console.log('[ParticipantsPanel] 📊 Participant lists:', {
@@ -844,6 +848,8 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
                         return t('participants-declined-invite')
                       case 'not-answered':
                         return t('participants-not-answered')
+                      case 'left':
+                        return t('participants-left-call') || 'Left call'
                       case 'invited':
                       default:
                         return t('participants-ringing')
@@ -856,13 +862,15 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
                         return 'gba:text-destructive-secondary'
                       case 'not-answered':
                         return 'gba:text-warning'
+                      case 'left':
+                        return 'gba:text-info'
                       case 'invited':
                       default:
                         return 'gba:text-muted-foreground'
                     }
                   }
 
-                  const canReInvite = p.status === 'declined' || p.status === 'not-answered'
+                  const canReInvite = p.status === 'declined' || p.status === 'not-answered' || p.status === 'left'
 
                   return (
                     <div

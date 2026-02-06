@@ -57,6 +57,7 @@ interface AvailableParticipant {
 type SidebarView = 'closed' | 'participants' | 'chat'
 
 interface GroupCallModalRtkProps {
+  viewMode: 'full' | 'minimized' // NEW: Control display mode without unmounting
   callState: GroupCallUIState
   localStream: MediaStream | null
   remoteStreams: Map<string, MediaStream>
@@ -162,6 +163,7 @@ const getScreenShareTrack = (peer: any): MediaStreamTrack | null => {
 const NOOP = () => {}
 
 const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
+  viewMode,
   callState,
   localStream,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -2362,7 +2364,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
     callState.status === 'connected' || callState.status === 'joining' || callState.status === 'reconnecting'
 
   // Render minimized view - floating PiP-style window
-  if (isOpen && callState.isMinimized) {
+  if (isOpen && viewMode === 'minimized') {
     const rtkFirstPeer = firstRemotePeer as RealtimeKitPeer | null
     const firstRemoteStream = rtkFirstPeer ? buildStreamFromPeer(rtkFirstPeer) : null
 

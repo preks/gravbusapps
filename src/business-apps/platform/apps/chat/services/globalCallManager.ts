@@ -16,7 +16,6 @@ import type { CallParticipant, CallType } from './webrtcClient'
 declare global {
   interface Window {
     __GLOBAL_CALL_MANAGER__?: GlobalCallManager
-    __GLOBAL_CALL_UI_CONTAINER__?: HTMLElement
   }
 }
 
@@ -30,10 +29,14 @@ export interface GlobalCallState {
   isVideoEnabled: boolean
   isScreenSharing: boolean
   isMinimized: boolean
+  hasBeenMinimized: boolean
   duration: number
   videoQuality: VideoQuality
   backgroundEnabled: boolean
   startTime: number | null
+  participants: GroupCallParticipant[]
+  handRaised: boolean // Whether local user has hand raised
+  remoteHandsRaised: Record<string, boolean> // Map of participantId -> handRaised for remote participants
 }
 
 interface StoredCallData {
@@ -45,7 +48,36 @@ interface StoredCallData {
   participants: GroupCallParticipant[]
   currentUser: CallParticipant | null
   durationInterval: NodeJS.Timeout | null
-  leaveCall: (() => Promise<void>) | null // NEW: Store the proper leave function
+
+  // RealtimeKit meeting object
+  realtimeKitMeeting: any | null
+
+  // Active speaker tracking
+  activeSpeakerId: string | null
+  activeSpeakerHistory: string[]
+
+  // Callback functions
+  leaveCall: (() => Promise<void>) | null
+  toggleMute: (() => void) | null
+  toggleVideo: (() => void) | null
+  toggleScreenShare: (() => void) | null
+  toggleMinimize: (() => void) | null
+  toggleBackground: (() => void) | null
+  toggleRaiseHand: (() => void) | null
+  sendReaction: ((reaction: string) => void) | null
+  setVideoQuality: ((quality: VideoQuality) => void) | null
+  switchAudioDevice: ((deviceId: string) => Promise<void>) | null
+  switchVideoDevice: ((deviceId: string) => Promise<void>) | null
+  onInviteParticipant: ((participant: any) => void) | null
+
+  // Additional context
+  apiClient: any | null
+  accessToken: string | null
+  currentUserId: string | null
+  conversationName: string | null
+  pendingInvites: Map<string, any> // Changed from array to Map to match GroupCallModalRtk
+  availableParticipants: any[]
+  activeExperts: any[]
 }
 
 const initialCallState: GlobalCallState = {
@@ -58,10 +90,14 @@ const initialCallState: GlobalCallState = {
   isVideoEnabled: true,
   isScreenSharing: false,
   isMinimized: false,
+  hasBeenMinimized: false,
   duration: 0,
   videoQuality: 'low',
   backgroundEnabled: false,
-  startTime: null
+  startTime: null,
+  participants: [],
+  handRaised: false,
+  remoteHandsRaised: {}
 }
 
 class GlobalCallManager {
@@ -74,7 +110,28 @@ class GlobalCallManager {
     participants: [],
     currentUser: null,
     durationInterval: null,
-    leaveCall: null // NEW: Initialize leave function
+    realtimeKitMeeting: null,
+    activeSpeakerId: null,
+    activeSpeakerHistory: [],
+    leaveCall: null,
+    toggleMute: null,
+    toggleVideo: null,
+    toggleScreenShare: null,
+    toggleMinimize: null,
+    toggleBackground: null,
+    toggleRaiseHand: null,
+    sendReaction: null,
+    setVideoQuality: null,
+    switchAudioDevice: null,
+    switchVideoDevice: null,
+    onInviteParticipant: null,
+    apiClient: null,
+    accessToken: null,
+    currentUserId: null,
+    conversationName: null,
+    pendingInvites: new Map(), // Changed from [] to new Map()
+    availableParticipants: [],
+    activeExperts: []
   }
   private listeners: Set<() => void> = new Set()
 
@@ -115,13 +172,46 @@ class GlobalCallManager {
   }) {
     console.debug('GlobalCallManager: Storing call data')
     this.callData = {
-      ...data,
-      durationInterval: this.callData.durationInterval,
-      leaveCall: data.leaveCall || null // NEW: Store the leave function
+      ...this.callData, // Preserve all existing properties
+      ...data, // Override with new data
+      leaveCall: data.leaveCall || this.callData.leaveCall // Handle optional leaveCall
     }
 
     // Start duration tracking if not already started
     if (!this.callData.durationInterval && data.callState.status === 'connected') {
+      this.startDurationTracking()
+    }
+
+    this.notifyListeners()
+  }
+
+  // Set call data with all callbacks and context (new method for RealtimeKit)
+  setCall(data: Partial<StoredCallData>) {
+    console.debug('[GlobalCallManager] setCall called with:', {
+      status: data.callState?.status,
+      implementation: data.callState?.callImplementation,
+      hasMeeting: !!data.realtimeKitMeeting,
+      hasLocalStream: !!data.localStream,
+      participantCount: data.participants?.length || 0,
+      roomId: data.callState?.roomId,
+      dataKeys: Object.keys(data)
+    })
+
+    this.callData = {
+      ...this.callData,
+      ...data
+    }
+
+    console.debug('[GlobalCallManager] Call data updated, final state:', {
+      status: this.callData.callState.status,
+      implementation: this.callData.callState.callImplementation,
+      hasMeeting: !!this.callData.realtimeKitMeeting,
+      hasLocalStream: !!this.callData.localStream,
+      participantCount: this.callData.participants.length
+    })
+
+    // Start duration tracking if connected
+    if (!this.callData.durationInterval && data.callState?.status === 'connected') {
       this.startDurationTracking()
     }
 
@@ -169,15 +259,31 @@ class GlobalCallManager {
       participants: [],
       currentUser: null,
       durationInterval: null,
-      leaveCall: null // NEW: Clear the leave function
+      realtimeKitMeeting: null,
+      activeSpeakerId: null,
+      activeSpeakerHistory: [],
+      leaveCall: null,
+      toggleMute: null,
+      toggleVideo: null,
+      toggleScreenShare: null,
+      toggleMinimize: null,
+      toggleBackground: null,
+      toggleRaiseHand: null,
+      sendReaction: null,
+      setVideoQuality: null,
+      switchAudioDevice: null,
+      switchVideoDevice: null,
+      onInviteParticipant: null,
+      apiClient: null,
+      accessToken: null,
+      currentUserId: null,
+      conversationName: null,
+      pendingInvites: new Map(), // Changed from [] to new Map()
+      availableParticipants: [],
+      activeExperts: []
     }
 
-    // Immediately clear the vanilla DOM UI container
-    const container = window.__GLOBAL_CALL_UI_CONTAINER__
-    if (container) {
-      container.innerHTML = ''
-    }
-
+    // No more DOM manipulation - React handles all UI through GlobalCallContainer
     this.notifyListeners()
   }
 

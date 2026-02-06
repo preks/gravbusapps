@@ -17,6 +17,7 @@ import { RemindersPanel } from './components/RemindersPanel'
 import { EveryOneDashboard } from './components/dashboard'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { TranslationProvider, useChatTranslation } from './contexts/TranslationContext'
+import { GlobalCallContainer } from './components/GlobalCallContainer'
 
 type TabValue = 'dashboard' | 'everyai' | 'chat' | 'calendar' | 'reminders'
 
@@ -41,6 +42,7 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
   const t = useChatTranslation()
   const [overdueRemindersCount, setOverdueRemindersCount] = useState<number>(0)
   const [presenceMap, setPresenceMap] = useState<Map<string, PresenceInfo>>(new Map())
+  const [activeCalls, setActiveCalls] = useState<Record<string, any>>({})
 
   const isInSidepanel = useMemo(() => {
     if (typeof window === 'undefined') return false
@@ -306,6 +308,7 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
             userInfo={userInfo}
             prefixDataTestId={`${prefixDataTestId}-chat`}
             onPresenceMapChange={setPresenceMap}
+            onActiveCallsChange={setActiveCalls}
             {...props}
           />
         </TabSwitchContent>
@@ -319,6 +322,7 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
             accessToken={accessToken}
             userInfo={userInfo}
             prefixDataTestId={`${prefixDataTestId}-calendar`}
+            activeCalls={activeCalls}
             {...props}
           />
         </TabSwitchContent>
@@ -347,6 +351,9 @@ export const ChatWithCalendar: React.FC<ChatWithCalendarProps> = props => {
   return (
     <TranslationProvider>
       <ChatWithCalendarInner {...props} />
+
+      {/* Global call UI - renders minimized/full call view that persists across tab navigation */}
+      <GlobalCallContainer />
     </TranslationProvider>
   )
 }

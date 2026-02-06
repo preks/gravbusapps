@@ -90,6 +90,7 @@ const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   '/platform/content/intranet/content-record': 'core/content/records/content-record',
 
   // Platform
+  '/platform/chat': 'platform/apps/chat', // Chat application
   '/platform/every-ai': 'platform/apps/every-ai',
   '/platform/debugger': 'platform/apps/debugger',
   '/platform/every-office': 'platform/apps/every-office',

@@ -23,6 +23,7 @@ import { useRealtimeKitScreenShare } from './useRealtimeKitScreenShare'
 import { useRealtimeKitMedia } from './useRealtimeKitMedia'
 import { useRealtimeKitActiveSpeaker } from './useRealtimeKitActiveSpeaker'
 import { rtkDebug } from '../utils/rtkDebug'
+import { globalCallManager } from '../services/globalCallManager'
 
 // LocalStorage key for tracking active calls across tabs
 const ACTIVE_CALL_KEY = 'chat_active_call'
@@ -96,6 +97,7 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
   // Core call state
   const [callState, setCallState] = useState<CallState>({
     isMinimized: false,
+    hasBeenMinimized: false,
     status: 'idle',
     roomId: null,
     meetingId: null,
@@ -124,6 +126,42 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
 
   const [activeConversationCalls, setActiveConversationCalls] = useState<Map<string, ActiveConversationCall>>(new Map())
 
+  /**
+   * CRITICAL: Restore call state from globalCallManager on mount
+   * This ensures that when navigating back to chat, the component starts with the correct state
+   * BEFORE any callbacks (like toggleMinimize) are created
+   */
+  useEffect(() => {
+    const globalCallData = globalCallManager.getCallData()
+    if (globalCallData.callState.status !== 'idle' && globalCallData.callState.callImplementation === 'realtime-kit') {
+      console.log('[useRealtimeKitGroupCall] 🔄 Restoring call state from globalCallManager on mount:', {
+        status: globalCallData.callState.status,
+        isMinimized: globalCallData.callState.isMinimized,
+        hasBeenMinimized: globalCallData.callState.hasBeenMinimized,
+        roomId: globalCallData.callState.roomId
+      })
+
+      setCallState(prev => ({
+        ...prev,
+        status: globalCallData.callState.status as CallState['status'],
+        isMinimized: globalCallData.callState.isMinimized,
+        hasBeenMinimized: globalCallData.callState.hasBeenMinimized,
+        roomId: globalCallData.callState.roomId,
+        callType: globalCallData.callState.callType || 'audio',
+        callStartTime: globalCallData.callState.startTime,
+        hostId: globalCallData.callState.hostId || null,
+        isMuted: globalCallData.callState.isMuted,
+        isVideoEnabled: globalCallData.callState.isVideoEnabled,
+        isScreenSharing: globalCallData.callState.isScreenSharing,
+        videoQuality: globalCallData.callState.videoQuality,
+        backgroundEnabled: globalCallData.callState.backgroundEnabled,
+        duration: globalCallData.callState.duration,
+        handRaised: globalCallData.callState.handRaised,
+        remoteHandsRaised: globalCallData.callState.remoteHandsRaised || {}
+      }))
+    }
+  }, []) // Empty deps - only run on mount
+
   // Refs for synchronous checks in WebSocket handlers
   const meetingIdRef = useRef<string | null>(null)
   const sessionIdRef = useRef<string | null>(null) // Track sessionId for leaveCall
@@ -139,6 +177,15 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
   const abortControllerRef = useRef<AbortController | null>(null) // Abort in-flight call creation
   const calendarMeetingIdRef = useRef<string | null>(null) // Track calendar meeting ID for AI transcription
   const pendingCallParticipantsRef = useRef<CallParticipant[]>([]) // Store participants for confirmStartCall
+
+  // CRITICAL: Refs for hook objects to avoid infinite loops in useEffect dependencies
+  // These refs always point to the latest hook instances
+  const mediaRef = useRef<typeof media | null>(null)
+  const screenShareRef = useRef<typeof screenShare | null>(null)
+  const websocketRef = useRef<typeof websocket | null>(null)
+  const participantsHookRef = useRef<typeof participantsHook | null>(null)
+  const toggleMinimizeRef = useRef<(() => void) | null>(null)
+  const leaveCallRef = useRef<(() => Promise<void>) | null>(null)
 
   // Initialize RealtimeKit SDK - returns tuple [meeting, initMeeting]
   const [meeting, initMeeting] = useRealtimeKitClient()
@@ -265,7 +312,13 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
   onCallEndedRef.current = onCallEnded
   const currentUserRef = useRef(currentUser)
   currentUserRef.current = currentUser
-  const leaveCallRef = useRef<(() => Promise<void>) | null>(null)
+  // NOTE: leaveCallRef is already declared with other refs above
+
+  // CRITICAL: Keep hook refs in sync to avoid infinite loops in globalCallManager useEffect
+  mediaRef.current = media
+  screenShareRef.current = screenShare
+  websocketRef.current = websocket
+  participantsHookRef.current = participantsHook
 
   // Update wasIdleRef: mark as not idle when call starts
   if (callState.status !== 'idle' && callState.status !== 'ended') {
@@ -281,6 +334,7 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
       callType: callState.callType,
       status: callState.status,
       isMinimized: callState.isMinimized,
+      hasBeenMinimized: callState.hasBeenMinimized,
       isMuted: media.isMuted,
       isVideoEnabled: media.isVideoEnabled,
       isScreenSharing: screenShare.isScreenSharing,
@@ -342,7 +396,8 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
       setCallState(prev => ({
         ...prev,
         duration: elapsed,
-        callStartTime: startTimeRef.current
+        callStartTime: startTimeRef.current,
+        startTime: startTimeRef.current // CRITICAL: Also update startTime for GlobalCallManager
       }))
     }, 1000)
 
@@ -1138,10 +1193,36 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
 
         // Start duration timer (only set startTime if not already synced from global)
         joinCallConversationIdRef.current = roomId
-        const callStartTime = Date.now()
+
+        // CRITICAL: Try to get start time from activeConversationCalls FIRST (if available)
+        // This ensures we use the backend's start time instead of current time for ongoing calls
+        let callStartTime: number | null = null
+        for (const [conversationId, callInfo] of activeConversationCalls.entries()) {
+          if ((conversationId === roomId || callInfo.roomId === roomId) && callInfo.startedAt) {
+            callStartTime = new Date(callInfo.startedAt).getTime()
+            rtkDebug.log('[RTK] ⏱️ Found existing call start time in activeConversationCalls:', {
+              conversationId,
+              roomId,
+              backendRoomId: callInfo.roomId,
+              startedAt: callInfo.startedAt,
+              callStartTime
+            })
+            break
+          }
+        }
+
+        // If no existing call found, use current time (new call)
+        if (!callStartTime) {
+          callStartTime = Date.now()
+          rtkDebug.log('[RTK] ⏱️ No existing call found, using current time as start time')
+        }
+
         if (!startTimeRef.current) {
           startTimeRef.current = callStartTime
-          rtkDebug.log('[RTK] ⏱️ Set local start time (no global sync yet)')
+          rtkDebug.log('[RTK] ⏱️ Set start time:', {
+            startTime: callStartTime,
+            source: callStartTime === Date.now() ? 'local-new-call' : 'backend-existing-call'
+          })
         } else {
           rtkDebug.log('[RTK] ⏱️ Keeping synced global start time:', {
             globalStartTime: startTimeRef.current,
@@ -1160,6 +1241,7 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
           conversationName,
           conversationType, // Include conversation type for proper header display
           callStartTime: startTimeRef.current, // Use the ref, not Date.now()!
+          startTime: startTimeRef.current, // CRITICAL: Also update startTime for GlobalCallManager
           calendarMeetingId: calendarMeetingIdForJoin
         }))
 
@@ -1360,6 +1442,15 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
    * Leave the current call
    */
   const leaveCall = useCallback(async () => {
+    console.log('[useRealtimeKitGroupCall] 🚪 leaveCall START:', {
+      isLeaving: isLeavingRef.current,
+      roomId: callStateRoomIdRef.current,
+      meetingId: meetingIdRef.current,
+      sessionId: sessionIdRef.current,
+      status: callState.status,
+      isMinimized: callState.isMinimized
+    })
+
     // Use refs instead of callState to avoid dependency on callState object
     const roomId = callStateRoomIdRef.current
     const meetingId = meetingIdRef.current
@@ -1487,6 +1578,17 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
       const socket = wsClientRef.current?.getSocket()
       const sessionId = sessionIdRef.current // ✅ Use ref instead of callState to avoid stale closure
       const isMeeting = !!calendarMeetingIdRef.current // ✅ Use ref instead of callState to avoid stale closure
+
+      console.log('[useRealtimeKitGroupCall] 📤 Emitting rtk-group-call:left:', {
+        hasUser: !!user,
+        hasSocket: !!socket,
+        roomId,
+        meetingId,
+        sessionId,
+        isMeeting,
+        participantId: user?.id
+      })
+
       if (user && socket) {
         socket.emit('rtk-group-call:left', {
           conversationId: roomId,
@@ -1502,8 +1604,11 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
           isMeeting: isMeeting,
           participantId: user.id
         })
+      } else {
+        console.warn('[useRealtimeKitGroupCall] ⚠️ Cannot emit leave event - missing user or socket')
       }
 
+      console.log('[useRealtimeKitGroupCall] 🧹 Clearing globalCallManager')
       // Reset state
       setCallState(prev => ({
         ...prev,
@@ -1518,9 +1623,15 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
         hostId: null
       }))
 
+      // CRITICAL: Clear globalCallManager to remove persistent call UI
+      globalCallManager.clearCall()
+      rtkDebug.log('[RTK] 🧹 Cleared globalCallManager on leave')
+      console.log('[useRealtimeKitGroupCall] ✅ globalCallManager cleared')
+
       // CRITICAL: Clear the activeConversationCalls entry for this conversation
       // This prevents stale data when restarting a call after everyone has left
       if (roomId) {
+        console.log('[useRealtimeKitGroupCall] 🧹 Clearing activeConversationCalls for:', roomId)
         setActiveConversationCalls(prev => {
           const newMap = new Map(prev)
           newMap.delete(roomId)
@@ -1549,6 +1660,7 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
         isCancelledRef.current = false // Reset cancellation flag for next call
       }, 100)
     } catch (error) {
+      console.error('[useRealtimeKitGroupCall] ❌ Error leaving call:', error)
       rtkDebug.error('[RTK] Error leaving call:', error)
       isLeavingRef.current = false // Reset on error
     }
@@ -1567,8 +1679,30 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
    * Toggle minimized state
    */
   const toggleMinimize = useCallback(() => {
-    setCallState(prev => ({ ...prev, isMinimized: !prev.isMinimized }))
+    setCallState(prev => {
+      const nextIsMinimized = !prev.isMinimized
+
+      console.log('[useRealtimeKitGroupCall] 🔄 toggleMinimize called:', {
+        currentIsMinimized: prev.isMinimized,
+        currentHasBeenMinimized: prev.hasBeenMinimized,
+        newIsMinimized: nextIsMinimized,
+        status: prev.status
+      })
+
+      // CRITICAL: persist minimize state to the global source-of-truth
+      // so navigation/remount cannot "restore" the old minimized value.
+      globalCallManager.updateCallState({ isMinimized: nextIsMinimized, hasBeenMinimized: true })
+
+      return {
+        ...prev,
+        isMinimized: nextIsMinimized,
+        hasBeenMinimized: true // Set flag when minimizing
+      }
+    })
   }, [])
+
+  // CRITICAL: Update ref so globalCallManager callbacks always have latest version
+  toggleMinimizeRef.current = toggleMinimize
 
   /**
    * Toggle transcription enabled/disabled
@@ -1576,6 +1710,31 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
   const toggleTranscription = useCallback(() => {
     setCallState(prev => ({ ...prev, transcriptionEnabled: !prev.transcriptionEnabled }))
   }, [])
+
+  /**
+   * Sync media states (from useRealtimeKitMedia) to callState
+   * This ensures UI reflects the actual media device states
+   */
+  useEffect(() => {
+    setCallState(prev => {
+      // Only update if values actually changed to prevent unnecessary re-renders
+      if (
+        prev.isMuted !== media.isMuted ||
+        prev.isVideoEnabled !== media.isVideoEnabled ||
+        prev.backgroundEnabled !== media.backgroundEnabled ||
+        prev.videoQuality !== media.videoQuality
+      ) {
+        return {
+          ...prev,
+          isMuted: media.isMuted,
+          isVideoEnabled: media.isVideoEnabled,
+          backgroundEnabled: media.backgroundEnabled,
+          videoQuality: media.videoQuality
+        }
+      }
+      return prev
+    })
+  }, [media.isMuted, media.isVideoEnabled, media.backgroundEnabled, media.videoQuality])
 
   /**
    * Listen to SDK meeting join completion
@@ -1589,6 +1748,141 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
       setCallState(prev => ({ ...prev, status: 'connected' }))
     }
   }, [meeting, callState.status])
+
+  // REMOVED: The useEffect that updated callbacks was causing infinite re-renders
+  // The callbacks are now created using useCallback and stored in globalCallManager
+  // when the call first connects (in the useEffect below that monitors callState.status)
+
+  /**
+   * Store call data in globalCallManager when connected (for persistent UI)
+   */
+  useEffect(() => {
+    if (callState.status !== 'connected' || !meeting || meeting.self?.roomState !== 'joined') {
+      return
+    }
+
+    rtkDebug.log('[RTK] Storing call data in globalCallManager for persistent UI')
+
+    // Build remoteStreams map from participants
+    const remoteStreamsMap = new Map<string, MediaStream>()
+    participantsHook.remoteStreams.forEach((stream, peerId) => {
+      remoteStreamsMap.set(peerId, stream)
+    })
+
+    globalCallManager.setCall({
+      realtimeKitMeeting: meeting,
+      callState: {
+        status: 'connected',
+        roomId: callState.roomId,
+        callType: callState.callType,
+        callImplementation: 'realtime-kit',
+        hostId: callState.hostId,
+        isMuted: callState.isMuted,
+        isVideoEnabled: callState.isVideoEnabled,
+        isScreenSharing: screenShare.isScreenSharing,
+        isMinimized: callState.isMinimized,
+        hasBeenMinimized: callState.hasBeenMinimized,
+        duration: callState.duration,
+        videoQuality: callState.videoQuality,
+        backgroundEnabled: callState.backgroundEnabled,
+        startTime: callState.startTime,
+        participants: participantsHook.participants,
+        handRaised: callState.handRaised,
+        remoteHandsRaised: callState.remoteHandsRaised
+      },
+      localStream: media.localStream,
+      remoteStreams: remoteStreamsMap,
+      participants: participantsHook.participants,
+      currentUser: currentUser,
+      activeSpeakerId: activeSpeaker.activeSpeakerId,
+      activeSpeakerHistory: activeSpeaker.activeSpeakerHistory,
+
+      // Store all callbacks - use refs to avoid infinite loops
+      leaveCall: async () => {
+        if (leaveCallRef.current) {
+          await leaveCallRef.current()
+        }
+      },
+      toggleMute: () => {
+        mediaRef.current?.toggleMute()
+      },
+      toggleVideo: () => {
+        mediaRef.current?.toggleVideo()
+      },
+      toggleScreenShare: () => {
+        screenShareRef.current?.toggleScreenShare()
+      },
+      toggleMinimize: () => {
+        if (toggleMinimizeRef.current) {
+          toggleMinimizeRef.current()
+        }
+      },
+      toggleBackground: () => {
+        mediaRef.current?.toggleBackground()
+      },
+      toggleRaiseHand: () => {
+        websocketRef.current?.toggleRaiseHand(callState.handRaised)
+      },
+      sendReaction: (reaction: string) => {
+        websocketRef.current?.sendReaction(reaction)
+      },
+      setVideoQuality: quality => {
+        mediaRef.current?.setVideoQuality(quality)
+      },
+      switchAudioDevice: async (deviceId: string) => {
+        // TODO: Implement device switching in useRealtimeKitMedia hook
+        console.warn('switchAudioDevice not yet implemented for RealtimeKit', deviceId)
+      },
+      switchVideoDevice: async (deviceId: string) => {
+        // TODO: Implement device switching in useRealtimeKitMedia hook
+        console.warn('switchVideoDevice not yet implemented for RealtimeKit', deviceId)
+      },
+      onInviteParticipant: (participant: any) => {
+        // inviteToCall expects an array, so wrap the single participant
+        participantsHookRef.current?.inviteToCall([participant])
+      },
+
+      // Store context
+      apiClient: apiClient || null,
+      wsClient: wsClient,
+      accessToken: options.accessToken || null,
+      currentUserId: currentUser?.id || null,
+      conversationName: callState.conversationName || null,
+      pendingInvites: participantsHook.pendingInvites, // Keep as Map
+      availableParticipants: [], // Will be passed from Chat component
+      activeExperts: [] // Will be passed from Chat component
+    })
+  }, [
+    callState.status,
+    callState.roomId,
+    callState.callType,
+    callState.hostId,
+    callState.isMuted,
+    callState.isVideoEnabled,
+    callState.isMinimized,
+    callState.hasBeenMinimized,
+    callState.duration,
+    callState.videoQuality,
+    callState.backgroundEnabled,
+    callState.startTime,
+    callState.conversationName,
+    callState.handRaised,
+    callState.remoteHandsRaised,
+    meeting,
+    media.localStream,
+    participantsHook.remoteStreams,
+    participantsHook.participants,
+    participantsHook.pendingInvites,
+    activeSpeaker.activeSpeakerId,
+    activeSpeaker.activeSpeakerHistory,
+    screenShare.isScreenSharing,
+    currentUser,
+    apiClient,
+    wsClient,
+    options.accessToken
+    // NOTE: leaveCall, media, screenShare, websocket, participantsHook, toggleMinimize removed
+    // to prevent infinite loops - they are accessed via refs instead
+  ])
 
   /**
    * Listen to WebSocket incoming call invites and lifecycle events
@@ -1829,7 +2123,8 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
           // Also update state so UI reflects the synced time
           setCallState(prev => ({
             ...prev,
-            callStartTime: globalStartTime
+            callStartTime: globalStartTime,
+            startTime: globalStartTime // CRITICAL: Also update startTime for GlobalCallManager
           }))
 
           rtkDebug.log('[RTK] ⏱️ Synced to backend start time:', {
@@ -2126,11 +2421,34 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
     // Wrap joinCall to match interface signature from old useGroupCall
     // IMPORTANT: When joining existing call, Chat.tsx passes:
     //   - roomId = existingCall.roomId (which is actually the backend meetingId from activeCalls)
-    //   - initialParticipants = undefined
+    //   - initialParticipants = undefined OR preferences object
     //
     // We need to resolve this to get BOTH conversationId AND meetingId AND conversationName
     // because the internal joinCall needs conversationId for WebSocket events
-    joinCall: async (roomIdOrMeetingId: string, callType: CallType, _initialParticipants?: CallParticipant[]) => {
+    joinCall: async (
+      roomIdOrMeetingId: string,
+      callType: CallType,
+      initialParticipantsOrPreferences?:
+        | CallParticipant[]
+        | { micEnabled: boolean; cameraEnabled: boolean; backgroundEnabled?: boolean }
+    ) => {
+      // Check if third parameter is preferences object or participants array
+      const isPreferencesObject =
+        initialParticipantsOrPreferences &&
+        !Array.isArray(initialParticipantsOrPreferences) &&
+        'micEnabled' in initialParticipantsOrPreferences
+
+      const preferences = isPreferencesObject
+        ? (initialParticipantsOrPreferences as {
+            micEnabled: boolean
+            cameraEnabled: boolean
+            backgroundEnabled?: boolean
+          })
+        : undefined
+      const _initialParticipants = !isPreferencesObject
+        ? (initialParticipantsOrPreferences as CallParticipant[] | undefined)
+        : undefined
+
       if (_initialParticipants === undefined) {
         // Joining existing call: need to resolve conversationId, meetingId, and conversationName
         let resolvedConversationId: string = roomIdOrMeetingId
@@ -2188,10 +2506,17 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
           conversationId: resolvedConversationId,
           meetingId: resolvedMeetingId || 'undefined',
           conversationName: resolvedConversationName,
-          callType
+          callType,
+          preferences
         })
 
-        await joinCall(resolvedConversationId, callType, resolvedMeetingId, resolvedConversationName)
+        await joinCall(
+          resolvedConversationId,
+          callType,
+          resolvedMeetingId,
+          resolvedConversationName,
+          preferences // Pass preferences to internal joinCall
+        )
       } else {
         // This path shouldn't be used for RealtimeKit (use startCall instead)
         rtkDebug.warn('[RTK] joinCall called with initialParticipants - this is not supported. Use startCall instead.')
