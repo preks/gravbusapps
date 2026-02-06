@@ -169,12 +169,6 @@ const EmployeeForm: React.FC = () => {
         createUser: true
       }
 
-      if (formValues.preferredName && formValues.preferredName.trim()) {
-        payload.employee.displayName = `${formValues.preferredName} ${formValues.lastName}`
-      } else {
-        payload.employee.displayName = `${formValues.firstName} ${formValues.lastName}`
-      }
-
       window.dispatchEvent(
         new CustomEvent('com.newwork.employeeForm.saveEmployeePayload', {
           detail: { payload }
