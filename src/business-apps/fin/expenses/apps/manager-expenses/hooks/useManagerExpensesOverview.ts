@@ -45,8 +45,10 @@ export interface UseManagerExpensesOverviewParams {
 }
 
 export interface ManagerExpensesOverviewState {
-  // Distinct currencies combined and de-duplicated
+  // Distinct currencies combined and de-duplicated (from requests + plans + payments)
   distinctCurrencies: string[]
+  /** Currencies that have at least one advance payment. Use for Advance Payments tab filter options so chips only show currencies that yield results. */
+  distinctCurrenciesFromPayments: string[]
   // Aggregates
   teamMembersCount: number
   pendingApprovalsCount: number
@@ -328,6 +330,19 @@ function extractDistinctCurrencies(result: any): string[] {
   return Array.from(currencyRefs).sort((a, b) => a.localeCompare(b))
 }
 
+/** Currencies that appear in advance payments only (for Advance Payments tab so filter options match actual data). */
+function extractDistinctCurrenciesFromPayments(result: any): string[] {
+  const currencyRefs = new Set<string>()
+  const pushRefs = (arr?: Array<{ currencyRef?: string }>) => {
+    if (!Array.isArray(arr)) return
+    for (const r of arr) {
+      if (r?.currencyRef) currencyRefs.add(r.currencyRef)
+    }
+  }
+  pushRefs(result?.DistinctCurrenciesFromPayments)
+  return Array.from(currencyRefs).sort((a, b) => a.localeCompare(b))
+}
+
 /**
  * Helper: Build monthly expense trends from ExpenseItem rows
  * Uses correct date logic per type: EXPENSES → expenseDate, TRIP → startDate
@@ -386,6 +401,7 @@ function aggregateExpenseCategories(trendItems: any[]): Array<{ name: string; am
 function transformResultToState(
   result: any,
   distinctCurrencies: string[],
+  distinctCurrenciesFromPayments: string[],
   monthlyExpenseTrends: Array<{ month: string; amount: number }>,
   expenseCategories: Array<{ name: string; amount: number }>
 ): ManagerExpensesOverviewState {
@@ -400,6 +416,7 @@ function transformResultToState(
 
   return {
     distinctCurrencies,
+    distinctCurrenciesFromPayments,
     teamMembersCount: Number(result?.TeamMembersAggregate?.aggregate?.count ?? 0),
     pendingApprovalsCount: Number(result?.PendingApprovalsAggregate?.aggregate?.count ?? 0),
     totalPlansAmount: Number(result?.ExpensePlansTotalAggregate?.aggregate?.sum?.totalAmount ?? 0),
@@ -525,13 +542,20 @@ export const useManagerExpensesOverview = (
 
       // Extract and aggregate data using helper functions
       const distinctCurrencies = extractDistinctCurrencies(result)
+      const distinctCurrenciesFromPayments = extractDistinctCurrenciesFromPayments(result)
 
       const trendItems = Array.isArray(result?.MonthlyExpenseItemsForTrends) ? result.MonthlyExpenseItemsForTrends : []
       const monthlyExpenseTrends = buildMonthlyTrends(trendItems)
       const expenseCategories = aggregateExpenseCategories(trendItems)
 
       // Transform result into final state
-      const nextState = transformResultToState(result, distinctCurrencies, monthlyExpenseTrends, expenseCategories)
+      const nextState = transformResultToState(
+        result,
+        distinctCurrencies,
+        distinctCurrenciesFromPayments,
+        monthlyExpenseTrends,
+        expenseCategories
+      )
 
       setState(nextState)
       cacheBySignature.set(signature, { ts: Date.now(), data: nextState })
