@@ -73,7 +73,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
   const planOrderBy = useMemo(() => {
     if (!sorting.field || !sorting.order) return [{ planDate: 'DESC' } as any]
     return buildOrderByClause(sorting.field, sorting.order)
-  }, [sorting, buildOrderByClause])
+  }, [sorting.field, sorting.order, buildOrderByClause])
 
   const currencyRef = useMemo(
     () => (primaryCurrency ? standardizeCurrencyRef(primaryCurrency) : undefined),
@@ -178,12 +178,11 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
   statsLoading = overview.isLoading && !overview.data
   statsError = overview.error ? new Error(overview.error) : null
 
+  // Memoized list: only recompute when raw plans or currency fallback change (minimal deps).
   const expensePlans: ExpensePlan[] = useMemo(() => {
     const rows = overview.data?.expensePlans || []
     return rows.map((p: any) => {
-      // Extract currency code from currencyRef
       const currency = p?.currencyRef ? extractCurrencyCode(p.currencyRef) : undefined
-
       return {
         id: p.id,
         code: p.code,
@@ -288,31 +287,51 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
   // Handle plan selection and details panel
   const handleViewDetails = useCallback((plan: ExpensePlan) => setSelectedPlan(plan), [])
   const handleCloseDetails = useCallback(() => setSelectedPlan(null), [])
-  const handleSearchChange = useCallback((search: string) => setSearchTerm(search), [setSearchTerm])
+  const handleSearchChange = useCallback(
+    (search: string) => {
+      setSearchTerm(search)
+      setCurrentPage(1)
+    },
+    [setSearchTerm]
+  )
   const handleStatsFilterChange = useCallback(
     (filter: any) => {
-      // When interacting with the clickable stats cards, always clear currency filtering
-      // so card-based filtering shows results across all currencies.
+      setCurrentPage(1)
       setCurrencyFilter(null)
       setStatusFilter(filter || [])
     },
     [setCurrencyFilter, setStatusFilter]
   )
 
-  // No need for separate status filter handler as we use handleDataFilterChange
+  // Sidebar filter change: reset to page 1 so filtered results are shown from the first page.
+  const onFilterChangeWithPageReset = useCallback(
+    (filter: string, add: boolean) => {
+      handleDataFilterChange(filter, add)
+      setCurrentPage(1)
+    },
+    [handleDataFilterChange]
+  )
 
-  // Use the handleDataFilterChange function directly from the hook
-  // This handles both status and currency filters
+  const handleTableStatusFilterChange = useCallback(
+    (filter: any) => {
+      setStatusFilter(filter || [])
+      setCurrentPage(1)
+    },
+    [setStatusFilter]
+  )
 
   // Handle clear all filters
   const clearAllFilters = useCallback(() => {
     setSearchTerm('')
     setStatusFilter([])
+    setCurrentPage(1)
   }, [setSearchTerm, setStatusFilter])
 
-  // Stabilize DataContainer setFilter callback to prevent unnecessary re-renders
+  // Stabilize DataContainer setFilter callback to prevent unnecessary re-renders.
+  // Reset to page 1 when filters change so we request offset 0 (avoids empty table when coming from page 2).
   const handleFilterChange = useCallback(
     (newFilters: string[]) => {
+      setCurrentPage(1)
       // Constants for filter type identification
       const DATE_RANGE_FILTERS = new Set(['effectiveDateRange', 'planDateRange', 'startDateRange', 'endDateRange'])
       const isCurrencyFilter = (f: string) => f.startsWith('currency:')
@@ -386,9 +405,8 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
           debounceDelay: 300
         }}
         dataFilterProps={{
-          // Always keep filter sidebar visible, even when there are no plans yet
           filterGroups,
-          onFilterChange: handleDataFilterChange
+          onFilterChange: onFilterChangeWithPageReset
         }}
         dataBody={
           <div data-testid="expense-plans-table-container">
@@ -398,7 +416,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
               search={searchTerm}
               onSearchChange={handleSearchChange}
               activeFilter={statusFilter}
-              onFilterChange={filter => setStatusFilter(filter || [])}
+              onFilterChange={handleTableStatusFilterChange}
               onClearFilters={clearAllFilters}
               employeeId={props.employeeId}
               onViewDetails={handleViewDetails}

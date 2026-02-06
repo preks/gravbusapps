@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { MANAGER_EXPENSES_OVERVIEW } from '../queries/ManagerExpensesOverview'
@@ -445,6 +445,7 @@ export const useManagerExpensesOverview = (
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [state, setState] = useState<ManagerExpensesOverviewState | null>(null)
+  const latestSignatureRef = useRef<string>('')
 
   // Normalize/prepare variables
   const variables = useMemo(() => {
@@ -507,6 +508,7 @@ export const useManagerExpensesOverview = (
       return
     }
 
+    latestSignatureRef.current = signature
     setIsLoading(true)
     try {
       let requestPromise = inFlightBySignature.get(signature)
@@ -517,6 +519,9 @@ export const useManagerExpensesOverview = (
         inFlightBySignature.set(signature, requestPromise)
       }
       const result: any = await requestPromise
+
+      // Ignore stale response if a newer request was started (e.g. filter + page reset)
+      if (latestSignatureRef.current !== signature) return
 
       // Extract and aggregate data using helper functions
       const distinctCurrencies = extractDistinctCurrencies(result)
@@ -531,9 +536,10 @@ export const useManagerExpensesOverview = (
       setState(nextState)
       cacheBySignature.set(signature, { ts: Date.now(), data: nextState })
     } catch (e: any) {
+      if (latestSignatureRef.current !== signature) return
       setError(e?.message || 'Failed to load manager expenses overview')
     } finally {
-      setIsLoading(false)
+      if (latestSignatureRef.current === signature) setIsLoading(false)
     }
   }, [context.accessToken, graphqlClient, variables])
 
