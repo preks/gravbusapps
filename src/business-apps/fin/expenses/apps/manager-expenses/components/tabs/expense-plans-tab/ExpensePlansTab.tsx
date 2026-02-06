@@ -4,6 +4,14 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { DataContainer } from '@/components/layout/dataContainer'
 import { buildDeduplicatedFilters } from '../../../utils/filterUtils'
+import {
+  separateFiltersByType,
+  getRemovedFilters,
+  computeFilterAddRemove,
+  isDateRangeFilter,
+  DATE_RANGE_FILTER_KEYS,
+  type FilterAddRemove
+} from '../../../utils/plansFilterHelpers'
 import { ExpensePlan } from '../../../hooks/useMainViewExpensePlans'
 import { useExpensePlanFilters } from '../../../hooks/useExpensePlanFilters'
 import ExpensePlanStatisticsDisplay from './ExpensePlanStatistics'
@@ -38,6 +46,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
     startDateRange,
     endDateRange,
     planTypeFilter,
+    setPlanTypeFilter,
     getAllSelectedFilters,
     removeFilter
   } = useExpensePlanFilters({
@@ -320,58 +329,57 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
     [setStatusFilter]
   )
 
-  // Handle clear all filters
+  /** Single place for "clear all": search, status, plan type, currency, date ranges, page. */
   const clearAllFilters = useCallback(() => {
     setSearchTerm('')
     setStatusFilter([])
+    setPlanTypeFilter([])
+    setCurrencyFilter(null)
+    DATE_RANGE_FILTER_KEYS.forEach(key => removeFilter(key))
     setCurrentPage(1)
-  }, [setSearchTerm, setStatusFilter])
+  }, [setSearchTerm, setStatusFilter, setPlanTypeFilter, setCurrencyFilter, removeFilter])
 
-  // Stabilize DataContainer setFilter callback to prevent unnecessary re-renders.
+  const applyFilterDiff = useCallback((diff: FilterAddRemove, onChange: (id: string, add: boolean) => void) => {
+    diff.toRemove.forEach(id => onChange(id, false))
+    diff.toAdd.forEach(id => onChange(id, true))
+  }, [])
+
+  // Sync filter state from DataContainer chip list (setFilter from chips or "Clear all filters").
   // Reset to page 1 when filters change so we request offset 0 (avoids empty table when coming from page 2).
   const handleFilterChange = useCallback(
     (newFilters: string[]) => {
       setCurrentPage(1)
-      // Constants for filter type identification
-      const DATE_RANGE_FILTERS = new Set(['effectiveDateRange', 'planDateRange', 'startDateRange', 'endDateRange'])
-      const isCurrencyFilter = (f: string) => f.startsWith('currency:')
-      const isDateRangeFilter = (f: string) => DATE_RANGE_FILTERS.has(f)
-      const isStatusFilter = (f: string) => !isCurrencyFilter(f) && !isDateRangeFilter(f)
-
-      // Get current filters directly from getAllSelectedFilters (includes date ranges)
       const currentFilters = getAllSelectedFilters
+      const {
+        currency: currencyFilters,
+        dateRange: dateRangeFilters,
+        planType: planTypeIncoming,
+        status: statusFiltersIncoming
+      } = separateFiltersByType(newFilters)
 
-      // Separate incoming filters by type
-      const currencyFilters = newFilters.filter(isCurrencyFilter)
-      const dateRangeFilters = newFilters.filter(isDateRangeFilter)
-      const statusFiltersIncoming = newFilters.filter(isStatusFilter)
-
-      // Handle date range filter removal - check what date ranges are currently active
-      // and remove any that are not in the new filters list
       const currentDateRanges = currentFilters.filter(isDateRangeFilter)
-      const dateRangesToRemove = currentDateRanges.filter(f => !dateRangeFilters.includes(f))
-      dateRangesToRemove.forEach(f => removeFilter(f))
+      getRemovedFilters(currentDateRanges, dateRangeFilters).forEach(f => removeFilter(f))
 
-      // Handle status filter changes
-      const currentStatusFilters = statusFilter.map(status => status as unknown as string)
-      const filtersToRemove = currentStatusFilters.filter(f => !statusFiltersIncoming.includes(f))
-      const filtersToAdd = statusFiltersIncoming.filter(f => !currentStatusFilters.includes(f))
+      const currentStatusFilters = statusFilter.map(s => s as unknown as string)
+      applyFilterDiff(computeFilterAddRemove(currentStatusFilters, statusFiltersIncoming), handleDataFilterChange)
+      applyFilterDiff(computeFilterAddRemove(planTypeFilter, planTypeIncoming), handleDataFilterChange)
 
-      filtersToRemove.forEach(filter => handleDataFilterChange(filter, false))
-      filtersToAdd.forEach(filter => handleDataFilterChange(filter, true))
-
-      // Handle currency filter changes (only if explicitly changed)
       if (currencyFilters.length > 0 && currencyFilters[0] !== `currency:${primaryCurrency}`) {
-        const newCurrencyCode = currencyFilters[0].replace('currency:', '')
-        handleDataFilterChange(`currency:${newCurrencyCode}`, true)
+        handleDataFilterChange(`currency:${currencyFilters[0].replace('currency:', '')}`, true)
       }
-
-      // If currency chip was removed, clear currency selection (show all currencies)
       if (currencyFilters.length === 0 && primaryCurrency) {
         handleDataFilterChange(`currency:${primaryCurrency}`, false)
       }
     },
-    [getAllSelectedFilters, primaryCurrency, removeFilter, statusFilter, handleDataFilterChange]
+    [
+      getAllSelectedFilters,
+      primaryCurrency,
+      removeFilter,
+      statusFilter,
+      planTypeFilter,
+      applyFilterDiff,
+      handleDataFilterChange
+    ]
   )
 
   return (
