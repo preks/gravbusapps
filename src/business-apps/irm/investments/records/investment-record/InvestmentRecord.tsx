@@ -6,7 +6,7 @@ import { useGetInvestmentCatalogData } from '@/common/data/investment/hooks/useI
 import { AiActions } from '@/common/components/common-relations/record-sections/header-section/ai-actions'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { TrendUpIcon, HouseIcon, ChartBarIcon } from '@phosphor-icons/react'
+import { ChartBarIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
@@ -14,6 +14,7 @@ import { useInvestmentTileFields } from './hooks/useInvestmentTileFields'
 import { useInvestmentAiSummary } from './hooks/useInvestmentAiSummary'
 import { createHeaderMeta, getTypeSpecificDetailGroups } from './utils/investmentHeaderConfig'
 import { createInvestmentTabsConfig } from './utils/investmentTabConfig'
+import { getRecordGroupConfiguration } from './config/recordGroupConfigurations'
 
 type InvestmentRecordProps = BusinessAppContextProps
 
@@ -72,36 +73,28 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = props => {
       realEstateInvestment: Array.isArray(investmentData.realEstateInvestment)
         ? investmentData.realEstateInvestment[0]
         : investmentData.realEstateInvestment
-      // PRIVATE_EQUITY: No dedicated entity - all data in investment.additionalProperties
+      // Note: PRIVATE_EQUITY and other generic groups store data in investment.additionalProperties
     }
   }, [])
 
-  // Get icon based on investment group (hardcoded for now)
+  // Get icon based on investment group configuration
   const getInvestmentIcon = useCallback((investmentData: any) => {
     if (!investmentData) return ChartBarIcon
 
     const group = investmentData.investmentGroup?.code || ''
-    // Only use specific icons for specialized groups
-    if (group.includes('EQUITY') && !group.includes('PRIVATE_EQUITY')) return TrendUpIcon
-    if (group.includes('REAL_ESTATE')) return HouseIcon
-    // All other groups (including PRIVATE_EQUITY, TEST, etc.) use generic icon
-    return ChartBarIcon
+    const config = getRecordGroupConfiguration(group)
+    // Use configured icon or fallback to generic ChartBarIcon
+    return config.icon || ChartBarIcon
   }, [])
 
-  // Get display category based on investment group
+  // Get display category based on investment group configuration
   const getInvestmentCategory = useCallback((investmentData: any): string => {
     if (!investmentData) return getTranslationFromI18nKeyAndLabel('crm.investments.category.default', 'INVESTMENT')
 
     const group = investmentData.investmentGroup?.code || ''
-    // Only use specific labels for specialized groups
-    if (group.includes('EQUITY') && !group.includes('PRIVATE_EQUITY'))
-      return getTranslationFromI18nKeyAndLabel('crm.investments.category.equity', 'EQUITY INVESTMENT')
-    if (group.includes('LIQUID_FUND'))
-      return getTranslationFromI18nKeyAndLabel('crm.investments.category.liquidFund', 'LIQUID FUND INVESTMENT')
-    if (group.includes('REAL_ESTATE'))
-      return getTranslationFromI18nKeyAndLabel('crm.investments.category.realEstate', 'REAL ESTATE INVESTMENT')
-
-    return getTranslationFromI18nKeyAndLabel('crm.investments.category.default', 'INVESTMENT')
+    const config = getRecordGroupConfiguration(group)
+    // Use configured category label or fallback to generic 'INVESTMENT'
+    return config.categoryLabel || getTranslationFromI18nKeyAndLabel('crm.investments.category.default', 'INVESTMENT')
   }, [])
 
   // Helper function to get the correct FlowContextName based on investment type
@@ -116,7 +109,7 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = props => {
       case 'realestate':
         return FlowContextName.realEstateInvestmentEntity
       default:
-        // All other investment types (including generic groups like PRIVATE_EQUITY, TEST, etc.)
+        // All other investment types (PRIVATE_EQUITY, TEST, and future groups)
         // use the generic investment entity context
         return FlowContextName.investmentEntity
     }
