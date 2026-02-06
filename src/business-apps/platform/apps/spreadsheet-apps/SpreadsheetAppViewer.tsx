@@ -48,6 +48,10 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   'data-testid': testId = 'spreadsheet-app-viewer'
 }) => {
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const cellChangeBatchTimerRef = useRef<NodeJS.Timeout | null>(null)
+  // Accumulate per-row cell changes so a multi-cell paste sends ONE backend PATCH
+  const pendingCellUpdates = useRef<Map<string, { backendRowId: string; changes: Record<string, unknown> }>>(new Map())
+  const cellPersistTimerRef = useRef<NodeJS.Timeout | null>(null)
 
   // --- Viewer State (sheet/view + local sheet data) ---
   const {
@@ -243,20 +247,58 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       const row = current[idx]
       const backendRowId = (row as any)._rowUuid || (row as any)._id || (row as any).id || rowId
 
+      // Update the ref IMMEDIATELY (synchronously) so concurrent calls
+      // (e.g. multi-cell paste) each see the previous call's changes.
+      // Without this, all concurrent calls read the same original row
+      // and only the last setLocalSheetData wins — losing all but one cell.
       const updatedRow = { ...row, [columnName]: value, _updatedAt: new Date().toISOString() }
       const next = [...current.slice(0, idx), updatedRow, ...current.slice(idx + 1)]
-      setLocalSheetData(next)
-      onDataChange?.(activeSheetId, next)
+      localSheetDataRef.current = next
 
-      try {
-        if (onRowUpdate) {
-          await onRowUpdate(app.id, activeSheetId, String(backendRowId), { [columnName]: value })
-        } else {
-          await SpreadsheetApiService.updateRow(app.id, activeSheetId, String(backendRowId), { [columnName]: value })
-        }
-      } catch (error) {
-        console.error('[SpreadsheetAppViewer] Failed to persist cell change:', error)
+      // Debounce the React state update so all concurrent cell changes
+      // (from a multi-cell paste) are batched into a single re-render.
+      if (cellChangeBatchTimerRef.current) {
+        clearTimeout(cellChangeBatchTimerRef.current)
       }
+      cellChangeBatchTimerRef.current = setTimeout(() => {
+        setLocalSheetData([...localSheetDataRef.current])
+        onDataChange?.(activeSheetId, localSheetDataRef.current)
+        cellChangeBatchTimerRef.current = null
+      }, 50)
+
+      // Accumulate cell changes per row so a multi-cell paste sends ONE
+      // backend PATCH with all columns, avoiding the backend race condition
+      // where concurrent PATCHes each read the same row and overwrite each other.
+      const existing = pendingCellUpdates.current.get(rowId)
+      if (existing) {
+        existing.changes[columnName] = value
+      } else {
+        pendingCellUpdates.current.set(rowId, {
+          backendRowId: String(backendRowId),
+          changes: { [columnName]: value }
+        })
+      }
+
+      if (cellPersistTimerRef.current) {
+        clearTimeout(cellPersistTimerRef.current)
+      }
+      cellPersistTimerRef.current = setTimeout(async () => {
+        const pending = new Map(pendingCellUpdates.current)
+        pendingCellUpdates.current.clear()
+        cellPersistTimerRef.current = null
+
+        for (const [, { backendRowId: bid, changes }] of pending) {
+          try {
+            if (onRowUpdate) {
+              await onRowUpdate(app.id, activeSheetId, bid, changes)
+            } else {
+              await SpreadsheetApiService.updateRow(app.id, activeSheetId, bid, changes)
+            }
+          } catch (error) {
+            console.error('[SpreadsheetAppViewer] Failed to persist cell changes:', error)
+          }
+        }
+      }, 100)
     },
     [activeSheetId, app.id, entityEnabled, localSheetDataRef, onDataChange, onRowUpdate, setLocalSheetData]
   )

@@ -75,8 +75,9 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
     // Track if we're currently processing a local edit (to prevent feedback loops)
     const isLocalEditRef = useRef(false)
 
-    // Track pending row creations to prevent infinite loops
-    const pendingRowCreations = useRef<Set<number>>(new Set())
+    // Accumulate cell values for new rows (multi-cell paste into empty rows)
+    const pendingNewRowCells = useRef<Map<number, Record<string, unknown>>>(new Map())
+    const pendingNewRowTimers = useRef<Map<number, NodeJS.Timeout>>(new Map())
 
     // Track pending column creations to prevent infinite loops
     const pendingColumnCreations = useRef<Set<number>>(new Set())
@@ -356,7 +357,9 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
           // Handle cell changes for callbacks
           // Path format: ['data', rowIndex, colIndex] for cell value
           // Or: ['data', rowIndex, colIndex, 'propertyName'] for cell properties (fc=fontColor, bg=background, etc.)
-          if (op.op === 'replace' && op.path.length >= 3 && op.path[0] === 'data') {
+          // Note: FortuneSheet emits 'replace' for overwriting existing cells and 'add' for
+          // populating empty/null cells (e.g. during paste). Both must be persisted.
+          if ((op.op === 'replace' || op.op === 'add') && op.path.length >= 3 && op.path[0] === 'data') {
             const rowIndex = op.path[1] as number
             const colIndex = op.path[2] as number
 
@@ -402,41 +405,54 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
               return
             }
 
-            // Handle new row - auto-create it when user edits beyond existing data
+            // Handle new row - auto-create it when user edits beyond existing data.
+            // Accumulate all cell values first (e.g. multi-cell paste) then create
+            // the row once with all values, instead of creating with only the first cell.
             if (!rowId && columnId) {
-              if (pendingRowCreations.current.has(rowIndex)) {
-                return
-              }
-
-              pendingRowCreations.current.add(rowIndex)
-
               const column = columns.find(c => c.id === columnId)
               const columnName = column?.name || columnId
 
-              if (onDataChange) {
-                const newRow: Record<string, unknown> = { [columnName]: cellValue }
-                columns.forEach(col => {
-                  if (col.name !== columnName) {
-                    newRow[col.name] = col.defaultValue ?? ''
-                  }
-                })
+              // Accumulate cell values for this new row
+              const existingCells = pendingNewRowCells.current.get(rowIndex) || {}
+              existingCells[columnName] = cellValue
+              pendingNewRowCells.current.set(rowIndex, existingCells)
 
-                const newData = [...data]
-                while (newData.length < rowIndex) {
-                  const emptyRow: Record<string, unknown> = {}
-                  columns.forEach(col => {
-                    emptyRow[col.name] = col.defaultValue ?? ''
-                  })
-                  newData.push(emptyRow)
-                }
-                newData.push(newRow)
-
-                onDataChange(newData)
-
-                setTimeout(() => {
-                  pendingRowCreations.current.delete(rowIndex)
-                }, 1000)
+              // Debounce row creation to collect all cells from a paste operation
+              const existingTimer = pendingNewRowTimers.current.get(rowIndex)
+              if (existingTimer) {
+                clearTimeout(existingTimer)
               }
+
+              pendingNewRowTimers.current.set(
+                rowIndex,
+                setTimeout(() => {
+                  const collectedCells = pendingNewRowCells.current.get(rowIndex) || {}
+                  pendingNewRowCells.current.delete(rowIndex)
+                  pendingNewRowTimers.current.delete(rowIndex)
+
+                  if (onDataChange) {
+                    const newRow: Record<string, unknown> = { ...collectedCells }
+                    columns.forEach(col => {
+                      if (!(col.name in newRow)) {
+                        newRow[col.name] = col.defaultValue ?? ''
+                      }
+                    })
+
+                    const newData = [...data]
+                    while (newData.length < rowIndex) {
+                      const emptyRow: Record<string, unknown> = {}
+                      columns.forEach(col => {
+                        emptyRow[col.name] = col.defaultValue ?? ''
+                      })
+                      newData.push(emptyRow)
+                    }
+                    newData.push(newRow)
+
+                    onDataChange(newData)
+                  }
+                }, 50)
+              )
+
               return
             }
 
