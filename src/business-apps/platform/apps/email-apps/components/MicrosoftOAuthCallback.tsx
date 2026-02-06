@@ -58,15 +58,18 @@ export const MicrosoftOAuthCallback: React.FC<MicrosoftOAuthCallbackProps> = ({ 
 
         // Store the OAuth data in sessionStorage for after Keycloak auth completes
         // We can't create the account yet without a Keycloak token for our backend
-        sessionStorage.setItem(
-          'ms_oauth_pending',
-          JSON.stringify({
-            email: userInfo.email,
-            name: userInfo.name,
-            accessToken: tokens.access_token,
-            refreshToken: tokens.refresh_token
-          })
-        )
+        const oauthData = {
+          email: userInfo.email,
+          name: userInfo.name,
+          accessToken: tokens.access_token,
+          refreshToken: tokens.refresh_token
+        }
+        console.log('[MicrosoftOAuthCallback] Storing OAuth data for:', userInfo.email)
+        sessionStorage.setItem('ms_oauth_pending', JSON.stringify(oauthData))
+
+        // Verify it was stored
+        const storedData = sessionStorage.getItem('ms_oauth_pending')
+        console.log('[MicrosoftOAuthCallback] Verified stored data:', storedData ? 'yes' : 'no')
 
         setStatus('success')
         setMessage('Microsoft sign-in successful!')

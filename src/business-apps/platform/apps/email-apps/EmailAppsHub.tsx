@@ -90,9 +90,13 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
 
   // Handle OAuth callback completion
   const handleOAuthSuccess = useCallback(() => {
+    console.log(
+      '[EmailAppsHub] OAuth success, checking stored data:',
+      sessionStorage.getItem('ms_oauth_pending') ? 'found' : 'not found'
+    )
     window.history.replaceState({}, '', '/platform/mail')
     setIsOAuthCallback(false)
-    window.location.reload()
+    // Don't reload - let the useEffect handle account creation
   }, [])
 
   const handleOAuthError = useCallback((error: string) => {
@@ -147,9 +151,20 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
   // Check for pending Microsoft OAuth data and create account
   useEffect(() => {
     const processPendingOAuth = async () => {
-      if (pendingOAuthProcessed.current || !accessToken || isOAuthCallback) return
+      console.log('[EmailAppsHub] processPendingOAuth called', {
+        pendingOAuthProcessed: pendingOAuthProcessed.current,
+        hasAccessToken: !!accessToken,
+        isOAuthCallback
+      })
+
+      if (pendingOAuthProcessed.current || !accessToken || isOAuthCallback) {
+        console.log('[EmailAppsHub] Skipping pending OAuth processing')
+        return
+      }
 
       const pendingData = sessionStorage.getItem('ms_oauth_pending')
+      console.log('[EmailAppsHub] Pending OAuth data:', pendingData ? 'found' : 'not found')
+
       if (!pendingData) return
 
       pendingOAuthProcessed.current = true
@@ -157,11 +172,12 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
 
       try {
         const data = JSON.parse(pendingData)
+        console.log('[EmailAppsHub] Creating account for:', data.email)
         EmailApiService.setAccessToken(accessToken)
 
         toast.info('Setting up your Microsoft email account...')
 
-        await EmailApiService.createAccount({
+        const account = await EmailApiService.createAccount({
           displayName: data.name || data.email.split('@')[0],
           emailAddress: data.email,
           provider: 'microsoft',
@@ -176,16 +192,19 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
           isDefault: true
         })
 
+        console.log('[EmailAppsHub] Account created:', account)
         toast.success('Microsoft email account connected!')
-        window.location.reload()
+
+        // Refresh accounts instead of full page reload
+        await refreshAccounts()
       } catch (err) {
-        console.error('Failed to create Microsoft email account:', err)
+        console.error('[EmailAppsHub] Failed to create Microsoft email account:', err)
         toast.error('Failed to connect Microsoft account. Please try again.')
       }
     }
 
     processPendingOAuth()
-  }, [accessToken, isOAuthCallback])
+  }, [accessToken, isOAuthCallback, refreshAccounts])
 
   // Auto-select inbox when folders load
   useEffect(() => {
