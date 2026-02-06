@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useFeature } from '@/common/hooks/useFeature'
 import {
   Dialog,
   DialogContent,
@@ -52,9 +51,6 @@ const DeductionForm: React.FC<DeductionFormProps> = ({
   loading = false,
   accessToken
 }) => {
-  // Feature flag check
-  const isDevEnabled = useFeature('dev.enabled')
-
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -70,11 +66,6 @@ const DeductionForm: React.FC<DeductionFormProps> = ({
       deductionDay: DeductionDay.FIRST_DAY
     }
   })
-
-  // Feature flag guard
-  if (isDevEnabled === false) {
-    return null
-  }
 
   // ✅ Hook for fetching fresh deduction data
   const { fetchExpenseRuleDeductionById } = useGetExpenseRuleDeductionById({ accessToken } as BusinessAppContextProps)

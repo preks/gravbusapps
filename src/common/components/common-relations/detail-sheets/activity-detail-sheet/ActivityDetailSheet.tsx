@@ -32,7 +32,7 @@ import {
   Icon as PhosphorIcon
 } from '@phosphor-icons/react'
 import { Activity, ActivityDocument } from './types'
-import { buildFileUrl } from '@/common/utils/fileUtils'
+import { handleDocumentClick as handleDocumentClickUtil } from '@/common/utils/documentClickHandler'
 import { getDocumentIcon } from '@/common/utils/documentIconUtils'
 import {
   getActivityTypeBadgeVariant,
@@ -121,7 +121,12 @@ export const ActivityDetailSheet: React.FC<ActivityDetailSheetProps> = ({
         </SheetHeader>
         <div className="gba:flex-1 gba:overflow-hidden gba:px-6">
           {activity ? (
-            <ActivityDetailContent activity={activity} buildReferenceUrl={buildReferenceUrl} data-testid={dataTestId} />
+            <ActivityDetailContent
+              activity={activity}
+              buildReferenceUrl={buildReferenceUrl}
+              data-testid={dataTestId}
+              accessToken={accessToken}
+            />
           ) : (
             <div className="gba:flex gba:items-center gba:justify-center gba:h-full gba:text-muted-foreground">
               No activity selected
@@ -137,27 +142,22 @@ interface ActivityDetailContentProps {
   activity: Activity
   buildReferenceUrl?: (entityType: string, entityId: string) => string
   'data-testid'?: string
+  accessToken?: string
 }
 
 const ActivityDetailContent: React.FC<ActivityDetailContentProps> = ({
   activity,
   buildReferenceUrl,
-  'data-testid': dataTestId
+  'data-testid': dataTestId,
+  accessToken
 }) => {
   const activityType = activity.activityType?.value || 'Activity'
   const referenceType = getActivityReferenceType(activity)
   const referenceName = getActivityReferenceName(activity)
   const hasReference = activity.accountId || activity.contactId || activity.leadId || activity.opportunityId
 
-  const handleDocumentClick = (doc: ActivityDocument) => {
-    if (doc.fileInfo) {
-      try {
-        const fullUrl = buildFileUrl(doc.fileInfo)
-        window.open(fullUrl, '_blank', 'noopener,noreferrer')
-      } catch (error) {
-        console.error('Error building file URL:', error)
-      }
-    }
+  const handleDocumentClick = async (doc: ActivityDocument) => {
+    await handleDocumentClickUtil(doc, accessToken, { showToast: true })
   }
 
   const handleReferenceClick = () => {

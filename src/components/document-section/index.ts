@@ -1,2 +1,13 @@
-export { default as DocumentSection } from './DocumentSection'
-export type { DocumentSectionProps, DocumentItem, DocumentColumn } from './DocumentSection'
+export { DocumentSection } from './DocumentSection'
+export { default } from './DocumentSection'
+export type {
+  DocumentColumn,
+  DocumentItem,
+  DocumentSectionProps,
+  DocumentItemWithTreeInfo,
+  ConfirmationModalState,
+  NewFolderDialogState,
+  RestClient,
+  ApiConfig,
+  AppActionData
+} from './types'

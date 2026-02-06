@@ -7,6 +7,19 @@ import {
   STORAGE_KEY_ADDITIONAL_DATA
 } from '@/common/constants/ideStorageKeys'
 
+/**
+ * Check if current URL is a Microsoft OAuth callback
+ * We detect this by checking if there's a pending MS OAuth state in sessionStorage
+ */
+function isMicrosoftOAuthCallback(): boolean {
+  if (typeof window === 'undefined') return false
+  const params = new URLSearchParams(window.location.search)
+  const hasCode = params.has('code')
+  const hasState = params.has('state')
+  const hasMsOAuthState = sessionStorage.getItem('ms_oauth_state') !== null
+  return hasCode && hasState && hasMsOAuthState
+}
+
 export interface UseBusinessAuthResult {
   initialized: boolean
   accessToken?: string
@@ -14,10 +27,12 @@ export interface UseBusinessAuthResult {
   login: () => Promise<void>
   logout: () => Promise<void>
   refreshToken: () => Promise<boolean>
+  isMsOAuthCallback: boolean
 }
 
 export function useBusinessAuth(): UseBusinessAuthResult {
   const [initialized, setInitialized] = useState(false)
+  const [isMsOAuthCallback] = useState(() => isMicrosoftOAuthCallback())
   const [kcInstance, setKcInstance] = useState<Keycloak | null>(null)
   const [accessToken, setAccessToken] = useState<string | undefined>(undefined)
   const [tokenParsed, setTokenParsed] = useState<KeycloakTokenParsed | undefined>(undefined)
@@ -32,6 +47,13 @@ export function useBusinessAuth(): UseBusinessAuthResult {
   )
 
   useEffect(() => {
+    // Skip Keycloak initialization if this is a Microsoft OAuth callback
+    // The email app will handle the callback directly
+    if (isMsOAuthCallback) {
+      setInitialized(true)
+      return
+    }
+
     const kc = new Keycloak(keycloakConfig)
     setKcInstance(kc)
 
@@ -99,7 +121,7 @@ export function useBusinessAuth(): UseBusinessAuthResult {
       kc.onAuthRefreshSuccess = undefined
       kc.onTokenExpired = undefined
     }
-  }, [keycloakConfig])
+  }, [keycloakConfig, isMsOAuthCallback])
 
   const login = useCallback(async () => {
     if (!kcInstance) return
@@ -152,6 +174,7 @@ export function useBusinessAuth(): UseBusinessAuthResult {
     tokenParsed,
     login,
     logout,
-    refreshToken
+    refreshToken,
+    isMsOAuthCallback
   }
 }

@@ -36,7 +36,7 @@ import {
   Icon as PhosphorIcon
 } from '@phosphor-icons/react'
 import { Task, TaskReference, TaskDocument } from './types'
-import { buildFileUrl } from '@/common/utils/fileUtils'
+import { handleDocumentClick as handleDocumentClickUtil } from '@/common/utils/documentClickHandler'
 import { getDocumentIcon } from '@/common/utils/documentIconUtils'
 import {
   getTaskStatusBadgeVariant,
@@ -335,19 +335,12 @@ const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
     return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
   }
 
-  const handleDocumentClick = (document: TaskDocument, e: React.MouseEvent) => {
+  // Use accessToken from props or fallback to businessAppContext
+  const effectiveAccessToken = accessToken || businessAppContext?.accessToken
+
+  const handleDocumentClick = async (document: TaskDocument, e: React.MouseEvent) => {
     e.stopPropagation()
-
-    if (!document.fileInfo) {
-      return
-    }
-
-    try {
-      const fileUrl = buildFileUrl(document.fileInfo)
-      window.open(fileUrl, '_blank')
-    } catch {
-      // Silent fail - fileInfo structure invalid
-    }
+    await handleDocumentClickUtil(document, effectiveAccessToken, { showToast: true })
   }
 
   const [isDocuSignOpen, setIsDocuSignOpen] = React.useState(false)
