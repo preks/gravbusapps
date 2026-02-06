@@ -119,6 +119,10 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
   const showAiFeatures = isAiFeatureEnabled && aiCapabilities?.aiEnabled
   const semanticSearchAvailable = showAiFeatures && aiCapabilities?.semanticSearchAvailable
 
+  // AI Insights feature flag (requires explicit enablement)
+  const aiInsightsFeature = useFeature(Feature.EveryBox.AiInsightsEnabled.Key)
+  const showAiInsights = (aiInsightsFeature === true || aiInsightsFeature === 'true') && showAiFeatures
+
   // AI semantic search
   const {
     results: aiSearchResults,
@@ -448,7 +452,7 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
                     />
                   </button>
 
-                  {showAiFeatures && (
+                  {showAiInsights && (
                     <button
                       onClick={() => handleTabChange('ai-insights')}
                       className={`gba:group gba:relative gba:flex gba:items-center gba:gap-2 gba:px-4 gba:py-3 gba:transition-colors ${
@@ -725,9 +729,11 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
                   />
                 </TabsContent>
 
-                <TabsContent value="ai-insights" className="gba:h-full gba:m-0">
-                  <AiInsightsDashboard {...context} />
-                </TabsContent>
+                {showAiInsights && (
+                  <TabsContent value="ai-insights" className="gba:h-full gba:m-0">
+                    <AiInsightsDashboard {...context} />
+                  </TabsContent>
+                )}
               </div>
             </Tabs>
           </div>

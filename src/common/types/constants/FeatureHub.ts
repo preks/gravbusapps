@@ -63,7 +63,8 @@ const PlatformFeature = {
 }
 
 const EveryBoxFeature = {
-  AiEnabled: { Key: 'everybox.ai.enabled' }
+  AiEnabled: { Key: 'everybox.ai.enabled' },
+  AiInsightsEnabled: { Key: 'everyboxadmin.ai.enabled' }
 }
 
 const DevFeature = {
