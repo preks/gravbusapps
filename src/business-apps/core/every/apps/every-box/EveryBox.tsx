@@ -36,7 +36,7 @@ import {
   TooltipContent
 } from '@newwork/nw-design-system'
 import translations from './_i18n'
-import { Inbox, Send, Zap, Search, ArrowUpDown, RefreshCcw, CalendarDays } from 'lucide-react'
+import { Inbox, Send, Zap, Search, ArrowUpDown, RefreshCcw, CalendarDays, Sparkles } from 'lucide-react'
 import { FiltersDropdown, FilterType } from './components/FiltersDropdown'
 import { EveryBoxHero } from './components/EveryBoxHero'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -56,6 +56,7 @@ import {
 } from '@/business-apps/flow/common/components/flow-quick-task'
 import { useFeature } from '@/common/hooks/useFeature'
 import { Feature } from '@/common/types/constants/FeatureHub'
+import { useAiCapabilities, useAiSearch } from './hooks/useAi'
 
 interface EveryBoxProps extends BusinessAppContextProps {
   prefixDataTestId?: string
@@ -108,6 +109,22 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
   const previewFeature = useFeature(Feature.Preview.Enabled.Key)
   const isPreviewEnabled = previewFeature !== false // true if undefined (development) or 'true'
 
+  // AI feature flag and capabilities (enabled by default in development when flag is undefined)
+  const aiFeature = useFeature(Feature.EveryBox.AiEnabled.Key)
+  const isAiFeatureEnabled = aiFeature === true || aiFeature === 'true' || aiFeature === undefined
+  const { capabilities: aiCapabilities } = useAiCapabilities(context.accessToken)
+  const showAiFeatures = isAiFeatureEnabled && aiCapabilities?.aiEnabled
+  const semanticSearchAvailable = showAiFeatures && aiCapabilities?.semanticSearchAvailable
+
+  // AI semantic search
+  const {
+    results: aiSearchResults,
+    searchMode: aiSearchMode,
+    isSearching: aiIsSearching,
+    search: aiSearch,
+    clearResults: aiClearResults
+  } = useAiSearch(context.accessToken, { limit: 15 })
+
   // All hooks must be called before any early return to satisfy React's rules of hooks
   // Separate interval refs for each data source (for staggered polling)
   const activeTasksIntervalRef = useRef<NodeJS.Timeout | null>(null)
@@ -146,7 +163,13 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
     loadMore: loadMoreTasks,
     hasMore: hasMoreTasks,
     backgroundRefresh: backgroundRefreshInbox
-  } = useInboxTasks(context, { search: debouncedSearch, sortBy, sortOrder, dueFilter: dueDateFilter })
+    // When semantic search is available, don't pass search to regular API - let AI search handle filtering
+  } = useInboxTasks(context, {
+    search: semanticSearchAvailable ? '' : debouncedSearch,
+    sortBy,
+    sortOrder,
+    dueFilter: dueDateFilter
+  })
 
   // Fetch outbox flows
   const { flows, isLoading: flowsLoading, error: flowsError, refetch: refetchFlows } = useOutboxFlows(context)
@@ -161,7 +184,13 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
     loadMore: loadMoreCompleted,
     hasMore: hasMoreCompleted,
     backgroundRefresh: backgroundRefreshCompleted
-  } = useCompletedTasks(context, { search: debouncedSearch, sortBy, sortOrder, dueFilter: dueDateFilter })
+    // When semantic search is available, don't pass search to regular API - let AI search handle filtering
+  } = useCompletedTasks(context, {
+    search: semanticSearchAvailable ? '' : debouncedSearch,
+    sortBy,
+    sortOrder,
+    dueFilter: dueDateFilter
+  })
 
   // Fetch blink tasks using tag filtering (response contains totalCount for badge)
   const {
@@ -337,6 +366,15 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
   // State for expandable search
   const [isSearchExpanded, setIsSearchExpanded] = useState(false)
 
+  // Trigger semantic search when search text changes (with debounce)
+  useEffect(() => {
+    if (semanticSearchAvailable && debouncedSearch.trim()) {
+      aiSearch(debouncedSearch)
+    } else {
+      aiClearResults()
+    }
+  }, [debouncedSearch, semanticSearchAvailable, aiSearch, aiClearResults])
+
   return (
     <ThemeProvider defaultTheme="light">
       <ErrorBoundary>
@@ -410,29 +448,46 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
 
                 {/* Right: Search, Filter, Blink */}
                 <div className="gba:flex gba:items-center gba:gap-2">
-                  {/* Expandable Search */}
+                  {/* Expandable Search - AI search filters task list directly */}
                   {isSearchExpanded ? (
-                    <div className="gba:flex gba:items-center gba:gap-1">
-                      <input
-                        type="text"
-                        placeholder={t('every-box-search-placeholder')}
-                        value={globalSearch}
-                        onChange={e => setGlobalSearch(e.target.value)}
-                        className="gba:w-48 gba:h-8 gba:px-3 gba:text-sm gba:bg-background gba:border gba:border-border gba:rounded-md gba:outline-none gba:focus:ring-1 gba:focus:ring-ring"
-                        data-testid={`${prefixDataTestId}-search-input`}
-                        autoFocus
-                        onBlur={() => {
-                          if (!globalSearch) {
-                            setIsSearchExpanded(false)
+                    <div className="gba:relative gba:flex gba:items-center gba:gap-1">
+                      <div className="gba:relative">
+                        <input
+                          type="text"
+                          placeholder={
+                            semanticSearchAvailable ? t('ai-search-placeholder') : t('every-box-search-placeholder')
                           }
-                        }}
-                        onKeyDown={e => {
-                          if (e.key === 'Escape') {
-                            setGlobalSearch('')
-                            setIsSearchExpanded(false)
-                          }
-                        }}
-                      />
+                          value={globalSearch}
+                          onChange={e => setGlobalSearch(e.target.value)}
+                          className="gba:w-56 gba:h-8 gba:px-3 gba:pr-8 gba:text-sm gba:bg-background gba:border gba:border-border gba:rounded-md gba:outline-none gba:focus:ring-1 gba:focus:ring-ring"
+                          data-testid={`${prefixDataTestId}-search-input`}
+                          autoFocus
+                          onBlur={() => {
+                            setTimeout(() => {
+                              if (!globalSearch) {
+                                setIsSearchExpanded(false)
+                              }
+                            }, 300)
+                          }}
+                          onKeyDown={e => {
+                            if (e.key === 'Escape') {
+                              setGlobalSearch('')
+                              setIsSearchExpanded(false)
+                              aiClearResults()
+                            }
+                          }}
+                        />
+                        {/* AI indicator in search input */}
+                        {semanticSearchAvailable && (
+                          <div className="gba:absolute gba:right-2 gba:top-1/2 gba:-translate-y-1/2 gba:pointer-events-none">
+                            {aiIsSearching ? (
+                              <div className="gba:h-3.5 gba:w-3.5 gba:rounded-full gba:border-2 gba:border-slate-300 gba:border-t-slate-600 gba:animate-spin" />
+                            ) : (
+                              <Sparkles className="gba:h-3.5 gba:w-3.5 gba:text-slate-400" />
+                            )}
+                          </div>
+                        )}
+                      </div>
                       {globalSearch && (
                         <Button
                           variant="ghost"
@@ -441,6 +496,7 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
                           onClick={() => {
                             setGlobalSearch('')
                             setIsSearchExpanded(false)
+                            aiClearResults()
                           }}
                           aria-label={t('inbox-clear-search')}
                           data-testid={`${prefixDataTestId}-search-clear`}
@@ -623,6 +679,10 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
                     completedHasMore={hasMoreCompleted}
                     globalSearch={globalSearch}
                     selectedFilters={selectedFilters}
+                    // AI Search - filters task list directly
+                    aiSearchResults={aiSearchResults}
+                    aiSearchMode={aiSearchMode}
+                    aiIsSearching={aiIsSearching}
                   />
                 </TabsContent>
 

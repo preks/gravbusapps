@@ -63,6 +63,10 @@ const PlatformFeature = {
   EveryAI: { Key: 'everyai.enabled' }
 }
 
+const EveryBoxFeature = {
+  AiEnabled: { Key: 'everybox.ai.enabled' }
+}
+
 const DevFeature = {
   Enabled: { Key: 'dev.enabled' }
 }
@@ -80,5 +84,6 @@ export const Feature = {
   FLOW: FLOWFeature,
   Platform: PlatformFeature,
   Dev: DevFeature,
-  Preview: PreviewFeature
+  Preview: PreviewFeature,
+  EveryBox: EveryBoxFeature
 }

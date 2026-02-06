@@ -282,3 +282,79 @@ due-date-days-left = { $days ->
     [one] { $days }d left
    *[other] { $days }d left
 }
+
+# AI Features
+ai-search-placeholder = Smart search...
+ai-search-toggle = Smart search
+ai-search-toggle-tooltip = Use AI-powered semantic search
+ai-search-results-title = Search Results
+ai-search-mode-semantic = AI results
+ai-search-mode-lexical = Text results
+ai-search-no-results = No matching tasks found
+ai-search-error = Search failed. Please try again.
+ai-summary-title = Summary
+ai-summary-loading = Generating summary...
+ai-summary-error = Failed to generate summary
+ai-summary-regenerate = Regenerate
+ai-summary-cached = Cached
+ai-suggestions-title = Suggested Actions
+ai-suggestions-loading = Generating suggestions...
+ai-suggestions-error = Failed to generate suggestions
+ai-suggestions-retry = Retry
+ai-suggestions-copy = Copy
+ai-suggestions-apply = Apply
+ai-urgency-label = Urgency
+ai-urgency-high = High
+ai-urgency-medium = Medium
+ai-urgency-low = Low
+ai-priority-suggested = Suggested priority
+ai-priority-apply = Apply priority
+ai-clustering-group-by = Group by category
+ai-clustering-group-label = { $cluster }
+ai-clustering-uncategorized = Uncategorized
+
+# AI Assistant
+ai-assistant-suggest = Suggest
+ai-assistant-suggest-tooltip = Get AI-suggested reply
+ai-assistant-improve = Improve
+ai-assistant-improve-tooltip = Improve your draft
+ai-assistant-tone = Tone
+ai-assistant-tone-tooltip = Adjust the tone of your message
+ai-assistant-expand = Expand
+ai-assistant-expand-tooltip = Add more detail
+ai-assistant-shorten = Shorten
+ai-assistant-shorten-tooltip = Make it more concise
+ai-assistant-custom = Custom
+ai-assistant-custom-tooltip = Give custom instructions
+ai-assistant-custom-label = What should AI do?
+ai-assistant-custom-placeholder = e.g., Make it more polite...
+ai-assistant-apply = Apply
+ai-assistant-suggested-reply = Suggested reply
+ai-assistant-use-this = Use this
+ai-assistant-dismiss = Dismiss
+ai-assistant-placeholder = Write your reply...
+ai-assistant-send = Send
+ai-assistant-cancel = Cancel
+ai-assistant-ai-assisted = AI-assisted
+ai-assistant-applied = Applied
+ai-assistant-draft-helper = AI Writing Assistant
+ai-assistant-draft-placeholder = Use AI to help draft your response...
+ai-assistant-copy = Copy
+ai-assistant-copied = Copied to clipboard
+
+# AI Predictions
+ai-prediction-helpful = Was this helpful?
+ai-feedback-helpful = Yes, this was helpful
+ai-feedback-not-helpful = No, this was not helpful
+ai-feedback-thanks = Thanks for your feedback!
+ai-prediction-likely-approve = Likely approve
+ai-prediction-likely-reject = Likely reject
+ai-prediction-likely-delegate = Likely delegate
+ai-prediction-likely-defer = Likely defer
+ai-prediction-needs-review = Needs review
+ai-prediction-high-priority = High priority
+ai-prediction-medium-priority = Medium priority
+ai-prediction-low-priority = Low priority
+ai-prediction-confidence = { $percent }% confidence
+ai-relationship-context = Relationship context
+ai-decision-history = Based on your decision history
