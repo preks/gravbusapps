@@ -36,7 +36,7 @@ import {
   TooltipContent
 } from '@newwork/nw-design-system'
 import translations from './_i18n'
-import { Inbox, Send, Zap, Search, ArrowUpDown, RefreshCcw, CalendarDays, Sparkles } from 'lucide-react'
+import { Inbox, Send, Zap, Search, ArrowUpDown, RefreshCcw, CalendarDays, Sparkles, Brain } from 'lucide-react'
 import { FiltersDropdown, FilterType } from './components/FiltersDropdown'
 import { EveryBoxHero } from './components/EveryBoxHero'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -47,6 +47,7 @@ import { useCompletedTasks } from './hooks/useCompletedTasks'
 import { useBlinkTasks } from './hooks/useBlinkCount'
 import { InboxView } from './components/InboxView'
 import { OutboxView } from './components/OutboxView'
+import { AiInsightsDashboard } from './components/AiInsightsDashboard'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import {
   QuickTaskModal,
@@ -62,7 +63,7 @@ interface EveryBoxProps extends BusinessAppContextProps {
   prefixDataTestId?: string
 }
 
-type ViewType = 'inbox' | 'outbox'
+type ViewType = 'inbox' | 'outbox' | 'ai-insights'
 type SortOption = 'newest' | 'oldest' | 'priority'
 type DueDateFilter = 'any' | 'overdue' | 'dueSoon24h' | 'hasDueDate' | 'noDueDate'
 
@@ -72,7 +73,9 @@ type DueDateFilter = 'any' | 'overdue' | 'dueSoon24h' | 'hasDueDate' | 'noDueDat
 const getInitialView = (): ViewType => {
   const urlParams = new URLSearchParams(globalThis.location.search)
   const view = urlParams.get('view')
-  return view === 'outbox' ? 'outbox' : 'inbox'
+  if (view === 'outbox') return 'outbox'
+  if (view === 'ai-insights') return 'ai-insights'
+  return 'inbox'
 }
 
 /**
@@ -444,6 +447,30 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
                       }`}
                     />
                   </button>
+
+                  {showAiFeatures && (
+                    <button
+                      onClick={() => handleTabChange('ai-insights')}
+                      className={`gba:group gba:relative gba:flex gba:items-center gba:gap-2 gba:px-4 gba:py-3 gba:transition-colors ${
+                        activeTab === 'ai-insights'
+                          ? 'gba:text-foreground'
+                          : 'gba:text-muted-foreground gba:hover:text-foreground'
+                      }`}
+                      data-testid={`${prefixDataTestId}-ai-insights-tab`}
+                      data-state={activeTab === 'ai-insights' ? 'active' : 'inactive'}
+                    >
+                      <Brain className="gba:h-4 gba:w-4" />
+                      <span className="gba:text-sm gba:font-medium">AI Insights</span>
+                      {/* Active indicator line */}
+                      <span
+                        className={`gba:absolute gba:bottom-0 gba:left-4 gba:right-4 gba:h-0.5 gba:rounded-full gba:transition-all ${
+                          activeTab === 'ai-insights'
+                            ? 'gba:bg-foreground gba:opacity-100'
+                            : 'gba:bg-transparent gba:opacity-0 gba:group-hover:bg-muted-foreground gba:group-hover:opacity-30'
+                        }`}
+                      />
+                    </button>
+                  )}
                 </div>
 
                 {/* Right: Search, Filter, Blink */}
@@ -696,6 +723,10 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
                     globalSearch={globalSearch}
                     selectedFilters={selectedFilters}
                   />
+                </TabsContent>
+
+                <TabsContent value="ai-insights" className="gba:h-full gba:m-0">
+                  <AiInsightsDashboard {...context} />
                 </TabsContent>
               </div>
             </Tabs>
