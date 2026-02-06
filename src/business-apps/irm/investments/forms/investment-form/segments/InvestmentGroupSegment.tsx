@@ -32,11 +32,19 @@ const INVESTMENT_GROUP_MAP: Record<string, string> = {
   EQUITY: 'InvestmentGroup:v1:EQUITY',
   equities: 'InvestmentGroup:v1:EQUITY',
   EQUITIES: 'InvestmentGroup:v1:EQUITY'
+
+  // Note: Private Equity and other generic groups are not included here
+  // They should be manually selected from the catalog since they don't have specialized configurations
 }
 
 // Single function to detect investment group from any string input
 const detectGroupFromString = (input: string | null | undefined): string | null => {
   if (!input) return null
+
+  // If input is already a full investment group ID, return it directly
+  if (input.startsWith('InvestmentGroup:v1:')) {
+    return input
+  }
 
   // Direct lookup first
   if (INVESTMENT_GROUP_MAP[input]) {

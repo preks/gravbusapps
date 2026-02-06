@@ -45,11 +45,12 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = props => {
 
     // Fallback to group-based detection
     const group = investmentData.investmentGroup?.code || ''
+    // Only return specific types for specialized groups with custom handling
     if (group.includes('EQUITY')) return 'equity'
     if (group.includes('LIQUID_FUND')) return 'liquid_fund'
     if (group.includes('REAL_ESTATE')) return 'real_estate'
-    if (group.includes('PRIVATE_EQUITY')) return 'private_equity'
 
+    // All other groups (including PRIVATE_EQUITY, TEST, etc.) are generic
     return 'generic'
   }, [])
 
@@ -70,10 +71,8 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = props => {
         : investmentData.liquidFundInvestment,
       realEstateInvestment: Array.isArray(investmentData.realEstateInvestment)
         ? investmentData.realEstateInvestment[0]
-        : investmentData.realEstateInvestment,
-      privateEquityInvestment: Array.isArray(investmentData.privateEquityInvestment)
-        ? investmentData.privateEquityInvestment[0]
-        : investmentData.privateEquityInvestment
+        : investmentData.realEstateInvestment
+      // PRIVATE_EQUITY: No dedicated entity - all data in investment.additionalProperties
     }
   }, [])
 
@@ -82,8 +81,10 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = props => {
     if (!investmentData) return ChartBarIcon
 
     const group = investmentData.investmentGroup?.code || ''
-    if (group.includes('EQUITY')) return TrendUpIcon
+    // Only use specific icons for specialized groups
+    if (group.includes('EQUITY') && !group.includes('PRIVATE_EQUITY')) return TrendUpIcon
     if (group.includes('REAL_ESTATE')) return HouseIcon
+    // All other groups (including PRIVATE_EQUITY, TEST, etc.) use generic icon
     return ChartBarIcon
   }, [])
 
@@ -92,14 +93,13 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = props => {
     if (!investmentData) return getTranslationFromI18nKeyAndLabel('crm.investments.category.default', 'INVESTMENT')
 
     const group = investmentData.investmentGroup?.code || ''
-    if (group.includes('EQUITY'))
+    // Only use specific labels for specialized groups
+    if (group.includes('EQUITY') && !group.includes('PRIVATE_EQUITY'))
       return getTranslationFromI18nKeyAndLabel('crm.investments.category.equity', 'EQUITY INVESTMENT')
     if (group.includes('LIQUID_FUND'))
       return getTranslationFromI18nKeyAndLabel('crm.investments.category.liquidFund', 'LIQUID FUND INVESTMENT')
     if (group.includes('REAL_ESTATE'))
       return getTranslationFromI18nKeyAndLabel('crm.investments.category.realEstate', 'REAL ESTATE INVESTMENT')
-    if (group.includes('PRIVATE_EQUITY'))
-      return getTranslationFromI18nKeyAndLabel('crm.investments.category.privateEquity', 'PRIVATE EQUITY INVESTMENT')
 
     return getTranslationFromI18nKeyAndLabel('crm.investments.category.default', 'INVESTMENT')
   }, [])
@@ -109,9 +109,6 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = props => {
     switch (type?.toLowerCase()) {
       case 'equity':
         return FlowContextName.equityInvestmentEntity
-      case 'private_equity':
-      case 'privateequity':
-        return FlowContextName.privateEquityInvestmentEntity
       case 'liquid_fund':
       case 'liquidfund':
         return FlowContextName.liquidFundInvestmentEntity
@@ -119,7 +116,9 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = props => {
       case 'realestate':
         return FlowContextName.realEstateInvestmentEntity
       default:
-        return FlowContextName.investmentEntity // Fallback to generic investment entity
+        // All other investment types (including generic groups like PRIVATE_EQUITY, TEST, etc.)
+        // use the generic investment entity context
+        return FlowContextName.investmentEntity
     }
   }, [])
 

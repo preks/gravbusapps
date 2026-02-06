@@ -33,13 +33,15 @@ export const getTypeSpecificOverviewContent = (
   businessAppContext?: BusinessAppContextProps,
   onRefresh?: () => void
 ) => {
-  // Enhanced equity detection - check multiple conditions
+  // Enhanced equity detection - check multiple conditions (exclude PRIVATE_EQUITY)
+  const groupCode = typeSpecificData?.investment?.investmentGroup?.code || ''
   const isEquityInvestment =
-    investmentType === 'equity' ||
-    (investmentType || '').toLowerCase().includes('equity') ||
-    (typeSpecificData?.investment?.investmentGroup?.code || '').includes('EQUITY') ||
-    (typeSpecificData?.investment?.investmentType?.code || '').toLowerCase().includes('equity') ||
-    typeSpecificData?.equityInvestment // Has equity data
+    !groupCode.includes('PRIVATE_EQUITY') && // Exclude Private Equity
+    (investmentType === 'equity' ||
+      (investmentType || '').toLowerCase().includes('equity') ||
+      groupCode.includes('EQUITY') ||
+      (typeSpecificData?.investment?.investmentType?.code || '').toLowerCase().includes('equity') ||
+      typeSpecificData?.equityInvestment) // Has equity data
 
   // Enhanced real estate detection - check multiple conditions
   const isRealEstateInvestment =
@@ -119,13 +121,15 @@ export const createInvestmentTabsConfig = (
     }
   ]
 
-  // Add Analytics Tab only for equity investments
+  // Add Analytics Tab only for equity investments (exclude PRIVATE_EQUITY)
+  const groupCode = investment?.investmentGroup?.code || ''
   const isEquityInvestment =
-    investmentType === 'equity' ||
-    (investmentType || '').toLowerCase().includes('equity') ||
-    (investment?.investmentGroup?.code || '').includes('EQUITY') ||
-    (investment?.investmentType?.code || '').toLowerCase().includes('equity') ||
-    typeSpecificData?.equityInvestment
+    !groupCode.includes('PRIVATE_EQUITY') && // Exclude Private Equity
+    (investmentType === 'equity' ||
+      (investmentType || '').toLowerCase().includes('equity') ||
+      groupCode.includes('EQUITY') ||
+      (investment?.investmentType?.code || '').toLowerCase().includes('equity') ||
+      typeSpecificData?.equityInvestment)
 
   if (isEquityInvestment) {
     tabs.push({
@@ -169,17 +173,15 @@ export const createInvestmentTabsConfig = (
     )
   })
 
-  // Add Overview Tab only for non-liquid fund investments
-  const typeStr = (investmentType || '').toUpperCase()
-  const isLiquidFund =
-    typeStr === 'LIQUID_FUND' ||
-    typeStr.includes('LIQUID_FUND') ||
-    (investment?.investmentGroup?.code || '').toUpperCase().includes('LIQUID_FUND') ||
-    (investment?.investmentGroup?.value || '').toUpperCase().includes('LIQUID_FUND') ||
-    (investment?.investmentType?.code || '').toUpperCase().includes('LIQUID_FUND') ||
-    (investment?.investmentType?.value || '').toUpperCase().includes('LIQUID_FUND')
+  // Add Overview Tab only for investments with specialized group-specific content
+  // Only EQUITY and REAL_ESTATE have complex visualizations (tiles, shareholders, forecasts, etc.)
+  // All other groups (LIQUID_FUND, PRIVATE_EQUITY, TEST, etc.) are simple and don't need an overview tab
+  const investmentGroupCode = (investment?.investmentGroup?.code || '').toUpperCase()
+  const hasComplexContent =
+    (investmentGroupCode.includes('EQUITY') && !investmentGroupCode.includes('PRIVATE_EQUITY')) ||
+    investmentGroupCode.includes('REAL_ESTATE')
 
-  if (!isLiquidFund) {
+  if (hasComplexContent) {
     tabs.push({
       value: 'overview',
       label: getTranslationFromI18nKeyAndLabel('crm.investments.tabs.overview', 'Overview'),
