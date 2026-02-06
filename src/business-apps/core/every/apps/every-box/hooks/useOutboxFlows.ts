@@ -11,7 +11,8 @@ import { getEveryboxServiceApiUrl } from '../../every-api/utils/everyboxServiceU
 
 const FLOW_ENGINE_API = getCflowEndpoint()
 
-export const useOutboxFlows = (context: BusinessAppContextProps) => {
+export const useOutboxFlows = (context: BusinessAppContextProps, options?: { enabled?: boolean }) => {
+  const enabled = options?.enabled !== false
   const [flows, setFlows] = useState<Flow[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -106,31 +107,25 @@ export const useOutboxFlows = (context: BusinessAppContextProps) => {
   }, [userId, context.accessToken])
 
   /**
-   * Load all flows
+   * Build a lightweight fingerprint for change-detection (avoids full JSON.stringify)
+   */
+  const flowFingerprint = useCallback((flowList: Flow[]): string => {
+    return flowList.map(f => `${f.id}:${f.status}:${f.completedAssignees ?? ''}`).join('|')
+  }, [])
+
+  /**
+   * Load all flows (shows loading spinner — use for manual refresh / initial load)
    */
   const loadFlows = useCallback(async () => {
     setIsLoading(true)
     setError(null)
 
     try {
-      const initiatedFlows = await fetchInitiatedFlows()
-      const groupedFlows = initiatedFlows
+      const groupedFlows = await fetchInitiatedFlows()
 
-      // Only update state if data has actually changed (optimization for polling)
-      const newFlowData = JSON.stringify(
-        groupedFlows.map(f => ({
-          id: f.id,
-          status: f.status,
-          startedAt: f.startedAt,
-          completedAt: f.completedAt,
-          blinkGroupId: f.blinkGroupId,
-          completedAssignees: f.completedAssignees,
-          assigneeCount: f.assigneeCount
-        }))
-      )
-
-      if (newFlowData !== lastFlowDataRef.current) {
-        lastFlowDataRef.current = newFlowData
+      const fp = flowFingerprint(groupedFlows)
+      if (fp !== lastFlowDataRef.current) {
+        lastFlowDataRef.current = fp
         setFlows(groupedFlows)
       }
     } catch (err) {
@@ -139,22 +134,40 @@ export const useOutboxFlows = (context: BusinessAppContextProps) => {
     } finally {
       setIsLoading(false)
     }
-  }, [fetchInitiatedFlows])
+  }, [fetchInitiatedFlows, flowFingerprint])
+
+  /**
+   * Background refresh — does NOT set isLoading (no spinner during polling)
+   */
+  const backgroundRefresh = useCallback(async () => {
+    try {
+      const groupedFlows = await fetchInitiatedFlows()
+
+      const fp = flowFingerprint(groupedFlows)
+      if (fp !== lastFlowDataRef.current) {
+        lastFlowDataRef.current = fp
+        setFlows(groupedFlows)
+      }
+    } catch {
+      // Ignore background refresh errors silently
+    }
+  }, [fetchInitiatedFlows, flowFingerprint])
 
   /**
    * Initial load
    */
   useEffect(() => {
-    if (context.accessToken && userId) {
+    if (enabled && context.accessToken && userId) {
       loadFlows()
     }
-  }, [context.accessToken, userId, loadFlows])
+  }, [enabled, context.accessToken, userId, loadFlows])
 
   return {
     flows,
     isLoading,
     error,
-    refetch: loadFlows
+    refetch: loadFlows,
+    backgroundRefresh
   }
 }
 

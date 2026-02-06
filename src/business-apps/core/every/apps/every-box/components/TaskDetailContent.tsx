@@ -4,7 +4,7 @@
  */
 
 import React from 'react'
-import { Button, cn, useTranslation } from '@newwork/nw-design-system'
+import { Button, cn, toast, useTranslation } from '@newwork/nw-design-system'
 import { CheckCircle } from 'lucide-react'
 import { UnifiedTask } from '../types'
 import { useScreenManagementApi } from '../hooks/useScreenManagementApi'

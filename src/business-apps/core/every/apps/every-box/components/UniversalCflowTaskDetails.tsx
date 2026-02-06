@@ -333,18 +333,13 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
     task.source === 'cflow' &&
     (task.tags?.app === 'glossary-entry-request' || task.sourceMetadata?.tags?.app === 'glossary-entry-request')
 
-  // Debug logging to diagnose tag location
-  if (task.source === 'cflow' && task.title?.includes('Glossary Term Request')) {
-    console.log('[Glossary Request Detection]', {
-      source: task.source,
-      title: task.title,
-      tags: task.tags,
-      sourceMetadata: task.sourceMetadata,
-      sourceMetadataTags: task.sourceMetadata?.tags,
-      workflowMeta: task.workflowMeta,
-      allKeys: Object.keys(task),
-      isGlossaryRequestTask
-    })
+  // Debug logging gated behind dev mode only
+  if (
+    process.env.NODE_ENV === 'development' &&
+    task.source === 'cflow' &&
+    task.title?.includes('Glossary Term Request')
+  ) {
+    console.log('[Glossary Request Detection]', { title: task.title, isGlossaryRequestTask })
   }
 
   const taskTitle = task.title || task.name || task.referenceTaskName || t('task-details-untitled')
@@ -679,13 +674,6 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
       allTags?.term || task.sourceMetadata?.initialParameters?.term || (task.sourceMetadata as any)?.term || ''
     const context =
       allTags?.context || task.sourceMetadata?.initialParameters?.context || (task.sourceMetadata as any)?.context || ''
-
-    console.log('[Glossary Request Form] Loading form with data:', {
-      term,
-      context,
-      allTags,
-      sourceMetadata: task.sourceMetadata
-    })
 
     // Get userInfo from task if available
     const userInfo = userId
