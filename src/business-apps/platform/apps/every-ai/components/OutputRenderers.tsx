@@ -364,6 +364,7 @@ function renderEntity(item: EntityData, accessToken: string) {
           operation={item.operation}
           textHuman={item.text_human}
           textTitle={item.text_title}
+          link={item.link}
         />
       )
     }
