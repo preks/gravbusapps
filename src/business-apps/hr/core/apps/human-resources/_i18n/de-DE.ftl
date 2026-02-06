@@ -140,6 +140,7 @@ hr-analytics-coming-soon = Kommt bald
 hr-analytics-median-salary = Mediangehalt
 hr-analytics-company-median = Unternehmensmedian
 hr-analytics-avg-salary = Durchschnittsgehalt
+hr-analytics-average-salary = Durchschnittsgehalt
 hr-analytics-merit-increases = Leistungsbedingte Erhöhungen
 hr-analytics-average-increase = Durchschnittliche Erhöhung
 

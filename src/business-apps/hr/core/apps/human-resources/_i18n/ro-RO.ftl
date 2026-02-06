@@ -245,6 +245,7 @@ hr-analytics-coming-soon = În curând
 hr-analytics-median-salary = Salariu median
 hr-analytics-company-median = Mediana companiei
 hr-analytics-avg-salary = Salariu mediu
+hr-analytics-average-salary = Salariu mediu
 hr-analytics-merit-increases = Creșteri bazate pe performanță
 hr-analytics-average-increase = Creștere medie
 

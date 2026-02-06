@@ -1,9 +1,6 @@
-import { useState, useEffect } from 'react'
-import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
-import { GET_HEALTH_INSURANCE_TYPE_DISTRIBUTION } from '../queries/getHealthInsuranceTypeDistribution'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { useQueryExecutionClient, QueryType, Services } from '@/common/network/dataset'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
-import { useTranslation } from '@newwork/nw-design-system'
-import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
 interface HealthInsuranceTypeItem {
   name: string
@@ -12,7 +9,13 @@ interface HealthInsuranceTypeItem {
 }
 
 /**
- * Hook to fetch and process health insurance type distribution data
+ * Dataset response type for health insurance type distribution query
+ */
+type DatasetRow = { category?: string; value?: number; [key: string]: any }
+
+/**
+ * Hook to fetch and process health insurance type distribution data from dataset API
+ * Uses the healthInsurerDistributionTypeQuery dataset query
  * @param accessToken - Access token for API authentication
  * @returns Object containing the distribution data, loading state, error, and total employee count
  */
@@ -21,117 +24,87 @@ export const useHealthInsuranceTypeDistribution = (accessToken: string) => {
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<Error | null>(null)
   const [totalEmployees, setTotalEmployees] = useState<number>(0)
-  const { t } = useTranslation(hrTranslations)
+  const isMounted = useRef<boolean>(true)
 
-  const graphQLClient = useGraphqlClient(accessToken)
+  const datasetClient = useQueryExecutionClient(accessToken, Services.EMPLOYEE)
+  const localeCode = getCurrentActiveUserLocale() || 'en-US'
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
+  const fetchData = useCallback(async () => {
+    if (!accessToken) {
+      if (isMounted.current) {
+        setError(new Error('[useHealthInsuranceTypeDistribution] No access token provided'))
+        setLoading(false)
+      }
+      return
+    }
+
+    try {
+      if (isMounted.current) {
         setLoading(true)
         setError(null)
+      }
 
-        const data = await graphQLClient.request(GET_HEALTH_INSURANCE_TYPE_DISTRIBUTION)
+      // Execute the dataset query with localeCode parameter
+      const ds = await datasetClient.executeQuery('healthInsurerDistributionTypeQuery', QueryType.DATASET, {
+        localeCode
+      })
 
-        // Get total employee count
-        const total = data.EmployeePositionAggregate.aggregate.count
-        setTotalEmployees(total)
+      if (!ds?.data || !Array.isArray(ds.data)) {
+        throw new Error('[useHealthInsuranceTypeDistribution] Invalid response structure from dataset API')
+      }
 
-        // Process the raw data to count occurrences of each healthInsuranceTypeRef
-        const healthInsuranceTypeCounts: Record<string, number> = {}
+      const rows: DatasetRow[] = ds.data
 
-        // Log the response for debugging
-        console.log('[useHealthInsuranceTypeDistribution] GraphQL response:', data)
+      // Calculate total employees (sum of all values)
+      const total = rows.reduce((sum, row) => sum + (Number(row.value) || 0), 0)
 
-        // Create a map of code to human-readable value from catalog entries
-        const userLocale = getCurrentActiveUserLocale() || 'en'
-        const codeToValueMap: Record<string, string> = {}
+      // Transform dataset rows to HealthInsuranceTypeItem format
+      // Format: category (insurance type name), value (employee count)
+      const transformedData: HealthInsuranceTypeItem[] = rows
+        .map((row: DatasetRow) => {
+          const name = String(row.category || 'Unknown')
+          const count = Number(row.value ?? 0)
 
-        // Process catalog entries
-        if (data.CatalogEntry && Array.isArray(data.CatalogEntry)) {
-          data.CatalogEntry.forEach(
-            (entry: {
-              id: string
-              code: string
-              value: string
-              translations: { localeCode: string; value: string }[]
-            }) => {
-              // First try to find a translation matching user's locale
-              const userLocaleTranslation = entry.translations.find(t => t.localeCode === userLocale)
-              if (userLocaleTranslation) {
-                codeToValueMap[entry.code] = userLocaleTranslation.value
-                return
-              }
-
-              // Fall back to English translation
-              const englishTranslation = entry.translations.find(t => t.localeCode === 'en')
-              if (englishTranslation) {
-                codeToValueMap[entry.code] = englishTranslation.value
-                return
-              }
-
-              // Fall back to any translation
-              if (entry.translations.length > 0) {
-                codeToValueMap[entry.code] = entry.translations[0].value
-                return
-              }
-
-              // Last resort: use the entry's value field
-              codeToValueMap[entry.code] = entry.value || entry.code
-            }
-          )
-        }
-
-        // Process employees and their tax details
-        data.Employee.forEach((employee: { id: string; taxDetails?: { healthInsuranceTypeRef: string | null }[] }) => {
-          let healthInsuranceTypeRef = null
-
-          // Check if employee has tax details with a valid health insurance type
-          if (employee.taxDetails && employee.taxDetails.length > 0 && employee.taxDetails[0]?.healthInsuranceTypeRef) {
-            healthInsuranceTypeRef = employee.taxDetails[0].healthInsuranceTypeRef
+          return {
+            name,
+            count,
+            percentage: total > 0 ? (count / total) * 100 : 0
           }
-
-          // Get human-readable value from catalog or translated 'Not Specified'
-          let displayValue = t('hr-analytics-not-specified')
-          if (healthInsuranceTypeRef) {
-            // Extract the code part from the reference (e.g., "STATUTORILY" from "HealthInsuranceType:v1:STATUTORILY")
-            const parts = healthInsuranceTypeRef.split(':')
-            const code = parts.length > 2 ? parts[2] : healthInsuranceTypeRef
-
-            // Look up the human-readable value from our map
-            if (codeToValueMap[code]) {
-              displayValue = codeToValueMap[code]
-            } else {
-              // If not found in catalog, use the code part as fallback
-              displayValue = code
-            }
-          }
-
-          // Count this health insurance type with its display value
-          healthInsuranceTypeCounts[displayValue] = (healthInsuranceTypeCounts[displayValue] || 0) + 1
         })
+        .filter((item: HealthInsuranceTypeItem) => item.count > 0) // Filter out entries with no employees
+        .sort((a: HealthInsuranceTypeItem, b: HealthInsuranceTypeItem) => b.count - a.count) // Sort by count (descending)
 
-        // Transform the counts into the required format
-        const transformedData = Object.entries(healthInsuranceTypeCounts).map(([name, count]) => ({
-          name,
-          count,
-          percentage: total > 0 ? (count / total) * 100 : 0
-        }))
-
-        // Sort by count (descending)
-        transformedData.sort((a, b) => b.count - a.count)
-
+      if (isMounted.current) {
         setDistribution(transformedData)
-      } catch (err) {
-        console.error('[useHealthInsuranceTypeDistribution] Error fetching health insurance type data:', err)
-        setError(err as Error)
-      } finally {
+        setTotalEmployees(total)
+        setError(null)
+      }
+    } catch (err) {
+      console.error('[useHealthInsuranceTypeDistribution] Error fetching health insurance type data:', err)
+
+      if (isMounted.current) {
+        setError(
+          err instanceof Error
+            ? err
+            : new Error('[useHealthInsuranceTypeDistribution] Failed to fetch health insurance type data')
+        )
+      }
+    } finally {
+      if (isMounted.current) {
         setLoading(false)
       }
     }
+  }, [accessToken, datasetClient, localeCode])
 
+  useEffect(() => {
+    isMounted.current = true
     fetchData()
-  }, [accessToken, graphQLClient])
+
+    // Cleanup function
+    return () => {
+      isMounted.current = false
+    }
+  }, [fetchData])
 
   return {
     distribution,

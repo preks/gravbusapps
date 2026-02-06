@@ -161,6 +161,7 @@ hr-analytics-coming-soon = Coming soon
 hr-analytics-median-salary = Median Salary
 hr-analytics-company-median = Company median
 hr-analytics-avg-salary = Average Salary
+hr-analytics-average-salary = Average Salary
 hr-analytics-merit-increases = Merit Increases
 hr-analytics-average-increase = Average increase
 

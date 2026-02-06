@@ -4,9 +4,8 @@ import { useTranslation } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { SectionKpiCards, KpiCardData, Icon } from '@newwork/nw-design-system'
 import { CalendarIcon, CurrencyDollarIcon } from '@phosphor-icons/react'
-import { useMedianSalary } from '../../../hooks/useMedianSalary'
+import { useCompensationMetrics } from '../../../hooks/useCompensationMetrics'
 import { useTotalPayroll } from '../../../hooks/useTotalPayroll'
-import { useAverageSalary } from '../../../hooks/useAverageSalary'
 import { useSalaryByOrgUnit } from '../../../hooks/useSalaryByOrgUnit'
 import YearlyPayrollChart from './components/charts/YearlyPayrollChart'
 import SalaryByOrgUnitChart from './components/charts/SalaryByOrgUnitChart'
@@ -22,10 +21,15 @@ interface CompensationProps extends BusinessAppContextProps {
 
 export const Compensation: React.FC<CompensationProps> = ({ accessToken, prefixDataTestId = 'Compensation' }) => {
   const { t } = useTranslation(hrTranslations)
-  // Use separate hooks for each metric
+  // Use combined hook for compensation metrics (median, average salary, and merit increase)
+  const {
+    medianSalary,
+    averageSalary,
+    averageMeritIncrease,
+    loading: salaryLoading,
+    error: salaryError
+  } = useCompensationMetrics(accessToken)
   const { loading: payrollLoading, error: payrollError } = useTotalPayroll(accessToken)
-  const { medianSalary, loading: medianLoading, error: medianError } = useMedianSalary(accessToken)
-  const { averageSalary, loading: avgSalaryLoading, error: avgSalaryError } = useAverageSalary(accessToken)
   const {
     salaryByOrgUnit,
     loading: salaryByOrgUnitLoading,
@@ -33,13 +37,19 @@ export const Compensation: React.FC<CompensationProps> = ({ accessToken, prefixD
   } = useSalaryByOrgUnit(accessToken)
 
   // Combine loading states
-  const loading = payrollLoading || medianLoading || avgSalaryLoading
+  const loading = payrollLoading || salaryLoading || salaryByOrgUnitLoading
 
   // Combine errors (show first one that occurs)
-  const error = payrollError || medianError || avgSalaryError || salaryByOrgUnitError
+  const error = payrollError || salaryError || salaryByOrgUnitError
 
-  // Default value for merit increases until we implement its hook
-  const meritIncreases = useMemo(() => ({ value: 4.2, label: 'Average increase' }), [])
+  // Format merit increases
+  const meritIncreases = useMemo(
+    () => ({
+      value: averageMeritIncrease,
+      label: 'Average increase'
+    }),
+    [averageMeritIncrease]
+  )
 
   // Format average salary in thousands
   const formattedAverageSalary = useMemo(() => {

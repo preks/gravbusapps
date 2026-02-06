@@ -1,6 +1,5 @@
-import { useCallback, useEffect, useState } from 'react'
-import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
-import { getSalaryByOrgUnitQuery } from '../queries/getSalaryByOrgUnit'
+import { useCallback, useEffect, useState, useRef } from 'react'
+import { useQueryExecutionClient, QueryType, Services } from '@/common/network/dataset'
 import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
 
 export interface OrganizationalUnitSalary {
@@ -11,7 +10,13 @@ export interface OrganizationalUnitSalary {
 }
 
 /**
+ * Dataset response type for average salary by org unit query
+ */
+type DatasetRow = { id?: string; category?: string; value?: number; employee_count?: number; [key: string]: any }
+
+/**
  * Hook to fetch and process employee salary data grouped by organizational unit
+ * Uses the avgSalaryEmployeeByOrgUnit dataset query
  * @param accessToken Access token for API authorization
  * @returns Object containing salary distribution data and loading/error states
  */
@@ -19,100 +24,85 @@ export function useSalaryByOrgUnit(accessToken: string) {
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<Error | null>(null)
   const [salaryByOrgUnit, setSalaryByOrgUnit] = useState<OrganizationalUnitSalary[]>([])
+  const isMounted = useRef<boolean>(true)
 
-  const graphqlClient = useGraphqlClient(accessToken)
+  const datasetClient = useQueryExecutionClient(accessToken, Services.EMPLOYEE)
   const structureId = getCurrentActiveStructureId()
 
   const fetchData = useCallback(async () => {
-    if (!accessToken || !graphqlClient) {
-      console.warn('[useSalaryByOrgUnit] Missing access token or GraphQL client')
-      setLoading(false)
+    if (!accessToken) {
+      if (isMounted.current) {
+        setError(new Error('[useSalaryByOrgUnit] No access token provided'))
+        setLoading(false)
+      }
       return
     }
 
     try {
-      setLoading(true)
-      setError(null)
+      if (isMounted.current) {
+        setLoading(true)
+        setError(null)
+      }
 
       console.log('[useSalaryByOrgUnit] Fetching salary data by org unit for structure:', structureId)
-      const variables = { structureId }
-      const response = await graphqlClient.request(getSalaryByOrgUnitQuery, variables)
-      console.log('[useSalaryByOrgUnit] GraphQL response:', response)
 
-      // Get employee data with salary information
-      const employeeWorkingConditions = response?.EmployeeWorkingCondition || []
-      console.log(
-        `[useSalaryByOrgUnit] Retrieved ${employeeWorkingConditions.length} working conditions with salary data`
-      )
+      // Execute the dataset query with structureId parameter (if available)
+      // Pass 'null' as string if structureId is not available, as the query expects it
+      const params = structureId ? { structureId } : { structureId: 'null' }
+      const ds = await datasetClient.executeQuery('avgSalaryEmployeeByOrgUnit', QueryType.DATASET, params)
 
-      // Get org unit assignments
-      const orgUnitAssignments = response?.EmployeeOrganizationalUnit || []
-      console.log(`[useSalaryByOrgUnit] Retrieved ${orgUnitAssignments.length} organizational unit assignments`)
+      if (!ds?.data || !Array.isArray(ds.data)) {
+        throw new Error('[useSalaryByOrgUnit] Invalid response structure from dataset API')
+      }
 
-      // Get all org units
-      const orgUnits = response?.OrganizationalUnit || []
-      console.log(`[useSalaryByOrgUnit] Retrieved ${orgUnits.length} organizational units`)
+      const rows: DatasetRow[] = ds.data
 
-      // Map to track employee salary by org unit
-      const salaryByOrgUnitMap: Record<string, { totalSalary: number; employeeCount: number }> = {}
-
-      // Initialize map with all org units
-      orgUnits.forEach((orgUnit: { id: string }) => {
-        salaryByOrgUnitMap[orgUnit.id] = { totalSalary: 0, employeeCount: 0 }
-      })
-
-      // Process employee salary data
-      employeeWorkingConditions.forEach(
-        (workingCondition: { id: string; employeeId: string; annualGrossSalary: number }) => {
-          if (!workingCondition.annualGrossSalary) return
-
-          // Find org unit assignment for employee
-          const assignment = orgUnitAssignments.find(
-            (assignment: { employeeId: string }) => assignment.employeeId === workingCondition.employeeId
-          )
-
-          if (!assignment) return
-
-          const orgUnitId = assignment.organizationalUnitId
-          if (!orgUnitId || !salaryByOrgUnitMap[orgUnitId]) return
-
-          // Add salary to org unit total
-          salaryByOrgUnitMap[orgUnitId].totalSalary += workingCondition.annualGrossSalary
-          salaryByOrgUnitMap[orgUnitId].employeeCount += 1
-        }
-      )
-
-      // Calculate average salary for each org unit and format data
-      const salaryData: OrganizationalUnitSalary[] = orgUnits
-        .map((orgUnit: { id: string; name: string }) => {
-          const data = salaryByOrgUnitMap[orgUnit.id]
-          const averageSalary = data.employeeCount > 0 ? Math.round(data.totalSalary / data.employeeCount) : 0
+      // Transform dataset rows to OrganizationalUnitSalary format
+      // Format: id (org unit ID), category (org unit name), value (average salary), employee_count
+      const salaryData: OrganizationalUnitSalary[] = rows
+        .map((row: DatasetRow) => {
+          const id = String(row.id || row.category || 'unknown')
+          const name = String(row.category || 'Unknown')
+          const averageSalary = Number(row.value ?? 0)
+          const employeeCount = Number(row.employee_count ?? 0)
 
           return {
-            id: orgUnit.id,
-            name: orgUnit.name,
-            averageSalary,
-            employeeCount: data.employeeCount
+            id,
+            name,
+            averageSalary: Math.round(averageSalary), // Round to whole number
+            employeeCount
           }
         })
         .filter((item: OrganizationalUnitSalary) => item.employeeCount > 0) // Filter out org units with no employees
         .sort((a: OrganizationalUnitSalary, b: OrganizationalUnitSalary) => b.averageSalary - a.averageSalary) // Sort by average salary (descending)
 
-      console.log(
-        `[useSalaryByOrgUnit] Calculated ${salaryData.length} org units with salary data out of ${orgUnits.length} total org units`
-      )
+      console.log(`[useSalaryByOrgUnit] Retrieved ${salaryData.length} org units with salary data`)
 
-      setSalaryByOrgUnit(salaryData)
-      setLoading(false)
+      if (isMounted.current) {
+        setSalaryByOrgUnit(salaryData)
+        setError(null)
+      }
     } catch (err) {
-      console.error('[useSalaryByOrgUnit] Error fetching or processing salary data:', err)
-      setError(err instanceof Error ? err : new Error('[useSalaryByOrgUnit] Failed to fetch or process salary data'))
-      setLoading(false)
+      console.error('[useSalaryByOrgUnit] Error fetching salary data:', err)
+
+      if (isMounted.current) {
+        setError(err instanceof Error ? err : new Error('[useSalaryByOrgUnit] Failed to fetch salary data'))
+      }
+    } finally {
+      if (isMounted.current) {
+        setLoading(false)
+      }
     }
-  }, [accessToken, graphqlClient, structureId])
+  }, [accessToken, datasetClient, structureId])
 
   useEffect(() => {
+    isMounted.current = true
     fetchData()
+
+    // Cleanup function
+    return () => {
+      isMounted.current = false
+    }
   }, [fetchData])
 
   return {
