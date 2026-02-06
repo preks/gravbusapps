@@ -21,6 +21,31 @@ import {
 } from './components'
 import type { EmailMessage, ComposeMode } from './types'
 
+// ============================================
+// CRITICAL: Capture OAuth params IMMEDIATELY before platform can strip them
+// This runs at module load time, before React renders
+// ============================================
+;(() => {
+  try {
+    const url = window.location.href
+    const searchParams = new URLSearchParams(window.location.search)
+    const hashParams = window.location.hash ? new URLSearchParams(window.location.hash.substring(1)) : null
+
+    // Check for OAuth code in query params or hash
+    const code = searchParams.get('code') || hashParams?.get('code')
+    const state = searchParams.get('state') || hashParams?.get('state')
+
+    if (code && state) {
+      console.log('[EmailAppsHub:INIT] OAuth params detected! Saving to sessionStorage')
+      console.log('[EmailAppsHub:INIT] URL:', url)
+      sessionStorage.setItem('ms_oauth_code', code)
+      sessionStorage.setItem('ms_oauth_callback_state', state)
+    }
+  } catch (e) {
+    console.error('[EmailAppsHub:INIT] Error capturing OAuth params:', e)
+  }
+})()
+
 export interface EmailAppsHubProps extends BusinessAppContextProps {
   'data-testid'?: string
 }
@@ -34,10 +59,37 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
   // ALL HOOKS MUST BE DECLARED BEFORE ANY CONDITIONAL RETURNS
   // ============================================
 
-  // Check if this is an OAuth callback
+  // Check if this is an OAuth callback (check URL params, hash, AND sessionStorage)
   const [isOAuthCallback, setIsOAuthCallback] = useState(() => {
-    const params = new URLSearchParams(window.location.search)
-    return params.has('code') && params.has('state')
+    // Check query params first
+    const queryParams = new URLSearchParams(window.location.search)
+    let hasCode = queryParams.has('code')
+    let hasState = queryParams.has('state')
+
+    // If not in query, check hash fragment
+    if (!hasCode && window.location.hash) {
+      const hashParams = new URLSearchParams(window.location.hash.substring(1))
+      hasCode = hashParams.has('code')
+      hasState = hashParams.has('state')
+    }
+
+    // If still not found, check sessionStorage (platform may have stripped params)
+    if (!hasCode) {
+      const savedCode = sessionStorage.getItem('ms_oauth_code')
+      const savedState = sessionStorage.getItem('ms_oauth_callback_state')
+      if (savedCode && savedState) {
+        console.log('[EmailAppsHub] Found OAuth params in sessionStorage!')
+        hasCode = true
+        hasState = true
+      }
+    }
+
+    console.log('[EmailAppsHub] URL check:', window.location.href)
+    console.log('[EmailAppsHub] Query params:', window.location.search)
+    console.log('[EmailAppsHub] Hash fragment:', window.location.hash)
+    console.log('[EmailAppsHub] SessionStorage code:', sessionStorage.getItem('ms_oauth_code') ? 'present' : 'none')
+    console.log('[EmailAppsHub] Has code:', hasCode, 'Has state:', hasState)
+    return hasCode && hasState
   })
 
   // Track if we've processed pending OAuth
