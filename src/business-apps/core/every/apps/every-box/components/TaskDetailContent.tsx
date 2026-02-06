@@ -425,10 +425,26 @@ export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
               onTaskCompleted={onTaskCompleted}
               onTaskUpdated={onTaskUpdated}
               isLoadingMetadata={false}
+              belowHeaderSlot={
+                <TaskAiSection
+                  taskId={task.id}
+                  source={task.source}
+                  accessToken={accessToken}
+                  taskTitle={task.title || task.name}
+                  taskDescription={task.description}
+                  contactId={task.sourceMetadata?.creatorUserId as string | undefined}
+                />
+              }
             />
           </div>
+        </div>
+      )
+    }
 
-          {/* AI Summary at top */}
+    if (screenMetadata?.builderType === 'LOWCODER' && screenMetadata.appId) {
+      return (
+        <div className="gba:flex gba:flex-col gba:h-full gba:overflow-hidden gba:relative">
+          {/* AI Summary (cannot be injected into iframe) */}
           <div className="gba:px-6 gba:pt-4">
             <TaskAiSection
               taskId={task.id}
@@ -439,13 +455,7 @@ export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
               contactId={task.sourceMetadata?.creatorUserId as string | undefined}
             />
           </div>
-        </div>
-      )
-    }
 
-    if (screenMetadata?.builderType === 'LOWCODER' && screenMetadata.appId) {
-      return (
-        <div className="gba:flex gba:flex-col gba:h-full gba:overflow-hidden gba:relative">
           {/* Screen content */}
           <div className="gba:flex-1 gba:min-h-0 gba:overflow-auto">
             <LowcoderScreenLoader
@@ -457,18 +467,6 @@ export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
               onClose={onClose}
               onTaskCompleted={onTaskCompleted}
               onTaskUpdated={onTaskUpdated}
-            />
-          </div>
-
-          {/* AI Summary at top */}
-          <div className="gba:px-6 gba:pt-4">
-            <TaskAiSection
-              taskId={task.id}
-              source={task.source}
-              accessToken={accessToken}
-              taskTitle={task.title || task.name}
-              taskDescription={task.description}
-              contactId={task.sourceMetadata?.creatorUserId as string | undefined}
             />
           </div>
         </div>
