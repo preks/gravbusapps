@@ -257,6 +257,115 @@ const TravelRegionSetCardView: React.FC<TravelRegionSetCardViewProps> = ({
     setDeleteConfirmation({ isOpen: false, set: null })
   }
 
+  const deleteAllowanceRuleDetails = async (rule: any, errors: string[]) => {
+    const allDetailsQuery = `
+      query GetAllDetailsForRule($ruleId: uuid!) {
+        AllowanceRegionRuleDetail(where: { allowanceRegionRuleId: { _eq: $ruleId } }) {
+          id
+          version
+          allowanceRegionRuleId
+          isDeleted
+        }
+      }
+    `
+
+    const allDetailsResult = await graphqlClient.request<any>(allDetailsQuery, {
+      ruleId: rule.id
+    })
+
+    const allDetails = allDetailsResult.AllowanceRegionRuleDetail || []
+    console.log(`🔍 Found ${allDetails.length} details for rule ${rule.id}`)
+
+    for (const detail of allDetails) {
+      try {
+        console.log(`🗑️ Deleting detail ${detail.id}`)
+        await expenseSettingsClient.deleteAllowanceRegionRuleDetail({
+          id: detail.id,
+          version: detail.version
+        })
+        console.log(`✅ Deleted detail ${detail.id}`)
+      } catch (err: any) {
+        const errorMsg = `Failed to delete detail ${detail.id}: ${err?.message || 'Unknown error'}`
+        console.error(`❌ ${errorMsg}`, err)
+        errors.push(errorMsg)
+      }
+    }
+  }
+
+  const deleteAllowanceRules = async (setId: string, errors: string[]) => {
+    const allRulesQuery = `
+      query GetAllRulesForSet($setId: String!) {
+        AllowanceRegionRule(where: { travelRegionSetRef: { _eq: $setId } }) {
+          id
+          version
+          travelRegionSetRef
+          isDeleted
+        }
+      }
+    `
+
+    const allRulesResult = await graphqlClient.request<any>(allRulesQuery, {
+      setId
+    })
+
+    const allRules = allRulesResult.AllowanceRegionRule || []
+    console.log(`🔍 Found ${allRules.length} rules referencing set ${setId}`)
+
+    for (const rule of allRules) {
+      await deleteAllowanceRuleDetails(rule, errors)
+
+      if (errors.length === 0) {
+        try {
+          console.log(`🗑️ Deleting rule ${rule.id}`)
+          await expenseSettingsClient.deleteAllowanceRegionRule(rule.id, rule.version)
+          console.log(`✅ Deleted rule ${rule.id}`)
+        } catch (err: any) {
+          const errorMsg = `Failed to delete rule ${rule.id}: ${err?.message || 'Unknown error'}`
+          console.error(`❌ ${errorMsg}`, err)
+          errors.push(errorMsg)
+        }
+      }
+    }
+  }
+
+  const deleteCatalogEntryWithFallback = async (
+    catalogType: string,
+    version: string,
+    fullId: string
+  ): Promise<void> => {
+    try {
+      await catalogClient.deleteCatalogEntry(catalogType, version, fullId)
+      console.log(`✅ Deleted ${catalogType} with full ID: ${fullId}`)
+    } catch (error_: any) {
+      console.log(`⚠️ Full ID delete failed, trying short ID...`, error_)
+      const idParts = fullId.split(':')
+      const shortId = idParts.length >= 3 ? idParts.slice(2).join(':') : fullId
+      console.log(`🗑️ Deleting ${catalogType} with short ID: ${shortId}`)
+      await catalogClient.deleteCatalogEntry(catalogType, version, shortId)
+      console.log(`✅ Deleted ${catalogType} with short ID: ${shortId}`)
+    }
+  }
+
+  const deleteChildRegions = async (regionIds: string[], errors: string[]) => {
+    console.log(`🔍 Deleting ${regionIds.length} child regions`)
+    for (const regionId of regionIds) {
+      try {
+        console.log(`🗑️ Deleting region: ${regionId}`)
+        await deleteCatalogEntryWithFallback('TravelRegion', 'v1', regionId)
+      } catch (err: any) {
+        const errorMsg = `Failed to delete child region ${regionId}: ${err?.message || 'Unknown error'}`
+        console.error(`❌ ${errorMsg}`, {
+          error: err,
+          message: err?.message,
+          status: err?.status,
+          response: err?.response,
+          data: err?.response?.data
+        })
+        errors.push(errorMsg)
+      }
+    }
+  }
+
   const handleDeleteConfirm = async () => {
     if (!deleteConfirmation.set) return
 
@@ -267,136 +376,23 @@ const TravelRegionSetCardView: React.FC<TravelRegionSetCardViewProps> = ({
       const { set } = deleteConfirmation
       const childCount = set.childCount || 0
 
-      // Step 1: Check for AllowanceRegionRule records that reference this set (including soft-deleted ones)
-      const allRulesQuery = `
-        query GetAllRulesForSet($setId: String!) {
-          AllowanceRegionRule(where: { travelRegionSetRef: { _eq: $setId } }) {
-            id
-            version
-            travelRegionSetRef
-            isDeleted
-          }
-        }
-      `
-
-      const allRulesResult = await graphqlClient.request<any>(allRulesQuery, {
-        setId: set.id
-      })
-
-      const allRules = allRulesResult.AllowanceRegionRule || []
-      console.log(`🔍 Found ${allRules.length} rules referencing set ${set.id}`)
-
-      // Step 2: For each rule, hard delete all its details first, then delete the rule
-      for (const rule of allRules) {
-        // Get all details for this rule (including soft-deleted ones)
-        const allDetailsQuery = `
-          query GetAllDetailsForRule($ruleId: uuid!) {
-            AllowanceRegionRuleDetail(where: { allowanceRegionRuleId: { _eq: $ruleId } }) {
-              id
-              version
-              allowanceRegionRuleId
-              isDeleted
-            }
-          }
-        `
-
-        const allDetailsResult = await graphqlClient.request<any>(allDetailsQuery, {
-          ruleId: rule.id
-        })
-
-        const allDetails = allDetailsResult.AllowanceRegionRuleDetail || []
-        console.log(`🔍 Found ${allDetails.length} details for rule ${rule.id}`)
-
-        // Hard delete all details
-        for (const detail of allDetails) {
-          try {
-            console.log(`🗑️ Deleting detail ${detail.id}`)
-            await expenseSettingsClient.deleteAllowanceRegionRuleDetail({
-              id: detail.id,
-              version: detail.version
-            })
-            console.log(`✅ Deleted detail ${detail.id}`)
-          } catch (err: any) {
-            const errorMsg = `Failed to delete detail ${detail.id}: ${err?.message || 'Unknown error'}`
-            console.error(`❌ ${errorMsg}`, err)
-            errors.push(errorMsg)
-            // Continue with other details instead of stopping
-          }
-        }
-
-        // Hard delete the rule (only if all details were deleted successfully)
-        if (errors.length === 0) {
-          try {
-            console.log(`🗑️ Deleting rule ${rule.id}`)
-            await expenseSettingsClient.deleteAllowanceRegionRule(rule.id, rule.version)
-            console.log(`✅ Deleted rule ${rule.id}`)
-          } catch (err: any) {
-            const errorMsg = `Failed to delete rule ${rule.id}: ${err?.message || 'Unknown error'}`
-            console.error(`❌ ${errorMsg}`, err)
-            errors.push(errorMsg)
-          }
-        }
-      }
-
-      // If there were errors deleting rules/details, stop here
+      // Step 1: Delete all allowance rules and their details
+      await deleteAllowanceRules(set.id, errors)
       if (errors.length > 0) {
         throw new Error(`Cascade delete failed:\n${errors.join('\n')}`)
       }
 
-      // Step 3: Hard delete all child travel regions
+      // Step 2: Delete all child travel regions
       if (childCount > 0 && set.childRegionIds && set.childRegionIds.length > 0) {
-        console.log(`🔍 Deleting ${set.childRegionIds.length} child regions`)
-        for (const regionId of set.childRegionIds) {
-          try {
-            // Try using the full ID first (TravelRegion:v1:FRG)
-            console.log(`🗑️ Deleting region with full ID: ${regionId}`)
-            try {
-              await catalogClient.deleteCatalogEntry('TravelRegion', 'v1', regionId)
-              console.log(`✅ Deleted region with full ID: ${regionId}`)
-            } catch (fullIdErr: any) {
-              // If full ID fails, try with short ID
-              console.log(`⚠️ Full ID delete failed for region, trying short ID...`, fullIdErr)
-              const entryIdParts = regionId.split(':')
-              const shortId = entryIdParts.length >= 3 ? entryIdParts[2] : regionId
-              console.log(`🗑️ Deleting region with short ID: ${shortId}`)
-              await catalogClient.deleteCatalogEntry('TravelRegion', 'v1', shortId)
-              console.log(`✅ Deleted region with short ID: ${shortId}`)
-            }
-          } catch (err: any) {
-            const errorMsg = `Failed to delete child region ${regionId}: ${err?.message || 'Unknown error'}`
-            console.error(`❌ ${errorMsg}`, {
-              error: err,
-              message: err?.message,
-              status: err?.status,
-              response: err?.response,
-              data: err?.response?.data
-            })
-            errors.push(errorMsg)
-            // Continue with other regions instead of stopping
-          }
+        await deleteChildRegions(set.childRegionIds, errors)
+        if (errors.length > 0) {
+          throw new Error(`Cascade delete failed:\n${errors.join('\n')}`)
         }
       }
 
-      // If there were errors deleting regions, stop here
-      if (errors.length > 0) {
-        throw new Error(`Cascade delete failed:\n${errors.join('\n')}`)
-      }
-
-      // Step 4: Delete the travel region set
-      // Try using the full ID first (TravelRegionSet:v1:JN-TRR)
-      console.log(`🗑️ Deleting set catalog entry with full ID: ${set.id}`)
-      try {
-        await catalogClient.deleteCatalogEntry('TravelRegionSet', 'v1', set.id)
-        console.log(`✅ Deleted set with full ID: ${set.id}`)
-      } catch (fullIdErr: any) {
-        // If full ID fails, try with short ID
-        console.log(`⚠️ Full ID delete failed, trying short ID...`, fullIdErr)
-        const setIdParts = set.id.split(':')
-        const shortSetId = setIdParts.length >= 3 ? setIdParts.slice(2).join(':') : set.id
-        console.log(`🗑️ Deleting set catalog entry with short ID: ${shortSetId}`)
-        await catalogClient.deleteCatalogEntry('TravelRegionSet', 'v1', shortSetId)
-        console.log(`✅ Deleted set with short ID: ${shortSetId}`)
-      }
+      // Step 3: Delete the travel region set
+      console.log(`🗑️ Deleting set: ${set.id}`)
+      await deleteCatalogEntryWithFallback('TravelRegionSet', 'v1', set.id)
 
       const message =
         childCount > 0
