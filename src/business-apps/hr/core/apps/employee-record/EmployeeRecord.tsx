@@ -194,6 +194,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
   const [activeTab, setActiveTab] = useState(initialActiveTab)
   const activeStructureId = getCurrentActiveStructureId() || ''
   const devFeatureFlag = useFeature(Feature.Dev.Enabled.Key)
+  const assetsFeatureFlag = useFeature(Feature.HCM.Assets.Key)
   const changeLogFeatureFlag = useFeature('dev.employee-record.changelog.enabled')
   const servicesFeatureFlag = useFeature('services.enabled')
   const attendanceFeatureFlag = useFeature('human-resources.attendance.enabled')
@@ -616,7 +617,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
           </div>
         )
       },
-      ...(devFeatureFlag
+      ...(assetsFeatureFlag
         ? [
             {
               value: TAB_KEYS.assets,
