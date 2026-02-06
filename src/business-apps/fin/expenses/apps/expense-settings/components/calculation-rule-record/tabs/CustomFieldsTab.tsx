@@ -54,7 +54,7 @@ dayjs.extend(weekday)
 dayjs.extend(localeData)
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { expenseSettingsClient } from '../../../utils/ExpenseSettingsClient'
-import { formatDateForInput, findOverlappingPeriods, formatDate } from '../../../utils'
+import { formatDateForInput, findOverlappingPeriods, formatDate, normalizeDateInputValue } from '../../../utils'
 import {
   validateDateRange,
   applyDateValidationErrors,
@@ -77,8 +77,8 @@ interface CustomField {
   source: 'Expense' | 'Mileage'
   infoValue: string
   mandatory: boolean
-  validFrom: string
-  validTo?: string
+  activeFrom: string
+  activeTo?: string
   version?: number
   isDeleted: boolean
   // Related entity info (for display)
@@ -92,8 +92,8 @@ interface CustomFieldFormData {
   source: 'Expense' | 'Mileage'
   infoValue: string
   mandatory: boolean
-  validFrom: string
-  validTo?: string
+  activeFrom: string
+  activeTo?: string
   version?: number
   relatedId?: string
 }
@@ -130,7 +130,7 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
       linkedItem: createFieldMappings.string((a: CustomField) => a.relatedCode || a.relatedName),
       infoValue: createFieldMappings.string((a: CustomField) => a.infoValue),
       mandatory: createFieldMappings.boolean((a: CustomField) => a.mandatory),
-      activeFrom: createFieldMappings.date((a: CustomField) => a.validFrom)
+      activeFrom: createFieldMappings.date((a: CustomField) => a.activeFrom)
     }),
     []
   )
@@ -150,8 +150,8 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
       source: 'Expense',
       infoValue: '',
       mandatory: false,
-      validFrom: formatDateForInput(activeFrom) || dayjs().format('YYYY-MM-DD'),
-      validTo: formatDateForInput(activeTo) || '9999-12-31'
+      activeFrom: formatDateForInput(activeFrom) || dayjs().format('YYYY-MM-DD'),
+      activeTo: formatDateForInput(activeTo) || '9999-12-31'
     }
   })
 
@@ -283,8 +283,8 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
           source,
           infoValue: info.infoValue || '',
           mandatory: info.mandatory || false,
-          validFrom: info.activeFrom,
-          validTo: info.activeTo,
+          activeFrom: info.activeFrom,
+          activeTo: info.activeTo,
           version: info.version,
           isDeleted: false,
           relatedId,
@@ -333,14 +333,18 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
     setCurrentUsageInfo(null)
 
     // Get validity dates using shared utility (copies from first existing entry if available)
-    const { validFrom, validTo } = getValidityDatesFromExisting(customFields, activeFrom, activeTo)
+    const { activeFrom: entryActiveFrom, activeTo: entryActiveTo } = getValidityDatesFromExisting(
+      customFields,
+      activeFrom,
+      activeTo
+    )
 
     form.reset({
       source: 'Expense',
       infoValue: '',
       mandatory: false,
-      validFrom,
-      validTo,
+      activeFrom: entryActiveFrom,
+      activeTo: entryActiveTo,
       relatedId: undefined
     })
     setIsModalVisible(true)
@@ -359,8 +363,9 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
       source: record.source,
       infoValue: record.infoValue,
       mandatory: record.mandatory,
-      validFrom: formatDateForInput(record.validFrom) || formatDateForInput(activeFrom) || dayjs().format('YYYY-MM-DD'),
-      validTo: formatDateForInput(record.validTo),
+      activeFrom:
+        formatDateForInput(record.activeFrom) || formatDateForInput(activeFrom) || dayjs().format('YYYY-MM-DD'),
+      activeTo: formatDateForInput(record.activeTo),
       version: record.version,
       relatedId: record.relatedId
     })
@@ -386,7 +391,7 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
         expenseRuleId: ruleId,
         source: itemToDelete.source,
         infoValue: itemToDelete.infoValue,
-        activeFrom: itemToDelete.validFrom,
+        activeFrom: itemToDelete.activeFrom,
         isDeleted: true
       })
 
@@ -503,8 +508,8 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
       const fieldExists = await checkCustomFieldUniqueness(
         formValues.source,
         formValues.relatedId,
-        formValues.validFrom,
-        formValues.validTo,
+        formValues.activeFrom,
+        formValues.activeTo,
         editingItem?.id
       )
 
@@ -520,8 +525,8 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
 
       // Date validation using shared utility
       const dateErrors = validateDateRange({
-        entryFrom: formValues.validFrom,
-        entryTo: formValues.validTo,
+        entryFrom: formValues.activeFrom,
+        entryTo: formValues.activeTo,
         ruleFrom: activeFrom,
         ruleTo: activeTo
       })
@@ -770,7 +775,7 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
                           data-testid={`custom-field-validity-icon-${record.id}`}
                         />
                         <span className="gba:text-sm" data-testid={`custom-field-validity-text-${record.id}`}>
-                          {formatDate(record.validFrom)} - {record.validTo ? formatDate(record.validTo) : '∞'}
+                          {formatDate(record.activeFrom)} - {record.activeTo ? formatDate(record.activeTo) : '∞'}
                         </span>
                       </div>
                     </TableCell>
@@ -966,7 +971,7 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
               <div className="gba:space-y-4">
                 <FormField
                   control={form.control}
-                  name="validFrom"
+                  name="activeFrom"
                   rules={{ required: 'Valid From is required' }}
                   render={({ field }) => (
                     <FormItem data-testid="custom-field-valid-from-field">
@@ -974,7 +979,8 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
                       <FormControl>
                         <DateInput
                           value={field.value || ''}
-                          onChange={date => field.onChange(date)}
+                          onChange={date => field.onChange(normalizeDateInputValue(date) ?? '')}
+                          outputFormat="iso"
                           disabled={isRestrictedEdit}
                           data-testid="custom-field-valid-from-input"
                         />
@@ -986,14 +992,15 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
 
                 <FormField
                   control={form.control}
-                  name="validTo"
+                  name="activeTo"
                   render={({ field }) => (
                     <FormItem data-testid="custom-field-valid-to-field">
                       <FormLabel data-testid="custom-field-valid-to-label">Valid To</FormLabel>
                       <FormControl>
                         <DateInput
                           value={field.value || ''}
-                          onChange={date => field.onChange(date)}
+                          onChange={date => field.onChange(normalizeDateInputValue(date))}
+                          outputFormat="iso"
                           data-testid="custom-field-valid-to-input"
                         />
                       </FormControl>
