@@ -12,6 +12,14 @@ import {
   DialogTitle,
   DialogFooter,
   DialogDescription,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
   Button,
   Input,
   Textarea,
@@ -21,9 +29,10 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  DateInput
+  DateInput,
+  Checkbox
 } from '@newwork/nw-design-system'
-import { Loader2, Save } from 'lucide-react'
+import { Loader2, Save, Trash2, AlertTriangle } from 'lucide-react'
 import { Case, CasePriority } from '../types'
 import { EmployeeSelect, EmployeeOption } from '@/components/employee-select'
 import { useEmployeeSearch } from '@/common/data/employee/useEmployeeSearch'
@@ -40,6 +49,10 @@ export interface EditCaseModalProps {
     assignedTo?: string
     dueDate?: string
   }) => Promise<void>
+  /** Handler for deleting the case. If provided, shows delete button */
+  onDelete?: (terminateFlows: boolean) => Promise<void>
+  /** Number of active flows linked to this case (for delete warning) */
+  activeFlowsCount?: number
 }
 
 const PRIORITY_OPTIONS: { value: CasePriority; label: string }[] = [
@@ -49,7 +62,15 @@ const PRIORITY_OPTIONS: { value: CasePriority; label: string }[] = [
   { value: 'critical', label: 'Critical' }
 ]
 
-export const EditCaseModal: React.FC<EditCaseModalProps> = ({ isOpen, onClose, caseData, accessToken, onSave }) => {
+export const EditCaseModal: React.FC<EditCaseModalProps> = ({
+  isOpen,
+  onClose,
+  caseData,
+  accessToken,
+  onSave,
+  onDelete,
+  activeFlowsCount = 0
+}) => {
   const metadata = caseData.state?.metadata
   // Title can be in multiple locations depending on data source
   const currentTitle = metadata?.title || (caseData as any).title || ''
@@ -66,6 +87,11 @@ export const EditCaseModal: React.FC<EditCaseModalProps> = ({ isOpen, onClose, c
   const [dueDate, setDueDate] = useState(currentDueDate)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Delete state
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [terminateFlowsOnDelete, setTerminateFlowsOnDelete] = useState(false)
 
   // Employee search for assignee selection
   const { employees, loading: searchLoading, search, hasMore, loadMore, hydrateById } = useEmployeeSearch(accessToken)
@@ -152,6 +178,21 @@ export const EditCaseModal: React.FC<EditCaseModalProps> = ({ isOpen, onClose, c
     priority !== currentPriority ||
     newAssignedToUserId !== currentAssignedTo ||
     dueDate !== currentDueDate
+
+  const handleDelete = async () => {
+    if (!onDelete) return
+    setIsDeleting(true)
+    try {
+      await onDelete(terminateFlowsOnDelete)
+      setShowDeleteConfirm(false)
+      onClose()
+    } catch (err) {
+      console.error('Failed to delete case:', err)
+      setError(err instanceof Error ? err.message : 'Failed to delete case')
+    } finally {
+      setIsDeleting(false)
+    }
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={open => !open && onClose()}>
@@ -242,25 +283,106 @@ export const EditCaseModal: React.FC<EditCaseModalProps> = ({ isOpen, onClose, c
           )}
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={isSaving}>
-            Cancel
-          </Button>
-          <Button onClick={handleSave} disabled={isSaving || !hasChanges}>
-            {isSaving ? (
-              <>
-                <Loader2 className="gba:h-4 gba:w-4 gba:mr-2 gba:animate-spin" />
-                Saving...
-              </>
-            ) : (
-              <>
-                <Save className="gba:h-4 gba:w-4 gba:mr-2" />
-                Save Changes
-              </>
-            )}
-          </Button>
+        <DialogFooter className="gba:flex gba:justify-between gba:sm:justify-between">
+          {/* Delete button on the left */}
+          {onDelete && (
+            <Button
+              variant="outline"
+              onClick={() => setShowDeleteConfirm(true)}
+              disabled={isSaving}
+              className="gba:text-destructive gba:border-destructive hover:gba:bg-destructive/10"
+            >
+              <Trash2 className="gba:h-4 gba:w-4 gba:mr-2" />
+              Delete Case
+            </Button>
+          )}
+
+          {/* Spacer when no delete button */}
+          {!onDelete && <div />}
+
+          {/* Save/Cancel buttons on the right */}
+          <div className="gba:flex gba:gap-2">
+            <Button variant="outline" onClick={onClose} disabled={isSaving}>
+              Cancel
+            </Button>
+            <Button onClick={handleSave} disabled={isSaving || !hasChanges}>
+              {isSaving ? (
+                <>
+                  <Loader2 className="gba:h-4 gba:w-4 gba:mr-2 gba:animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="gba:h-4 gba:w-4 gba:mr-2" />
+                  Save Changes
+                </>
+              )}
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Case</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this case? This is a soft delete - the case can be restored later.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          {/* Show warning if there are active flows */}
+          {activeFlowsCount > 0 && (
+            <div className="gba:p-4 gba:bg-yellow-50 gba:border gba:border-yellow-200 gba:rounded-md">
+              <div className="gba:flex gba:items-start gba:gap-2">
+                <AlertTriangle className="gba:h-5 gba:w-5 gba:text-yellow-600 gba:mt-0.5 gba:flex-shrink-0" />
+                <div>
+                  <p className="gba:font-medium gba:text-yellow-800">
+                    This case has {activeFlowsCount} active flow{activeFlowsCount > 1 ? 's' : ''}
+                  </p>
+                  <p className="gba:text-sm gba:text-yellow-700 gba:mt-1">
+                    By default, linked flows will continue running after the case is deleted. Check the option below to
+                    terminate them.
+                  </p>
+                </div>
+              </div>
+
+              <div className="gba:flex gba:items-center gba:space-x-2 gba:mt-3">
+                <Checkbox
+                  id="terminateFlowsModal"
+                  checked={terminateFlowsOnDelete}
+                  onCheckedChange={checked => setTerminateFlowsOnDelete(checked === true)}
+                />
+                <Label htmlFor="terminateFlowsModal" className="gba:text-sm gba:text-yellow-800 gba:cursor-pointer">
+                  Also terminate all linked running flows
+                </Label>
+              </div>
+            </div>
+          )}
+
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={isDeleting}
+              className="gba:bg-destructive gba:text-destructive-foreground hover:gba:bg-destructive/90"
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="gba:h-4 gba:w-4 gba:mr-2 gba:animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="gba:h-4 gba:w-4 gba:mr-2" />
+                  Delete Case
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   )
 }
