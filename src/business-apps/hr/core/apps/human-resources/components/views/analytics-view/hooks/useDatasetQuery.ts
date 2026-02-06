@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useQueryExecutionClient, QueryType, Services } from '@/common/network/dataset'
 
 /**
@@ -8,8 +8,8 @@ import { useQueryExecutionClient, QueryType, Services } from '@/common/network/d
  * @param accessToken - Access token for API authentication
  * @param queryName - Name of the dataset query to execute
  * @param queryType - Type of query (DATASET or TIMESERIES)
- * @param params - Query parameters
- * @param transformData - Function to transform raw dataset rows to desired format
+ * @param params - Query parameters (should be memoized in calling hook)
+ * @param transformData - Function to transform raw dataset rows to desired format (should be stable)
  * @param errorPrefix - Prefix for error messages (e.g., hook name)
  * @returns Object containing data, loading state, error, and refetch function
  */
@@ -25,8 +25,17 @@ export const useDatasetQuery = <T>(
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<Error | null>(null)
   const isMounted = useRef<boolean>(true)
+  const transformDataRef = useRef(transformData)
+  const paramsRef = useRef(params)
 
   const datasetClient = useQueryExecutionClient(accessToken, Services.EMPLOYEE)
+
+  // Store latest transform function and params
+  transformDataRef.current = transformData
+  paramsRef.current = params
+
+  // Memoize params string for comparison to avoid unnecessary re-renders
+  const paramsString = useMemo(() => JSON.stringify(params), [params])
 
   const fetchData = useCallback(async () => {
     if (!accessToken) {
@@ -43,13 +52,13 @@ export const useDatasetQuery = <T>(
         setError(null)
       }
 
-      const ds = await datasetClient.executeQuery(queryName, queryType, params)
+      const ds = await datasetClient.executeQuery(queryName, queryType, paramsRef.current)
 
       if (!ds?.data || !Array.isArray(ds.data)) {
         throw new Error(`[${errorPrefix}] Invalid response structure from dataset API`)
       }
 
-      const transformedData = transformData(ds.data)
+      const transformedData = transformDataRef.current(ds.data)
 
       if (isMounted.current) {
         setData(transformedData)
@@ -66,7 +75,7 @@ export const useDatasetQuery = <T>(
         setLoading(false)
       }
     }
-  }, [accessToken, datasetClient, queryName, queryType, params, transformData, errorPrefix])
+  }, [accessToken, datasetClient, queryName, queryType, paramsString, errorPrefix])
 
   useEffect(() => {
     isMounted.current = true

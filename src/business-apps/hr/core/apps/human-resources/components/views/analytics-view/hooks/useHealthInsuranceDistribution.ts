@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
-import { useQueryExecutionClient, QueryType, Services } from '@/common/network/dataset'
+import { useMemo } from 'react'
+import { QueryType } from '@/common/network/dataset'
+import { useDatasetQuery } from './useDatasetQuery'
 
 interface HealthInsuranceItem {
   name: string
@@ -15,9 +16,28 @@ interface HealthInsuranceDistributionHookResult {
 }
 
 /**
- * Dataset response type for health insurer distribution query
+ * Transform dataset rows to HealthInsuranceItem format and calculate total
  */
-type DatasetRow = { category?: string; value?: number; [key: string]: any }
+const transformHealthInsuranceDistribution = (rows: any[]): HealthInsuranceItem[] => {
+  // Calculate total employees (sum of all values)
+  const total = rows.reduce((sum, row) => sum + (Number(row.value) || 0), 0)
+
+  // Transform dataset rows to HealthInsuranceItem format
+  // Format: category (insurer name), value (employee count)
+  return rows
+    .map((row: any) => {
+      const name = String(row.category || 'Unknown')
+      const count = Number(row.value ?? 0)
+
+      return {
+        name,
+        count,
+        percentage: total > 0 ? (count / total) * 100 : 0
+      }
+    })
+    .filter((item: HealthInsuranceItem) => item.count > 0) // Filter out entries with no employees
+    .sort((a: HealthInsuranceItem, b: HealthInsuranceItem) => b.count - a.count) // Sort by count (descending)
+}
 
 /**
  * Hook to fetch and process health insurance distribution data from dataset API
@@ -25,88 +45,26 @@ type DatasetRow = { category?: string; value?: number; [key: string]: any }
  * Returns distribution data, loading state, and any error
  */
 export const useHealthInsuranceDistribution = (accessToken: string): HealthInsuranceDistributionHookResult => {
-  const [distribution, setDistribution] = useState<HealthInsuranceItem[]>([])
-  const [loading, setLoading] = useState<boolean>(true)
-  const [error, setError] = useState<Error | null>(null)
-  const [totalEmployees, setTotalEmployees] = useState<number>(0)
-  const isMounted = useRef<boolean>(true)
+  // Memoize empty params to avoid infinite re-renders
+  const params = useMemo(() => ({}), [])
 
-  const datasetClient = useQueryExecutionClient(accessToken, Services.EMPLOYEE)
+  const {
+    data: distribution,
+    loading,
+    error
+  } = useDatasetQuery<HealthInsuranceItem>(
+    accessToken,
+    'healthInsurerDistributionQuery',
+    QueryType.DATASET,
+    params,
+    transformHealthInsuranceDistribution,
+    'useHealthInsuranceDistribution'
+  )
 
-  const fetchData = useCallback(async () => {
-    if (!accessToken) {
-      if (isMounted.current) {
-        setError(new Error('[useHealthInsuranceDistribution] No access token provided'))
-        setLoading(false)
-      }
-      return
-    }
-
-    try {
-      if (isMounted.current) {
-        setLoading(true)
-        setError(null)
-      }
-
-      // Execute the dataset query
-      const ds = await datasetClient.executeQuery('healthInsurerDistributionQuery', QueryType.DATASET, {})
-
-      if (!ds?.data || !Array.isArray(ds.data)) {
-        throw new Error('[useHealthInsuranceDistribution] Invalid response structure from dataset API')
-      }
-
-      const rows: DatasetRow[] = ds.data
-
-      // Calculate total employees (sum of all values)
-      const total = rows.reduce((sum, row) => sum + (Number(row.value) || 0), 0)
-
-      // Transform dataset rows to HealthInsuranceItem format
-      // Format: category (insurer name), value (employee count)
-      const transformedData: HealthInsuranceItem[] = rows
-        .map((row: DatasetRow) => {
-          const name = String(row.category || 'Unknown')
-          const count = Number(row.value ?? 0)
-
-          return {
-            name,
-            count,
-            percentage: total > 0 ? (count / total) * 100 : 0
-          }
-        })
-        .filter((item: HealthInsuranceItem) => item.count > 0) // Filter out entries with no employees
-        .sort((a: HealthInsuranceItem, b: HealthInsuranceItem) => b.count - a.count) // Sort by count (descending)
-
-      if (isMounted.current) {
-        setDistribution(transformedData)
-        setTotalEmployees(total)
-        setError(null)
-      }
-    } catch (err) {
-      console.error('[useHealthInsuranceDistribution] Error fetching health insurance data:', err)
-
-      if (isMounted.current) {
-        setError(
-          err instanceof Error
-            ? err
-            : new Error('[useHealthInsuranceDistribution] Failed to fetch health insurance data')
-        )
-      }
-    } finally {
-      if (isMounted.current) {
-        setLoading(false)
-      }
-    }
-  }, [accessToken, datasetClient])
-
-  useEffect(() => {
-    isMounted.current = true
-    fetchData()
-
-    // Cleanup function
-    return () => {
-      isMounted.current = false
-    }
-  }, [fetchData])
+  // Calculate total employees from distribution data
+  const totalEmployees = useMemo(() => {
+    return distribution.reduce((sum, item) => sum + item.count, 0)
+  }, [distribution])
 
   return { distribution, loading, error, totalEmployees }
 }
