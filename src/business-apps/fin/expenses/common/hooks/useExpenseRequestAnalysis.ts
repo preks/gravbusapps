@@ -38,6 +38,75 @@ interface UseExpenseRequestAnalysisReturn {
 /** API endpoint for expense insights (relative URL) */
 const EXPENSE_INSIGHTS_ENDPOINT = '/flowbot/api/agent/expense-insights'
 
+const isAnalysisType = (value: unknown): value is AnalysisType => value === 'WARNING' || value === 'INFO'
+
+const looksLikeJson = (value: string): boolean => {
+  const trimmed = value.trim()
+  return (trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))
+}
+
+/**
+ * Some environments occasionally return a double-encoded payload where `user_text`
+ * is a JSON string that itself contains `{ type, user_text }` (or an array of strings).
+ * We normalize aggressively so the UI never renders raw JSON blobs.
+ */
+const normalizeExpenseInsightsResponse = (input: unknown): ExpenseRequestAnalysis => {
+  // If we got a JSON string, attempt to parse it first.
+  if (typeof input === 'string') {
+    if (looksLikeJson(input)) {
+      try {
+        return normalizeExpenseInsightsResponse(JSON.parse(input))
+      } catch {
+        // fall through: treat as plain text
+      }
+    }
+    return { type: 'INFO', user_text: input }
+  }
+
+  // If we got an array, join as multiline text.
+  if (Array.isArray(input)) {
+    const lines = input.map(v => (typeof v === 'string' ? v : String(v))).filter(Boolean)
+    return { type: 'INFO', user_text: lines.join('\n') }
+  }
+
+  // Object-like: attempt to read `{ type, user_text }`.
+  if (input && typeof input === 'object') {
+    const maybe = input as { type?: unknown; user_text?: unknown }
+    const type: AnalysisType = isAnalysisType(maybe.type) ? maybe.type : 'INFO'
+    const rawUserText = maybe.user_text
+
+    // If user_text itself is JSON-ish, parse it (this fixes the “raw JSON displayed” symptom).
+    if (typeof rawUserText === 'string' && looksLikeJson(rawUserText)) {
+      try {
+        const nested = normalizeExpenseInsightsResponse(JSON.parse(rawUserText))
+        // Prefer nested type if present (prevents “Analysis Complete” + WARNING blob mismatch)
+        return { type: nested.type ?? type, user_text: nested.user_text }
+      } catch {
+        // ignore
+      }
+    }
+
+    if (Array.isArray(rawUserText)) {
+      const lines = rawUserText.map(v => (typeof v === 'string' ? v : String(v))).filter(Boolean)
+      return { type, user_text: lines.join('\n') }
+    }
+
+    if (typeof rawUserText === 'string') {
+      return { type, user_text: rawUserText }
+    }
+
+    if (rawUserText == null) {
+      return { type, user_text: '' }
+    }
+
+    // Last resort: stringify unknown shapes rather than crashing the UI.
+    return { type, user_text: String(rawUserText) }
+  }
+
+  // Unknown primitive (number/boolean/etc.)
+  return { type: 'INFO', user_text: String(input ?? '') }
+}
+
 /**
  * Fetch expense insights from the API
  * @param expenseRequestId - The expense request ID to analyze
@@ -72,19 +141,7 @@ const fetchExpenseInsights = async (expenseRequestId: string, accessToken: strin
     throw new Error('Invalid response format from expense insights API')
   }
 
-  // Handle user_text as either string or array
-  let userText: string
-  if (Array.isArray(data.user_text)) {
-    // Join array items with newlines
-    userText = data.user_text.join('\n')
-  } else {
-    userText = data.user_text
-  }
-
-  return {
-    type: data.type,
-    user_text: userText
-  }
+  return normalizeExpenseInsightsResponse(data)
 }
 
 /**
