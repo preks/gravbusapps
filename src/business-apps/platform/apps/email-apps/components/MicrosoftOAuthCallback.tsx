@@ -25,12 +25,40 @@ export const MicrosoftOAuthCallback: React.FC<MicrosoftOAuthCallbackProps> = ({ 
   useEffect(() => {
     const processCallback = async () => {
       try {
-        // Get code and state from URL
-        const params = new URLSearchParams(window.location.search)
-        const code = params.get('code')
-        const state = params.get('state')
-        const error = params.get('error')
-        const errorDescription = params.get('error_description')
+        // Get code and state from URL (check query params, hash fragment, AND sessionStorage)
+        let params = new URLSearchParams(window.location.search)
+        let code = params.get('code')
+        let state = params.get('state')
+        let error = params.get('error')
+        let errorDescription = params.get('error_description')
+
+        // If not in query params, check hash fragment
+        if (!code && window.location.hash) {
+          console.log('[MicrosoftOAuthCallback] Checking hash fragment:', window.location.hash)
+          params = new URLSearchParams(window.location.hash.substring(1))
+          code = params.get('code')
+          state = params.get('state')
+          error = params.get('error')
+          errorDescription = params.get('error_description')
+        }
+
+        // If still not found, check sessionStorage (platform may have stripped URL params)
+        if (!code) {
+          console.log('[MicrosoftOAuthCallback] Checking sessionStorage for OAuth params')
+          const savedCode = sessionStorage.getItem('ms_oauth_code')
+          const savedState = sessionStorage.getItem('ms_oauth_callback_state')
+          if (savedCode && savedState) {
+            console.log('[MicrosoftOAuthCallback] Found OAuth params in sessionStorage!')
+            code = savedCode
+            state = savedState
+            // Clear them after use
+            sessionStorage.removeItem('ms_oauth_code')
+            sessionStorage.removeItem('ms_oauth_callback_state')
+          }
+        }
+
+        console.log('[MicrosoftOAuthCallback] Code:', code ? 'present' : 'missing')
+        console.log('[MicrosoftOAuthCallback] State:', state ? 'present' : 'missing')
 
         if (error) {
           throw new Error(errorDescription || error)
@@ -56,59 +84,57 @@ export const MicrosoftOAuthCallback: React.FC<MicrosoftOAuthCallbackProps> = ({ 
 
         setMessage('Setting up email account...')
 
-        // Store the OAuth data in sessionStorage for after Keycloak auth completes
-        // We can't create the account yet without a Keycloak token for our backend
-        sessionStorage.setItem(
-          'ms_oauth_pending',
-          JSON.stringify({
+        // We have the Keycloak access token, create the account directly
+        if (accessToken) {
+          console.log('[MicrosoftOAuthCallback] Creating account directly with accessToken')
+          EmailApiService.setAccessToken(accessToken)
+
+          try {
+            const account = await EmailApiService.createAccount({
+              displayName: userInfo.name || userInfo.email.split('@')[0],
+              emailAddress: userInfo.email,
+              provider: 'microsoft',
+              imapHost: 'outlook.office365.com',
+              imapPort: 993,
+              imapSecure: true,
+              smtpHost: 'smtp.office365.com',
+              smtpPort: 587,
+              smtpSecure: false,
+              oauthAccessToken: tokens.access_token,
+              oauthRefreshToken: tokens.refresh_token,
+              isDefault: true
+            })
+
+            console.log('[MicrosoftOAuthCallback] Account created successfully:', account.id)
+            setStatus('success')
+            setMessage('Email account connected successfully!')
+
+            // Redirect after short delay
+            setTimeout(() => {
+              onSuccess()
+            }, 1500)
+          } catch (createError) {
+            console.error('[MicrosoftOAuthCallback] Failed to create account:', createError)
+            throw createError
+          }
+        } else {
+          // No Keycloak token yet - store data for later processing
+          console.log('[MicrosoftOAuthCallback] No accessToken, storing for later')
+          const oauthData = {
             email: userInfo.email,
             name: userInfo.name,
             accessToken: tokens.access_token,
             refreshToken: tokens.refresh_token
-          })
-        )
+          }
+          sessionStorage.setItem('ms_oauth_pending', JSON.stringify(oauthData))
 
-        setStatus('success')
-        setMessage('Microsoft sign-in successful!')
+          setStatus('success')
+          setMessage('Microsoft sign-in successful!')
 
-        // Redirect to clean URL - Keycloak will then authenticate, and email app will create account
-        setTimeout(() => {
-          onSuccess()
-        }, 1000)
-        return
-
-        // Note: The code below is for when we have Keycloak token available
-        // Set access token for API calls
-        if (accessToken) {
-          EmailApiService.setAccessToken(accessToken)
-        } else {
-          // No Keycloak token - store data and redirect
-          return
+          setTimeout(() => {
+            onSuccess()
+          }, 1000)
         }
-
-        // Create the email account with OAuth tokens (only if we have Keycloak auth)
-        await EmailApiService.createAccount({
-          displayName: userInfo.name || userInfo.email.split('@')[0],
-          emailAddress: userInfo.email,
-          provider: 'microsoft',
-          imapHost: 'outlook.office365.com',
-          imapPort: 993,
-          imapSecure: true,
-          smtpHost: 'smtp.office365.com',
-          smtpPort: 587,
-          smtpSecure: false,
-          oauthAccessToken: tokens.access_token,
-          oauthRefreshToken: tokens.refresh_token,
-          isDefault: true
-        })
-
-        setStatus('success')
-        setMessage('Email account connected successfully!')
-
-        // Redirect after short delay
-        setTimeout(() => {
-          onSuccess()
-        }, 1500)
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred'
         setStatus('error')
