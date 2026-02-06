@@ -87,9 +87,10 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
     // Track if we're currently processing a local edit (to prevent feedback loops)
     const isLocalEditRef = useRef(false)
 
-    // Accumulate cell values for new rows (multi-cell paste into empty rows)
+    // Accumulate cell values for new rows (multi-cell paste into empty rows).
+    // Uses a single flush timer for all pending rows to prevent timer-ordering races.
     const pendingNewRowCells = useRef<Map<number, Record<string, unknown>>>(new Map())
-    const pendingNewRowTimers = useRef<Map<number, NodeJS.Timeout>>(new Map())
+    const pendingNewRowFlushTimer = useRef<NodeJS.Timeout | null>(null)
 
     // Track pending column creations to prevent infinite loops
     const pendingColumnCreations = useRef<Set<number>>(new Set())
@@ -428,8 +429,25 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
 
             // Handle new row - auto-create it when user edits beyond existing data.
             // Accumulate all cell values first (e.g. multi-cell paste) then create
-            // the row once with all values, instead of creating with only the first cell.
+            // all rows at once, sorted by index, to prevent timer-ordering races.
             if (!rowId && columnId) {
+              // For 'remove' ops targeting non-existent rows (e.g. undo of paste
+              // into new rows), there's nothing to clear — just cancel any pending
+              // creation for this row if all its values are being removed.
+              if (op.op === 'remove') {
+                const pending = pendingNewRowCells.current.get(rowIndex)
+                if (pending) {
+                  const column = columns.find(c => c.id === columnId)
+                  const columnName = column?.name || columnId
+                  delete pending[columnName]
+                  // If all cells for this pending row were removed, cancel it entirely
+                  if (Object.keys(pending).length === 0) {
+                    pendingNewRowCells.current.delete(rowIndex)
+                  }
+                }
+                return
+              }
+
               const column = columns.find(c => c.id === columnId)
               const columnName = column?.name || columnId
 
@@ -438,41 +456,44 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
               existingCells[columnName] = cellValue
               pendingNewRowCells.current.set(rowIndex, existingCells)
 
-              // Debounce row creation to collect all cells from a paste operation
-              const existingTimer = pendingNewRowTimers.current.get(rowIndex)
-              if (existingTimer) {
-                clearTimeout(existingTimer)
+              // Single debounce timer for ALL pending new rows (prevents timer-ordering
+              // races when pasting across multiple new rows simultaneously)
+              if (pendingNewRowFlushTimer.current) {
+                clearTimeout(pendingNewRowFlushTimer.current)
               }
 
-              pendingNewRowTimers.current.set(
-                rowIndex,
-                setTimeout(() => {
-                  const collectedCells = pendingNewRowCells.current.get(rowIndex) || {}
-                  pendingNewRowCells.current.delete(rowIndex)
-                  pendingNewRowTimers.current.delete(rowIndex)
+              pendingNewRowFlushTimer.current = setTimeout(() => {
+                const allPendingRows = new Map(pendingNewRowCells.current)
+                pendingNewRowCells.current.clear()
+                pendingNewRowFlushTimer.current = null
 
-                  if (onDataChange) {
-                    const newRow: Record<string, unknown> = { ...collectedCells }
-                    columns.forEach(col => {
-                      if (!(col.name in newRow)) {
-                        newRow[col.name] = col.defaultValue ?? ''
-                      }
-                    })
+                if (!onDataChange || allPendingRows.size === 0) return
 
-                    const newData = [...data]
-                    while (newData.length < rowIndex) {
-                      const emptyRow: Record<string, unknown> = {}
-                      columns.forEach(col => {
-                        emptyRow[col.name] = col.defaultValue ?? ''
-                      })
-                      newData.push(emptyRow)
+                // Sort by row index to ensure correct insertion order
+                const sortedEntries = Array.from(allPendingRows.entries()).sort(([a], [b]) => a - b)
+
+                const newData = [...data]
+                for (const [rowIdx, collectedCells] of sortedEntries) {
+                  const newRow: Record<string, unknown> = { ...collectedCells }
+                  columns.forEach(col => {
+                    if (!(col.name in newRow)) {
+                      newRow[col.name] = col.defaultValue ?? ''
                     }
-                    newData.push(newRow)
+                  })
 
-                    onDataChange(newData)
+                  // Fill gaps with empty rows if needed
+                  while (newData.length < rowIdx) {
+                    const emptyRow: Record<string, unknown> = {}
+                    columns.forEach(col => {
+                      emptyRow[col.name] = col.defaultValue ?? ''
+                    })
+                    newData.push(emptyRow)
                   }
-                }, 50)
-              )
+                  newData.push(newRow)
+                }
+
+                onDataChange(newData)
+              }, 50)
 
               return
             }
