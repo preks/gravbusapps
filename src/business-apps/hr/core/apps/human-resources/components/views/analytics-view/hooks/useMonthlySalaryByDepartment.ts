@@ -123,26 +123,34 @@ export const useMonthlySalaryByDepartment = (accessToken: string, startDate: str
       })
 
       // Transform to MonthlyDepartmentSalaryStack format
+      const transformMonthData = (
+        month: string,
+        departmentMap: Map<string, { id: string; name: string; salary: number }>
+      ) => {
+        const departments = Array.from(departmentMap.values())
+        const totalSalary = departments.reduce((sum, dept) => sum + dept.salary, 0)
+
+        // Assign colors and calculate percentages
+        const departmentsWithMetadata: DepartmentSalary[] = departments.map((dept, index) => ({
+          ...dept,
+          color: DEPARTMENT_COLORS[index % DEPARTMENT_COLORS.length],
+          percent: totalSalary > 0 ? (dept.salary / totalSalary) * 100 : 0,
+          change: 0 // Will be calculated later
+        }))
+
+        // Sort by salary descending
+        const sortedDepartments = [...departmentsWithMetadata].sort((a, b) => b.salary - a.salary)
+
+        return {
+          month,
+          totalSalary,
+          departments: sortedDepartments,
+          change: 0 // Will be calculated later
+        }
+      }
+
       const monthlyStacks: MonthlyDepartmentSalaryStack[] = Array.from(monthlyDataMap.entries())
-        .map(([month, departmentMap]) => {
-          const departments = Array.from(departmentMap.values())
-          const totalSalary = departments.reduce((sum, dept) => sum + dept.salary, 0)
-
-          // Assign colors and calculate percentages
-          const departmentsWithMetadata: DepartmentSalary[] = departments.map((dept, index) => ({
-            ...dept,
-            color: DEPARTMENT_COLORS[index % DEPARTMENT_COLORS.length],
-            percent: totalSalary > 0 ? (dept.salary / totalSalary) * 100 : 0,
-            change: 0 // Will be calculated later
-          }))
-
-          return {
-            month,
-            totalSalary,
-            departments: departmentsWithMetadata.sort((a, b) => b.salary - a.salary), // Sort by salary descending
-            change: 0 // Will be calculated later
-          }
-        })
+        .map(([month, departmentMap]) => transformMonthData(month, departmentMap))
         .sort((a, b) => a.month.localeCompare(b.month)) // Sort by month
 
       // Calculate month-over-month changes

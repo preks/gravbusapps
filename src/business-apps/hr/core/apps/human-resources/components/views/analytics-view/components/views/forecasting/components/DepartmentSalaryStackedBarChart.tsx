@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useCallback } from 'react'
 import { Card, Typography } from 'antd'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
@@ -115,6 +115,50 @@ const DepartmentSalaryStackedBarChart: React.FC<BusinessAppContextProps> = props
     )
   }
 
+  const renderChartContent = useCallback(() => {
+    if (error) {
+      return (
+        <div className="gba:flex gba:items-center gba:justify-center gba:h-full">
+          <Text className="gba:text-destructive">{t('hr-data-filter-error')}</Text>
+        </div>
+      )
+    }
+
+    if (chartData.length === 0) {
+      return (
+        <div className="gba:flex gba:items-center gba:justify-center gba:h-full">
+          <Text className="gba:text-muted-foreground">{t('hr-data-filter-no-data')}</Text>
+        </div>
+      )
+    }
+
+    return (
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={chartData} margin={{ top: 16, right: 24, left: 0, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis
+            dataKey="month"
+            className="gba:text-xs"
+            tickFormatter={month =>
+              new Date(month + '-01').toLocaleString(locale, {
+                month: 'short',
+                year: 'numeric'
+              })
+            }
+          />
+          <YAxis
+            className="gba:text-xs"
+            tickFormatter={v => `${(v / 1e6).toLocaleString(locale, { maximumFractionDigits: 1 })}${millionSuffix}`}
+          />
+          <Tooltip content={<CustomTooltip />} />
+          {departments.map(dep => (
+            <Bar key={dep.id} dataKey={dep.id} stackId="a" fill={dep.color} name={dep.name} />
+          ))}
+        </BarChart>
+      </ResponsiveContainer>
+    )
+  }, [error, chartData, departments, locale, millionSuffix, t])
+
   return (
     <Card
       className="gba:shadow gba:rounded gba:p-4 gba:mb-6"
@@ -122,41 +166,7 @@ const DepartmentSalaryStackedBarChart: React.FC<BusinessAppContextProps> = props
       title={t('department-salary-stacked-bar-chart-title')}
       loading={loading}
     >
-      <div className="gba:w-full gba:h-80">
-        {error ? (
-          <div className="gba:flex gba:items-center gba:justify-center gba:h-full">
-            <Text className="gba:text-destructive">{t('hr-data-filter-error')}</Text>
-          </div>
-        ) : chartData.length === 0 ? (
-          <div className="gba:flex gba:items-center gba:justify-center gba:h-full">
-            <Text className="gba:text-muted-foreground">{t('hr-data-filter-no-data')}</Text>
-          </div>
-        ) : (
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData} margin={{ top: 16, right: 24, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis
-                dataKey="month"
-                className="gba:text-xs"
-                tickFormatter={month =>
-                  new Date(month + '-01').toLocaleString(locale, {
-                    month: 'short',
-                    year: 'numeric'
-                  })
-                }
-              />
-              <YAxis
-                className="gba:text-xs"
-                tickFormatter={v => `${(v / 1e6).toLocaleString(locale, { maximumFractionDigits: 1 })}${millionSuffix}`}
-              />
-              <Tooltip content={<CustomTooltip />} />
-              {departments.map(dep => (
-                <Bar key={dep.id} dataKey={dep.id} stackId="a" fill={dep.color} name={dep.name} />
-              ))}
-            </BarChart>
-          </ResponsiveContainer>
-        )}
-      </div>
+      <div className="gba:w-full gba:h-80">{renderChartContent()}</div>
     </Card>
   )
 }

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useCallback } from 'react'
 import { Card, Typography } from 'antd'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { useMonthlySalaryChangesEmployees } from '../../../../hooks/useMonthlySalaryChangesEmployees'
@@ -58,6 +58,64 @@ const SalaryChangesChart: React.FC<BusinessAppContextProps> = props => {
     return null
   }
 
+  const renderChartContent = useCallback(() => {
+    if (loading) {
+      return (
+        <div className="gba:flex gba:items-center gba:justify-center gba:h-full">
+          <Text className="gba:text-muted-foreground">{t('hr-data-filter-loading')}</Text>
+        </div>
+      )
+    }
+
+    if (error) {
+      return (
+        <div className="gba:flex gba:items-center gba:justify-center gba:h-full">
+          <Text className="gba:text-destructive">{t('hr-data-filter-error')}</Text>
+        </div>
+      )
+    }
+
+    if (chartData.length === 0) {
+      return (
+        <div className="gba:flex gba:items-center gba:justify-center gba:h-full">
+          <Text className="gba:text-muted-foreground">{t('hr-data-filter-no-data')}</Text>
+        </div>
+      )
+    }
+
+    return (
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={chartData} margin={{ top: 16, right: 24, left: 0, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis
+            dataKey="month"
+            className="gba:text-xs"
+            tickFormatter={month =>
+              new Date(month + '-01').toLocaleString(getCurrentActiveUserLocale() ?? 'en-US', {
+                month: 'short',
+                year: 'numeric'
+              })
+            }
+          />
+          <YAxis className="gba:text-xs" />
+          <Tooltip content={<CustomTooltip />} />
+          <Bar
+            dataKey="positive"
+            fill="var(--nw-color-success)"
+            name={t('hr-analytics-salary-increase')}
+            data-testid="bar-salary-increase"
+          />
+          <Bar
+            dataKey="negative"
+            fill="var(--nw-color-destructive)"
+            name={t('hr-analytics-salary-decrease')}
+            data-testid="bar-salary-decrease"
+          />
+        </BarChart>
+      </ResponsiveContainer>
+    )
+  }, [loading, error, chartData, t])
+
   return (
     <Card className="gba:w-full gba:mb-6 gba:shadow-sm" data-testid="salary-changes-chart">
       {/* Header */}
@@ -71,51 +129,7 @@ const SalaryChangesChart: React.FC<BusinessAppContextProps> = props => {
       </div>
 
       {/* Chart Content */}
-      <div className="gba:h-72">
-        {loading ? (
-          <div className="gba:flex gba:items-center gba:justify-center gba:h-full">
-            <Text className="gba:text-muted-foreground">{t('hr-data-filter-loading')}</Text>
-          </div>
-        ) : error ? (
-          <div className="gba:flex gba:items-center gba:justify-center gba:h-full">
-            <Text className="gba:text-destructive">{t('hr-data-filter-error')}</Text>
-          </div>
-        ) : chartData.length === 0 ? (
-          <div className="gba:flex gba:items-center gba:justify-center gba:h-full">
-            <Text className="gba:text-muted-foreground">{t('hr-data-filter-no-data')}</Text>
-          </div>
-        ) : (
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData} margin={{ top: 16, right: 24, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis
-                dataKey="month"
-                className="gba:text-xs"
-                tickFormatter={month =>
-                  new Date(month + '-01').toLocaleString(getCurrentActiveUserLocale() ?? 'en-US', {
-                    month: 'short',
-                    year: 'numeric'
-                  })
-                }
-              />
-              <YAxis className="gba:text-xs" />
-              <Tooltip content={<CustomTooltip />} />
-              <Bar
-                dataKey="positive"
-                fill="var(--nw-color-success)"
-                name={t('hr-analytics-salary-increase')}
-                data-testid="bar-salary-increase"
-              />
-              <Bar
-                dataKey="negative"
-                fill="var(--nw-color-destructive)"
-                name={t('hr-analytics-salary-decrease')}
-                data-testid="bar-salary-decrease"
-              />
-            </BarChart>
-          </ResponsiveContainer>
-        )}
-      </div>
+      <div className="gba:h-72">{renderChartContent()}</div>
     </Card>
   )
 }

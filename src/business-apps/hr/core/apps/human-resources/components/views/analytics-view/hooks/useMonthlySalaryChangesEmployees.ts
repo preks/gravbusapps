@@ -67,7 +67,7 @@ export const useMonthlySalaryChangesEmployees = (accessToken: string, startDate:
           } else if (row.date_category) {
             const date = dayjs(row.date_category)
             month = date.isValid() ? date.format('YYYY-MM') : ''
-          } else if (row.category && row.category.match(/^\d{4}-\d{2}$/)) {
+          } else if (row.category?.match(/^\d{4}-\d{2}$/)) {
             // Fallback: if category is already in YYYY-MM format
             month = row.category
           }

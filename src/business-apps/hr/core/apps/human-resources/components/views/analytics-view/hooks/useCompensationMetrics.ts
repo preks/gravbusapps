@@ -53,34 +53,30 @@ export const useCompensationMetrics = (accessToken: string) => {
       const rows: DatasetRow[] = ds.data
 
       // Find median, average, and merit increase rows
-      const medianRow = rows.find(
-        r =>
-          String(r.category || '')
-            .trim()
-            .toLowerCase() === 'median salary'
-      )
-      const averageRow = rows.find(
-        r =>
-          String(r.category || '')
-            .trim()
-            .toLowerCase() === 'average salary'
-      )
-      const meritIncreaseRow = rows.find(
-        r =>
-          String(r.category || '')
-            .trim()
-            .toLowerCase() === 'average merit increase'
-      )
+      const findRowByCategory = (category: string) => {
+        return rows.find(
+          r =>
+            String(r.category || '')
+              .trim()
+              .toLowerCase() === category
+        )
+      }
+
+      const medianRow = findRowByCategory('median salary')
+      const averageRow = findRowByCategory('average salary')
+      const meritIncreaseRow = findRowByCategory('average merit increase')
 
       const median = medianRow ? Number(medianRow.value ?? 0) : 0
       const average = averageRow ? Number(averageRow.value ?? 0) : 0
       const meritIncrease = meritIncreaseRow ? Number(meritIncreaseRow.value ?? 0) : 0
+
       // Use employee_count from median or average row (they should be the same)
-      const count = medianRow?.employee_count
-        ? Number(medianRow.employee_count)
-        : averageRow?.employee_count
-          ? Number(averageRow.employee_count)
-          : 0
+      let count = 0
+      if (medianRow?.employee_count) {
+        count = Number(medianRow.employee_count)
+      } else if (averageRow?.employee_count) {
+        count = Number(averageRow.employee_count)
+      }
 
       // Round to whole numbers (no decimals for salaries, keep 1 decimal for merit increase percentage)
       const roundedMedian = Math.round(median)
