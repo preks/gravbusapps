@@ -21,7 +21,7 @@ import 'reactflow/dist/style.css'
 import { AlertCircle, FileText, Loader2 } from 'lucide-react'
 import { Alert, AlertDescription, AlertTitle } from '@newwork/nw-design-system'
 
-import { CaseApiClient } from '../../services/caseApiClient'
+import { CaseApiClient } from '../../services/CaseApiClient'
 import { Case, LinkedCase } from '../../types'
 import { BusinessAppContextProps } from '@/business-apps/types'
 import { useEmployeeNamesBatch } from '@/business-apps/ser/hooks/useEmployeeNamesBatch'
