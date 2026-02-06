@@ -3,18 +3,9 @@
  * Reusable task detail content that can be used in both dialog and panel layouts
  */
 
-import React, { useState } from 'react'
-import {
-  Button,
-  cn,
-  toast,
-  useTranslation,
-  Textarea,
-  Collapsible,
-  CollapsibleTrigger,
-  CollapsibleContent
-} from '@newwork/nw-design-system'
-import { CheckCircle, ChevronDown, Copy, Sparkles } from 'lucide-react'
+import React from 'react'
+import { Button, cn, useTranslation } from '@newwork/nw-design-system'
+import { CheckCircle } from 'lucide-react'
 import { UnifiedTask } from '../types'
 import { useScreenManagementApi } from '../hooks/useScreenManagementApi'
 import { RemoteScreenLoader } from './RemoteScreenLoader'
@@ -24,11 +15,6 @@ import { env } from '@/common/env/EnvUtils'
 import { UniversalCflowTaskDetails } from './UniversalCflowTaskDetails'
 import { useFlowStepData } from '../hooks/useFlowStepData'
 import { TaskAiSection } from './TaskAiSection'
-import { AiToolbar } from './AiToolbar'
-import { useAiAssistant, useAiCapabilities } from '../hooks/useAi'
-import { useFeature } from '@/common/hooks/useFeature'
-import { Feature } from '@/common/types/constants/FeatureHub'
-import type { ToneOption } from '@/business-apps/core/every/apps/every-api/services/AiService'
 import translations from '../_i18n'
 
 interface TaskDetailContentProps {
@@ -43,109 +29,6 @@ interface TaskDetailContentProps {
   showActions?: boolean
   /** Additional className for the container */
   className?: string
-}
-
-// AI Draft Assistant for Kogito tasks
-const AiDraftAssistant: React.FC<{
-  taskId: string
-  source: 'cflow' | 'kogito'
-  accessToken?: string
-}> = ({ taskId, source, accessToken }) => {
-  const { t } = useTranslation(translations)
-  const [draftText, setDraftText] = useState('')
-  const [isOpen, setIsOpen] = useState(false)
-  const [aiUsed, setAiUsed] = useState(false)
-
-  // Feature flag check
-  const aiFeature = useFeature(Feature.EveryBox.AiEnabled.Key)
-  const isAiFeatureEnabled = aiFeature === true || aiFeature === 'true' || aiFeature === undefined
-  const { capabilities } = useAiCapabilities(accessToken)
-  const isAiAvailable = isAiFeatureEnabled && capabilities?.aiEnabled
-
-  // AI Assistant hook
-  const {
-    suggestedReply,
-    isLoading,
-    lastAction,
-    getSuggestedReply,
-    improve,
-    changeTone,
-    expand,
-    shorten,
-    applyCustom,
-    clearSuggestion
-  } = useAiAssistant(taskId, source, accessToken)
-
-  // Apply suggestions to draft
-  React.useEffect(() => {
-    if (suggestedReply && lastAction) {
-      setDraftText(suggestedReply)
-      setAiUsed(true)
-      clearSuggestion()
-    }
-  }, [suggestedReply, lastAction, clearSuggestion])
-
-  const handleCopy = () => {
-    if (draftText) {
-      navigator.clipboard.writeText(draftText)
-      toast.success(t('ai-assistant-copied'))
-    }
-  }
-
-  if (!isAiAvailable) return null
-
-  return (
-    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-      <CollapsibleTrigger asChild>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="gba:w-full gba:justify-between gba:h-9 gba:text-sm gba:font-medium gba:text-muted-foreground hover:gba:text-foreground hover:gba:bg-muted/50"
-        >
-          <span className="gba:flex gba:items-center gba:gap-2">
-            <Sparkles className="gba:h-4 gba:w-4 gba:text-sky-600" />
-            {t('ai-assistant-draft-helper')}
-          </span>
-          <ChevronDown className={cn('gba:h-4 gba:w-4 gba:transition-transform', isOpen && 'gba:rotate-180')} />
-        </Button>
-      </CollapsibleTrigger>
-      <CollapsibleContent className="gba:pt-3 gba:space-y-3">
-        <Textarea
-          value={draftText}
-          onChange={e => setDraftText(e.target.value)}
-          placeholder={t('ai-assistant-draft-placeholder')}
-          className="gba:min-h-[80px] gba:resize-none"
-        />
-
-        <AiToolbar
-          currentText={draftText}
-          isLoading={isLoading}
-          onSuggest={() => getSuggestedReply()}
-          onImprove={text => improve(text)}
-          onTone={(text, tone) => changeTone(text, tone as ToneOption)}
-          onExpand={text => expand(text)}
-          onShorten={text => shorten(text)}
-          onCustom={(instruction, text) => applyCustom(instruction, text)}
-          hasText={draftText.trim().length > 0}
-        />
-
-        {draftText && (
-          <div className="gba:flex gba:items-center gba:justify-between">
-            {aiUsed && (
-              <span className="gba:text-[11px] gba:text-muted-foreground gba:flex gba:items-center gba:gap-1">
-                <Sparkles className="gba:h-3 gba:w-3 gba:text-sky-600" />
-                {t('ai-assistant-ai-assisted')}
-              </span>
-            )}
-            <Button variant="outline" size="sm" onClick={handleCopy} className="gba:ml-auto">
-              <Copy className="gba:h-3.5 gba:w-3.5 gba:mr-1" />
-              {t('ai-assistant-copy')}
-            </Button>
-          </div>
-        )}
-      </CollapsibleContent>
-    </Collapsible>
-  )
 }
 
 export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
@@ -300,7 +183,11 @@ export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
       psi_availableActions: task?.availableActions,
       psi_flowStepData: currentStepData,
       psi_flowOverview: flowOverview,
-      psi_currentStep: currentStep
+      psi_currentStep: currentStep,
+      // AI context for screens
+      psi_aiEnabled: true,
+      psi_taskId: task?.id,
+      psi_taskSource: task?.source
     }
     return data
   }, [
@@ -316,7 +203,9 @@ export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
     task?.availableActions,
     currentStepData,
     flowOverview,
-    currentStep
+    currentStep,
+    task?.id,
+    task?.source
   ])
 
   const lowcoderScreenAdditionalData = React.useMemo(
@@ -327,9 +216,23 @@ export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
       psi_availableActions: task?.availableActions,
       psi_flowStepData: currentStepData,
       psi_flowOverview: flowOverview,
-      psi_currentStep: currentStep
+      psi_currentStep: currentStep,
+      // AI context for screens
+      psi_aiEnabled: true,
+      psi_taskId: task?.id,
+      psi_taskSource: task?.source
     }),
-    [taskInputs, task?.sourceMetadata, task?.status, task?.availableActions, currentStepData, flowOverview, currentStep]
+    [
+      taskInputs,
+      task?.sourceMetadata,
+      task?.status,
+      task?.availableActions,
+      currentStepData,
+      flowOverview,
+      currentStep,
+      task?.id,
+      task?.source
+    ]
   )
 
   const isBlinkTask = task?.source === 'cflow' && task?.tags?.app === 'quick-task'
@@ -509,21 +412,8 @@ export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
 
     if (screenMetadata?.builderType === 'NATIVE_SCREEN' && screenMetadata.componentPath) {
       return (
-        <div className="gba:flex gba:flex-col gba:h-full gba:overflow-hidden">
-          {/* AI Section for tasks with custom screens - shrinks to fit content */}
-          <div className="gba:p-4 gba:space-y-3 gba:flex-shrink-0">
-            <TaskAiSection
-              taskId={task.id}
-              source={task.source}
-              accessToken={accessToken}
-              taskTitle={task.title || task.name}
-              taskDescription={task.description}
-              contactId={task.sourceMetadata?.creatorUserId as string | undefined}
-            />
-            {/* AI Draft Assistant for composing responses */}
-            <AiDraftAssistant taskId={task.id} source={task.source} accessToken={accessToken} />
-          </div>
-          {/* Screen content - takes remaining space and scrolls */}
+        <div className="gba:flex gba:flex-col gba:h-full gba:overflow-hidden gba:relative">
+          {/* Screen content - AI summary will be injected below header */}
           <div className="gba:flex-1 gba:min-h-0 gba:overflow-auto">
             <RemoteScreenLoader
               componentPath={screenMetadata.componentPath}
@@ -537,15 +427,9 @@ export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
               isLoadingMetadata={false}
             />
           </div>
-        </div>
-      )
-    }
 
-    if (screenMetadata?.builderType === 'LOWCODER' && screenMetadata.appId) {
-      return (
-        <div className="gba:flex gba:flex-col gba:h-full gba:overflow-hidden">
-          {/* AI Section for tasks with custom screens - shrinks to fit content */}
-          <div className="gba:p-4 gba:space-y-3 gba:flex-shrink-0">
+          {/* AI Summary at top */}
+          <div className="gba:px-6 gba:pt-4">
             <TaskAiSection
               taskId={task.id}
               source={task.source}
@@ -554,10 +438,15 @@ export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
               taskDescription={task.description}
               contactId={task.sourceMetadata?.creatorUserId as string | undefined}
             />
-            {/* AI Draft Assistant for composing responses */}
-            <AiDraftAssistant taskId={task.id} source={task.source} accessToken={accessToken} />
           </div>
-          {/* Screen content - takes remaining space and scrolls */}
+        </div>
+      )
+    }
+
+    if (screenMetadata?.builderType === 'LOWCODER' && screenMetadata.appId) {
+      return (
+        <div className="gba:flex gba:flex-col gba:h-full gba:overflow-hidden gba:relative">
+          {/* Screen content */}
           <div className="gba:flex-1 gba:min-h-0 gba:overflow-auto">
             <LowcoderScreenLoader
               appId={screenMetadata.appId}
@@ -570,6 +459,18 @@ export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
               onTaskUpdated={onTaskUpdated}
             />
           </div>
+
+          {/* AI Summary at top */}
+          <div className="gba:px-6 gba:pt-4">
+            <TaskAiSection
+              taskId={task.id}
+              source={task.source}
+              accessToken={accessToken}
+              taskTitle={task.title || task.name}
+              taskDescription={task.description}
+              contactId={task.sourceMetadata?.creatorUserId as string | undefined}
+            />
+          </div>
         </div>
       )
     }
@@ -577,7 +478,8 @@ export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
     // Fallback for kogito tasks without custom screens
     if (task.source === 'kogito') {
       return (
-        <div className="gba:p-4 gba:space-y-4">
+        <div className="gba:px-6 gba:py-4 gba:space-y-6">
+          {/* AI Summary at top */}
           <TaskAiSection
             taskId={task.id}
             source={task.source}
@@ -586,8 +488,8 @@ export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
             taskDescription={task.description}
             contactId={task.sourceMetadata?.creatorUserId as string | undefined}
           />
-          {/* AI Draft Assistant for composing responses */}
-          <AiDraftAssistant taskId={task.id} source={task.source} accessToken={accessToken} />
+
+          {/* Placeholder for tasks without screens */}
           <div className="gba:text-muted-foreground gba:text-center gba:py-4">
             {t('task-dialog-no-screen-available')}
           </div>

@@ -246,7 +246,7 @@ export const TaskDetailFooter: React.FC<TaskDetailFooterProps> = ({
       )}
       {...props}
     >
-      <div className="gba:px-6 gba:py-4 gba:flex gba:items-center gba:justify-end gba:gap-2">
+      <div className="gba:px-6 gba:py-2 gba:flex gba:items-center gba:justify-end gba:gap-2">
         {hasActions ? (
           <>
             {/* Reject button first (left of Approve) */}

@@ -26,14 +26,18 @@ import {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
-  Badge
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+  cn
 } from '@newwork/nw-design-system'
 import translations from '../_i18n'
-import { Pin, Mail, Sparkles } from 'lucide-react'
+import { Pin, Mail, WandSparkles } from 'lucide-react'
 import type { TaskSearchResult } from '@/business-apps/core/every/apps/every-api/services/AiService'
 import { UnifiedTask } from '../types'
 import { TaskCard } from './TaskCard'
 import { TaskDetailContent } from './TaskDetailContent'
+import { AiWritingAssistantPanel } from './AiWritingAssistantPanel'
 import { EmptyState } from './EmptyState'
 import { LoadingSkeleton } from './LoadingSkeleton'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -238,6 +242,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
   const [localCompletedTasks, setLocalCompletedTasks] = useState<UnifiedTask[]>(completedTasks)
   const [isInitialized, setIsInitialized] = useState(false)
   const [displayedCount, setDisplayedCount] = useState(20) // Show 20 tasks initially
+  const [showAiAssistant, setShowAiAssistant] = useState(false) // AI Writing Assistant panel
 
   const TASKS_PER_PAGE = 20
 
@@ -1033,41 +1038,97 @@ export const InboxView: React.FC<InboxViewProps> = ({
         </div>
       </div>
 
-      {/* Detail Panel - Task Details (always visible, fills remaining space) */}
-      <div className="gba:flex gba:flex-col gba:flex-1 gba:overflow-hidden gba:min-h-0 gba:px-6">
+      {/* Detail Panel - Task Details with vertical action tabs on right */}
+      <div className="gba:flex gba:flex-1 gba:overflow-hidden gba:min-h-0">
         {selectedTask ? (
-          <div className="gba:h-full gba:flex gba:flex-col gba:bg-background" data-testid="task-detail-dialog">
-            <div className="gba:flex gba:items-center gba:justify-between gba:gap-2 gba:py-2 gba:border-b">
-              <div className="gba:flex gba:items-center gba:gap-2">
-                <Button
-                  variant={selectedTask.userState?.isPinned ? 'secondary' : 'outline'}
-                  size="sm"
-                  onClick={handleTogglePinned}
-                  data-testid="task-meta-pin-toggle"
-                >
-                  <Pin className="gba:h-4 gba:w-4 gba:mr-2" />
-                  {selectedTask.userState?.isPinned ? t('task-meta-unpin') : t('task-meta-pin')}
-                </Button>
+          <div className="gba:h-full gba:flex gba:bg-background gba:w-full" data-testid="task-detail-dialog">
+            {/* Main content area */}
+            <div className="gba:flex-1 gba:flex gba:flex-col gba:overflow-hidden gba:px-6">
+              <TaskDetailContent
+                task={selectedTask}
+                onClose={handleCloseTask}
+                onTaskUpdated={onRefresh}
+                onTaskCompleted={handleTaskCompleted}
+                accessToken={accessToken}
+                userId={userInfo?.id}
+                userInfo={userInfo}
+                showActions={true}
+              />
+            </div>
 
-                <Button variant="outline" size="sm" onClick={handleMarkUnread} data-testid="task-meta-mark-unread">
-                  <Mail className="gba:h-4 gba:w-4 gba:mr-2" />
-                  {t('task-meta-mark-unread')}
-                </Button>
+            {/* AI Writing Assistant Panel - Slide from right */}
+            {showAiAssistant && (
+              <div className="gba:border-l gba:bg-background gba:w-80 gba:flex-shrink-0 gba:overflow-hidden">
+                <AiWritingAssistantPanel
+                  taskId={selectedTask.id}
+                  source={selectedTask.source}
+                  accessToken={accessToken}
+                  task={selectedTask}
+                />
               </div>
+            )}
 
+            {/* Vertical action tabs on right side */}
+            <div className="gba:flex gba:flex-col gba:border-l gba:bg-muted/30 gba:w-10 gba:flex-shrink-0">
+              {/* Pin/Unpin */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={handleTogglePinned}
+                    className={cn(
+                      'gba:h-10 gba:w-10 gba:flex gba:items-center gba:justify-center gba:transition-colors gba:border-b',
+                      selectedTask.userState?.isPinned
+                        ? 'gba:bg-primary/10 gba:text-primary'
+                        : 'gba:text-muted-foreground hover:gba:bg-muted hover:gba:text-foreground'
+                    )}
+                    data-testid="task-meta-pin-toggle"
+                  >
+                    <Pin className="gba:h-4 gba:w-4" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="left">
+                  {selectedTask.userState?.isPinned ? t('task-meta-unpin') : t('task-meta-pin')}
+                </TooltipContent>
+              </Tooltip>
+
+              {/* Mark Unread */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={handleMarkUnread}
+                    className="gba:h-10 gba:w-10 gba:flex gba:items-center gba:justify-center gba:text-muted-foreground hover:gba:bg-muted hover:gba:text-foreground gba:transition-colors gba:border-b"
+                    data-testid="task-meta-mark-unread"
+                  >
+                    <Mail className="gba:h-4 gba:w-4" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="left">{t('task-meta-mark-unread')}</TooltipContent>
+              </Tooltip>
+
+              {/* Priority Dropdown */}
               <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="gba:gap-2" data-testid="task-meta-priority-trigger">
-                    <span>{t('task-meta-priority')}</span>
-                    <Badge
-                      variant="secondary"
-                      className={`gba:h-5 gba:px-2 ${getPriorityBadgeClass(selectedTask.userState?.userPriority)}`}
-                    >
-                      {formatUserPriorityLabel(selectedTask.userState?.userPriority)}
-                    </Badge>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        className={cn(
+                          'gba:h-10 gba:w-10 gba:flex gba:items-center gba:justify-center gba:transition-colors gba:border-b gba:text-xs gba:font-semibold',
+                          selectedTask.userState?.userPriority !== null &&
+                            selectedTask.userState?.userPriority !== undefined
+                            ? getPriorityBadgeClass(selectedTask.userState?.userPriority)
+                            : 'gba:text-muted-foreground hover:gba:bg-muted hover:gba:text-foreground'
+                        )}
+                        data-testid="task-meta-priority-trigger"
+                      >
+                        {formatUserPriorityLabel(selectedTask.userState?.userPriority).charAt(0)}
+                      </button>
+                    </DropdownMenuTrigger>
+                  </TooltipTrigger>
+                  <TooltipContent side="left">
+                    {t('task-meta-priority')}: {formatUserPriorityLabel(selectedTask.userState?.userPriority)}
+                  </TooltipContent>
+                </Tooltip>
+                <DropdownMenuContent align="end" side="left">
                   <DropdownMenuRadioGroup
                     value={
                       selectedTask.userState?.userPriority === null ||
@@ -1085,21 +1146,29 @@ export const InboxView: React.FC<InboxViewProps> = ({
                   </DropdownMenuRadioGroup>
                 </DropdownMenuContent>
               </DropdownMenu>
-            </div>
 
-            <TaskDetailContent
-              task={selectedTask}
-              onClose={handleCloseTask}
-              onTaskUpdated={onRefresh}
-              onTaskCompleted={handleTaskCompleted}
-              accessToken={accessToken}
-              userId={userInfo?.id}
-              userInfo={userInfo}
-              showActions={true}
-            />
+              {/* AI Writing Assistant */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => setShowAiAssistant(!showAiAssistant)}
+                    className={cn(
+                      'gba:h-10 gba:w-10 gba:flex gba:items-center gba:justify-center gba:transition-colors gba:border-b',
+                      showAiAssistant
+                        ? 'gba:bg-sky-500/10 gba:text-sky-600'
+                        : 'gba:text-muted-foreground hover:gba:bg-muted hover:gba:text-foreground'
+                    )}
+                    data-testid="task-meta-ai-assistant-toggle"
+                  >
+                    <WandSparkles className="gba:h-4 gba:w-4" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="left">{t('ai-assistant-draft-helper')}</TooltipContent>
+              </Tooltip>
+            </div>
           </div>
         ) : (
-          <div className="gba:h-full gba:flex gba:items-center gba:justify-center gba:bg-background">
+          <div className="gba:h-full gba:flex gba:items-center gba:justify-center gba:bg-background gba:flex-1 gba:px-6">
             <DesignEmptyState
               type="no-data"
               title={t('inbox-no-task-selected')}
