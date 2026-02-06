@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useFeature } from '@/common/hooks/useFeature'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 import { expenseSettingsClient } from '../../utils/ExpenseSettingsClient'
 import { formatDateForInput, normalizeDateInputValue, toISOEndOfDay, toISOStartOfDay } from '../../utils'
@@ -87,8 +86,6 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
   accessToken,
   ...context
 }) => {
-  const isDevEnabled = useFeature('dev.enabled')
-
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -123,10 +120,6 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
       currencyRef: ''
     }
   })
-
-  if (isDevEnabled === false) {
-    return null
-  }
 
   useEffect(() => {
     if (accessToken) {

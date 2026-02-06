@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useFeature } from '@/common/hooks/useFeature'
 import { Alert, AlertDescription, Spinner } from '@newwork/nw-design-system'
 import { PiWarning } from 'react-icons/pi'
 import dayjs from 'dayjs'
@@ -43,15 +42,7 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
   usageMessage,
   ...context
 }) => {
-  // Feature flag check
-  const isDevEnabled = useFeature('dev.enabled')
-
   const [isSubmitting, setIsSubmitting] = useState(false)
-
-  // Feature flag guard
-  if (isDevEnabled === false) {
-    return null
-  }
   const [error, setError] = useState<string | null>(null)
   const [showValidation, setShowValidation] = useState(false)
   const [formData, setFormData] = useState<TravelRegionRuleFormData>({

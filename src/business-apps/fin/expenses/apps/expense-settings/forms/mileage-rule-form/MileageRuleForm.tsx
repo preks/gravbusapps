@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useFeature } from '@/common/hooks/useFeature'
 import dayjs from 'dayjs'
 import {
   Button,
@@ -45,6 +44,21 @@ import { formatDateForInput, normalizeDateInputValue } from '../../utils'
 import { useGetMileageRuleStandaloneById } from '../../queries/ExpenseRuleQueries'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { mileageRuleFormSchema } from '../../schemas'
+
+let tempIdCounter = 0
+const createTempId = (): string => {
+  try {
+    const uuid = globalThis.crypto?.randomUUID?.()
+    if (uuid) return `temp-${uuid}`
+  } catch {
+    // ignore and use fallback
+  }
+
+  // Fallback must not rely on Math.random() (Sonar hotspot).
+  // Date + counter is sufficient for stable UI keys within a session.
+  tempIdCounter += 1
+  return `temp-${Date.now()}-${tempIdCounter}`
+}
 
 export interface MileageRuleFormData {
   id?: string
@@ -109,9 +123,6 @@ const SortableRow: React.FC<SortableRowProps> = ({ id, children }) => {
 }
 
 const MileageRuleForm: React.FC<MileageRuleFormProps> = ({ initialData, onSubmit, onCancel, accessToken }) => {
-  // Feature flag check
-  const isDevEnabled = useFeature('dev.enabled')
-
   // ✅ Hook for fetching fresh data when editing
   const { fetchMileageRuleById } = useGetMileageRuleStandaloneById({ accessToken } as BusinessAppContextProps)
 
@@ -251,7 +262,7 @@ const MileageRuleForm: React.FC<MileageRuleFormProps> = ({ initialData, onSubmit
       ...prev,
       details: prev.details.map(detail => ({
         ...detail,
-        tempId: detail.tempId || `temp-${Date.now()}-${Math.random()}`,
+        tempId: detail.tempId || createTempId(),
         activeFrom: detail.activeFrom || prev.activeFrom || today,
         activeTo: detail.activeTo || prev.activeTo || '9999-12-31'
       }))
@@ -285,7 +296,7 @@ const MileageRuleForm: React.FC<MileageRuleFormProps> = ({ initialData, onSubmit
       detailOrder: formData.details.length + 1,
       activeFrom: formData.activeFrom || today,
       activeTo: formData.activeTo || '9999-12-31',
-      tempId: `temp-${Date.now()}-${Math.random()}` // Stable unique ID
+      tempId: createTempId() // Stable unique ID
     }
 
     setFormData(prev => ({
@@ -656,11 +667,6 @@ const MileageRuleForm: React.FC<MileageRuleFormProps> = ({ initialData, onSubmit
     } finally {
       setIsSubmitting(false)
     }
-  }
-
-  // Feature flag guard - check after all hooks
-  if (isDevEnabled === false) {
-    return null
   }
 
   return (

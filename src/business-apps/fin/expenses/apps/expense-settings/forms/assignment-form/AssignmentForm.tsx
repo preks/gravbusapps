@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useFeature } from '@/common/hooks/useFeature'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 import { useEmployeeSelection } from '../../hooks/useEmployeeSelection'
 import { useCompanySelection } from '../../hooks/useCompanySelection'
@@ -82,9 +81,6 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
   onCancel,
   loading = false
 }) => {
-  // Feature flag check
-  const isDevEnabled = useFeature('dev.enabled')
-
   // React Hook Form setup with Zod validation
   const form = useForm<AssignmentFormData>({
     resolver: zodResolver(assignmentFormSchema),
@@ -333,11 +329,6 @@ const AssignmentForm: React.FC<AssignmentFormProps> = ({
     } finally {
       setIsSubmitting(false)
     }
-  }
-
-  // Feature flag guard - must be after all hooks
-  if (isDevEnabled === false) {
-    return null
   }
 
   if (catalogsLoading) {
