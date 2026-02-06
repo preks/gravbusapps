@@ -393,6 +393,96 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     [activeSheetId, app.id, localSheetDataRef, onDataChange, setLocalSheetData]
   )
 
+  // --- Row insert/delete from FortuneSheet context menu ---
+
+  // Helper to extract the backend UUID from a row object
+  const getRowBackendId = useCallback((row: Record<string, unknown>): string => {
+    return String(row._rowUuid ?? row._id ?? row.id ?? '')
+  }, [])
+
+  // Save the current row order to sheet settings so it's preserved across refreshes
+  const persistRowOrder = useCallback(
+    (rows: Record<string, unknown>[]) => {
+      const rowOrder = rows.map(getRowBackendId).filter(Boolean)
+      persistSheetPatch({ settings: { ...activeSheet.settings, rowOrder } })
+    },
+    [activeSheet.settings, getRowBackendId, persistSheetPatch]
+  )
+
+  const handleRowsInsert = useCallback(
+    async (insertIndex: number, count: number, direction: 'lefttop' | 'rightbottom') => {
+      if (entityEnabled) return
+
+      const insertAt = direction === 'rightbottom' ? insertIndex + 1 : insertIndex
+      const current = localSheetDataRef.current
+      const newRows: Record<string, unknown>[] = []
+
+      for (let i = 0; i < count; i++) {
+        const rowPayload: Record<string, unknown> = {}
+        activeSheet.columns.forEach(col => {
+          rowPayload[col.name] = col.defaultValue ?? ''
+        })
+
+        try {
+          const saved = onRowAdd
+            ? await onRowAdd(app.id, activeSheetId, rowPayload)
+            : await SpreadsheetApiService.addRow(app.id, activeSheetId, rowPayload)
+          newRows.push({ ...rowPayload, ...(saved || {}) })
+        } catch (error) {
+          console.error('[SpreadsheetAppViewer] Failed to persist inserted row:', error)
+          newRows.push(rowPayload)
+        }
+      }
+
+      const next = [...current.slice(0, insertAt), ...newRows, ...current.slice(insertAt)]
+      localSheetDataRef.current = next
+      setLocalSheetData(next)
+
+      // Save row order to sheet settings (persists across refresh)
+      persistRowOrder(next)
+    },
+    [
+      activeSheet.columns,
+      activeSheetId,
+      app.id,
+      entityEnabled,
+      localSheetDataRef,
+      onRowAdd,
+      persistRowOrder,
+      setLocalSheetData
+    ]
+  )
+
+  const handleRowsDelete = useCallback(
+    async (startIndex: number, endIndex: number) => {
+      if (entityEnabled) return
+
+      const current = localSheetDataRef.current
+      const rowsToDelete = current.slice(startIndex, endIndex + 1)
+
+      // Remove from local state
+      const next = [...current.slice(0, startIndex), ...current.slice(endIndex + 1)]
+      localSheetDataRef.current = next
+      setLocalSheetData(next)
+
+      // Delete from backend
+      for (const row of rowsToDelete) {
+        const rowId = getRowBackendId(row)
+        if (rowId) {
+          try {
+            await SpreadsheetApiService.deleteRow(app.id, activeSheetId, rowId)
+          } catch (error) {
+            console.error('[SpreadsheetAppViewer] Failed to delete row:', error)
+          }
+        }
+      }
+
+      // Save row order to sheet settings (persists across refresh)
+      persistRowOrder(next)
+    },
+    [activeSheetId, app.id, entityEnabled, getRowBackendId, localSheetDataRef, persistRowOrder, setLocalSheetData]
+  )
+
   // --- Column editing save (from dialog) ---
   const [editingColumns, setEditingColumns] = useState<SpreadsheetColumn[]>([])
   const onSaveColumns = useCallback(
@@ -473,6 +563,10 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
             onCellChange={handleCellChange}
             onDataChange={handleFortuneSheetDataChange}
             onColumnAdd={columnsState.handleAutoColumnAdd}
+            onColumnsInsert={columnsState.handleColumnsInsert}
+            onColumnsDelete={columnsState.handleColumnsDelete}
+            onRowsInsert={handleRowsInsert}
+            onRowsDelete={handleRowsDelete}
             participants={collaboration.cursorParticipants}
             onOperationEmit={op => collaboration.emitOperation(op as any)}
             onCursorEmit={pos => collaboration.emitCursor({ path: pos.path })}

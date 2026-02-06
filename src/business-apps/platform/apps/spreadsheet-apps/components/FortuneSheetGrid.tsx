@@ -31,6 +31,14 @@ export interface FortuneSheetGridProps {
   onDataChange: (data: Record<string, unknown>[]) => void
   /** Callback when a new column needs to be created (auto-column creation) */
   onColumnAdd?: (columnIndex: number, initialValue?: unknown, rowIndex?: number) => void
+  /** Callback when columns are inserted via context menu (insert left/right) */
+  onColumnsInsert?: (insertIndex: number, count: number, direction: 'lefttop' | 'rightbottom') => void
+  /** Callback when columns are deleted via context menu */
+  onColumnsDelete?: (startIndex: number, endIndex: number) => void
+  /** Callback when rows are inserted via context menu */
+  onRowsInsert?: (insertIndex: number, count: number, direction: 'lefttop' | 'rightbottom') => void
+  /** Callback when rows are deleted via context menu */
+  onRowsDelete?: (startIndex: number, endIndex: number) => void
   /** Callback when formula is evaluated */
   onFormulaEvaluated?: (rowId: string, columnId: string, result: unknown) => void
   /** Active participants in collaboration */
@@ -66,6 +74,10 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
       onCellChange,
       onDataChange,
       onColumnAdd,
+      onColumnsInsert,
+      onColumnsDelete,
+      onRowsInsert,
+      onRowsDelete,
       participants = [],
       onOperationEmit = () => {},
       onCursorEmit = () => {},
@@ -357,9 +369,14 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
           // Handle cell changes for callbacks
           // Path format: ['data', rowIndex, colIndex] for cell value
           // Or: ['data', rowIndex, colIndex, 'propertyName'] for cell properties (fc=fontColor, bg=background, etc.)
-          // Note: FortuneSheet emits 'replace' for overwriting existing cells and 'add' for
-          // populating empty/null cells (e.g. during paste). Both must be persisted.
-          if ((op.op === 'replace' || op.op === 'add') && op.path.length >= 3 && op.path[0] === 'data') {
+          // Note: FortuneSheet emits 'replace' for overwriting existing cells, 'add' for
+          // populating empty/null cells (e.g. during paste), and 'remove' for clearing cells
+          // (e.g. Delete key, Clear context menu, or undo of a paste). All must be persisted.
+          if (
+            (op.op === 'replace' || op.op === 'add' || op.op === 'remove') &&
+            op.path.length >= 3 &&
+            op.path[0] === 'data'
+          ) {
             const rowIndex = op.path[1] as number
             const colIndex = op.path[2] as number
 
@@ -379,13 +396,17 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
             const columnId = context.columnIndexToId.get(colIndex)
 
             // Extract cell value - handle both direct values and cell objects
+            // For 'remove' ops (cell clear, undo), the cell should become null
             let cellValue = op.value
-            if (cellValue && typeof cellValue === 'object' && 'v' in cellValue) {
+            if (op.op === 'remove') {
+              cellValue = null
+            } else if (cellValue && typeof cellValue === 'object' && 'v' in cellValue) {
               cellValue = (cellValue as { v: unknown }).v
             }
 
             // Handle new column - user edited beyond existing columns (auto-create)
             if (!columnId) {
+              // Auto-create column when user edits beyond existing columns
               // Auto-create column when user edits beyond existing columns
               if (pendingColumnCreations.current.has(colIndex)) {
                 return // Already creating this column
@@ -463,9 +484,53 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
               onCellChange(rowId, columnName, cellValue)
             }
           }
+
+          // Handle column/row insertion via context menu
+          if (op.op === 'insertRowCol' && op.value) {
+            const { type, index, count, direction } = op.value as {
+              type: 'row' | 'column'
+              index: number
+              count: number
+              direction: 'lefttop' | 'rightbottom'
+            }
+            if (type === 'column' && onColumnsInsert) {
+              onColumnsInsert(index, count, direction)
+            }
+            if (type === 'row' && onRowsInsert) {
+              onRowsInsert(index, count, direction)
+            }
+          }
+
+          // Handle column/row deletion via context menu
+          if (op.op === 'deleteRowCol' && op.value) {
+            const { type, start, end } = op.value as {
+              type: 'row' | 'column'
+              start: number
+              end: number
+            }
+            if (type === 'column' && onColumnsDelete) {
+              onColumnsDelete(start, end)
+            }
+            if (type === 'row' && onRowsDelete) {
+              onRowsDelete(start, end)
+            }
+          }
         })
       },
-      [collaborationEnabled, collaboration, context, onCellChange, onDataChange, onColumnAdd, columns, data]
+      [
+        collaborationEnabled,
+        collaboration,
+        context,
+        onCellChange,
+        onDataChange,
+        onColumnAdd,
+        onColumnsInsert,
+        onColumnsDelete,
+        onRowsInsert,
+        onRowsDelete,
+        columns,
+        data
+      ]
     )
 
     // Render loading state
@@ -534,7 +599,6 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
               '|',
               'quick-formula'
             ]}
-            // Keep full context menu for Excel-like experience
             cellContextMenu={[
               'copy',
               'paste',

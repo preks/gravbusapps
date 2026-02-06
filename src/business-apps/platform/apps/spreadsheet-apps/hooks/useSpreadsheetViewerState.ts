@@ -41,10 +41,26 @@ export function useSpreadsheetViewerState({
   // Active view state (read-only for now - no UI to change views)
   const [activeViewId] = useState<string | null>(initialViewId || null)
 
+  // Sort data according to rowOrder from sheet settings (if present)
+  const sortByRowOrder = (data: Record<string, unknown>[], sheet?: { settings?: { rowOrder?: string[] } }) => {
+    const rowOrder = sheet?.settings?.rowOrder
+    if (!rowOrder || rowOrder.length === 0) return data
+
+    const orderMap = new Map(rowOrder.map((id, idx) => [id, idx]))
+    return [...data].sort((a, b) => {
+      const aId = String(a._rowUuid ?? a._id ?? a.id ?? '')
+      const bId = String(b._rowUuid ?? b._id ?? b.id ?? '')
+      const aOrder = orderMap.get(aId) ?? Number.MAX_SAFE_INTEGER
+      const bOrder = orderMap.get(bId) ?? Number.MAX_SAFE_INTEGER
+      return aOrder - bOrder
+    })
+  }
+
   // Local data state - independent from app.sheets during editing
-  const [localSheetData, setLocalSheetData] = useState<Record<string, unknown>[]>(
-    () => app.sheets.find(s => s.id === activeSheetId)?.data || []
-  )
+  const [localSheetData, setLocalSheetData] = useState<Record<string, unknown>[]>(() => {
+    const sheet = app.sheets.find(s => s.id === activeSheetId)
+    return sortByRowOrder(sheet?.data || [], sheet)
+  })
 
   // Keep a ref to always have access to the LATEST localSheetData
   // Prevents stale closure issues when handlers are called rapidly
@@ -59,8 +75,8 @@ export function useSpreadsheetViewerState({
   // Sync from app.sheets when sheet ID changes (user switches sheets)
   useEffect(() => {
     if (prevSheetIdRef.current !== activeSheetId) {
-      const sheetData = app.sheets.find(s => s.id === activeSheetId)?.data || []
-      setLocalSheetData(sheetData)
+      const sheet = app.sheets.find(s => s.id === activeSheetId)
+      setLocalSheetData(sortByRowOrder(sheet?.data || [], sheet))
       prevSheetIdRef.current = activeSheetId
     }
   }, [activeSheetId, app.sheets])
