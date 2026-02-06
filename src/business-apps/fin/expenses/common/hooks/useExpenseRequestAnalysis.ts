@@ -46,62 +46,88 @@ const looksLikeJson = (value: string): boolean => {
 }
 
 /**
+ * Convert array of values to newline-separated string
+ */
+const arrayToMultilineText = (input: unknown[]): string => {
+  return input
+    .map(v => (typeof v === 'string' ? v : String(v)))
+    .filter(Boolean)
+    .join('\n')
+}
+
+/**
+ * Try to parse JSON string and normalize recursively
+ */
+const tryParseJsonString = (input: string): ExpenseRequestAnalysis | null => {
+  if (!looksLikeJson(input)) return null
+
+  try {
+    return normalizeExpenseInsightsResponse(JSON.parse(input))
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Normalize string input to analysis response
+ */
+const normalizeStringInput = (input: string): ExpenseRequestAnalysis => {
+  const parsed = tryParseJsonString(input)
+  return parsed ?? { type: 'INFO', user_text: input }
+}
+
+/**
+ * Normalize array input to analysis response
+ */
+const normalizeArrayInput = (input: unknown[]): ExpenseRequestAnalysis => {
+  return { type: 'INFO', user_text: arrayToMultilineText(input) }
+}
+
+/**
+ * Extract and normalize user_text from object response
+ */
+const normalizeUserText = (rawUserText: unknown, parentType: AnalysisType): ExpenseRequestAnalysis => {
+  // Try parsing nested JSON string
+  if (typeof rawUserText === 'string') {
+    const parsed = tryParseJsonString(rawUserText)
+    if (parsed) {
+      return { type: parsed.type ?? parentType, user_text: parsed.user_text }
+    }
+    return { type: parentType, user_text: rawUserText }
+  }
+
+  // Handle array
+  if (Array.isArray(rawUserText)) {
+    return { type: parentType, user_text: arrayToMultilineText(rawUserText) }
+  }
+
+  // Handle null/undefined
+  if (rawUserText == null) {
+    return { type: parentType, user_text: '' }
+  }
+
+  // Fallback: stringify unknown types
+  return { type: parentType, user_text: String(rawUserText) }
+}
+
+/**
+ * Normalize object input to analysis response
+ */
+const normalizeObjectInput = (input: object): ExpenseRequestAnalysis => {
+  const maybe = input as { type?: unknown; user_text?: unknown }
+  const type: AnalysisType = isAnalysisType(maybe.type) ? maybe.type : 'INFO'
+  return normalizeUserText(maybe.user_text, type)
+}
+
+/**
  * Some environments occasionally return a double-encoded payload where `user_text`
  * is a JSON string that itself contains `{ type, user_text }` (or an array of strings).
  * We normalize aggressively so the UI never renders raw JSON blobs.
  */
 const normalizeExpenseInsightsResponse = (input: unknown): ExpenseRequestAnalysis => {
-  // If we got a JSON string, attempt to parse it first.
-  if (typeof input === 'string') {
-    if (looksLikeJson(input)) {
-      try {
-        return normalizeExpenseInsightsResponse(JSON.parse(input))
-      } catch {
-        // fall through: treat as plain text
-      }
-    }
-    return { type: 'INFO', user_text: input }
-  }
-
-  // If we got an array, join as multiline text.
-  if (Array.isArray(input)) {
-    const lines = input.map(v => (typeof v === 'string' ? v : String(v))).filter(Boolean)
-    return { type: 'INFO', user_text: lines.join('\n') }
-  }
-
-  // Object-like: attempt to read `{ type, user_text }`.
-  if (input && typeof input === 'object') {
-    const maybe = input as { type?: unknown; user_text?: unknown }
-    const type: AnalysisType = isAnalysisType(maybe.type) ? maybe.type : 'INFO'
-    const rawUserText = maybe.user_text
-
-    // If user_text itself is JSON-ish, parse it (this fixes the “raw JSON displayed” symptom).
-    if (typeof rawUserText === 'string' && looksLikeJson(rawUserText)) {
-      try {
-        const nested = normalizeExpenseInsightsResponse(JSON.parse(rawUserText))
-        // Prefer nested type if present (prevents “Analysis Complete” + WARNING blob mismatch)
-        return { type: nested.type ?? type, user_text: nested.user_text }
-      } catch {
-        // ignore
-      }
-    }
-
-    if (Array.isArray(rawUserText)) {
-      const lines = rawUserText.map(v => (typeof v === 'string' ? v : String(v))).filter(Boolean)
-      return { type, user_text: lines.join('\n') }
-    }
-
-    if (typeof rawUserText === 'string') {
-      return { type, user_text: rawUserText }
-    }
-
-    if (rawUserText == null) {
-      return { type, user_text: '' }
-    }
-
-    // Last resort: stringify unknown shapes rather than crashing the UI.
-    return { type, user_text: String(rawUserText) }
-  }
+  if (typeof input === 'string') return normalizeStringInput(input)
+  if (Array.isArray(input)) return normalizeArrayInput(input)
+  if (input && typeof input === 'object') return normalizeObjectInput(input)
 
   // Unknown primitive (number/boolean/etc.)
   return { type: 'INFO', user_text: String(input ?? '') }
