@@ -400,9 +400,6 @@ const buildLiquidFundInvestmentReportFragment = (fieldSet: Set<string>): string 
         investmentLiquidFundType {
           ${CATALOG_ENTRY}
         }
-        interestPaymentFrequency {
-          ${CATALOG_ENTRY}
-        }
         additionalProperties
         businessKey
         processInstanceId

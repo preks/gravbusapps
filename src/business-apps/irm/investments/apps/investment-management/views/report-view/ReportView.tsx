@@ -13,14 +13,15 @@ import {
   Combobox,
   Button
 } from '@newwork/nw-design-system'
-import { TrendUpIcon, BuildingsIcon, ChartPieIcon, FunnelIcon, XIcon, VectorTwoIcon } from '@phosphor-icons/react'
+import { TrendUpIcon, BuildingsIcon, ChartPieIcon, FunnelIcon, XIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { LiquidFundReport } from './tabs/liquid-fund-report-tab/LiquidFundReport'
 import { RealEstateReport } from './tabs/real-estate-report-tab/RealEstateReport'
 import { EquityReport } from './tabs/equity-report-tab/EquityReport'
 import { useReportFilters } from './hooks'
-import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
+import { useAvailableCurrencies } from '@/common/data/common/hooks/useAvailableCurrencies'
+import { useGetInvestmentCatalogData } from '@/common/data/investment/hooks/useInvestmentCatalogs'
 import dayjs from 'dayjs'
 
 export interface ReportViewProps extends BusinessAppContextProps {
@@ -36,22 +37,45 @@ export const ReportView: React.FC<ReportViewProps> = ({
 }) => {
   const [activeSubTab, setActiveSubTab] = useState(initialSubTab)
 
-  // Shared filter state for all tabs
+  // Shared filter state for all tabs (date range is shared)
   const reportFilters = useReportFilters()
 
-  // Global transpose state for all tabs and sections
-  const [isTransposed, setIsTransposed] = useState(false)
+  // Tab-specific currency filters
+  const [liquidFundCurrencies, setLiquidFundCurrencies] = useState<string[]>([])
+  const [realEstateCurrencies, setRealEstateCurrencies] = useState<string[]>([])
+  const [equityCurrencies, setEquityCurrencies] = useState<string[]>([])
 
-  // Track available currencies from all report tabs
-  const [availableCurrencies, setAvailableCurrencies] = useState<Set<string>>(new Set())
+  // Fetch investment catalog data ONCE for all tabs (shared across Equity, Real Estate, Liquid Fund)
+  const { fetchInvestmentCatalogData } = useGetInvestmentCatalogData({ accessToken, userInfo })
+  const [catalogData, setCatalogData] = useState<any>(null)
 
-  // Callback for report tabs to report their available currencies
-  const handleCurrenciesUpdate = useCallback((currencies: string[]) => {
-    setAvailableCurrencies(prev => {
-      const updated = new Set(prev)
-      currencies.forEach(id => updated.add(id))
-      return updated
-    })
+  useEffect(() => {
+    const loadCatalogData = async () => {
+      if (!accessToken) return
+
+      try {
+        const data = await fetchInvestmentCatalogData()
+        setCatalogData(data)
+      } catch (error) {
+        console.error('Error loading investment catalog data:', error)
+      }
+    }
+
+    loadCatalogData()
+  }, [accessToken, fetchInvestmentCatalogData])
+
+  // Fetch available currencies ONCE using the same hook as Investment tab
+  const { currencies: currencyOptions } = useAvailableCurrencies(
+    { accessToken, userInfo },
+    {
+      filters: { entity: 'InvestmentReport' as any },
+      returnFormat: 'full'
+    }
+  )
+
+  // Callback for report tabs to report their available currencies (kept for compatibility but not used anymore)
+  const handleCurrenciesUpdate = useCallback(() => {
+    // No-op: currencies are now fetched once at parent level
   }, [])
 
   // Date range state for DateInput - expects [string | null, string | null] | null
@@ -80,84 +104,67 @@ export const ReportView: React.FC<ReportViewProps> = ({
     [reportFilters]
   )
 
-  // Currency state
-  const selectedCurrencies = useMemo(() => reportFilters.selectedCurrencies, [reportFilters.selectedCurrencies])
-
-  // Fetch currency catalog data to map IDs to values (codes)
-  const catalogClient = useCatalogManagerClient(accessToken)
-  const [currencyOptions, setCurrencyOptions] = useState<Array<{ value: string; label: string }>>([])
-  const [currenciesLoading, setCurrenciesLoading] = useState(false)
-
-  // Fetch currency catalog entries based on available currency IDs
-  useEffect(() => {
-    const fetchCurrencies = async () => {
-      if (!accessToken || availableCurrencies.size === 0) {
-        setCurrencyOptions([])
-        return
-      }
-
-      setCurrenciesLoading(true)
-      try {
-        // Fetch all currency catalog entries
-        const response = await catalogClient.getCatalogEntriesList(
-          {
-            catalogIdentifier: 'Currency',
-            version: 'v1'
-          },
-          {
-            limit: 200,
-            offset: 0,
-            returnTotalRecords: true,
-            includeChildCatalogEntries: true
-          }
-        )
-
-        if (response?.data && Array.isArray(response.data)) {
-          // Filter to only show currencies that exist in available currencies
-          const availableSet = new Set(availableCurrencies)
-          const options = response.data
-            .filter(entry => availableSet.has(entry.id))
-            .map(entry => ({
-              value: entry.id, // Use ID as value for filtering
-              label: entry.value || entry.code || entry.id // Show value (code) as label
-            }))
-            .sort((a, b) => a.label.localeCompare(b.label))
-
-          setCurrencyOptions(options)
-        } else {
-          setCurrencyOptions([])
-        }
-      } catch (error) {
-        console.error('Error fetching currencies:', error)
-        setCurrencyOptions([])
-      } finally {
-        setCurrenciesLoading(false)
-      }
+  // Get current tab's currency state
+  const selectedCurrencies = useMemo(() => {
+    switch (activeSubTab) {
+      case 'liquid-fund':
+        return liquidFundCurrencies
+      case 'real-estate':
+        return realEstateCurrencies
+      case 'equity':
+        return equityCurrencies
+      default:
+        return []
     }
+  }, [activeSubTab, liquidFundCurrencies, realEstateCurrencies, equityCurrencies])
 
-    fetchCurrencies()
-  }, [accessToken, availableCurrencies, catalogClient])
+  // Transform currency options from hook to combobox format
+  const currencyComboboxOptions = useMemo(() => {
+    if (!Array.isArray(currencyOptions)) return []
+    return currencyOptions
+      .filter((currency): currency is { id: string; code: string; value: string } => typeof currency !== 'string')
+      .map(currency => ({
+        value: currency.id,
+        label: currency.code || currency.value || currency.id
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label))
+  }, [currencyOptions])
 
   const handleCurrencyChange = useCallback(
     (currencies: string[]) => {
-      // Empty array means all currencies (no filter)
-      reportFilters.handleCurrencyChange(currencies)
+      // Update only the current tab's currency filter
+      switch (activeSubTab) {
+        case 'liquid-fund':
+          setLiquidFundCurrencies(currencies)
+          break
+        case 'real-estate':
+          setRealEstateCurrencies(currencies)
+          break
+        case 'equity':
+          setEquityCurrencies(currencies)
+          break
+      }
     },
-    [reportFilters]
+    [activeSubTab]
   )
 
-  // Transpose toggle handler
-  const handleTransposeToggle = useCallback(() => {
-    setIsTransposed(prev => !prev)
-  }, [])
-
-  // Clear all filters handler
+  // Clear all filters handler - only clears current tab's currency filter
   const handleClearFilters = useCallback(() => {
     reportFilters.handleStartDateChange(null)
     reportFilters.handleEndDateChange(null)
-    reportFilters.handleCurrencyChange([])
-    setIsTransposed(false)
-  }, [reportFilters])
+    // Clear only current tab's currency filter
+    switch (activeSubTab) {
+      case 'liquid-fund':
+        setLiquidFundCurrencies([])
+        break
+      case 'real-estate':
+        setRealEstateCurrencies([])
+        break
+      case 'equity':
+        setEquityCurrencies([])
+        break
+    }
+  }, [reportFilters, activeSubTab])
 
   // Update URL when tab changes using safe navigation
   useEffect(() => {
@@ -199,6 +206,46 @@ export const ReportView: React.FC<ReportViewProps> = ({
     setActiveSubTab(tabValue)
   }
 
+  // Create tab-specific filter objects with their own currency states
+  const liquidFundFilters = useMemo(
+    () => ({
+      ...reportFilters,
+      selectedCurrencies: liquidFundCurrencies,
+      computedFilters: {
+        ...reportFilters.computedFilters,
+        currencyIds: liquidFundCurrencies
+      },
+      handleCurrencyChange: setLiquidFundCurrencies
+    }),
+    [reportFilters, liquidFundCurrencies]
+  )
+
+  const realEstateFilters = useMemo(
+    () => ({
+      ...reportFilters,
+      selectedCurrencies: realEstateCurrencies,
+      computedFilters: {
+        ...reportFilters.computedFilters,
+        currencyIds: realEstateCurrencies
+      },
+      handleCurrencyChange: setRealEstateCurrencies
+    }),
+    [reportFilters, realEstateCurrencies]
+  )
+
+  const equityFilters = useMemo(
+    () => ({
+      ...reportFilters,
+      selectedCurrencies: equityCurrencies,
+      computedFilters: {
+        ...reportFilters.computedFilters,
+        currencyIds: equityCurrencies
+      },
+      handleCurrencyChange: setEquityCurrencies
+    }),
+    [reportFilters, equityCurrencies]
+  )
+
   return (
     <div data-testid="analytics-container" className="gba:h-full gba:flex gba:flex-col">
       {/* Header */}
@@ -238,35 +285,23 @@ export const ReportView: React.FC<ReportViewProps> = ({
               </div>
 
               {/* Currency Filter */}
-              {currencyOptions.length > 0 && (
+              {currencyComboboxOptions.length > 0 && (
                 <div className="gba:flex gba:items-center gba:gap-2">
                   <Label className="gba:text-sm gba:font-medium gba:whitespace-nowrap">Currency:</Label>
                   <Combobox
                     mode="multiple"
                     value={selectedCurrencies}
                     onValueChange={handleCurrencyChange}
-                    options={currencyOptions}
+                    options={currencyComboboxOptions}
                     placeholder="All currencies"
                     searchPlaceholder="Search currencies..."
-                    emptyText={currenciesLoading ? 'Loading...' : 'No currencies found'}
-                    loading={currenciesLoading}
+                    emptyText="No currencies found"
                     className="gba:w-[200px]"
                     data-testid="report-currency-filter"
                     allowClear
                   />
                 </div>
               )}
-
-              {/* Transpose Button */}
-              <Button
-                onClick={handleTransposeToggle}
-                variant={isTransposed ? 'default' : 'outline'}
-                size="sm"
-                data-testid="report-transpose-toggle"
-              >
-                <VectorTwoIcon className="gba:w-4 gba:h-4 gba:mr-2" />
-                {isTransposed ? 'Primary' : 'Transpose'}
-              </Button>
             </div>
 
             {/* Clear Filters Button */}
@@ -296,9 +331,10 @@ export const ReportView: React.FC<ReportViewProps> = ({
             accessToken={accessToken}
             userInfo={userInfo}
             data-testid="liquid-fund-analytics"
-            reportFilters={reportFilters}
+            reportFilters={liquidFundFilters}
             onCurrenciesUpdate={handleCurrenciesUpdate}
-            isTransposed={isTransposed}
+            catalogData={catalogData}
+            enabled={activeSubTab === 'liquid-fund'}
           />
         </TabsContent>
 
@@ -307,9 +343,10 @@ export const ReportView: React.FC<ReportViewProps> = ({
             accessToken={accessToken}
             userInfo={userInfo}
             data-testid="real-estate-analytics"
-            reportFilters={reportFilters}
+            reportFilters={realEstateFilters}
             onCurrenciesUpdate={handleCurrenciesUpdate}
-            isTransposed={isTransposed}
+            catalogData={catalogData}
+            enabled={activeSubTab === 'real-estate'}
           />
         </TabsContent>
 
@@ -318,9 +355,10 @@ export const ReportView: React.FC<ReportViewProps> = ({
             accessToken={accessToken}
             userInfo={userInfo}
             data-testid="equity-analytics"
-            reportFilters={reportFilters}
+            reportFilters={equityFilters}
             onCurrenciesUpdate={handleCurrenciesUpdate}
-            isTransposed={isTransposed}
+            catalogData={catalogData}
+            enabled={activeSubTab === 'equity'}
           />
         </TabsContent>
       </Tabs>

@@ -35,7 +35,8 @@ const HCMFeature = {
   EmployeeAbsence: { Key: 'hcm.employee-absence.enabled' },
   EmployeeExpenses: { Key: 'hcm.employee-expenses.enabled' },
   Compensation: { Key: 'human-resources.compensation.enabled' },
-  Recruiting: { Key: 'human-resources.recruiting.enabled' }
+  Recruiting: { Key: 'human-resources.recruiting.enabled' },
+  Assets: { Key: 'assets.enabled' }
 }
 
 const CRMFeature = {

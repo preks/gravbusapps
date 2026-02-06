@@ -64,6 +64,7 @@ export interface DynamicTableColumn {
   displayOrder: number
   getValue: (row: any) => string
   className?: string
+  width?: string
 }
 
 /**
@@ -107,6 +108,13 @@ export const transformFormFieldsToTableColumns = (
       displayOrder: Number.parseFloat(field.displayOrder || '999'),
       getValue: (row: any) => {
         const prop = field.property
+
+        if (prop === 'investment.totalInvestmentAmount') {
+          // Use row.totalInvestmentAmount directly = InvestmentReport.totalInvestmentAmount
+          const value = row.totalInvestmentAmount
+          return formatFieldValueForTable(value, effectiveFieldType, currencyCode)
+        }
+
         let value = getValueByPath(row, prop)
 
         if (value === undefined) {
@@ -133,7 +141,8 @@ export const transformFormFieldsToTableColumns = (
 
         return formatFieldValueForTable(value, effectiveFieldType, currencyCode)
       },
-      className: getColumnClassName(effectiveFieldType)
+      className: getColumnClassName(effectiveFieldType),
+      width: getColumnWidth(effectiveFieldType)
     })
   })
 
@@ -155,6 +164,26 @@ const getColumnClassName = (fieldType: string): string => {
       return 'gba:text-center'
     default:
       return 'gba:text-left'
+  }
+}
+
+/**
+ * Get appropriate width for column types
+ */
+const getColumnWidth = (fieldType: string): string => {
+  switch (fieldType) {
+    case 'DATE':
+    case 'DATETIME':
+      return '120px'
+    case 'AMOUNT':
+      return '140px'
+    case 'PERCENTAGE':
+    case 'NUMBER':
+      return '100px'
+    case 'TEXT':
+      return '180px'
+    default:
+      return '150px'
   }
 }
 
