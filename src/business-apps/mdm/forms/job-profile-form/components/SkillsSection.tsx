@@ -352,7 +352,6 @@ const SkillsSection: React.FC<SkillsSectionProps> = ({ dataTestId, accessToken }
                   accept=".pdf,.doc,.docx,.txt,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
                   layout="list"
                   preview="icon"
-                  value={field.value ? [field.value] : []}
                   onChange={(files: any[]) => {
                     if (files && files.length > 0) {
                       const fileObj = files[0]
