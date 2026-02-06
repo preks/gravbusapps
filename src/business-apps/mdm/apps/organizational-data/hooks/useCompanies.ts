@@ -118,6 +118,8 @@ export const useCompanies = (context: BusinessAppContextProps) => {
       currencyRef: node.data.companyData.currencyRef,
       additionalProperties: node.data.companyData.additionalProperties,
       addresses: node.data.companyData.addresses,
+      picture: node.data.companyData.picture,
+      pictureThumbnail: node.data.companyData.pictureThumbnail,
       // Statistics
       numberOfAssignedJobPositions: node.data.numberOfAssignedJobPositions,
       numberOfAssignedEmployees: node.data.numberOfAssignedEmployees,

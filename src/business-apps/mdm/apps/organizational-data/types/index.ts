@@ -38,6 +38,7 @@ export interface CompanyData {
   additionalProperties?: Record<string, unknown>
   addresses?: CompanyAddress[]
   picture?: Record<string, unknown>
+  pictureThumbnail?: string
   documents?: unknown[]
 }
 
@@ -125,7 +126,7 @@ export interface Company {
   children: Company[]
   hasChildren: boolean
   pictureThumbnail?: string
-  picture?: string
+  picture?: Record<string, unknown>
 }
 
 // Hierarchy state for managing tree view

@@ -385,7 +385,7 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
     if (company?.pictureThumbnail) {
       setPicturePreview(`data:image/jpeg;base64,${company.pictureThumbnail}`)
     } else if (company?.picture) {
-      setPicturePreview(`data:image/jpeg;base64,${company.picture}`)
+      setPicturePreview(`data:image/jpeg;base64,${company.picture.additionalProp1}`)
     } else {
       setPicturePreview(null)
     }
@@ -589,14 +589,14 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
           fileToBase64(pictureFile),
           createThumbnail(pictureFile, THUMBNAIL_MAX_WIDTH, THUMBNAIL_MAX_HEIGHT)
         ])
-        payload.picture = pictureBase64
+        payload.picture = { additionalProp1: pictureBase64 }
         payload.pictureThumbnail = thumbnailBase64
       } catch {
         // Continue without picture if there's an error
       }
     } else if (isEditMode && companyData?.picture && !picturePreview) {
       // Clear picture if it was removed in edit mode
-      payload.picture = ''
+      payload.picture = {}
       payload.pictureThumbnail = ''
     }
   }
