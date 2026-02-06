@@ -2,11 +2,15 @@ import React, { useCallback, useMemo } from 'react'
 import { Spinner } from '@newwork/nw-design-system'
 import { EveryOneHero } from './EveryOneHero'
 import { PersonalStats } from './PersonalStats'
-import { TopContacts } from './TopContacts'
+import { TopContacts, PresenceInfo } from './TopContacts'
 import { GlobalStats } from './GlobalStats'
+import { UpcomingMeetings } from './UpcomingMeetings'
 import { useEveryOneAnalytics } from '../../hooks/useEveryOneAnalytics'
 import { ChatApiClient } from '../../services/chatApiClient'
+import type { CalendarEvent } from '../../calendar/types'
 import { env } from '@/common/env/EnvUtils'
+
+type CallType = 'audio' | 'video'
 
 interface EveryOneDashboardProps {
   accessToken: string
@@ -17,7 +21,10 @@ interface EveryOneDashboardProps {
     email?: string
   }
   isActive?: boolean
+  presenceMap?: Map<string, PresenceInfo>
   onOpenChat?: (userId: string) => void
+  onStartCall?: (userId: string, displayName: string, callType: CallType, avatarUrl?: string) => void
+  onJoinMeeting?: (meeting: CalendarEvent) => void
   'data-testid'?: string
 }
 
@@ -29,7 +36,10 @@ export const EveryOneDashboard: React.FC<EveryOneDashboardProps> = ({
   accessToken,
   userInfo,
   isActive = true,
+  presenceMap,
   onOpenChat,
+  onStartCall,
+  onJoinMeeting,
   'data-testid': testId = 'everyone-dashboard'
 }) => {
   // Create API client
@@ -107,18 +117,32 @@ export const EveryOneDashboard: React.FC<EveryOneDashboardProps> = ({
           {/* Personal Stats */}
           <PersonalStats overview={userOverview} isLoading={showSkeleton} data-testid={`${testId}-personal-stats`} />
 
-          {/* Two-column layout for Contacts and Global Stats */}
+          {/* Two-column layout */}
           <div className="gba:grid gba:grid-cols-1 gba:xl:grid-cols-2 gba:gap-6">
-            {/* Top Contacts */}
-            <TopContacts
-              contacts={userContacts}
-              accessToken={accessToken}
-              isLoading={showSkeleton}
-              onContactClick={handleContactClick}
-              data-testid={`${testId}-contacts`}
-            />
+            {/* Left column: Meetings + Contacts stacked */}
+            <div className="gba:space-y-6">
+              {/* Upcoming Meetings */}
+              <UpcomingMeetings
+                accessToken={accessToken}
+                isActive={isActive}
+                isLoading={showSkeleton}
+                onJoinMeeting={onJoinMeeting}
+                data-testid={`${testId}-meetings`}
+              />
 
-            {/* Global Stats */}
+              {/* Top Contacts */}
+              <TopContacts
+                contacts={userContacts}
+                accessToken={accessToken}
+                isLoading={showSkeleton}
+                presenceMap={presenceMap}
+                onContactClick={handleContactClick}
+                onStartCall={onStartCall}
+                data-testid={`${testId}-contacts`}
+              />
+            </div>
+
+            {/* Right column: Global Stats */}
             <GlobalStats stats={globalStats} isLoading={showSkeleton} data-testid={`${testId}-global`} />
           </div>
         </div>

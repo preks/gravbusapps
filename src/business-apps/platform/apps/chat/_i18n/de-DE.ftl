@@ -185,6 +185,8 @@ chat-lastOwnerInfo = Sie sind der einzige Besitzer. Um diese Gruppe zu verlassen
 # Call Features
 chat-audioCall = Audioanruf
 chat-videoCall = Videoanruf
+chat-directCall = Anruf
+chat-meeting = Besprechung
 chat-groupCall = Gruppenanruf
 chat-endCall = Anruf beenden
 chat-mute = Stummschalten
@@ -250,6 +252,8 @@ call-failed = Anruf fehlgeschlagen
 call-disconnected = Getrennt
 
 # Call Settings
+call-video = Video
+call-audio = Audio
 call-videoQuality = Videoqualität
 call-highQuality = Hohe Qualität
 call-highQualityDesc = 720p, 30fps - Optimal für schnelle Verbindungen
@@ -337,9 +341,15 @@ videogrid-next-page = Nächste Seite
 chat-call-enableTranscription = Transkription aktivieren
 chat-call-transcriptionActive = Aufnahme
 chat-call-recording = Aufnahme
-chat-transcript-ready = Meeting-Transkript bereit
+chat-transcript-ready = Transkript bereit: { $sessionName }
 chat-transcript-view = Transkript anzeigen
 chat-transcript-saved = Ihr Meeting-Transkript wurde gespeichert
+chat-transcript-create-minutes-description = Erstellen Sie Besprechungsnotizen aus dem Anruftranskript in Notizen
+chat-transcript-create-minutes-button = Besprechungsnotizen erstellen
+chat-transcript-generating-minutes = Besprechungsnotizen werden erstellt...
+chat-transcript-generating-minutes-status = Besprechungsnotizen werden erstellt...
+chat-transcript-failed-create-minutes = Fehler beim Erstellen der Besprechungsnotizen
+chat-transcript-retry = Wiederholen
 
 # Notifications
 notifications-title = Benachrichtigungen
@@ -466,3 +476,23 @@ calendar-pending-invitations = Ausstehende Einladungen
 calendar-accept = Annehmen
 calendar-decline = Ablehnen
 calendar-tentative = Mit Vorbehalt
+
+# Calendar - Agenda
+calendar-agenda = Agenda
+calendar-agendaOptional = Agenda (optional)
+calendar-addAgendaItem = Agendapunkt hinzufügen
+calendar-agendaItemTitle = Thema
+calendar-agendaItemTitlePlaceholder = Thema eingeben...
+calendar-agendaItemDuration = Dauer (Min)
+calendar-agendaItemAssignee = Zuweisen an
+calendar-agendaItemUnassigned = Nicht zugewiesen
+calendar-agendaItemRemove = Entfernen
+calendar-agendaItemMoveUp = Nach oben
+calendar-agendaItemMoveDown = Nach unten
+calendar-agendaItems = {$count ->
+  [one] {$count} Agendapunkt
+  *[other] {$count} Agendapunkte
+}
+calendar-agendaTotalDuration = Gesamt: {$minutes} Min
+calendar-agendaAssignedTo = Zugewiesen an {$name}
+calendar-noAgenda = Keine Agendapunkte

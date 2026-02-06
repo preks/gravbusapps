@@ -123,10 +123,12 @@ export interface EquityInvestmentKPIs {
 
 interface EquityInvestmentsReportProps extends BusinessAppContextProps {
   prefixDataTestId?: string
+  isActive?: boolean
 }
 
 const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = props => {
   const prefixDataTestId = props.prefixDataTestId || 'EquityInvestmentsReport'
+  const isActive = props.isActive ?? true
   const [activeTab, setActiveTab] = useState('distribution')
   const [selectedCurrency, setSelectedCurrency] = useState<string>('Currency:v1:EUR') // Store full ID
 
@@ -161,7 +163,7 @@ const EquityInvestmentsReport: React.FC<EquityInvestmentsReportProps> = props =>
     isLoading: kpiLoading,
     error: kpiError,
     refetch: refetchKpis
-  } = useEquityKPIIntegration(props, selectedCurrencyCode)
+  } = useEquityKPIIntegration(props, selectedCurrencyCode, undefined, isActive)
 
   const { fetchInvestments } = useGetInvestments(props)
 

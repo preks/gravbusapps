@@ -39,11 +39,13 @@ import translations from './_i18n'
 
 interface InvestmentPortfolioOverviewProps extends BusinessAppContextProps {
   prefixDataTestId?: string
+  isActive?: boolean
 }
 
 const InvestmentPortfolioOverview: React.FC<InvestmentPortfolioOverviewProps> = props => {
   const { t } = useTranslation(translations)
   const prefixDataTestId = props.prefixDataTestId || 'InvestmentPortfolioOverview'
+  const isActive = props.isActive ?? true
   const [activeTab, setActiveTab] = useState('distribution')
   const [selectedCurrency, setSelectedCurrency] = useState<string>('EUR')
 
@@ -56,7 +58,12 @@ const InvestmentPortfolioOverview: React.FC<InvestmentPortfolioOverviewProps> = 
     }
   }
 
-  const { kpis, previousKpis, isLoading, error, refetch } = useInvestmentPortfolioIntegration(props, selectedCurrency)
+  const { kpis, previousKpis, isLoading, error, refetch } = useInvestmentPortfolioIntegration(
+    props,
+    selectedCurrency,
+    undefined,
+    isActive
+  )
 
   // Fetch available currencies efficiently using distinctOn
   const { currencies: availableCurrencies } = useAvailableCurrencies(props, {

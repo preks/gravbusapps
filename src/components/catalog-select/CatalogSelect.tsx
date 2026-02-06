@@ -70,6 +70,7 @@ export interface CatalogSelectProps {
   ['data-testid']?: string
   allowClear?: boolean // default: true
   autoSelectFirst?: boolean // auto-select first entry when value is empty and options are available
+  disabled?: boolean // disable the select
   /**
    * @deprecated Use mode="multiple" or mode="tags" instead
    */
@@ -149,6 +150,7 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
   selectedOption: propSelectedOption,
   allowClear = true,
   autoSelectFirst = false,
+  disabled: propDisabled = false,
   multiple,
   config,
   ...props
@@ -225,7 +227,7 @@ const CatalogSelect: React.FC<CatalogSelectProps> = ({
   const wiredHasMore = controller?.hasMore ?? false
   const wiredOnLoadMore = controller?.onLoadMore
   const wiredOnSearch = controller?.onSearch
-  const wiredDisabled = controller?.disabled ?? false
+  const wiredDisabled = propDisabled || (controller?.disabled ?? false)
   const wiredControllerValue = controller?.value ?? ''
 
   // Normalize value for multiple mode

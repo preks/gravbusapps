@@ -12,6 +12,7 @@ import { CATALOG_ENTRY } from '@/common/network/graphql/commonFragments'
  */
 export const COMPANY_ADDRESS_FIELDS = `
   id
+  companyId
   addressLine
   addressType
   locality

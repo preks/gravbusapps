@@ -19,7 +19,7 @@ export interface SaveRatingScalePayload {
     name: string
     description?: string
     scaleType?: string
-    active?: boolean
+    recordState?: string
     notes?: string
     values: RatingScaleValuePayload[]
   }

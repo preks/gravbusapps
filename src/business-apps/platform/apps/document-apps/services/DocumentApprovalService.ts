@@ -220,7 +220,6 @@ export class DocumentApprovalService {
         workflowId: workflowIds[0] // Store first workflow ID for reference
       }
 
-      console.log('[DocumentApproval] Created approval workflows:', workflowIds)
       return approvalRequest
     } catch (error) {
       console.error('[DocumentApproval] Error sending for approval:', error)
@@ -288,8 +287,6 @@ export class DocumentApprovalService {
       // Flow data is returned directly (not under .data)
       const status = flowData?.status?.toLowerCase()
 
-      console.log('[DocumentApproval] Flow status:', { workflowId, status, flowData })
-
       if (status === 'completed' || status === 'done') {
         // Check the steps for approval decision
         const steps = flowData?.steps || []
@@ -337,8 +334,6 @@ export class DocumentApprovalService {
       const flowData = await response.json()
       // Flow data is returned directly (not under .data)
       const flowStatus = flowData?.status?.toLowerCase()
-
-      console.log('[DocumentApproval] Flow details:', { workflowId, flowStatus, flowData })
 
       if (flowStatus === 'completed' || flowStatus === 'done') {
         // Get step data for form values and completion info

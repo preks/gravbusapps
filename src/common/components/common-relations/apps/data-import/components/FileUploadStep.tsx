@@ -4,8 +4,19 @@
  */
 
 import React, { useRef } from 'react'
-import { Card, CardHeader, CardTitle, CardContent, Button, Input, Label, Spinner } from '@newwork/nw-design-system'
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  Button,
+  Input,
+  Label,
+  Spinner,
+  useTranslation
+} from '@newwork/nw-design-system'
 import { SparkleIcon, CheckCircleIcon } from '@phosphor-icons/react'
+import translations from './FileUploadStep/_i18n'
 
 export interface FileUploadStepProps {
   file: File | null
@@ -22,6 +33,7 @@ export const FileUploadStep: React.FC<FileUploadStepProps> = ({
   onAnalyze,
   'data-testid': testId = 'file-upload-step'
 }) => {
+  const { t } = useTranslation(translations)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -32,12 +44,12 @@ export const FileUploadStep: React.FC<FileUploadStepProps> = ({
   return (
     <Card data-testid={testId}>
       <CardHeader>
-        <CardTitle>Step 1: Upload CSV File</CardTitle>
+        <CardTitle>{t('step-title')}</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="gba:space-y-4">
           <div>
-            <Label htmlFor="file-upload">Select CSV File</Label>
+            <Label htmlFor="file-upload">{t('file-select-label')}</Label>
             <Input
               id="file-upload"
               type="file"
@@ -55,7 +67,7 @@ export const FileUploadStep: React.FC<FileUploadStepProps> = ({
               data-testid={`${testId}-file-info`}
             >
               <CheckCircleIcon className="gba:w-4 gba:h-4 gba:text-success" weight="fill" />
-              File loaded: {file.name} ({(file.size / 1024).toFixed(2)} KB)
+              {t('file-loaded-text', { fileName: file.name, fileSize: (file.size / 1024).toFixed(2) })}
             </div>
           )}
 
@@ -68,12 +80,12 @@ export const FileUploadStep: React.FC<FileUploadStepProps> = ({
             {isLoading ? (
               <>
                 <Spinner className="gba:w-4 gba:h-4 gba:mr-2" />
-                Analyzing with AI...
+                {t('analyzing-button')}
               </>
             ) : (
               <>
                 <SparkleIcon className="gba:w-4 gba:h-4 gba:mr-2" weight="fill" />
-                Analyze with AI Agent
+                {t('analyze-button')}
               </>
             )}
           </Button>

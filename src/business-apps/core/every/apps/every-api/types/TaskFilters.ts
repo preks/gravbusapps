@@ -47,6 +47,13 @@ export interface TaskFilters {
   }
 
   /**
+   * Backend-computed due date filter (for everybox-service).
+   * - dueSoon24h: due within the next 24 hours
+   * - overdue: due date is in the past
+   */
+  dueFilter?: 'any' | 'dueSoon24h' | 'overdue' | 'hasDueDate' | 'noDueDate'
+
+  /**
    * Filter by creation date range
    */
   createdAt?: {
@@ -87,6 +94,13 @@ export interface TaskFilters {
    * Include only tasks assigned to the user
    */
   assignedOnly?: boolean
+
+  /**
+   * Opaque cursor for cursor-based pagination.
+   * When provided, the backend resumes from a stored session instead of
+   * re-computing from scratch. Takes precedence over offset if both are present.
+   */
+  cursor?: string
 }
 
 /**
@@ -105,6 +119,7 @@ export interface ParsedTaskFilters
       | 'createdAt'
       | 'claimableOnly'
       | 'assignedOnly'
+      | 'cursor'
     >
   > {
   status?: TaskStatus
@@ -122,6 +137,7 @@ export interface ParsedTaskFilters
   }
   claimableOnly?: boolean
   assignedOnly?: boolean
+  cursor?: string
 }
 
 /**
@@ -132,5 +148,6 @@ export const DEFAULT_FILTERS: ParsedTaskFilters = {
   limit: 20,
   offset: 0,
   sortBy: 'createdAt',
-  sortOrder: 'desc'
+  sortOrder: 'desc',
+  dueFilter: 'any'
 }

@@ -726,7 +726,8 @@ const CalendarInner: React.FC<CalendarProps> = ({ accessToken, prefixDataTestId 
               'video',
               callParticipants,
               enrichedSelectedEvent.title,
-              enrichedSelectedEvent.id // Pass calendar meeting ID for AI transcription
+              enrichedSelectedEvent.id, // Pass calendar meeting ID for AI transcription
+              'meeting' // Mark as calendar meeting (not 1-on-1)
             )
           }
         }
@@ -1049,6 +1050,7 @@ const CalendarInner: React.FC<CalendarProps> = ({ accessToken, prefixDataTestId 
         participantCount={groupParticipants.length}
         userName={currentUserAsParticipant?.odName}
         userAvatarUrl={currentUserAsParticipant?.avatarUrl}
+        conversationType="meeting"
         onStart={preferences => {
           if (realtimeKitGroupCall.confirmStartCall) {
             realtimeKitGroupCall.confirmStartCall(preferences)

@@ -1,3 +1,5 @@
+import { FileInfo } from '@/common/types/FileTypes'
+
 export interface Activity {
   id: string
   title: string
@@ -55,7 +57,7 @@ export interface ActivityDocument {
   id: string
   name: string
   mimeType?: string
-  fileInfo?: string
+  fileInfo?: FileInfo
   description?: string
 }
 

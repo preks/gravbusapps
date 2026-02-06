@@ -12,7 +12,7 @@ export interface SaveCompanyValuePayload {
     version?: number
     title: string
     description: string
-    active: boolean
+    recordState: string
   }
 }
 
@@ -30,7 +30,7 @@ export interface CompanyValueBody {
   activeTo?: string
   title: string
   description: string
-  active: boolean
+  recordState: string
   notes?: string
 }
 

@@ -63,6 +63,15 @@ export const GET_JOB_PROFILE_DATA = (variables: QueryVariablesJobProfile): strin
     employmentTypeRef
     recordState
     version
+    jobProfileSkills {
+      id
+      skillId
+      requiredLevel
+      skill {
+        id
+        name
+      }
+    }
   }
   JobProfileAggregate(
     limit: ${limit},
@@ -94,6 +103,15 @@ export type JobProfileByIdData = {
     employmentTypeRef?: string
     recordState?: string
     version?: number
+    jobProfileSkills?: Array<{
+      id: string
+      skillId: string
+      requiredLevel?: number | null
+      skill?: {
+        id: string
+        name: string
+      }
+    }>
   }[]
   JobProfileAggregate: {
     aggregate: {
