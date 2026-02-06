@@ -523,27 +523,48 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     [graphqlClient]
   )
 
+  /**
+   * Build a known-users map from current sharedUsers state as a fallback for GraphQL failures.
+   */
+  const buildKnownUsersMap = useCallback(
+    (extraDetails?: Array<{ userId: string; displayName: string; avatar?: string; email?: string }>) => {
+      const map = new Map<string, { displayName: string; avatar?: string; email?: string }>()
+      sharedUsers.forEach(u => {
+        if (u.userName && !u.userName.startsWith('User ')) {
+          map.set(u.userId, { displayName: u.userName, avatar: u.userAvatar, email: u.userEmail })
+        }
+      })
+      extraDetails?.forEach(u => map.set(u.userId, u))
+      return map
+    },
+    [sharedUsers]
+  )
+
+  /**
+   * Fetch shares for an app, enrich with user details, and update state.
+   */
+  const fetchAndEnrichShares = useCallback(
+    async (
+      appId: string,
+      extraDetails?: Array<{ userId: string; displayName: string; avatar?: string; email?: string }>
+    ) => {
+      const shares = await getSharedUsers(appId)
+      const enrichedUsers = await enrichSharedUsers(shares, buildKnownUsersMap(extraDetails))
+      setSharedUsers(enrichedUsers)
+    },
+    [getSharedUsers, enrichSharedUsers, buildKnownUsersMap]
+  )
+
   const handleShareApp = useCallback(
     async (id: string) => {
       const app = apps.find(a => a.id === id)
       if (app) {
         setSelectedAppForShare(app)
-        const shares = await getSharedUsers(id)
-
-        // Use previously resolved shared users as a fallback for GraphQL failures
-        const knownUsersMap = new Map<string, { displayName: string; avatar?: string; email?: string }>()
-        sharedUsers.forEach(u => {
-          if (u.userName && !u.userName.startsWith('User ')) {
-            knownUsersMap.set(u.userId, { displayName: u.userName, avatar: u.userAvatar, email: u.userEmail })
-          }
-        })
-
-        const enrichedUsers = await enrichSharedUsers(shares, knownUsersMap)
-        setSharedUsers(enrichedUsers)
+        await fetchAndEnrichShares(id)
         setShareDialogOpen(true)
       }
     },
-    [apps, getSharedUsers, enrichSharedUsers, sharedUsers]
+    [apps, fetchAndEnrichShares]
   )
 
   const handleShare = useCallback(
@@ -564,18 +585,12 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
 
       const success = await shareApp(selectedAppForShare.id, userIds, actualPermission, currentUserName)
       if (success) {
-        // Build a known-users map from the details the dialog already has
-        const knownUsersMap = new Map<string, { displayName: string; avatar?: string; email?: string }>()
-        userDetails?.forEach(u => knownUsersMap.set(u.userId, u))
-
-        const shares = await getSharedUsers(selectedAppForShare.id)
-        const enrichedUsers = await enrichSharedUsers(shares, knownUsersMap)
-        setSharedUsers(enrichedUsers)
+        await fetchAndEnrichShares(selectedAppForShare.id, userDetails)
         await refreshApps()
       }
       return success
     },
-    [selectedAppForShare, shareApp, getSharedUsers, enrichSharedUsers, refreshApps, userInfo]
+    [selectedAppForShare, shareApp, fetchAndEnrichShares, refreshApps, userInfo]
   )
 
   const handleUnshare = useCallback(
@@ -583,40 +598,19 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
       if (!selectedAppForShare) return false
       const success = await revokeAccess(shareId)
       if (success) {
-        // Use currently known user data as fallback for remaining users
-        const knownUsersMap = new Map<string, { displayName: string; avatar?: string; email?: string }>()
-        sharedUsers.forEach(u => {
-          if (u.userName && !u.userName.startsWith('User ')) {
-            knownUsersMap.set(u.userId, { displayName: u.userName, avatar: u.userAvatar, email: u.userEmail })
-          }
-        })
-
-        const shares = await getSharedUsers(selectedAppForShare.id)
-        const enrichedUsers = await enrichSharedUsers(shares, knownUsersMap)
-        setSharedUsers(enrichedUsers)
+        await fetchAndEnrichShares(selectedAppForShare.id)
         await refreshApps()
       }
       return success
     },
-    [selectedAppForShare, revokeAccess, getSharedUsers, enrichSharedUsers, sharedUsers, refreshApps]
+    [selectedAppForShare, revokeAccess, fetchAndEnrichShares, refreshApps]
   )
 
   const handleRefreshShares = useCallback(async () => {
     if (!selectedAppForShare) return
-
-    // Use currently known user data as fallback for GraphQL failures
-    const knownUsersMap = new Map<string, { displayName: string; avatar?: string; email?: string }>()
-    sharedUsers.forEach(u => {
-      if (u.userName && !u.userName.startsWith('User ')) {
-        knownUsersMap.set(u.userId, { displayName: u.userName, avatar: u.userAvatar, email: u.userEmail })
-      }
-    })
-
-    const shares = await getSharedUsers(selectedAppForShare.id)
-    const enrichedUsers = await enrichSharedUsers(shares, knownUsersMap)
-    setSharedUsers(enrichedUsers)
+    await fetchAndEnrichShares(selectedAppForShare.id)
     await refreshApps()
-  }, [selectedAppForShare, getSharedUsers, enrichSharedUsers, sharedUsers, refreshApps])
+  }, [selectedAppForShare, fetchAndEnrichShares, refreshApps])
 
   // const _handlePromoteApp = useCallback(
   //   async (id: string) => {
