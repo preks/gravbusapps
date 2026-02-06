@@ -501,16 +501,15 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
 
     toast.success(t('task-dialog-completed-success'))
 
-    // Store communication for AI learning (fire and forget)
-    if (showComment && comment?.trim()) {
-      saveCommunication({
-        messageType: 'completion',
-        content: comment.trim(),
-        recipientId: task.sourceMetadata?.creatorUserId,
-        aiAssisted: aiUsedForComment,
-        aiAction: aiUsedForComment ? lastAction || undefined : undefined
-      })
-    }
+    // Always store task completion for AI learning (fire and forget)
+    // Records even without a comment so insights track all task activity
+    saveCommunication({
+      messageType: 'completion',
+      content: showComment && comment?.trim() ? comment.trim() : `Task completed: ${task.title || task.id}`,
+      recipientId: task.sourceMetadata?.creatorUserId,
+      aiAssisted: aiUsedForComment,
+      aiAction: aiUsedForComment ? lastAction || undefined : undefined
+    })
 
     // Call onTaskCompleted for instant UI feedback (removes from local state)
     // Don't call onTaskUpdated - it triggers a slow full refetch that's not needed
@@ -544,17 +543,16 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
 
     toast.success(t('task-details-task-rejected'))
 
-    // Store communication for AI learning (fire and forget)
+    // Always store task rejection for AI learning (fire and forget)
+    // Records even without a comment so insights track all task activity
     const rejectionContent = comment || data?.comment || ''
-    if (rejectionContent.trim()) {
-      saveCommunication({
-        messageType: 'rejection',
-        content: rejectionContent.trim(),
-        recipientId: task.sourceMetadata?.creatorUserId,
-        aiAssisted: aiUsedForComment,
-        aiAction: aiUsedForComment ? lastAction || undefined : undefined
-      })
-    }
+    saveCommunication({
+      messageType: 'rejection',
+      content: rejectionContent.trim() || `Task rejected: ${task.title || task.id}`,
+      recipientId: task.sourceMetadata?.creatorUserId,
+      aiAssisted: aiUsedForComment,
+      aiAction: aiUsedForComment ? lastAction || undefined : undefined
+    })
 
     // Call onTaskCompleted for instant UI feedback (removes from local state)
     // Don't call onTaskUpdated - it triggers a slow full refetch that's not needed
