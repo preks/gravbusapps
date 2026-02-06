@@ -130,7 +130,7 @@ export function useSpreadsheetColumns({
     }
 
     const newColumn: SpreadsheetColumn = {
-      id: `col_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+      id: crypto.randomUUID(),
       name: columnName,
       label: `Column ${columnNumber}`,
       type: 'text',
@@ -215,7 +215,7 @@ export function useSpreadsheetColumns({
       }
 
       const newColumn: SpreadsheetColumn = {
-        id: `col_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+        id: crypto.randomUUID(),
         name: columnName,
         label: columnLabel,
         type: 'text',
@@ -233,7 +233,7 @@ export function useSpreadsheetColumns({
         const gapColName = `column_${gapLetter.toLowerCase()}`
         if (!currentColumns.find(c => c.name === gapColName)) {
           columnsToAdd.push({
-            id: `col_${Date.now()}_${Math.random().toString(36).substring(2, 9)}_${i}`,
+            id: crypto.randomUUID(),
             name: gapColName,
             label: `Column ${gapLetter}`,
             type: 'text',
@@ -448,7 +448,7 @@ export function useSpreadsheetColumns({
         }
 
         newColumns.push({
-          id: `col_${Date.now()}_${Math.random().toString(36).substring(2, 9)}_${i}`,
+          id: crypto.randomUUID(),
           name: colName,
           label: `Column ${num}`,
           type: 'text',
