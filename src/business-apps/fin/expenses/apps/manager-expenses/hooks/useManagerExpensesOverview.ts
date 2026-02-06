@@ -204,6 +204,15 @@ function buildStatusWhere(statuses?: string[]): GqlBoolExp {
   return { status: { _neq: 'CREATED' } } as unknown as GqlBoolExp
 }
 
+function buildPlanStatusWhere(statuses?: string[]): GqlBoolExp {
+  if (Array.isArray(statuses) && statuses.length > 0) {
+    return { status: { _in: statuses } } as unknown as GqlBoolExp
+  }
+  // Plans tab "submitted" default: exclude CREATED/REJECTED/DISCARDED
+  // (aligns list with stats-card aggregates in ManagerExpensesOverview query)
+  return { status: { _nin: ['CREATED', 'REJECTED', 'DISCARDED'] } } as unknown as GqlBoolExp
+}
+
 function buildPlanDateWhereClause(params: UseManagerExpensesOverviewParams): GqlBoolExp {
   const conditions = [
     buildPlanEffectiveDateFilter(params.plansEffectiveDateRange),
@@ -276,7 +285,7 @@ function buildOverviewVariables(params: UseManagerExpensesOverviewParams): Recor
     planDateWhere: buildPlanDateWhereClause(params),
     reqDateWhere: buildRequestDateWhereClause(params),
     reqStatusWhere: buildStatusWhere(params.requestsStatus),
-    planStatusWhere: buildStatusWhere(params.plansStatus),
+    planStatusWhere: buildPlanStatusWhere(params.plansStatus),
     payStatusWhere: buildStatusWhere(params.paymentsStatus)
   }
 }

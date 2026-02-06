@@ -28,6 +28,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
     statusFilter,
     setStatusFilter,
     primaryCurrency, // Use primaryCurrency instead of currencyFilter
+    setCurrencyFilter,
     filterGroups,
     handleDataFilterChange,
     filterLabelMap,
@@ -88,37 +89,59 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
   }, [])
 
   // Convert date ranges to ISO string format for GraphQL
-  const plansEffectiveDateRange = useMemo(
-    () => convertDateRangeToGraphQL(effectiveDateRange),
-    [effectiveDateRange, convertDateRangeToGraphQL]
-  )
-  const plansStartDateRange = useMemo(
-    () => convertDateRangeToGraphQL(startDateRange),
-    [startDateRange, convertDateRangeToGraphQL]
-  )
-  const plansEndDateRange = useMemo(
-    () => convertDateRangeToGraphQL(endDateRange),
-    [endDateRange, convertDateRangeToGraphQL]
-  )
-  const plansPlanDateRange = useMemo(
-    () => convertDateRangeToGraphQL(planDateRange),
-    [planDateRange, convertDateRangeToGraphQL]
+  // convertDateRangeToGraphQL is stable (empty deps), so we don't need it in dependencies
+  const plansEffectiveDateRange = useMemo(() => convertDateRangeToGraphQL(effectiveDateRange), [effectiveDateRange])
+  const plansStartDateRange = useMemo(() => convertDateRangeToGraphQL(startDateRange), [startDateRange])
+  const plansEndDateRange = useMemo(() => convertDateRangeToGraphQL(endDateRange), [endDateRange])
+  const plansPlanDateRange = useMemo(() => convertDateRangeToGraphQL(planDateRange), [planDateRange])
+
+  // Stable nested objects to prevent unnecessary re-renders
+  const requestsParams = useMemo(() => ({ limit: 0, offset: 0 }), [])
+  const paymentsParams = useMemo(() => ({ limit: 0, offset: 0 }), [])
+
+  // Memoize plans params to prevent object recreation
+  const plansParams = useMemo(
+    () => ({
+      limit: pageSize,
+      offset: (currentPage - 1) * pageSize,
+      orderBy: planOrderBy
+    }),
+    [pageSize, currentPage, planOrderBy]
   )
 
-  const overview = useManagerExpensesOverview(props, {
-    managerId,
-    currencyRef,
-    searchTerm,
-    plans: { limit: pageSize, offset: (currentPage - 1) * pageSize, orderBy: planOrderBy },
-    plansStatus: statusFilter,
-    requests: { limit: 0, offset: 0 },
-    payments: { limit: 0, offset: 0 },
-    plansEffectiveDateRange,
-    plansStartDateRange,
-    plansEndDateRange,
-    plansPlanDateRange,
-    plansTypeFilter: planTypeFilter
-  })
+  // Memoize overview params object to prevent unnecessary re-renders and duplicate queries
+  const overviewParams = useMemo(
+    () => ({
+      managerId,
+      currencyRef,
+      searchTerm,
+      plans: plansParams,
+      plansStatus: statusFilter,
+      requests: requestsParams,
+      payments: paymentsParams,
+      plansEffectiveDateRange,
+      plansStartDateRange,
+      plansEndDateRange,
+      plansPlanDateRange,
+      plansTypeFilter: planTypeFilter
+    }),
+    [
+      managerId,
+      currencyRef,
+      searchTerm,
+      plansParams,
+      statusFilter,
+      requestsParams,
+      paymentsParams,
+      plansEffectiveDateRange,
+      plansStartDateRange,
+      plansEndDateRange,
+      plansPlanDateRange,
+      planTypeFilter
+    ]
+  )
+
+  const overview = useManagerExpensesOverview(props, overviewParams)
 
   // Use ref to keep the last valid stats to prevent flickering/height changes
   const lastValidStatsRef = useRef<any>(null)
@@ -142,7 +165,12 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
 
     // Return new stats if available, otherwise return last valid stats to prevent flickering
     return newStats || lastValidStatsRef.current
-  }, [overview.data])
+  }, [
+    overview.data?.totalPlansAll,
+    overview.data?.planTotalAmount,
+    overview.data?.pendingPlansAll,
+    overview.data?.planPendingAmount
+  ])
 
   // Only show loading on initial load when there's no cached data
   statsLoading = overview.isLoading && !overview.data
@@ -181,10 +209,9 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
   const plansError = overview.error ? new Error(overview.error) : null
   const totalCount = overview.data?.expensePlansTotal ?? 0
 
-  // Reset pagination when filters or search change so filtered results are visible from page 1.
-  const prevFilterSignatureRef = useRef<string | null>(null)
-  useEffect(() => {
-    const signature = JSON.stringify({
+  // Memoize filter signature to prevent unnecessary JSON.stringify calls and object recreation
+  const filterSignature = useMemo(
+    () => ({
       searchTerm,
       statusFilter,
       primaryCurrency,
@@ -193,22 +220,29 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
       startDateRange,
       endDateRange,
       planTypeFilter
-    })
+    }),
+    [
+      searchTerm,
+      statusFilter,
+      primaryCurrency,
+      effectiveDateRange,
+      planDateRange,
+      startDateRange,
+      endDateRange,
+      planTypeFilter
+    ]
+  )
+
+  // Reset pagination when filters or search change so filtered results are visible from page 1.
+  const prevFilterSignatureRef = useRef<string | null>(null)
+  useEffect(() => {
+    const signature = JSON.stringify(filterSignature)
     const prev = prevFilterSignatureRef.current
     if (prev !== null && prev !== signature) {
       setCurrentPage(1)
     }
     prevFilterSignatureRef.current = signature
-  }, [
-    searchTerm,
-    statusFilter,
-    primaryCurrency,
-    effectiveDateRange,
-    planDateRange,
-    startDateRange,
-    endDateRange,
-    planTypeFilter
-  ])
+  }, [filterSignature])
 
   const updateSorting = useCallback((field: any) => {
     setSorting(prev => {
@@ -229,6 +263,15 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
   const handleViewDetails = useCallback((plan: ExpensePlan) => setSelectedPlan(plan), [])
   const handleCloseDetails = useCallback(() => setSelectedPlan(null), [])
   const handleSearchChange = useCallback((search: string) => setSearchTerm(search), [setSearchTerm])
+  const handleStatsFilterChange = useCallback(
+    (filter: any) => {
+      // When interacting with the clickable stats cards, always clear currency filtering
+      // so card-based filtering shows results across all currencies.
+      setCurrencyFilter(null)
+      setStatusFilter(filter || [])
+    },
+    [setCurrencyFilter, setStatusFilter]
+  )
 
   // No need for separate status filter handler as we use handleDataFilterChange
 
@@ -241,6 +284,51 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
     setStatusFilter([])
   }, [setSearchTerm, setStatusFilter])
 
+  // Stabilize DataContainer setFilter callback to prevent unnecessary re-renders
+  const handleFilterChange = useCallback(
+    (newFilters: string[]) => {
+      // Constants for filter type identification
+      const DATE_RANGE_FILTERS = new Set(['effectiveDateRange', 'planDateRange', 'startDateRange', 'endDateRange'])
+      const isCurrencyFilter = (f: string) => f.startsWith('currency:')
+      const isDateRangeFilter = (f: string) => DATE_RANGE_FILTERS.has(f)
+      const isStatusFilter = (f: string) => !isCurrencyFilter(f) && !isDateRangeFilter(f)
+
+      // Get current filters directly from getAllSelectedFilters (includes date ranges)
+      const currentFilters = getAllSelectedFilters
+
+      // Separate incoming filters by type
+      const currencyFilters = newFilters.filter(isCurrencyFilter)
+      const dateRangeFilters = newFilters.filter(isDateRangeFilter)
+      const statusFiltersIncoming = newFilters.filter(isStatusFilter)
+
+      // Handle date range filter removal - check what date ranges are currently active
+      // and remove any that are not in the new filters list
+      const currentDateRanges = currentFilters.filter(isDateRangeFilter)
+      const dateRangesToRemove = currentDateRanges.filter(f => !dateRangeFilters.includes(f))
+      dateRangesToRemove.forEach(f => removeFilter(f))
+
+      // Handle status filter changes
+      const currentStatusFilters = statusFilter.map(status => status as unknown as string)
+      const filtersToRemove = currentStatusFilters.filter(f => !statusFiltersIncoming.includes(f))
+      const filtersToAdd = statusFiltersIncoming.filter(f => !currentStatusFilters.includes(f))
+
+      filtersToRemove.forEach(filter => handleDataFilterChange(filter, false))
+      filtersToAdd.forEach(filter => handleDataFilterChange(filter, true))
+
+      // Handle currency filter changes (only if explicitly changed)
+      if (currencyFilters.length > 0 && currencyFilters[0] !== `currency:${primaryCurrency}`) {
+        const newCurrencyCode = currencyFilters[0].replace('currency:', '')
+        handleDataFilterChange(`currency:${newCurrencyCode}`, true)
+      }
+
+      // If currency chip was removed, clear currency selection (show all currencies)
+      if (currencyFilters.length === 0 && primaryCurrency) {
+        handleDataFilterChange(`currency:${primaryCurrency}`, false)
+      }
+    },
+    [getAllSelectedFilters, primaryCurrency, removeFilter, statusFilter, handleDataFilterChange]
+  )
+
   return (
     <div className="gba:h-full gba:flex gba:flex-col" data-testid="expense-plans-tab-container">
       {/* Statistics Section */}
@@ -250,7 +338,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
           statsLoading={statsLoading}
           statsError={statsError}
           activeFilter={statusFilter}
-          onFilterChange={filter => setStatusFilter(filter || [])}
+          onFilterChange={handleStatsFilterChange}
           currencyFilter={primaryCurrency}
           fetchPlanStatistics={() => {}}
         />
@@ -266,31 +354,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
           // even when there are no results (so users can see/clear them).
           filter: buildDeduplicatedFilters(getAllSelectedFilters, primaryCurrency),
           setSearch: handleSearchChange,
-          setFilter: newFilters => {
-            // Handle removing filters via pills - extracted to reduce complexity
-            const allCurrentFilters = buildDeduplicatedFilters(getAllSelectedFilters, primaryCurrency)
-            const removedFilters = allCurrentFilters.filter(f => !newFilters.includes(f))
-            removedFilters.forEach(filterId => removeFilter(filterId))
-
-            // Separate filters by type
-            const currencyFilters = newFilters.filter(f => f.startsWith('currency:'))
-            const statusFiltersIncoming = newFilters.filter(f => !f.startsWith('currency:'))
-
-            // Apply status filter changes
-            const currentStatusFilters = statusFilter.map(status => status as unknown as string)
-            const incomingFilters = statusFiltersIncoming.map(status => status as unknown as string)
-            const filtersToRemove = currentStatusFilters.filter(f => !incomingFilters.includes(f))
-            const filtersToAdd = incomingFilters.filter(f => !currentStatusFilters.includes(f))
-
-            filtersToRemove.forEach(filter => handleDataFilterChange(filter, false))
-            filtersToAdd.forEach(filter => handleDataFilterChange(filter, true))
-
-            // Handle currency filter changes (only if explicitly changed)
-            if (currencyFilters.length > 0 && currencyFilters[0] !== `currency:${primaryCurrency}`) {
-              const newCurrencyCode = currencyFilters[0].replace('currency:', '')
-              handleDataFilterChange(`currency:${newCurrencyCode}`, true)
-            }
-          },
+          setFilter: handleFilterChange,
 
           filterLabelMap: {
             ...filterLabelMap,
