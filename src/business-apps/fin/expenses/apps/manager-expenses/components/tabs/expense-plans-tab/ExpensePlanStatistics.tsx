@@ -53,8 +53,8 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
           handleCardClick(ExpenseStatus.PENDING)
           break
         case 'total-plans': {
-          // "Submitted" plans: exclude DISCARDED, CREATED, and REJECTED
-          const allStatusesExceptDiscarded = [
+          // "Submitted" plans (CREATED/DISCARDED are hidden from Plans tab)
+          const submittedStatuses = [
             ExpenseStatus.PREPARED,
             ExpenseStatus.ASSIGNED,
             ExpenseStatus.PENDING,
@@ -65,17 +65,13 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
             ExpenseStatus.CLOSED,
             ExpenseStatus.TRANSFERRED
           ]
-          // Check if this filter is already active, if so clear it
           const isTotalPlansFilterActive =
-            activeFilter?.length === 9 &&
-            allStatusesExceptDiscarded.every(status => activeFilter.includes(status)) &&
-            !activeFilter.includes(ExpenseStatus.DISCARDED) &&
-            !activeFilter.includes(ExpenseStatus.CREATED)
+            activeFilter?.length === 9 && submittedStatuses.every(status => activeFilter.includes(status))
 
           if (isTotalPlansFilterActive) {
             onFilterChange(null)
           } else {
-            onFilterChange(allStatusesExceptDiscarded)
+            onFilterChange(submittedStatuses)
           }
           break
         }
@@ -137,13 +133,10 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
             ExpenseStatus.PAID,
             ExpenseStatus.CLOSED,
             ExpenseStatus.TRANSFERRED
-          ].every(status => activeFilter?.includes(status)) &&
-          !activeFilter?.includes(ExpenseStatus.DISCARDED) &&
-          !activeFilter?.includes(ExpenseStatus.CREATED)
+          ].every(status => activeFilter?.includes(status))
         ),
         onClick: () => {
-          // "Submitted" plans: exclude DISCARDED, CREATED, and REJECTED
-          const allStatusesExceptDiscarded = [
+          const submittedStatuses = [
             ExpenseStatus.PREPARED,
             ExpenseStatus.ASSIGNED,
             ExpenseStatus.PENDING,
@@ -154,17 +147,12 @@ const ExpensePlanStatisticsDisplay: React.FC<ExpensePlanStatisticsProps> = ({
             ExpenseStatus.CLOSED,
             ExpenseStatus.TRANSFERRED
           ]
-          // Check if this filter is already active, if so clear it
           const isTotalPlansFilterActive =
-            activeFilter?.length === 9 &&
-            allStatusesExceptDiscarded.every(status => activeFilter?.includes(status)) &&
-            !activeFilter?.includes(ExpenseStatus.DISCARDED) &&
-            !activeFilter?.includes(ExpenseStatus.CREATED)
-
+            activeFilter?.length === 9 && submittedStatuses.every(status => activeFilter?.includes(status))
           if (isTotalPlansFilterActive) {
             onFilterChange(null)
           } else {
-            onFilterChange(allStatusesExceptDiscarded)
+            onFilterChange(submittedStatuses)
           }
         }
       },

@@ -11,6 +11,7 @@ import weekday from 'dayjs/plugin/weekday'
 import localeData from 'dayjs/plugin/localeData'
 import { createDateRangeFilterComponent } from './dateRangeFilterComponent'
 import { availableFilterStatuses } from './availableFilterStatuses'
+import { PLAN_TAB_HIDDEN_STATUSES } from '../constants/expenseStatus'
 
 // Extend dayjs with required plugins
 dayjs.extend(weekday)
@@ -237,12 +238,18 @@ export const useExpensePlanFilters = ({
     }
   }, [])
 
+  // Plans tab: filter UI shows only statuses not in PLAN_TAB_HIDDEN_STATUSES (single source of truth).
+  const planVisibleStatuses = useMemo(
+    () => availableFilterStatuses.filter(s => !PLAN_TAB_HIDDEN_STATUSES.includes(s)),
+    []
+  )
+
   // Memoize filterLabelMap with stable dependencies
   const filterLabelMap = useMemo<Record<string, string>>(() => {
     const map: Record<string, string> = {}
 
-    // Add status filter labels with brackets
-    for (const status of availableFilterStatuses) {
+    // Add status filter labels (only statuses visible in Plans tab)
+    for (const status of planVisibleStatuses) {
       map[status] = getStatusDisplayName(status)
     }
 
@@ -254,7 +261,7 @@ export const useExpensePlanFilters = ({
     buildDateRangeLabels(map)
 
     return map
-  }, [buildDateRangeLabels, getStatusDisplayName])
+  }, [buildDateRangeLabels, getStatusDisplayName, planVisibleStatuses])
 
   // Helper to check if date range is active
   const isDateRangeActive = useCallback((range: [Date | null, Date | null] | null): boolean => {
@@ -336,8 +343,8 @@ export const useExpensePlanFilters = ({
 
   // Create filter groups for the DataFilter component
   const filterGroups = useMemo<DataFilterGroup[]>(() => {
-    // Status filters
-    const statusItems: DataFilter[] = availableFilterStatuses.map(status => ({
+    // Status filters (Plans tab: CREATED and DISCARDED are hidden)
+    const statusItems: DataFilter[] = planVisibleStatuses.map(status => ({
       id: status,
       label: filterLabelMap[status],
       selected: statusFilter.includes(status)
@@ -417,7 +424,7 @@ export const useExpensePlanFilters = ({
       }
     ]
   }, [
-    availableFilterStatuses,
+    planVisibleStatuses,
     filterLabelMap,
     statusFilter,
     planTypeFilter,

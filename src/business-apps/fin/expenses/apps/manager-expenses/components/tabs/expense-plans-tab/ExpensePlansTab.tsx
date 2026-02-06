@@ -11,6 +11,7 @@ import ExpensePlansTable from './ExpensePlansTable'
 import ExpensePlanDetails from './ExpensePlanDetails'
 import { useManagerExpensesOverview } from '../../../hooks/useManagerExpensesOverview'
 import { standardizeCurrencyRef, extractCurrencyCode } from '../../../utils/currencyUtils'
+import { PLAN_TAB_HIDDEN_STATUSES } from '../../../constants/expenseStatus'
 import dayjs from 'dayjs'
 
 interface ExpensePlansTabProps extends BusinessAppContextProps {
@@ -117,6 +118,7 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
       searchTerm,
       plans: plansParams,
       plansStatus: statusFilter,
+      plansStatusExclude: PLAN_TAB_HIDDEN_STATUSES,
       requests: requestsParams,
       payments: paymentsParams,
       plansEffectiveDateRange,
@@ -208,6 +210,30 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
   const plansLoading = overview.isLoading && !overview.data
   const plansError = overview.error ? new Error(overview.error) : null
   const totalCount = overview.data?.expensePlansTotal ?? 0
+
+  const listTitle = useMemo(
+    () => (
+      <div className="gba:flex gba:items-center gba:gap-4">
+        <div className="gba:flex gba:items-center gba:gap-2">
+          <span>
+            {getTranslationFromI18nKeyAndLabel('lowcoder:backoffice_expense_landing_page.plan_info_pl', 'Plans')}
+          </span>
+          <span className="gba:text-muted-foreground">({totalCount})</span>
+        </div>
+      </div>
+    ),
+    [totalCount]
+  )
+
+  const controllerFilterLabelMap = useMemo(
+    () => ({
+      ...filterLabelMap,
+      ...(primaryCurrency
+        ? { [`currency:${primaryCurrency}`]: primaryCurrency.split(':').pop()?.toUpperCase() || primaryCurrency }
+        : {})
+    }),
+    [filterLabelMap, primaryCurrency]
+  )
 
   // Memoize filter signature to prevent unnecessary JSON.stringify calls and object recreation
   const filterSignature = useMemo(
@@ -355,23 +381,8 @@ const ExpensePlansTab: React.FC<ExpensePlansTabProps> = props => {
           filter: buildDeduplicatedFilters(getAllSelectedFilters, primaryCurrency),
           setSearch: handleSearchChange,
           setFilter: handleFilterChange,
-
-          filterLabelMap: {
-            ...filterLabelMap,
-            ...(primaryCurrency
-              ? { [`currency:${primaryCurrency}`]: primaryCurrency.split(':').pop()?.toUpperCase() || primaryCurrency }
-              : {})
-          },
-          listTitle: (
-            <div className="gba:flex gba:items-center gba:gap-4">
-              <div className="gba:flex gba:items-center gba:gap-2">
-                <span>
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:backoffice_expense_landing_page.plan_info_pl', 'Plans')}
-                </span>
-                <span className="gba:text-muted-foreground">({totalCount})</span>
-              </div>
-            </div>
-          ),
+          filterLabelMap: controllerFilterLabelMap,
+          listTitle,
           debounceDelay: 300
         }}
         dataFilterProps={{

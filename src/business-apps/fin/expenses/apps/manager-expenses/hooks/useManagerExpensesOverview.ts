@@ -25,6 +25,8 @@ export interface UseManagerExpensesOverviewParams {
   // Optional status filters
   requestsStatus?: string[]
   plansStatus?: string[]
+  /** Optional: statuses to always exclude from plans list (caller-owned; e.g. Plans tab passes PLAN_TAB_HIDDEN_STATUSES). */
+  plansStatusExclude?: readonly string[]
   paymentsStatus?: string[]
   // Date range filters for plans
   plansEffectiveDateRange?: { from?: string | null; to?: string | null } | null
@@ -204,13 +206,15 @@ function buildStatusWhere(statuses?: string[]): GqlBoolExp {
   return { status: { _neq: 'CREATED' } } as unknown as GqlBoolExp
 }
 
-function buildPlanStatusWhere(statuses?: string[]): GqlBoolExp {
-  if (Array.isArray(statuses) && statuses.length > 0) {
-    return { status: { _in: statuses } } as unknown as GqlBoolExp
+/** Build plan status filter. When exclude is provided (e.g. PLAN_TAB_HIDDEN_STATUSES), uses it; otherwise excludes only CREATED. */
+function buildPlanStatusWhere(statuses?: string[], exclude?: readonly string[]): GqlBoolExp {
+  const excluded: readonly string[] = Array.isArray(exclude) && exclude.length > 0 ? exclude : ['CREATED']
+  const selected = Array.isArray(statuses) ? statuses.filter(Boolean) : []
+  const allowed = selected.filter(s => !excluded.includes(s))
+  if (allowed.length > 0) {
+    return { status: { _in: allowed } } as unknown as GqlBoolExp
   }
-  // Plans tab "submitted" default: exclude CREATED/REJECTED/DISCARDED
-  // (aligns list with stats-card aggregates in ManagerExpensesOverview query)
-  return { status: { _nin: ['CREATED', 'REJECTED', 'DISCARDED'] } } as unknown as GqlBoolExp
+  return { status: { _nin: excluded } } as unknown as GqlBoolExp
 }
 
 function buildPlanDateWhereClause(params: UseManagerExpensesOverviewParams): GqlBoolExp {
@@ -285,7 +289,7 @@ function buildOverviewVariables(params: UseManagerExpensesOverviewParams): Recor
     planDateWhere: buildPlanDateWhereClause(params),
     reqDateWhere: buildRequestDateWhereClause(params),
     reqStatusWhere: buildStatusWhere(params.requestsStatus),
-    planStatusWhere: buildPlanStatusWhere(params.plansStatus),
+    planStatusWhere: buildPlanStatusWhere(params.plansStatus, params.plansStatusExclude),
     payStatusWhere: buildStatusWhere(params.paymentsStatus)
   }
 }
@@ -464,6 +468,7 @@ export const useManagerExpensesOverview = (
     // Serialize status arrays for dependency comparison
     JSON.stringify(params.requestsStatus || []),
     JSON.stringify(params.plansStatus || []),
+    JSON.stringify(params.plansStatusExclude || []),
     JSON.stringify(params.paymentsStatus || []),
     // Date range filters
     params.plansEffectiveDateRange?.from,
