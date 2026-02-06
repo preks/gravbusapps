@@ -36,7 +36,8 @@ import {
   Icon as PhosphorIcon
 } from '@phosphor-icons/react'
 import { Task, TaskReference, TaskDocument } from './types'
-import { buildFileUrl, getFileIcon } from '@/common/utils/fileUtils'
+import { handleDocumentClick as handleDocumentClickUtil } from '@/common/utils/documentClickHandler'
+import { getDocumentIcon } from '@/common/utils/documentIconUtils'
 import {
   getTaskStatusBadgeVariant,
   getTaskPriorityBadgeVariant,
@@ -106,7 +107,7 @@ export const TaskDetailSheet: React.FC<TaskDetailSheetProps> = ({
   flowContext
 }) => {
   return (
-    <Sheet open={open} onOpenChange={onOpenChange} title="Task Details">
+    <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="gba:!w-[500px] gba:sm:!w-[500px] gba:!max-w-[90vw] gba:p-0 gba:flex gba:flex-col">
         <SheetHeader className="gba:px-6 gba:py-6 gba:border-b gba:border-border gba:shrink-0">
           <SheetTitle className="gba:text-xl gba:font-semibold gba:text-left gba:mb-3">
@@ -334,19 +335,12 @@ const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
     return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
   }
 
-  const handleDocumentClick = (document: TaskDocument, e: React.MouseEvent) => {
+  // Use accessToken from props or fallback to businessAppContext
+  const effectiveAccessToken = accessToken || businessAppContext?.accessToken
+
+  const handleDocumentClick = async (document: TaskDocument, e: React.MouseEvent) => {
     e.stopPropagation()
-
-    if (!document.fileInfo) {
-      return
-    }
-
-    try {
-      const fileUrl = buildFileUrl(document.fileInfo)
-      window.open(fileUrl, '_blank')
-    } catch {
-      // Silent fail - fileInfo structure invalid
-    }
+    await handleDocumentClickUtil(document, effectiveAccessToken, { showToast: true })
   }
 
   const [isDocuSignOpen, setIsDocuSignOpen] = React.useState(false)
@@ -601,7 +595,6 @@ const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
             <CardContent>
               <div className="gba:space-y-2">
                 {documentsWithStatus.map(doc => {
-                  const FileIcon = getFileIcon(doc.mimeType)
                   const envelopeId = doc.envelopeId || (doc.fileInfo as any)?.docusignEnvelopeId
                   const displayStatus = envelopeId
                     ? statusMap[envelopeId]?.status || doc.envelopeStatus || 'unknown'
@@ -615,7 +608,7 @@ const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
                       data-testid={`${dataTestId || DATA_TEST_ID_PREFIX}-document-${doc.id}`}
                     >
                       <div className="gba:flex gba:items-center gba:justify-center gba:w-8 gba:h-8 gba:bg-background gba:rounded gba:shrink-0">
-                        <FileIcon size={14} weight="bold" />
+                        {getDocumentIcon({ name: doc.name, mimeType: doc.mimeType, size: 14 })}
                       </div>
                       <div className="gba:flex-1 gba:min-w-0">
                         <div className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate">{doc.name}</div>

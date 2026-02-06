@@ -1480,24 +1480,6 @@ export const FlowCreator: React.FC<FlowCreatorProps> = ({
     setPreviewTemplate(template)
   }
 
-  // Handle AI-generated flow template
-  const handleAIFlowGenerated = (template: FlowTemplate) => {
-    console.log('AI generated template received:', template)
-
-    // Remove the ID from AI-generated template to ensure it's treated as a NEW template (create mode)
-    // The FlowDesigner uses the presence of template.id to determine create vs update mode
-    const newTemplate: FlowTemplate = {
-      ...template,
-      id: undefined // Force create mode by removing any existing ID
-    }
-
-    // Store the template for the designer to use
-    setSelectedTemplate(newTemplate)
-
-    // Open the new FlowDesigner instead of the legacy wizard
-    setShowDesigner(true)
-  }
-
   // Pattern expansion handler
   const handlePatternExpand = (patternId: string) => {
     setExpandedPattern(expandedPattern === patternId ? null : patternId)
@@ -1750,11 +1732,7 @@ export const FlowCreator: React.FC<FlowCreatorProps> = ({
                   {/* AI Section - Prominent */}
                   <div className="gba:mb-16">
                     <div className="gba:max-w-3xl gba:mx-auto">
-                      <AIFlowGenerator
-                        onFlowGenerated={handleAIFlowGenerated}
-                        accessToken={accessToken}
-                        data-testid={`${testId}-ai-generator`}
-                      />
+                      <AIFlowGenerator data-testid={`${testId}-ai-generator`} />
                     </div>
                   </div>
 
