@@ -294,19 +294,6 @@ const ManagerExpenses: React.FC<ManagerExpensesProps> = props => {
     }
   }, [activeTab, tabProps, handleNavigateToApprovals, handleNavigateToReports, handleNavigateToAnalytics])
 
-  // Render based on current view
-  if (currentView === 'approvals') {
-    return <ApprovalsPage {...props} onNavigateBack={handleNavigateBackToDashboard} />
-  }
-
-  if (currentView === 'reports') {
-    return <ExpenseReportsPage {...props} onNavigateBack={handleNavigateBackToDashboard} />
-  }
-
-  if (currentView === 'analytics') {
-    return <TeamSpendingAnalyticsPage {...props} onNavigateBack={handleNavigateBackToDashboard} />
-  }
-
   const headerSubViewItems = useMemo(
     () => viewOptions.map(option => ({ value: option.key, label: option.label })),
     [viewOptions]
@@ -320,6 +307,19 @@ const ManagerExpenses: React.FC<ManagerExpensesProps> = props => {
     }),
     [activeTab, handleTabChange, headerSubViewItems]
   )
+
+  // Render based on current view
+  if (currentView === 'approvals') {
+    return <ApprovalsPage {...props} onNavigateBack={handleNavigateBackToDashboard} />
+  }
+
+  if (currentView === 'reports') {
+    return <ExpenseReportsPage {...props} onNavigateBack={handleNavigateBackToDashboard} />
+  }
+
+  if (currentView === 'analytics') {
+    return <TeamSpendingAnalyticsPage {...props} onNavigateBack={handleNavigateBackToDashboard} />
+  }
 
   // Default tabs view
   return (
