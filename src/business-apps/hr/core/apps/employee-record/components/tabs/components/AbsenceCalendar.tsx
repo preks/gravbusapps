@@ -573,7 +573,6 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
                 }
 
                 const commonProps = {
-                  key: dayKey,
                   'data-testid': `calendar-day-${currentDay.date()}`,
                   onContextMenu: (e: React.MouseEvent) => {
                     // Always prevent browser context menu on calendar days
@@ -591,6 +590,7 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
                   return (
                     <button
                       type="button"
+                      key={dayKey}
                       {...commonProps}
                       tabIndex={0}
                       onClick={handleDayClick}
@@ -608,7 +608,7 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
                 }
 
                 return (
-                  <div {...commonProps} className={getDayClassName()}>
+                  <div key={dayKey} {...commonProps} className={getDayClassName()}>
                     {renderDayContent()}
                   </div>
                 )

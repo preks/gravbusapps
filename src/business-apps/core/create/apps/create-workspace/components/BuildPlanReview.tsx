@@ -57,7 +57,7 @@ const typeIcons: Record<ComponentType, LucideIcon> = {
 // Labels for component types
 const typeLabels: Record<ComponentType, string> = {
   screen: 'Screen',
-  agent: 'Task Expert',
+  agent: 'AI Task Expert',
   function: 'Function',
   flow: 'Flow',
   data_model: 'Data Model'

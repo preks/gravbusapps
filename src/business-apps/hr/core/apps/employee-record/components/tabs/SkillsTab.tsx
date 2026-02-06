@@ -1,11 +1,11 @@
 import React, { useMemo } from 'react'
 import { Card } from '@newwork/gravity-ui-catalog'
+import { useTranslation } from '@newwork/nw-design-system'
 import { Empty, Progress } from 'antd'
 import { Employee } from '../../hooks/useEmployeeData'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { UserInfoProps } from '../../../../../../../common/BusinessAppContext'
-import { useTranslation } from '@newwork/nw-design-system'
 import translations from '../../_i18n'
 import { PiStar, PiCheckCircle } from 'react-icons/pi'
 import { calculateSkillStats, getLevelInfo, getSkillCategory, getTimeSince } from '../../utils/utils'
@@ -67,20 +67,20 @@ const SkillsTab: React.FC<SkillsTabProps> = ({ employee, accessToken }) => {
         <>
           {/* Skills Statistics */}
           <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-4 gba:mb-8" data-testid="skills-stats">
-            <Card className="gba:border gba:border-border gba:shadow-sm gba:hover:shadow-md gba:transition-all">
+            <Card>
               <div className="gba:flex gba:items-center gba:justify-between">
                 <div>
-                  <div className="gba:text-2xl gba:font-bold gba:text-info">{skillStats.total}</div>
+                  <div className="gba:text-2xl gba:font-bold">{skillStats.total}</div>
                   <div className="gba:text-sm gba:text-muted-foreground">{t('skills-total')}</div>
                 </div>
-                <PiStar className="gba:h-8 gba:w-8 gba:text-info" />
+                <PiStar className="gba:h-8 gba:w-8" />
               </div>
             </Card>
 
-            <Card className="gba:border gba:border-border gba:shadow-sm gba:hover:shadow-md gba:transition-all">
+            <Card>
               <div className="gba:flex gba:items-center gba:justify-between">
                 <div>
-                  <div className="gba:text-lg gba:font-bold gba:text-info">
+                  <div className="gba:text-lg gba:font-bold">
                     {skillStats.highestSkills.length > 0
                       ? skillStats.highestSkills.map((skill: any) => skill.skill.name).join(', ')
                       : t('skills-none')}
@@ -107,12 +107,8 @@ const SkillsTab: React.FC<SkillsTabProps> = ({ employee, accessToken }) => {
               return (
                 <Card
                   key={skillItem.skill.id}
-                  className="gba:h-full gba:border gba:border-border gba:shadow-md gba:hover:shadow-lg gba:transition-all gba:overflow-hidden"
+                  className="gba:h-full gba:overflow-hidden"
                   data-testid={`skill-card-${skillItem.skill.id}`}
-                  style={{
-                    background: 'var(--nw-color-white)',
-                    borderRadius: 'var(--nw-spacing-3)'
-                  }}
                 >
                   <div className="gba:relative">
                     {/* Skill Level Progress Bar */}

@@ -79,6 +79,7 @@ export const buildContactFragment = (fields: Record<keyof typeof ContactFields, 
   ${fields.department}
   ${fields.id}
   ${fields.firstName}
+  ${fields.fullName}
   ${fields.jobPosition}
   ${fields.language} {
     ${CATALOG_ENTRY}

@@ -1,25 +1,26 @@
 import React, { useMemo } from 'react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { Card, CardHeader, CardTitle, CardContent } from '@newwork/nw-design-system'
-import { useStatisticsData } from './StatisticsDataProvider'
+import dayjs from 'dayjs'
 
 interface OrgYearComparisonCardProps {
   absences: any[]
   accessToken?: string
 }
 
-export const OrgYearComparisonCard: React.FC<OrgYearComparisonCardProps> = () => {
-  const { data, error } = useStatisticsData()
-
+export const OrgYearComparisonCard: React.FC<OrgYearComparisonCardProps> = ({ absences }) => {
   const rows = useMemo(() => {
-    if (!data?.yearlyCounts) return []
-
-    const yearly = data.yearlyCounts
+    const approved = (absences || []).filter((a: any) => String(a.status || '').toUpperCase() === 'APPROVED')
+    const yearly: Record<number, number> = {}
+    approved.forEach((a: any) => {
+      const y = dayjs(a.startDate).year()
+      yearly[y] = (yearly[y] || 0) + 1
+    })
     const years = Object.keys(yearly)
       .map(Number)
       .sort((a, b) => b - a)
     return years.map((y, idx) => {
-      const total = Math.round(Number(yearly[y] || 0)) // requests
+      const total = Math.round(Number(yearly[y] || 0))
       const prev = Number(yearly[years[idx + 1] ?? -1] || 0)
       let changePercent: number | null = null
       let label = '0%'
@@ -57,7 +58,7 @@ export const OrgYearComparisonCard: React.FC<OrgYearComparisonCardProps> = () =>
 
       return { year: y, total, changePercent, label, badgeClass }
     })
-  }, [data?.yearlyCounts])
+  }, [absences])
 
   return (
     <Card>
@@ -67,9 +68,7 @@ export const OrgYearComparisonCard: React.FC<OrgYearComparisonCardProps> = () =>
         </CardTitle>
       </CardHeader>
       <CardContent className="gba:pt-0">
-        {error ? (
-          <div className="gba:text-sm gba:text-destructive">{error}</div>
-        ) : rows.length === 0 ? (
+        {rows.length === 0 ? (
           <div className="gba:text-sm gba:text-gray-muted-foreground">No data available</div>
         ) : (
           <div className="gba:flex gba:flex-col gba:gap-2.5">

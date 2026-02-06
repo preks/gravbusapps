@@ -71,7 +71,7 @@ export const NewworkCreate: React.FC<NewworkCreateProps> = ({
     },
     {
       id: 'task-experts',
-      title: 'Task Experts',
+      title: 'AI Task Experts',
       description:
         'Create AI-powered task experts that automate repetitive work and assist users with complex operations.',
       icon: Bot,

@@ -16,7 +16,8 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Spinner
+  Spinner,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { CheckCircleIcon, XCircleIcon } from '@phosphor-icons/react'
 import {
@@ -24,6 +25,7 @@ import {
   ImportAnalyzerResponse,
   TargetFieldDefinition
 } from '@/common/components/common-relations/apps/data-import/types'
+import translations from './MappingReviewStep/_i18n'
 
 export interface MappingReviewStepProps {
   agentResponse: ImportAnalyzerResponse
@@ -54,14 +56,14 @@ export const MappingReviewStep: React.FC<MappingReviewStepProps> = ({
   onReset,
   'data-testid': testId = 'mapping-review-step'
 }) => {
+  const { t } = useTranslation(translations)
+
   // Defensive check - validate agentResponse has required properties (critical for preventing crashes)
   if (!agentResponse?.sourceFields || !agentResponse?.unmappedSourceFields) {
     return (
       <Card>
         <CardContent>
-          <p className="gba:text-muted-foreground">
-            No analysis data available. Please upload a file and run analysis first.
-          </p>
+          <p className="gba:text-muted-foreground">{t('no-analysis-data')}</p>
         </CardContent>
       </Card>
     )
@@ -76,9 +78,9 @@ export const MappingReviewStep: React.FC<MappingReviewStepProps> = ({
       <Card>
         <CardHeader>
           <div className="gba:flex gba:justify-between gba:items-center">
-            <CardTitle>Step 2: Review and Edit Field Mappings</CardTitle>
+            <CardTitle>{t('step-title')}</CardTitle>
             <Button variant="outline" size="sm" onClick={onReset} data-testid={`${testId}-reset-button`}>
-              Start Over
+              {t('start-over-button')}
             </Button>
           </div>
         </CardHeader>
@@ -86,19 +88,17 @@ export const MappingReviewStep: React.FC<MappingReviewStepProps> = ({
           <div className="gba:space-y-4">
             {/* Summary */}
             <div className="gba:text-sm gba:text-muted-foreground">
-              <p>
-                AI detected {sourceFields.length} fields and mapped {mappings.length} of them.
-              </p>
+              <p>{t('ai-detected-summary', { sourceCount: sourceFields.length, mappedCount: mappings.length })}</p>
               {unmappedSourceFields.length > 0 && (
                 <p className="gba:mt-1 gba:text-warning-foreground">
-                  {unmappedSourceFields.length} fields remain unmapped
+                  {t('unmapped-fields-warning', { count: unmappedSourceFields.length })}
                 </p>
               )}
             </div>
 
             {/* Mapped Fields */}
             <div>
-              <h3 className="gba:text-sm gba:font-semibold gba:mb-2">Mapped Fields</h3>
+              <h3 className="gba:text-sm gba:font-semibold gba:mb-2">{t('mapped-fields-title')}</h3>
               <div className="gba:space-y-3">
                 {mappings.map((mapping, index) => (
                   <div
@@ -107,14 +107,14 @@ export const MappingReviewStep: React.FC<MappingReviewStepProps> = ({
                     data-testid={`${testId}-mapping-${index}`}
                   >
                     <div className="gba:flex-1">
-                      <Label className="gba:text-xs gba:text-muted-foreground">Source Field</Label>
+                      <Label className="gba:text-xs gba:text-muted-foreground">{t('source-field-label')}</Label>
                       <div className="gba:font-medium gba:text-sm">{mapping.sourceField}</div>
                     </div>
 
                     <div className="gba:text-muted-foreground">→</div>
 
                     <div className="gba:flex-1">
-                      <Label className="gba:text-xs gba:text-muted-foreground">Target Field</Label>
+                      <Label className="gba:text-xs gba:text-muted-foreground">{t('target-field-label')}</Label>
                       <Select
                         value={mapping.targetField}
                         onValueChange={value => onUpdateMapping(index, 'targetField', value)}
@@ -133,9 +133,9 @@ export const MappingReviewStep: React.FC<MappingReviewStepProps> = ({
                     </div>
 
                     <div className="gba:w-20">
-                      <Label className="gba:text-xs gba:text-muted-foreground">Type</Label>
+                      <Label className="gba:text-xs gba:text-muted-foreground">{t('type-label')}</Label>
                       <div className="gba:text-xs gba:font-medium gba:mt-1">
-                        {mapping.transformationType === 'catalog' ? 'Catalog' : 'Direct'}
+                        {mapping.transformationType === 'catalog' ? t('type-catalog') : t('type-direct')}
                       </div>
                     </div>
 
@@ -156,7 +156,7 @@ export const MappingReviewStep: React.FC<MappingReviewStepProps> = ({
             {unmappedSourceFields.length > 0 && (
               <div>
                 <h3 className="gba:text-sm gba:font-semibold gba:mb-2">
-                  Unmapped Fields ({unmappedSourceFields.length})
+                  {t('unmapped-fields-title', { count: unmappedSourceFields.length })}
                 </h3>
                 <div className="gba:bg-warning-secondary gba:border gba:border-warning gba:rounded-lg gba:p-3">
                   <div className="gba:flex gba:flex-wrap gba:gap-2">
@@ -171,9 +171,7 @@ export const MappingReviewStep: React.FC<MappingReviewStepProps> = ({
                       </button>
                     ))}
                   </div>
-                  <p className="gba:text-xs gba:text-muted-foreground gba:mt-2">
-                    Click a field to add it to the mappings
-                  </p>
+                  <p className="gba:text-xs gba:text-muted-foreground gba:mt-2">{t('click-to-add-hint')}</p>
                 </div>
               </div>
             )}
@@ -188,12 +186,12 @@ export const MappingReviewStep: React.FC<MappingReviewStepProps> = ({
               {isLoading ? (
                 <>
                   <Spinner className="gba:w-4 gba:h-4 gba:mr-2" />
-                  Converting...
+                  {t('converting-button')}
                 </>
               ) : (
                 <>
                   <CheckCircleIcon className="gba:w-4 gba:h-4 gba:mr-2" weight="fill" />
-                  Convert {parsedDataCount} {entityType}
+                  {t('convert-button', { count: parsedDataCount, entityType })}
                 </>
               )}
             </Button>

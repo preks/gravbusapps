@@ -22,6 +22,7 @@ import { useVersioning } from '../shared/hooks/useVersioning'
 import { useComments } from '../shared/hooks/useComments'
 import { useFileLock } from '../shared/hooks/useFileLock'
 import { usePublishing } from '../shared/hooks/usePublishing'
+import { emitDocumentActivity, emitDocumentActivityEnd } from '../spaces/hooks/useSpaceDocumentActivity'
 
 import { TableView, FormView, DashboardView, KanbanView } from './views'
 import { AutomationsPanel } from './components/AutomationsPanel'
@@ -179,6 +180,47 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     accessToken,
     onOperationReceived: handleCollaborationOperation
   })
+
+  // Broadcast document activity to Spaces app
+  useEffect(() => {
+    if (!app.id || !userId) return
+
+    const activityType = isEditing ? 'editing' : 'viewing'
+    const docTitle = app.name || 'Untitled Spreadsheet'
+    const urlSpaceId = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('spaceId') : null
+
+    // Emit activity when starting
+    emitDocumentActivity({
+      userId,
+      userName: collaboration.currentUserName || 'User',
+      userAvatar: collaboration.currentUserAvatar,
+      documentId: app.id,
+      documentTitle: docTitle,
+      documentType: 'spreadsheet',
+      activityType,
+      spaceId: urlSpaceId || undefined
+    })
+
+    // Keep-alive: re-emit activity every 30 seconds
+    const keepAliveInterval = setInterval(() => {
+      emitDocumentActivity({
+        userId,
+        userName: collaboration.currentUserName || 'User',
+        userAvatar: collaboration.currentUserAvatar,
+        documentId: app.id,
+        documentTitle: docTitle,
+        documentType: 'spreadsheet',
+        activityType,
+        spaceId: urlSpaceId || undefined
+      })
+    }, 30000)
+
+    // Cleanup: emit activity end when leaving
+    return () => {
+      clearInterval(keepAliveInterval)
+      emitDocumentActivityEnd(userId, app.id)
+    }
+  }, [app.id, app.name, userId, collaboration.currentUserName, collaboration.currentUserAvatar, isEditing])
 
   // --- Column handling (includes auto-add for FortuneSheet) ---
   const handleCellChangeRef = useRef<

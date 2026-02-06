@@ -1,6 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react'
-import { DataDisplay, Spinner, AiButton } from '@newwork/nw-design-system'
-import { UploadIcon } from '@phosphor-icons/react'
+import { DataDisplay, Spinner } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { AnalyticsFilters } from './types'
 import { InvestmentReportTable } from '../../components/shared/InvestmentReportTable'
@@ -9,6 +8,7 @@ import { transformReportsToAnalyticsData } from './utils/liquidFundDataTransform
 import { convertDynamicColumnsToConfig, createLiquidFundStaticColumns } from './utils/liquidFundColumnAdapter'
 import { UseReportFiltersReturn, ColumnConfig, useReportFilters } from '../../hooks'
 import { useInvestmentLiquidFundReportCatalog } from './hooks/useInvestmentLiquidFundReportCatalog'
+import { useReportTabCounts } from '../../hooks/useReportTabCounts'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -24,7 +24,8 @@ interface LiquidFundReportProps extends BusinessAppContextProps {
   'data-testid'?: string
   reportFilters: UseReportFiltersReturn
   onCurrenciesUpdate: (currencies: string[]) => void
-  isTransposed: boolean
+  catalogData?: any
+  enabled?: boolean
 }
 
 export const LiquidFundReport: React.FC<LiquidFundReportProps> = ({
@@ -33,7 +34,8 @@ export const LiquidFundReport: React.FC<LiquidFundReportProps> = ({
   'data-testid': dataTestId = 'liquid-fund-analytics',
   reportFilters,
   onCurrenciesUpdate,
-  isTransposed
+  catalogData: providedCatalogData,
+  enabled = true
 }) => {
   // Section management - Start with Bank Deposits since Overview is removed
   const [currentSection, setCurrentSection] = useState<string>('bank-deposits')
@@ -41,22 +43,39 @@ export const LiquidFundReport: React.FC<LiquidFundReportProps> = ({
   // Search state
   const [search, setSearch] = useState<string>('')
 
-  // Track total counts for each section
-  const [totalCounts, setTotalCounts] = useState<Record<string, { count: number; isLoading: boolean }>>({
-    'bank-deposits': { count: 0, isLoading: true },
-    'fixed-term-deposits': { count: 0, isLoading: true },
-    'multiple-types': { count: 0, isLoading: true }
-  })
-
-  // Track initial load state for each section
-  const [initialLoadDone, setInitialLoadDone] = useState<Record<string, boolean>>({
-    'bank-deposits': false,
-    'fixed-term-deposits': false,
-    'multiple-types': false
-  })
+  // Sorting state (following investment tab pattern)
+  const [sortField, setSortField] = useState('')
+  const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC')
 
   // Fetch catalog to get columns for each liquid fund type
-  const { catalogData, getDynamicColumnsForType } = useInvestmentLiquidFundReportCatalog({ accessToken, userInfo })
+  const { catalogData, getDynamicColumnsForType } = useInvestmentLiquidFundReportCatalog({
+    accessToken,
+    userInfo,
+    catalogData: providedCatalogData
+  })
+
+  // Fetch counts for all tabs in this group
+  const { counts, isLoading: countsLoading } = useReportTabCounts({
+    investmentGroup: 'LIQUID_FUND',
+    accessToken,
+    filters: {
+      startDate: reportFilters.computedFilters.startDate,
+      endDate: reportFilters.computedFilters.endDate,
+      currencyIds: reportFilters.computedFilters.currencyIds,
+      search
+    },
+    enabled
+  })
+
+  // Convert counts to the format expected by the component
+  const totalCounts = useMemo(
+    () => ({
+      'bank-deposits': { count: counts['bank-deposits'] || 0, isLoading: countsLoading },
+      'fixed-term-deposits': { count: counts['fixed-term-deposits'] || 0, isLoading: countsLoading },
+      'multiple-types': { count: counts['multiple-types'] || 0, isLoading: countsLoading }
+    }),
+    [counts, countsLoading]
+  )
 
   // Helper to generate columns for a specific section
   const generateColumnsForSection = useCallback(
@@ -95,8 +114,8 @@ export const LiquidFundReport: React.FC<LiquidFundReportProps> = ({
             ? JSON.parse(activeLiquidFundType.objectValue)
             : activeLiquidFundType.objectValue
 
-        parsedObjectValue.formFields?.forEach(group => {
-          group.fields.forEach(field => {
+        parsedObjectValue.formFields?.forEach((group: any) => {
+          group.fields.forEach((field: any) => {
             // Filter out fields with report: false (not for report tables)
             if (field.report === false) {
               return
@@ -134,31 +153,6 @@ export const LiquidFundReport: React.FC<LiquidFundReportProps> = ({
 
   // Column config is managed separately per report component
   const localReportFilters = useReportFilters(initialColumns)
-
-  // Callback for tables to report their total counts
-  const handleTotalCountUpdate = useCallback(
-    (sectionId: string, count: number, isLoading: boolean) => {
-      setTotalCounts(prev => ({
-        ...prev,
-        [sectionId]: { count, isLoading }
-      }))
-
-      // Mark initial load as done when loading completes
-      if (!isLoading) {
-        setInitialLoadDone(prev => {
-          // Only update if not already done
-          if (prev[sectionId]) {
-            return prev
-          }
-          return {
-            ...prev,
-            [sectionId]: true
-          }
-        })
-      }
-    },
-    [] // Remove initialLoadDone from dependencies to prevent infinite loops
-  )
 
   // Create filters for specific investment types (Overview removed)
   // Use shared filters from parent (reportFilters) for date range and currency
@@ -200,7 +194,7 @@ export const LiquidFundReport: React.FC<LiquidFundReportProps> = ({
       startDate: reportFilters.computedFilters.startDate,
       endDate: reportFilters.computedFilters.endDate,
       currencyIds: reportFilters.computedFilters.currencyIds,
-      investmentType: 'Money Market Funds,Pension Fund,Equity,Bond', // Multiple types separated by comma
+      investmentType: 'Multiple Types', // This triggers exclusion of Bank Deposit and Fixed-Term Deposit in GraphQL query
       search: search || undefined
     }),
     [
@@ -234,6 +228,38 @@ export const LiquidFundReport: React.FC<LiquidFundReportProps> = ({
     [localReportFilters]
   )
 
+  // Convert sorting to DataTable format
+  const sorting = useMemo(() => {
+    if (!sortField) return []
+    return [{ id: sortField, desc: sortOrder === 'DESC' }]
+  }, [sortField, sortOrder])
+
+  // Handle sorting changes (following investment tab pattern)
+  const handleSortingChange = useCallback((newSorting: Array<{ id: string; desc: boolean }>) => {
+    if (newSorting.length === 0) {
+      setSortField('')
+      setSortOrder('DESC')
+    } else {
+      const firstSort = newSorting[0]
+      setSortField(firstSort.id)
+      setSortOrder(firstSort.desc ? 'DESC' : 'ASC')
+    }
+  }, [])
+
+  // Define sortable columns (matching investment tab pattern)
+  // Note: Most liquid fund fields are stored in additionalProperties (JSONB) and are NOT sortable
+  // Only investment name, date, and totalInvestmentAmount can be sorted
+  const sortableColumns = useMemo(
+    () => [
+      { id: 'investment', label: 'Investment' },
+      { id: 'date', label: 'Date' },
+      { id: 'investment_totalInvestmentAmount', label: 'Total Investment Amount' }
+      // All other fields (name, proprietor, bank, currency, etc.) are stored in additionalProperties
+      // and cannot be sorted due to JSONB database limitations
+    ],
+    []
+  )
+
   // Memoize column overrides to prevent infinite loops from unstable references
   const bankDepositColumns = useMemo(() => generateColumnsForSection('bank-deposits'), [generateColumnsForSection])
 
@@ -245,20 +271,12 @@ export const LiquidFundReport: React.FC<LiquidFundReportProps> = ({
   const multipleTypesColumns = useMemo(() => generateColumnsForSection('multiple-types'), [generateColumnsForSection])
 
   // Memoize data transformers to prevent infinite loops from unstable references
-  const bankDepositTransformer = useCallback(
-    (reports: any[]) => transformReportsToAnalyticsData(reports, 'Bank Deposit'),
-    []
-  )
+  // Note: All filtering is now done server-side, so transformer just transforms the data
+  const bankDepositTransformer = useCallback((reports: any[]) => transformReportsToAnalyticsData(reports), [])
 
-  const fixedTermDepositTransformer = useCallback(
-    (reports: any[]) => transformReportsToAnalyticsData(reports, 'Fixed-Term Deposit'),
-    []
-  )
+  const fixedTermDepositTransformer = useCallback((reports: any[]) => transformReportsToAnalyticsData(reports), [])
 
-  const multipleTypesTransformer = useCallback(
-    (reports: any[]) => transformReportsToAnalyticsData(reports, 'Money Market Funds,Pension Fund,Equity,Bond'),
-    []
-  )
+  const multipleTypesTransformer = useCallback((reports: any[]) => transformReportsToAnalyticsData(reports), [])
 
   // Primary action for "Add Report" - memoized to prevent reload on tab change
   const primaryActions = useMemo(() => {
@@ -275,29 +293,6 @@ export const LiquidFundReport: React.FC<LiquidFundReportProps> = ({
         data-testid="report-view-add-report-action"
       >
         {getTranslationFromI18nKeyAndLabel('investment.reports.addReport', 'Add Report')}
-      </AppAction>
-    )
-  }, [accessToken])
-
-  // Secondary action for "UploadIcon Report" - using AiButton like in record
-  const secondaryActions = useMemo(() => {
-    return (
-      <AppAction
-        contexts={[{ context: FlowContextName.investmentReportUploadIcon, contextData: {} }]}
-        accessToken={accessToken || ''}
-        emptyState="hide"
-        prefixDataTestId="report-view-upload-report"
-      >
-        <AiButton
-          variant="default"
-          size="default"
-          showIcon={true}
-          icon={<UploadIcon style={{ height: '1rem', width: '1rem' }} />}
-          iconPosition="before"
-          data-testid="report-view-upload-report-button"
-        >
-          {getTranslationFromI18nKeyAndLabel('investment.reports.uploadReport', 'UploadIcon Report')}
-        </AiButton>
       </AppAction>
     )
   }, [accessToken])
@@ -349,8 +344,10 @@ export const LiquidFundReport: React.FC<LiquidFundReportProps> = ({
         availableColumns={availableColumns}
         visibleColumns={visibleColumns}
         onVisibleColumnsChange={handleVisibleColumnsChange}
+        sorting={sorting}
+        sortableColumns={sortableColumns}
+        onSortingChange={handleSortingChange}
         primaryAction={primaryActions}
-        secondaryActions={secondaryActions}
         toolbarDensity="default"
       >
         {/* Render all sections to load data in parallel, but only show active one */}
@@ -363,13 +360,14 @@ export const LiquidFundReport: React.FC<LiquidFundReportProps> = ({
             investmentType=""
             investmentTypeValue="Bank Deposits"
             catalogData={catalogData}
-            isTransposed={isTransposed}
             visibleColumns={visibleColumns}
             onCurrenciesChange={onCurrenciesUpdate}
-            onTotalCountChange={(count, isLoading) => handleTotalCountUpdate('bank-deposits', count, isLoading)}
-            isInitialLoad={!initialLoadDone['bank-deposits']}
+            enabled={enabled && currentSection === 'bank-deposits'}
             dataTransformer={bankDepositTransformer}
             columnsOverride={bankDepositColumns}
+            sortField={sortField}
+            sortOrder={sortOrder}
+            onSortingChange={handleSortingChange}
             data-testid={`${dataTestId}-bank-deposits-table`}
           />
         </div>
@@ -382,13 +380,14 @@ export const LiquidFundReport: React.FC<LiquidFundReportProps> = ({
             investmentType=""
             investmentTypeValue="Fixed-Term Deposits"
             catalogData={catalogData}
-            isTransposed={isTransposed}
             visibleColumns={visibleColumns}
             onCurrenciesChange={onCurrenciesUpdate}
-            onTotalCountChange={(count, isLoading) => handleTotalCountUpdate('fixed-term-deposits', count, isLoading)}
-            isInitialLoad={!initialLoadDone['fixed-term-deposits']}
+            enabled={enabled && currentSection === 'fixed-term-deposits'}
             dataTransformer={fixedTermDepositTransformer}
             columnsOverride={fixedTermDepositColumns}
+            sortField={sortField}
+            sortOrder={sortOrder}
+            onSortingChange={handleSortingChange}
             data-testid={`${dataTestId}-fixed-term-deposits-table`}
           />
         </div>
@@ -401,13 +400,14 @@ export const LiquidFundReport: React.FC<LiquidFundReportProps> = ({
             investmentType=""
             investmentTypeValue="Multiple Investment Types"
             catalogData={catalogData}
-            isTransposed={isTransposed}
             visibleColumns={visibleColumns}
             onCurrenciesChange={onCurrenciesUpdate}
-            onTotalCountChange={(count, isLoading) => handleTotalCountUpdate('multiple-types', count, isLoading)}
-            isInitialLoad={!initialLoadDone['multiple-types']}
+            enabled={enabled && currentSection === 'multiple-types'}
             dataTransformer={multipleTypesTransformer}
             columnsOverride={multipleTypesColumns}
+            sortField={sortField}
+            sortOrder={sortOrder}
+            onSortingChange={handleSortingChange}
             data-testid={`${dataTestId}-multiple-types-table`}
           />
         </div>

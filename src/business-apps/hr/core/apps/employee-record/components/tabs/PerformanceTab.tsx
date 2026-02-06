@@ -224,7 +224,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
                 return (
                   <Card
                     key={`goal-${goal.title ?? ''}-${goal.status ?? ''}`}
-                    className="gba:w-full gba:border gba:border-gray-200 gba:shadow-md gba:hover:shadow-lg gba:transition-all"
+                    className="gba:w-full"
                     data-testid={`goal-card-${goal.id}`}
                   >
                     <CardHeader>

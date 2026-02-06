@@ -5,6 +5,6 @@
  */
 
 export { PagedDocumentEditor } from './PagedDocumentEditor'
-export type { PagedDocumentEditorProps } from './PagedDocumentEditor'
+export type { PagedDocumentEditorProps, PagedDocumentEditorRef } from './PagedDocumentEditor'
 export { EditorToolbar } from './EditorToolbar'
 export { PageBreak } from './extensions/PageBreak'

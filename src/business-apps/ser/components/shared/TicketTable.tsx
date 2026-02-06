@@ -308,8 +308,8 @@ export const TicketTable: React.FC<TicketTableProps> = ({
 
     const userIds: string[] = []
     for (const ticket of tickets) {
-      // Add requester user IDs (flowInitiatedBy takes priority over requesterId)
-      const requesterUserId = ticket.flowInitiatedBy || ticket.requesterId
+      // Add requester user IDs (flowInitiatedById takes priority over requesterId)
+      const requesterUserId = ticket.flowInitiatedById || ticket.requesterId
       if (requesterUserId && requesterUserId !== 'unknown') {
         userIds.push(requesterUserId)
       }
@@ -338,11 +338,14 @@ export const TicketTable: React.FC<TicketTableProps> = ({
     const assigneeSet = new Set<string>()
 
     tickets.forEach(ticket => {
-      // Collect requester info
-      const requesterUserId = ticket.flowInitiatedBy || ticket.requesterId
-      const requesterName = requesterUserId ? batchedDisplayNames.get(requesterUserId) : null
+      // Collect requester info (use flowInitiatedById for lookup, flowInitiatedBy as display name fallback)
+      const requesterUserId = ticket.flowInitiatedById || ticket.requesterId
+      const requesterName = requesterUserId ? batchedDisplayNames.get(requesterUserId) : ticket.flowInitiatedBy || null
       if (requesterName) {
-        requesterSet.add(`requester:${requesterUserId}:${requesterName}`)
+        requesterSet.add(`requester:${requesterUserId || 'display'}:${requesterName}`)
+      } else if (ticket.flowInitiatedBy) {
+        // If we only have display name without ID, still add it for filtering
+        requesterSet.add(`requester:display:${ticket.flowInitiatedBy}`)
       }
 
       // Collect assignee info (both assigned and claimed users)
@@ -585,13 +588,14 @@ export const TicketTable: React.FC<TicketTableProps> = ({
             return ticketUrgency.toUpperCase() === urgency
           })
 
-        // Check requester filters
+        // Check requester filters (use flowInitiatedById for ID matching)
         const requesterMatch =
           requesterFilters.length === 0 ||
           requesterFilters.some(filterId => {
             const userId = filterId.replace('requester:', '')
-            const ticketRequesterUserId = ticket.flowInitiatedBy || ticket.requesterId
-            return ticketRequesterUserId === userId
+            const ticketRequesterUserId = ticket.flowInitiatedById || ticket.requesterId
+            // Also match by display name if we only have flowInitiatedBy
+            return ticketRequesterUserId === userId || ticket.flowInitiatedBy === userId
           })
 
         // Check assignee filters (both assigned and claimed users)
@@ -621,8 +625,9 @@ export const TicketTable: React.FC<TicketTableProps> = ({
           ticket.requesterName?.toLowerCase().includes(searchLower) ||
           // Also search in formatted Request ID (REQ-XXXXX format)
           (ticket.requestId ? formatRequestId(ticket.requestId).toLowerCase().includes(searchLower) : false) ||
-          // Search in requester details (flowInitiatedBy user)
+          // Search in requester details (flowInitiatedBy display name or flowInitiatedById)
           ticket.flowInitiatedBy?.toLowerCase().includes(searchLower) ||
+          ticket.flowInitiatedById?.toLowerCase().includes(searchLower) ||
           // Search in assignee details
           ticket.assignedToUserId?.toLowerCase().includes(searchLower) ||
           ticket.claimedByUserId?.toLowerCase().includes(searchLower)
@@ -630,9 +635,11 @@ export const TicketTable: React.FC<TicketTableProps> = ({
         if (basicMatch) return true
 
         // Search in resolved employee display names - check all possible user roles
-        // For requester, use the same logic as the display: flowInitiatedBy || requesterId
-        const requesterUserId = ticket.flowInitiatedBy || ticket.requesterId
-        const requesterDisplayName = requesterUserId ? batchedDisplayNames.get(requesterUserId) : null
+        // For requester, use flowInitiatedById for lookup, flowInitiatedBy as display name fallback
+        const requesterUserId = ticket.flowInitiatedById || ticket.requesterId
+        const requesterDisplayName = requesterUserId
+          ? batchedDisplayNames.get(requesterUserId)
+          : ticket.flowInitiatedBy || null
         const assigneeDisplayName = ticket.assignedToUserId ? batchedDisplayNames.get(ticket.assignedToUserId) : null
         const claimerDisplayName = ticket.claimedByUserId ? batchedDisplayNames.get(ticket.claimedByUserId) : null
 
@@ -662,11 +669,19 @@ export const TicketTable: React.FC<TicketTableProps> = ({
             bValue = b.name || ''
             break
           case 'requesterName':
-            // Use the same logic as display: get name from batch or fallback to requesterName
-            const aRequesterUserId = a.flowInitiatedBy || a.requesterId
-            const bRequesterUserId = b.flowInitiatedBy || b.requesterId
-            aValue = (aRequesterUserId ? batchedDisplayNames.get(aRequesterUserId) : null) || a.requesterName || ''
-            bValue = (bRequesterUserId ? batchedDisplayNames.get(bRequesterUserId) : null) || b.requesterName || ''
+            // Use flowInitiatedById for lookup, flowInitiatedBy as display name fallback
+            const aRequesterUserId = a.flowInitiatedById || a.requesterId
+            const bRequesterUserId = b.flowInitiatedById || b.requesterId
+            aValue =
+              (aRequesterUserId ? batchedDisplayNames.get(aRequesterUserId) : null) ||
+              a.flowInitiatedBy ||
+              a.requesterName ||
+              ''
+            bValue =
+              (bRequesterUserId ? batchedDisplayNames.get(bRequesterUserId) : null) ||
+              b.flowInitiatedBy ||
+              b.requesterName ||
+              ''
             break
           case 'status':
             aValue = a.status || ''
@@ -946,23 +961,31 @@ export const TicketTable: React.FC<TicketTableProps> = ({
                       {visibleColumns.includes('requester') && (
                         <TableCell className="gba:align-middle">
                           {(() => {
-                            const requesterUserId = ticket.flowInitiatedBy || ticket.requesterId
+                            // Use flowInitiatedById for employee lookup, flowInitiatedBy as display name
+                            const requesterUserId = ticket.flowInitiatedById || ticket.requesterId
                             const requesterName = requesterUserId ? batchedDisplayNames.get(requesterUserId) : null
-                            const displayName = requesterName || ticket.requesterName || 'Unknown User'
+                            const displayName =
+                              requesterName || ticket.flowInitiatedBy || ticket.requesterName || 'Unknown User'
 
-                            if (!requesterUserId || requesterUserId === 'unknown') {
-                              return <span className="gba:text-gray-400">{displayName}</span>
+                            // If we have a valid user ID, show enhanced employee display
+                            if (requesterUserId && requesterUserId !== 'unknown') {
+                              return (
+                                <EnhancedEmployeeDisplay
+                                  userId={requesterUserId}
+                                  displayName={displayName}
+                                  employeeData={batchedEmployees.get(requesterUserId)}
+                                  testId={`requester-${ticket.id}`}
+                                  showTooltip={true}
+                                />
+                              )
                             }
 
-                            return (
-                              <EnhancedEmployeeDisplay
-                                userId={requesterUserId}
-                                displayName={displayName}
-                                employeeData={batchedEmployees.get(requesterUserId)}
-                                testId={`requester-${ticket.id}`}
-                                showTooltip={true}
-                              />
-                            )
+                            // If we only have display name (flowInitiatedBy), show it as text
+                            if (ticket.flowInitiatedBy) {
+                              return <span className="gba:text-foreground">{ticket.flowInitiatedBy}</span>
+                            }
+
+                            return <span className="gba:text-gray-400">{displayName}</span>
                           })()}
                         </TableCell>
                       )}

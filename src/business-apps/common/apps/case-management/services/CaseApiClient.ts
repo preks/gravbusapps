@@ -19,28 +19,9 @@ import {
 } from '../types'
 import { env } from '@/common/env/EnvUtils'
 
-/**
- * Get the cflow engine base URL
- * Uses same pattern as service-desk: NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL || NEXT_PUBLIC_BASE_URL + '/flow-engine'
- */
-const getCflowEngineUrl = (): string => {
-  // Priority 1: Explicit cflow engine URL (for development or specific deployments)
-  const explicitUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL')
-  if (explicitUrl) {
-    return explicitUrl
-  }
-
-  // Priority 2: Construct from base URL (standard platform routing)
-  const baseUrl = env('NEXT_PUBLIC_BASE_URL')
-  if (baseUrl) {
-    return `${baseUrl}/flow-engine`
-  }
-
-  // Fallback: Use current origin (for local development without env vars)
-  return `${window.location.origin}/flow-engine`
-}
-
-const CFLOW_ENGINE_URL = getCflowEngineUrl()
+// Base URL for the custom flow engine API - same pattern as ConductorWorkflowEngineAdapter
+const API_BASE =
+  (env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || env('NEXT_PUBLIC_BASE_URL') + '/flow-engine') + '/api'
 
 export class CaseApiClient {
   private baseUrl: string
@@ -48,8 +29,9 @@ export class CaseApiClient {
 
   constructor(baseUrl: string | undefined, accessToken: string) {
     // Use provided baseUrl or fallback to environment variable
-    const engineUrl = baseUrl && baseUrl !== window.location.origin ? baseUrl : CFLOW_ENGINE_URL
-    this.baseUrl = `${engineUrl}/api/cases`
+    // baseUrl is ignored now - we always use the centralized API_BASE
+    void baseUrl
+    this.baseUrl = `${API_BASE}/cases`
     this.accessToken = accessToken
   }
 
@@ -115,7 +97,9 @@ export class CaseApiClient {
         title: data.metadata?.title || 'New Case',
         description: data.metadata?.description || '',
         priority: data.metadata?.priority || 'medium',
-        status: data.metadata?.status || 'open'
+        status: data.metadata?.status || 'open',
+        assignedTo: data.metadata?.assignedTo || undefined,
+        dueDate: data.metadata?.dueDate || undefined
       },
       // Send tags as object with app field
       tags: data.tags
@@ -237,7 +221,7 @@ export class CaseApiClient {
   /**
    * Get list of cases with filters
    */
-  async getCasesList(filters: CaseFilters): Promise<{ cases: Case[]; total: number }> {
+  async getCasesList(filters: CaseFilters & { includeDeleted?: boolean }): Promise<{ cases: Case[]; total: number }> {
     const params = new URLSearchParams()
 
     // Add tag filters as comma-separated string
@@ -246,6 +230,11 @@ export class CaseApiClient {
       if (tagStrings.length > 0) {
         params.append('tags', tagStrings.join(','))
       }
+    }
+
+    // Add includeDeleted flag
+    if (filters.includeDeleted) {
+      params.append('includeDeleted', 'true')
     }
 
     // Add pagination
@@ -416,6 +405,28 @@ export class CaseApiClient {
   }
 
   /**
+   * Update a note in a case
+   */
+  async updateNoteInCase(
+    caseId: string,
+    noteId: string,
+    updates: {
+      content?: string
+      visibility?: 'internal' | 'external'
+    }
+  ): Promise<void> {
+    console.log('[CaseApiClient] Updating note in case:', { caseId, noteId, updates })
+
+    const response = await fetch(`${this.baseUrl}/${caseId}/notes/${noteId}`, {
+      method: 'PATCH',
+      headers: this.getHeaders(),
+      body: JSON.stringify(updates)
+    })
+
+    await this.handleResponse<{ success: boolean; message: string }>(response)
+  }
+
+  /**
    * Get linked flows for a case
    */
   async getLinkedFlows(caseId: string): Promise<LinkedFlow[]> {
@@ -439,6 +450,46 @@ export class CaseApiClient {
     const response = await fetch(`${this.baseUrl}/${caseId}/complete`, {
       method: 'POST',
       headers: this.getHeaders()
+    })
+
+    await this.handleResponse<{ success: boolean; message: string }>(response)
+  }
+
+  /**
+   * Soft delete a case
+   * @param caseId - The case ID to delete
+   * @param deletedBy - User ID performing the deletion
+   * @param terminateFlows - Whether to terminate all linked running flows
+   */
+  async deleteCase(caseId: string, deletedBy?: string, terminateFlows: boolean = false): Promise<void> {
+    console.log('[CaseApiClient] Deleting case:', { caseId, deletedBy, terminateFlows })
+
+    const response = await fetch(`${this.baseUrl}/${caseId}`, {
+      method: 'DELETE',
+      headers: this.getHeaders(),
+      body: JSON.stringify({
+        deletedBy: deletedBy || 'system',
+        terminateFlows
+      })
+    })
+
+    await this.handleResponse<{ success: boolean; message: string }>(response)
+  }
+
+  /**
+   * Restore a soft-deleted case
+   * @param caseId - The case ID to restore
+   * @param userId - User ID performing the restore
+   */
+  async restoreCase(caseId: string, userId?: string): Promise<void> {
+    console.log('[CaseApiClient] Restoring case:', { caseId, userId })
+
+    const response = await fetch(`${this.baseUrl}/${caseId}/restore`, {
+      method: 'POST',
+      headers: {
+        ...this.getHeaders(),
+        ...(userId && { 'x-user-id': userId })
+      }
     })
 
     await this.handleResponse<{ success: boolean; message: string }>(response)

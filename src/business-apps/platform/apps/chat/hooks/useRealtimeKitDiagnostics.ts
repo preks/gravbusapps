@@ -14,7 +14,7 @@ export interface UseRealtimeKitDiagnosticsOptions {
   meeting: any // RealtimeKit meeting object
   participants: GroupCallParticipant[]
   isInCall: boolean
-  callStatus: 'idle' | 'joining' | 'connected' | 'reconnecting' | 'ended'
+  callStatus: 'idle' | 'setup' | 'joining' | 'connected' | 'reconnecting' | 'ended'
 }
 
 export interface UseRealtimeKitDiagnosticsReturn {

@@ -4,8 +4,8 @@ import type { AbsenceItem, StatItem, AbsenceListCardAbsence } from './types/abse
 import type { Entitlement } from './types/entitlementTypes'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
-import { GET_EMPLOYEE_ABSENCES, GET_EMPLOYEE_ENTITLEMENTS } from './queries/graphql'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { GET_EMPLOYEE_ABSENCES } from './queries/graphql'
 import { getAbsenceGroups } from '@/business-apps/hr/core/forms/create-new-absence/queries/getAbsenceGroups'
 import dayjs from 'dayjs'
 import isSameOrAfter from 'dayjs/plugin/isSameOrAfter'
@@ -28,6 +28,31 @@ import { startProcess } from '@/common/utils/start-process'
 import AbsencesTab from '@/business-apps/hr/core/apps/employee-record/components/tabs/AbsencesTab'
 import { useEmployeeData } from '@/business-apps/hr/core/apps/employee-record/hooks/useEmployeeData'
 import { AbsenceList } from './components/absence-list-table'
+import { useAbsenceTypeCatalog } from './hooks/useAbsenceTypeCatalog'
+import { useEntitlementSnapshot } from './hooks/useEntitlementSnapshot'
+
+const statusToColor = (status?: string): string => {
+  switch ((status || '').toLowerCase()) {
+    case 'pending':
+      return 'var(--nw-warning)'
+    case 'approved':
+      return 'var(--nw-success)'
+    case 'rejected':
+      return 'var(--nw-destructive)'
+    case 'cancelled':
+      return 'var(--nw-muted-foreground)'
+    default:
+      return 'var(--nw-muted-foreground)'
+  }
+}
+
+const timeUntil = (startIso: string): string => {
+  const days = dayjs(startIso).diff(dayjs(), 'day')
+  if (days === 0) return 'Today'
+  if (days === 1) return 'Tomorrow'
+  if (days < 0) return 'Started'
+  return `in ${days} days`
+}
 
 export const PersonalAbsences = (props: BusinessAppContextProps) => {
   const [activeTab, setActiveTab] = useState('calendar')
@@ -45,8 +70,18 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
 
   const { accessToken, userInfo } = props
   const employeeId = userInfo?.employeeDetails?.employeeId
-  const client = useGraphqlClient(accessToken)
-  const structureId = getCurrentActiveStructureId()
+  const client = useGraphQLClient(accessToken)
+  const rawStructureId = getCurrentActiveStructureId()
+  const structureId = rawStructureId ?? ''
+
+  // Catalog mapping for labels/colors
+  const { mapType } = useAbsenceTypeCatalog(accessToken)
+  // Snapshot entitlements (enriched via mapper)
+  const { entitlements: snapshotEntitlements, stats: snapshotStats } = useEntitlementSnapshot(
+    accessToken,
+    employeeId || '',
+    mapType
+  )
 
   const {
     loading: employeeLoading,
@@ -88,13 +123,9 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
         limit: 1000,
         orderBy: [{ createdAt: 'DESC' }],
         activeUserLocale: getCurrentActiveUserLocale()
-      }),
-      client.request(GET_EMPLOYEE_ENTITLEMENTS, {
-        employeeId,
-        activeUserLocale: getCurrentActiveUserLocale()
       })
     ])
-      .then(([absenceRes, entitlementRes]) => {
+      .then(([absenceRes]) => {
         const absences = absenceRes?.EmployeeAbsence || []
 
         setAbsenceList(
@@ -115,20 +146,7 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
               />
             ),
             typeColor: absence.type?.objectValue?.color ? absence.type.objectValue.color : 'blue',
-            statusColor: (() => {
-              switch ((absence.status || '').toLowerCase()) {
-                case 'pending':
-                  return 'var(--nw-warning)'
-                case 'approved':
-                  return 'var(--nw-success)'
-                case 'rejected':
-                  return 'var(--nw-destructive)'
-                case 'cancelled':
-                  return 'var(--nw-muted-foreground)'
-                default:
-                  return 'var(--nw-muted-foreground)'
-              }
-            })(),
+            statusColor: statusToColor(absence.status),
             requestDate: absence.createdAt
           }))
         )
@@ -142,70 +160,42 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
               icon: <Paperclip className="gba:w-4 gba:h-4" style={{ color: 'var(--nw-chart-4)' }} />,
               dates: `${dayjs(a.startDate).format('MM/DD/YYYY')} - ${dayjs(a.endDate).format('MM/DD/YYYY')}`,
               description: a.description,
-              timeUntil: (() => {
-                const days = dayjs(a.startDate).diff(dayjs(), 'day')
-                if (days === 0) return 'Today'
-                if (days === 1) return 'Tomorrow'
-                if (days < 0) return 'Started'
-                return `in ${days} days`
-              })(),
+              timeUntil: timeUntil(a.startDate),
               bgColor: a.type?.objectValue?.color
             }))
         )
 
-        const currentYear = dayjs().year()
-        const firstDayOfYear = dayjs(`${currentYear}-01-01`).startOf('day')
-        const lastDayOfYear = dayjs(`${currentYear}-12-31`).endOf('day')
-
-        const currentYearEntitlements = (entitlementRes?.EmployeeAbsenceEntitlement || []).filter((ent: any) => {
-          if (!ent.validFrom || !ent.validTo) {
-            return false
-          }
-
-          const validFrom = dayjs(ent.validFrom)
-          const validTo = dayjs(ent.validTo)
-
-          return validFrom.isSameOrBefore(lastDayOfYear) && validTo.isSameOrAfter(firstDayOfYear)
-        })
-
-        setEntitlements(
-          currentYearEntitlements.map((ent: any) => ({
-            type: ent.type ? getCatalogValue(ent.type) || '' : '',
-            color: ent.type?.objectValue?.color || 'blue',
-            used: ent.approved,
-            total: ent.total,
-            pending: ent.pending,
-            available: ent.available,
-            icon: (
-              <Paperclip
-                className="gba:w-4 gba:h-4"
-                style={{
-                  color: ent.type?.objectValue?.color ? `#${ent.type.objectValue.color}` : 'var(--nw-chart-4)'
-                }}
-              />
-            ),
-            checkEntitlement: ent.type?.objectValue?.checkEntitlement
-          }))
-        )
-
-        // Use the same filtered entitlements for stats
-        setStats(
-          currentYearEntitlements.map((ent: any) => ({
-            title: ent.type ? getCatalogValue(ent.type) || '' : '',
-            used: ent.approved,
-            total: ent.total,
-            progress: ent.total ? Math.round((ent.approved / ent.total) * 100) : 0,
-            icon: <Paperclip className="gba:w-4 gba:h-4" style={{ color: 'var(--nw-chart-4)' }} />,
-            color: ent.type?.objectValue?.color,
-            textColor: ent.type?.objectValue?.color,
-            daysLeft: ent.available,
-            checkEntitlement: ent.type?.objectValue?.checkEntitlement
-          }))
-        )
+        // Entitlements and stats are provided by the snapshot hook; state is set in a separate effect below
       })
       .catch(() => setError('Failed to load absence data.'))
       .finally(() => setLoading(false))
   }, [employeeId, accessToken])
+
+  // Reflect snapshot entitlements/stats into component state while preserving visuals (icons/colors)
+  useEffect(() => {
+    if (snapshotEntitlements) {
+      setEntitlements(
+        snapshotEntitlements.map(ent => ({
+          type: ent.type,
+          color: ent.color || 'blue',
+          used: ent.used,
+          total: ent.total,
+          pending: ent.pending,
+          available: ent.available,
+          icon: <Paperclip className="gba:w-4 gba:h-4" style={{ color: ent.color || 'var(--nw-chart-4)' }} />,
+          checkEntitlement: undefined
+        }))
+      )
+    }
+    if (snapshotStats) {
+      setStats(
+        snapshotStats.map(s => ({
+          ...s,
+          icon: <Paperclip className="gba:w-4 gba:h-4" style={{ color: s.color || 'var(--nw-chart-4)' }} />
+        })) as any
+      )
+    }
+  }, [snapshotEntitlements, snapshotStats])
 
   const filterOptions = useMemo(
     () => ['All', ...Array.from(new Set(absenceList.map(a => a.type).filter(Boolean)))],

@@ -1,5 +1,4 @@
 export { useInvestmentPortfolioIntegration } from './useInvestmentPortfolioIntegration'
-export { usePortfolioChartData } from './usePortfolioChartData'
 export { usePortfolioGroupCountDistribution } from './usePortfolioGroupCountDistribution'
 export { usePortfolioGroupAmountDistribution } from './usePortfolioGroupAmountDistribution'
 export { usePortfolioStatusCountDistribution } from './usePortfolioStatusCountDistribution'

@@ -9,6 +9,7 @@ import type {
   SetUserStatusPayload
 } from '../types'
 import type { CallSignal, CallType, CallParticipant } from './webrtcClient'
+import { rtkDebug } from '../utils/rtkDebug'
 
 // Client version for tracking
 const CLIENT_VERSION = '2'
@@ -233,6 +234,10 @@ export class ChatWebSocketClient {
     this.socket?.on('conversation_created', handler)
   }
 
+  onConversationRead(handler: (data: { conversationId: string; userId: string; readAt: string }) => void) {
+    this.socket?.on('conversation:read', handler)
+  }
+
   onConversationCallStarted(handler: (data: ActiveCall) => void) {
     this.socket?.on('conversation:call-started', handler)
   }
@@ -257,6 +262,14 @@ export class ChatWebSocketClient {
 
   leaveConversation(conversationId: string) {
     this.socket?.emit('leave_conversation', { conversationId })
+  }
+
+  markConversationAsRead(conversationId: string) {
+    if (!this.socket || !this.socket.connected) {
+      return
+    }
+
+    this.socket.emit('conversation:mark-read', { conversationId })
   }
 
   sendMessage(
@@ -306,7 +319,7 @@ export class ChatWebSocketClient {
    */
   onUserStatusChange(handler: (data: UserStatusChangeEvent) => void) {
     const wrappedHandler = (data: UserStatusChangeEvent) => {
-      console.log('[ChatWebSocket] 📡 Received user_status_change event:', data)
+      rtkDebug.log('[ChatWebSocket] 📡 Received user_status_change event:', data)
       handler(data)
     }
     this.socket?.on('user_status_change', wrappedHandler)
@@ -335,9 +348,9 @@ export class ChatWebSocketClient {
         return
       }
 
-      console.log('[ChatWebSocket] 📤 Sending user:set_status:', payload)
+      rtkDebug.log('[ChatWebSocket] 📤 Sending user:set_status:', payload)
       this.socket.emit('user:set_status', payload, (response: any) => {
-        console.log('[ChatWebSocket] ✅ Received response from user:set_status:', response)
+        rtkDebug.log('[ChatWebSocket] ✅ Received response from user:set_status:', response)
         if (response?.success) {
           resolve(response)
         } else {
@@ -390,9 +403,9 @@ export class ChatWebSocketClient {
         return
       }
 
-      console.log('[ChatWebSocket] 📤 Requesting all user statuses')
+      rtkDebug.log('[ChatWebSocket] 📤 Requesting all user statuses')
       this.socket.emit('user:request_all_statuses', (response: { success: boolean; userCount: number }) => {
-        console.log('[ChatWebSocket] ✅ Received response from user:request_all_statuses:', response)
+        rtkDebug.log('[ChatWebSocket] ✅ Received response from user:request_all_statuses:', response)
         resolve(response)
       })
     })

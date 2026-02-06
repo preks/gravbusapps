@@ -13,16 +13,21 @@ import {
   UserCircle
 } from 'lucide-react'
 import { formatDateTime } from '@/common/utils/dateFormatter'
-import { buildFileUrl } from '@/common/utils/fileUtils'
+import { handleDocumentClick as handleDocumentClickUtil } from '@/common/utils/documentClickHandler'
 import type { TaskApprovalData } from '../hooks/useTaskApprovalData'
 import translations from '../_i18n'
 
 interface TaskDetailsDisplayProps {
   taskData: TaskApprovalData
   moduleType?: 'irm' | 'crm'
+  accessToken?: string
 }
 
-export const TaskDetailsDisplay: React.FC<TaskDetailsDisplayProps> = ({ taskData, moduleType = 'crm' }) => {
+export const TaskDetailsDisplay: React.FC<TaskDetailsDisplayProps> = ({
+  taskData,
+  moduleType = 'crm',
+  accessToken
+}) => {
   const { t } = useTranslation(translations)
 
   const getPriorityVariant = (priority?: string) => {
@@ -196,20 +201,9 @@ export const TaskDetailsDisplay: React.FC<TaskDetailsDisplayProps> = ({ taskData
             </Label>
             <div className="gba:space-y-2 gba:mt-2">
               {taskData.documents.map(doc => {
-                const handleDocumentClick = (e: React.MouseEvent) => {
+                const handleDocumentClick = async (e: React.MouseEvent) => {
                   e.stopPropagation()
-
-                  if (!doc.fileInfo) {
-                    console.warn('Document has no fileInfo:', doc)
-                    return
-                  }
-
-                  try {
-                    const fileUrl = buildFileUrl(doc.fileInfo)
-                    window.open(fileUrl, '_blank')
-                  } catch (error) {
-                    console.error('Error opening document:', error)
-                  }
+                  await handleDocumentClickUtil(doc, accessToken, { showToast: true })
                 }
 
                 return (

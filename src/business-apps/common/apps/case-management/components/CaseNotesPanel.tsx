@@ -1,7 +1,7 @@
 /**
  * Case Notes Panel Component
  *
- * Displays case notes timeline with add/edit functionality
+ * Displays case notes timeline with add/edit/delete functionality
  */
 
 import React, { useState, useMemo } from 'react'
@@ -18,9 +18,17 @@ import {
   SelectValue,
   Avatar,
   AvatarFallback,
-  AvatarImage
+  AvatarImage,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
 } from '@newwork/nw-design-system'
-import { MessageSquare, Send, Eye, EyeOff, Clock } from 'lucide-react'
+import { MessageSquare, Send, Eye, EyeOff, Clock, Pencil, Trash2, X, Check } from 'lucide-react'
 import { CaseNote } from '../types'
 import { formatRelativeTime } from '../utils'
 import { useEmployeeNamesBatch } from '@/business-apps/ser/hooks/useEmployeeNamesBatch'
@@ -38,15 +46,24 @@ interface CaseNotesPanelProps {
 export const CaseNotesPanel: React.FC<CaseNotesPanelProps> = ({
   notes,
   onAddNote,
-  currentUserId: _currentUserId,
+  onEditNote,
+  onDeleteNote,
+  currentUserId,
   readOnly = false,
   accessToken
 }) => {
-  // currentUserId will be used for highlighting own notes in future
-  void _currentUserId
   const [newNoteContent, setNewNoteContent] = useState('')
   const [newNoteVisibility, setNewNoteVisibility] = useState<'internal' | 'external'>('internal')
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // Edit state
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
+  const [editContent, setEditContent] = useState('')
+  const [isEditing, setIsEditing] = useState(false)
+
+  // Delete confirmation state
+  const [deleteNoteId, setDeleteNoteId] = useState<string | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   // Extract unique creator IDs from notes
   const creatorIds = useMemo(() => {
@@ -103,6 +120,58 @@ export const CaseNotesPanel: React.FC<CaseNotesPanelProps> = ({
     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
       handleAddNote()
     }
+  }
+
+  const handleStartEdit = (note: CaseNote) => {
+    setEditingNoteId(note.id)
+    setEditContent(note.content)
+  }
+
+  const handleCancelEdit = () => {
+    setEditingNoteId(null)
+    setEditContent('')
+  }
+
+  const handleSaveEdit = async () => {
+    if (!editingNoteId || !editContent.trim() || isEditing || !onEditNote) return
+
+    try {
+      setIsEditing(true)
+      await onEditNote(editingNoteId, editContent)
+      setEditingNoteId(null)
+      setEditContent('')
+    } catch (error) {
+      console.error('Failed to edit note:', error)
+    } finally {
+      setIsEditing(false)
+    }
+  }
+
+  const handleEditKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+      handleSaveEdit()
+    } else if (e.key === 'Escape') {
+      handleCancelEdit()
+    }
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteNoteId || isDeleting || !onDeleteNote) return
+
+    try {
+      setIsDeleting(true)
+      await onDeleteNote(deleteNoteId)
+      setDeleteNoteId(null)
+    } catch (error) {
+      console.error('Failed to delete note:', error)
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
+  // Check if user can edit/delete a note (only their own notes)
+  const canModifyNote = (note: CaseNote) => {
+    return !readOnly && note.createdBy === currentUserId
   }
 
   return (
@@ -165,6 +234,9 @@ export const CaseNotesPanel: React.FC<CaseNotesPanelProps> = ({
             <div className="gba:space-y-4">
               {notes.map((note, index) => {
                 const creator = getCreatorInfo(note.createdBy)
+                const isEditingThis = editingNoteId === note.id
+                const canModify = canModifyNote(note)
+
                 return (
                   <div
                     key={note.id || index}
@@ -194,12 +266,69 @@ export const CaseNotesPanel: React.FC<CaseNotesPanelProps> = ({
                           )}
                         </Badge>
                       </div>
-                      <span className="gba:text-xs gba:text-muted-foreground gba:flex gba:items-center gba:gap-1">
-                        <Clock className="gba:h-3 gba:w-3" />
-                        {formatRelativeTime(note.createdAt)}
-                      </span>
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <span className="gba:text-xs gba:text-muted-foreground gba:flex gba:items-center gba:gap-1">
+                          <Clock className="gba:h-3 gba:w-3" />
+                          {formatRelativeTime(note.createdAt)}
+                          {note.updatedAt && note.updatedAt !== note.createdAt && ' (edited)'}
+                        </span>
+                        {/* Edit/Delete buttons - only show for user's own notes */}
+                        {canModify && !isEditingThis && (
+                          <div className="gba:flex gba:items-center gba:gap-1">
+                            {onEditNote && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="gba:h-7 gba:w-7 gba:p-0"
+                                onClick={() => handleStartEdit(note)}
+                                title="Edit note"
+                              >
+                                <Pencil className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground" />
+                              </Button>
+                            )}
+                            {onDeleteNote && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="gba:h-7 gba:w-7 gba:p-0 hover:gba:text-destructive"
+                                onClick={() => setDeleteNoteId(note.id)}
+                                title="Delete note"
+                              >
+                                <Trash2 className="gba:h-3.5 gba:w-3.5 gba:text-muted-foreground" />
+                              </Button>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    <p className="gba:text-sm gba:text-foreground gba:whitespace-pre-wrap">{note.content}</p>
+
+                    {/* Note content - show either edit form or text */}
+                    {isEditingThis ? (
+                      <div className="gba:space-y-2 gba:mt-2">
+                        <Textarea
+                          value={editContent}
+                          onChange={e => setEditContent(e.target.value)}
+                          onKeyDown={handleEditKeyDown}
+                          rows={3}
+                          disabled={isEditing}
+                          className="gba:resize-none gba:text-sm"
+                          autoFocus
+                          placeholder="Edit your note... (Ctrl+Enter to save, Escape to cancel)"
+                        />
+                        <div className="gba:flex gba:items-center gba:justify-end gba:gap-2">
+                          <Button variant="ghost" size="sm" onClick={handleCancelEdit} disabled={isEditing}>
+                            <X className="gba:h-4 gba:w-4 gba:mr-1" />
+                            Cancel
+                          </Button>
+                          <Button size="sm" onClick={handleSaveEdit} disabled={!editContent.trim() || isEditing}>
+                            <Check className="gba:h-4 gba:w-4 gba:mr-1" />
+                            {isEditing ? 'Saving...' : 'Save'}
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="gba:text-sm gba:text-foreground gba:whitespace-pre-wrap">{note.content}</p>
+                    )}
                   </div>
                 )
               })}
@@ -207,6 +336,28 @@ export const CaseNotesPanel: React.FC<CaseNotesPanelProps> = ({
           )}
         </CardContent>
       </Card>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteNoteId} onOpenChange={open => !open && setDeleteNoteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Note</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this note? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              disabled={isDeleting}
+              className="gba:bg-destructive gba:text-destructive-foreground hover:gba:bg-destructive/90"
+            >
+              {isDeleting ? 'Deleting...' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
