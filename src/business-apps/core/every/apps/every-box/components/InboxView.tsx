@@ -32,7 +32,7 @@ import {
   cn
 } from '@newwork/nw-design-system'
 import translations from '../_i18n'
-import { Pin, Mail, WandSparkles } from 'lucide-react'
+import { Pin, Mail, WandSparkles, Sparkles } from 'lucide-react'
 import type { TaskSearchResult } from '@/business-apps/core/every/apps/every-api/services/AiService'
 import { UnifiedTask } from '../types'
 import { TaskCard } from './TaskCard'
