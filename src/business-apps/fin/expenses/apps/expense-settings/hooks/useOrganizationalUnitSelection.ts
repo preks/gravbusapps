@@ -2,7 +2,6 @@ import { useState, useCallback, useEffect } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
-import { DEV_STRUCTURE_ID } from './constants'
 
 export interface OrganizationalUnitOption {
   id: string
@@ -78,8 +77,17 @@ export const useOrganizationalUnitSelection = (
       }))
 
       try {
-        const structureId = getCurrentActiveStructureId() || DEV_STRUCTURE_ID
-        console.log('🏛️ useOrganizationalUnitSelection - structureId:', structureId)
+        const structureId = getCurrentActiveStructureId()
+        if (!structureId) {
+          setState(prev => ({
+            ...prev,
+            isLoading: false,
+            error: 'No active structure ID available.',
+            hasMore: false,
+            ...(append ? {} : { organizationalUnits: [] })
+          }))
+          return
+        }
 
         // Build where condition with required structureId filter (matching employee pattern)
         const whereCondition: any = {

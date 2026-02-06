@@ -25,7 +25,6 @@ export interface EnhancedMileageRule {
   validFrom: string // Formatted date for display
   validTo: string // Formatted date for display
   isActive: boolean
-  description?: string
   createdAt: string
   updatedAt: string
   usageCount: number // New field for calculation rule usage count
@@ -93,7 +92,6 @@ export const useMileageRulesIntegration = (context: BusinessAppContextProps) => 
         validFrom: validFromFormatted || 'N/A',
         validTo: validToFormatted,
         isActive,
-        description: rule.name,
         createdAt: rule.createdAt,
         updatedAt: rule.updatedAt,
         usageCount: 0, // Not currently tracked

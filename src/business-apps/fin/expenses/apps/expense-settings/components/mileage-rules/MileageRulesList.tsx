@@ -580,15 +580,17 @@ const MileageRulesList: React.FC<MileageRulesListProps> = ({ prefixDataTestId = 
           </DialogHeader>
           {editingRule &&
             (() => {
+              const ruleActiveFrom = formatDateForInput(editingRule.effectiveFrom) || dayjs().format('YYYY-MM-DD')
+              const ruleActiveTo = formatDateForInput(editingRule.effectiveTo) || '9999-12-31'
+
               const initialData = {
                 id: editingRule.id,
                 version: editingRule.version,
                 code: editingRule.code,
                 ruleName: editingRule.name,
-                description: editingRule.description || '',
                 rulePeriod: editingRule.rulePeriod || '',
-                activeFrom: formatDateForInput(editingRule.effectiveFrom) || '',
-                activeTo: formatDateForInput(editingRule.effectiveTo) || '',
+                activeFrom: ruleActiveFrom,
+                activeTo: ruleActiveTo,
                 details: editingRule.details.map(detail => ({
                   id: detail.id,
                   version: detail.version,
@@ -596,8 +598,8 @@ const MileageRulesList: React.FC<MileageRulesListProps> = ({ prefixDataTestId = 
                   limitFrom: detail.limitFrom,
                   limitTo: detail.limitTo,
                   detailOrder: detail.detailOrder,
-                  activeFrom: formatDateForInput(detail.activeFrom) || '',
-                  activeTo: formatDateForInput(detail.activeTo) || ''
+                  activeFrom: formatDateForInput(detail.activeFrom) || ruleActiveFrom,
+                  activeTo: formatDateForInput(detail.activeTo) || ruleActiveTo
                 }))
               }
 

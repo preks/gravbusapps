@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useFeature } from '@/common/hooks/useFeature'
+import dayjs from 'dayjs'
 import {
   Button,
   Input,
@@ -45,19 +46,18 @@ import { useGetMileageRuleStandaloneById } from '../../queries/ExpenseRuleQuerie
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { mileageRuleFormSchema } from '../../schemas'
 
-interface MileageRuleFormData {
+export interface MileageRuleFormData {
   id?: string
   version?: number
   code: string
   ruleName: string
-  description: string
   rulePeriod: string
   activeFrom: string
   activeTo: string
   details: MileageRuleDetailFormData[]
 }
 
-interface MileageRuleDetailFormData {
+export interface MileageRuleDetailFormData {
   id?: string
   version?: number
   limitFrom?: number
@@ -115,6 +115,10 @@ const MileageRuleForm: React.FC<MileageRuleFormProps> = ({ initialData, onSubmit
   // ✅ Hook for fetching fresh data when editing
   const { fetchMileageRuleById } = useGetMileageRuleStandaloneById({ accessToken } as BusinessAppContextProps)
 
+  const today = dayjs().format('YYYY-MM-DD')
+  const initialActiveFrom = formatDateForInput(initialData?.activeFrom) || today
+  const initialActiveTo = formatDateForInput(initialData?.activeTo) || '9999-12-31'
+
   // Feature flag guard
   if (isDevEnabled === false) {
     return null
@@ -126,10 +130,9 @@ const MileageRuleForm: React.FC<MileageRuleFormProps> = ({ initialData, onSubmit
     defaultValues: {
       code: initialData?.code || '',
       ruleName: initialData?.ruleName || '',
-      description: initialData?.description || '',
       rulePeriod: initialData?.rulePeriod || '',
-      activeFrom: initialData?.activeFrom || '',
-      activeTo: initialData?.activeTo || '',
+      activeFrom: initialActiveFrom,
+      activeTo: initialActiveTo,
       details: initialData?.details || []
     }
   })
@@ -141,10 +144,9 @@ const MileageRuleForm: React.FC<MileageRuleFormProps> = ({ initialData, onSubmit
       ...(initialData?.version !== undefined && { version: initialData.version }),
       code: initialData?.code || '',
       ruleName: initialData?.ruleName || '',
-      description: initialData?.description || '',
       rulePeriod: initialData?.rulePeriod || '',
-      activeFrom: initialData?.activeFrom || '',
-      activeTo: initialData?.activeTo || '',
+      activeFrom: initialActiveFrom,
+      activeTo: initialActiveTo,
       details: initialData?.details || []
     }
 
@@ -172,10 +174,9 @@ const MileageRuleForm: React.FC<MileageRuleFormProps> = ({ initialData, onSubmit
               version: freshData.version,
               code: freshData.code || '',
               ruleName: freshData.name || '',
-              description: freshData.description || '',
               rulePeriod: freshData.rulePeriod || '',
-              activeFrom: formatDateForInput(freshData.activeFrom) || '',
-              activeTo: formatDateForInput(freshData.activeTo) || '',
+              activeFrom: formatDateForInput(freshData.activeFrom) || today,
+              activeTo: formatDateForInput(freshData.activeTo) || '9999-12-31',
               details: (freshData.mileageRuleDetail || []).map((detail: any) => ({
                 id: detail.id,
                 version: detail.version,
@@ -183,8 +184,8 @@ const MileageRuleForm: React.FC<MileageRuleFormProps> = ({ initialData, onSubmit
                 limitTo: detail.limitTo,
                 rateAmount: detail.amount || 0,
                 detailOrder: detail.detailOrder || 0,
-                activeFrom: formatDateForInput(detail.activeFrom) || '',
-                activeTo: formatDateForInput(detail.activeTo) || '',
+                activeFrom: formatDateForInput(detail.activeFrom) || formatDateForInput(freshData.activeFrom) || today,
+                activeTo: formatDateForInput(detail.activeTo) || formatDateForInput(freshData.activeTo) || '9999-12-31',
                 tempId: `temp-${detail.id}`,
                 mileageRuleId: freshData.id,
                 additionalProperties: detail.additionalProperties
@@ -196,7 +197,6 @@ const MileageRuleForm: React.FC<MileageRuleFormProps> = ({ initialData, onSubmit
             form.reset({
               code: transformedData.code,
               ruleName: transformedData.ruleName,
-              description: transformedData.description,
               rulePeriod: transformedData.rulePeriod,
               activeFrom: transformedData.activeFrom,
               activeTo: transformedData.activeTo,
@@ -209,10 +209,9 @@ const MileageRuleForm: React.FC<MileageRuleFormProps> = ({ initialData, onSubmit
             ...(initialData.version !== undefined && { version: initialData.version }),
             code: initialData.code || '',
             ruleName: initialData.ruleName || '',
-            description: initialData.description || '',
             rulePeriod: initialData.rulePeriod || '',
-            activeFrom: initialData.activeFrom || '',
-            activeTo: initialData.activeTo || '',
+            activeFrom: formatDateForInput(initialData.activeFrom) || today,
+            activeTo: formatDateForInput(initialData.activeTo) || '9999-12-31',
             details: initialData.details || []
           }
           setFormData(fallbackData)
@@ -225,10 +224,9 @@ const MileageRuleForm: React.FC<MileageRuleFormProps> = ({ initialData, onSubmit
           ...(initialData.version !== undefined && { version: initialData.version }),
           code: initialData.code || '',
           ruleName: initialData.ruleName || '',
-          description: initialData.description || '',
           rulePeriod: initialData.rulePeriod || '',
-          activeFrom: initialData.activeFrom || '',
-          activeTo: initialData.activeTo || '',
+          activeFrom: formatDateForInput(initialData.activeFrom) || today,
+          activeTo: formatDateForInput(initialData.activeTo) || '9999-12-31',
           details: initialData.details || []
         }
         setFormData(originalData)
@@ -258,10 +256,30 @@ const MileageRuleForm: React.FC<MileageRuleFormProps> = ({ initialData, onSubmit
       ...prev,
       details: prev.details.map(detail => ({
         ...detail,
-        tempId: detail.tempId || `temp-${Date.now()}-${Math.random()}`
+        tempId: detail.tempId || `temp-${Date.now()}-${Math.random()}`,
+        activeFrom: detail.activeFrom || prev.activeFrom || today,
+        activeTo: detail.activeTo || prev.activeTo || '9999-12-31'
       }))
     }))
   }, [])
+
+  // Keep detail validity aligned with rule validity when detail fields are empty
+  useEffect(() => {
+    setFormData(prev => {
+      const nextDetails = prev.details.map(detail => ({
+        ...detail,
+        activeFrom: detail.activeFrom || prev.activeFrom || today,
+        activeTo: detail.activeTo || prev.activeTo || '9999-12-31'
+      }))
+
+      const changed = nextDetails.some((d, i) => {
+        const prevD = prev.details[i]
+        return d.activeFrom !== prevD.activeFrom || d.activeTo !== prevD.activeTo
+      })
+
+      return changed ? { ...prev, details: nextDetails } : prev
+    })
+  }, [formData.activeFrom, formData.activeTo, today])
 
   // Add new detail
   const addDetail = () => {
@@ -270,8 +288,8 @@ const MileageRuleForm: React.FC<MileageRuleFormProps> = ({ initialData, onSubmit
       limitTo: undefined,
       rateAmount: 0,
       detailOrder: formData.details.length + 1,
-      activeFrom: '',
-      activeTo: '',
+      activeFrom: formData.activeFrom || today,
+      activeTo: formData.activeTo || '9999-12-31',
       tempId: `temp-${Date.now()}-${Math.random()}` // Stable unique ID
     }
 
@@ -357,7 +375,15 @@ const MileageRuleForm: React.FC<MileageRuleFormProps> = ({ initialData, onSubmit
       if (detail.rateAmount <= 0) {
         errors.push(`Row ${index + 1}: Rate amount must be greater than 0`)
       }
-      if (detail.limitFrom !== undefined && detail.limitTo !== undefined && detail.limitFrom >= detail.limitTo) {
+      // Only validate limit range if BOTH values are defined and not null/0
+      if (
+        detail.limitFrom !== undefined &&
+        detail.limitFrom !== null &&
+        detail.limitTo !== undefined &&
+        detail.limitTo !== null &&
+        detail.limitTo > 0 &&
+        detail.limitFrom >= detail.limitTo
+      ) {
         errors.push(`Row ${index + 1}: Limit from must be less than limit to`)
       }
       if (!detail.activeFrom) {
@@ -493,7 +519,6 @@ const MileageRuleForm: React.FC<MileageRuleFormProps> = ({ initialData, onSubmit
     return (
       current.code !== original.code ||
       current.ruleName !== original.ruleName ||
-      current.description !== original.description ||
       current.rulePeriod !== original.rulePeriod ||
       current.activeFrom !== original.activeFrom ||
       current.activeTo !== original.activeTo
@@ -560,7 +585,21 @@ const MileageRuleForm: React.FC<MileageRuleFormProps> = ({ initialData, onSubmit
 
     setIsSubmitting(true)
     try {
-      // Step 1: Auto-order details first
+      // Step 1: If editing, refetch to ensure we have the latest version
+      if (formData.id) {
+        try {
+          const freshData = await fetchMileageRuleById(formData.id)
+          if (freshData && freshData.version !== formData.version) {
+            // Update version in formData to prevent stale version errors
+            setFormData(prev => ({ ...prev, version: freshData.version }))
+          }
+        } catch (error) {
+          console.error('Error refetching before save:', error)
+          // Continue with existing version if refetch fails
+        }
+      }
+
+      // Step 2: Auto-order details first
       const orderedDetails = autoOrderDetails(formData.details)
 
       // Update form data with ordered details
@@ -613,8 +652,12 @@ const MileageRuleForm: React.FC<MileageRuleFormProps> = ({ initialData, onSubmit
       }
       // Step 5: Update original data to current state (for future change detection)
       setOriginalFormData({ ...formDataWithOrderedDetails })
+
+      // Step 6: Close the modal on successful save
+      onCancel()
     } catch (error) {
       console.error('Error submitting form:', error)
+      setValidationErrors([error instanceof Error ? error.message : 'Failed to save mileage rule'])
     } finally {
       setIsSubmitting(false)
     }
@@ -704,28 +747,6 @@ const MileageRuleForm: React.FC<MileageRuleFormProps> = ({ initialData, onSubmit
               />
             </div>
 
-            <FormField
-              control={form.control}
-              name="description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Description</FormLabel>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      onChange={e => {
-                        field.onChange(e)
-                        setFormData(prev => ({ ...prev, description: e.target.value }))
-                      }}
-                      placeholder="Enter description"
-                      data-testid="mileage-rule-form-description"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
             <div className="gba:grid gba:grid-cols-2 gba:gap-4">
               <FormField
                 control={form.control}
@@ -737,7 +758,7 @@ const MileageRuleForm: React.FC<MileageRuleFormProps> = ({ initialData, onSubmit
                       <DateInput
                         value={field.value || ''}
                         onChange={date => {
-                          const normalized = normalizeDateInputValue(date) ?? ''
+                          const normalized = normalizeDateInputValue(date) || today
                           field.onChange(normalized)
                           setFormData(prev => ({ ...prev, activeFrom: normalized }))
                         }}
@@ -759,7 +780,7 @@ const MileageRuleForm: React.FC<MileageRuleFormProps> = ({ initialData, onSubmit
                       <DateInput
                         value={field.value || ''}
                         onChange={date => {
-                          const normalized = normalizeDateInputValue(date)
+                          const normalized = normalizeDateInputValue(date) || '9999-12-31'
                           field.onChange(normalized)
                           setFormData(prev => ({ ...prev, activeTo: normalized }))
                         }}
@@ -896,7 +917,11 @@ const MileageRuleForm: React.FC<MileageRuleFormProps> = ({ initialData, onSubmit
                               <DateInput
                                 value={detail.activeFrom || ''}
                                 onChange={date =>
-                                  updateDetail(index, 'activeFrom', normalizeDateInputValue(date) || '')
+                                  updateDetail(
+                                    index,
+                                    'activeFrom',
+                                    normalizeDateInputValue(date) || formData.activeFrom || today
+                                  )
                                 }
                                 outputFormat="iso"
                                 data-testid={`mileage-rule-form-detail-active-from-${stableId}`}
@@ -905,7 +930,13 @@ const MileageRuleForm: React.FC<MileageRuleFormProps> = ({ initialData, onSubmit
                             <TableCell>
                               <DateInput
                                 value={detail.activeTo || ''}
-                                onChange={date => updateDetail(index, 'activeTo', normalizeDateInputValue(date) || '')}
+                                onChange={date =>
+                                  updateDetail(
+                                    index,
+                                    'activeTo',
+                                    normalizeDateInputValue(date) || formData.activeTo || '9999-12-31'
+                                  )
+                                }
                                 outputFormat="iso"
                                 data-testid={`mileage-rule-form-detail-active-to-${stableId}`}
                               />
