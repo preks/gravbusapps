@@ -119,11 +119,6 @@ const MileageRuleForm: React.FC<MileageRuleFormProps> = ({ initialData, onSubmit
   const initialActiveFrom = formatDateForInput(initialData?.activeFrom) || today
   const initialActiveTo = formatDateForInput(initialData?.activeTo) || '9999-12-31'
 
-  // Feature flag guard
-  if (isDevEnabled === false) {
-    return null
-  }
-
   // React Hook Form for basic fields with Zod validation
   const form = useForm<MileageRuleFormData>({
     resolver: zodResolver(mileageRuleFormSchema),
@@ -661,6 +656,11 @@ const MileageRuleForm: React.FC<MileageRuleFormProps> = ({ initialData, onSubmit
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  // Feature flag guard - check after all hooks
+  if (isDevEnabled === false) {
+    return null
   }
 
   return (
