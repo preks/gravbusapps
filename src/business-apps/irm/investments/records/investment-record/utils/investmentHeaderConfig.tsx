@@ -1,3 +1,25 @@
+/**
+ * Investment Header Configuration - Catalog-Driven Field Definitions
+ *
+ * This file is ALREADY correctly implemented with catalog-driven field lookups.
+ * Header fields come from catalog objectValue entries with proper priority:
+ *
+ * PRIORITY ORDER:
+ * 1. Liquid Fund Type objectValue (if liquidFundTypeCode exists)
+ * 2. Investment Type objectValue (if investmentTypeCode exists)
+ * 3. Investment Group objectValue (fallback)
+ *
+ * This logic is separate from recordGroupConfigurations.tsx which controls
+ * UI presentation (tabs, icons, labels) rather than data field definitions.
+ *
+ * KEY FUNCTIONS:
+ * - getInvestmentTypeFieldDefinition: Lookup fields by investment type
+ * - getLiquidFundTypeFieldDefinition: Lookup fields by liquid fund type
+ * - findFormFieldsDefinition: Priority-based field definition lookup
+ * - transformFormFieldsToHeaderItems: Convert catalog fields to header items
+ * - getTypeSpecificDetailGroups: Dynamic header groups with catalog fallback
+ */
+
 // Investment Header Configuration Utilities
 import React from 'react'
 import { Badge } from '@newwork/nw-design-system'

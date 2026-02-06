@@ -1,4 +1,5 @@
 // Investment Tab Configuration Utilities
+import React, { Suspense } from 'react'
 import {
   HouseIcon,
   ChartBarIcon,
@@ -8,95 +9,20 @@ import {
   GridFourIcon,
   TrendDownIcon
 } from '@phosphor-icons/react'
+import { Spinner } from '@newwork/nw-design-system'
 import { InvestmentDocuments } from '../components/InvestmentDocuments'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import {
-  GenerateOnePagerButton,
-  InvestmentTileSection,
-  InvestmentHomeTab,
-  InvestmentReportsTab
-} from '../components/shared'
+import { InvestmentHomeTab, InvestmentReportsTab } from '../components/shared'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { EquityInvestmentRounds, RealEstateLiquidityForecast, EquityAnalyticsTab } from '../components/group-specific'
 import { InvestmentTilesTab } from '@/common/components/investment/tiles'
 import { DivestmentsTab } from '../components/DivestmentsTab'
-// Remove dependency on investmentTypeUtils - now using dynamic types
-
-/**
- * Gets type-specific overview content with enhanced equity detection
- */
-export const getTypeSpecificOverviewContent = (
-  investmentType: string,
-  typeSpecificData: any,
-  businessAppContext?: BusinessAppContextProps,
-  onRefresh?: () => void
-) => {
-  // Enhanced equity detection - check multiple conditions (exclude PRIVATE_EQUITY)
-  const groupCode = typeSpecificData?.investment?.investmentGroup?.code || ''
-  const isEquityInvestment =
-    !groupCode.includes('PRIVATE_EQUITY') && // Exclude Private Equity
-    (investmentType === 'equity' ||
-      (investmentType || '').toLowerCase().includes('equity') ||
-      groupCode.includes('EQUITY') ||
-      (typeSpecificData?.investment?.investmentType?.code || '').toLowerCase().includes('equity') ||
-      typeSpecificData?.equityInvestment) // Has equity data
-
-  // Enhanced real estate detection - check multiple conditions
-  const isRealEstateInvestment =
-    investmentType === 'real_estate' ||
-    (investmentType || '').toLowerCase().includes('real_estate') ||
-    (investmentType || '').toLowerCase().includes('realestate') ||
-    (typeSpecificData?.investment?.investmentGroup?.code || '').includes('REAL_ESTATE') ||
-    (typeSpecificData?.investment?.investmentType?.code || '').toLowerCase().includes('real_estate') ||
-    typeSpecificData?.realEstateInvestment // Has real estate data
-
-  if (isEquityInvestment) {
-    return (
-      <div data-testid="equity-overview-section">
-        <EquityInvestmentRounds
-          equityData={typeSpecificData}
-          isLoading={false}
-          onRefresh={onRefresh}
-          data-testid="equity-investment-rounds-overview"
-          accessToken={businessAppContext?.accessToken || ''}
-          userInfo={businessAppContext?.userInfo}
-          additionalData={businessAppContext?.additionalData}
-        />
-      </div>
-    )
-  }
-
-  if (isRealEstateInvestment) {
-    return (
-      <div data-testid="real-estate-overview-section">
-        <RealEstateLiquidityForecast
-          realEstateData={typeSpecificData}
-          isLoading={false}
-          accessToken={businessAppContext?.accessToken || ''}
-          data-testid="real-estate-liquidity-forecast-overview"
-        />
-      </div>
-    )
-  }
-
-  switch (investmentType) {
-    case 'real_estate':
-      return (
-        <RealEstateLiquidityForecast
-          realEstateData={typeSpecificData}
-          isLoading={false}
-          accessToken={businessAppContext?.accessToken || ''}
-        />
-      )
-    default:
-      return null
-  }
-}
+import { getRecordGroupConfiguration } from '../config/recordGroupConfigurations'
 
 /**
  * Creates the tab configuration for RecordLayout
+ * Uses configuration-driven approach via recordGroupConfigurations.tsx
  */
 export const createInvestmentTabsConfig = (
   activeTab: string,
@@ -110,9 +36,13 @@ export const createInvestmentTabsConfig = (
   props: BusinessAppContextProps,
   catalogData?: any
 ) => {
+  // Get configuration for this investment group
+  const groupCode = investment?.investmentGroup?.code || ''
+  const config = getRecordGroupConfiguration(groupCode)
+
   // Create base tabs array
   const tabs = [
-    // Home Tab
+    // Home Tab (baseline - always present)
     {
       value: 'home',
       label: getTranslationFromI18nKeyAndLabel('crm.investments.tabs.home', 'Home'),
@@ -121,35 +51,29 @@ export const createInvestmentTabsConfig = (
     }
   ]
 
-  // Add Analytics Tab only for equity investments (exclude PRIVATE_EQUITY)
-  const groupCode = investment?.investmentGroup?.code || ''
-  const isEquityInvestment =
-    !groupCode.includes('PRIVATE_EQUITY') && // Exclude Private Equity
-    (investmentType === 'equity' ||
-      (investmentType || '').toLowerCase().includes('equity') ||
-      groupCode.includes('EQUITY') ||
-      (investment?.investmentType?.code || '').toLowerCase().includes('equity') ||
-      typeSpecificData?.equityInvestment)
-
-  if (isEquityInvestment) {
+  // Conditionally add Analytics Tab based on configuration
+  if (config.additionalTabs?.includes('analytics') && config.analyticsContent) {
+    const AnalyticsComponent = config.analyticsContent
     tabs.push({
       value: 'analytics',
       label: getTranslationFromI18nKeyAndLabel('crm.investments.tabs.analytics', 'Analytics'),
       icon: <TrendUpIcon className="gba:h-4 gba:w-4 gba:mr-2" />,
       content: (
         <div className="gba:col-span-12">
-          <EquityAnalyticsTab
-            investmentId={investmentId}
-            investment={investment}
-            equityData={typeSpecificData}
-            {...props}
-          />
+          <Suspense fallback={<Spinner size="lg" />}>
+            <AnalyticsComponent
+              investmentId={investmentId}
+              investment={investment}
+              equityData={typeSpecificData}
+              {...props}
+            />
+          </Suspense>
         </div>
       )
     })
   }
 
-  // Add Tiles Tab for ALL investment types
+  // Add Tiles Tab (baseline - always present)
   tabs.push({
     value: 'tiles',
     label: getTranslationFromI18nKeyAndLabel('crm.investments.tabs.tiles', 'Tiles'),
@@ -161,7 +85,7 @@ export const createInvestmentTabsConfig = (
     )
   })
 
-  // Add Divestments Tab - shows all divestment opportunities for this investment
+  // Add Divestments Tab (baseline - always present)
   tabs.push({
     value: 'divestments',
     label: getTranslationFromI18nKeyAndLabel('crm.investments.tabs.divestments', 'Divestments'),
@@ -173,52 +97,23 @@ export const createInvestmentTabsConfig = (
     )
   })
 
-  // Add Overview Tab only for investments with specialized group-specific content
-  // Only EQUITY and REAL_ESTATE have complex visualizations (tiles, shareholders, forecasts, etc.)
-  // All other groups (LIQUID_FUND, PRIVATE_EQUITY, TEST, etc.) are simple and don't need an overview tab
-  const investmentGroupCode = (investment?.investmentGroup?.code || '').toUpperCase()
-  const hasComplexContent =
-    (investmentGroupCode.includes('EQUITY') && !investmentGroupCode.includes('PRIVATE_EQUITY')) ||
-    investmentGroupCode.includes('REAL_ESTATE')
-
-  if (hasComplexContent) {
+  // Conditionally add Overview Tab based on configuration
+  if (config.additionalTabs?.includes('overview') && config.overviewContent) {
+    const OverviewComponent = config.overviewContent
     tabs.push({
       value: 'overview',
       label: getTranslationFromI18nKeyAndLabel('crm.investments.tabs.overview', 'Overview'),
       icon: <ChartBarIcon className="gba:h-4 gba:w-4 gba:mr-2" />,
       content: (
-        <div className="gba:col-span-12 gba:space-y-6">
-          {/* Generate One-Pager Action */}
-          <div
-            className="gba:flex gba:justify-end"
-            style={{ marginBottom: 'var(--nw-spacing-lg)' }}
-            data-testid="investment-generate-onepager-section"
-          >
-            <GenerateOnePagerButton
-              investmentId={investment?.id}
-              accessToken={props.accessToken}
-              userInfo={props.userInfo}
-              investmentData={investment}
-            />
-          </div>
-
-          {/* Investment Tile Section - only show if tile fields are configured */}
-          {processedTiles.length > 0 && (
-            <InvestmentTileSection
-              investment={investment}
-              isLoading={false}
-              accessToken={props.accessToken}
-              userInfo={props.userInfo}
-              additionalData={props.additionalData}
-              data-testid={`${investmentType}-record-tiles`}
-            />
-          )}
-
-          {/* Type-specific content */}
-          {getTypeSpecificOverviewContent(investmentType, typeSpecificData, props, loadData)}
-
-          {/* Note: Account and Contact sections removed - now available in Home tab */}
-        </div>
+        <Suspense fallback={<Spinner size="lg" />}>
+          <OverviewComponent
+            investment={investment}
+            typeSpecificData={typeSpecificData}
+            processedTiles={processedTiles}
+            onRefresh={loadData}
+            {...props}
+          />
+        </Suspense>
       )
     })
   }
