@@ -38,6 +38,101 @@ interface UseExpenseRequestAnalysisReturn {
 /** API endpoint for expense insights (relative URL) */
 const EXPENSE_INSIGHTS_ENDPOINT = '/flowbot/api/agent/expense-insights'
 
+const isAnalysisType = (value: unknown): value is AnalysisType => value === 'WARNING' || value === 'INFO'
+
+const looksLikeJson = (value: string): boolean => {
+  const trimmed = value.trim()
+  return (trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))
+}
+
+/**
+ * Convert array of values to newline-separated string
+ */
+const arrayToMultilineText = (input: unknown[]): string => {
+  return input
+    .map(v => (typeof v === 'string' ? v : String(v)))
+    .filter(Boolean)
+    .join('\n')
+}
+
+/**
+ * Try to parse JSON string and normalize recursively
+ */
+const tryParseJsonString = (input: string): ExpenseRequestAnalysis | null => {
+  if (!looksLikeJson(input)) return null
+
+  try {
+    return normalizeExpenseInsightsResponse(JSON.parse(input))
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Normalize string input to analysis response
+ */
+const normalizeStringInput = (input: string): ExpenseRequestAnalysis => {
+  const parsed = tryParseJsonString(input)
+  return parsed ?? { type: 'INFO', user_text: input }
+}
+
+/**
+ * Normalize array input to analysis response
+ */
+const normalizeArrayInput = (input: unknown[]): ExpenseRequestAnalysis => {
+  return { type: 'INFO', user_text: arrayToMultilineText(input) }
+}
+
+/**
+ * Extract and normalize user_text from object response
+ */
+const normalizeUserText = (rawUserText: unknown, parentType: AnalysisType): ExpenseRequestAnalysis => {
+  // Try parsing nested JSON string
+  if (typeof rawUserText === 'string') {
+    const parsed = tryParseJsonString(rawUserText)
+    if (parsed) {
+      return { type: parsed.type ?? parentType, user_text: parsed.user_text }
+    }
+    return { type: parentType, user_text: rawUserText }
+  }
+
+  // Handle array
+  if (Array.isArray(rawUserText)) {
+    return { type: parentType, user_text: arrayToMultilineText(rawUserText) }
+  }
+
+  // Handle null/undefined
+  if (rawUserText == null) {
+    return { type: parentType, user_text: '' }
+  }
+
+  // Fallback: stringify unknown types
+  return { type: parentType, user_text: String(rawUserText) }
+}
+
+/**
+ * Normalize object input to analysis response
+ */
+const normalizeObjectInput = (input: object): ExpenseRequestAnalysis => {
+  const maybe = input as { type?: unknown; user_text?: unknown }
+  const type: AnalysisType = isAnalysisType(maybe.type) ? maybe.type : 'INFO'
+  return normalizeUserText(maybe.user_text, type)
+}
+
+/**
+ * Some environments occasionally return a double-encoded payload where `user_text`
+ * is a JSON string that itself contains `{ type, user_text }` (or an array of strings).
+ * We normalize aggressively so the UI never renders raw JSON blobs.
+ */
+const normalizeExpenseInsightsResponse = (input: unknown): ExpenseRequestAnalysis => {
+  if (typeof input === 'string') return normalizeStringInput(input)
+  if (Array.isArray(input)) return normalizeArrayInput(input)
+  if (input && typeof input === 'object') return normalizeObjectInput(input)
+
+  // Unknown primitive (number/boolean/etc.)
+  return { type: 'INFO', user_text: String(input ?? '') }
+}
+
 /**
  * Fetch expense insights from the API
  * @param expenseRequestId - The expense request ID to analyze
@@ -72,19 +167,7 @@ const fetchExpenseInsights = async (expenseRequestId: string, accessToken: strin
     throw new Error('Invalid response format from expense insights API')
   }
 
-  // Handle user_text as either string or array
-  let userText: string
-  if (Array.isArray(data.user_text)) {
-    // Join array items with newlines
-    userText = data.user_text.join('\n')
-  } else {
-    userText = data.user_text
-  }
-
-  return {
-    type: data.type,
-    user_text: userText
-  }
+  return normalizeExpenseInsightsResponse(data)
 }
 
 /**
