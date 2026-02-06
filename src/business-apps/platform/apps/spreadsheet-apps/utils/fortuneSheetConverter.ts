@@ -412,22 +412,28 @@ export function convertFromFortuneSheet(
         value = cell.v
       }
 
-      // Convert based on column type
-      switch (column.type) {
-        case 'number':
-        case 'currency':
-        case 'percentage':
-          row[column.id] = typeof value === 'number' ? value : parseFloat(String(value ?? '0'))
-          break
-        case 'boolean':
-          row[column.id] = Boolean(value)
-          break
-        case 'date':
-        case 'datetime':
-          row[column.id] = value
-          break
-        default:
-          row[column.id] = value
+      // Formula cell objects must be preserved as-is regardless of column type
+      // so that formulas survive round-trip serialisation.
+      if (cell.f) {
+        row[column.id] = value
+      } else {
+        // Convert based on column type
+        switch (column.type) {
+          case 'number':
+          case 'currency':
+          case 'percentage':
+            row[column.id] = typeof value === 'number' ? value : parseFloat(String(value ?? '0'))
+            break
+          case 'boolean':
+            row[column.id] = Boolean(value)
+            break
+          case 'date':
+          case 'datetime':
+            row[column.id] = value
+            break
+          default:
+            row[column.id] = value
+        }
       }
 
       // Also set by column name for compatibility
