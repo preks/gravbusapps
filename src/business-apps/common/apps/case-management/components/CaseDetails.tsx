@@ -52,7 +52,8 @@ import {
   GitBranch,
   Link2,
   Trash2,
-  RotateCcw
+  RotateCcw,
+  Network
 } from 'lucide-react'
 import { BusinessAppContextProps } from '@/business-apps/types'
 import { Case, AddFlowRequest, LinkedEntity, LinkedFlow, CasePriority } from '../types'
@@ -64,6 +65,7 @@ import { EntityLinkingPanel } from './EntityLinkingPanel'
 import { RelatedCasesPanel } from './RelatedCasesPanel'
 import { CaseActivityFeed } from './CaseActivityFeed'
 import { EditCaseModal } from './EditCaseModal'
+import { CaseRelationshipGraph } from './CaseRelationshipGraph'
 import { useCaseData } from '../hooks'
 import { openEveryAI } from '@/common/utils/openEveryAI'
 import { useEmployeeNamesBatch } from '@/business-apps/ser/hooks/useEmployeeNamesBatch'
@@ -880,6 +882,28 @@ export const CaseDetails: React.FC<CaseDetailsProps> = ({
     </div>
   )
 
+  // Diagram Tab Content - Case Relationship Graph
+  const diagramContent = (
+    <div className="nw:col-span-full">
+      <CaseRelationshipGraph
+        caseId={caseId}
+        context={context}
+        currentCase={caseData}
+        linkedCases={metadata?.linkedCases || []}
+        onCaseSelect={selectedCaseId => {
+          console.log('Case selected in diagram:', selectedCaseId)
+        }}
+        onNavigateToCase={navigateCaseId => {
+          if (onNavigateToCase) {
+            onNavigateToCase(navigateCaseId)
+          }
+        }}
+        height={600}
+        showMinimap={true}
+      />
+    </div>
+  )
+
   // Links Tab Content
   const linksContent = (
     <div className="nw:col-span-full">
@@ -965,6 +989,13 @@ export const CaseDetails: React.FC<CaseDetailsProps> = ({
               label: 'Related Cases',
               icon: <GitBranch className="nw:h-4 nw:w-4" />,
               content: relatedCasesContent,
+              contentClassName: autoHeightGridClass
+            },
+            {
+              value: 'diagram',
+              label: 'Diagram',
+              icon: <Network className="nw:h-4 nw:w-4" />,
+              content: diagramContent,
               contentClassName: autoHeightGridClass
             },
             {
