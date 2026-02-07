@@ -138,7 +138,9 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
         status: globalCallData.callState.status,
         isMinimized: globalCallData.callState.isMinimized,
         hasBeenMinimized: globalCallData.callState.hasBeenMinimized,
-        roomId: globalCallData.callState.roomId
+        roomId: globalCallData.callState.roomId,
+        meetingId: globalCallData.callState.meetingId,
+        sessionId: globalCallData.callState.sessionId
       })
 
       setCallState(prev => ({
@@ -147,6 +149,8 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
         isMinimized: globalCallData.callState.isMinimized,
         hasBeenMinimized: globalCallData.callState.hasBeenMinimized,
         roomId: globalCallData.callState.roomId,
+        meetingId: globalCallData.callState.meetingId ?? prev.meetingId ?? null,
+        sessionId: globalCallData.callState.sessionId ?? prev.sessionId ?? null,
         callType: globalCallData.callState.callType || 'audio',
         callStartTime: globalCallData.callState.startTime,
         hostId: globalCallData.callState.hostId || null,
@@ -1772,16 +1776,30 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
     globalCallManager.setCall({
       realtimeKitMeeting: meeting,
       callState: {
+        // IMPORTANT: preserve global minimized state as the source of truth
+        // (otherwise this effect can overwrite minimize/maximize coming from GlobalCallContainer)
+        ...(() => {
+          const globalState = globalCallManager.getCallData().callState
+          const isSameCall =
+            globalState.callImplementation === 'realtime-kit' &&
+            globalState.status !== 'idle' &&
+            globalState.roomId === callState.roomId
+
+          return {
+            isMinimized: isSameCall ? globalState.isMinimized : callState.isMinimized,
+            hasBeenMinimized: isSameCall ? globalState.hasBeenMinimized : callState.hasBeenMinimized
+          }
+        })(),
         status: 'connected',
         roomId: callState.roomId,
+        meetingId: callState.meetingId ?? null,
+        sessionId: callState.sessionId ?? null,
         callType: callState.callType,
         callImplementation: 'realtime-kit',
         hostId: callState.hostId,
         isMuted: callState.isMuted,
         isVideoEnabled: callState.isVideoEnabled,
         isScreenSharing: screenShare.isScreenSharing,
-        isMinimized: callState.isMinimized,
-        hasBeenMinimized: callState.hasBeenMinimized,
         duration: callState.duration,
         videoQuality: callState.videoQuality,
         backgroundEnabled: callState.backgroundEnabled,
@@ -1859,8 +1877,6 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
     callState.hostId,
     callState.isMuted,
     callState.isVideoEnabled,
-    callState.isMinimized,
-    callState.hasBeenMinimized,
     callState.duration,
     callState.videoQuality,
     callState.backgroundEnabled,
@@ -1926,8 +1942,14 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
       }
 
       // Ignore if this is our own invite
-      if (data.from.id === currentUser?.id) {
-        rtkDebug.log('[RTK] ❌ Ignoring invite - from self')
+      const isFromSelf = data.from?.id === currentUser?.id || data.from?.odId === currentUser?.odId
+      if (isFromSelf) {
+        rtkDebug.log('[RTK] ❌ Ignoring invite - from self', {
+          fromId: data.from?.id,
+          fromOdId: data.from?.odId,
+          currentUserId: currentUser?.id,
+          currentUserOdId: currentUser?.odId
+        })
         return
       }
 

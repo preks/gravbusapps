@@ -2239,7 +2239,11 @@ const ChatInner: React.FC<ChatProps> = memo(
             groupCallState.status === 'connected' && realtimeKitGroupCall.meeting?.self?.roomState !== 'joined'
           // Use global state for hasBeenMinimized since it persists across Chat component remounts
           const hasBeenMinimized = globalCallData.callState.hasBeenMinimized || groupCallState.hasBeenMinimized
-          const isMinimized = groupCallState.isMinimized
+          // CRITICAL: For RealtimeKit calls, globalCallManager is the source of truth for minimized state
+          const isMinimized =
+            globalCallData.callState.callImplementation === 'realtime-kit'
+              ? globalCallData.callState.isMinimized
+              : groupCallState.isMinimized
           const hasIncomingInvite = !!incomingGroupCallInvite
 
           const shouldShow =

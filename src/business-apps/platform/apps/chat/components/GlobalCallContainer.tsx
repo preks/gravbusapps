@@ -44,8 +44,6 @@ export const GlobalCallContainer: React.FC = () => {
       if (isAlreadyOnChatPage) {
         // Already on chat page, maximize without navigating
         globalCallManager.updateCallState({ isMinimized: false, hasBeenMinimized: true })
-        // Best-effort: keep any still-mounted hook state in sync
-        callData.toggleMinimize?.()
       } else {
         // Navigate to chat to show full conversation context
         navigateTo('/platform/chat')
@@ -53,15 +51,11 @@ export const GlobalCallContainer: React.FC = () => {
         // Small delay to let navigation happen, then expand
         setTimeout(() => {
           globalCallManager.updateCallState({ isMinimized: false, hasBeenMinimized: true })
-          // Best-effort: keep any still-mounted hook state in sync
-          callData.toggleMinimize?.()
         }, 100)
       }
     } else {
       // Just minimize normally
       globalCallManager.updateCallState({ isMinimized: true, hasBeenMinimized: true })
-      // Best-effort: keep any still-mounted hook state in sync
-      callData.toggleMinimize?.()
     }
   }, [callData])
 

@@ -12,6 +12,22 @@ import type { GroupWebRTCClient, GroupCallParticipant, VideoQuality } from './gr
 import type { ChatWebSocketClient } from './chatWebSocketClient'
 import type { CallParticipant, CallType } from './webrtcClient'
 
+const isGlobalCallDebugEnabled = (): boolean => {
+  if (typeof globalThis.window === 'undefined') return false
+  try {
+    // Reuse the same toggle as RealtimeKit debugging
+    return localStorage.getItem('RTK_DEBUG') === 'true'
+  } catch {
+    return false
+  }
+}
+
+const debug = (...args: unknown[]) => {
+  if (isGlobalCallDebugEnabled()) {
+    console.debug(...args)
+  }
+}
+
 // Extend Window interface for TypeScript
 declare global {
   interface Window {
@@ -22,6 +38,9 @@ declare global {
 export interface GlobalCallState {
   status: 'idle' | 'joining' | 'connected'
   roomId: string | null
+  // RealtimeKit identifiers (optional for other implementations)
+  meetingId?: string | null
+  sessionId?: string | null
   callType: CallType
   callImplementation: 'mesh' | 'realtime-kit' | '1-on-1' // Track which implementation is used
   hostId: string | null
@@ -83,6 +102,8 @@ interface StoredCallData {
 const initialCallState: GlobalCallState = {
   status: 'idle',
   roomId: null,
+  meetingId: null,
+  sessionId: null,
   callType: 'audio',
   callImplementation: 'mesh',
   hostId: null,
@@ -137,21 +158,24 @@ class GlobalCallManager {
 
   constructor() {
     // Check if there's existing call data from a previous instance
-    console.debug('GlobalCallManager: Constructor called')
+    debug('GlobalCallManager: Constructor called')
   }
 
   static getInstance(): GlobalCallManager {
     // Use window object to ensure singleton persists across module reloads
     if (!window.__GLOBAL_CALL_MANAGER__) {
       window.__GLOBAL_CALL_MANAGER__ = new GlobalCallManager()
-      console.debug('GlobalCallManager: Created new instance on window')
+      debug('GlobalCallManager: Created new instance on window')
     }
     return window.__GLOBAL_CALL_MANAGER__
   }
 
   // Check if there's an active call that should persist
   hasActiveCall(): boolean {
-    return this.callData.callState.status !== 'idle' && this.callData.webrtcClient !== null
+    return (
+      this.callData.callState.status !== 'idle' &&
+      (this.callData.webrtcClient !== null || this.callData.realtimeKitMeeting !== null)
+    )
   }
 
   // Check if call is minimized (should persist across unmounts)
@@ -170,7 +194,7 @@ class GlobalCallManager {
     currentUser: CallParticipant | null
     leaveCall?: () => Promise<void> // NEW: Optional leave function
   }) {
-    console.debug('GlobalCallManager: Storing call data')
+    debug('GlobalCallManager: Storing call data')
     this.callData = {
       ...this.callData, // Preserve all existing properties
       ...data, // Override with new data
@@ -187,7 +211,7 @@ class GlobalCallManager {
 
   // Set call data with all callbacks and context (new method for RealtimeKit)
   setCall(data: Partial<StoredCallData>) {
-    console.debug('[GlobalCallManager] setCall called with:', {
+    debug('[GlobalCallManager] setCall called with:', {
       status: data.callState?.status,
       implementation: data.callState?.callImplementation,
       hasMeeting: !!data.realtimeKitMeeting,
@@ -202,7 +226,7 @@ class GlobalCallManager {
       ...data
     }
 
-    console.debug('[GlobalCallManager] Call data updated, final state:', {
+    debug('[GlobalCallManager] Call data updated, final state:', {
       status: this.callData.callState.status,
       implementation: this.callData.callState.callImplementation,
       hasMeeting: !!this.callData.realtimeKitMeeting,
@@ -244,7 +268,7 @@ class GlobalCallManager {
 
   // Clear call data
   clearCall() {
-    console.debug('GlobalCallManager: Clearing call data')
+    debug('GlobalCallManager: Clearing call data')
 
     if (this.callData.durationInterval) {
       clearInterval(this.callData.durationInterval)
@@ -311,7 +335,7 @@ class GlobalCallManager {
   }
 
   private notifyListeners() {
-    console.debug(
+    debug(
       'GlobalCallManager: Notifying',
       this.listeners.size,
       'listeners, status:',
