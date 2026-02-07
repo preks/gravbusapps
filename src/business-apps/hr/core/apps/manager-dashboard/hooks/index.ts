@@ -4,6 +4,9 @@
 
 export { useAIInsights } from './useAIInsights'
 export { useCurrentUserOrgData } from './useCurrentUserOrgData'
+export { useFeedbackSentiment } from './useFeedbackSentiment'
+export { useRiskTrendHistory } from './useRiskTrendHistory'
+export { useSaveRiskScores } from './useSaveRiskScores'
 export { useCurrentUserProfile } from './useCurrentUserProfile'
 export { useDirectReports } from './useDirectReports'
 export { useFlightRiskPrediction } from './useFlightRiskPrediction'

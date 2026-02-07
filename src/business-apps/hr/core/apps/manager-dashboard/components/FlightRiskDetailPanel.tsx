@@ -33,7 +33,8 @@ import {
   ChevronDown,
   ChevronUp,
   AlertCircle,
-  CheckCircle
+  CheckCircle,
+  Sparkles
 } from 'lucide-react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import {
@@ -134,24 +135,43 @@ const SummaryStats: React.FC<{ summary: FlightRiskSummary }> = ({ summary }) => 
   </div>
 )
 
+// Check if a signal was analyzed by AI
+const isAIAnalyzedSignal = (signal: FlightRiskSignal): boolean => {
+  return signal.rawValue === 'ai-analyzed' || signal.dataSource === 'FlowBot AI'
+}
+
 // Signal Breakdown Component
 const SignalBreakdown: React.FC<{ signals: FlightRiskSignal[] }> = ({ signals }) => (
   <div className="gba:space-y-3">
-    {signals.map(signal => (
-      <div key={signal.id} className="gba:flex gba:items-center gba:gap-3 gba:p-3 gba:rounded-md gba:bg-muted/50">
-        <div className="gba:flex-shrink-0">{getSignalIcon(signal.category)}</div>
-        <div className="gba:flex-1 gba:min-w-0">
-          <div className="gba:flex gba:items-center gba:justify-between gba:gap-2 gba:mb-1">
-            <span className="gba:text-sm gba:font-medium gba:truncate">{signal.name}</span>
-            <Badge variant={getScoreBadgeVariant(signal.normalizedScore)} className="gba:flex-shrink-0">
-              {signal.normalizedScore}%
-            </Badge>
+    {signals.map(signal => {
+      const isAI = isAIAnalyzedSignal(signal)
+      return (
+        <div key={signal.id} className="gba:flex gba:items-center gba:gap-3 gba:p-3 gba:rounded-md gba:bg-muted/50">
+          <div className="gba:flex-shrink-0">{getSignalIcon(signal.category)}</div>
+          <div className="gba:flex-1 gba:min-w-0">
+            <div className="gba:flex gba:items-center gba:justify-between gba:gap-2 gba:mb-1">
+              <div className="gba:flex gba:items-center gba:gap-2 gba:min-w-0">
+                <span className="gba:text-sm gba:font-medium gba:truncate">{signal.name}</span>
+                {isAI && (
+                  <span
+                    className="gba:inline-flex gba:items-center gba:gap-1 gba:px-1.5 gba:py-0.5 gba:text-[10px] gba:font-medium gba:rounded gba:bg-primary/10 gba:text-primary gba:flex-shrink-0"
+                    title="Analyzed by AI"
+                  >
+                    <Sparkles size={10} />
+                    AI
+                  </span>
+                )}
+              </div>
+              <Badge variant={getScoreBadgeVariant(signal.normalizedScore)} className="gba:flex-shrink-0">
+                {signal.normalizedScore}%
+              </Badge>
+            </div>
+            <Progress value={signal.normalizedScore} className="gba:h-1" />
+            <p className="gba:text-xs gba:text-muted-foreground gba:mt-1 gba:truncate">{signal.description}</p>
           </div>
-          <Progress value={signal.normalizedScore} className="gba:h-1" />
-          <p className="gba:text-xs gba:text-muted-foreground gba:mt-1 gba:truncate">{signal.description}</p>
         </div>
-      </div>
-    ))}
+      )
+    })}
   </div>
 )
 

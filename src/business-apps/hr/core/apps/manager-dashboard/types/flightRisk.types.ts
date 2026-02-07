@@ -175,8 +175,31 @@ export interface RawSalaryHistory {
   employeeId: string
   previousAmount: number
   newAmount: number
+  currency?: string
   effectiveDate: string
   reason?: string
+}
+
+/**
+ * Raw current salary data
+ */
+export interface RawCurrentSalary {
+  id: string
+  employeeId: string
+  amount: number
+  currency?: string
+  effectiveDate: string
+}
+
+/**
+ * Salary data grouped by employee for compensation risk calculation
+ */
+export interface EmployeeSalaryData {
+  currentSalary?: RawCurrentSalary
+  salaryHistory: RawSalaryHistory[]
+  lastRaiseDate?: string
+  lastRaisePercent?: number
+  monthsSinceLastRaise?: number
 }
 
 /**
@@ -188,4 +211,66 @@ export interface FlightRiskQueryResponse {
   feedbackReceived: RawFeedback[]
   managerFeedback: RawFeedback[]
   absences: RawAbsence[]
+}
+
+/**
+ * Salary history query response
+ */
+export interface SalaryHistoryQueryResponse {
+  salaryHistory: RawSalaryHistory[]
+}
+
+/**
+ * Current salaries query response
+ */
+export interface CurrentSalariesQueryResponse {
+  salaries: RawCurrentSalary[]
+}
+
+/**
+ * Risk score record for trend tracking
+ */
+export interface RiskScoreRecord {
+  id: string
+  employeeId?: string
+  overallScore: number
+  signalScores?: Record<string, number>
+  calculatedAt: string
+  version?: number
+}
+
+/**
+ * Input for saving a risk score
+ */
+export interface RiskScoreInput {
+  employeeId: string
+  managerId: string
+  overallScore: number
+  signalScores: Record<string, number>
+  version: number
+}
+
+/**
+ * Risk score history for a single employee
+ */
+export interface EmployeeRiskScoreHistory {
+  employeeId: string
+  scores: {
+    overallScore: number
+    calculatedAt: string
+  }[]
+}
+
+/**
+ * Risk score history query response
+ */
+export interface RiskScoreHistoryQueryResponse {
+  employeeRiskScoreHistory: RiskScoreRecord[]
+}
+
+/**
+ * Team risk score history query response
+ */
+export interface TeamRiskScoreHistoryQueryResponse {
+  teamRiskScoreHistory: EmployeeRiskScoreHistory[]
 }

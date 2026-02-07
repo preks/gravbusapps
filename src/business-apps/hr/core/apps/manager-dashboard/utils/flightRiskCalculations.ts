@@ -178,10 +178,17 @@ export const getEngagementRiskDescription = (feedbackFromManager: RawFeedback[],
 }
 
 /**
- * Calculate sentiment risk score from feedback ratings
- * (Simplified version - full version would use AI)
+ * Calculate sentiment risk score from feedback ratings or AI analysis
+ * @param feedback - Array of raw feedback data
+ * @param aiSentimentScore - Optional AI-analyzed sentiment score (0-100, higher = more negative)
  */
-export const calculateSentimentRiskScore = (feedback: RawFeedback[]): number => {
+export const calculateSentimentRiskScore = (feedback: RawFeedback[], aiSentimentScore?: number): number => {
+  // If AI sentiment score is provided, use it directly
+  if (aiSentimentScore !== undefined && aiSentimentScore !== null) {
+    return Math.round(Math.max(0, Math.min(100, aiSentimentScore)))
+  }
+
+  // Fallback to rating-based calculation
   if (feedback.length === 0) return 50 // No data = neutral
 
   // Use ratings if available
@@ -199,25 +206,150 @@ export const calculateSentimentRiskScore = (feedback: RawFeedback[]): number => 
 }
 
 /**
- * Calculate compensation risk score
- * Placeholder - would need actual salary data integration
+ * Get description for sentiment risk
+ * @param feedback - Array of raw feedback data
+ * @param aiSummary - Optional AI-generated summary
+ * @param isAIAnalyzed - Whether the score was AI-analyzed
  */
-export const calculateCompensationRiskScore = (tenureMonths: number): number => {
-  // Without salary data, estimate based on tenure
-  // Employees without raises for 18+ months are at higher risk
-  if (tenureMonths > 24) return 65 // Likely needs compensation review
-  if (tenureMonths > 18) return 50
-  if (tenureMonths > 12) return 35
-  return 20 // Recent hire, compensation probably competitive
+export const getSentimentRiskDescription = (
+  feedback: RawFeedback[],
+  aiSummary?: string,
+  isAIAnalyzed?: boolean
+): string => {
+  // If we have an AI summary, use it
+  if (aiSummary && isAIAnalyzed) {
+    return aiSummary
+  }
+
+  // Fallback to generic descriptions
+  if (feedback.length === 0) {
+    return 'No feedback data available'
+  }
+
+  const ratingsWithValue = feedback.filter(f => f.rating !== undefined && f.rating !== null)
+
+  if (ratingsWithValue.length > 0) {
+    const avgRating = ratingsWithValue.reduce((sum, f) => sum + (f.rating || 0), 0) / ratingsWithValue.length
+    if (avgRating >= 4) return 'Positive feedback sentiment'
+    if (avgRating >= 3) return 'Neutral feedback sentiment'
+    if (avgRating >= 2) return 'Mixed feedback sentiment'
+    return 'Negative feedback sentiment'
+  }
+
+  return 'Based on feedback ratings'
+}
+
+/**
+ * Calculate months since a given date
+ */
+const monthsSinceDate = (dateStr: string): number => {
+  const date = new Date(dateStr)
+  const now = new Date()
+  return (now.getFullYear() - date.getFullYear()) * 12 + (now.getMonth() - date.getMonth())
+}
+
+/**
+ * Calculate compensation risk score with real salary data
+ * Uses salary history to determine raise frequency and percentage
+ */
+export const calculateCompensationRiskScore = (
+  tenureMonths: number,
+  salaryHistory?: { effectiveDate: string; newAmount: number; previousAmount: number }[],
+  currentSalary?: number,
+  teamMedianSalary?: number
+): number => {
+  // If no salary data available, fall back to tenure-based estimate
+  if (!salaryHistory || salaryHistory.length === 0) {
+    if (tenureMonths > 24) return 65
+    if (tenureMonths > 18) return 50
+    if (tenureMonths > 12) return 35
+    return 20
+  }
+
+  let riskScore = 0
+
+  // Find the most recent raise (where newAmount > previousAmount)
+  const raises = salaryHistory.filter(s => s.newAmount > s.previousAmount)
+
+  if (raises.length > 0) {
+    const lastRaise = raises[0]
+    const monthsSinceRaise = monthsSinceDate(lastRaise.effectiveDate)
+    const raisePercent = ((lastRaise.newAmount - lastRaise.previousAmount) / lastRaise.previousAmount) * 100
+
+    // Time since last raise scoring
+    if (monthsSinceRaise > 24) {
+      riskScore += 40 // No raise in 24+ months
+    } else if (monthsSinceRaise > 18) {
+      riskScore += 25 // No raise in 18-24 months
+    } else if (monthsSinceRaise > 12) {
+      riskScore += 10 // No raise in 12-18 months
+    }
+
+    // Raise percentage scoring (if last raise was small)
+    if (raisePercent < 3 && monthsSinceRaise < 18) {
+      riskScore += 15 // Last raise was below inflation
+    }
+  } else {
+    // No raises found in history
+    if (tenureMonths > 12) {
+      riskScore += 35 // Been here over a year with no recorded raise
+    }
+  }
+
+  // Salary vs team median comparison
+  if (currentSalary && teamMedianSalary && teamMedianSalary > 0) {
+    const salaryRatio = currentSalary / teamMedianSalary
+    if (salaryRatio < 0.85) {
+      riskScore += 20 // Significantly below team median (>15% below)
+    } else if (salaryRatio < 0.95) {
+      riskScore += 10 // Below team median (5-15% below)
+    }
+  }
+
+  // Cap at 100
+  return Math.min(100, Math.max(0, riskScore))
 }
 
 /**
  * Get description for compensation risk
  */
-export const getCompensationRiskDescription = (tenureMonths: number): string => {
-  if (tenureMonths > 24) return 'May need compensation review'
-  if (tenureMonths > 18) return 'Approaching compensation review period'
-  return 'Recent compensation likely competitive'
+export const getCompensationRiskDescription = (
+  tenureMonths: number,
+  salaryHistory?: { effectiveDate: string; newAmount: number; previousAmount: number }[],
+  currentSalary?: number,
+  teamMedianSalary?: number
+): string => {
+  if (!salaryHistory || salaryHistory.length === 0) {
+    if (tenureMonths > 24) return 'May need compensation review'
+    if (tenureMonths > 18) return 'Approaching compensation review period'
+    return 'Recent compensation likely competitive'
+  }
+
+  const raises = salaryHistory.filter(s => s.newAmount > s.previousAmount)
+
+  if (raises.length > 0) {
+    const lastRaise = raises[0]
+    const monthsSinceRaise = monthsSinceDate(lastRaise.effectiveDate)
+    const raisePercent = ((lastRaise.newAmount - lastRaise.previousAmount) / lastRaise.previousAmount) * 100
+
+    if (monthsSinceRaise > 24) {
+      return `No raise in ${Math.floor(monthsSinceRaise / 12)} years`
+    }
+    if (monthsSinceRaise > 18) {
+      return `Last raise ${monthsSinceRaise} months ago`
+    }
+    if (raisePercent < 3) {
+      return `Last raise was ${raisePercent.toFixed(1)}% (below inflation)`
+    }
+    return `Last raise ${monthsSinceRaise} months ago (+${raisePercent.toFixed(1)}%)`
+  }
+
+  // Check if below median
+  if (currentSalary && teamMedianSalary && currentSalary < teamMedianSalary * 0.9) {
+    return 'Below team median salary'
+  }
+
+  return 'No salary change history available'
 }
 
 /**
@@ -250,8 +382,34 @@ export const getRiskLevel = (score: number): RiskLevel => {
 /**
  * Determine risk trend (simplified - would compare to historical data)
  */
-export const getRiskTrend = (): RiskTrend => {
-  // In a full implementation, this would compare to previous scores
+/**
+ * Get risk trend based on historical scores
+ * @param historicalScores - Array of historical scores (most recent first)
+ * @returns The calculated trend
+ */
+export const getRiskTrend = (historicalScores?: { overallScore: number; calculatedAt: string }[]): RiskTrend => {
+  // If no historical data, return stable
+  if (!historicalScores || historicalScores.length < 2) {
+    return 'stable'
+  }
+
+  // Take up to 3 most recent and 3 older scores for comparison
+  const recentScores = historicalScores.slice(0, Math.min(3, historicalScores.length))
+  const olderScores = historicalScores.slice(Math.min(3, historicalScores.length), Math.min(6, historicalScores.length))
+
+  if (olderScores.length === 0) {
+    return 'stable'
+  }
+
+  const recentAvg = recentScores.reduce((sum, s) => sum + s.overallScore, 0) / recentScores.length
+  const olderAvg = olderScores.reduce((sum, s) => sum + s.overallScore, 0) / olderScores.length
+
+  const diff = recentAvg - olderAvg
+
+  // Threshold of 10 points for significant change
+  // Lower score = less risk, so negative diff = improving
+  if (diff < -10) return 'improving'
+  if (diff > 10) return 'worsening'
   return 'stable'
 }
 

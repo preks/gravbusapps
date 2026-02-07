@@ -3,8 +3,9 @@
  * Main orchestrator hook for calculating employee flight risk scores
  */
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
+import { useSaveRiskScores } from './useSaveRiskScores'
 import {
   FlightRiskEmployee,
   FlightRiskSummary,
@@ -15,9 +16,13 @@ import {
   RawPerformanceGoal,
   RawFeedback,
   RawAbsence,
-  FlightRiskQueryResponse
+  RawSalaryHistory,
+  RawCurrentSalary,
+  FlightRiskQueryResponse,
+  SalaryHistoryQueryResponse,
+  CurrentSalariesQueryResponse
 } from '../types/flightRisk.types'
-import { GET_FLIGHT_RISK_DATA } from '../queries/flightRiskQueries'
+import { GET_FLIGHT_RISK_DATA, GET_TEAM_SALARY_HISTORY, GET_TEAM_CURRENT_SALARIES } from '../queries/flightRiskQueries'
 import {
   SIGNAL_WEIGHTS,
   calculateTenureMonths,
@@ -30,6 +35,7 @@ import {
   calculateEngagementRiskScore,
   getEngagementRiskDescription,
   calculateSentimentRiskScore,
+  getSentimentRiskDescription,
   calculateCompensationRiskScore,
   getCompensationRiskDescription,
   calculateOverallRiskScore,
@@ -41,6 +47,31 @@ import {
 } from '../utils/flightRiskCalculations'
 
 /**
+ * Salary data structure for an employee
+ */
+interface EmployeeSalaryInfo {
+  salaryHistory: RawSalaryHistory[]
+  currentSalary?: number
+  teamMedianSalary?: number
+}
+
+/**
+ * Sentiment analysis data for an employee
+ */
+interface EmployeeSentimentInfo {
+  score: number
+  summary?: string
+  isAIAnalyzed: boolean
+}
+
+/**
+ * Historical trend data for an employee
+ */
+interface EmployeeTrendInfo {
+  historicalScores: { overallScore: number; calculatedAt: string }[]
+}
+
+/**
  * Build flight risk signals for an employee
  */
 const buildSignals = (
@@ -49,7 +80,9 @@ const buildSignals = (
   performanceGoals: RawPerformanceGoal[],
   feedbackReceived: RawFeedback[],
   feedbackFromManager: RawFeedback[],
-  absences: RawAbsence[]
+  absences: RawAbsence[],
+  salaryInfo?: EmployeeSalaryInfo,
+  sentimentInfo?: EmployeeSentimentInfo
 ): FlightRiskSignal[] => {
   const signals: FlightRiskSignal[] = []
 
@@ -109,52 +142,141 @@ const buildSignals = (
     dataSource: 'EmployeeAbsence'
   })
 
-  // Sentiment Signal (from feedback ratings)
-  const sentimentScore = calculateSentimentRiskScore(employeeFeedbackReceived)
+  // Sentiment Signal (AI-analyzed or rating-based)
+  const sentimentScore = calculateSentimentRiskScore(employeeFeedbackReceived, sentimentInfo?.score)
+  const sentimentDescription = getSentimentRiskDescription(
+    employeeFeedbackReceived,
+    sentimentInfo?.summary,
+    sentimentInfo?.isAIAnalyzed
+  )
   signals.push({
     id: `${employeeId}-sentiment`,
-    name: 'Feedback Sentiment',
+    name: sentimentInfo?.isAIAnalyzed ? 'Sentiment (AI)' : 'Feedback Sentiment',
     category: 'sentiment',
-    rawValue: employeeFeedbackReceived.length > 0 ? 'available' : null,
+    rawValue: sentimentInfo?.isAIAnalyzed ? 'ai-analyzed' : employeeFeedbackReceived.length > 0 ? 'ratings' : null,
     normalizedScore: sentimentScore,
     weight: SIGNAL_WEIGHTS.sentiment,
-    description: employeeFeedbackReceived.length > 0 ? 'Based on feedback ratings' : 'No feedback data available',
-    dataSource: 'EmployeeFeedback.rating'
+    description: sentimentDescription,
+    dataSource: sentimentInfo?.isAIAnalyzed ? 'FlowBot AI' : 'EmployeeFeedback.rating'
   })
 
-  // Compensation Signal
-  const compensationScore = calculateCompensationRiskScore(tenureMonths)
+  // Compensation Signal - now with real salary data
+  const employeeSalaryHistory = salaryInfo?.salaryHistory || []
+  const compensationScore = calculateCompensationRiskScore(
+    tenureMonths,
+    employeeSalaryHistory,
+    salaryInfo?.currentSalary,
+    salaryInfo?.teamMedianSalary
+  )
   signals.push({
     id: `${employeeId}-compensation`,
     name: 'Compensation',
     category: 'compensation',
-    rawValue: null, // Would be filled with actual salary data
+    rawValue: salaryInfo?.currentSalary || null,
     normalizedScore: compensationScore,
     weight: SIGNAL_WEIGHTS.compensation,
-    description: getCompensationRiskDescription(tenureMonths),
-    dataSource: 'EmployeeSalary'
+    description: getCompensationRiskDescription(
+      tenureMonths,
+      employeeSalaryHistory,
+      salaryInfo?.currentSalary,
+      salaryInfo?.teamMedianSalary
+    ),
+    dataSource: 'salaryHistory'
   })
 
   return signals
 }
 
 /**
+ * Calculate team median salary from current salaries
+ */
+const calculateTeamMedianSalary = (currentSalaries: RawCurrentSalary[]): number => {
+  if (currentSalaries.length === 0) return 0
+  const amounts = currentSalaries.map(s => s.amount).sort((a, b) => a - b)
+  const mid = Math.floor(amounts.length / 2)
+  return amounts.length % 2 !== 0 ? amounts[mid] : (amounts[mid - 1] + amounts[mid]) / 2
+}
+
+/**
+ * Group salary data by employee
+ */
+const groupSalaryDataByEmployee = (
+  salaryHistory: RawSalaryHistory[],
+  currentSalaries: RawCurrentSalary[],
+  teamMedianSalary: number
+): Map<string, EmployeeSalaryInfo> => {
+  const salaryMap = new Map<string, EmployeeSalaryInfo>()
+
+  // Group salary history by employee
+  salaryHistory.forEach(record => {
+    const existing = salaryMap.get(record.employeeId)
+    if (existing) {
+      existing.salaryHistory.push(record)
+    } else {
+      salaryMap.set(record.employeeId, {
+        salaryHistory: [record],
+        teamMedianSalary
+      })
+    }
+  })
+
+  // Add current salaries
+  currentSalaries.forEach(salary => {
+    const existing = salaryMap.get(salary.employeeId)
+    if (existing) {
+      existing.currentSalary = salary.amount
+    } else {
+      salaryMap.set(salary.employeeId, {
+        salaryHistory: [],
+        currentSalary: salary.amount,
+        teamMedianSalary
+      })
+    }
+  })
+
+  return salaryMap
+}
+
+/**
  * Process raw query data into FlightRiskEmployee objects
  */
-const processFlightRiskData = (response: FlightRiskQueryResponse): FlightRiskEmployee[] => {
+const processFlightRiskData = (
+  response: FlightRiskQueryResponse,
+  salaryDataMap: Map<string, EmployeeSalaryInfo>,
+  sentimentDataMap: Map<string, EmployeeSentimentInfo>,
+  trendDataMap: Map<string, EmployeeTrendInfo>
+): FlightRiskEmployee[] => {
   const { employees, performanceGoals, feedbackReceived, managerFeedback, absences } = response
 
   return employees.map((emp: RawEmployeeData) => {
     const hireDate = emp.workingCondition?.hireDate || ''
     const tenureMonths = calculateTenureMonths(hireDate)
 
+    // Get salary data for this employee
+    const salaryInfo = salaryDataMap.get(emp.id)
+
+    // Get sentiment data for this employee
+    const sentimentInfo = sentimentDataMap.get(emp.id)
+
+    // Get trend data for this employee
+    const trendInfo = trendDataMap.get(emp.id)
+
     // Build all signals for this employee
-    const signals = buildSignals(emp.id, tenureMonths, performanceGoals, feedbackReceived, managerFeedback, absences)
+    const signals = buildSignals(
+      emp.id,
+      tenureMonths,
+      performanceGoals,
+      feedbackReceived,
+      managerFeedback,
+      absences,
+      salaryInfo,
+      sentimentInfo
+    )
 
     // Calculate overall score
     const overallRiskScore = calculateOverallRiskScore(signals)
     const riskLevel = getRiskLevel(overallRiskScore)
-    const riskTrend = getRiskTrend()
+    const riskTrend = getRiskTrend(trendInfo?.historicalScores)
     const dataCompleteness = calculateDataCompleteness(signals)
     const confidenceLevel = calculateConfidenceLevel(dataCompleteness, tenureMonths)
 
@@ -214,14 +336,44 @@ export const useFlightRiskPrediction = ({
       const oneYearAgo = new Date()
       oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1)
 
-      const response = await graphQLClient.request<FlightRiskQueryResponse>(GET_FLIGHT_RISK_DATA, {
-        managerId,
-        teamMemberIds: directReportIds,
-        oneYearAgo: oneYearAgo.toISOString()
-      })
+      // Fetch main flight risk data and salary data in parallel
+      const [flightRiskResponse, salaryHistoryResponse, currentSalariesResponse] = await Promise.all([
+        graphQLClient.request<FlightRiskQueryResponse>(GET_FLIGHT_RISK_DATA, {
+          managerId,
+          teamMemberIds: directReportIds,
+          oneYearAgo: oneYearAgo.toISOString()
+        }),
+        graphQLClient
+          .request<SalaryHistoryQueryResponse>(GET_TEAM_SALARY_HISTORY, {
+            employeeIds: directReportIds
+          })
+          .catch(() => ({ salaryHistory: [] })), // Graceful fallback if salary API not available
+        graphQLClient
+          .request<CurrentSalariesQueryResponse>(GET_TEAM_CURRENT_SALARIES, {
+            employeeIds: directReportIds
+          })
+          .catch(() => ({ salaries: [] })) // Graceful fallback
+      ])
 
-      // Process data and calculate risk scores
-      const processedEmployees = processFlightRiskData(response)
+      // Process salary data
+      const currentSalaries = currentSalariesResponse.salaries || []
+      const salaryHistory = salaryHistoryResponse.salaryHistory || []
+      const teamMedianSalary = calculateTeamMedianSalary(currentSalaries)
+      const salaryDataMap = groupSalaryDataByEmployee(salaryHistory, currentSalaries, teamMedianSalary)
+
+      // Sentiment data map - will be populated by useFeedbackSentiment hook when enabled
+      const sentimentDataMap = new Map<string, EmployeeSentimentInfo>()
+
+      // Trend data map - will be populated when backend API is available
+      const trendDataMap = new Map<string, EmployeeTrendInfo>()
+
+      // Process data and calculate risk scores with salary, sentiment, and trend data
+      const processedEmployees = processFlightRiskData(
+        flightRiskResponse,
+        salaryDataMap,
+        sentimentDataMap,
+        trendDataMap
+      )
       setEmployees(processedEmployees)
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Failed to fetch flight risk data'))
@@ -234,6 +386,24 @@ export const useFlightRiskPrediction = ({
   useEffect(() => {
     fetchFlightRiskData()
   }, [fetchFlightRiskData])
+
+  // Auto-save risk scores for trend tracking
+  const { saveScores } = useSaveRiskScores({
+    accessToken,
+    managerId,
+    enabled: true
+  })
+
+  // Track if we've already saved this calculation
+  const hasSavedRef = useRef(false)
+
+  useEffect(() => {
+    // Save scores once when we have data and haven't saved yet
+    if (employees.length > 0 && !loading && !hasSavedRef.current) {
+      saveScores(employees)
+      hasSavedRef.current = true
+    }
+  }, [employees, loading, saveScores])
 
   // Calculate summary statistics
   const summary = useMemo((): FlightRiskSummary => {

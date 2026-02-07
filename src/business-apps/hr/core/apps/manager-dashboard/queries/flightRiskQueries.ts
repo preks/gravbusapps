@@ -122,24 +122,44 @@ export const GET_FLIGHT_RISK_DATA = `
 `
 
 /**
- * Separate query for salary history (may use different endpoint)
- * Note: Adjust based on your actual salary data schema
+ * Batch query for team salary history
+ * Returns salary change records with previous/new amounts for trend analysis
  */
-export const GET_SALARY_HISTORY = `
-  query GetSalaryHistory($employeeIds: [uuid!]!) {
-    EmployeeSalary(
-      where: { 
-        employeeId: { _in: $employeeIds },
-        isDeleted: { _eq: false }
-      }
+export const GET_TEAM_SALARY_HISTORY = `
+  query GetTeamSalaryHistory($employeeIds: [ID!]!) {
+    salaryHistory(
+      where: { employeeId: { in: $employeeIds } }
       orderBy: { effectiveDate: DESC }
+      limit: 100
+    ) {
+      id
+      employeeId
+      previousAmount
+      newAmount
+      currency
+      effectiveDate
+      reason
+    }
+  }
+`
+
+/**
+ * Batch query for current active salaries
+ * Used to calculate team median for comparison
+ */
+export const GET_TEAM_CURRENT_SALARIES = `
+  query GetTeamCurrentSalaries($employeeIds: [ID!]!) {
+    salaries(
+      where: { 
+        employeeId: { in: $employeeIds }, 
+        isActive: { eq: true } 
+      }
     ) {
       id
       employeeId
       amount
       currency
       effectiveDate
-      salaryType
     }
   }
 `
@@ -163,6 +183,72 @@ export const GET_MANAGER_MEETINGS = `
       startDate
       attendees {
         employeeId
+      }
+    }
+  }
+`
+
+/**
+ * RISK TREND QUERIES - Backend Implementation Required
+ * These queries require a new EmployeeRiskScore table to be created
+ *
+ * Table Schema:
+ * - id: UUID (Primary Key)
+ * - employeeId: UUID (FK to Employee)
+ * - managerId: UUID (FK to Employee - who calculated)
+ * - overallScore: INT (0-100)
+ * - signalScores: JSONB (individual signal breakdown)
+ * - calculatedAt: TIMESTAMP
+ * - version: INT (algorithm version for migrations)
+ */
+
+/**
+ * Mutation to save a risk score record for trend tracking
+ */
+export const SAVE_EMPLOYEE_RISK_SCORE = `
+  mutation SaveEmployeeRiskScore($input: EmployeeRiskScoreInput!) {
+    saveEmployeeRiskScore(input: $input) {
+      id
+      employeeId
+      overallScore
+      calculatedAt
+    }
+  }
+`
+
+/**
+ * Query to get risk score history for trend analysis
+ */
+export const GET_RISK_SCORE_HISTORY = `
+  query GetRiskScoreHistory($employeeId: ID!, $limit: Int) {
+    employeeRiskScoreHistory(
+      employeeId: $employeeId
+      limit: $limit
+      orderBy: { calculatedAt: DESC }
+    ) {
+      id
+      overallScore
+      signalScores
+      calculatedAt
+      version
+    }
+  }
+`
+
+/**
+ * Batch query to get risk score history for multiple employees
+ */
+export const GET_TEAM_RISK_SCORE_HISTORY = `
+  query GetTeamRiskScoreHistory($employeeIds: [ID!]!, $limit: Int) {
+    teamRiskScoreHistory(
+      employeeIds: $employeeIds
+      limit: $limit
+      orderBy: { calculatedAt: DESC }
+    ) {
+      employeeId
+      scores {
+        overallScore
+        calculatedAt
       }
     }
   }
