@@ -15,6 +15,7 @@ import { useTeamPerformance } from './hooks/useTeamPerformance'
 import { useTeamAttendance } from './hooks/useTeamAttendance'
 import { useManagerFeedback } from './hooks/useManagerFeedback'
 import { useAIInsights } from './hooks/useAIInsights'
+import { useFlightRiskPrediction } from './hooks/useFlightRiskPrediction'
 import { NotClockedInView } from './views/NotClockedInView'
 import { FilteredTeammatesView } from './views/FilteredTeammatesView'
 import { TeamPerformanceView } from './views/TeamPerformanceView'
@@ -23,6 +24,7 @@ import { TeammatesView } from './views/TeammatesView'
 import { AIInsightsCard } from './components/AIInsightsCard'
 import { MyTeamCard } from './components/MyTeamCard'
 import { DashboardCards } from './components/DashboardCards'
+import { FlightRiskCard } from './components/FlightRiskCard'
 import { getCurrentActiveStructureId, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { Avatar, AvatarImage, AvatarFallback, Toaster, Sheet, SheetContent } from '@newwork/nw-design-system'
@@ -184,6 +186,17 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
     managerId: employeeId || ''
   })
 
+  const {
+    summary: flightRiskSummary,
+    employees: flightRiskEmployees,
+    loading: loadingFlightRisk
+  } = useFlightRiskPrediction({
+    accessToken: accessToken || '',
+    managerId: employeeId || '',
+    directReportIds,
+    enableAISentiment: false
+  })
+
   const sickLeavesCount = useMemo(() => {
     return directReports.filter(report => {
       if (!report.currentAbsence) return false
@@ -303,6 +316,13 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
           onNavigateToTeamPerformance={handleNavigateToTeamPerformance}
           onNavigateToNotClockedIn={handleNavigateToNotClockedIn}
           onNavigateToInsights={handleNavigateToInsights}
+        />
+
+        <FlightRiskCard
+          summary={flightRiskSummary}
+          employees={flightRiskEmployees}
+          loading={loadingFlightRisk}
+          onNavigateToEmployee={handleNavigateToEmployee}
         />
 
         <MyTeamCard
