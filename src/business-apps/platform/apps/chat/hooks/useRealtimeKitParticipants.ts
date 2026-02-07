@@ -133,6 +133,20 @@ export const useRealtimeKitParticipants = ({
         return updated
       })
 
+      // Dedupe identical invite/start emits (double click / double handler safety)
+      const emitKey = `${effectiveRoomId}:${effectiveMeetingId}:${effectiveCallType}:${participantsToInvite
+        .map(p => p.id)
+        .sort()
+        .join(',')}`
+      ;(globalThis as any).__RTK_LAST_INVITE_EMIT__ = (globalThis as any).__RTK_LAST_INVITE_EMIT__ || {}
+      const lastEmit = (globalThis as any).__RTK_LAST_INVITE_EMIT__[emitKey] as number | undefined
+      const emitNow = Date.now()
+      if (lastEmit && emitNow - lastEmit < 3000) {
+        rtkDebug.warn('[RTK] ⚠️ Skipping duplicate rtk-group-call:start emit from inviteToCall', { emitKey })
+        return
+      }
+      ;(globalThis as any).__RTK_LAST_INVITE_EMIT__[emitKey] = emitNow
+
       emitSocketEvent('rtk-group-call:start', {
         conversationId: effectiveRoomId,
         meetingId: effectiveMeetingId, // Use actual backend meeting ID, not roomId
