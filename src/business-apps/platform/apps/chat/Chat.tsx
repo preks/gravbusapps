@@ -230,8 +230,8 @@ const ChatInner: React.FC<ChatProps> = memo(
       sendNudge,
       registerNudgeCallback,
       apiClient,
-      wsClient,
-      activeCalls
+      wsClient
+      // Note: activeCalls is now provided by useRealtimeKitGroupCall hook as activeConversationCalls
     } = chatClient
 
     // Notify parent component when presence map changes
@@ -437,6 +437,8 @@ const ChatInner: React.FC<ChatProps> = memo(
     const realtimeKitGroupCall = useRealtimeKitGroupCall({
       wsClient: wsClient || null,
       apiClient: realtimeKitApiClient,
+      chatApiClient: apiClient, // Pass ChatApiClient for in-call chat functionality
+      activeConversation: activeConversation, // Pass active conversation for participant avatars in in-call chat
       currentUser: currentUserAsParticipant,
       accessToken: stableAccessToken,
       translate: t
@@ -468,7 +470,8 @@ const ChatInner: React.FC<ChatProps> = memo(
       inviteToCall: inviteToGroupCall,
       reconnectParticipant: reconnectGroupParticipant,
       getConnectionDiagnostics: getGroupConnectionDiagnostics,
-      pendingInvites: groupPendingInvites
+      pendingInvites: groupPendingInvites,
+      activeConversationCalls // Active calls from WebSocket for detecting ongoing calls
       // transcriptionEnabled: Handled by GlobalCallContainer
       // toggleTranscription: Available but not used here (should be in pre-call UI)
     } = groupCall
@@ -577,7 +580,6 @@ const ChatInner: React.FC<ChatProps> = memo(
     // Reset isStartingCall when call actually connects
     useEffect(() => {
       if (isInAnyCall && isStartingCall) {
-        rtkDebug.log('[CHAT] Call connected, resetting isStartingCall flag')
         setIsStartingCall(false)
       }
     }, [isInAnyCall, isStartingCall])
@@ -628,7 +630,6 @@ const ChatInner: React.FC<ChatProps> = memo(
     const handleAudioCall = () => {
       // Guard: prevent duplicate call initiation
       if (isStartingCall) {
-        rtkDebug.log('[CHAT] Already starting a call, ignoring duplicate request')
         return
       }
 
@@ -657,7 +658,6 @@ const ChatInner: React.FC<ChatProps> = memo(
 
           // Use RTK for 1-on-1 calls if feature flag enabled
           if (useRealtimeKitForGroupCalls) {
-            rtkDebug.log('[CHAT] Starting 1-on-1 audio call with RTK for direct conversation')
             if (initiateGroupCall) {
               initiateGroupCall(
                 activeConversation.id,
@@ -754,18 +754,18 @@ const ChatInner: React.FC<ChatProps> = memo(
       if (!currentUser) return
 
       // Check if there's already an active call in this conversation
-      const existingCall = activeCalls[activeConversation.id]
+      const existingCall = activeConversationCalls.get(activeConversation.id)
       const shouldJoinExisting = isJoiningExisting || !!existingCall
 
       rtkDebug.log('[CHAT] handleGroupCall check:', {
         conversationId: activeConversation.id,
         existingCall,
-        activeCalls,
+        activeConversationCalls: Array.from(activeConversationCalls.entries()),
         shouldJoinExisting
       })
 
       if (shouldJoinExisting) {
-        // Join the existing call using the roomId (meetingId) from activeCalls
+        // Join the existing call using the roomId (meetingId) from activeConversationCalls
         if (!existingCall?.roomId) {
           rtkDebug.error('[CHAT] Cannot join - no roomId in existingCall!')
           return
@@ -1723,14 +1723,9 @@ const ChatInner: React.FC<ChatProps> = memo(
     const activeCallInfo: ActiveCallInfo | null = useMemo(() => {
       if (!stableActiveConversation) return null
 
-      const activeCall = activeCalls[stableActiveConversation.id]
-
-      rtkDebug.log('[CHAT] Building activeCallInfo:', {
-        conversationId: stableActiveConversation.id,
-        conversationType: stableActiveConversation.type,
-        hasActiveCall: !!activeCall,
-        activeCall
-      })
+      // Check BOTH activeConversationCalls state AND conversation.activeCall property
+      // This ensures we detect active calls even if activeConversationCalls state hasn't been populated yet
+      const activeCall = activeConversationCalls.get(stableActiveConversation.id) || stableActiveConversation.activeCall
 
       // First, check if there's a backend-reported active call (from WebSocket)
       if (activeCall) {
@@ -1769,7 +1764,7 @@ const ChatInner: React.FC<ChatProps> = memo(
       return null
     }, [
       stableActiveConversation,
-      activeCalls,
+      activeConversationCalls,
       groupCallState.status,
       groupCallState.roomId,
       groupCallState.callType,
@@ -1801,11 +1796,11 @@ const ChatInner: React.FC<ChatProps> = memo(
         // It will be closed when the call actually starts (via useEffect watching groupCallState)
 
         // For BOTH direct and group calls, we need to JOIN the existing call
-        // Check if there's an active call in activeCalls
-        const existingCall = activeCalls[stableActiveConversation.id]
+        // Check if there's an active call in activeConversationCalls
+        const existingCall = activeConversationCalls.get(stableActiveConversation.id)
 
         if (!existingCall?.roomId) {
-          rtkDebug.error('[CHAT] Cannot rejoin - no active call found in activeCalls!')
+          rtkDebug.error('[CHAT] Cannot rejoin - no active call found in activeConversationCalls!')
           return
         }
 
@@ -1827,7 +1822,7 @@ const ChatInner: React.FC<ChatProps> = memo(
           )
         }
       },
-      [rejoinModalState, stableActiveConversation, activeCalls, joinGroupCall]
+      [rejoinModalState, stableActiveConversation, activeConversationCalls, joinGroupCall]
     )
 
     // Close rejoin modal when call actually starts

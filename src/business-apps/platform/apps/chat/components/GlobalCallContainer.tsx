@@ -71,6 +71,11 @@ export const GlobalCallContainer: React.FC = () => {
     return null
   }
 
+  // Hide reactions and raise hand for direct calls with less than 3 participants
+  const isDirectCall = callData.activeConversation?.type === 'direct'
+  const participantCount = callData.participants.length
+  const hideReactionsAndHandRaise = isDirectCall && participantCount < 3
+
   return (
     <TranslationProvider>
       <RealtimeKitProvider value={callData.realtimeKitMeeting}>
@@ -97,10 +102,12 @@ export const GlobalCallContainer: React.FC = () => {
           currentUserId={callData.currentUserId}
           currentUser={callData.currentUser}
           conversationName={callData.conversationName || undefined}
+          activeConversation={callData.activeConversation || undefined}
           pendingInvites={callData.pendingInvites || new Map()}
           availableParticipants={callData.availableParticipants || []}
           onInviteParticipant={callData.onInviteParticipant || undefined}
           activeExperts={callData.activeExperts || []}
+          hideReactionsAndHandRaise={hideReactionsAndHandRaise}
           prefixDataTestId="global-call"
         />
       </RealtimeKitProvider>

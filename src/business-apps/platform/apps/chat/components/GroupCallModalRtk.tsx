@@ -216,21 +216,63 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
         roomId: callState.roomId,
         calendarMeetingId: callState.calendarMeetingId,
         chatConversationId,
-        isCalendarMeeting: !!callState.calendarMeetingId
+        isCalendarMeeting: !!callState.calendarMeetingId,
+        hasActiveConversation: !!activeConversation,
+        activeConversationId: activeConversation?.id,
+        activeConversationParticipantsCount: activeConversation?.participants?.length || 0
       })
 
       callConversationRef.current = {
         id: chatConversationId, // Use the real conversation ID for chat
         name: conversationName || 'Group Call',
         type: ConversationType.GROUP,
-        participants: activeConversation?.participants || [],
+        participants:
+          activeConversation?.participants ||
+          // Fallback: Create participants from call participants if activeConversation is not available
+          participants.map(p => {
+            // Type assertion to access potentially additional fields that might exist at runtime
+            const pAny = p as any
+
+            // Build display name with fallbacks: odName -> firstName + lastName -> 'Unknown'
+            const displayName =
+              p.odName ||
+              (pAny.firstName || pAny.lastName ? `${pAny.firstName || ''} ${pAny.lastName || ''}`.trim() : '') ||
+              'Unknown'
+
+            rtkDebug.log('[RTK Modal] 🖼️ Creating chat participant from call participant:', {
+              participantId: p.id,
+              participantOdId: p.odId,
+              participantName: p.odName,
+              participantFirstName: pAny.firstName,
+              participantLastName: pAny.lastName,
+              computedDisplayName: displayName,
+              participantAvatarUrl: p.avatarUrl,
+              hasAvatarUrl: !!p.avatarUrl
+            })
+            return {
+              userId: p.id || p.odId,
+              user: {
+                id: p.id || p.odId,
+                displayName,
+                firstName: pAny.firstName,
+                lastName: pAny.lastName,
+                username: p.odName || displayName,
+                avatarUrl: p.avatarUrl
+              }
+            }
+          }),
         isActive: true,
         createdBy: activeConversation?.createdBy || '',
         createdAt: activeConversation?.createdAt || new Date().toISOString(),
         updatedAt: activeConversation?.updatedAt || new Date().toISOString()
       }
+
+      rtkDebug.log('[RTK Modal] Call conversation created:', {
+        conversationId: callConversationRef.current.id,
+        participantsCount: callConversationRef.current.participants.length
+      })
     }
-  }, [callState.roomId, callState.calendarMeetingId]) // Depend on both roomId and calendarMeetingId
+  }, [callState.roomId, callState.calendarMeetingId, activeConversation, conversationName, participants]) // Added participants to deps
 
   // Return the stable reference - this never changes unless chat conversation ID changes
   const callConversation = callConversationRef.current
@@ -688,18 +730,6 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
       return testRemotePeers
     }
 
-    rtkDebug.log('[RTK Modal] 🔄 stableRemotePeers recomputed:', {
-      count: remotePeers.length,
-      fingerprint: remotePeersFingerprint,
-      peers: remotePeers.map((p: any) => ({
-        id: p.id,
-        name: p.name,
-        videoTrackId: p.videoTrack?.id,
-        audioTrackId: p.audioTrack?.id,
-        videoEnabled: p.videoEnabled,
-        audioEnabled: p.audioEnabled
-      }))
-    })
     // Return a NEW stable array (shallow copy) so we break the reference to the selector's array
     return [...remotePeers]
   }, [
@@ -2233,18 +2263,51 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
     }
   }, [activeSpeakerId])
 
+  // Enrich peers with avatar data from activeConversation
+  const enrichPeerWithAvatar = useCallback(
+    (peer: any) => {
+      if (!activeConversation?.participants) return peer
+
+      // Try to find matching participant by userId or customParticipantId
+      const conversationParticipant = activeConversation.participants.find(
+        (cp: any) =>
+          cp.userId === peer.userId ||
+          cp.userId === peer.customParticipantId ||
+          cp.user?.id === peer.userId ||
+          cp.user?.id === peer.customParticipantId
+      )
+
+      if (conversationParticipant?.user?.avatarUrl) {
+        rtkDebug.log('[RTK Modal] 🖼️ Enriched peer with avatar:', {
+          peerId: peer.id,
+          userId: peer.userId,
+          customParticipantId: peer.customParticipantId,
+          avatarUrl: conversationParticipant.user.avatarUrl
+        })
+        return {
+          ...peer,
+          avatarUrl: conversationParticipant.user.avatarUrl
+        }
+      }
+
+      return peer
+    },
+    [activeConversation]
+  )
+
   // Get first remote peer for minimized view - prioritize debounced active speaker
   const firstRemotePeer = useMemo(() => {
     // If there's a debounced active speaker, show their video
     if (debouncedActiveSpeaker) {
       const activeSpeaker = stableRemotePeers.find(peer => peer.id === debouncedActiveSpeaker)
       if (activeSpeaker) {
-        return activeSpeaker
+        return enrichPeerWithAvatar(activeSpeaker)
       }
     }
     // Fallback to first peer if no active speaker
-    return remotePeers[0] || null
-  }, [remotePeers, debouncedActiveSpeaker])
+    const firstPeer = remotePeers[0] || null
+    return firstPeer ? enrichPeerWithAvatar(firstPeer) : null
+  }, [remotePeers, debouncedActiveSpeaker, enrichPeerWithAvatar])
 
   // Track audio track IDs to trigger effect when they change
   const remoteAudioTrackIds = useMemo(() => {

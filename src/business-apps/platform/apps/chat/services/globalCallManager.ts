@@ -56,6 +56,7 @@ export interface GlobalCallState {
   participants: GroupCallParticipant[]
   handRaised: boolean // Whether local user has hand raised
   remoteHandsRaised: Record<string, boolean> // Map of participantId -> handRaised for remote participants
+  handRaisedOrder?: Record<string, { order: number; timestamp: number }> // Map of participantId -> order and timestamp
 }
 
 interface StoredCallData {
@@ -74,6 +75,9 @@ interface StoredCallData {
   // Active speaker tracking
   activeSpeakerId: string | null
   activeSpeakerHistory: string[]
+
+  // Active conversation for in-call chat (includes participant avatars and details)
+  activeConversation?: any | null
 
   // Callback functions
   leaveCall: (() => Promise<void>) | null
@@ -118,7 +122,8 @@ const initialCallState: GlobalCallState = {
   startTime: null,
   participants: [],
   handRaised: false,
-  remoteHandsRaised: {}
+  remoteHandsRaised: {},
+  handRaisedOrder: {}
 }
 
 class GlobalCallManager {

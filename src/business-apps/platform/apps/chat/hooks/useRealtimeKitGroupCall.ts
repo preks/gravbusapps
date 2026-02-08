@@ -69,8 +69,10 @@ const clearActiveCallFromStorage = () => {
 export interface UseRealtimeKitGroupCallOptions {
   wsClient: ChatWebSocketClient | null
   apiClient?: RealtimeKitApiClient | null
+  chatApiClient?: any // ChatApiClient type for in-call chat
   calendarApiClient?: any // CalendarApiClient type
   currentUser: CallParticipant | null
+  activeConversation?: any | null // Active conversation for participant avatars in in-call chat
   onCallStarted?: (roomId: string, participants: CallParticipant[]) => void
   onCallEnded?: (roomId: string, duration: number) => void
   onParticipantJoined?: (participant: CallParticipant) => void
@@ -92,7 +94,8 @@ interface CallState extends GroupCallUIState {
 }
 
 export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions): UseGroupCallReturn => {
-  const { wsClient, apiClient, currentUser, onCallStarted, onCallEnded, translate } = options
+  const { wsClient, apiClient, chatApiClient, activeConversation, currentUser, onCallStarted, onCallEnded, translate } =
+    options
 
   // Core call state
   const [callState, setCallState] = useState<CallState>({
@@ -205,13 +208,6 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
   // but we need a stable reference for the Provider to avoid unmounting/remounting all children.
   // We memoize based on the connection state - only change when actually joining/leaving
   const stableMeeting = useMemo(() => {
-    rtkDebug.log('[RTK] 🔄 stableMeeting recomputed:', {
-      roomState: meeting?.self?.roomState,
-      roomJoined: meeting?.self?.roomJoined,
-      callStatus: callState.status,
-      hasMeeting: !!meeting,
-      timestamp: Date.now()
-    })
     // Return the meeting object, but only update the memo when the connection state actually changes
     return meeting
   }, [
@@ -364,6 +360,8 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
 
     rtkDebug.log('[RTK] 🔄 combinedCallState recomputed:', {
       handRaised: state.handRaised,
+      websocketHandRaised: websocket.handRaised,
+      websocketRefHandRaised: websocketRef.current?.handRaised,
       remoteHandsRaisedKeys: Object.keys(state.remoteHandsRaised),
       remoteHandsRaisedValues: state.remoteHandsRaised,
       handRaisedOrderKeys: Object.keys(state.handRaisedOrder)
@@ -1823,8 +1821,9 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
         backgroundEnabled: callState.backgroundEnabled,
         startTime: callState.startTime,
         participants: participantsHook.participants,
-        handRaised: callState.handRaised,
-        remoteHandsRaised: callState.remoteHandsRaised
+        handRaised: websocket.handRaised, // CRITICAL: Use websocket.handRaised (source of truth), not callState.handRaised
+        remoteHandsRaised: websocket.remoteHandsRaised || {}, // CRITICAL: Use websocket.remoteHandsRaised (source of truth), not callState.remoteHandsRaised
+        handRaisedOrder: websocket.handRaisedOrder || {} // CRITICAL: Use websocket.handRaisedOrder (source of truth) for displaying order numbers
       },
       localStream: media.localStream,
       remoteStreams: remoteStreamsMap,
@@ -1857,7 +1856,15 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
         mediaRef.current?.toggleBackground()
       },
       toggleRaiseHand: () => {
-        websocketRef.current?.toggleRaiseHand(callState.handRaised)
+        // CRITICAL: Get current state from websocket ref, not captured callState
+        // callState.handRaised is stale - websocketRef.current.handRaised is the source of truth
+        const currentHandRaised = websocketRef.current?.handRaised ?? false
+        rtkDebug.log('[RTK GlobalCallManager] toggleRaiseHand callback invoked:', {
+          currentHandRaised,
+          hasWebsocketRef: !!websocketRef.current,
+          websocketHandRaised: websocketRef.current?.handRaised
+        })
+        websocketRef.current?.toggleRaiseHand(currentHandRaised)
       },
       sendReaction: (reaction: string) => {
         websocketRef.current?.sendReaction(reaction)
@@ -1879,11 +1886,12 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
       },
 
       // Store context
-      apiClient: apiClient || null,
+      apiClient: chatApiClient || null,
       wsClient: wsClient,
       accessToken: options.accessToken || null,
       currentUserId: currentUser?.id || null,
       conversationName: callState.conversationName || null,
+      activeConversation: activeConversation || null, // Store for in-call chat participant avatars
       pendingInvites: participantsHook.pendingInvites, // Keep as Map
       availableParticipants: [], // Will be passed from Chat component
       activeExperts: [] // Will be passed from Chat component
@@ -1900,8 +1908,9 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
     callState.backgroundEnabled,
     callState.startTime,
     callState.conversationName,
-    callState.handRaised,
-    callState.remoteHandsRaised,
+    websocket.handRaised, // CRITICAL: Use websocket.handRaised (source of truth), not callState.handRaised
+    websocket.remoteHandsRaised, // CRITICAL: Use websocket.remoteHandsRaised (source of truth), not callState.remoteHandsRaised
+    websocket.handRaisedOrder, // CRITICAL: Use websocket.handRaisedOrder (source of truth) for displaying order numbers
     meeting,
     media.localStream,
     participantsHook.remoteStreams,
@@ -2279,7 +2288,10 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
       }
     }
 
-    rtkDebug.log('[RTK] 🎧 Registering WebSocket listeners', { socketId: socket.id })
+    rtkDebug.log('[RTK] 🎧 Registering WebSocket listeners', {
+      socketId: socket.id ?? 'pending',
+      connected: socket.connected
+    })
 
     // CRITICAL: ensure we never accumulate duplicate listeners on the same socket.
     // Only clear RTK-specific events (do NOT clear shared conversation:* events).
@@ -2311,10 +2323,9 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
   /**
    * Listen for transcript-ready WebSocket events
    */
+  const transcriptSocket = wsClient?.getSocket()
   useEffect(() => {
-    if (!wsClient) return
-
-    const socket = wsClient.getSocket()
+    const socket = transcriptSocket
     if (!socket) return
 
     const handleTranscriptReady = (data: { noteId: string; meetingId: string; meetingTitle: string }) => {
@@ -2331,13 +2342,18 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
       rtkDebug.log('[RTK] 📝 View transcript at:', `/note-apps?noteId=${data.noteId}`)
     }
 
-    rtkDebug.log('[RTK] 🎧 Registering transcript-ready listener')
+    rtkDebug.log('[RTK] 🎧 Registering transcript-ready listener', {
+      socketId: socket.id ?? 'pending',
+      connected: socket.connected
+    })
+    // Idempotent registration (avoid stacked handlers in dev/reconnect)
+    socket.off('transcript-ready')
     socket.on('transcript-ready', handleTranscriptReady)
 
     return () => {
       socket.off('transcript-ready', handleTranscriptReady)
     }
-  }, [wsClient])
+  }, [transcriptSocket])
 
   /**
    * Heartbeat: Keep localStorage updated so other tabs know we're still in a call
