@@ -1921,13 +1921,15 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
   /**
    * Listen to WebSocket incoming call invites and lifecycle events
    */
+  const inviteSocket = wsClient?.getSocket()
   useEffect(() => {
-    const socket = wsClient?.getSocket()
+    const socket = inviteSocket
     if (!socket || !currentUser) return
 
     const handleInvite = (data: any) => {
       // Dedupe identical invite events (can happen if backend emits twice or listener was registered twice)
-      const inviteKey = `${data.meetingId}:${data.conversationId}:${data.from?.id ?? ''}:${data.from?.odId ?? ''}`
+      // meetingId is unique per call session; use it to dedupe even if "from" payload differs slightly
+      const inviteKey = `${data.meetingId}:${data.conversationId}`
       const now = Date.now()
 
       // Global dedupe across hook instances (protects against leaked listeners / multiple mounts)
@@ -2277,7 +2279,15 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
       }
     }
 
-    rtkDebug.log('[RTK] 🎧 Registering WebSocket listeners')
+    rtkDebug.log('[RTK] 🎧 Registering WebSocket listeners', { socketId: socket.id })
+
+    // CRITICAL: ensure we never accumulate duplicate listeners on the same socket.
+    // Only clear RTK-specific events (do NOT clear shared conversation:* events).
+    socket.off('rtk-group-call:invite')
+    socket.off('rtk-group-call:ended')
+    socket.off('rtk-group-call:cancelled')
+    socket.off('rtk-group-call:declined')
+    socket.off('rtk-group-call:not-answered')
 
     socket.on('rtk-group-call:invite', handleInvite)
     socket.on('rtk-group-call:ended', handleCallEnded)
@@ -2296,7 +2306,7 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
       socket.off('conversation:call-started', handleConversationCallStarted)
       socket.off('conversation:call-ended', handleConversationCallEnded)
     }
-  }, [wsClient, currentUser?.id, currentUser?.odId])
+  }, [inviteSocket, currentUser?.id, currentUser?.odId])
 
   /**
    * Listen for transcript-ready WebSocket events
