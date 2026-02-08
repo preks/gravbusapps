@@ -51,6 +51,19 @@ export interface LinkedFlow {
   currentAssignee?: string
   // Participants - all unique assignees from this flow
   participants?: string[]
+  // Step history for Gantt visualization
+  stepHistory?: StepHistoryItem[]
+}
+
+export interface StepHistoryItem {
+  index: number
+  name: string
+  reference?: string
+  status: 'completed' | 'current' | 'pending'
+  startedAt?: string
+  completedAt?: string
+  taskId?: string
+  assignee?: string
 }
 
 export interface CaseMetadata {
@@ -64,6 +77,10 @@ export interface CaseMetadata {
   linkedCases?: LinkedCase[]
   parentCaseId?: string | null
   notes?: CaseNote[]
+  // Soft delete fields
+  deleted?: boolean
+  deletedAt?: string | null
+  deletedBy?: string | null
 }
 
 export interface LinkedEntity {
@@ -90,6 +107,7 @@ export interface CaseNote {
   content: string
   createdBy: string
   createdAt: string
+  updatedAt?: string
   visibility: 'internal' | 'external'
 }
 

@@ -72,28 +72,30 @@ export const useCompanySelection = (
       try {
         const structureId = getCurrentActiveStructureId()
         if (!structureId) {
-          console.error('No active structure ID available')
           setState(prev => ({
             ...prev,
             isLoading: false,
-            error: 'No active structure available',
-            companies: append ? prev.companies : []
+            error: 'No active structure ID available.',
+            hasMore: false,
+            ...(append ? {} : { companies: [] })
           }))
           return
         }
 
+        // Build where condition with required structureId filter (matching employee pattern)
         const whereCondition: any = {
-          isDeleted: { _eq: false },
-          structureId: { _eq: structureId }
+          _and: [{ isDeleted: { _eq: false } }, { structureId: { _eq: structureId } }]
         }
 
         // Add search conditions
         if (search.trim()) {
-          whereCondition._or = [
-            { name: { _ilike: `%${search.trim()}%` } },
-            { code: { _ilike: `%${search.trim()}%` } },
-            { description: { _ilike: `%${search.trim()}%` } }
-          ]
+          whereCondition._and.push({
+            _or: [
+              { name: { _ilike: `%${search.trim()}%` } },
+              { code: { _ilike: `%${search.trim()}%` } },
+              { description: { _ilike: `%${search.trim()}%` } }
+            ]
+          })
         }
 
         const variables = {

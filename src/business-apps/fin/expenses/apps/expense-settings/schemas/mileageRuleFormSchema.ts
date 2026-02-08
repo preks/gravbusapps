@@ -50,7 +50,6 @@ export const mileageRuleFormSchema = z.object({
   version: z.number().optional(),
   code: z.string().min(1, 'Code is required'),
   ruleName: z.string().min(1, 'Rule name is required'),
-  description: z.string().optional(),
   rulePeriod: z.string().min(1, 'Rule period is required'),
   activeFrom: z.string().min(1, 'Active from date is required'),
   activeTo: z.string().optional(),

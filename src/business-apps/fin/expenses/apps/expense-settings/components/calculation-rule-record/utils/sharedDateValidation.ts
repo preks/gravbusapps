@@ -24,7 +24,7 @@ export interface ValidateDateRangeOptions {
  * the common date validation pattern used across all tabs.
  */
 export const validateDateRange = (options: ValidateDateRangeOptions): DateValidationError[] => {
-  const { entryFrom, entryTo, ruleFrom, ruleTo, fromFieldName = 'validFrom', toFieldName = 'validTo' } = options
+  const { entryFrom, entryTo, ruleFrom, ruleTo, fromFieldName = 'activeFrom', toFieldName = 'activeTo' } = options
 
   const errors: DateValidationError[] = []
 
