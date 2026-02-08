@@ -23,7 +23,7 @@ import { AIThinkingIndicator, AIResponseRenderer, ExpertThinkingIndicator } from
 import { playNudgeSound, applyShakeAnimation, injectNudgeStyles } from './utils/nudgeUtils'
 import { IncomingCallDialog } from './components/IncomingCallDialog'
 import { IncomingGroupCallDialog } from './components/IncomingGroupCallDialog'
-import { PreCallSetupDialog } from './components/PreCallSetupDialog'
+import { PreCallSetupStateSync } from './components/PreCallSetupStateSync'
 import { RejoinCallDialog } from './components/RejoinCallDialog'
 import { CallModal } from './components/CallModal'
 import { GroupCallModal } from './components/GroupCallModal'
@@ -36,7 +36,6 @@ import { env } from '@/common/env/EnvUtils'
 import { TranslationProvider, useChatTranslation } from './contexts/TranslationContext'
 import { rtkDebug } from './utils/rtkDebug'
 import { seedTestParticipants, TestParticipantPresets } from './utils/seedTestParticipants'
-import { globalCallManager } from './services/globalCallManager'
 
 type ViewMode = 'full' | 'compact' | 'mobile'
 
@@ -2223,74 +2222,17 @@ const ChatInner: React.FC<ChatProps> = memo(
           prefixDataTestId={`${prefixDataTestId}-rejoin-call`}
         />
 
-        {/* Pre-Call Setup Dialog - Show during setup and joining, and connected until room is joined (outgoing calls only) */}
-        {(() => {
-          // CRITICAL: Read hasBeenMinimized from globalCallManager to persist across remounts
-          const globalCallData = globalCallManager.getCallData()
-
-          const isSetup = groupCallState.status === 'setup'
-          const isJoining = groupCallState.status === 'joining'
-          const isConnectedButNotJoined =
-            groupCallState.status === 'connected' && realtimeKitGroupCall.meeting?.self?.roomState !== 'joined'
-          // Use global state for hasBeenMinimized since it persists across Chat component remounts
-          const hasBeenMinimized = globalCallData.callState.hasBeenMinimized || groupCallState.hasBeenMinimized
-          // CRITICAL: For RealtimeKit calls, globalCallManager is the source of truth for minimized state
-          const isMinimized =
-            globalCallData.callState.callImplementation === 'realtime-kit'
-              ? globalCallData.callState.isMinimized
-              : groupCallState.isMinimized
-          const hasIncomingInvite = !!incomingGroupCallInvite
-
-          const shouldShow =
-            (isSetup || isJoining || (isConnectedButNotJoined && !hasBeenMinimized)) &&
-            !isMinimized &&
-            !hasIncomingInvite
-
-          return (
-            <PreCallSetupDialog
-              isOpen={shouldShow}
-              callType={groupCallState.callType}
-              conversationName={
-                activeConversation?.type === 'direct'
-                  ? undefined // For direct calls, don't pass conversation name (will show "Call")
-                  : activeConversation?.name // For group/meeting, use conversation name
-              }
-              participantCount={groupParticipants.length}
-              userName={
-                activeConversation?.type === 'direct'
-                  ? // For direct calls, show the OTHER participant's name
-                    activeConversation.participants?.find(
-                      p => p.userId !== currentUser?.id && p.user?.id !== currentUser?.id
-                    )?.user?.displayName ||
-                    activeConversation.participants?.find(
-                      p => p.userId !== currentUser?.id && p.user?.id !== currentUser?.id
-                    )?.user?.username ||
-                    'Unknown'
-                  : currentUserAsParticipant?.odName // For group calls, show your name
-              }
-              userAvatarUrl={
-                activeConversation?.type === 'direct'
-                  ? // For direct calls, show the OTHER participant's avatar
-                    activeConversation.participants?.find(
-                      p => p.userId !== currentUser?.id && p.user?.id !== currentUser?.id
-                    )?.user?.avatarUrl
-                  : currentUserAsParticipant?.avatarUrl // For group calls, show your avatar
-              }
-              conversationType={activeConversation?.type as 'direct' | 'group' | 'meeting'}
-              onStart={preferences => {
-                if (realtimeKitGroupCall.confirmStartCall) {
-                  realtimeKitGroupCall.confirmStartCall(preferences)
-                }
-              }}
-              onCancel={() => {
-                if (realtimeKitGroupCall.cancelSetup) {
-                  realtimeKitGroupCall.cancelSetup()
-                }
-              }}
-              prefixDataTestId={`${prefixDataTestId}-pre-call-setup`}
-            />
-          )
-        })()}
+        {/* Pre-Call Setup Dialog - State synced to global manager, rendered by GlobalPreCallSetupDialog */}
+        {/* This component only updates the global state, the actual dialog is rendered once globally */}
+        <PreCallSetupStateSync
+          groupCallState={groupCallState}
+          realtimeKitGroupCall={realtimeKitGroupCall}
+          activeConversation={activeConversation}
+          currentUser={currentUser}
+          currentUserAsParticipant={currentUserAsParticipant}
+          groupParticipants={groupParticipants}
+          incomingGroupCallInvite={incomingGroupCallInvite}
+        />
 
         {/* Group Call Modal - REMOVED: Now handled by GlobalCallContainer at root level */}
         {/* RealtimeKit calls are rendered by GlobalCallContainer mounted in BusinessAppIDE.tsx */}

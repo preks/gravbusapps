@@ -18,6 +18,7 @@ import { EveryOneDashboard } from './components/dashboard'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { TranslationProvider, useChatTranslation } from './contexts/TranslationContext'
 import { GlobalCallContainer } from './components/GlobalCallContainer'
+import { GlobalPreCallSetupDialog } from './components/GlobalPreCallSetupDialog'
 
 type TabValue = 'dashboard' | 'everyai' | 'chat' | 'calendar' | 'reminders'
 
@@ -354,6 +355,9 @@ export const ChatWithCalendar: React.FC<ChatWithCalendarProps> = props => {
 
       {/* Global call UI - renders minimized/full call view that persists across tab navigation */}
       <GlobalCallContainer />
+
+      {/* Global pre-call setup dialog - singleton to prevent duplicates when multiple Chat instances exist */}
+      <GlobalPreCallSetupDialog />
     </TranslationProvider>
   )
 }

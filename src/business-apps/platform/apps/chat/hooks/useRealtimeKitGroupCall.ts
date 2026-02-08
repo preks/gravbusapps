@@ -173,6 +173,7 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
   const meetingIdRef = useRef<string | null>(null)
   const sessionIdRef = useRef<string | null>(null) // Track sessionId for leaveCall
   const callStateRoomIdRef = useRef<string | null>(null)
+  const hostIdRef = useRef<string | null>(null)
   const startTimeRef = useRef<number | null>(null)
   const durationTimerRef = useRef<NodeJS.Timeout | null>(null)
   const isInCallRef = useRef<boolean>(false)
@@ -190,6 +191,25 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
   const lastStartEmitRef = useRef<{ key: string; ts: number } | null>(null)
   const incomingInviteRef = useRef<GroupCallInvite | null>(null)
   const callStatusRef = useRef<CallState['status']>('idle')
+  const callTypeRef = useRef<CallType>('audio')
+  const conversationNameRef = useRef<string | undefined>(undefined)
+  const conversationTypeRef = useRef<CallState['conversationType']>(undefined)
+  const isMinimizedRef = useRef<boolean>(false)
+
+  const clearInviteDedupeFor = (meetingId?: string | null, conversationId?: string | null) => {
+    if (!meetingId || !conversationId) return
+    const inviteKey = `${meetingId}:${conversationId}`
+
+    // Clear local dedupe map
+    recentlySeenInviteKeysRef.current.delete(inviteKey)
+
+    // Clear global dedupe map (shared across hook instances)
+    const globalSeen = (globalThis as any).__RTK_SEEN_INVITES__ as Record<string, number> | undefined
+    if (globalSeen && globalSeen[inviteKey]) {
+      delete globalSeen[inviteKey]
+      ;(globalThis as any).__RTK_SEEN_INVITES__ = globalSeen
+    }
+  }
 
   // CRITICAL: Refs for hook objects to avoid infinite loops in useEffect dependencies
   // These refs always point to the latest hook instances
@@ -292,13 +312,18 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
 
   // Derived state
   const isInCall = callState.status !== 'idle' && callState.status !== 'ended'
-  const isHost = callState.roomId === currentUser?.id
+  const isHost = !!callState.hostId && callState.hostId === currentUser?.id
 
   // Keep refs in sync with state (inline for synchronous access in WebSocket handlers)
   callStatusRef.current = callState.status
+  callTypeRef.current = callState.callType
+  conversationNameRef.current = callState.conversationName
+  conversationTypeRef.current = callState.conversationType
+  isMinimizedRef.current = callState.isMinimized
   incomingInviteRef.current = incomingInvite
   meetingIdRef.current = callState.meetingId
   callStateRoomIdRef.current = callState.roomId
+  hostIdRef.current = callState.hostId
   isInCallRef.current = isInCall
 
   // CRITICAL: Keep ref in sync with screenShare state to avoid leaveCall recreation
@@ -316,6 +341,8 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
   // CRITICAL: Keep refs in sync to avoid leaveCall recreation
   const wsClientRef = useRef(wsClient)
   wsClientRef.current = wsClient
+  const realtimeKitApiClientRef = useRef(apiClient)
+  realtimeKitApiClientRef.current = apiClient
   const onCallEndedRef = useRef(onCallEnded)
   onCallEndedRef.current = onCallEnded
   const currentUserRef = useRef(currentUser)
@@ -461,7 +488,8 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
         roomId: conversationId,
         callType,
         conversationName,
-        conversationType // Store conversation type in state
+        conversationType, // Store conversation type in state
+        hostId: currentUser.id // Initiator becomes host for this call attempt
       }))
 
       // Store participants and calendar meeting ID for when user confirms
@@ -485,9 +513,9 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
 
       const conversationId = callStateRoomIdRef.current
       const calendarMeetingId = calendarMeetingIdRef.current
-      const callType = callState.callType
-      const conversationName = callState.conversationName
-      const conversationType = callState.conversationType // Get conversation type from state
+      const callType = callTypeRef.current
+      const conversationName = conversationNameRef.current
+      const conversationType = conversationTypeRef.current // Get conversation type from ref (avoid stale closure)
 
       if (!conversationId) {
         rtkDebug.error('[RTK] Cannot start call: missing conversationId')
@@ -505,15 +533,15 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
           calendarMeetingId,
           conversationType,
           preferences,
-          currentStatus: callState.status
+          currentStatus: callStatusRef.current
         })
 
         // CRITICAL: Check if we were in setup BEFORE changing state
         // This is used to determine if we should send invites
-        const wasIdleBeforeStart = callState.status === 'setup'
+        const wasIdleBeforeStart = callStatusRef.current === 'setup'
 
         rtkDebug.log('[RTK] Checking setup state before starting call:', {
-          callStateStatus: callState.status,
+          callStateStatus: callStatusRef.current,
           wasIdleBeforeStart
         })
 
@@ -1462,28 +1490,53 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
    * Leave the current call
    */
   const leaveCall = useCallback(async () => {
+    // Use refs instead of callState to avoid dependency on callState object
+    const roomId = callStateRoomIdRef.current
+    const meetingId = meetingIdRef.current
+    const callStartTime = callStartTimeRef.current
+    const currentStatus = callStatusRef.current
+
+    if (!roomId) return
+
+    // Prevent duplicate leave calls - check EARLY before any logging or work
+    if (isLeavingRef.current) {
+      rtkDebug.warn('[RTK] ⚠️ leaveCall already in progress, ignoring duplicate call')
+      return
+    }
+
     console.log('[useRealtimeKitGroupCall] 🚪 leaveCall START:', {
       isLeaving: isLeavingRef.current,
       roomId: callStateRoomIdRef.current,
       meetingId: meetingIdRef.current,
       sessionId: sessionIdRef.current,
-      status: callState.status,
-      isMinimized: callState.isMinimized
+      status: callStatusRef.current,
+      isMinimized: isMinimizedRef.current
     })
 
-    // Use refs instead of callState to avoid dependency on callState object
-    const roomId = callStateRoomIdRef.current
-    const meetingId = meetingIdRef.current
-    const callStartTime = callStartTimeRef.current
-    const currentStatus = callState.status
+    // Capture values needed for backend cleanup BEFORE we clear any refs.
+    const sessionIdForEmit = sessionIdRef.current
+    const isMeetingForEmit = !!calendarMeetingIdRef.current
 
-    if (!roomId) return
+    // Determine if this is the last participant at the moment of leaving.
+    // `participantsHook.participants` contains REMOTE participants only, so if it's 0,
+    // the current user is the last participant in the meeting.
+    const remoteCountAtLeave = (() => {
+      try {
+        if (!stableMeeting?.participants?.joined || !stableMeeting?.self?.id) return null
+        const joined = stableMeeting.participants.joined as Map<string, any>
+        const allParticipants = Array.from(joined.values())
+        const remotePeers = allParticipants.filter((p: any) => p.id !== stableMeeting.self?.id)
+        return remotePeers.length
+      } catch {
+        return null
+      }
+    })()
 
-    // Prevent duplicate leave calls
-    if (isLeavingRef.current) {
-      rtkDebug.warn('[RTK] ⚠️ leaveCall already in progress, ignoring duplicate call')
-      return
-    }
+    // Cleanup for fast restart: allow re-invites even if backend reuses meeting/session briefly.
+    // - clear start emit dedupe
+    // - clear invite dedupe (local + global)
+    lastStartEmitRef.current = null
+    clearInviteDedupeFor(meetingId, roomId)
 
     try {
       isLeavingRef.current = true
@@ -1555,15 +1608,6 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
 
       // Stop duration timer
       stopDurationTimer()
-      startTimeRef.current = null
-      conversationIdRef.current = null
-      callStateRoomIdRef.current = null
-      meetingIdRef.current = null // CRITICAL: Clear meeting ID ref to allow re-invites
-      sessionIdRef.current = null // Clear sessionId ref
-      wasIdleRef.current = true // Mark as idle for next call
-      abortControllerRef.current = null // Clear abort controller
-      pendingCallParticipantsRef.current = [] // CRITICAL: Clear pending participants for next call
-      calendarMeetingIdRef.current = null // Clear calendar meeting ID
 
       // CRITICAL: Clear any stale incoming invite
       // This ensures a fresh invite dialog can appear if user is re-invited
@@ -1599,8 +1643,8 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
       // This avoids noisy warnings and improves backend state consistency on leave.
       const wsClientForEmit = wsClientRef.current || globalCallManager.getCallData().wsClient
       let socket = wsClientForEmit?.getSocket()
-      const sessionId = sessionIdRef.current // ✅ Use ref instead of callState to avoid stale closure
-      const isMeeting = !!calendarMeetingIdRef.current // ✅ Use ref instead of callState to avoid stale closure
+      const sessionId = sessionIdForEmit
+      const isMeeting = isMeetingForEmit
 
       // If we don't have a socket (or it was cleared), attempt a lightweight reconnect using stored access token.
       // Never log tokens.
@@ -1628,17 +1672,36 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
         }
       }
 
-      console.log('[useRealtimeKitGroupCall] 📤 Emitting rtk-group-call:left:', {
+      const participantCount = participantsHookRef.current?.participants?.length ?? 0
+
+      // IMPORTANT: Determine if this user is the last participant (for logging/debugging).
+      // During 'joining' phase (before SDK connects), remoteCountAtLeave will be null.
+      // In this case, we can safely assume the user is alone (no remote participants can exist yet).
+      // During 'connected' phase, remoteCountAtLeave should always have a valid count.
+      // NOTE: We always emit 'left' and let the backend determine if it's the last participant.
+      const isLastParticipantLeaving =
+        remoteCountAtLeave === 0 || (remoteCountAtLeave === null && currentStatus === 'joining')
+
+      // This is just for logging - backend will verify if call should end for all
+      const shouldEndForAll = isLastParticipantLeaving
+
+      console.log('[useRealtimeKitGroupCall] 📤 Emitting leave event:', {
         hasUser: !!user,
         hasSocket: !!socket,
         roomId,
         meetingId,
         sessionId,
         isMeeting,
-        participantId: user?.id
+        participantId: user?.id,
+        currentStatus,
+        shouldEndForAll,
+        isLastParticipantLeaving,
+        participantCount,
+        remoteCountAtLeave
       })
 
       if (user && socket) {
+        // Always emit 'left' - backend will detect if it's the last participant and handle cleanup
         socket.emit('rtk-group-call:left', {
           conversationId: roomId,
           meetingId: meetingId,
@@ -1646,17 +1709,29 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
           isMeeting: isMeeting, // True if scheduled meeting, false for ad-hoc call
           participantId: user.id
         })
-        rtkDebug.log('[RTK] 📤 Emitted rtk-group-call:left event with sessionId and isMeeting', {
+        console.log('[RTK] 📤 Emitted rtk-group-call:left event', {
           conversationId: roomId,
           meetingId: meetingId,
           sessionId: sessionId,
           isMeeting: isMeeting,
-          participantId: user.id
+          participantId: user.id,
+          isLastParticipant: shouldEndForAll // Backend will verify this
         })
       } else {
         // Best-effort only; this can happen if the WebSocket client was torn down during navigation.
         rtkDebug.warn('[RTK] ⚠️ Skipping leave event - missing user or socket')
       }
+
+      // Now that we've notified backend, clear refs for next call attempt.
+      startTimeRef.current = null
+      conversationIdRef.current = null
+      callStateRoomIdRef.current = null
+      meetingIdRef.current = null // CRITICAL: Clear meeting ID ref to allow re-invites
+      sessionIdRef.current = null // Clear sessionId ref
+      wasIdleRef.current = true // Mark as idle for next call
+      abortControllerRef.current = null // Clear abort controller
+      pendingCallParticipantsRef.current = [] // CRITICAL: Clear pending participants for next call
+      calendarMeetingIdRef.current = null // Clear calendar meeting ID
 
       console.log('[useRealtimeKitGroupCall] 🧹 Clearing globalCallManager')
       // Reset state
@@ -1725,12 +1800,21 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
   // Store leaveCall in ref for WebSocket effect
   leaveCallRef.current = leaveCall
 
+  // Used to pass the next minimized value from the state updater to the deferred global update
+  const nextMinimizedForGlobalRef = useRef<boolean | null>(null)
+
   /**
    * Toggle minimized state
    */
   const toggleMinimize = useCallback(() => {
+    // IMPORTANT: Do not call globalCallManager.updateCallState inside the setState updater.
+    // React may execute the updater during render in concurrent/StrictMode, which would
+    // trigger cross-component updates and cause the "Cannot update a component while
+    // rendering a different component" warning.
     setCallState(prev => {
       const nextIsMinimized = !prev.isMinimized
+      // Store computed value for the deferred global update
+      nextMinimizedForGlobalRef.current = nextIsMinimized
 
       console.log('[useRealtimeKitGroupCall] 🔄 toggleMinimize called:', {
         currentIsMinimized: prev.isMinimized,
@@ -1739,16 +1823,21 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
         status: prev.status
       })
 
-      // CRITICAL: persist minimize state to the global source-of-truth
-      // so navigation/remount cannot "restore" the old minimized value.
-      globalCallManager.updateCallState({ isMinimized: nextIsMinimized, hasBeenMinimized: true })
-
       return {
         ...prev,
         isMinimized: nextIsMinimized,
         hasBeenMinimized: true // Set flag when minimizing
       }
     })
+
+    // Persist minimize state to the global source-of-truth after state update scheduling.
+    // Use a macrotask to ensure we're out of React's render phase.
+    setTimeout(() => {
+      const next = nextMinimizedForGlobalRef.current
+      if (typeof next === 'boolean') {
+        globalCallManager.updateCallState({ isMinimized: next, hasBeenMinimized: true })
+      }
+    }, 0)
   }, [])
 
   // CRITICAL: Update ref so globalCallManager callbacks always have latest version
@@ -2093,6 +2182,11 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
 
     const handleCallEnded = (data: { meetingId: string; conversationId: string }) => {
       rtkDebug.log('[RTK] Call ended by host', data)
+
+      // Allow immediate re-invite if the call is restarted quickly (backend may reuse meeting/session briefly)
+      lastStartEmitRef.current = null
+      clearInviteDedupeFor(data.meetingId, data.conversationId)
+
       rtkDebug.log('[RTK] Current incomingInvite state:', {
         hasInvite: !!incomingInviteRef.current,
         inviteRoomId: incomingInviteRef.current?.roomId,
@@ -2196,6 +2290,17 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
         return newMap
       })
 
+      // Track host for proper "end for all" behavior and UI labels.
+      // Only update if this event refers to the current call.
+      if (
+        data?.startedBy?.id &&
+        (data.conversationId === callStateRoomIdRef.current ||
+          data.roomId === meetingIdRef.current ||
+          data.conversationId === conversationIdRef.current)
+      ) {
+        setCallState(prev => ({ ...prev, hostId: data.startedBy.id }))
+      }
+
       // Global Call Timer Synchronization
       // Sync timer if we have startedAt and this event is for the current call
       // Check both roomId (conversationId) and meetingId to handle different call scenarios
@@ -2225,12 +2330,14 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
             data.conversationId === callStateRoomIdRef.current
         })
 
-        // CRITICAL: Sync to backend's start time, but ONLY if:
-        // 1. We don't have a start time yet (first sync)
-        // 2. Backend's time is EARLIER (we're a late joiner catching up)
-        // NEVER accept a later time - that would reset the timer forward!
+        // CRITICAL: Sync to backend's start time.
+        // - If we're NOT currently in a call, treat this as a fresh call lifecycle and always accept backend time.
+        //   This fixes repeated-call cases where startTimeRef wasn't cleared and would otherwise block updates.
+        // - If we're already in a call, only accept an EARLIER time (late joiner catching up).
+        //   Never accept a later time while in-call, as that would jump the timer forward.
         const shouldUpdate =
-          !startTimeRef.current || // No local start time yet
+          !isInCallRef.current ||
+          !startTimeRef.current || // No local start time yet (first sync)
           globalStartTime < startTimeRef.current // Backend time is earlier (late joiner)
 
         if (shouldUpdate) {
@@ -2272,6 +2379,21 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
 
     const handleConversationCallEnded = (data: { conversationId: string; roomId: string }) => {
       rtkDebug.log('[RTK] 📴 Conversation call ended:', data)
+
+      // Allow immediate re-invite if the call is restarted quickly
+      lastStartEmitRef.current = null
+      clearInviteDedupeFor(data.roomId, data.conversationId)
+
+      // Timer cleanup: if we’re not currently in a call (or this ended event is for our current call),
+      // clear startTimeRef so the next call can sync to a NEW start time.
+      if (
+        !isInCallRef.current ||
+        data.conversationId === callStateRoomIdRef.current ||
+        data.conversationId === conversationIdRef.current ||
+        data.roomId === meetingIdRef.current
+      ) {
+        startTimeRef.current = null
+      }
 
       setActiveConversationCalls(prev => {
         const newMap = new Map(prev)
