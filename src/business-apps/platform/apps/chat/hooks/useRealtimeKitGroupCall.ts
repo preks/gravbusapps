@@ -1841,6 +1841,7 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
         meetingId: callState.meetingId ?? null,
         sessionId: callState.sessionId ?? null,
         callType: callState.callType,
+        conversationType: callState.conversationType,
         callImplementation: 'realtime-kit',
         hostId: callState.hostId,
         isMuted: callState.isMuted,

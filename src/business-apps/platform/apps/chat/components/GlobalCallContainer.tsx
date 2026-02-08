@@ -162,10 +162,10 @@ export const GlobalCallContainer: React.FC = () => {
     return null
   }
 
-  // Hide reactions and raise hand for direct calls with less than 3 participants
-  const isDirectCall = callData.activeConversation?.type === 'direct'
-  const participantCount = callData.participants.length
-  const hideReactionsAndHandRaise = isDirectCall && participantCount < 3
+  // Hide reactions and raise hand for direct calls only
+  // Show for group calls and meetings
+  const conversationType = callData.callState.conversationType
+  const hideReactionsAndHandRaise = conversationType === 'direct'
 
   return (
     <TranslationProvider>

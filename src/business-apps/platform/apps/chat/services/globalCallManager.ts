@@ -57,6 +57,7 @@ export interface GlobalCallState {
   handRaised: boolean // Whether local user has hand raised
   remoteHandsRaised: Record<string, boolean> // Map of participantId -> handRaised for remote participants
   handRaisedOrder?: Record<string, { order: number; timestamp: number }> // Map of participantId -> order and timestamp
+  conversationType?: 'direct' | 'group' | 'meeting' // Type of conversation for proper UI behavior
 }
 
 interface StoredCallData {
@@ -123,7 +124,8 @@ const initialCallState: GlobalCallState = {
   participants: [],
   handRaised: false,
   remoteHandsRaised: {},
-  handRaisedOrder: {}
+  handRaisedOrder: {},
+  conversationType: undefined
 }
 
 class GlobalCallManager {
