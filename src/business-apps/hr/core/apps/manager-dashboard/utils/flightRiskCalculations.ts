@@ -249,12 +249,23 @@ const monthsSinceDate = (dateStr: string): number => {
 }
 
 /**
+ * Salary change record for compensation analysis
+ * Compatible with ProcessedSalaryChange from types
+ */
+interface SalaryChangeRecord {
+  effectiveDate: string
+  newAmount: number
+  previousAmount: number | null
+  changePercent?: number | null
+}
+
+/**
  * Calculate compensation risk score with real salary data
  * Uses salary history to determine raise frequency and percentage
  */
 export const calculateCompensationRiskScore = (
   tenureMonths: number,
-  salaryHistory?: { effectiveDate: string; newAmount: number; previousAmount: number }[],
+  salaryHistory?: SalaryChangeRecord[],
   currentSalary?: number,
   teamMedianSalary?: number
 ): number => {
@@ -268,13 +279,15 @@ export const calculateCompensationRiskScore = (
 
   let riskScore = 0
 
-  // Find the most recent raise (where newAmount > previousAmount)
-  const raises = salaryHistory.filter(s => s.newAmount > s.previousAmount)
+  // Find the most recent raise (where newAmount > previousAmount and previousAmount exists)
+  const raises = salaryHistory.filter(s => s.previousAmount != null && s.newAmount > s.previousAmount)
 
   if (raises.length > 0) {
     const lastRaise = raises[0]
     const monthsSinceRaise = monthsSinceDate(lastRaise.effectiveDate)
-    const raisePercent = ((lastRaise.newAmount - lastRaise.previousAmount) / lastRaise.previousAmount) * 100
+    // We know previousAmount is not null here due to filter
+    const prevAmount = lastRaise.previousAmount as number
+    const raisePercent = lastRaise.changePercent ?? ((lastRaise.newAmount - prevAmount) / prevAmount) * 100
 
     // Time since last raise scoring
     if (monthsSinceRaise > 24) {
@@ -315,7 +328,7 @@ export const calculateCompensationRiskScore = (
  */
 export const getCompensationRiskDescription = (
   tenureMonths: number,
-  salaryHistory?: { effectiveDate: string; newAmount: number; previousAmount: number }[],
+  salaryHistory?: SalaryChangeRecord[],
   currentSalary?: number,
   teamMedianSalary?: number
 ): string => {
@@ -325,12 +338,14 @@ export const getCompensationRiskDescription = (
     return 'Recent compensation likely competitive'
   }
 
-  const raises = salaryHistory.filter(s => s.newAmount > s.previousAmount)
+  const raises = salaryHistory.filter(s => s.previousAmount != null && s.newAmount > s.previousAmount)
 
   if (raises.length > 0) {
     const lastRaise = raises[0]
     const monthsSinceRaise = monthsSinceDate(lastRaise.effectiveDate)
-    const raisePercent = ((lastRaise.newAmount - lastRaise.previousAmount) / lastRaise.previousAmount) * 100
+    // We know previousAmount is not null here due to filter
+    const prevAmount = lastRaise.previousAmount as number
+    const raisePercent = lastRaise.changePercent ?? ((lastRaise.newAmount - prevAmount) / prevAmount) * 100
 
     if (monthsSinceRaise > 24) {
       return `No raise in ${Math.floor(monthsSinceRaise / 12)} years`

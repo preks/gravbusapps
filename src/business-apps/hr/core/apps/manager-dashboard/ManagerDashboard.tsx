@@ -194,7 +194,7 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
     accessToken: accessToken || '',
     managerId: employeeId || '',
     directReportIds,
-    enableAISentiment: false
+    enableAISentiment: true
   })
 
   const sickLeavesCount = useMemo(() => {

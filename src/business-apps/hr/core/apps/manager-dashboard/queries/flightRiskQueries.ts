@@ -122,44 +122,76 @@ export const GET_FLIGHT_RISK_DATA = `
 `
 
 /**
- * Batch query for team salary history
- * Returns salary change records with previous/new amounts for trend analysis
+ * Batch query for team salary history from EmployeeSalary table
+ * Returns all approved salary records for compensation trend analysis
+ *
+ * Note: EmployeeSalary doesn't have previousAmount - we calculate change
+ * by comparing consecutive records ordered by startDate
  */
 export const GET_TEAM_SALARY_HISTORY = `
-  query GetTeamSalaryHistory($employeeIds: [ID!]!) {
-    salaryHistory(
-      where: { employeeId: { in: $employeeIds } }
-      orderBy: { effectiveDate: DESC }
-      limit: 100
+  query GetTeamSalaryHistory($employeeIds: [uuid!]!) {
+    EmployeeSalary(
+      where: { 
+        employeeId: { _in: $employeeIds }
+        isDeleted: { _eq: false }
+        requestStatus: { _eq: "APPROVED_SALARY_ADJUSTMENT" }
+      }
+      orderBy: [{ startDate: DESC_NULLS_LAST }, { createdAt: DESC }]
+      limit: 200
     ) {
       id
       employeeId
-      previousAmount
-      newAmount
-      currency
-      effectiveDate
-      reason
+      annualGrossSalary
+      monthlyGrossSalary
+      hourlyGrossSalary
+      currency {
+        id
+        code
+        value
+      }
+      currencyRef
+      startDate
+      endDate
+      requestedPercent
+      requestedAmount
+      salaryAdjustReasonRef
+      createdAt
     }
   }
 `
 
 /**
- * Batch query for current active salaries
+ * Batch query for current active salaries from EmployeeSalary table
  * Used to calculate team median for comparison
+ *
+ * Note: "Active" is determined by startDate <= today AND (endDate IS NULL OR endDate >= today)
+ * Client-side filtering handles endDate null logic since GraphQL has issues with null comparisons
  */
 export const GET_TEAM_CURRENT_SALARIES = `
-  query GetTeamCurrentSalaries($employeeIds: [ID!]!) {
-    salaries(
+  query GetTeamCurrentSalaries($employeeIds: [uuid!]!, $today: date!) {
+    EmployeeSalary(
       where: { 
-        employeeId: { in: $employeeIds }, 
-        isActive: { eq: true } 
+        employeeId: { _in: $employeeIds }
+        isDeleted: { _eq: false }
+        requestStatus: { _eq: "APPROVED_SALARY_ADJUSTMENT" }
+        startDate: { _lte: $today }
       }
+      orderBy: [{ startDate: DESC }, { createdAt: DESC }]
+      limit: 100
     ) {
       id
       employeeId
-      amount
-      currency
-      effectiveDate
+      annualGrossSalary
+      monthlyGrossSalary
+      hourlyGrossSalary
+      currency {
+        id
+        code
+        value
+      }
+      currencyRef
+      startDate
+      endDate
     }
   }
 `

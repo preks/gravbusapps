@@ -116,7 +116,7 @@ export interface RawEmployeeData {
     hireDate?: string
     probationEnd?: string
     exitDate?: string
-  }
+  }[]
   employeePosition?: {
     jobPosition?: { name: string }
     organizationalUnit?: { name: string }
@@ -170,33 +170,56 @@ export interface RawAbsence {
 /**
  * Raw salary history data
  */
-export interface RawSalaryHistory {
+/**
+ * Currency catalog entry from GraphQL
+ */
+export interface CurrencyEntry {
   id: string
-  employeeId: string
-  previousAmount: number
-  newAmount: number
-  currency?: string
-  effectiveDate: string
-  reason?: string
+  code: string
+  value: string
 }
 
 /**
- * Raw current salary data
+ * Raw salary record from EmployeeSalary table
  */
-export interface RawCurrentSalary {
+export interface RawSalaryRecord {
   id: string
   employeeId: string
-  amount: number
-  currency?: string
+  annualGrossSalary: number | null
+  monthlyGrossSalary: number | null
+  hourlyGrossSalary: number | null
+  currency: CurrencyEntry | null
+  currencyRef: string | null
+  startDate: string | null
+  endDate: string | null
+  requestedPercent: number | null
+  requestedAmount: number | null
+  salaryAdjustReasonRef: string | null
+  createdAt: string
+}
+
+/**
+ * Processed salary history with calculated change amounts
+ * Derived from comparing consecutive RawSalaryRecord entries
+ */
+export interface ProcessedSalaryChange {
+  id: string
+  employeeId: string
+  previousAmount: number | null
+  newAmount: number
+  changePercent: number | null
+  currencyCode: string
   effectiveDate: string
+  reason?: string
 }
 
 /**
  * Salary data grouped by employee for compensation risk calculation
  */
 export interface EmployeeSalaryData {
-  currentSalary?: RawCurrentSalary
-  salaryHistory: RawSalaryHistory[]
+  currentSalary?: RawSalaryRecord
+  salaryRecords: RawSalaryRecord[]
+  salaryChanges: ProcessedSalaryChange[]
   lastRaiseDate?: string
   lastRaisePercent?: number
   monthsSinceLastRaise?: number
@@ -214,17 +237,17 @@ export interface FlightRiskQueryResponse {
 }
 
 /**
- * Salary history query response
+ * Salary history query response from EmployeeSalary table
  */
 export interface SalaryHistoryQueryResponse {
-  salaryHistory: RawSalaryHistory[]
+  EmployeeSalary: RawSalaryRecord[]
 }
 
 /**
- * Current salaries query response
+ * Current salaries query response from EmployeeSalary table
  */
 export interface CurrentSalariesQueryResponse {
-  salaries: RawCurrentSalary[]
+  EmployeeSalary: RawSalaryRecord[]
 }
 
 /**

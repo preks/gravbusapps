@@ -6,6 +6,9 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { useSaveRiskScores } from './useSaveRiskScores'
+import { useFeedbackSentiment, EmployeeSentimentResult } from './useFeedbackSentiment'
+import { useRiskTrendHistory, EmployeeTrendResult } from './useRiskTrendHistory'
+import { initFlightRiskCache } from '../utils/cacheManagement'
 import {
   FlightRiskEmployee,
   FlightRiskSummary,
@@ -16,13 +19,12 @@ import {
   RawPerformanceGoal,
   RawFeedback,
   RawAbsence,
-  RawSalaryHistory,
-  RawCurrentSalary,
+  RawSalaryRecord,
+  ProcessedSalaryChange,
   FlightRiskQueryResponse,
-  SalaryHistoryQueryResponse,
-  CurrentSalariesQueryResponse
+  SalaryHistoryQueryResponse
 } from '../types/flightRisk.types'
-import { GET_FLIGHT_RISK_DATA, GET_TEAM_SALARY_HISTORY, GET_TEAM_CURRENT_SALARIES } from '../queries/flightRiskQueries'
+import { GET_FLIGHT_RISK_DATA, GET_TEAM_SALARY_HISTORY } from '../queries/flightRiskQueries'
 import {
   SIGNAL_WEIGHTS,
   calculateTenureMonths,
@@ -50,7 +52,7 @@ import {
  * Salary data structure for an employee
  */
 interface EmployeeSalaryInfo {
-  salaryHistory: RawSalaryHistory[]
+  salaryChanges: ProcessedSalaryChange[]
   currentSalary?: number
   teamMedianSalary?: number
 }
@@ -160,11 +162,11 @@ const buildSignals = (
     dataSource: sentimentInfo?.isAIAnalyzed ? 'FlowBot AI' : 'EmployeeFeedback.rating'
   })
 
-  // Compensation Signal - now with real salary data
-  const employeeSalaryHistory = salaryInfo?.salaryHistory || []
+  // Compensation Signal - now with real salary data from EmployeeSalary table
+  const employeeSalaryChanges = salaryInfo?.salaryChanges || []
   const compensationScore = calculateCompensationRiskScore(
     tenureMonths,
-    employeeSalaryHistory,
+    employeeSalaryChanges,
     salaryInfo?.currentSalary,
     salaryInfo?.teamMedianSalary
   )
@@ -177,61 +179,143 @@ const buildSignals = (
     weight: SIGNAL_WEIGHTS.compensation,
     description: getCompensationRiskDescription(
       tenureMonths,
-      employeeSalaryHistory,
+      employeeSalaryChanges,
       salaryInfo?.currentSalary,
       salaryInfo?.teamMedianSalary
     ),
-    dataSource: 'salaryHistory'
+    dataSource: 'EmployeeSalary'
   })
 
   return signals
 }
 
 /**
- * Calculate team median salary from current salaries
+ * Get the best available salary amount from a record (prefer annual, then monthly*12, then hourly*2080)
  */
-const calculateTeamMedianSalary = (currentSalaries: RawCurrentSalary[]): number => {
-  if (currentSalaries.length === 0) return 0
-  const amounts = currentSalaries.map(s => s.amount).sort((a, b) => a - b)
+const getSalaryAmount = (record: RawSalaryRecord): number => {
+  if (record.annualGrossSalary != null && record.annualGrossSalary > 0) {
+    return record.annualGrossSalary
+  }
+  if (record.monthlyGrossSalary != null && record.monthlyGrossSalary > 0) {
+    return record.monthlyGrossSalary * 12
+  }
+  if (record.hourlyGrossSalary != null && record.hourlyGrossSalary > 0) {
+    return record.hourlyGrossSalary * 2080 // 40 hrs/week * 52 weeks
+  }
+  return 0
+}
+
+/**
+ * Check if a salary record is currently active
+ */
+const isActiveSalary = (record: RawSalaryRecord, today: Date): boolean => {
+  if (!record.startDate) return false
+  const startDate = new Date(record.startDate)
+  if (startDate > today) return false
+  if (record.endDate) {
+    const endDate = new Date(record.endDate)
+    if (endDate < today) return false
+  }
+  return true
+}
+
+/**
+ * Process salary records to calculate changes between consecutive records
+ */
+const processSalaryChanges = (records: RawSalaryRecord[]): ProcessedSalaryChange[] => {
+  if (records.length === 0) return []
+
+  // Sort by startDate descending (newest first)
+  const sorted = [...records].sort((a, b) => {
+    const dateA = a.startDate ? new Date(a.startDate).getTime() : 0
+    const dateB = b.startDate ? new Date(b.startDate).getTime() : 0
+    return dateB - dateA
+  })
+
+  const changes: ProcessedSalaryChange[] = []
+
+  for (let i = 0; i < sorted.length; i++) {
+    const current = sorted[i]
+    const previous = sorted[i + 1] // Older record
+
+    const newAmount = getSalaryAmount(current)
+    const previousAmount = previous ? getSalaryAmount(previous) : null
+
+    let changePercent: number | null = null
+    if (previousAmount != null && previousAmount > 0 && newAmount > 0) {
+      changePercent = ((newAmount - previousAmount) / previousAmount) * 100
+    }
+
+    changes.push({
+      id: current.id,
+      employeeId: current.employeeId,
+      previousAmount,
+      newAmount,
+      changePercent,
+      currencyCode: current.currency?.code || 'EUR',
+      effectiveDate: current.startDate || current.createdAt,
+      reason: current.salaryAdjustReasonRef || undefined
+    })
+  }
+
+  return changes
+}
+
+/**
+ * Calculate team median salary from current salary records
+ */
+const calculateTeamMedianSalary = (currentSalaryRecords: RawSalaryRecord[], today: Date): number => {
+  // Get unique active salaries per employee (first active record per employee)
+  const employeeActiveSalaries = new Map<string, number>()
+
+  currentSalaryRecords.forEach(record => {
+    if (!employeeActiveSalaries.has(record.employeeId) && isActiveSalary(record, today)) {
+      const amount = getSalaryAmount(record)
+      if (amount > 0) {
+        employeeActiveSalaries.set(record.employeeId, amount)
+      }
+    }
+  })
+
+  const amounts = Array.from(employeeActiveSalaries.values()).sort((a, b) => a - b)
+  if (amounts.length === 0) return 0
+
   const mid = Math.floor(amounts.length / 2)
   return amounts.length % 2 !== 0 ? amounts[mid] : (amounts[mid - 1] + amounts[mid]) / 2
 }
 
 /**
- * Group salary data by employee
+ * Group salary data by employee with processed changes
  */
 const groupSalaryDataByEmployee = (
-  salaryHistory: RawSalaryHistory[],
-  currentSalaries: RawCurrentSalary[],
+  allSalaryRecords: RawSalaryRecord[],
+  today: Date,
   teamMedianSalary: number
 ): Map<string, EmployeeSalaryInfo> => {
   const salaryMap = new Map<string, EmployeeSalaryInfo>()
 
-  // Group salary history by employee
-  salaryHistory.forEach(record => {
-    const existing = salaryMap.get(record.employeeId)
-    if (existing) {
-      existing.salaryHistory.push(record)
-    } else {
-      salaryMap.set(record.employeeId, {
-        salaryHistory: [record],
-        teamMedianSalary
-      })
-    }
+  // Group records by employee
+  const recordsByEmployee = new Map<string, RawSalaryRecord[]>()
+  allSalaryRecords.forEach(record => {
+    const existing = recordsByEmployee.get(record.employeeId) || []
+    existing.push(record)
+    recordsByEmployee.set(record.employeeId, existing)
   })
 
-  // Add current salaries
-  currentSalaries.forEach(salary => {
-    const existing = salaryMap.get(salary.employeeId)
-    if (existing) {
-      existing.currentSalary = salary.amount
-    } else {
-      salaryMap.set(salary.employeeId, {
-        salaryHistory: [],
-        currentSalary: salary.amount,
-        teamMedianSalary
-      })
-    }
+  // Process each employee's salary data
+  recordsByEmployee.forEach((records, employeeId) => {
+    // Find current (active) salary
+    const activeRecord = records.find(r => isActiveSalary(r, today))
+    const currentSalary = activeRecord ? getSalaryAmount(activeRecord) : undefined
+
+    // Process salary changes
+    const salaryChanges = processSalaryChanges(records)
+
+    salaryMap.set(employeeId, {
+      salaryChanges,
+      currentSalary,
+      teamMedianSalary
+    })
   })
 
   return salaryMap
@@ -249,7 +333,7 @@ const processFlightRiskData = (
   const { employees, performanceGoals, feedbackReceived, managerFeedback, absences } = response
 
   return employees.map((emp: RawEmployeeData) => {
-    const hireDate = emp.workingCondition?.hireDate || ''
+    const hireDate = emp.workingCondition?.[0]?.hireDate || ''
     const tenureMonths = calculateTenureMonths(hireDate)
 
     // Get salary data for this employee
@@ -314,13 +398,94 @@ const processFlightRiskData = (
 export const useFlightRiskPrediction = ({
   accessToken,
   managerId,
-  directReportIds
+  directReportIds,
+  enableAISentiment = false
 }: UseFlightRiskProps): UseFlightRiskResult => {
   const [employees, setEmployees] = useState<FlightRiskEmployee[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
 
+  // Store raw data for reprocessing when sentiment/trends are ready
+  const rawDataRef = useRef<{
+    flightRiskResponse: FlightRiskQueryResponse | null
+    salaryDataMap: Map<string, EmployeeSalaryInfo>
+    feedbackByEmployee: Map<string, RawFeedback[]>
+  }>({
+    flightRiskResponse: null,
+    salaryDataMap: new Map(),
+    feedbackByEmployee: new Map()
+  })
+
   const graphQLClient = useGraphqlClient(accessToken)
+
+  // Initialize sentiment analysis hook
+  const { analyzeBatch, sentimentResults } = useFeedbackSentiment({
+    accessToken
+  })
+
+  // Initialize risk trend history hook
+  const { trends: trendResults, fetchTrends } = useRiskTrendHistory({
+    accessToken,
+    employeeIds: directReportIds,
+    historyLimit: 6
+  })
+
+  /**
+   * Convert sentiment results to EmployeeSentimentInfo map
+   */
+  const buildSentimentDataMap = useCallback(
+    (results: Map<string, EmployeeSentimentResult>): Map<string, EmployeeSentimentInfo> => {
+      const map = new Map<string, EmployeeSentimentInfo>()
+      results.forEach((result, employeeId) => {
+        map.set(employeeId, {
+          score: result.score,
+          summary: result.summary,
+          isAIAnalyzed: result.isAIAnalyzed
+        })
+      })
+      return map
+    },
+    []
+  )
+
+  /**
+   * Convert trend results to EmployeeTrendInfo map
+   */
+  const buildTrendDataMap = useCallback((results: Map<string, EmployeeTrendResult>): Map<string, EmployeeTrendInfo> => {
+    const map = new Map<string, EmployeeTrendInfo>()
+    results.forEach((result, employeeId) => {
+      // Build historical scores array from available data
+      const historicalScores: { overallScore: number; calculatedAt: string }[] = []
+      if (result.currentScore !== undefined) {
+        historicalScores.push({
+          overallScore: result.currentScore,
+          calculatedAt: new Date().toISOString()
+        })
+      }
+      if (result.previousScore !== undefined) {
+        historicalScores.push({
+          overallScore: result.previousScore,
+          calculatedAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString() // ~30 days ago
+        })
+      }
+      map.set(employeeId, { historicalScores })
+    })
+    return map
+  }, [])
+
+  /**
+   * Reprocess employees with updated sentiment and trend data
+   */
+  const reprocessWithEnhancedData = useCallback(() => {
+    const { flightRiskResponse, salaryDataMap } = rawDataRef.current
+    if (!flightRiskResponse) return
+
+    const sentimentDataMap = buildSentimentDataMap(sentimentResults)
+    const trendDataMap = buildTrendDataMap(trendResults)
+
+    const processedEmployees = processFlightRiskData(flightRiskResponse, salaryDataMap, sentimentDataMap, trendDataMap)
+    setEmployees(processedEmployees)
+  }, [sentimentResults, trendResults, buildSentimentDataMap, buildTrendDataMap])
 
   const fetchFlightRiskData = useCallback(async () => {
     if (!managerId || !accessToken || directReportIds.length === 0) {
@@ -335,9 +500,10 @@ export const useFlightRiskPrediction = ({
     try {
       const oneYearAgo = new Date()
       oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1)
+      const today = new Date()
 
       // Fetch main flight risk data and salary data in parallel
-      const [flightRiskResponse, salaryHistoryResponse, currentSalariesResponse] = await Promise.all([
+      const [flightRiskResponse, salaryHistoryResponse] = await Promise.all([
         graphQLClient.request<FlightRiskQueryResponse>(GET_FLIGHT_RISK_DATA, {
           managerId,
           teamMemberIds: directReportIds,
@@ -347,27 +513,34 @@ export const useFlightRiskPrediction = ({
           .request<SalaryHistoryQueryResponse>(GET_TEAM_SALARY_HISTORY, {
             employeeIds: directReportIds
           })
-          .catch(() => ({ salaryHistory: [] })), // Graceful fallback if salary API not available
-        graphQLClient
-          .request<CurrentSalariesQueryResponse>(GET_TEAM_CURRENT_SALARIES, {
-            employeeIds: directReportIds
-          })
-          .catch(() => ({ salaries: [] })) // Graceful fallback
+          .catch(() => ({ EmployeeSalary: [] })) // Graceful fallback if salary API not available
       ])
 
-      // Process salary data
-      const currentSalaries = currentSalariesResponse.salaries || []
-      const salaryHistory = salaryHistoryResponse.salaryHistory || []
-      const teamMedianSalary = calculateTeamMedianSalary(currentSalaries)
-      const salaryDataMap = groupSalaryDataByEmployee(salaryHistory, currentSalaries, teamMedianSalary)
+      // Process salary data from EmployeeSalary table
+      const allSalaryRecords = salaryHistoryResponse.EmployeeSalary || []
+      const teamMedianSalary = calculateTeamMedianSalary(allSalaryRecords, today)
+      const salaryDataMap = groupSalaryDataByEmployee(allSalaryRecords, today, teamMedianSalary)
 
-      // Sentiment data map - will be populated by useFeedbackSentiment hook when enabled
+      // Build feedback by employee map for sentiment analysis
+      const feedbackByEmployee = new Map<string, RawFeedback[]>()
+      const feedbackReceived = flightRiskResponse.feedbackReceived || []
+      feedbackReceived.forEach(feedback => {
+        const existing = feedbackByEmployee.get(feedback.employeeId) || []
+        existing.push(feedback)
+        feedbackByEmployee.set(feedback.employeeId, existing)
+      })
+
+      // Store raw data for reprocessing
+      rawDataRef.current = {
+        flightRiskResponse,
+        salaryDataMap,
+        feedbackByEmployee
+      }
+
+      // Initial processing without sentiment/trends (fast first render)
       const sentimentDataMap = new Map<string, EmployeeSentimentInfo>()
-
-      // Trend data map - will be populated when backend API is available
       const trendDataMap = new Map<string, EmployeeTrendInfo>()
 
-      // Process data and calculate risk scores with salary, sentiment, and trend data
       const processedEmployees = processFlightRiskData(
         flightRiskResponse,
         salaryDataMap,
@@ -375,17 +548,48 @@ export const useFlightRiskPrediction = ({
         trendDataMap
       )
       setEmployees(processedEmployees)
+
+      // Trigger async sentiment analysis if enabled
+      if (enableAISentiment && feedbackByEmployee.size > 0) {
+        // Don't await - let it run in background
+        analyzeBatch(feedbackByEmployee).catch(err => {
+          console.warn('Sentiment analysis failed:', err)
+        })
+      }
+
+      // Trigger async trend fetching
+      fetchTrends().catch(err => {
+        console.warn('Trend fetching failed:', err)
+      })
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Failed to fetch flight risk data'))
       console.error('Error fetching flight risk data:', err)
     } finally {
       setLoading(false)
     }
-  }, [managerId, accessToken, directReportIds, graphQLClient])
+  }, [managerId, accessToken, directReportIds, graphQLClient, enableAISentiment, analyzeBatch, fetchTrends])
 
+  // Initial data fetch
   useEffect(() => {
+    // Initialize cache management
+    initFlightRiskCache()
+
     fetchFlightRiskData()
   }, [fetchFlightRiskData])
+
+  // Reprocess when sentiment results arrive
+  useEffect(() => {
+    if (sentimentResults.size > 0 && rawDataRef.current.flightRiskResponse) {
+      reprocessWithEnhancedData()
+    }
+  }, [sentimentResults, reprocessWithEnhancedData])
+
+  // Reprocess when trend results arrive
+  useEffect(() => {
+    if (trendResults.size > 0 && rawDataRef.current.flightRiskResponse) {
+      reprocessWithEnhancedData()
+    }
+  }, [trendResults, reprocessWithEnhancedData])
 
   // Auto-save risk scores for trend tracking
   const { saveScores } = useSaveRiskScores({

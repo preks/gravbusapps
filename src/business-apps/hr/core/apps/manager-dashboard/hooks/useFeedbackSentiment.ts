@@ -54,21 +54,28 @@ const buildSentimentPrompt = (feedback: RawFeedback[]): string => {
     .map((f, i) => `${i + 1}. "${f.feedback}"${f.rating ? ` (Rating: ${f.rating}/5)` : ''}`)
     .join('\n')
 
-  return `Analyze the following employee feedback and rate the overall sentiment.
-Return ONLY a JSON object with these exact fields:
-- score: number from 0-100 (0=very positive, 50=neutral, 100=very negative/concerning)
-- summary: one sentence summary of sentiment patterns (max 100 chars)
+  return `You are a sentiment analysis system that ONLY outputs JSON.
 
-Consider factors like:
-- Overall tone (positive, negative, neutral)
-- Signs of frustration, disengagement, or dissatisfaction
-- Recognition of achievements vs criticism
-- Trends over time
+Task: Analyze employee feedback sentiment and return a JSON object.
 
-Feedback to analyze:
+Example input:
+"Great work on the project!" (Rating: 5/5)
+"Needs improvement on communication"
+
+Example output (COPY THIS FORMAT EXACTLY):
+{"score": 30, "summary": "Mixed feedback with both praise and areas for improvement."}
+
+Now analyze this feedback:
 ${feedbackText}
 
-Respond ONLY with valid JSON, no other text.`
+OUTPUT FORMAT: Copy the example format exactly. Replace only the score (0-100) and summary text.
+- 0-20 = Very positive
+- 21-40 = Positive  
+- 41-60 = Neutral
+- 61-80 = Negative
+- 81-100 = Very negative
+
+YOUR RESPONSE (JSON only, no other text):`
 }
 
 /**
@@ -83,14 +90,14 @@ const parseSentimentResponse = (
     // Try to extract JSON from the response
     const jsonMatch = response.match(/\{[\s\S]*\}/)
     if (!jsonMatch) {
-      console.warn('No JSON found in sentiment response')
+      console.warn('Sentiment analysis: No JSON found in response')
       return null
     }
 
     const parsed = JSON.parse(jsonMatch[0])
 
     if (typeof parsed.score !== 'number' || typeof parsed.summary !== 'string') {
-      console.warn('Invalid sentiment response structure:', parsed)
+      console.warn('Sentiment analysis: Invalid response structure')
       return null
     }
 
@@ -152,14 +159,17 @@ export const useFeedbackSentiment = ({ accessToken }: UseFeedbackSentimentProps)
         form.append('llm_model', 'gpt-4.1')
         form.append('use_web_search_tool', 'false')
 
+        // Use proper page context format (similar to useFlowBot.ts)
         const pageContext = {
-          type: 'analysis',
-          url: window.location.href,
-          entity_name: 'feedback'
+          type: 'overview' as const,
+          entity_name: 'employee_feedback',
+          url: window.location.href
         }
         form.append('current_page_context', JSON.stringify(pageContext))
 
-        const response = await fetch('/flowbot/api/agent/v2/chat', {
+        // Use full URL path like in useFlowBot
+        const baseUrl = window.location.origin
+        const response = await fetch(`${baseUrl}/flowbot/api/agent/v2/chat`, {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${accessToken}`,
