@@ -1,9 +1,4 @@
-import { useCallback } from 'react'
-import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { isValidDate } from '@/common/utils/dateFormatter'
-import { buildWhere } from '@/common/network/graphql/queryHelpers'
-import { INVESTMENT_DESCRIPTORS } from '@/common/data/investment/types/investmentTypes.new'
+import { createKPIQueryHook } from '@/common/data/investment/queries/GenericKPIQueries'
 
 export interface LiquidFundKPIData {
   totalInvestments: number
@@ -17,176 +12,80 @@ export interface LiquidFundKPIComparison {
   previous: LiquidFundKPIData
 }
 
-interface LiquidFundKPIQueryResult {
-  query: string
-  variables: Record<string, any>
-}
-
-const buildLiquidFundKPIQuery = (
-  comparisonDate: string,
-  currencyFilter?: string,
-  filters?: Record<string, any>
-): LiquidFundKPIQueryResult => {
-  // Validate comparison date
-  if (!isValidDate(comparisonDate)) {
-    throw new Error('Invalid comparison date format')
-  }
-
-  const variables = { ...filters }
-
-  // Build custom conditions for liquid fund investment type and currency
-  const customConditions: Record<string, any>[] = [{ liquidFundInvestment: { id: { _isNull: false } } }]
-
-  if (currencyFilter) {
-    customConditions.push({ currency: { code: { _eq: currencyFilter } } })
-  }
-
-  // Build where clauses using standard buildWhere from common
-  const currentWhere = buildWhere({
-    variables,
-    descriptors: INVESTMENT_DESCRIPTORS,
-    customConditions,
-    isDeleted: true
-  })
-
-  const currentActiveWhere = buildWhere({
-    variables,
-    descriptors: INVESTMENT_DESCRIPTORS,
-    customConditions: [...customConditions, { investmentStatus: { value: { _eq: 'Active' } } }],
-    isDeleted: true
-  })
-
-  const previousWhere = buildWhere({
-    variables,
-    descriptors: INVESTMENT_DESCRIPTORS,
-    customConditions: [...customConditions, { createdAt: { _lte: comparisonDate } }],
-    isDeleted: true
-  })
-
-  const previousActiveWhere = buildWhere({
-    variables,
-    descriptors: INVESTMENT_DESCRIPTORS,
-    customConditions: [
-      ...customConditions,
-      { createdAt: { _lte: comparisonDate } },
-      { investmentStatus: { value: { _eq: 'Active' } } }
-    ],
-    isDeleted: true
-  })
-
-  const query = `
-    query GetLiquidFundKPIsWithComparison(
-      $currentWhere: InvestmentBoolExp,
-      $currentActiveWhere: InvestmentBoolExp,
-      $previousWhere: InvestmentBoolExp,
-      $previousActiveWhere: InvestmentBoolExp
-    ) {
-      # Current data (liquid fund investments only)
-      currentAggregate: InvestmentAggregate(where: $currentWhere) {
-        aggregate {
-          count
-          sum {
-            totalInvestmentAmount
-          }
-        }
-      }
-      
-      # Current active investments count
-      currentActiveAggregate: InvestmentAggregate(where: $currentActiveWhere) {
-        aggregate {
-          count
-        }
-      }
-      
-      # Previous period data
-      previousAggregate: InvestmentAggregate(where: $previousWhere) {
-        aggregate {
-          count
-          sum {
-            totalInvestmentAmount
-          }
-        }
-      }
-      
-      # Previous active investments count
-      previousActiveAggregate: InvestmentAggregate(where: $previousActiveWhere) {
-        aggregate {
-          count
-        }
-      }
-    }
-  `
-
-  return {
-    query,
-    variables: {
-      currentWhere,
-      currentActiveWhere,
-      previousWhere,
-      previousActiveWhere
-    }
-  }
-}
-
 const AVERAGE_FALLBACK = 0
 
 /**
  * Hook to fetch liquid fund KPI data with period comparison
- * Uses standard descriptor-based filtering from common
+ * Uses generic KPI query factory with Liquid Fund specific configuration
  */
-export const useGetLiquidFundKPIs = (context: BusinessAppContextProps) => {
-  const graphqlClient = useGraphQLClient(context.accessToken)
-
-  const fetchLiquidFundKPIs = useCallback(
-    async (
-      comparisonDate: string,
-      currencyFilter?: string,
-      filters?: Record<string, any>
-    ): Promise<LiquidFundKPIComparison> => {
-      if (!context.accessToken) {
-        throw new Error('[useGetLiquidFundKPIs] Access token is required')
+const useGetLiquidFundKPIsBase = createKPIQueryHook<LiquidFundKPIData>({
+  groupName: 'LiquidFund',
+  groupFilterCondition: { liquidFundInvestment: { id: { _isNull: false } } },
+  additionalWhereClauses: [
+    {
+      name: 'activeWhere',
+      conditions: [{ investmentStatus: { value: { _eq: 'Active' } } }]
+    }
+  ],
+  queryFields: `
+    # Current data (liquid fund investments only)
+    currentAggregate: InvestmentAggregate(where: $currentWhere) {
+      aggregate {
+        count
+        sum {
+          totalInvestmentAmount
+        }
       }
-
-      const { query, variables } = buildLiquidFundKPIQuery(comparisonDate, currencyFilter, filters)
-
-      try {
-        const result = await graphqlClient.request<any>(query, variables)
-
-        // Process current KPIs
-        const currentData: LiquidFundKPIData = {
-          totalInvestments: result.currentAggregate.aggregate.count || 0,
-          totalAmountInvested: result.currentAggregate.aggregate.sum?.totalInvestmentAmount || 0,
-          activeInvestments: result.currentActiveAggregate.aggregate.count || 0,
-          averageInvestmentValue:
-            result.currentAggregate.aggregate.count > 0
-              ? (result.currentAggregate.aggregate.sum?.totalInvestmentAmount || 0) /
-                result.currentAggregate.aggregate.count
-              : AVERAGE_FALLBACK
-        }
-
-        // Process previous KPIs
-        const previousData: LiquidFundKPIData = {
-          totalInvestments: result.previousAggregate.aggregate.count || 0,
-          totalAmountInvested: result.previousAggregate.aggregate.sum?.totalInvestmentAmount || 0,
-          activeInvestments: result.previousActiveAggregate.aggregate.count || 0,
-          averageInvestmentValue:
-            result.previousAggregate.aggregate.count > 0
-              ? (result.previousAggregate.aggregate.sum?.totalInvestmentAmount || 0) /
-                result.previousAggregate.aggregate.count
-              : AVERAGE_FALLBACK
-        }
-
-        return {
-          current: currentData,
-          previous: previousData
-        }
-      } catch (error) {
-        console.error('[useGetLiquidFundKPIs] Error fetching liquid fund KPIs:', error)
-        throw error
+    }
+    
+    # Current active investments count
+    currentActiveAggregate: InvestmentAggregate(where: $currentActiveWhere) {
+      aggregate {
+        count
       }
+    }
+    
+    # Previous period data
+    previousAggregate: InvestmentAggregate(where: $previousWhere) {
+      aggregate {
+        count
+        sum {
+          totalInvestmentAmount
+        }
+      }
+    }
+    
+    # Previous active investments count
+    previousActiveAggregate: InvestmentAggregate(where: $previousActiveWhere) {
+      aggregate {
+        count
+      }
+    }
+  `,
+  transformResult: data => ({
+    current: {
+      totalInvestments: data.currentAggregate?.aggregate?.count || 0,
+      totalAmountInvested: data.currentAggregate?.aggregate?.sum?.totalInvestmentAmount || 0,
+      activeInvestments: data.currentActiveAggregate?.aggregate?.count || 0,
+      averageInvestmentValue:
+        data.currentAggregate?.aggregate?.count > 0
+          ? (data.currentAggregate.aggregate.sum?.totalInvestmentAmount || 0) / data.currentAggregate.aggregate.count
+          : AVERAGE_FALLBACK
     },
-    [context.accessToken, graphqlClient]
-  )
+    previous: {
+      totalInvestments: data.previousAggregate?.aggregate?.count || 0,
+      totalAmountInvested: data.previousAggregate?.aggregate?.sum?.totalInvestmentAmount || 0,
+      activeInvestments: data.previousActiveAggregate?.aggregate?.count || 0,
+      averageInvestmentValue:
+        data.previousAggregate?.aggregate?.count > 0
+          ? (data.previousAggregate.aggregate.sum?.totalInvestmentAmount || 0) / data.previousAggregate.aggregate.count
+          : AVERAGE_FALLBACK
+    }
+  })
+})
 
-  return { fetchLiquidFundKPIs }
+// Export with consistent API
+export const useGetLiquidFundKPIs = (context: any) => {
+  const hook = useGetLiquidFundKPIsBase(context)
+  return { fetchLiquidFundKPIs: hook.fetchLiquidFundKPIs }
 }

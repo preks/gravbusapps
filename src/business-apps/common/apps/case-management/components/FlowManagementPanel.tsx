@@ -39,7 +39,21 @@ import {
   AvatarImage,
   AvatarFallback
 } from '@newwork/nw-design-system'
-import { Plus, X, CheckCircle, Clock, XCircle, Eye, ExternalLink, Play, FileText, Search, Link2 } from 'lucide-react'
+import {
+  Plus,
+  X,
+  CheckCircle,
+  Clock,
+  XCircle,
+  Eye,
+  ExternalLink,
+  Play,
+  FileText,
+  Search,
+  Link2,
+  List,
+  GanttChart
+} from 'lucide-react'
 import { BusinessAppContextProps } from '@/business-apps/types'
 import { LinkedFlow, AddFlowRequest, SearchFlowResult } from '../types'
 import { FlowTemplateClient, FlowTemplate } from '@/common/network/flows/FlowTemplateClient'
@@ -47,6 +61,7 @@ import { CaseApiClient } from '../services/CaseApiClient'
 import { TERMINAL_FLOW_STATES, formatRelativeTime, isFlowTerminal, formatDate } from '../utils'
 import { useEmployeeNamesBatch } from '@/business-apps/ser/hooks/useEmployeeNamesBatch'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { FlowGanttChart } from './FlowGanttChart'
 
 // Format flow ID similar to service-desk (REQ-XXXXXXXX)
 const formatFlowId = (id: string): string => {
@@ -73,6 +88,8 @@ const buildServiceDeskTaskUrl = (taskId: string): string => {
   }
 }
 
+type FlowViewMode = 'list' | 'gantt'
+
 interface FlowManagementPanelProps {
   caseId: string
   linkedFlows: LinkedFlow[]
@@ -81,6 +98,8 @@ interface FlowManagementPanelProps {
   context: BusinessAppContextProps
   appTag: string
   readOnly?: boolean
+  caseCreatedAt?: string
+  caseDueDate?: string
 }
 
 export const FlowManagementPanel: React.FC<FlowManagementPanelProps> = ({
@@ -90,7 +109,9 @@ export const FlowManagementPanel: React.FC<FlowManagementPanelProps> = ({
   onRemoveFlow,
   context,
   appTag,
-  readOnly = false
+  readOnly = false,
+  caseCreatedAt,
+  caseDueDate
 }) => {
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [removeFlowId, setRemoveFlowId] = useState<string | null>(null)
@@ -99,9 +120,10 @@ export const FlowManagementPanel: React.FC<FlowManagementPanelProps> = ({
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('')
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(false)
   const [isAdding, setIsAdding] = useState(false)
+  const [viewMode, setViewMode] = useState<FlowViewMode>('list')
 
   // Link existing flow state
-  const [addFlowMode, setAddFlowMode] = useState<'new' | 'existing'>('new')
+  const [addFlowMode, setAddFlowMode] = useState<'new' | 'existing'>('existing')
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<SearchFlowResult[]>([])
   const [isSearching, setIsSearching] = useState(false)
@@ -245,7 +267,7 @@ export const FlowManagementPanel: React.FC<FlowManagementPanelProps> = ({
       setSearchQuery('')
       setSearchResults([])
       setSelectedExistingFlow(null)
-      setAddFlowMode('new')
+      setAddFlowMode('existing')
     }
     setShowAddDialog(open)
   }
@@ -270,12 +292,59 @@ export const FlowManagementPanel: React.FC<FlowManagementPanelProps> = ({
   const activeFlows = linkedFlows.filter(f => !f.removedAt)
   const removedFlows = linkedFlows.filter(f => f.removedAt)
 
+  // Handle Gantt flow actions
+  const handleGanttFlowAction = (flow: LinkedFlow, action: 'view' | 'open' | 'remove') => {
+    if (action === 'view') {
+      setSelectedFlow(flow)
+    } else if (action === 'open') {
+      if (flow.currentTaskId) {
+        window.open(buildServiceDeskTaskUrl(flow.currentTaskId), '_blank')
+      } else {
+        const isProduction = import.meta.env.MODE === 'production'
+        if (isProduction) {
+          const flowUrl = buildPlatformUrl('/platform/sales-demo/service-desk', { flowId: flow.workflowId })
+          window.open(flowUrl, '_blank')
+        } else {
+          const flowUrl = `${window.location.origin}?app=ser/apps/service-desk&flowId=${flow.workflowId}`
+          window.open(flowUrl, '_blank')
+        }
+      }
+    } else if (action === 'remove' && !readOnly && !isFlowTerminal(flow)) {
+      setRemoveFlowId(flow.workflowId)
+    }
+  }
+
   return (
     <div className="gba:space-y-4">
       {/* Active Flows */}
       <Card>
         <CardHeader className="gba:flex gba:flex-row gba:items-center gba:justify-between gba:space-y-0 gba:pb-4">
-          <CardTitle className="gba:text-lg">Active Flows ({activeFlows.length})</CardTitle>
+          <div className="gba:flex gba:items-center gba:gap-3">
+            <CardTitle className="gba:text-lg">Active Flows ({activeFlows.length})</CardTitle>
+
+            {/* View Mode Toggle */}
+            {activeFlows.length > 0 && (
+              <div className="gba:flex gba:items-center gba:bg-muted gba:rounded-md gba:p-0.5">
+                <Button
+                  variant={viewMode === 'list' ? 'secondary' : 'ghost'}
+                  size="sm"
+                  className="gba:h-7 gba:px-2"
+                  onClick={() => setViewMode('list')}
+                >
+                  <List className="gba:h-4 gba:w-4" />
+                </Button>
+                <Button
+                  variant={viewMode === 'gantt' ? 'secondary' : 'ghost'}
+                  size="sm"
+                  className="gba:h-7 gba:px-2"
+                  onClick={() => setViewMode('gantt')}
+                >
+                  <GanttChart className="gba:h-4 gba:w-4" />
+                </Button>
+              </div>
+            )}
+          </div>
+
           {!readOnly && (
             <Button onClick={() => setShowAddDialog(true)} size="sm">
               <Plus className="gba:h-4 gba:w-4 gba:mr-2" />
@@ -290,7 +359,21 @@ export const FlowManagementPanel: React.FC<FlowManagementPanelProps> = ({
               <p>No flows linked to this case</p>
               {!readOnly && <p className="gba:text-sm gba:mt-1">Add a flow to get started</p>}
             </div>
+          ) : viewMode === 'gantt' ? (
+            /* Gantt Chart View */
+            <FlowGanttChart
+              flows={linkedFlows}
+              caseCreatedAt={caseCreatedAt}
+              caseDueDate={caseDueDate}
+              onFlowClick={flow => setSelectedFlow(flow)}
+              onFlowAction={handleGanttFlowAction}
+              context={context}
+              employeeNames={initiatorNames}
+              employeeData={initiatorEmployees}
+              readOnly={readOnly}
+            />
           ) : (
+            /* List View */
             <div className="gba:space-y-3">
               {activeFlows.map(flow => (
                 <div
@@ -497,46 +580,18 @@ export const FlowManagementPanel: React.FC<FlowManagementPanelProps> = ({
 
           <Tabs value={addFlowMode} onValueChange={v => setAddFlowMode(v as 'new' | 'existing')} className="gba:w-full">
             <TabsList className="gba:w-full gba:h-10 gba:p-1 gba:bg-muted gba:rounded-lg">
-              <TabsTrigger value="new" startIcon={<Plus className="gba:h-4 gba:w-4" />} className="gba:flex-1">
-                Start New
-              </TabsTrigger>
               <TabsTrigger value="existing" startIcon={<Link2 className="gba:h-4 gba:w-4" />} className="gba:flex-1">
                 Link Existing
               </TabsTrigger>
+              <TabsTrigger value="new" startIcon={<Plus className="gba:h-4 gba:w-4" />} className="gba:flex-1">
+                Start New
+              </TabsTrigger>
             </TabsList>
-
-            {/* Start New Flow Tab */}
-            <TabsContent value="new" className="gba:space-y-4 gba:mt-4">
-              <div className="gba:space-y-2">
-                <label className="gba:text-sm gba:font-medium">Select Template</label>
-                <Select value={selectedTemplateId} onValueChange={setSelectedTemplateId} disabled={isLoadingTemplates}>
-                  <SelectTrigger>
-                    <SelectValue placeholder={isLoadingTemplates ? 'Loading templates...' : 'Select a template'} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {templates.map(template => (
-                      <SelectItem key={template.id || template.name} value={template.id || ''}>
-                        {template.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="gba:text-sm gba:text-muted-foreground">
-                <p>
-                  Correlation ID:{' '}
-                  <code className="gba:bg-muted gba:px-1 gba:py-0.5 gba:rounded gba:font-mono gba:text-xs">
-                    case:{caseId}
-                  </code>
-                </p>
-                <p className="gba:mt-1">A new flow will be started and automatically linked to this case.</p>
-              </div>
-            </TabsContent>
 
             {/* Link Existing Flow Tab */}
             <TabsContent value="existing" className="gba:space-y-4 gba:mt-4">
               <div className="gba:space-y-2">
-                <label className="gba:text-sm gba:font-medium">Search Running Flows</label>
+                <label className="gba:text-sm gba:font-medium">Search Flows</label>
                 <div className="gba:relative">
                   <Search className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:h-4 gba:w-4 gba:text-muted-foreground" />
                   <Input
@@ -557,7 +612,7 @@ export const FlowManagementPanel: React.FC<FlowManagementPanelProps> = ({
                   </div>
                 ) : searchResults.length === 0 && searchQuery.length >= 2 ? (
                   <div className="gba:text-center gba:py-4 gba:text-muted-foreground">
-                    <p className="gba:text-sm">No running flows found</p>
+                    <p className="gba:text-sm">No flows found</p>
                   </div>
                 ) : searchResults.length > 0 ? (
                   searchResults.map(flow => (
@@ -573,7 +628,16 @@ export const FlowManagementPanel: React.FC<FlowManagementPanelProps> = ({
                       {/* Header: Name and Status */}
                       <div className="gba:flex gba:items-center gba:justify-between gba:mb-2">
                         <span className="gba:font-medium gba:text-sm">{flow.workflowName}</span>
-                        <Badge variant={flow.status === 'RUNNING' ? 'default' : 'secondary'} className="gba:text-xs">
+                        <Badge
+                          variant={
+                            flow.status === 'RUNNING'
+                              ? 'default'
+                              : flow.status === 'COMPLETED'
+                                ? 'success'
+                                : 'secondary'
+                          }
+                          className="gba:text-xs"
+                        >
                           {flow.status}
                         </Badge>
                       </div>
@@ -613,7 +677,9 @@ export const FlowManagementPanel: React.FC<FlowManagementPanelProps> = ({
                         </div>
                         <div className="gba:h-1.5 gba:bg-muted gba:rounded-full gba:overflow-hidden">
                           <div
-                            className="gba:h-full gba:bg-primary gba:rounded-full gba:transition-all"
+                            className={`gba:h-full gba:rounded-full gba:transition-all ${
+                              flow.status === 'COMPLETED' ? 'gba:bg-green-500' : 'gba:bg-primary'
+                            }`}
                             style={{ width: `${Math.min(flow.progressPercentage || 0, 100)}%` }}
                           />
                         </div>
@@ -626,6 +692,34 @@ export const FlowManagementPanel: React.FC<FlowManagementPanelProps> = ({
                     <p className="gba:text-sm">Type at least 2 characters to search</p>
                   </div>
                 ) : null}
+              </div>
+            </TabsContent>
+
+            {/* Start New Flow Tab */}
+            <TabsContent value="new" className="gba:space-y-4 gba:mt-4">
+              <div className="gba:space-y-2">
+                <label className="gba:text-sm gba:font-medium">Select Template</label>
+                <Select value={selectedTemplateId} onValueChange={setSelectedTemplateId} disabled={isLoadingTemplates}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={isLoadingTemplates ? 'Loading templates...' : 'Select a template'} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {templates.map(template => (
+                      <SelectItem key={template.id || template.name} value={template.id || ''}>
+                        {template.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="gba:text-sm gba:text-muted-foreground">
+                <p>
+                  Correlation ID:{' '}
+                  <code className="gba:bg-muted gba:px-1 gba:py-0.5 gba:rounded gba:font-mono gba:text-xs">
+                    case:{caseId}
+                  </code>
+                </p>
+                <p className="gba:mt-1">A new flow will be started and automatically linked to this case.</p>
               </div>
             </TabsContent>
           </Tabs>

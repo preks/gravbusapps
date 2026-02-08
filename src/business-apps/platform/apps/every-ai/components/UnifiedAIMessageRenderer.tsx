@@ -41,13 +41,17 @@ export const UnifiedAIMessageRenderer: React.FC<UnifiedAIMessageRendererProps> =
   'data-testid': testId
 }) => {
   const filteredOutputs = outputs.filter(Boolean)
+  const isThinkingOnly = filteredOutputs.every(output => {
+    const outputType = output?.type ?? 'unknown'
+    return outputType === 'tool' || outputType === 'loading'
+  })
 
   if (filteredOutputs.length === 0) {
     return null
   }
 
   const content = (
-    <div className="gba:flex-1 gba:flex gba:flex-col gba:gap-4">
+    <div className={`gba:flex-1 gba:flex gba:flex-col ${isThinkingOnly ? 'gba:gap-1' : 'gba:gap-4'}`}>
       {filteredOutputs.map((output: any, outputIdx: number) => {
         const outputType = output?.type ?? 'unknown'
         const outputKey = `output-${outputIdx}-${outputType}`

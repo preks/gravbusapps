@@ -10,6 +10,8 @@
 
 import { useState, useEffect, useCallback } from 'react'
 
+import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
+
 export type AnalysisType = 'WARNING' | 'INFO'
 
 export interface ExpenseRequestAnalysis {
@@ -35,7 +37,7 @@ interface UseExpenseRequestAnalysisReturn {
   refetch: () => void
 }
 
-/** API endpoint for expense insights (relative URL) */
+/** API endpoint for expense insights */
 const EXPENSE_INSIGHTS_ENDPOINT = '/flowbot/api/agent/expense-insights'
 
 const isAnalysisType = (value: unknown): value is AnalysisType => value === 'WARNING' || value === 'INFO'
@@ -140,7 +142,7 @@ const normalizeExpenseInsightsResponse = (input: unknown): ExpenseRequestAnalysi
  * @returns Promise with the analysis response
  */
 const fetchExpenseInsights = async (expenseRequestId: string, accessToken: string): Promise<ExpenseRequestAnalysis> => {
-  const url = EXPENSE_INSIGHTS_ENDPOINT
+  const url = `${resolveFlowbotBaseUrl()}${EXPENSE_INSIGHTS_ENDPOINT}`
 
   // Send as form-urlencoded (required by the flowbot API)
   const formBody = new URLSearchParams()

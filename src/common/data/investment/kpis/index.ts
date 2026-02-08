@@ -37,6 +37,7 @@ export { OVERVIEW_KPI_CONFIG } from './overviewKpis'
 export { EQUITY_KPI_CONFIG } from './equityKpis'
 export { LIQUID_FUND_KPI_CONFIG } from './liquidFundKpis'
 export { REAL_ESTATE_KPI_CONFIG } from './realEstateKpis'
+export { GENERIC_INVESTMENT_KPI_CONFIG } from './genericKpis'
 
 // Export utility functions
 export { validateKPIData, formatDuration, formatKPIValue, calculateChange, validateKPIConfig } from './utils'

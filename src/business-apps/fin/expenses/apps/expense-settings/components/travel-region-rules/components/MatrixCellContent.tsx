@@ -1,5 +1,4 @@
 import React from 'react'
-import dayjs from 'dayjs'
 import { Button } from '@newwork/nw-design-system'
 import { PiTrash } from 'react-icons/pi'
 import {
@@ -13,6 +12,7 @@ import {
 } from '@newwork/nw-design-system'
 import type { EditableCell } from '../types'
 import { formatPeriodShort } from '../utils/matrixFormatters'
+import { formatDateForInput, normalizeDateInputValue, toISOEndOfDay, toISOStartOfDay } from '../../../utils'
 
 /**
  * Action buttons for new cell (Cancel + Save)
@@ -184,11 +184,13 @@ export const MatrixCellContent: React.FC<MatrixCellContentProps> = ({
             </label>
             <DateInput
               id={`${prefixDataTestId}-cell-active-from-${ruleId}-${regionId}`}
-              value={cell.activeFrom ? dayjs(cell.activeFrom).format('YYYY-MM-DD') : ''}
+              value={formatDateForInput(cell.activeFrom) || ''}
               onChange={date => {
-                const dateValue = date ? `${date}T00:00:00+00:00` : ''
+                const normalized = normalizeDateInputValue(date)
+                const dateValue = normalized ? toISOStartOfDay(normalized) : ''
                 onUpdateCell({ activeFrom: dateValue, isModified: true })
               }}
+              outputFormat="iso"
               disabled={isUsedInTransactions && !cell.isNew}
               data-testid={`${prefixDataTestId}-cell-active-from-${ruleId}-${regionId}`}
             />
@@ -204,11 +206,13 @@ export const MatrixCellContent: React.FC<MatrixCellContentProps> = ({
             </label>
             <DateInput
               id={`${prefixDataTestId}-cell-active-to-${ruleId}-${regionId}`}
-              value={cell.activeTo ? dayjs(cell.activeTo).format('YYYY-MM-DD') : ''}
+              value={formatDateForInput(cell.activeTo) || ''}
               onChange={date => {
-                const dateValue = date ? `${date}T00:00:00+00:00` : undefined
+                const normalized = normalizeDateInputValue(date)
+                const dateValue = normalized ? toISOEndOfDay(normalized) : undefined
                 onUpdateCell({ activeTo: dateValue, isModified: true })
               }}
+              outputFormat="iso"
               data-testid={`${prefixDataTestId}-cell-active-to-${ruleId}-${regionId}`}
             />
           </div>
