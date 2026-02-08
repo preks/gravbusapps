@@ -10,7 +10,7 @@
  * The call UI will persist regardless of which business app is active.
  */
 
-import React, { useEffect, useState, useCallback } from 'react'
+import React, { useEffect, useMemo, useState, useCallback } from 'react'
 import { globalCallManager } from '../services/globalCallManager'
 import { GroupCallModalRtk } from './GroupCallModalRtk'
 import { RealtimeKitProvider } from '@cloudflare/realtimekit-react'
@@ -18,56 +18,147 @@ import { TranslationProvider } from '../contexts/TranslationContext'
 import { navigateTo } from '@/common/utils/navigationUtils'
 
 export const GlobalCallContainer: React.FC = () => {
-  const [callData, setCallData] = useState(globalCallManager.getCallData())
+  const [instanceId] = useState(() => `global-call-container-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`)
+  const [callData, setCallData] = useState(() => ({ ...globalCallManager.getCallData() }))
+  const [uiOwnerId, setUiOwnerId] = useState<string | null>(() => globalCallManager.getUiOwnerId())
+
+  // Debug: Log when component mounts
+  useEffect(() => {
+    console.log('[GlobalCallContainer] 🎬 Component MOUNTED')
+    return () => {
+      console.log('[GlobalCallContainer] 💀 Component UNMOUNTED')
+    }
+  }, [])
 
   // Subscribe to global call manager changes
   useEffect(() => {
     const unsubscribe = globalCallManager.subscribe(() => {
       const data = globalCallManager.getCallData()
-      setCallData(data)
+      console.log('[GlobalCallContainer] 🔄 State update from globalCallManager', {
+        status: data.callState.status,
+        isMinimized: data.callState.isMinimized,
+        implementation: data.callState.callImplementation
+      })
+      // IMPORTANT: always create a new reference so React re-renders even when the manager mutates in place
+      setCallData({ ...data })
+      setUiOwnerId(globalCallManager.getUiOwnerId())
     })
     return unsubscribe
   }, [])
 
+  const isEligibleRealtimeKitCall = useMemo(() => {
+    return (
+      callData.callState.status !== 'idle' &&
+      !!callData.realtimeKitMeeting &&
+      callData.callState.callImplementation === 'realtime-kit'
+    )
+  }, [callData.callState.callImplementation, callData.callState.status, callData.realtimeKitMeeting])
+
+  // Claim/release UI ownership based on whether this instance can render the RTK call UI.
+  // This prevents duplicate modals/minimized widgets when the chat module is mounted multiple times.
+  useEffect(() => {
+    const currentOwner = globalCallManager.getUiOwnerId()
+
+    if (isEligibleRealtimeKitCall) {
+      // Retry claim when owner becomes null (e.g. owner instance unmounted during navigation)
+      if (!currentOwner) {
+        globalCallManager.claimUiOwner(instanceId)
+      }
+      // Sync local state (claim may have been rejected if another instance already owns it)
+      setUiOwnerId(globalCallManager.getUiOwnerId())
+      return () => {
+        globalCallManager.releaseUiOwner(instanceId)
+      }
+    }
+
+    // Not eligible → release if we were owner
+    globalCallManager.releaseUiOwner(instanceId)
+    setUiOwnerId(globalCallManager.getUiOwnerId())
+    return () => {
+      globalCallManager.releaseUiOwner(instanceId)
+    }
+  }, [instanceId, isEligibleRealtimeKitCall, uiOwnerId])
+
   // Enhanced toggle minimize handler - navigates to chat when maximizing
   const handleToggleMinimize = useCallback(() => {
-    const isCurrentlyMinimized = callData.callState.isMinimized
+    // CRITICAL: Get LATEST callData inside the function, not from closure
+    // This ensures we have the most up-to-date callbacks after component remounts
+    const latestCallData = globalCallManager.getCallData()
+    const isCurrentlyMinimized = latestCallData.callState.isMinimized
+
+    // Always use the hook's callback if available for proper state sync
+    if (latestCallData.toggleMinimize) {
+      console.log('[GlobalCallContainer] Using toggleMinimize callback from hook')
+      const before = globalCallManager.getCallData().callState.isMinimized
+      latestCallData.toggleMinimize()
+      const after = globalCallManager.getCallData().callState.isMinimized
+
+      // If the callback was stale/no-op (possible with multiple mounted hook instances),
+      // fall back to a direct state update so maximize/minimize still works.
+      if (after === before) {
+        console.warn('[GlobalCallContainer] toggleMinimize callback did not change state; using fallback update')
+        globalCallManager.updateCallState({ isMinimized: !before, hasBeenMinimized: true })
+      }
+
+      // If maximizing and not on chat page, navigate to chat
+      if (isCurrentlyMinimized) {
+        const isProduction = process.env.NODE_ENV === 'production'
+        const isAlreadyOnChatPage = isProduction
+          ? window.location.pathname.startsWith('/platform/chat')
+          : new URLSearchParams(window.location.search).get('app') === 'platform/apps/chat'
+
+        if (!isAlreadyOnChatPage) {
+          navigateTo('/platform/chat')
+        }
+      }
+      return
+    }
+
+    // Fallback: Hook not available (chat component unmounted)
+    console.log('[GlobalCallContainer] Hook callback not available, using direct state update')
 
     if (isCurrentlyMinimized) {
-      // User clicked expand button on minimized widget
-      // Check if we're already on the chat page to avoid unnecessary navigation
+      // Maximizing - navigate to chat first, then update state
       const isProduction = process.env.NODE_ENV === 'production'
       const isAlreadyOnChatPage = isProduction
         ? window.location.pathname.startsWith('/platform/chat')
         : new URLSearchParams(window.location.search).get('app') === 'platform/apps/chat'
 
-      if (isAlreadyOnChatPage) {
-        // Already on chat page, maximize without navigating
-        globalCallManager.updateCallState({ isMinimized: false, hasBeenMinimized: true })
-      } else {
-        // Navigate to chat to show full conversation context
+      if (!isAlreadyOnChatPage) {
+        // Navigate to chat - this will mount the component and register callbacks
         navigateTo('/platform/chat')
 
-        // Small delay to let navigation happen, then expand
+        // Wait for chat to mount and check if callback is now available
         setTimeout(() => {
-          globalCallManager.updateCallState({ isMinimized: false, hasBeenMinimized: true })
-        }, 100)
+          const updatedCallData = globalCallManager.getCallData()
+          if (updatedCallData.toggleMinimize) {
+            console.log('[GlobalCallContainer] Chat mounted, using hook callback after navigation')
+            updatedCallData.toggleMinimize()
+          } else {
+            console.log('[GlobalCallContainer] Callback still not available, using direct update')
+            globalCallManager.updateCallState({ isMinimized: false, hasBeenMinimized: true })
+          }
+        }, 150)
+      } else {
+        // Already on chat page, just update state
+        globalCallManager.updateCallState({ isMinimized: false, hasBeenMinimized: true })
       }
     } else {
-      // Just minimize normally
+      // Minimizing - just update state
       globalCallManager.updateCallState({ isMinimized: true, hasBeenMinimized: true })
     }
-  }, [callData])
+  }, []) // Empty deps - always get fresh data from globalCallManager
 
-  // Only render if:
-  // 1. There's an active call (not idle)
-  // 2. We have a RealtimeKit meeting object
-  // 3. The call is using RealtimeKit implementation
-  if (
-    callData.callState.status === 'idle' ||
-    !callData.realtimeKitMeeting ||
-    callData.callState.callImplementation !== 'realtime-kit'
-  ) {
+  // Only render if we have an eligible RTK call
+  if (!isEligibleRealtimeKitCall) {
+    return null
+  }
+
+  // UI ownership gating:
+  // - if there is no owner yet, render nothing briefly (effects will claim)
+  // - if another instance owns it, render nothing
+  const currentOwnerId = uiOwnerId
+  if (!currentOwnerId || currentOwnerId !== instanceId) {
     return null
   }
 

@@ -160,6 +160,10 @@ class GlobalCallManager {
     activeExperts: []
   }
   private listeners: Set<() => void> = new Set()
+  // UI ownership lock for call UI rendering across multiple mounted chat modules.
+  // This is needed because the chat screen can be loaded/mounted multiple times (remote loader),
+  // which would otherwise render duplicate call modals/minimized widgets.
+  private uiOwnerId: string | null = null
 
   constructor() {
     // Check if there's existing call data from a previous instance
@@ -271,6 +275,30 @@ class GlobalCallManager {
     return this.callData
   }
 
+  // ---- UI Owner Lock -------------------------------------------------------
+  // NOTE: This lock is intentionally managed here (and this manager is stored on `window`)
+  // so it works across module reloads / duplicate mounts.
+  getUiOwnerId(): string | null {
+    return this.uiOwnerId
+  }
+
+  claimUiOwner(instanceId: string): boolean {
+    if (!this.uiOwnerId || this.uiOwnerId === instanceId) {
+      const changed = this.uiOwnerId !== instanceId
+      this.uiOwnerId = instanceId
+      if (changed) this.notifyListeners()
+      return true
+    }
+    return false
+  }
+
+  releaseUiOwner(instanceId: string) {
+    if (this.uiOwnerId === instanceId) {
+      this.uiOwnerId = null
+      this.notifyListeners()
+    }
+  }
+
   // Clear call data
   clearCall() {
     debug('GlobalCallManager: Clearing call data')
@@ -311,6 +339,9 @@ class GlobalCallManager {
       availableParticipants: [],
       activeExperts: []
     }
+
+    // Reset UI owner so the next call can be claimed by any mounted instance
+    this.uiOwnerId = null
 
     // No more DOM manipulation - React handles all UI through GlobalCallContainer
     this.notifyListeners()

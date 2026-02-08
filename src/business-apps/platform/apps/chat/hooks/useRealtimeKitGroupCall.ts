@@ -1595,9 +1595,38 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
 
       // Emit WebSocket leave event to notify backend and other participants (use refs)
       const user = currentUserRef.current
-      const socket = wsClientRef.current?.getSocket()
+      // Best-effort: get a socket even if the Chat module unmounted and disconnected its wsClient.
+      // This avoids noisy warnings and improves backend state consistency on leave.
+      const wsClientForEmit = wsClientRef.current || globalCallManager.getCallData().wsClient
+      let socket = wsClientForEmit?.getSocket()
       const sessionId = sessionIdRef.current // ✅ Use ref instead of callState to avoid stale closure
       const isMeeting = !!calendarMeetingIdRef.current // ✅ Use ref instead of callState to avoid stale closure
+
+      // If we don't have a socket (or it was cleared), attempt a lightweight reconnect using stored access token.
+      // Never log tokens.
+      if (wsClientForEmit && !socket) {
+        const token = options.accessToken || globalCallManager.getCallData().accessToken
+        if (token) {
+          try {
+            wsClientForEmit.connect(token)
+            socket = wsClientForEmit.getSocket()
+
+            // Wait briefly for connection so the emit has a chance to go out.
+            if (socket && !socket.connected) {
+              await new Promise<void>(resolve => {
+                const timeout = setTimeout(() => resolve(), 750)
+                socket!.once('connect', () => {
+                  clearTimeout(timeout)
+                  resolve()
+                })
+              })
+            }
+          } catch (err) {
+            // Best-effort only; continue cleanup even if reconnect fails
+            rtkDebug.warn('[RTK] ⚠️ Failed to re-establish socket for leave event', err)
+          }
+        }
+      }
 
       console.log('[useRealtimeKitGroupCall] 📤 Emitting rtk-group-call:left:', {
         hasUser: !!user,
@@ -1625,7 +1654,8 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
           participantId: user.id
         })
       } else {
-        console.warn('[useRealtimeKitGroupCall] ⚠️ Cannot emit leave event - missing user or socket')
+        // Best-effort only; this can happen if the WebSocket client was torn down during navigation.
+        rtkDebug.warn('[RTK] ⚠️ Skipping leave event - missing user or socket')
       }
 
       console.log('[useRealtimeKitGroupCall] 🧹 Clearing globalCallManager')
