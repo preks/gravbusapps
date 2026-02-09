@@ -741,14 +741,27 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
     }
 
     const handleConversationActiveCalls = (calls: ActiveCall[]) => {
-      const map: Record<string, ActiveCall> = {}
-      calls.forEach(call => {
-        map[call.conversationId] = call
+      const next: Record<string, ActiveCall> = {}
+      ;(calls || []).forEach(call => {
+        if (!call?.conversationId) return
+        next[call.conversationId] = call
         conversationsHookRef.current?.updateConversation?.(call.conversationId, {
           activeCall: call
         } as Partial<Conversation>)
       })
-      setActiveCalls(map)
+
+      // IMPORTANT: Clear calls that disappeared from the snapshot.
+      // If we missed a call-ended event (sleep/disconnect/reconnect), UI would otherwise stay stale until refresh.
+      const prev = activeCallsRef.current || {}
+      Object.keys(prev).forEach(conversationId => {
+        if (!next[conversationId]) {
+          conversationsHookRef.current?.updateConversation?.(conversationId, {
+            activeCall: null
+          } as Partial<Conversation>)
+        }
+      })
+
+      setActiveCalls(next)
     }
 
     const handleConversationRead = (data: { conversationId: string; userId: string; readAt: string }) => {

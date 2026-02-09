@@ -108,6 +108,36 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
     translate
   } = options
 
+  const joinMeetingWithTimeout = async (initializedMeeting: any, timeoutMs: number, context?: any) => {
+    return await new Promise<void>((resolve, reject) => {
+      let finished = false
+      const timeoutId = setTimeout(() => {
+        if (finished) return
+        finished = true
+        reject(new Error(`Failed to join meeting: join() timeout after ${timeoutMs}ms`))
+      }, timeoutMs)
+
+      Promise.resolve()
+        .then(() => initializedMeeting.join())
+        .then(() => {
+          if (finished) return
+          finished = true
+          clearTimeout(timeoutId)
+          resolve()
+        })
+        .catch(err => {
+          if (finished) return
+          finished = true
+          clearTimeout(timeoutId)
+          reject(err)
+        })
+        .catch(err => {
+          // This should never happen, but keep it safe
+          rtkDebug.error('[RTK] Unexpected error in joinMeetingWithTimeout:', err, context)
+        })
+    })
+  }
+
   // Core call state
   const [callState, setCallState] = useState<CallState>({
     isMinimized: false,
@@ -791,7 +821,8 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
         rtkDebug.log('[RTK] Joining meeting via SDK...', { meetingId })
 
         // CRITICAL: Join the meeting (connects to Cloudflare SFU)
-        await initializedMeeting.join()
+        // Guard against SDK join() hanging indefinitely (seen in offline/late-join scenarios).
+        await joinMeetingWithTimeout(initializedMeeting, 15000, { phase: 'startCall', meetingId })
 
         // CRITICAL: Wait for actual Session connection (roomJoined: true)
         rtkDebug.log('[RTK] Waiting for Session connection...')
@@ -1264,7 +1295,8 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
         rtkDebug.log('[RTK] Joining meeting via SDK...', { meetingId })
 
         // CRITICAL: Join the meeting (connects to Cloudflare SFU)
-        await initializedMeeting.join()
+        // Guard against SDK join() hanging indefinitely (seen in offline/late-join scenarios).
+        await joinMeetingWithTimeout(initializedMeeting, 15000, { phase: 'joinCall', meetingId: finalMeetingId })
 
         // CRITICAL: Wait for actual Session connection (roomJoined: true)
         rtkDebug.log('[RTK] Waiting for Session connection...')
@@ -2444,6 +2476,44 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
       })
     }
 
+    // Snapshot reconciliation: keep activeConversationCalls in sync even if we miss call-ended events.
+    const handleConversationActiveCalls = (calls: any[]) => {
+      const seenConversationIds = new Set<string>()
+      ;(calls || []).forEach(call => {
+        if (call?.conversationId) {
+          seenConversationIds.add(call.conversationId)
+        }
+      })
+
+      setActiveConversationCalls(prev => {
+        const next = new Map(prev)
+
+        ;(calls || []).forEach(call => {
+          if (!call?.conversationId || !call?.roomId) return
+          const existing = next.get(call.conversationId)
+
+          next.set(call.conversationId, {
+            roomId: call.roomId,
+            callType: call.callType,
+            participantIds: call.participantIds || [],
+            startedBy: call.startedBy?.id || existing?.startedBy || '',
+            startedAt: call.startedAt,
+            // ActiveCall snapshot doesn't include conversationName; keep what we have (if any)
+            conversationName: existing?.conversationName
+          })
+        })
+
+        // Remove entries that are no longer active per snapshot
+        for (const conversationId of Array.from(next.keys())) {
+          if (!seenConversationIds.has(conversationId)) {
+            next.delete(conversationId)
+          }
+        }
+
+        return next
+      })
+    }
+
     const handleDeclined = (data: { conversationId: string; meetingId: string; participantId: string }) => {
       rtkDebug.log('[RTK] 📵 Participant declined invite:', data)
 
@@ -2503,6 +2573,11 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
     socket.on('rtk-group-call:not-answered', handleNotAnswered)
     socket.on('conversation:call-started', handleConversationCallStarted)
     socket.on('conversation:call-ended', handleConversationCallEnded)
+    socket.on('conversation:active-calls', handleConversationActiveCalls)
+
+    // Request a snapshot AFTER listeners are attached to avoid missing the initial active-calls payload
+    // (race condition when another part of the app requests it before this hook is mounted).
+    socket.emit('conversation:get-active-calls')
 
     return () => {
       socket.off('rtk-group-call:invite', handleInvite)
@@ -2512,6 +2587,7 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
       socket.off('rtk-group-call:not-answered', handleNotAnswered)
       socket.off('conversation:call-started', handleConversationCallStarted)
       socket.off('conversation:call-ended', handleConversationCallEnded)
+      socket.off('conversation:active-calls', handleConversationActiveCalls)
     }
   }, [inviteSocket, currentUser?.id, currentUser?.odId])
 
@@ -2779,9 +2855,43 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
           }
         })
 
-        // Fallback: If not found in activeConversationCalls, assume input is conversationId
-        // This handles edge case where call hasn't been registered yet (e.g., late joiner accepting invite)
-        // In this case, let the backend API figure out the meetingId by passing undefined
+        // Fallback: Resolve from conversations list (source of truth for late joiners / offline users).
+        // conversation.activeCall is maintained by useChatClient from conversation:active-calls snapshots.
+        if (!resolvedMeetingId && options.conversations?.length) {
+          // Case A: input is meetingId -> find conversation where activeCall.roomId matches
+          const byMeetingId = options.conversations.find((c: any) => c?.activeCall?.roomId === roomIdOrMeetingId)
+          if (byMeetingId?.id) {
+            resolvedConversationId = byMeetingId.id
+            resolvedMeetingId = roomIdOrMeetingId
+            resolvedConversationName = byMeetingId.name
+            rtkDebug.log('[RTK] joinCall wrapper: Resolved meetingId via options.conversations activeCall', {
+              input: roomIdOrMeetingId,
+              conversationId: resolvedConversationId,
+              meetingId: resolvedMeetingId,
+              conversationName: resolvedConversationName
+            })
+          }
+        }
+
+        if (!resolvedMeetingId && options.conversations?.length) {
+          // Case B: input is conversationId -> read meetingId from that conversation's activeCall.roomId
+          const byConversationId = options.conversations.find((c: any) => c?.id === roomIdOrMeetingId)
+          const meetingIdFromConversation = byConversationId?.activeCall?.roomId
+          if (byConversationId?.id && meetingIdFromConversation) {
+            resolvedConversationId = byConversationId.id
+            resolvedMeetingId = meetingIdFromConversation
+            resolvedConversationName = byConversationId.name
+            rtkDebug.log('[RTK] joinCall wrapper: Resolved conversationId via options.conversations activeCall', {
+              input: roomIdOrMeetingId,
+              conversationId: resolvedConversationId,
+              meetingId: resolvedMeetingId,
+              conversationName: resolvedConversationName
+            })
+          }
+        }
+
+        // Final fallback: if still not found, assume input is conversationId.
+        // NOTE: We keep meetingId undefined here (do NOT set it to the input), to avoid creating duplicate meetings.
         if (!resolvedMeetingId) {
           rtkDebug.warn(
             '[RTK] joinCall wrapper: Could not resolve meetingId from activeConversationCalls, using input as conversationId',

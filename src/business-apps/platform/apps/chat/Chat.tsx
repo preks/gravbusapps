@@ -1846,18 +1846,20 @@ const ChatInner: React.FC<ChatProps> = memo(
         // Don't close modal immediately - let it show "Joining..." state
         // It will be closed when the call actually starts (via useEffect watching groupCallState)
 
-        // For BOTH direct and group calls, we need to JOIN the existing call
-        // Check if there's an active call in activeConversationCalls
-        const existingCall = activeConversationCalls.get(stableActiveConversation.id)
-
-        if (!existingCall?.roomId) {
-          rtkDebug.error('[CHAT] Cannot rejoin - no active call found in activeConversationCalls!')
+        // For BOTH direct and group calls, we need to JOIN the existing call.
+        // IMPORTANT: Do NOT rely on activeConversationCalls here.
+        // Late joiners/offline users may have conversation.activeCall but RTK's activeConversationCalls map may not yet be populated.
+        const meetingId = rejoinModalState.roomId || stableActiveConversation.activeCall?.roomId
+        if (!meetingId) {
+          rtkDebug.error('[CHAT] Cannot rejoin - missing meetingId (activeCall.roomId)', {
+            conversationId: stableActiveConversation.id
+          })
           return
         }
 
         rtkDebug.log('[CHAT] Rejoining existing call:', {
           conversationType: stableActiveConversation.type,
-          roomId: existingCall.roomId,
+          roomId: meetingId,
           callType: rejoinModalState.callType,
           preferences
         })
@@ -1867,13 +1869,13 @@ const ChatInner: React.FC<ChatProps> = memo(
         // Pass the user's preferences as the third parameter (instead of initialParticipants)
         if (joinGroupCall) {
           joinGroupCall(
-            existingCall.roomId, // roomId/meetingId
+            meetingId, // roomId/meetingId
             rejoinModalState.callType, // callType
             preferences // preferences object (will be detected by wrapper)
           )
         }
       },
-      [rejoinModalState, stableActiveConversation, activeConversationCalls, joinGroupCall]
+      [rejoinModalState, stableActiveConversation, joinGroupCall]
     )
 
     // Close rejoin modal when call actually starts
