@@ -520,6 +520,7 @@ export const useManagerExpensesOverview = (
     // Use cache to avoid flashes on tab switches
     const cached = cacheBySignature.get(signature)
     if (cached && Date.now() - cached.ts < CACHE_TTL_MS) {
+      latestSignatureRef.current = signature
       setState(cached.data)
       setIsLoading(false)
       return
