@@ -160,9 +160,22 @@ export class OrchestratorClient {
             if (data) {
               try {
                 const event = JSON.parse(data) as BuildProgressEvent
+
+                // Only log sensitive event details in non-production environments
+                if (process.env.NODE_ENV !== 'production') {
+                  console.log('[OrchestratorClient] Received SSE event:', {
+                    type: event.event_type,
+                    componentId: event.component_id,
+                    componentName: event.component_name,
+                    resourceUrl: event.resource_url,
+                    azureUrl: event.azure_url,
+                    filesPublished: event.files_published,
+                    message: event.message
+                  })
+                }
                 onEvent(event)
               } catch (e) {
-                console.error('Failed to parse SSE event:', e, data)
+                console.error('[OrchestratorClient] Failed to parse SSE event:', e, data)
               }
             }
           }

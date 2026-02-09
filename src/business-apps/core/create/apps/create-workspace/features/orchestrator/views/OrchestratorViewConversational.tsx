@@ -18,6 +18,7 @@ import { AnalyzingView, ReviewView, BuildingView, CompleteView, ErrorView } from
 
 export interface OrchestratorViewConversationalProps {
   accessToken: string
+  userInfo?: any
   initialPrompt?: string
   onBack?: () => void
   onComplete?: (success: boolean) => void
@@ -26,6 +27,7 @@ export interface OrchestratorViewConversationalProps {
 
 export const OrchestratorViewConversational: React.FC<OrchestratorViewConversationalProps> = ({
   accessToken,
+  userInfo,
   initialPrompt = '',
   onBack,
   onComplete,
@@ -57,7 +59,8 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
       if (state.buildStartTime) {
         state.setBuildDuration(Date.now() - state.buildStartTime)
       }
-    }
+    },
+    onComponentUpdate: orchestratorClient.updateComponentProperties
   })
 
   // Event handlers
@@ -135,13 +138,29 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
         )
 
       case 'complete':
-        if (!orchestratorClient.currentPlan) return null
+        if (!orchestratorClient.currentPlan) {
+          console.warn('[OrchestratorView] No current plan in complete state')
+          return null
+        }
+        if (process.env.NODE_ENV !== 'production') {
+          console.log('[OrchestratorView] Rendering complete view:', {
+            componentCount: orchestratorClient.currentPlan.components.length,
+            components: orchestratorClient.currentPlan.components.map(c => ({
+              id: c.id,
+              name: c.name,
+              type: c.type,
+              status: c.status,
+              published_file_count: c.published_file_count
+            }))
+          })
+        }
         return (
           <CompleteView
             components={orchestratorClient.currentPlan.components}
+            jobId={orchestratorClient.currentPlan?.job_id}
             buildDuration={state.buildDuration}
-            completedCount={buildProgress.completedCount}
-            reusedCount={buildProgress.reusedCount}
+            accessToken={accessToken}
+            userInfo={userInfo}
             onReset={handlers.handleReset}
           />
         )
@@ -156,7 +175,12 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
               'An error occurred'
             }
             partialComponents={orchestratorClient.currentPlan?.components}
+            jobId={orchestratorClient.currentPlan?.job_id}
+            buildDuration={state.buildDuration}
+            accessToken={accessToken}
+            userInfo={userInfo}
             onReset={handlers.handleReset}
+            onRetry={handlers.handleRetry}
             onModifyPlan={() => state.setViewState('review')}
           />
         )
