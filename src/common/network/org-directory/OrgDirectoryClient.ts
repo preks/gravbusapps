@@ -77,7 +77,23 @@ export class OrgDirectoryClient {
       lastName
       structureId
       supervisorEmployeeId
-      siteLocation { id name isDeleted }
+      siteLocation { 
+        id 
+        country { 
+          id 
+          translations {
+            value
+            localeCode
+          }
+        }
+        region { 
+          id 
+          translations {
+            value
+            localeCode
+          }
+        }
+      }
       company { id name isDeleted }
       costCenter { id name isDeleted }
       employeeCapabilities(where: {capability: {isDeleted: {_eq: false}}}) { 
@@ -559,11 +575,14 @@ export class OrgDirectoryClient {
 
     for (const p of positions) {
       const location = p?.siteLocation
-      // Skip deleted locations
-      if (location?.isDeleted) continue
+      if (!location) continue
 
       const locationId = String(location?.id || '')
-      const locationName = String(location?.name || '')
+
+      // Construct name from country and region catalog entries
+      const countryName = location?.country?.value || location?.country?.code || ''
+      const regionName = location?.region?.value || location?.region?.code || ''
+      const locationName = [countryName, regionName].filter(Boolean).join(', ') || locationId
 
       if (locationId && !locationMap.has(locationId)) {
         locationMap.set(locationId, { id: locationId, name: locationName })
@@ -715,8 +734,14 @@ export class OrgDirectoryClient {
     const locationMap = new Map<string, { id: string; name: string }>()
     for (const p of positions) {
       const location = p?.siteLocation
+      if (!location) continue
+
       const locationId = String(location?.id || '')
-      const locationName = String(location?.name || '')
+      // Construct name from country and region catalog entries
+      const countryName = location?.country?.value || location?.country?.code || ''
+      const regionName = location?.region?.value || location?.region?.code || ''
+      const locationName = [countryName, regionName].filter(Boolean).join(', ') || locationId
+
       if (locationId && !locationMap.has(locationId)) {
         locationMap.set(locationId, { id: locationId, name: locationName })
       }
