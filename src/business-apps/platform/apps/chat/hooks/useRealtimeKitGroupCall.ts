@@ -573,6 +573,12 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
 
         // Check if AI transcription should be enabled (from calendar meeting metadata)
         let transcriptionEnabled = false
+        rtkDebug.log('[RTK] 🔍 Checking transcription settings...', {
+          hasCalendarMeetingId: !!calendarMeetingId,
+          calendarMeetingId,
+          hasCalendarApiClient: !!options.calendarApiClient
+        })
+
         if (calendarMeetingId && options.calendarApiClient) {
           try {
             rtkDebug.log('[RTK] Fetching meeting metadata for transcription setting...', { calendarMeetingId })
@@ -584,15 +590,34 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
               return
             }
 
-            if (meetingDetails?.metadata?.aiTranscriptionEnabled === true) {
+            // Log the full meeting details for debugging
+            rtkDebug.log('[RTK] 📋 Full meeting details received:', {
+              meetingId: meetingDetails?.id,
+              title: meetingDetails?.title,
+              transcriptionEnabled: meetingDetails?.transcriptionEnabled,
+              metadata: meetingDetails?.metadata,
+              fullObject: meetingDetails
+            })
+
+            // Check the transcriptionEnabled column (not metadata.aiTranscriptionEnabled)
+            if (meetingDetails?.transcriptionEnabled === true) {
               transcriptionEnabled = true
               rtkDebug.log('[RTK] 🎙️  AI Transcription ENABLED from calendar meeting settings')
             } else {
-              rtkDebug.log('[RTK] AI Transcription not enabled in calendar meeting metadata')
+              rtkDebug.log('[RTK] AI Transcription not enabled in calendar meeting metadata', {
+                transcriptionEnabled: meetingDetails?.transcriptionEnabled,
+                meetingId: meetingDetails?.id
+              })
             }
           } catch (error) {
             rtkDebug.warn('[RTK] Error fetching meeting metadata for transcription:', error)
           }
+        } else {
+          rtkDebug.log('[RTK] ⚠️ Skipping transcription check:', {
+            reason: !calendarMeetingId ? 'No calendarMeetingId' : 'No calendarApiClient',
+            calendarMeetingId,
+            hasCalendarApiClient: !!options.calendarApiClient
+          })
         }
 
         const sessionResponse = await apiClient.createMeeting(
@@ -755,6 +780,12 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
         // LAST RESORT: Polling service resolves it when fetching transcript
         if (calendarMeetingId) {
           const resolveWithRetry = async (retries = 3, delayMs = 2000, initialDelayMs = 3000) => {
+            // Safety check: calendarApiClient must be available
+            if (!options.calendarApiClient) {
+              rtkDebug.warn('[RTK] ⚠️ Cannot resolve Session ID - calendarApiClient not available')
+              return false
+            }
+
             // Wait for WebSocket to have a chance to set it first (PRIMARY method)
             rtkDebug.log(`[RTK] ⏳ Waiting ${initialDelayMs}ms for WebSocket to store Session ID (primary method)...`)
             await new Promise(resolve => setTimeout(resolve, initialDelayMs))

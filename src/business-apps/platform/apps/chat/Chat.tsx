@@ -49,6 +49,7 @@ interface ChatProps extends BusinessAppContextProps {
   prefixDataTestId?: string
   onPresenceMapChange?: (presenceMap: Map<string, PresenceInfo>) => void
   onActiveCallsChange?: (activeCalls: Record<string, any>) => void
+  calendarApiClient?: any | null // CalendarApiClient type
 }
 
 const ChatInner: React.FC<ChatProps> = memo(
@@ -57,7 +58,8 @@ const ChatInner: React.FC<ChatProps> = memo(
     additionalData,
     prefixDataTestId = 'chat',
     onPresenceMapChange,
-    onActiveCallsChange
+    onActiveCallsChange,
+    calendarApiClient
   }) => {
     const t = useChatTranslation()
     const containerRef = useRef<HTMLDivElement>(null)
@@ -437,6 +439,7 @@ const ChatInner: React.FC<ChatProps> = memo(
       wsClient: wsClient || null,
       apiClient: realtimeKitApiClient,
       chatApiClient: apiClient, // Pass ChatApiClient for in-call chat functionality
+      calendarApiClient: calendarApiClient, // Pass CalendarApiClient for AI transcription settings
       activeConversation: activeConversation, // Pass active conversation for participant avatars in in-call chat
       currentUser: currentUserAsParticipant,
       accessToken: stableAccessToken,
