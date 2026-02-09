@@ -10,6 +10,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { SpreadsheetAppViewerProps, SpreadsheetColumn, SpreadsheetSheet } from './types'
 import { columnToFormField } from './types'
 import { SpreadsheetApiService } from './services/SpreadsheetApiService'
+import { exportSheetToExcel } from './utils/exportUtils'
 
 import { useSpreadsheetViewerState } from './hooks/useSpreadsheetViewerState'
 import { useSpreadsheetViewerCollaboration } from './hooks/useSpreadsheetViewerCollaboration'
@@ -493,6 +494,15 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   // --- Active view type ---
   const viewType = activeView?.config.type || activeSheet.viewType || 'table'
 
+  // --- Export to Excel ---
+  const handleExportToExcel = useCallback(async () => {
+    try {
+      await exportSheetToExcel(app.name, activeSheet, sheetData)
+    } catch (error) {
+      console.error('[SpreadsheetAppViewer] Failed to export to Excel:', error)
+    }
+  }, [app.name, activeSheet, sheetData])
+
   return (
     <div className="gba:flex gba:flex-col gba:w-full gba:h-full gba:overflow-hidden" data-testid={testId}>
       <SpreadsheetHeader
@@ -527,6 +537,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         onManageColumns={() => columnsState.setIsManageColumnsDialogOpen(true)}
         onOpenAutomations={() => setIsAutomationsOpen(true)}
         onEdit={onEdit}
+        onExportToExcel={handleExportToExcel}
         onRename={
           onAppUpdate
             ? newName => {
