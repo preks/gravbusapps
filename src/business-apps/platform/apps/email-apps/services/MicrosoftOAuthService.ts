@@ -1,13 +1,10 @@
 /**
  * MicrosoftOAuthService
  *
- * Handles Microsoft OAuth2 authorization flow with PKCE for SPAs.
- * The frontend obtains an authorization code and sends it to the backend
- * (document-service) for server-side token exchange (confidential client).
- *
- * The hardcoded FALLBACK_CLIENT_ID is used only when no tenant-specific
- * settings have been configured. It provides backwards compatibility but
- * may not support reliable background sync (SPA client limitation).
+ * Handles Microsoft OAuth2 authorization flow with PKCE.
+ * Uses a redirect flow (not popup) for maximum platform compatibility.
+ * The frontend redirects to Microsoft, gets redirected back with a code,
+ * and the callback page sends the code to the backend for server-side exchange.
  */
 
 const FALLBACK_CLIENT_ID = '861b3af1-129e-4674-9f0e-4fb4a3091fc0'
@@ -60,15 +57,16 @@ export const MicrosoftOAuthService = {
   },
 
   /**
-   * Initiates the OAuth flow using a popup window.
-   * Returns the authorization code and PKCE verifier for backend exchange.
+   * Initiates the OAuth flow by redirecting the main window to Microsoft login.
+   * Stores PKCE verifier in sessionStorage for the callback page to use.
+   * This function does NOT return — the page navigates away.
    */
-  async startAuth(config: MicrosoftOAuthConfig): Promise<MicrosoftAuthResult> {
+  async startAuth(config: MicrosoftOAuthConfig): Promise<never> {
     const { verifier, challenge } = await generatePKCE()
     const state = generateRandomString(32)
     const redirectUri = `${window.location.origin}/platform/mail/oauth/callback`
 
-    // Store verifier and state for callback validation
+    // Store PKCE verifier and state for the callback page
     sessionStorage.setItem('ms_oauth_verifier', verifier)
     sessionStorage.setItem('ms_oauth_state', state)
 
@@ -88,89 +86,11 @@ export const MicrosoftOAuthService = {
 
     const authUrl = `${authorityUrl}/oauth2/v2.0/authorize?${params.toString()}`
 
-    return new Promise((resolve, reject) => {
-      // Open popup window
-      const width = 500
-      const height = 700
-      const left = window.screenX + (window.outerWidth - width) / 2
-      const top = window.screenY + (window.outerHeight - height) / 2
+    // Redirect the main window — this navigates away, function never returns
+    window.location.href = authUrl
 
-      const popup = window.open(
-        authUrl,
-        'microsoft-oauth',
-        `width=${width},height=${height},left=${left},top=${top},scrollbars=yes`
-      )
-
-      if (!popup) {
-        reject(new Error('Popup blocked. Please allow popups for this site.'))
-        return
-      }
-
-      // Poll for the redirect URL in the popup
-      const pollInterval = setInterval(() => {
-        try {
-          if (popup.closed) {
-            clearInterval(pollInterval)
-            reject(new Error('Authentication cancelled'))
-            return
-          }
-
-          const popupUrl = popup.location.href
-
-          if (popupUrl.startsWith(window.location.origin)) {
-            clearInterval(pollInterval)
-
-            const url = new URL(popupUrl)
-            const code = url.searchParams.get('code')
-            const returnedState = url.searchParams.get('state')
-            const error = url.searchParams.get('error')
-            const errorDescription = url.searchParams.get('error_description')
-
-            popup.close()
-
-            if (error) {
-              reject(new Error(errorDescription || error))
-              return
-            }
-
-            // Validate state
-            const storedState = sessionStorage.getItem('ms_oauth_state')
-            if (returnedState !== storedState) {
-              reject(new Error('Invalid state parameter'))
-              return
-            }
-
-            // Clean up session storage
-            sessionStorage.removeItem('ms_oauth_state')
-            sessionStorage.removeItem('ms_oauth_verifier')
-
-            if (code) {
-              resolve({
-                code,
-                codeVerifier: verifier,
-                redirectUri
-              })
-            } else {
-              reject(new Error('Missing authorization code'))
-            }
-          }
-        } catch {
-          // Cross-origin error - popup is still on Microsoft domain, keep polling
-        }
-      }, 500)
-
-      // Timeout after 5 minutes
-      setTimeout(
-        () => {
-          clearInterval(pollInterval)
-          if (!popup.closed) {
-            popup.close()
-          }
-          reject(new Error('Authentication timed out'))
-        },
-        5 * 60 * 1000
-      )
-    })
+    // Return a never-resolving promise so callers' await doesn't continue
+    return new Promise<never>(() => {})
   }
 }
 

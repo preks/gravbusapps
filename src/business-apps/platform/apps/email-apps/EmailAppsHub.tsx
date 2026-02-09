@@ -50,18 +50,26 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
 }) => {
   // Check if this is an OAuth callback redirect
   const [isOAuthCallback, setIsOAuthCallback] = useState(() => {
+    // Must have a PKCE verifier in sessionStorage (proves an OAuth flow is in progress)
+    const hasVerifier = !!(
+      sessionStorage.getItem('ms_oauth_verifier') || sessionStorage.getItem('google_oauth_verifier')
+    )
+    if (!hasVerifier) return false
+
+    // Check for code in URL query params
     const queryParams = new URLSearchParams(window.location.search)
     let hasCode = queryParams.has('code') && queryParams.has('state')
 
+    // Check hash fragment
     if (!hasCode && window.location.hash) {
       const hashParams = new URLSearchParams(window.location.hash.substring(1))
       hasCode = hashParams.has('code') && hashParams.has('state')
     }
 
+    // Check sessionStorage (captured by IIFE before platform might strip params)
     if (!hasCode) {
       const savedCode = sessionStorage.getItem('ms_oauth_code')
-      const savedState = sessionStorage.getItem('ms_oauth_callback_state')
-      hasCode = !!(savedCode && savedState)
+      hasCode = !!savedCode
     }
 
     return hasCode

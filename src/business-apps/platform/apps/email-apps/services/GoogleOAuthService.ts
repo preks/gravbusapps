@@ -1,9 +1,10 @@
 /**
  * GoogleOAuthService
  *
- * Handles Google OAuth2 authorization flow with PKCE for SPAs.
- * The frontend obtains an authorization code and sends it to the backend
- * (document-service) for server-side token exchange.
+ * Handles Google OAuth2 authorization flow with PKCE.
+ * Uses a redirect flow (not popup) for maximum platform compatibility.
+ * The frontend redirects to Google, gets redirected back with a code,
+ * and the callback page sends the code to the backend for server-side exchange.
  */
 
 const DEFAULT_SCOPES = 'openid email profile https://mail.google.com/'
@@ -55,15 +56,16 @@ export const GoogleOAuthService = {
   },
 
   /**
-   * Initiates the Google OAuth flow using a popup window.
-   * Returns the authorization code and PKCE verifier for backend exchange.
+   * Initiates the Google OAuth flow by redirecting the main window.
+   * Stores PKCE verifier in sessionStorage for the callback page to use.
+   * This function does NOT return — the page navigates away.
    */
-  async startAuth(config: GoogleOAuthConfig): Promise<GoogleAuthResult> {
+  async startAuth(config: GoogleOAuthConfig): Promise<never> {
     const { verifier, challenge } = await generatePKCE()
     const state = generateRandomString(32)
     const redirectUri = `${window.location.origin}/platform/mail/oauth/callback`
 
-    // Store state for validation
+    // Store PKCE verifier and state for the callback page
     sessionStorage.setItem('google_oauth_state', state)
     sessionStorage.setItem('google_oauth_verifier', verifier)
 
@@ -81,86 +83,11 @@ export const GoogleOAuthService = {
 
     const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`
 
-    return new Promise((resolve, reject) => {
-      const width = 500
-      const height = 700
-      const left = window.screenX + (window.outerWidth - width) / 2
-      const top = window.screenY + (window.outerHeight - height) / 2
+    // Redirect the main window — this navigates away, function never returns
+    window.location.href = authUrl
 
-      const popup = window.open(
-        authUrl,
-        'google-oauth',
-        `width=${width},height=${height},left=${left},top=${top},scrollbars=yes`
-      )
-
-      if (!popup) {
-        reject(new Error('Popup blocked. Please allow popups for this site.'))
-        return
-      }
-
-      const pollInterval = setInterval(() => {
-        try {
-          if (popup.closed) {
-            clearInterval(pollInterval)
-            reject(new Error('Authentication cancelled'))
-            return
-          }
-
-          const popupUrl = popup.location.href
-
-          if (popupUrl.startsWith(window.location.origin)) {
-            clearInterval(pollInterval)
-
-            const url = new URL(popupUrl)
-            const code = url.searchParams.get('code')
-            const returnedState = url.searchParams.get('state')
-            const error = url.searchParams.get('error')
-
-            popup.close()
-
-            if (error) {
-              reject(new Error(`Google OAuth error: ${error}`))
-              return
-            }
-
-            // Validate state
-            const storedState = sessionStorage.getItem('google_oauth_state')
-            if (returnedState !== storedState) {
-              reject(new Error('Invalid state parameter'))
-              return
-            }
-
-            // Clean up
-            sessionStorage.removeItem('google_oauth_state')
-            sessionStorage.removeItem('google_oauth_verifier')
-
-            if (code) {
-              resolve({
-                code,
-                codeVerifier: verifier,
-                redirectUri
-              })
-            } else {
-              reject(new Error('Missing authorization code'))
-            }
-          }
-        } catch {
-          // Cross-origin error - popup is still on Google domain
-        }
-      }, 500)
-
-      // Timeout after 5 minutes
-      setTimeout(
-        () => {
-          clearInterval(pollInterval)
-          if (!popup.closed) {
-            popup.close()
-          }
-          reject(new Error('Authentication timed out'))
-        },
-        5 * 60 * 1000
-      )
-    })
+    // Return a never-resolving promise so callers' await doesn't continue
+    return new Promise<never>(() => {})
   }
 }
 
