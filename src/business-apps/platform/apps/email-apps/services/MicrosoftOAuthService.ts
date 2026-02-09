@@ -1,19 +1,18 @@
 /**
  * MicrosoftOAuthService
  *
- * Handles Microsoft OAuth2 authentication for email access.
- * Uses MSAL-style authorization code flow with PKCE for SPAs.
+ * Handles Microsoft OAuth2 authorization flow with PKCE for SPAs.
+ * The frontend obtains an authorization code and sends it to the backend
+ * (document-service) for server-side token exchange (confidential client).
+ *
+ * The hardcoded FALLBACK_CLIENT_ID is used only when no tenant-specific
+ * settings have been configured. It provides backwards compatibility but
+ * may not support reliable background sync (SPA client limitation).
  */
 
-const MICROSOFT_CLIENT_ID = '861b3af1-129e-4674-9f0e-4fb4a3091fc0'
-// Use /organizations for work/school accounts (single-tenant compatible)
-const MICROSOFT_AUTHORITY = 'https://login.microsoftonline.com/organizations'
-// Redirect URI must match exactly what's registered in Azure App Registration
-const REDIRECT_URI = `${window.location.origin}/platform/mail/oauth/callback`
-
-// Scopes for Microsoft Graph API mail access
-// Using short form which defaults to Microsoft Graph
-const SCOPES = ['openid', 'profile', 'email', 'offline_access', 'Mail.Read', 'Mail.Send']
+const FALLBACK_CLIENT_ID = '861b3af1-129e-4674-9f0e-4fb4a3091fc0'
+const DEFAULT_AUTHORITY = 'organizations'
+const DEFAULT_SCOPES = 'openid profile email offline_access Mail.Read Mail.Send'
 
 /** Generate a random string for PKCE */
 function generateRandomString(length: number): string {
@@ -36,49 +35,50 @@ async function generatePKCE(): Promise<{ verifier: string; challenge: string }> 
   return { verifier, challenge }
 }
 
-export interface MicrosoftTokenResponse {
-  access_token: string
-  refresh_token?: string
-  expires_in: number
-  token_type: string
-  scope: string
-  id_token?: string
+export interface MicrosoftOAuthConfig {
+  clientId: string
+  authority: string
+  scopes: string
 }
 
-export interface MicrosoftUserInfo {
-  email: string
-  name: string
+export interface MicrosoftAuthResult {
+  code: string
+  codeVerifier: string
+  redirectUri: string
 }
 
 export const MicrosoftOAuthService = {
   /**
-   * Get the configured Microsoft Client ID
+   * Builds the OAuth config from tenant settings (if provided) or falls back to defaults.
    */
-  getClientId(): string {
-    return MICROSOFT_CLIENT_ID
+  buildConfig(tenantConfig?: { clientId?: string; authority?: string; scopes?: string }): MicrosoftOAuthConfig {
+    return {
+      clientId: tenantConfig?.clientId || FALLBACK_CLIENT_ID,
+      authority: tenantConfig?.authority || DEFAULT_AUTHORITY,
+      scopes: tenantConfig?.scopes || DEFAULT_SCOPES
+    }
   },
 
   /**
-   * Initiates the OAuth flow using a popup window
-   * Popup avoids platform's server-side routing that strips query params
+   * Initiates the OAuth flow using a popup window.
+   * Returns the authorization code and PKCE verifier for backend exchange.
    */
-  async startAuth(): Promise<{ code: string; state: string }> {
+  async startAuth(config: MicrosoftOAuthConfig): Promise<MicrosoftAuthResult> {
     const { verifier, challenge } = await generatePKCE()
     const state = generateRandomString(32)
+    const redirectUri = `${window.location.origin}/platform/mail/oauth/callback`
 
     // Store verifier and state for callback validation
     sessionStorage.setItem('ms_oauth_verifier', verifier)
     sessionStorage.setItem('ms_oauth_state', state)
 
-    console.log('[MicrosoftOAuth] Starting auth flow (popup)')
-    console.log('[MicrosoftOAuth] Redirect URI:', REDIRECT_URI)
-    console.log('[MicrosoftOAuth] State stored:', state)
+    const authorityUrl = `https://login.microsoftonline.com/${config.authority}`
 
     const params = new URLSearchParams({
-      client_id: MICROSOFT_CLIENT_ID,
+      client_id: config.clientId,
       response_type: 'code',
-      redirect_uri: REDIRECT_URI,
-      scope: SCOPES.join(' '),
+      redirect_uri: redirectUri,
+      scope: config.scopes,
       response_mode: 'query',
       state,
       code_challenge: challenge,
@@ -86,8 +86,7 @@ export const MicrosoftOAuthService = {
       prompt: 'select_account'
     })
 
-    const authUrl = `${MICROSOFT_AUTHORITY}/oauth2/v2.0/authorize?${params.toString()}`
-    console.log('[MicrosoftOAuth] Opening popup:', authUrl)
+    const authUrl = `${authorityUrl}/oauth2/v2.0/authorize?${params.toString()}`
 
     return new Promise((resolve, reject) => {
       // Open popup window
@@ -110,17 +109,14 @@ export const MicrosoftOAuthService = {
       // Poll for the redirect URL in the popup
       const pollInterval = setInterval(() => {
         try {
-          // Check if popup was closed
           if (popup.closed) {
             clearInterval(pollInterval)
             reject(new Error('Authentication cancelled'))
             return
           }
 
-          // Try to read the popup URL (will fail while on Microsoft domain due to CORS)
           const popupUrl = popup.location.href
 
-          // Check if we're back on our domain with OAuth params
           if (popupUrl.startsWith(window.location.origin)) {
             clearInterval(pollInterval)
 
@@ -130,10 +126,6 @@ export const MicrosoftOAuthService = {
             const error = url.searchParams.get('error')
             const errorDescription = url.searchParams.get('error_description')
 
-            console.log('[MicrosoftOAuth] Popup returned to origin')
-            console.log('[MicrosoftOAuth] Code:', code ? 'present' : 'missing')
-            console.log('[MicrosoftOAuth] State:', returnedState)
-
             popup.close()
 
             if (error) {
@@ -141,8 +133,23 @@ export const MicrosoftOAuthService = {
               return
             }
 
-            if (code && returnedState) {
-              resolve({ code, state: returnedState })
+            // Validate state
+            const storedState = sessionStorage.getItem('ms_oauth_state')
+            if (returnedState !== storedState) {
+              reject(new Error('Invalid state parameter'))
+              return
+            }
+
+            // Clean up session storage
+            sessionStorage.removeItem('ms_oauth_state')
+            sessionStorage.removeItem('ms_oauth_verifier')
+
+            if (code) {
+              resolve({
+                code,
+                codeVerifier: verifier,
+                redirectUri
+              })
             } else {
               reject(new Error('Missing authorization code'))
             }
@@ -164,89 +171,6 @@ export const MicrosoftOAuthService = {
         5 * 60 * 1000
       )
     })
-  },
-
-  /**
-   * Handles the OAuth callback - exchanges code for tokens
-   */
-  async handleCallback(code: string, state: string): Promise<MicrosoftTokenResponse> {
-    const storedState = sessionStorage.getItem('ms_oauth_state')
-    const verifier = sessionStorage.getItem('ms_oauth_verifier')
-
-    if (state !== storedState) {
-      throw new Error('Invalid state parameter - possible CSRF attack')
-    }
-
-    if (!verifier) {
-      throw new Error('Missing PKCE verifier - please restart the sign-in process')
-    }
-
-    // Clean up stored values
-    sessionStorage.removeItem('ms_oauth_state')
-    sessionStorage.removeItem('ms_oauth_verifier')
-
-    // Exchange code for tokens
-    const tokenResponse = await fetch(`${MICROSOFT_AUTHORITY}/oauth2/v2.0/token`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded'
-      },
-      body: new URLSearchParams({
-        client_id: MICROSOFT_CLIENT_ID,
-        grant_type: 'authorization_code',
-        code,
-        redirect_uri: REDIRECT_URI,
-        code_verifier: verifier
-      })
-    })
-
-    if (!tokenResponse.ok) {
-      const error = await tokenResponse.json()
-      throw new Error(error.error_description || 'Failed to exchange authorization code')
-    }
-
-    return tokenResponse.json()
-  },
-
-  /**
-   * Decodes the ID token to get user info
-   */
-  parseIdToken(idToken: string): MicrosoftUserInfo {
-    const parts = idToken.split('.')
-    if (parts.length !== 3) {
-      throw new Error('Invalid ID token format')
-    }
-
-    const payload = JSON.parse(atob(parts[1]))
-    return {
-      email: payload.preferred_username || payload.email || payload.upn || '',
-      name: payload.name || payload.given_name || ''
-    }
-  },
-
-  /**
-   * Refreshes an access token using a refresh token
-   */
-  async refreshToken(refreshToken: string): Promise<MicrosoftTokenResponse> {
-    const tokenResponse = await fetch(`${MICROSOFT_AUTHORITY}/oauth2/v2.0/token`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded'
-      },
-      body: new URLSearchParams({
-        client_id: MICROSOFT_CLIENT_ID,
-        grant_type: 'refresh_token',
-        refresh_token: refreshToken,
-        scope: SCOPES.join(' ')
-      })
-    })
-
-    if (!tokenResponse.ok) {
-      const error = await tokenResponse.json()
-      throw new Error(error.error_description || 'Failed to refresh token')
-    }
-
-    return tokenResponse.json()
   }
 }
 
