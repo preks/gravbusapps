@@ -365,8 +365,11 @@ export const ExpertDashboardTab: React.FC<ExpertDashboardTabProps> = ({ promptId
                       label
                       labelLine={false}
                     >
-                      {statusDonutData.map((_, idx) => (
-                        <Cell key={idx} fill={`var(--color-${String((statusDonutData[idx] as any)?.status || '')})`} />
+                      {statusDonutData.map((entry: any) => (
+                        <Cell
+                          key={`donut-${String(entry?.status || 'unknown')}`}
+                          fill={`var(--color-${String(entry?.status || '')})`}
+                        />
                       ))}
                     </Pie>
                     <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel nameKey="status" />} />

@@ -124,7 +124,10 @@ const RunDetailsContent: React.FC<{
         <div className="gba:text-sm gba:font-medium">{t('monitoring-details-decisions')}</div>
         <div className="gba:space-y-2">
           {decisions.map((d: any, idx: number) => (
-            <div key={idx} className="gba:rounded-md gba:border gba:border-border gba:bg-card gba:p-3">
+            <div
+              key={`decision-${String(d.type || 'unknown')}-${idx}`}
+              className="gba:rounded-md gba:border gba:border-border gba:bg-card gba:p-3"
+            >
               <div className="gba:text-xs gba:text-muted-foreground">{String(d.type || 'decision')}</div>
               <div className="gba:text-sm gba:mt-1">{formatJson(d)}</div>
             </div>

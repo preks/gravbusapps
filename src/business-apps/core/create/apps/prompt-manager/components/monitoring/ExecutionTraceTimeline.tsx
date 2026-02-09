@@ -12,6 +12,57 @@ const formatJson = (value: unknown): string => {
   }
 }
 
+/** Renders the expanded detail for a trace event based on its type. */
+const TraceEventExpandedContent: React.FC<{
+  eventType: string
+  data: Record<string, unknown>
+  t: (key: string) => string
+}> = ({ eventType, data, t }) => {
+  const rawJsonBlock = (
+    <details>
+      <summary className="gba:text-xs gba:text-muted-foreground gba:cursor-pointer">
+        {t('monitoring-detail-raw-json')}
+      </summary>
+      <pre className="gba:mt-2 gba:text-xs gba:whitespace-pre-wrap gba:break-words gba:max-h-64 gba:overflow-auto gba:bg-muted gba:rounded-md gba:p-2">
+        {formatJson(data)}
+      </pre>
+    </details>
+  )
+
+  if (eventType === 'prompt.resolved') {
+    return (
+      <>
+        <PromptResolvedDetail data={data} />
+        <Separator />
+        {rawJsonBlock}
+      </>
+    )
+  }
+  if (eventType === 'llm.iteration') {
+    return (
+      <>
+        <LlmIterationDetail data={data} />
+        <Separator />
+        {rawJsonBlock}
+      </>
+    )
+  }
+  if (eventType.startsWith('tool.call.')) {
+    return (
+      <>
+        <ToolCallDetail data={data} eventType={eventType} />
+        <Separator />
+        {rawJsonBlock}
+      </>
+    )
+  }
+  return (
+    <pre className="gba:text-xs gba:whitespace-pre-wrap gba:break-words gba:max-h-64 gba:overflow-auto gba:bg-muted gba:rounded-md gba:p-2">
+      {formatJson(data)}
+    </pre>
+  )
+}
+
 const TRACE_EVENT_I18N_KEYS: Record<string, string> = {
   'execution.started': 'trace-event-execution-started',
   'execution.finished': 'trace-event-execution-finished',
@@ -118,50 +169,7 @@ const TraceEventCard: React.FC<TraceEventCardProps> = ({ evt, isExpanded, onTogg
 
       {isExpanded && (
         <div className="gba:border-t gba:border-border gba:p-3 gba:space-y-3">
-          {evt.eventType === 'prompt.resolved' ? (
-            <>
-              <PromptResolvedDetail data={data} />
-              <Separator />
-              <details>
-                <summary className="gba:text-xs gba:text-muted-foreground gba:cursor-pointer">
-                  {t('monitoring-detail-raw-json')}
-                </summary>
-                <pre className="gba:mt-2 gba:text-xs gba:whitespace-pre-wrap gba:break-words gba:max-h-64 gba:overflow-auto gba:bg-muted gba:rounded-md gba:p-2">
-                  {formatJson(data)}
-                </pre>
-              </details>
-            </>
-          ) : evt.eventType === 'llm.iteration' ? (
-            <>
-              <LlmIterationDetail data={data} />
-              <Separator />
-              <details>
-                <summary className="gba:text-xs gba:text-muted-foreground gba:cursor-pointer">
-                  {t('monitoring-detail-raw-json')}
-                </summary>
-                <pre className="gba:mt-2 gba:text-xs gba:whitespace-pre-wrap gba:break-words gba:max-h-64 gba:overflow-auto gba:bg-muted gba:rounded-md gba:p-2">
-                  {formatJson(data)}
-                </pre>
-              </details>
-            </>
-          ) : evt.eventType.startsWith('tool.call.') ? (
-            <>
-              <ToolCallDetail data={data} eventType={evt.eventType} />
-              <Separator />
-              <details>
-                <summary className="gba:text-xs gba:text-muted-foreground gba:cursor-pointer">
-                  {t('monitoring-detail-raw-json')}
-                </summary>
-                <pre className="gba:mt-2 gba:text-xs gba:whitespace-pre-wrap gba:break-words gba:max-h-64 gba:overflow-auto gba:bg-muted gba:rounded-md gba:p-2">
-                  {formatJson(data)}
-                </pre>
-              </details>
-            </>
-          ) : (
-            <pre className="gba:text-xs gba:whitespace-pre-wrap gba:break-words gba:max-h-64 gba:overflow-auto gba:bg-muted gba:rounded-md gba:p-2">
-              {formatJson(data)}
-            </pre>
-          )}
+          <TraceEventExpandedContent eventType={evt.eventType} data={data} t={t} />
         </div>
       )}
     </div>

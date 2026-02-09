@@ -27,6 +27,45 @@ const toStatusVariant = (status: string): 'success' | 'default' | 'destructive' 
   return 'outline'
 }
 
+/** Cell renderers extracted outside component to avoid re-creation on each render. */
+const PromptNameCell = ({ row }: any) => (
+  <span className="gba:truncate">{row.original?.promptName || row.original?.promptId || '—'}</span>
+)
+
+const DurationMsCell = ({ row }: any) => {
+  const ms = row.original?.durationMs
+  return <span>{typeof ms === 'number' ? `${ms} ms` : '—'}</span>
+}
+
+const ToolCallsCountCell = ({ row }: any) => {
+  const n = row.original?.toolCallsCount ?? 0
+  return <span>{n}</span>
+}
+
+const PolicyIdsCell = ({ row }: any) => {
+  const ids: string[] = row.original?.policyRootIds || []
+  if (!ids.length) return <span className="gba:text-muted-foreground">—</span>
+  return (
+    <div className="gba:flex gba:flex-wrap gba:gap-1">
+      {ids.slice(0, 2).map((id: string) => (
+        <Badge key={id} variant="outline" className="gba:text-[10px]">
+          {id}
+        </Badge>
+      ))}
+      {ids.length > 2 && (
+        <Badge variant="outline" className="gba:text-[10px]">
+          +{ids.length - 2}
+        </Badge>
+      )}
+    </div>
+  )
+}
+
+const StartedAtMsCell = ({ row }: any) => {
+  const v = row.original?.startedAt
+  return <span className="gba:text-xs">{v ? new Date(v).toLocaleString() : '—'}</span>
+}
+
 export type MonitoringTabProps = BusinessAppContextProps
 
 export const MonitoringTab: React.FC<MonitoringTabProps> = context => {
@@ -95,95 +134,68 @@ export const MonitoringTab: React.FC<MonitoringTabProps> = context => {
     setSelectedExecutionId(null)
   }, [])
 
+  const StatusCellRenderer = useCallback(
+    ({ row }: any) => {
+      const v = row.original?.status || 'unknown'
+      const isTest = (row.original?.tags || []).includes('execution:test')
+      return (
+        <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-1">
+          <Badge variant={toStatusVariant(v)} data-testid={`prompt-manager-run-status-${row.original?.executionId}`}>
+            {String(v)}
+          </Badge>
+          {isTest && (
+            <Badge
+              variant="info"
+              className="gba:text-[10px]"
+              data-testid={`prompt-manager-run-test-${row.original?.executionId}`}
+            >
+              {t('tag-execution-test')}
+            </Badge>
+          )}
+        </div>
+      )
+    },
+    [t]
+  )
+
   const columns = useMemo(
     () => [
       {
         header: t('monitoring-column-status'),
         accessorKey: 'status',
-        cell: ({ row }: any) => {
-          const v = row.original?.status || 'unknown'
-          const isTest = (row.original?.tags || []).includes('execution:test')
-          return (
-            <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-1">
-              <Badge
-                variant={toStatusVariant(v)}
-                data-testid={`prompt-manager-run-status-${row.original?.executionId}`}
-              >
-                {String(v)}
-              </Badge>
-              {isTest && (
-                <Badge
-                  variant="info"
-                  className="gba:text-[10px]"
-                  data-testid={`prompt-manager-run-test-${row.original?.executionId}`}
-                >
-                  {t('tag-execution-test')}
-                </Badge>
-              )}
-            </div>
-          )
-        },
+        cell: StatusCellRenderer,
         size: 150
       },
       {
         header: t('monitoring-column-prompt'),
         accessorKey: 'promptName',
-        cell: ({ row }: any) => (
-          <span className="gba:truncate">{row.original?.promptName || row.original?.promptId || '—'}</span>
-        )
+        cell: PromptNameCell
       },
       {
         header: t('monitoring-column-duration'),
         accessorKey: 'durationMs',
-        cell: ({ row }: any) => {
-          const ms = row.original?.durationMs
-          return <span>{typeof ms === 'number' ? `${ms} ms` : '—'}</span>
-        },
+        cell: DurationMsCell,
         size: 140
       },
       {
         header: t('monitoring-column-tools'),
         accessorKey: 'toolCallsCount',
-        cell: ({ row }: any) => {
-          const n = row.original?.toolCallsCount ?? 0
-          return <span>{n}</span>
-        },
+        cell: ToolCallsCountCell,
         size: 110
       },
       {
         header: t('monitoring-column-policies'),
         accessorKey: 'policyRootIds',
-        cell: ({ row }: any) => {
-          const ids: string[] = row.original?.policyRootIds || []
-          return ids.length ? (
-            <div className="gba:flex gba:flex-wrap gba:gap-1">
-              {ids.slice(0, 2).map((id: string) => (
-                <Badge key={id} variant="outline" className="gba:text-[10px]">
-                  {id}
-                </Badge>
-              ))}
-              {ids.length > 2 && (
-                <Badge variant="outline" className="gba:text-[10px]">
-                  +{ids.length - 2}
-                </Badge>
-              )}
-            </div>
-          ) : (
-            <span className="gba:text-muted-foreground">—</span>
-          )
-        }
+        cell: PolicyIdsCell
       },
       {
         header: t('monitoring-column-started'),
         accessorKey: 'startedAt',
-        cell: ({ row }: any) => {
-          const v = row.original?.startedAt
-          return <span className="gba:text-xs">{v ? new Date(v).toLocaleString() : '—'}</span>
-        },
+        cell: StartedAtMsCell,
         size: 200
       }
     ],
-    [t]
+    [t, StatusCellRenderer]
   )
 
   const onApplyFilters = useCallback(() => {

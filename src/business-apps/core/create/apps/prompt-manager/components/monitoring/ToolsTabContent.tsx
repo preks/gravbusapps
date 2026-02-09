@@ -69,8 +69,8 @@ export const ToolsTabContent: React.FC<ToolsTabContentProps> = ({ run, toolTrace
       {toolCalls.orphans.length > 0 && (
         <div className="gba:space-y-2">
           <Separator />
-          {toolCalls.orphans.map((evt, idx) => (
-            <div key={idx} className="gba:rounded-md gba:bg-muted gba:p-3">
+          {toolCalls.orphans.map(evt => (
+            <div key={`${evt.executionId}-${evt.seq}`} className="gba:rounded-md gba:bg-muted gba:p-3">
               <div className="gba:text-[10px] gba:text-muted-foreground gba:uppercase">{evt.eventType}</div>
               <pre className="gba:text-xs gba:whitespace-pre-wrap gba:break-words gba:max-h-40 gba:overflow-auto gba:mt-1">
                 {formatJson(evt.data)}

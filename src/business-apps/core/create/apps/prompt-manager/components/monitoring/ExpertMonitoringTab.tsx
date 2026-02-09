@@ -27,6 +27,19 @@ const toStatusVariant = (status: string): 'success' | 'default' | 'destructive' 
   return 'outline'
 }
 
+/** Cell renderers extracted outside component to avoid re-creation on each render. */
+const StartedAtCell = ({ row }: any) => {
+  const v = row.original?.startedAt
+  return <span className="gba:text-xs">{v ? new Date(v).toLocaleString() : '—'}</span>
+}
+
+const DurationCell = ({ row }: any) => {
+  const ms = row.original?.durationMs
+  return <span>{typeof ms === 'number' ? `${ms} ms` : '—'}</span>
+}
+
+const ToolCallsCell = ({ row }: any) => <span>{row.original?.toolCallsCount ?? 0}</span>
+
 export interface ExpertMonitoringTabProps extends BusinessAppContextProps {
   promptId: string
 }
@@ -66,59 +79,58 @@ export const ExpertMonitoringTab: React.FC<ExpertMonitoringTabProps> = ({ prompt
     setSelectedExecutionId(null)
   }, [])
 
+  const StatusCell = useCallback(
+    ({ row }: any) => {
+      const v = row.original?.status || 'unknown'
+      const isTest = (row.original?.tags || []).includes('execution:test')
+      return (
+        <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-1">
+          <Badge variant={toStatusVariant(v)} data-testid={`expert-run-status-${row.original?.executionId}`}>
+            {String(v)}
+          </Badge>
+          {isTest && (
+            <Badge
+              variant="info"
+              className="gba:text-[10px]"
+              data-testid={`expert-run-test-${row.original?.executionId}`}
+            >
+              {t('tag-execution-test')}
+            </Badge>
+          )}
+        </div>
+      )
+    },
+    [t]
+  )
+
   const columns = useMemo(
     () => [
       {
         header: t('monitoring-column-started'),
         accessorKey: 'startedAt',
-        cell: ({ row }: any) => {
-          const v = row.original?.startedAt
-          return <span className="gba:text-xs">{v ? new Date(v).toLocaleString() : '—'}</span>
-        },
+        cell: StartedAtCell,
         size: 200
       },
       {
         header: t('monitoring-column-duration'),
         accessorKey: 'durationMs',
-        cell: ({ row }: any) => {
-          const ms = row.original?.durationMs
-          return <span>{typeof ms === 'number' ? `${ms} ms` : '—'}</span>
-        },
+        cell: DurationCell,
         size: 140
       },
       {
         header: t('monitoring-column-tools'),
         accessorKey: 'toolCallsCount',
-        cell: ({ row }: any) => <span>{row.original?.toolCallsCount ?? 0}</span>,
+        cell: ToolCallsCell,
         size: 110
       },
       {
         header: t('monitoring-column-status'),
         accessorKey: 'status',
-        cell: ({ row }: any) => {
-          const v = row.original?.status || 'unknown'
-          const isTest = (row.original?.tags || []).includes('execution:test')
-          return (
-            <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-1">
-              <Badge variant={toStatusVariant(v)} data-testid={`expert-run-status-${row.original?.executionId}`}>
-                {String(v)}
-              </Badge>
-              {isTest && (
-                <Badge
-                  variant="info"
-                  className="gba:text-[10px]"
-                  data-testid={`expert-run-test-${row.original?.executionId}`}
-                >
-                  {t('tag-execution-test')}
-                </Badge>
-              )}
-            </div>
-          )
-        },
+        cell: StatusCell,
         size: 150
       }
     ],
-    [t]
+    [t, StatusCell]
   )
 
   const onApply = useCallback(() => {
