@@ -18,9 +18,29 @@ import {
   Spinner,
   IconAvatar
 } from '@newwork/nw-design-system'
-import { Calendar, Clock, MapPin, Video, Users, X, Repeat, Bell, Palette, User } from 'lucide-react'
+import { rtkDebug } from '../../utils/rtkDebug'
+import {
+  Calendar,
+  Clock,
+  MapPin,
+  Video,
+  Users,
+  X,
+  Repeat,
+  Bell,
+  Palette,
+  User,
+  Mic,
+  ListTodo,
+  Plus,
+  Trash2,
+  ChevronUp,
+  ChevronDown
+} from 'lucide-react'
 import type { CreateMeetingData, MeetingRecurrence } from '../types'
 import { MEETING_COLORS, REMINDER_OPTIONS, getDefaultCalendarColor } from '../types'
+import type { AgendaItem } from '../utils/agendaUtils'
+import { getAgendaFromMetadata, getTotalAgendaDuration } from '../utils/agendaUtils'
 import { createEmployeeSearchService, CalendarEmployee } from '../services/employeeSearchService'
 import { useChatTranslation } from '../../contexts/TranslationContext'
 
@@ -47,6 +67,7 @@ interface CreateMeetingModalProps {
     color?: string
     reminderMinutes?: number[]
     participants?: Array<{ id: string; displayName?: string; firstName?: string; lastName?: string }>
+    metadata?: Record<string, any>
   }
 }
 
@@ -114,10 +135,82 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
   const [recurrenceEndDate, setRecurrenceEndDate] = useState('')
   const [selectedColor, setSelectedColor] = useState(getDefaultCalendarColor())
   const [reminderMinutes, setReminderMinutes] = useState<number[]>([15])
+  const [enableAITranscription, setEnableAITranscription] = useState(false)
+
+  // Agenda state
+  const [agendaItems, setAgendaItems] = useState<AgendaItem[]>([])
+
+  // Participants (using real employees)
+  // NOTE: Must be declared before callbacks that reference it in dependency arrays
+  // to avoid TDZ errors ("Cannot access '<x>' before initialization") in production bundles.
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<CalendarEmployee[]>([])
+  const [selectedParticipants, setSelectedParticipants] = useState<CalendarEmployee[]>([])
+  const [isSearching, setIsSearching] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // Debounce timer for search
+  const searchDebounceRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Generate unique ID for agenda items
+  const generateAgendaId = useCallback(() => {
+    return `agenda-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+  }, [])
+
+  // Add new agenda item
+  const addAgendaItem = useCallback(() => {
+    const newItem: AgendaItem = {
+      id: generateAgendaId(),
+      title: '',
+      duration: undefined,
+      assigneeId: undefined
+    }
+    setAgendaItems(prev => [...prev, newItem])
+  }, [generateAgendaId])
+
+  // Remove agenda item
+  const removeAgendaItem = useCallback((id: string) => {
+    setAgendaItems(prev => prev.filter(item => item.id !== id))
+  }, [])
+
+  // Update agenda item
+  const updateAgendaItem = useCallback((id: string, updates: Partial<AgendaItem>) => {
+    setAgendaItems(prev => prev.map(item => (item.id === id ? { ...item, ...updates } : item)))
+  }, [])
+
+  // Move agenda item up
+  const moveAgendaItemUp = useCallback((index: number) => {
+    if (index <= 0) return
+    setAgendaItems(prev => {
+      const newItems = [...prev]
+      ;[newItems[index - 1], newItems[index]] = [newItems[index], newItems[index - 1]]
+      return newItems
+    })
+  }, [])
+
+  // Move agenda item down
+  const moveAgendaItemDown = useCallback((index: number) => {
+    setAgendaItems(prev => {
+      if (index >= prev.length - 1) return prev
+      const newItems = [...prev]
+      ;[newItems[index], newItems[index + 1]] = [newItems[index + 1], newItems[index]]
+      return newItems
+    })
+  }, [])
+
+  // Calculate total agenda duration
+  const totalAgendaDuration = useMemo(() => getTotalAgendaDuration(agendaItems), [agendaItems])
 
   // Initialize form when editMeeting changes
   useEffect(() => {
     if (editMeeting && isOpen) {
+      rtkDebug.log('[CreateMeetingModal] Initializing from editMeeting:', {
+        meetingId: editMeeting.id,
+        hasMetadata: !!editMeeting.metadata,
+        metadata: editMeeting.metadata,
+        aiTranscriptionEnabled: editMeeting.metadata?.aiTranscriptionEnabled
+      })
+
       setTitle(editMeeting.title || '')
       setDescription(editMeeting.description || '')
       setDate(formatDateForInput(editMeeting.startTime))
@@ -130,6 +223,15 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
       setRecurrenceEndDate(editMeeting.recurrenceEndDate ? formatDateForInput(editMeeting.recurrenceEndDate) : '')
       setSelectedColor(editMeeting.color || getDefaultCalendarColor())
       setReminderMinutes(editMeeting.reminderMinutes || [15])
+
+      const transcriptionValue = editMeeting.metadata?.aiTranscriptionEnabled === true
+      rtkDebug.log('[CreateMeetingModal] Setting AI Transcription to:', transcriptionValue)
+      setEnableAITranscription(transcriptionValue)
+
+      // Initialize agenda from metadata
+      const existingAgenda = getAgendaFromMetadata(editMeeting.metadata)
+      setAgendaItems(existingAgenda)
+
       // Convert participants to CalendarEmployee format
       if (editMeeting.participants) {
         setSelectedParticipants(
@@ -154,16 +256,6 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
       }
     }
   }, [editMeeting, isOpen, initialDate, initialHour])
-
-  // Participants (using real employees)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [searchResults, setSearchResults] = useState<CalendarEmployee[]>([])
-  const [selectedParticipants, setSelectedParticipants] = useState<CalendarEmployee[]>([])
-  const [isSearching, setIsSearching] = useState(false)
-  const [isSubmitting, setIsSubmitting] = useState(false)
-
-  // Debounce timer for search
-  const searchDebounceRef = useRef<NodeJS.Timeout | null>(null)
 
   // Employee search service
   const employeeSearchService = useMemo(() => {
@@ -257,6 +349,9 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
         // Find removed participants (in original but not in current)
         const removeParticipantIds = originalParticipantIds.filter(id => !currentParticipantIds.includes(id))
 
+        // Filter out empty agenda items and prepare for storage
+        const validAgendaItems = agendaItems.filter(item => item.title.trim())
+
         const updateData = {
           title: title.trim(),
           description: description.trim() || undefined,
@@ -270,6 +365,10 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
             recurrence !== 'none' && recurrenceEndDate ? new Date(recurrenceEndDate).toISOString() : undefined,
           color: selectedColor,
           reminderMinutes,
+          metadata: {
+            aiTranscriptionEnabled: enableAITranscription,
+            ...(validAgendaItems.length > 0 && { agenda: validAgendaItems })
+          },
           // For updates, use addParticipantIds and removeParticipantIds
           ...(addParticipantIds.length > 0 && { addParticipantIds }),
           ...(removeParticipantIds.length > 0 && { removeParticipantIds })
@@ -277,6 +376,9 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
 
         await onUpdate(editMeeting.id, updateData)
       } else {
+        // Filter out empty agenda items and prepare for storage
+        const validAgendaItems = agendaItems.filter(item => item.title.trim())
+
         // For create, use participantIds
         const meetingData: CreateMeetingData = {
           title: title.trim(),
@@ -291,7 +393,11 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
             recurrence !== 'none' && recurrenceEndDate ? new Date(recurrenceEndDate).toISOString() : undefined,
           color: selectedColor,
           reminderMinutes,
-          participantIds: selectedParticipants.map(p => p.userId || p.id)
+          participantIds: selectedParticipants.map(p => p.userId || p.id),
+          metadata: {
+            aiTranscriptionEnabled: enableAITranscription,
+            ...(validAgendaItems.length > 0 && { agenda: validAgendaItems })
+          }
         }
 
         await onSubmit(meetingData)
@@ -320,6 +426,8 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
     setRecurrenceEndDate('')
     setSelectedColor(getDefaultCalendarColor())
     setReminderMinutes([15])
+    setEnableAITranscription(false)
+    setAgendaItems([])
     setSelectedParticipants([])
     setSearchQuery('')
     setSearchResults([])
@@ -435,6 +543,136 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
               placeholder={t('calendar-descriptionPlaceholder')}
               rows={3}
             />
+          </div>
+
+          {/* Agenda */}
+          <div className="gba:space-y-2">
+            <div className="gba:flex gba:items-center gba:justify-between">
+              <Label className="gba:flex gba:items-center gba:gap-1">
+                <ListTodo className="gba:h-3 gba:w-3" />
+                {t('calendar-agendaOptional')}
+              </Label>
+              {totalAgendaDuration > 0 && (
+                <span className="gba:text-xs gba:text-muted-foreground">
+                  {t('calendar-agendaTotalDuration', { minutes: totalAgendaDuration })}
+                </span>
+              )}
+            </div>
+
+            {/* Agenda items list */}
+            {agendaItems.length > 0 && (
+              <div className="gba:space-y-2">
+                {agendaItems.map((item, index) => (
+                  <div
+                    key={item.id}
+                    className="gba:flex gba:items-start gba:gap-2 gba:p-3 gba:border gba:border-border gba:rounded-lg gba:bg-muted/30"
+                    data-testid={`agenda-item-${index}`}
+                  >
+                    <span className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:mt-2 gba:min-w-[20px]">
+                      {index + 1}.
+                    </span>
+                    <div className="gba:flex-1 gba:space-y-2">
+                      <Input
+                        value={item.title}
+                        onChange={e => updateAgendaItem(item.id, { title: e.target.value })}
+                        placeholder={t('calendar-agendaItemTitlePlaceholder')}
+                        className="gba:h-8 gba:text-sm"
+                        data-testid={`agenda-item-title-${index}`}
+                      />
+                      <div className="gba:flex gba:gap-2">
+                        <div className="gba:w-24">
+                          <Input
+                            type="number"
+                            min={1}
+                            max={480}
+                            value={item.duration || ''}
+                            onChange={e =>
+                              updateAgendaItem(item.id, {
+                                duration: e.target.value ? parseInt(e.target.value, 10) : undefined
+                              })
+                            }
+                            placeholder={t('calendar-agendaItemDuration')}
+                            className="gba:h-8 gba:text-sm"
+                            data-testid={`agenda-item-duration-${index}`}
+                          />
+                        </div>
+                        {selectedParticipants.length > 0 && (
+                          <Select
+                            value={item.assigneeId || 'unassigned'}
+                            onValueChange={value =>
+                              updateAgendaItem(item.id, {
+                                assigneeId: value === 'unassigned' ? undefined : value
+                              })
+                            }
+                          >
+                            <SelectTrigger className="gba:h-8 gba:text-sm gba:flex-1">
+                              <SelectValue placeholder={t('calendar-agendaItemAssignee')} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="unassigned">{t('calendar-agendaItemUnassigned')}</SelectItem>
+                              {selectedParticipants.map(participant => (
+                                <SelectItem key={participant.id} value={participant.userId || participant.id}>
+                                  {participant.displayName ||
+                                    `${participant.firstName || ''} ${participant.lastName || ''}`.trim() ||
+                                    t('calendar-unknown')}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                      </div>
+                    </div>
+                    <div className="gba:flex gba:flex-col gba:gap-1">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="gba:h-6 gba:w-6"
+                        onClick={() => moveAgendaItemUp(index)}
+                        disabled={index === 0}
+                        title={t('calendar-agendaItemMoveUp')}
+                      >
+                        <ChevronUp className="gba:h-3 gba:w-3" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="gba:h-6 gba:w-6"
+                        onClick={() => moveAgendaItemDown(index)}
+                        disabled={index === agendaItems.length - 1}
+                        title={t('calendar-agendaItemMoveDown')}
+                      >
+                        <ChevronDown className="gba:h-3 gba:w-3" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="gba:h-6 gba:w-6 gba:text-destructive gba:hover:text-destructive"
+                        onClick={() => removeAgendaItem(item.id)}
+                        title={t('calendar-agendaItemRemove')}
+                      >
+                        <Trash2 className="gba:h-3 gba:w-3" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Add agenda item button */}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={addAgendaItem}
+              className="gba:w-full gba:gap-1"
+              data-testid="add-agenda-item-button"
+            >
+              <Plus className="gba:h-3 gba:w-3" />
+              {t('calendar-addAgendaItem')}
+            </Button>
           </div>
 
           {/* Participants */}
@@ -583,6 +821,29 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
                   title={color.name}
                 />
               ))}
+            </div>
+          </div>
+
+          {/* AI Transcription */}
+          <div className="gba:space-y-2">
+            <div className="gba:flex gba:items-center gba:justify-between gba:p-3 gba:border gba:border-border gba:rounded-lg gba:bg-muted/50">
+              <div className="gba:flex gba:items-start gba:gap-2 gba:flex-1">
+                <Mic className="gba:h-4 gba:w-4 gba:text-primary gba:mt-0.5" />
+                <div className="gba:flex-1">
+                  <Label htmlFor="ai-transcription" className="gba:font-medium gba:cursor-pointer">
+                    {t('calendar-aiTranscription')}
+                  </Label>
+                  <p className="gba:text-xs gba:text-muted-foreground gba:mt-0.5">
+                    {t('calendar-aiTranscriptionDescription')}
+                  </p>
+                </div>
+              </div>
+              <Switch
+                id="ai-transcription"
+                checked={enableAITranscription}
+                onCheckedChange={setEnableAITranscription}
+                data-testid="meeting-ai-transcription-toggle"
+              />
             </div>
           </div>
         </div>

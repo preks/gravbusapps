@@ -16,6 +16,7 @@ export const accountSchema = z.object({
   picture: z.string().nullable().optional(),
   pictureThumbnail: z.string().nullable().optional(),
   code: z.string().nullable().optional(),
+  prospective: z.boolean().default(true),
   id: z.string().optional(),
   version: z.number().optional(),
   communicationChannels: z
@@ -52,7 +53,18 @@ export const accountSchema = z.object({
         version: z.number().optional(),
         accountId: z.string().optional(),
         contactId: z.string().optional(),
-        contactType: z.string().nullable().optional()
+        contactType: z.string().nullable().optional(),
+        contact: z
+          .object({
+            id: z.string(),
+            fullName: z.string().optional(),
+            firstName: z.string().optional(),
+            lastName: z.string().optional(),
+            pictureThumbnail: z.string().nullable().optional(),
+            jobPosition: z.string().nullable().optional(),
+            department: z.string().nullable().optional()
+          })
+          .optional()
       })
     )
     .optional()

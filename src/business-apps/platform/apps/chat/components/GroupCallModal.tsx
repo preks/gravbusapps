@@ -593,8 +593,16 @@ export const GroupCallModal: React.FC<GroupCallModalProps> = memo(
           className={`gba:p-0 gba:bg-gray-900 gba:border-none gba:overflow-hidden gba:flex gba:flex-col ${
             isFullscreen
               ? 'gba:fixed gba:inset-0 gba:max-w-none gba:w-screen gba:h-screen gba:rounded-none gba:translate-x-0 gba:translate-y-0'
-              : 'gba:max-w-5xl gba:w-[95vw] gba:h-[85vh]'
+              : 'gba:h-[85vh]'
           }`}
+          style={
+            isFullscreen
+              ? undefined
+              : {
+                  width: '90vw',
+                  maxWidth: window.innerWidth >= 1280 ? '1280px' : window.innerWidth >= 1024 ? '1152px' : '90vw'
+                }
+          }
           data-testid={prefixDataTestId}
           showCloseButton={false}
           onPointerDownOutside={e => e.preventDefault()}

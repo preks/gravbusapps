@@ -1,5 +1,4 @@
-import React from 'react'
-import { PaperClipOutlined } from '@ant-design/icons'
+import { CalendarBlankIcon } from '@phosphor-icons/react'
 import dayjs from 'dayjs'
 import isSameOrAfter from 'dayjs/plugin/isSameOrAfter'
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore'
@@ -36,11 +35,7 @@ export const transformAbsenceData = (absences: any[]): AbsenceListCardAbsence[] 
         }`
       : '',
     description: absence.description || '',
-    icon: React.createElement(PaperClipOutlined, {
-      style: {
-        color: absence.type?.objectValue?.color ? `#${absence.type.objectValue.color}` : 'var(--nw-info)'
-      }
-    }),
+    icon: CalendarBlankIcon,
     typeColor: absence.type?.objectValue?.color ? absence.type.objectValue.color : 'blue',
     statusColor: getAbsenceStatusConfig(absence.status).color,
     requestDate: absence.createdAt
@@ -71,9 +66,7 @@ export const transformEntitlementsData = (employeeAbsenceEntitlement: EmployeeAb
     total: ent.total,
     pending: ent.pending,
     available: ent.available,
-    icon: React.createElement(PaperClipOutlined, {
-      style: { color: `#${ent.type?.objectValue?.color || '1976d2'}` }
-    }),
+    icon: CalendarBlankIcon,
     checkEntitlement: ent.type?.objectValue?.checkEntitlement
   }))
 }
@@ -90,8 +83,8 @@ export const calculateSkillStats = (skills: any[]) => {
   }
 }
 
-export const getLevelInfo = (level: number) => {
-  const levelInfo = {
+export const getLevelInfo = (level: number, t?: (key: string) => string) => {
+  const defaultLevelInfo = {
     0: {
       color: 'var(--nw-muted-foreground)',
       description: 'No level assigned'
@@ -117,6 +110,35 @@ export const getLevelInfo = (level: number) => {
       description: 'Expert - Master level'
     }
   }
+
+  const levelInfo = t
+    ? {
+        0: {
+          color: 'var(--nw-muted-foreground)',
+          description: t('skills-level-0')
+        },
+        1: {
+          color: 'var(--nw-destructive)',
+          description: t('skills-level-1')
+        },
+        2: {
+          color: 'var(--nw-warning)',
+          description: t('skills-level-2')
+        },
+        3: {
+          color: 'var(--nw-warning)',
+          description: t('skills-level-3')
+        },
+        4: {
+          color: 'var(--nw-info)',
+          description: t('skills-level-4')
+        },
+        5: {
+          color: 'var(--nw-success)',
+          description: t('skills-level-5')
+        }
+      }
+    : defaultLevelInfo
 
   return levelInfo[level as keyof typeof levelInfo] || levelInfo[0]
 }
@@ -165,8 +187,6 @@ export { formatForDisplay as formatDate } from '@/common/utils/dateFormatter'
 
 export const getDefaultStartDate = (): string => {
   const date = new Date()
-  date.setMonth(date.getMonth() + 1)
-  date.setDate(1)
   return date.toISOString().split('T')[0]
 }
 

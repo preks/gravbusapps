@@ -15,6 +15,7 @@ import { useOverviewData } from './hooks/useOverviewData'
 import { usePipelineData } from './hooks/usePipelineData'
 import { formatCurrency } from '@/common/utils/numberFormatter'
 import { crmRecordNavigationConfig } from './config/recordNavigationConfig'
+import { useGeneralConfig } from '@/common/hooks/useGeneralConfig'
 
 export interface DashboardViewProps extends BusinessAppContextProps {
   pipelines: PipelineInfo[]
@@ -25,6 +26,13 @@ export interface DashboardViewProps extends BusinessAppContextProps {
 export const DashboardView: React.FC<DashboardViewProps> = ({ pipelines, dateRange, moduleColor, ...context }) => {
   const [activeTab, setActiveTab] = useState<string>('overview')
   const [selectedPipelineId, setSelectedPipelineId] = useState<string>(pipelines.length > 0 ? pipelines[0].id : '')
+
+  // Fetch pipeline details screen configuration from GeneralConfig catalog
+  const { data: pipelineScreenConfig } = useGeneralConfig<{ showScreen: boolean }>({
+    code: 'CUSTOMER_PIPELINE_DETAILS_SCREEN',
+    accessToken: context.accessToken,
+    defaultValue: { showScreen: true }
+  })
 
   const {
     overviewData,
@@ -111,6 +119,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ pipelines, dateRan
     )
   }
 
+  // Conditionally show pipeline details tab based on GeneralConfig
+  const shouldShowPipelineTab = pipelineScreenConfig?.showScreen === true && pipelines.length > 0
+
   return (
     <DashboardLayout
       dataTestId="crm-dashboard-view"
@@ -127,17 +138,21 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ pipelines, dateRan
         selectedDealCurrency,
         crmRecordNavigationConfig
       )}
-      pipelineProps={buildPipelineProps({
-        selectedPipeline,
-        pipelineData,
-        pipelines,
-        selectedPipelineId,
-        pipelineCurrencies,
-        pipelineCurrency,
-        pipelineLoading,
-        handlers: { handlePipelineChange, setPipelineCurrency },
-        formatCurrency
-      })}
+      pipelineProps={
+        shouldShowPipelineTab
+          ? buildPipelineProps({
+              selectedPipeline,
+              pipelineData,
+              pipelines,
+              selectedPipelineId,
+              pipelineCurrencies,
+              pipelineCurrency,
+              pipelineLoading,
+              handlers: { handlePipelineChange, setPipelineCurrency },
+              formatCurrency
+            })
+          : undefined
+      }
     />
   )
 }

@@ -1,12 +1,10 @@
 import React, { useState } from 'react'
-import { Button, Textarea, Spinner, Badge } from '@newwork/nw-design-system'
+import { Button, Textarea, Badge } from '@newwork/nw-design-system'
 import { Sparkles, ArrowRight, Lightbulb } from 'lucide-react'
-import { FlowTemplate } from '@/common/network/flows/FlowTemplateClient'
-import { flowAIClient } from '@/common/network/flows/FlowAIClient'
+import { openEveryAI } from '@/common/utils/openEveryAI'
+import { buildFlowGenerationPrompt } from '@/common/utils/buildFlowGenerationPrompt'
 
 interface AIFlowGeneratorProps {
-  onFlowGenerated: (template: FlowTemplate) => void
-  accessToken: string
   'data-testid'?: string
 }
 
@@ -20,30 +18,17 @@ const EXAMPLE_PROMPTS = [
 /**
  * AI-powered flow generation component - OpenAI inspired design
  */
-export const AIFlowGenerator: React.FC<AIFlowGeneratorProps> = ({
-  onFlowGenerated,
-  accessToken,
-  'data-testid': testId = 'ai-flow-generator'
-}) => {
+export const AIFlowGenerator: React.FC<AIFlowGeneratorProps> = ({ 'data-testid': testId = 'ai-flow-generator' }) => {
   const [aiPrompt, setAiPrompt] = useState('')
-  const [isGenerating, setIsGenerating] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
-  const handleAIGenerate = async () => {
+  const handleAIGenerate = () => {
     if (!aiPrompt.trim()) return
 
-    setIsGenerating(true)
-    setError(null)
-    try {
-      const generatedTemplate = await flowAIClient.generateFlowTemplate(aiPrompt.trim(), accessToken)
-      onFlowGenerated(generatedTemplate)
-      setAiPrompt('')
-    } catch (err) {
-      console.error('Error generating flow:', err)
-      setError('Failed to generate flow. Please try again.')
-    } finally {
-      setIsGenerating(false)
-    }
+    const prompt = buildFlowGenerationPrompt(aiPrompt.trim())
+    openEveryAI({ prompt })
+
+    // Clear the input after opening the sidebar
+    setAiPrompt('')
   }
 
   const handleExampleClick = (example: string) => {
@@ -95,11 +80,6 @@ export const AIFlowGenerator: React.FC<AIFlowGeneratorProps> = ({
             </div>
           </div>
 
-          {/* Error message */}
-          {error && (
-            <div className="gba:p-3 gba:rounded-lg gba:bg-destructive/10 gba:text-destructive gba:text-sm">{error}</div>
-          )}
-
           {/* Generate Button */}
           <div className="gba:flex gba:items-center gba:justify-between gba:gap-4">
             <p className="gba:text-xs gba:text-muted-foreground gba:hidden gba:sm:block">
@@ -111,26 +91,17 @@ export const AIFlowGenerator: React.FC<AIFlowGeneratorProps> = ({
               <kbd className="gba:px-1.5 gba:py-0.5 gba:rounded gba:bg-muted gba:text-muted-foreground gba:font-mono gba:text-xs">
                 ↵
               </kbd>{' '}
-              to generate
+              to open AI assistant
             </p>
             <Button
               onClick={handleAIGenerate}
-              disabled={!aiPrompt.trim() || isGenerating}
+              disabled={!aiPrompt.trim()}
               size="lg"
-              className="gba:min-w-[160px]"
+              className="gba:min-w-[180px]"
               data-testid={`${testId}-ai-generate`}
             >
-              {isGenerating ? (
-                <>
-                  <Spinner size="sm" className="gba:mr-2" />
-                  Generating...
-                </>
-              ) : (
-                <>
-                  Generate
-                  <ArrowRight className="gba:h-4 gba:w-4 gba:ml-2" />
-                </>
-              )}
+              Create with AI
+              <ArrowRight className="gba:h-4 gba:w-4 gba:ml-2" />
             </Button>
           </div>
         </div>

@@ -142,8 +142,6 @@ export const AppPreviewCard: React.FC<AppPreviewCardProps> = ({
   // Determine if the app is shared with me vs I shared it with others
   const isOwner = app.isOwner ?? (currentUserId ? app.createdBy === currentUserId : true)
   const isSharedWithMe = app.isShared && !isOwner
-  const hasSharedWithOthers = isOwner && (sharedUsers.length > 0 || (app.sharedWithCount && app.sharedWithCount > 0))
-  const isShared = isSharedWithMe || hasSharedWithOthers
 
   return (
     <Card
@@ -301,7 +299,11 @@ export const AppPreviewCard: React.FC<AppPreviewCardProps> = ({
                           <AvatarImage src={sharedByUser.userAvatar} alt={sharedByUser.userName || ''} />
                         )}
                         <AvatarFallback className="gba:text-[10px] gba:bg-primary/10 gba:text-primary">
-                          {sharedByUser.userName ? getInitials(sharedByUser.userName) : <User className="gba:w-3 gba:h-3" />}
+                          {sharedByUser.userName ? (
+                            getInitials(sharedByUser.userName)
+                          ) : (
+                            <User className="gba:w-3 gba:h-3" />
+                          )}
                         </AvatarFallback>
                       </Avatar>
                     </TooltipTrigger>
@@ -316,17 +318,21 @@ export const AppPreviewCard: React.FC<AppPreviewCardProps> = ({
               <div className="gba:flex-1 gba:min-w-0">
                 <span className="gba:text-xs gba:font-medium gba:text-primary">Shared with you</span>
                 {sharedByUser?.userName && (
-                  <span className="gba:text-xs gba:text-muted-foreground gba:ml-1">
-                    by {sharedByUser.userName}
-                  </span>
+                  <span className="gba:text-xs gba:text-muted-foreground gba:ml-1">by {sharedByUser.userName}</span>
                 )}
               </div>
               {/* Permission badge */}
               <Badge
-                variant={app.permission === 'edit' || app.permission === 'owner' || app.permission === 'admin' ? 'default' : 'outline'}
+                variant={
+                  app.permission === 'edit' || app.permission === 'owner' || app.permission === 'admin'
+                    ? 'default'
+                    : 'outline'
+                }
                 className="gba:text-[10px] gba:px-1.5 gba:py-0 gba:flex-shrink-0"
               >
-                {app.permission === 'edit' || app.permission === 'owner' || app.permission === 'admin' ? 'Can edit' : 'View only'}
+                {app.permission === 'edit' || app.permission === 'owner' || app.permission === 'admin'
+                  ? 'Can edit'
+                  : 'View only'}
               </Badge>
             </div>
           </div>
@@ -354,7 +360,9 @@ export const AppPreviewCard: React.FC<AppPreviewCardProps> = ({
                       </Avatar>
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p>{user.userName || 'Unknown'} ({user.permission || 'view'})</p>
+                      <p>
+                        {user.userName || 'Unknown'} ({user.permission || 'view'})
+                      </p>
                     </TooltipContent>
                   </Tooltip>
                 ))}
@@ -388,7 +396,9 @@ export const AppPreviewCard: React.FC<AppPreviewCardProps> = ({
             }}
           >
             <Users className="gba:w-3 gba:h-3" />
-            <span>Shared with {app.sharedWithCount} {app.sharedWithCount === 1 ? 'person' : 'people'}</span>
+            <span>
+              Shared with {app.sharedWithCount} {app.sharedWithCount === 1 ? 'person' : 'people'}
+            </span>
           </div>
         )}
 

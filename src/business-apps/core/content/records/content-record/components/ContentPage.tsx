@@ -19,6 +19,7 @@ interface ContentPageProps {
   isTranslating?: boolean
   isDetecting?: boolean
   onTranslateComments?: (commentTexts: string[], targetLanguage: string) => Promise<string[]>
+  onReactionSuccess?: () => void
 }
 
 /**
@@ -36,7 +37,8 @@ const ContentPage: React.FC<ContentPageProps> = ({
   translatedTexts,
   isTranslating,
   isDetecting,
-  onTranslateComments
+  onTranslateComments,
+  onReactionSuccess
 }) => {
   // Determine which view to render based on contentGroupRef
   const isQuestion = item.contentGroupRef === ContentGroup.QUESTION
@@ -74,12 +76,12 @@ const ContentPage: React.FC<ContentPageProps> = ({
         employeeId={employeeId}
         allowedReactions={allowedReactions}
         reactionCatalogMap={reactionCatalogMap}
+        onReactionSuccess={onReactionSuccess}
         {...translationProps}
       />
     )
   }
 
-  // Default to ArticleView for News, Documents, Intranet, etc.
   return (
     <ArticleView
       item={item}
@@ -88,6 +90,7 @@ const ContentPage: React.FC<ContentPageProps> = ({
       employeeId={employeeId}
       allowedReactions={allowedReactions}
       reactionCatalogMap={reactionCatalogMap}
+      onReactionSuccess={onReactionSuccess}
       {...translationProps}
     />
   )

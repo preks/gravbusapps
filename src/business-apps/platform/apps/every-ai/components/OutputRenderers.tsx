@@ -13,9 +13,9 @@ import type {
   ScatterGraphData,
   CalendarViewData,
   EntityData,
-  FlowProposalOutput
+  FlowProposalOutput,
+  ConversationTurn
 } from '../types/models'
-import type { ConversationTurn } from '../types/models'
 import DynamicFormDisplay from './DynamicFormDisplay'
 // Standardized entity card
 import GenericEntityDisplay from './entities/GenericEntityDisplay'
@@ -23,6 +23,7 @@ import WorkflowDisplay from './entities/WorkflowDisplay'
 import { MarkdownWithChipsRenderer, UnifiedTableRenderer } from '@/common/components/markdown'
 import NavigationDisplay from './displays/NavigationDisplay'
 import { ReminderDisplay } from './displays/ReminderDisplay'
+import { RemoteFormDisplay } from './displays/RemoteFormDisplay'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface FlowProposalBoundaryProps {
@@ -223,26 +224,8 @@ export const ToolOutput: React.FC<{ name: string; reason?: string }> = ({ name, 
   const displayText = reason || formatToolName(name)
 
   return (
-    <div
-      className="gba:flex gba:items-center gba:gap-3 gba:px-4 gba:py-2.5 gba:bg-gradient-to-r gba:from-muted/50 gba:to-muted/30 gba:rounded-xl gba:text-sm gba:border gba:border-border/50"
-      data-testid="tool-output"
-    >
-      <div className="gba:h-6 gba:w-6 gba:rounded-full gba:bg-gradient-to-br gba:from-ai gba:to-ai-secondary gba:flex gba:items-center gba:justify-center gba:shadow-md">
-        <svg
-          className="gba:h-3.5 gba:w-3.5 gba:text-ai-foreground"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2.5}
-            d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-          />
-        </svg>
-      </div>
-      <span className="gba:text-muted-foreground gba:font-medium gba:italic">{displayText}</span>
+    <div className="gba:text-xs gba:text-muted-foreground gba:font-medium gba:italic" data-testid="tool-output">
+      {displayText}
     </div>
   )
 }
@@ -349,6 +332,8 @@ function renderEntity(item: EntityData, accessToken: string) {
           accessToken={accessToken}
           operation={item.operation}
           flowProposal={item.flow_proposal}
+          textTitle={item.text_title}
+          tool={item.tool}
         />
       )
     default: {
@@ -362,6 +347,7 @@ function renderEntity(item: EntityData, accessToken: string) {
           operation={item.operation}
           textHuman={item.text_human}
           textTitle={item.text_title}
+          link={item.link}
         />
       )
     }
@@ -1016,6 +1002,7 @@ export const OutputItemRenderer: React.FC<{
   sessionId?: string
   onCancelGeneration?: () => void
   isAgentGenerating?: boolean
+  userInfo?: any
 }> = ({
   item,
   accessToken,
@@ -1024,7 +1011,8 @@ export const OutputItemRenderer: React.FC<{
   isVoiceMode = false,
   sessionId,
   onCancelGeneration,
-  isAgentGenerating
+  isAgentGenerating,
+  userInfo
 }) => {
   switch (item.type) {
     case 'answer':
@@ -1043,6 +1031,107 @@ export const OutputItemRenderer: React.FC<{
           </Card>
         )
       }
+
+      // Check if this is a content_entry flow proposal - show RemoteFormDisplay instead
+      const isContentEntryFlow =
+        item.flow_name?.toLowerCase().includes('content') ||
+        item.module_name?.toLowerCase().includes('content') ||
+        item.flow_name === 'createContentEntry' ||
+        item.flow_name === 'saveContentEntry' ||
+        item.flow_name === 'frm_createContentEntry'
+
+      if (isContentEntryFlow) {
+        // Extract and transform flow proposal data for the form
+        const flowData = item.arguments?.flow || {}
+        const taskData = item.arguments?.task || {}
+        const flowContentEntry =
+          typeof flowData.contentEntry === 'object' && flowData.contentEntry ? flowData.contentEntry : null
+        const taskContentEntry =
+          typeof taskData.contentEntry === 'object' && taskData.contentEntry ? taskData.contentEntry : null
+        const flowRootContent =
+          flowData &&
+          (flowData.title ||
+            flowData.preview ||
+            flowData.previewText ||
+            flowData.content ||
+            flowData.contentGroupRef ||
+            flowData.contentTypeRef ||
+            flowData.role)
+            ? flowData
+            : null
+        const taskRootContent =
+          taskData &&
+          (taskData.title ||
+            taskData.preview ||
+            taskData.previewText ||
+            taskData.content ||
+            taskData.contentGroupRef ||
+            taskData.contentTypeRef ||
+            taskData.role)
+            ? taskData
+            : null
+
+        const contentEntryData = flowContentEntry || taskContentEntry || flowRootContent || taskRootContent || {}
+
+        // Transform the data structure to match what the form component expects
+        // The form component likely reads from additionalData and expects fields at top level
+        // or nested under contentEntry. We provide both for maximum compatibility.
+        // IMPORTANT: Avoid circular references by creating fresh objects instead of spreading nested structures
+
+        // Create a clean contentEntry object without circular references
+        // Use nullish coalescing to preserve empty strings but default to empty string if undefined
+        const cleanContentEntry = {
+          title: contentEntryData.title ?? '',
+          preview: contentEntryData.preview ?? '',
+          previewText: contentEntryData.preview ?? '', // Some forms use previewText instead of preview
+          content: contentEntryData.content ?? '',
+          role: contentEntryData.role ?? '',
+          contentGroupRef: contentEntryData.contentGroupRef ?? '',
+          contentTypeRef:
+            contentEntryData.contentTypeRef ?? contentEntryData.contentType ?? contentEntryData.contentTypeName ?? '',
+          creatorEmployee: contentEntryData.creatorEmployee ?? ''
+        }
+
+        const formData = {
+          // Primary format: Flattened fields at top level (form fields can access directly)
+          ...cleanContentEntry,
+          changeMode: flowData.changeMode || 'INSERT',
+
+          // Nested format: Under contentEntry (for components expecting nested structure)
+          contentEntry: cleanContentEntry,
+
+          // Flow structure: Keep original flow structure (avoid circular reference)
+          flow: {
+            changeMode: flowData.changeMode || 'INSERT',
+            contentEntry: cleanContentEntry
+            // Don't spread flowData here to avoid circular reference
+          },
+
+          // Include flow proposal metadata
+          flowProposal: {
+            uuid: item.uuid,
+            flow_name: item.flow_name,
+            module_name: item.module_name,
+            operation: item.operation
+          }
+        }
+
+        return (
+          <RemoteFormDisplay
+            screenKey="frm_createContentEntry"
+            accessToken={accessToken}
+            userInfo={userInfo}
+            formData={formData}
+            onClose={() => {}}
+            sendMessage={sendMessage}
+            flowName={item.flow_name}
+            moduleName={item.module_name}
+            flowUuid={item.uuid}
+          />
+        )
+      }
+
+      // For other flow proposals, use the default DynamicFormDisplay
       return (
         <FlowProposalBoundary data={item} sendMessage={sendMessage}>
           <DynamicFormDisplay

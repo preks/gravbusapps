@@ -40,7 +40,8 @@ import {
   AlertCircle,
   UserCheck,
   Users,
-  Settings
+  Settings,
+  FileType
 } from 'lucide-react'
 import type { DocumentSummary, DocumentStatus, DocumentApprovalRequest } from '../types'
 
@@ -229,8 +230,14 @@ export const DocumentPreviewCard: React.FC<DocumentPreviewCardProps> = ({
         {/* Header with icon and menu */}
         <div className="gba:flex gba:items-start gba:justify-between gba:mb-3">
           <div className="gba:flex gba:items-center gba:gap-3">
-            <div className="gba:w-10 gba:h-10 gba:rounded-lg gba:bg-primary/10 gba:flex gba:items-center gba:justify-center gba:transition-colors group-hover:gba:bg-primary/20">
-              <FileText className="gba:w-5 gba:h-5 gba:text-primary" />
+            <div
+              className={`gba:w-10 gba:h-10 gba:rounded-lg gba:flex gba:items-center gba:justify-center gba:transition-colors ${document.isPdf ? 'gba:bg-red-500/10 group-hover:gba:bg-red-500/20' : 'gba:bg-primary/10 group-hover:gba:bg-primary/20'}`}
+            >
+              {document.isPdf ? (
+                <FileType className="gba:w-5 gba:h-5 gba:text-red-600" />
+              ) : (
+                <FileText className="gba:w-5 gba:h-5 gba:text-primary" />
+              )}
             </div>
             <div className="gba:flex-1 gba:min-w-0">
               <h3
@@ -441,7 +448,11 @@ export const DocumentPreviewCard: React.FC<DocumentPreviewCardProps> = ({
                           <AvatarImage src={sharedByUser.userAvatar} alt={sharedByUser.userName || ''} />
                         )}
                         <AvatarFallback className="gba:text-[10px] gba:bg-primary/10 gba:text-primary">
-                          {sharedByUser.userName ? getInitials(sharedByUser.userName) : <User className="gba:w-3 gba:h-3" />}
+                          {sharedByUser.userName ? (
+                            getInitials(sharedByUser.userName)
+                          ) : (
+                            <User className="gba:w-3 gba:h-3" />
+                          )}
                         </AvatarFallback>
                       </Avatar>
                     </TooltipTrigger>
@@ -456,20 +467,18 @@ export const DocumentPreviewCard: React.FC<DocumentPreviewCardProps> = ({
               <div className="gba:flex-1 gba:min-w-0">
                 <span className="gba:text-xs gba:font-medium gba:text-primary">Shared with you</span>
                 {sharedByUser?.userName && (
-                  <span className="gba:text-xs gba:text-muted-foreground gba:ml-1">
-                    by {sharedByUser.userName}
-                  </span>
+                  <span className="gba:text-xs gba:text-muted-foreground gba:ml-1">by {sharedByUser.userName}</span>
                 )}
               </div>
               {/* Always show permission badge for shared documents */}
-              <Badge 
-                variant={document.permission === 'edit' ? 'default' : 'outline'} 
+              <Badge
+                variant={document.permission === 'edit' ? 'default' : 'outline'}
                 className="gba:text-[10px] gba:px-1.5 gba:py-0 gba:shrink-0"
               >
-                {document.permission === 'edit' 
-                  ? 'Can edit' 
-                  : document.permission === 'comment' 
-                    ? 'Can comment' 
+                {document.permission === 'edit'
+                  ? 'Can edit'
+                  : document.permission === 'comment'
+                    ? 'Can comment'
                     : 'View only'}
               </Badge>
             </div>
@@ -495,16 +504,14 @@ export const DocumentPreviewCard: React.FC<DocumentPreviewCardProps> = ({
             {/* Shared users avatars (for documents I own) */}
             {document.isOwner && sharedUsers.length > 0 && (
               <TooltipProvider>
-                <div 
+                <div
                   className="gba:flex gba:items-center gba:-space-x-2 gba:cursor-pointer"
                   onClick={() => onManageShares?.(document.id)}
                 >
                   {sharedUsers.slice(0, 4).map(user => (
                     <Tooltip key={user.userId}>
                       <TooltipTrigger asChild>
-                        <Avatar 
-                          className="gba:w-6 gba:h-6 gba:border-2 gba:border-background hover:gba:z-10 gba:transition-transform hover:gba:scale-110"
-                        >
+                        <Avatar className="gba:w-6 gba:h-6 gba:border-2 gba:border-background hover:gba:z-10 gba:transition-transform hover:gba:scale-110">
                           {user.userAvatar && <AvatarImage src={user.userAvatar} alt={user.userName || ''} />}
                           <AvatarFallback className="gba:text-[10px] gba:bg-muted">
                             {user.userName ? getInitials(user.userName) : '?'}
@@ -514,7 +521,11 @@ export const DocumentPreviewCard: React.FC<DocumentPreviewCardProps> = ({
                       <TooltipContent>
                         <p className="gba:font-medium">{user.userName || 'Unknown'}</p>
                         <p className="gba:text-xs gba:text-muted-foreground">
-                          {user.permission === 'edit' ? 'Can edit' : user.permission === 'comment' ? 'Can comment' : 'Can view'}
+                          {user.permission === 'edit'
+                            ? 'Can edit'
+                            : user.permission === 'comment'
+                              ? 'Can comment'
+                              : 'Can view'}
                         </p>
                       </TooltipContent>
                     </Tooltip>
@@ -538,15 +549,18 @@ export const DocumentPreviewCard: React.FC<DocumentPreviewCardProps> = ({
             )}
 
             {/* Shared count fallback (when no avatar data available) */}
-            {document.isOwner && sharedUsers.length === 0 && document.sharedWithCount && document.sharedWithCount > 0 && (
-              <div 
-                className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:text-muted-foreground gba:cursor-pointer hover:gba:text-foreground"
-                onClick={() => onManageShares?.(document.id)}
-              >
-                <Users className="gba:w-3 gba:h-3" />
-                <span>Shared with {document.sharedWithCount}</span>
-              </div>
-            )}
+            {document.isOwner &&
+              sharedUsers.length === 0 &&
+              document.sharedWithCount &&
+              document.sharedWithCount > 0 && (
+                <div
+                  className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:text-muted-foreground gba:cursor-pointer hover:gba:text-foreground"
+                  onClick={() => onManageShares?.(document.id)}
+                >
+                  <Users className="gba:w-3 gba:h-3" />
+                  <span>Shared with {document.sharedWithCount}</span>
+                </div>
+              )}
           </div>
         </div>
       </div>

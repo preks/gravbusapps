@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import {
   Avatar,
   AvatarFallback,
@@ -33,25 +33,13 @@ export interface SearchableEmployeeComboboxProps {
   showTeammatesHint?: boolean
 }
 
-// Helper to convert base64 to Object URL (for browser caching)
-const base64ToObjectURL = (base64Data: string): string | undefined => {
+// Helper to convert base64 to data URL (no memory leak, unlike ObjectURL)
+const base64ToDataURL = (base64Data: string): string | undefined => {
   try {
-    // Skip if data is JSON or invalid
-    if (base64Data.startsWith('{')) return undefined
-
-    // Convert base64 to blob
-    const byteCharacters = atob(base64Data)
-    const byteNumbers = new Array(byteCharacters.length)
-    for (let i = 0; i < byteCharacters.length; i++) {
-      byteNumbers[i] = byteCharacters.codePointAt(i) ?? 0
-    }
-    const byteArray = new Uint8Array(byteNumbers)
-    const blob = new Blob([byteArray], { type: 'image/jpeg' })
-
-    // Create Object URL (this will be cached by the browser!)
-    return URL.createObjectURL(blob)
-  } catch (error) {
-    console.error('[SearchableEmployeeCombobox] Failed to create Object URL:', error)
+    if (!base64Data || base64Data.startsWith('{')) return undefined
+    if (base64Data.startsWith('data:')) return base64Data
+    return `data:image/jpeg;base64,${base64Data}`
+  } catch {
     return undefined
   }
 }
@@ -102,7 +90,7 @@ export const SearchableEmployeeCombobox: React.FC<SearchableEmployeeComboboxProp
       }
 
       // Create new avatar URL
-      const avatarUrl = option.avatar && !option.avatar.startsWith('{') ? base64ToObjectURL(option.avatar) : undefined
+      const avatarUrl = option.avatar && !option.avatar.startsWith('{') ? base64ToDataURL(option.avatar) : undefined
 
       const optionWithAvatar = {
         ...option,
@@ -115,18 +103,6 @@ export const SearchableEmployeeCombobox: React.FC<SearchableEmployeeComboboxProp
       return optionWithAvatar
     })
   }, [options])
-
-  // Cleanup Object URLs on unmount ONLY to prevent memory leaks
-  useEffect(() => {
-    return () => {
-      // Cleanup all cached options on final unmount only
-      allSeenOptionsRef.current.forEach(option => {
-        if (option.avatarUrl) {
-          URL.revokeObjectURL(option.avatarUrl)
-        }
-      })
-    }
-  }, []) // Empty dependency array = cleanup only on unmount
 
   const handleSelect = (selectedValue: string) => {
     if (multiple) {

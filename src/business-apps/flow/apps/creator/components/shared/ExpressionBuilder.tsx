@@ -67,9 +67,9 @@ const validateExpressionStrict = (value: string): { isValid: boolean; message?: 
   })
 
   // Check if remaining text contains suspicious characters
-  // Allow: letters, numbers, spaces, basic punctuation (. , ! ? : ; - _ / \)
-  // Disallow: @ # $ % ^ & * ( ) + = { } [ ] | < >
-  const suspiciousCharPattern = /[@#$%^&*+={}[\]|<>]/
+  // Allow: letters, numbers, spaces, most punctuation including @ ; ` < >
+  // Disallow: # $ % ^ & * ( ) + = { } [ ] | (expression-like characters)
+  const suspiciousCharPattern = /[#$%^&*+={}[\]|]/
 
   if (suspiciousCharPattern.test(remainingText)) {
     const suspiciousChars = remainingText.match(suspiciousCharPattern)

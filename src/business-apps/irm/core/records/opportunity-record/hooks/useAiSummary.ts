@@ -1,3 +1,4 @@
+import { useCallback } from 'react'
 import * as z from 'zod'
 import useInformationExtraction, { UseInformationExtractionReturn } from '@/common/hooks/useInformationExtraction'
 import {
@@ -7,9 +8,17 @@ import {
 } from '@/common/data/investment/hooks/useInvestmentOpportunities'
 import { useInvestmentOpportunity } from '@/common/data/investment/hooks/useInvestmentOpportunity'
 
-const taskDescription = `You are an assistant that summarises CRM opportunity timelines. 
-Provide a concise executive summary in plain language, the total number of activities mentioned, 
-and up to 5 key insights or next steps as an array of strings. 
+const taskDescription = `You are an investment deal assistant analyzing an investment opportunity.
+
+Analyze all available opportunity data including investment details, financial terms, asset characteristics, deal timeline, activities, notes, and tasks to provide:
+1. A concise executive summary highlighting the investment thesis, deal structure, asset profile, and current deal stage
+2. Up to 5 key insights covering:
+   - Investment viability and financial attractiveness
+   - Deal momentum and progression indicators
+   - Risk factors or concerns identified
+   - Critical next steps to advance or close the deal
+
+Emphasize investment metrics, financial considerations, and deal-specific factors.
 Respond strictly in JSON conforming to the provided schema.`
 
 const summarySchema = z.object({
@@ -25,7 +34,7 @@ export function useAiSummary(opportunityId: string, accessToken: string): UseAiS
   const { fetchInvestmentNotesByOpportunityId } = useGetInvestmentNotesByOpportunityId({ accessToken })
   const { fetchInvestmentTasksByOpportunityId } = useGetInvestmentTasksByOpportunityId({ accessToken })
 
-  const generateInputData = async () => {
+  const generateInputData = useCallback(async () => {
     // get opportunity data using new declarative hook
     // opportunity is already available from the hook
 
@@ -52,8 +61,17 @@ Activities: ${JSON.stringify(sortedActivities)}
 Notes: ${JSON.stringify(sortedNotes)}
 Tasks: ${JSON.stringify(sortedTasks)}`
 
+    if (process.env.NODE_ENV === 'development') {
+      console.debug('AI Summary Input Data Length:', inputData.length, 'characters')
+    }
     return inputData
-  }
+  }, [
+    opportunityId,
+    opportunity,
+    fetchInvestmentActivitiesByOpportunityId,
+    fetchInvestmentNotesByOpportunityId,
+    fetchInvestmentTasksByOpportunityId
+  ])
 
   return useInformationExtraction(taskDescription, summarySchema, generateInputData, accessToken, 'gpt-4.1')
 }

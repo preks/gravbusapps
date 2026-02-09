@@ -26,7 +26,7 @@ export const useFilterGroups = (
   context: BusinessAppContextProps,
   entityName: string,
   descriptors: Descriptor[],
-  options?: { limit?: number }
+  options?: { limit?: number; baseWhereParts?: string[] }
 ): UseFilterGroupsResult => {
   const graphqlClient = useGraphQLClient(context.accessToken)
   const [filterData, setFilterData] = useState<Record<string, FilterGroupData>>({})
@@ -49,7 +49,8 @@ export const useFilterGroups = (
           entityName,
           descriptors,
           searchByKey,
-          limit: options?.limit || 100
+          limit: options?.limit || 100,
+          baseWhereParts: options?.baseWhereParts
         })
 
         setFilterData(data)
@@ -61,7 +62,7 @@ export const useFilterGroups = (
         setIsLoading(false)
       }
     },
-    [graphqlClient, entityName, descriptors, options?.limit, context.accessToken]
+    [graphqlClient, entityName, descriptors, options?.limit, options?.baseWhereParts, context.accessToken]
   )
 
   useEffect(() => {

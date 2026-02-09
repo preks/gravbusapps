@@ -82,6 +82,7 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({
   const navigationPayload = (_navigationPayload as any)?.nvi_navigationPayload || null
   const {
     graphqlClient,
+    formState,
     calculationTypeOptions: hookCalcTypes,
     currencyOptions: hookCurrencies,
     countryOptions: hookCountries,
@@ -166,28 +167,54 @@ const CreateCalculationRuleForm: React.FC<CreateCalculationRuleFormProps> = ({
 
   // Prefill Select fields when options are loaded (either preloaded or from hook)
   useEffect(() => {
-    if (!isUpdate || !prefilledRule || !catalogsReady) return
+    if (!isUpdate || !prefilledRule || !catalogsReady) {
+      console.log('🔍 [Select Prefill] Skipping - conditions not met:', {
+        isUpdate,
+        hasPrefilledRule: !!prefilledRule,
+        catalogsReady,
+        calculationTypeOptionsCount: calculationTypeOptions.length,
+        currencyOptionsCount: currencyOptions.length,
+        countryOptionsCount: countryOptions.length
+      })
+      return
+    }
 
     // Set Select fields only after options are available
     const calcTypeId = prefilledRule.calculationTypeRef || prefilledRule.calculationType?.id || ''
     const countryId = prefilledRule.countryRef || ''
     const currId = prefilledRule.currencyRef || prefilledRule.currency?.id || ''
 
+    console.log('🔍 [Select Prefill] Setting values:', { calcTypeId, countryId, currId })
+    console.log('🔍 [Select Prefill] Prefilled rule data:', {
+      calculationTypeRef: prefilledRule.calculationTypeRef,
+      calculationTypeId: prefilledRule.calculationType?.id,
+      countryRef: prefilledRule.countryRef,
+      currencyRef: prefilledRule.currencyRef,
+      currencyId: prefilledRule.currency?.id
+    })
+
     if (calcTypeId) setValue('calculationTypeId', calcTypeId)
     if (countryId) setValue('countryRefId', countryId)
     if (currId) setValue('currencyId', currId)
-  }, [isUpdate, prefilledRule, catalogsReady, setValue])
+  }, [
+    isUpdate,
+    prefilledRule,
+    catalogsReady,
+    setValue,
+    calculationTypeOptions.length,
+    currencyOptions.length,
+    countryOptions.length
+  ])
 
-  // Prefill flags when loaded
+  // Prefill flags when loaded - use formState from hook (already processed all flags)
   useEffect(() => {
-    if (!flagsLoaded || !existingFlag) return
+    if (!flagsLoaded || !isUpdate) return
 
-    const austrian = existingFlag.name === 'Austrian Abroad' && existingFlag.value === 'true'
-    const romanian = existingFlag.name === 'Romanian Calculation' && existingFlag.value === 'true'
-
-    if (austrian) setValue('austrianAbroad', true)
-    if (romanian) setValue('romanianCalculation', true)
-  }, [flagsLoaded, existingFlag, setValue])
+    // The hook's formState has already processed all flags correctly
+    // We need to sync these values to React Hook Form
+    setValue('austrianAbroad', formState.austrianAbroad)
+    setValue('romanianCalculation', formState.romanianCalculation)
+  }, [flagsLoaded, isUpdate, formState.austrianAbroad, formState.romanianCalculation, setValue])
 
   // Capture initial snapshot for update mode (to detect if values changed)
   useEffect(() => {

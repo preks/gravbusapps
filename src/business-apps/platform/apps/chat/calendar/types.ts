@@ -1,5 +1,8 @@
 // Calendar and Meeting Types
 
+// Note: Agenda utilities are in ./utils/agendaUtils
+// Import directly from there to avoid circular dependencies
+
 export enum MeetingStatus {
   SCHEDULED = 'scheduled',
   IN_PROGRESS = 'in_progress',
@@ -61,6 +64,7 @@ export interface Meeting {
   organizerId: string
   conversationId?: string
   webrtcSessionId?: string
+  transcriptionEnabled?: boolean
   reminderMinutes: number[]
   isAllDay: boolean
   color: string
@@ -117,6 +121,10 @@ export interface CalendarEvent {
   meetingLink?: string
   location?: string
   conversationId?: string
+  recurrence?: MeetingRecurrence
+  recurrenceEndDate?: Date
+  reminderMinutes?: number[]
+  metadata?: Record<string, any>
 }
 
 export interface CreateMeetingData {

@@ -62,7 +62,7 @@ dayjs.extend(weekday)
 dayjs.extend(localeData)
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { ExpenseSettingsClient } from '../../../utils/ExpenseSettingsClient'
-import { formatDateForInput, findOverlappingPeriods, formatDate } from '../../../utils'
+import { formatDateForInput, findOverlappingPeriods, formatDate, normalizeDateInputValue } from '../../../utils'
 import {
   validateDateRange,
   applyDateValidationErrors,
@@ -103,8 +103,8 @@ interface OtherCalculation {
     name: string
   }
   reimbursablePercent?: number
-  validFrom: string
-  validTo?: string
+  activeFrom: string
+  activeTo?: string
   version?: number
 }
 
@@ -114,8 +114,8 @@ interface OtherCalculationFormData {
   relatedId?: string
   costCenterId?: string
   reimbursablePercent?: number
-  validFrom: string
-  validTo?: string
+  activeFrom: string
+  activeTo?: string
   version?: number
 }
 
@@ -152,7 +152,7 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
       linkedItem: createFieldMappings.string((a: OtherCalculation) => a.relatedCode || a.relatedName),
       costCenter: createFieldMappings.nested((a: OtherCalculation) => a.costCenter),
       reimbursablePercent: createFieldMappings.number((a: OtherCalculation) => a.reimbursablePercent),
-      activeFrom: createFieldMappings.date((a: OtherCalculation) => a.validFrom)
+      activeFrom: createFieldMappings.date((a: OtherCalculation) => a.activeFrom)
     }),
     []
   )
@@ -173,8 +173,8 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
       relatedId: undefined,
       costCenterId: undefined,
       reimbursablePercent: undefined,
-      validFrom: formatDateForInput(activeFrom) || dayjs().format('YYYY-MM-DD'),
-      validTo: formatDateForInput(activeTo) || '9999-12-31'
+      activeFrom: formatDateForInput(activeFrom) || dayjs().format('YYYY-MM-DD'),
+      activeTo: formatDateForInput(activeTo) || '9999-12-31'
     }
   })
 
@@ -352,8 +352,8 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
           relatedName,
           costCenter: calc.costCenter || undefined,
           reimbursablePercent: calc.reimbursablePercent || undefined,
-          validFrom: calc.activeFrom,
-          validTo: calc.activeTo,
+          activeFrom: calc.activeFrom,
+          activeTo: calc.activeTo,
           version: calc.version
         }
       })
@@ -410,15 +410,15 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
     setCurrentUsageInfo(null)
 
     // Get validity dates using shared utility (inherits from parent rule)
-    const { validFrom, validTo } = getValidityDatesFromRule(activeFrom, activeTo)
+    const { activeFrom: entryActiveFrom, activeTo: entryActiveTo } = getValidityDatesFromRule(activeFrom, activeTo)
 
     form.reset({
       source: '',
       relatedId: undefined,
       costCenterId: undefined,
       reimbursablePercent: undefined,
-      validFrom,
-      validTo
+      activeFrom: entryActiveFrom,
+      activeTo: entryActiveTo
     })
     setIsModalVisible(true)
   }
@@ -439,9 +439,9 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
         relatedId: record.relatedId,
         costCenterId: record.costCenter?.id,
         reimbursablePercent: record.reimbursablePercent,
-        validFrom:
-          formatDateForInput(record.validFrom) || formatDateForInput(activeFrom) || dayjs().format('YYYY-MM-DD'),
-        validTo: formatDateForInput(record.validTo),
+        activeFrom:
+          formatDateForInput(record.activeFrom) || formatDateForInput(activeFrom) || dayjs().format('YYYY-MM-DD'),
+        activeTo: formatDateForInput(record.activeTo),
         version: record.version
       })
       setIsModalVisible(true)
@@ -579,8 +579,8 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
       const calcExists = await checkOtherCalcUniqueness(
         formValues.source,
         formValues.relatedId,
-        formValues.validFrom,
-        formValues.validTo,
+        formValues.activeFrom,
+        formValues.activeTo,
         editingItem?.id
       )
 
@@ -596,8 +596,8 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
 
       // Date validation using shared utility
       const dateErrors = validateDateRange({
-        entryFrom: formValues.validFrom,
-        entryTo: formValues.validTo,
+        entryFrom: formValues.activeFrom,
+        entryTo: formValues.activeTo,
         ruleFrom: activeFrom,
         ruleTo: activeTo
       })
@@ -834,7 +834,7 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
                         <div className="gba:flex gba:items-center gba:gap-1">
                           <PiCalendar className="gba:text-muted-foreground" />
                           <span className="gba:text-sm">
-                            {formatDate(record.validFrom)} - {record.validTo ? formatDate(record.validTo) : '∞'}
+                            {formatDate(record.activeFrom)} - {record.activeTo ? formatDate(record.activeTo) : '∞'}
                           </span>
                         </div>
                       </TableCell>
@@ -1028,7 +1028,7 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
               <div className="gba:space-y-4">
                 <FormField
                   control={form.control}
-                  name="validFrom"
+                  name="activeFrom"
                   rules={{ required: 'Valid From is required' }}
                   render={({ field }) => (
                     <FormItem>
@@ -1036,7 +1036,8 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
                       <FormControl>
                         <DateInput
                           value={field.value || ''}
-                          onChange={date => field.onChange(date)}
+                          onChange={date => field.onChange(normalizeDateInputValue(date) ?? '')}
+                          outputFormat="iso"
                           disabled={isRestrictedEdit}
                           data-testid="other-calculation-valid-from-input"
                         />
@@ -1048,14 +1049,15 @@ const OtherCalculationTab: React.FC<OtherCalculationTabProps> = ({ ruleId, acces
 
                 <FormField
                   control={form.control}
-                  name="validTo"
+                  name="activeTo"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Valid To</FormLabel>
                       <FormControl>
                         <DateInput
                           value={field.value || ''}
-                          onChange={date => field.onChange(date)}
+                          onChange={date => field.onChange(normalizeDateInputValue(date))}
+                          outputFormat="iso"
                           data-testid="other-calculation-valid-to-input"
                         />
                       </FormControl>

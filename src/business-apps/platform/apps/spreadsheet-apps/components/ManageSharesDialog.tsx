@@ -114,16 +114,6 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
   const graphqlClient = useGraphQLClient(accessToken)
 
   /**
-   * Fetch shares when dialog opens
-   */
-  useEffect(() => {
-    if (open && appId) {
-      loadShares()
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, appId])
-
-  /**
    * Load shares and enrich with user info
    */
   const loadShares = useCallback(async () => {
@@ -206,6 +196,14 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
   }, [appId, graphqlClient])
 
   /**
+   * Fetch shares when dialog opens
+   */
+  useEffect(() => {
+    if (!open || !appId) return
+    void loadShares()
+  }, [open, appId, loadShares])
+
+  /**
    * Update a share's permission
    */
   const handleUpdatePermission = useCallback(
@@ -222,6 +220,7 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
           toast.error('Failed to update permission')
         }
       } catch (err) {
+        console.error('[ManageSharesDialog] Failed to update permission:', err)
         toast.error('Failed to update permission')
       } finally {
         setUpdatingShareId(null)
@@ -249,6 +248,7 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
           toast.error('Failed to remove access')
         }
       } catch (err) {
+        console.error('[ManageSharesDialog] Failed to remove access:', err)
         toast.error('Failed to remove access')
       } finally {
         setRemovingShareId(null)
@@ -327,7 +327,9 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
                           {share.isLoading ? <Spinner size="sm" /> : share.userName || 'Loading...'}
                         </p>
                       </div>
-                      <p className="gba:text-xs gba:text-muted-foreground">Shared {formatRelativeDate(share.sharedAt)}</p>
+                      <p className="gba:text-xs gba:text-muted-foreground">
+                        Shared {formatRelativeDate(share.sharedAt)}
+                      </p>
                     </div>
 
                     {/* Permission selector */}

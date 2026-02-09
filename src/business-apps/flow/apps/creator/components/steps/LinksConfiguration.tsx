@@ -1,8 +1,10 @@
 import React from 'react'
-import { Button, Input } from '@newwork/nw-design-system'
-import { Select } from 'antd'
+import { Button, Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system'
 import { Link, Trash2 } from 'lucide-react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+
+// Link types must be uppercase to match API requirements
+type LinkType = 'URL' | 'DOCUMENT' | 'IMAGE' | 'FILE'
 
 interface LinksConfigurationProps {
   step: any
@@ -44,7 +46,7 @@ export const LinksContent: React.FC<LinksContentProps> = ({ step, testId, onUpda
   const links = step.links || []
 
   const handleAddLink = () => {
-    const newLinks = [...links, { id: `link-${Date.now()}`, name: '', url: '', type: 'url' }]
+    const newLinks = [...links, { id: `link-${Date.now()}`, name: '', url: '', type: 'URL' as LinkType }]
     onUpdateStep({ links: newLinks })
   }
 
@@ -89,14 +91,19 @@ export const LinksContent: React.FC<LinksContentProps> = ({ step, testId, onUpda
                 data-testid={`${testId}-link-url-${index}`}
               />
               <Select
-                value={link.type || 'url'}
-                onChange={value => handleUpdateLink(index, 'type', value)}
-                style={{ width: '120px' }}
+                value={link.type || 'URL'}
+                onValueChange={value => handleUpdateLink(index, 'type', value)}
                 data-testid={`${testId}-link-type-${index}`}
               >
-                <Select.Option value="url">URL</Select.Option>
-                <Select.Option value="document">Document</Select.Option>
-                <Select.Option value="image">Image</Select.Option>
+                <SelectTrigger className="gba:w-[120px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="URL">URL</SelectItem>
+                  <SelectItem value="DOCUMENT">Document</SelectItem>
+                  <SelectItem value="IMAGE">Image</SelectItem>
+                  <SelectItem value="FILE">File</SelectItem>
+                </SelectContent>
               </Select>
               <Button
                 variant="ghost"

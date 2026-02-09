@@ -11,7 +11,7 @@ type YjsSyncResponse =
 
 type YjsSyncResponseEvent = {
   documentId: string
-  entityType?: 'document' | 'note'
+  entityType?: 'document' | 'note' | 'slide'
   state: string
   awareness: string | null
 }
@@ -54,7 +54,7 @@ function emitWithAck<TResponse>(
 export interface SocketIoYjsProviderOptions {
   socket: Socket
   documentId: string
-  entityType?: 'document' | 'note'
+  entityType?: 'document' | 'note' | 'slide'
   ydoc: Y.Doc
   awareness: Awareness
   onSyncedChange?: (isSynced: boolean) => void
@@ -75,7 +75,7 @@ export class SocketIoYjsProvider {
 
   private socket: Socket
   private documentId: string
-  private entityType: 'document' | 'note'
+  private entityType: 'document' | 'note' | 'slide'
   private ydoc: Y.Doc
 
   private destroyed = false
@@ -301,7 +301,7 @@ export class SocketIoYjsProvider {
     this.setSynced(true)
   }
 
-  private handleRemoteYjsUpdate = (event: { documentId: string; entityType?: 'document' | 'note'; update: string }) => {
+  private handleRemoteYjsUpdate = (event: { documentId: string; entityType?: 'document' | 'note' | 'slide'; update: string }) => {
     if (this.destroyed) return
     if (!event || event.documentId !== this.documentId) return
     // Check entityType matches
@@ -312,7 +312,7 @@ export class SocketIoYjsProvider {
 
   private handleRemoteAwarenessUpdate = (event: {
     documentId: string
-    entityType?: 'document' | 'note'
+    entityType?: 'document' | 'note' | 'slide'
     update: string
   }) => {
     if (this.destroyed) return

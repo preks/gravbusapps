@@ -1,9 +1,12 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useMemo } from 'react'
 import { Button, Input, Spinner, Popover, PopoverContent, PopoverTrigger } from '@newwork/nw-design-system'
 import { Plus, MagnifyingGlass, User, UsersThree } from '@phosphor-icons/react'
 import { ConversationItem } from './ConversationItem'
 import { UserSearch } from './UserSearch'
+import { UserStatusDropdown } from './UserStatusDropdown'
 import type { Conversation } from '../types'
+import type { ChatWebSocketClient } from '../services/chatWebSocketClient'
+import type { PresenceData } from '../hooks/usePresence'
 import { useChatTranslation } from '../contexts/TranslationContext'
 
 interface ConversationListProps {
@@ -20,9 +23,11 @@ interface ConversationListProps {
   currentUserId?: string | null
   accessToken: string
   compact?: boolean
-  presenceMap: ReadonlyMap<string, { status: 'online' | 'offline'; lastSeen?: string }>
+  presenceMap: ReadonlyMap<string, PresenceData>
   presenceVersion: number
   conversationExpertCounts?: Map<string, number>
+  wsClient?: ChatWebSocketClient | null
+  isConnected?: boolean
 }
 
 // Helper to get the other participant's user ID from a direct conversation
@@ -52,7 +57,9 @@ export const ConversationList: React.FC<ConversationListProps> = ({
   compact = false,
   presenceMap,
   presenceVersion,
-  conversationExpertCounts
+  conversationExpertCounts,
+  wsClient = null,
+  isConnected = false
 }) => {
   const t = useChatTranslation()
   // Force re-render when presenceVersion changes
@@ -63,7 +70,29 @@ export const ConversationList: React.FC<ConversationListProps> = ({
   const [showNewChatMenu, setShowNewChatMenu] = useState(false)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
 
-  const filteredConversations = conversations.filter(conv => {
+  // Deduplicate conversations by ID (defensive programming - duplicates should be rare after fixes)
+  const uniqueConversations = useMemo(() => {
+    const seen = new Set<string>()
+    const duplicates: string[] = []
+
+    const filtered = conversations.filter(conv => {
+      if (seen.has(conv.id)) {
+        duplicates.push(conv.id)
+        return false
+      }
+      seen.add(conv.id)
+      return true
+    })
+
+    // Only log in development if duplicates are found (should be rare now)
+    if (duplicates.length > 0 && process.env.NODE_ENV === 'development') {
+      console.debug('[ConversationList] Filtered out duplicate conversations:', duplicates)
+    }
+
+    return filtered
+  }, [conversations])
+
+  const filteredConversations = uniqueConversations.filter(conv => {
     if (!searchQuery.trim()) return true
 
     const query = searchQuery.toLowerCase()
@@ -136,14 +165,27 @@ export const ConversationList: React.FC<ConversationListProps> = ({
     <div className="gba:flex gba:flex-col gba:h-full gba:min-h-0" data-testid="conversation-list">
       {/* Header */}
       <div
-        className={`gba:flex gba:items-center gba:justify-between gba:border-b gba:border-border/50 gba:bg-background/50 gba:backdrop-blur-sm gba:sticky gba:top-0 gba:z-10 ${compact ? 'gba:px-3 gba:py-2' : 'gba:p-4'}`}
+        className={`gba:flex gba:items-center gba:gap-2 gba:border-b gba:border-border/50 gba:bg-background/50 gba:backdrop-blur-sm gba:sticky gba:top-0 gba:z-10 ${compact ? 'gba:px-3 gba:py-2' : 'gba:p-4'}`}
       >
         <h1 className={`gba:font-semibold gba:text-foreground ${compact ? 'gba:text-base' : 'gba:text-lg'}`}>
           {t('chat-appHeader')}
         </h1>
+
+        {/* User Status Dropdown - Compact inline version */}
+        {wsClient && (
+          <div className="gba:relative gba:flex-1 gba:min-w-0">
+            <UserStatusDropdown client={wsClient} isConnected={isConnected} currentUserId={currentUserId} />
+          </div>
+        )}
+
         <Popover open={showNewChatMenu} onOpenChange={setShowNewChatMenu}>
           <PopoverTrigger asChild>
-            <Button variant="ghost" size="icon" className="gba:h-8 gba:w-8" data-testid="new-conversation-button">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="gba:h-8 gba:w-8 gba:flex-shrink-0"
+              data-testid="new-conversation-button"
+            >
               <Plus className="gba:w-4 gba:h-4" />
             </Button>
           </PopoverTrigger>

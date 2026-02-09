@@ -61,7 +61,9 @@ import {
   LayoutGrid,
   User,
   RefreshCw,
-  ChevronLeft
+  ChevronLeft,
+  PanelLeftClose,
+  PanelLeft
 } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo } from '@/common/utils/navigationUtils'
@@ -166,12 +168,30 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
   const [currentView, setCurrentView] = useState<HubView>('list')
   const [viewLayout, setViewLayout] = useState<'grid' | 'list'>('list')
   const [searchQuery, setSearchQuery] = useState('')
+
+  // Clear space return URL if not opened from a space
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(globalThis.window.location.search)
+      const spaceId = params.get('spaceId')
+      if (!spaceId) {
+        // Spreadsheet opened from hub, not from a space - clear any stale return URL
+        sessionStorage.removeItem('space_return_url')
+      }
+    } catch (e) {
+      console.warn('Failed to check/clear space_return_url:', e)
+    }
+  }, [])
   const [isCreateEmptyDialogOpen, setIsCreateEmptyDialogOpen] = useState(false)
   const [newAppName, setNewAppName] = useState('')
   const [activeSection, setActiveSection] = useState<SidebarSection>('my-files')
   const [selectedApps, setSelectedApps] = useState<Set<string>>(new Set())
   const [sortBy, setSortBy] = useState<'name' | 'modified' | 'created'>('modified')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+    const saved = localStorage.getItem('spreadsheet-hub-sidebar-collapsed')
+    return saved === 'true'
+  })
   const { favorites, setFavorites } = useSpreadsheetAppsHubFavorites()
 
   // Data state
@@ -257,8 +277,22 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     isLoadingApps,
     loadAppById: loadApp,
     setSelectedAppId,
-    setCurrentView
+    setCurrentView,
+    activeSection,
+    setActiveSection
   })
+
+  // Update URL whenever activeSection changes (when user clicks sidebar)
+  useEffect(() => {
+    if (currentView === 'list' && !currentApp) {
+      updateUrl(null)
+    }
+  }, [activeSection, currentView, currentApp, updateUrl])
+
+  // Persist sidebar collapsed state
+  useEffect(() => {
+    localStorage.setItem('spreadsheet-hub-sidebar-collapsed', String(isSidebarCollapsed))
+  }, [isSidebarCollapsed])
 
   const { filteredApps } = useSpreadsheetAppsHubFiltering({
     apps,
@@ -522,6 +556,29 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
   )
 
   const handleBack = useCallback(() => {
+    // Check if there's a space return URL in sessionStorage (takes priority)
+    try {
+      const spaceReturnUrl = sessionStorage.getItem('space_return_url')
+      if (spaceReturnUrl) {
+        sessionStorage.removeItem('space_return_url')
+        globalThis.window.location.href = spaceReturnUrl
+        return
+      }
+    } catch (e) {
+      console.warn('Failed to read space_return_url from sessionStorage:', e)
+    }
+
+    // Fallback: Check if there's a returnUrl parameter
+    const params = new URLSearchParams(globalThis.window.location.search)
+    const returnUrl = params.get('returnUrl')
+
+    if (returnUrl) {
+      // Navigate back to the specified URL (e.g., space)
+      globalThis.window.location.href = returnUrl
+      return
+    }
+
+    // Otherwise, go back to the list view
     clearCurrentApp()
     resetLoadAttempt()
     setSelectedAppId(null)
@@ -681,37 +738,81 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
   return (
     <div className="gba:flex gba:h-full gba:bg-background" data-testid={testId}>
       {/* Sidebar */}
-      <aside className="gba:w-60 gba:border-r gba:bg-card gba:flex gba:flex-col gba:flex-shrink-0">
+      <aside
+        className={`gba:border-r gba:bg-card gba:flex gba:flex-col gba:flex-shrink-0 gba:transition-all gba:duration-300 ${isSidebarCollapsed ? 'gba:w-16' : 'gba:w-60'}`}
+      >
         {/* Logo / Brand */}
-        <div className="gba:p-4 gba:border-b">
-          {/* Back button row */}
-          <button
-            onClick={() => navigateTo('/platform/apps/platform/apps/desk')}
-            className="gba:flex gba:items-center gba:gap-1.5 gba:text-sm gba:text-muted-foreground hover:gba:text-foreground gba:transition-colors gba:mb-3"
+        <div className={`gba:border-b ${isSidebarCollapsed ? 'gba:p-2' : 'gba:p-4'}`}>
+          {/* Back button and collapse toggle row */}
+          <div
+            className={`gba:flex gba:items-center gba:mb-2 ${isSidebarCollapsed ? 'gba:justify-center' : 'gba:justify-between'}`}
           >
-            <ChevronLeft className="gba:w-4 gba:h-4" />
-            <span>Back to Desk</span>
-          </button>
-
-          {/* Existing brand section */}
-          <div className="gba:flex gba:items-center gba:gap-3">
-            <div className="gba:w-10 gba:h-10 gba:rounded-xl gba:bg-gradient-to-br gba:from-emerald-500 gba:to-teal-600 gba:flex gba:items-center gba:justify-center">
-              <FileSpreadsheet className="gba:w-5 gba:h-5 gba:text-white" />
-            </div>
-            <div>
-              <h1 className="gba:font-semibold gba:text-foreground">Spreadsheets</h1>
-              <p className="gba:text-xs gba:text-muted-foreground">NEWWORK Apps</p>
-            </div>
+            <TooltipProvider>
+              {!isSidebarCollapsed && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => navigateTo('/platform/every-office')}
+                      data-testid={`${testId}-back-to-desk`}
+                    >
+                      <ChevronLeft className="gba:w-4 gba:h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Back to Desk</TooltipContent>
+                </Tooltip>
+              )}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                    data-testid={`${testId}-toggle-sidebar`}
+                  >
+                    {isSidebarCollapsed ? (
+                      <PanelLeft className="gba:w-4 gba:h-4" />
+                    ) : (
+                      <PanelLeftClose className="gba:w-4 gba:h-4" />
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
+
+          {/* Brand section */}
+          {!isSidebarCollapsed && (
+            <div className="gba:flex gba:items-center gba:gap-3">
+              <div className="gba:w-10 gba:h-10 gba:rounded-xl gba:bg-gradient-to-br gba:from-emerald-500 gba:to-teal-600 gba:flex gba:items-center gba:justify-center">
+                <FileSpreadsheet className="gba:w-5 gba:h-5 gba:text-white" />
+              </div>
+              <div>
+                <h1 className="gba:font-semibold gba:text-foreground">Spreadsheets</h1>
+                <p className="gba:text-xs gba:text-muted-foreground">NEWWORK Apps</p>
+              </div>
+            </div>
+          )}
+          {isSidebarCollapsed && (
+            <div className="gba:flex gba:justify-center">
+              <div className="gba:w-10 gba:h-10 gba:rounded-xl gba:bg-gradient-to-br gba:from-emerald-500 gba:to-teal-600 gba:flex gba:items-center gba:justify-center">
+                <FileSpreadsheet className="gba:w-5 gba:h-5 gba:text-white" />
+              </div>
+            </div>
+          )}
         </div>
 
         {/* New Button */}
-        <div className="gba:p-3">
+        <div className={isSidebarCollapsed ? 'gba:p-2' : 'gba:p-3'}>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button className="gba:w-full gba:justify-start gba:gap-2 gba:bg-gradient-to-r gba:from-emerald-500 gba:to-teal-600 gba:text-white hover:gba:from-emerald-600 hover:gba:to-teal-700">
+              <Button
+                className={`gba:w-full gba:gap-2 gba:bg-gradient-to-r gba:from-emerald-500 gba:to-teal-600 gba:text-white hover:gba:from-emerald-600 hover:gba:to-teal-700 ${isSidebarCollapsed ? 'gba:justify-center gba:px-0' : 'gba:justify-start'}`}
+              >
                 <Plus className="gba:w-4 gba:h-4" />
-                New
+                {!isSidebarCollapsed && 'New'}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="gba:w-56">
@@ -736,92 +837,154 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
         {/* Navigation */}
         <nav className="gba:flex-1 gba:overflow-y-auto gba:px-2 gba:py-2">
           <div className="gba:space-y-1">
-            <button
-              onClick={() => setActiveSection('home')}
-              className={`gba:w-full gba:flex gba:items-center gba:gap-3 gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${
-                activeSection === 'home'
-                  ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
-                  : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
-              }`}
-            >
-              <Home className="gba:w-4 gba:h-4" />
-              Home
-            </button>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => setActiveSection('home')}
+                    className={`gba:w-full gba:flex gba:items-center gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${isSidebarCollapsed ? 'gba:justify-center' : 'gba:gap-3'} ${
+                      activeSection === 'home'
+                        ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
+                        : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
+                    }`}
+                  >
+                    <Home className="gba:w-4 gba:h-4" />
+                    {!isSidebarCollapsed && 'Home'}
+                  </button>
+                </TooltipTrigger>
+                {isSidebarCollapsed && <TooltipContent side="right">Home</TooltipContent>}
+              </Tooltip>
 
-            <button
-              onClick={() => setActiveSection('my-files')}
-              className={`gba:w-full gba:flex gba:items-center gba:gap-3 gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${
-                activeSection === 'my-files'
-                  ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
-                  : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
-              }`}
-            >
-              <FolderClosed className="gba:w-4 gba:h-4" />
-              My Spreadsheets
-            </button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => setActiveSection('my-files')}
+                    className={`gba:w-full gba:flex gba:items-center gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${isSidebarCollapsed ? 'gba:justify-center' : 'gba:gap-3'} ${
+                      activeSection === 'my-files'
+                        ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
+                        : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
+                    }`}
+                  >
+                    <FolderClosed className="gba:w-4 gba:h-4" />
+                    {!isSidebarCollapsed && 'My Spreadsheets'}
+                  </button>
+                </TooltipTrigger>
+                {isSidebarCollapsed && <TooltipContent side="right">My Spreadsheets</TooltipContent>}
+              </Tooltip>
 
-            <button
-              onClick={() => setActiveSection('shared')}
-              className={`gba:w-full gba:flex gba:items-center gba:gap-3 gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${
-                activeSection === 'shared'
-                  ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
-                  : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
-              }`}
-            >
-              <Users className="gba:w-4 gba:h-4" />
-              Shared with me
-              {apps.filter(a => a.isShared && !(a.isOwner ?? a.createdBy === currentUserId)).length > 0 && (
-                <Badge variant="secondary" className="gba:ml-auto gba:text-xs">
-                  {apps.filter(a => a.isShared && !(a.isOwner ?? a.createdBy === currentUserId)).length}
-                </Badge>
-              )}
-            </button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => setActiveSection('shared')}
+                    className={`gba:w-full gba:flex gba:items-center gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${isSidebarCollapsed ? 'gba:justify-center' : 'gba:gap-3'} ${
+                      activeSection === 'shared'
+                        ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
+                        : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
+                    }`}
+                  >
+                    <Users className="gba:w-4 gba:h-4" />
+                    {!isSidebarCollapsed && (
+                      <>
+                        Shared with me
+                        {apps.filter(a => a.isShared && !(a.isOwner ?? a.createdBy === currentUserId)).length > 0 && (
+                          <Badge variant="secondary" className="gba:ml-auto gba:text-xs">
+                            {apps.filter(a => a.isShared && !(a.isOwner ?? a.createdBy === currentUserId)).length}
+                          </Badge>
+                        )}
+                      </>
+                    )}
+                  </button>
+                </TooltipTrigger>
+                {isSidebarCollapsed && (
+                  <TooltipContent side="right">
+                    Shared with me{' '}
+                    {apps.filter(a => a.isShared && !(a.isOwner ?? a.createdBy === currentUserId)).length > 0 &&
+                      `(${apps.filter(a => a.isShared && !(a.isOwner ?? a.createdBy === currentUserId)).length})`}
+                  </TooltipContent>
+                )}
+              </Tooltip>
 
-            <button
-              onClick={() => setActiveSection('favorites')}
-              className={`gba:w-full gba:flex gba:items-center gba:gap-3 gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${
-                activeSection === 'favorites'
-                  ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
-                  : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
-              }`}
-            >
-              <Star className="gba:w-4 gba:h-4" />
-              Favorites
-            </button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => setActiveSection('favorites')}
+                    className={`gba:w-full gba:flex gba:items-center gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${isSidebarCollapsed ? 'gba:justify-center' : 'gba:gap-3'} ${
+                      activeSection === 'favorites'
+                        ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
+                        : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
+                    }`}
+                  >
+                    <Star className="gba:w-4 gba:h-4" />
+                    {!isSidebarCollapsed && 'Favorites'}
+                  </button>
+                </TooltipTrigger>
+                {isSidebarCollapsed && <TooltipContent side="right">Favorites</TooltipContent>}
+              </Tooltip>
 
-            <button
-              onClick={() => setActiveSection('recent')}
-              className={`gba:w-full gba:flex gba:items-center gba:gap-3 gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${
-                activeSection === 'recent'
-                  ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
-                  : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
-              }`}
-            >
-              <Clock className="gba:w-4 gba:h-4" />
-              Recent
-            </button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => setActiveSection('recent')}
+                    className={`gba:w-full gba:flex gba:items-center gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${isSidebarCollapsed ? 'gba:justify-center' : 'gba:gap-3'} ${
+                      activeSection === 'recent'
+                        ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
+                        : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
+                    }`}
+                  >
+                    <Clock className="gba:w-4 gba:h-4" />
+                    {!isSidebarCollapsed && 'Recent'}
+                  </button>
+                </TooltipTrigger>
+                {isSidebarCollapsed && <TooltipContent side="right">Recent</TooltipContent>}
+              </Tooltip>
+            </TooltipProvider>
           </div>
 
-          <div className="gba:mt-6 gba:pt-4 gba:border-t">
-            <p className="gba:px-3 gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-2">Storage</p>
-            <div className="gba:px-3 gba:py-2 gba:rounded-lg gba:bg-muted/30">
-              <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-                <Database
-                  className={`gba:w-4 gba:h-4 ${storageMode === 'database' ? 'gba:text-emerald-500' : 'gba:text-amber-500'}`}
-                />
-                <span className="gba:text-xs gba:text-muted-foreground">
-                  {storageMode === 'database' ? 'Cloud storage' : 'Local storage'}
-                </span>
+          {!isSidebarCollapsed && (
+            <div className="gba:mt-6 gba:pt-4 gba:border-t">
+              <p className="gba:px-3 gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-2">Storage</p>
+              <div className="gba:px-3 gba:py-2 gba:rounded-lg gba:bg-muted/30">
+                <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
+                  <Database
+                    className={`gba:w-4 gba:h-4 ${storageMode === 'database' ? 'gba:text-emerald-500' : 'gba:text-amber-500'}`}
+                  />
+                  <span className="gba:text-xs gba:text-muted-foreground">
+                    {storageMode === 'database' ? 'Cloud storage' : 'Local storage'}
+                  </span>
+                </div>
+                <div className="gba:h-1.5 gba:bg-muted gba:rounded-full gba:overflow-hidden">
+                  <div
+                    className="gba:h-full gba:bg-gradient-to-r gba:from-emerald-500 gba:to-teal-500 gba:rounded-full"
+                    style={{ width: `${Math.min((apps.length / 50) * 100, 100)}%` }}
+                  />
+                </div>
+                <p className="gba:text-[10px] gba:text-muted-foreground gba:mt-1">{apps.length} spreadsheets</p>
               </div>
-              <div className="gba:h-1.5 gba:bg-muted gba:rounded-full gba:overflow-hidden">
-                <div
-                  className="gba:h-full gba:bg-gradient-to-r gba:from-emerald-500 gba:to-teal-500 gba:rounded-full"
-                  style={{ width: `${Math.min((apps.length / 50) * 100, 100)}%` }}
-                />
-              </div>
-              <p className="gba:text-[10px] gba:text-muted-foreground gba:mt-1">{apps.length} spreadsheets</p>
             </div>
-          </div>
+          )}
+          {isSidebarCollapsed && (
+            <div className="gba:mt-6 gba:pt-4 gba:border-t gba:flex gba:justify-center">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="gba:p-2">
+                      <Database
+                        className={`gba:w-4 gba:h-4 ${storageMode === 'database' ? 'gba:text-emerald-500' : 'gba:text-amber-500'}`}
+                      />
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">
+                    <div>
+                      <p className="gba:font-medium">
+                        {storageMode === 'database' ? 'Cloud storage' : 'Local storage'}
+                      </p>
+                      <p className="gba:text-xs gba:text-muted-foreground">{apps.length} spreadsheets</p>
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+          )}
         </nav>
       </aside>
 
@@ -1185,9 +1348,9 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                                               key={user.userId}
                                               className="gba:w-5 gba:h-5 gba:border gba:border-background"
                                             >
-                                              {user.userAvatar && <AvatarImage src={user.userAvatar} />}
+                                              {user.avatar && <AvatarImage src={user.avatar} />}
                                               <AvatarFallback className="gba:text-[8px] gba:bg-muted">
-                                                {user.userName ? getInitials(user.userName) : '?'}
+                                                {user.name ? getInitials(user.name) : '?'}
                                               </AvatarFallback>
                                             </Avatar>
                                           ))}

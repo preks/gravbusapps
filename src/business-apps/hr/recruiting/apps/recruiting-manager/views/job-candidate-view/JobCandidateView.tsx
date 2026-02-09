@@ -1,6 +1,8 @@
 import React, { useState, useMemo, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useJobCandidates } from '@/common/data/recruiting/hooks/useJobCandidates'
+import { useJobCandidate } from '@/common/data/recruiting/hooks/useJobCandidate'
+import { useCompany } from '@/common/data/orgchart/hooks/useCompany'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { DataDisplay, DataTable, Avatar, AvatarFallback, Badge } from '@newwork/nw-design-system'
 import type { ColumnDef, PaginationState, SortingState, ExpandedState, CellContext } from '@tanstack/react-table'
@@ -10,6 +12,10 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import type { JobCandidate } from '@/common/data/recruiting/types/jobCandidateTypes'
 import type { JobApplication } from '@/common/data/recruiting/types/jobApplicationTypes'
+import { GenerateDocumentDialog } from '@/business-apps/platform/apps/document-apps/components/GenerateDocumentDialog'
+import { DocumentApiService } from '@/business-apps/platform/apps/document-apps/services/DocumentApiService'
+import { exportToWord } from '@/business-apps/platform/apps/document-apps/utils/exportUtils'
+import { toast } from 'sonner'
 
 export type JobCandidateViewProps = BusinessAppContextProps
 
@@ -101,7 +107,23 @@ const JobCandidatePrimaryAction: React.FC<{ accessToken: string }> = ({ accessTo
 )
 
 // Row actions component
-const JobCandidateRowActions: React.FC<{ row: any; accessToken: string }> = ({ row, accessToken }) => {
+const JobCandidateRowActions: React.FC<{
+  row: any
+  accessToken: string
+  onGenerateDocument?: (candidate: JobCandidate) => void
+}> = ({ row, accessToken, onGenerateDocument }) => {
+  const candidate = row.original as JobCandidate
+  const customActions = useMemo(() => {
+    if (!onGenerateDocument) return undefined
+    return [
+      {
+        key: 'generate-document',
+        label: getTranslationFromI18nKeyAndLabel('recruiting.generateDocument', 'Generate document'),
+        onClick: () => onGenerateDocument(candidate)
+      }
+    ]
+  }, [onGenerateDocument, candidate])
+
   return (
     <AppAction
       data-testid={`job-candidate-actions-${row.original.id}`}
@@ -112,6 +134,7 @@ const JobCandidateRowActions: React.FC<{ row: any; accessToken: string }> = ({ r
           contextData: { jobCandidateId: row.original.id }
         }
       ]}
+      customActions={customActions}
       shareContext={{
         entityType: 'jobCandidate',
         entityId: row.original.id,
@@ -162,13 +185,19 @@ const CreatedDateCellWrapper = (info: CellContext<JobCandidate, unknown>) => (
   <ApplicationDateCell value={info.getValue() as string} />
 )
 
-const JobCandidateRowActionsWrapper: React.FC<{ row: any; accessToken: string }> = ({ row, accessToken }) => (
-  <JobCandidateRowActions row={row} accessToken={accessToken} />
+const JobCandidateRowActionsWrapper: React.FC<{
+  row: any
+  accessToken: string
+  onGenerateDocument?: (candidate: JobCandidate) => void
+}> = ({ row, accessToken, onGenerateDocument }) => (
+  <JobCandidateRowActions row={row} accessToken={accessToken} onGenerateDocument={onGenerateDocument} />
 )
 
 // Factory function to create row actions handler
-const createJobCandidateRowActions = (accessToken: string) => {
-  return (row: any) => <JobCandidateRowActionsWrapper row={row} accessToken={accessToken} />
+const createJobCandidateRowActions = (accessToken: string, onGenerateDocument?: (candidate: JobCandidate) => void) => {
+  return (row: any) => (
+    <JobCandidateRowActionsWrapper row={row} accessToken={accessToken} onGenerateDocument={onGenerateDocument} />
+  )
 }
 
 // Component to render expanded row content for candidate applications
@@ -231,6 +260,68 @@ export const JobCandidateView: React.FC<JobCandidateViewProps> = context => {
     pageSize: 20
   })
   const [expandedRows, setExpandedRows] = useState<ExpandedState>({})
+  const [generateDocOpen, setGenerateDocOpen] = useState(false)
+  const [generateDocCandidate, setGenerateDocCandidate] = useState<JobCandidate | null>(null)
+
+  // When "Generate document" is open, load full candidate by ID so placeholders (address, catalogs, job_request, etc.) resolve
+  const candidateIdForDoc = generateDocOpen && generateDocCandidate?.id ? generateDocCandidate.id : undefined
+  const { jobCandidate: fullCandidateForDoc, loading: fullCandidateLoading } = useJobCandidate(
+    context.accessToken,
+    candidateIdForDoc,
+    'record'
+  )
+
+  // Company ID from first application (job candidate → job_application → job_posting → job_request → company)
+  // Support both camelCase and snake_case (GraphQL backend may return either)
+  const applicationsForCompany =
+    (fullCandidateForDoc as Record<string, unknown> | null)?.jobApplications ??
+    (fullCandidateForDoc as Record<string, unknown> | null)?.job_applications
+  const firstAppForCompany = Array.isArray(applicationsForCompany) ? applicationsForCompany[0] : undefined
+  const firstPostingForCompany = firstAppForCompany
+    ? ((firstAppForCompany as Record<string, unknown>).jobPosting ??
+      (firstAppForCompany as Record<string, unknown>).job_posting)
+    : undefined
+  const firstJobRequestForCompany = firstPostingForCompany
+    ? ((firstPostingForCompany as Record<string, unknown>).jobRequest ??
+      (firstPostingForCompany as Record<string, unknown>).job_request)
+    : undefined
+  const companyIdForDoc =
+    (firstJobRequestForCompany as Record<string, unknown> | undefined)?.companyId ??
+    (firstJobRequestForCompany as Record<string, unknown> | undefined)?.company_id
+  const { company: companyForDoc } = useCompany(context.accessToken, companyIdForDoc as string | undefined, 'record')
+
+  // Build entity map for placeholder resolution from linked data: job_candidate → job_application → job_posting → job_request → company
+  // Support both camelCase and snake_case response keys (GraphQL backends may return either)
+  const entityDataMapForDoc = useMemo(() => {
+    const candidate = fullCandidateForDoc ?? generateDocCandidate ?? {}
+    const company = companyForDoc ?? {}
+    const addresses =
+      companyForDoc?.addresses ??
+      (companyForDoc == null ? undefined : (companyForDoc as unknown as Record<string, unknown>).addresses)
+    const firstAddress =
+      addresses && Array.isArray(addresses) && addresses.length > 0 ? (addresses[0] as Record<string, unknown>) : {}
+    const applications =
+      (fullCandidateForDoc as Record<string, unknown> | null)?.jobApplications ??
+      (fullCandidateForDoc as Record<string, unknown> | null)?.job_applications
+    const applicationsList = Array.isArray(applications) ? applications : []
+    const firstApplicationWithPosting = applicationsList.find(
+      (app: Record<string, unknown>) => app?.jobPosting != null || app?.job_posting != null
+    ) as Record<string, unknown> | undefined
+    const firstJobPosting = firstApplicationWithPosting
+      ? (firstApplicationWithPosting.jobPosting ?? firstApplicationWithPosting.job_posting)
+      : undefined
+    const firstJobRequest = firstJobPosting?.jobRequest ?? firstJobPosting?.job_request ?? {}
+    const firstJobPostingData = firstJobPosting ?? {}
+    const firstJobApplicationData = firstApplicationWithPosting ?? {}
+    return {
+      job_candidate: candidate,
+      job_application: firstJobApplicationData,
+      job_posting: firstJobPostingData,
+      job_request: firstJobRequest,
+      company,
+      company_address: firstAddress
+    } as Record<string, Record<string, unknown>>
+  }, [fullCandidateForDoc, generateDocCandidate, companyForDoc])
 
   const { jobCandidates, total, loading, error, refetch } = useJobCandidates(
     context.accessToken,
@@ -280,7 +371,15 @@ export const JobCandidateView: React.FC<JobCandidateViewProps> = context => {
     [context.accessToken]
   )
 
-  const rowActionsHandler = useMemo(() => createJobCandidateRowActions(context.accessToken), [context.accessToken])
+  const onGenerateDocument = useCallback((candidate: JobCandidate) => {
+    setGenerateDocCandidate(candidate)
+    setGenerateDocOpen(true)
+  }, [])
+
+  const rowActionsHandler = useMemo(
+    () => createJobCandidateRowActions(context.accessToken, onGenerateDocument),
+    [context.accessToken, onGenerateDocument]
+  )
 
   const rowActions = rowActionsHandler
 
@@ -407,6 +506,31 @@ export const JobCandidateView: React.FC<JobCandidateViewProps> = context => {
           data-testid="job-candidate-list"
         />
       </DataDisplay>
+
+      <GenerateDocumentDialog
+        open={generateDocOpen}
+        onOpenChange={setGenerateDocOpen}
+        entityDataMap={entityDataMapForDoc}
+        entityDataLoading={candidateIdForDoc != null && fullCandidateLoading}
+        defaultTitle={
+          `${generateDocCandidate?.firstName ?? ''} ${generateDocCandidate?.lastName ?? ''}`.trim() || 'Candidate'
+        }
+        onSuccess={async documentId => {
+          if (!context.accessToken) return
+          DocumentApiService.setAccessToken(context.accessToken)
+          try {
+            const doc = await DocumentApiService.getDocument(documentId)
+            if (doc?.content != null) {
+              await exportToWord(doc.title || 'Document', doc.content)
+              toast.success('Document downloaded')
+            }
+          } catch (err) {
+            console.error('Failed to download document:', err)
+            toast.error('Failed to download document')
+          }
+        }}
+        data-testid="job-candidate-generate-document-dialog"
+      />
     </div>
   )
 }

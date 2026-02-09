@@ -4,14 +4,22 @@ import { XCircleIcon, MagnifyingGlassIcon } from '@phosphor-icons/react'
 interface SearchBarWithLabelProps {
   onSearch: (value: string) => void
   placeholder?: string
-  label: string
+  label?: string
+  /** When true, the search input is always visible with placeholder (no click to expand) */
+  alwaysExpanded?: boolean
 }
 
 /**
  * SearchBar component with label that disappears when expanded
  */
-const SearchBarWithLabel: React.FC<SearchBarWithLabelProps> = ({ onSearch, placeholder = 'Search...', label }) => {
-  const [expanded, setExpanded] = useState(false)
+const SearchBarWithLabel: React.FC<SearchBarWithLabelProps> = ({
+  onSearch,
+  placeholder = 'Search...',
+  label,
+  alwaysExpanded = false
+}) => {
+  const [expanded, setExpanded] = useState(alwaysExpanded)
+  const effectiveExpanded = alwaysExpanded || expanded
   const [inputValue, setInputValue] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -25,11 +33,12 @@ const SearchBarWithLabel: React.FC<SearchBarWithLabelProps> = ({ onSearch, place
   }, [inputValue, onSearch])
 
   useEffect(() => {
-    if (expanded && inputRef.current) {
+    if (effectiveExpanded && inputRef.current && !alwaysExpanded) {
       inputRef.current.focus()
     }
-  }, [expanded])
+  }, [effectiveExpanded, alwaysExpanded])
   useEffect(() => {
+    if (alwaysExpanded) return
     const handleClickOutside = (event: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
         if (expanded && !inputValue) {
@@ -42,10 +51,10 @@ const SearchBarWithLabel: React.FC<SearchBarWithLabelProps> = ({ onSearch, place
     return () => {
       document.removeEventListener('mousedown', handleClickOutside)
     }
-  }, [expanded, inputValue])
+  }, [alwaysExpanded, expanded, inputValue])
 
   const handleClick = () => {
-    setExpanded(true)
+    if (!alwaysExpanded) setExpanded(true)
   }
 
   const handleClear = (e: React.MouseEvent) => {
@@ -58,7 +67,7 @@ const SearchBarWithLabel: React.FC<SearchBarWithLabelProps> = ({ onSearch, place
   }
 
   const handleContainerKeyDown = (e: React.KeyboardEvent) => {
-    if (!expanded && (e.key === 'Enter' || e.key === ' ')) {
+    if (!effectiveExpanded && (e.key === 'Enter' || e.key === ' ')) {
       e.preventDefault()
       handleClick()
     }
@@ -83,19 +92,19 @@ const SearchBarWithLabel: React.FC<SearchBarWithLabelProps> = ({ onSearch, place
           padding: '4px 8px',
           transition: 'width 0.3s, padding 0.3s, background-color 0.3s',
           cursor: 'pointer',
-          width: expanded ? '300px' : '44px',
+          width: effectiveExpanded ? '300px' : '44px',
           border: '2px solid border',
-          background: expanded ? 'muted' : 'border',
+          background: effectiveExpanded ? 'muted' : 'border',
           position: 'relative',
           overflow: 'hidden',
           height: '32px',
-          justifyContent: expanded ? 'flex-start' : 'center'
+          justifyContent: effectiveExpanded ? 'flex-start' : 'center'
         }}
         onClick={handleClick}
         onKeyDown={handleContainerKeyDown}
         role="button"
-        tabIndex={expanded ? -1 : 0}
-        aria-label={expanded ? undefined : 'Expand search'}
+        tabIndex={effectiveExpanded ? -1 : 0}
+        aria-label={effectiveExpanded ? undefined : 'Expand search'}
         ref={containerRef}
         data-testid="plan-search-bar"
       >
@@ -108,8 +117,8 @@ const SearchBarWithLabel: React.FC<SearchBarWithLabelProps> = ({ onSearch, place
           style={{
             border: 'none',
             outline: 'none',
-            width: expanded ? '100%' : '0',
-            opacity: expanded ? '1' : '0',
+            width: effectiveExpanded ? '100%' : '0',
+            opacity: effectiveExpanded ? '1' : '0',
             transition: 'opacity 0.3s, width 0.3s',
             backgroundColor: 'transparent',
             paddingLeft: '30px',
@@ -146,8 +155,8 @@ const SearchBarWithLabel: React.FC<SearchBarWithLabelProps> = ({ onSearch, place
             width: '16px',
             height: '16px',
             position: 'absolute',
-            right: expanded ? 'auto' : '12px',
-            left: expanded ? '10px' : 'auto',
+            right: effectiveExpanded ? 'auto' : '12px',
+            left: effectiveExpanded ? '10px' : 'auto',
             transition: 'right 0.3s, left 0.3s'
           }}
           data-testid="plan-search-icon-container"
@@ -155,14 +164,14 @@ const SearchBarWithLabel: React.FC<SearchBarWithLabelProps> = ({ onSearch, place
           <MagnifyingGlassIcon data-testid="plan-search-icon" />
         </div>
       </div>
-      {!expanded && (
+      {!effectiveExpanded && label ? (
         <div
           style={{ fontSize: '14px', fontWeight: 'bold', color: 'foreground', whiteSpace: 'nowrap' }}
           data-testid="plan-count-text"
         >
           {label}
         </div>
-      )}
+      ) : null}
     </div>
   )
 }

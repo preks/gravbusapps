@@ -27,60 +27,11 @@ import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/u
 
 const API_URL = getDocumentServiceApiUrl()
 
-const isDocumentAppsDebugEnabled = (): boolean => {
-  try {
-    return (
-      typeof window !== 'undefined' &&
-      typeof window.localStorage !== 'undefined' &&
-      window.localStorage.getItem('debug:document-apps') === '1'
-    )
-  } catch {
-    return false
-  }
-}
-
-const debugLog = (...args: unknown[]) => {
-  if (isDocumentAppsDebugEnabled()) {
-    console.debug('[DocumentApiService]', ...args)
-  }
-}
-
-// Get auth token - check multiple storage locations
-const getAuthToken = (): string | null => {
-  try {
-    // First check the IDE's storage key (Business App IDE)
-    const ideToken = localStorage.getItem('business-app-ide-access-token')
-    if (ideToken) return ideToken
-
-    // Check keycloak token format
-    const authData = localStorage.getItem('keycloak-token')
-    if (authData) {
-      try {
-        const parsed = JSON.parse(authData)
-        return parsed.token || parsed.access_token || null
-      } catch {
-        return authData // Return as-is if not JSON
-      }
-    }
-
-    // Check session storage
-    const sessionToken = sessionStorage.getItem('auth_token')
-    if (sessionToken) return sessionToken
-
-    // Check window global
-    if (typeof window !== 'undefined' && (window as unknown as { authToken?: string }).authToken) {
-      return (window as unknown as { authToken: string }).authToken
-    }
-
-    return null
-  } catch {
-    return null
-  }
-}
+let currentAccessToken: string | null = null
 
 // API request helper
 async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  const token = getAuthToken()
+  const token = currentAccessToken
 
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
@@ -119,6 +70,23 @@ function mapApiDocumentToDocument(apiDoc: Record<string, unknown>): Document {
     permission = 'owner'
   }
 
+  // Map sourceFileInfo from backend to sourceFile
+  const sourceFileInfo = apiDoc.sourceFileInfo as Record<string, unknown> | undefined
+  const sourceFile = sourceFileInfo
+    ? {
+        originalName: sourceFileInfo.originalName as string,
+        fileSize: sourceFileInfo.fileSize as number,
+        mimeType: sourceFileInfo.mimeType as string,
+        uploadedAt: sourceFileInfo.uploadedAt as string,
+        path: sourceFileInfo.path as string | undefined,
+        fileId: sourceFileInfo.fileId as string | undefined,
+        accessScope: sourceFileInfo.accessScope as string | undefined,
+        appName: sourceFileInfo.appName as string | undefined,
+        folderPath: sourceFileInfo.folderPath as string | undefined,
+        pageCount: sourceFileInfo.pageCount as number | undefined
+      }
+    : undefined
+
   return {
     id: apiDoc.id as string,
     title: apiDoc.title as string,
@@ -139,7 +107,9 @@ function mapApiDocumentToDocument(apiDoc: Record<string, unknown>): Document {
     // Permission info from backend
     permission,
     isShared: apiDoc.isShared as boolean | undefined,
-    sharedBy: apiDoc.sharedBy as string | undefined
+    sharedBy: apiDoc.sharedBy as string | undefined,
+    // Source file info for PDFs
+    sourceFile
   }
 }
 
@@ -150,6 +120,7 @@ function mapApiTemplateToTemplate(apiTemplate: Record<string, unknown>): Documen
     description: apiTemplate.description as string | undefined,
     content: apiTemplate.content as string,
     category: (apiTemplate.category as string) || 'other',
+    context: apiTemplate.context as string | undefined,
     tags: (apiTemplate.tags as string[]) || [],
     createdAt: apiTemplate.createdAt as string,
     updatedAt: apiTemplate.updatedAt as string,
@@ -165,6 +136,9 @@ function mapApiTemplateToTemplate(apiTemplate: Record<string, unknown>): Documen
  * Document API Service
  */
 export const DocumentApiService = {
+  setAccessToken(token: string | null) {
+    currentAccessToken = token
+  },
   // ============ Documents ============
 
   /**
@@ -192,47 +166,55 @@ export const DocumentApiService = {
     const queryString = params.toString()
     const endpoint = `/documents${queryString ? `?${queryString}` : ''}`
 
-    debugLog('listDocuments', endpoint)
-
     const response = await apiRequest<PaginatedResponse<Record<string, unknown>>>(endpoint)
 
-    console.log(
-      '[DocumentApiService] listDocuments raw response:',
-      response.items.map(d => ({
-        id: d.id,
-        title: d.title,
-        ownerId: d.ownerId,
-        isShared: d.isShared,
-        sharedBy: d.sharedBy,
-        permission: d.permission,
-        rawPermission: d.permission // Log the exact value
-      }))
-    )
+    return response.items.map(doc => {
+      // Map sourceFileInfo from backend to sourceFile
+      const sourceFileInfo = doc.sourceFileInfo as Record<string, unknown> | undefined
+      const sourceFile = sourceFileInfo
+        ? {
+            originalName: sourceFileInfo.originalName as string,
+            fileSize: sourceFileInfo.fileSize as number,
+            mimeType: sourceFileInfo.mimeType as string,
+            uploadedAt: sourceFileInfo.uploadedAt as string,
+            path: sourceFileInfo.path as string | undefined,
+            fileId: sourceFileInfo.fileId as string | undefined,
+            accessScope: sourceFileInfo.accessScope as string | undefined,
+            appName: sourceFileInfo.appName as string | undefined,
+            folderPath: sourceFileInfo.folderPath as string | undefined,
+            pageCount: sourceFileInfo.pageCount as number | undefined
+          }
+        : undefined
+      const isPdf = sourceFile?.mimeType === 'application/pdf'
 
-    return response.items.map(doc => ({
-      id: doc.id as string,
-      title: doc.title as string,
-      description: doc.description as string | undefined,
-      status: doc.status as DocumentStatus,
-      category: doc.category as string | undefined,
-      tags: doc.tags as string[] | undefined,
-      createdAt: doc.createdAt as string,
-      updatedAt: doc.updatedAt as string,
-      createdBy: doc.ownerId as string,
-      wordCount: (doc.wordCount as number) || 0,
-      approvalStatus: (doc.status === 'pending_approval'
-        ? 'pending'
-        : doc.status === 'approved'
-          ? 'approved'
-          : doc.status === 'rejected'
-            ? 'rejected'
-            : undefined) as DocumentSummary['approvalStatus'],
-      // Sharing information from backend
-      isShared: doc.isShared as boolean | undefined,
-      sharedBy: doc.sharedBy as string | undefined,
-      // Map backend 'admin' permission to frontend 'owner'
-      permission: (doc.permission === 'admin' ? 'owner' : doc.permission) as DocumentSummary['permission']
-    }))
+      return {
+        id: doc.id as string,
+        title: doc.title as string,
+        description: doc.description as string | undefined,
+        status: doc.status as DocumentStatus,
+        category: doc.category as string | undefined,
+        tags: doc.tags as string[] | undefined,
+        createdAt: doc.createdAt as string,
+        updatedAt: doc.updatedAt as string,
+        createdBy: doc.ownerId as string,
+        wordCount: (doc.wordCount as number) || 0,
+        approvalStatus: (doc.status === 'pending_approval'
+          ? 'pending'
+          : doc.status === 'approved'
+            ? 'approved'
+            : doc.status === 'rejected'
+              ? 'rejected'
+              : undefined) as DocumentSummary['approvalStatus'],
+        // Sharing information from backend
+        isShared: doc.isShared as boolean | undefined,
+        sharedBy: doc.sharedBy as string | undefined,
+        // Map backend 'admin' permission to frontend 'owner'
+        permission: (doc.permission === 'admin' ? 'owner' : doc.permission) as DocumentSummary['permission'],
+        // Source file info for PDFs
+        sourceFile,
+        isPdf
+      }
+    })
   },
 
   /**
@@ -240,7 +222,6 @@ export const DocumentApiService = {
    */
   async getDocument(id: string): Promise<Document | null> {
     try {
-      debugLog('getDocument', id)
       const doc = await apiRequest<Record<string, unknown>>(`/documents/${id}`)
       return mapApiDocumentToDocument(doc)
     } catch (error) {
@@ -253,8 +234,6 @@ export const DocumentApiService = {
    * Create a new document
    */
   async createDocument(document: Partial<Document>): Promise<Document> {
-    debugLog('createDocument', document)
-
     const payload = {
       title: document.title || 'Untitled Document',
       description: document.description,
@@ -275,6 +254,45 @@ export const DocumentApiService = {
   },
 
   /**
+   * Import a PDF document
+   * Uploads the PDF to file service and creates a document record with extracted text
+   */
+  async importPdf(
+    file: File,
+    options?: {
+      title?: string
+      description?: string
+      category?: string
+      tags?: string[]
+    }
+  ): Promise<Document> {
+    const formData = new FormData()
+    formData.append('file', file)
+    if (options?.title) formData.append('title', options.title)
+    if (options?.description) formData.append('description', options.description)
+    if (options?.category) formData.append('category', options.category)
+    if (options?.tags?.length) formData.append('tags', options.tags.join(','))
+
+    const token = currentAccessToken
+
+    const response = await fetch(`${API_URL}/documents/import/pdf`, {
+      method: 'POST',
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      },
+      body: formData
+    })
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: response.statusText }))
+      throw new Error(error.message || `API Error: ${response.status}`)
+    }
+
+    const created = await response.json()
+    return mapApiDocumentToDocument(created)
+  },
+
+  /**
    * Update an existing document
    */
   async updateDocument(
@@ -282,9 +300,7 @@ export const DocumentApiService = {
     updates: Partial<Document>,
     options?: { createVersion?: boolean }
   ): Promise<Document> {
-    debugLog('updateDocument', id, updates)
-
-    const payload = {
+    const payload: Record<string, unknown> = {
       title: updates.title,
       description: updates.description,
       content: updates.content,
@@ -294,6 +310,9 @@ export const DocumentApiService = {
       formatting: updates.formatting,
       createVersion: options?.createVersion ?? true
     }
+    // When content is set (e.g. resolved placeholders or restore), clear contentJson so editor re-inits from content
+    const contentJson = (updates as Record<string, unknown>).contentJson
+    if (contentJson !== undefined) payload.contentJson = contentJson
 
     // Remove undefined values
     Object.keys(payload).forEach(key => {
@@ -315,7 +334,6 @@ export const DocumentApiService = {
    */
   async deleteDocument(id: string): Promise<boolean> {
     try {
-      debugLog('deleteDocument', id)
       await apiRequest(`/documents/${id}`, { method: 'DELETE' })
       return true
     } catch (error) {
@@ -329,7 +347,6 @@ export const DocumentApiService = {
    */
   async duplicateDocument(id: string): Promise<Document | null> {
     try {
-      debugLog('duplicateDocument', id)
       const duplicated = await apiRequest<Record<string, unknown>>(`/documents/${id}/duplicate`, {
         method: 'POST'
       })
@@ -345,7 +362,6 @@ export const DocumentApiService = {
    */
   async updateDocumentStatus(id: string, status: DocumentStatus): Promise<Document | null> {
     try {
-      debugLog('updateDocumentStatus', id, status)
       const updated = await apiRequest<Record<string, unknown>>(`/documents/${id}/status`, {
         method: 'PATCH',
         body: JSON.stringify({ status })
@@ -372,8 +388,6 @@ export const DocumentApiService = {
           permission: s.permission
         }))
       }
-      console.log('[DocumentApiService] shareDocument payload:', JSON.stringify(payload, null, 2))
-      debugLog('shareDocument', documentId, shares)
       await apiRequest('/sharing', {
         method: 'POST',
         body: JSON.stringify(payload)
@@ -390,10 +404,7 @@ export const DocumentApiService = {
    */
   async getSharedUsers(documentId: string): Promise<Array<DocumentShare & { id: string }>> {
     try {
-      console.log('[DocumentApiService] getSharedUsers called for:', documentId)
-      debugLog('getSharedUsers', documentId)
       const shares = await apiRequest<Array<Record<string, unknown>>>(`/sharing/document/${documentId}`)
-      console.log('[DocumentApiService] getSharedUsers raw response:', JSON.stringify(shares, null, 2))
       const mapped = (shares || []).map(s => ({
         id: s.id as string,
         userId: s.userId as string,
@@ -401,10 +412,6 @@ export const DocumentApiService = {
         sharedAt: s.createdAt as string,
         sharedBy: s.sharedBy as string
       }))
-      console.log(
-        '[DocumentApiService] getSharedUsers mapped:',
-        mapped.map(m => ({ userId: m.userId, permission: m.permission }))
-      )
       return mapped
     } catch (error) {
       console.error('[DocumentApiService] Failed to get shared users:', error)
@@ -417,7 +424,6 @@ export const DocumentApiService = {
    */
   async updateSharePermission(shareId: string, permission: 'view' | 'edit' | 'comment'): Promise<boolean> {
     try {
-      debugLog('updateSharePermission', shareId, permission)
       await apiRequest(`/sharing/${shareId}`, {
         method: 'PATCH',
         body: JSON.stringify({ permission })
@@ -434,7 +440,6 @@ export const DocumentApiService = {
    */
   async revokeShareById(shareId: string): Promise<boolean> {
     try {
-      debugLog('revokeShareById', shareId)
       await apiRequest(`/sharing/${shareId}`, { method: 'DELETE' })
       return true
     } catch (error) {
@@ -448,7 +453,6 @@ export const DocumentApiService = {
    */
   async revokeAccess(documentId: string, userId: string): Promise<boolean> {
     try {
-      debugLog('revokeAccess', documentId, userId)
       // Get the share ID first
       const shares = await apiRequest<Array<{ id: string; userId: string }>>(`/sharing/document/${documentId}`)
       const share = shares.find(s => s.userId === userId)
@@ -475,8 +479,6 @@ export const DocumentApiService = {
     const queryString = params.toString()
     const endpoint = `/templates${queryString ? `?${queryString}` : ''}`
 
-    debugLog('listTemplates', endpoint)
-
     const response = await apiRequest<PaginatedResponse<Record<string, unknown>>>(endpoint)
 
     return response.items.map(t => ({
@@ -484,6 +486,7 @@ export const DocumentApiService = {
       name: t.name as string,
       description: t.description as string | undefined,
       category: (t.category as string) || 'other',
+      context: t.context as string | undefined,
       tags: (t.tags as string[]) || [],
       createdAt: t.createdAt as string,
       updatedAt: t.updatedAt as string,
@@ -498,7 +501,6 @@ export const DocumentApiService = {
    */
   async getTemplate(id: string): Promise<DocumentTemplate | null> {
     try {
-      debugLog('getTemplate', id)
       const template = await apiRequest<Record<string, unknown>>(`/templates/${id}`)
       return mapApiTemplateToTemplate(template)
     } catch (error) {
@@ -508,11 +510,26 @@ export const DocumentApiService = {
   },
 
   /**
+   * Get mappable fields for a template entity (from BE – BE knows GraphQL schema / mapping).
+   * Endpoint: GET /templates/entities/:entityKey/fields
+   * Returns [] if endpoint not implemented or 404.
+   */
+  async getTemplateEntityFields(entityKey: string): Promise<Array<{ key: string; displayName: string }>> {
+    try {
+      const response = await apiRequest<{ fields?: Array<{ key: string; displayName?: string }> }>(
+        `/templates/entities/${encodeURIComponent(entityKey)}/fields`
+      )
+      const fields = response?.fields ?? []
+      return fields.map(f => ({ key: f.key, displayName: f.displayName ?? f.key }))
+    } catch {
+      return []
+    }
+  },
+
+  /**
    * Create a template
    */
   async createTemplate(template: Partial<DocumentTemplate>): Promise<DocumentTemplate> {
-    debugLog('createTemplate', template)
-
     const payload = {
       name: template.name || 'Untitled Template',
       description: template.description,
@@ -536,8 +553,6 @@ export const DocumentApiService = {
    * Update a template
    */
   async updateTemplate(id: string, updates: Partial<DocumentTemplate>): Promise<DocumentTemplate> {
-    debugLog('updateTemplate', id, updates)
-
     const payload = {
       name: updates.name,
       description: updates.description,
@@ -569,7 +584,6 @@ export const DocumentApiService = {
    */
   async deleteTemplate(id: string): Promise<boolean> {
     try {
-      debugLog('deleteTemplate', id)
       await apiRequest(`/templates/${id}`, { method: 'DELETE' })
       return true
     } catch (error) {
@@ -582,8 +596,6 @@ export const DocumentApiService = {
    * Create document from template
    */
   async createDocumentFromTemplate(templateId: string, title: string): Promise<Document> {
-    debugLog('createDocumentFromTemplate', templateId, title)
-
     const payload = {
       title,
       templateId
@@ -604,8 +616,6 @@ export const DocumentApiService = {
    */
   async sendForApproval(documentId: string, approvers: string[], message?: string): Promise<boolean> {
     try {
-      debugLog('sendForApproval', documentId, approvers)
-
       await apiRequest('/approvals', {
         method: 'POST',
         body: JSON.stringify({
@@ -629,7 +639,6 @@ export const DocumentApiService = {
    */
   async getApprovalStatus(documentId: string): Promise<DocumentApprovalRequest | null> {
     try {
-      debugLog('getApprovalStatus', documentId)
       const approvals = await apiRequest<Array<Record<string, unknown>>>(`/approvals/entity/document/${documentId}`)
       if (approvals.length === 0) return null
 
@@ -659,7 +668,6 @@ export const DocumentApiService = {
    */
   async cancelApproval(documentId: string): Promise<boolean> {
     try {
-      debugLog('cancelApproval', documentId)
       const approvals = await apiRequest<Array<{ id: string }>>(`/approvals/entity/document/${documentId}`)
       if (approvals.length > 0) {
         await apiRequest(`/approvals/${approvals[0].id}`, { method: 'DELETE' })
@@ -685,8 +693,6 @@ export const DocumentApiService = {
     }
   ): Promise<Version | null> {
     try {
-      debugLog('createVersion', documentId, options)
-
       // Get the current document if content not provided
       let contentSnapshot: Record<string, unknown>
       if (options.content) {
@@ -736,7 +742,6 @@ export const DocumentApiService = {
    */
   async listVersions(documentId: string, page = 1, limit = 20): Promise<Version[]> {
     try {
-      debugLog('listVersions', documentId)
       const response = await apiRequest<PaginatedResponse<Record<string, unknown>>>(
         `/versions/document/${documentId}?page=${page}&limit=${limit}`
       )
@@ -762,7 +767,6 @@ export const DocumentApiService = {
    */
   async getVersion(documentId: string, versionNumber: number): Promise<Document | null> {
     try {
-      debugLog('getVersion', documentId, versionNumber)
       const versionData = await apiRequest<Record<string, unknown>>(`/versions/document/${documentId}/${versionNumber}`)
       const snapshot = versionData.contentSnapshot as Record<string, unknown>
       if (snapshot) {
@@ -780,14 +784,10 @@ export const DocumentApiService = {
    */
   async restoreVersion(documentId: string, versionNumber: number): Promise<boolean> {
     try {
-      console.log('[DocumentApiService] Restoring version:', documentId, versionNumber)
-
       // Get the version content
       const versionData = await apiRequest<Record<string, unknown>>(`/versions/document/${documentId}/${versionNumber}`)
-      console.log('[DocumentApiService] Version data:', versionData)
 
       const snapshot = versionData.contentSnapshot as Record<string, unknown>
-      console.log('[DocumentApiService] Content snapshot:', snapshot)
 
       if (!snapshot) {
         console.error('[DocumentApiService] No snapshot found')
@@ -795,8 +795,7 @@ export const DocumentApiService = {
       }
 
       // Update the document with the old content and clear Yjs state
-      console.log('[DocumentApiService] Updating document with old content...')
-      const updated = await this.updateDocument(documentId, {
+      await this.updateDocument(documentId, {
         title: snapshot.title as string,
         content: snapshot.content as string,
         description: snapshot.description as string | undefined,
@@ -804,15 +803,12 @@ export const DocumentApiService = {
         category: snapshot.category as string | undefined,
         contentJson: {} // Clear Yjs state to force re-initialization with restored content
       })
-      console.log('[DocumentApiService] Document updated:', updated?.title)
 
       // Create a new version marking it as a restore
-      console.log('[DocumentApiService] Creating restore checkpoint...')
       await this.createVersion(documentId, {
         changeDescription: `Restored from version ${versionNumber}`,
         isCheckpoint: true
       })
-      console.log('[DocumentApiService] Restore complete!')
 
       return true
     } catch (error) {
@@ -839,7 +835,6 @@ export const DocumentApiService = {
     }>
   } | null> {
     try {
-      debugLog('compareVersions', documentId, versionA, versionB)
       const response = await apiRequest<Record<string, unknown>>(
         `/versions/document/${documentId}/compare?versionA=${versionA}&versionB=${versionB}`
       )
@@ -885,7 +880,6 @@ export const DocumentApiService = {
    */
   async deleteVersion(documentId: string, versionNumber: number): Promise<boolean> {
     try {
-      debugLog('deleteVersion', documentId, versionNumber)
       await apiRequest(`/versions/document/${documentId}/${versionNumber}`, {
         method: 'DELETE'
       })
@@ -924,7 +918,6 @@ export const DocumentApiService = {
    */
   async createComment(documentId: string, input: CreateCommentInput): Promise<Comment | null> {
     try {
-      debugLog('createComment', documentId, input)
       const response = await apiRequest<Record<string, unknown>>(`/comments/document/${documentId}`, {
         method: 'POST',
         body: JSON.stringify(input)
@@ -960,7 +953,6 @@ export const DocumentApiService = {
    */
   async listComments(documentId: string, options?: CommentQueryOptions): Promise<Comment[]> {
     try {
-      debugLog('listComments', documentId, options)
       const params = new URLSearchParams()
       if (options?.includeResolved) params.set('includeResolved', 'true')
       if (options?.includeReplies) params.set('includeReplies', 'true')
@@ -1013,7 +1005,6 @@ export const DocumentApiService = {
    */
   async updateComment(commentId: string, updates: Partial<Comment>): Promise<Comment | null> {
     try {
-      debugLog('updateComment', commentId, updates)
       const response = await apiRequest<Record<string, unknown>>(`/comments/${commentId}`, {
         method: 'PATCH',
         body: JSON.stringify({ content: updates.content })
@@ -1040,7 +1031,6 @@ export const DocumentApiService = {
    */
   async resolveComment(commentId: string): Promise<boolean> {
     try {
-      debugLog('resolveComment', commentId)
       await apiRequest(`/comments/${commentId}/resolve`, {
         method: 'PATCH'
       })
@@ -1056,7 +1046,6 @@ export const DocumentApiService = {
    */
   async deleteComment(commentId: string): Promise<boolean> {
     try {
-      debugLog('deleteComment', commentId)
       await apiRequest(`/comments/${commentId}`, {
         method: 'DELETE'
       })
@@ -1072,7 +1061,6 @@ export const DocumentApiService = {
    */
   async replyToComment(commentId: string, reply: string): Promise<Comment | null> {
     try {
-      debugLog('replyToComment', commentId, reply)
       const response = await apiRequest<Record<string, unknown>>(`/comments/${commentId}/reply`, {
         method: 'POST',
         body: JSON.stringify({ content: reply })
@@ -1102,7 +1090,6 @@ export const DocumentApiService = {
    */
   async lockFile(documentId: string, input?: LockFileInput): Promise<FileLock | null> {
     try {
-      debugLog('lockFile', documentId, input)
       const response = await apiRequest<Record<string, unknown>>(`/locks/document/${documentId}`, {
         method: 'POST',
         body: JSON.stringify(input || {})
@@ -1128,7 +1115,6 @@ export const DocumentApiService = {
    */
   async unlockFile(documentId: string): Promise<boolean> {
     try {
-      debugLog('unlockFile', documentId)
       await apiRequest(`/locks/document/${documentId}`, {
         method: 'DELETE'
       })
@@ -1144,7 +1130,6 @@ export const DocumentApiService = {
    */
   async getLockStatus(documentId: string): Promise<FileLock | null> {
     try {
-      debugLog('getLockStatus', documentId)
       const response = await apiRequest<Record<string, unknown>>(`/locks/document/${documentId}`)
 
       if (!response.isLocked) {
@@ -1171,7 +1156,6 @@ export const DocumentApiService = {
    */
   async forceUnlock(documentId: string): Promise<boolean> {
     try {
-      debugLog('forceUnlock', documentId)
       await apiRequest(`/locks/document/${documentId}/force`, {
         method: 'DELETE'
       })
@@ -1189,7 +1173,6 @@ export const DocumentApiService = {
    */
   async publish(documentId: string, input?: PublishInput): Promise<PublishMetadata | null> {
     try {
-      debugLog('publish', documentId, input)
       const response = await apiRequest<Record<string, unknown>>(`/documents/${documentId}/publish`, {
         method: 'POST',
         body: JSON.stringify(input || {})
@@ -1213,7 +1196,6 @@ export const DocumentApiService = {
    */
   async unpublish(documentId: string): Promise<boolean> {
     try {
-      debugLog('unpublish', documentId)
       await apiRequest(`/documents/${documentId}/unpublish`, {
         method: 'POST'
       })
@@ -1229,7 +1211,6 @@ export const DocumentApiService = {
    */
   async updateStatus(documentId: string, status: string): Promise<PublishMetadata | null> {
     try {
-      debugLog('updateStatus', documentId, status)
       await apiRequest<Record<string, unknown>>(`/documents/${documentId}/status`, {
         method: 'PATCH',
         body: JSON.stringify({ status })

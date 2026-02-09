@@ -46,8 +46,9 @@ dayjs.extend(weekday)
 dayjs.extend(localeData)
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { ExpenseRuleGeneralExpense, ExpenseGroupWithTranslations } from '../../../types/ExpenseRuleTypes'
-import { expenseSettingsClient, formatDate } from '../../../utils'
+import { expenseSettingsClient, formatDate, toISOStartOfDay, toISOEndOfDay } from '../../../utils'
 import { useTableSorting, createFieldMappings } from '../hooks'
+import { validateDateRange } from '../utils/sharedDateValidation'
 
 interface GeneralExpensesTabProps {
   ruleId: string
@@ -366,7 +367,7 @@ const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({ ruleId, accessT
       const saveData: any = {
         ...(isUpdate && { id: editingItem.id, version: editingItem.version }),
         expenseRuleId: ruleId,
-        activeTo: formData.activeTo ? dayjs(formData.activeTo).endOf('day').toISOString() : null,
+        activeTo: formData.activeTo ? toISOEndOfDay(formData.activeTo) : null,
         additionalProperties: formData.additionalProperties
       }
 
@@ -377,8 +378,26 @@ const GeneralExpensesTab: React.FC<GeneralExpensesTabProps> = ({ ruleId, accessT
         saveData.reimbursable = formData.reimbursable
         saveData.taxCodeRef = formData.taxCodeRef
         saveData.taxValue = formData.taxValue
-        saveData.activeFrom = formData.activeFrom ? dayjs(formData.activeFrom).startOf('day').toISOString() : null
+        saveData.activeFrom = formData.activeFrom ? toISOStartOfDay(formData.activeFrom) : null
         saveData.expenseGroupRef = formData.expenseGroupRef
+      }
+
+      // Validate that detail dates fall within the rule's validity period
+      if (!isRestrictedEdit && formData.activeFrom) {
+        const dateErrors = validateDateRange({
+          entryFrom: formData.activeFrom,
+          entryTo: formData.activeTo,
+          ruleFrom: activeFrom,
+          ruleTo: activeTo
+        })
+
+        if (dateErrors.length > 0) {
+          // Show all date validation errors
+          dateErrors.forEach(err => {
+            toast.error(err.message)
+          })
+          return // Stop save operation
+        }
       }
 
       await expenseSettingsClient.saveExpenseRuleGeneralExpense(saveData)

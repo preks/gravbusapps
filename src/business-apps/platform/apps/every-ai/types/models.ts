@@ -97,6 +97,8 @@ export type EntityData = {
   text_full?: string | null
   tool?: string
   flow_proposal?: string
+  /** Normalized entity link URL with optional alternateId fragment for redirects */
+  link?: string
 }
 
 export type ReminderData = {

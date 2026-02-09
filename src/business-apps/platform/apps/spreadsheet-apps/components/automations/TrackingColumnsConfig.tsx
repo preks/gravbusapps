@@ -1,6 +1,6 @@
 /**
  * TrackingColumnsConfig Component
- * 
+ *
  * Allows users to select which tracking columns to include when running bulk collection.
  * These columns automatically track workflow metadata like recipient, sent time, response time, etc.
  */
@@ -17,17 +17,7 @@ import {
   Button,
   Badge
 } from '@newwork/nw-design-system'
-import {
-  User,
-  Clock,
-  CheckCircle,
-  Mail,
-  Calendar,
-  Activity,
-  Plus,
-  X,
-  Image
-} from 'lucide-react'
+import { User, Clock, CheckCircle, Mail, Calendar, Activity, X, Image } from 'lucide-react'
 
 /**
  * Available tracking column definitions
@@ -146,13 +136,16 @@ export const TrackingColumnsConfig: React.FC<TrackingColumnsConfigProps> = ({
 }) => {
   const [expanded, setExpanded] = useState(false)
 
-  const handleToggleColumn = useCallback((columnId: string) => {
-    if (selectedColumns.includes(columnId)) {
-      onSelectionChange(selectedColumns.filter(id => id !== columnId))
-    } else {
-      onSelectionChange([...selectedColumns, columnId])
-    }
-  }, [selectedColumns, onSelectionChange])
+  const handleToggleColumn = useCallback(
+    (columnId: string) => {
+      if (selectedColumns.includes(columnId)) {
+        onSelectionChange(selectedColumns.filter(id => id !== columnId))
+      } else {
+        onSelectionChange([...selectedColumns, columnId])
+      }
+    },
+    [selectedColumns, onSelectionChange]
+  )
 
   const handleSelectAll = useCallback(() => {
     onSelectionChange(TRACKING_COLUMNS.map(col => col.id))
@@ -180,9 +173,7 @@ export const TrackingColumnsConfig: React.FC<TrackingColumnsConfigProps> = ({
         <div className="gba:flex gba:items-center gba:justify-between">
           <div>
             <CardTitle className="gba:text-sm gba:font-medium">Tracking Columns</CardTitle>
-            <CardDescription className="gba:text-xs">
-              Auto-generated columns to track workflow progress
-            </CardDescription>
+            <CardDescription className="gba:text-xs">Auto-generated columns to track workflow progress</CardDescription>
           </div>
           <Badge variant="secondary">
             {selectedCount}/{totalCount} selected
@@ -192,12 +183,7 @@ export const TrackingColumnsConfig: React.FC<TrackingColumnsConfigProps> = ({
       <CardContent className="gba:space-y-4">
         {/* Quick actions */}
         <div className="gba:flex gba:items-center gba:gap-2">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={() => setExpanded(!expanded)}
-            className="gba:text-xs"
-          >
+          <Button variant="outline" size="sm" onClick={() => setExpanded(!expanded)} className="gba:text-xs">
             {expanded ? 'Collapse' : 'Customize'}
           </Button>
           {expanded && (
@@ -222,11 +208,7 @@ export const TrackingColumnsConfig: React.FC<TrackingColumnsConfigProps> = ({
               const col = TRACKING_COLUMNS.find(c => c.id === id)
               if (!col) return null
               return (
-                <Badge 
-                  key={id} 
-                  variant="secondary" 
-                  className="gba:flex gba:items-center gba:gap-1"
-                >
+                <Badge key={id} variant="secondary" className="gba:flex gba:items-center gba:gap-1">
                   <col.icon className="gba:w-3 gba:h-3" />
                   {col.label}
                   <button
@@ -240,9 +222,7 @@ export const TrackingColumnsConfig: React.FC<TrackingColumnsConfigProps> = ({
               )
             })}
             {selectedColumns.length === 0 && (
-              <span className="gba:text-xs gba:text-muted-foreground">
-                No tracking columns selected
-              </span>
+              <span className="gba:text-xs gba:text-muted-foreground">No tracking columns selected</span>
             )}
           </div>
         )}
@@ -269,9 +249,7 @@ export const TrackingColumnsConfig: React.FC<TrackingColumnsConfigProps> = ({
 
             {/* Timing */}
             <div>
-              <Label className="gba:text-xs gba:text-muted-foreground gba:uppercase gba:tracking-wider">
-                Timing
-              </Label>
+              <Label className="gba:text-xs gba:text-muted-foreground gba:uppercase gba:tracking-wider">Timing</Label>
               <div className="gba:mt-2 gba:space-y-2">
                 {timingColumns.map(col => (
                   <TrackingColumnItem
@@ -286,9 +264,7 @@ export const TrackingColumnsConfig: React.FC<TrackingColumnsConfigProps> = ({
 
             {/* Status */}
             <div>
-              <Label className="gba:text-xs gba:text-muted-foreground gba:uppercase gba:tracking-wider">
-                Status
-              </Label>
+              <Label className="gba:text-xs gba:text-muted-foreground gba:uppercase gba:tracking-wider">Status</Label>
               <div className="gba:mt-2 gba:space-y-2">
                 {statusColumns.map(col => (
                   <TrackingColumnItem
@@ -316,20 +292,12 @@ interface TrackingColumnItemProps {
   onToggle: () => void
 }
 
-const TrackingColumnItem: React.FC<TrackingColumnItemProps> = ({
-  column,
-  isSelected,
-  onToggle
-}) => {
+const TrackingColumnItem: React.FC<TrackingColumnItemProps> = ({ column, isSelected, onToggle }) => {
   const Icon = column.icon
 
   return (
     <label className="gba:flex gba:items-start gba:gap-3 gba:p-2 gba:rounded-lg gba:cursor-pointer gba:hover:bg-muted/50 gba:transition-colors">
-      <Checkbox
-        checked={isSelected}
-        onCheckedChange={onToggle}
-        className="gba:mt-0.5"
-      />
+      <Checkbox checked={isSelected} onCheckedChange={onToggle} className="gba:mt-0.5" />
       <div className="gba:flex-1">
         <div className="gba:flex gba:items-center gba:gap-2">
           <Icon className="gba:w-4 gba:h-4 gba:text-muted-foreground" />
@@ -340,9 +308,7 @@ const TrackingColumnItem: React.FC<TrackingColumnItemProps> = ({
             </Badge>
           )}
         </div>
-        <p className="gba:text-xs gba:text-muted-foreground gba:mt-0.5">
-          {column.description}
-        </p>
+        <p className="gba:text-xs gba:text-muted-foreground gba:mt-0.5">{column.description}</p>
       </div>
     </label>
   )

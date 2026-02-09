@@ -8,6 +8,7 @@ tab-values = Valori
 button-add = Adaugă
 button-cancel = Anulează
 button-save = Salvează
+button-start = Pornește
 button-activate = Activează
 button-deactivate = Dezactivează
 button-delete = Șterge
@@ -67,7 +68,7 @@ scale-preview = Previzualizare
 participant-self = Auto
 participant-peer = Coleg
 participant-manager = Manager
-participant-team = Echipa
+participant-hr-team = Echipa HR
 
 # Frecvență
 frequency-annual = Anual
@@ -76,6 +77,17 @@ frequency-custom = Personalizat
 
 # Tabel scale de evaluare
 empty-no-rating-scales = Nu există încă scale de evaluare definite.
+scale-saved-to-database = Scala de evaluare "{ $name }" a fost salvată.
+scale-deleted-to-database = Scala de evaluare "{ $name }" a fost ștearsă.
+cycle-saved-to-database = Ciclul de performanță "{ $name }" a fost salvat.
+cycle-activated-to-database = "{ $name }" a fost activat.
+cycle-deactivated-to-database = "{ $name }" a fost dezactivat.
+cycle-deleted-to-database = "{ $name }" a fost șters.
+cycle-started = Se pornește ciclul: { $name }
+value-saved-to-database = Valoarea companiei "{ $title }" a fost salvată.
+value-deleted-to-database = "{ $title }" a fost ștearsă.
+value-activated-to-database = "{ $title }" a fost activată.
+value-deactivated-to-database = "{ $title }" a fost dezactivată.
 table-values = Valori
 button-edit = Editează
 
@@ -87,4 +99,5 @@ values-modal-description = Definește o valoare a companiei și descrierea ei.
 # Erori
 values-error-cannot-deactivate-active-cycle = Valoarea nu poate fi dezactivată cât timp este folosită într-un ciclu activ.
 cycles-error-no-rating-scales = Este necesară cel puțin o scală de evaluare pentru a crea un ciclu.
+error-activate-out-of-period = Ciclul nu poate fi activat. Data de astăzi este în afara perioadei ciclului.
 

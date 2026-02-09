@@ -42,3 +42,7 @@ TEST_AI_SCHEMA_GENERATION_UI.md
 
 __pycache__
 
+# Test coverage and cache
+coverage/
+.jest-cache/
+

@@ -57,6 +57,10 @@ export function useDocumentAppsHubUserLookup(params: { accessToken: string; docu
   const [ownerInfoMap, setOwnerInfoMap] = useState<OwnerInfoMap>(new Map())
   const [sharedUsersMap, setSharedUsersMap] = useState<Record<string, SharedUserInfo[]>>({})
 
+  useEffect(() => {
+    DocumentApiService.setAccessToken(params.accessToken || null)
+  }, [params.accessToken])
+
   const loadedSharesRef = useRef<Set<string>>(new Set())
   const loadingOwnerInfoRef = useRef<Set<string>>(new Set())
 

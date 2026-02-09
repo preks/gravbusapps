@@ -95,6 +95,29 @@ export interface FlowStep {
   inputs?: InputBlock[] // Legacy field for backward compatibility
   links?: Link[]
   assignment: TaskAssignment // Required to match backend API
+  eventSubscriptions?: EventSubscription[] // Event subscriptions for reactive automation
+}
+
+// Event subscription types for reactive automation
+export enum EventHandlerType {
+  TASK_EXPERT = 'TASK_EXPERT',
+  FUNCTION = 'FUNCTION',
+  NOTIFY = 'NOTIFY'
+}
+
+export interface EventSubscription {
+  id: string
+  eventType: string
+  filters?: Record<string, unknown>
+  handler: {
+    type: EventHandlerType
+    promptId?: string
+    functionId?: string
+    channel?: string
+    [key: string]: unknown
+  }
+  enabled?: boolean
+  description?: string
 }
 
 // Simplified init step for self-service flows
@@ -122,6 +145,9 @@ export interface FlowTemplate {
 
   // Tagging system for metadata-based querying
   tags?: FlowTags
+
+  // Flow-level event subscriptions (cross-cutting defaults)
+  eventSubscriptions?: EventSubscription[]
 }
 
 /**

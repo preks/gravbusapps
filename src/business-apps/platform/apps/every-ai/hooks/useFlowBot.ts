@@ -9,10 +9,77 @@ import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
 const STORAGE_KEY = 'newwork_every_ai'
 const LLM_MODEL = 'gpt-4.1'
 const SUBMITTING_FORM_MESSAGE = 'Submitting form data...'
+const PRECHAT_CACHE_PREFIX = 'everyai_prechat_cache'
+const PRECHAT_CACHE_TTL_MS = 10 * 60 * 1000
+const PRECHAT_MIN_REFETCH_MS = 3000
+const PRECHAT_LLM_MODEL = LLM_MODEL
+
+type PrechatCacheEntry = {
+  suggestions: string[]
+  createdAt: number
+}
+
+const prechatMemoryCache = new Map<string, PrechatCacheEntry>()
+
+function buildPrechatContextKey(context: CurrentPageContext): string {
+  if (context.type === 'entity') {
+    return `entity:${context.entity_name}:${context.id}`
+  }
+  if (context.type === 'overview') {
+    return `overview:${context.entity_name}`
+  }
+  const url = context.url ?? ''
+  try {
+    const parsed = new URL(url)
+    return `unknown:${parsed.pathname}${parsed.search}`
+  } catch {
+    return `unknown:${url}`
+  }
+}
+
+function getPrechatStorageKey(cacheKey: string): string {
+  return `${PRECHAT_CACHE_PREFIX}:${cacheKey}`
+}
+
+function readPrechatCache(cacheKey: string): PrechatCacheEntry | null {
+  const memoryEntry = prechatMemoryCache.get(cacheKey)
+  if (memoryEntry) {
+    return memoryEntry
+  }
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = sessionStorage.getItem(getPrechatStorageKey(cacheKey))
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as PrechatCacheEntry
+    if (!Array.isArray(parsed?.suggestions) || typeof parsed?.createdAt !== 'number') {
+      return null
+    }
+    prechatMemoryCache.set(cacheKey, parsed)
+    return parsed
+  } catch {
+    return null
+  }
+}
+
+function writePrechatCache(cacheKey: string, entry: PrechatCacheEntry) {
+  prechatMemoryCache.set(cacheKey, entry)
+  if (typeof window === 'undefined') return
+  try {
+    sessionStorage.setItem(getPrechatStorageKey(cacheKey), JSON.stringify(entry))
+  } catch {}
+}
+
+function isPrechatCacheFresh(entry: PrechatCacheEntry): boolean {
+  return Date.now() - entry.createdAt < PRECHAT_CACHE_TTL_MS
+}
 
 type ConversationState = {
   conversation: ConversationTurn[]
   sessionId: string | null
+}
+
+type UseFlowBotOptions = {
+  isActive?: boolean
 }
 
 function appendOutputToConversation(conversation: ConversationTurn[], output: OutputItem) {
@@ -227,6 +294,61 @@ async function uploadFilesToFlowbotSession(
   return (data?.sessionId as string | undefined) ?? sessionId ?? ''
 }
 
+export type FlowProposalFileUploadHints = {
+  endpoint?: string
+  flowProposalIdParam?: string
+  fieldKeyParam?: string
+  sessionIdParam?: string
+  fileParam?: string
+}
+
+export type FlowProposalFileBinding = {
+  flowProposalId: string
+  fieldKey: string
+  hints?: FlowProposalFileUploadHints
+}
+
+async function uploadFilesToFlowbotWithBinding(params: {
+  files: File[]
+  sessionId: string | null
+  accessToken: string
+  binding: FlowProposalFileBinding
+}): Promise<string> {
+  const { files, sessionId, accessToken, binding } = params
+  if (!files.length) return sessionId ?? ''
+
+  const baseUrl = resolveFlowbotBaseUrl()
+
+  const endpoint = binding.hints?.endpoint || '/flowbot/api/agent/add_files'
+  const url = endpoint.startsWith('http') ? endpoint : `${baseUrl}${endpoint.startsWith('/') ? '' : '/'}${endpoint}`
+
+  const sessionIdParam = binding.hints?.sessionIdParam || 'session_id'
+  const fileParam = binding.hints?.fileParam || 'files'
+  const flowProposalIdParam = binding.hints?.flowProposalIdParam || 'flow_proposal_id'
+  const fieldKeyParam = binding.hints?.fieldKeyParam || 'field_key'
+
+  const form = new FormData()
+  files.forEach(file => form.append(fileParam, file))
+  form.append(sessionIdParam, sessionId ?? '')
+  form.append(flowProposalIdParam, binding.flowProposalId)
+  form.append(fieldKeyParam, binding.fieldKey)
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`
+    },
+    body: form
+  })
+
+  if (!res.ok) {
+    throw new Error(`add_files failed: ${res.status} ${res.statusText}`)
+  }
+
+  const data = await res.json().catch(() => null)
+  return (data?.sessionId as string | undefined) ?? sessionId ?? ''
+}
+
 type AnalyticsEntityInput = {
   type: string
   id: string
@@ -265,9 +387,11 @@ function resolveAnalyticsEntity(context: CurrentPageContext): AnalyticsEntityInp
   }
 }
 
-export function useFlowBot(accessToken: string) {
+export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {}) {
   const rawPageContext = getCurrentPageContext()
   const currentPageContext = useMemo(() => rawPageContext, [JSON.stringify(rawPageContext)])
+  const prechatContextKey = useMemo(() => buildPrechatContextKey(currentPageContext), [currentPageContext])
+  const isActive = options.isActive ?? true
 
   const [state, setState] = useState<ConversationState>(loadState)
   const [isLoading, setIsLoading] = useState(false)
@@ -276,6 +400,19 @@ export function useFlowBot(accessToken: string) {
   const [prechatSuggestions, setPrechatSuggestions] = useState<string[]>([])
   const [isPrechatLoading, setIsPrechatLoading] = useState(false)
   const isPrechatLoadingRef = useRef(false)
+  const prechatAbortControllerRef = useRef<AbortController | null>(null)
+  const prechatRequestRef = useRef<{
+    cacheKey: string
+    startedAt: number
+    status: 'pending' | 'success' | 'error' | 'aborted'
+  } | null>(null)
+  const prechatDiagnosticsRef = useRef<{
+    cacheKey: string
+    startedAt: number
+    durationMs?: number
+    status?: 'success' | 'error' | 'aborted'
+  } | null>(null)
+  const isActiveRef = useRef(isActive)
   const inFlightRef = useRef(false)
   const abortControllerRef = useRef<AbortController | null>(null)
   const [cancelledMessageText, setCancelledMessageText] = useState<string | null>(null)
@@ -297,6 +434,25 @@ export function useFlowBot(accessToken: string) {
   useEffect(() => {
     sessionIdRef.current = state.sessionId
   }, [state.sessionId])
+
+  useEffect(() => {
+    isActiveRef.current = isActive
+    if (!isActive && prechatAbortControllerRef.current) {
+      prechatAbortControllerRef.current.abort()
+      prechatAbortControllerRef.current = null
+      isPrechatLoadingRef.current = false
+      setIsPrechatLoading(false)
+    }
+  }, [isActive])
+
+  useEffect(() => {
+    if (state.conversation.length > 0 && prechatAbortControllerRef.current) {
+      prechatAbortControllerRef.current.abort()
+      prechatAbortControllerRef.current = null
+      isPrechatLoadingRef.current = false
+      setIsPrechatLoading(false)
+    }
+  }, [state.conversation.length])
 
   useEffect(() => {
     if (!accessToken) return
@@ -733,14 +889,78 @@ export function useFlowBot(accessToken: string) {
     setCancelledMessageText(null)
   }, [])
 
+  const waitForIdle = useCallback(() => {
+    if (typeof window === 'undefined') return Promise.resolve()
+    return new Promise<void>(resolve => {
+      const requestIdleCallback = (
+        window as Window & {
+          requestIdleCallback?: (callback: IdleRequestCallback, options?: IdleRequestOptions) => number
+        }
+      ).requestIdleCallback
+      if (typeof requestIdleCallback === 'function') {
+        requestIdleCallback(() => resolve(), { timeout: 1500 })
+      } else {
+        setTimeout(() => resolve(), 200)
+      }
+    })
+  }, [])
+
   const fetchPrechatSuggestions = useCallback(async () => {
+    if (!accessToken) {
+      console.error('Access token missing')
+      return
+    }
+    if (!isActiveRef.current) return
     if (state.conversation.length > 0 || isPrechatLoadingRef.current) return
 
-    try {
-      isPrechatLoadingRef.current = true
+    const cacheKey = `${PRECHAT_LLM_MODEL}:${prechatContextKey}`
+    const cachedEntry = readPrechatCache(cacheKey)
+    if (cachedEntry?.suggestions?.length) {
+      setPrechatSuggestions(cachedEntry.suggestions.slice(0, 4))
+    }
+
+    const isCacheFresh = cachedEntry ? isPrechatCacheFresh(cachedEntry) : false
+    if (isCacheFresh) {
+      setIsPrechatLoading(false)
+      return
+    }
+
+    const guardNow = Date.now()
+    const previousRequest = prechatRequestRef.current
+    if (previousRequest?.cacheKey === cacheKey) {
+      const elapsed = guardNow - previousRequest.startedAt
+      if (previousRequest.status === 'pending' || elapsed < PRECHAT_MIN_REFETCH_MS) {
+        return
+      }
+    }
+
+    isPrechatLoadingRef.current = true
+    if (!cachedEntry?.suggestions?.length) {
       setPrechatSuggestions([])
       setIsPrechatLoading(true)
+    } else {
+      setIsPrechatLoading(false)
+    }
 
+    await waitForIdle()
+    if (!isActiveRef.current || state.conversation.length > 0) {
+      isPrechatLoadingRef.current = false
+      setIsPrechatLoading(false)
+      return
+    }
+
+    if (prechatAbortControllerRef.current) {
+      prechatAbortControllerRef.current.abort()
+    }
+    const controller = new AbortController()
+    prechatAbortControllerRef.current = controller
+    const timeoutId = setTimeout(() => controller.abort(), 7000)
+    const requestStart = Date.now()
+    const startPerf = typeof performance !== 'undefined' ? performance.now() : Date.now()
+    prechatDiagnosticsRef.current = { cacheKey, startedAt: startPerf }
+    prechatRequestRef.current = { cacheKey, startedAt: requestStart, status: 'pending' }
+
+    try {
       const form = new FormData()
       // For prechat suggestions we only need lightweight page context without analytics
       const url = typeof window !== 'undefined' ? window.location.href : ''
@@ -760,10 +980,7 @@ export function useFlowBot(accessToken: string) {
         currentPage: baseCurrentPage
       })
       form.append('current_page_context', JSON.stringify(prechatContext))
-
-      // Add timeout to prevent long waits
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 7000) // 7 second timeout
+      form.append('llm_model', PRECHAT_LLM_MODEL)
 
       const baseUrl = resolveFlowbotBaseUrl()
       const res = await fetch(`${baseUrl}/flowbot/api/agent/prechat-suggestions`, {
@@ -775,25 +992,51 @@ export function useFlowBot(accessToken: string) {
         signal: controller.signal
       })
 
-      clearTimeout(timeoutId)
-
       if (!res.ok) {
         throw new Error(`Failed to fetch prechat suggestions: ${res.statusText}`)
       }
 
       const data = await res.json()
       const suggestions = Array.isArray(data?.suggestions) ? data.suggestions : []
+      const normalizedSuggestions = suggestions.slice(0, 4)
 
-      setPrechatSuggestions(suggestions.slice(0, 4))
+      setPrechatSuggestions(normalizedSuggestions)
+      if (normalizedSuggestions.length > 0) {
+        writePrechatCache(cacheKey, { suggestions: normalizedSuggestions, createdAt: Date.now() })
+      }
+      prechatRequestRef.current = { cacheKey, startedAt: requestStart, status: 'success' }
+      if (prechatDiagnosticsRef.current?.cacheKey === cacheKey) {
+        const endPerf = typeof performance !== 'undefined' ? performance.now() : Date.now()
+        prechatDiagnosticsRef.current = {
+          ...prechatDiagnosticsRef.current,
+          durationMs: endPerf - prechatDiagnosticsRef.current.startedAt,
+          status: 'success'
+        }
+      }
     } catch (error) {
-      console.error('Failed to fetch prechat suggestions:', error)
-      // Silently fail - no suggestions is better than showing loading forever
-      setPrechatSuggestions([])
+      const isAbort = error instanceof Error && error.name === 'AbortError'
+      if (!isAbort) {
+        console.error('Failed to fetch prechat suggestions:', error)
+        if (!cachedEntry?.suggestions?.length) {
+          setPrechatSuggestions([])
+        }
+      }
+      prechatRequestRef.current = { cacheKey, startedAt: requestStart, status: isAbort ? 'aborted' : 'error' }
+      if (prechatDiagnosticsRef.current?.cacheKey === cacheKey) {
+        const endPerf = typeof performance !== 'undefined' ? performance.now() : Date.now()
+        prechatDiagnosticsRef.current = {
+          ...prechatDiagnosticsRef.current,
+          durationMs: endPerf - prechatDiagnosticsRef.current.startedAt,
+          status: isAbort ? 'aborted' : 'error'
+        }
+      }
     } finally {
+      clearTimeout(timeoutId)
+      prechatAbortControllerRef.current = null
       setIsPrechatLoading(false)
       isPrechatLoadingRef.current = false
     }
-  }, [accessToken, currentPageContext, state.conversation.length])
+  }, [accessToken, currentPageContext, prechatContextKey, state.conversation.length, waitForIdle])
 
   const clearConversation = useCallback(() => {
     setState({ conversation: [], sessionId: null })
@@ -807,12 +1050,12 @@ export function useFlowBot(accessToken: string) {
   }, [fetchPrechatSuggestions, resetAnalytics])
 
   useEffect(() => {
-    if (state.conversation.length === 0 && accessToken) {
+    if (state.conversation.length === 0 && accessToken && isActive) {
       fetchPrechatSuggestions()
     } else if (state.conversation.length > 0) {
       setPrechatSuggestions([])
     }
-  }, [state.conversation.length, accessToken, currentPageContext, fetchPrechatSuggestions])
+  }, [state.conversation.length, accessToken, currentPageContext, fetchPrechatSuggestions, isActive])
 
   const editMessage = useCallback(
     async (turnIndex: number, newText: string) => {
@@ -859,12 +1102,39 @@ export function useFlowBot(accessToken: string) {
     [accessToken, state.sessionId, updateSessionId, sessionIdRef]
   )
 
+  /**
+   * Upload files for a specific CFLOW FlowProposal FILE field.
+   * Backend uses (flow_proposal_id, field_key) to bind uploaded files to the correct field.
+   */
+  const attachFilesForFlowProposalField = useCallback(
+    async (files: File[], binding: FlowProposalFileBinding) => {
+      if (!files.length) return
+      if (!binding?.flowProposalId || !binding?.fieldKey) {
+        throw new Error('Missing flowProposalId or fieldKey for flow proposal file upload')
+      }
+
+      const effectiveSessionId = sessionIdRef.current ?? state.sessionId
+      const newSessionId = await uploadFilesToFlowbotWithBinding({
+        files,
+        sessionId: effectiveSessionId,
+        accessToken,
+        binding
+      })
+
+      if (newSessionId && newSessionId !== state.sessionId) {
+        updateSessionId(newSessionId)
+      }
+    },
+    [accessToken, state.sessionId, updateSessionId, sessionIdRef]
+  )
+
   return {
     conversation: state.conversation,
     isLoading,
     sendMessage,
     editMessage,
     attachFiles,
+    attachFilesForFlowProposalField,
     clearConversation,
     nextStepProposals,
     isPrechatLoading,

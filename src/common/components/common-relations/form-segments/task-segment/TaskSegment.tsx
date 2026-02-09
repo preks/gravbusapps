@@ -57,6 +57,7 @@ export interface TaskSegmentProps {
   // Type selection control
   initialTypeRef?: string | null
   hideTypeSelection?: boolean
+  disableTypeSelection?: boolean // Make type field read-only
   catalogSelectConfig?: CatalogSelectConfig // Configuration for catalog filtering
 
   // Assignee selection control
@@ -110,6 +111,7 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
   // statusCatalog kept in props for backwards compatibility, backend now computes status
   initialTypeRef,
   hideTypeSelection = false,
+  disableTypeSelection = false,
   catalogSelectConfig,
   hideAssigneeSelection = false,
   showEntitySelection = false,
@@ -339,10 +341,11 @@ const TaskSegment: React.FC<TaskSegmentProps> = ({
                 <FormControl>
                   <CatalogSelect
                     catalogIdentifier={typeCatalog}
-                    prefetch={true}
+                    prefetch={false}
                     value={field.value || ''}
                     onValueChange={field.onChange}
                     config={catalogSelectConfig}
+                    disabled={disableTypeSelection}
                     data-testid={`${dataTestId}-type`}
                   />
                 </FormControl>

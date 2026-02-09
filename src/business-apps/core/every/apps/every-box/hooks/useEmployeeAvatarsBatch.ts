@@ -1,62 +1,24 @@
 /**
  * Hook to batch fetch employee avatars for multiple users
  * More efficient than individual queries - fetches all employees in one request
- * Includes caching to prevent redundant API calls
+ * Uses shared employeeCacheStore to prevent redundant API calls across hooks
  */
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { type CachedEmployeeData, getCached, addToCache } from './employeeCacheStore'
 
-export interface EmployeeAvatarData {
-  id: string
-  userId?: string
-  firstName: string
-  lastName: string
-  displayName: string
-  pictureThumbnail?: string
-  avatarUrl?: string // Cached Object URL for browser-level caching
-}
+// Re-export CachedEmployeeData shape so consumers don't need to import the store
+export type EmployeeAvatarData = CachedEmployeeData
 
-// Global in-memory cache for employee data (persists during app session)
-const employeeCache = new Map<string, EmployeeAvatarData>()
-
-// Cache expiry time (30 minutes)
-const CACHE_EXPIRY_MS = 30 * 60 * 1000
-const cacheTimestamps = new Map<string, number>()
-
-// Helper to check if cache entry is still valid
-const isCacheValid = (key: string): boolean => {
-  const timestamp = cacheTimestamps.get(key)
-  if (!timestamp) return false
-  return Date.now() - timestamp < CACHE_EXPIRY_MS
-}
-
-// Helper to convert base64 to Object URL (for browser caching)
-const base64ToObjectURL = (base64Data: string): string | undefined => {
+// Helper to convert base64 to a data URL (lightweight, no Blob/ObjectURL leak)
+const base64ToDataURL = (base64Data: string): string | undefined => {
   try {
-    // Skip if data is JSON or invalid
     if (base64Data.startsWith('{')) return undefined
-
-    // Convert base64 to blob
-    const byteCharacters = atob(base64Data)
-    const byteNumbers = new Array(byteCharacters.length)
-    for (let i = 0; i < byteCharacters.length; i++) {
-      byteNumbers[i] = byteCharacters.codePointAt(i) ?? 0
-    }
-    const byteArray = new Uint8Array(byteNumbers)
-    const blob = new Blob([byteArray], { type: 'image/jpeg' })
-
-    // Create Object URL (this will be cached by the browser!)
-    return URL.createObjectURL(blob)
+    return `data:image/jpeg;base64,${base64Data}`
   } catch {
     return undefined
   }
-}
-
-// Helper to add to cache
-const addToCache = (key: string, data: EmployeeAvatarData) => {
-  employeeCache.set(key, data)
-  cacheTimestamps.set(key, Date.now())
 }
 
 const GET_EMPLOYEES_BY_USER_IDS = `
@@ -100,6 +62,9 @@ export const useEmployeeAvatarsBatch = (accessToken: string, userIds: string[], 
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const graphqlClient = useGraphQLClient(accessToken)
+  // PERF: Stabilize graphqlClient via ref to prevent useCallback recreation on every render
+  const graphqlClientRef = useRef(graphqlClient)
+  graphqlClientRef.current = graphqlClient
 
   const fetchEmployees = useCallback(
     async (uIds: string[], eIds: string[]) => {
@@ -118,16 +83,18 @@ export const useEmployeeAvatarsBatch = (accessToken: string, userIds: string[], 
       const missingEmployeeIds: string[] = []
 
       uniqueUserIds.forEach(userId => {
-        if (isCacheValid(userId) && employeeCache.has(userId)) {
-          cachedMap.set(userId, employeeCache.get(userId)!)
+        const cached = getCached(userId)
+        if (cached) {
+          cachedMap.set(userId, cached)
         } else {
           missingUserIds.push(userId)
         }
       })
 
       uniqueEmployeeIds.forEach(empId => {
-        if (isCacheValid(empId) && employeeCache.has(empId)) {
-          cachedMap.set(empId, employeeCache.get(empId)!)
+        const cached = getCached(empId)
+        if (cached) {
+          cachedMap.set(empId, cached)
         } else {
           missingEmployeeIds.push(empId)
         }
@@ -146,16 +113,17 @@ export const useEmployeeAvatarsBatch = (accessToken: string, userIds: string[], 
       try {
         // Only fetch missing employees
         const promises = []
+        const client = graphqlClientRef.current
         if (missingUserIds.length > 0) {
           promises.push(
-            graphqlClient.request<{ Employee: EmployeeAvatarData[] }>(GET_EMPLOYEES_BY_USER_IDS, {
+            client.request<{ Employee: EmployeeAvatarData[] }>(GET_EMPLOYEES_BY_USER_IDS, {
               userIds: missingUserIds
             })
           )
         }
         if (missingEmployeeIds.length > 0) {
           promises.push(
-            graphqlClient.request<{ Employee: EmployeeAvatarData[] }>(GET_EMPLOYEES_BY_EMPLOYEE_IDS, {
+            client.request<{ Employee: EmployeeAvatarData[] }>(GET_EMPLOYEES_BY_EMPLOYEE_IDS, {
               employeeIds: missingEmployeeIds
             })
           )
@@ -169,10 +137,10 @@ export const useEmployeeAvatarsBatch = (accessToken: string, userIds: string[], 
           const allEmployees: EmployeeAvatarData[] = results.flatMap(result => result?.Employee || [])
 
           allEmployees.forEach(employee => {
-            // Convert base64 avatar to Object URL for browser caching
+            // Convert base64 avatar to data URL for efficient rendering
             const enhancedEmployee = { ...employee }
             if (employee.pictureThumbnail && !employee.pictureThumbnail.startsWith('{')) {
-              enhancedEmployee.avatarUrl = base64ToObjectURL(employee.pictureThumbnail)
+              enhancedEmployee.avatarUrl = base64ToDataURL(employee.pictureThumbnail)
             }
 
             // Map by userId (for Kogito tasks)
@@ -196,8 +164,12 @@ export const useEmployeeAvatarsBatch = (accessToken: string, userIds: string[], 
         setIsLoading(false)
       }
     },
-    [accessToken, graphqlClient]
+    [accessToken]
   )
+
+  // Stable keys for dependency tracking (avoids JSON.stringify on every render)
+  const userIdsKey = useMemo(() => [...userIds].sort().join(','), [userIds])
+  const employeeIdsKey = useMemo(() => [...employeeIds].sort().join(','), [employeeIds])
 
   useEffect(() => {
     if (userIds.length > 0 || employeeIds.length > 0) {
@@ -206,11 +178,7 @@ export const useEmployeeAvatarsBatch = (accessToken: string, userIds: string[], 
       setEmployeeMap(new Map())
       setError(null)
     }
-  }, [
-    JSON.stringify([...userIds].sort((a, b) => a.localeCompare(b))),
-    JSON.stringify([...employeeIds].sort((a, b) => a.localeCompare(b))),
-    fetchEmployees
-  ])
+  }, [userIdsKey, employeeIdsKey, fetchEmployees])
 
   return {
     employeeMap,

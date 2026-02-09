@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
 interface UseGetEmployeeAbsencesProps {
   employeeId?: string
@@ -19,7 +19,7 @@ export interface EmployeeAbsence {
 }
 
 export function useGetEmployeeAbsences({ employeeId, accessToken }: UseGetEmployeeAbsencesProps) {
-  const client = useGraphqlClient(accessToken)
+  const client = useGraphQLClient(accessToken)
   const [absences, setAbsences] = useState<EmployeeAbsence[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<Error | null>(null)

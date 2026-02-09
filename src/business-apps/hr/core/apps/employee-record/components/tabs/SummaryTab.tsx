@@ -10,6 +10,7 @@ import { Employee, EmployeeAbsenceEntitlement } from '../../hooks/useEmployeeDat
 dayjs.extend(isSameOrAfter)
 dayjs.extend(isSameOrBefore)
 import { Card, Avatar } from '@newwork/gravity-ui-catalog'
+import { useTranslation } from '@newwork/nw-design-system'
 import {
   PiBriefcase,
   PiStack,
@@ -24,8 +25,8 @@ import {
   PiSignOut
 } from 'react-icons/pi'
 import { ArrowCircleLeftIcon } from '@phosphor-icons/react'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { UserInfoProps } from '@/common/BusinessAppContext'
+import translations from '../../_i18n'
 import { AppAction } from '@/components/app-action/AppAction'
 import { AppActionMenu } from '@/components/app-action-menu'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
@@ -63,6 +64,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
   currentUserEmployeeId,
   employeeAbsenceEntitlement
 }) => {
+  const { t } = useTranslation(translations)
   // Fetch upcoming absence for this employee
   const { loading: absenceLoading, upcomingAbsence } = useEmployeeUpcomingAbsence(accessToken, employee.id)
 
@@ -147,8 +149,8 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
       wh?.saturdayHours,
       wh?.sundayHours
     ].reduce((sum, val) => sum + (typeof val === 'number' ? val : 0), 0)
-    return hours > 0 ? `${hours} hours/week` : 'Not specified'
-  }, [employee.workingHours])
+    return hours > 0 ? t('summary-hours-per-week', { hours }) : t('summary-not-specified')
+  }, [employee.workingHours, t])
 
   return (
     <div className="gba:summary-tab gba:space-y-8" data-testid="summary-tab-container">
@@ -156,13 +158,10 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
       <div className="gba:flex gba:justify-between gba:items-start" data-testid="summary-header">
         <div className="gba:summary-header">
           <div className="gba:font-bold gba:text-2xl" data-testid="summary-title">
-            {getTranslationFromI18nKeyAndLabel('lowcoder:hr_employee.summary_overview', 'Employee Overview')}
+            {t('summary-overview')}
           </div>
           <div className="gba:text-muted-foreground gba:text-lg" data-testid="summary-description">
-            {getTranslationFromI18nKeyAndLabel(
-              'lowcoder:hr_employee.summary_description',
-              'View and edit employee profile'
-            )}
+            {t('summary-description')}
           </div>
         </div>
 
@@ -211,13 +210,9 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
       <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:lg:grid-cols-3 gba:gap-6">
         {/* Organization Chart Section */}
         <div className="gba:lg:col-span-1 gba:xl:col-span-1">
-          <Card
-            variant="outlined"
-            className="gba:shadow-md gba:hover:shadow-lg gba:border gba:border-border gba:transition-all gba:min-h-[420px] gba:bg-primary-foreground"
-            data-testid="summary-section-organization-chart"
-          >
+          <Card variant="outlined" className="gba:min-h-[420px]" data-testid="summary-section-organization-chart">
             <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2">
-              <h3 className="gba:text-xl gba:font-semibold gba:text-info">Organization Chart</h3>
+              <h3 className="gba:text-xl gba:font-semibold">{t('summary-organization-chart')}</h3>
             </div>
             <div className="gba:p-4 gba:overflow-hidden gba:flex gba:flex-col gba:justify-center gba:items-center">
               <div
@@ -314,18 +309,17 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                 <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-4 gba:w-full">
                   {subordinates.map(member => (
                     <div key={member.id} className="gba:flex gba:justify-center gba:mb-2">
-                      <a
-                        href="#"
-                        onClick={e => {
-                          e.preventDefault()
+                      <button
+                        type="button"
+                        onClick={() => {
                           navigateTo(
                             buildPlatformUrl('/platform/employee-record', {
                               employeeId: member.id
                             })
                           )
                         }}
-                        className="gba:cursor-pointer gba:hover:opacity-90 gba:flex gba:flex-col gba:items-center"
-                        title={`View ${member.displayName}'s profile`}
+                        className="gba:cursor-pointer gba:hover:opacity-90 gba:flex gba:flex-col gba:items-center gba:bg-transparent gba:border-none gba:p-0"
+                        title={t('summary-view-profile', { name: member.displayName })}
                         data-testid={`team-member-link-${member.id}`}
                       >
                         <Avatar
@@ -349,7 +343,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                             {member.position}
                           </div>
                         </div>
-                      </a>
+                      </button>
                     </div>
                   ))}
                 </div>
@@ -360,27 +354,18 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
 
         {/* Job Information Section */}
         <div className="gba:lg:col-span-1 gba:xl:col-span-1">
-          <Card
-            variant="outlined"
-            className="gba:shadow-md gba:hover:shadow-lg gba:border gba:border-border gba:transition-all"
-            style={{ minHeight: '420px', backgroundColor: 'var(--nw-primary-foreground)' }}
-            data-testid="summary-section-job-information"
-          >
+          <Card variant="outlined" style={{ minHeight: '420px' }} data-testid="summary-section-job-information">
             <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2">
-              <h3 className="gba:text-xl gba:font-semibold gba:text-info">Job Information</h3>
+              <h3 className="gba:text-xl gba:font-semibold">{t('summary-job-information')}</h3>
             </div>
             <div className="gba:p-4">
               <div className="gba:space-y-4">
                 <div className="gba:flex gba:items-center">
                   <PiBriefcase className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mr-3" />
                   <div>
-                    <div className="gba:text-sm gba:font-medium gba:text-foreground">Job Profile</div>
+                    <div className="gba:text-sm gba:font-medium gba:text-foreground">{t('summary-job-profile')}</div>
                     <div className="gba:text-sm gba:text-muted-foreground">
-                      {employee.employeePosition?.jobPosition?.name ??
-                        getTranslationFromI18nKeyAndLabel(
-                          'lowcoder:employee_profile.left_side_bar.not_assigned',
-                          'Not assigned'
-                        )}
+                      {employee.employeePosition?.jobPosition?.name ?? t('employee-record-not-assigned')}
                     </div>
                   </div>
                 </div>
@@ -390,7 +375,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                   <div className="gba:flex gba:items-center">
                     <PiStack className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mr-3" />
                     <div className="gba:w-full">
-                      <div className="gba:text-sm gba:font-medium gba:text-foreground">Job Family</div>
+                      <div className="gba:text-sm gba:font-medium gba:text-foreground">{t('summary-job-family')}</div>
                       <button
                         onClick={() =>
                           openDrawer(
@@ -404,10 +389,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                       >
                         {/* Display job family from updated data structure, fallback to organizationalUnit name */}
                         {employee.employeePosition?.jobPosition?.jobFunction?.jobFamily?.value ||
-                          getTranslationFromI18nKeyAndLabel(
-                            'lowcoder:employee_profile.left_side_bar.not_assigned',
-                            'Not assigned'
-                          )}
+                          t('employee-record-not-assigned')}
                       </button>
                     </div>
                   </div>
@@ -419,7 +401,9 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                     <PiFunction className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mr-3" />
                     <div className="gba:w-full">
                       <div className="gba:flex gba:justify-between gba:w-full">
-                        <div className="gba:text-sm gba:font-medium gba:text-foreground">Job Function</div>
+                        <div className="gba:text-sm gba:font-medium gba:text-foreground">
+                          {t('summary-job-function')}
+                        </div>
                       </div>
                       <button
                         onClick={() =>
@@ -432,11 +416,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                         className="gba:text-sm gba:!text-blue-600 gba:hover:underline gba:text-left gba:w-full"
                         data-testid="job-function-button"
                       >
-                        {employee.employeePosition?.jobPosition?.jobFunction?.name ||
-                          getTranslationFromI18nKeyAndLabel(
-                            'lowcoder:employee_profile.left_side_bar.not_assigned',
-                            'Not assigned'
-                          )}
+                        {employee.employeePosition?.jobPosition?.jobFunction?.name || t('employee-record-not-assigned')}
                       </button>
                     </div>
                   </div>
@@ -447,7 +427,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                   <div className="gba:flex gba:items-center">
                     <PiListNumbers className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mr-3" />
                     <div className="gba:w-full">
-                      <div className="gba:text-sm gba:font-medium gba:text-foreground">Job Level</div>
+                      <div className="gba:text-sm gba:font-medium gba:text-foreground">{t('summary-job-level')}</div>
                       <button
                         onClick={() =>
                           openDrawer(
@@ -459,11 +439,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                         className="gba:text-sm gba:!text-blue-600 gba:hover:underline gba:text-left gba:w-full"
                         data-testid="job-level-button"
                       >
-                        {employee.employeePosition?.jobPosition?.jobLevel?.name ||
-                          getTranslationFromI18nKeyAndLabel(
-                            'lowcoder:employee_profile.left_side_bar.not_assigned',
-                            'Not assigned'
-                          )}
+                        {employee.employeePosition?.jobPosition?.jobLevel?.name || t('employee-record-not-assigned')}
                       </button>
                     </div>
                   </div>
@@ -474,7 +450,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                   <div className="gba:flex gba:items-center">
                     <PiListNumbers className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mr-3" />
                     <div>
-                      <div className="gba:text-sm gba:font-medium gba:text-foreground">{getTranslationFromI18nKeyAndLabel('lowcoder:hr_employee.sap_number', 'SAP Number')}</div>
+                      <div className="gba:text-sm gba:font-medium gba:text-foreground">{t('summary-sap-number')}</div>
                       <div className="gba:text-sm gba:text-muted-foreground">{String(employee.hrReferenceCode)}</div>
                     </div>
                   </div>
@@ -486,14 +462,9 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
 
         {/* Availability & Schedule Section */}
         <div className="gba:lg:col-span-1 gba:xl:col-span-1">
-          <Card
-            variant="outlined"
-            className="gba:shadow-md gba:hover:shadow-lg gba:border gba:border-border gba:transition-all"
-            style={{ minHeight: '420px', backgroundColor: 'var(--nw-primary-foreground)' }}
-            data-testid="summary-section-availability"
-          >
+          <Card variant="outlined" style={{ minHeight: '420px' }} data-testid="summary-section-availability">
             <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2">
-              <h3 className="gba:text-xl gba:font-semibold gba:text-info">Availability & Schedule</h3>
+              <h3 className="gba:text-xl gba:font-semibold">{t('summary-availability-schedule')}</h3>
             </div>
             <div className="gba:p-4">
               <div className="gba:space-y-4">
@@ -511,16 +482,24 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                     />
                   )}
                   <div>
-                    <div className="gba:text-sm gba:font-medium gba:text-foreground">Current Status</div>
+                    <div className="gba:text-sm gba:font-medium gba:text-foreground">{t('summary-current-status')}</div>
                     <div className="gba:text-sm gba:text-muted-foreground" data-testid="current-status-text">
-                      {hasAbsenceToday ? 'Unavailable' : 'Available'}
+                      {hasAbsenceToday ? t('summary-unavailable') : t('summary-available')}
                     </div>
                   </div>
                 </div>
 
                 {/* Weekly schedule */}
                 <div className="gba:grid gba:grid-cols-7 gba:gap-1 gba:items-center">
-                  {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map(day => {
+                  {[
+                    { day: 'monday', key: 'mon' },
+                    { day: 'tuesday', key: 'tue' },
+                    { day: 'wednesday', key: 'wed' },
+                    { day: 'thursday', key: 'thu' },
+                    { day: 'friday', key: 'fri' },
+                    { day: 'saturday', key: 'sat' },
+                    { day: 'sunday', key: 'sun' }
+                  ].map(({ day, key }) => {
                     // Use actual working hours from employee data
                     const hoursKey = `${day}Hours` as keyof (typeof employee.workingHours)[0]
                     const dayHours = employee.workingHours?.[0]?.[hoursKey] as number
@@ -528,8 +507,8 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                     return (
                       <div key={day} className="gba:text-center">
                         <div className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase">
-                          <span className="gba:hidden gba:2xl:inline">{day.slice(0, 3)}</span>
-                          <span className="gba:inline gba:2xl:hidden">{day.slice(0, 1)}</span>
+                          <span className="gba:hidden gba:2xl:inline">{t(`summary-day-${key}`)}</span>
+                          <span className="gba:inline gba:2xl:hidden">{t(`summary-day-${key}-short`)}</span>
                         </div>
                         <div
                           className={`gba:h-2 gba:rounded-full gba:mt-1 ${isWorkDay ? 'gba:bg-info' : 'gba:bg-border'}`}
@@ -543,7 +522,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                 <div className="gba:flex gba:items-center">
                   <PiClock className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mr-3" />
                   <div>
-                    <div className="gba:text-sm gba:font-medium gba:text-foreground">Timezone</div>
+                    <div className="gba:text-sm gba:font-medium gba:text-foreground">{t('summary-timezone')}</div>
                     <div className="gba:text-sm gba:text-muted-foreground">Europe/Berlin</div>
                   </div>
                 </div>
@@ -552,83 +531,83 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                 <div className="gba:flex gba:items-center">
                   <PiCalendarCheck className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mr-3" />
                   <div>
-                    <div className="gba:text-sm gba:font-medium gba:text-foreground">Weekly Hours</div>
+                    <div className="gba:text-sm gba:font-medium gba:text-foreground">{t('summary-weekly-hours')}</div>
                     <div className="gba:text-sm gba:text-muted-foreground">{computedWorkingHours}</div>
                   </div>
                 </div>
 
                 {/* Quick Actions - Only visible when user is viewing their own profile */}
-                {isCurrentUser && (
-                  <div className="">
-                    <div className="gba:flex gba:items-center gba:mb-3">
-                      <PiLightning className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mr-3" />
-                      <div
-                        className="gba:text-sm gba:font-medium gba:text-foreground"
-                        data-testid="quick-actions-heading"
-                      >
-                        Quick Actions
-                      </div>
-                    </div>
-                    <div className="gba:flex gba:gap-2 gba:w-full gba:flex-wrap">
-                      <Tooltip title="Clock In">
-                        <Button
-                          type="default"
-                          size="small"
-                          className="gba:hover:bg-gray-100 gba:flex-1"
-                          data-testid="clock-in-button"
-                          onClick={() => {
-                            // Clock in action logic would go here
-                            console.log('Clock in clicked')
-                          }}
-                        >
-                          <span data-testid="clock-in-button-text">
-                            <PiSignIn className="gba:h-3 gba:w-3" />
-                          </span>
-                        </Button>
-                      </Tooltip>
-                      <Tooltip title="Clock Out">
-                        <Button
-                          type="default"
-                          size="small"
-                          className="gba:hover:bg-gray-100 gba:flex-1"
-                          data-testid="clock-out-button"
-                          onClick={() => {
-                            // Clock out action logic would go here
-                            console.log('Clock out clicked')
-                          }}
-                        >
-                          <span data-testid="clock-out-button-text">
-                            <PiSignOut className="gba:h-3 gba:w-3" />
-                          </span>
-                        </Button>
-                      </Tooltip>
-                      <AppActionMenu
-                        data-testid="request-absence-button"
-                        contextsArray={[FlowContextName.employeeAbsenceRecord]}
-                        externalContextData={{
-                          employeeId: employee.id,
-                          flowType: 'vacation',
-                          absenceType: employeeAbsenceEntitlement.find(e => e.type?.id === 'AbsenceType:v1:A001')?.type
-                            ?.id,
-                          startDate: null,
-                          endDate: null
-                        }}
-                        prefixDataTestId="request-absence"
-                        accessToken={accessToken}
-                      >
-                        <div className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer gba:flex-1 gba:min-w-0">
-                          <PiCalendarX className="gba:h-4 gba:w-4" />
-                          <span className="gba:text-xs gba:md:text-sm gba:truncate">
-                            {getTranslationFromI18nKeyAndLabel(
-                              'lowcoder:absence_hub.request_absence',
-                              'Request Absence'
-                            )}
-                          </span>
+                {isCurrentUser &&
+                  (() => {
+                    const requestAbsenceText = t('summary-request-absence')
+                    return (
+                      <div className="">
+                        <div className="gba:flex gba:items-center gba:mb-3">
+                          <PiLightning className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mr-3" />
+                          <div
+                            className="gba:text-sm gba:font-medium gba:text-foreground"
+                            data-testid="quick-actions-heading"
+                          >
+                            {t('summary-quick-actions')}
+                          </div>
                         </div>
-                      </AppActionMenu>
-                    </div>
-                  </div>
-                )}
+                        <div className="gba:flex gba:gap-2 gba:w-full gba:flex-wrap">
+                          <Tooltip title={t('summary-clock-in')}>
+                            <Button
+                              type="default"
+                              size="small"
+                              className="gba:hover:bg-gray-100 gba:flex-1"
+                              data-testid="clock-in-button"
+                              onClick={() => {
+                                // Clock in action logic would go here
+                                console.log('Clock in clicked')
+                              }}
+                            >
+                              <span data-testid="clock-in-button-text">
+                                <PiSignIn className="gba:h-3 gba:w-3" />
+                              </span>
+                            </Button>
+                          </Tooltip>
+                          <Tooltip title={t('summary-clock-out')}>
+                            <Button
+                              type="default"
+                              size="small"
+                              className="gba:hover:bg-gray-100 gba:flex-1"
+                              data-testid="clock-out-button"
+                              onClick={() => {
+                                // Clock out action logic would go here
+                                console.log('Clock out clicked')
+                              }}
+                            >
+                              <span data-testid="clock-out-button-text">
+                                <PiSignOut className="gba:h-3 gba:w-3" />
+                              </span>
+                            </Button>
+                          </Tooltip>
+                          <AppActionMenu
+                            data-testid="request-absence-button"
+                            contextsArray={[FlowContextName.employeeAbsenceRecord]}
+                            externalContextData={{
+                              employeeId: employee.id,
+                              flowType: 'vacation',
+                              absenceType: employeeAbsenceEntitlement.find(e => e.type?.id === 'AbsenceType:v1:A001')
+                                ?.type?.id,
+                              startDate: null,
+                              endDate: null
+                            }}
+                            prefixDataTestId="request-absence"
+                            accessToken={accessToken}
+                            key={requestAbsenceText}
+                          >
+                            <div className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer gba:flex-1 gba:min-w-0">
+                              <PiCalendarX className="gba:h-4 gba:w-4" />
+                              <span className="gba:text-xs gba:md:text-sm gba:truncate">{requestAbsenceText}</span>
+                            </div>
+                          </AppActionMenu>
+                        </div>
+                      </div>
+                    )
+                  })()}
 
                 {/* Upcoming Absence Section */}
                 {firstUpcomingValidAbsence && (
@@ -642,7 +621,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                         className="gba:text-sm gba:font-medium gba:text-foreground"
                         data-testid="upcoming-absence-heading"
                       >
-                        Next Planned Absence
+                        {t('summary-next-planned-absence')}
                       </div>
                     </div>
                     <div className="gba:bg-gray-50 gba:p-3 gba:rounded gba:border gba:border-border">
@@ -650,9 +629,9 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                         <div>
                           <p className="gba:text-sm gba:font-medium" data-testid="absence-type">
                             {firstUpcomingValidAbsence.type.parentEntryId === 'AbsenceGroup:v1:HEALTH' && !isCurrentUser
-                              ? 'Out of office'
+                              ? t('summary-out-of-office')
                               : firstUpcomingValidAbsence.type.value}
-                            - {firstUpcomingValidAbsence.calendarDays} days
+                            - {firstUpcomingValidAbsence.calendarDays} {t('summary-days')}
                           </p>
                           <div className="gba:flex gba:items-center gba:mt-1">
                             <span className="gba:text-xs gba:text-muted-foreground" data-testid="absence-dates">
@@ -681,7 +660,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                     className="gba:mt-4 gba:border-t gba:border-border gba:pt-4 gba:text-center gba:text-sm gba:text-muted-foreground"
                     data-testid="loading-absence"
                   >
-                    Loading upcoming absence...
+                    {t('summary-loading-upcoming-absence')}
                   </div>
                 )}
               </div>

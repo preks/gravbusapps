@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button, Input, Card, Spinner, Icon, DataTable, CardContent, Badge, toast } from '@newwork/nw-design-system'
+import { Button, Card, Spinner, Icon, DataTable, CardContent, Badge, toast } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 import { useUserLocale } from '@/common/locale/useUserLocale'
@@ -13,6 +13,7 @@ import {
   EyeIcon,
   IdentificationCardIcon,
   InfoIcon,
+  MagnifyingGlassIcon,
   PencilSimpleLineIcon,
   PlusIcon,
   TagIcon
@@ -23,6 +24,7 @@ import {
   EMPLOYMENT_TYPE_CATALOG,
   EMPLOYMENT_TYPE_VERSION
 } from '@/business-apps/hr/core/forms/job-position/hooks/useEmploymentTypes'
+import { DebouncedInput } from '@/components/debounced-input/DebouncedInput'
 
 export interface EmploymentType {
   id: string
@@ -173,7 +175,7 @@ const EmploymentTypesTab: React.FC<EmploymentTypesTabProps> = ({ accessToken, pr
         cell: ({ getValue }) => {
           const name = getValue()
           return (
-            <div className="gba:flex gba:items-center gba:w-[200px] gba:md:w-[350px] gba:lg:w-[500px] gba:xl:w-[650px] gba:2xl:w-[800px]">
+            <div className="gba:flex gba:items-center gba:w-[150px] gba:md:w-[250px] gba:lg:w-[350px] gba:xl:w-[420px] gba:2xl:w-[420px]">
               <div className="gba:w-full gba:truncate gba:font-semibold" title={name as string}>
                 {name as string}
               </div>
@@ -188,7 +190,12 @@ const EmploymentTypesTab: React.FC<EmploymentTypesTabProps> = ({ accessToken, pr
         cell: ({ getValue }) => {
           const description = getValue()
           return (
-            <div className="gba:flex gba:items-center gba:w-[120px] gba:md:w-[200px] gba:lg:w-[280px] gba:xl:w-[340px] gba:2xl:w-[400px]">
+            <div
+              className="gba:flex gba:items-center gba:w-[100px] gba:md:w-[150px] gba:lg:w-[200px] gba:xl:w-[310px]"
+              style={{
+                width: 'clamp(310px, 45vw, 900px)'
+              }}
+            >
               <div className="gba:w-full gba:truncate" title={description as string}>
                 {(description as string) ?? '-'}
               </div>
@@ -280,13 +287,22 @@ const EmploymentTypesTab: React.FC<EmploymentTypesTabProps> = ({ accessToken, pr
       )}
 
       <CardContent>
-        <div className="gba:mb-6 gba:relative gba:max-w-sm">
-          <Input
-            placeholder="Search employment types..."
+        <div className="gba:mb-6 gba:pt-4 gba:relative gba:max-w-sm">
+          <DebouncedInput
+            key="search-input"
             value={searchTerm}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
-            className="gba:pl-10 gba:!w-80"
-            data-testid={`${dataTestId}-search-input`}
+            onChange={value => setSearchTerm(value)}
+            placeholder="Search employment types..."
+            className="gba:w-full gba:pr-10"
+            debounceDelay={300}
+            ariaLabel="Search employment types..."
+            data-testid="asset-search-input"
+            icon={
+              <MagnifyingGlassIcon
+                className="gba:w-4 gba:h-4 gba:text-muted-foreground"
+                data-testid="asset-search-icon"
+              />
+            }
           />
         </div>
 

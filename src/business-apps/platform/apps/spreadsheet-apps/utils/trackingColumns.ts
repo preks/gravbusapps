@@ -1,6 +1,6 @@
 /**
  * Tracking Columns Utilities
- * 
+ *
  * Helper functions for creating and managing tracking columns
  * that are auto-generated when running bulk collection automations.
  */
@@ -16,7 +16,7 @@ export function createTrackingColumnDefinitions(
   existingColumnCount: number
 ): SpreadsheetColumn[] {
   const definitions = getTrackingColumnDefinitions(selectedColumnIds)
-  
+
   return definitions.map((def, index) => ({
     id: def.name, // Use the internal name as ID (e.g., '_recipient_name')
     name: def.name,
@@ -65,19 +65,12 @@ export function buildSentRowTrackingValues(
   recipientInfo: RecipientInfo,
   sentAt: string
 ): Record<string, unknown> {
-  console.log('[trackingColumns] buildSentRowTrackingValues called with:', {
-    selectedColumnIds,
-    recipientInfo,
-    sentAt
-  })
-  
   const values: Record<string, unknown> = {}
-  
+
   selectedColumnIds.forEach(colId => {
     const def = TRACKING_COLUMNS.find(c => c.id === colId)
-    console.log(`[trackingColumns] Processing colId "${colId}", found def:`, def ? { id: def.id, name: def.name } : 'NOT FOUND')
     if (!def) return
-    
+
     switch (colId) {
       case 'recipient_avatar':
         values[def.name] = recipientInfo.avatar || ''
@@ -102,8 +95,7 @@ export function buildSentRowTrackingValues(
         break
     }
   })
-  
-  console.log('[trackingColumns] Final values:', values)
+
   return values
 }
 
@@ -117,11 +109,11 @@ export function buildCompletedRowTrackingValues(
   respondedAt: string
 ): Record<string, unknown> {
   const values: Record<string, unknown> = {}
-  
+
   selectedColumnIds.forEach(colId => {
     const def = TRACKING_COLUMNS.find(c => c.id === colId)
     if (!def) return
-    
+
     switch (colId) {
       case 'recipient_avatar':
         values[def.name] = recipientInfo.avatar || ''
@@ -146,7 +138,7 @@ export function buildCompletedRowTrackingValues(
         break
     }
   })
-  
+
   return values
 }
 
@@ -157,23 +149,23 @@ function calculateResponseTime(sentAt: string, respondedAt: string): string {
   const sent = new Date(sentAt)
   const responded = new Date(respondedAt)
   const diffMs = responded.getTime() - sent.getTime()
-  
+
   if (diffMs < 0) return '—'
-  
+
   const diffMins = Math.floor(diffMs / 60000)
   const diffHours = Math.floor(diffMs / 3600000)
   const diffDays = Math.floor(diffMs / 86400000)
-  
+
   if (diffDays > 0) {
     const remainingHours = diffHours % 24
     return remainingHours > 0 ? `${diffDays}d ${remainingHours}h` : `${diffDays}d`
   }
-  
+
   if (diffHours > 0) {
     const remainingMins = diffMins % 60
     return remainingMins > 0 ? `${diffHours}h ${remainingMins}m` : `${diffHours}h`
   }
-  
+
   return `${diffMins}m`
 }
 
@@ -181,9 +173,7 @@ function calculateResponseTime(sentAt: string, respondedAt: string): string {
  * Check if a column name is a tracking column
  */
 export function isTrackingColumn(columnName: string): boolean {
-  const result = TRACKING_COLUMNS.some(col => col.name === columnName)
-  console.log(`[trackingColumns] isTrackingColumn("${columnName}") = ${result}`)
-  return result
+  return TRACKING_COLUMNS.some(col => col.name === columnName)
 }
 
 /**

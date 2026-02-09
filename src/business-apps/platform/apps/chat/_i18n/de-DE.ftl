@@ -185,6 +185,8 @@ chat-lastOwnerInfo = Sie sind der einzige Besitzer. Um diese Gruppe zu verlassen
 # Call Features
 chat-audioCall = Audioanruf
 chat-videoCall = Videoanruf
+chat-directCall = Anruf
+chat-meeting = Besprechung
 chat-groupCall = Gruppenanruf
 chat-endCall = Anruf beenden
 chat-mute = Stummschalten
@@ -221,7 +223,10 @@ call-micOn = Mikro
 call-micOff = Mikro aus
 call-cameraOn = Kamera
 call-cameraOff = Kamera aus
+call-backgroundOn = Hintergrund
+call-backgroundOff = Hintergrund aus
 call-startedBy = Gestartet von
+call-activeParticipants = aktiv
 call-unmute = Stummschaltung aufheben
 call-mute = Stummschalten
 call-turnOnCamera = Kamera einschalten
@@ -231,11 +236,24 @@ call-shareScreen = Bildschirm teilen
 call-endCall = Anruf beenden
 call-initiating = Anruf wird gestartet...
 call-connecting = Verbinde...
+call-startingCall = Anruf wird gestartet
+call-startingVideoCall = Videoanruf wird gestartet
+call-startingAudioCall = Audioanruf wird gestartet
+call-startVideoCall = Videoanruf starten
+call-startAudioCall = Audioanruf starten
+call-setupYourCallSettings = Richten Sie Ihre Anrufeinstellungen ein, bevor Sie beitreten
+call-readyToStart = Bereit zum Starten
+call-starting = Wird gestartet...
+call-start = Starten
+call-cancel = Abbrechen
+call-backgroundWillBeApplied = Hintergrund wird im Anruf angewendet
 call-ended = Anruf beendet
 call-failed = Anruf fehlgeschlagen
 call-disconnected = Getrennt
 
 # Call Settings
+call-video = Video
+call-audio = Audio
 call-videoQuality = Videoqualität
 call-highQuality = Hohe Qualität
 call-highQualityDesc = 720p, 30fps - Optimal für schnelle Verbindungen
@@ -270,6 +288,69 @@ groupCall-turnOffVideo = Kamera ausschalten
 groupCall-endCall = Anruf beenden
 groupCall-enableBackground = Hintergrundeffekt aktivieren
 groupCall-disableBackground = Hintergrundeffekt deaktivieren
+groupCall-chat = Chat
+
+# Participants Panel
+participants-close = Schließen
+participants-in-this-call = In diesem Anruf
+participants-available = Verfügbar
+participants-pending-invites = Ausstehende Einladungen
+participants-invite = Einladen
+participants-inviting = Wird eingeladen...
+participants-no-available = Keine Teilnehmer zum Einladen verfügbar
+participants-host = Gastgeber
+participants-mute = Stummschalten
+participants-kick = Entfernen
+participants-no-hands-raised = Niemand hat die Hand gehoben
+participants-hand-raised = Hand gehoben
+participants-screen-sharing = Bildschirm teilen
+participants-audio-only = Nur Audio
+participants-speaking = Spricht
+participants-more-options = Mehr Optionen
+participants-mute-participant = {$name} stummschalten
+participants-mute-all = Alle stummschalten
+participants-no-results-found = Keine Ergebnisse gefunden
+participants-try-different-search = Versuchen Sie einen anderen Suchbegriff oder durchsuchen Sie alle Teilnehmer
+participants-clear-search = Suche löschen
+participants-everyones-here = Alle sind da!
+participants-all-members-in-call = Alle Mitglieder der Unterhaltung sind entweder im Anruf oder wurden eingeladen.
+participants-in-call = Im Anruf
+participants-invited = Eingeladen
+participants-left-call = Anruf verlassen
+participants-unknown = Unbekannt
+participants-you = Sie
+participants-declined-invite = Einladung abgelehnt
+participants-not-answered = Nicht beantwortet
+participants-ringing = Klingelt...
+participants-available-to-invite = Zum Einladen verfügbar
+participants-mute-all-confirm-title = Alle Teilnehmer stummschalten?
+participants-mute-all-confirm-message = Möchten Sie wirklich alle anderen Teilnehmer stummschalten? Sie müssen sich selbst wieder aktivieren, um zu sprechen.
+participants-muted-by = Sie wurden stummgeschaltet von {$name}
+participants-muted-by-all = Sie wurden stummgeschaltet von {$name} (alle stummschalten)
+participants-mute-failed = Mikrofon konnte nicht stummgeschaltet werden
+participants-cancel = Abbrechen
+participants-not-answered = Nicht beantwortet
+participants-ringing = Klingelt...
+participants-available-to-invite = Zum Einladen verfügbar
+
+# Video Grid
+videogrid-page-info = Seite {$current} von {$total}
+videogrid-previous-page = Vorherige Seite
+videogrid-next-page = Nächste Seite
+
+# Transcription
+chat-call-enableTranscription = Transkription aktivieren
+chat-call-transcriptionActive = Aufnahme
+chat-call-recording = Aufnahme
+chat-transcript-ready = Transkript bereit: { $sessionName }
+chat-transcript-view = Transkript anzeigen
+chat-transcript-saved = Ihr Meeting-Transkript wurde gespeichert
+chat-transcript-create-minutes-description = Erstellen Sie Besprechungsnotizen aus dem Anruftranskript in Notizen
+chat-transcript-create-minutes-button = Besprechungsnotizen erstellen
+chat-transcript-generating-minutes = Besprechungsnotizen werden erstellt...
+chat-transcript-generating-minutes-status = Besprechungsnotizen werden erstellt...
+chat-transcript-failed-create-minutes = Fehler beim Erstellen der Besprechungsnotizen
+chat-transcript-retry = Wiederholen
 
 # Notifications
 notifications-title = Benachrichtigungen
@@ -366,6 +447,8 @@ calendar-accept = Zusagen
 calendar-maybe = Vielleicht
 calendar-decline = Absagen
 calendar-joinCall = Anruf beitreten
+calendar-startMeeting = Meeting starten
+calendar-joinMeeting = Meeting beitreten
 calendar-chat = Chat
 calendar-edit = Bearbeiten
 
@@ -394,3 +477,23 @@ calendar-pending-invitations = Ausstehende Einladungen
 calendar-accept = Annehmen
 calendar-decline = Ablehnen
 calendar-tentative = Mit Vorbehalt
+
+# Calendar - Agenda
+calendar-agenda = Agenda
+calendar-agendaOptional = Agenda (optional)
+calendar-addAgendaItem = Agendapunkt hinzufügen
+calendar-agendaItemTitle = Thema
+calendar-agendaItemTitlePlaceholder = Thema eingeben...
+calendar-agendaItemDuration = Dauer (Min)
+calendar-agendaItemAssignee = Zuweisen an
+calendar-agendaItemUnassigned = Nicht zugewiesen
+calendar-agendaItemRemove = Entfernen
+calendar-agendaItemMoveUp = Nach oben
+calendar-agendaItemMoveDown = Nach unten
+calendar-agendaItems = {$count ->
+  [one] {$count} Agendapunkt
+  *[other] {$count} Agendapunkte
+}
+calendar-agendaTotalDuration = Gesamt: {$minutes} Min
+calendar-agendaAssignedTo = Zugewiesen an {$name}
+calendar-noAgenda = Keine Agendapunkte

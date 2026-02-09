@@ -8,6 +8,7 @@ tab-values = Values
 button-add = Add
 button-cancel = Cancel
 button-save = Save
+button-start = Start
 button-activate = Activate
 button-deactivate = Deactivate
 button-delete = Delete
@@ -66,7 +67,7 @@ scale-preview = Preview
 participant-self = Self
 participant-peer = Peer
 participant-manager = Manager
-participant-team = Team
+participant-hr-team = HR Team
 
 # Frequency
 frequency-annual = Annual
@@ -75,6 +76,17 @@ frequency-custom = Custom
 
 # Rating scales table
 empty-no-rating-scales = No rating scales defined yet.
+scale-saved-to-database = Rating scale "{ $name }" saved.
+scale-deleted-to-database = Rating scale "{ $name }" deleted.
+cycle-saved-to-database = Performance cycle "{ $name }" saved.
+cycle-activated-to-database = "{ $name }" activated.
+cycle-deactivated-to-database = "{ $name }" deactivated.
+cycle-deleted-to-database = "{ $name }" deleted.
+cycle-started = Starting cycle: { $name }
+value-saved-to-database = Company value "{ $title }" saved.
+value-deleted-to-database = "{ $title }" deleted.
+value-activated-to-database = "{ $title }" activated.
+value-deactivated-to-database = "{ $title }" deactivated.
 table-values = Values
 button-edit = Edit
 
@@ -86,4 +98,5 @@ values-modal-description = Define a company value and its description.
 # Errors
 values-error-cannot-deactivate-active-cycle = Cannot deactivate value while it is used in an active cycle.
 cycles-error-no-rating-scales = At least one rating scale is required to create a cycle.
+error-activate-out-of-period = Cannot activate cycle. Today's date is outside the cycle period.
 

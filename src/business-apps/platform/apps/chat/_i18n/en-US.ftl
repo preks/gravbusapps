@@ -185,6 +185,8 @@ chat-lastOwnerInfo = You are the only owner. To leave this group, first make ano
 # Call Features
 chat-audioCall = Audio Call
 chat-videoCall = Video Call
+chat-directCall = Call
+chat-meeting = Meeting
 chat-groupCall = Group Call
 chat-endCall = End Call
 chat-mute = Mute
@@ -221,7 +223,10 @@ call-micOn = Mic
 call-micOff = Mic off
 call-cameraOn = Camera
 call-cameraOff = Camera off
+call-backgroundOn = Background
+call-backgroundOff = Background off
 call-startedBy = Started by
+call-activeParticipants = active
 call-unmute = Unmute
 call-mute = Mute
 call-turnOnCamera = Turn on camera
@@ -231,11 +236,24 @@ call-shareScreen = Share screen
 call-endCall = End call
 call-initiating = Starting call...
 call-connecting = Connecting...
+call-startingCall = Starting Call
+call-startingVideoCall = Starting video call
+call-startingAudioCall = Starting audio call
+call-startVideoCall = Start Video Call
+call-startAudioCall = Start Audio Call
+call-setupYourCallSettings = Setup your call settings before joining
+call-readyToStart = Ready to start
+call-starting = Starting...
+call-start = Start
+call-cancel = Cancel
+call-backgroundWillBeApplied = Background will be applied in call
 call-ended = Call ended
 call-failed = Call failed
 call-disconnected = Disconnected
 
 # Call Settings
+call-video = video
+call-audio = audio
 call-videoQuality = Video Quality
 call-highQuality = High Quality
 call-highQualityDesc = 720p, 30fps - Best for fast connections
@@ -259,7 +277,7 @@ call-waitingForParticipants = Waiting for participants...
 
 # Group Call
 groupCall-title = Group Call
-groupCall-participants = participants
+groupCall-participants = Participants
 groupCall-audioOnly = Audio Only
 groupCall-minimize = Minimize call
 groupCall-waitingForParticipants = Waiting for participants...
@@ -270,6 +288,69 @@ groupCall-turnOffVideo = Turn off camera
 groupCall-endCall = End call
 groupCall-enableBackground = Enable background effect
 groupCall-disableBackground = Disable background effect
+groupCall-chat = Chat
+
+# Participants Panel
+participants-close = Close
+participants-in-this-call = In this call
+participants-available = Available
+participants-pending-invites = Pending invites
+participants-invite = Invite
+participants-inviting = Inviting...
+participants-no-available = No participants available to invite
+participants-host = Host
+participants-mute = Mute
+participants-kick = Kick
+participants-no-hands-raised = No one has their hand raised
+participants-hand-raised = Hand raised
+participants-screen-sharing = Screen sharing
+participants-audio-only = Audio only
+participants-speaking = Speaking
+participants-more-options = More options
+participants-mute-participant = Mute {$name}
+participants-mute-all = Mute all
+participants-no-results-found = No results found
+participants-try-different-search = Try a different search term or browse all participants
+participants-clear-search = Clear Search
+participants-everyones-here = Everyone's here!
+participants-all-members-in-call = All conversation members are either in the call or have been invited.
+participants-in-call = In Call
+participants-invited = Invited
+participants-left-call = Left call
+participants-unknown = Unknown
+participants-you = You
+participants-declined-invite = Declined invite
+participants-not-answered = Not answered
+participants-ringing = Ringing...
+participants-available-to-invite = Available to invite
+participants-mute-all-confirm-title = Mute all participants?
+participants-mute-all-confirm-message = Are you sure you want to mute all other participants? They will need to unmute themselves to speak.
+participants-muted-by = You were muted by {$name}
+participants-muted-by-all = You were muted by {$name} (mute all)
+participants-mute-failed = Failed to mute your microphone
+participants-cancel = Cancel
+participants-not-answered = Not answered
+participants-ringing = Ringing...
+participants-available-to-invite = Available to invite
+
+# Video Grid
+videogrid-page-info = Page {$current} of {$total}
+videogrid-previous-page = Previous page
+videogrid-next-page = Next page
+
+# Transcription
+chat-call-enableTranscription = Enable Transcription
+chat-call-transcriptionActive = Recording
+chat-call-recording = Recording
+chat-transcript-ready = Transcript Ready: { $sessionName }
+chat-transcript-view = View Transcript
+chat-transcript-saved = Your meeting transcript has been saved
+chat-transcript-create-minutes-description = Create meeting minutes from the call transcript in notes
+chat-transcript-create-minutes-button = Create Meeting Minutes
+chat-transcript-generating-minutes = Generating Meeting Minutes...
+chat-transcript-generating-minutes-status = Generating meeting minutes...
+chat-transcript-failed-create-minutes = Failed to create meeting minutes
+chat-transcript-retry = Retry
 
 # Notifications
 notifications-title = Notifications
@@ -332,6 +413,8 @@ calendar-monthly = Monthly
 calendar-endDate = End date
 calendar-reminders = Reminders
 calendar-color = Color
+calendar-aiTranscription = AI Meeting Transcription
+calendar-aiTranscriptionDescription = Automatically transcribe and save meeting conversation for all participants
 calendar-cancel = Cancel
 calendar-createMeeting = Create Meeting
 calendar-saveChanges = Save Changes
@@ -366,6 +449,8 @@ calendar-accept = Accept
 calendar-maybe = Maybe
 calendar-decline = Decline
 calendar-joinCall = Join Call
+calendar-startMeeting = Start Meeting
+calendar-joinMeeting = Join Meeting
 calendar-chat = Chat
 calendar-edit = Edit
 
@@ -394,3 +479,23 @@ calendar-pending-invitations = Pending Invitations
 calendar-accept = Accept
 calendar-decline = Decline
 calendar-tentative = Tentative
+
+# Calendar - Agenda
+calendar-agenda = Agenda
+calendar-agendaOptional = Agenda (optional)
+calendar-addAgendaItem = Add agenda item
+calendar-agendaItemTitle = Topic
+calendar-agendaItemTitlePlaceholder = Enter topic...
+calendar-agendaItemDuration = Duration (min)
+calendar-agendaItemAssignee = Assign to
+calendar-agendaItemUnassigned = Unassigned
+calendar-agendaItemRemove = Remove item
+calendar-agendaItemMoveUp = Move up
+calendar-agendaItemMoveDown = Move down
+calendar-agendaItems = {$count ->
+  [one] {$count} agenda item
+  *[other] {$count} agenda items
+}
+calendar-agendaTotalDuration = Total: {$minutes} min
+calendar-agendaAssignedTo = Assigned to {$name}
+calendar-noAgenda = No agenda items

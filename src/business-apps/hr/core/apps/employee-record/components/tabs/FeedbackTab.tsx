@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import { Employee, EmployeeFeedback } from '../../hooks/useEmployeeData'
 import { Card, Avatar } from '@newwork/gravity-ui-catalog'
-import { Button } from '@newwork/nw-design-system'
+import { Button, useTranslation, Badge } from '@newwork/nw-design-system'
 import { Empty, Spin, Input, Select, Rate, Pagination } from 'antd'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { EMPLOYEE_FEEDBACK_REQUESTS_QUERY_PAGED_WITH_COUNT } from './queries/EmployeeFeedbackRequestQueries'
@@ -13,6 +13,7 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
 import { startProcess } from '@/common/utils/start-process'
 import { UserInfoProps } from '../../../../../../../common/BusinessAppContext'
+import translations from '../../_i18n'
 import { CalendarOutlined, SearchOutlined, DownloadOutlined } from '@ant-design/icons'
 import { useFlowExecutionTasks } from '@/business-apps/fin/expenses/apps/manager-expenses/hooks/useFlowExecutionTasks'
 import { PiPencilSimple } from 'react-icons/pi'
@@ -113,6 +114,7 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
   employeeFeedback = [],
   isSelfView = false // Default to false if not provided
 }) => {
+  const { t } = useTranslation(translations)
   // State variables for feedback and requests
   const [localFeedback, setLocalFeedback] = useState<ExtendedEmployeeFeedback[]>([])
   // No local state needed for approval tasks in this column
@@ -181,13 +183,46 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
     try {
       setRequestsLoadingApproval(true)
       setRequestsErrorApproval(null)
-      const res = await graphQLClient.request<any>(EMPLOYEE_FEEDBACK_REQUESTS_QUERY_PAGED_WITH_COUNT, {
-        idEmployee: employee.id,
-        limit: requestedPageSize,
-        offset: (requestedCurrentPage - 1) * requestedPageSize
-      })
-      const rows: any[] = res?.EmployeeFeedbackRequest || []
-      const mapped: FeedbackRequest[] = rows.map((r: any, idx: number) => ({
+
+      // Fetch enough items to account for COMPLETED items being filtered out
+      // Request 3x the page size to ensure we have enough after filtering
+      const fetchLimit = requestedPageSize * 3
+      const baseOffset = (requestedCurrentPage - 1) * requestedPageSize
+      let allFilteredRows: any[] = []
+      let currentOffset = baseOffset
+      let totalCount: number | undefined
+      const maxIterations = 10 // Safety limit to prevent infinite loops
+
+      // Keep fetching until we have enough non-COMPLETED items
+      for (let i = 0; i < maxIterations && allFilteredRows.length < requestedPageSize; i++) {
+        const res = await graphQLClient.request<any>(EMPLOYEE_FEEDBACK_REQUESTS_QUERY_PAGED_WITH_COUNT, {
+          idEmployee: employee.id,
+          limit: fetchLimit,
+          offset: currentOffset
+        })
+        const rows: any[] = res?.EmployeeFeedbackRequest || []
+
+        // Get total count from first response (includes COMPLETED items)
+        if (i === 0) {
+          totalCount = res?.EmployeeFeedbackRequestAggregate?.aggregate?.count
+        }
+
+        // Filter out COMPLETED items
+        const filteredRows = rows.filter(
+          (r: any) => !r.statusRef || r.statusRef !== 'EmployeeFeedbackRequestStatus:v1:COMPLETED'
+        )
+
+        allFilteredRows = [...allFilteredRows, ...filteredRows]
+        currentOffset += rows.length
+      }
+
+      // Set total count (includes COMPLETED, so pagination may show more pages than non-COMPLETED items)
+      setRequestedTotalCount(typeof totalCount === 'number' ? totalCount : allFilteredRows.length)
+
+      // Take only the items needed for the current page
+      const pageItems = allFilteredRows.slice(0, requestedPageSize)
+
+      const mapped: FeedbackRequest[] = pageItems.map((r: any, idx: number) => ({
         id: `${r.requesterEmployeeId || 'req'}-${r.createdAt || idx}`,
         requestedOn: r.createdAt,
         recordState: r.recordState,
@@ -197,11 +232,8 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
         creatorName: r?.requesterEmployee?.displayName || null,
         creatorEmployeeId: r?.requesterEmployee.id || null
       }))
+
       setRequestedFeedback(mapped)
-      const total = res?.EmployeeFeedbackRequestAggregate?.aggregate?.count
-      setRequestedTotalCount(
-        typeof total === 'number' ? total : (requestedCurrentPage - 1) * requestedPageSize + mapped.length
-      )
     } catch (e: any) {
       setRequestsErrorApproval(e?.message || 'Failed to load requested feedback')
     } finally {
@@ -233,7 +265,7 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
       taskTitle: t.referenceName || null,
       feedbackText: t?.inputs?.feedback?.feedback || null,
       creatorName: t?.creatorName || null,
-      creatorEmployeeId: t?.creatorUserId || null,
+      creatorEmployeeId: t?.creatorUserId || t?.inputs?.creatorUserId || t?.inputs?.receiverId || null,
       endpoint: t?.endpoint || null,
       processInstanceId: t?.processInstanceId || null
     }))
@@ -276,7 +308,8 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
         processName,
         payload: {
           requestId: request.id,
-          employeeId: employee?.id
+          employeeId: employee?.id,
+          receiverId: request.creatorEmployeeId // The userId of the person who requested the feedback (will receive the response)
         },
         processInstanceId,
         builderType: 'NATIVE_SCREEN'
@@ -464,7 +497,7 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
                         return (
                           <Card
                             key={request.id}
-                            className="gba:shadow-sm gba:hover:shadow-md gba:transition-shadow gba:p-1 gba:cursor-pointer"
+                            className="gba:p-1 gba:cursor-pointer"
                             size="small"
                             data-testid={`received-request-item-${request.id}`}
                             onClick={() => handleRespondClick(request)}
@@ -523,6 +556,9 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
                         data-testid="received-requests-pagination"
                         showSizeChanger
                         pageSizeOptions={['3', '10', '20', '50']}
+                        locale={{
+                          items_per_page: t('feedback-pagination-per-page')
+                        }}
                       />
                     </div>
                   </>
@@ -536,69 +572,83 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
                   {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.col_requested', 'Feedback you requested')}
                 </h4>
               </div>
-              {requestsLoadingApproval ? (
-                <div className="gba:flex gba:justify-center gba:items-center gba:h-40">
-                  <Spin size="default" />
-                </div>
-              ) : requestsErrorApproval ? (
-                <div className="gba:text-red-500">{requestsErrorApproval}</div>
-              ) : requestedFeedback.length === 0 ? (
-                <Empty
-                  description={getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:feedback_tab.no_approval_requests',
-                    'No approval requests'
-                  )}
-                />
-              ) : (
-                <>
-                  <div className="gba:grid gba:grid-cols-1 gba:gap-4 gba:items-stretch">
-                    {requestedFeedback.map(request => {
-                      const dateLabel = request.requestedOn ? (formatDate(request.requestedOn, 'date.short') ?? '') : ''
-                      const fromName = request.creatorName || '-'
-                      return (
-                        <Card
-                          key={request.id}
-                          className="gba:shadow-sm gba:hover:shadow-md gba:transition-shadow gba:p-1"
-                          size="small"
-                          data-testid={`requested-request-item-${request.id}`}
-                        >
-                          <div className="gba:flex gba:items-center gba:justify-between gba:min-h-10">
-                            <div className="gba:flex gba:flex-col">
-                              <div className="gba:font-medium" data-testid={`requested-request-line-${request.id}`}>
-                                {getTranslationFromI18nKeyAndLabel(
-                                  'lowcoder:feedback_tab.from_since_text',
-                                  `From ${fromName} since ${dateLabel}`,
-                                  {
-                                    employee: fromName,
-                                    date: dateLabel,
-                                    interpolation: {
-                                      escapeValue: false
+              {(() => {
+                if (requestsLoadingApproval) {
+                  return (
+                    <div className="gba:flex gba:justify-center gba:items-center gba:h-40">
+                      <Spin size="default" />
+                    </div>
+                  )
+                }
+                if (requestsErrorApproval) {
+                  return <div className="gba:text-red-500">{requestsErrorApproval}</div>
+                }
+                if (requestedFeedback.length === 0) {
+                  return (
+                    <Empty
+                      description={getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:feedback_tab.no_approval_requests',
+                        'No approval requests'
+                      )}
+                    />
+                  )
+                }
+                return (
+                  <>
+                    <div className="gba:grid gba:grid-cols-1 gba:gap-4 gba:items-stretch">
+                      {requestedFeedback.map(request => {
+                        const dateLabel = request.requestedOn
+                          ? (formatDate(request.requestedOn, 'date.short') ?? '')
+                          : ''
+                        const fromName = request.creatorName || '-'
+                        return (
+                          <Card
+                            key={request.id}
+                            className="gba:p-1"
+                            size="small"
+                            data-testid={`requested-request-item-${request.id}`}
+                          >
+                            <div className="gba:flex gba:items-center gba:justify-between gba:min-h-10">
+                              <div className="gba:flex gba:flex-col">
+                                <div className="gba:font-medium" data-testid={`requested-request-line-${request.id}`}>
+                                  {getTranslationFromI18nKeyAndLabel(
+                                    'lowcoder:feedback_tab.from_since_text',
+                                    `From ${fromName} since ${dateLabel}`,
+                                    {
+                                      employee: fromName,
+                                      date: dateLabel,
+                                      interpolation: {
+                                        escapeValue: false
+                                      }
                                     }
-                                  }
-                                )}
+                                  )}
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        </Card>
-                      )
-                    })}
-                  </div>
-                  <div className="gba:mt-4 gba:flex gba:justify-end">
-                    <Pagination
-                      current={requestedCurrentPage}
-                      pageSize={requestedPageSize}
-                      total={requestedTotalCount ?? 0}
-                      onChange={(page, pageSize) => {
-                        setRequestedCurrentPage(page)
-                        setRequestedPageSize(pageSize)
-                      }}
-                      data-testid="requested-requests-pagination"
-                      showSizeChanger
-                      pageSizeOptions={['3', '10', '20', '50']}
-                    />
-                  </div>
-                </>
-              )}
+                          </Card>
+                        )
+                      })}
+                    </div>
+                    <div className="gba:mt-4 gba:flex gba:justify-end">
+                      <Pagination
+                        current={requestedCurrentPage}
+                        pageSize={requestedPageSize}
+                        total={requestedTotalCount ?? 0}
+                        onChange={(page, pageSize) => {
+                          setRequestedCurrentPage(page)
+                          setRequestedPageSize(pageSize)
+                        }}
+                        data-testid="requested-requests-pagination"
+                        showSizeChanger
+                        pageSizeOptions={['3', '10', '20', '50']}
+                        locale={{
+                          items_per_page: t('feedback-pagination-per-page')
+                        }}
+                      />
+                    </div>
+                  </>
+                )
+              })()}
             </div>
           </div>
         </div>
@@ -662,108 +712,113 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
         </div>
 
         {/* Feedback Cards */}
-        {loading ? (
-          <div className="gba:flex gba:justify-center gba:items-center gba:h-40" data-testid="feedback-loading">
-            <Spin size="large" />
-          </div>
-        ) : formattedFilteredFeedback.length > 0 ? (
-          <div className="gba:space-y-4 gba:px-4" data-testid="feedback-list">
-            {formattedFilteredFeedback.map((feedback, index) => (
-              <Card
-                key={feedback.id || index}
-                className="gba:shadow-sm gba:hover:shadow-md gba:transition-shadow gba:h-full"
-                bodyStyle={{ height: '100%', display: 'flex', flexDirection: 'column' }}
-                data-testid={`feedback-card-${index}`}
-              >
-                <div className="gba:flex gba:items-start gba:gap-4">
-                  {/* Avatar */}
-                  <div className="gba:shrink-0 gba:mr-2" data-testid="feedback-avatar-container">
-                    <Avatar
-                      src={toAvatarSrc(feedback.avatar)}
-                      initials={`${feedback.firstName?.[0] || ''}${feedback.lastName?.[0] || ''}`}
-                      alt={`${feedback.firstName} ${feedback.lastName}`}
-                      // @ts-expect-error gravity-ui-catalog Avatar allows non-typed contentType
-                      contentType={feedback.avatar ? 'image' : 'initials'}
-                      // @ts-expect-error gravity-ui-catalog Avatar supports numeric/string size tokens
-                      size="lg"
-                      // @ts-expect-error gravity-ui-catalog Avatar supports circle shape
-                      shape="circle"
-                      // @ts-expect-error gravity-ui-catalog Avatar supports appearance prop
-                      appearance="gradient"
-                    />
-                  </div>
-
-                  {/* Feedback Content */}
-                  <div className="gba:flex-grow">
-                    <div className="gba:flex gba:items-center gba:flex-wrap gba:gap-2">
-                      <span className="gba:font-semibold gba:text-foreground" data-testid={`feedback-sender-${index}`}>
-                        {feedback.sender}
-                      </span>
-
-                      {/* Type Badge */}
-                      {feedback.type && (
-                        <span
-                          className={
-                            'gba:text-xs gba:px-2 gba:py-1 gba:rounded-full gba:font-medium gba:bg-muted gba:text-foreground'
-                          }
-                          data-testid={`feedback-type-${index}`}
-                        >
-                          {feedback.type}
-                        </span>
-                      )}
-
-                      {/* Private Badge */}
-                      {feedback.private && (
-                        <span
-                          className="gba:text-xs gba:px-2 gba:py-1 gba:rounded-full gba:font-medium gba:bg-destructive-secondary gba:text-destructive"
-                          data-testid={`feedback-privacy-${index}`}
-                        >
-                          {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.private_badge', 'Private')}
-                        </span>
-                      )}
-                    </div>
-
-                    <div
-                      className="gba:flex gba:items-center gba:gap-1 gba:text-muted-foreground gba:text-sm gba:mt-1"
-                      data-testid={`feedback-date-${index}`}
-                    >
-                      <CalendarOutlined /> {feedback.date}
-                    </div>
-
-                    {/* Rating */}
-                    {feedback.rating !== undefined && (
-                      <div className="gba:my-2">
-                        <Rate disabled value={feedback.rating} className="gba:text-warning" />
-                      </div>
-                    )}
-
-                    <div
-                      className="gba:mt-3 gba:text-muted-foreground gba:border-t gba:border-border gba:pt-3"
-                      data-testid={`feedback-content-${index}`}
-                    >
-                      {feedback.content}
-                    </div>
-                  </div>
-                </div>
-              </Card>
-            ))}
-          </div>
-        ) : (
-          <>
-            <Empty
-              description={getTranslationFromI18nKeyAndLabel(
-                'lowcoder:feedback_tab.no_feedback',
-                'No feedback available'
-              )}
-              data-testid="feedback-empty"
-            />
-            {error && (
-              <div className="gba:text-center gba:text-muted-foreground gba:py-4" data-testid="feedback-error-inline">
-                <p>{error}</p>
+        {(() => {
+          if (loading) {
+            return (
+              <div className="gba:flex gba:justify-center gba:items-center gba:h-40" data-testid="feedback-loading">
+                <Spin size="large" />
               </div>
-            )}
-          </>
-        )}
+            )
+          }
+
+          if (formattedFilteredFeedback.length > 0) {
+            return (
+              <div className="gba:space-y-4 gba:px-4" data-testid="feedback-list">
+                {formattedFilteredFeedback.map((feedback, index) => (
+                  <Card
+                    key={feedback.id || index}
+                    className="gba:h-full"
+                    bodyStyle={{ height: '100%', display: 'flex', flexDirection: 'column' }}
+                    data-testid={`feedback-card-${index}`}
+                  >
+                    <div className="gba:flex gba:items-start gba:gap-4">
+                      {/* Avatar */}
+                      <div className="gba:shrink-0 gba:mr-2" data-testid="feedback-avatar-container">
+                        <Avatar
+                          src={toAvatarSrc(feedback.avatar)}
+                          initials={`${feedback.firstName?.[0] || ''}${feedback.lastName?.[0] || ''}`}
+                          alt={`${feedback.firstName} ${feedback.lastName}`}
+                          // @ts-expect-error gravity-ui-catalog Avatar allows non-typed contentType
+                          contentType={feedback.avatar ? 'image' : 'initials'}
+                          // @ts-expect-error gravity-ui-catalog Avatar supports numeric/string size tokens
+                          size="lg"
+                          // @ts-expect-error gravity-ui-catalog Avatar supports circle shape
+                          shape="circle"
+                          // @ts-expect-error gravity-ui-catalog Avatar supports appearance prop
+                          appearance="gradient"
+                        />
+                      </div>
+
+                      {/* Feedback Content */}
+                      <div className="gba:flex-grow">
+                        <div className="gba:flex gba:items-center gba:flex-wrap gba:gap-2">
+                          <span
+                            className="gba:font-semibold gba:text-foreground"
+                            data-testid={`feedback-sender-${index}`}
+                          >
+                            {feedback.sender}
+                          </span>
+
+                          {/* Type Badge */}
+                          {feedback.type && (
+                            <Badge variant="decorative" data-testid={`feedback-type-${index}`}>
+                              {feedback.type}
+                            </Badge>
+                          )}
+
+                          {/* Private Badge */}
+                          {feedback.private && (
+                            <Badge variant="destructive" data-testid={`feedback-privacy-${index}`}>
+                              {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.private_badge', 'Private')}
+                            </Badge>
+                          )}
+                        </div>
+
+                        <div
+                          className="gba:flex gba:items-center gba:gap-1 gba:text-muted-foreground gba:text-sm gba:mt-1"
+                          data-testid={`feedback-date-${index}`}
+                        >
+                          <CalendarOutlined /> {feedback.date}
+                        </div>
+
+                        {/* Rating */}
+                        {feedback.rating !== undefined && (
+                          <div className="gba:my-2">
+                            <Rate disabled value={feedback.rating} className="gba:text-warning" />
+                          </div>
+                        )}
+
+                        <div
+                          className="gba:mt-3 gba:text-muted-foreground gba:border-t gba:border-border gba:pt-3"
+                          data-testid={`feedback-content-${index}`}
+                        >
+                          {feedback.content}
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            )
+          }
+
+          return (
+            <>
+              <Empty
+                description={getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:feedback_tab.no_feedback',
+                  'No feedback available'
+                )}
+                data-testid="feedback-empty"
+              />
+              {error && (
+                <div className="gba:text-center gba:text-muted-foreground gba:py-4" data-testid="feedback-error-inline">
+                  <p>{error}</p>
+                </div>
+              )}
+            </>
+          )
+        })()}
       </div>
     </div>
   )

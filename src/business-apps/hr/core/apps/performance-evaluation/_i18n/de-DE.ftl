@@ -8,6 +8,7 @@ tab-values = Werte
 button-add = Hinzufügen
 button-cancel = Abbrechen
 button-save = Speichern
+button-start = Starten
 button-activate = Aktivieren
 button-deactivate = Deaktivieren
 button-delete = Löschen
@@ -67,7 +68,7 @@ scale-preview = Vorschau
 participant-self = Selbst
 participant-peer = Kollege
 participant-manager = Vorgesetzter
-participant-team = Team
+participant-hr-team = HR Team
 
 # Häufigkeit
 frequency-annual = Jährlich
@@ -76,6 +77,17 @@ frequency-custom = Benutzerdefiniert
 
 # Bewertungsskalen-Tabelle
 empty-no-rating-scales = Noch keine Bewertungsskalen definiert.
+scale-saved-to-database = Bewertungsskala "{ $name }" gespeichert.
+scale-deleted-to-database = Bewertungsskala "{ $name }" gelöscht.
+cycle-saved-to-database = Leistungszyklus "{ $name }" gespeichert.
+cycle-activated-to-database = "{ $name }" aktiviert.
+cycle-deactivated-to-database = "{ $name }" deaktiviert.
+cycle-deleted-to-database = "{ $name }" gelöscht.
+cycle-started = Zyklus wird gestartet: { $name }
+value-saved-to-database = Firmenwert "{ $title }" gespeichert.
+value-deleted-to-database = "{ $title }" gelöscht.
+value-activated-to-database = "{ $title }" aktiviert.
+value-deactivated-to-database = "{ $title }" deaktiviert.
 table-values = Werte
 button-edit = Bearbeiten
 
@@ -87,4 +99,5 @@ values-modal-description = Firmenwert und Beschreibung definieren.
 # Fehler
 values-error-cannot-deactivate-active-cycle = Wert kann nicht deaktiviert werden, solange er in einem aktiven Zyklus verwendet wird.
 cycles-error-no-rating-scales = Mindestens eine Bewertungsskala wird für das Erstellen eines Zyklus benötigt.
+error-activate-out-of-period = Zyklus kann nicht aktiviert werden. Das heutige Datum liegt außerhalb des Zykluszeitraums.
 

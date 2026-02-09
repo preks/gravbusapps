@@ -3,6 +3,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGetMileageRulesData, MileageRuleData, MileageRuleQueryVariables } from '../queries/MileageRuleQueries'
 import { getMileageRulePeriodLabel } from '../types/ExpenseEnums'
 import dayjs from 'dayjs'
+import { formatDate } from '../utils'
 import weekday from 'dayjs/plugin/weekday'
 import localeData from 'dayjs/plugin/localeData'
 
@@ -24,7 +25,6 @@ export interface EnhancedMileageRule {
   validFrom: string // Formatted date for display
   validTo: string // Formatted date for display
   isActive: boolean
-  description?: string
   createdAt: string
   updatedAt: string
   usageCount: number // New field for calculation rule usage count
@@ -74,9 +74,6 @@ export const useMileageRulesIntegration = (context: BusinessAppContextProps) => 
       const activeTo = rule.activeTo ? new Date(rule.activeTo) : null
       const isActive = !rule.isDeleted && (!activeFrom || activeFrom <= now) && (!activeTo || activeTo >= now)
 
-      // Format validity period display
-      const formatDate = (dateString?: string) => (dateString ? dayjs(dateString).format('DD.MM.YYYY') : '')
-
       const validFromFormatted = formatDate(rule.activeFrom)
       const validToFormatted = rule.activeTo ? formatDate(rule.activeTo) : 'No end date'
       const validityPeriod = `${validFromFormatted} - ${validToFormatted}`
@@ -95,7 +92,6 @@ export const useMileageRulesIntegration = (context: BusinessAppContextProps) => 
         validFrom: validFromFormatted || 'N/A',
         validTo: validToFormatted,
         isActive,
-        description: rule.name,
         createdAt: rule.createdAt,
         updatedAt: rule.updatedAt,
         usageCount: 0, // Not currently tracked

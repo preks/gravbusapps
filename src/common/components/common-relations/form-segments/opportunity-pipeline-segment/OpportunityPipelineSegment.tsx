@@ -11,13 +11,16 @@ interface OpportunityPipelineSegmentProps {
   opportunityStatusCatalogIdentifier?: string
   // Custom fields
   customFields?: React.ReactNode
+  // Control dynamic required indicator (for conditional validation scenarios)
+  showDynamicStageRequired?: boolean
 }
 
 const OpportunityPipelineSegment: React.FC<OpportunityPipelineSegmentProps> = ({
   pipelineCatalogIdentifier,
   stageCatalogIdentifier,
   opportunityStatusCatalogIdentifier,
-  customFields
+  customFields,
+  showDynamicStageRequired = true
 }) => {
   const form = useFormContext<any>()
   const { t } = useTranslation(translations)
@@ -30,13 +33,32 @@ const OpportunityPipelineSegment: React.FC<OpportunityPipelineSegmentProps> = ({
   // Watch pipeline value
   const pipelineValue = form.watch(pipelineFieldName)
 
-  // Clear stage when pipeline changes
+  // Keep track of previous pipeline value to detect changes
+  // Initialize with undefined to ensure the effect runs on mount
+  const previousPipelineValueRef = React.useRef<typeof pipelineValue>(undefined)
+
+  // Check if stage is required (when pipeline has a value)
+  const isStageRequired = Boolean(
+    pipelineValue !== null &&
+      pipelineValue !== undefined &&
+      pipelineValue !== '' &&
+      typeof pipelineValue === 'string' &&
+      pipelineValue.trim() !== ''
+  )
+
+  // Clear stage when pipeline changes or is cleared
   useEffect(() => {
-    if (pipelineValue) {
-      // Stage will be automatically filtered by CatalogSelect via filterField
-      // No need to manually clear here as CatalogSelect handles it
-    } else {
-      form.setValue(stageFieldName, '')
+    const currentValue = pipelineValue
+    const previousValue = previousPipelineValueRef.current
+
+    // If pipeline changed (including being cleared)
+    if (currentValue !== previousValue) {
+      previousPipelineValueRef.current = currentValue
+
+      // Clear stage whenever pipeline changes or is cleared
+      if (!currentValue || (typeof currentValue === 'string' && currentValue.trim() === '')) {
+        form.setValue(stageFieldName, null, { shouldValidate: true, shouldDirty: true })
+      }
     }
   }, [pipelineValue, stageFieldName, form])
 
@@ -54,12 +76,10 @@ const OpportunityPipelineSegment: React.FC<OpportunityPipelineSegmentProps> = ({
               <FormControl>
                 <CatalogSelect
                   catalogIdentifier={pipelineCatalogIdentifier}
+                  variant="combobox"
                   value={field.value || ''}
-                  onValueChange={value => {
-                    field.onChange(value)
-                    // Clear stage when pipeline changes
-                    form.setValue(stageFieldName, '')
-                  }}
+                  onValueChange={value => field.onChange(value || null)}
+                  allowClear
                   data-testid="opportunity-segment-pipeline-select"
                 />
               </FormControl>
@@ -74,14 +94,19 @@ const OpportunityPipelineSegment: React.FC<OpportunityPipelineSegmentProps> = ({
           name={stageFieldName}
           render={({ field }) => (
             <FormItem>
-              <FormLabel>{t('opportunity-stage-label')}</FormLabel>
+              <FormLabel>
+                {t('opportunity-stage-label')}
+                {showDynamicStageRequired && isStageRequired && <span className="gba:text-destructive"> *</span>}
+              </FormLabel>
               <FormControl>
                 <CatalogSelect
                   catalogIdentifier={stageCatalogIdentifier}
                   parentField={pipelineFieldName}
                   requireSourceForEnable={true}
+                  variant="combobox"
                   value={field.value || ''}
-                  onValueChange={field.onChange}
+                  onValueChange={value => field.onChange(value || null)}
+                  allowClear
                   data-testid="opportunity-segment-stage-select"
                 />
               </FormControl>
