@@ -87,7 +87,8 @@ interface GroupCallModalRtkProps {
   wsClient?: ChatWebSocketClient | null
   transcriptionEnabled?: boolean
   apiClient?: ChatApiClient
-  activeConversation?: any // For looking up avatar URLs from conversation participants
+  callConversation?: any // Conversation where call was initiated (for participant avatars)
+  activeConversation?: any // Currently active conversation (for in-call chat)
   activeExperts?: any[] // Every AI experts for mentions in chat
   hideReactionsAndHandRaise?: boolean // Hide reactions and hand-raising UI (for 1-on-1 calls)
 }
@@ -190,6 +191,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
   accessToken,
   currentUserId,
   currentUser,
+  callConversation: callConversationProp,
   activeConversation,
   activeExperts,
   hideReactionsAndHandRaise = false
@@ -1508,17 +1510,24 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
 
   // Build unified grid items: participants + screen shares
   const gridItems = useMemo(() => {
-    // Create mapping from userId to avatarUrl from conversation participants
+    // FIXED: Create mapping from userId to avatarUrl from CALL conversation participants
+    // NOT from activeConversation (which changes as user navigates)
     const avatarUrlMap = new Map<string, string>()
 
-    // First, try to get avatar URLs from activeConversation.participants
-    if (activeConversation?.participants) {
-      activeConversation.participants.forEach((cp: any) => {
+    // Use callConversationProp (where the call was initiated) for participant avatars
+    // This ensures avatars remain correct even when user navigates to other conversations
+    const conversationForAvatars = callConversationProp || activeConversation
+
+    if (conversationForAvatars?.participants) {
+      conversationForAvatars.participants.forEach((cp: any) => {
         if (cp.user?.avatarUrl) {
           // Map by userId (the stable user ID in our system)
           avatarUrlMap.set(cp.userId, cp.user.avatarUrl)
           avatarUrlMap.set(cp.user.id, cp.user.avatarUrl)
-          rtkDebug.log('[RTK Modal] 🖼️ Avatar from conversation:', {
+          rtkDebug.log('[RTK Modal] 🖼️ Avatar from CALL conversation:', {
+            conversationId: conversationForAvatars.id,
+            conversationName: conversationForAvatars.name,
+            isCallConversation: conversationForAvatars === callConversationProp,
             userId: cp.userId,
             userName: cp.user.displayName || cp.user.username,
             avatarUrl: cp.user.avatarUrl
@@ -1535,7 +1544,10 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
       }
     })
 
-    rtkDebug.log('[RTK Modal] 🖼️ Avatar map built:', {
+    rtkDebug.log('[RTK Modal] 🖼️ Avatar map built for call conversation:', {
+      callConversationId: callConversationProp?.id,
+      activeConversationId: activeConversation?.id,
+      usedConversationId: conversationForAvatars?.id,
       totalMappings: avatarUrlMap.size,
       keys: Array.from(avatarUrlMap.keys())
     })
@@ -1877,7 +1889,8 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
     meeting?.self?.customParticipantId, // For reactions
     activeSpeakerId,
     activeSpeakerHistory,
-    activeConversation?.participants, // For avatar URLs
+    callConversationProp?.participants, // For avatar URLs from call conversation
+    activeConversation?.participants, // Fallback for avatar URLs
     currentUserId // For local avatar lookup
   ])
 
@@ -2741,7 +2754,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
                         handRaisedOrder={hideReactionsAndHandRaise ? {} : callState.handRaisedOrder}
                         localHandRaised={hideReactionsAndHandRaise ? false : callState.handRaised}
                         localUserId={meeting?.self?.userId}
-                        activeConversation={activeConversation}
+                        activeConversation={callConversationProp || activeConversation}
                         t={t}
                       />
                     )}

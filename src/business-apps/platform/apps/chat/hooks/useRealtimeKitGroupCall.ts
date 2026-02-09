@@ -72,7 +72,9 @@ export interface UseRealtimeKitGroupCallOptions {
   chatApiClient?: any // ChatApiClient type for in-call chat
   calendarApiClient?: any // CalendarApiClient type
   currentUser: CallParticipant | null
-  activeConversation?: any | null // Active conversation for participant avatars in in-call chat
+  callConversation?: any | null // Conversation where call was initiated (for participant avatars)
+  activeConversation?: any | null // Currently active conversation (for in-call chat)
+  conversations?: any[] | null // All conversations (for looking up call conversation by roomId)
   onCallStarted?: (roomId: string, participants: CallParticipant[]) => void
   onCallEnded?: (roomId: string, duration: number) => void
   onParticipantJoined?: (participant: CallParticipant) => void
@@ -94,8 +96,17 @@ interface CallState extends GroupCallUIState {
 }
 
 export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions): UseGroupCallReturn => {
-  const { wsClient, apiClient, chatApiClient, activeConversation, currentUser, onCallStarted, onCallEnded, translate } =
-    options
+  const {
+    wsClient,
+    apiClient,
+    chatApiClient,
+    callConversation,
+    activeConversation,
+    currentUser,
+    onCallStarted,
+    onCallEnded,
+    translate
+  } = options
 
   // Core call state
   const [callState, setCallState] = useState<CallState>({
@@ -134,9 +145,26 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
    * This ensures that when navigating back to chat, the component starts with the correct state
    * BEFORE any callbacks (like toggleMinimize) are created
    */
+  const restoredStateRef = useRef<{
+    handRaised: boolean
+    remoteHandsRaised: Record<string, boolean>
+    handRaisedOrder: Record<string, { order: number; timestamp: number }>
+    isMuted: boolean
+    isVideoEnabled: boolean
+  } | null>(null)
+
   useEffect(() => {
     const globalCallData = globalCallManager.getCallData()
     if (globalCallData.callState.status !== 'idle' && globalCallData.callState.callImplementation === 'realtime-kit') {
+      // Store restored state for child hooks (websocket, media) to prevent reset after minimize/maximize
+      restoredStateRef.current = {
+        handRaised: globalCallData.callState.handRaised,
+        remoteHandsRaised: globalCallData.callState.remoteHandsRaised || {},
+        handRaisedOrder: globalCallData.callState.handRaisedOrder || {},
+        isMuted: globalCallData.callState.isMuted,
+        isVideoEnabled: globalCallData.callState.isVideoEnabled
+      }
+
       setCallState(prev => ({
         ...prev,
         status: globalCallData.callState.status as CallState['status'],
@@ -155,8 +183,17 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
         backgroundEnabled: globalCallData.callState.backgroundEnabled,
         duration: globalCallData.callState.duration,
         handRaised: globalCallData.callState.handRaised,
-        remoteHandsRaised: globalCallData.callState.remoteHandsRaised || {}
+        remoteHandsRaised: globalCallData.callState.remoteHandsRaised || {},
+        handRaisedOrder: globalCallData.callState.handRaisedOrder || {}
       }))
+
+      rtkDebug.log('[RTK] 🔄 Restored call state from globalCallManager on mount:', {
+        handRaised: globalCallData.callState.handRaised,
+        remoteHandsRaisedKeys: Object.keys(globalCallData.callState.remoteHandsRaised || {}),
+        handRaisedOrderKeys: Object.keys(globalCallData.callState.handRaisedOrder || {}),
+        isMuted: globalCallData.callState.isMuted,
+        isVideoEnabled: globalCallData.callState.isVideoEnabled
+      })
     }
   }, []) // Empty deps - only run on mount
 
@@ -243,12 +280,15 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
 
   // Media management (audio, video, quality, background)
   // CRITICAL: Pass stableMeeting to prevent child hooks from recreating callbacks every render
+  // CRITICAL: Pass restored state from globalCallManager to prevent reset after minimize/maximize
   const media = useRealtimeKitMedia({
     meeting: stableMeeting,
     callType: callState.callType,
     initialVideoQuality: callPreferences.videoQuality,
     initialBackgroundEnabled: callPreferences.backgroundEnabled,
-    callStatus: callState.status
+    callStatus: callState.status,
+    initialIsMuted: restoredStateRef.current?.isMuted,
+    initialIsVideoEnabled: restoredStateRef.current?.isVideoEnabled
   })
 
   // Screen share management
@@ -260,6 +300,7 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
 
   // WebSocket coordination (raise hand, reactions)
   // CRITICAL: Pass stableMeeting and stable callback
+  // CRITICAL: Pass restored state from globalCallManager to prevent reset after minimize/maximize
   const websocket = useRealtimeKitWebSocket({
     wsClient,
     roomId: callState.roomId,
@@ -267,7 +308,10 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
     currentUser,
     meeting: stableMeeting, // Pass stable meeting reference
     onReactionReceived: handleReactionReceived,
-    translate
+    translate,
+    initialHandRaised: restoredStateRef.current?.handRaised,
+    initialRemoteHandsRaised: restoredStateRef.current?.remoteHandsRaised,
+    initialHandRaisedOrder: restoredStateRef.current?.handRaisedOrder
   })
 
   // Participant management
@@ -1986,7 +2030,22 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
       accessToken: options.accessToken || null,
       currentUserId: currentUser?.id || null,
       conversationName: callState.conversationName || null,
-      activeConversation: activeConversation || null, // Store for in-call chat participant avatars
+      activeConversation: activeConversation || null, // Currently active conversation for in-call chat
+      // CRITICAL: Compute callConversation from conversations list based on roomId
+      // This ensures we always use the conversation where the call was initiated
+      callConversation: (() => {
+        const roomId = callState.roomId
+        if (!roomId || !options.conversations) return callConversation || activeConversation || null
+        const foundConversation = options.conversations.find((c: any) => c.id === roomId)
+        rtkDebug.log('[RTK Hook] 🔍 Computing callConversation for globalCallManager:', {
+          roomId,
+          foundConversationId: foundConversation?.id,
+          foundConversationName: foundConversation?.name,
+          participantCount: foundConversation?.participants?.length,
+          fallbackToActive: !foundConversation && !!activeConversation
+        })
+        return foundConversation || activeConversation || null
+      })(),
       pendingInvites: participantsHook.pendingInvites, // Keep as Map
       availableParticipants: [], // Will be passed from Chat component
       activeExperts: [] // Will be passed from Chat component
@@ -2017,9 +2076,11 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
     currentUser,
     apiClient,
     wsClient,
-    options.accessToken
-    // NOTE: leaveCall, media, screenShare, websocket, participantsHook, toggleMinimize removed
-    // to prevent infinite loops - they are accessed via refs instead
+    options.accessToken,
+    options.conversations, // CRITICAL: Sync when conversations change to recompute callConversation
+    activeConversation // CRITICAL: Sync when active conversation changes (for in-call chat)
+    // NOTE: leaveCall, media, screenShare, websocket, participantsHook, toggleMinimize, callConversation removed
+    // to prevent infinite loops - they are accessed via refs or computed inline instead
   ])
 
   /**

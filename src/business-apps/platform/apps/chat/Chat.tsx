@@ -478,10 +478,12 @@ const ChatInner: React.FC<ChatProps> = memo(
       apiClient: realtimeKitApiClient,
       chatApiClient: apiClient, // Pass ChatApiClient for in-call chat functionality
       calendarApiClient: calendarApiClient, // Pass CalendarApiClient for AI transcription settings
-      activeConversation: activeConversation, // Pass active conversation for participant avatars in in-call chat
+      callConversation: null, // Computed in hook's effect using conversationsRef
+      activeConversation: activeConversation, // Pass active conversation for in-call chat
       currentUser: currentUserAsParticipant,
       accessToken: stableAccessToken,
-      translate: t
+      translate: t,
+      conversations: conversations // Pass conversations so hook can compute callConversation
     })
 
     // Route to appropriate implementation based on feature flag
@@ -515,6 +517,9 @@ const ChatInner: React.FC<ChatProps> = memo(
       // transcriptionEnabled: Handled by GlobalCallContainer
       // toggleTranscription: Available but not used here (should be in pre-call UI)
     } = groupCall
+
+    // NOTE: callConversation is now computed inside the hook based on conversations and roomId
+    // The hook syncs it to globalCallManager automatically
 
     // Listen for platform messages to start calls with specific users (via Cloudflare RealtimeKit)
     useStartCallFromPlatform({

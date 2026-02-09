@@ -61,7 +61,10 @@ interface StoredCallData {
   activeSpeakerId: string | null
   activeSpeakerHistory: string[]
 
-  // Active conversation for in-call chat (includes participant avatars and details)
+  // FIXED: Separate call conversation from active conversation
+  // callConversation: The conversation where the call was initiated (based on roomId) - used for participant avatars
+  // activeConversation: Currently active conversation for in-call chat (can change as user navigates)
+  callConversation?: any | null
   activeConversation?: any | null
 
   // Callback functions
@@ -125,6 +128,8 @@ class GlobalCallManager {
     realtimeKitMeeting: null,
     activeSpeakerId: null,
     activeSpeakerHistory: [],
+    callConversation: null,
+    activeConversation: null,
     leaveCall: null,
     toggleMute: null,
     toggleVideo: null,

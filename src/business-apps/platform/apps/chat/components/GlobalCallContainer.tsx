@@ -181,6 +181,7 @@ export const GlobalCallContainer: React.FC = () => {
           currentUserId={callData.currentUserId}
           currentUser={callData.currentUser}
           conversationName={callData.conversationName || undefined}
+          callConversation={callData.callConversation || undefined}
           activeConversation={callData.activeConversation || undefined}
           pendingInvites={callData.pendingInvites || new Map()}
           availableParticipants={callData.availableParticipants || []}

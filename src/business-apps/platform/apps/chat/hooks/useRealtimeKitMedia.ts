@@ -19,6 +19,9 @@ export interface UseRealtimeKitMediaOptions {
   initialBackgroundEnabled?: boolean
   onMediaStateChange?: (state: { isMuted: boolean; isVideoEnabled: boolean; backgroundEnabled: boolean }) => void
   callStatus?: 'idle' | 'setup' | 'joining' | 'connected' | 'reconnecting' | 'ended'
+  // Initial state for restoring from globalCallManager after minimize/maximize
+  initialIsMuted?: boolean
+  initialIsVideoEnabled?: boolean
 }
 
 export interface UseRealtimeKitMediaReturn {
@@ -54,13 +57,23 @@ export const useRealtimeKitMedia = ({
   initialVideoQuality = 'low',
   initialBackgroundEnabled = false, // Disabled by default to prevent feedback loop
   onMediaStateChange,
-  callStatus = 'idle'
+  callStatus = 'idle',
+  initialIsMuted,
+  initialIsVideoEnabled
 }: UseRealtimeKitMediaOptions): UseRealtimeKitMediaReturn => {
   const [localStream, setLocalStream] = useState<MediaStream | null>(null)
-  const [isMuted, setIsMuted] = useState(false)
-  // CRITICAL: Initialize video state from SDK if available, otherwise fallback to callType
-  // This ensures we respect user preferences from pre-call dialog
+
+  // CRITICAL: Initialize with restored state (if provided) to prevent reset after minimize/maximize
+  // This ensures mute/video state persists when maximizing after minimize
+  const [isMuted, setIsMuted] = useState(initialIsMuted ?? false)
+
+  // CRITICAL: Initialize video state from SDK if available, otherwise use restored state or fallback to callType
+  // Priority: 1) Restored state from globalCallManager, 2) SDK state, 3) callType
   const [isVideoEnabled, setIsVideoEnabled] = useState(() => {
+    // If we have restored state from globalCallManager, use it (highest priority)
+    if (initialIsVideoEnabled !== undefined) {
+      return initialIsVideoEnabled
+    }
     // If SDK meeting is already initialized, use its state
     if (meeting?.self?.videoEnabled !== undefined) {
       return meeting.self.videoEnabled
@@ -68,6 +81,7 @@ export const useRealtimeKitMedia = ({
     // Otherwise, default to callType (will be synced once SDK is ready)
     return callType === 'video'
   })
+
   const [videoQuality, setVideoQualityState] = useState<VideoQuality>(initialVideoQuality)
   const [backgroundEnabled, setBackgroundEnabled] = useState(initialBackgroundEnabled)
 
@@ -78,9 +92,20 @@ export const useRealtimeKitMedia = ({
   const hasInitializedFromSDKRef = useRef(false)
 
   // CRITICAL: Sync audio state from SDK when meeting becomes available
+  // SKIP if we have restored state from globalCallManager (restored state is source of truth)
   // Video state is handled by the main callType sync effect above
   useEffect(() => {
     if (!meeting?.self || hasInitializedFromSDKRef.current) {
+      return
+    }
+
+    // CRITICAL: If we have restored state (from minimize/maximize), skip SDK sync
+    // The restored state is the source of truth, and we should apply it TO the SDK instead
+    if (initialIsMuted !== undefined) {
+      rtkDebug.log('[RTK Media] Skipping SDK audio sync - using restored state from globalCallManager:', {
+        restoredIsMuted: initialIsMuted
+      })
+      hasInitializedFromSDKRef.current = true
       return
     }
 
@@ -100,7 +125,7 @@ export const useRealtimeKitMedia = ({
     }
 
     hasInitializedFromSDKRef.current = true
-  }, [meeting?.self, isMuted])
+  }, [meeting?.self, isMuted, initialIsMuted])
 
   // CRITICAL: React to callType changes and synchronize video state
   // Handles three scenarios:

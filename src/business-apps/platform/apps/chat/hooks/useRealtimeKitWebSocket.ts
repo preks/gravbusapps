@@ -21,6 +21,10 @@ export interface UseRealtimeKitWebSocketOptions {
   onReactionReceived?: (reaction: { participantId: string; participantName: string; emoji: string }) => void
   onMuteRequested?: (requestedByName: string) => void
   translate?: (key: string, params?: Record<string, any>) => string
+  // Initial state for restoring from globalCallManager after minimize/maximize
+  initialHandRaised?: boolean
+  initialRemoteHandsRaised?: Record<string, boolean>
+  initialHandRaisedOrder?: Record<string, { order: number; timestamp: number }>
 }
 
 export interface UseRealtimeKitWebSocketReturn {
@@ -58,12 +62,17 @@ export const useRealtimeKitWebSocket = ({
   onHandUpdate,
   onReactionReceived,
   onMuteRequested,
-  translate
+  translate,
+  initialHandRaised = false,
+  initialRemoteHandsRaised = {},
+  initialHandRaisedOrder = {}
 }: UseRealtimeKitWebSocketOptions): UseRealtimeKitWebSocketReturn => {
   // Track hand raised states and order
-  const [handRaised, setHandRaised] = useState(false)
-  const [remoteHandsRaised, setRemoteHandsRaised] = useState<Record<string, boolean>>({})
-  const [handRaisedOrder, setHandRaisedOrder] = useState<Record<string, { order: number; timestamp: number }>>({})
+  // CRITICAL: Initialize with restored state (if provided) to prevent reset after minimize/maximize
+  const [handRaised, setHandRaised] = useState(initialHandRaised)
+  const [remoteHandsRaised, setRemoteHandsRaised] = useState<Record<string, boolean>>(initialRemoteHandsRaised)
+  const [handRaisedOrder, setHandRaisedOrder] =
+    useState<Record<string, { order: number; timestamp: number }>>(initialHandRaisedOrder)
 
   // Track if user has intentionally toggled their hand (to ignore spurious events on join)
   const userIntentionallyToggledRef = useRef(false)
