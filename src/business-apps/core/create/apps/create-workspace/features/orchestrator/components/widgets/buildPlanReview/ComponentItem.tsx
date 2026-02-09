@@ -3,9 +3,10 @@
  */
 
 import React from 'react'
+import { Box } from 'lucide-react'
 import { cn } from '@newwork/nw-design-system'
-import { CheckCircle2 } from 'lucide-react'
 import type { BuildPlan } from '../../../types'
+import { typeIcons } from './buildPlanReview.utils'
 
 interface ComponentItemProps {
   component: BuildPlan['components'][0]
@@ -22,6 +23,8 @@ export const ComponentItem: React.FC<ComponentItemProps> = ({
   onToggle,
   variant = 'flat'
 }) => {
+  const IconComponent = typeIcons[component.type] || Box
+
   if (variant === 'flat') {
     return (
       <button
@@ -33,7 +36,7 @@ export const ComponentItem: React.FC<ComponentItemProps> = ({
         onClick={() => onToggle(component.id)}
       >
         <div className="gba:mt-0.5 gba:shrink-0">
-          <CheckCircle2
+          <IconComponent
             className={cn(
               'gba:w-[18px] gba:h-[18px] gba:transition-all',
               isSkipped ? 'gba:text-muted-foreground gba:opacity-30' : 'gba:text-foreground'
@@ -65,7 +68,7 @@ export const ComponentItem: React.FC<ComponentItemProps> = ({
       onClick={() => onToggle(component.id)}
     >
       <div className="gba:mt-0.5 gba:shrink-0">
-        <CheckCircle2
+        <IconComponent
           className={cn(
             'gba:w-[18px] gba:h-[18px] gba:transition-all',
             isSkipped ? 'gba:text-muted-foreground gba:opacity-30' : 'gba:text-foreground'

@@ -40,8 +40,8 @@ export const RefinementSection: React.FC<RefinementSectionProps> = ({
       </div>
 
       {refinementSummary && !refineError && (
-        <div className="gba:bg-green-50 gba:border gba:border-green-200 gba:rounded-lg gba:p-2.5">
-          <p className="gba:text-sm gba:text-green-800">
+        <div className="gba:bg-success-secondary gba:border gba:border-success-secondary gba:rounded-lg gba:p-2.5">
+          <p className="gba:text-sm gba:text-success-secondary-foreground">
             <span className="gba:font-medium">Changes applied:</span> {refinementSummary}
           </p>
         </div>
