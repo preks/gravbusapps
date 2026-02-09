@@ -30,7 +30,7 @@ import 'dayjs/locale/it'
 import { Flow } from '../types'
 import { getFlowStatusBadgeVariant, formatFlowStatus } from '../utils/taskFormatters'
 import { useEmployeeAvatar } from '../hooks/useEmployeeAvatar'
-import { base64ToObjectURL } from '../utils/avatarUtils'
+import { base64ToDataURL } from '../utils/avatarUtils'
 import translations from '../_i18n'
 
 dayjs.extend(relativeTime)
@@ -95,7 +95,7 @@ const AssigneeItem: React.FC<AssigneeItemProps> = ({ assigneeFlow, index, access
 
   const avatarUrl = useMemo(() => {
     if (employeeData?.pictureThumbnail) {
-      return base64ToObjectURL(employeeData.pictureThumbnail)
+      return base64ToDataURL(employeeData.pictureThumbnail)
     }
     return undefined
   }, [employeeData?.pictureThumbnail])
@@ -189,7 +189,7 @@ const InitiatorInfo: React.FC<InitiatorInfoProps> = ({ initiatorUserId, accessTo
 
   const avatarUrl = useMemo(() => {
     if (employeeData?.pictureThumbnail) {
-      return base64ToObjectURL(employeeData.pictureThumbnail)
+      return base64ToDataURL(employeeData.pictureThumbnail)
     }
     return undefined
   }, [employeeData?.pictureThumbnail])
@@ -274,7 +274,7 @@ export const FlowDetailContent: React.FC<FlowDetailContentProps> = ({
         <div className="gba:flex gba:items-start gba:justify-between gba:gap-4">
           <div className="gba:flex-1">
             <h2 className="gba:text-2xl gba:font-bold" data-testid="flow-detail-title">
-              {flow.templateName}
+              {typeof flow.templateName === 'string' ? flow.templateName : 'Unnamed Flow'}
             </h2>
           </div>
           {showCloseButton && onClose && (
@@ -296,7 +296,6 @@ export const FlowDetailContent: React.FC<FlowDetailContentProps> = ({
         {/* Status Badge */}
         <div className="gba:flex gba:items-center gba:gap-2">
           <Badge variant={getFlowStatusBadgeVariant(flow.status)}>{formatFlowStatus(flow.status, t)}</Badge>
-          <span className="gba:text-sm gba:text-muted-foreground">{t('flow-detail-id', { id: flow.id })}</span>
         </div>
 
         {/* Assignee Progress (for grouped multi-user blinks) */}
@@ -379,11 +378,6 @@ export const FlowDetailContent: React.FC<FlowDetailContentProps> = ({
               <InitiatorInfo initiatorUserId={flow.initiatorUserId || flow.initiatedBy} accessToken={accessToken} />
             </div>
           )}
-
-          <div>
-            <div className="gba:text-xs gba:text-muted-foreground">{t('flow-detail-template')}</div>
-            <div className="gba:font-medium">{flow.templateId}</div>
-          </div>
         </div>
 
         {/* Assignee Status List (for grouped multi-user blinks) */}
@@ -442,12 +436,19 @@ export const FlowDetailContent: React.FC<FlowDetailContentProps> = ({
                       </div>
                       <div className="gba:flex-1">
                         <div className="gba:font-medium gba:text-sm">
-                          {t('flow-detail-step', { number: step.stepIndex + 1, title: step.title })}
+                          {t('flow-detail-step', {
+                            number: step.stepIndex + 1,
+                            title: typeof step.title === 'string' ? step.title : ''
+                          })}
                         </div>
                         <div className="gba:text-xs gba:text-muted-foreground">
-                          {step.type}
-                          {step.assignedTo && ` • ${t('flow-detail-assigned-to', { name: step.assignedTo })}`}
-                          {step.completedBy && ` • ${t('flow-detail-completed-by', { name: step.completedBy })}`}
+                          {typeof step.type === 'string' ? step.type : ''}
+                          {step.assignedTo &&
+                            typeof step.assignedTo === 'string' &&
+                            ` • ${t('flow-detail-assigned-to', { name: step.assignedTo })}`}
+                          {step.completedBy &&
+                            typeof step.completedBy === 'string' &&
+                            ` • ${t('flow-detail-completed-by', { name: step.completedBy })}`}
                         </div>
                         {step.completedAt && (
                           <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">

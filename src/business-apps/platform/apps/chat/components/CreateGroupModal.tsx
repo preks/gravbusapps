@@ -26,10 +26,25 @@ import { useChatTranslation } from '../contexts/TranslationContext'
 
 type CreationMode = 'manual' | 'dimension'
 
+/**
+ * Context for dimension-based group creation
+ * Used to link group chats with organizational dimensions (for space integration)
+ */
+export interface DimensionContext {
+  type: DimensionType
+  id: string
+  name: string
+}
+
 interface CreateGroupModalProps {
   isOpen: boolean
   onClose: () => void
-  onCreateGroup: (name: string, participantIds: string[], description?: string) => Promise<void>
+  onCreateGroup: (
+    name: string,
+    participantIds: string[],
+    description?: string,
+    dimensionContext?: DimensionContext
+  ) => Promise<void>
   apiClient: ChatApiClient | null
   currentUserId: string | null
   prefixDataTestId?: string
@@ -56,6 +71,8 @@ export const CreateGroupModal: React.FC<CreateGroupModalProps> = ({
   const [showDimensionPicker, setShowDimensionPicker] = useState(false)
   const [dimensionMembers, setDimensionMembers] = useState<OrgUserBasic[]>([])
   const [selectedDimensionName, setSelectedDimensionName] = useState<string>('')
+  const [selectedDimensionType, setSelectedDimensionType] = useState<DimensionType | null>(null)
+  const [selectedDimensionId, setSelectedDimensionId] = useState<string | null>(null)
 
   // Hook for organizational dimensions
   const {
@@ -95,6 +112,8 @@ export const CreateGroupModal: React.FC<CreateGroupModalProps> = ({
     setShowDimensionPicker(false)
     setDimensionMembers([])
     setSelectedDimensionName('')
+    setSelectedDimensionType(null)
+    setSelectedDimensionId(null)
     clearMembers()
   }
 
@@ -119,7 +138,14 @@ export const CreateGroupModal: React.FC<CreateGroupModalProps> = ({
     try {
       setIsCreating(true)
       setError(null)
-      await onCreateGroup(groupName.trim(), participantIds, description.trim() || undefined)
+
+      // Build dimension context if creating from dimension mode
+      const dimensionContext: DimensionContext | undefined =
+        creationMode === 'dimension' && selectedDimensionType && selectedDimensionId
+          ? { type: selectedDimensionType, id: selectedDimensionId, name: selectedDimensionName }
+          : undefined
+
+      await onCreateGroup(groupName.trim(), participantIds, description.trim() || undefined, dimensionContext)
       handleClose()
     } catch (err) {
       console.error('Error creating group:', err)
@@ -135,9 +161,16 @@ export const CreateGroupModal: React.FC<CreateGroupModalProps> = ({
   }
 
   // Handle dimension confirmation
-  const handleDimensionConfirm = (members: OrgUserBasic[], dimensionName: string) => {
+  const handleDimensionConfirm = (
+    members: OrgUserBasic[],
+    dimensionName: string,
+    dimensionType: DimensionType,
+    dimensionId: string
+  ) => {
     setDimensionMembers(members)
     setSelectedDimensionName(dimensionName)
+    setSelectedDimensionType(dimensionType)
+    setSelectedDimensionId(dimensionId)
     setShowDimensionPicker(false)
     // Auto-suggest group name based on dimension
     if (!groupName.trim()) {
@@ -177,7 +210,14 @@ export const CreateGroupModal: React.FC<CreateGroupModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="gba:max-w-2xl gba:max-h-[85vh]" data-testid={prefixDataTestId}>
+      <DialogContent
+        className="gba:max-h-[85vh]"
+        style={{
+          width: '90vw',
+          maxWidth: window.innerWidth >= 1280 ? '896px' : window.innerWidth >= 1024 ? '768px' : '90vw'
+        }}
+        data-testid={prefixDataTestId}
+      >
         <DialogHeader>
           <DialogTitle>{t('chat-createGroup')}</DialogTitle>
         </DialogHeader>

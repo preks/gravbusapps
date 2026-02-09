@@ -253,11 +253,18 @@ export interface CompMeta {
 }
 
 const handleProcessLocalDevEvent = (event: ProcessLocalDevEvent) => {
-  const { domain, processName, processInstanceId, startProcessBody } = event
+  const { domain, processName, processInstanceId, startProcessBody, builderType, skipScreen } = event
+  const parts = [
+    `Domain: ${domain}`,
+    `Process: ${processName}`,
+    processInstanceId ? `ID: ${processInstanceId}` : null,
+    builderType ? `Builder: ${builderType}` : null,
+    skipScreen === undefined ? null : `Skip Screen: ${skipScreen}`,
+    `Process body: ${startProcessBody ? JSON.stringify(startProcessBody) : 'No process body'}`
+  ].filter(Boolean)
+
   toast.success('Process Start Event Detected', {
-    description: `Domain: ${domain}, \nProcess: ${processName}${
-      processInstanceId ? `, ID: ${processInstanceId}` : ''
-    }\nProcess body: ${startProcessBody ? JSON.stringify(startProcessBody) : 'No process body'}`,
+    description: parts.join('\n'),
     position: 'top-right'
   })
 }
@@ -867,7 +874,14 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
   }, [parsedAdditionalData, parsedUserInfo])
 
   // --- Authentication & user profile (Keycloak-based) ---
-  const { initialized: authInitialized, accessToken: authToken, tokenParsed, logout, refreshToken } = useBusinessAuth()
+  const {
+    initialized: authInitialized,
+    accessToken: authToken,
+    tokenParsed,
+    logout,
+    refreshToken,
+    isMsOAuthCallback
+  } = useBusinessAuth()
   const { userInfo: profileUserInfo, loading: profileLoading } = useUserProfileFromKeycloak(authToken, tokenParsed)
 
   // When auth/profile become available, synchronize into IDE state and localStorage
@@ -909,13 +923,16 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
   }, [refreshToken])
 
   // While authentication is initializing, show a minimal loading shell
-  if (!authInitialized || profileLoading) {
+  // Exception: if this is a Microsoft OAuth callback, render immediately so email app can handle it
+  if (!authInitialized || (profileLoading && !isMsOAuthCallback)) {
     return (
       <ThemeProvider defaultTheme="light" storageKey="business-app-ide-ui-theme">
         <LocalizationProvider locale={locale}>
           <div className={densityClass}>
             <div className="gba:h-screen gba:flex gba:items-center gba:justify-center">
-              <div className="gba:text-sm gba:text-muted-foreground">Signing you in to NEWWORK…</div>
+              <div className="gba:text-sm gba:text-muted-foreground">
+                {isMsOAuthCallback ? 'Completing Microsoft sign-in…' : 'Signing you in to NEWWORK…'}
+              </div>
             </div>
           </div>
         </LocalizationProvider>

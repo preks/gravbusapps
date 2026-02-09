@@ -1,0 +1,167 @@
+import React from 'react'
+import { Button, Badge } from '@newwork/nw-design-system'
+import { MoreHorizontal, ChevronDown, ChevronRight } from 'lucide-react'
+import { getDocumentIcon } from '@/common/utils/documentIconUtils'
+import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { DocumentColumn, DocumentItem } from '../types'
+
+interface DocumentTableColumnsProps {
+  dataTestId: string
+  viewMode: 'tree' | 'list'
+  toggleFolderExpansion: (folderId: string) => void
+  getFolderChildrenCount: (folderId: string) => number
+  handleActionsButtonClick: (document: DocumentItem, event: React.MouseEvent) => void
+}
+
+// Helper function to format file size
+const formatFileSize = (bytes: number): string => {
+  if (bytes === 0) return '0 B'
+  const k = 1024
+  const sizes = ['B', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return Number.parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+}
+
+export function createDocumentTableColumns({
+  dataTestId,
+  viewMode,
+  toggleFolderExpansion,
+  getFolderChildrenCount,
+  handleActionsButtonClick
+}: DocumentTableColumnsProps): DocumentColumn[] {
+  return [
+    {
+      id: 'name',
+      header: getTranslationFromI18nKeyAndLabel('document.column.name', 'Name'),
+      align: 'left',
+      render: document => {
+        const docWithTreeInfo = document as DocumentItem & {
+          level?: number
+          hasChildren?: boolean
+          isExpanded?: boolean
+        }
+        const level = docWithTreeInfo.level || 0
+        const hasChildren = docWithTreeInfo.hasChildren || false
+        const isExpanded = docWithTreeInfo.isExpanded || false
+
+        return (
+          <div className="gba:flex gba:items-center gba:gap-2" style={{ paddingLeft: `${level * 20}px` }}>
+            {/* Tree expansion control - only show for folders with children */}
+            {viewMode === 'tree' && document.folder && hasChildren && (
+              <button
+                onClick={e => {
+                  e.stopPropagation()
+                  toggleFolderExpansion(document.id)
+                }}
+                className="gba:p-0 gba:h-4 gba:w-4 gba:flex gba:items-center gba:justify-center gba:hover:bg-muted gba:rounded"
+                data-testid={`${dataTestId}-expand-${document.id}`}
+              >
+                {isExpanded ? (
+                  <ChevronDown className="gba:h-3 gba:w-3" />
+                ) : (
+                  <ChevronRight className="gba:h-3 gba:w-3" />
+                )}
+              </button>
+            )}
+            {viewMode === 'tree' && (!document.folder || !hasChildren) && (
+              // Empty space to maintain alignment for items without expansion controls
+              <div className="gba:w-4 gba:h-4" />
+            )}
+
+            {/* File/Folder icon with proper type-based styling */}
+            {getDocumentIcon({ name: document.name, mimeType: document.mimeType, isFolder: document.folder })}
+
+            {/* Document name */}
+            <span
+              className="gba:text-sm gba:font-medium gba:truncate"
+              data-testid={`${dataTestId}-name-${document.id}`}
+              title={
+                document.name ||
+                getTranslationFromI18nKeyAndLabel('document.label.untitledDocument', 'Untitled Document')
+              }
+            >
+              {document.name ||
+                getTranslationFromI18nKeyAndLabel('document.label.untitledDocument', 'Untitled Document')}
+              {/* Show children count for folders */}
+              {document.folder && viewMode === 'tree' && (
+                <span className="gba:ml-2 gba:text-xs gba:text-muted-foreground">
+                  ({getFolderChildrenCount(document.id)}{' '}
+                  {getTranslationFromI18nKeyAndLabel('document.label.items', 'items')})
+                </span>
+              )}
+            </span>
+          </div>
+        )
+      }
+    },
+    {
+      id: 'group',
+      header: getTranslationFromI18nKeyAndLabel('document.column.group', 'Group'),
+      width: '150px',
+      align: 'left',
+      render: document => (
+        <span
+          className="gba:text-xs gba:text-muted-foreground gba:truncate"
+          data-testid={`${dataTestId}-group-${document.id}`}
+          title={document.documentGroup?.value || '-'}
+        >
+          {document.documentGroup?.value || '-'}
+        </span>
+      )
+    },
+    {
+      id: 'type',
+      header: getTranslationFromI18nKeyAndLabel('document.column.type', 'Type'),
+      width: '120px',
+      align: 'left',
+      render: document => (
+        <Badge variant="secondary" className="gba:text-xs" data-testid={`${dataTestId}-type-${document.id}`}>
+          {document.folder === true
+            ? getTranslationFromI18nKeyAndLabel('document.label.folder', 'Folder')
+            : document.documentType?.value || '-'}
+        </Badge>
+      )
+    },
+    {
+      id: 'size',
+      header: getTranslationFromI18nKeyAndLabel('document.column.size', 'Size'),
+      width: '100px',
+      align: 'left',
+      render: document => (
+        <span className="gba:text-xs gba:text-muted-foreground" data-testid={`${dataTestId}-size-${document.id}`}>
+          {!document.folder && document.fileSize ? formatFileSize(document.fileSize) : '-'}
+        </span>
+      )
+    },
+    {
+      id: 'uploadDate',
+      header: getTranslationFromI18nKeyAndLabel('document.column.uploadDate', 'Upload Date'),
+      width: '140px',
+      align: 'left',
+      render: document => (
+        <span
+          className="gba:text-xs gba:text-muted-foreground"
+          data-testid={`${dataTestId}-upload-date-${document.id}`}
+        >
+          {new Date(document.createdAt).toLocaleDateString()}
+        </span>
+      )
+    },
+    {
+      id: 'actions',
+      header: getTranslationFromI18nKeyAndLabel('document.column.actions', 'Actions'),
+      width: '80px',
+      align: 'center',
+      render: document => (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={e => handleActionsButtonClick(document, e)}
+          data-testid={`${dataTestId}-actions-${document.id}`}
+        >
+          <MoreHorizontal className="gba:h-4 gba:w-4" />
+        </Button>
+      )
+    }
+  ]
+}

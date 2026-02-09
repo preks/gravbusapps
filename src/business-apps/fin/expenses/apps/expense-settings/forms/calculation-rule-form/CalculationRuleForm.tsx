@@ -2,9 +2,9 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useFeature } from '@/common/hooks/useFeature'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 import { expenseSettingsClient } from '../../utils/ExpenseSettingsClient'
+import { formatDateForInput, normalizeDateInputValue, toISOEndOfDay, toISOStartOfDay } from '../../utils'
 import { useGetExpenseRuleById } from '../../queries/ExpenseRuleQueries'
 import {
   Dialog,
@@ -86,8 +86,6 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
   accessToken,
   ...context
 }) => {
-  const isDevEnabled = useFeature('dev.enabled')
-
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -122,10 +120,6 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
       currencyRef: ''
     }
   })
-
-  if (isDevEnabled === false) {
-    return null
-  }
 
   useEffect(() => {
     if (accessToken) {
@@ -199,8 +193,8 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
               name: freshData.name || '',
               description: freshData.name || '',
               standard: freshData.standard || false,
-              activeFrom: freshData.activeFrom ? dayjs(freshData.activeFrom).format('YYYY-MM-DD') : '',
-              activeTo: freshData.activeTo ? dayjs(freshData.activeTo).format('YYYY-MM-DD') : '',
+              activeFrom: formatDateForInput(freshData.activeFrom) || '',
+              activeTo: formatDateForInput(freshData.activeTo) || '',
               deductionLimit: freshData.deductionLimit || false,
               useLastCountry: freshData.useLastCountry || false,
               useSingleCurrency: freshData.useSingleCurrency || false,
@@ -223,8 +217,8 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
       if (initialData) {
         form.reset({
           ...initialData,
-          activeFrom: initialData.activeFrom ? dayjs(initialData.activeFrom).format('YYYY-MM-DD') : '',
-          activeTo: initialData.activeTo ? dayjs(initialData.activeTo).format('YYYY-MM-DD') : ''
+          activeFrom: formatDateForInput(initialData.activeFrom) || '',
+          activeTo: formatDateForInput(initialData.activeTo) || ''
         })
       } else {
         form.reset({
@@ -259,8 +253,8 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
         code: data.code,
         name: data.name,
         standard: data.standard || false,
-        activeFrom: data.activeFrom ? dayjs(data.activeFrom).toISOString() : undefined,
-        activeTo: data.activeTo ? dayjs(data.activeTo).toISOString() : undefined,
+        activeFrom: data.activeFrom ? toISOStartOfDay(data.activeFrom) : undefined,
+        activeTo: data.activeTo ? toISOEndOfDay(data.activeTo) : undefined,
         deductionLimit: data.deductionLimit || false,
         useLastCountry: data.useLastCountry || false,
         useSingleCurrency: data.useSingleCurrency || false,
@@ -278,8 +272,8 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
 
       const saveData: CalculationRuleFormData = {
         ...data,
-        activeFrom: data.activeFrom ? dayjs(data.activeFrom).toISOString() : '',
-        activeTo: data.activeTo ? dayjs(data.activeTo).toISOString() : '',
+        activeFrom: data.activeFrom ? toISOStartOfDay(data.activeFrom) || '' : '',
+        activeTo: data.activeTo ? toISOEndOfDay(data.activeTo) || '' : '',
         id: result.expenseRule?.id || initialData?.id,
         version: result.expenseRule?.version ?? (initialData?.version !== undefined ? initialData.version + 1 : 1)
       }
@@ -481,7 +475,8 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
                           <FormControl>
                             <DateInput
                               value={field.value || ''}
-                              onChange={date => field.onChange(date)}
+                              onChange={date => field.onChange(normalizeDateInputValue(date) ?? '')}
+                              outputFormat="iso"
                               data-testid="calculation-rule-form-active-from"
                             />
                           </FormControl>
@@ -498,7 +493,8 @@ const CalculationRuleForm: React.FC<CalculationRuleFormProps> = ({
                           <FormControl>
                             <DateInput
                               value={field.value || ''}
-                              onChange={date => field.onChange(date)}
+                              onChange={date => field.onChange(normalizeDateInputValue(date))}
+                              outputFormat="iso"
                               data-testid="calculation-rule-form-active-to"
                             />
                           </FormControl>

@@ -18,6 +18,9 @@ import {
 import { X, UserCircle, Users, Building2, MapPin, DollarSign, FileCheck, AlertTriangle } from 'lucide-react'
 import { useMockData } from '../../../../providers/MockDataProvider'
 import { useOrgDirectory } from '@/common/network/org-directory'
+import { ExpressionInput } from './ExpressionInput'
+import { OrgChartWizard } from './OrgChartWizard'
+import { FlowTemplate } from '../../types/flowTemplate'
 
 // Mock data can be enabled via MockDataProvider for development/testing
 const USE_MOCK_DATA = false
@@ -51,6 +54,8 @@ interface AssignmentSelectorProps {
   assignmentMode: AssignmentMode
   accessToken: string
   userInfo?: any
+  template?: FlowTemplate
+  stepIndex?: number
   'data-testid'?: string
 }
 
@@ -194,9 +199,19 @@ const FieldBadges: React.FC<FieldBadgesProps> = ({
   capabilities = [],
   'data-testid': testId = 'field-badges'
 }) => {
+  // Check if value is an expression
+  const isExpression = (value: string): boolean => {
+    return value.includes('{{') && value.includes('}}')
+  }
+
   // Resolve entity name from real data or teammates
   const resolveEntityName = (dataSource: string, entityId: string): string => {
     if (entityId === ANY_SELECTOR) return 'Any'
+
+    // If it's an expression, return it as-is (will be styled differently)
+    if (isExpression(entityId)) {
+      return entityId
+    }
 
     // Define data source mappings with primary source and fallback teammate fields
     const sourceMappings: Record<
@@ -241,24 +256,32 @@ const FieldBadges: React.FC<FieldBadgesProps> = ({
 
   return (
     <div className="gba:flex gba:flex-wrap gba:gap-1 gba:mt-2" data-testid={testId}>
-      {values.map((value, index) => (
-        <Badge
-          key={`${field}-${value}`}
-          variant="outline"
-          className={`gba:flex gba:items-center gba:gap-1 gba:pr-1 gba:text-xs ${config.color}`}
-          data-testid={`${testId}-badge-${index}`}
-        >
-          {config.icon}
-          <span>{resolveEntityName(config.dataSource, value)}</span>
-          <button
-            onClick={() => onRemove(field, value)}
-            className="gba:ml-1 gba:text-gray-500 hover:gba:text-red-500 gba:transition-colors"
-            data-testid={`${testId}-remove-${index}`}
+      {values.map((value, index) => {
+        const valueIsExpression = isExpression(value)
+        return (
+          <Badge
+            key={`${field}-${value}`}
+            variant="outline"
+            className={`gba:flex gba:items-center gba:gap-1 gba:pr-1 gba:text-xs ${valueIsExpression ? 'gba:!bg-purple-100 gba:!text-purple-800 gba:!border-purple-300 gba:font-mono' : config.color}`}
+            data-testid={`${testId}-badge-${index}`}
           >
-            <X className="gba:w-3 gba:h-3" />
-          </button>
-        </Badge>
-      ))}
+            {config.icon}
+            <span
+              className={valueIsExpression ? 'gba:max-w-[300px] gba:truncate' : ''}
+              title={valueIsExpression ? value : undefined}
+            >
+              {resolveEntityName(config.dataSource, value)}
+            </span>
+            <button
+              onClick={() => onRemove(field, value)}
+              className="gba:ml-1 gba:text-gray-500 hover:gba:text-red-500 gba:transition-colors"
+              data-testid={`${testId}-remove-${index}`}
+            >
+              <X className="gba:w-3 gba:h-3" />
+            </button>
+          </Badge>
+        )
+      })}
     </div>
   )
 }
@@ -465,10 +488,16 @@ export const AssignmentSelector: React.FC<AssignmentSelectorProps> = ({
   onChange,
   assignmentMode,
   accessToken,
+  userInfo,
+  template,
+  stepIndex = 0,
   'data-testid': testId = 'assignment-selector'
 }) => {
   // Tab state for organized assignment interface
   const [activeTab, setActiveTab] = useState<'people' | 'structure' | 'business' | 'location' | 'skills'>('people')
+
+  // State for expression-based user assignment
+  const [userExpression, setUserExpression] = useState('')
 
   // Check if we should use mock data (controlled by constant at top of file)
   let mockData = null
@@ -644,6 +673,19 @@ export const AssignmentSelector: React.FC<AssignmentSelectorProps> = ({
     onChange(newAssignment)
   }
 
+  // Handle adding expression-based user assignment
+  const handleAddExpression = () => {
+    if (!userExpression.trim()) return
+
+    // Prevent adding expressions in CLAIM mode (direct user assignment not allowed)
+    if (assignmentMode === AssignmentMode.CLAIM) {
+      return
+    }
+
+    handleAddValue('users', userExpression)
+    setUserExpression('')
+  }
+
   // Handle reassignment toggle
   const handleReassignmentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     onChange({
@@ -705,6 +747,11 @@ export const AssignmentSelector: React.FC<AssignmentSelectorProps> = ({
                 OR Logic (Any condition can match)
               </Badge>
             )}
+            {assignmentMode === AssignmentMode.ASSIGN_DEFERRED && (
+              <Badge variant="outline" className="gba:text-xs">
+                Deferred - Resolves after previous steps
+              </Badge>
+            )}
           </div>
           {teammates.length > 0 && (
             <div className="gba:text-xs gba:text-gray-500">
@@ -764,6 +811,54 @@ export const AssignmentSelector: React.FC<AssignmentSelectorProps> = ({
 
             {Object.entries(fieldConfigGroups).map(([groupKey, configs]) => (
               <TabsContent key={groupKey} value={groupKey} className="gba:space-y-4 gba:mt-4">
+                {/* OrgChart Wizard and Expression-based assignment - only show in People tab */}
+                {groupKey === 'people' && template && assignmentMode !== AssignmentMode.CLAIM && (
+                  <div className="gba:space-y-3 gba:pb-4 gba:border-b gba:border-gray-200">
+                    {/* OrgChart Wizard - Collapsible */}
+                    <OrgChartWizard
+                      template={template}
+                      stepIndex={stepIndex}
+                      assignmentMode={assignmentMode}
+                      onExpressionGenerated={expression => {
+                        handleAddValue('users', expression)
+                      }}
+                      data-testid={`${testId}-orgchart-wizard`}
+                    />
+
+                    {/* Manual Expression Input - Always available */}
+                    <div className="gba:space-y-2">
+                      <div className="gba:text-sm gba:font-medium gba:text-gray-700 gba:flex gba:items-center gba:gap-2">
+                        <UserCircle className="gba:w-4 gba:h-4" />
+                        Manual Expression Input
+                      </div>
+                      <p className="gba:text-xs gba:text-gray-600">
+                        Type any expression manually or use the Expression Builder for validation and testing
+                      </p>
+                      <ExpressionInput
+                        value={userExpression}
+                        onChange={setUserExpression}
+                        mode="expression"
+                        placeholder="e.g., {{$orgchart.managerByUserId[$workflow.initiator]}}"
+                        template={template}
+                        stepIndex={stepIndex}
+                        useTreeBuilder={true}
+                        context={{ accessToken, userInfo }}
+                        data-testid={`${testId}-expression-input`}
+                      />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleAddExpression}
+                        disabled={!userExpression.trim()}
+                        data-testid={`${testId}-add-expression`}
+                        type="button"
+                      >
+                        Add Expression
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
                 {configs.map(config => {
                   const fieldValues = currentTarget[config.field] || []
 

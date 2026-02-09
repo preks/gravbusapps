@@ -1,7 +1,8 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 import { Card, CardContent, Badge, Button } from '@newwork/nw-design-system'
-import { Calendar, Clock, Users, Video, ExternalLink } from 'lucide-react'
+import { Calendar, Clock, Users, Video, ExternalLink, ListTodo } from 'lucide-react'
 import type { ScheduledMeeting } from '../hooks/useEveryAIChat'
+import { getAgendaFromMetadata } from '../calendar/utils/agendaUtils'
 
 interface MeetingCardProps {
   meeting: ScheduledMeeting
@@ -15,6 +16,9 @@ interface MeetingCardProps {
 export const MeetingCard: React.FC<MeetingCardProps> = React.memo(({ meeting, className = '' }) => {
   const startDate = new Date(meeting.startTime)
   const endDate = new Date(meeting.endTime)
+
+  // Extract agenda from metadata
+  const agendaItems = useMemo(() => getAgendaFromMetadata(meeting.metadata), [meeting.metadata])
 
   const formatDate = (date: Date): string => {
     return date.toLocaleDateString(undefined, {
@@ -109,6 +113,16 @@ export const MeetingCard: React.FC<MeetingCardProps> = React.memo(({ meeting, cl
               <Users className="gba:w-3.5 gba:h-3.5 gba:text-primary gba:flex-shrink-0" />
               <span className="gba:text-muted-foreground gba:truncate">
                 {meeting.participants.length} participant{meeting.participants.length !== 1 ? 's' : ''}
+              </span>
+            </div>
+          )}
+
+          {/* Agenda preview */}
+          {agendaItems.length > 0 && (
+            <div className="gba:flex gba:items-center gba:gap-2.5 gba:bg-background/50 gba:rounded-md gba:px-2.5 gba:py-1.5">
+              <ListTodo className="gba:w-3.5 gba:h-3.5 gba:text-primary gba:flex-shrink-0" />
+              <span className="gba:text-muted-foreground gba:truncate">
+                {agendaItems.length} agenda item{agendaItems.length !== 1 ? 's' : ''}
               </span>
             </div>
           )}

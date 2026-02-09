@@ -22,9 +22,20 @@ export const convertDynamicColumnsToConfig = (dynamicColumns: DynamicTableColumn
   return dynamicColumns.map(column => ({
     key: column.id,
     title: column.label,
-    render: (record: any) => (
-      <span style={{ textAlign: getTextAlignment(column.className) }}>{column.getValue(record)}</span>
-    )
+    width: column.width,
+    render: (record: any) => {
+      const value = column.getValue(record)
+      const alignment = getTextAlignment(column.className)
+      const justifyContent = alignment === 'center' ? 'center' : alignment === 'right' ? 'flex-end' : 'flex-start'
+
+      return (
+        <div className="gba:flex gba:items-center gba:h-8" style={{ justifyContent }}>
+          <span className="gba:truncate gba:block" title={String(value)}>
+            {value}
+          </span>
+        </div>
+      )
+    }
   }))
 }
 
@@ -36,27 +47,39 @@ export const createLiquidFundStaticColumns = (): ColumnConfig[] => {
     {
       key: 'investment',
       title: 'Investment',
-      render: (record: any) => (
-        <span style={{ fontWeight: 'var(--nw-font-weight-medium)' }}>{record.investmentName || 'N/A'}</span>
-      )
+      width: '200px',
+      render: (record: any) => {
+        const name = record.investmentName || 'N/A'
+        return (
+          <div className="gba:flex gba:items-center gba:h-8">
+            <span className="gba:truncate gba:block gba:font-medium" title={name}>
+              {name}
+            </span>
+          </div>
+        )
+      }
     },
     {
       key: 'date',
       title: 'Date',
+      width: '120px',
       render: (record: any) => {
-        if (!record.reportDate) return <span>-</span>
+        if (!record.reportDate) return <div className="gba:flex gba:items-center gba:justify-center gba:h-8">-</div>
         try {
+          const formattedDate = new Date(record.reportDate).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+          })
           return (
-            <span style={{ textAlign: 'center' }}>
-              {new Date(record.reportDate).toLocaleDateString('en-US', {
-                year: 'numeric',
-                month: 'short',
-                day: 'numeric'
-              })}
-            </span>
+            <div className="gba:flex gba:items-center gba:justify-center gba:h-8">
+              <span className="gba:truncate gba:block" title={formattedDate}>
+                {formattedDate}
+              </span>
+            </div>
           )
         } catch {
-          return <span>-</span>
+          return <div className="gba:flex gba:items-center gba:justify-center gba:h-8">-</div>
         }
       }
     }

@@ -194,8 +194,10 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
   const [activeTab, setActiveTab] = useState(initialActiveTab)
   const activeStructureId = getCurrentActiveStructureId() || ''
   const devFeatureFlag = useFeature(Feature.Dev.Enabled.Key)
+  const assetsFeatureFlag = useFeature(Feature.HCM.Assets.Key)
   const changeLogFeatureFlag = useFeature('dev.employee-record.changelog.enabled')
   const servicesFeatureFlag = useFeature('services.enabled')
+  const attendanceFeatureFlag = useFeature('human-resources.attendance.enabled')
   const compensationFeatureFlagRaw = useFeature<boolean>(Feature.HCM.Compensation.Key)
 
   // Handle undefined as true (enabled by default until FeatureHub loads)
@@ -578,7 +580,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
             }
           ]
         : []),
-      ...(devFeatureFlag
+      ...(attendanceFeatureFlag
         ? [
             {
               value: TAB_KEYS.timeTracking,
@@ -615,7 +617,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
           </div>
         )
       },
-      ...(devFeatureFlag
+      ...(assetsFeatureFlag
         ? [
             {
               value: TAB_KEYS.assets,

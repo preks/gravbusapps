@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -29,6 +29,20 @@ interface RatingScaleEditorModalProps {
   initialValues?: RatingScaleValues
 }
 
+type DisplayMode = 'value' | 'letters' | 'stars' | 'custom'
+
+/** Infer display mode from saved values (e.g. 1,2,3 -> value; A,B,C -> letters; ★,★★ -> stars; else custom). */
+function inferDisplayMode(values: string[]): DisplayMode {
+  if (!values.length) return 'value'
+  const numeric = values.every((v, i) => v.trim() === String(i + 1))
+  if (numeric) return 'value'
+  const letters = values.every((v, i) => v.trim() === String.fromCodePoint(65 + i))
+  if (letters) return 'letters'
+  const stars = values.every((v, i) => v.trim() === '★'.repeat(i + 1))
+  if (stars) return 'stars'
+  return 'custom'
+}
+
 export const RatingScaleEditorModal: React.FC<RatingScaleEditorModalProps> = ({
   open,
   onOpenChange,
@@ -37,16 +51,31 @@ export const RatingScaleEditorModal: React.FC<RatingScaleEditorModalProps> = ({
 }) => {
   const { t } = useTranslation(translations)
   const [name, setName] = useState(initialValues?.name || '')
-  // Determine defaults from initial values when editing
   const defaultCount = initialValues?.values?.length ? Math.min(Math.max(initialValues.values.length, 2), 10) : 5
   const [count, setCount] = useState<number>(defaultCount)
-  type DisplayMode = 'value' | 'letters' | 'stars' | 'custom'
   const [displayMode, setDisplayMode] = useState<DisplayMode>(initialValues ? 'custom' : 'value')
   const [customLabels, setCustomLabels] = useState<string[]>(
     initialValues?.values?.length
       ? [...initialValues.values]
       : Array.from({ length: defaultCount }, (_, i) => String(i + 1))
   )
+
+  // Populate form when modal opens: from initialValues (edit) or reset (add)
+  useEffect(() => {
+    if (!open) return
+    if (initialValues?.name != null && initialValues?.values?.length) {
+      setName(initialValues.name)
+      const len = Math.min(Math.max(initialValues.values.length, 2), 10)
+      setCount(len)
+      setDisplayMode(initialValues.displayMode ?? inferDisplayMode(initialValues.values))
+      setCustomLabels(initialValues.values.length <= 10 ? [...initialValues.values] : initialValues.values.slice(0, 10))
+    } else {
+      setName('')
+      setCount(5)
+      setDisplayMode('value')
+      setCustomLabels(Array.from({ length: 5 }, (_, i) => String(i + 1)))
+    }
+  }, [open])
 
   // Ensure customLabels length matches count
   const ensureCustomLength = (nextCount: number) => {
@@ -81,7 +110,7 @@ export const RatingScaleEditorModal: React.FC<RatingScaleEditorModalProps> = ({
       const letters: string[] = []
       for (let i = 0; i < count; i++) {
         const code = 'A'.charCodeAt(0) + i
-        letters.push(String.fromCharCode(code))
+        letters.push(String.fromCodePoint(code))
       }
       return letters
     }

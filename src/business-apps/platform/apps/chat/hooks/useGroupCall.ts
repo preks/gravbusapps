@@ -22,6 +22,7 @@ export interface UseGroupCallOptions {
   onCallEnded?: (roomId: string, duration: number) => void
   onParticipantJoined?: (participant: CallParticipant) => void
   onParticipantLeft?: (participantId: string) => void
+  accessToken?: string | null
 }
 
 export interface GroupCallInvite {
@@ -30,26 +31,31 @@ export interface GroupCallInvite {
   from: { id: string; odId: string; odName: string; avatarUrl?: string }
   conversationName?: string
   conversationId?: string // The actual conversation ID for backend tracking
+  conversationType?: 'direct' | 'group' | 'meeting' // Type of conversation
 }
 
 export interface GroupCallUIState {
   roomId: string | null
   callType: CallType
-  status: 'idle' | 'joining' | 'connected' | 'reconnecting' | 'ended'
+  status: 'idle' | 'setup' | 'joining' | 'connected' | 'reconnecting' | 'ended'
   participants: GroupCallParticipant[]
   hostId: string | null // ID of the user who started the call
   isMuted: boolean
   isVideoEnabled: boolean
   isScreenSharing: boolean
   isMinimized: boolean
+  hasBeenMinimized: boolean // Track if user has ever minimized the call
   videoQuality: VideoQuality
   backgroundEnabled: boolean
   handRaised: boolean // Whether local user has hand raised
   remoteHandsRaised: Record<string, boolean> // Map of participantId -> handRaised for remote participants
   handRaisedOrder?: Record<string, { order: number; timestamp: number }> // Map of participantId -> order and timestamp
   startTime: number | null
+  conversationName?: string // Name of the conversation/meeting
+  conversationType?: 'direct' | 'group' | 'meeting' // Type of conversation
   duration: number
   callImplementation: 'mesh' | 'realtime-kit' | '1-on-1' // Track which implementation is used
+  calendarMeetingId?: string | null // Calendar meeting ID for AI transcription (only for calls started from calendar)
 }
 
 export interface ActiveConversationCall {
@@ -61,7 +67,7 @@ export interface ActiveConversationCall {
   conversationName?: string
 }
 
-export type InviteStatus = 'pending' | 'declined' | 'not-answered'
+export type InviteStatus = 'pending' | 'declined' | 'not-answered' | 'left' | 'invited'
 
 export interface PendingInvite {
   id: string
@@ -86,13 +92,58 @@ export interface UseGroupCallReturn {
   currentCallConversationName?: string // Conversation name for the current active call
   activeSpeakerId?: string | null // Current active speaker ID (RTK only)
   activeSpeakerHistory?: string[] // Recent speakers for sorting (RTK only)
+  /**
+   * Initiate call setup - Shows pre-call setup dialog (RTK only)
+   * @param roomId - The room/conversation ID for the call
+   * @param callType - Type of call (audio or video)
+   * @param participants - List of participants to invite
+   * @param conversationName - Optional name of the conversation
+   * @param calendarMeetingId - Optional calendar meeting ID for linking to AI transcription (RealtimeKit only)
+   * @param conversationType - Optional type of conversation (direct, group, or meeting)
+   */
+  initiateCall?: (
+    roomId: string,
+    callType: CallType,
+    participants: CallParticipant[],
+    conversationName?: string,
+    calendarMeetingId?: string | null,
+    conversationType?: 'direct' | 'group' | 'meeting'
+  ) => void
+  /**
+   * Confirm and start call with user preferences (RTK only)
+   * @param preferences - User preferences for mic, camera, and background
+   */
+  confirmStartCall?: (preferences: {
+    micEnabled: boolean
+    cameraEnabled: boolean
+    backgroundEnabled: boolean
+  }) => Promise<void>
+  /**
+   * Cancel pre-call setup (RTK only)
+   */
+  cancelSetup?: () => void
+  /**
+   * Start a new group call (legacy, use initiateCall + confirmStartCall for RTK)
+   * @param roomId - The room/conversation ID for the call
+   * @param callType - Type of call (audio or video)
+   * @param participants - List of participants to invite
+   * @param conversationName - Optional name of the conversation
+   * @param calendarMeetingId - Optional calendar meeting ID for linking to AI transcription (RealtimeKit only, unused in mesh implementation)
+   */
   startCall: (
     roomId: string,
     callType: CallType,
     participants: CallParticipant[],
-    conversationName?: string
+    conversationName?: string,
+    calendarMeetingId?: string | null
   ) => Promise<void>
-  joinCall: (roomId: string, callType: CallType, initialParticipants?: CallParticipant[]) => Promise<void>
+  joinCall: (
+    roomId: string,
+    callType: CallType,
+    initialParticipantsOrPreferences?:
+      | CallParticipant[]
+      | { micEnabled: boolean; cameraEnabled: boolean; backgroundEnabled?: boolean }
+  ) => Promise<void>
   acceptInvite: () => Promise<void>
   declineInvite: () => void
   leaveCall: () => void
@@ -106,6 +157,8 @@ export interface UseGroupCallReturn {
   sendReaction?: (emoji: string) => Promise<void>
   inviteToCall: (participants: CallParticipant[], conversationName?: string) => void
   reconnectParticipant: (participantId: string) => Promise<void>
+  transcriptionEnabled?: boolean
+  toggleTranscription?: () => void
   // Debugging
   getConnectionDiagnostics: () => Map<string, any>
 }
@@ -167,6 +220,7 @@ const initialCallState: GroupCallUIState = {
   isVideoEnabled: true,
   isScreenSharing: false,
   isMinimized: false,
+  hasBeenMinimized: false,
   videoQuality: getSavedVideoQuality(),
   backgroundEnabled: getSavedBackgroundEnabled(),
   handRaised: false,
@@ -319,6 +373,7 @@ export const useGroupCall = ({
         isVideoEnabled: storedData.callState.isVideoEnabled,
         isScreenSharing: storedData.callState.isScreenSharing,
         isMinimized: false, // Chat is handling it now
+        hasBeenMinimized: false,
         videoQuality: storedData.callState.videoQuality,
         backgroundEnabled: storedData.callState.backgroundEnabled,
         handRaised: false,
@@ -381,6 +436,7 @@ export const useGroupCall = ({
           isVideoEnabled: storedData.callState.isVideoEnabled,
           isScreenSharing: storedData.callState.isScreenSharing,
           isMinimized: false, // Chat is handling it now
+          hasBeenMinimized: false,
           videoQuality: storedData.callState.videoQuality,
           backgroundEnabled: storedData.callState.backgroundEnabled,
           handRaised: false,
@@ -577,12 +633,32 @@ export const useGroupCall = ({
   }, [fetchIceServers, onParticipantJoined, onParticipantLeft])
 
   // Start a group call and invite participants
+  /**
+   * Start a new group call with the specified participants.
+   *
+   * @param roomId - The room/conversation ID for the call
+   * @param callType - Type of call (audio or video)
+   * @param participants - List of participants to invite to the call
+   * @param conversationName - Optional conversation name to display in the call UI
+   * @param calendarMeetingId - Optional calendar meeting ID for linking call to AI transcription.
+   *                            This parameter is accepted for API compatibility with RealtimeKit implementation
+   *                            but is not used in the mesh topology implementation.
+   */
   const startCall = useCallback(
-    async (roomId: string, callType: CallType, participants: CallParticipant[], conversationName?: string) => {
+    async (
+      roomId: string,
+      callType: CallType,
+      participants: CallParticipant[],
+      conversationName?: string,
+      calendarMeetingId?: string | null
+    ) => {
       if (!currentUserRef.current || !wsClientRef.current) {
         console.error('Cannot start call: missing user or WebSocket client')
         return
       }
+
+      // Note: calendarMeetingId is unused in mesh implementation but accepted for API compatibility
+      void calendarMeetingId
 
       try {
         updateCallState({
@@ -750,7 +826,19 @@ export const useGroupCall = ({
 
   // Join a group call (when accepting an invite or joining an ongoing call)
   const joinCall = useCallback(
-    async (roomId: string, callType: CallType, initialParticipants?: CallParticipant[]) => {
+    async (
+      roomId: string,
+      callType: CallType,
+      initialParticipantsOrPreferences?:
+        | CallParticipant[]
+        | { micEnabled: boolean; cameraEnabled: boolean; backgroundEnabled?: boolean }
+    ) => {
+      // For mesh implementation, we ignore preferences (not supported)
+      // Only extract initialParticipants if it's an array
+      const initialParticipants = Array.isArray(initialParticipantsOrPreferences)
+        ? initialParticipantsOrPreferences
+        : undefined
+
       if (!currentUserRef.current || !wsClientRef.current) {
         console.error('Cannot join call: missing user or WebSocket client')
         return
@@ -933,6 +1021,9 @@ export const useGroupCall = ({
     setParticipants([])
     setPendingInvites(new Map())
     updateCallState(initialCallState)
+
+    // CRITICAL: Clear globalCallManager to remove persistent call UI
+    globalCallManager.clearCall()
 
     onCallEnded?.(roomId || '', duration)
   }, [updateCallState, onCallEnded])
@@ -1306,10 +1397,14 @@ export const useGroupCall = ({
         isVideoEnabled: callState.isVideoEnabled,
         isScreenSharing: callState.isScreenSharing,
         isMinimized: callState.isMinimized,
+        hasBeenMinimized: callState.hasBeenMinimized,
         duration: callState.duration,
         videoQuality: callState.videoQuality,
         backgroundEnabled: callState.backgroundEnabled,
-        startTime: callState.startTime
+        startTime: callState.startTime,
+        participants: [...participants], // Include participants in state
+        handRaised: callState.handRaised,
+        remoteHandsRaised: callState.remoteHandsRaised
       }
       globalCallManager.storeCall({
         webrtcClient: webrtcRef.current,
@@ -1385,10 +1480,14 @@ export const useGroupCall = ({
             isVideoEnabled: callStateRef.current.isVideoEnabled,
             isScreenSharing: callStateRef.current.isScreenSharing,
             isMinimized: callStateRef.current.isMinimized,
+            hasBeenMinimized: callStateRef.current.hasBeenMinimized,
             duration: callStateRef.current.duration,
             videoQuality: callStateRef.current.videoQuality,
             backgroundEnabled: callStateRef.current.backgroundEnabled,
-            startTime: callStateRef.current.startTime
+            startTime: callStateRef.current.startTime,
+            participants: [...participantsRef.current], // Include participants in state
+            handRaised: callStateRef.current.handRaised,
+            remoteHandsRaised: callStateRef.current.remoteHandsRaised
           }
           globalCallManager.storeCall({
             webrtcClient: webrtcRef.current,

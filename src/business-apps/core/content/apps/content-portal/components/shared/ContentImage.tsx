@@ -2,12 +2,15 @@ import React, { useState, useEffect, useRef } from 'react'
 import { buildFileUrl } from '@/common/utils/fileUtils'
 import { FileInfo } from '@/common/types/FileTypes'
 
+type ContentImageTone = 'default' | 'muted'
+
 interface ContentImageProps {
   picture: string | FileInfo | null
   accessToken: string
   alt: string
   className?: string
   fallbackText?: string
+  tone?: ContentImageTone
 }
 
 export const ContentImage: React.FC<ContentImageProps> = ({
@@ -15,13 +18,15 @@ export const ContentImage: React.FC<ContentImageProps> = ({
   accessToken,
   alt,
   className = '',
-  fallbackText
+  fallbackText,
+  tone = 'muted'
 }) => {
   const [imageUrl, setImageUrl] = useState<string | null>(null)
   const [isLoaded, setIsLoaded] = useState(false)
   const [hasError, setHasError] = useState(false)
   const blobUrlRef = useRef<string | null>(null)
-  const imgRef = useRef<HTMLImageElement | null>(null)
+
+  const toneClasses = tone === 'muted' ? 'gba:brightness-95 gba:saturate-50' : ''
 
   useEffect(() => {
     // Clean up previous blob URL
@@ -122,30 +127,26 @@ export const ContentImage: React.FC<ContentImageProps> = ({
 
   return (
     <div className={`gba:relative gba:overflow-hidden ${className}`}>
-      {/* Blur-up placeholder - shown while image is loading */}
-      {!isLoaded && imageUrl && (
-        <div
-          className="gba:absolute gba:inset-0"
-          style={{
-            backgroundImage: `url(${imageUrl})`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-            filter: 'blur(20px)',
-            transform: 'scale(1.1)',
-            opacity: isLoaded ? 0 : 1,
-            transition: 'opacity 0.3s ease-out'
-          }}
+      {/* Blur-up placeholder (no inline styles) */}
+      {imageUrl && (
+        <img
+          src={imageUrl}
+          alt=""
+          aria-hidden="true"
+          className={`gba:absolute gba:inset-0 gba:w-full gba:h-full gba:object-cover gba:scale-110 gba:blur-2xl ${
+            isLoaded ? 'gba:opacity-0' : 'gba:opacity-100'
+          } gba:transition-opacity gba:duration-300 gba:ease-in-out ${toneClasses}`}
         />
       )}
+
       {/* Actual image - fades in when loaded */}
       {imageUrl && (
         <img
-          ref={imgRef}
           src={imageUrl}
           alt={alt}
           className={`gba:relative gba:w-full gba:h-full gba:object-cover ${
             isLoaded ? 'gba:opacity-100' : 'gba:opacity-0'
-          } gba:transition-opacity gba:duration-300 gba:ease-in-out`}
+          } gba:transition-opacity gba:duration-300 gba:ease-in-out ${toneClasses}`}
           onLoad={handleImageLoad}
           onError={handleImageError}
         />

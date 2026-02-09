@@ -30,7 +30,8 @@ export enum InputType {
 
 export enum AssignmentMode {
   CLAIM = 'CLAIM',
-  ASSIGN = 'ASSIGN'
+  ASSIGN = 'ASSIGN',
+  ASSIGN_DEFERRED = 'ASSIGN_DEFERRED'
 }
 
 export interface InputOption {
@@ -130,6 +131,9 @@ export interface FlowStep {
     outputExpressionMap?: Record<string, string> // Output mapping (key -> expression destination)
     modelSettings?: Record<string, any> // Optional model settings override
   }
+
+  // Event subscriptions for reactive automation on this step
+  eventSubscriptions?: EventSubscription[]
 }
 
 // Simplified init step for self-service flows
@@ -154,6 +158,9 @@ export interface FlowTemplate {
 
   // Self-service specific: simplified to just the init step
   initStep?: InitStep
+
+  // Flow-level event subscriptions (cross-cutting defaults)
+  eventSubscriptions?: EventSubscription[]
 }
 
 export interface ExecutionConfiguration {
@@ -170,4 +177,91 @@ export enum TimeUnit {
 export enum TimingType {
   AFTER = 'AFTER',
   BEFORE = 'BEFORE'
+}
+
+/**
+ * Event subscription types for reactive automation
+ */
+export enum TaskEventType {
+  TASK_COMMENT_CREATED = 'task.comment.created',
+  TASK_ACTION_CREATED = 'task.action.created',
+  TASK_ACTION_CLAIMED = 'task.action.claimed',
+  TASK_ACTION_UNCLAIMED = 'task.action.unclaimed',
+  TASK_ACTION_REASSIGNED = 'task.action.reassigned',
+  TASK_ACTION_COMPLETED = 'task.action.completed',
+  TASK_ACTION_REJECTED = 'task.action.rejected',
+  TASK_CREATED = 'task.created',
+  TASK_ASSIGNED = 'task.assigned',
+  TASK_DUE_SOON = 'task.due_soon',
+  TASK_OVERDUE = 'task.overdue'
+}
+
+export enum ActorKind {
+  USER = 'USER',
+  AGENT = 'AGENT',
+  SYSTEM = 'SYSTEM',
+  EXTERNAL = 'EXTERNAL'
+}
+
+export enum EventHandlerType {
+  TASK_EXPERT = 'TASK_EXPERT',
+  FUNCTION = 'FUNCTION',
+  NOTIFY = 'NOTIFY'
+}
+
+export enum CommentVisibility {
+  INTERNAL_TASK = 'INTERNAL_TASK',
+  INTERNAL_FLOW = 'INTERNAL_FLOW',
+  EXTERNAL = 'EXTERNAL'
+}
+
+export interface EventSubscriptionFilters {
+  commentVisibility?: CommentVisibility | CommentVisibility[]
+  action?: string | string[]
+  actorKind?: ActorKind | ActorKind[]
+  source?: string | string[]
+  exclude?: {
+    actorKind?: ActorKind | ActorKind[]
+    source?: string | string[]
+  }
+}
+
+export interface TaskExpertHandlerConfig {
+  type: EventHandlerType.TASK_EXPERT
+  promptId: string
+  version?: number
+  systemParamsMap?: Record<string, string>
+  userParamsMap?: Record<string, string>
+  outputExpressionMap?: Record<string, string>
+  modelSettings?: Record<string, any>
+}
+
+export interface FunctionHandlerConfig {
+  type: EventHandlerType.FUNCTION
+  functionId: string
+  version?: number
+  inputExpressionMap?: Record<string, string>
+  outputExpressionMap?: Record<string, string>
+}
+
+export interface NotifyHandlerConfig {
+  type: EventHandlerType.NOTIFY
+  channels?: string[]
+  channel?: string
+  templateId?: string
+  recipientsExpression?: string
+  subjectExpression?: string
+  bodyExpression?: string
+  params?: Record<string, string>
+}
+
+export type EventHandlerConfig = TaskExpertHandlerConfig | FunctionHandlerConfig | NotifyHandlerConfig
+
+export interface EventSubscription {
+  id: string
+  eventType: TaskEventType | string
+  filters?: EventSubscriptionFilters
+  handler: EventHandlerConfig
+  enabled?: boolean
+  description?: string
 }

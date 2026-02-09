@@ -39,25 +39,26 @@ export const createInvestmentReportColumns = (
     sortable: true,
     render: (record: any) => {
       const date = record.date
-      if (!date) return React.createElement('span', null, '-')
+      if (!date) return React.createElement('div', { className: 'gba:flex gba:items-center gba:h-8' }, '-')
       try {
         const formatted = formatDate(date, 'date.short')
+        let displayValue: string
         if (formatted && !formatted.includes('T')) {
-          return React.createElement('span', null, formatted)
-        }
-        const dateObj = new Date(date)
-        if (isNaN(dateObj.getTime())) return React.createElement('span', null, '-')
-        return React.createElement(
-          'span',
-          null,
-          dateObj.toLocaleDateString('en-US', {
+          displayValue = formatted
+        } else {
+          const dateObj = new Date(date)
+          if (Number.isNaN(dateObj.getTime())) {
+            return React.createElement('div', { className: 'gba:flex gba:items-center gba:h-8' }, '-')
+          }
+          displayValue = dateObj.toLocaleDateString('en-US', {
             year: 'numeric',
             month: 'short',
             day: 'numeric'
           })
-        )
+        }
+        return React.createElement('div', { className: 'gba:flex gba:items-center gba:h-8' }, displayValue)
       } catch {
-        return React.createElement('span', null, '-')
+        return React.createElement('div', { className: 'gba:flex gba:items-center gba:h-8' }, '-')
       }
     }
   })
@@ -72,6 +73,7 @@ export const createInvestmentReportColumns = (
   // 1) For equity, check the group catalog's object value
   // 2) For real estate, check the type
   // 3) For liquid funds, check the investmentliquidfundtype
+  // 4) For private equity, check the group's object value (no specific types)
 
   if (investmentGroup === 'EQUITY') {
     // RULE 1: For equity, check the EQUITY group's object value
@@ -83,6 +85,7 @@ export const createInvestmentReportColumns = (
     // RULE 2: For real estate, check the TYPE
     formFieldsDefinition = getInvestmentTypeFieldDefinition(investmentTypeCode, catalogData)
   } else {
+    // RULE 4: For other groups (including generic groups), use the generic type definition lookup
     // Fallback: Use investment type
     if (liquidFundTypeCode) {
       formFieldsDefinition = getLiquidFundTypeFieldDefinition(liquidFundTypeCode, catalogData)
@@ -153,13 +156,9 @@ export const createInvestmentReportColumns = (
               value = getValueByPath(record.liquidFundInvestmentReport?.[0]?.liquidFundInvestment, fieldName)
             }
           } else {
-            // For other paths, try report-level fields only (no fallback to nested investment)
-            // Note: Report type fields are arrays, access first element
-            value =
-              getValueByPath(record, field.property) ||
-              getValueByPath(record.realEstateInvestmentReport?.[0], field.property) ||
-              getValueByPath(record.liquidFundInvestmentReport?.[0], field.property) ||
-              getValueByPath(record.equityInvestmentReport?.[0], field.property)
+            // For all other field paths, retrieve directly from the record
+            // Each group-specific field should be explicitly handled in the if/else if blocks above
+            value = getValueByPath(record, field.property)
           }
 
           const currencyCode =
@@ -175,9 +174,18 @@ export const createInvestmentReportColumns = (
           const formattedValue = formatFieldValue(value, effectiveFieldType, currencyCode)
 
           return React.createElement(
-            'span',
-            { className: getReportColumnClassName(effectiveFieldType) },
-            formattedValue
+            'div',
+            {
+              className: `gba:flex gba:items-center gba:h-8 ${getReportColumnClassName(effectiveFieldType)}`
+            },
+            React.createElement(
+              'span',
+              {
+                className: 'gba:truncate gba:block',
+                title: formattedValue
+              },
+              formattedValue
+            )
           )
         }
       })
@@ -223,8 +231,10 @@ const getReportColumnWidth = (fieldType: string): string => {
     case 'PERCENTAGE':
     case 'NUMBER':
       return '100px'
+    case 'TEXT':
+      return '180px'
     default:
-      return 'auto'
+      return '150px' // Default width for unknown types to prevent overflow
   }
 }
 

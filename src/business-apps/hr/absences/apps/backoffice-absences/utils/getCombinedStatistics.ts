@@ -32,7 +32,7 @@ export const getCombinedStatistics = async (
   client: GraphQLRequester,
   params: CombinedStatisticsInput
 ): Promise<CombinedStatisticsResult> => {
-  const { year, typeNames, vacationGroupIds, sickGroupIds } = params
+  const { year, vacationGroupIds, sickGroupIds } = params
   const startOfYear = new Date(Date.UTC(year, 0, 1, 0, 0, 0, 0)).toISOString()
   const endOfYear = new Date(Date.UTC(year, 11, 31, 23, 59, 59, 999)).toISOString()
 
@@ -70,17 +70,21 @@ export const getCombinedStatistics = async (
     }`
   ]
 
-  // Type-specific counts (for getOverlapTypeCountsByYear)
-  typeNames.forEach((name, idx) => {
-    const varName = `t_${idx}`
-    variableDecls.push(`$${varName}: String!`)
-    variables[varName] = name
-    selections.push(`
-      ${varName}: EmployeeAbsenceAggregate(where: { _and: [$whereApproved, { type: { value: { _eq: $${varName} } } }] }) {
-        aggregate { count }
-      }
-    `)
-  })
+  // Day-based facts for current year (APPROVED) from DailyAbsenceFactView
+  variableDecls.push('$factsWhereYear: DailyAbsenceFactViewBoolExp!')
+  variables['factsWhereYear'] = {
+    _and: [
+      { status: { _eq: 'APPROVED' } },
+      { dayDate: { _gte: startOfYear.slice(0, 10), _lte: endOfYear.slice(0, 10) } }
+    ]
+  }
+  selections.push(`
+    dailyFactsYear: DailyAbsenceFactView(where: $factsWhereYear) {
+      typeRef
+      dayDate
+      dayFraction
+    }
+  `)
 
   // Vacation and sick group counts (for getKeyInsightsStatsByYear)
   if (vacationGroupIds.length > 0) {
@@ -103,22 +107,7 @@ export const getCombinedStatistics = async (
     `)
   }
 
-  // Monthly aggregates (for getMonthlyAggregates)
-  for (let m = 0; m < 12; m++) {
-    const monthStartIso = new Date(Date.UTC(year, m, 1, 0, 0, 0, 0)).toISOString()
-    const monthEndIso = new Date(Date.UTC(year, m + 1, 0, 23, 59, 59, 999)).toISOString()
-    const whereVar = `wm_${m}`
-    variableDecls.push(`$${whereVar}: EmployeeAbsenceBoolExp!`)
-    variables[whereVar] = {
-      _and: [
-        { isDeleted: { _eq: false } },
-        { status: { _eq: 'APPROVED' } },
-        { startDate: { _lte: monthEndIso } },
-        { endDate: { _gte: monthStartIso } }
-      ]
-    }
-    selections.push(`m_${m}: EmployeeAbsenceAggregate(where: $${whereVar}) { aggregate { count } }`)
-  }
+  // Note: monthlyCounts will be computed from dailyFactsYear (days-based), so we do not add per-month request aggregates here
 
   // Yearly aggregates (for OrgYearComparisonCard)
   for (let y = yearRange.minYear; y <= yearRange.maxYear; y++) {
@@ -154,11 +143,17 @@ export const getCombinedStatistics = async (
     )
   ) as string[]
 
-  // Extract type counts
+  // Extract day-based type counts from DailyAbsenceFactView
+  const facts: Array<{ typeRef: string; dayDate: string; dayFraction: number }> = res?.dailyFactsYear || []
   const typeCounts: Record<string, number> = {}
-  typeNames.forEach((name, idx) => {
-    const key = `t_${idx}`
-    typeCounts[name] = Number(res?.[key]?.aggregate?.count || 0)
+  facts.forEach(f => {
+    const key = f.typeRef || 'UNKNOWN'
+    const val = Number(f.dayFraction) || 0
+    typeCounts[key] = (typeCounts[key] || 0) + val
+  })
+  // Round to integer days for display consistency
+  Object.keys(typeCounts).forEach(k => {
+    typeCounts[k] = Math.round(typeCounts[k])
   })
 
   // Extract key stats
@@ -177,10 +172,17 @@ export const getCombinedStatistics = async (
   const plannedPct = countDenom > 0 ? Math.round((vacationCount / countDenom) * 100) : 0
   const unplannedPct = plannedPct > 0 ? Math.max(0, 100 - plannedPct) : 0
 
-  // Extract monthly counts
-  const monthlyCounts: number[] = []
-  for (let m = 0; m < 12; m++) {
-    monthlyCounts[m] = Number(res?.[`m_${m}`]?.aggregate?.count || 0)
+  // Extract monthly counts (days-based) from facts
+  const monthlyCounts: number[] = new Array(12).fill(0)
+  facts.forEach(f => {
+    const d = new Date(f.dayDate)
+    const m = d.getUTCMonth()
+    const val = Number(f.dayFraction) || 0
+    monthlyCounts[m] = (monthlyCounts[m] || 0) + val
+  })
+  // Round month totals to integers
+  for (let i = 0; i < monthlyCounts.length; i++) {
+    monthlyCounts[i] = Math.round(monthlyCounts[i])
   }
 
   // Extract yearly counts

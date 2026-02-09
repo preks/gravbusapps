@@ -215,7 +215,8 @@ const ChangePersonalDataReviewContent: React.FC<ChangePersonalDataReviewProps> =
     try {
       dispatchProcessContinueEvent('pse_submit', {
         acknowledge: 'acknowledged',
-        approval: 'approved'
+        approval: 'approved',
+        personalInformation: newPersonalInformation
       })
     } catch (err) {
       console.error('Error acknowledging personal data change:', err)
@@ -258,7 +259,7 @@ const ChangePersonalDataReviewContent: React.FC<ChangePersonalDataReviewProps> =
 
   // Check if user is trying to approve their own change
   const currentEmployeeId = userInfo?.employeeDetails?.employeeId
-  const isOwnChange = currentEmployeeId && employeeIdFromPayload && currentEmployeeId === employeeIdFromPayload
+  const isOwnChange = Boolean(currentEmployeeId && employeeIdFromPayload && currentEmployeeId === employeeIdFromPayload)
 
   return (
     <TaskFormLayout

@@ -56,7 +56,7 @@ const ActiveBenefitLayout: React.FC<ActiveBenefitLayoutProps> = ({
         {/* Active-specific: Start Date */}
         {benefit.startDate && (
           <div
-            className="gba:text-xs gba:text-muted-foreground gba:leading-tight"
+            className="gba:text-xs gba:text-decorative-secondary-foreground gba:leading-tight"
             data-testid={`benefit-start-date-${benefit.code}`}
           >
             {startDateInFuture ? t('benefit-starts-in') : t('benefit-since')}{' '}

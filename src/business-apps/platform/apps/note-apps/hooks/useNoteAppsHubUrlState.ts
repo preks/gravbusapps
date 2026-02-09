@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from 'react'
 import { navigateTo } from '@/common/utils/navigationUtils'
 
 type HubView = 'list' | 'editor'
+type SidebarSection = 'home' | 'my-notes' | 'shared' | 'pinned' | 'recent' | 'archived'
 
 export interface UseNoteAppsHubUrlStateParams {
   currentView: HubView
@@ -10,6 +11,8 @@ export interface UseNoteAppsHubUrlStateParams {
   loadNoteById: (id: string) => Promise<unknown | null>
   setCurrentView: (view: HubView) => void
   setSelectedNoteId: (id: string | null) => void
+  activeSection: SidebarSection
+  setActiveSection: (section: SidebarSection) => void
 }
 
 export interface UseNoteAppsHubUrlStateReturn {
@@ -17,38 +20,65 @@ export interface UseNoteAppsHubUrlStateReturn {
   resetLoadAttempt: () => void
 }
 
-function getUrlParams(): { noteId: string | null; view: HubView | null } {
+function getUrlParams(): { noteId: string | null; view: HubView | null; section: SidebarSection | null } {
   const urlParams = new URLSearchParams(window.location.search)
   return {
     noteId: urlParams.get('noteId'),
-    view: (urlParams.get('view') as HubView | null) || null
+    view: (urlParams.get('view') as HubView | null) || null,
+    section: (urlParams.get('section') as SidebarSection | null) || null
   }
 }
 
 export function useNoteAppsHubUrlState(params: UseNoteAppsHubUrlStateParams): UseNoteAppsHubUrlStateReturn {
-  const { currentView, currentNoteId, isLoadingNote, loadNoteById, setCurrentView, setSelectedNoteId } = params
+  const {
+    currentView,
+    currentNoteId,
+    isLoadingNote,
+    loadNoteById,
+    setCurrentView,
+    setSelectedNoteId,
+    activeSection,
+    setActiveSection
+  } = params
 
   const loadAttemptedRef = useRef<string | null>(null)
   const cameFromDeskRef = useRef(false)
 
-  const updateUrl = useCallback((noteId: string | null, view?: HubView) => {
-    const urlParams = new URLSearchParams(window.location.search)
-    if (noteId) {
-      urlParams.set('noteId', noteId)
-      if (view) urlParams.set('view', view)
-    } else {
-      urlParams.delete('noteId')
-      urlParams.delete('view')
-    }
-    const newUrl = urlParams.toString()
-      ? `${window.location.pathname}?${urlParams.toString()}`
-      : window.location.pathname
-    window.history.pushState({ noteId, view }, '', newUrl)
-  }, [])
+  const updateUrl = useCallback(
+    (noteId: string | null, view?: HubView) => {
+      const urlParams = new URLSearchParams(window.location.search)
+      if (noteId) {
+        urlParams.set('noteId', noteId)
+        if (view) urlParams.set('view', view)
+      } else {
+        urlParams.delete('noteId')
+        urlParams.delete('view')
+      }
+      // Always preserve section in URL (even when no note is selected)
+      if (activeSection && activeSection !== 'my-notes') {
+        urlParams.set('section', activeSection)
+      } else {
+        urlParams.delete('section')
+      }
+      const newUrl = urlParams.toString()
+        ? `${window.location.pathname}?${urlParams.toString()}`
+        : window.location.pathname
+      window.history.pushState({ noteId, view, section: activeSection }, '', newUrl)
+    },
+    [activeSection]
+  )
 
   const resetLoadAttempt = useCallback(() => {
     loadAttemptedRef.current = null
   }, [])
+
+  // Restore section from URL on mount
+  useEffect(() => {
+    const { section } = getUrlParams()
+    if (section && section !== activeSection) {
+      setActiveSection(section)
+    }
+  }, []) // Run only on mount
 
   // Load note from URL on mount.
   useEffect(() => {
@@ -85,7 +115,46 @@ export function useNoteAppsHubUrlState(params: UseNoteAppsHubUrlStateParams): Us
   // Handle browser back/forward navigation.
   useEffect(() => {
     const handlePopState = (event: PopStateEvent) => {
-      const state = event.state as { noteId?: string; view?: HubView; fromDesk?: boolean } | null
+      const state = event.state as {
+        noteId?: string
+        view?: HubView
+        section?: SidebarSection
+        fromDesk?: boolean
+      } | null
+
+      // Check if we should return to a space instead of the hub
+      // This happens when going back from a note/hub that was opened from a space
+      if (!state?.noteId) {
+        // First, check for stored space return URL
+        try {
+          const spaceReturnUrl = sessionStorage.getItem('space_return_url')
+          if (spaceReturnUrl) {
+            sessionStorage.removeItem('space_return_url')
+            window.location.href = spaceReturnUrl
+            return
+          }
+        } catch (e) {
+          console.warn('Failed to check space_return_url:', e)
+        }
+
+        // Second, check if current URL has a spaceId parameter
+        // If so, we should return to that space
+        const urlParams = new URLSearchParams(window.location.search)
+        const spaceId = urlParams.get('spaceId')
+        if (spaceId) {
+          const isProduction = process.env.NODE_ENV === 'production'
+          const spaceUrl = isProduction
+            ? `/platform/spaces?spaceId=${encodeURIComponent(spaceId)}`
+            : `/platform/apps/spaces?spaceId=${encodeURIComponent(spaceId)}`
+          window.location.href = spaceUrl
+          return
+        }
+      }
+
+      // Restore section if present
+      if (state?.section) {
+        setActiveSection(state.section)
+      }
 
       if (state?.fromDesk && !state?.noteId && currentView === 'list') {
         navigateTo('/platform/every-office')
@@ -107,7 +176,7 @@ export function useNoteAppsHubUrlState(params: UseNoteAppsHubUrlStateParams): Us
 
     window.addEventListener('popstate', handlePopState)
     return () => window.removeEventListener('popstate', handlePopState)
-  }, [currentView, loadNoteById, setCurrentView, setSelectedNoteId])
+  }, [currentView, loadNoteById, setCurrentView, setSelectedNoteId, setActiveSection])
 
   return { updateUrl, resetLoadAttempt }
 }

@@ -52,7 +52,10 @@ import {
   User,
   LayoutGrid,
   PenTool,
-  ChevronLeft
+  ChevronLeft,
+  PanelLeftClose,
+  PanelLeft,
+  Database
 } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo } from '@/common/utils/navigationUtils'
@@ -66,6 +69,7 @@ import type { PaperStyle, StrokeData } from './components/handwriting'
 
 // Hooks
 import { useNotes } from './hooks/useNotes'
+import { useNoteAppsHubUrlState } from './hooks/useNoteAppsHubUrlState'
 
 // GraphQL
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
@@ -149,6 +153,10 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
   const [selectedNotes, setSelectedNotes] = useState<Set<string>>(new Set())
   const [sortBy, setSortBy] = useState<'name' | 'modified' | 'created'>('modified')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+    const saved = localStorage.getItem('note-hub-sidebar-collapsed')
+    return saved === 'true'
+  })
   const [favorites, setFavorites] = useState<Set<string>>(() => {
     try {
       const saved = localStorage.getItem('note-favorites')
@@ -157,6 +165,20 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
       return new Set()
     }
   })
+
+  // Clear space return URL if not opened from a space
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(globalThis.window.location.search)
+      const spaceId = params.get('spaceId')
+      if (!spaceId) {
+        // Note opened from hub, not from a space - clear any stale return URL
+        sessionStorage.removeItem('space_return_url')
+      }
+    } catch (e) {
+      console.warn('Failed to check/clear space_return_url:', e)
+    }
+  }, [])
 
   // Data state
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null)
@@ -183,30 +205,6 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
     }
   }, [accessToken])
 
-  // URL helpers for deep linking
-  const getUrlParams = useCallback((): { noteId: string | null; view: HubView | null } => {
-    const urlParams = new URLSearchParams(window.location.search)
-    return {
-      noteId: urlParams.get('noteId'),
-      view: urlParams.get('view') as HubView | null
-    }
-  }, [])
-
-  const updateUrl = useCallback((noteId: string | null, view?: HubView) => {
-    const urlParams = new URLSearchParams(window.location.search)
-    if (noteId) {
-      urlParams.set('noteId', noteId)
-      if (view) urlParams.set('view', view)
-    } else {
-      urlParams.delete('noteId')
-      urlParams.delete('view')
-    }
-    const newUrl = urlParams.toString()
-      ? `${window.location.pathname}?${urlParams.toString()}`
-      : window.location.pathname
-    window.history.pushState({ noteId, view }, '', newUrl)
-  }, [])
-
   // Hooks
   const {
     notes,
@@ -227,69 +225,31 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
     getSharedUsers
   } = useNotes({ accessToken, userId: currentUserId })
 
+  const { updateUrl, resetLoadAttempt } = useNoteAppsHubUrlState({
+    currentView,
+    currentNoteId: selectedNoteId,
+    isLoadingNote: isLoadingNotes,
+    loadNoteById: loadNote,
+    setCurrentView,
+    setSelectedNoteId,
+    activeSection,
+    setActiveSection
+  })
+
+  // Update URL whenever activeSection changes (when user clicks sidebar)
+  useEffect(() => {
+    if (currentView === 'list' && !selectedNoteId) {
+      updateUrl(null)
+    }
+  }, [activeSection, currentView, selectedNoteId, updateUrl])
+
+  // Persist sidebar collapsed state
+  useEffect(() => {
+    localStorage.setItem('note-hub-sidebar-collapsed', String(isSidebarCollapsed))
+  }, [isSidebarCollapsed])
+
   // GraphQL client for fetching user info
   const graphqlClient = useGraphQLClient(accessToken)
-
-  // Track which note ID we've attempted to load
-  const loadAttemptedRef = useRef<string | null>(null)
-
-  // Load note from URL on mount
-  useEffect(() => {
-    const { noteId, view } = getUrlParams()
-    if (noteId && !currentNote && !isLoadingNotes && loadAttemptedRef.current !== noteId) {
-      loadAttemptedRef.current = noteId
-      loadNote(noteId).then(note => {
-        if (note) {
-          setSelectedNoteId(noteId)
-          setCurrentView(view === 'editor' ? 'editor' : 'editor')
-        }
-      })
-    }
-  }, [getUrlParams, loadNote, currentNote, isLoadingNotes])
-
-  // Track if we came from desk
-  const cameFromDeskRef = useRef(false)
-  useEffect(() => {
-    const referrer = document.referrer
-    const urlParams = new URLSearchParams(window.location.search)
-    cameFromDeskRef.current =
-      referrer.includes('/platform/apps/desk') ||
-      referrer.includes('?app=platform/apps/desk') ||
-      urlParams.get('from') === 'desk'
-
-    // Push state to track navigation from desk
-    if (cameFromDeskRef.current && currentView === 'list') {
-      window.history.replaceState({ fromDesk: true }, '', window.location.href)
-    }
-  }, [currentView])
-
-  // Handle browser back/forward navigation
-  useEffect(() => {
-    const handlePopState = (event: PopStateEvent) => {
-      const state = event.state as { noteId?: string; view?: HubView; fromDesk?: boolean } | null
-
-      // If we came from desk and there's no note, go back to desk
-      if (state?.fromDesk && !state?.noteId && currentView === 'list') {
-        navigateTo('/platform/apps/desk')
-        return
-      }
-
-      if (state?.noteId) {
-        loadNote(state.noteId).then(note => {
-          if (note) {
-            setSelectedNoteId(state.noteId!)
-            setCurrentView(state.view || 'editor')
-          }
-        })
-      } else {
-        setSelectedNoteId(null)
-        setCurrentView('list')
-      }
-    }
-
-    window.addEventListener('popstate', handlePopState)
-    return () => window.removeEventListener('popstate', handlePopState)
-  }, [loadNote, currentView])
 
   // Save favorites to localStorage
   useEffect(() => {
@@ -534,15 +494,38 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
   )
 
   /**
-   * Go back to list
+   * Go back to list or return URL
    */
   const handleBack = useCallback(() => {
+    // Check if there's a space return URL in sessionStorage (takes priority)
+    try {
+      const spaceReturnUrl = sessionStorage.getItem('space_return_url')
+      if (spaceReturnUrl) {
+        sessionStorage.removeItem('space_return_url')
+        globalThis.window.location.href = spaceReturnUrl
+        return
+      }
+    } catch (e) {
+      console.warn('Failed to read space_return_url from sessionStorage:', e)
+    }
+
+    // Fallback: Check if there's a returnUrl parameter
+    const params = new URLSearchParams(globalThis.window.location.search)
+    const returnUrl = params.get('returnUrl')
+
+    if (returnUrl) {
+      // Navigate back to the specified URL (e.g., space)
+      globalThis.window.location.href = returnUrl
+      return
+    }
+
+    // Otherwise, go back to the list view
     clearCurrentNote()
-    loadAttemptedRef.current = null
+    resetLoadAttempt()
     setSelectedNoteId(null)
     setCurrentView('list')
     updateUrl(null)
-  }, [clearCurrentNote, updateUrl])
+  }, [clearCurrentNote, resetLoadAttempt, updateUrl])
 
   /**
    * Toggle favorite
@@ -849,45 +832,81 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
   return (
     <div className="gba:flex gba:h-full gba:bg-background" data-testid={testId}>
       {/* Sidebar */}
-      <aside className="gba:w-60 gba:border-r gba:bg-card gba:flex gba:flex-col gba:flex-shrink-0">
+      <aside
+        className={`gba:border-r gba:bg-card gba:flex gba:flex-col gba:flex-shrink-0 gba:transition-all gba:duration-300 ${isSidebarCollapsed ? 'gba:w-16' : 'gba:w-60'}`}
+      >
         {/* Logo / Brand */}
-        <div className="gba:p-4 gba:border-b">
-          {/* Back button row */}
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => navigateTo('/platform/every-office')}
-                  data-testid={`${testId}-back-to-desk`}
-                  className="gba:mb-2"
-                >
-                  <ChevronLeft className="gba:w-4 gba:h-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Back to Desk</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-
-          <div className="gba:flex gba:items-center gba:gap-3">
-            <div className="gba:w-10 gba:h-10 gba:rounded-xl gba:bg-gradient-to-br gba:from-amber-500 gba:to-orange-600 gba:flex gba:items-center gba:justify-center">
-              <StickyNote className="gba:w-5 gba:h-5 gba:text-white" />
-            </div>
-            <div>
-              <h1 className="gba:font-semibold gba:text-foreground">Notes</h1>
-              <p className="gba:text-xs gba:text-muted-foreground">NEWWORK Apps</p>
-            </div>
+        <div className={`gba:border-b ${isSidebarCollapsed ? 'gba:p-2' : 'gba:p-4'}`}>
+          {/* Back button and collapse toggle row */}
+          <div
+            className={`gba:flex gba:items-center gba:mb-2 ${isSidebarCollapsed ? 'gba:justify-center' : 'gba:justify-between'}`}
+          >
+            <TooltipProvider>
+              {!isSidebarCollapsed && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => navigateTo('/platform/every-office')}
+                      data-testid={`${testId}-back-to-desk`}
+                    >
+                      <ChevronLeft className="gba:w-4 gba:h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Back to Desk</TooltipContent>
+                </Tooltip>
+              )}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                    data-testid={`${testId}-toggle-sidebar`}
+                  >
+                    {isSidebarCollapsed ? (
+                      <PanelLeft className="gba:w-4 gba:h-4" />
+                    ) : (
+                      <PanelLeftClose className="gba:w-4 gba:h-4" />
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
+
+          {/* Brand section */}
+          {!isSidebarCollapsed && (
+            <div className="gba:flex gba:items-center gba:gap-3">
+              <div className="gba:w-10 gba:h-10 gba:rounded-xl gba:bg-gradient-to-br gba:from-amber-500 gba:to-orange-600 gba:flex gba:items-center gba:justify-center">
+                <StickyNote className="gba:w-5 gba:h-5 gba:text-white" />
+              </div>
+              <div>
+                <h1 className="gba:font-semibold gba:text-foreground">Notes</h1>
+                <p className="gba:text-xs gba:text-muted-foreground">NEWWORK Apps</p>
+              </div>
+            </div>
+          )}
+          {isSidebarCollapsed && (
+            <div className="gba:flex gba:justify-center">
+              <div className="gba:w-10 gba:h-10 gba:rounded-xl gba:bg-gradient-to-br gba:from-amber-500 gba:to-orange-600 gba:flex gba:items-center gba:justify-center">
+                <StickyNote className="gba:w-5 gba:h-5 gba:text-white" />
+              </div>
+            </div>
+          )}
         </div>
 
         {/* New Button */}
-        <div className="gba:p-3">
+        <div className={isSidebarCollapsed ? 'gba:p-2' : 'gba:p-3'}>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button className="gba:w-full gba:justify-start gba:gap-2 gba:bg-gradient-to-r gba:from-amber-500 gba:to-orange-600 gba:text-white hover:gba:from-amber-600 hover:gba:to-orange-700">
+              <Button
+                className={`gba:w-full gba:gap-2 gba:bg-gradient-to-r gba:from-amber-500 gba:to-orange-600 gba:text-white hover:gba:from-amber-600 hover:gba:to-orange-700 ${isSidebarCollapsed ? 'gba:justify-center gba:px-0' : 'gba:justify-start'}`}
+              >
                 <Plus className="gba:w-4 gba:h-4" />
-                New
+                {!isSidebarCollapsed && 'New'}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="gba:w-56">
@@ -920,105 +939,174 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
         {/* Navigation */}
         <nav className="gba:flex-1 gba:overflow-y-auto gba:px-2 gba:py-2">
           <div className="gba:space-y-1">
-            <button
-              onClick={() => setActiveSection('home')}
-              className={`gba:w-full gba:flex gba:items-center gba:gap-3 gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${
-                activeSection === 'home'
-                  ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
-                  : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
-              }`}
-            >
-              <Home className="gba:w-4 gba:h-4" />
-              Home
-            </button>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => setActiveSection('home')}
+                    className={`gba:w-full gba:flex gba:items-center gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${isSidebarCollapsed ? 'gba:justify-center' : 'gba:gap-3'} ${
+                      activeSection === 'home'
+                        ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
+                        : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
+                    }`}
+                  >
+                    <Home className="gba:w-4 gba:h-4" />
+                    {!isSidebarCollapsed && 'Home'}
+                  </button>
+                </TooltipTrigger>
+                {isSidebarCollapsed && <TooltipContent side="right">Home</TooltipContent>}
+              </Tooltip>
 
-            <button
-              onClick={() => setActiveSection('my-notes')}
-              className={`gba:w-full gba:flex gba:items-center gba:gap-3 gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${
-                activeSection === 'my-notes'
-                  ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
-                  : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
-              }`}
-            >
-              <FolderClosed className="gba:w-4 gba:h-4" />
-              My Notes
-            </button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => setActiveSection('my-notes')}
+                    className={`gba:w-full gba:flex gba:items-center gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${isSidebarCollapsed ? 'gba:justify-center' : 'gba:gap-3'} ${
+                      activeSection === 'my-notes'
+                        ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
+                        : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
+                    }`}
+                  >
+                    <FolderClosed className="gba:w-4 gba:h-4" />
+                    {!isSidebarCollapsed && 'My Notes'}
+                  </button>
+                </TooltipTrigger>
+                {isSidebarCollapsed && <TooltipContent side="right">My Notes</TooltipContent>}
+              </Tooltip>
 
-            <button
-              onClick={() => setActiveSection('shared')}
-              className={`gba:w-full gba:flex gba:items-center gba:gap-3 gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${
-                activeSection === 'shared'
-                  ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
-                  : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
-              }`}
-            >
-              <Users className="gba:w-4 gba:h-4" />
-              Shared with me
-              {sharedNotes.length > 0 && (
-                <Badge variant="secondary" className="gba:ml-auto gba:text-xs">
-                  {sharedNotes.length}
-                </Badge>
-              )}
-            </button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => setActiveSection('shared')}
+                    className={`gba:w-full gba:flex gba:items-center gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${isSidebarCollapsed ? 'gba:justify-center' : 'gba:gap-3'} ${
+                      activeSection === 'shared'
+                        ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
+                        : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
+                    }`}
+                  >
+                    <Users className="gba:w-4 gba:h-4" />
+                    {!isSidebarCollapsed && (
+                      <>
+                        Shared with me
+                        {sharedNotes.length > 0 && (
+                          <Badge variant="secondary" className="gba:ml-auto gba:text-xs">
+                            {sharedNotes.length}
+                          </Badge>
+                        )}
+                      </>
+                    )}
+                  </button>
+                </TooltipTrigger>
+                {isSidebarCollapsed && (
+                  <TooltipContent side="right">
+                    Shared with me {sharedNotes.length > 0 && `(${sharedNotes.length})`}
+                  </TooltipContent>
+                )}
+              </Tooltip>
 
-            <button
-              onClick={() => setActiveSection('pinned')}
-              className={`gba:w-full gba:flex gba:items-center gba:gap-3 gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${
-                activeSection === 'pinned'
-                  ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
-                  : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
-              }`}
-            >
-              <Pin className="gba:w-4 gba:h-4" />
-              Pinned
-              {pinnedNotes.length > 0 && (
-                <Badge variant="secondary" className="gba:ml-auto gba:text-xs">
-                  {pinnedNotes.length}
-                </Badge>
-              )}
-            </button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => setActiveSection('pinned')}
+                    className={`gba:w-full gba:flex gba:items-center gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${isSidebarCollapsed ? 'gba:justify-center' : 'gba:gap-3'} ${
+                      activeSection === 'pinned'
+                        ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
+                        : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
+                    }`}
+                  >
+                    <Pin className="gba:w-4 gba:h-4" />
+                    {!isSidebarCollapsed && (
+                      <>
+                        Pinned
+                        {pinnedNotes.length > 0 && (
+                          <Badge variant="secondary" className="gba:ml-auto gba:text-xs">
+                            {pinnedNotes.length}
+                          </Badge>
+                        )}
+                      </>
+                    )}
+                  </button>
+                </TooltipTrigger>
+                {isSidebarCollapsed && (
+                  <TooltipContent side="right">
+                    Pinned {pinnedNotes.length > 0 && `(${pinnedNotes.length})`}
+                  </TooltipContent>
+                )}
+              </Tooltip>
 
-            <button
-              onClick={() => setActiveSection('recent')}
-              className={`gba:w-full gba:flex gba:items-center gba:gap-3 gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${
-                activeSection === 'recent'
-                  ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
-                  : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
-              }`}
-            >
-              <Clock className="gba:w-4 gba:h-4" />
-              Recent
-            </button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => setActiveSection('recent')}
+                    className={`gba:w-full gba:flex gba:items-center gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${isSidebarCollapsed ? 'gba:justify-center' : 'gba:gap-3'} ${
+                      activeSection === 'recent'
+                        ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
+                        : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
+                    }`}
+                  >
+                    <Clock className="gba:w-4 gba:h-4" />
+                    {!isSidebarCollapsed && 'Recent'}
+                  </button>
+                </TooltipTrigger>
+                {isSidebarCollapsed && <TooltipContent side="right">Recent</TooltipContent>}
+              </Tooltip>
 
-            <button
-              onClick={() => setActiveSection('archived')}
-              className={`gba:w-full gba:flex gba:items-center gba:gap-3 gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${
-                activeSection === 'archived'
-                  ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
-                  : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
-              }`}
-            >
-              <Archive className="gba:w-4 gba:h-4" />
-              Archived
-            </button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => setActiveSection('archived')}
+                    className={`gba:w-full gba:flex gba:items-center gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${isSidebarCollapsed ? 'gba:justify-center' : 'gba:gap-3'} ${
+                      activeSection === 'archived'
+                        ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
+                        : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
+                    }`}
+                  >
+                    <Archive className="gba:w-4 gba:h-4" />
+                    {!isSidebarCollapsed && 'Archived'}
+                  </button>
+                </TooltipTrigger>
+                {isSidebarCollapsed && <TooltipContent side="right">Archived</TooltipContent>}
+              </Tooltip>
+            </TooltipProvider>
           </div>
 
-          <div className="gba:mt-6 gba:pt-4 gba:border-t">
-            <p className="gba:px-3 gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-2">Summary</p>
-            <div className="gba:px-3 gba:py-2 gba:rounded-lg gba:bg-muted/30">
-              <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-                <StickyNote className="gba:w-4 gba:h-4 gba:text-amber-500" />
-                <span className="gba:text-xs gba:text-muted-foreground">Real-time collaboration</span>
+          {!isSidebarCollapsed && (
+            <div className="gba:mt-6 gba:pt-4 gba:border-t">
+              <p className="gba:px-3 gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-2">Storage</p>
+              <div className="gba:px-3 gba:py-2 gba:rounded-lg gba:bg-muted/30">
+                <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
+                  <Database className="gba:w-4 gba:h-4 gba:text-amber-500" />
+                  <span className="gba:text-xs gba:text-muted-foreground">Cloud storage</span>
+                </div>
+                <div className="gba:h-1.5 gba:bg-muted gba:rounded-full gba:overflow-hidden">
+                  <div
+                    className="gba:h-full gba:bg-gradient-to-r gba:from-amber-500 gba:to-orange-500 gba:rounded-full"
+                    style={{ width: `${Math.min((notes.length / 50) * 100, 100)}%` }}
+                  />
+                </div>
+                <p className="gba:text-[10px] gba:text-muted-foreground gba:mt-1">{notes.length} notes</p>
               </div>
-              <div className="gba:h-1.5 gba:bg-muted gba:rounded-full gba:overflow-hidden">
-                <div
-                  className="gba:h-full gba:bg-gradient-to-r gba:from-amber-500 gba:to-orange-500 gba:rounded-full"
-                  style={{ width: `${Math.min((notes.length / 50) * 100, 100)}%` }}
-                />
-              </div>
-              <p className="gba:text-[10px] gba:text-muted-foreground gba:mt-1">{notes.length} notes</p>
             </div>
-          </div>
+          )}
+          {isSidebarCollapsed && (
+            <div className="gba:mt-6 gba:pt-4 gba:border-t gba:flex gba:justify-center">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="gba:p-2">
+                      <Database className="gba:w-4 gba:h-4 gba:text-amber-500" />
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">
+                    <div>
+                      <p className="gba:font-medium">Cloud storage</p>
+                      <p className="gba:text-xs gba:text-muted-foreground">{notes.length} notes</p>
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+          )}
         </nav>
       </aside>
 

@@ -90,6 +90,7 @@ const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   '/platform/content/intranet/content-record': 'core/content/records/content-record',
 
   // Platform
+  '/platform/chat': 'platform/apps/chat', // Chat application
   '/platform/every-ai': 'platform/apps/every-ai',
   '/platform/debugger': 'platform/apps/debugger',
   '/platform/every-office': 'platform/apps/every-office',
@@ -100,6 +101,11 @@ const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   '/platform/apps/spreadsheet-apps': 'platform/apps/spreadsheet-apps',
   '/platform/slides': 'platform/apps/slide-apps',
 
+  // Email
+  '/platform/apps/email-apps': 'platform/apps/email-apps',
+  '/platform/mail': 'platform/apps/email-apps',
+  '/platform/mail/oauth/callback': 'platform/apps/email-apps',
+
   // Canonical URLs for content apps (production-ready)
   '/platform/documents': 'platform/apps/document-apps',
   '/platform/notes': 'platform/apps/note-apps',
@@ -109,7 +115,7 @@ const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   '/platform/create': 'core/create/apps/create-workspace',
   '/platform/create/function-manager': 'core/create/apps/function-manager',
   '/platform/create/prompt-manager': 'core/create/apps/prompt-manager',
-  '/platform/ai-builder': 'core/create/apps/ai-builder',
+  '/platform/create/ai-builder': 'core/create/apps/ai-builder',
 
   // Flow
   '/platform/apps/flow/apps/creator': 'flow/apps/creator',
@@ -281,14 +287,15 @@ export const buildPlatformUrl = (basePath: string, params?: Record<string, strin
  * Always returns production-style URLs regardless of environment
  */
 export const getCanonicalContentUrl = (
-  type: 'document' | 'spreadsheet' | 'note' | 'slide',
+  type: 'document' | 'spreadsheet' | 'note' | 'slide' | 'email',
   params?: Record<string, string>
 ): string => {
   const baseUrls = {
     document: '/platform/documents',
     spreadsheet: '/platform/spreadsheets',
     note: '/platform/notes',
-    slide: '/platform/slides'
+    slide: '/platform/slides',
+    email: '/platform/mail'
   }
 
   const basePath = baseUrls[type]

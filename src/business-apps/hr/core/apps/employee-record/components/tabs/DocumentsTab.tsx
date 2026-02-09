@@ -375,21 +375,14 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
   }
 
   const groupedDocuments = useMemo(() => {
-    const groups: { [key: string]: Document[] } = {
-      Salary: [],
-      Expenses: [],
-      Development: [],
-      Personal: [],
-      Other: []
-    }
+    const groups: { [key: string]: Document[] } = {}
 
     documents.forEach(doc => {
-      const groupKey = doc.documentGroupKey
-      if (groupKey && ['Salary', 'Expenses', 'Development', 'Personal'].includes(groupKey)) {
-        groups[groupKey].push(doc)
-      } else {
-        groups['Other'].push(doc)
+      const groupKey = doc.documentGroupKey || 'Other'
+      if (!groups[groupKey]) {
+        groups[groupKey] = []
       }
+      groups[groupKey].push(doc)
     })
 
     return groups
@@ -436,21 +429,14 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
   }, [documents, searchQuery, searchField])
 
   const filteredGroupedDocuments = useMemo(() => {
-    const groups: { [key: string]: Document[] } = {
-      Salary: [],
-      Expenses: [],
-      Development: [],
-      Personal: [],
-      Other: []
-    }
+    const groups: { [key: string]: Document[] } = {}
 
     filteredDocuments.forEach(doc => {
-      const groupKey = doc.documentGroupKey
-      if (groupKey && ['Salary', 'Expenses', 'Development', 'Personal'].includes(groupKey)) {
-        groups[groupKey].push(doc)
-      } else {
-        groups['Other'].push(doc)
+      const groupKey = doc.documentGroupKey || 'Other'
+      if (!groups[groupKey]) {
+        groups[groupKey] = []
       }
+      groups[groupKey].push(doc)
     })
 
     return groups
@@ -582,11 +568,11 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
 
   const getDocumentTypeIcon = (document: Document) => {
     if (isImageDocument(document)) {
-      return <Image className="gba:text-info gba:w-5 gba:h-5" />
+      return <Image className="gba:text-decorative-on-card gba:w-5 gba:h-5" />
     }
 
     if (isPdfDocument(document)) {
-      return <FileText className="gba:text-destructive gba:w-5 gba:h-5" />
+      return <FileText className="gba:text-decorative-on-card gba:w-5 gba:h-5" />
     }
 
     if (
@@ -595,7 +581,7 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
       document.name?.toLowerCase().endsWith('.xlsx') ||
       document.name?.toLowerCase().endsWith('.xls')
     ) {
-      return <FileSpreadsheet className="gba:text-success gba:w-5 gba:h-5" />
+      return <FileSpreadsheet className="gba:text-decorative-on-card gba:w-5 gba:h-5" />
     }
 
     if (
@@ -604,10 +590,10 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
       document.name?.toLowerCase().endsWith('.docx') ||
       document.name?.toLowerCase().endsWith('.doc')
     ) {
-      return <FileText className="gba:text-info gba:w-5 gba:h-5" />
+      return <FileText className="gba:text-decorative-on-card gba:w-5 gba:h-5" />
     }
 
-    return <File className="gba:text-muted-foreground gba:w-5 gba:h-5" />
+    return <File className="gba:text-decorative-on-card gba:w-5 gba:h-5" />
   }
 
   const renderDocumentListItem = (document: Document) => {
@@ -666,7 +652,7 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
   if (loading) {
     return (
       <div className="gba:flex gba:justify-center gba:items-center gba:h-40">
-        <div className="gba:animate-spin gba:rounded-full gba:h-8 gba:w-8 gba:border-b-2 gba:border-info"></div>
+        <div className="gba:animate-spin gba:rounded-full gba:h-8 gba:w-8 gba:border-b-2 gba:border-primary"></div>
       </div>
     )
   }
@@ -739,8 +725,8 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
       <div className="gba:flex gba:justify-start gba:items-center gba:mb-4">
         <div className="gba:flex gba:items-center gba:gap-3 gba:w-full gba:md:w-auto">
           <div className="gba:flex gba:items-center gba:gap-3 gba:w-full">
-            <div className="gba:flex gba:items-center gba:w-full gba:border gba:border-border gba:rounded-md gba:shadow-md gba:bg-background gba:transition-all gba:duration-200 gba:hover:shadow-lg gba:focus-within:ring-2 gba:focus-within:ring-primary gba:focus-within:border-primary">
-              <div className="gba:flex gba:items-center gba:justify-center gba:pl-3 gba:w-10 gba:text-info">
+            <div className="gba:flex gba:items-center gba:w-full gba:border gba:border-border gba:rounded-md gba:bg-background gba:transition-all gba:duration-200 gba:focus-within:ring-2 gba:focus-within:ring-primary gba:focus-within:border-primary">
+              <div className="gba:flex gba:items-center gba:justify-center gba:pl-3 gba:w-10 gba:text-decorative-on-card">
                 <Search className="gba:w-5 gba:h-5" />
               </div>
               <DebouncedInput
@@ -796,12 +782,8 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
           return <div className="gba:text-center gba:py-8 gba:text-destructive">{error}</div>
         }
 
-        const getGroupBgClass = (group: string): string => {
-          if (group === 'Salary') return 'gba:bg-info-secondary'
-          if (group === 'Expenses') return 'gba:bg-success-secondary'
-          if (group === 'Development') return 'gba:bg-info-secondary'
-          if (group === 'Personal') return 'gba:bg-warning-secondary'
-          return 'gba:bg-decorative-secondary'
+        const getGroupBgClass = (): string => {
+          return 'gba:bg-secondary'
         }
 
         if (searchQuery) {
@@ -819,7 +801,7 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
               {Object.entries(filteredGroupedDocuments).map(([group, docs]) => {
                 if (docs.length === 0) return null
 
-                const bgClass = getGroupBgClass(group)
+                const bgClass = getGroupBgClass()
 
                 const displayGroupName = getTranslatedGroupName(
                   docs[0]?.documentGroupKey || group,
@@ -834,7 +816,7 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
                     data-testid={`document-group-${group.toLowerCase()}`}
                   >
                     <CollapsibleTrigger className="gba:flex gba:items-center gba:justify-between gba:w-full gba:px-4 gba:py-3 gba:cursor-pointer gba:hover:opacity-80 gba:transition-opacity [&[data-state=open]>svg]:gba:rotate-180">
-                      <span className="gba:font-medium">{displayGroupName}</span>
+                      <span className="gba:font-medium gba:text-secondary-foreground">{displayGroupName}</span>
                       <div className="gba:flex gba:items-center gba:gap-2">
                         <span className="gba:text-sm gba:text-muted-foreground">
                           {docs.length} {docs.length === 1 ? t('documents-count-one') : t('documents-count-other')}
@@ -857,7 +839,7 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
             {Object.entries(groupedDocuments).map(([group, docs]) => {
               if (docs.length === 0) return null
 
-              const bgClass = getGroupBgClass(group)
+              const bgClass = getGroupBgClass()
 
               const displayGroupName = getTranslatedGroupName(
                 docs[0]?.documentGroupKey || group,
@@ -872,7 +854,7 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
                   data-testid={`document-group-${group.toLowerCase()}`}
                 >
                   <CollapsibleTrigger className="gba:flex gba:items-center gba:justify-between gba:w-full gba:px-4 gba:py-3 gba:cursor-pointer gba:hover:opacity-80 gba:transition-opacity [&[data-state=open]>svg]:gba:rotate-180">
-                    <span className="gba:font-medium">{displayGroupName}</span>
+                    <span className="gba:font-medium gba:text-secondary-foreground">{displayGroupName}</span>
                     <div className="gba:flex gba:items-center gba:gap-2">
                       <span className="gba:text-sm gba:text-muted-foreground">
                         {docs.length} {docs.length === 1 ? t('documents-count-one') : t('documents-count-other')}

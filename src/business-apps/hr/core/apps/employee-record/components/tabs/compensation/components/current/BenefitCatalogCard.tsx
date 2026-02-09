@@ -104,11 +104,11 @@ const BenefitCatalogCard: React.FC<BenefitCatalogCardProps> = ({
     const baseClasses = 'gba:p-3 gba:transition-all gba:duration-200'
 
     if (benefit.isActive) {
-      return `${baseClasses} gba:border-success gba:bg-success-secondary/10`
+      return `${baseClasses} gba:bg-decorative-secondary`
     }
 
     if (benefit.isScheduled) {
-      return `${baseClasses} gba:border-info gba:bg-info-secondary/10`
+      return `${baseClasses} gba:bg-decorative-secondary`
     }
 
     return `${baseClasses} gba:border-border gba:hover:border-accent`

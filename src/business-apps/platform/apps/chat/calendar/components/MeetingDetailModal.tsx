@@ -32,10 +32,12 @@ import {
   Trash2,
   Pencil,
   Phone,
-  MessageSquare
+  MessageSquare,
+  ListTodo
 } from 'lucide-react'
 import { navigateTo } from '@/common/utils/navigationUtils'
-import type { CalendarEvent, InvitationStatus, MeetingStatus } from '../types'
+import { CalendarEvent, InvitationStatus, MeetingStatus } from '../types'
+import { getAgendaFromMetadata, getTotalAgendaDuration } from '../utils/agendaUtils'
 
 dayjs.extend(localizedFormat)
 
@@ -49,10 +51,11 @@ interface MeetingDetailModalProps {
   onStartCall?: () => void
   onOpenChat?: () => void
   currentUserId?: string
+  activeConversationCalls?: Map<string, any>
 }
 
-const formatDate = (date: Date): string => {
-  return date.toLocaleDateString(undefined, {
+const formatDate = (date: Date, locale?: string): string => {
+  return date.toLocaleDateString(locale, {
     weekday: 'long',
     year: 'numeric',
     month: 'long',
@@ -84,11 +87,11 @@ const getStatusBadge = (status: MeetingStatus) => {
 
 const getParticipantStatusIcon = (status?: InvitationStatus) => {
   switch (status) {
-    case 'accepted':
+    case InvitationStatus.ACCEPTED:
       return <Check className="gba:h-4 gba:w-4 gba:text-success" />
-    case 'declined':
+    case InvitationStatus.DECLINED:
       return <X className="gba:h-4 gba:w-4 gba:text-destructive" />
-    case 'tentative':
+    case InvitationStatus.TENTATIVE:
       return <HelpCircle className="gba:h-4 gba:w-4 gba:text-warning" />
     default:
       return <Clock className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
@@ -118,7 +121,8 @@ export const MeetingDetailModal: React.FC<MeetingDetailModalProps> = ({
   onEdit,
   onDelete,
   onStartCall,
-  onOpenChat
+  onOpenChat,
+  activeConversationCalls
 }) => {
   const t = useChatTranslation()
   const { locale } = useLocale()
@@ -129,6 +133,13 @@ export const MeetingDetailModal: React.FC<MeetingDetailModalProps> = ({
   const [pendingResponse, setPendingResponse] = useState<InvitationStatus | null>(null)
 
   if (!event) return null
+
+  // Check if there's an active call for this meeting
+  // If meeting is linked to a conversation, check using conversation ID
+  // Otherwise, check using meeting ID
+  const callId = event.conversationId || event.id
+  const activeCall = activeConversationCalls?.get(callId)
+  const hasActiveCall = !!activeCall
 
   const organizerName =
     event.organizer.displayName ||
@@ -141,7 +152,7 @@ export const MeetingDetailModal: React.FC<MeetingDetailModalProps> = ({
   const canStartCall = event.meetingLink && (event.status === 'scheduled' || event.status === 'in_progress')
 
   const handleResponse = async (status: InvitationStatus) => {
-    if (status === 'declined' || status === 'tentative') {
+    if (status === InvitationStatus.DECLINED || status === InvitationStatus.TENTATIVE) {
       // Show comment input for decline/tentative
       setPendingResponse(status)
       setShowResponseInput(true)
@@ -195,7 +206,17 @@ export const MeetingDetailModal: React.FC<MeetingDetailModalProps> = ({
             />
             <div className="gba:flex-1">
               <DialogTitle className="gba:text-lg gba:mb-1">{event.title}</DialogTitle>
-              {getStatusBadge(event.status)}
+              <div className="gba:flex gba:items-center gba:gap-2">
+                {hasActiveCall && (
+                  <Badge variant="default" className="gba:bg-success gba:text-success-foreground">
+                    <div className="gba:flex gba:items-center gba:gap-1">
+                      <Phone className="gba:h-3 gba:w-3" />
+                      <span>Call in Progress</span>
+                    </div>
+                  </Badge>
+                )}
+                {getStatusBadge(event.status)}
+              </div>
             </div>
           </div>
         </DialogHeader>
@@ -242,6 +263,85 @@ export const MeetingDetailModal: React.FC<MeetingDetailModalProps> = ({
               {event.description}
             </div>
           )}
+
+          {/* Agenda */}
+          {(() => {
+            const agenda = getAgendaFromMetadata(event.metadata)
+            if (agenda.length === 0) return null
+
+            const totalDuration = getTotalAgendaDuration(agenda)
+
+            // Helper to get participant name by ID
+            const getAssigneeName = (assigneeId?: string) => {
+              if (!assigneeId || !event.participants) return null
+              const participant = event.participants.find(p => p.id === assigneeId)
+              if (!participant) return null
+              return (
+                participant.displayName ||
+                `${participant.firstName || ''} ${participant.lastName || ''}`.trim() ||
+                participant.email
+              )
+            }
+
+            // Helper to get participant avatar by ID
+            const getAssigneeAvatar = (assigneeId?: string) => {
+              if (!assigneeId || !event.participants) return null
+              const participant = event.participants.find(p => p.id === assigneeId)
+              return participant?.avatarUrl
+            }
+
+            return (
+              <div className="gba:space-y-2">
+                <div className="gba:flex gba:items-center gba:justify-between">
+                  <div className="gba:flex gba:items-center gba:gap-2">
+                    <ListTodo className="gba:h-5 gba:w-5 gba:text-muted-foreground" />
+                    <span className="gba:text-sm gba:font-medium">{t('calendar-agenda')}</span>
+                  </div>
+                  {totalDuration > 0 && (
+                    <span className="gba:text-xs gba:text-muted-foreground">
+                      {t('calendar-agendaTotalDuration', { minutes: totalDuration })}
+                    </span>
+                  )}
+                </div>
+                <div className="gba:space-y-1.5 gba:pl-7">
+                  {agenda.map((item, index) => {
+                    const assigneeName = getAssigneeName(item.assigneeId)
+                    const assigneeAvatar = getAssigneeAvatar(item.assigneeId)
+
+                    return (
+                      <div
+                        key={item.id}
+                        className="gba:flex gba:items-center gba:gap-2 gba:py-1.5 gba:px-2 gba:rounded-md gba:bg-muted/30"
+                      >
+                        <span className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:min-w-[20px]">
+                          {index + 1}.
+                        </span>
+                        <div className="gba:flex-1 gba:min-w-0">
+                          <div className="gba:text-sm gba:font-medium gba:truncate">{item.title}</div>
+                          {item.description && (
+                            <div className="gba:text-xs gba:text-muted-foreground gba:truncate">{item.description}</div>
+                          )}
+                        </div>
+                        {item.duration && (
+                          <Badge variant="outline" className="gba:text-[10px] gba:shrink-0">
+                            {item.duration} min
+                          </Badge>
+                        )}
+                        {assigneeName && (
+                          <div className="gba:flex gba:items-center gba:gap-1 gba:shrink-0">
+                            <Avatar className="gba:h-5 gba:w-5">
+                              {assigneeAvatar && <AvatarImage src={assigneeAvatar} alt={assigneeName} />}
+                              <AvatarFallback className="gba:text-[8px]">{getInitials(assigneeName)}</AvatarFallback>
+                            </Avatar>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )
+          })()}
 
           <Separator />
 
@@ -347,7 +447,9 @@ export const MeetingDetailModal: React.FC<MeetingDetailModalProps> = ({
           {showResponseInput && (
             <div className="gba:space-y-3 gba:p-3 gba:border gba:border-border gba:rounded-lg">
               <div className="gba:text-sm gba:font-medium">
-                {pendingResponse === 'declined' ? t('calendar-declineMeeting') : t('calendar-markTentative')}
+                {pendingResponse === InvitationStatus.DECLINED
+                  ? t('calendar-declineMeeting')
+                  : t('calendar-markTentative')}
               </div>
               <Textarea
                 value={responseComment}
@@ -361,7 +463,7 @@ export const MeetingDetailModal: React.FC<MeetingDetailModalProps> = ({
                 </Button>
                 <Button
                   size="sm"
-                  variant={pendingResponse === 'declined' ? 'destructive' : 'default'}
+                  variant={pendingResponse === InvitationStatus.DECLINED ? 'destructive' : 'default'}
                   onClick={() => submitResponse(pendingResponse!, responseComment)}
                   disabled={isResponding}
                 >
@@ -378,27 +480,27 @@ export const MeetingDetailModal: React.FC<MeetingDetailModalProps> = ({
           {canRespond && !showResponseInput && (
             <div className="gba:flex gba:gap-2">
               <Button
-                variant={event.participantStatus === 'accepted' ? 'default' : 'outline'}
+                variant={event.participantStatus === InvitationStatus.ACCEPTED ? 'default' : 'outline'}
                 className="gba:flex-1"
-                onClick={() => handleResponse('accepted')}
+                onClick={() => handleResponse(InvitationStatus.ACCEPTED)}
                 disabled={isResponding}
               >
                 <Check className="gba:h-4 gba:w-4 gba:mr-1" />
                 {t('calendar-accept')}
               </Button>
               <Button
-                variant={event.participantStatus === 'tentative' ? 'default' : 'outline'}
+                variant={event.participantStatus === InvitationStatus.TENTATIVE ? 'default' : 'outline'}
                 className="gba:flex-1"
-                onClick={() => handleResponse('tentative')}
+                onClick={() => handleResponse(InvitationStatus.TENTATIVE)}
                 disabled={isResponding}
               >
                 <HelpCircle className="gba:h-4 gba:w-4 gba:mr-1" />
                 {t('calendar-maybe')}
               </Button>
               <Button
-                variant={event.participantStatus === 'declined' ? 'destructive' : 'outline'}
+                variant={event.participantStatus === InvitationStatus.DECLINED ? 'destructive' : 'outline'}
                 className="gba:flex-1"
-                onClick={() => handleResponse('declined')}
+                onClick={() => handleResponse(InvitationStatus.DECLINED)}
                 disabled={isResponding}
               >
                 <X className="gba:h-4 gba:w-4 gba:mr-1" />
@@ -411,9 +513,9 @@ export const MeetingDetailModal: React.FC<MeetingDetailModalProps> = ({
           <div className="gba:flex gba:gap-2">
             {/* Start call button */}
             {canStartCall && onStartCall && (
-              <Button onClick={onStartCall} className="gba:flex-1">
+              <Button onClick={onStartCall} className="gba:flex-1" variant={hasActiveCall ? 'default' : 'default'}>
                 <Phone className="gba:h-4 gba:w-4 gba:mr-1" />
-                {t('calendar-joinCall')}
+                {hasActiveCall ? t('calendar-joinMeeting') : t('calendar-startMeeting')}
               </Button>
             )}
 

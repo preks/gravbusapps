@@ -20,7 +20,7 @@ enum MyTimeTabEnum {
 
 export const MyTime: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo }) => {
   const [activeTab, setActiveTab] = React.useState<MyTimeTabEnum>(MyTimeTabEnum.TimeTracking)
-  const activeStructureId = getCurrentActiveStructureId()
+  const activeStructureId = getCurrentActiveStructureId() || ''
   const employeeId = userInfo?.employeeDetails?.employeeId || ''
 
   const handleTabChange = (value: string) => setActiveTab(value as MyTimeTabEnum)

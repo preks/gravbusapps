@@ -45,6 +45,17 @@
 @import './business-apps/hr/absences/apps/personal-absences/components/absence-calendar/styles/AbsenceCalendar.css';
 @import './business-apps/platform/apps/spreadsheet-apps/components/FortuneSheetGrid.css';
 
+/* -------------------------------------------------------------------------- */
+/* Layout overrides                                                            */
+/* -------------------------------------------------------------------------- */
+/* Ensure `layout-content` is fixed 1440px on wide screens (responsive below). */
+.layout-content {
+  width: 100%;
+  max-width: 1440px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
 /* Tooltip styles for absence calendar segments */
 .ant-tooltip-inner {
   background: #f8f9fa !important;

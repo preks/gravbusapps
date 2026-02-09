@@ -92,9 +92,14 @@ export function useInvestments(
 
         // Extract investment type filters from variables (these are not processed by descriptors)
         // These filters come from the State-Hooks and need to be passed as customConditions
-        const customConditions: Record<string, any>[] = []
         const varsWithFilters = vars as InvestmentQueryVariables & Record<string, any>
 
+        // Start with any customConditions passed in (e.g., from useGenericInvestmentSectionState)
+        const customConditions: Record<string, any>[] = Array.isArray(varsWithFilters.customConditions)
+          ? [...varsWithFilters.customConditions]
+          : []
+
+        // Add legacy investment type filters
         if (varsWithFilters.liquidFundInvestment) {
           customConditions.push({ liquidFundInvestment: varsWithFilters.liquidFundInvestment })
         }
@@ -108,9 +113,10 @@ export function useInvestments(
           customConditions.push({ planedExit: { _eq: varsWithFilters.planedExit } })
         }
 
-        // Remove investment type filters from variables before passing to buildWhere
+        // Remove investment type filters and customConditions from variables before passing to buildWhere
         // (they will be passed as customConditions instead)
         const filteredVars = { ...varsWithFilters }
+        delete filteredVars.customConditions
         delete filteredVars.liquidFundInvestment
         delete filteredVars.realEstateInvestment
         delete filteredVars.equityInvestment

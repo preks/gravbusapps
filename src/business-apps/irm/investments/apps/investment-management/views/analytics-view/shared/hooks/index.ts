@@ -11,3 +11,8 @@ export { useCurrencySync, useMultipleCurrencySync } from './useCurrencySync'
 // KPI integration hooks
 export { useKPIIntegration, useSimpleKPIIntegration } from './useKPIIntegration'
 export type { KPIIntegrationResult, KPIFetcher } from './useKPIIntegration'
+export { useGenericGroupKPIIntegration } from '@/common/data/investment/hooks/useGenericGroupKPIIntegration'
+export type {
+  GenericGroupKPIIntegration,
+  GenericKPIData
+} from '@/common/data/investment/hooks/useGenericGroupKPIIntegration'

@@ -20,6 +20,7 @@ export interface UseRealtimeKitWebSocketOptions {
   onHandUpdate?: (participantId: string, handRaised: boolean) => void
   onReactionReceived?: (reaction: { participantId: string; participantName: string; emoji: string }) => void
   onMuteRequested?: (requestedByName: string) => void
+  translate?: (key: string, params?: Record<string, any>) => string
 }
 
 export interface UseRealtimeKitWebSocketReturn {
@@ -56,7 +57,8 @@ export const useRealtimeKitWebSocket = ({
   meeting,
   onHandUpdate,
   onReactionReceived,
-  onMuteRequested
+  onMuteRequested,
+  translate
 }: UseRealtimeKitWebSocketOptions): UseRealtimeKitWebSocketReturn => {
   // Track hand raised states and order
   const [handRaised, setHandRaised] = useState(false)
@@ -216,20 +218,8 @@ export const useRealtimeKitWebSocket = ({
       return
     }
 
-    rtkDebug.log('[RTK] Raise hand useEffect triggered', {
-      hasSocket: !!wsClient?.getSocket(),
-      roomId,
-      meetingId,
-      userId: currentUser?.id
-    })
-
     const socket = wsClient?.getSocket()
     if (!socket || !meetingId || !currentUser) {
-      rtkDebug.log('[RTK] Cannot attach raise hand listener yet', {
-        hasSocket: !!socket,
-        hasMeetingId: !!meetingId,
-        hasCurrentUser: !!currentUser
-      })
       return
     }
 
@@ -557,7 +547,10 @@ export const useRealtimeKitWebSocket = ({
           rtkDebug.log('[RTK] ✅ Auto-muted self via RTK')
 
           // Show toast notification
-          toast.info(`You were muted by ${data.requestedByName}`, {
+          const message = translate
+            ? translate('participants-muted-by', { name: data.requestedByName })
+            : `You were muted by ${data.requestedByName}`
+          toast.info(message, {
             duration: 3000
           })
         } else {
@@ -568,7 +561,8 @@ export const useRealtimeKitWebSocket = ({
         onMuteRequested?.(data.requestedByName)
       } catch (error) {
         rtkDebug.error('[RTK] ❌ Failed to auto-mute:', error)
-        toast.error('Failed to mute your microphone', {
+        const errorMessage = translate ? translate('participants-mute-failed') : 'Failed to mute your microphone'
+        toast.error(errorMessage, {
           duration: 3000
         })
       }
@@ -581,7 +575,7 @@ export const useRealtimeKitWebSocket = ({
       socket.off('group-call:mute-requested', handleMuteRequested)
       rtkDebug.log('[RTK] WebSocket listener removed for mute requests')
     }
-  }, [wsClient, meetingId, meeting, onMuteRequested])
+  }, [wsClient, meetingId, meeting, onMuteRequested, translate])
 
   /**
    * Set up WebSocket event listener for mute-all requests
@@ -610,14 +604,18 @@ export const useRealtimeKitWebSocket = ({
     }) => {
       rtkDebug.log('[RTK] 🔇 Received mute-all request from:', data.requestedByName)
 
+      // Note: Backend already excludes the moderator from receiving this event via .except()
+      // So if we're here, we're NOT the moderator who requested it
       try {
         // Auto-mute self via RTK
         if (meeting?.self?.disableAudio) {
           meeting.self.disableAudio()
           rtkDebug.log('[RTK] ✅ Auto-muted self via RTK (mute-all)')
 
-          // Show toast notification
-          toast.info(`You were muted by ${data.requestedByName} (mute all)`, {
+          const message = translate
+            ? translate('participants-muted-by-all', { name: data.requestedByName })
+            : `You were muted by ${data.requestedByName} (mute all)`
+          toast.info(message, {
             duration: 3000
           })
         } else {
@@ -628,7 +626,8 @@ export const useRealtimeKitWebSocket = ({
         onMuteRequested?.(data.requestedByName)
       } catch (error) {
         rtkDebug.error('[RTK] ❌ Failed to auto-mute (mute-all):', error)
-        toast.error('Failed to mute your microphone', {
+        const errorMessage = translate ? translate('participants-mute-failed') : 'Failed to mute your microphone'
+        toast.error(errorMessage, {
           duration: 3000
         })
       }
@@ -641,7 +640,7 @@ export const useRealtimeKitWebSocket = ({
       socket.off('group-call:mute-all-requested', handleMuteAllRequested)
       rtkDebug.log('[RTK] WebSocket listener removed for mute-all requests')
     }
-  }, [wsClient, meetingId, meeting, onMuteRequested])
+  }, [wsClient, meetingId, meeting, onMuteRequested, currentUser, translate])
 
   /**
    * Set up WebSocket event listener for participant leaving
