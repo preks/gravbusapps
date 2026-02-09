@@ -22,6 +22,8 @@ export interface EmailAccount {
   lastSyncAt?: string
   lastSyncError?: string
   createdAt: string
+  /** Whether calendar sync is enabled for this account */
+  calendarSyncEnabled?: boolean
 }
 
 /** Well-known folder types */
@@ -141,3 +143,48 @@ export interface SendEmailRequest {
 
 /** Compose mode types */
 export type ComposeMode = 'new' | 'reply' | 'reply-all' | 'forward'
+
+// ========== Directory / Contact types ==========
+
+/** A contact entry from the company directory or recent recipients */
+export interface EmailContact {
+  id: string
+  name: string
+  email: string
+  avatarUrl?: string
+  department?: string
+  source: 'directory' | 'recent' | 'manual'
+}
+
+// ========== External Calendar Event types ==========
+
+/** External calendar event from a provider (Microsoft/Google) */
+export interface ExternalCalendarEvent {
+  id: string
+  externalId: string
+  accountId: string
+  provider: 'microsoft' | 'google'
+  title: string
+  description?: string
+  start: string
+  end: string
+  allDay: boolean
+  location?: string
+  meetingLink?: string
+  status: 'confirmed' | 'tentative' | 'cancelled'
+  responseStatus?: 'accepted' | 'declined' | 'tentative' | 'needsAction'
+  isOrganizer: boolean
+  organizer?: {
+    name?: string
+    email: string
+  }
+  attendees?: Array<{
+    name?: string
+    email: string
+    status: 'accepted' | 'declined' | 'tentative' | 'needsAction'
+    isOptional?: boolean
+  }>
+  recurrence?: string
+  externalLink?: string
+  color?: string
+}

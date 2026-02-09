@@ -1,9 +1,10 @@
 /**
  * EmailReader - Displays the full content of a selected email message.
- * Shows headers, body, and action buttons (reply, forward, delete).
+ * Shows headers, body, attachments with download, and action buttons.
  */
 
-import React, { useRef, useEffect } from 'react'
+import React, { useRef, useEffect, useCallback, useState } from 'react'
+import { toast } from 'sonner'
 import {
   Button,
   Badge,
@@ -14,7 +15,8 @@ import {
   TooltipProvider,
   TooltipTrigger
 } from '@newwork/nw-design-system'
-import { Reply, ReplyAll, Forward, Trash2, Star, Paperclip, Download, Archive, Mail } from 'lucide-react'
+import { Reply, ReplyAll, Forward, Trash2, Star, Paperclip, Download, Archive, Mail, Loader2 } from 'lucide-react'
+import { EmailApiService } from '../services/EmailApiService'
 import type { EmailMessage, ComposeMode } from '../types'
 
 interface EmailReaderProps {
@@ -64,6 +66,7 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
   'data-testid': testId = 'email-reader'
 }) => {
   const bodyRef = useRef<HTMLDivElement>(null)
+  const [downloadingAttId, setDownloadingAttId] = useState<string | null>(null)
 
   // Safely render HTML body in an isolated div
   useEffect(() => {
@@ -71,6 +74,26 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
       bodyRef.current.innerHTML = message.htmlBody
     }
   }, [message?.htmlBody])
+
+  const handleDownloadAttachment = useCallback(async (messageId: string, attachmentId: string) => {
+    setDownloadingAttId(attachmentId)
+    try {
+      const { url, filename } = await EmailApiService.downloadAttachment(messageId, attachmentId)
+      // Trigger browser download
+      const link = document.createElement('a')
+      link.href = url
+      link.download = filename
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      // Clean up blob URL after a delay
+      setTimeout(() => URL.revokeObjectURL(url), 30000)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to download attachment')
+    } finally {
+      setDownloadingAttId(null)
+    }
+  }, [])
 
   if (!message) {
     return (
@@ -209,7 +232,7 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
           </div>
         )}
 
-        {/* Attachments */}
+        {/* Attachments with download */}
         {message.attachments && message.attachments.length > 0 && (
           <div className="gba:mt-6 gba:pt-4 gba:border-t">
             <h3 className="gba:text-sm gba:font-medium gba:text-foreground gba:mb-3 gba:flex gba:items-center gba:gap-2">
@@ -220,17 +243,24 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
               {message.attachments
                 .filter(a => !a.isInline)
                 .map(att => (
-                  <div
+                  <button
                     key={att.id}
-                    className="gba:flex gba:items-center gba:gap-2 gba:px-3 gba:py-2 gba:rounded-lg gba:border gba:bg-muted/30 hover:gba:bg-muted/50 gba:cursor-pointer gba:transition-colors"
+                    onClick={() => handleDownloadAttachment(message.id, att.id)}
+                    disabled={downloadingAttId === att.id}
+                    className="gba:flex gba:items-center gba:gap-2 gba:px-3 gba:py-2 gba:rounded-lg gba:border gba:bg-muted/30 hover:gba:bg-muted/50 gba:cursor-pointer gba:transition-colors disabled:gba:opacity-50"
+                    data-testid={`${testId}-attachment-${att.id}`}
                   >
                     <Paperclip className="gba:w-4 gba:h-4 gba:text-muted-foreground" />
-                    <div>
+                    <div className="gba:text-left">
                       <p className="gba:text-xs gba:font-medium gba:text-foreground">{att.filename}</p>
                       <p className="gba:text-[10px] gba:text-muted-foreground">{formatFileSize(att.size)}</p>
                     </div>
-                    <Download className="gba:w-3 gba:h-3 gba:text-muted-foreground" />
-                  </div>
+                    {downloadingAttId === att.id ? (
+                      <Loader2 className="gba:w-3 gba:h-3 gba:text-muted-foreground gba:animate-spin" />
+                    ) : (
+                      <Download className="gba:w-3 gba:h-3 gba:text-muted-foreground" />
+                    )}
+                  </button>
                 ))}
             </div>
           </div>
