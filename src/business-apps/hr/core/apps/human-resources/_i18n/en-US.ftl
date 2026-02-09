@@ -157,9 +157,11 @@ hr-analytics-compensation-analysis = Compensation Analysis
 hr-analytics-compensation-description = Comprehensive compensation metrics, salary analysis, and payroll insights
 hr-analytics-total-payroll = Total Payroll
 hr-analytics-annual-payroll = Annual payroll
+hr-analytics-coming-soon = Coming soon
 hr-analytics-median-salary = Median Salary
 hr-analytics-company-median = Company median
-hr-analytics-avg-salary = Avg Salary
+hr-analytics-avg-salary = Average Salary
+hr-analytics-average-salary = Average Salary
 hr-analytics-merit-increases = Merit Increases
 hr-analytics-average-increase = Average increase
 
@@ -329,7 +331,7 @@ hr-analytics-yearly-payroll-chart-title = Total Payroll by Year
 hr-analytics-yearly-payroll-description = Annual payroll expenditure trends showing total compensation costs across the organization
 
 # Analytics - Dashboard Salary Cards
-hr-analytics-highest-salary = Highest Avg Salary
+hr-analytics-highest-salary = Highest Average Salary
 
 # Analytics - Employment Tab
 hr-analytics-employment-analysis = Employment Analysis
@@ -417,6 +419,8 @@ hr-analytics-health-insurance-type-distribution = Health Insurance Type Distribu
 hr-analytics-health-insurance-type-distribution-description = Distribution of employees by health insurance type showing coverage preferences and policy selection patterns
 # Data Filter (generic texts used in HR)
 hr-data-filter-loading = Loading...
+hr-data-filter-error = Error loading data
+hr-data-filter-no-data = No data available
 hr-data-filter-error-loading-filters = Error loading filters
 hr-data-filter-search-in = Search in
 hr-data-filter-search-filters-in = Search filters in
