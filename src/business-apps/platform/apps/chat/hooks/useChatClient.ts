@@ -292,23 +292,22 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
     sharedWsKey = key
     sharedWsRefCount = 1 // Initialize ref count to 1
     wsClientRef.current = client
+
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[ChatWebSocket] 🔌 Initiating WebSocket connection...')
+    }
+
     const socket = client.connect(accessToken)
 
     // CRITICAL FIX: Define handlers as named functions so we can properly clean them up
     const handleConnect = async () => {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[ChatWebSocket] ✅ WebSocket CONNECTED!')
+      }
+
       setIsConnected(true)
       setIsOffline(false)
       setError(null)
-
-      // Join all user's conversations when connected
-      // The backend automatically joins users to their conversations on connect,
-      // but we should also join the active conversation if there is one
-      if (activeConversationId && wsClientRef.current) {
-        // PERFORMANCE: Tell backend the newest message we have to avoid sending historical messages
-        const newestTimestamp = newestMessageTimestampRef.current
-        wsClientRef.current.joinConversation(activeConversationId, newestTimestamp)
-        currentConversationIdRef.current = activeConversationId
-      }
 
       // Refresh conversations after WebSocket connects to get accurate unread counts
       // This ensures unread counts reflect messages received while offline
@@ -357,7 +356,15 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
         sharedWsRefCount = 0
       }
     }
-  }, [accessToken, wsUrl, wsSocketPath, activeConversationId])
+  }, [accessToken, wsUrl, wsSocketPath])
+
+  // Update currentConversationIdRef when activeConversationId changes
+  // This doesn't require recreating the WebSocket connection
+  useEffect(() => {
+    if (activeConversationId && isConnected) {
+      currentConversationIdRef.current = activeConversationId
+    }
+  }, [activeConversationId, isConnected])
 
   // Setup WebSocket event listeners
   useEffect(() => {
@@ -394,6 +401,9 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
         if (messageTimestamp <= newestWeHave && newestWeHave > 0) {
           return // Skip - we already have this message
         }
+
+        // Update the newest timestamp for this conversation
+        newestMessageTimestampRef.current = messageTimestamp
       }
 
       // OPTIMIZATION: Queue ALL logic asynchronously - handler returns immediately
@@ -411,8 +421,48 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
         const isOwnMessage = currentUser && message.senderId === currentUser.id
         const isOtherUserMessage = currentUser && message.senderId !== currentUser.id
 
+        // Check if it's a system message (no sender)
+        const isSystemMessage = !message.senderId || message.type === 'system'
+
         // Use ref to get current active conversation (not stale closure value)
         const currentActiveConversationId = activeConversationIdRef.current
+
+        // DEBUG: Log all incoming messages to check system message handling
+        console.log('[WS] Incoming message:', {
+          id: message.id,
+          type: message.type,
+          senderId: message.senderId,
+          isSystemMessage,
+          conversationId: message.conversationId,
+          currentActiveConversationId,
+          content: message.content?.substring(0, 50)
+        })
+
+        // Handle system messages (call started/ended, meeting minutes, etc.)
+        if (isSystemMessage) {
+          console.log('[WS] Processing system message:', message.id)
+          // System messages don't need status updates or read receipts
+          const messageWithStatus = { ...message, status: message.status || 'sent' }
+
+          // OPTIMIZATION: Defer UI updates to not block the message handler
+          startTransition(() => {
+            console.log('[WS] Adding system message to UI:', {
+              messageId: message.id,
+              conversationId: message.conversationId,
+              isActiveConversation: message.conversationId === currentActiveConversationId
+            })
+
+            // Update conversation list
+            conversationsHookRef.current?.updateConversationLastMessage(message.conversationId, messageWithStatus)
+
+            // Add message to chat view if it's for the active conversation
+            if (message.conversationId === currentActiveConversationId) {
+              messagesHookRef.current?.addMessage(messageWithStatus)
+            }
+          })
+
+          return // Exit early - system messages don't need further processing
+        }
 
         // Stop typing indicator for this user when they send a message
         if (isOtherUserMessage) {
@@ -718,6 +768,7 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
     }
 
     const handleConversationActiveCalls = (calls: ActiveCall[]) => {
+      console.log('[CHAT CLIENT] handleConversationActiveCalls - received calls:', calls)
       const map: Record<string, ActiveCall> = {}
       calls.forEach(call => {
         map[call.conversationId] = call
@@ -725,6 +776,7 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
           activeCall: call
         } as Partial<Conversation>)
       })
+      console.log('[CHAT CLIENT] Setting activeCalls state:', map)
       setActiveCalls(map)
     }
 
@@ -777,20 +829,21 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
     }
   }, [isConnected]) // Only re-register when connection changes, all other values accessed via refs
 
-  // Join conversation and mark as read when active conversation changes
-  // NOTE: We DON'T leave conversations when going back to the list
-  // Users should stay in all conversation rooms to receive real-time updates
+  // Mark conversation as read when active conversation changes
+  // NOTE: We DON'T need to join conversations - the backend automatically joins us to ALL conversations on connect
+  // Users stay in all conversation rooms to receive real-time updates
   useEffect(() => {
     if (!wsClientRef.current || !isConnected) {
       return
     }
 
-    // Join new conversation if not already joined
     if (activeConversationId) {
-      // PERFORMANCE: Tell backend the newest message we have to avoid sending historical messages
-      const newestTimestamp = newestMessageTimestampRef.current
-      wsClientRef.current.joinConversation(activeConversationId, newestTimestamp)
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[ChatWebSocket] 📖 Marking conversation as read:', activeConversationId)
+      }
+
       currentConversationIdRef.current = activeConversationId
+
       // Optimistically update UI immediately
       conversationsHookRef.current?.markConversationAsRead(activeConversationId)
 
@@ -801,7 +854,7 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
       // 3. Trigger handleConversationRead which updates UI across all sessions
       wsClientRef.current.markConversationAsRead(activeConversationId)
     } else {
-      // We've left the room, backend will send conversation_updated events instead
+      // Back to conversation list
       currentConversationIdRef.current = null
     }
   }, [activeConversationId, isConnected])
