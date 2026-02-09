@@ -1875,6 +1875,29 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
   toggleMinimizeRef.current = toggleMinimize
 
   /**
+   * Ensure callbacks in globalCallManager are always fresh after component remounts
+   * This fixes the stale closure issue when navigating away and back
+   */
+  useEffect(() => {
+    // Only update callbacks if there's an active call (not idle)
+    const currentCallData = globalCallManager.getCallData()
+    if (currentCallData.callState.status === 'idle') {
+      return
+    }
+
+    // Update only the callbacks without touching the rest of the state
+    globalCallManager.updateCallbacks({
+      toggleMinimize: () => {
+        if (toggleMinimizeRef.current) {
+          toggleMinimizeRef.current()
+        }
+      }
+    })
+
+    rtkDebug.log('[RTK] ✅ Updated callbacks in globalCallManager after remount')
+  }, [callState.status]) // Run when status changes (including when component mounts with 'connected' status)
+
+  /**
    * Toggle transcription enabled/disabled
    */
   const toggleTranscription = useCallback(() => {

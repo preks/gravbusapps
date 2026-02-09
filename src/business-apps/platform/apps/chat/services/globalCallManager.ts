@@ -259,6 +259,34 @@ class GlobalCallManager {
     this.notifyListeners()
   }
 
+  // Update callbacks (useful when component remounts and needs to refresh stale closures)
+  updateCallbacks(
+    callbacks: Partial<
+      Pick<
+        StoredCallData,
+        | 'leaveCall'
+        | 'toggleMute'
+        | 'toggleVideo'
+        | 'toggleScreenShare'
+        | 'toggleMinimize'
+        | 'toggleBackground'
+        | 'toggleRaiseHand'
+        | 'sendReaction'
+        | 'setVideoQuality'
+        | 'switchAudioDevice'
+        | 'switchVideoDevice'
+        | 'onInviteParticipant'
+      >
+    >
+  ) {
+    this.callData = {
+      ...this.callData,
+      ...callbacks
+    }
+    debug('[GlobalCallManager] Callbacks updated:', Object.keys(callbacks))
+    // Don't notify listeners for callback updates (no visual changes)
+  }
+
   // Update streams
   updateStreams(localStream: MediaStream | null, remoteStreams: Map<string, MediaStream>) {
     this.callData.localStream = localStream
