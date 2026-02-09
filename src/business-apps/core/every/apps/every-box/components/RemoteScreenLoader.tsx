@@ -36,6 +36,13 @@ interface RemoteScreenLoaderProps extends BusinessAppContextProps {
   isLoadingMetadata?: boolean // Flag to show spinner while parent is loading metadata
   /** Custom cache key for component isolation (useful for loading same component multiple times) */
   cacheKey?: string
+  /**
+   * Optional content to render directly below the in-screen TaskDetailHeader.
+   * This is injected via a portal into the loaded screen's DOM when the header is detected.
+   *
+   * Note: This only works for native screens (not iframes).
+   */
+  belowHeaderSlot?: React.ReactNode
 }
 
 /**
@@ -67,7 +74,8 @@ export const RemoteScreenLoader: React.FC<RemoteScreenLoaderProps> = ({
   onTaskCompleted,
   onTaskUpdated,
   isLoadingMetadata = false,
-  cacheKey: propCacheKey
+  cacheKey: propCacheKey,
+  belowHeaderSlot
 }) => {
   const { t } = useTranslation(translations)
   const [loading, setLoading] = useState(true)
@@ -75,9 +83,11 @@ export const RemoteScreenLoader: React.FC<RemoteScreenLoaderProps> = ({
   const [error, setError] = useState<string | null>(null)
   const [notFound, setNotFound] = useState(false)
   const [hasTaskHeader, setHasTaskHeader] = useState(false)
+  const [belowHeaderMount, setBelowHeaderMount] = useState<HTMLElement | null>(null)
   const prevVersionRef = useRef<string | undefined>(undefined)
   const prevCacheKeyRef = useRef<string | undefined>(undefined)
   const wrapperRef = useRef<HTMLDivElement>(null)
+  const belowHeaderMountRef = useRef<HTMLElement | null>(null)
 
   // Detect if loaded component has TaskDetailHeader using MutationObserver
   useEffect(() => {
@@ -118,6 +128,121 @@ export const RemoteScreenLoader: React.FC<RemoteScreenLoaderProps> = ({
       observer.disconnect()
     }
   }, [componentLoaded, hasTaskHeader])
+
+  // Inject belowHeaderSlot directly below TaskDetailHeader (if present).
+  useEffect(() => {
+    if (!wrapperRef.current || !componentLoaded) return
+
+    // Cleanup any previously inserted mount node
+    const cleanup = () => {
+      if (belowHeaderMountRef.current && belowHeaderMountRef.current.parentElement) {
+        belowHeaderMountRef.current.parentElement.removeChild(belowHeaderMountRef.current)
+      }
+      belowHeaderMountRef.current = null
+      setBelowHeaderMount(null)
+    }
+
+    if (!belowHeaderSlot) {
+      cleanup()
+      return
+    }
+
+    const ensureMount = () => {
+      const root = wrapperRef.current
+      if (!root) return
+
+      const headerEl = root.querySelector('[data-task-detail-header="true"]') as HTMLElement | null
+
+      // Prefer inserting into the scrollable content container that follows the header (TaskFormLayout pattern)
+      const candidateContentEl = headerEl?.nextElementSibling as HTMLElement | null
+      const looksScrollable =
+        !!candidateContentEl &&
+        (candidateContentEl.classList.contains('gba:overflow-y-auto') ||
+          candidateContentEl.classList.contains('gba:overflow-auto') ||
+          (candidateContentEl.getAttribute('data-testid') || '').endsWith('-content'))
+
+      // Determine desired location (and move existing mount there if needed)
+      // We avoid brittle "nextSibling === desiredBefore" checks because desiredBefore can become the mount itself.
+      type Target =
+        | { type: 'scroll-content-start'; parent: HTMLElement; className: string }
+        | { type: 'after-header'; parent: HTMLElement; header: HTMLElement; className: string }
+        | { type: 'root-start'; parent: HTMLElement; className: string }
+
+      const target: Target =
+        looksScrollable && candidateContentEl
+          ? { type: 'scroll-content-start', parent: candidateContentEl, className: 'gba:space-y-4' }
+          : headerEl && headerEl.parentElement
+            ? { type: 'after-header', parent: headerEl.parentElement, header: headerEl, className: 'gba:px-6 gba:pt-4' }
+            : { type: 'root-start', parent: root, className: 'gba:px-6 gba:pt-4' }
+
+      // Create mount if missing
+      if (!belowHeaderMountRef.current) {
+        const mount = document.createElement('div')
+        mount.setAttribute('data-testid', 'task-ai-below-header')
+        mount.className = target.className
+        if (target.type === 'scroll-content-start') {
+          target.parent.insertBefore(mount, target.parent.firstChild)
+        } else if (target.type === 'after-header') {
+          target.header.insertAdjacentElement('afterend', mount)
+        } else {
+          target.parent.insertBefore(mount, target.parent.firstChild)
+        }
+        belowHeaderMountRef.current = mount
+        setBelowHeaderMount(mount)
+        return
+      }
+
+      // Ensure mount is at the desired location (this fixes timing issues where header appears later)
+      const mount = belowHeaderMountRef.current
+      if (mount.className !== target.className) {
+        mount.className = target.className
+      }
+
+      try {
+        if (target.type === 'scroll-content-start') {
+          // Must be the first child of the scroll container
+          if (mount.parentElement !== target.parent || target.parent.firstChild !== mount) {
+            target.parent.insertBefore(mount, target.parent.firstChild)
+          }
+        } else if (target.type === 'after-header') {
+          // Must be immediately after the header
+          if (mount.parentElement !== target.parent || target.header.nextSibling !== mount) {
+            target.header.insertAdjacentElement('afterend', mount)
+          }
+        } else {
+          // Must be the first child of the root
+          if (mount.parentElement !== target.parent || target.parent.firstChild !== mount) {
+            target.parent.insertBefore(mount, target.parent.firstChild)
+          }
+        }
+      } catch {
+        // If insertion fails for any reason, fall back to top of root
+        if (mount.parentElement !== root || root.firstChild !== mount) {
+          root.insertBefore(mount, root.firstChild)
+        }
+      }
+    }
+
+    // Initial attempt
+    ensureMount()
+
+    // Observe DOM changes (header/content might appear async)
+    const observer = new MutationObserver(() => {
+      // If mount exists but was removed by a re-render, reset and recreate
+      if (belowHeaderMountRef.current && !wrapperRef.current?.contains(belowHeaderMountRef.current)) {
+        belowHeaderMountRef.current = null
+        setBelowHeaderMount(null)
+      }
+      ensureMount()
+    })
+
+    observer.observe(wrapperRef.current, { childList: true, subtree: true })
+
+    return () => {
+      observer.disconnect()
+      cleanup()
+    }
+  }, [belowHeaderSlot, componentLoaded])
 
   const [componentProps, setComponentProps] = useState<ExtendedRemoteComponentProps | null>({
     accessToken,
@@ -464,6 +589,8 @@ export const RemoteScreenLoader: React.FC<RemoteScreenLoaderProps> = ({
       ref={wrapperRef}
       className="gba-remote-screen-wrapper gba:animate-in gba:fade-in gba:duration-300 gba:pt-0 gba:px-0 gba:pb-0 gba:relative gba:h-full gba:flex gba:flex-col"
     >
+      {belowHeaderSlot && belowHeaderMount && ReactDOM.createPortal(belowHeaderSlot, belowHeaderMount)}
+
       {/* 
         Floating close button - Only shown if loaded component doesn't have TaskDetailHeader
         Hidden when hasTaskHeader is true (detected via MutationObserver)

@@ -41,6 +41,7 @@ import {
 } from '@newwork/nw-design-system'
 import { useRealtimeKitSelector } from '@cloudflare/realtimekit-react'
 import { getInitials } from '../../utils/callUtils'
+import { rtkDebug } from '../../utils/rtkDebug'
 import type { PendingInvite } from '../../hooks/useGroupCall'
 
 export interface AvailableParticipant {
@@ -153,7 +154,7 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
     if (!onInviteParticipant || invitingParticipantIds.has(participant.odId)) return
 
     // [DEBUG] Log participant data being sent to backend AND current stored data
-    console.log('[ParticipantsPanel] 📤 Inviting participant:', {
+    rtkDebug.log('[ParticipantsPanel] 📤 Inviting participant:', {
       id: participant.id,
       odId: participant.odId,
       odName: participant.odName,
@@ -341,7 +342,7 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
       })
     }
 
-    console.log('[ParticipantsPanel] 🔍 Matching SDK participants to conversation participants:', {
+    rtkDebug.log('[ParticipantsPanel] 🔍 Matching SDK participants to conversation participants:', {
       activeParticipantsCount: activeParticipants.length,
       availableParticipantsCount: availableParticipants.length,
       conversationParticipantsCount: conversationParticipants.length,
@@ -369,7 +370,7 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
           cp.odName?.toLowerCase() === sdkParticipant.name?.toLowerCase()
       )
 
-      console.log('[ParticipantsPanel] 🔎 Matching result for participant:', {
+      rtkDebug.log('[ParticipantsPanel] 🔎 Matching result for participant:', {
         sdkParticipant: {
           userId: sdkParticipant.userId,
           customParticipantId: sdkParticipant.customParticipantId,
@@ -408,7 +409,7 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
           const sdkIds = [sdkParticipant.userId, sdkParticipant.customParticipantId, sdkParticipant.id]
           sdkIds.forEach(sdkId => {
             if (sdkId && sdkId !== realUserId && allSeenParticipantsRef.current.has(sdkId)) {
-              console.log('[ParticipantsPanel] 🧹 Cleaning up old SDK ID:', {
+              rtkDebug.log('[ParticipantsPanel] 🧹 Cleaning up old SDK ID:', {
                 sdkId,
                 realUserId,
                 participantName: conversationParticipant.odName
@@ -421,7 +422,7 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
         const isNewEntry = !allSeenParticipantsRef.current.has(realUserId)
 
         // [DEBUG] Log when adding/updating seen participants
-        console.log(
+        rtkDebug.log(
           isNewEntry
             ? '[ParticipantsPanel] 👀 Adding to allSeenParticipants:'
             : '[ParticipantsPanel] 🔄 Updating allSeenParticipants:',
@@ -537,7 +538,13 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
       }
 
       const status =
-        invite.status === 'declined' ? 'declined' : invite.status === 'not-answered' ? 'not-answered' : 'invited'
+        invite.status === 'declined'
+          ? 'declined'
+          : invite.status === 'not-answered'
+            ? 'not-answered'
+            : invite.status === 'left'
+              ? 'left'
+              : 'invited'
 
       pendingInviteEntries.push({
         id: invite.id,
@@ -611,14 +618,12 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
   // Separate into sections for rendering
   const filteredActiveParticipants = filteredAllParticipants.filter(p => p.status === 'in-call')
   const filteredInvitedParticipants = filteredAllParticipants.filter(
-    p => p.status === 'invited' || p.status === 'declined' || p.status === 'not-answered'
+    p => p.status === 'invited' || p.status === 'declined' || p.status === 'not-answered' || p.status === 'left'
   )
-  const filteredAvailableParticipants = filteredAllParticipants.filter(
-    p => p.status === 'available' || p.status === 'left'
-  )
+  const filteredAvailableParticipants = filteredAllParticipants.filter(p => p.status === 'available')
 
   // [DEBUG] Log participant lists for debugging
-  console.log('[ParticipantsPanel] 📊 Participant lists:', {
+  rtkDebug.log('[ParticipantsPanel] 📊 Participant lists:', {
     allSeenCount: allSeenParticipantsRef.current.size,
     allSeenKeys: Array.from(allSeenParticipantsRef.current.keys()),
     allSeenValues: Array.from(allSeenParticipantsRef.current.values()),
@@ -844,6 +849,8 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
                         return t('participants-declined-invite')
                       case 'not-answered':
                         return t('participants-not-answered')
+                      case 'left':
+                        return t('participants-left-call') || 'Left call'
                       case 'invited':
                       default:
                         return t('participants-ringing')
@@ -856,13 +863,15 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
                         return 'gba:text-destructive-secondary'
                       case 'not-answered':
                         return 'gba:text-warning'
+                      case 'left':
+                        return 'gba:text-info'
                       case 'invited':
                       default:
                         return 'gba:text-muted-foreground'
                     }
                   }
 
-                  const canReInvite = p.status === 'declined' || p.status === 'not-answered'
+                  const canReInvite = p.status === 'declined' || p.status === 'not-answered' || p.status === 'left'
 
                   return (
                     <div

@@ -17,6 +17,8 @@ export interface RealEstateKPIComparison {
   previous: RealEstateKPIData
 }
 
+const AVERAGE_OCCUPANCY_FALLBACK = 0
+
 interface RealEstateKPIQueryResult {
   query: string
   variables: Record<string, any>
@@ -178,11 +180,12 @@ const buildRealEstateKPIQuery = (
   }
 }
 
-const AVERAGE_OCCUPANCY_FALLBACK = 0
-
 /**
  * Hook to fetch real estate KPI data with period comparison
  * Uses standard descriptor-based filtering from common where applicable
+ *
+ * Note: Real Estate KPIs are more complex than other investment types as they query
+ * both Investment and RealEstateInvestment entities for occupancy rate calculations.
  */
 export const useGetRealEstateKPIs = (context: BusinessAppContextProps) => {
   const graphqlClient = useGraphQLClient(context.accessToken)

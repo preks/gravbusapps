@@ -7,6 +7,7 @@ import { useRealEstateInvestmentTypes } from './hooks/useRealEstateInvestmentTyp
 import type { RealEstateReportFilters } from './types'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { UseReportFiltersReturn, ColumnConfig, useReportFilters } from '../../hooks'
+import { useReportTabCounts } from '../../hooks/useReportTabCounts'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
@@ -19,7 +20,8 @@ interface RealEstateReportProps extends BusinessAppContextProps {
   'data-testid'?: string
   reportFilters: UseReportFiltersReturn
   onCurrenciesUpdate: (currencies: string[]) => void
-  isTransposed: boolean
+  catalogData?: any
+  enabled?: boolean
 }
 
 export const RealEstateReport: React.FC<RealEstateReportProps> = ({
@@ -28,7 +30,8 @@ export const RealEstateReport: React.FC<RealEstateReportProps> = ({
   'data-testid': dataTestId = 'real-estate-analytics',
   reportFilters,
   onCurrenciesUpdate,
-  isTransposed
+  catalogData: providedCatalogData,
+  enabled = true
 }) => {
   // Fetch dynamic real estate investment types from catalog
   const {
@@ -36,7 +39,7 @@ export const RealEstateReport: React.FC<RealEstateReportProps> = ({
     loading: typesLoading,
     error: typesError,
     catalogData
-  } = useRealEstateInvestmentTypes(accessToken)
+  } = useRealEstateInvestmentTypes({ accessToken, catalogData: providedCatalogData })
 
   // Use catalog types if available, otherwise use empty array (only Overview tab)
   const effectiveInvestmentTypes = typesError || investmentTypes.length === 0 ? [] : investmentTypes
@@ -50,16 +53,37 @@ export const RealEstateReport: React.FC<RealEstateReportProps> = ({
   // Filter state for report-specific filters
   const [selectedFilters, setSelectedFilters] = useState<Record<string, any>>({})
 
+  // Sorting state (following investment tab pattern)
+  const [sortField, setSortField] = useState('')
+  const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC')
+
   // Fetch filter groups using descriptors
   const filterGroups = useFilterGroups({ accessToken, userInfo }, 'InvestmentReport', INVESTMENT_REPORT_DESCRIPTORS, {
     limit: 100
   })
 
-  // Track total counts for each section
-  const [totalCounts, setTotalCounts] = useState<Record<string, { count: number; isLoading: boolean }>>({})
+  // Fetch counts for all tabs in this group
+  const { counts, isLoading: countsLoading } = useReportTabCounts({
+    investmentGroup: 'REAL_ESTATE',
+    investmentTypes: effectiveInvestmentTypes,
+    accessToken,
+    filters: {
+      startDate: reportFilters.computedFilters.startDate,
+      endDate: reportFilters.computedFilters.endDate,
+      currencyIds: reportFilters.computedFilters.currencyIds,
+      search
+    },
+    enabled
+  })
 
-  // Track initial load status for each section
-  const [initialLoadDone, setInitialLoadDone] = useState<Record<string, boolean>>({})
+  // Convert counts to the format expected by the component
+  const totalCounts = useMemo(() => {
+    const result: Record<string, { count: number; isLoading: boolean }> = {}
+    effectiveInvestmentTypes.forEach(type => {
+      result[type.code] = { count: counts[type.code] || 0, isLoading: countsLoading }
+    })
+    return result
+  }, [counts, countsLoading, effectiveInvestmentTypes])
 
   // Get initial investment type from URL parameter
   const getInitialInvestmentType = useCallback(() => {
@@ -208,27 +232,6 @@ export const RealEstateReport: React.FC<RealEstateReportProps> = ({
   // Column config is managed separately per report component
   const localReportFilters = useReportFilters(initialColumns)
 
-  // Callback for tables to report their total counts
-  const handleTotalCountUpdate = useCallback((sectionId: string, count: number, isLoading: boolean) => {
-    setTotalCounts(prev => ({
-      ...prev,
-      [sectionId]: { count, isLoading }
-    }))
-    // Mark section as loaded when loading completes
-    if (!isLoading) {
-      setInitialLoadDone(prev => {
-        // Only update if not already done
-        if (prev[sectionId]) {
-          return prev
-        }
-        return {
-          ...prev,
-          [sectionId]: true
-        }
-      })
-    }
-  }, []) // Remove initialLoadDone from dependencies to prevent infinite loops
-
   // Find the selected investment type from catalog
   const selectedInvestmentType = useMemo(() => {
     return effectiveInvestmentTypes.find(type => type.code === currentSection)
@@ -313,10 +316,67 @@ export const RealEstateReport: React.FC<RealEstateReportProps> = ({
     [localReportFilters]
   )
 
+  // Convert sorting to DataTable format
+  const sorting = useMemo(() => {
+    if (!sortField) return []
+    return [{ id: sortField, desc: sortOrder === 'DESC' }]
+  }, [sortField, sortOrder])
+
+  // Handle sorting changes (following investment tab pattern)
+  const handleSortingChange = useCallback((newSorting: Array<{ id: string; desc: boolean }>) => {
+    if (newSorting.length === 0) {
+      setSortField('')
+      setSortOrder('DESC')
+    } else {
+      const firstSort = newSorting[0]
+      setSortField(firstSort.id)
+      setSortOrder(firstSort.desc ? 'DESC' : 'ASC')
+    }
+  }, [])
+
   // Filter change handler
   const handleFilterChange = useCallback((newFilters: Record<string, any>) => {
     setSelectedFilters(newFilters)
   }, [])
+
+  // Define sortable columns (matching investment tab pattern)
+  // Catalog columns with direct paths (not additionalProperties) are sortable
+  // The column key mapping converts realEstateInvestment.* -> realEstateInvestmentReport.*
+  const sortableColumns = useMemo(
+    () => [
+      { id: 'investment', label: 'Investment' },
+      { id: 'date', label: 'Date' },
+      // Common InvestmentReport sortable fields
+      { id: 'totalInvestmentAmount', label: 'Total Investment Amount' },
+      { id: 'investmentMarketValue', label: 'Market Value' },
+      { id: 'debtFinancingAmount', label: 'Debt Financing' },
+      { id: 'requiredCapitalAmount', label: 'Required Capital' },
+      { id: 'forecastedRevenueAmount', label: 'Forecasted Revenue' },
+      { id: 'forecastedProfitAmount', label: 'Forecasted Profit' },
+      { id: 'stakePercentage', label: 'Stake %' },
+      { id: 'irr', label: 'IRR' },
+      { id: 'moic', label: 'MOIC' },
+      // Loan fields (if applicable)
+      { id: 'loanRecipientName', label: 'Loan Recipient' },
+      { id: 'loanAmount', label: 'Loan Amount' },
+      { id: 'loanOpenCommitmentAmount', label: 'Open Commitment' },
+      { id: 'loanInterestRate', label: 'Loan Interest Rate' },
+      { id: 'loanStartDate', label: 'Loan Start Date' },
+      { id: 'loanEndDate', label: 'Loan End Date' },
+      { id: 'loanInterestClaim', label: 'Interest Claim' },
+      // Real Estate specific sortable fields (catalog uses realEstateInvestment.*, maps to realEstateInvestmentReport.*)
+      { id: 'realEstateInvestment_size', label: 'Size' },
+      { id: 'realEstateInvestment_numberOfUnits', label: 'Number of Units' },
+      { id: 'realEstateInvestment_occupancyPercent', label: 'Occupancy %' },
+      { id: 'realEstateInvestment_annualNetColdRent', label: 'Annual Net Cold Rent' },
+      { id: 'realEstateInvestment_funding', label: 'Funding' },
+      { id: 'realEstateInvestment_actualAnnualExpenses', label: 'Actual Annual Expenses' },
+      { id: 'realEstateInvestment_targetAnnualExpenses', label: 'Target Annual Expenses' },
+      { id: 'realEstateInvestment_locality', label: 'Locality' },
+      { id: 'realEstateInvestment_postalCode', label: 'Postal Code' }
+    ],
+    []
+  )
 
   // Primary action for "Add Report" - memoized to prevent reload on tab change
   const primaryActions = useMemo(() => {
@@ -375,6 +435,9 @@ export const RealEstateReport: React.FC<RealEstateReportProps> = ({
         availableColumns={availableColumns}
         visibleColumns={visibleColumns}
         onVisibleColumnsChange={handleVisibleColumnsChange}
+        sorting={sorting}
+        sortableColumns={sortableColumns}
+        onSortingChange={handleSortingChange}
         primaryAction={primaryActions}
         toolbarDensity="default"
       >
@@ -388,11 +451,12 @@ export const RealEstateReport: React.FC<RealEstateReportProps> = ({
               investmentType={type.code === 'overview' ? '' : type.code}
               investmentTypeValue={type.value}
               catalogData={catalogData}
-              isTransposed={isTransposed}
               visibleColumns={visibleColumns}
               onCurrenciesChange={onCurrenciesUpdate}
-              onTotalCountChange={(count, isLoading) => handleTotalCountUpdate(type.code, count, isLoading)}
-              isInitialLoad={!initialLoadDone[type.code]}
+              enabled={enabled && currentSection === type.code}
+              sortField={sortField}
+              sortOrder={sortOrder}
+              onSortingChange={handleSortingChange}
               data-testid={`${dataTestId}-${type.code.toLowerCase()}-table`}
             />
           </div>

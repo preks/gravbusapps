@@ -18,7 +18,6 @@ import {
   SelectTrigger,
   SelectValue
 } from '@newwork/nw-design-system'
-import { useFeature } from '@/common/hooks/useFeature'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -62,8 +61,6 @@ const TravelRegionSetForm: React.FC<TravelRegionSetFormProps> = ({
   // Support both prop naming conventions
   const isOpen = open ?? isVisible ?? false
   const handleCloseModal = onClose ?? onCancel ?? (() => {})
-  // Feature flag check
-  const isDevEnabled = useFeature('dev.enabled')
 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -105,11 +102,6 @@ const TravelRegionSetForm: React.FC<TravelRegionSetFormProps> = ({
 
     loadCountries()
   }, [isOpen, accessToken])
-
-  // Feature flag guard
-  if (isDevEnabled === false) {
-    return null
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

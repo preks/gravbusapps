@@ -901,7 +901,6 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
               onChange={field.onChange}
               onBlur={field.onBlur}
               data-testid="notes-textarea"
-              disabled={isEditMode}
             />
           </FormItem>
         )}

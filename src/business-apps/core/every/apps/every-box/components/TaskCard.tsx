@@ -277,7 +277,7 @@ export const TaskCard: React.FC<TaskCardProps> = memo(
             </span>
           </div>
 
-          {/* Right: Pinned + Timestamp */}
+          {/* Right: Pinned + Priority + Timestamp */}
           <div className="gba:flex gba:flex-col gba:items-end gba:gap-1 gba:flex-shrink-0">
             {(isPinned || priorityIndicator || dueInline) && (
               <div className="gba:flex gba:items-center gba:justify-end gba:gap-1 gba:flex-wrap">

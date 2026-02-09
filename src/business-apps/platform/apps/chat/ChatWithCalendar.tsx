@@ -17,6 +17,10 @@ import { RemindersPanel } from './components/RemindersPanel'
 import { EveryOneDashboard } from './components/dashboard'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { TranslationProvider, useChatTranslation } from './contexts/TranslationContext'
+import { GlobalCallContainer } from './components/GlobalCallContainer'
+import { GlobalPreCallSetupDialog } from './components/GlobalPreCallSetupDialog'
+import { createCalendarApiClient } from './calendar/calendarApiClient'
+import { env } from '@/common/env/EnvUtils'
 
 type TabValue = 'dashboard' | 'everyai' | 'chat' | 'calendar' | 'reminders'
 
@@ -41,6 +45,36 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
   const t = useChatTranslation()
   const [overdueRemindersCount, setOverdueRemindersCount] = useState<number>(0)
   const [presenceMap, setPresenceMap] = useState<Map<string, PresenceInfo>>(new Map())
+  const [activeCalls, setActiveCalls] = useState<Record<string, any>>({})
+
+  // Build API URL for calendar API client
+  const calendarApiUrl = useMemo(() => {
+    let baseUrl = env('NEXT_PUBLIC_BASE_URL') || ''
+    baseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl
+
+    const chatServiceOverride = env('NEXT_PUBLIC_CHAT_SERVICE_URL')
+
+    if (chatServiceOverride) {
+      const localUrl = chatServiceOverride.endsWith('/') ? chatServiceOverride.slice(0, -1) : chatServiceOverride
+      return `${localUrl}/api/v1`
+    } else {
+      const isLocalPlatform = baseUrl.includes('localhost')
+      if (isLocalPlatform) {
+        baseUrl = 'https://newwork-dev.newwork.com'
+      }
+      const apiUrl = env('NEXT_PUBLIC_CHAT_API') || `${baseUrl}/chat-service/api/v1` || ''
+      if (apiUrl.includes('localhost')) {
+        return `${baseUrl}/chat-service/api/v1`
+      }
+      return apiUrl
+    }
+  }, [])
+
+  // Create calendar API client
+  const calendarApiClient = useMemo(() => {
+    if (!accessToken || !calendarApiUrl) return null
+    return createCalendarApiClient(calendarApiUrl, accessToken)
+  }, [accessToken, calendarApiUrl])
 
   const isInSidepanel = useMemo(() => {
     if (typeof window === 'undefined') return false
@@ -304,8 +338,10 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
           <Chat
             accessToken={accessToken}
             userInfo={userInfo}
+            calendarApiClient={calendarApiClient}
             prefixDataTestId={`${prefixDataTestId}-chat`}
             onPresenceMapChange={setPresenceMap}
+            onActiveCallsChange={setActiveCalls}
             {...props}
           />
         </TabSwitchContent>
@@ -319,6 +355,7 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
             accessToken={accessToken}
             userInfo={userInfo}
             prefixDataTestId={`${prefixDataTestId}-calendar`}
+            activeCalls={activeCalls}
             {...props}
           />
         </TabSwitchContent>
@@ -347,6 +384,12 @@ export const ChatWithCalendar: React.FC<ChatWithCalendarProps> = props => {
   return (
     <TranslationProvider>
       <ChatWithCalendarInner {...props} />
+
+      {/* Global call UI - renders minimized/full call view that persists across tab navigation */}
+      <GlobalCallContainer />
+
+      {/* Global pre-call setup dialog - singleton to prevent duplicates when multiple Chat instances exist */}
+      <GlobalPreCallSetupDialog />
     </TranslationProvider>
   )
 }

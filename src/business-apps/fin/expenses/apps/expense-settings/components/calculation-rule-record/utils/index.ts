@@ -9,7 +9,7 @@ export {
   transformAllowanceCodeFromAPI
 } from './allowanceCodeTransformers'
 export type { AllowanceCodeFormValues, AllowanceCodeSaveData } from './allowanceCodeTransformers'
-export { validateAllowanceSetupDates, formatDateToISO } from './allowanceSetupValidation'
+export { validateAllowanceSetupDates, formatDateToISO, formatDateToISOEndOfDay } from './allowanceSetupValidation'
 export type { SetupDateValidationError } from './allowanceSetupValidation'
 export {
   transformAllowanceSetupForRestrictedUpdate,

@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useFeature } from '@/common/hooks/useFeature'
 import { Alert, AlertDescription, Spinner } from '@newwork/nw-design-system'
 import { PiWarning } from 'react-icons/pi'
 import dayjs from 'dayjs'
 import weekday from 'dayjs/plugin/weekday'
 import localeData from 'dayjs/plugin/localeData'
+import { formatDateForInput } from '../../utils'
 
 // Register dayjs plugins
 dayjs.extend(weekday)
@@ -42,15 +42,7 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
   usageMessage,
   ...context
 }) => {
-  // Feature flag check
-  const isDevEnabled = useFeature('dev.enabled')
-
   const [isSubmitting, setIsSubmitting] = useState(false)
-
-  // Feature flag guard
-  if (isDevEnabled === false) {
-    return null
-  }
   const [error, setError] = useState<string | null>(null)
   const [showValidation, setShowValidation] = useState(false)
   const [formData, setFormData] = useState<TravelRegionRuleFormData>({
@@ -105,10 +97,8 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
               version: freshData.version,
               code: freshData.code || '',
               name: freshData.name || '',
-              activeFrom: freshData.activeFrom
-                ? dayjs(freshData.activeFrom).format('YYYY-MM-DD')
-                : dayjs().format('YYYY-MM-DD'),
-              activeTo: freshData.activeTo ? dayjs(freshData.activeTo).format('YYYY-MM-DD') : '',
+              activeFrom: formatDateForInput(freshData.activeFrom) || dayjs().format('YYYY-MM-DD'),
+              activeTo: formatDateForInput(freshData.activeTo) || '',
               details: (freshData.allowanceRegionRuleDetail || []).map((detail: any) => ({
                 id: detail.id,
                 version: detail.version,
@@ -118,10 +108,8 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
                 currencyRef: detail.currency?.id || '',
                 amounts: [detail.amount || 0],
                 home: detail.home || false,
-                activeFrom: detail.activeFrom
-                  ? dayjs(detail.activeFrom).format('YYYY-MM-DD')
-                  : dayjs().format('YYYY-MM-DD'),
-                activeTo: detail.activeTo ? dayjs(detail.activeTo).format('YYYY-MM-DD') : '',
+                activeFrom: formatDateForInput(detail.activeFrom) || dayjs().format('YYYY-MM-DD'),
+                activeTo: formatDateForInput(detail.activeTo) || '',
                 businessKey: detail.businessKey,
                 additionalProperties: detail.additionalProperties
               }))
@@ -149,8 +137,8 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
               amounts: Array.isArray(detail.amounts) ? detail.amounts : detail.amounts ? [detail.amounts] : [0],
               // Map field names from API to form
               home: detail.home !== undefined ? detail.home : anyDetail.homeFlag || false,
-              activeFrom: detail.activeFrom || anyDetail.validFrom || dayjs().format('YYYY-MM-DD'),
-              activeTo: detail.activeTo || anyDetail.validTo,
+              activeFrom: detail.activeFrom || dayjs().format('YYYY-MM-DD'),
+              activeTo: detail.activeTo,
               // Set travelRegion ID for select (use travelRegionRef for ID, fallback to travelRegion if it's an ID)
               travelRegion:
                 detail.travelRegionRef ||
@@ -161,10 +149,8 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
 
         setFormData({
           ...initialData,
-          activeFrom: initialData.activeFrom
-            ? dayjs(initialData.activeFrom).format('YYYY-MM-DD')
-            : dayjs().format('YYYY-MM-DD'),
-          activeTo: initialData.activeTo ? dayjs(initialData.activeTo).format('YYYY-MM-DD') : '',
+          activeFrom: formatDateForInput(initialData.activeFrom) || dayjs().format('YYYY-MM-DD'),
+          activeTo: formatDateForInput(initialData.activeTo) || '',
           details: transformedDetails
         })
       }
@@ -338,8 +324,8 @@ const TravelRegionRuleForm: React.FC<TravelRegionRuleFormProps> = ({
             travelRegionRef: group.travelRegion, // ID reference for API
             currencyRef: group.currencyRef,
             home: group.homeFlag,
-            activeFrom: group.validFrom,
-            activeTo: group.validTo,
+            activeFrom: group.activeFrom,
+            activeTo: group.activeTo,
             amounts: group.amounts.filter(amount => amount > 0) // Only include non-zero amounts
           })
         }

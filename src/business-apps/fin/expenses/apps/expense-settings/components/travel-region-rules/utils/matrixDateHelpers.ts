@@ -1,8 +1,10 @@
 import dayjs from 'dayjs'
+import utc from 'dayjs/plugin/utc'
 import isSameOrAfter from 'dayjs/plugin/isSameOrAfter'
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore'
 import { EditableCell, EditableAllowanceRegionRule } from '../types'
 
+dayjs.extend(utc)
 dayjs.extend(isSameOrAfter)
 dayjs.extend(isSameOrBefore)
 
@@ -181,7 +183,7 @@ export const findDetailValidToday = (
  * Get today's date as ISO string
  */
 export const getTodayISO = (): string => {
-  return dayjs().startOf('day').toISOString()
+  return dayjs.utc().startOf('day').toISOString()
 }
 
 /**
