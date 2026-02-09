@@ -205,7 +205,8 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
           ...prev,
           currentApp: newApp,
           isSaving: false,
-          storageMode: 'database'
+          storageMode: 'database',
+          currentAppPermission: 'owner' // Creator is always the owner
         }))
 
         toast.success('App saved to database!')
