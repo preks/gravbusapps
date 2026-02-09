@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
-import { useQueryExecutionClient, QueryType, Services } from '@/common/network/dataset'
+import { useMemo } from 'react'
+import { QueryType } from '@/common/network/dataset'
+import { useDatasetQuery } from './useDatasetQuery'
 
 /**
  * Dataset response type for compensation metrics query
@@ -29,9 +30,9 @@ const findRowByCategory = (rows: DatasetRow[], category: string): DatasetRow | u
 }
 
 /**
- * Extract compensation metrics from dataset rows
+ * Extract and round compensation metrics from dataset rows
  */
-const extractCompensationMetrics = (rows: DatasetRow[]): CompensationMetrics => {
+const transformToCompensationMetrics = (rows: DatasetRow[]): CompensationMetrics[] => {
   const medianRow = findRowByCategory(rows, 'median salary')
   const averageRow = findRowByCategory(rows, 'average salary')
   const meritIncreaseRow = findRowByCategory(rows, 'average merit increase')
@@ -40,7 +41,6 @@ const extractCompensationMetrics = (rows: DatasetRow[]): CompensationMetrics => 
   const average = averageRow ? Number(averageRow.value ?? 0) : 0
   const meritIncrease = meritIncreaseRow ? Number(meritIncreaseRow.value ?? 0) : 0
 
-  // Use employee_count from median or average row (they should be the same)
   let count = 0
   if (medianRow?.employee_count) {
     count = Number(medianRow.employee_count)
@@ -48,19 +48,14 @@ const extractCompensationMetrics = (rows: DatasetRow[]): CompensationMetrics => 
     count = Number(averageRow.employee_count)
   }
 
-  return { median, average, meritIncrease, count }
-}
-
-/**
- * Round compensation metrics to appropriate precision
- */
-const roundCompensationMetrics = (metrics: CompensationMetrics): CompensationMetrics => {
-  return {
-    median: Math.round(metrics.median),
-    average: Math.round(metrics.average),
-    meritIncrease: Math.round(metrics.meritIncrease * 10) / 10, // Round to 1 decimal place
-    count: metrics.count
+  const rounded: CompensationMetrics = {
+    median: Math.round(median),
+    average: Math.round(average),
+    meritIncrease: Math.round(meritIncrease * 10) / 10,
+    count
   }
+
+  return [rounded]
 }
 
 /**
@@ -71,92 +66,24 @@ const roundCompensationMetrics = (metrics: CompensationMetrics): CompensationMet
  * @returns Object containing median salary, average salary, average merit increase, employee count, loading state, error, and refetch function
  */
 export const useCompensationMetrics = (accessToken: string) => {
-  const [medianSalary, setMedianSalary] = useState<number>(0)
-  const [averageSalary, setAverageSalary] = useState<number>(0)
-  const [averageMeritIncrease, setAverageMeritIncrease] = useState<number>(0)
-  const [employeeCount, setEmployeeCount] = useState<number>(0)
-  const [loading, setLoading] = useState<boolean>(true)
-  const [error, setError] = useState<Error | null>(null)
-  const isMounted = useRef<boolean>(true)
+  const params = useMemo(() => ({}), [])
 
-  // Dataset client
-  const datasetClient = useQueryExecutionClient(accessToken, Services.EMPLOYEE)
+  const { data, loading, error, refetch } = useDatasetQuery<CompensationMetrics>(
+    accessToken,
+    'medianAvgSalaryAvgMeritEmployees',
+    QueryType.DATASET,
+    params,
+    transformToCompensationMetrics,
+    'useCompensationMetrics'
+  )
 
-  /**
-   * Fetch compensation metrics data from dataset API
-   */
-  const fetchCompensationMetrics = useCallback(async () => {
-    if (!accessToken) {
-      if (isMounted.current) {
-        setError(new Error('[useCompensationMetrics] No access token provided'))
-        setLoading(false)
-      }
-      return
-    }
-
-    try {
-      if (isMounted.current) {
-        setLoading(true)
-        setError(null)
-      }
-
-      // Execute the dataset query
-      const ds = await datasetClient.executeQuery('medianAvgSalaryAvgMeritEmployees', QueryType.DATASET, {})
-
-      if (!ds?.data || !Array.isArray(ds.data)) {
-        throw new Error('[useCompensationMetrics] Invalid response structure from dataset API')
-      }
-
-      const rows: DatasetRow[] = ds.data
-
-      // Extract and process compensation metrics
-      const metrics = extractCompensationMetrics(rows)
-      const roundedMetrics = roundCompensationMetrics(metrics)
-
-      // Update state if component is still mounted
-      if (isMounted.current) {
-        setMedianSalary(roundedMetrics.median)
-        setAverageSalary(roundedMetrics.average)
-        setAverageMeritIncrease(roundedMetrics.meritIncrease)
-        setEmployeeCount(metrics.count)
-        setError(null)
-      }
-    } catch (err) {
-      console.error('[useCompensationMetrics] Error fetching compensation metrics:', err)
-
-      if (isMounted.current) {
-        setError(
-          err instanceof Error ? err : new Error('[useCompensationMetrics] Failed to fetch compensation metrics')
-        )
-      }
-    } finally {
-      if (isMounted.current) {
-        setLoading(false)
-      }
-    }
-  }, [accessToken, datasetClient])
-
-  // Set up effect to fetch data and handle cleanup
-  useEffect(() => {
-    isMounted.current = true
-    fetchCompensationMetrics()
-
-    // Cleanup function
-    return () => {
-      isMounted.current = false
-    }
-  }, [fetchCompensationMetrics])
-
-  // Function to manually refresh the data
-  const refetch = useCallback(() => {
-    fetchCompensationMetrics()
-  }, [fetchCompensationMetrics])
+  const metrics = data[0]
 
   return {
-    medianSalary,
-    averageSalary,
-    averageMeritIncrease,
-    employeeCount,
+    medianSalary: metrics?.median ?? 0,
+    averageSalary: metrics?.average ?? 0,
+    averageMeritIncrease: metrics?.meritIncrease ?? 0,
+    employeeCount: metrics?.count ?? 0,
     loading,
     error,
     refetch
