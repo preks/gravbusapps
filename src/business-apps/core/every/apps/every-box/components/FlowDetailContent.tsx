@@ -30,7 +30,7 @@ import 'dayjs/locale/it'
 import { Flow } from '../types'
 import { getFlowStatusBadgeVariant, formatFlowStatus } from '../utils/taskFormatters'
 import { useEmployeeAvatar } from '../hooks/useEmployeeAvatar'
-import { base64ToObjectURL } from '../utils/avatarUtils'
+import { base64ToDataURL } from '../utils/avatarUtils'
 import translations from '../_i18n'
 
 dayjs.extend(relativeTime)
@@ -95,7 +95,7 @@ const AssigneeItem: React.FC<AssigneeItemProps> = ({ assigneeFlow, index, access
 
   const avatarUrl = useMemo(() => {
     if (employeeData?.pictureThumbnail) {
-      return base64ToObjectURL(employeeData.pictureThumbnail)
+      return base64ToDataURL(employeeData.pictureThumbnail)
     }
     return undefined
   }, [employeeData?.pictureThumbnail])
@@ -189,7 +189,7 @@ const InitiatorInfo: React.FC<InitiatorInfoProps> = ({ initiatorUserId, accessTo
 
   const avatarUrl = useMemo(() => {
     if (employeeData?.pictureThumbnail) {
-      return base64ToObjectURL(employeeData.pictureThumbnail)
+      return base64ToDataURL(employeeData.pictureThumbnail)
     }
     return undefined
   }, [employeeData?.pictureThumbnail])

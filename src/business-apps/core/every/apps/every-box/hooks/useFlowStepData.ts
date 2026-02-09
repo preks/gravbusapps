@@ -193,8 +193,11 @@ export const useFlowStepData = ({
     setError(null)
 
     try {
-      // Step 1: Get flow overview with steps (ALWAYS needed for step info)
-      const overview = await fetchFlowOverview(flowId)
+      // Fetch flow overview and task details in PARALLEL (independent requests)
+      const [overview, taskDetails] = await Promise.all([
+        fetchFlowOverview(flowId),
+        taskId ? fetchTaskDetails(taskId) : Promise.resolve(null)
+      ])
 
       // Check if this request is still valid (task hasn't changed)
       if (currentRequestTaskIdRef.current !== requestTaskId) {
@@ -203,21 +206,8 @@ export const useFlowStepData = ({
 
       setFlowOverview(overview)
 
-      // Step 2: Get task details (includes stepReference and formData with form values)
-      let stepReferenceFromTask: string | null = null
-      let formDataFromTask: Record<string, any> | null = null
-
-      if (taskId) {
-        const taskDetails = await fetchTaskDetails(taskId)
-
-        // Check if this request is still valid (task hasn't changed)
-        if (currentRequestTaskIdRef.current !== requestTaskId) {
-          return // Ignore stale response
-        }
-
-        stepReferenceFromTask = taskDetails?.stepReference || null
-        formDataFromTask = taskDetails?.formData || null
-      }
+      const stepReferenceFromTask = taskDetails?.stepReference || null
+      const formDataFromTask = taskDetails?.formData || null
 
       // Step 3: Find current step
       let current: FlowStep | null = null
