@@ -10,10 +10,10 @@ interface SkillLevelRowProps {
     level: number
   }
   onLevelChange: (id: string, level: number) => void
-  onAction: (skill: { id: string; name: string; level: number }) => void
+  onAction?: (skill: { id: string; name: string; level: number }) => void
   onRemove: (id: string) => void
-  actionButtonText: string
-  actionButtonTestId: string
+  actionButtonText?: string
+  actionButtonTestId?: string
 }
 
 export const SkillLevelRow: React.FC<SkillLevelRowProps> = ({
@@ -57,9 +57,11 @@ export const SkillLevelRow: React.FC<SkillLevelRowProps> = ({
           </SelectContent>
         </Select>
       </div>
-      <Button type="button" size="sm" onClick={() => onAction(skill)} data-testid={actionButtonTestId}>
-        {actionButtonText}
-      </Button>
+      {actionButtonText && onAction && (
+        <Button type="button" size="sm" onClick={() => onAction(skill)} data-testid={actionButtonTestId}>
+          {actionButtonText}
+        </Button>
+      )}
       <Button
         type="button"
         variant="ghost"

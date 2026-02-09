@@ -350,19 +350,6 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = () => {
     setPendingSkills(prev => prev.filter(s => s.id !== pendingSkill.id))
   }
 
-  const handleModifyExistingSkill = (skill: { id: string; name: string; level: number }) => {
-    // The level is already updated via handleUpdateExistingSkillLevel
-    // This handler is called when "Modify" button is clicked
-    // For now, we just ensure the skill is in the selectedSkills with the updated level
-    setSelectedSkills(prev => {
-      const existing = prev.find(x => x.id === skill.id)
-      if (existing) {
-        return prev.map(s => (s.id === skill.id ? { ...s, level: skill.level } : s))
-      }
-      return [...prev, { id: skill.id, name: skill.name, isNew: false, level: skill.level }]
-    })
-  }
-
   return (
     <div
       className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-full"
@@ -539,13 +526,7 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = () => {
                         level: skill.level || 1
                       }}
                       onLevelChange={handleUpdateExistingSkillLevel}
-                      onAction={handleModifyExistingSkill}
                       onRemove={handleRemoveSkill}
-                      actionButtonText={getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:employee_profile.details_layout.add_skill_form.modify_button',
-                        'Modify'
-                      )}
-                      actionButtonTestId={`add-skill-existing-modify-${skill.id}`}
                     />
                   ))}
               </div>
