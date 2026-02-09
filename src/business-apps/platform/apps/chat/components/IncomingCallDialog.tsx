@@ -10,6 +10,7 @@ import {
   AvatarFallback,
   IconAvatar,
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
@@ -20,6 +21,7 @@ import { Phone, PhoneOff, Video, UserIcon, ChevronDown, Check } from 'lucide-rea
 import type { CallState, CallParticipant } from '../services/webrtcClient'
 import { useChatTranslation } from '../contexts/TranslationContext'
 import { useMediaDevices } from '../hooks/useMediaDevices'
+import { useCallPreferences } from '../hooks/useCallPreferences'
 
 interface IncomingCallDialogProps {
   callState: CallState
@@ -59,6 +61,7 @@ const PulsingRing: React.FC<{ color?: string }> = ({ color = 'bg-success' }) => 
 export const IncomingCallDialog: React.FC<IncomingCallDialogProps> = memo(
   ({ callState, onAccept, onReject, prefixDataTestId = 'incoming-call-dialog' }) => {
     const t = useChatTranslation()
+    const callPreferences = useCallPreferences()
     const [ringCount, setRingCount] = useState(0)
 
     const isOpen = callState.status === 'ringing' && callState.direction === 'incoming'
@@ -256,6 +259,23 @@ export const IncomingCallDialog: React.FC<IncomingCallDialogProps> = memo(
                         {t('call-noDevicesFound')}
                       </DropdownMenuItem>
                     )}
+                    <DropdownMenuSeparator className="gba:bg-gray-700" />
+                    <DropdownMenuCheckboxItem
+                      checked={callPreferences.noiseSuppressionEnabled}
+                      onCheckedChange={checked => callPreferences.setNoiseSuppressionEnabled(Boolean(checked))}
+                      className="gba:text-white hover:gba:bg-gray-700"
+                      data-testid={`${prefixDataTestId}-noise-suppression-toggle`}
+                    >
+                      {t('call-noiseSuppression') || 'Noise suppression'}
+                    </DropdownMenuCheckboxItem>
+                    <DropdownMenuCheckboxItem
+                      checked={callPreferences.autoGainControlEnabled}
+                      onCheckedChange={checked => callPreferences.setAutoGainControlEnabled(Boolean(checked))}
+                      className="gba:text-white hover:gba:bg-gray-700"
+                      data-testid={`${prefixDataTestId}-auto-gain-control-toggle`}
+                    >
+                      {t('call-autoGainControl') || 'Auto gain control'}
+                    </DropdownMenuCheckboxItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
 

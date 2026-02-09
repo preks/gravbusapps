@@ -298,6 +298,24 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
   // Preferences management (localStorage)
   const callPreferences = useCallPreferences()
 
+  const getResolvedNoiseSuppressionEnabled = useCallback((): boolean => {
+    try {
+      const saved = localStorage.getItem('chat_call_noise_suppression_enabled')
+      return saved === null ? true : saved === 'true'
+    } catch {
+      return true
+    }
+  }, [])
+
+  const getResolvedAutoGainControlEnabled = useCallback((): boolean => {
+    try {
+      const saved = localStorage.getItem('chat_call_auto_gain_control_enabled')
+      return saved === null ? false : saved === 'true'
+    } catch {
+      return false
+    }
+  }, [])
+
   // CRITICAL: Stable callbacks for child hooks to prevent their useCallbacks from recreating
   const handleScreenShareStateChange = useCallback((isSharing: boolean) => {
     rtkDebug.log('[RTK] Screen share state changed:', isSharing)
@@ -316,6 +334,8 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
     callType: callState.callType,
     initialVideoQuality: callPreferences.videoQuality,
     initialBackgroundEnabled: callPreferences.backgroundEnabled,
+    initialNoiseSuppressionEnabled: getResolvedNoiseSuppressionEnabled(),
+    initialAutoGainControlEnabled: getResolvedAutoGainControlEnabled(),
     callStatus: callState.status,
     initialIsMuted: restoredStateRef.current?.isMuted,
     initialIsVideoEnabled: restoredStateRef.current?.isVideoEnabled
@@ -779,9 +799,12 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
           authToken,
           defaults: {
             audio: (shouldEnableAudio
-              ? preferences.audioInputDeviceId
-                ? { deviceId: { exact: preferences.audioInputDeviceId } }
-                : true
+              ? {
+                  ...(preferences.audioInputDeviceId ? { deviceId: { exact: preferences.audioInputDeviceId } } : {}),
+                  echoCancellation: true,
+                  autoGainControl: getResolvedAutoGainControlEnabled(),
+                  noiseSuppression: getResolvedNoiseSuppressionEnabled()
+                }
               : false) as any,
             video: (shouldEnableVideo
               ? preferences.videoInputDeviceId
@@ -1303,9 +1326,14 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
         })
 
         const audioConstraints: boolean | MediaTrackConstraints = shouldEnableAudio
-          ? initialPreferences?.audioInputDeviceId
-            ? ({ deviceId: { exact: initialPreferences.audioInputDeviceId } } as MediaTrackConstraints)
-            : true
+          ? ({
+              ...(initialPreferences?.audioInputDeviceId
+                ? { deviceId: { exact: initialPreferences.audioInputDeviceId } }
+                : {}),
+              echoCancellation: true,
+              autoGainControl: getResolvedAutoGainControlEnabled(),
+              noiseSuppression: getResolvedNoiseSuppressionEnabled()
+            } as MediaTrackConstraints)
           : false
 
         const videoConstraints: boolean | MediaTrackConstraints = shouldEnableVideo
@@ -2148,6 +2176,14 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
       },
       switchVideoDevice: async (deviceId: string) => {
         await mediaRef.current?.switchVideoDevice(deviceId)
+      },
+      setNoiseSuppressionEnabled: async (enabled: boolean) => {
+        callPreferences.setNoiseSuppressionEnabled(enabled)
+        await mediaRef.current?.setNoiseSuppressionEnabled(enabled)
+      },
+      setAutoGainControlEnabled: async (enabled: boolean) => {
+        callPreferences.setAutoGainControlEnabled(enabled)
+        await mediaRef.current?.setAutoGainControlEnabled(enabled)
       },
       onInviteParticipant: (participant: any) => {
         // inviteToCall expects an array, so wrap the single participant

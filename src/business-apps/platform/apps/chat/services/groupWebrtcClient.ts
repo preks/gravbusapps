@@ -258,7 +258,7 @@ export class GroupWebRTCClient {
       audio: {
         echoCancellation: true,
         noiseSuppression: true,
-        autoGainControl: true
+        autoGainControl: false
       },
       video:
         callType === 'video'

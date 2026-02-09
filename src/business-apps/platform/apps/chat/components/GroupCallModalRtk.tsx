@@ -77,6 +77,8 @@ interface GroupCallModalRtkProps {
   onSendReaction?: (emoji: string) => void
   onMicDeviceChange?: (deviceId: string) => Promise<void>
   onCameraDeviceChange?: (deviceId: string) => Promise<void>
+  onSetNoiseSuppressionEnabled?: (enabled: boolean) => Promise<void> | void
+  onSetAutoGainControlEnabled?: (enabled: boolean) => Promise<void> | void
   backgroundEnabled?: boolean
   prefixDataTestId?: string
   availableParticipants?: AvailableParticipant[]
@@ -187,6 +189,8 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
   onSendReaction,
   onMicDeviceChange,
   onCameraDeviceChange,
+  onSetNoiseSuppressionEnabled,
+  onSetAutoGainControlEnabled,
   onInviteParticipant,
   prefixDataTestId = 'rtk-group-call',
   conversationName,
@@ -3085,6 +3089,20 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
                       : undefined
                   }
                   onSpeakerDeviceChange={handleSpeakerDeviceChange}
+                  onNoiseSuppressionChange={
+                    onSetNoiseSuppressionEnabled
+                      ? enabled => {
+                          void onSetNoiseSuppressionEnabled(enabled)
+                        }
+                      : undefined
+                  }
+                  onAutoGainControlChange={
+                    onSetAutoGainControlEnabled
+                      ? enabled => {
+                          void onSetAutoGainControlEnabled(enabled)
+                        }
+                      : undefined
+                  }
                   onEndCall={onEndCall}
                   prefixDataTestId={prefixDataTestId}
                   t={t}

@@ -17,6 +17,8 @@ export interface UseRealtimeKitMediaOptions {
   callType: CallType
   initialVideoQuality?: VideoQuality
   initialBackgroundEnabled?: boolean
+  initialNoiseSuppressionEnabled?: boolean
+  initialAutoGainControlEnabled?: boolean
   onMediaStateChange?: (state: { isMuted: boolean; isVideoEnabled: boolean; backgroundEnabled: boolean }) => void
   callStatus?: 'idle' | 'setup' | 'joining' | 'connected' | 'reconnecting' | 'ended'
   // Initial state for restoring from globalCallManager after minimize/maximize
@@ -29,11 +31,15 @@ export interface UseRealtimeKitMediaReturn {
   isMuted: boolean
   isVideoEnabled: boolean
   backgroundEnabled: boolean
+  noiseSuppressionEnabled: boolean
+  autoGainControlEnabled: boolean
   videoQuality: VideoQuality
   toggleMute: () => boolean
   toggleVideo: () => boolean
   setVideoQuality: (quality: VideoQuality) => Promise<void>
   toggleBackground: () => Promise<void>
+  setNoiseSuppressionEnabled: (enabled: boolean) => Promise<void>
+  setAutoGainControlEnabled: (enabled: boolean) => Promise<void>
   switchAudioDevice: (deviceId: string) => Promise<void>
   switchVideoDevice: (deviceId: string) => Promise<void>
   stopAllTracks: () => void
@@ -58,6 +64,8 @@ export const useRealtimeKitMedia = ({
   callType,
   initialVideoQuality = 'low',
   initialBackgroundEnabled = false, // Disabled by default to prevent feedback loop
+  initialNoiseSuppressionEnabled = true,
+  initialAutoGainControlEnabled = false,
   onMediaStateChange,
   callStatus = 'idle',
   initialIsMuted,
@@ -101,6 +109,8 @@ export const useRealtimeKitMedia = ({
 
   const [videoQuality, setVideoQualityState] = useState<VideoQuality>(initialVideoQuality)
   const [backgroundEnabled, setBackgroundEnabled] = useState(initialBackgroundEnabled)
+  const [noiseSuppressionEnabled, setNoiseSuppressionEnabledState] = useState(initialNoiseSuppressionEnabled)
+  const [autoGainControlEnabled, setAutoGainControlEnabledState] = useState(initialAutoGainControlEnabled)
 
   const virtualBackgroundRef = useRef<RTKVirtualBackground | null>(null)
   const hasJustJoinedRef = useRef(false)
@@ -130,12 +140,36 @@ export const useRealtimeKitMedia = ({
     const sdkAudioEnabled = meeting.self.audioEnabled ?? true
     const sdkIsMuted = !sdkAudioEnabled
 
-    rtkDebug.log('[RTK Media] Syncing initial audio state from SDK:', {
+    console.log('[RTK Media] Syncing initial audio state from SDK:', {
       sdkAudioEnabled,
       sdkIsMuted,
       currentIsMuted: isMuted,
       restoredIsMuted: initialIsMuted
     })
+
+    // Log supported audio constraints
+    const supported = navigator.mediaDevices?.getSupportedConstraints?.() ?? {}
+    console.log('[RTK Media] 🎙️ Browser supported audio constraints:', {
+      echoCancellation: supported.echoCancellation ?? false,
+      noiseSuppression: supported.noiseSuppression ?? false,
+      autoGainControl: supported.autoGainControl ?? false,
+      channelCount: supported.channelCount ?? false,
+      sampleRate: supported.sampleRate ?? false
+    })
+
+    // Log current audio track settings if available
+    const audioTrack = meeting.self.audioTrack
+    if (audioTrack && typeof audioTrack.getSettings === 'function') {
+      const settings = audioTrack.getSettings()
+      console.log('[RTK Media] 🎙️ Current audio track settings:', {
+        echoCancellation: settings.echoCancellation,
+        autoGainControl: settings.autoGainControl,
+        noiseSuppression: settings.noiseSuppression,
+        sampleRate: settings.sampleRate,
+        channelCount: settings.channelCount,
+        deviceId: settings.deviceId
+      })
+    }
 
     // Sync audio state (isMuted is inverse of audioEnabled)
     if (isMuted !== sdkIsMuted) {
@@ -158,7 +192,7 @@ export const useRealtimeKitMedia = ({
 
     // Only update if SDK state differs from React state
     if (isMuted !== sdkIsMuted) {
-      rtkDebug.log('[RTK Media] Continuous sync: SDK audio state changed, updating React state:', {
+      console.log('[RTK Media] Continuous sync: SDK audio state changed, updating React state:', {
         sdkAudioEnabled,
         sdkIsMuted,
         currentIsMuted: isMuted
@@ -703,8 +737,8 @@ export const useRealtimeKitMedia = ({
             audio: {
               deviceId: { exact: deviceId },
               echoCancellation: true,
-              noiseSuppression: true,
-              autoGainControl: true
+              noiseSuppression: noiseSuppressionEnabled,
+              autoGainControl: autoGainControlEnabled
             }
           })
 
@@ -723,19 +757,121 @@ export const useRealtimeKitMedia = ({
       }
 
       try {
-        rtkDebug.log('[RTK Media] 🎤 Switching audio device via SDK setDevice():', deviceId)
+        console.log('[RTK Media] 🎤 Switching audio device via SDK setDevice():', deviceId)
         await (meeting.self as any).setDevice({
           kind: 'audioinput',
           deviceId
         })
-        rtkDebug.log('[RTK Media] ✅ Audio device switched successfully via SDK')
+        console.log('[RTK Media] ✅ Audio device switched successfully via SDK')
       } catch (error) {
         rtkDebug.error('[RTK Media] Failed to switch audio device:', error)
         throw error
       }
     },
-    [meeting]
+    [meeting, noiseSuppressionEnabled, autoGainControlEnabled]
   )
+
+  /**
+   * Toggle / set noise suppression on the current microphone track (best-effort).
+   * echoCancellation stays enabled always.
+   */
+  const setNoiseSuppressionEnabled = useCallback(
+    async (enabled: boolean) => {
+      setNoiseSuppressionEnabledState(enabled)
+      const track: MediaStreamTrack | undefined = meeting?.self?.audioTrack
+      if (!track || typeof track.applyConstraints !== 'function') return
+      try {
+        const constraints = {
+          echoCancellation: true,
+          autoGainControl: autoGainControlEnabled,
+          noiseSuppression: enabled
+        } as MediaTrackConstraints
+
+        console.log('[RTK Media] 🎙️ Applying audio constraints (noise suppression toggle):', constraints)
+        await track.applyConstraints(constraints)
+
+        // Log actual settings applied by browser
+        const actualSettings = track.getSettings()
+        console.log('[RTK Media] ✅ Audio constraints applied. Actual browser settings:', {
+          echoCancellation: actualSettings.echoCancellation,
+          autoGainControl: actualSettings.autoGainControl,
+          noiseSuppression: actualSettings.noiseSuppression,
+          sampleRate: actualSettings.sampleRate,
+          channelCount: actualSettings.channelCount
+        })
+      } catch (error) {
+        rtkDebug.warn('[RTK Media] Failed to apply audio constraints for noise suppression', error)
+      }
+    },
+    [meeting, autoGainControlEnabled]
+  )
+
+  /**
+   * Toggle / set auto gain control on the current microphone track (best-effort).
+   * echoCancellation stays enabled always.
+   */
+  const setAutoGainControlEnabled = useCallback(
+    async (enabled: boolean) => {
+      setAutoGainControlEnabledState(enabled)
+      const track: MediaStreamTrack | undefined = meeting?.self?.audioTrack
+      if (!track || typeof track.applyConstraints !== 'function') return
+      try {
+        const constraints = {
+          echoCancellation: true,
+          autoGainControl: enabled,
+          noiseSuppression: noiseSuppressionEnabled
+        } as MediaTrackConstraints
+
+        console.log('[RTK Media] 🎙️ Applying audio constraints (AGC toggle):', constraints)
+        await track.applyConstraints(constraints)
+
+        // Log actual settings applied by browser
+        const actualSettings = track.getSettings()
+        console.log('[RTK Media] ✅ Audio constraints applied. Actual browser settings:', {
+          echoCancellation: actualSettings.echoCancellation,
+          autoGainControl: actualSettings.autoGainControl,
+          noiseSuppression: actualSettings.noiseSuppression,
+          sampleRate: actualSettings.sampleRate,
+          channelCount: actualSettings.channelCount
+        })
+      } catch (error) {
+        console.warn('[RTK Media] Failed to apply AGC constraints', error)
+      }
+    },
+    [meeting, noiseSuppressionEnabled]
+  )
+
+  // Ensure constraints persist when the SDK replaces the audio track (e.g., device switch).
+  useEffect(() => {
+    const track: MediaStreamTrack | undefined = meeting?.self?.audioTrack
+    if (!track || typeof track.applyConstraints !== 'function') return
+
+    const constraints = {
+      echoCancellation: true,
+      autoGainControl: autoGainControlEnabled,
+      noiseSuppression: noiseSuppressionEnabled
+    } as MediaTrackConstraints
+
+    rtkDebug.log('[RTK Media] 🎙️ Persisting audio constraints on track change:', constraints)
+
+    void track
+      .applyConstraints(constraints)
+      .then(() => {
+        // Log actual settings applied by browser
+        const actualSettings = track.getSettings()
+        rtkDebug.log('[RTK Media] ✅ Audio constraints persisted. Actual browser settings:', {
+          echoCancellation: actualSettings.echoCancellation,
+          autoGainControl: actualSettings.autoGainControl,
+          noiseSuppression: actualSettings.noiseSuppression,
+          sampleRate: actualSettings.sampleRate,
+          channelCount: actualSettings.channelCount,
+          deviceId: actualSettings.deviceId
+        })
+      })
+      .catch(error => {
+        rtkDebug.warn('[RTK Media] Failed to persist audio constraints:', error)
+      })
+  }, [meeting?.self?.audioTrack, noiseSuppressionEnabled, autoGainControlEnabled])
 
   /**
    * Switch video input device during call
@@ -838,11 +974,15 @@ export const useRealtimeKitMedia = ({
     isMuted,
     isVideoEnabled,
     backgroundEnabled,
+    noiseSuppressionEnabled,
+    autoGainControlEnabled,
     videoQuality,
     toggleMute,
     toggleVideo,
     setVideoQuality,
     toggleBackground,
+    setNoiseSuppressionEnabled,
+    setAutoGainControlEnabled,
     switchAudioDevice,
     switchVideoDevice,
     stopAllTracks

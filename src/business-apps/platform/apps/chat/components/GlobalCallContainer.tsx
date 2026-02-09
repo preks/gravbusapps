@@ -461,6 +461,8 @@ export const GlobalCallContainer: React.FC = () => {
           onSetVideoQuality={callData.setVideoQuality || (() => {})}
           onMicDeviceChange={callData.switchAudioDevice || undefined}
           onCameraDeviceChange={callData.switchVideoDevice || undefined}
+          onSetNoiseSuppressionEnabled={callData.setNoiseSuppressionEnabled || undefined}
+          onSetAutoGainControlEnabled={callData.setAutoGainControlEnabled || undefined}
           apiClient={callData.apiClient}
           wsClient={callData.wsClient}
           accessToken={callData.accessToken || undefined}

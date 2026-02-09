@@ -11,6 +11,7 @@ import {
   IconAvatar,
   Spinner,
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
@@ -35,6 +36,7 @@ import {
 import type { GroupCallInvite } from '../hooks/useGroupCall'
 import { useChatTranslation } from '../contexts/TranslationContext'
 import { useMediaDevices } from '../hooks/useMediaDevices'
+import { useCallPreferences } from '../hooks/useCallPreferences'
 import { DeviceTestDialog } from './DeviceTestDialog'
 
 interface IncomingGroupCallDialogProps {
@@ -78,6 +80,7 @@ const PulsingRing: React.FC<{ color?: string }> = ({ color = 'bg-primary' }) => 
 export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = memo(
   ({ invite, userName, userAvatarUrl, onAccept, onDecline, prefixDataTestId = 'incoming-group-call-dialog' }) => {
     const t = useChatTranslation()
+    const callPreferences = useCallPreferences()
     const [ringCount, setRingCount] = useState(0)
     const [isJoining, setIsJoining] = useState(false)
     const [micEnabled, setMicEnabled] = useState(true)
@@ -582,6 +585,24 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = m
                         {t('call-noDevicesFound') || 'No devices found'}
                       </DropdownMenuItem>
                     )}
+
+                    <DropdownMenuCheckboxItem
+                      checked={callPreferences.noiseSuppressionEnabled}
+                      onCheckedChange={checked => callPreferences.setNoiseSuppressionEnabled(Boolean(checked))}
+                      className="gba:text-white hover:gba:bg-gray-700"
+                      data-testid={`${prefixDataTestId}-noise-suppression-toggle`}
+                    >
+                      {t('call-noiseSuppression') || 'Noise suppression'}
+                    </DropdownMenuCheckboxItem>
+
+                    <DropdownMenuCheckboxItem
+                      checked={callPreferences.autoGainControlEnabled}
+                      onCheckedChange={checked => callPreferences.setAutoGainControlEnabled(Boolean(checked))}
+                      className="gba:text-white hover:gba:bg-gray-700"
+                      data-testid={`${prefixDataTestId}-auto-gain-control-toggle`}
+                    >
+                      {t('call-autoGainControl') || 'Auto gain control'}
+                    </DropdownMenuCheckboxItem>
 
                     <DropdownMenuSeparator className="gba:bg-gray-700" />
                     <DropdownMenuItem

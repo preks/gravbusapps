@@ -56,7 +56,7 @@ export const useMicrophoneTest = ({
       const audioConstraints: MediaTrackConstraints = {
         echoCancellation: true,
         noiseSuppression: true,
-        autoGainControl: true
+        autoGainControl: false
       }
       if (selectedAudioInputId) {
         audioConstraints.deviceId = { exact: selectedAudioInputId }

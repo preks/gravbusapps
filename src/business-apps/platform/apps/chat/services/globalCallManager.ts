@@ -79,6 +79,8 @@ interface StoredCallData {
   setVideoQuality: ((quality: VideoQuality) => void) | null
   switchAudioDevice: ((deviceId: string) => Promise<void>) | null
   switchVideoDevice: ((deviceId: string) => Promise<void>) | null
+  setNoiseSuppressionEnabled: ((enabled: boolean) => Promise<void>) | null
+  setAutoGainControlEnabled: ((enabled: boolean) => Promise<void>) | null
   onInviteParticipant: ((participant: any) => void) | null
 
   // Additional context
@@ -141,6 +143,8 @@ class GlobalCallManager {
     setVideoQuality: null,
     switchAudioDevice: null,
     switchVideoDevice: null,
+    setNoiseSuppressionEnabled: null,
+    setAutoGainControlEnabled: null,
     onInviteParticipant: null,
     apiClient: null,
     accessToken: null,
@@ -325,6 +329,8 @@ class GlobalCallManager {
       setVideoQuality: null,
       switchAudioDevice: null,
       switchVideoDevice: null,
+      setNoiseSuppressionEnabled: null,
+      setAutoGainControlEnabled: null,
       onInviteParticipant: null,
       apiClient: null,
       accessToken: null,

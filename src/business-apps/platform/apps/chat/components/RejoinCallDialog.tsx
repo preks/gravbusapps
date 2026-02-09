@@ -10,6 +10,7 @@ import {
   AvatarFallback,
   AvatarImage,
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
@@ -32,6 +33,7 @@ import {
 import { useChatTranslation } from '../contexts/TranslationContext'
 import { rtkDebug } from '../utils/rtkDebug'
 import { useMediaDevices } from '../hooks/useMediaDevices'
+import { useCallPreferences } from '../hooks/useCallPreferences'
 import { DeviceTestDialog } from './DeviceTestDialog'
 
 // Helper to get user initials from name
@@ -74,6 +76,7 @@ export const RejoinCallDialog: React.FC<RejoinCallDialogProps> = memo(
     prefixDataTestId = 'rejoin-call-dialog'
   }) => {
     const t = useChatTranslation()
+    const callPreferences = useCallPreferences()
     const [isJoining, setIsJoining] = useState(false)
     const [micEnabled, setMicEnabled] = useState(true)
     const [cameraEnabled, setCameraEnabled] = useState(callType === 'video')
@@ -448,6 +451,24 @@ export const RejoinCallDialog: React.FC<RejoinCallDialogProps> = memo(
                         {t('call-noDevicesFound') || 'No devices found'}
                       </DropdownMenuItem>
                     )}
+
+                    <DropdownMenuCheckboxItem
+                      checked={callPreferences.noiseSuppressionEnabled}
+                      onCheckedChange={checked => callPreferences.setNoiseSuppressionEnabled(Boolean(checked))}
+                      className="gba:text-white hover:gba:bg-gray-700"
+                      data-testid={`${prefixDataTestId}-noise-suppression-toggle`}
+                    >
+                      {t('call-noiseSuppression') || 'Noise suppression'}
+                    </DropdownMenuCheckboxItem>
+
+                    <DropdownMenuCheckboxItem
+                      checked={callPreferences.autoGainControlEnabled}
+                      onCheckedChange={checked => callPreferences.setAutoGainControlEnabled(Boolean(checked))}
+                      className="gba:text-white hover:gba:bg-gray-700"
+                      data-testid={`${prefixDataTestId}-auto-gain-control-toggle`}
+                    >
+                      {t('call-autoGainControl') || 'Auto gain control'}
+                    </DropdownMenuCheckboxItem>
 
                     <DropdownMenuSeparator className="gba:bg-gray-700" />
                     <DropdownMenuItem

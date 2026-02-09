@@ -11,6 +11,7 @@ import {
   IconAvatar,
   Spinner,
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
@@ -35,6 +36,7 @@ import {
 } from '@phosphor-icons/react'
 import { useChatTranslation } from '../contexts/TranslationContext'
 import { useMediaDevices } from '../hooks/useMediaDevices'
+import { useCallPreferences } from '../hooks/useCallPreferences'
 import { DeviceTestDialog } from './DeviceTestDialog'
 
 interface PreCallSetupDialogProps {
@@ -93,6 +95,7 @@ export const PreCallSetupDialog: React.FC<PreCallSetupDialogProps> = memo(
     conversationType = 'group' // Default to group for backward compatibility
   }) => {
     const t = useChatTranslation()
+    const callPreferences = useCallPreferences()
     const [isStarting, setIsStarting] = useState(false)
     const [micEnabled, setMicEnabled] = useState(true)
     const [cameraEnabled, setCameraEnabled] = useState(callType === 'video')
@@ -541,6 +544,24 @@ export const PreCallSetupDialog: React.FC<PreCallSetupDialogProps> = memo(
                         {t('call-noDevicesFound') || 'No devices found'}
                       </DropdownMenuItem>
                     )}
+
+                    <DropdownMenuCheckboxItem
+                      checked={callPreferences.noiseSuppressionEnabled}
+                      onCheckedChange={checked => callPreferences.setNoiseSuppressionEnabled(Boolean(checked))}
+                      className="gba:text-white hover:gba:bg-gray-700"
+                      data-testid={`${prefixDataTestId}-noise-suppression-toggle`}
+                    >
+                      {t('call-noiseSuppression') || 'Noise suppression'}
+                    </DropdownMenuCheckboxItem>
+
+                    <DropdownMenuCheckboxItem
+                      checked={callPreferences.autoGainControlEnabled}
+                      onCheckedChange={checked => callPreferences.setAutoGainControlEnabled(Boolean(checked))}
+                      className="gba:text-white hover:gba:bg-gray-700"
+                      data-testid={`${prefixDataTestId}-auto-gain-control-toggle`}
+                    >
+                      {t('call-autoGainControl') || 'Auto gain control'}
+                    </DropdownMenuCheckboxItem>
 
                     <DropdownMenuSeparator className="gba:bg-gray-700" />
                     <DropdownMenuItem

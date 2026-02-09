@@ -9,6 +9,7 @@ import {
   AvatarFallback,
   IconAvatar,
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
@@ -21,6 +22,7 @@ import { AddParticipantDropdown } from './AddParticipantDropdown'
 import type { CallState, CallParticipant } from '../services/webrtcClient'
 import { useChatTranslation } from '../contexts/TranslationContext'
 import { useMediaDevices } from '../hooks/useMediaDevices'
+import { useCallPreferences } from '../hooks/useCallPreferences'
 
 interface AvailableParticipant {
   id: string
@@ -151,6 +153,7 @@ export const CallModal: React.FC<CallModalProps> = memo(
     currentUserId
   }) => {
     const t = useChatTranslation()
+    const callPreferences = useCallPreferences()
     const localVideoRef = useRef<HTMLVideoElement>(null)
     const remoteVideoRef = useRef<HTMLVideoElement>(null)
     const expandedVideoRef = useRef<HTMLVideoElement>(null)
@@ -211,6 +214,21 @@ export const CallModal: React.FC<CallModalProps> = memo(
       void applySinkIdToElement(remoteVideoRef.current, deviceId)
       void applySinkIdToElement(expandedVideoRef.current, deviceId)
       void applySinkIdToElement(remoteAudioRef.current, deviceId)
+    }
+
+    const handleNoiseSuppressionChange = (enabled: boolean) => {
+      callPreferences.setNoiseSuppressionEnabled(enabled)
+      const track = localStream?.getAudioTracks?.()[0]
+      if (!track || typeof track.applyConstraints !== 'function') return
+      void track
+        .applyConstraints({
+          echoCancellation: true,
+          autoGainControl: false,
+          noiseSuppression: enabled
+        } as MediaTrackConstraints)
+        .catch(() => {
+          // best-effort
+        })
     }
 
     // Check if remote stream is a screen share
@@ -499,6 +517,16 @@ export const CallModal: React.FC<CallModalProps> = memo(
                         {t('call-noDevicesFound')}
                       </DropdownMenuItem>
                     )}
+
+                    <DropdownMenuSeparator className="gba:bg-gray-700" />
+                    <DropdownMenuCheckboxItem
+                      checked={callPreferences.noiseSuppressionEnabled}
+                      onCheckedChange={checked => handleNoiseSuppressionChange(Boolean(checked))}
+                      className="gba:text-white hover:gba:bg-gray-700"
+                      data-testid={`${prefixDataTestId}-noise-suppression-toggle`}
+                    >
+                      {t('call-noiseSuppression') || 'Noise suppression'}
+                    </DropdownMenuCheckboxItem>
 
                     {isVideoCall && (
                       <>

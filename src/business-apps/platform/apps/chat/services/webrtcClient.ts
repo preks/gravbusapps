@@ -116,15 +116,40 @@ export class WebRTCClient {
    */
   async initializeLocalStream(
     type: CallType,
-    options?: { audioDeviceId?: string | null; videoDeviceId?: string | null }
+    options?: {
+      audioDeviceId?: string | null
+      videoDeviceId?: string | null
+      noiseSuppressionEnabled?: boolean
+      autoGainControlEnabled?: boolean
+    }
   ): Promise<MediaStream> {
     try {
+      const resolvedNoiseSuppressionEnabled = (() => {
+        if (options?.noiseSuppressionEnabled !== undefined) return options.noiseSuppressionEnabled
+        try {
+          const saved = localStorage.getItem('chat_call_noise_suppression_enabled')
+          return saved === null ? true : saved === 'true'
+        } catch {
+          return true
+        }
+      })()
+
+      const resolvedAutoGainControlEnabled = (() => {
+        if (options?.autoGainControlEnabled !== undefined) return options.autoGainControlEnabled
+        try {
+          const saved = localStorage.getItem('chat_call_auto_gain_control_enabled')
+          return saved === null ? false : saved === 'true'
+        } catch {
+          return false
+        }
+      })()
+
       const constraints: MediaStreamConstraints = {
         audio: {
           ...(options?.audioDeviceId ? { deviceId: { exact: options.audioDeviceId } } : {}),
           echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true
+          noiseSuppression: resolvedNoiseSuppressionEnabled,
+          autoGainControl: resolvedAutoGainControlEnabled
         },
         video:
           type === 'video'
@@ -157,12 +182,30 @@ export class WebRTCClient {
       throw new Error('Local stream not initialized')
     }
 
+    const resolvedNoiseSuppressionEnabled = (() => {
+      try {
+        const saved = localStorage.getItem('chat_call_noise_suppression_enabled')
+        return saved === null ? true : saved === 'true'
+      } catch {
+        return true
+      }
+    })()
+
+    const resolvedAutoGainControlEnabled = (() => {
+      try {
+        const saved = localStorage.getItem('chat_call_auto_gain_control_enabled')
+        return saved === null ? false : saved === 'true'
+      } catch {
+        return false
+      }
+    })()
+
     const newStream = await navigator.mediaDevices.getUserMedia({
       audio: {
         deviceId: { exact: deviceId },
         echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true
+        noiseSuppression: resolvedNoiseSuppressionEnabled,
+        autoGainControl: resolvedAutoGainControlEnabled
       },
       video: false
     })

@@ -33,6 +33,7 @@ import {
   PopoverContent,
   PopoverTrigger,
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
@@ -40,6 +41,7 @@ import {
   DropdownMenuTrigger
 } from '@newwork/nw-design-system'
 import { useMediaDevices } from '../../hooks/useMediaDevices'
+import { useCallPreferences } from '../../hooks/useCallPreferences'
 
 export interface CallControlsBarProps {
   /** Call type (audio or video) */
@@ -76,6 +78,10 @@ export interface CallControlsBarProps {
   onCameraDeviceChange?: (deviceId: string) => void
   /** Callback when speaker device changes */
   onSpeakerDeviceChange?: (deviceId: string) => void
+  /** Callback when noise suppression setting changes */
+  onNoiseSuppressionChange?: (enabled: boolean) => void | Promise<void>
+  /** Callback when auto gain control setting changes */
+  onAutoGainControlChange?: (enabled: boolean) => void | Promise<void>
   /** Data test ID prefix */
   prefixDataTestId?: string
   /** Translation function */
@@ -102,11 +108,14 @@ export const CallControlsBar: React.FC<CallControlsBarProps> = ({
   onMicDeviceChange,
   onCameraDeviceChange,
   onSpeakerDeviceChange,
+  onNoiseSuppressionChange,
+  onAutoGainControlChange,
   prefixDataTestId = 'rtk-group-call',
   t = (key: string) => key
 }) => {
   const [reactionsOpen, setReactionsOpen] = useState(false)
   const [moreMenuOpen, setMoreMenuOpen] = useState(false)
+  const callPreferences = useCallPreferences()
 
   const {
     audioInputDevices,
@@ -273,6 +282,32 @@ export const CallControlsBar: React.FC<CallControlsBarProps> = ({
                     {t('call-noDevicesFound')}
                   </DropdownMenuItem>
                 )}
+
+                <DropdownMenuSeparator className="gba:bg-gray-700" />
+                <DropdownMenuCheckboxItem
+                  checked={callPreferences.noiseSuppressionEnabled}
+                  onCheckedChange={checked => {
+                    const next = Boolean(checked)
+                    callPreferences.setNoiseSuppressionEnabled(next)
+                    void onNoiseSuppressionChange?.(next)
+                  }}
+                  className="gba:text-white hover:gba:bg-gray-700"
+                  data-testid={`${prefixDataTestId}-noise-suppression-toggle`}
+                >
+                  {t('call-noiseSuppression') || 'Noise suppression'}
+                </DropdownMenuCheckboxItem>
+                <DropdownMenuCheckboxItem
+                  checked={callPreferences.autoGainControlEnabled}
+                  onCheckedChange={checked => {
+                    const next = Boolean(checked)
+                    callPreferences.setAutoGainControlEnabled(next)
+                    void onAutoGainControlChange?.(next)
+                  }}
+                  className="gba:text-white hover:gba:bg-gray-700"
+                  data-testid={`${prefixDataTestId}-auto-gain-control-toggle`}
+                >
+                  {t('call-autoGainControl') || 'Auto gain control'}
+                </DropdownMenuCheckboxItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
