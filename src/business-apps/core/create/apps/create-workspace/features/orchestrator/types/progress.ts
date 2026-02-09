@@ -61,6 +61,9 @@ export interface BuildProgressEvent {
   // AI Builder streaming data
   content?: string // Streaming text content from AI Builder responses
 
+  // Additional metadata (e.g., generated code, partial results)
+  metadata?: Record<string, unknown>
+
   // Summary for build_complete event
   total_components?: number
   completed_components?: number

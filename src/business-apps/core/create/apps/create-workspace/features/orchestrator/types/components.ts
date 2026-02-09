@@ -137,4 +137,12 @@ export interface ComponentSpec {
   resource_url?: string // URL path for the screen (e.g., /screens/user-profile)
   azure_url?: string // Azure CDN URL where assets are deployed
   published_file_count?: number // Number of files published
+
+  // Runtime metadata from backend
+  metadata?: {
+    session_id?: string // AI Builder session ID for accessing generated files
+    repo_id?: string // Repository ID for the build
+    resource_url?: string // Resource URL (may differ from top-level field)
+    [key: string]: unknown // Additional dynamic metadata
+  }
 }
