@@ -317,7 +317,7 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
           <div className="gba:space-y-2">
             <Label>{t('field-values')}</Label>
             {(() => {
-              const hasValues = availableValues.filter(v => v.recordState?.toLowerCase() === 'active').length > 0
+              const hasValues = availableValues.some(v => v.recordState?.toLowerCase() === 'active')
               const cycleValuesKey = open ? (initialValues?.id ?? 'new') : 'closed'
               if (!hasValues) {
                 return <div className="gba:text-sm gba:text-muted-foreground">{t('placeholder-no-values')}</div>
