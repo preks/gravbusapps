@@ -427,6 +427,8 @@ hr-analytics-not-available = N/A
 
 # Data Filter (generic texts used in HR)
 hr-data-filter-loading = Se încarcă...
+hr-data-filter-error = Eroare la încărcarea datelor
+hr-data-filter-no-data = Nu există date disponibile
 hr-data-filter-error-loading-filters = Eroare la încărcarea filtrelor
 hr-data-filter-search-in = Caută în
 hr-data-filter-search-filters-in = Caută filtre în

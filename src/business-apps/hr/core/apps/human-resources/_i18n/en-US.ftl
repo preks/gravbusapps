@@ -419,6 +419,8 @@ hr-analytics-health-insurance-type-distribution = Health Insurance Type Distribu
 hr-analytics-health-insurance-type-distribution-description = Distribution of employees by health insurance type showing coverage preferences and policy selection patterns
 # Data Filter (generic texts used in HR)
 hr-data-filter-loading = Loading...
+hr-data-filter-error = Error loading data
+hr-data-filter-no-data = No data available
 hr-data-filter-error-loading-filters = Error loading filters
 hr-data-filter-search-in = Search in
 hr-data-filter-search-filters-in = Search filters in

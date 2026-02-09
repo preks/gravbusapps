@@ -1,14 +1,13 @@
 import React, { useMemo, useCallback } from 'react'
-import { Card, Typography } from 'antd'
+import { Card } from 'antd'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { useTranslation } from '@newwork/nw-design-system'
 import translations from './_i18n'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useMonthlySalaryByDepartment } from '../../../../hooks/useMonthlySalaryByDepartment'
+import { ChartStateOverlay } from './ChartStateOverlay'
 import dayjs from 'dayjs'
-
-const { Text } = Typography
 
 const DepartmentSalaryStackedBarChart: React.FC<BusinessAppContextProps> = props => {
   const year = new Date().getFullYear()
@@ -117,19 +116,11 @@ const DepartmentSalaryStackedBarChart: React.FC<BusinessAppContextProps> = props
 
   const renderChartContent = useCallback(() => {
     if (error) {
-      return (
-        <div className="gba:flex gba:items-center gba:justify-center gba:h-full">
-          <Text className="gba:text-destructive">{t('hr-data-filter-error')}</Text>
-        </div>
-      )
+      return <ChartStateOverlay state="error" message={t('hr-data-filter-error')} />
     }
 
     if (chartData.length === 0) {
-      return (
-        <div className="gba:flex gba:items-center gba:justify-center gba:h-full">
-          <Text className="gba:text-muted-foreground">{t('hr-data-filter-no-data')}</Text>
-        </div>
-      )
+      return <ChartStateOverlay state="empty" message={t('hr-data-filter-no-data')} />
     }
 
     return (

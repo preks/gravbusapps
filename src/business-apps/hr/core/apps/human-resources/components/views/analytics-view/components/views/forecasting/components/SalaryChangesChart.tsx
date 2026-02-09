@@ -6,6 +6,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useTranslation } from '@newwork/nw-design-system'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { ChartStateOverlay } from './ChartStateOverlay'
 import dayjs from 'dayjs'
 
 const { Title, Text } = Typography
@@ -60,27 +61,15 @@ const SalaryChangesChart: React.FC<BusinessAppContextProps> = props => {
 
   const renderChartContent = useCallback(() => {
     if (loading) {
-      return (
-        <div className="gba:flex gba:items-center gba:justify-center gba:h-full">
-          <Text className="gba:text-muted-foreground">{t('hr-data-filter-loading')}</Text>
-        </div>
-      )
+      return <ChartStateOverlay state="loading" message={t('hr-data-filter-loading')} />
     }
 
     if (error) {
-      return (
-        <div className="gba:flex gba:items-center gba:justify-center gba:h-full">
-          <Text className="gba:text-destructive">{t('hr-data-filter-error')}</Text>
-        </div>
-      )
+      return <ChartStateOverlay state="error" message={t('hr-data-filter-error')} />
     }
 
     if (chartData.length === 0) {
-      return (
-        <div className="gba:flex gba:items-center gba:justify-center gba:h-full">
-          <Text className="gba:text-muted-foreground">{t('hr-data-filter-no-data')}</Text>
-        </div>
-      )
+      return <ChartStateOverlay state="empty" message={t('hr-data-filter-no-data')} />
     }
 
     return (
