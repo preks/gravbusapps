@@ -292,19 +292,10 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
     sharedWsKey = key
     sharedWsRefCount = 1 // Initialize ref count to 1
     wsClientRef.current = client
-
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[ChatWebSocket] 🔌 Initiating WebSocket connection...')
-    }
-
     const socket = client.connect(accessToken)
 
     // CRITICAL FIX: Define handlers as named functions so we can properly clean them up
     const handleConnect = async () => {
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[ChatWebSocket] ✅ WebSocket CONNECTED!')
-      }
-
       setIsConnected(true)
       setIsOffline(false)
       setError(null)
@@ -427,31 +418,13 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
         // Use ref to get current active conversation (not stale closure value)
         const currentActiveConversationId = activeConversationIdRef.current
 
-        // DEBUG: Log all incoming messages to check system message handling
-        console.log('[WS] Incoming message:', {
-          id: message.id,
-          type: message.type,
-          senderId: message.senderId,
-          isSystemMessage,
-          conversationId: message.conversationId,
-          currentActiveConversationId,
-          content: message.content?.substring(0, 50)
-        })
-
         // Handle system messages (call started/ended, meeting minutes, etc.)
         if (isSystemMessage) {
-          console.log('[WS] Processing system message:', message.id)
           // System messages don't need status updates or read receipts
           const messageWithStatus = { ...message, status: message.status || 'sent' }
 
           // OPTIMIZATION: Defer UI updates to not block the message handler
           startTransition(() => {
-            console.log('[WS] Adding system message to UI:', {
-              messageId: message.id,
-              conversationId: message.conversationId,
-              isActiveConversation: message.conversationId === currentActiveConversationId
-            })
-
             // Update conversation list
             conversationsHookRef.current?.updateConversationLastMessage(message.conversationId, messageWithStatus)
 
@@ -768,7 +741,6 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
     }
 
     const handleConversationActiveCalls = (calls: ActiveCall[]) => {
-      console.log('[CHAT CLIENT] handleConversationActiveCalls - received calls:', calls)
       const map: Record<string, ActiveCall> = {}
       calls.forEach(call => {
         map[call.conversationId] = call
@@ -776,7 +748,6 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
           activeCall: call
         } as Partial<Conversation>)
       })
-      console.log('[CHAT CLIENT] Setting activeCalls state:', map)
       setActiveCalls(map)
     }
 
@@ -838,12 +809,7 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
     }
 
     if (activeConversationId) {
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[ChatWebSocket] 📖 Marking conversation as read:', activeConversationId)
-      }
-
       currentConversationIdRef.current = activeConversationId
-
       // Optimistically update UI immediately
       conversationsHookRef.current?.markConversationAsRead(activeConversationId)
 
