@@ -5,7 +5,7 @@
  * based on incoming progress events.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { OrchestratorClient } from '@/common/network/ai/orchestrator/OrchestratorClient'
 import type {
   BuildPlan,
@@ -22,6 +22,18 @@ export interface UseBuildProgressOptions {
   plan: BuildPlan | null
   onComplete?: (success: boolean) => void
   onError?: (error: string) => void
+  onComponentUpdate?: (
+    componentId: string,
+    updates: Partial<{
+      status: string
+      resource_url: string
+      azure_url: string
+      published_file_count: number
+      error_message: string
+      created_id: string
+      metadata: Record<string, unknown>
+    }>
+  ) => void
 }
 
 export interface UseBuildProgressResult {
@@ -110,17 +122,51 @@ function createInitialTileState(plan: BuildPlan | null): TileState {
 }
 
 /**
+ * Reducer for tiles state - ensures atomic updates without race conditions
+ */
+function tilesReducer(
+  state: TileState,
+  action:
+    | { type: 'UPDATE_TILE'; componentType: ComponentType; updater: (tile: any) => any }
+    | { type: 'RESET'; plan: BuildPlan | null }
+): TileState {
+  if (action.type === 'RESET') {
+    return createInitialTileState(action.plan)
+  }
+
+  if (action.type === 'UPDATE_TILE') {
+    const { componentType, updater } = action
+    const prevTile = state[componentType]
+    if (!prevTile) return state
+
+    // Clone tile and items immutably
+    const newTile = { ...prevTile, items: [...prevTile.items] }
+    // Apply updater function
+    updater(newTile)
+
+    // Return new state with updated tile
+    return {
+      ...state,
+      [componentType]: newTile
+    }
+  }
+
+  return state
+}
+
+/**
  * Hook for managing build progress with SSE streaming
  */
 export function useBuildProgress({
   client,
   plan,
   onComplete,
-  onError
+  onError,
+  onComponentUpdate
 }: UseBuildProgressOptions): UseBuildProgressResult {
   const [isBuilding, setIsBuilding] = useState(false)
   const [buildError, setBuildError] = useState<string | null>(null)
-  const [tiles, setTiles] = useState<TileState>(() => createInitialTileState(plan))
+  const [tiles, dispatchTiles] = useReducer(tilesReducer, plan, createInitialTileState)
   const [completedCount, setCompletedCount] = useState(0)
   const [failedCount, setFailedCount] = useState(0)
   const [reusedCount, setReusedCount] = useState(0)
@@ -128,10 +174,17 @@ export function useBuildProgress({
   const [phaseMessage, setPhaseMessage] = useState<string | null>(null)
 
   const abortControllerRef = useRef<AbortController | null>(null)
+  const onComponentUpdateRef = useRef(onComponentUpdate)
+  const currentJobIdRef = useRef<string | null>(null)
 
-  // Reset tile state when plan changes
+  // Keep ref in sync with prop
   useEffect(() => {
-    setTiles(createInitialTileState(plan))
+    onComponentUpdateRef.current = onComponentUpdate
+  }, [onComponentUpdate])
+
+  // Internal reset helper
+  const resetState = useCallback(() => {
+    dispatchTiles({ type: 'RESET', plan })
     setCompletedCount(0)
     setFailedCount(0)
     setReusedCount(0)
@@ -139,6 +192,15 @@ export function useBuildProgress({
     setCurrentPhase(null)
     setPhaseMessage(null)
   }, [plan])
+
+  // Reset tile state ONLY when job_id changes (new build), NOT on every plan object change
+  useEffect(() => {
+    const newJobId = plan?.job_id || null
+    if (currentJobIdRef.current !== newJobId) {
+      currentJobIdRef.current = newJobId
+      resetState()
+    }
+  }, [plan?.job_id, resetState])
 
   const totalCount = plan?.components.length || 0
 
@@ -220,104 +282,104 @@ export function useBuildProgress({
   )
 
   /**
-   * Handle component reused event
-   */
-  const handleComponentReused = (tile: any, event: BuildProgressEvent) => {
-    tile.status = 'completed'
-    tile.currentOperation = event.message
-    const item = tile.items.find((i: any) => i.id === event.component_id)
-    if (item) {
-      item.status = 'reused'
-      item.createdId = event.created_id
-      item.reused = true
-    }
-    tile.reusedCount = (tile.reusedCount || 0) + 1
-  }
-
-  /**
-   * Handle component completed event
-   */
-  const handleComponentCompleted = (tile: any, event: BuildProgressEvent) => {
-    tile.currentOperation = undefined
-    const item = tile.items.find((i: any) => i.id === event.component_id)
-    if (item) {
-      item.status = 'completed'
-      item.createdId = event.created_id
-    }
-    // Check if all items in tile are done
-    const allDone = tile.items.every(
-      (i: any) => i.status === 'completed' || i.status === 'reused' || i.status === 'error' || i.status === 'skipped'
-    )
-    if (allDone) {
-      const hasErrors = tile.items.some((i: any) => i.status === 'error')
-      tile.status = hasErrors ? 'error' : 'completed'
-    }
-  }
-
-  /**
-   * Handle component error event
-   */
-  const handleComponentError = (tile: any, event: BuildProgressEvent) => {
-    tile.currentOperation = undefined
-    const item = tile.items.find((i: any) => i.id === event.component_id)
-    if (item) {
-      item.status = 'error'
-      item.error = event.error_details
-    }
-  }
-
-  /**
-   * Handle component progress event
-   */
-  const handleComponentProgress = (tile: any, event: BuildProgressEvent) => {
-    tile.currentOperation = event.message
-    if (event.progress_percent !== undefined) {
-      tile.progressPercent = event.progress_percent
-    }
-  }
-
-  /**
    * Handle component-level events
    */
   const handleComponentEvent = useCallback((event: BuildProgressEvent) => {
-    setTiles(prevTiles => {
-      const newTiles = { ...prevTiles }
+    if (!event.component_type) return
 
-      if (!event.component_type) return newTiles
+    // Use reducer dispatch to update tile atomically
+    dispatchTiles({
+      type: 'UPDATE_TILE',
+      componentType: event.component_type,
+      updater: (tile: any) => {
+        const eventHandlers: Record<string, (t: any, e: BuildProgressEvent) => void> = {
+          component_reused: (t, e) => {
+            t.currentOperation = e.message
+            t.reusedCount = (t.reusedCount || 0) + 1
+            t.items = t.items.map((i: any) =>
+              i.id === e.component_id ? { ...i, status: 'reused', createdId: e.created_id, reused: true } : i
+            )
+            // Only mark tile as completed when all items are done (mirror component_completed logic)
+            const allDone = t.items.every((i: any) => ['completed', 'reused', 'error', 'skipped'].includes(i.status))
+            if (allDone) {
+              t.status = t.items.some((i: any) => i.status === 'error') ? 'error' : 'completed'
+            } else if (t.status !== 'building') {
+              t.status = 'building' // Ensure tile shows as in-progress if not all done
+            }
+            if (e.component_id) {
+              onComponentUpdateRef.current?.(e.component_id, { status: 'reused', created_id: e.created_id })
+            }
+          },
+          component_started: (t, e) => {
+            t.status = 'building'
+            t.currentOperation = e.message
+            t.items = t.items.map((i: any) => (i.id === e.component_id ? { ...i, status: 'building' } : i))
+            if (e.component_id) {
+              onComponentUpdateRef.current?.(e.component_id, { status: 'building' })
+            }
+          },
+          component_completed: (t, e) => {
+            t.currentOperation = undefined
+            t.items = t.items.map((i: any) =>
+              i.id === e.component_id ? { ...i, status: 'completed', createdId: e.created_id } : i
+            )
+            const allDone = t.items.every((i: any) => ['completed', 'reused', 'error', 'skipped'].includes(i.status))
+            if (allDone) {
+              t.status = t.items.some((i: any) => i.status === 'error') ? 'error' : 'completed'
+            }
 
-      const tile = newTiles[event.component_type]
-      if (!tile) return newTiles
+            // Pass metadata and status to the component update
+            if (e.component_id) {
+              const updates: any = {
+                status: 'completed',
+                created_id: e.created_id
+              }
 
-      const eventHandlers: Record<string, (tile: any, event: BuildProgressEvent) => void> = {
-        component_reused: handleComponentReused,
-        component_started: (t, e) => {
-          t.status = 'building'
-          t.currentOperation = e.message
-        },
-        component_completed: handleComponentCompleted,
-        component_error: handleComponentError,
-        component_progress: handleComponentProgress,
-        // Capture publish results (URLs from deployment)
-        publish_progress: (t, e) => {
-          t.currentOperation = e.message
-          // Update component with publish results
-          if (plan && e.component_id) {
-            const component = plan.components.find(c => c.id === e.component_id)
-            if (component) {
-              component.resource_url = e.resource_url
-              component.azure_url = e.azure_url
-              component.published_file_count = e.files_published
+              if (e.metadata) {
+                updates.metadata = e.metadata
+              }
+
+              onComponentUpdateRef.current?.(e.component_id, updates)
+            }
+          },
+          component_error: (t, e) => {
+            t.currentOperation = undefined
+            t.items = t.items.map((i: any) =>
+              i.id === e.component_id ? { ...i, status: 'error', error: e.error_details } : i
+            )
+            if (e.component_id) {
+              const updates: any = {
+                status: 'error',
+                error_message: e.error_details || e.message
+              }
+
+              // Include metadata if present (for accessing partial generated code)
+              if (e.metadata) {
+                updates.metadata = e.metadata
+              }
+
+              onComponentUpdateRef.current?.(e.component_id, updates)
+            }
+          },
+          component_progress: (t, e) => {
+            t.currentOperation = e.message
+            if (e.progress_percent !== undefined) t.progressPercent = e.progress_percent
+          },
+          publish_progress: (t, e) => {
+            t.currentOperation = e.message
+            if (e.component_id) {
+              onComponentUpdateRef.current?.(e.component_id, {
+                resource_url: e.resource_url,
+                azure_url: e.azure_url,
+                published_file_count: e.files_published,
+                metadata: e.metadata
+              })
             }
           }
         }
-      }
 
-      const handler = eventHandlers[event.event_type]
-      if (handler) {
-        handler(tile, event)
+        eventHandlers[event.event_type]?.(tile, event)
       }
-
-      return newTiles
     })
 
     // Update counts
@@ -326,9 +388,7 @@ export function useBuildProgress({
       component_error: () => setFailedCount(prev => prev + 1),
       component_reused: () => setReusedCount(prev => prev + 1)
     }
-
-    const updater = countUpdaters[event.event_type]
-    if (updater) updater()
+    countUpdaters[event.event_type]?.()
   }, [])
 
   /**
@@ -403,18 +463,12 @@ export function useBuildProgress({
   }, [client, plan])
 
   /**
-   * Reset progress state
+   * Reset progress state (for retry)
    */
   const resetProgress = useCallback(() => {
-    setTiles(createInitialTileState(plan))
-    setCompletedCount(0)
-    setFailedCount(0)
-    setReusedCount(0)
-    setBuildError(null)
+    resetState()
     setIsBuilding(false)
-    setCurrentPhase(null)
-    setPhaseMessage(null)
-  }, [plan])
+  }, [resetState])
 
   // Cleanup on unmount
   useEffect(() => {

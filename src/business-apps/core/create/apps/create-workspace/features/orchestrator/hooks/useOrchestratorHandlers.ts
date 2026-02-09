@@ -18,6 +18,7 @@ export interface OrchestratorHandlers {
   handleEditPlan: (updatedComponents: ComponentSpec[]) => Promise<void>
   handleRefine: (feedback: string) => Promise<void>
   handleStartBuild: (skipComponents?: string[]) => Promise<void>
+  handleRetry: () => Promise<void>
   handleCancel: () => void
   handleReset: () => void
 }
@@ -126,6 +127,33 @@ export const useOrchestratorHandlers = ({
     [buildProgress.startBuild, state]
   )
 
+  // Handle retry - Re-execute the same build plan
+  const handleRetry = useCallback(async () => {
+    console.log('[useOrchestratorHandlers] Retrying build...')
+
+    // Reset progress state but keep the plan
+    buildProgress.resetProgress()
+
+    // Transition to building state
+    state.setViewState('building')
+    state.setBuildStartTime(Date.now())
+    state.setCapturedBuildError(null)
+    state.setBuildLogs([
+      {
+        timestamp: new Date().toLocaleTimeString('en-US', { hour12: false }),
+        type: 'info',
+        message: 'Retrying build...'
+      }
+    ])
+
+    // Reset log tracking refs
+    state.loggedPhasesRef.current.clear()
+    state.lastCompletedCountRef.current = 0
+
+    // Re-execute the build with the same plan
+    await buildProgress.startBuild()
+  }, [buildProgress, state])
+
   // Handle cancel
   const handleCancel = useCallback(() => {
     buildProgress.cancelBuild()
@@ -165,6 +193,7 @@ export const useOrchestratorHandlers = ({
     handleEditPlan,
     handleRefine,
     handleStartBuild,
+    handleRetry,
     handleCancel,
     handleReset
   }

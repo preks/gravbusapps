@@ -13,7 +13,8 @@ import type {
   BuildPlan,
   BuildJobStatus,
   UpdatePlanRequest,
-  RefinePlanRequest
+  RefinePlanRequest,
+  BuildStatus
 } from '../types'
 
 export interface UseOrchestratorClientOptions {
@@ -38,6 +39,17 @@ export interface UseOrchestratorClientResult {
   cancelBuild: (jobId: string) => Promise<void>
   clearPlan: () => void
   clearRefinementSummary: () => void
+  updateComponentProperties: (
+    componentId: string,
+    updates: Partial<{
+      status: BuildStatus
+      resource_url: string
+      azure_url: string
+      published_file_count: number
+      error_message: string
+      created_id: string
+    }>
+  ) => void
   client: OrchestratorClient
 }
 
@@ -218,6 +230,42 @@ export function useOrchestratorClient({ accessToken }: UseOrchestratorClientOpti
     setRefinementSummary(null)
   }, [])
 
+  /**
+   * Update component properties (for publish results, etc.)
+   */
+  const updateComponentProperties = useCallback(
+    (
+      componentId: string,
+      updates: Partial<{
+        status: BuildStatus
+        resource_url: string
+        azure_url: string
+        published_file_count: number
+        error_message: string
+        created_id: string
+      }>
+    ) => {
+      setCurrentPlan(prevPlan => {
+        if (!prevPlan) {
+          return prevPlan
+        }
+
+        const updatedPlan = {
+          ...prevPlan,
+          components: prevPlan.components.map(c => {
+            if (c.id === componentId) {
+              return { ...c, ...updates }
+            }
+            return c
+          })
+        }
+
+        return updatedPlan
+      })
+    },
+    []
+  )
+
   return {
     isAnalyzing,
     analyzeError,
@@ -233,6 +281,7 @@ export function useOrchestratorClient({ accessToken }: UseOrchestratorClientOpti
     cancelBuild,
     clearPlan,
     clearRefinementSummary,
+    updateComponentProperties,
     client
   }
 }
