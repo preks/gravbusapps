@@ -28,7 +28,7 @@ export interface ToolPolicy {
 export type ToolPolicies = Record<string, ToolPolicy>
 
 export interface KnowledgeSource {
-  id: string
+  id?: string // Assigned by backend on save; optional for creation
   type: 'document' | 'url' | 'content_entry' | 'catalog' // content_entry = internal knowledge base, catalog = catalog entries
   name: string
   description?: string

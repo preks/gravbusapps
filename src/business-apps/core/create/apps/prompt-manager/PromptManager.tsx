@@ -12,15 +12,6 @@ import translations from './_i18n'
 import type { KnowledgeSource } from '@/common/network/ai/prompt-manager/PromptManagerClient'
 import type { AgentBuilderInitialState } from './hooks/useAgentBuilderState'
 
-/** Generate a random ID for knowledge sources. */
-const makeKnowledgeSourceId = () => {
-  try {
-    return globalThis.crypto?.randomUUID?.() || `ks_${Math.random().toString(16).slice(2)}`
-  } catch {
-    return `ks_${Math.random().toString(16).slice(2)}`
-  }
-}
-
 /** Build the initial state for a policy-based expert from URL params. */
 const buildPolicyInitialState = (params: URLSearchParams): AgentBuilderInitialState | undefined => {
   const sourceContentEntryId = params.get('sourceContentEntryId')
@@ -32,7 +23,6 @@ const buildPolicyInitialState = (params: URLSearchParams): AgentBuilderInitialSt
   const knowledgeSources: KnowledgeSource[] = sourceContentEntryId
     ? [
         {
-          id: makeKnowledgeSourceId(),
           type: 'content_entry',
           name: policyTitle ? `Policy: ${policyTitle}` : 'Policy',
           description: policyTitle ? `Knowledge source: ${policyTitle}` : undefined,
