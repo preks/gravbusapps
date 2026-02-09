@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { EmailApiService } from '../services/EmailApiService'
 import type { EmailMessageSummary, EmailMessage } from '../types'
 
@@ -7,23 +7,47 @@ interface UseEmailsOptions {
   folderId?: string
   accountId?: string
   search?: string
+  /** Auto-refresh interval in milliseconds (default: 30000 = 30 seconds) */
+  autoRefreshInterval?: number
 }
 
-export function useEmails({ accessToken, folderId, accountId, search }: UseEmailsOptions) {
+export function useEmails({
+  accessToken,
+  folderId,
+  accountId,
+  search,
+  autoRefreshInterval = 30000 // Default: refresh every 30 seconds
+}: UseEmailsOptions) {
   const [messages, setMessages] = useState<EmailMessageSummary[]>([])
   const [selectedMessage, setSelectedMessage] = useState<EmailMessage | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
+  const [isVisible, setIsVisible] = useState(true)
+  const loadingRef = useRef(false)
 
   useEffect(() => {
     EmailApiService.setAccessToken(accessToken)
   }, [accessToken])
 
+  // Track page visibility to pause polling when tab is hidden
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      setIsVisible(document.visibilityState === 'visible')
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
+  }, [])
+
   const loadMessages = useCallback(
-    async (pageNum = 1) => {
+    async (pageNum = 1, silent = false) => {
       if (!accessToken) return
-      setIsLoading(true)
+      // Prevent concurrent requests
+      if (loadingRef.current) return
+
+      loadingRef.current = true
+      if (!silent) setIsLoading(true)
+
       try {
         const result = await EmailApiService.listMessages({
           folderId,
@@ -38,15 +62,29 @@ export function useEmails({ accessToken, folderId, accountId, search }: UseEmail
       } catch (err) {
         console.error('Failed to load messages:', err)
       } finally {
-        setIsLoading(false)
+        loadingRef.current = false
+        if (!silent) setIsLoading(false)
       }
     },
     [accessToken, folderId, accountId, search]
   )
 
+  // Initial load on mount or when dependencies change
   useEffect(() => {
     loadMessages(1)
   }, [loadMessages])
+
+  // Auto-refresh polling when screen is visible
+  useEffect(() => {
+    if (!autoRefreshInterval || !isVisible) return
+
+    const intervalId = setInterval(() => {
+      // Silent refresh (don't show loading spinner during auto-refresh)
+      loadMessages(page, true)
+    }, autoRefreshInterval)
+
+    return () => clearInterval(intervalId)
+  }, [loadMessages, page, autoRefreshInterval, isVisible])
 
   const selectMessage = useCallback(async (id: string) => {
     try {
@@ -102,6 +140,6 @@ export function useEmails({ accessToken, folderId, accountId, search }: UseEmail
     toggleStar,
     deleteMessage,
     moveToFolder,
-    refreshMessages: () => loadMessages(page)
+    refreshMessages: () => loadMessages(page, false) // Manual refresh shows loading
   }
 }

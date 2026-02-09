@@ -52,6 +52,13 @@ export interface MicrosoftUserInfo {
 
 export const MicrosoftOAuthService = {
   /**
+   * Get the configured Microsoft Client ID
+   */
+  getClientId(): string {
+    return MICROSOFT_CLIENT_ID
+  },
+
+  /**
    * Initiates the OAuth flow using a popup window
    * Popup avoids platform's server-side routing that strips query params
    */

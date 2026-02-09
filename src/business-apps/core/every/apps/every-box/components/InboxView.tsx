@@ -140,6 +140,26 @@ const filterCompletedTasks = (tasks: UnifiedTask[]): UnifiedTask[] => {
   })
 }
 
+/**
+ * Pure filter functions (module-level to avoid re-creation on every render)
+ */
+const isBlinkTask = (task: UnifiedTask): boolean => {
+  return task.source === 'cflow' && task.tags?.app === 'quick-task'
+}
+
+const isApprovalTask = (task: UnifiedTask): boolean => {
+  const taskName = (task.referenceTaskName || task.name || task.title || '').toLowerCase()
+  const taskType = (task.type || '').toLowerCase()
+  const taskCategory = (task.taskCategory || '').toLowerCase()
+  return (
+    taskName.includes('approval') ||
+    taskName.includes('approve') ||
+    taskType.includes('approval') ||
+    taskCategory.includes('approval') ||
+    task.tags?.category === 'approval'
+  )
+}
+
 export const InboxView: React.FC<InboxViewProps> = ({
   tasks,
   isLoading,
@@ -343,22 +363,24 @@ export const InboxView: React.FC<InboxViewProps> = ({
 
   // Handler to select a task and update URL
   // Toggle behavior: clicking on already selected task will deselect it
-  const handleSelectTask = useCallback(
-    (task: UnifiedTask | null) => {
-      // If clicking on the currently selected task, deselect it (close detail panel)
-      if (task && selectedTask?.id === task.id) {
-        userSelectedKeyRef.current = ''
-        setSelectedTask(null)
-        updateTaskUrl(null)
-      } else {
-        // Otherwise, select the new task
-        userSelectedKeyRef.current = task ? `${task.source}:${task.id}` : ''
-        setSelectedTask(task)
-        updateTaskUrl(task?.id || null)
-      }
-    },
-    [selectedTask]
-  )
+  // PERF: Use ref to read selectedTask so the callback is stable and doesn't
+  // break React.memo on every TaskCard when selection changes
+  const selectedTaskRef = useRef(selectedTask)
+  selectedTaskRef.current = selectedTask
+
+  const handleSelectTask = useCallback((task: UnifiedTask | null) => {
+    // If clicking on the currently selected task, deselect it (close detail panel)
+    if (task && selectedTaskRef.current?.id === task.id) {
+      userSelectedKeyRef.current = ''
+      setSelectedTask(null)
+      updateTaskUrl(null)
+    } else {
+      // Otherwise, select the new task
+      userSelectedKeyRef.current = task ? `${task.source}:${task.id}` : ''
+      setSelectedTask(task)
+      updateTaskUrl(task?.id || null)
+    }
+  }, [])
 
   // Handler to close task detail
   const handleCloseTask = useCallback(() => {
@@ -599,50 +621,23 @@ export const InboxView: React.FC<InboxViewProps> = ({
   }, [selectedTask?.id, selectedTask?.source, selectedTask?.userState?.isRead, accessToken, updateTaskUserStateLocally])
 
   /**
-   * Helper function to check if a task is a Blink (quick direct task)
-   */
-  const isBlinkTask = (task: UnifiedTask): boolean => {
-    return task.source === 'cflow' && task.tags?.app === 'quick-task'
-  }
-
-  /**
-   * Helper function to check if a task is an Approval task
-   */
-  const isApprovalTask = (task: UnifiedTask): boolean => {
-    const taskName = (task.referenceTaskName || task.name || task.title || '').toLowerCase()
-    const taskType = (task.type || '').toLowerCase()
-    const taskCategory = (task.taskCategory || '').toLowerCase()
-
-    // Check for common approval keywords
-    return (
-      taskName.includes('approval') ||
-      taskName.includes('approve') ||
-      taskType.includes('approval') ||
-      taskCategory.includes('approval') ||
-      task.tags?.category === 'approval'
-    )
-  }
-
-  /**
    * Apply type-specific filtering (blinks, approvals)
+   * Uses module-level pure functions (isBlinkTask, isApprovalTask) for stable references
    */
-  // Check if we're using dedicated blink tasks from API (already filtered)
   const usingBlinkApiTasks = filterType === 'blinks' && blinkTasks && blinkTasks.length > 0
 
   const applyTypeFilter = useCallback(
-    (tasks: UnifiedTask[], filter: TaskFilterType): UnifiedTask[] => {
-      // Skip filtering for blinks if we're already using dedicated blink tasks from API
+    (taskList: UnifiedTask[], filter: TaskFilterType): UnifiedTask[] => {
       if (filter === 'blinks') {
-        // If using API blink tasks, they're already filtered - no need to filter again
-        if (usingBlinkApiTasks) return tasks
-        return tasks.filter(isBlinkTask)
+        if (usingBlinkApiTasks) return taskList
+        return taskList.filter(isBlinkTask)
       }
       if (filter === 'approvals') {
-        return tasks.filter(isApprovalTask)
+        return taskList.filter(isApprovalTask)
       }
-      return tasks
+      return taskList
     },
-    [isBlinkTask, isApprovalTask, usingBlinkApiTasks]
+    [usingBlinkApiTasks]
   )
 
   // Use appropriate data source based on filter type
@@ -749,7 +744,7 @@ export const InboxView: React.FC<InboxViewProps> = ({
     // No additional sorting needed here
 
     return result
-  }, [currentTasks, globalSearch, filterType, employeeMap, applyTypeFilter, hasAiSearchResults, aiSearchResults])
+  }, [currentTasks, globalSearch, filterType, applyTypeFilter, hasAiSearchResults, aiSearchResults])
 
   // Slice to displayedCount for pagination (show 20 initially, load more on demand)
   const filteredTasks = useMemo(() => {

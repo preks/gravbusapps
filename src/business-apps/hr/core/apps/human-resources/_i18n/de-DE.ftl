@@ -136,9 +136,11 @@ hr-analytics-compensation-analysis = Vergütungsanalyse
 hr-analytics-compensation-description = Umfassende Vergütungskennzahlen, Gehaltsanalysen und Lohnkosten-Insights
 hr-analytics-total-payroll = Gesamtlohnkosten
 hr-analytics-annual-payroll = Jährliche Lohnkosten
+hr-analytics-coming-soon = Kommt bald
 hr-analytics-median-salary = Mediangehalt
 hr-analytics-company-median = Unternehmensmedian
 hr-analytics-avg-salary = Durchschnittsgehalt
+hr-analytics-average-salary = Durchschnittsgehalt
 hr-analytics-merit-increases = Leistungsbedingte Erhöhungen
 hr-analytics-average-increase = Durchschnittliche Erhöhung
 
@@ -415,6 +417,8 @@ hr-analytics-not-available = n. v.
 
 # Data Filter (generic texts used in HR)
 hr-data-filter-loading = Wird geladen...
+hr-data-filter-error = Fehler beim Laden der Daten
+hr-data-filter-no-data = Keine Daten verfügbar
 hr-data-filter-error-loading-filters = Fehler beim Laden der Filter
 hr-data-filter-search-in = Suchen in
 hr-data-filter-search-filters-in = Filter durchsuchen in

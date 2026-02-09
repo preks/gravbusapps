@@ -16,6 +16,7 @@ interface UnifiedAIMessageRendererProps {
   className?: string
   headerContent?: React.ReactNode
   footerContent?: React.ReactNode
+  userInfo?: any
   'data-testid'?: string
 }
 
@@ -38,6 +39,7 @@ export const UnifiedAIMessageRenderer: React.FC<UnifiedAIMessageRendererProps> =
   className = '',
   headerContent,
   footerContent,
+  userInfo,
   'data-testid': testId
 }) => {
   const filteredOutputs = outputs.filter(Boolean)
@@ -66,6 +68,7 @@ export const UnifiedAIMessageRenderer: React.FC<UnifiedAIMessageRendererProps> =
             sessionId={sessionId}
             onCancelGeneration={onCancelGeneration}
             isAgentGenerating={isAgentGenerating}
+            userInfo={userInfo}
           />
         )
       })}
