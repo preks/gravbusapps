@@ -203,10 +203,6 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
       const portalContainerId = `rtk-group-call-minimized-portal-${instanceId}`
       const portalContainer = document.getElementById(portalContainerId)
       if (portalContainer) {
-        console.log('[RTK Modal] 🗑️ Cleaning up portal container on unmount', {
-          instanceId,
-          containerId: portalContainerId
-        })
         portalContainer.remove()
       }
     }
@@ -257,16 +253,6 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
               (pAny.firstName || pAny.lastName ? `${pAny.firstName || ''} ${pAny.lastName || ''}`.trim() : '') ||
               'Unknown'
 
-            rtkDebug.log('[RTK Modal] 🖼️ Creating chat participant from call participant:', {
-              participantId: p.id,
-              participantOdId: p.odId,
-              participantName: p.odName,
-              participantFirstName: pAny.firstName,
-              participantLastName: pAny.lastName,
-              computedDisplayName: displayName,
-              participantAvatarUrl: p.avatarUrl,
-              hasAvatarUrl: !!p.avatarUrl
-            })
             return {
               userId: p.id || p.odId,
               user: {
@@ -284,11 +270,6 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
         createdAt: activeConversation?.createdAt || new Date().toISOString(),
         updatedAt: activeConversation?.updatedAt || new Date().toISOString()
       }
-
-      rtkDebug.log('[RTK Modal] Call conversation created:', {
-        conversationId: callConversationRef.current.id,
-        participantsCount: callConversationRef.current.participants.length
-      })
     }
   }, [callState.roomId, callState.calendarMeetingId, activeConversation, conversationName, participants]) // Added participants to deps
 
@@ -325,14 +306,6 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
       // Create new stable callback for this peer
       const callback = (el: HTMLVideoElement | null) => {
         if (el) {
-          rtkDebug.log(`[RTK Modal] 📹 Video element created for ${isLocal ? 'local' : 'peer'}`, {
-            peerId,
-            peerName,
-            isLocal,
-            isMinimized: callState.isMinimized,
-            wasAttached: attachedPeersRef.current.has(peerId),
-            timestamp: Date.now()
-          })
           if (isLocal) {
             setLocalVideoRef(el)
           } else {
@@ -408,23 +381,6 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
     const isRaisedByCustomId = participantCustomId ? remoteHands[participantCustomId] === true : false
     const isRaised = isRaisedByPeerId || isRaisedByUserId || isRaisedByCustomId
 
-    rtkDebug.log('[RTK Modal] 🖐️ isParticipantHandRaised check:', {
-      peerId,
-      participantUserId,
-      participantCustomId,
-      remoteHandsRaisedObject: remoteHands,
-      remoteHandsRaisedKeys: Object.keys(remoteHands),
-      valuesByKey: {
-        byPeerId: peerId ? remoteHands[peerId] : 'N/A',
-        byUserId: participantUserId ? remoteHands[participantUserId] : 'N/A',
-        byCustomId: participantCustomId ? remoteHands[participantCustomId] : 'N/A'
-      },
-      isRaisedByPeerId,
-      isRaisedByUserId,
-      isRaisedByCustomId,
-      finalResult: isRaised
-    })
-
     return isRaised
   }
 
@@ -444,35 +400,14 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
     let foundOrder: number | undefined
     if (peerId && handRaisedOrder[peerId]) {
       foundOrder = handRaisedOrder[peerId].order
-      rtkDebug.log('[RTK Modal] 🔢 Found order by peerId:', {
-        peerId,
-        order: foundOrder,
-        timestamp: handRaisedOrder[peerId].timestamp,
-        allKeys: Object.keys(handRaisedOrder),
-        allValues: handRaisedOrder
-      })
       return foundOrder
     }
     if (participantUserId && handRaisedOrder[participantUserId]) {
       foundOrder = handRaisedOrder[participantUserId].order
-      rtkDebug.log('[RTK Modal] 🔢 Found order by userId:', {
-        participantUserId,
-        order: foundOrder,
-        timestamp: handRaisedOrder[participantUserId].timestamp,
-        allKeys: Object.keys(handRaisedOrder),
-        allValues: handRaisedOrder
-      })
       return foundOrder
     }
     if (participantCustomId && handRaisedOrder[participantCustomId]) {
       foundOrder = handRaisedOrder[participantCustomId].order
-      rtkDebug.log('[RTK Modal] 🔢 Found order by customId:', {
-        participantCustomId,
-        order: foundOrder,
-        timestamp: handRaisedOrder[participantCustomId].timestamp,
-        allKeys: Object.keys(handRaisedOrder),
-        allValues: handRaisedOrder
-      })
       return foundOrder
     }
 
@@ -2448,13 +2383,11 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
       if (viewMode !== 'minimized') {
         const portalContainer = document.getElementById('rtk-group-call-minimized-portal')
         if (portalContainer) {
-          console.log('[RTK Modal] 🧹 Cleaning up portal container (viewMode changed or unmounted)')
           // Don't remove the container immediately - let React portal unmount first
           // This prevents the "appears then disappears" issue
           setTimeout(() => {
             const container = document.getElementById('rtk-group-call-minimized-portal')
             if (container && container.childElementCount === 0) {
-              console.log('[RTK Modal] 🗑️ Removing empty portal container')
               container.remove()
             }
           }, 100)
@@ -2496,19 +2429,6 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
       portalContainer.id = portalContainerId
       portalContainer.style.cssText = 'position: fixed; z-index: 9999;'
       document.body.appendChild(portalContainer)
-      console.log('[RTK Modal] 🆕 Created NEW portal container', {
-        instanceId,
-        containerId: portalContainerId,
-        timestamp: Date.now()
-      })
-    } else {
-      console.log('[RTK Modal] ♻️ Reusing EXISTING portal container', {
-        instanceId,
-        containerId: portalContainerId,
-        childElementCount: portalContainer.childElementCount,
-        children: portalContainer.children.length,
-        timestamp: Date.now()
-      })
     }
 
     const firstPeerHandRaisedOrderNumber = rtkFirstPeer

@@ -137,15 +137,6 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
   useEffect(() => {
     const globalCallData = globalCallManager.getCallData()
     if (globalCallData.callState.status !== 'idle' && globalCallData.callState.callImplementation === 'realtime-kit') {
-      console.log('[useRealtimeKitGroupCall] 🔄 Restoring call state from globalCallManager on mount:', {
-        status: globalCallData.callState.status,
-        isMinimized: globalCallData.callState.isMinimized,
-        hasBeenMinimized: globalCallData.callState.hasBeenMinimized,
-        roomId: globalCallData.callState.roomId,
-        meetingId: globalCallData.callState.meetingId,
-        sessionId: globalCallData.callState.sessionId
-      })
-
       setCallState(prev => ({
         ...prev,
         status: globalCallData.callState.status as CallState['status'],
@@ -1535,33 +1526,9 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
       return
     }
 
-    console.log('[useRealtimeKitGroupCall] 🚪 leaveCall START:', {
-      isLeaving: isLeavingRef.current,
-      roomId: callStateRoomIdRef.current,
-      meetingId: meetingIdRef.current,
-      sessionId: sessionIdRef.current,
-      status: callStatusRef.current,
-      isMinimized: isMinimizedRef.current
-    })
-
     // Capture values needed for backend cleanup BEFORE we clear any refs.
     const sessionIdForEmit = sessionIdRef.current
     const isMeetingForEmit = !!calendarMeetingIdRef.current
-
-    // Determine if this is the last participant at the moment of leaving.
-    // `participantsHook.participants` contains REMOTE participants only, so if it's 0,
-    // the current user is the last participant in the meeting.
-    const remoteCountAtLeave = (() => {
-      try {
-        if (!stableMeeting?.participants?.joined || !stableMeeting?.self?.id) return null
-        const joined = stableMeeting.participants.joined as Map<string, any>
-        const allParticipants = Array.from(joined.values())
-        const remotePeers = allParticipants.filter((p: any) => p.id !== stableMeeting.self?.id)
-        return remotePeers.length
-      } catch {
-        return null
-      }
-    })()
 
     // Cleanup for fast restart: allow re-invites even if backend reuses meeting/session briefly.
     // - clear start emit dedupe
@@ -1703,34 +1670,6 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
         }
       }
 
-      const participantCount = participantsHookRef.current?.participants?.length ?? 0
-
-      // IMPORTANT: Determine if this user is the last participant (for logging/debugging).
-      // During 'joining' phase (before SDK connects), remoteCountAtLeave will be null.
-      // In this case, we can safely assume the user is alone (no remote participants can exist yet).
-      // During 'connected' phase, remoteCountAtLeave should always have a valid count.
-      // NOTE: We always emit 'left' and let the backend determine if it's the last participant.
-      const isLastParticipantLeaving =
-        remoteCountAtLeave === 0 || (remoteCountAtLeave === null && currentStatus === 'joining')
-
-      // This is just for logging - backend will verify if call should end for all
-      const shouldEndForAll = isLastParticipantLeaving
-
-      console.log('[useRealtimeKitGroupCall] 📤 Emitting leave event:', {
-        hasUser: !!user,
-        hasSocket: !!socket,
-        roomId,
-        meetingId,
-        sessionId,
-        isMeeting,
-        participantId: user?.id,
-        currentStatus,
-        shouldEndForAll,
-        isLastParticipantLeaving,
-        participantCount,
-        remoteCountAtLeave
-      })
-
       if (user && socket) {
         // Always emit 'left' - backend will detect if it's the last participant and handle cleanup
         socket.emit('rtk-group-call:left', {
@@ -1739,14 +1678,6 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
           sessionId: sessionId, // Pass sessionId
           isMeeting: isMeeting, // True if scheduled meeting, false for ad-hoc call
           participantId: user.id
-        })
-        console.log('[RTK] 📤 Emitted rtk-group-call:left event', {
-          conversationId: roomId,
-          meetingId: meetingId,
-          sessionId: sessionId,
-          isMeeting: isMeeting,
-          participantId: user.id,
-          isLastParticipant: shouldEndForAll // Backend will verify this
         })
       } else {
         // Best-effort only; this can happen if the WebSocket client was torn down during navigation.
@@ -1764,7 +1695,6 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
       pendingCallParticipantsRef.current = [] // CRITICAL: Clear pending participants for next call
       calendarMeetingIdRef.current = null // Clear calendar meeting ID
 
-      console.log('[useRealtimeKitGroupCall] 🧹 Clearing globalCallManager')
       // Reset state
       setCallState(prev => ({
         ...prev,
@@ -1782,12 +1712,10 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
       // CRITICAL: Clear globalCallManager to remove persistent call UI
       globalCallManager.clearCall()
       rtkDebug.log('[RTK] 🧹 Cleared globalCallManager on leave')
-      console.log('[useRealtimeKitGroupCall] ✅ globalCallManager cleared')
 
       // CRITICAL: Clear the activeConversationCalls entry for this conversation
       // This prevents stale data when restarting a call after everyone has left
       if (roomId) {
-        console.log('[useRealtimeKitGroupCall] 🧹 Clearing activeConversationCalls for:', roomId)
         setActiveConversationCalls(prev => {
           const newMap = new Map(prev)
           newMap.delete(roomId)
@@ -1846,13 +1774,6 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
       const nextIsMinimized = !prev.isMinimized
       // Store computed value for the deferred global update
       nextMinimizedForGlobalRef.current = nextIsMinimized
-
-      console.log('[useRealtimeKitGroupCall] 🔄 toggleMinimize called:', {
-        currentIsMinimized: prev.isMinimized,
-        currentHasBeenMinimized: prev.hasBeenMinimized,
-        newIsMinimized: nextIsMinimized,
-        status: prev.status
-      })
 
       return {
         ...prev,

@@ -22,23 +22,10 @@ export const GlobalCallContainer: React.FC = () => {
   const [callData, setCallData] = useState(() => ({ ...globalCallManager.getCallData() }))
   const [uiOwnerId, setUiOwnerId] = useState<string | null>(() => globalCallManager.getUiOwnerId())
 
-  // Debug: Log when component mounts
-  useEffect(() => {
-    console.log('[GlobalCallContainer] 🎬 Component MOUNTED')
-    return () => {
-      console.log('[GlobalCallContainer] 💀 Component UNMOUNTED')
-    }
-  }, [])
-
   // Subscribe to global call manager changes
   useEffect(() => {
     const unsubscribe = globalCallManager.subscribe(() => {
       const data = globalCallManager.getCallData()
-      console.log('[GlobalCallContainer] 🔄 State update from globalCallManager', {
-        status: data.callState.status,
-        isMinimized: data.callState.isMinimized,
-        implementation: data.callState.callImplementation
-      })
       // IMPORTANT: always create a new reference so React re-renders even when the manager mutates in place
       setCallData({ ...data })
       setUiOwnerId(globalCallManager.getUiOwnerId())
@@ -96,7 +83,6 @@ export const GlobalCallContainer: React.FC = () => {
 
       if (!isAlreadyOnChatPage) {
         // Update globalCallManager state BEFORE navigation
-        console.log('[GlobalCallContainer] Maximizing from non-chat page - updating state before navigation')
         globalCallManager.updateCallState({ isMinimized: false, hasBeenMinimized: true })
 
         // Then navigate - component will remount with correct maximized state
@@ -107,7 +93,6 @@ export const GlobalCallContainer: React.FC = () => {
 
     // Always use the hook's callback if available for proper state sync
     if (latestCallData.toggleMinimize) {
-      console.log('[GlobalCallContainer] Using toggleMinimize callback from hook')
       const before = globalCallManager.getCallData().callState.isMinimized
       latestCallData.toggleMinimize()
       const after = globalCallManager.getCallData().callState.isMinimized
@@ -122,8 +107,6 @@ export const GlobalCallContainer: React.FC = () => {
     }
 
     // Fallback: Hook not available (chat component unmounted)
-    console.log('[GlobalCallContainer] Hook callback not available, using direct state update')
-
     if (isCurrentlyMinimized) {
       // Maximizing - navigate to chat first, then update state
       const isProduction = process.env.NODE_ENV === 'production'
@@ -139,10 +122,8 @@ export const GlobalCallContainer: React.FC = () => {
         setTimeout(() => {
           const updatedCallData = globalCallManager.getCallData()
           if (updatedCallData.toggleMinimize) {
-            console.log('[GlobalCallContainer] Chat mounted, using hook callback after navigation')
             updatedCallData.toggleMinimize()
           } else {
-            console.log('[GlobalCallContainer] Callback still not available, using direct update')
             globalCallManager.updateCallState({ isMinimized: false, hasBeenMinimized: true })
           }
         }, 150)
