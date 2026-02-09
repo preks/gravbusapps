@@ -245,6 +245,7 @@ export const PerformanceCycles: React.FC<PerformanceCyclesProps> = ({
         onOpenChange={open => setIsModalOpen(open)}
         onSave={handleSaveFromModal}
         availableValues={valuesStore}
+        availableRatingScales={ratingScales}
         initialValues={
           editing
             ? {
