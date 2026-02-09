@@ -86,6 +86,25 @@ export const GlobalCallContainer: React.FC = () => {
     const latestCallData = globalCallManager.getCallData()
     const isCurrentlyMinimized = latestCallData.callState.isMinimized
 
+    // If maximizing from another page, update globalCallManager FIRST before navigating
+    // This ensures the component remounts with the correct maximized state
+    if (isCurrentlyMinimized) {
+      const isProduction = process.env.NODE_ENV === 'production'
+      const isAlreadyOnChatPage = isProduction
+        ? window.location.pathname.startsWith('/platform/chat')
+        : new URLSearchParams(window.location.search).get('app') === 'platform/apps/chat'
+
+      if (!isAlreadyOnChatPage) {
+        // Update globalCallManager state BEFORE navigation
+        console.log('[GlobalCallContainer] Maximizing from non-chat page - updating state before navigation')
+        globalCallManager.updateCallState({ isMinimized: false, hasBeenMinimized: true })
+
+        // Then navigate - component will remount with correct maximized state
+        navigateTo('/platform/chat')
+        return
+      }
+    }
+
     // Always use the hook's callback if available for proper state sync
     if (latestCallData.toggleMinimize) {
       console.log('[GlobalCallContainer] Using toggleMinimize callback from hook')
@@ -98,18 +117,6 @@ export const GlobalCallContainer: React.FC = () => {
       if (after === before) {
         console.warn('[GlobalCallContainer] toggleMinimize callback did not change state; using fallback update')
         globalCallManager.updateCallState({ isMinimized: !before, hasBeenMinimized: true })
-      }
-
-      // If maximizing and not on chat page, navigate to chat
-      if (isCurrentlyMinimized) {
-        const isProduction = process.env.NODE_ENV === 'production'
-        const isAlreadyOnChatPage = isProduction
-          ? window.location.pathname.startsWith('/platform/chat')
-          : new URLSearchParams(window.location.search).get('app') === 'platform/apps/chat'
-
-        if (!isAlreadyOnChatPage) {
-          navigateTo('/platform/chat')
-        }
       }
       return
     }

@@ -1895,7 +1895,7 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
     })
 
     rtkDebug.log('[RTK] ✅ Updated callbacks in globalCallManager after remount')
-  }, [callState.status]) // Run when status changes (including when component mounts with 'connected' status)
+  }, [callState.status, toggleMinimize]) // Include toggleMinimize to ensure callback is updated after it's created
 
   /**
    * Toggle transcription enabled/disabled
