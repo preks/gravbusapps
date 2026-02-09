@@ -133,6 +133,10 @@ export const AccountSetupDialog: React.FC<AccountSetupDialogProps> = ({
           smtpSecure: false,
           oauthAccessToken: tokens.access_token,
           oauthRefreshToken: tokens.refresh_token,
+          oauthProviderConfig: {
+            clientId: MicrosoftOAuthService.getClientId(),
+            tenantId: 'organizations'
+          },
           isDefault: true
         })
 

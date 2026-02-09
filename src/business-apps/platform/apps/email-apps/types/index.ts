@@ -96,6 +96,13 @@ export interface PaginatedResponse<T> {
   totalPages: number
 }
 
+/** OAuth provider configuration */
+export interface OAuthProviderConfig {
+  clientId?: string
+  clientSecret?: string
+  tenantId?: string
+}
+
 /** Create account request */
 export interface CreateEmailAccountRequest {
   displayName: string
@@ -111,6 +118,7 @@ export interface CreateEmailAccountRequest {
   authPass?: string
   oauthAccessToken?: string
   oauthRefreshToken?: string
+  oauthProviderConfig?: OAuthProviderConfig
   signature?: string
   isDefault?: boolean
 }
