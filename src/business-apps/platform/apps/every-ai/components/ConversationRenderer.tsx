@@ -107,6 +107,7 @@ export const ConversationRenderer: React.FC<ConversationRendererProps> = ({
             onCancelGeneration={onCancelGeneration}
             isAgentGenerating={isAgentGenerating}
             wrapInBubble={false}
+            userInfo={userInfo}
             data-testid="chat-agent-turn"
           />
         )
