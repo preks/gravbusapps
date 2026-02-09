@@ -1,6 +1,6 @@
 // NO BUSINESS LOGIC HERE. Data + actions come from useManagerWorkboardVM.
 
-import React, { useState } from 'react'
+import React, { useState, useCallback, useMemo } from 'react'
 import {
   Card,
   CardHeader,
@@ -33,6 +33,26 @@ const createAssignmentTargets = (userIds: string[]) => ({
   costCenters: [],
   matrixTeams: []
 })
+
+/**
+ * Check if current time is after 10:30 AM on a working day (Mon-Fri)
+ * Memoized to avoid recalculation on every render
+ */
+const shouldShowNotClockedInAlert = (): boolean => {
+  const now = new Date()
+  const dayOfWeek = now.getDay() // 0 = Sunday, 6 = Saturday
+
+  // Only show on working days (Monday = 1 to Friday = 5)
+  if (dayOfWeek === 0 || dayOfWeek === 6) {
+    return false
+  }
+
+  const hours = now.getHours()
+  const minutes = now.getMinutes()
+
+  // Show only after 10:30 AM
+  return hours > 10 || (hours === 10 && minutes >= 30)
+}
 
 /**
  * Send a blink reminder about goals behind target
@@ -181,25 +201,6 @@ const sendClockInNudge = async (
   }
 }
 
-/**
- * Check if current time is after 10:30 AM on a working day (Mon-Fri)
- */
-const shouldShowNotClockedInAlert = (): boolean => {
-  const now = new Date()
-  const dayOfWeek = now.getDay() // 0 = Sunday, 6 = Saturday
-
-  // Only show on working days (Monday = 1 to Friday = 5)
-  if (dayOfWeek === 0 || dayOfWeek === 6) {
-    return false
-  }
-
-  const hours = now.getHours()
-  const minutes = now.getMinutes()
-
-  // Show only after 10:30 AM
-  return hours > 10 || (hours === 10 && minutes >= 30)
-}
-
 interface PriorityItem {
   id: number
   text: string
@@ -254,70 +255,87 @@ export const TodaysPrioritiesSection: React.FC<TodaysPrioritiesSectionProps> = (
   const [sendingBlinkFor, setSendingBlinkFor] = useState<string | null>(null)
   const [sendingNudgeFor, setSendingNudgeFor] = useState<string | null>(null)
 
-  const handleSendGoalReminder = async (
-    employeeUserId: string,
-    employeeName: string,
-    goalTitle: string,
-    goalId: string
-  ) => {
-    if (!accessToken || !currentUserId) {
-      toast.error('Unable to send reminder')
-      return
-    }
-
-    setSendingBlinkFor(goalId)
-
-    try {
-      const result = await sendGoalReminderBlink(accessToken, {
-        employeeUserId,
-        employeeName,
-        initiatorId: currentUserId,
-        goalTitle,
-        goalId
-      })
-
-      if (result.success) {
-        toast.success(`Reminder sent to ${employeeName}`)
-      } else {
-        toast.error(result.error || 'Failed to send reminder')
+  const handleSendGoalReminder = useCallback(
+    async (employeeUserId: string, employeeName: string, goalTitle: string, goalId: string) => {
+      if (!accessToken || !currentUserId) {
+        console.warn('[TodaysPriorities] Missing authentication credentials for BLINK')
+        toast.error('Unable to send reminder - please refresh and try again')
+        return
       }
-    } catch (error) {
-      console.error('Error sending goal reminder:', error)
-      toast.error('Failed to send reminder')
-    } finally {
-      setSendingBlinkFor(null)
-    }
-  }
 
-  const handleSendClockInNudge = async (employeeUserId: string, employeeName: string) => {
-    if (!accessToken || !currentUserId) {
-      toast.error('Unable to send nudge')
-      return
-    }
-
-    setSendingNudgeFor(employeeUserId)
-
-    try {
-      const result = await sendClockInNudge(accessToken, {
-        employeeUserId,
-        employeeName,
-        currentUserId
-      })
-
-      if (result.success) {
-        toast.success(`Nudge sent to ${employeeName}`)
-      } else {
-        toast.error(result.error || 'Failed to send nudge')
+      if (!employeeUserId) {
+        console.error('[TodaysPriorities] Missing employee userId for BLINK')
+        toast.error('Unable to send reminder - employee data unavailable')
+        return
       }
-    } catch (error) {
-      console.error('Error sending clock-in nudge:', error)
-      toast.error('Failed to send nudge')
-    } finally {
-      setSendingNudgeFor(null)
-    }
-  }
 
-  const showNotClockedInAlert = shouldShowNotClockedInAlert()
+      setSendingBlinkFor(goalId)
+
+      try {
+        const result = await sendGoalReminderBlink(accessToken, {
+          employeeUserId,
+          employeeName,
+          initiatorId: currentUserId,
+          goalTitle,
+          goalId
+        })
+
+        if (result.success) {
+          toast.success(`Reminder sent to ${employeeName}`)
+        } else {
+          console.error('[TodaysPriorities] BLINK send failed:', result.error)
+          toast.error(result.error || 'Failed to send reminder')
+        }
+      } catch (error) {
+        console.error('[TodaysPriorities] Error sending goal reminder:', error)
+        toast.error('Failed to send reminder - please try again')
+      } finally {
+        setSendingBlinkFor(null)
+      }
+    },
+    [accessToken, currentUserId]
+  )
+
+  const handleSendClockInNudge = useCallback(
+    async (employeeUserId: string, employeeName: string) => {
+      if (!accessToken || !currentUserId) {
+        console.warn('[TodaysPriorities] Missing authentication credentials for chat')
+        toast.error('Unable to send nudge - please refresh and try again')
+        return
+      }
+
+      if (!employeeUserId) {
+        console.error('[TodaysPriorities] Missing employee userId for chat')
+        toast.error('Unable to send nudge - employee data unavailable')
+        return
+      }
+
+      setSendingNudgeFor(employeeUserId)
+
+      try {
+        const result = await sendClockInNudge(accessToken, {
+          employeeUserId,
+          employeeName,
+          currentUserId
+        })
+
+        if (result.success) {
+          toast.success(`Nudge sent to ${employeeName}`)
+        } else {
+          console.error('[TodaysPriorities] Chat nudge failed:', result.error)
+          toast.error(result.error || 'Failed to send nudge')
+        }
+      } catch (error) {
+        console.error('[TodaysPriorities] Error sending clock-in nudge:', error)
+        toast.error('Failed to send nudge - please try again')
+      } finally {
+        setSendingNudgeFor(null)
+      }
+    },
+    [accessToken, currentUserId]
+  )
+
+  const showNotClockedInAlert = useMemo(() => shouldShowNotClockedInAlert(), [])
 
   if (loading) {
     return (
@@ -455,7 +473,7 @@ export const TodaysPrioritiesSection: React.FC<TodaysPrioritiesSectionProps> = (
 
       {/* Unallocated Members Panel */}
       <Sheet open={isUnallocatedPanelOpen} onOpenChange={setIsUnallocatedPanelOpen}>
-        <SheetContent className="gba:w-full sm:gba:max-w-md">
+        <SheetContent className="gba:w-full sm:gba:max-w-md" aria-label="Unallocated team members details">
           <SheetHeader>
             <div className="gba:flex gba:items-center gba:justify-between">
               <SheetTitle>Unallocated Team Members</SheetTitle>
@@ -464,6 +482,7 @@ export const TodaysPrioritiesSection: React.FC<TodaysPrioritiesSectionProps> = (
                 size="sm"
                 onClick={() => setIsUnallocatedPanelOpen(false)}
                 className="gba:h-6 gba:w-6 gba:p-0"
+                aria-label="Close panel"
               >
                 <X size={16} />
               </Button>
@@ -477,13 +496,19 @@ export const TodaysPrioritiesSection: React.FC<TodaysPrioritiesSectionProps> = (
 
           <Separator className="gba:my-4" />
 
-          <div className="gba:space-y-2 gba:overflow-y-auto" style={{ maxHeight: 'calc(100vh - 200px)' }}>
+          <div
+            className="gba:space-y-2 gba:overflow-y-auto"
+            style={{ maxHeight: 'calc(100vh - 200px)' }}
+            role="list"
+            aria-label="Unallocated employees"
+          >
             {unallocatedEmployees.map(employee => {
               const availablePercent = 100 - (employee.allocationPercent || 0)
               return (
                 <div
                   key={employee.id}
                   className="gba:flex gba:items-center gba:justify-between gba:p-3 gba:border gba:rounded-lg hover:gba:bg-muted/50"
+                  role="listitem"
                 >
                   <div className="gba:flex gba:flex-col gba:gap-1 gba:flex-1">
                     <span className="gba:text-sm gba:font-medium">{employee.name}</span>
@@ -499,6 +524,7 @@ export const TodaysPrioritiesSection: React.FC<TodaysPrioritiesSectionProps> = (
                         onAssignProject(employee.id)
                         setIsUnallocatedPanelOpen(false)
                       }}
+                      aria-label={`Allocate project for ${employee.name}`}
                     >
                       Allocate
                     </Button>
@@ -626,8 +652,9 @@ export const TodaysPrioritiesSection: React.FC<TodaysPrioritiesSectionProps> = (
                     onClick={() =>
                       handleSendGoalReminder(employee.employeeUserId, employee.employeeName, goal.title, goal.id)
                     }
-                    disabled={sendingBlinkFor === goal.id}
+                    disabled={sendingBlinkFor === goal.id || !employee.employeeUserId}
                     className="gba:w-full gba:justify-center"
+                    aria-label={`Send reminder to ${employee.employeeName} about ${goal.title}`}
                   >
                     {sendingBlinkFor === goal.id ? (
                       <>
@@ -689,7 +716,8 @@ export const TodaysPrioritiesSection: React.FC<TodaysPrioritiesSectionProps> = (
                   onClick={() => {
                     handleSendClockInNudge(employee.userId, employee.name)
                   }}
-                  disabled={sendingNudgeFor === employee.userId}
+                  disabled={sendingNudgeFor === employee.userId || !employee.userId}
+                  aria-label={`Send clock-in reminder to ${employee.name}`}
                 >
                   {sendingNudgeFor === employee.userId ? (
                     <>

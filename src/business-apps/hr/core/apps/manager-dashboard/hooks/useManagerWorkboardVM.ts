@@ -257,27 +257,44 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
 
   // Goals behind target with employee details for BLINK
   const goalsBehindData = useMemo(() => {
-    return teamPerformance
-      .filter(member => member.goalsBehindTarget > 0)
-      .map(member => ({
-        employeeId: member.employeeId,
-        employeeName: `${member.firstName} ${member.lastName}`,
-        employeeUserId: member.userId || '',
-        goals: member.goals
-          .filter(g => g.status === 'BEHIND_TARGET' || g.status === 'NOT_ACHIEVED')
-          .map(g => ({
+    if (!teamPerformance || teamPerformance.length === 0) return []
+
+    const employeesWithGoalsBehind = teamPerformance.filter(member => member.goalsBehindTarget > 0)
+
+    return employeesWithGoalsBehind
+      .map(member => {
+        const goalsBehind = member.goals.filter(g => g.status === 'BEHIND_TARGET' || g.status === 'NOT_ACHIEVED')
+
+        return {
+          employeeId: member.employeeId,
+          employeeName: `${member.firstName} ${member.lastName}`,
+          employeeUserId: member.userId || '',
+          goals: goalsBehind.map(g => ({
             id: g.id,
             title: g.title,
             progressPercent: g.progressPercent
           }))
-      }))
-      .filter(emp => emp.goals.length > 0) // Only include employees with goals behind
+        }
+      })
+      .filter(emp => emp.goals.length > 0 && emp.employeeUserId) // Only include with userId and goals
   }, [teamPerformance])
 
   // Not clocked in employees with userId for chat nudges
   const notClockedInEmployeesWithUserId = useMemo(() => {
+    if (
+      !directReports ||
+      directReports.length === 0 ||
+      !notClockedInEmployeeIds ||
+      notClockedInEmployeeIds.length === 0
+    ) {
+      return []
+    }
+
+    // Create a Set for O(1) lookup
+    const notClockedInSet = new Set(notClockedInEmployeeIds)
+
     return directReports
-      .filter(report => notClockedInEmployeeIds.includes(report.id))
+      .filter(report => notClockedInSet.has(report.id) && report.userId) // Only include with userId
       .map(report => ({
         id: report.id,
         name: `${report.firstName} ${report.lastName}`,
