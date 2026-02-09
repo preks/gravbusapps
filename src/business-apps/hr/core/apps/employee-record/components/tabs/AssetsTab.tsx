@@ -286,23 +286,35 @@ const AssetsTab: React.FC<AssetsTabProps> = ({ employee, accessToken, employeeId
 
   if (assets.length === 0)
     return (
-      <Card data-testid="assets-empty-state">
-        <CardContent className="gba:py-12">
-          <div className="gba:text-center gba:space-y-4">
-            <div className="gba:flex gba:justify-center">
-              <div className="gba:rounded-full gba:bg-muted gba:p-4">
-                <PiPackage className="gba:h-8 gba:w-8 gba:text-muted-foreground" />
+      <div className="gba:space-y-6" data-testid="assets-tab-content">
+        <Card data-testid="assets-empty-state">
+          <CardContent className="gba:py-12">
+            <div className="gba:text-center gba:space-y-4">
+              <div className="gba:flex gba:justify-center">
+                <div className="gba:rounded-full gba:bg-muted gba:p-4">
+                  <PiPackage className="gba:h-8 gba:w-8 gba:text-muted-foreground" />
+                </div>
               </div>
+              <div>
+                <h3 className="gba:text-lg gba:font-semibold gba:text-foreground">{t('assets-no-assets-assigned')}</h3>
+                <p className="gba:text-sm gba:text-muted-foreground gba:mt-2">
+                  {isSelfView ? t('assets-no-equipment-assigned-self') : t('assets-no-equipment-assigned-employee')}
+                </p>
+              </div>
+              <Button
+                onClick={() =>
+                  navigateTo(
+                    `${typeof window !== 'undefined' ? window.location.origin : ''}/platform/sales-demo/service-launcher`
+                  )
+                }
+                data-testid="request-new-asset-button"
+              >
+                {t('assets-request-new-asset')}
+              </Button>
             </div>
-            <div>
-              <h3 className="gba:text-lg gba:font-semibold gba:text-foreground">{t('assets-no-assets-assigned')}</h3>
-              <p className="gba:text-sm gba:text-muted-foreground gba:mt-2">
-                {isSelfView ? t('assets-no-equipment-assigned-self') : t('assets-no-equipment-assigned-employee')}
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
     )
 
   return (

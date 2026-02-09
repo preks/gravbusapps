@@ -147,29 +147,12 @@ export function usePresence(options: UsePresenceOptions) {
 
     // Handle enhanced user status change events (primary handler)
     const handleUserStatusChange = (data: UserStatusChangeEvent) => {
-      rtkDebug.log('[usePresence] 📥 Received user_status_change event:', {
-        userId: data.userId,
-        status: data.status,
-        isSystemStatus: data.isSystemStatus,
-        isOnline: data.isOnline,
-        timestamp: data.timestamp,
-        fullData: data
-      })
-
       // Check if this is the new format (has 'status' field) or old format (only 'isOnline')
       if ('status' in data && data.status) {
         // NEW FORMAT with full status details
         const state = data.isOnline ? 'online' : 'offline'
         const timestampString =
           data.timestamp instanceof Date ? data.timestamp.toISOString() : (data.timestamp as string)
-
-        rtkDebug.log('[usePresence] 🔄 Processing NEW FORMAT:', {
-          userId: data.userId,
-          determinedState: state,
-          isOnlineFromData: data.isOnline,
-          status: data.status,
-          timestamp: timestampString
-        })
 
         const userStatus: UserStatus = {
           status: data.status,
@@ -179,14 +162,6 @@ export function usePresence(options: UsePresenceOptions) {
         }
 
         updatePresence(data.userId, state, timestampString, userStatus)
-        rtkDebug.log(
-          '[usePresence] ✅ Updated presence cache for user:',
-          data.userId,
-          'state:',
-          state,
-          'status:',
-          data.status
-        )
       } else {
         // OLD FORMAT - just online/offline
         const anyData = data as any
@@ -194,23 +169,12 @@ export function usePresence(options: UsePresenceOptions) {
         const timestampString =
           anyData.timestamp instanceof Date ? anyData.timestamp.toISOString() : (anyData.timestamp as string)
 
-        rtkDebug.log('[usePresence] 🔄 Processing OLD FORMAT:', {
-          userId: anyData.userId,
-          determinedState: state,
-          isOnline: anyData.isOnline,
-          timestamp: timestampString
-        })
-
         updatePresence(anyData.userId, state, timestampString, undefined)
         rtkDebug.log('[usePresence] ✅ Updated presence cache (OLD FORMAT) for user:', anyData.userId, 'state:', state)
       }
     }
 
     const unsubStatusChange = wsClient.onUserStatusChange(handleUserStatusChange)
-
-    if (process.env.NODE_ENV === 'development') {
-      rtkDebug.log('[usePresence] ✅ Listener registered - now requesting initial status for all online users')
-    }
 
     // Request initial status for all online users AFTER listener is ready
     // This catches any users who connected before our listener was set up

@@ -470,8 +470,6 @@ export const useRealtimeKitMedia = ({
         }
         await virtualBackgroundRef.current.initialize(meeting)
         await virtualBackgroundRef.current.enableBackground(meeting)
-
-        rtkDebug.log('[RTK] ✅ Initial background applied on connection')
       } catch (error) {
         rtkDebug.error('[RTK] ❌ Failed to apply initial background:', error)
         setBackgroundEnabled(false)
@@ -589,7 +587,6 @@ export const useRealtimeKitMedia = ({
       if (virtualBackgroundRef.current && meeting) {
         virtualBackgroundRef.current.destroy(meeting)
         virtualBackgroundRef.current = null
-        rtkDebug.log('[RTK Virtual Background] Cleaned up on unmount')
       }
     }
   }, [meeting])

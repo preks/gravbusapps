@@ -64,6 +64,7 @@ export interface Meeting {
   organizerId: string
   conversationId?: string
   webrtcSessionId?: string
+  transcriptionEnabled?: boolean
   reminderMinutes: number[]
   isAllDay: boolean
   color: string

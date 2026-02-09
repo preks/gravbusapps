@@ -4,7 +4,7 @@
  */
 
 import React from 'react'
-import { Button, cn, useTranslation } from '@newwork/nw-design-system'
+import { Button, cn, toast, useTranslation } from '@newwork/nw-design-system'
 import { CheckCircle } from 'lucide-react'
 import { UnifiedTask } from '../types'
 import { useScreenManagementApi } from '../hooks/useScreenManagementApi'
@@ -12,6 +12,7 @@ import { RemoteScreenLoader } from './RemoteScreenLoader'
 import { LowcoderScreenLoader } from './LowcoderScreenLoader'
 import { useKogitoProcess } from '../hooks/useKogitoProcess'
 import { env } from '@/common/env/EnvUtils'
+import { storeCommunication } from '../../every-api/services/AiService'
 import { UniversalCflowTaskDetails } from './UniversalCflowTaskDetails'
 import { useFlowStepData } from '../hooks/useFlowStepData'
 import { TaskAiSection } from './TaskAiSection'
@@ -84,6 +85,24 @@ export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
     accessToken,
     onSuccess: () => {
       toast.success(t('task-dialog-completed-success'))
+
+      // Store kogito task completion for AI learning (fire and forget)
+      if (task?.id) {
+        storeCommunication(
+          {
+            taskId: task.id,
+            source: task.source as 'cflow' | 'kogito',
+            messageType: 'completion',
+            content: `Task completed: ${task.title || task.name || task.id}`,
+            recipientId: task.sourceMetadata?.creatorUserId as string | undefined,
+            aiAssisted: false
+          },
+          accessToken
+        ).catch(() => {
+          // Silent failure - don't interrupt user flow
+        })
+      }
+
       // Call onTaskCompleted first for instant UI feedback (removes from local state)
       // Don't call onTaskUpdated - it triggers a slow full refetch that's not needed
       // handleTaskCompleted already calls onCompletedRefresh for background sync
@@ -129,6 +148,22 @@ export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
 
           if (response.ok) {
             toast.success(t('task-dialog-completed-success'))
+
+            // Store cflow task completion via screen event for AI learning (fire and forget)
+            storeCommunication(
+              {
+                taskId: task.id,
+                source: 'cflow',
+                messageType: 'completion',
+                content: `Task completed: ${task.title || task.name || task.id}`,
+                recipientId: task.sourceMetadata?.creatorUserId as string | undefined,
+                aiAssisted: false
+              },
+              accessToken
+            ).catch(() => {
+              // Silent failure
+            })
+
             // Call onTaskCompleted first for instant UI feedback
             if (onTaskCompleted && task.id) {
               onTaskCompleted(task.id)
@@ -142,6 +177,23 @@ export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
           toast.error(t('task-dialog-action-failed'))
         }
       } else {
+        // Store task completion for AI learning (fire and forget)
+        if (task?.id) {
+          storeCommunication(
+            {
+              taskId: task.id,
+              source: task.source as 'cflow' | 'kogito',
+              messageType: 'completion',
+              content: `Task completed: ${task.title || task.name || task.id}`,
+              recipientId: task.sourceMetadata?.creatorUserId as string | undefined,
+              aiAssisted: false
+            },
+            accessToken
+          ).catch(() => {
+            // Silent failure
+          })
+        }
+
         // Call onTaskCompleted first for instant UI feedback
         if (onTaskCompleted && task?.id) {
           onTaskCompleted(task.id)
@@ -370,6 +422,21 @@ export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
       }
 
       toast.success(t('task-dialog-blink-completed-success'))
+
+      // Store task completion for AI learning (fire and forget)
+      storeCommunication(
+        {
+          taskId: task.id,
+          source: task.source as 'cflow' | 'kogito',
+          messageType: 'completion',
+          content: `Task completed: ${task.title || task.name || task.id}`,
+          recipientId: task.sourceMetadata?.creatorUserId as string | undefined,
+          aiAssisted: false
+        },
+        accessToken
+      ).catch(() => {
+        // Silent failure - don't interrupt user flow
+      })
 
       // Call onTaskCompleted first for instant UI feedback (removes from local state)
       // Don't call onTaskUpdated - it triggers a slow full refetch that's not needed

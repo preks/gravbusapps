@@ -65,7 +65,7 @@ dayjs.extend(weekday)
 dayjs.extend(localeData)
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { expenseSettingsClient } from '../../../utils/ExpenseSettingsClient'
-import { formatDateForInput, formatDate, checkPeriodUniqueness } from '../../../utils'
+import { formatDateForInput, formatDate, checkPeriodUniqueness, normalizeDateInputValue } from '../../../utils'
 import {
   validateAmountAndPercentage,
   validateAllowanceCodeDates,
@@ -74,6 +74,7 @@ import {
   transformAllowanceCodeForCreate,
   transformAllowanceCodeFromAPI,
   getCodeUniquenessErrorMessage,
+  getValidityDatesFromExisting,
   type AllowanceCodeSaveData
 } from '../utils'
 import { useAllowanceCodeUsageCheck, useTableSorting, createFieldMappings } from '../hooks'
@@ -119,8 +120,8 @@ interface AllowanceCode {
   secondAllowanceRegionRule?: AllowanceRegionRule
   firstWageCode?: string
   secondWageCode?: string
-  validFrom: string
-  validTo?: string
+  activeFrom: string
+  activeTo?: string
   version?: number
   isDeleted: boolean
   businessKey?: string
@@ -143,8 +144,8 @@ interface AllowanceCodeFormData {
   secondAllowanceRegionRulePercent?: number
   firstWageCode?: string
   travelLocation?: string
-  validFrom: string
-  validTo?: string
+  activeFrom: string
+  activeTo?: string
   version?: number
 }
 
@@ -163,7 +164,7 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
   // i18n translations
   const amountPercentageHelperText = getTranslationFromI18nKeyAndLabel(
     'expense-settings:amount_percentage_helper',
-    'Use either Amount or Percentage (not both)'
+    'Either Amount or Percentage is required, but not both'
   )
 
   const form = useForm<AllowanceCodeFormData>({
@@ -180,8 +181,8 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
       secondAllowanceRegionRulePercent: undefined,
       firstWageCode: '',
       travelLocation: TravelLocation.BOTH, // Default to BOTH (Home & Abroad)
-      validFrom: formatDateForInput(activeFrom) || dayjs().format('YYYY-MM-DD'),
-      validTo: formatDateForInput(activeTo) || '9999-12-31'
+      activeFrom: formatDateForInput(activeFrom) || dayjs().format('YYYY-MM-DD'),
+      activeTo: formatDateForInput(activeTo) || '9999-12-31'
     }
   })
 
@@ -222,8 +223,8 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
       name: createFieldMappings.string((a: AllowanceCode) => a.name),
       reimbursable: createFieldMappings.boolean((a: AllowanceCode) => a.reimbursable),
       amount: createFieldMappings.number((a: AllowanceCode) => a.amount),
-      activeFrom: createFieldMappings.date((a: AllowanceCode) => a.validFrom),
-      activeTo: createFieldMappings.date((a: AllowanceCode) => a.validTo, '9999-12-31'),
+      activeFrom: createFieldMappings.date((a: AllowanceCode) => a.activeFrom),
+      activeTo: createFieldMappings.date((a: AllowanceCode) => a.activeTo, '9999-12-31'),
       travelLocation: createFieldMappings.travelLocation((a: AllowanceCode) => a.travelLocation),
       regionRule: createFieldMappings.nested((a: AllowanceCode) => a.firstAllowanceRegionRule),
       percentage: createFieldMappings.number((a: AllowanceCode) => a.firstAllowanceRegionRulePercent),
@@ -430,9 +431,16 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
 
   // Filter region rules based on selected travel region set
   useEffect(() => {
+    // Natural sort function - handles numbers within strings correctly (e.g., "Austria 2" before "Austria 10")
+    // Sorts in descending order as requested
+    const naturalSortDesc = (a: AllowanceRegionRule, b: AllowanceRegionRule) =>
+      (b.name || '').localeCompare(a.name || '', undefined, { numeric: true, sensitivity: 'base' })
+
     if (filterTravelRegionSetId) {
-      // Filter region rules by selected travel region set
-      const filtered = allowanceRegionRules.filter(rule => rule.travelRegionSetRef === filterTravelRegionSetId)
+      // Filter region rules by selected travel region set and sort naturally (descending)
+      const filtered = allowanceRegionRules
+        .filter(rule => rule.travelRegionSetRef === filterTravelRegionSetId)
+        .sort(naturalSortDesc)
       setFilteredRegionRules(filtered)
 
       // Clear region rule selection if it's not in the filtered list
@@ -441,8 +449,8 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
         form.setValue('firstAllowanceRegionRuleId', '')
       }
     } else {
-      // If no travel region set selected, show all region rules
-      setFilteredRegionRules(allowanceRegionRules)
+      // If no travel region set selected, show all region rules sorted naturally (descending)
+      setFilteredRegionRules([...allowanceRegionRules].sort(naturalSortDesc))
     }
   }, [filterTravelRegionSetId, allowanceRegionRules, form])
 
@@ -457,9 +465,12 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
     setIsRestrictedEdit(false)
     setPercentageInputValue('') // Reset percentage input state
 
-    // ALWAYS inherit validity period from parent Expense Rule
-    const validFromValue = formatDateForInput(activeFrom) || dayjs().format('YYYY-MM-DD')
-    const validToValue = formatDateForInput(activeTo) || '9999-12-31'
+    // Get validity dates using shared utility (copies from first existing entry if available)
+    const { activeFrom: entryActiveFrom, activeTo: entryActiveTo } = getValidityDatesFromExisting(
+      allowanceCodes,
+      activeFrom,
+      activeTo
+    )
 
     form.reset({
       code: '',
@@ -474,8 +485,8 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
       secondAllowanceRegionRulePercent: 0,
       firstWageCode: '',
       travelLocation: TravelLocation.BOTH, // Default to BOTH (Home & Abroad)
-      validFrom: validFromValue,
-      validTo: validToValue
+      activeFrom: entryActiveFrom,
+      activeTo: entryActiveTo
     })
     // Keep the travel region set filter - don't reset it between adds
     setIsModalVisible(true)
@@ -507,9 +518,9 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
         secondAllowanceRegionRulePercent: record.secondAllowanceRegionRulePercent ?? 0,
         firstWageCode: record.firstWageCode || '',
         travelLocation: (record.travelLocation as TravelLocation) || TravelLocation.BOTH,
-        validFrom:
-          formatDateForInput(record.validFrom) || formatDateForInput(activeFrom) || dayjs().format('YYYY-MM-DD'),
-        validTo: formatDateForInput(record.validTo),
+        activeFrom:
+          formatDateForInput(record.activeFrom) || formatDateForInput(activeFrom) || dayjs().format('YYYY-MM-DD'),
+        activeTo: formatDateForInput(record.activeTo),
         version: record.version
       })
 
@@ -630,7 +641,7 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
       setIsSaving(true)
 
       // Clear any previous manual errors
-      form.clearErrors(['validFrom', 'validTo', 'amount', 'firstAllowanceRegionRulePercent', 'code'])
+      form.clearErrors(['activeFrom', 'activeTo', 'amount', 'firstAllowanceRegionRulePercent', 'code'])
 
       const formValues = form.getValues()
 
@@ -648,7 +659,7 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
       }
 
       // Date validation
-      const dateErrors = validateAllowanceCodeDates(formValues.validFrom, formValues.validTo, activeFrom, activeTo)
+      const dateErrors = validateAllowanceCodeDates(formValues.activeFrom, formValues.activeTo, activeFrom, activeTo)
 
       if (dateErrors.length > 0) {
         dateErrors.forEach(err => {
@@ -661,8 +672,8 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
       // Check code uniqueness within overlapping validity periods
       const uniquenessCheck = await checkCodeUniqueness(
         formValues.code,
-        formValues.validFrom,
-        formValues.validTo,
+        formValues.activeFrom,
+        formValues.activeTo,
         editingItem?.id
       )
 
@@ -983,7 +994,7 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
                           className="gba:font-mono gba:font-medium"
                           data-testid={`allowance-code-amount-text-${record.id}`}
                         >
-                          {record.amount && record.amount > 0 ? record.amount.toFixed(1) : '-'}
+                          {record.amount ? record.amount.toFixed(1) : '-'}
                         </span>
                       </TableCell>
 
@@ -1018,18 +1029,23 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
                         className="gba:text-center"
                         data-testid={`allowance-code-percentage-cell-${record.id}`}
                       >
-                        <Badge
-                          variant={
-                            (record.firstAllowanceRegionRulePercent || 0) > 0
-                              ? 'default'
-                              : (record.firstAllowanceRegionRulePercent || 0) < 0
-                                ? 'destructive'
-                                : 'secondary'
-                          }
-                          data-testid={`allowance-code-percentage-badge-${record.id}`}
-                        >
-                          {record.firstAllowanceRegionRulePercent || 0}%
-                        </Badge>
+                        {record.firstAllowanceRegionRulePercent !== undefined &&
+                        record.firstAllowanceRegionRulePercent !== null &&
+                        record.firstAllowanceRegionRulePercent !== 0 ? (
+                          <Badge
+                            variant={record.firstAllowanceRegionRulePercent > 0 ? 'default' : 'destructive'}
+                            data-testid={`allowance-code-percentage-badge-${record.id}`}
+                          >
+                            {record.firstAllowanceRegionRulePercent}%
+                          </Badge>
+                        ) : (
+                          <span
+                            className="gba:text-muted-foreground"
+                            data-testid={`allowance-code-percentage-empty-${record.id}`}
+                          >
+                            -
+                          </span>
+                        )}
                       </TableCell>
 
                       {/* Calculation Column */}
@@ -1057,7 +1073,7 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
                             data-testid={`allowance-code-valid-from-icon-${record.id}`}
                           />
                           <span className="gba:text-sm" data-testid={`allowance-code-valid-from-text-${record.id}`}>
-                            {formatDate(record.validFrom)}
+                            {formatDate(record.activeFrom)}
                           </span>
                         </div>
                       </TableCell>
@@ -1070,7 +1086,7 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
                             data-testid={`allowance-code-valid-to-icon-${record.id}`}
                           />
                           <span className="gba:text-sm" data-testid={`allowance-code-valid-to-text-${record.id}`}>
-                            {record.validTo ? formatDate(record.validTo) : '∞'}
+                            {record.activeTo ? formatDate(record.activeTo) : '∞'}
                           </span>
                         </div>
                       </TableCell>
@@ -1106,290 +1122,146 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
         }}
       >
         <DialogContent
-          className="gba:max-w-3xl gba:max-h-[90vh] gba:overflow-y-auto"
+          className="gba:max-w-3xl gba:max-h-[90vh] gba:overflow-hidden gba:flex gba:flex-col"
           data-testid="allowance-code-modal"
         >
-          <DialogHeader data-testid="allowance-code-modal-header">
+          <DialogHeader className="gba:px-6 gba:pt-6 gba:pb-4" data-testid="allowance-code-modal-header">
             <DialogTitle data-testid="allowance-code-modal-title">
               {editingItem ? 'Edit' : 'Add'} Allowance Code
             </DialogTitle>
           </DialogHeader>
 
-          {/* Restricted edit warning */}
-          {isRestrictedEdit && (
-            <Alert
-              className="gba:mb-4 gba:border-warning gba:bg-warning-secondary"
-              data-testid="allowance-code-restricted-alert"
-            >
-              <PiWarning className="gba:h-4 gba:w-4 gba:text-warning" />
-              <AlertDescription>
-                This allowance code is used in expense items. Only &quot;Valid To&quot; can be edited.
-              </AlertDescription>
-            </Alert>
-          )}
+          <div className="gba:flex-1 gba:overflow-y-auto gba:px-6 gba:pb-6">
+            {/* Restricted edit warning */}
+            {isRestrictedEdit && (
+              <Alert
+                className="gba:mb-4 gba:border-warning gba:bg-warning-secondary"
+                data-testid="allowance-code-restricted-alert"
+              >
+                <PiWarning className="gba:h-4 gba:w-4 gba:text-warning" />
+                <AlertDescription>
+                  This allowance code is used in expense items. Only &quot;Valid To&quot; can be edited.
+                </AlertDescription>
+              </Alert>
+            )}
 
-          <Form {...form}>
-            <div data-testid="allowance-code-form" className="gba:space-y-4">
-              <div className="gba:space-y-4">
-                {/* Code */}
-                <FormField
-                  control={form.control}
-                  name="code"
-                  rules={{ required: 'Allowance Code is required' }}
-                  render={({ field }) => (
-                    <FormItem data-testid="allowance-code-code-field">
-                      <FormLabel data-testid="allowance-code-code-label">Allowance Code *</FormLabel>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          placeholder="e.g., A-FULL, L-FULL"
-                          disabled={isRestrictedEdit}
-                          data-testid="allowance-code-code-input"
-                          onBlur={async () => {
-                            field.onBlur()
-                            const codeValue = form.getValues('code')
-                            const validFrom = form.getValues('validFrom')
-                            const validTo = form.getValues('validTo')
-
-                            // Only validate if code is not empty
-                            if (codeValue?.trim()) {
-                              const uniquenessCheck = await checkCodeUniqueness(
-                                codeValue,
-                                validFrom,
-                                validTo,
-                                editingItem?.id
-                              )
-
-                              if (uniquenessCheck.isDuplicate) {
-                                // Pre-fill the name with the existing name if available
-                                if (uniquenessCheck.existingName) {
-                                  form.setValue('name', uniquenessCheck.existingName)
-                                }
-                                form.setError('code', {
-                                  type: 'manual',
-                                  message:
-                                    'This code already exists with an overlapping validity period. Please use a different code or adjust the validity dates.'
-                                })
-                              } else {
-                                // Clear error if code is now unique
-                                form.clearErrors('code')
-                              }
-                            }
-                          }}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                {/* Name */}
-                <FormField
-                  control={form.control}
-                  name="name"
-                  rules={{ required: 'Name is required' }}
-                  render={({ field }) => (
-                    <FormItem data-testid="allowance-code-name-field">
-                      <FormLabel data-testid="allowance-code-name-label">Name *</FormLabel>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          placeholder="e.g., Abroad Full Day"
-                          disabled={isRestrictedEdit}
-                          data-testid="allowance-code-name-input"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                {/* Expense Group - Always ALLOWANCE (read-only display) */}
-                <FormItem data-testid="allowance-code-expense-group-field">
-                  <FormLabel data-testid="allowance-code-expense-group-label">Expense Group</FormLabel>
-                  <FormControl>
-                    <Input
-                      value="ALLOWANCE"
-                      disabled
-                      className="gba:bg-muted gba:cursor-not-allowed"
-                      data-testid="allowance-code-expense-group-input"
-                    />
-                  </FormControl>
-                  <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">
-                    Allowance codes always use the ALLOWANCE expense group
-                  </p>
-                </FormItem>
-
-                {/* Amount */}
-                <FormField
-                  control={form.control}
-                  name="amount"
-                  render={({ field }) => (
-                    <FormItem data-testid="allowance-code-amount-field">
-                      <FormLabel data-testid="allowance-code-amount-label">Amount</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="text"
-                          placeholder="e.g. 57.50"
-                          value={field.value === 0 ? '' : (field.value ?? '')}
-                          onChange={e => {
-                            const value = e.target.value
-                            if (value === '') {
-                              field.onChange(0)
-                            } else {
-                              const numValue = Number.parseFloat(value)
-                              if (!Number.isNaN(numValue)) {
-                                field.onChange(numValue)
-                              }
-                            }
-                          }}
-                          disabled={isRestrictedEdit}
-                          data-testid="allowance-code-amount-input"
-                        />
-                      </FormControl>
-                      <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">{amountPercentageHelperText}</div>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                {/* Travel Region Set (Filter only - not saved) */}
-                <div className="gba:space-y-2" data-testid="allowance-code-travel-region-set-filter">
-                  <label className="gba:text-sm gba:font-medium" data-testid="allowance-code-travel-region-set-label">
-                    Travel Region Set
-                  </label>
-                  <Select
-                    value={filterTravelRegionSetId || 'all'}
-                    onValueChange={value => setFilterTravelRegionSetId(value === 'all' ? '' : value)}
-                    disabled={isRestrictedEdit || isTravelRegionSetLocked}
-                  >
-                    <SelectTrigger data-testid="allowance-code-travel-region-set-select">
-                      <SelectValue placeholder="All region rules" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all" data-testid="allowance-code-travel-region-set-option-all">
-                        All region rules
-                      </SelectItem>
-                      {travelRegionSets.map(set => (
-                        <SelectItem
-                          key={set.id}
-                          value={set.id}
-                          data-testid={`allowance-code-travel-region-set-option-${set.code}`}
-                        >
-                          {set.value}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <p className="gba:text-xs gba:text-muted-foreground">
-                    {isTravelRegionSetLocked
-                      ? 'Locked - edit the first allowance code to change'
-                      : 'Select to filter region rules below'}
-                  </p>
-                </div>
-
-                {/* First Allowance Region Rule */}
-                <FormField
-                  control={form.control}
-                  name="firstAllowanceRegionRuleId"
-                  render={({ field }) => (
-                    <FormItem data-testid="allowance-code-region-rule-field">
-                      <FormLabel data-testid="allowance-code-region-rule-label">Region Rule</FormLabel>
-                      <Select
-                        value={field.value || 'none'}
-                        onValueChange={value => field.onChange(value === 'none' ? '' : value)}
-                        disabled={isRestrictedEdit}
-                      >
+            <Form {...form}>
+              <div data-testid="allowance-code-form" className="gba:space-y-4">
+                <div className="gba:space-y-4">
+                  {/* Code */}
+                  <FormField
+                    control={form.control}
+                    name="code"
+                    rules={{ required: 'Allowance Code is required' }}
+                    render={({ field }) => (
+                      <FormItem data-testid="allowance-code-code-field">
+                        <FormLabel data-testid="allowance-code-code-label">Allowance Code *</FormLabel>
                         <FormControl>
-                          <SelectTrigger data-testid="allowance-code-region-rule-select">
-                            <SelectValue placeholder="Select region rule" />
-                          </SelectTrigger>
+                          <Input
+                            {...field}
+                            placeholder="e.g., A-FULL, L-FULL"
+                            disabled={isRestrictedEdit}
+                            data-testid="allowance-code-code-input"
+                            onBlur={async () => {
+                              field.onBlur()
+                              const codeValue = form.getValues('code')
+                              const entryActiveFrom = form.getValues('activeFrom')
+                              const entryActiveTo = form.getValues('activeTo')
+
+                              // Only validate if code is not empty
+                              if (codeValue?.trim()) {
+                                const uniquenessCheck = await checkCodeUniqueness(
+                                  codeValue,
+                                  entryActiveFrom,
+                                  entryActiveTo,
+                                  editingItem?.id
+                                )
+
+                                if (uniquenessCheck.isDuplicate) {
+                                  // Pre-fill the name with the existing name if available
+                                  if (uniquenessCheck.existingName) {
+                                    form.setValue('name', uniquenessCheck.existingName)
+                                  }
+                                  form.setError('code', {
+                                    type: 'manual',
+                                    message:
+                                      'This code already exists with an overlapping validity period. Please use a different code or adjust the validity dates.'
+                                  })
+                                } else {
+                                  // Clear error if code is now unique
+                                  form.clearErrors('code')
+                                }
+                              }
+                            }}
+                          />
                         </FormControl>
-                        <SelectContent>
-                          <SelectItem value="none" data-testid="allowance-code-region-rule-option-none">
-                            None
-                          </SelectItem>
-                          {filteredRegionRules.map(rule => (
-                            <SelectItem
-                              key={rule.id}
-                              value={rule.id}
-                              data-testid={`allowance-code-region-rule-option-${rule.code}`}
-                            >
-                              {rule.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                {/* First Allowance Region Rule Percent */}
-                <FormField
-                  control={form.control}
-                  name="firstAllowanceRegionRulePercent"
-                  render={({ field }) => {
-                    // Sync local state with field value when field changes externally
-                    const displayValue =
-                      percentageInputValue !== '' || field.value === undefined || field.value === 0
-                        ? percentageInputValue
-                        : String(field.value)
+                  {/* Name */}
+                  <FormField
+                    control={form.control}
+                    name="name"
+                    rules={{ required: 'Name is required' }}
+                    render={({ field }) => (
+                      <FormItem data-testid="allowance-code-name-field">
+                        <FormLabel data-testid="allowance-code-name-label">Name *</FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            placeholder="e.g., Abroad Full Day"
+                            disabled={isRestrictedEdit}
+                            data-testid="allowance-code-name-input"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                    return (
-                      <FormItem data-testid="allowance-code-percentage-field">
-                        <FormLabel data-testid="allowance-code-percentage-label">Percentage</FormLabel>
+                  {/* Expense Group - Always ALLOWANCE (read-only display) */}
+                  <FormItem data-testid="allowance-code-expense-group-field">
+                    <FormLabel data-testid="allowance-code-expense-group-label">Expense Group</FormLabel>
+                    <FormControl>
+                      <Input
+                        value="ALLOWANCE"
+                        disabled
+                        className="gba:bg-muted gba:cursor-not-allowed"
+                        data-testid="allowance-code-expense-group-input"
+                      />
+                    </FormControl>
+                    <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">
+                      Allowance codes always use the ALLOWANCE expense group
+                    </p>
+                  </FormItem>
+
+                  {/* Amount */}
+                  <FormField
+                    control={form.control}
+                    name="amount"
+                    render={({ field }) => (
+                      <FormItem data-testid="allowance-code-amount-field">
+                        <FormLabel data-testid="allowance-code-amount-label">Amount</FormLabel>
                         <FormControl>
                           <Input
                             type="text"
-                            placeholder="e.g. 100"
-                            value={displayValue}
+                            placeholder="e.g. 57.50"
+                            value={field.value === 0 ? '' : (field.value ?? '')}
                             onChange={e => {
                               const value = e.target.value
-                              // Update local state to allow typing "-" and partial numbers
-                              setPercentageInputValue(value)
-
-                              // Handle empty string
                               if (value === '') {
                                 field.onChange(0)
-                                return
-                              }
-
-                              // Allow "-" to be typed (user can continue typing negative number)
-                              if (value === '-') {
-                                // Don't update field yet, just keep the "-" in the input
-                                return
-                              }
-
-                              // Parse the number (handles negative numbers like "-20")
-                              const numValue = Number.parseFloat(value)
-                              if (!Number.isNaN(numValue)) {
-                                field.onChange(numValue)
-                              }
-                              // If invalid but starts with "-", allow it temporarily (user is still typing)
-                              // This handles cases like "-" or "-." while user is typing
-                            }}
-                            onBlur={() => {
-                              // When user leaves the field, clear local state if it's invalid
-                              const currentValue = percentageInputValue
-                              if (currentValue === '' || currentValue === '-') {
-                                setPercentageInputValue('')
-                                field.onChange(0)
                               } else {
-                                const numValue = Number.parseFloat(currentValue)
-                                if (Number.isNaN(numValue)) {
-                                  // Invalid input, reset to field value
-                                  setPercentageInputValue(
-                                    field.value === 0 || field.value === undefined ? '' : String(field.value)
-                                  )
-                                } else {
-                                  // Valid number, clear local state to sync with field
-                                  setPercentageInputValue('')
+                                const numValue = Number.parseFloat(value)
+                                if (!Number.isNaN(numValue)) {
+                                  field.onChange(numValue)
                                 }
                               }
                             }}
                             disabled={isRestrictedEdit}
-                            data-testid="allowance-code-percentage-input"
+                            data-testid="allowance-code-amount-input"
                           />
                         </FormControl>
                         <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">
@@ -1397,194 +1269,347 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
                         </div>
                         <FormMessage />
                       </FormItem>
-                    )
-                  }}
-                />
+                    )}
+                  />
 
-                {/* First Wage Code */}
-                <FormField
-                  control={form.control}
-                  name="firstWageCode"
-                  render={({ field }) => (
-                    <FormItem data-testid="allowance-code-wage-code-field">
-                      <FormLabel data-testid="allowance-code-wage-code-label">Wage Code</FormLabel>
-                      <FormControl>
-                        <Input
-                          {...field}
-                          value={field.value || ''}
-                          placeholder="Enter wage code"
+                  {/* Travel Region Set (Filter only - not saved) */}
+                  <div className="gba:space-y-2" data-testid="allowance-code-travel-region-set-filter">
+                    <label className="gba:text-sm gba:font-medium" data-testid="allowance-code-travel-region-set-label">
+                      Travel Region Set
+                    </label>
+                    <Select
+                      value={filterTravelRegionSetId || 'all'}
+                      onValueChange={value => setFilterTravelRegionSetId(value === 'all' ? '' : value)}
+                      disabled={isRestrictedEdit || isTravelRegionSetLocked}
+                    >
+                      <SelectTrigger data-testid="allowance-code-travel-region-set-select">
+                        <SelectValue placeholder="All region rules" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all" data-testid="allowance-code-travel-region-set-option-all">
+                          All region rules
+                        </SelectItem>
+                        {travelRegionSets.map(set => (
+                          <SelectItem
+                            key={set.id}
+                            value={set.id}
+                            data-testid={`allowance-code-travel-region-set-option-${set.code}`}
+                          >
+                            {set.value}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="gba:text-xs gba:text-muted-foreground">
+                      {isTravelRegionSetLocked
+                        ? 'Locked - edit the first allowance code to change'
+                        : 'Select to filter region rules below'}
+                    </p>
+                  </div>
+
+                  {/* First Allowance Region Rule */}
+                  <FormField
+                    control={form.control}
+                    name="firstAllowanceRegionRuleId"
+                    render={({ field }) => (
+                      <FormItem data-testid="allowance-code-region-rule-field">
+                        <FormLabel data-testid="allowance-code-region-rule-label">Region Rule</FormLabel>
+                        <Select
+                          value={field.value || 'none'}
+                          onValueChange={value => field.onChange(value === 'none' ? '' : value)}
                           disabled={isRestrictedEdit}
-                          data-testid="allowance-code-wage-code-input"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                {/* Travel Location */}
-                <FormField
-                  control={form.control}
-                  name="travelLocation"
-                  render={({ field }) => (
-                    <FormItem data-testid="allowance-code-travel-location-field">
-                      <FormLabel data-testid="allowance-code-travel-location-label">Travel Location</FormLabel>
-                      <Select
-                        value={field.value || TravelLocation.BOTH}
-                        onValueChange={field.onChange}
-                        disabled={isRestrictedEdit}
-                      >
-                        <FormControl>
-                          <SelectTrigger data-testid="allowance-code-travel-location-select">
-                            <SelectValue placeholder="Select travel location" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent data-testid="allowance-code-travel-location-options">
-                          <SelectItem
-                            value={TravelLocation.HOME}
-                            data-testid="allowance-code-travel-location-option-home"
-                          >
-                            {TravelLocationLabels[TravelLocation.HOME]}
-                          </SelectItem>
-                          <SelectItem
-                            value={TravelLocation.ABROAD}
-                            data-testid="allowance-code-travel-location-option-abroad"
-                          >
-                            {TravelLocationLabels[TravelLocation.ABROAD]}
-                          </SelectItem>
-                          <SelectItem
-                            value={TravelLocation.BOTH}
-                            data-testid="allowance-code-travel-location-option-both"
-                          >
-                            {TravelLocationLabels[TravelLocation.BOTH]}
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                {/* Calculation */}
-                <FormField
-                  control={form.control}
-                  name="calculation"
-                  render={({ field }) => (
-                    <FormItem data-testid="allowance-code-calculation-field">
-                      <FormLabel data-testid="allowance-code-calculation-label">Calculation</FormLabel>
-                      <Select
-                        value={field.value || 'none'}
-                        onValueChange={value => field.onChange(value === 'none' ? '' : value)}
-                        disabled={isRestrictedEdit}
-                      >
-                        <FormControl>
-                          <SelectTrigger data-testid="allowance-code-calculation-select">
-                            <SelectValue placeholder="Select calculation method" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="none" data-testid="allowance-code-calculation-option-none">
-                            None
-                          </SelectItem>
-                          {calculationOptions.map(option => (
-                            <SelectItem
-                              key={option.id}
-                              value={option.id}
-                              data-testid={`allowance-code-calculation-option-${option.code}`}
-                            >
-                              {option.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger data-testid="allowance-code-region-rule-select">
+                              <SelectValue placeholder="Select region rule" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="none" data-testid="allowance-code-region-rule-option-none">
+                              None
                             </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                            {filteredRegionRules.map(rule => (
+                              <SelectItem
+                                key={rule.id}
+                                value={rule.id}
+                                data-testid={`allowance-code-region-rule-option-${rule.code}`}
+                              >
+                                {rule.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                {/* Empty cell for grid alignment */}
-                <div></div>
+                  {/* First Allowance Region Rule Percent */}
+                  <FormField
+                    control={form.control}
+                    name="firstAllowanceRegionRulePercent"
+                    render={({ field }) => {
+                      // Sync local state with field value when field changes externally
+                      const displayValue =
+                        percentageInputValue !== '' || field.value === undefined || field.value === 0
+                          ? percentageInputValue
+                          : String(field.value)
 
-                {/* Valid From */}
-                <FormField
-                  control={form.control}
-                  name="validFrom"
-                  rules={{ required: 'Valid From is required' }}
-                  render={({ field }) => (
-                    <FormItem data-testid="allowance-code-valid-from-field">
-                      <FormLabel data-testid="allowance-code-valid-from-label">Valid From *</FormLabel>
-                      <FormControl>
-                        <DateInput
-                          value={field.value || ''}
-                          onChange={date => {
-                            field.onChange(date)
-                            form.clearErrors('validFrom')
-                          }}
+                      return (
+                        <FormItem data-testid="allowance-code-percentage-field">
+                          <FormLabel data-testid="allowance-code-percentage-label">Percentage</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="text"
+                              placeholder="e.g. 100"
+                              value={displayValue}
+                              onChange={e => {
+                                const value = e.target.value
+                                // Update local state to allow typing "-" and partial numbers
+                                setPercentageInputValue(value)
+
+                                // Handle empty string
+                                if (value === '') {
+                                  field.onChange(0)
+                                  return
+                                }
+
+                                // Allow "-" to be typed (user can continue typing negative number)
+                                if (value === '-') {
+                                  // Don't update field yet, just keep the "-" in the input
+                                  return
+                                }
+
+                                // Parse the number (handles negative numbers like "-20")
+                                const numValue = Number.parseFloat(value)
+                                if (!Number.isNaN(numValue)) {
+                                  field.onChange(numValue)
+                                }
+                                // If invalid but starts with "-", allow it temporarily (user is still typing)
+                                // This handles cases like "-" or "-." while user is typing
+                              }}
+                              onBlur={() => {
+                                // When user leaves the field, clear local state if it's invalid
+                                const currentValue = percentageInputValue
+                                if (currentValue === '' || currentValue === '-') {
+                                  setPercentageInputValue('')
+                                  field.onChange(0)
+                                } else {
+                                  const numValue = Number.parseFloat(currentValue)
+                                  if (Number.isNaN(numValue)) {
+                                    // Invalid input, reset to field value
+                                    setPercentageInputValue(
+                                      field.value === 0 || field.value === undefined ? '' : String(field.value)
+                                    )
+                                  } else {
+                                    // Valid number, clear local state to sync with field
+                                    setPercentageInputValue('')
+                                  }
+                                }
+                              }}
+                              disabled={isRestrictedEdit}
+                              data-testid="allowance-code-percentage-input"
+                            />
+                          </FormControl>
+                          <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">
+                            {amountPercentageHelperText}
+                          </div>
+                          <FormMessage />
+                        </FormItem>
+                      )
+                    }}
+                  />
+
+                  {/* First Wage Code */}
+                  <FormField
+                    control={form.control}
+                    name="firstWageCode"
+                    render={({ field }) => (
+                      <FormItem data-testid="allowance-code-wage-code-field">
+                        <FormLabel data-testid="allowance-code-wage-code-label">Wage Code</FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            value={field.value || ''}
+                            placeholder="Enter wage code"
+                            disabled={isRestrictedEdit}
+                            data-testid="allowance-code-wage-code-input"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Travel Location */}
+                  <FormField
+                    control={form.control}
+                    name="travelLocation"
+                    render={({ field }) => (
+                      <FormItem data-testid="allowance-code-travel-location-field">
+                        <FormLabel data-testid="allowance-code-travel-location-label">Travel Location</FormLabel>
+                        <Select
+                          value={field.value || TravelLocation.BOTH}
+                          onValueChange={field.onChange}
                           disabled={isRestrictedEdit}
-                          data-testid="allowance-code-valid-from-input"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                        >
+                          <FormControl>
+                            <SelectTrigger data-testid="allowance-code-travel-location-select">
+                              <SelectValue placeholder="Select travel location" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent data-testid="allowance-code-travel-location-options">
+                            <SelectItem
+                              value={TravelLocation.HOME}
+                              data-testid="allowance-code-travel-location-option-home"
+                            >
+                              {TravelLocationLabels[TravelLocation.HOME]}
+                            </SelectItem>
+                            <SelectItem
+                              value={TravelLocation.ABROAD}
+                              data-testid="allowance-code-travel-location-option-abroad"
+                            >
+                              {TravelLocationLabels[TravelLocation.ABROAD]}
+                            </SelectItem>
+                            <SelectItem
+                              value={TravelLocation.BOTH}
+                              data-testid="allowance-code-travel-location-option-both"
+                            >
+                              {TravelLocationLabels[TravelLocation.BOTH]}
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
-                {/* Valid To */}
+                  {/* Calculation */}
+                  <FormField
+                    control={form.control}
+                    name="calculation"
+                    render={({ field }) => (
+                      <FormItem data-testid="allowance-code-calculation-field">
+                        <FormLabel data-testid="allowance-code-calculation-label">Calculation</FormLabel>
+                        <Select
+                          value={field.value || 'none'}
+                          onValueChange={value => field.onChange(value === 'none' ? '' : value)}
+                          disabled={isRestrictedEdit}
+                        >
+                          <FormControl>
+                            <SelectTrigger data-testid="allowance-code-calculation-select">
+                              <SelectValue placeholder="Select calculation method" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="none" data-testid="allowance-code-calculation-option-none">
+                              None
+                            </SelectItem>
+                            {calculationOptions.map(option => (
+                              <SelectItem
+                                key={option.id}
+                                value={option.id}
+                                data-testid={`allowance-code-calculation-option-${option.code}`}
+                              >
+                                {option.value}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Empty cell for grid alignment */}
+                  <div></div>
+
+                  {/* Valid From */}
+                  <FormField
+                    control={form.control}
+                    name="activeFrom"
+                    rules={{ required: 'Valid From is required' }}
+                    render={({ field }) => (
+                      <FormItem data-testid="allowance-code-valid-from-field">
+                        <FormLabel data-testid="allowance-code-valid-from-label">Valid From *</FormLabel>
+                        <FormControl>
+                          <DateInput
+                            value={field.value || ''}
+                            onChange={date => {
+                              field.onChange(normalizeDateInputValue(date))
+                              form.clearErrors('activeFrom')
+                            }}
+                            outputFormat="iso"
+                            disabled={isRestrictedEdit}
+                            data-testid="allowance-code-valid-from-input"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Valid To */}
+                  <FormField
+                    control={form.control}
+                    name="activeTo"
+                    render={({ field }) => (
+                      <FormItem data-testid="allowance-code-valid-to-field">
+                        <FormLabel data-testid="allowance-code-valid-to-label">Valid To</FormLabel>
+                        <FormControl>
+                          <DateInput
+                            value={field.value || ''}
+                            onChange={date => {
+                              field.onChange(normalizeDateInputValue(date))
+                              form.clearErrors('activeTo')
+                            }}
+                            outputFormat="iso"
+                            data-testid="allowance-code-valid-to-input"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                {/* Reimbursable Switch */}
                 <FormField
                   control={form.control}
-                  name="validTo"
+                  name="reimbursable"
                   render={({ field }) => (
-                    <FormItem data-testid="allowance-code-valid-to-field">
-                      <FormLabel data-testid="allowance-code-valid-to-label">Valid To</FormLabel>
-                      <FormControl>
-                        <DateInput
-                          value={field.value || ''}
-                          onChange={date => {
-                            field.onChange(date)
-                            form.clearErrors('validTo')
-                          }}
-                          data-testid="allowance-code-valid-to-input"
-                        />
-                      </FormControl>
-                      <FormMessage />
+                    <FormItem
+                      className="gba:flex gba:items-center gba:justify-between"
+                      data-testid="allowance-code-reimbursable-field"
+                    >
+                      <FormLabel data-testid="allowance-code-reimbursable-label">Reimbursable</FormLabel>
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <span
+                          className="gba:text-sm gba:text-muted-foreground"
+                          data-testid="allowance-code-reimbursable-status"
+                        >
+                          {field.value ? 'Yes' : 'No'}
+                        </span>
+                        <FormControl>
+                          <NWSwitch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                            disabled={isRestrictedEdit}
+                            data-testid="allowance-code-reimbursable-switch"
+                          />
+                        </FormControl>
+                      </div>
                     </FormItem>
                   )}
                 />
               </div>
+            </Form>
+          </div>
 
-              {/* Reimbursable Switch */}
-              <FormField
-                control={form.control}
-                name="reimbursable"
-                render={({ field }) => (
-                  <FormItem
-                    className="gba:flex gba:items-center gba:justify-between"
-                    data-testid="allowance-code-reimbursable-field"
-                  >
-                    <FormLabel data-testid="allowance-code-reimbursable-label">Reimbursable</FormLabel>
-                    <div className="gba:flex gba:items-center gba:gap-2">
-                      <span
-                        className="gba:text-sm gba:text-muted-foreground"
-                        data-testid="allowance-code-reimbursable-status"
-                      >
-                        {field.value ? 'Yes' : 'No'}
-                      </span>
-                      <FormControl>
-                        <NWSwitch
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                          disabled={isRestrictedEdit}
-                          data-testid="allowance-code-reimbursable-switch"
-                        />
-                      </FormControl>
-                    </div>
-                  </FormItem>
-                )}
-              />
-            </div>
-          </Form>
-
-          <DialogFooter data-testid="allowance-code-modal-footer">
+          <DialogFooter
+            className="gba:shrink-0 gba:border-t gba:border-border gba:bg-background gba:px-6 gba:py-4"
+            data-testid="allowance-code-modal-footer"
+          >
             <Button
               variant="outline"
               onClick={() => {

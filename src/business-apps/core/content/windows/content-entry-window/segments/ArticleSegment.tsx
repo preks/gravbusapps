@@ -16,7 +16,7 @@ import {
   PopoverTrigger,
   useTranslation
 } from '@newwork/nw-design-system'
-import { ImageIcon, CaretLeftIcon, CaretRightIcon, Folder, Link } from '@phosphor-icons/react'
+import { ImageIcon, Folder, Link } from '@phosphor-icons/react'
 import ReactQuill from 'react-quill'
 import { CatalogSelect } from '@/components/catalog-select'
 import { ContentEntryFormValues } from '../ContentEntryWindow'
@@ -85,7 +85,6 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = ({
   onContentTagNamesChange
 }) => {
   const { t } = useTranslation(translations)
-  const [sidebarOpen, setSidebarOpen] = useState(true)
   const [dragActive, setDragActive] = useState(false)
   const [uploadMenuOpen, setUploadMenuOpen] = useState(false)
   const [urlPopoverOpen, setUrlPopoverOpen] = useState(false)
@@ -238,127 +237,8 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = ({
   )
 
   return (
-    <div className="gba:flex gba:flex-1 gba:gap-6 gba:overflow-hidden">
-      {/* LEFT SIDEBAR */}
-      <div
-        className={`gba:flex-shrink-0 gba:space-y-6 gba:overflow-y-auto gba:pr-4 gba:transition-all gba:duration-300 gba:border-r gba:border-border ${
-          sidebarOpen ? 'gba:w-80' : 'gba:w-0 gba:overflow-hidden'
-        }`}
-      >
-        {/* Settings */}
-        <div className="gba:space-y-4">
-          <FormField
-            control={control as any}
-            name="displayAuthor"
-            render={({ field }) => (
-              <FormItem className="gba:flex gba:items-center gba:justify-between gba:space-y-0 gba:p-4 gba:border gba:border-border gba:rounded-lg">
-                <FormLabel>{t('display-author') || 'Display Author'}</FormLabel>
-                <FormControl>
-                  <Switch checked={field.value} onCheckedChange={field.onChange} />
-                </FormControl>
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={control as any}
-            name="allowComment"
-            render={({ field }) => (
-              <FormItem className="gba:flex gba:items-center gba:justify-between gba:space-y-0 gba:p-4 gba:border gba:border-border gba:rounded-lg">
-                <FormLabel>{t('allow-comments') || 'Allow Comments'}</FormLabel>
-                <FormControl>
-                  <Switch checked={field.value} onCheckedChange={field.onChange} />
-                </FormControl>
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={control as any}
-            name="allowReaction"
-            render={({ field }) => (
-              <FormItem className="gba:flex gba:items-center gba:justify-between gba:space-y-0 gba:p-4 gba:border gba:border-border gba:rounded-lg">
-                <FormLabel>{t('allow-reactions') || 'Allow Reactions'}</FormLabel>
-                <FormControl>
-                  <Switch checked={field.value as boolean} onCheckedChange={field.onChange} />
-                </FormControl>
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={control as any}
-            name="schedulePublication"
-            render={({ field }) => (
-              <FormItem className="gba:flex gba:items-center gba:justify-between gba:space-y-0 gba:p-4 gba:border gba:border-border gba:rounded-lg">
-                <FormLabel>{t('schedule-publication') || 'Schedule Publication'}</FormLabel>
-                <FormControl>
-                  <Switch checked={field.value} onCheckedChange={field.onChange} />
-                </FormControl>
-              </FormItem>
-            )}
-          />
-        </div>
-
-        {/* Schedule Dates - if enabled */}
-        {watchSchedulePublication && (
-          <div className="gba:space-y-4">
-            <FormField
-              control={control as any}
-              name="startDate"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t('start-date') || 'Start Date'}</FormLabel>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      type="datetime-local"
-                      value={field.value || ''}
-                      data-testid="content-entry-window-start-date-input"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={control as any}
-              name="endDate"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t('end-date') || 'End Date'}</FormLabel>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      type="datetime-local"
-                      value={field.value || ''}
-                      data-testid="content-entry-window-end-date-input"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-        )}
-      </div>
-
-      {/* SIDEBAR TOGGLE BUTTON */}
-      <div className="gba:flex-shrink-0 gba:flex gba:items-center">
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="gba:h-full"
-          data-testid="content-entry-window-sidebar-toggle"
-        >
-          {sidebarOpen ? <CaretLeftIcon size={20} /> : <CaretRightIcon size={20} />}
-        </Button>
-      </div>
-
-      {/* RIGHT SIDE: Editor Area (Full Width) */}
+    <div className="gba:flex gba:flex-1 gba:flex-col gba:gap-6 gba:overflow-hidden">
+      {/* MAIN CONTENT */}
       <div className="gba:flex-1 gba:flex gba:flex-col gba:space-y-4">
         {/* AI Text Generator Button */}
         <div className="gba:flex gba:justify-end gba:mb-4">
@@ -447,6 +327,7 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = ({
                     catalogIdentifier="ContentType:v1"
                     parentField="contentGroupRef"
                     requireSourceForEnable={true}
+                    autoSelectFirst={true}
                     value={field.value || ''}
                     onValueChange={field.onChange}
                     data-testid="content-entry-window-type-select"
@@ -736,6 +617,107 @@ export const ArticleSegment: React.FC<ArticleSegmentProps> = ({
             )}
           />
         </FormFieldGroup>
+      </div>
+
+      {/* BOTTOM CONTROLS */}
+      <div className="gba:flex gba:flex-col gba:gap-6 gba:flex-shrink-0 gba:overflow-y-auto gba:transition-all gba:duration-300 gba:border-border gba:w-full gba:pt-4 gba:border-t">
+        {/* Schedule Dates - if enabled */}
+        {watchSchedulePublication && (
+          <div className="gba:space-y-4">
+            <FormField
+              control={control as any}
+              name="startDate"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('start-date') || 'Start Date'}</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      type="datetime-local"
+                      value={field.value || ''}
+                      data-testid="content-entry-window-start-date-input"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={control as any}
+              name="endDate"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('end-date') || 'End Date'}</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      type="datetime-local"
+                      value={field.value || ''}
+                      data-testid="content-entry-window-end-date-input"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        )}
+
+        {/* Compact toggles */}
+        <div className="gba:mt-auto gba:flex gba:flex-wrap gba:gap-4">
+          <FormField
+            control={control as any}
+            name="displayAuthor"
+            render={({ field }) => (
+              <FormItem className="gba:flex gba:items-center gba:gap-2 gba:space-y-0">
+                <FormLabel className="gba:text-sm">{t('display-author') || 'Display Author'}</FormLabel>
+                <FormControl>
+                  <Switch checked={field.value} onCheckedChange={field.onChange} className="gba:scale-90" />
+                </FormControl>
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={control as any}
+            name="allowComment"
+            render={({ field }) => (
+              <FormItem className="gba:flex gba:items-center gba:gap-2 gba:space-y-0">
+                <FormLabel className="gba:text-sm">{t('allow-comments') || 'Allow Comments'}</FormLabel>
+                <FormControl>
+                  <Switch checked={field.value} onCheckedChange={field.onChange} className="gba:scale-90" />
+                </FormControl>
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={control as any}
+            name="allowReaction"
+            render={({ field }) => (
+              <FormItem className="gba:flex gba:items-center gba:gap-2 gba:space-y-0">
+                <FormLabel className="gba:text-sm">{t('allow-reactions') || 'Allow Reactions'}</FormLabel>
+                <FormControl>
+                  <Switch checked={field.value as boolean} onCheckedChange={field.onChange} className="gba:scale-90" />
+                </FormControl>
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={control as any}
+            name="schedulePublication"
+            render={({ field }) => (
+              <FormItem className="gba:flex gba:items-center gba:gap-2 gba:space-y-0">
+                <FormLabel className="gba:text-sm">{t('schedule-publication') || 'Schedule Publication'}</FormLabel>
+                <FormControl>
+                  <Switch checked={field.value} onCheckedChange={field.onChange} className="gba:scale-90" />
+                </FormControl>
+              </FormItem>
+            )}
+          />
+        </div>
       </div>
     </div>
   )

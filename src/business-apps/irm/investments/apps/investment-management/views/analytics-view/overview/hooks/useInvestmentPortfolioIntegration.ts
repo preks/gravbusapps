@@ -63,7 +63,8 @@ export const useInvestmentPortfolioIntegration = (
     } else if (!enabled) {
       setIsLoading(false)
     }
-  }, [enabled, context.accessToken, selectedCurrency, filters])
+    // Serialize filters to prevent infinite loops from object reference changes
+  }, [enabled, context.accessToken, selectedCurrency, JSON.stringify(filters)])
 
   return {
     kpis,

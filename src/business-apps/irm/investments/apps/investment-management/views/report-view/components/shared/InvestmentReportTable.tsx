@@ -116,6 +116,14 @@ export const InvestmentReportTable: React.FC<InvestmentReportTableProps> = ({
           .replace('realEstateInvestment.', 'realEstateInvestmentReport.')
       }
 
+      if (
+        mappedNotation.startsWith('equityInvestmentReport.') ||
+        mappedNotation.startsWith('liquidFundInvestmentReport.') ||
+        mappedNotation.startsWith('realEstateInvestmentReport.')
+      ) {
+        return false
+      }
+
       const dynamicDescriptor = INVESTMENT_REPORT_DESCRIPTORS.find(
         d => d.sortPath === mappedNotation || d.path === mappedNotation || d.key === mappedNotation
       )
