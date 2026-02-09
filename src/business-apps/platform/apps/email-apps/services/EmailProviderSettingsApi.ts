@@ -32,12 +32,16 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
 // ========== Types ==========
 
 export interface PublicProviderConfig {
-  provider: 'microsoft' | 'google'
+  provider: 'microsoft' | 'google' | 'imap_smtp'
   isEnabled: boolean
   publicConfig: {
     clientId?: string
     authority?: string
     scopes?: string
+    defaultImapHost?: string
+    defaultImapPort?: string
+    defaultSmtpHost?: string
+    defaultSmtpPort?: string
     [key: string]: unknown
   }
 }
@@ -49,11 +53,15 @@ export interface AdminProviderConfig extends PublicProviderConfig {
 }
 
 export interface UpsertProviderSettingsRequest {
-  provider: 'microsoft' | 'google'
+  provider: 'microsoft' | 'google' | 'imap_smtp'
   publicConfig?: {
     clientId?: string
     authority?: string
     scopes?: string
+    defaultImapHost?: string
+    defaultImapPort?: string
+    defaultSmtpHost?: string
+    defaultSmtpPort?: string
     [key: string]: unknown
   }
   privateConfig?: {

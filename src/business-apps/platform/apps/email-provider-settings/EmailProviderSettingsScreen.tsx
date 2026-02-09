@@ -11,6 +11,7 @@ import { ChevronLeft, Loader2, AlertTriangle, Mail } from 'lucide-react'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { useProviderSettings } from './hooks/useProviderSettings'
 import { ProviderSettingsCard } from './components/ProviderSettingsCard'
+import { ImapSmtpSettingsCard } from './components/ImapSmtpSettingsCard'
 
 export interface EmailProviderSettingsScreenProps extends BusinessAppContextProps {
   'data-testid'?: string
@@ -26,6 +27,7 @@ export const EmailProviderSettingsScreen: React.FC<EmailProviderSettingsScreenPr
 
   const microsoftSettings = settings.find(s => s.provider === 'microsoft')
   const googleSettings = settings.find(s => s.provider === 'google')
+  const imapSettings = settings.find(s => s.provider === 'imap_smtp')
 
   return (
     <div className="gba:flex gba:flex-col gba:h-full gba:bg-background" data-testid={testId}>
@@ -91,6 +93,13 @@ export const EmailProviderSettingsScreen: React.FC<EmailProviderSettingsScreenPr
                 data-testid={`${testId}-google`}
               />
 
+              {/* IMAP/SMTP settings card */}
+              <ImapSmtpSettingsCard
+                existingSettings={imapSettings}
+                onSave={saveSettings}
+                data-testid={`${testId}-imap-smtp`}
+              />
+
               {/* Help section */}
               <div className="gba:p-4 gba:rounded-lg gba:bg-info-secondary gba:text-info-secondary-foreground">
                 <h3 className="gba:font-medium gba:mb-2">Setup Guide</h3>
@@ -102,6 +111,10 @@ export const EmailProviderSettingsScreen: React.FC<EmailProviderSettingsScreenPr
                   <li>
                     <strong>Google:</strong> Create OAuth credentials in Google Cloud Console. Enable the Gmail API. Add
                     the redirect URI shown above.
+                  </li>
+                  <li>
+                    <strong>IMAP/SMTP:</strong> No external setup needed. Enable it to let users connect any email
+                    account manually. Optionally pre-fill default server details.
                   </li>
                   <li>After saving, users can connect their accounts from the Mail app.</li>
                 </ul>

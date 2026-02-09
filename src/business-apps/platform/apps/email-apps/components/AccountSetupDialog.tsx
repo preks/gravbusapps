@@ -218,15 +218,16 @@ export const AccountSetupDialog: React.FC<AccountSetupDialogProps> = ({
       return
     }
 
-    // Generic IMAP/SMTP
+    // Generic IMAP/SMTP — use admin-configured defaults if available
+    const imapDefaults = tenantSettings.find(s => s.provider === 'imap_smtp')?.publicConfig
     setSelectedProvider(provider)
     setFormData(prev => ({
       ...prev,
       provider: provider.id,
-      imapHost: provider.imapHost,
-      imapPort: provider.imapPort,
-      smtpHost: provider.smtpHost,
-      smtpPort: provider.smtpPort
+      imapHost: (imapDefaults?.defaultImapHost as string) || provider.imapHost,
+      imapPort: Number((imapDefaults?.defaultImapPort as string) || provider.imapPort),
+      smtpHost: (imapDefaults?.defaultSmtpHost as string) || provider.smtpHost,
+      smtpPort: Number((imapDefaults?.defaultSmtpPort as string) || provider.smtpPort)
     }))
     setStep('credentials')
   }
@@ -299,7 +300,16 @@ export const AccountSetupDialog: React.FC<AccountSetupDialogProps> = ({
         {/* Step 1: Provider selection */}
         {step === 'provider' && (
           <div className="gba:space-y-3 gba:py-4">
-            {PROVIDERS.map(provider => (
+            {PROVIDERS.filter(provider => {
+              // If tenant settings are loaded, respect the enabled flag
+              if (tenantSettings.length === 0) return true // No settings yet, show all
+              if (provider.id === 'imap_smtp') {
+                const imapSettings = tenantSettings.find(s => s.provider === 'imap_smtp')
+                // Show IMAP if no explicit setting exists (default) or if enabled
+                return !imapSettings || imapSettings.isEnabled
+              }
+              return true // Microsoft and Google always show (they handle their own enabled state)
+            }).map(provider => (
               <button
                 key={provider.id}
                 onClick={() => handleProviderSelect(provider)}
