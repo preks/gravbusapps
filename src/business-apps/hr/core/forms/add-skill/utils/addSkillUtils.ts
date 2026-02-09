@@ -54,8 +54,8 @@ export const buildEmployeeSkillsPayload = (args: {
     }
     return { employeeId, skill: skillId, level }
   })
-
   return {
+    changeMode: 'INSERT' as const,
     employeeSkills: { employeeId, skills: skillsPayload },
     event: event || 'pse_submit'
   } as any

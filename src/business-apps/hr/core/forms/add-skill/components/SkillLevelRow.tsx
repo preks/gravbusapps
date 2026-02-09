@@ -1,81 +1,67 @@
 import React from 'react'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Button } from '@newwork/nw-design-system'
-import { XCircleIcon } from 'lucide-react'
+import { Badge, Button } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
-interface SkillLevelRowProps {
-  skill: {
-    id: string
-    name: string
-    level: number
-  }
-  onLevelChange: (id: string, level: number) => void
-  onAction?: (skill: { id: string; name: string; level: number }) => void
-  onRemove: (id: string) => void
-  actionButtonText?: string
-  actionButtonTestId?: string
+/**
+ * Skill row with Badge (skill name), level selector slot, and Remove button.
+ * Used in Add Skill and Edit Job Profile SkillsSection.
+ */
+export interface SkillLevelRowProps {
+  skillName: string
+  levelContent: React.ReactNode
+  onRemove: () => void
+  dataTestIdPrefix?: string
+  removeButtonTestId?: string
+  actionButton?: React.ReactNode
+  index?: number
+  rowId?: string
 }
 
 export const SkillLevelRow: React.FC<SkillLevelRowProps> = ({
-  skill,
-  onLevelChange,
-  onAction,
+  skillName,
+  levelContent,
   onRemove,
-  actionButtonText,
-  actionButtonTestId
+  dataTestIdPrefix = 'job-profile',
+  removeButtonTestId,
+  actionButton,
+  index,
+  rowId
 }) => {
+  const suffix = rowId ? `-${rowId}` : index !== undefined ? `-${index}` : ''
   return (
     <div
-      className="gba:flex gba:items-center gba:gap-2 gba:p-3 gba:border gba:border-border gba:rounded-lg gba:bg-card"
-      data-testid={`skill-level-row-${skill.id}`}
+      className="gba:border gba:border-border gba:rounded-md gba:p-4"
+      data-testid={`${dataTestIdPrefix}-skill-row${suffix}`}
     >
-      <span className="gba:flex-1 gba:min-w-0 gba:truncate" title={skill.name}>
-        {skill.name}
-      </span>
-      <div className="gba:flex gba:items-center gba:gap-2">
-        <span className="gba:text-sm gba:text-muted-foreground gba:whitespace-nowrap">
-          {getTranslationFromI18nKeyAndLabel(
-            'lowcoder:employee_profile.details_layout.add_skill_form.level_label',
-            'Level'
-          )}
-          :
-        </span>
-        <Select
-          value={skill.level.toString()}
-          onValueChange={value => onLevelChange(skill.id, parseInt(value, 10))}
-          data-testid={`skill-level-select-${skill.id}`}
+      <div className="gba:flex gba:items-center gba:gap-3">
+        <Badge
+          variant="secondary"
+          className="gba:flex gba:items-center gba:gap-2 gba:h-10 gba:py-0 gba:px-4 gba:text-sm gba:flex-1 gba:min-w-0"
+          data-testid={`${dataTestIdPrefix}-skill-badge${suffix}`}
         >
-          <SelectTrigger className="gba:w-20" size="sm">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {Array.from({ length: 10 }, (_, i) => i + 1).map(level => (
-              <SelectItem key={level} value={level.toString()}>
-                {level}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-      {actionButtonText && onAction && (
-        <Button type="button" size="sm" onClick={() => onAction(skill)} data-testid={actionButtonTestId}>
-          {actionButtonText}
+          <span className="gba:flex-1 gba:min-w-0 gba:px-1 gba:truncate" title={skillName || ''}>
+            {skillName || 'Unknown Skill'}
+          </span>
+        </Badge>
+
+        <div className="gba:w-24 gba:flex-shrink-0">{levelContent}</div>
+
+        {actionButton}
+
+        <Button
+          type="button"
+          variant="destructive"
+          size="sm"
+          onClick={onRemove}
+          className="gba:flex-shrink-0"
+          data-testid={removeButtonTestId || `${dataTestIdPrefix}-remove-skill`}
+        >
+          {getTranslationFromI18nKeyAndLabel(
+            'lowcoder:employee_profile.details_layout.add_skill_form.remove_aria_label',
+            'Remove'
+          )}
         </Button>
-      )}
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        onClick={() => onRemove(skill.id)}
-        aria-label={getTranslationFromI18nKeyAndLabel(
-          'lowcoder:employee_profile.details_layout.add_skill_form.remove_aria_label',
-          'Remove'
-        )}
-        data-testid={`skill-level-row-remove-${skill.id}`}
-        className="gba:p-1"
-      >
-        <XCircleIcon className="gba:w-4 gba:h-4" />
-      </Button>
+      </div>
     </div>
   )
 }

@@ -120,7 +120,7 @@ export const AddSkillProvider: React.FC<ProviderProps> = ({ children, accessToke
       // POST to processes + employee/saveSkill
       await restClient.post(
         '/processes/employee/saveSkill',
-        { skill: { name: trimmed } },
+        { changeMode: 'INSERT', skill: { name: trimmed } },
         {
           headers: {
             Authorization: `Bearer ${accessToken}`,
