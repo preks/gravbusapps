@@ -105,6 +105,7 @@ const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   '/platform/apps/email-apps': 'platform/apps/email-apps',
   '/platform/mail': 'platform/apps/email-apps',
   '/platform/mail/oauth/callback': 'platform/apps/email-apps',
+  '/platform/mail/settings': 'platform/apps/email-provider-settings',
 
   // Canonical URLs for content apps (production-ready)
   '/platform/documents': 'platform/apps/document-apps',

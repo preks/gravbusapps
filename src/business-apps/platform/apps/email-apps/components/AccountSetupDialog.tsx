@@ -1,9 +1,13 @@
 /**
  * AccountSetupDialog - Dialog for connecting a new email account.
- * Supports IMAP/SMTP manual config and provider presets for Outlook/Gmail.
+ * Supports:
+ * - Microsoft OAuth (code sent to backend for server-side exchange)
+ * - Google OAuth (code sent to backend for server-side exchange)
+ * - Gmail IMAP/SMTP with app passwords
+ * - Generic IMAP/SMTP manual configuration
  */
 
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useEffect } from 'react'
 import { toast } from 'sonner'
 import {
   Dialog,
@@ -17,18 +21,21 @@ import {
 import { Mail, Globe, Shield, Loader2 } from 'lucide-react'
 import { EmailApiService } from '../services/EmailApiService'
 import { MicrosoftOAuthService } from '../services/MicrosoftOAuthService'
+import { GoogleOAuthService } from '../services/GoogleOAuthService'
+import { EmailProviderSettingsApi, type PublicProviderConfig } from '../services/EmailProviderSettingsApi'
 import type { CreateEmailAccountRequest, EmailAccountProvider } from '../types'
 
 interface AccountSetupDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onAccountCreated: () => void
+  accessToken?: string
   'data-testid'?: string
 }
 
-type SetupStep = 'provider' | 'credentials' | 'testing'
+type SetupStep = 'provider' | 'gmail-choice' | 'credentials' | 'testing'
 
-const PROVIDERS: Array<{
+interface ProviderOption {
   id: EmailAccountProvider
   name: string
   description: string
@@ -38,7 +45,9 @@ const PROVIDERS: Array<{
   smtpHost: string
   smtpPort: number
   useOAuth?: boolean
-}> = [
+}
+
+const PROVIDERS: ProviderOption[] = [
   {
     id: 'microsoft',
     name: 'Microsoft 365 / Outlook',
@@ -53,7 +62,7 @@ const PROVIDERS: Array<{
   {
     id: 'google',
     name: 'Gmail / Google Workspace',
-    description: 'Requires App Password',
+    description: 'Sign in with Google or use App Password',
     icon: <Mail className="gba:w-6 gba:h-6" />,
     imapHost: 'imap.gmail.com',
     imapPort: 993,
@@ -76,10 +85,12 @@ export const AccountSetupDialog: React.FC<AccountSetupDialogProps> = ({
   open,
   onOpenChange,
   onAccountCreated,
+  accessToken,
   'data-testid': testId = 'account-setup'
 }) => {
   const [step, setStep] = useState<SetupStep>('provider')
-  const [selectedProvider, setSelectedProvider] = useState<(typeof PROVIDERS)[0] | null>(null)
+  const [selectedProvider, setSelectedProvider] = useState<ProviderOption | null>(null)
+  const [tenantSettings, setTenantSettings] = useState<PublicProviderConfig[]>([])
 
   const [formData, setFormData] = useState<CreateEmailAccountRequest>({
     displayName: '',
@@ -95,73 +106,128 @@ export const AccountSetupDialog: React.FC<AccountSetupDialogProps> = ({
     isDefault: true
   })
 
-  const handleProviderSelect = async (provider: (typeof PROVIDERS)[0]) => {
-    // For Microsoft, use OAuth popup flow
-    if (provider.id === 'microsoft') {
-      try {
-        setStep('testing')
+  // Load tenant provider settings when dialog opens
+  useEffect(() => {
+    if (!open || !accessToken) return
+    EmailProviderSettingsApi.setAccessToken(accessToken)
+    EmailProviderSettingsApi.getPublicSettings()
+      .then(setTenantSettings)
+      .catch(() => {
+        // Silently fall back to defaults if settings endpoint is unavailable
+      })
+  }, [open, accessToken])
 
-        // Start OAuth in popup
-        const { code, state } = await MicrosoftOAuthService.startAuth()
+  const handleMicrosoftOAuth = useCallback(async () => {
+    try {
+      setStep('testing')
 
-        console.log('[AccountSetup] OAuth popup completed, exchanging code')
+      const msSettings = tenantSettings.find(s => s.provider === 'microsoft')
+      const config = MicrosoftOAuthService.buildConfig(
+        msSettings?.publicConfig as { clientId?: string; authority?: string; scopes?: string }
+      )
 
-        // Exchange code for tokens
-        const tokens = await MicrosoftOAuthService.handleCallback(code, state)
+      // Start OAuth popup - returns code + verifier (no token exchange in browser)
+      const authResult = await MicrosoftOAuthService.startAuth(config)
 
-        console.log('[AccountSetup] Got tokens, parsing user info')
+      // Send code to backend for server-side exchange
+      if (accessToken) {
+        EmailProviderSettingsApi.setAccessToken(accessToken)
+      }
+      const account = await EmailProviderSettingsApi.exchangeMicrosoftCode({
+        code: authResult.code,
+        codeVerifier: authResult.codeVerifier,
+        redirectUri: authResult.redirectUri
+      })
 
-        // Parse user info
-        const userInfo = tokens.id_token ? MicrosoftOAuthService.parseIdToken(tokens.id_token) : { email: '', name: '' }
+      toast.success(`Microsoft email account connected: ${account.emailAddress}`)
+      onAccountCreated()
+      onOpenChange(false)
+      resetForm()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to connect Microsoft account')
+      setStep('provider')
+    }
+  }, [tenantSettings, accessToken, onAccountCreated, onOpenChange])
 
-        if (!userInfo.email) {
-          throw new Error('Could not get email address from Microsoft account')
-        }
+  const handleGoogleOAuth = useCallback(async () => {
+    try {
+      setStep('testing')
 
-        console.log('[AccountSetup] Creating email account for:', userInfo.email)
+      const googleSettings = tenantSettings.find(s => s.provider === 'google')
+      const clientId = googleSettings?.publicConfig?.clientId as string
 
-        // Create the account
-        const account = await EmailApiService.createAccount({
-          displayName: userInfo.name || userInfo.email.split('@')[0],
-          emailAddress: userInfo.email,
-          provider: 'microsoft',
-          imapHost: 'outlook.office365.com',
-          imapPort: 993,
-          imapSecure: true,
-          smtpHost: 'smtp.office365.com',
-          smtpPort: 587,
-          smtpSecure: false,
-          oauthAccessToken: tokens.access_token,
-          oauthRefreshToken: tokens.refresh_token,
-          oauthProviderConfig: {
-            clientId: MicrosoftOAuthService.getClientId(),
-            tenantId: 'organizations'
-          },
-          isDefault: true
-        })
-
-        console.log('[AccountSetup] Account created:', account.id)
-        toast.success('Microsoft email account connected!')
-        onAccountCreated()
-        onOpenChange(false)
-        resetForm()
-        return
-      } catch (err) {
-        console.error('[AccountSetup] Microsoft OAuth error:', err)
-        toast.error(err instanceof Error ? err.message : 'Failed to connect Microsoft account')
+      if (!clientId) {
+        toast.error('Google OAuth is not configured. Please ask your admin to set up Google provider settings.')
         setStep('provider')
         return
       }
+
+      const config = GoogleOAuthService.buildConfig(
+        googleSettings?.publicConfig as { clientId?: string; scopes?: string }
+      )
+
+      // Start OAuth popup
+      const authResult = await GoogleOAuthService.startAuth(config)
+
+      // Send code to backend
+      if (accessToken) {
+        EmailProviderSettingsApi.setAccessToken(accessToken)
+      }
+      const account = await EmailProviderSettingsApi.exchangeGoogleCode({
+        code: authResult.code,
+        codeVerifier: authResult.codeVerifier,
+        redirectUri: authResult.redirectUri
+      })
+
+      toast.success(`Google email account connected: ${account.emailAddress}`)
+      onAccountCreated()
+      onOpenChange(false)
+      resetForm()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to connect Google account')
+      setStep('provider')
+    }
+  }, [tenantSettings, accessToken, onAccountCreated, onOpenChange])
+
+  const handleProviderSelect = async (provider: ProviderOption) => {
+    if (provider.id === 'microsoft') {
+      await handleMicrosoftOAuth()
+      return
     }
 
+    if (provider.id === 'google') {
+      // Check if Google OAuth is available
+      const googleSettings = tenantSettings.find(s => s.provider === 'google' && s.isEnabled)
+      if (googleSettings?.publicConfig?.clientId) {
+        // Show choice between OAuth and App Password
+        setSelectedProvider(provider)
+        setStep('gmail-choice')
+      } else {
+        // No Google OAuth configured - go straight to IMAP/SMTP credentials
+        setSelectedProvider(provider)
+        setFormData(prev => ({
+          ...prev,
+          provider: provider.id,
+          imapHost: provider.imapHost,
+          imapPort: provider.imapPort,
+          smtpHost: provider.smtpHost,
+          smtpPort: provider.smtpPort
+        }))
+        setStep('credentials')
+      }
+      return
+    }
+
+    // Generic IMAP/SMTP — use admin-configured defaults if available
+    const imapDefaults = tenantSettings.find(s => s.provider === 'imap_smtp')?.publicConfig
     setSelectedProvider(provider)
     setFormData(prev => ({
       ...prev,
       provider: provider.id,
-      imapHost: provider.imapHost,
-      imapPort: provider.imapPort,
-      smtpHost: provider.smtpHost,
-      smtpPort: provider.smtpPort
+      imapHost: (imapDefaults?.defaultImapHost as string) || provider.imapHost,
+      imapPort: Number((imapDefaults?.defaultImapPort as string) || provider.imapPort),
+      smtpHost: (imapDefaults?.defaultSmtpHost as string) || provider.smtpHost,
+      smtpPort: Number((imapDefaults?.defaultSmtpPort as string) || provider.smtpPort)
     }))
     setStep('credentials')
   }
@@ -179,7 +245,6 @@ export const AccountSetupDialog: React.FC<AccountSetupDialogProps> = ({
     setStep('testing')
 
     try {
-      // Test connection
       const testResult = await EmailApiService.testConnection(formData)
       if (!testResult.success) {
         toast.error(`Connection failed: ${testResult.error}`)
@@ -187,7 +252,6 @@ export const AccountSetupDialog: React.FC<AccountSetupDialogProps> = ({
         return
       }
 
-      // Create account
       await EmailApiService.createAccount(formData)
       toast.success('Email account connected successfully')
       onAccountCreated()
@@ -217,6 +281,8 @@ export const AccountSetupDialog: React.FC<AccountSetupDialogProps> = ({
     })
   }
 
+  const msConfigured = tenantSettings.some(s => s.provider === 'microsoft' && s.isEnabled)
+
   return (
     <Dialog
       open={open}
@@ -234,11 +300,20 @@ export const AccountSetupDialog: React.FC<AccountSetupDialogProps> = ({
         {/* Step 1: Provider selection */}
         {step === 'provider' && (
           <div className="gba:space-y-3 gba:py-4">
-            {PROVIDERS.map(provider => (
+            {PROVIDERS.filter(provider => {
+              // If tenant settings are loaded, respect the enabled flag
+              if (tenantSettings.length === 0) return true // No settings yet, show all
+              if (provider.id === 'imap_smtp') {
+                const imapSettings = tenantSettings.find(s => s.provider === 'imap_smtp')
+                // Show IMAP if no explicit setting exists (default) or if enabled
+                return !imapSettings || imapSettings.isEnabled
+              }
+              return true // Microsoft and Google always show (they handle their own enabled state)
+            }).map(provider => (
               <button
                 key={provider.id}
                 onClick={() => handleProviderSelect(provider)}
-                className="gba:w-full gba:flex gba:items-center gba:gap-4 gba:p-4 gba:rounded-lg gba:border hover:gba:bg-muted/50 gba:transition-colors gba:text-left"
+                className="gba:w-full gba:flex gba:items-center gba:gap-4 gba:p-4 gba:rounded-lg gba:border gba:hover:bg-muted/50 gba:transition-colors gba:text-left"
                 data-testid={`${testId}-provider-${provider.id}`}
               >
                 <div className="gba:w-12 gba:h-12 gba:rounded-lg gba:bg-muted gba:flex gba:items-center gba:justify-center">
@@ -248,9 +323,9 @@ export const AccountSetupDialog: React.FC<AccountSetupDialogProps> = ({
                   <p className="gba:font-medium gba:text-foreground">{provider.name}</p>
                   <p className="gba:text-xs gba:text-muted-foreground">{provider.description}</p>
                 </div>
-                {provider.useOAuth && (
+                {provider.id === 'microsoft' && (
                   <span className="gba:text-xs gba:bg-primary/10 gba:text-primary gba:px-2 gba:py-1 gba:rounded">
-                    OAuth
+                    {msConfigured ? 'OAuth' : 'OAuth (default)'}
                   </span>
                 )}
               </button>
@@ -258,7 +333,62 @@ export const AccountSetupDialog: React.FC<AccountSetupDialogProps> = ({
           </div>
         )}
 
-        {/* Step 2: Credentials */}
+        {/* Step 1b: Gmail choice - OAuth or App Password */}
+        {step === 'gmail-choice' && (
+          <div className="gba:space-y-3 gba:py-4">
+            <p className="gba:text-sm gba:text-muted-foreground gba:mb-2">Choose how to connect your Gmail account:</p>
+            <button
+              onClick={handleGoogleOAuth}
+              className="gba:w-full gba:flex gba:items-center gba:gap-4 gba:p-4 gba:rounded-lg gba:border gba:hover:bg-muted/50 gba:transition-colors gba:text-left"
+              data-testid={`${testId}-gmail-oauth`}
+            >
+              <div className="gba:w-12 gba:h-12 gba:rounded-lg gba:bg-muted gba:flex gba:items-center gba:justify-center">
+                <Globe className="gba:w-6 gba:h-6" />
+              </div>
+              <div className="gba:flex-1">
+                <p className="gba:font-medium gba:text-foreground">Sign in with Google</p>
+                <p className="gba:text-xs gba:text-muted-foreground">Recommended — uses OAuth for secure access</p>
+              </div>
+              <span className="gba:text-xs gba:bg-primary/10 gba:text-primary gba:px-2 gba:py-1 gba:rounded">
+                OAuth
+              </span>
+            </button>
+            <button
+              onClick={() => {
+                if (selectedProvider) {
+                  setFormData(prev => ({
+                    ...prev,
+                    provider: selectedProvider.id,
+                    imapHost: selectedProvider.imapHost,
+                    imapPort: selectedProvider.imapPort,
+                    smtpHost: selectedProvider.smtpHost,
+                    smtpPort: selectedProvider.smtpPort
+                  }))
+                }
+                setStep('credentials')
+              }}
+              className="gba:w-full gba:flex gba:items-center gba:gap-4 gba:p-4 gba:rounded-lg gba:border gba:hover:bg-muted/50 gba:transition-colors gba:text-left"
+              data-testid={`${testId}-gmail-apppassword`}
+            >
+              <div className="gba:w-12 gba:h-12 gba:rounded-lg gba:bg-muted gba:flex gba:items-center gba:justify-center">
+                <Shield className="gba:w-6 gba:h-6" />
+              </div>
+              <div className="gba:flex-1">
+                <p className="gba:font-medium gba:text-foreground">App Password (IMAP/SMTP)</p>
+                <p className="gba:text-xs gba:text-muted-foreground">
+                  Use an app-specific password from myaccount.google.com/apppasswords
+                </p>
+              </div>
+            </button>
+            <div className="gba:pt-2">
+              <Button variant="ghost" onClick={() => setStep('provider')}>
+                Back
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Step 2: Credentials (IMAP/SMTP) */}
         {step === 'credentials' && (
           <div className="gba:space-y-4 gba:py-4">
             <div className="gba:space-y-2">
@@ -292,7 +422,7 @@ export const AccountSetupDialog: React.FC<AccountSetupDialogProps> = ({
                 placeholder="Enter password"
                 data-testid={`${testId}-password`}
               />
-              <p className="gba:text-xs gba:text-muted-foreground">For Gmail/Outlook, use an app-specific password</p>
+              <p className="gba:text-xs gba:text-muted-foreground">For Gmail, use an app-specific password</p>
             </div>
 
             {/* Advanced: IMAP/SMTP fields for manual config */}
@@ -344,8 +474,8 @@ export const AccountSetupDialog: React.FC<AccountSetupDialogProps> = ({
         {step === 'testing' && (
           <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-12">
             <Loader2 className="gba:w-10 gba:h-10 gba:animate-spin gba:text-primary gba:mb-4" />
-            <p className="gba:text-foreground gba:font-medium">Testing connection...</p>
-            <p className="gba:text-sm gba:text-muted-foreground gba:mt-1">Verifying your email settings</p>
+            <p className="gba:text-foreground gba:font-medium">Connecting...</p>
+            <p className="gba:text-sm gba:text-muted-foreground gba:mt-1">Setting up your email account</p>
           </div>
         )}
       </DialogContent>
