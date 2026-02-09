@@ -234,31 +234,6 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
           const aTimestamp = new Date(aTime).getTime()
           const bTimestamp = new Date(bTime).getTime()
 
-          if (process.env.NODE_ENV === 'development') {
-            // Log if we're using fallback time sources (not lastMessage.createdAt)
-            const aSource = a.lastMessage?.createdAt
-              ? 'lastMessage'
-              : a.lastMessageAt
-                ? 'lastMessageAt'
-                : a.updatedAt
-                  ? 'updatedAt'
-                  : 'createdAt'
-            const bSource = b.lastMessage?.createdAt
-              ? 'lastMessage'
-              : b.lastMessageAt
-                ? 'lastMessageAt'
-                : b.updatedAt
-                  ? 'updatedAt'
-                  : 'createdAt'
-
-            if (aSource !== 'lastMessage' || bSource !== 'lastMessage') {
-              rtkDebug.debug('[useConversations] Sorting fallback used:', {
-                convA: { id: a.id.substring(0, 8), source: aSource, time: aTime },
-                convB: { id: b.id.substring(0, 8), source: bSource, time: bTime }
-              })
-            }
-          }
-
           return bTimestamp - aTimestamp
         })
 

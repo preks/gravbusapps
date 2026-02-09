@@ -9,8 +9,8 @@ import {
   SelectValue,
   DateInput
 } from '@newwork/nw-design-system'
-import dayjs from 'dayjs'
 import { EditableCell, CurrencyOption, EditableAllowanceRegionRule } from '../types'
+import { formatDateForInput, normalizeDateInputValue, toISOEndOfDay, toISOStartOfDay } from '../../../utils'
 
 interface MatrixCellEditModalContentProps {
   cell: EditableCell
@@ -46,11 +46,16 @@ const DateField: React.FC<{
     </label>
     <DateInput
       id={`${fieldName}-field`}
-      value={value ? dayjs(value).format('YYYY-MM-DD') : ''}
+      value={formatDateForInput(value) || ''}
       onChange={date => {
-        const dateValue = date ? `${date}T00:00:00+00:00` : undefined
+        const normalized = normalizeDateInputValue(date)
+        let dateValue: string | undefined = undefined
+        if (normalized) {
+          dateValue = fieldName === 'activeFrom' ? toISOStartOfDay(normalized) : toISOEndOfDay(normalized)
+        }
         onUpdate(fieldName, dateValue)
       }}
+      outputFormat="iso"
       disabled={disabled}
       data-testid={testId}
     />

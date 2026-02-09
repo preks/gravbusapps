@@ -51,7 +51,7 @@ import {
 } from '@phosphor-icons/react'
 import CreateRuleDialog from './components/CreateRuleDialog'
 import DeleteRuleDialog from './components/DeleteRuleDialog'
-import { GET_EXPENSE_RULE_FLAGS, getExpensesWithRulePk } from './queries/ExpenseCalculationRules.queries'
+import { GET_EXPENSE_RULE_FLAGS } from './queries/ExpenseCalculationRules.queries'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 
 interface ExpenseCalculationRulesProps extends BusinessAppContextProps {
@@ -68,6 +68,7 @@ const ExpenseCalculationRules: React.FC<ExpenseCalculationRulesProps> = ({ onRul
     error,
     calculationTypes,
     formCatalogs,
+    usedRuleIds,
     reload,
     setPage,
     setPageSize,
@@ -435,32 +436,36 @@ const ExpenseCalculationRules: React.FC<ExpenseCalculationRulesProps> = ({ onRul
                                     )}
                                   </DropdownMenuItem>
                                   <DropdownMenuSeparator />
-                                  <DropdownMenuItem
-                                    onClick={async e => {
-                                      e.stopPropagation()
-                                      setSelectedRow(row as any)
-                                      try {
-                                        const res = await graphqlClient.request<any>(getExpensesWithRulePk, {
-                                          ruleId: row.id
-                                        })
-                                        const c1 = res?.ExpenseItemAggregate?.aggregate?.count || 0
-                                        const c2 = res?.ExpenseRequestAggregate?.aggregate?.count || 0
-                                        const c3 = res?.ExpensePlanAggregate?.aggregate?.count || 0
-                                        setDeleteBlocked(c1 + c2 + c3 > 0)
-                                      } catch {
-                                        setDeleteBlocked(true)
-                                      }
-                                      setDeleteOpen(true)
-                                    }}
-                                    className="gba:text-destructive"
-                                    data-testid={`${PREFIX}-action-delete-${index}`}
-                                  >
-                                    <PiTrash className="gba:h-4 gba:w-4 gba:mr-2" />
-                                    {getTranslationFromI18nKeyAndLabel(
-                                      'lowcoder:expense_calculation_rule.expense_table.delete',
-                                      'Delete'
-                                    )}
-                                  </DropdownMenuItem>
+                                  {usedRuleIds.has(row.id) ? (
+                                    <DropdownMenuItem
+                                      disabled
+                                      className="gba:text-muted-foreground gba:cursor-not-allowed"
+                                      data-testid={`${PREFIX}-action-delete-${index}`}
+                                    >
+                                      <PiTrash className="gba:h-4 gba:w-4 gba:mr-2 gba:opacity-50" />
+                                      {getTranslationFromI18nKeyAndLabel(
+                                        'lowcoder:expense_calculation_rule.expense_table.delete_in_use',
+                                        'Delete (in use)'
+                                      )}
+                                    </DropdownMenuItem>
+                                  ) : (
+                                    <DropdownMenuItem
+                                      onClick={e => {
+                                        e.stopPropagation()
+                                        setSelectedRow(row as any)
+                                        setDeleteBlocked(false)
+                                        setDeleteOpen(true)
+                                      }}
+                                      className="gba:text-destructive"
+                                      data-testid={`${PREFIX}-action-delete-${index}`}
+                                    >
+                                      <PiTrash className="gba:h-4 gba:w-4 gba:mr-2" />
+                                      {getTranslationFromI18nKeyAndLabel(
+                                        'lowcoder:expense_calculation_rule.expense_table.delete',
+                                        'Delete'
+                                      )}
+                                    </DropdownMenuItem>
+                                  )}
                                 </DropdownMenuContent>
                               </DropdownMenu>
                             </TableCell>

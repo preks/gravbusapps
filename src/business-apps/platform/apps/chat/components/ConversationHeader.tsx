@@ -212,8 +212,8 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
   }
   const presenceStatus = otherUserPresence?.state || 'offline'
   const presenceStatusText = isDirectChat ? getPresenceStatusText(otherUserPresence, t) : null
-  // Check for active call from prop (for group chats from useGroupCall) or conversation object
-  const hasActiveCall = isGroupChat && (!!activeCall || !!conversation.activeCall)
+  // Check for active call from prop or conversation object (applies to both group and direct chats)
+  const hasActiveCall = !!activeCall || !!conversation.activeCall
 
   const handleRemoveClick = () => {
     setShowRemoveDialog(true)
