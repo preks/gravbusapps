@@ -12,22 +12,6 @@ import type { GroupWebRTCClient, GroupCallParticipant, VideoQuality } from './gr
 import type { ChatWebSocketClient } from './chatWebSocketClient'
 import type { CallParticipant, CallType } from './webrtcClient'
 
-const isGlobalCallDebugEnabled = (): boolean => {
-  if (typeof globalThis.window === 'undefined') return false
-  try {
-    // Reuse the same toggle as RealtimeKit debugging
-    return localStorage.getItem('RTK_DEBUG') === 'true'
-  } catch {
-    return false
-  }
-}
-
-const debug = (...args: unknown[]) => {
-  if (isGlobalCallDebugEnabled()) {
-    console.debug(...args)
-  }
-}
-
 // Extend Window interface for TypeScript
 declare global {
   interface Window {
@@ -169,14 +153,12 @@ class GlobalCallManager {
 
   constructor() {
     // Check if there's existing call data from a previous instance
-    debug('GlobalCallManager: Constructor called')
   }
 
   static getInstance(): GlobalCallManager {
     // Use window object to ensure singleton persists across module reloads
     if (!window.__GLOBAL_CALL_MANAGER__) {
       window.__GLOBAL_CALL_MANAGER__ = new GlobalCallManager()
-      debug('GlobalCallManager: Created new instance on window')
     }
     return window.__GLOBAL_CALL_MANAGER__
   }
@@ -205,7 +187,6 @@ class GlobalCallManager {
     currentUser: CallParticipant | null
     leaveCall?: () => Promise<void> // NEW: Optional leave function
   }) {
-    debug('GlobalCallManager: Storing call data')
     this.callData = {
       ...this.callData, // Preserve all existing properties
       ...data, // Override with new data
@@ -222,28 +203,10 @@ class GlobalCallManager {
 
   // Set call data with all callbacks and context (new method for RealtimeKit)
   setCall(data: Partial<StoredCallData>) {
-    debug('[GlobalCallManager] setCall called with:', {
-      status: data.callState?.status,
-      implementation: data.callState?.callImplementation,
-      hasMeeting: !!data.realtimeKitMeeting,
-      hasLocalStream: !!data.localStream,
-      participantCount: data.participants?.length || 0,
-      roomId: data.callState?.roomId,
-      dataKeys: Object.keys(data)
-    })
-
     this.callData = {
       ...this.callData,
       ...data
     }
-
-    debug('[GlobalCallManager] Call data updated, final state:', {
-      status: this.callData.callState.status,
-      implementation: this.callData.callState.callImplementation,
-      hasMeeting: !!this.callData.realtimeKitMeeting,
-      hasLocalStream: !!this.callData.localStream,
-      participantCount: this.callData.participants.length
-    })
 
     // Start duration tracking if connected
     if (!this.callData.durationInterval && data.callState?.status === 'connected') {
@@ -283,7 +246,6 @@ class GlobalCallManager {
       ...this.callData,
       ...callbacks
     }
-    debug('[GlobalCallManager] Callbacks updated:', Object.keys(callbacks))
     // Don't notify listeners for callback updates (no visual changes)
   }
 
@@ -331,8 +293,6 @@ class GlobalCallManager {
 
   // Clear call data
   clearCall() {
-    debug('GlobalCallManager: Clearing call data')
-
     if (this.callData.durationInterval) {
       clearInterval(this.callData.durationInterval)
     }
@@ -401,14 +361,6 @@ class GlobalCallManager {
   }
 
   private notifyListeners() {
-    debug(
-      'GlobalCallManager: Notifying',
-      this.listeners.size,
-      'listeners, status:',
-      this.callData.callState.status,
-      'isMinimized:',
-      this.callData.callState.isMinimized
-    )
     this.listeners.forEach(listener => listener())
   }
 }
