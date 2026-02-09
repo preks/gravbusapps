@@ -66,6 +66,7 @@ import { navigateTo } from '@/common/utils/navigationUtils'
 // Components
 import { WordUploader } from './components/WordUploader'
 import { PdfUploader } from './components/PdfUploader'
+import { OdfUploader } from './components/OdfUploader'
 import { TemplateGallery } from './components/TemplateGallery'
 import { CreateTemplateDialog } from './components/CreateTemplateDialog'
 import { SendForApprovalDialog } from './components/SendForApprovalDialog'
@@ -94,7 +95,7 @@ export interface DocumentAppsHubProps extends BusinessAppContextProps {
   'data-testid'?: string
 }
 
-type HubView = 'list' | 'upload' | 'upload-pdf' | 'editor' | 'templates'
+type HubView = 'list' | 'upload' | 'upload-pdf' | 'upload-odf' | 'editor' | 'templates'
 type SidebarSection = 'home' | 'my-documents' | 'shared' | 'templates' | 'favorites' | 'recent' | 'archived'
 
 /** Get initials from a name */
@@ -457,6 +458,14 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
   }, [])
 
   /**
+   * Start ODF upload flow
+   */
+  const handleStartOdfUpload = useCallback(() => {
+    setParsedWordDocument(null)
+    setCurrentView('upload-odf')
+  }, [])
+
+  /**
    * Toggle favorite
    */
   const toggleFavorite = useCallback((id: string, e?: React.MouseEvent) => {
@@ -665,6 +674,13 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                 <div>
                   <div className="gba:font-medium">Upload PDF</div>
                   <div className="gba:text-xs gba:text-muted-foreground">Import PDF for search & Q&A</div>
+                </div>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleStartOdfUpload}>
+                <FileText className="gba:w-4 gba:h-4 gba:mr-2 gba:text-teal-500" />
+                <div>
+                  <div className="gba:font-medium">Upload ODF</div>
+                  <div className="gba:text-xs gba:text-muted-foreground">Import .odt OpenDocument file</div>
                 </div>
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setActiveSection('templates')}>
@@ -953,6 +969,34 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                 onError={error => toast.error(error)}
                 onCancel={handleBack}
                 data-testid={`${testId}-pdf-uploader`}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Upload ODF View */}
+        {currentView === 'upload-odf' && (
+          <div className="gba:flex-1 gba:overflow-auto gba:p-8">
+            <div className="gba:max-w-2xl gba:mx-auto gba:space-y-6">
+              <Button variant="ghost" onClick={handleBack} className="gba:mb-4">
+                <X className="gba:w-4 gba:h-4 gba:mr-2" />
+                Cancel
+              </Button>
+
+              <div className="gba:text-center gba:mb-8">
+                <div className="gba:w-16 gba:h-16 gba:rounded-2xl gba:bg-gradient-to-br gba:from-teal-500 gba:to-teal-600 gba:flex gba:items-center gba:justify-center gba:mx-auto gba:mb-4">
+                  <Upload className="gba:w-8 gba:h-8 gba:text-white" />
+                </div>
+                <h2 className="gba:text-2xl gba:font-bold gba:text-foreground gba:mb-2">Upload ODF Document</h2>
+                <p className="gba:text-muted-foreground">
+                  Upload your OpenDocument text file and we'll preserve the formatting
+                </p>
+              </div>
+
+              <OdfUploader
+                onFileParsed={handleWordFileParsed}
+                onError={error => toast.error(error)}
+                data-testid={`${testId}-odf-uploader`}
               />
             </div>
           </div>

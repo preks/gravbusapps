@@ -9,6 +9,19 @@ import React, { useEffect, useState } from 'react'
 import { Loader2, CheckCircle, XCircle } from 'lucide-react'
 import { EmailProviderSettingsApi } from '../services/EmailProviderSettingsApi'
 
+/** Remove all OAuth-related sessionStorage keys */
+function cleanupOAuthStorage() {
+  const keys = [
+    'ms_oauth_verifier',
+    'ms_oauth_state',
+    'ms_oauth_code',
+    'ms_oauth_callback_state',
+    'google_oauth_verifier',
+    'google_oauth_state'
+  ]
+  keys.forEach(k => sessionStorage.removeItem(k))
+}
+
 interface MicrosoftOAuthCallbackProps {
   onSuccess: () => void
   onError: (error: string) => void
@@ -20,11 +33,14 @@ export const MicrosoftOAuthCallback: React.FC<MicrosoftOAuthCallbackProps> = ({ 
   const [errorMessage, setErrorMessage] = useState('')
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
+    // Read from query string, hash fragment, AND sessionStorage (multiple fallbacks)
+    const queryParams = new URLSearchParams(window.location.search)
+    const hashParams = window.location.hash ? new URLSearchParams(window.location.hash.substring(1)) : null
 
-    // Check for error in URL
-    const error = params.get('error')
-    const errorDescription = params.get('error_description')
+    // Check for error in URL (query or hash)
+    const error = queryParams.get('error') || hashParams?.get('error')
+    const errorDescription = queryParams.get('error_description') || hashParams?.get('error_description')
+
     if (error) {
       setStatus('error')
       setErrorMessage(errorDescription || error)
@@ -32,15 +48,19 @@ export const MicrosoftOAuthCallback: React.FC<MicrosoftOAuthCallbackProps> = ({ 
       return
     }
 
-    // Get code from URL params OR from sessionStorage (captured by IIFE before platform strips params)
-    const code = params.get('code') || sessionStorage.getItem('ms_oauth_code')
+    // Get code: try query → hash fragment → sessionStorage (IIFE capture)
+    const code = queryParams.get('code') || hashParams?.get('code') || sessionStorage.getItem('ms_oauth_code')
 
     if (!code) {
-      // No code, no error — redirect back
+      // No code found anywhere — redirect back
       onSuccess()
       window.history.replaceState({}, '', '/platform/mail')
       return
     }
+
+    // Get returned state from wherever the code came from
+    const returnedState =
+      queryParams.get('state') || hashParams?.get('state') || sessionStorage.getItem('ms_oauth_callback_state')
 
     // Perform the code exchange
     const performExchange = async () => {
@@ -54,7 +74,6 @@ export const MicrosoftOAuthCallback: React.FC<MicrosoftOAuthCallbackProps> = ({ 
         }
 
         // Validate state
-        const returnedState = params.get('state') || sessionStorage.getItem('ms_oauth_callback_state')
         const storedState = sessionStorage.getItem('ms_oauth_state') || sessionStorage.getItem('google_oauth_state')
 
         if (storedState && returnedState && storedState !== returnedState) {
@@ -85,12 +104,7 @@ export const MicrosoftOAuthCallback: React.FC<MicrosoftOAuthCallbackProps> = ({ 
         }
 
         // Clean up all OAuth session storage
-        sessionStorage.removeItem('ms_oauth_verifier')
-        sessionStorage.removeItem('ms_oauth_state')
-        sessionStorage.removeItem('ms_oauth_code')
-        sessionStorage.removeItem('ms_oauth_callback_state')
-        sessionStorage.removeItem('google_oauth_verifier')
-        sessionStorage.removeItem('google_oauth_state')
+        cleanupOAuthStorage()
 
         setStatus('success')
 
@@ -106,12 +120,7 @@ export const MicrosoftOAuthCallback: React.FC<MicrosoftOAuthCallbackProps> = ({ 
         onError(msg)
 
         // Clean up session storage on error too
-        sessionStorage.removeItem('ms_oauth_verifier')
-        sessionStorage.removeItem('ms_oauth_state')
-        sessionStorage.removeItem('ms_oauth_code')
-        sessionStorage.removeItem('ms_oauth_callback_state')
-        sessionStorage.removeItem('google_oauth_verifier')
-        sessionStorage.removeItem('google_oauth_state')
+        cleanupOAuthStorage()
 
         // Redirect back after showing error
         setTimeout(() => {

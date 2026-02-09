@@ -77,7 +77,7 @@ export const MicrosoftOAuthService = {
       response_type: 'code',
       redirect_uri: redirectUri,
       scope: config.scopes,
-      response_mode: 'query',
+      response_mode: 'fragment',
       state,
       code_challenge: challenge,
       code_challenge_method: 'S256',
