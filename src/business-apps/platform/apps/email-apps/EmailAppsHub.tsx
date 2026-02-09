@@ -16,6 +16,7 @@ import {
   EmailReader,
   EmailComposer,
   AccountSetupDialog,
+  AccountManagementDialog,
   EmailEmptyState,
   MicrosoftOAuthCallback
 } from './components'
@@ -105,7 +106,8 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
   })
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
-  const [isAccountDialogOpen, setIsAccountDialogOpen] = useState(false)
+  const [isAccountSetupOpen, setIsAccountSetupOpen] = useState(false)
+  const [isAccountManagementOpen, setIsAccountManagementOpen] = useState(false)
 
   // Compose state
   const [isComposing, setIsComposing] = useState(false)
@@ -292,10 +294,10 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
   if (!isLoadingAccounts && accounts.length === 0) {
     return (
       <div className="gba:flex gba:h-full gba:bg-background" data-testid={testId}>
-        <EmailEmptyState onAddAccount={() => setIsAccountDialogOpen(true)} />
+        <EmailEmptyState onAddAccount={() => setIsAccountSetupOpen(true)} />
         <AccountSetupDialog
-          open={isAccountDialogOpen}
-          onOpenChange={setIsAccountDialogOpen}
+          open={isAccountSetupOpen}
+          onOpenChange={setIsAccountSetupOpen}
           onAccountCreated={refreshAccounts}
         />
       </div>
@@ -311,7 +313,7 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
         onSelectFolder={handleSelectFolder}
         onCompose={() => handleCompose('new')}
         onSync={handleSync}
-        onSettings={() => setIsAccountDialogOpen(true)}
+        onSettings={() => setIsAccountManagementOpen(true)}
         onBack={handleBack}
         accounts={accounts}
         activeAccount={defaultAccount}
@@ -351,10 +353,22 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
         onSent={refreshMessages}
       />
 
+      {/* Account management dialog */}
+      <AccountManagementDialog
+        open={isAccountManagementOpen}
+        onOpenChange={setIsAccountManagementOpen}
+        accounts={accounts}
+        onAccountsChanged={refreshAccounts}
+        onAddAccount={() => {
+          setIsAccountManagementOpen(false)
+          setIsAccountSetupOpen(true)
+        }}
+      />
+
       {/* Account setup dialog */}
       <AccountSetupDialog
-        open={isAccountDialogOpen}
-        onOpenChange={setIsAccountDialogOpen}
+        open={isAccountSetupOpen}
+        onOpenChange={setIsAccountSetupOpen}
         onAccountCreated={refreshAccounts}
       />
     </div>
