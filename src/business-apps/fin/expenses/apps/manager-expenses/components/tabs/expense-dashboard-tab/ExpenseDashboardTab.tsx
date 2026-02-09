@@ -194,11 +194,11 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
   // Transform dashboard data into widgets format (memoized depending on overview data and display currency)
   const widgets: WidgetItem[] = useMemo(() => {
     // Compute pending sum only when overview data changes
-    const pendingSum = (() => {
-      const r = overview.data?.pendingRequestsAll ?? 0
-      const p = overview.data?.pendingPlansAll ?? 0
-      const a = overview.data?.pendingPaymentsAll ?? 0
-      return r + p + a
+    const pendingApprovalsCount = (() => {
+      const pendingRequestsCount = overview.data?.pendingRequestsAll ?? 0
+      const pendingPlansCount = overview.data?.pendingPlansAll ?? 0
+      const pendingPaymentsCount = overview.data?.pendingPaymentsAll ?? 0
+      return pendingRequestsCount + pendingPlansCount + pendingPaymentsCount
     })()
 
     return [
@@ -224,7 +224,7 @@ const ExpenseDashboardTab: React.FC<ExpenseDashboardTabProps> = props => {
           'Pending Approvals'
         ),
         // Unfiltered: sum pending across requests, plans, and payments
-        value: pendingSum,
+        value: pendingApprovalsCount,
         prefix: <PiClockAfternoon />,
         color: 'var(--nw-warning)',
 
