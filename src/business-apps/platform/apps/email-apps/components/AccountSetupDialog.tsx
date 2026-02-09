@@ -96,14 +96,60 @@ export const AccountSetupDialog: React.FC<AccountSetupDialogProps> = ({
   })
 
   const handleProviderSelect = async (provider: (typeof PROVIDERS)[0]) => {
-    // For Microsoft, use OAuth flow directly
+    // For Microsoft, use OAuth popup flow
     if (provider.id === 'microsoft') {
       try {
-        await MicrosoftOAuthService.startAuth()
-        // Page will redirect to Microsoft login
+        setStep('testing')
+
+        // Start OAuth in popup
+        const { code, state } = await MicrosoftOAuthService.startAuth()
+
+        console.log('[AccountSetup] OAuth popup completed, exchanging code')
+
+        // Exchange code for tokens
+        const tokens = await MicrosoftOAuthService.handleCallback(code, state)
+
+        console.log('[AccountSetup] Got tokens, parsing user info')
+
+        // Parse user info
+        const userInfo = tokens.id_token ? MicrosoftOAuthService.parseIdToken(tokens.id_token) : { email: '', name: '' }
+
+        if (!userInfo.email) {
+          throw new Error('Could not get email address from Microsoft account')
+        }
+
+        console.log('[AccountSetup] Creating email account for:', userInfo.email)
+
+        // Create the account
+        const account = await EmailApiService.createAccount({
+          displayName: userInfo.name || userInfo.email.split('@')[0],
+          emailAddress: userInfo.email,
+          provider: 'microsoft',
+          imapHost: 'outlook.office365.com',
+          imapPort: 993,
+          imapSecure: true,
+          smtpHost: 'smtp.office365.com',
+          smtpPort: 587,
+          smtpSecure: false,
+          oauthAccessToken: tokens.access_token,
+          oauthRefreshToken: tokens.refresh_token,
+          oauthProviderConfig: {
+            clientId: MicrosoftOAuthService.getClientId(),
+            tenantId: 'organizations'
+          },
+          isDefault: true
+        })
+
+        console.log('[AccountSetup] Account created:', account.id)
+        toast.success('Microsoft email account connected!')
+        onAccountCreated()
+        onOpenChange(false)
+        resetForm()
         return
-      } catch {
-        toast.error('Failed to start Microsoft sign-in')
+      } catch (err) {
+        console.error('[AccountSetup] Microsoft OAuth error:', err)
+        toast.error(err instanceof Error ? err.message : 'Failed to connect Microsoft account')
+        setStep('provider')
         return
       }
     }
@@ -131,7 +177,6 @@ export const AccountSetupDialog: React.FC<AccountSetupDialogProps> = ({
     }
 
     setStep('testing')
-    setIsTesting(true)
 
     try {
       // Test connection
@@ -151,8 +196,6 @@ export const AccountSetupDialog: React.FC<AccountSetupDialogProps> = ({
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to create account')
       setStep('credentials')
-    } finally {
-      setIsTesting(false)
     }
   }, [formData, onAccountCreated, onOpenChange])
 

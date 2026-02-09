@@ -11,7 +11,8 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-  Separator
+  Separator,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { CalendarIcon, MapPinIcon, TagIcon, CurrencyDollarIcon } from '@phosphor-icons/react'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
@@ -32,6 +33,7 @@ import relativeTime from 'dayjs/plugin/relativeTime'
 import 'dayjs/locale/en'
 import 'dayjs/locale/de'
 import 'dayjs/locale/ro'
+import assetsTranslations from '../_i18n'
 
 dayjs.extend(relativeTime)
 
@@ -113,6 +115,7 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
 }) => {
   if (!asset) return null
 
+  const { t } = useTranslation(assetsTranslations)
   const { options: conditionOptions } = useAssetConditionCatalog({ accessToken } as BusinessAppContextProps)
 
   const conditionLookup = useMemo(() => {
@@ -354,12 +357,7 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
                 <Separator />
 
                 <div>
-                  <p className="gba:text-sm gba:font-medium">
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:hr_assets.end_of_warranty_period',
-                      'End of warranty period'
-                    )}
-                  </p>
+                  <p className="gba:text-sm gba:font-medium">{t('end-of-warranty-period')}</p>
                   <p className="gba:text-sm gba:text-muted-foreground" data-testid="warranty-expiry-date">
                     {formatDate(warrantyExpiryDate.toISOString()) || warrantyExpiryDate.toISOString()}
                     {!warrantyExpired && <span className="gba:text-xs gba:ml-2">({warrantyExpiryDate.fromNow()})</span>}

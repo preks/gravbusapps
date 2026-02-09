@@ -13,6 +13,8 @@ export interface GenericEntityDisplayProps {
   operation?: 'create' | 'update' | 'delete' | 'read'
   textHuman?: string
   textTitle?: string
+  /** Normalized entity link URL from backend with optional alternateId fragment */
+  link?: string
 }
 
 const StandardIcon: React.FC = () => (
@@ -29,11 +31,13 @@ const GenericEntityDisplay: React.FC<GenericEntityDisplayProps> = ({
   accessToken,
   operation,
   textHuman,
-  textTitle
+  textTitle,
+  link
 }) => {
   const icon = <StandardIcon />
   const operationBadge = getOperationBadge(operation)
-  const url = getEntityUrl(entity, id)
+  // Use unified resolution via link if available (handles alternateId and redirects)
+  const url = getEntityUrl(entity, id, link)
 
   const handleTitleClick = () => {
     if (!url) return

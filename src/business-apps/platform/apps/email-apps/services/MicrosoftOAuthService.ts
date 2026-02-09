@@ -52,15 +52,27 @@ export interface MicrosoftUserInfo {
 
 export const MicrosoftOAuthService = {
   /**
-   * Initiates the OAuth flow by redirecting to Microsoft login
+   * Get the configured Microsoft Client ID
    */
-  async startAuth(): Promise<void> {
+  getClientId(): string {
+    return MICROSOFT_CLIENT_ID
+  },
+
+  /**
+   * Initiates the OAuth flow using a popup window
+   * Popup avoids platform's server-side routing that strips query params
+   */
+  async startAuth(): Promise<{ code: string; state: string }> {
     const { verifier, challenge } = await generatePKCE()
     const state = generateRandomString(32)
 
     // Store verifier and state for callback validation
     sessionStorage.setItem('ms_oauth_verifier', verifier)
     sessionStorage.setItem('ms_oauth_state', state)
+
+    console.log('[MicrosoftOAuth] Starting auth flow (popup)')
+    console.log('[MicrosoftOAuth] Redirect URI:', REDIRECT_URI)
+    console.log('[MicrosoftOAuth] State stored:', state)
 
     const params = new URLSearchParams({
       client_id: MICROSOFT_CLIENT_ID,
@@ -74,7 +86,84 @@ export const MicrosoftOAuthService = {
       prompt: 'select_account'
     })
 
-    window.location.href = `${MICROSOFT_AUTHORITY}/oauth2/v2.0/authorize?${params.toString()}`
+    const authUrl = `${MICROSOFT_AUTHORITY}/oauth2/v2.0/authorize?${params.toString()}`
+    console.log('[MicrosoftOAuth] Opening popup:', authUrl)
+
+    return new Promise((resolve, reject) => {
+      // Open popup window
+      const width = 500
+      const height = 700
+      const left = window.screenX + (window.outerWidth - width) / 2
+      const top = window.screenY + (window.outerHeight - height) / 2
+
+      const popup = window.open(
+        authUrl,
+        'microsoft-oauth',
+        `width=${width},height=${height},left=${left},top=${top},scrollbars=yes`
+      )
+
+      if (!popup) {
+        reject(new Error('Popup blocked. Please allow popups for this site.'))
+        return
+      }
+
+      // Poll for the redirect URL in the popup
+      const pollInterval = setInterval(() => {
+        try {
+          // Check if popup was closed
+          if (popup.closed) {
+            clearInterval(pollInterval)
+            reject(new Error('Authentication cancelled'))
+            return
+          }
+
+          // Try to read the popup URL (will fail while on Microsoft domain due to CORS)
+          const popupUrl = popup.location.href
+
+          // Check if we're back on our domain with OAuth params
+          if (popupUrl.startsWith(window.location.origin)) {
+            clearInterval(pollInterval)
+
+            const url = new URL(popupUrl)
+            const code = url.searchParams.get('code')
+            const returnedState = url.searchParams.get('state')
+            const error = url.searchParams.get('error')
+            const errorDescription = url.searchParams.get('error_description')
+
+            console.log('[MicrosoftOAuth] Popup returned to origin')
+            console.log('[MicrosoftOAuth] Code:', code ? 'present' : 'missing')
+            console.log('[MicrosoftOAuth] State:', returnedState)
+
+            popup.close()
+
+            if (error) {
+              reject(new Error(errorDescription || error))
+              return
+            }
+
+            if (code && returnedState) {
+              resolve({ code, state: returnedState })
+            } else {
+              reject(new Error('Missing authorization code'))
+            }
+          }
+        } catch {
+          // Cross-origin error - popup is still on Microsoft domain, keep polling
+        }
+      }, 500)
+
+      // Timeout after 5 minutes
+      setTimeout(
+        () => {
+          clearInterval(pollInterval)
+          if (!popup.closed) {
+            popup.close()
+          }
+          reject(new Error('Authentication timed out'))
+        },
+        5 * 60 * 1000
+      )
+    })
   },
 
   /**

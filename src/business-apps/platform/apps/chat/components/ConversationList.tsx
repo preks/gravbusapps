@@ -8,7 +8,6 @@ import type { Conversation } from '../types'
 import type { ChatWebSocketClient } from '../services/chatWebSocketClient'
 import type { PresenceData } from '../hooks/usePresence'
 import { useChatTranslation } from '../contexts/TranslationContext'
-import { rtkDebug } from '../utils/rtkDebug'
 
 interface ConversationListProps {
   conversations: Conversation[]
@@ -267,19 +266,6 @@ export const ConversationList: React.FC<ConversationListProps> = ({
                   // GOLD STANDARD: Direct map lookup - zero function calls, maximum performance ✅
                   const otherUserPresence = otherUserId ? presenceMap.get(otherUserId) : undefined
                   const activeExpertCount = conversationExpertCounts?.get(conversation.id) || 0
-
-                  // Debug logging for first conversation only
-                  if (conversation.id === filteredConversations[0]?.id) {
-                    rtkDebug.log('[ConversationList] First conversation debug:', {
-                      conversationId: conversation.id,
-                      otherUserId,
-                      hasPresenceData: !!otherUserPresence,
-                      presenceData: otherUserPresence,
-                      hasUserStatus: !!otherUserPresence?.userStatus,
-                      userStatus: otherUserPresence?.userStatus,
-                      presenceMapSize: presenceMap.size
-                    })
-                  }
 
                   return (
                     <ConversationItem

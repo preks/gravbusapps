@@ -316,6 +316,7 @@ participants-everyones-here = Alle sind da!
 participants-all-members-in-call = Alle Mitglieder der Unterhaltung sind entweder im Anruf oder wurden eingeladen.
 participants-in-call = Im Anruf
 participants-invited = Eingeladen
+participants-left-call = Anruf verlassen
 participants-unknown = Unbekannt
 participants-you = Sie
 participants-declined-invite = Einladung abgelehnt
