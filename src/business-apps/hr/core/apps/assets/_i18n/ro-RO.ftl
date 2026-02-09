@@ -4,4 +4,4 @@
 end-of-warranty-period = Sfârșitul perioadei de garanție
 
 # Allocate Asset validation
-issue-date-not-before-purchase = Data emiterii nu poate fi anterioară datei achiziției.
+issue-date-not-before-purchase = Activul nu poate fi alocat înainte de data achiziției.
