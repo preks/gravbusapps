@@ -32,6 +32,7 @@ import {
   HorizontalFilmstrip
 } from './call'
 import { isVideoTrackScreenShare, extractTracksFromCollection } from '../utils/callUtils'
+import { globalCallManager } from '../services/globalCallManager'
 
 // RealtimeKit peer type with SDK-specific properties
 interface RealtimeKitPeer extends GroupCallParticipant {
@@ -351,6 +352,199 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
     p => p.id === currentUserId || p.id === meeting?.self?.customParticipantId
   )
 
+  // RealtimeKit meetingId (Socket.IO group-call room) is not part of GroupCallUIState typing,
+  // but it is present in global call state for RTK calls.
+  const globalMeetingId = ((globalCallManager.getCallData().callState as any)?.meetingId as string | null) || null
+
+  // CRITICAL: Derive local media state from SDK (source of truth), falling back to callState.
+  // callState can be stale after navigation because it comes from globalCallManager.
+  const effectiveLocalIsMuted =
+    meeting?.self?.audioEnabled !== undefined ? !meeting.self.audioEnabled : callState.isMuted
+  const effectiveLocalIsVideoEnabled =
+    meeting?.self?.videoEnabled !== undefined ? meeting.self.videoEnabled : callState.isVideoEnabled
+
+  // ==================== Raise hand (Socket.IO truth) ====================
+  // Seed from callState so we don't "lose" remote hands/order when the first WS event we receive is local-only.
+  const [wsLocalHandRaised, setWsLocalHandRaised] = useState<boolean>(() => callState.handRaised)
+  const [wsRemoteHandsRaised, setWsRemoteHandsRaised] = useState<Record<string, boolean>>(
+    () => callState.remoteHandsRaised || {}
+  )
+  const [wsHandRaisedOrder, setWsHandRaisedOrder] = useState<Record<string, { order: number; timestamp: number }>>(
+    () => callState.handRaisedOrder || {}
+  )
+
+  // Keep WS-derived state aligned with global callState updates (optimistic updates + other writers).
+  useEffect(() => {
+    setWsLocalHandRaised(callState.handRaised)
+  }, [callState.handRaised])
+
+  useEffect(() => {
+    setWsRemoteHandsRaised(callState.remoteHandsRaised || {})
+  }, [callState.remoteHandsRaised])
+
+  useEffect(() => {
+    setWsHandRaisedOrder(callState.handRaisedOrder || {})
+  }, [callState.handRaisedOrder])
+
+  useEffect(() => {
+    const meetingId = globalMeetingId
+    const localUserId = currentUserId
+
+    if (!wsClient || !meetingId || !localUserId) return
+
+    // Best-effort: ensure socket exists after navigation
+    let socket = wsClient.getSocket()
+    if (!socket && accessToken) {
+      try {
+        wsClient.connect(accessToken)
+        socket = wsClient.getSocket()
+      } catch {
+        // Best-effort only
+      }
+    }
+    if (!socket) return
+
+    const resolveIds = (participantId: string, isLocal: boolean) => {
+      let participantPeerId: string | undefined
+      let participantUserId: string | undefined
+      let participantCustomId: string | undefined = participantId
+
+      if (isLocal) {
+        participantPeerId = meeting?.self?.id
+        participantUserId = meeting?.self?.userId
+        participantCustomId = meeting?.self?.customParticipantId || participantId
+      } else if (meeting?.participants?.joined) {
+        const joined = Array.from(meeting.participants.joined.values())
+        const matchingPeer: any = joined.find(
+          (p: any) => p.customParticipantId === participantId || p.userId === participantId || p.id === participantId
+        )
+        if (matchingPeer) {
+          participantPeerId = matchingPeer.id
+          participantUserId = matchingPeer.userId
+          participantCustomId = matchingPeer.customParticipantId
+        }
+      }
+
+      return { participantPeerId, participantUserId, participantCustomId }
+    }
+
+    const handleHandUpdate = (data: {
+      roomId?: string
+      participantId: string
+      handRaised: boolean
+      timestamp?: number
+    }) => {
+      if (data.roomId && data.roomId !== meetingId) return
+
+      const isLocal = data.participantId === localUserId
+      const { participantPeerId, participantUserId, participantCustomId } = resolveIds(data.participantId, isLocal)
+      const timestamp = data.timestamp || Date.now()
+
+      if (isLocal) {
+        setWsLocalHandRaised(data.handRaised)
+        globalCallManager.updateCallState({ handRaised: data.handRaised })
+      } else {
+        setWsRemoteHandsRaised(prev => {
+          const updated = { ...prev }
+          if (participantPeerId) updated[participantPeerId] = data.handRaised
+          if (participantUserId) updated[participantUserId] = data.handRaised
+          if (participantCustomId) updated[participantCustomId] = data.handRaised
+          globalCallManager.updateCallState({ remoteHandsRaised: updated })
+          return updated
+        })
+      }
+
+      setWsHandRaisedOrder(prev => {
+        const updated = { ...prev }
+
+        // Remove existing entries for this participant (all possible keys)
+        if (participantPeerId) delete updated[participantPeerId]
+        if (participantUserId) delete updated[participantUserId]
+        if (participantCustomId) delete updated[participantCustomId]
+
+        if (data.handRaised) {
+          // Assign new timestamp/order (local ordering)
+          const allTimestamps = new Set<number>()
+          Object.values(updated).forEach(entry => allTimestamps.add(entry.timestamp))
+          const order = allTimestamps.size + 1
+          const orderData = { order, timestamp }
+          if (participantPeerId) updated[participantPeerId] = orderData
+          if (participantUserId) updated[participantUserId] = orderData
+          if (participantCustomId) updated[participantCustomId] = orderData
+        } else {
+          // Recalculate orders based on unique timestamps
+          const uniqueTimestamps = Array.from(new Set(Object.values(updated).map(e => e.timestamp))).sort(
+            (a, b) => a - b
+          )
+          uniqueTimestamps.forEach((ts, idx) => {
+            const newOrder = idx + 1
+            Object.keys(updated).forEach(key => {
+              if (updated[key].timestamp === ts) updated[key] = { ...updated[key], order: newOrder }
+            })
+          })
+        }
+
+        globalCallManager.updateCallState({ handRaisedOrder: updated })
+        return updated
+      })
+    }
+
+    const handleSyncParticipantStates = (data: {
+      roomId: string
+      participantStates: Array<{ participantId: string; handRaised: boolean }>
+    }) => {
+      if (data.roomId !== meetingId) return
+
+      const baseTimestamp = Date.now()
+      const nextRemote: Record<string, boolean> = {}
+      const nextOrder: Record<string, { order: number; timestamp: number }> = {}
+      let nextLocal: boolean | null = null
+
+      data.participantStates.forEach((state, index) => {
+        const isLocal = state.participantId === localUserId
+        if (isLocal) nextLocal = state.handRaised
+
+        const { participantPeerId, participantUserId, participantCustomId } = resolveIds(state.participantId, isLocal)
+
+        if (!isLocal) {
+          if (participantPeerId) nextRemote[participantPeerId] = state.handRaised
+          if (participantUserId) nextRemote[participantUserId] = state.handRaised
+          if (participantCustomId) nextRemote[participantCustomId] = state.handRaised
+        }
+
+        if (state.handRaised) {
+          const orderData = { order: index + 1, timestamp: baseTimestamp + index }
+          if (participantPeerId) nextOrder[participantPeerId] = orderData
+          if (participantUserId) nextOrder[participantUserId] = orderData
+          if (participantCustomId) nextOrder[participantCustomId] = orderData
+        }
+      })
+
+      const resolvedLocal = nextLocal ?? callState.handRaised
+      setWsLocalHandRaised(resolvedLocal)
+      setWsRemoteHandsRaised(nextRemote)
+      setWsHandRaisedOrder(nextOrder)
+
+      globalCallManager.updateCallState({
+        handRaised: resolvedLocal,
+        remoteHandsRaised: nextRemote,
+        handRaisedOrder: nextOrder
+      })
+    }
+
+    socket.on('group-call:hand-update', handleHandUpdate)
+    socket.on('group-call:sync-participant-states', handleSyncParticipantStates)
+
+    return () => {
+      socket.off('group-call:hand-update', handleHandUpdate)
+      socket.off('group-call:sync-participant-states', handleSyncParticipantStates)
+    }
+  }, [wsClient, accessToken, globalMeetingId, currentUserId, meeting])
+
+  const effectiveLocalHandRaised = wsLocalHandRaised
+  const effectiveRemoteHandsRaised = wsRemoteHandsRaised
+  const effectiveHandRaisedOrder = wsHandRaisedOrder
+
   // Helper to check if a participant has their hand raised
   // NOTE: We check BOTH userId (SDK) and customParticipantId (our DB) because:
   // - WebSocket events use customParticipantId (from our user database)
@@ -373,11 +567,11 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
 
     // Check if it's the local user
     if (participantUserId === meeting?.self?.userId || isLocalUser(peerId)) {
-      return callState.handRaised
+      return effectiveLocalHandRaised
     }
 
     // Check remote participants - try ALL three IDs (same pattern as reactions)
-    const remoteHands = callState.remoteHandsRaised || {}
+    const remoteHands = effectiveRemoteHandsRaised || {}
     const isRaisedByPeerId = peerId ? remoteHands[peerId] === true : false
     const isRaisedByUserId = participantUserId ? remoteHands[participantUserId] === true : false
     const isRaisedByCustomId = participantCustomId ? remoteHands[participantCustomId] === true : false
@@ -396,7 +590,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
   ): number | undefined => {
     if (!peerId && !participantUserId && !participantCustomId) return undefined
 
-    const handRaisedOrder = callState.handRaisedOrder || {}
+    const handRaisedOrder = effectiveHandRaisedOrder || {}
 
     // Try all three IDs (same pattern as reactions)
     let foundOrder: number | undefined
@@ -630,6 +824,11 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
     return null
   })
 
+  // Derive local screen sharing state from SDK (source of truth), falling back to callState.
+  const effectiveLocalIsScreenSharing =
+    meeting?.self?.screenShareEnabled === true ||
+    (localScreenShareTrack?.readyState === 'live' && !!localScreenShareTrack)
+
   // CRITICAL: Stabilize remotePeers array to prevent unnecessary re-renders and video destruction
   // useRealtimeKitSelector returns a new array reference on every render, even if peers haven't changed
   // Create a fingerprint to detect actual peer data changes
@@ -713,7 +912,16 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
       hasSocket: !!wsClient?.getSocket()
     })
 
-    const socket = wsClient?.getSocket()
+    // Best-effort: socket might be missing after navigation; try reconnect using accessToken.
+    let socket = wsClient?.getSocket()
+    if (!socket && wsClient && accessToken) {
+      try {
+        wsClient.connect(accessToken)
+        socket = wsClient.getSocket()
+      } catch {
+        // Best-effort only
+      }
+    }
     if (!socket) {
       rtkDebug.warn('[RTK Modal] ⚠️ No socket available for reactions')
       return
@@ -731,7 +939,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
       socket.off('group-call:reaction-received', handleReaction)
       rtkDebug.log('[RTK Modal] WebSocket listener removed for reactions')
     }
-  }, [wsClient, showReactionAnimation, stableRemotePeers, meeting])
+  }, [wsClient, accessToken, showReactionAnimation, stableRemotePeers, meeting])
 
   // Handler to mute a participant via WebSocket (auto-mute on target side)
   const handleMuteParticipant = useCallback(
@@ -869,7 +1077,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
       hasVideoElement: !!videoElement,
       hasVideoTrack: !!localVideoTrack,
       hasAudioTrack: !!localAudioTrack,
-      isVideoEnabled: callState.isVideoEnabled,
+      isVideoEnabled: effectiveLocalIsVideoEnabled,
       hasLocalStream: !!localStream,
       isInitialized: localVideoInitializedRef.current,
       videoTrackChanged: localVideoTrackIdRef.current !== currentVideoTrackId,
@@ -915,7 +1123,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
           // Update video track if changed
           if (videoTrackChanged) {
             stream.getVideoTracks().forEach(track => stream.removeTrack(track))
-            if (localVideoTrack && callState.isVideoEnabled) {
+            if (localVideoTrack && effectiveLocalIsVideoEnabled) {
               stream.addTrack(localVideoTrack)
             }
             localVideoTrackIdRef.current = currentVideoTrackId
@@ -933,7 +1141,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
           }
 
           rtkDebug.log('[RTK Modal] ✅ Local tracks updated dynamically', {
-            hasVideo: !!localVideoTrack && callState.isVideoEnabled,
+            hasVideo: !!localVideoTrack && effectiveLocalIsVideoEnabled,
             hasAudio: !!localAudioTrack,
             streamVideoTracks: stream.getVideoTracks().length,
             streamAudioTracks: stream.getAudioTracks().length
@@ -943,7 +1151,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
 
           // Fallback to full replacement
           const newStream = new MediaStream()
-          if (localVideoTrack && callState.isVideoEnabled) newStream.addTrack(localVideoTrack)
+          if (localVideoTrack && effectiveLocalIsVideoEnabled) newStream.addTrack(localVideoTrack)
           if (localAudioTrack) newStream.addTrack(localAudioTrack)
 
           videoElement.srcObject = newStream
@@ -952,7 +1160,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
         }
       }
     }
-  }, [meeting?.self?.videoTrack, meeting?.self?.audioTrack, callState.isVideoEnabled, videoElementsVersion])
+  }, [meeting?.self?.videoTrack, meeting?.self?.audioTrack, effectiveLocalIsVideoEnabled, videoElementsVersion])
 
   // Track which peers have had streams attached to avoid flickering
   const attachedPeersRef = useRef<Set<string>>(new Set())
@@ -1443,15 +1651,15 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
       }
     })
 
-    // Add local screen share if active
+    // Add local screen share if active (SDK truth)
     rtkDebug.log('[RTK Modal] 🔍 Local screen share check:', {
-      isScreenSharing: callState.isScreenSharing,
+      isScreenSharing: effectiveLocalIsScreenSharing,
       hasTrack: !!localScreenShareTrack,
       trackReadyState: localScreenShareTrack?.readyState,
       trackId: localScreenShareTrack?.id
     })
 
-    if (callState.isScreenSharing && localScreenShareTrack) {
+    if (effectiveLocalIsScreenSharing && localScreenShareTrack) {
       // CRITICAL: Only include tracks that are still live (not ended/stopped)
       if (localScreenShareTrack.readyState === 'live') {
         const localPeerId = meeting?.self?.id || 'local' // Use actual peer ID
@@ -1489,7 +1697,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
     )
 
     return shares
-  }, [stableRemotePeers, callState.isScreenSharing, localScreenShareTrack, participants])
+  }, [stableRemotePeers, effectiveLocalIsScreenSharing, localScreenShareTrack, participants])
 
   // Get focused screen share (user-selected or first one)
   const focusedScreenShare = useMemo(() => {
@@ -1584,7 +1792,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
           peerName: focusedScreenShare.peerName,
           screenShareTrack: focusedScreenShare.screenShareTrack,
           isLocal: isLocalUser(focusedScreenShare.peerId),
-          isMuted: isLocalUser(focusedScreenShare.peerId) ? callState.isMuted : false,
+          isMuted: isLocalUser(focusedScreenShare.peerId) ? effectiveLocalIsMuted : false,
           isVideoEnabled: true,
           isFocusedScreenShare: true
         })
@@ -1604,7 +1812,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
     const localVideoTrack =
       meeting?.self?.videoTrack && !isVideoTrackScreenShare(meeting.self.videoTrack) ? meeting.self.videoTrack : null
     const localAudioTrack = meeting?.self?.audioTrack
-    const localHasVideo = callState.isVideoEnabled && !!localVideoTrack
+    const localHasVideo = effectiveLocalIsVideoEnabled && !!localVideoTrack
 
     // Always add local participant - screen share is a separate item
     const localParticipantId = 'local-participant'
@@ -1644,8 +1852,8 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
         hasVideoTrack: localHasVideo, // For rendering decision
         hasAudioTrack: !!localAudioTrack, // Audio needs video element too!
         isLocal: true,
-        isMuted: callState.isMuted,
-        isVideoEnabled: callState.isVideoEnabled,
+        isMuted: effectiveLocalIsMuted,
+        isVideoEnabled: effectiveLocalIsVideoEnabled,
         // Don't highlight yourself as active speaker (industry standard UX)
         // You already know you're speaking - more useful to see who ELSE is speaking
         isActiveSpeaker: false // Could make this: activeSpeakerId === 'local' to show self-highlight
@@ -1703,7 +1911,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
           peerName: share.peerName,
           screenShareTrack: share.screenShareTrack,
           isLocal: isLocalUser(share.peerId),
-          isMuted: isLocalUser(share.peerId) ? callState.isMuted : false,
+          isMuted: isLocalUser(share.peerId) ? effectiveLocalIsMuted : false,
           isVideoEnabled: true
         })
         seenIds.add(shareId)
@@ -1885,6 +2093,10 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
     participants,
     meeting?.self?.videoTrack?.id, // Only depend on track ID, not entire object
     meeting?.self?.audioTrack?.id, // Only depend on track ID, not entire object
+    meeting?.self?.videoEnabled, // SDK local video state (source of truth)
+    meeting?.self?.audioEnabled, // SDK local audio state (source of truth)
+    meeting?.self?.screenShareEnabled, // SDK local screen share state (source of truth)
+    localScreenShareTrack?.id, // local screen share track identity
     meeting?.self?.userId, // For hand-raised checks
     meeting?.self?.customParticipantId, // For reactions
     activeSpeakerId,
@@ -2467,8 +2679,8 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
           remotePeerCount={stableRemotePeers.length}
           callStartTime={callState.startTime}
           callType={callState.callType}
-          isMuted={callState.isMuted}
-          isVideoEnabled={callState.isVideoEnabled}
+          isMuted={effectiveLocalIsMuted}
+          isVideoEnabled={effectiveLocalIsVideoEnabled}
           isHandRaised={hideReactionsAndHandRaise ? false : isFirstPeerHandRaised}
           handRaisedOrderNumber={hideReactionsAndHandRaise ? undefined : firstPeerHandRaisedOrderNumber}
           isRemotePeerMuted={isFirstPeerMuted}
@@ -2494,7 +2706,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
     <>
       {createPortal(
         <div key="full-call-dialog" data-view-mode="full">
-          <Dialog open={isOpen} onOpenChange={() => {}}>
+          <Dialog modal={false} open={isOpen} onOpenChange={() => {}}>
             <DialogContent
               className="gba:h-[85vh] gba:p-0 gba:overflow-hidden gba:flex gba:flex-col gba:gap-0"
               style={{
@@ -2502,6 +2714,8 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
                 maxWidth: window.innerWidth >= 1280 ? '1800px' : window.innerWidth >= 1024 ? '1600px' : '90vw'
               }}
               data-testid={`${prefixDataTestId}-modal`}
+              onPointerDownOutside={e => e.preventDefault()}
+              onEscapeKeyDown={e => e.preventDefault()}
             >
               <style>{`
               [data-testid="${prefixDataTestId}-modal"] > button[data-radix-collection-item] {
@@ -2750,9 +2964,9 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
                         onMuteAll={handleMuteAll}
                         activeSpeakerId={activeSpeakerId}
                         activeSpeakerHistory={activeSpeakerHistory}
-                        remoteHandsRaised={hideReactionsAndHandRaise ? {} : callState.remoteHandsRaised}
-                        handRaisedOrder={hideReactionsAndHandRaise ? {} : callState.handRaisedOrder}
-                        localHandRaised={hideReactionsAndHandRaise ? false : callState.handRaised}
+                        remoteHandsRaised={hideReactionsAndHandRaise ? {} : effectiveRemoteHandsRaised}
+                        handRaisedOrder={hideReactionsAndHandRaise ? {} : effectiveHandRaisedOrder}
+                        localHandRaised={hideReactionsAndHandRaise ? false : effectiveLocalHandRaised}
                         localUserId={meeting?.self?.userId}
                         activeConversation={callConversationProp || activeConversation}
                         t={t}
@@ -2780,11 +2994,11 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
               <div className="gba:bg-background gba:border-t gba:flex-shrink-0">
                 <CallControlsBar
                   callType={callState.callType}
-                  isMuted={callState.isMuted}
-                  isVideoEnabled={callState.isVideoEnabled}
-                  isScreenSharing={callState.isScreenSharing}
+                  isMuted={effectiveLocalIsMuted}
+                  isVideoEnabled={effectiveLocalIsVideoEnabled}
+                  isScreenSharing={effectiveLocalIsScreenSharing}
                   backgroundEnabled={callState.backgroundEnabled}
-                  handRaised={hideReactionsAndHandRaise ? false : callState.handRaised}
+                  handRaised={hideReactionsAndHandRaise ? false : effectiveLocalHandRaised}
                   transcriptionActive={transcriptionEnabled}
                   onToggleMute={onToggleMute}
                   onToggleVideo={onToggleVideo}

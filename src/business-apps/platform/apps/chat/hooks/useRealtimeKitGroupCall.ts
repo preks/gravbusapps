@@ -421,6 +421,10 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
     }
 
     rtkDebug.log('[RTK] 🔄 combinedCallState recomputed:', {
+      isMuted: state.isMuted,
+      isVideoEnabled: state.isVideoEnabled,
+      mediaIsMuted: media.isMuted,
+      mediaIsVideoEnabled: media.isVideoEnabled,
       handRaised: state.handRaised,
       websocketHandRaised: websocket.handRaised,
       websocketRefHandRaised: websocketRef.current?.handRaised,
@@ -1952,12 +1956,14 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
         conversationType: callState.conversationType,
         callImplementation: 'realtime-kit',
         hostId: callState.hostId,
-        isMuted: callState.isMuted,
-        isVideoEnabled: callState.isVideoEnabled,
+        // CRITICAL: Use media hook state (SDK-derived) as source of truth.
+        // callState can be stale after navigation if globalCallManager state was restored incorrectly.
+        isMuted: media.isMuted,
+        isVideoEnabled: media.isVideoEnabled,
         isScreenSharing: screenShare.isScreenSharing,
         duration: callState.duration,
-        videoQuality: callState.videoQuality,
-        backgroundEnabled: callState.backgroundEnabled,
+        videoQuality: media.videoQuality,
+        backgroundEnabled: media.backgroundEnabled,
         startTime: callState.startTime,
         participants: participantsHook.participants,
         handRaised: websocket.handRaised, // CRITICAL: Use websocket.handRaised (source of truth), not callState.handRaised
@@ -2055,13 +2061,13 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
     callState.roomId,
     callState.callType,
     callState.hostId,
-    callState.isMuted,
-    callState.isVideoEnabled,
     callState.duration,
-    callState.videoQuality,
-    callState.backgroundEnabled,
     callState.startTime,
     callState.conversationName,
+    media.isMuted,
+    media.isVideoEnabled,
+    media.videoQuality,
+    media.backgroundEnabled,
     websocket.handRaised, // CRITICAL: Use websocket.handRaised (source of truth), not callState.handRaised
     websocket.remoteHandsRaised, // CRITICAL: Use websocket.remoteHandsRaised (source of truth), not callState.remoteHandsRaised
     websocket.handRaisedOrder, // CRITICAL: Use websocket.handRaisedOrder (source of truth) for displaying order numbers

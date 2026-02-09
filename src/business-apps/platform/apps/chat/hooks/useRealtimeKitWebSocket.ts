@@ -68,8 +68,17 @@ export const useRealtimeKitWebSocket = ({
   initialHandRaisedOrder = {}
 }: UseRealtimeKitWebSocketOptions): UseRealtimeKitWebSocketReturn => {
   // Track hand raised states and order
-  // CRITICAL: Initialize with restored state (if provided) to prevent reset after minimize/maximize
-  const [handRaised, setHandRaised] = useState(initialHandRaised)
+  // CRITICAL: Prioritize SDK state over restored state (SDK is source of truth for active calls)
+  // Restored state is only used as fallback when SDK is not available yet
+  const [handRaised, setHandRaised] = useState(() => {
+    // If SDK is available and has hand state, use it (highest priority)
+    if (meeting?.self?.handRaised !== undefined) {
+      return meeting.self.handRaised
+    }
+    // Otherwise use restored state if available
+    return initialHandRaised
+  })
+
   const [remoteHandsRaised, setRemoteHandsRaised] = useState<Record<string, boolean>>(initialRemoteHandsRaised)
   const [handRaisedOrder, setHandRaisedOrder] =
     useState<Record<string, { order: number; timestamp: number }>>(initialHandRaisedOrder)
@@ -426,12 +435,14 @@ export const useRealtimeKitWebSocket = ({
 
       const newRemoteHandsRaised: Record<string, boolean> = {}
       const newHandRaisedOrder: Record<string, { order: number; timestamp: number }> = {}
-      const timestamp = Date.now()
+      const baseTimestamp = Date.now()
+
+      let newLocalHandRaised: boolean | undefined
 
       data.participantStates.forEach((state, index) => {
-        if (state.participantId === currentUser.id) {
-          // Skip own state - it will be managed by our own toggles
-          return
+        const isLocal = state.participantId === currentUser.id
+        if (isLocal) {
+          newLocalHandRaised = state.handRaised
         }
 
         // Resolve ALL possible IDs for this participant (same logic as handleHandUpdate)
@@ -439,7 +450,11 @@ export const useRealtimeKitWebSocket = ({
         let participantUserId: string | undefined
         let participantCustomId: string | undefined = state.participantId
 
-        if (meeting?.participants?.joined) {
+        if (isLocal) {
+          participantPeerId = meeting?.self?.id
+          participantUserId = meeting?.self?.userId
+          participantCustomId = meeting?.self?.customParticipantId || currentUser.id
+        } else if (meeting?.participants?.joined) {
           const joined = Array.from(meeting.participants.joined.values())
           const matchingPeer: any = joined.find(
             (p: any) =>
@@ -454,14 +469,16 @@ export const useRealtimeKitWebSocket = ({
           }
         }
 
-        // Store hand raised state under all possible keys
-        if (participantPeerId) newRemoteHandsRaised[participantPeerId] = state.handRaised
-        if (participantUserId) newRemoteHandsRaised[participantUserId] = state.handRaised
-        if (participantCustomId) newRemoteHandsRaised[participantCustomId] = state.handRaised
+        // Store hand raised state under all possible keys (remote only)
+        if (!isLocal) {
+          if (participantPeerId) newRemoteHandsRaised[participantPeerId] = state.handRaised
+          if (participantUserId) newRemoteHandsRaised[participantUserId] = state.handRaised
+          if (participantCustomId) newRemoteHandsRaised[participantCustomId] = state.handRaised
+        }
 
-        // Store hand raised order (index + 1 for 1-based order)
+        // Store hand raised order (index + 1 for 1-based order) for ALL participants (including local)
         if (state.handRaised) {
-          const orderData = { order: index + 1, timestamp: timestamp + index }
+          const orderData = { order: index + 1, timestamp: baseTimestamp + index }
           if (participantPeerId) newHandRaisedOrder[participantPeerId] = orderData
           if (participantUserId) newHandRaisedOrder[participantUserId] = orderData
           if (participantCustomId) newHandRaisedOrder[participantCustomId] = orderData
@@ -471,9 +488,12 @@ export const useRealtimeKitWebSocket = ({
       rtkDebug.log('[RTK] 🔄 Synced remote hands raised:', newRemoteHandsRaised)
       rtkDebug.log('[RTK] 🔄 Synced hand raised order:', newHandRaisedOrder)
 
-      // Update state with synced data
-      setRemoteHandsRaised(prev => ({ ...prev, ...newRemoteHandsRaised }))
-      setHandRaisedOrder(prev => ({ ...prev, ...newHandRaisedOrder }))
+      // Update state with synced data (authoritative replace)
+      if (newLocalHandRaised !== undefined) {
+        setHandRaised(newLocalHandRaised)
+      }
+      setRemoteHandsRaised(newRemoteHandsRaised)
+      setHandRaisedOrder(newHandRaisedOrder)
     }
 
     // Listen for events

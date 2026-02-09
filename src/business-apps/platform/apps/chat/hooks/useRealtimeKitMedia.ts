@@ -63,22 +63,37 @@ export const useRealtimeKitMedia = ({
 }: UseRealtimeKitMediaOptions): UseRealtimeKitMediaReturn => {
   const [localStream, setLocalStream] = useState<MediaStream | null>(null)
 
-  // CRITICAL: Initialize with restored state (if provided) to prevent reset after minimize/maximize
-  // This ensures mute/video state persists when maximizing after minimize
-  const [isMuted, setIsMuted] = useState(initialIsMuted ?? false)
-
-  // CRITICAL: Initialize video state from SDK if available, otherwise use restored state or fallback to callType
-  // Priority: 1) Restored state from globalCallManager, 2) SDK state, 3) callType
-  const [isVideoEnabled, setIsVideoEnabled] = useState(() => {
-    // If we have restored state from globalCallManager, use it (highest priority)
-    if (initialIsVideoEnabled !== undefined) {
-      return initialIsVideoEnabled
+  // CRITICAL: Initialize mute state with correct priority:
+  // 1) SDK state (if available) - SOURCE OF TRUTH
+  // 2) Restored state from globalCallManager (if SDK not ready yet)
+  // 3) Default to false
+  const [isMuted, setIsMuted] = useState(() => {
+    // If SDK is already available, use its state (highest priority)
+    if (meeting?.self?.audioEnabled !== undefined) {
+      return !meeting.self.audioEnabled // isMuted is inverse of audioEnabled
     }
-    // If SDK meeting is already initialized, use its state
+    // Otherwise use restored state if available
+    if (initialIsMuted !== undefined) {
+      return initialIsMuted
+    }
+    // Default to unmuted
+    return false
+  })
+
+  // CRITICAL: Initialize video state with correct priority:
+  // 1) SDK state (if available) - SOURCE OF TRUTH
+  // 2) Restored state from globalCallManager (if SDK not ready yet)
+  // 3) callType default
+  const [isVideoEnabled, setIsVideoEnabled] = useState(() => {
+    // If SDK is already available, use its state (highest priority)
     if (meeting?.self?.videoEnabled !== undefined) {
       return meeting.self.videoEnabled
     }
-    // Otherwise, default to callType (will be synced once SDK is ready)
+    // Otherwise use restored state if available
+    if (initialIsVideoEnabled !== undefined) {
+      return initialIsVideoEnabled
+    }
+    // Default to callType
     return callType === 'video'
   })
 
@@ -90,22 +105,23 @@ export const useRealtimeKitMedia = ({
   const hasAppliedInitialBackgroundRef = useRef(false)
   const previousCallTypeRef = useRef<'audio' | 'video'>(callType)
   const hasInitializedFromSDKRef = useRef(false)
+  const previousMeetingRef = useRef(meeting)
+
+  // CRITICAL: Reset initialization flag when meeting changes (component remount or new call)
+  // This ensures we re-sync from SDK when navigating back to chat
+  useEffect(() => {
+    if (previousMeetingRef.current !== meeting) {
+      rtkDebug.log('[RTK Media] Meeting changed, resetting initialization flag')
+      hasInitializedFromSDKRef.current = false
+      previousMeetingRef.current = meeting
+    }
+  }, [meeting])
 
   // CRITICAL: Sync audio state from SDK when meeting becomes available
-  // SKIP if we have restored state from globalCallManager (restored state is source of truth)
-  // Video state is handled by the main callType sync effect above
+  // Only sync if SDK state differs from current state to avoid unnecessary updates
+  // Video state is handled by the main callType sync effect below
   useEffect(() => {
     if (!meeting?.self || hasInitializedFromSDKRef.current) {
-      return
-    }
-
-    // CRITICAL: If we have restored state (from minimize/maximize), skip SDK sync
-    // The restored state is the source of truth, and we should apply it TO the SDK instead
-    if (initialIsMuted !== undefined) {
-      rtkDebug.log('[RTK Media] Skipping SDK audio sync - using restored state from globalCallManager:', {
-        restoredIsMuted: initialIsMuted
-      })
-      hasInitializedFromSDKRef.current = true
       return
     }
 
@@ -115,7 +131,8 @@ export const useRealtimeKitMedia = ({
     rtkDebug.log('[RTK Media] Syncing initial audio state from SDK:', {
       sdkAudioEnabled,
       sdkIsMuted,
-      currentIsMuted: isMuted
+      currentIsMuted: isMuted,
+      restoredIsMuted: initialIsMuted
     })
 
     // Sync audio state (isMuted is inverse of audioEnabled)
@@ -126,6 +143,27 @@ export const useRealtimeKitMedia = ({
 
     hasInitializedFromSDKRef.current = true
   }, [meeting?.self, isMuted, initialIsMuted])
+
+  // CRITICAL: Continuously sync audio state from SDK (not just on initial mount)
+  // This ensures UI buttons reflect actual SDK state when navigating back
+  useEffect(() => {
+    if (!meeting?.self) {
+      return
+    }
+
+    const sdkAudioEnabled = meeting.self.audioEnabled ?? true
+    const sdkIsMuted = !sdkAudioEnabled
+
+    // Only update if SDK state differs from React state
+    if (isMuted !== sdkIsMuted) {
+      rtkDebug.log('[RTK Media] Continuous sync: SDK audio state changed, updating React state:', {
+        sdkAudioEnabled,
+        sdkIsMuted,
+        currentIsMuted: isMuted
+      })
+      setIsMuted(sdkIsMuted)
+    }
+  }, [meeting?.self?.audioEnabled, isMuted])
 
   // CRITICAL: React to callType changes and synchronize video state
   // Handles three scenarios:
@@ -229,6 +267,29 @@ export const useRealtimeKitMedia = ({
       }
     }
   }, [callType, meeting, callStatus, isVideoEnabled])
+
+  // CRITICAL: Continuously sync video state from SDK (not just on initial mount)
+  // This ensures UI buttons reflect actual SDK state when navigating back
+  useEffect(() => {
+    if (!meeting?.self) {
+      return
+    }
+
+    const sdkVideoEnabled = meeting.self.videoEnabled ?? false
+
+    // Only update if SDK state differs from React state AND we're not in setup/joining phase
+    // (to avoid overriding user preferences during initial join)
+    const isStablePhase = callStatus === 'connected' || callStatus === 'reconnecting'
+
+    if (isStablePhase && isVideoEnabled !== sdkVideoEnabled) {
+      rtkDebug.log('[RTK Media] Continuous sync: SDK video state changed, updating React state:', {
+        sdkVideoEnabled,
+        currentIsVideoEnabled: isVideoEnabled,
+        callStatus
+      })
+      setIsVideoEnabled(sdkVideoEnabled)
+    }
+  }, [meeting?.self?.videoEnabled, isVideoEnabled, callStatus])
 
   /**
    * Toggle audio mute/unmute
