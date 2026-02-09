@@ -16,6 +16,7 @@ import {
   EmailReader,
   EmailComposer,
   AccountSetupDialog,
+  AccountManagementDialog,
   EmailEmptyState,
   MicrosoftOAuthCallback
 } from './components'
@@ -77,6 +78,7 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [isAccountDialogOpen, setIsAccountDialogOpen] = useState(false)
+  const [isManageDialogOpen, setIsManageDialogOpen] = useState(false)
 
   // Compose state
   const [isComposing, setIsComposing] = useState(false)
@@ -225,7 +227,7 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
         onSelectFolder={handleSelectFolder}
         onCompose={() => handleCompose('new')}
         onSync={handleSync}
-        onSettings={() => setIsAccountDialogOpen(true)}
+        onSettings={() => setIsManageDialogOpen(true)}
         onBack={handleBack}
         accounts={accounts}
         activeAccount={defaultAccount}
@@ -263,6 +265,18 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
         accounts={accounts}
         defaultAccountId={defaultAccount?.id}
         onSent={refreshMessages}
+      />
+
+      {/* Account management dialog */}
+      <AccountManagementDialog
+        open={isManageDialogOpen}
+        onOpenChange={setIsManageDialogOpen}
+        accounts={accounts}
+        onAccountsChanged={refreshAccounts}
+        onAddAccount={() => {
+          setIsManageDialogOpen(false)
+          setIsAccountDialogOpen(true)
+        }}
       />
 
       {/* Account setup dialog */}

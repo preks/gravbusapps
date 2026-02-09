@@ -24,7 +24,9 @@ import {
 } from '@newwork/nw-design-system'
 import { Mail, RefreshCw, Trash2, CheckCircle, XCircle, AlertCircle, Plus } from 'lucide-react'
 import { MicrosoftOAuthService } from '../services/MicrosoftOAuthService'
+import { GoogleOAuthService } from '../services/GoogleOAuthService'
 import { EmailApiService } from '../services/EmailApiService'
+import { EmailProviderSettingsApi } from '../services/EmailProviderSettingsApi'
 import type { EmailAccount } from '../types'
 
 interface AccountManagementDialogProps {
@@ -48,45 +50,35 @@ export const AccountManagementDialog: React.FC<AccountManagementDialogProps> = (
   const [reconnectingAccountId, setReconnectingAccountId] = useState<string | null>(null)
 
   const handleReconnect = async (account: EmailAccount) => {
-    if (account.provider !== 'microsoft') {
-      toast.error('Only Microsoft accounts support reconnection')
+    if (account.provider !== 'microsoft' && account.provider !== 'google') {
+      toast.error('Only Microsoft and Google OAuth accounts support reconnection')
       return
     }
 
     setReconnectingAccountId(account.id)
     try {
-      // Start OAuth in popup
-      const { code, state } = await MicrosoftOAuthService.startAuth()
+      // Fetch tenant settings for OAuth config
+      const tenantSettings = await EmailProviderSettingsApi.getPublicSettings()
+      const providerKey = account.provider === 'microsoft' ? 'microsoft' : 'google'
+      const providerConfig = tenantSettings.find(s => s.provider === providerKey)
 
-      // Exchange code for tokens
-      const tokens = await MicrosoftOAuthService.handleCallback(code, state)
-
-      // Parse user info
-      const userInfo = tokens.id_token ? MicrosoftOAuthService.parseIdToken(tokens.id_token) : { email: '', name: '' }
-
-      if (!userInfo.email) {
-        throw new Error('Could not get email address from Microsoft account')
+      if (account.provider === 'microsoft') {
+        const config = MicrosoftOAuthService.buildConfig(providerConfig?.publicConfig)
+        const authResult = await MicrosoftOAuthService.startAuth(config)
+        await EmailProviderSettingsApi.exchangeMicrosoftCode({
+          code: authResult.code,
+          codeVerifier: authResult.codeVerifier,
+          redirectUri: authResult.redirectUri
+        })
+      } else {
+        const config = GoogleOAuthService.buildConfig(providerConfig?.publicConfig)
+        const authResult = await GoogleOAuthService.startAuth(config)
+        await EmailProviderSettingsApi.exchangeGoogleCode({
+          code: authResult.code,
+          codeVerifier: authResult.codeVerifier,
+          redirectUri: authResult.redirectUri
+        })
       }
-
-      // Create/update account (backend upsert logic handles existing accounts)
-      await EmailApiService.createAccount({
-        displayName: userInfo.name || userInfo.email.split('@')[0],
-        emailAddress: userInfo.email,
-        provider: 'microsoft',
-        imapHost: 'outlook.office365.com',
-        imapPort: 993,
-        imapSecure: true,
-        smtpHost: 'smtp.office365.com',
-        smtpPort: 587,
-        smtpSecure: false,
-        oauthAccessToken: tokens.access_token,
-        oauthRefreshToken: tokens.refresh_token,
-        oauthProviderConfig: {
-          clientId: MicrosoftOAuthService.getClientId(),
-          tenantId: 'organizations'
-        },
-        isDefault: account.isDefault
-      })
 
       toast.success('Account reconnected successfully!')
       onAccountsChanged()
@@ -218,7 +210,7 @@ export const AccountManagementDialog: React.FC<AccountManagementDialogProps> = (
                   {/* Actions */}
                   <div className="gba:flex gba:gap-2 gba:flex-shrink-0">
                     {(account.status === 'disconnected' || account.status === 'error') &&
-                      account.provider === 'microsoft' && (
+                      (account.provider === 'microsoft' || account.provider === 'google') && (
                         <Button
                           variant="outline"
                           size="sm"
@@ -279,7 +271,7 @@ export const AccountManagementDialog: React.FC<AccountManagementDialogProps> = (
             <AlertDialogCancel data-testid={`${testId}-delete-cancel`}>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => deletingAccountId && handleDelete(deletingAccountId)}
-              className="gba:bg-destructive gba:text-destructive-foreground hover:gba:bg-destructive/90"
+              className="gba:bg-destructive gba:text-destructive-foreground gba:hover:bg-destructive/90"
               data-testid={`${testId}-delete-confirm-button`}
             >
               Delete account
