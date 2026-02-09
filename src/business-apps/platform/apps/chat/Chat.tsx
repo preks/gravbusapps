@@ -661,12 +661,14 @@ const ChatInner: React.FC<ChatProps> = memo(
           // Use RTK for 1-on-1 calls if feature flag enabled
           if (useRealtimeKitForGroupCalls) {
             if (initiateGroupCall) {
+              // Check if conversation is linked to a calendar meeting
+              const calendarMeetingId = activeConversation.metadata?.meetingId || null
               initiateGroupCall(
                 activeConversation.id,
                 'audio',
                 [participant], // Single participant array
                 undefined, // Don't pass participant name as conversationName for direct calls
-                null, // No calendar meeting
+                calendarMeetingId, // Pass calendar meeting ID if available
                 'direct' // Mark as direct conversation for 1-on-1 naming
               )
             }
@@ -722,12 +724,14 @@ const ChatInner: React.FC<ChatProps> = memo(
           if (useRealtimeKitForGroupCalls) {
             rtkDebug.log('[CHAT] Starting 1-on-1 video call with RTK for direct conversation')
             if (initiateGroupCall) {
+              // Check if conversation is linked to a calendar meeting
+              const calendarMeetingId = activeConversation.metadata?.meetingId || null
               initiateGroupCall(
                 activeConversation.id,
                 'video',
                 [participant], // Single participant array
                 undefined, // Don't pass participant name as conversationName for direct calls
-                null, // No calendar meeting
+                calendarMeetingId, // Pass calendar meeting ID if available
                 'direct' // Mark as direct conversation for 1-on-1 naming
               )
             }
@@ -804,12 +808,14 @@ const ChatInner: React.FC<ChatProps> = memo(
 
         // Use conversation ID as the room ID, pass conversation name for the invite
         if (initiateGroupCall) {
+          // Check if conversation is linked to a calendar meeting
+          const calendarMeetingId = activeConversation.metadata?.meetingId || null
           initiateGroupCall(
             activeConversation.id,
             callType,
             callParticipants,
             activeConversation.name,
-            null, // No calendar meeting
+            calendarMeetingId, // Pass calendar meeting ID if available
             'group' // Mark as group conversation
           )
         }
