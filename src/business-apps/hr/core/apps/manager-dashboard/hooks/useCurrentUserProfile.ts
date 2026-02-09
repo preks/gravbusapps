@@ -3,6 +3,7 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
 export interface CurrentUserProfile {
   id: string
+  userId?: string
   firstName: string
   lastName: string
   pictureThumbnail?: string
@@ -48,6 +49,7 @@ export const useCurrentUserProfile = ({
           query GetCurrentUserProfile($employeeId: uuid!) {
             Employee(where: { id: { _eq: $employeeId } }) {
               id
+              userId
               firstName
               lastName
               pictureThumbnail
@@ -81,6 +83,7 @@ export const useCurrentUserProfile = ({
 
           setUserProfile({
             id: employee.id,
+            userId: employee.userId,
             firstName: employee.firstName,
             lastName: employee.lastName,
             pictureThumbnail: actualPictureThumbnail

@@ -2,7 +2,7 @@
 
 'use client'
 
-import React from 'react'
+import React, { useState, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useManagerWorkboardVM } from './hooks/useManagerWorkboardVM'
 import { NotClockedInView } from './views/NotClockedInView'
@@ -21,17 +21,46 @@ import {
   WorkCapacitySection,
   PerformanceGrowthSection,
   PeopleMomentsSection,
-  MemberQuickPanel
+  MemberQuickPanel,
+  AssignProjectDialog
 } from './components/manager-workboard'
 
 export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, accessToken }) => {
   const employeeId = userInfo?.employeeDetails?.employeeId
+  const [assignProjectEmployee, setAssignProjectEmployee] = useState<{
+    id: string
+    name: string
+    avatar?: string
+    currentAllocation: number
+  } | null>(null)
+  const [isAssignProjectOpen, setIsAssignProjectOpen] = useState(false)
 
   // Use centralized ViewModel hook - all data and actions come from here
   const vm = useManagerWorkboardVM({
     employeeId,
     accessToken
   })
+
+  // Handler for opening assign project dialog
+  const handleAssignProject = useCallback(
+    (employeeId: string) => {
+      const employee = vm.unallocatedEmployeesWithAllocation.find(e => e.id === employeeId)
+      if (employee) {
+        setAssignProjectEmployee({
+          id: employee.id,
+          name: employee.name,
+          currentAllocation: employee.allocationPercent || 0
+        })
+        setIsAssignProjectOpen(true)
+      }
+    },
+    [vm.unallocatedEmployeesWithAllocation]
+  )
+
+  const handleAssignProjectSuccess = useCallback(() => {
+    // The ViewModel hooks will automatically refetch data
+    // Close dialog is handled by the dialog component
+  }, [])
 
   // NO BUSINESS LOGIC HERE. Data + actions come from useManagerWorkboardVM.
   const mainContent = (
@@ -119,10 +148,13 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
             loading={vm.priorities.loading}
             counts={vm.priorities.counts}
             unallocatedDailyCost={vm.priorities.unallocatedDailyCost}
-            onNavigateToAbsentTeammates={vm.actions.navigateToAbsentTeammates}
-            onNavigateToUnallocatedTeammates={vm.actions.navigateToUnallocatedTeammates}
-            onNavigateToTeamPerformance={vm.actions.navigateToTeamPerformance}
-            onNavigateToNotClockedIn={vm.actions.navigateToNotClockedIn}
+            unallocatedEmployees={vm.priorities.unallocatedEmployees}
+            employeesWithoutGoals={vm.priorities.employeesWithoutGoals}
+            goalsBehindData={vm.priorities.goalsBehindData}
+            notClockedInEmployees={vm.priorities.notClockedInEmployees}
+            accessToken={accessToken}
+            currentUserId={vm.userProfile?.userId}
+            onAssignProject={handleAssignProject}
           />
 
           {/* Right: Team Health (1fr on desktop, full width on mobile) */}
@@ -193,6 +225,15 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
         </div>
       </div>
 
+      {/* Assign Project Dialog */}
+      <AssignProjectDialog
+        employee={assignProjectEmployee}
+        open={isAssignProjectOpen}
+        onOpenChange={setIsAssignProjectOpen}
+        onSuccess={handleAssignProjectSuccess}
+        accessToken={accessToken || ''}
+      />
+
       <Toaster position="bottom-right" richColors />
     </div>
   )
@@ -247,6 +288,7 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
         goalsAtRisk={vm.goalsAtRisk}
         goalsBehindTarget={vm.goalsBehindTarget}
         loadingTeamPerformance={vm.loadingTeamPerformance}
+        filterGoalsBehindOnly={vm.filterGoalsBehindOnly}
         onNavigateBack={vm.handleNavigateBackToDashboard}
         onNavigateToEmployee={vm.handleNavigateToEmployee}
       />

@@ -33,11 +33,15 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
   const [currentView, setCurrentView] = useState<CurrentView>('dashboard')
   const [filterAbsentOnly, setFilterAbsentOnly] = useState(false)
   const [filterUnallocatedOnly, setFilterUnallocatedOnly] = useState(false)
+  const [filterGoalsBehindOnly, setFilterGoalsBehindOnly] = useState(false)
   const [selectedPosition] = useState<JobPosition | null>(null)
   const [isPositionSheetOpen, setIsPositionSheetOpen] = useState(false)
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null)
   const [isMemberPanelOpen, setIsMemberPanelOpen] = useState(false)
   const [unallocatedDailyCost, setUnallocatedDailyCost] = useState<number>(0)
+  const [unallocatedEmployeesWithAllocation, setUnallocatedEmployeesWithAllocation] = useState<
+    Array<{ id: string; name: string; allocationPercent: number }>
+  >([])
 
   const graphQLClient = useGraphqlClient(accessToken || '')
   const structureId = getCurrentActiveStructureId()
@@ -63,6 +67,12 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
 
   const handleNavigateToTeamPerformance = () => {
     setCurrentView('team-performance')
+    setFilterGoalsBehindOnly(false)
+  }
+
+  const handleNavigateToGoalsBehind = () => {
+    setCurrentView('team-performance')
+    setFilterGoalsBehindOnly(true)
   }
 
   const handleNavigateToNotClockedIn = () => {
@@ -79,6 +89,7 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
   const handleNavigateBackToDashboard = () => {
     setFilterAbsentOnly(false)
     setFilterUnallocatedOnly(false)
+    setFilterGoalsBehindOnly(false)
     setCurrentView('dashboard')
   }
 
@@ -175,6 +186,7 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
     teamAttendance,
     remoteCount,
     notClockedInCount,
+    notClockedInEmployeeIds,
     loading: loadingAttendance
   } = useTeamAttendance({
     accessToken: accessToken || '',
@@ -230,9 +242,48 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
     return directReports.filter(report => report.status === 'On Leave').length
   }, [directReports])
 
-  const employeesWithoutGoals = useMemo(() => {
+  const employeesWithoutGoalsCount = useMemo(() => {
     return teamPerformance.filter(member => member.totalGoals === 0).length
   }, [teamPerformance])
+
+  const employeesWithoutGoalsList = useMemo(() => {
+    return teamPerformance
+      .filter(member => member.totalGoals === 0)
+      .map(member => ({
+        id: member.employeeId,
+        name: `${member.firstName} ${member.lastName}`
+      }))
+  }, [teamPerformance])
+
+  // Goals behind target with employee details for BLINK
+  const goalsBehindData = useMemo(() => {
+    return teamPerformance
+      .filter(member => member.goalsBehindTarget > 0)
+      .map(member => ({
+        employeeId: member.employeeId,
+        employeeName: `${member.firstName} ${member.lastName}`,
+        employeeUserId: member.userId || '',
+        goals: member.goals
+          .filter(g => g.status === 'BEHIND_TARGET' || g.status === 'NOT_ACHIEVED')
+          .map(g => ({
+            id: g.id,
+            title: g.title,
+            progressPercent: g.progressPercent
+          }))
+      }))
+      .filter(emp => emp.goals.length > 0) // Only include employees with goals behind
+  }, [teamPerformance])
+
+  // Not clocked in employees with userId for chat nudges
+  const notClockedInEmployeesWithUserId = useMemo(() => {
+    return directReports
+      .filter(report => notClockedInEmployeeIds.includes(report.id))
+      .map(report => ({
+        id: report.id,
+        name: `${report.firstName} ${report.lastName}`,
+        userId: report.userId
+      }))
+  }, [directReports, notClockedInEmployeeIds])
 
   const aiInsightItems = useMemo(() => {
     if (!aiInsight) return []
@@ -332,6 +383,62 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
     fetchUnallocatedSalaryCost()
   }, [unallocatedEmployeeIds, graphQLClient])
 
+  // Fetch allocation percentages for unallocated employees
+  useEffect(() => {
+    const fetchUnallocatedAllocation = async () => {
+      if (!unallocatedEmployeeIds || unallocatedEmployeeIds.length === 0) {
+        setUnallocatedEmployeesWithAllocation([])
+        return
+      }
+
+      try {
+        const query = `
+          query GetUnallocatedAllocation($employeeIds: [uuid!]!) {
+            Employee(
+              where: { 
+                id: { _in: $employeeIds }
+                isDeleted: { _eq: false }
+              }
+            ) {
+              id
+              firstName
+              lastName
+              workingHours(
+                where: { isDeleted: { _neq: true } }
+                orderBy: [{ activeFrom: DESC }]
+                limit: 1
+              ) {
+                totalAllocationPercent
+              }
+            }
+          }
+        `
+
+        const response = await graphQLClient.request<{
+          Employee: Array<{
+            id: string
+            firstName: string
+            lastName: string
+            workingHours: Array<{ totalAllocationPercent: number | null }>
+          }>
+        }>(query, { employeeIds: unallocatedEmployeeIds })
+
+        const employeesWithAllocation = response.Employee.map(emp => ({
+          id: emp.id,
+          name: `${emp.firstName} ${emp.lastName}`,
+          allocationPercent: emp.workingHours?.[0]?.totalAllocationPercent ?? 0
+        }))
+
+        setUnallocatedEmployeesWithAllocation(employeesWithAllocation)
+      } catch (error) {
+        console.error('Failed to fetch unallocated employee allocations:', error)
+        setUnallocatedEmployeesWithAllocation([])
+      }
+    }
+
+    fetchUnallocatedAllocation()
+  }, [unallocatedEmployeeIds, graphQLClient])
+
   // Structured return object organized by UI sections
   return {
     // Section 1: Today's Priorities (AI-driven insights)
@@ -342,13 +449,17 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
         onLeave: onLeaveCount,
         sickLeaves: sickLeavesCount,
         unallocated: unallocatedCount,
-        withoutGoals: employeesWithoutGoals,
+        withoutGoals: employeesWithoutGoalsCount,
         goalsBehind: goalsBehindTarget,
         notClockedIn: notClockedInCount,
         remote: remoteCount,
         upcomingAnniversaries: upcomingAnniversaries.length
       },
       unallocatedDailyCost,
+      unallocatedEmployees: unallocatedEmployeesWithAllocation,
+      employeesWithoutGoals: employeesWithoutGoalsList,
+      goalsBehindData,
+      notClockedInEmployees: notClockedInEmployeesWithUserId,
       feedback: {
         daysSince: daysSinceLastFeedback,
         hasRecently: hasFeedbackRecently
@@ -446,6 +557,7 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
       navigateToAbsentTeammates: handleNavigateToAbsentTeammates,
       navigateToUnallocatedTeammates: handleNavigateToUnallocatedTeammates,
       navigateToTeamPerformance: handleNavigateToTeamPerformance,
+      navigateToGoalsBehind: handleNavigateToGoalsBehind,
       navigateToNotClockedIn: handleNavigateToNotClockedIn,
       navigateToInsights: handleNavigateToInsights,
       navigateBackToDashboard: handleNavigateBackToDashboard,
@@ -468,13 +580,17 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
     userOrgData,
     sickLeavesCount,
     onLeaveCount,
-    employeesWithoutGoals,
+    employeesWithoutGoals: employeesWithoutGoalsCount,
+    employeesWithoutGoalsList,
+    goalsBehindData,
+    notClockedInEmployeesWithUserId,
     aiInsightItems,
     availableEmployeeIds,
     unallocatedEmployeeIds,
     averageAllocationPercentage,
     unallocatedCount,
     unallocatedDailyCost,
+    unallocatedEmployeesWithAllocation,
     averageTeamProgress,
     totalPerformanceGoals,
     goalsOnTrack,
@@ -508,6 +624,7 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
     setFilterAbsentOnly,
     filterUnallocatedOnly,
     setFilterUnallocatedOnly,
+    filterGoalsBehindOnly,
     selectedPosition,
     isPositionSheetOpen,
     setIsPositionSheetOpen,
@@ -518,6 +635,7 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
     handleNavigateToAbsentTeammates,
     handleNavigateToUnallocatedTeammates,
     handleNavigateToTeamPerformance,
+    handleNavigateToGoalsBehind,
     handleNavigateToNotClockedIn,
     handleNavigateToInsights,
     handleNavigateBackToDashboard,
