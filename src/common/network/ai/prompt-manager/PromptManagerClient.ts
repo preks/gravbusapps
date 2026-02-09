@@ -177,6 +177,93 @@ export interface PromptExecuteResponse<T = unknown> {
   content: T | string | null
 }
 
+// --- Telemetry / Executions ---
+export type ExecutionRunStatus = 'running' | 'success' | 'error'
+
+export interface ExecutionRun {
+  executionId: string
+  createdAt: string
+  startedAt: string
+  finishedAt?: string | null
+  durationMs?: number | null
+  status: ExecutionRunStatus
+  errorType?: string | null
+  errorMessage?: string | null
+
+  promptId?: string | null
+  promptVersion?: number | null
+  promptName?: string | null
+  agentType?: string | null
+  tags?: string[] | null
+
+  policyRootIds?: string[] | null
+  policyVersionIds?: string[] | null
+
+  aiService?: string | null
+  aiModel?: string | null
+
+  toolCallsCount?: number
+  toolsUsed?: string[] | null
+  knowledgeSourceIds?: string[] | null
+
+  finalOutputPreview?: string | null
+  reasoningSummary?: Record<string, any> | null
+
+  promptTokens?: number
+  completionTokens?: number
+  totalTokens?: number
+  llmRequests?: number
+}
+
+export interface ExecutionRunPage {
+  data: ExecutionRun[]
+  paging: Paging
+}
+
+export interface ExecutionTraceEvent {
+  executionId: string
+  seq: number
+  ts: string
+  eventType: string
+  data: Record<string, any>
+}
+
+export interface ExecutionTracePage {
+  data: ExecutionTraceEvent[]
+  paging: Paging
+}
+
+export interface ExecutionStatsResponse {
+  total: number
+  success: number
+  error: number
+  running: number
+}
+
+export interface ExecutionTimeseriesPoint {
+  day: string
+  total: number
+  success: number
+  error: number
+  running: number
+  avgDurationMs?: number | null
+  toolCalls: number
+}
+
+export interface ExecutionTimeseriesResponse {
+  data: ExecutionTimeseriesPoint[]
+  resolution?: string
+}
+
+export interface ExecutionTopToolItem {
+  tool: string
+  count: number
+}
+
+export interface ExecutionTopToolsResponse {
+  data: ExecutionTopToolItem[]
+}
+
 /** Attachment to pass to prompt execution */
 export interface PromptAttachment {
   id: string
@@ -429,6 +516,62 @@ export class PromptManagerClient extends RestClient {
 
   async executePromptById(id: string, formData: FormData): Promise<PromptExecuteResponse> {
     return this.post<PromptExecuteResponse>(`/api/v1/prompts/${encodeURIComponent(id)}/execute`, formData)
+  }
+
+  // --- Execution telemetry (runs + traces) ---
+  async getExecutionRuns(params?: {
+    promptId?: string | null
+    status?: ExecutionRunStatus | string | null
+    policyRootId?: string | null
+    tag?: string | null
+    toolName?: string | null
+    createdAtFrom?: string | null
+    createdAtTo?: string | null
+    limit?: number
+    offset?: number
+    returnTotalRecords?: boolean
+  }): Promise<ExecutionRunPage> {
+    return this.get<ExecutionRunPage>('/api/v1/executions/runs', { params: params as Record<string, any> })
+  }
+
+  async getExecutionRun(executionId: string): Promise<ExecutionRun> {
+    return this.get<ExecutionRun>(`/api/v1/executions/runs/${encodeURIComponent(executionId)}`)
+  }
+
+  async getExecutionTrace(
+    executionId: string,
+    params?: { limit?: number; offset?: number; returnTotalRecords?: boolean }
+  ): Promise<ExecutionTracePage> {
+    return this.get<ExecutionTracePage>(`/api/v1/executions/runs/${encodeURIComponent(executionId)}/trace`, { params })
+  }
+
+  async getExecutionStats(params?: {
+    policyRootId?: string | null
+    promptId?: string | null
+  }): Promise<ExecutionStatsResponse> {
+    return this.get<ExecutionStatsResponse>('/api/v1/executions/stats', { params: params as Record<string, any> })
+  }
+
+  async getExecutionTimeseries(params?: {
+    policyRootId?: string | null
+    promptId?: string | null
+    days?: number
+    resolution?: string | null
+  }): Promise<ExecutionTimeseriesResponse> {
+    return this.get<ExecutionTimeseriesResponse>('/api/v1/executions/timeseries', {
+      params: params as Record<string, any>
+    })
+  }
+
+  async getExecutionTopTools(params?: {
+    policyRootId?: string | null
+    promptId?: string | null
+    days?: number
+    limit?: number
+  }): Promise<ExecutionTopToolsResponse> {
+    return this.get<ExecutionTopToolsResponse>('/api/v1/executions/tools-top', {
+      params: params as Record<string, any>
+    })
   }
 
   /**

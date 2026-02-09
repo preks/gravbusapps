@@ -35,6 +35,7 @@ export const TaskExpertTestPanel: React.FC<TaskExpertTestPanelProps> = props => 
       const fd = new FormData()
       if (systemParams) fd.append('system_params', systemParams)
       if (userParams) fd.append('user_params', userParams)
+      fd.append('context', JSON.stringify({ executionMode: 'test' }))
       const res = await client.executePromptById(promptId, fd)
       const content = typeof res.content === 'string' ? res.content : JSON.stringify(res.content, null, 2)
       setResult(content || '')

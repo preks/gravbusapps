@@ -129,6 +129,7 @@ export const TestTab: React.FC<TabProps> = ({ context, state, mode, promptId }) 
         const v = Number(selectedVersion)
         if (!Number.isNaN(v)) fd.append('version', String(v))
       }
+      fd.append('context', JSON.stringify({ executionMode: 'test' }))
       const res = await client.executePromptById(promptId, fd)
       const content = typeof res.content === 'string' ? res.content : JSON.stringify(res.content, null, 2)
       setTestResult(content || '')
