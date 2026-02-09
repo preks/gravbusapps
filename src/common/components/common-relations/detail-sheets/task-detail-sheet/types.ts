@@ -48,6 +48,7 @@ export interface Task {
   id: string
   name: string
   code?: string
+  businessKey?: string // Process business key shared by all task instances
   description?: string
   assignedTo?: TaskEmployee | TaskEmployee[] // Optional - can be single or array of assignees
   taskAssignees?: TaskAssigneeWithEmployee[] // NEW: Junction table data with individual statuses
