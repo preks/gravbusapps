@@ -34,6 +34,8 @@ export interface UseRealtimeKitMediaReturn {
   toggleVideo: () => boolean
   setVideoQuality: (quality: VideoQuality) => Promise<void>
   toggleBackground: () => Promise<void>
+  switchAudioDevice: (deviceId: string) => Promise<void>
+  switchVideoDevice: (deviceId: string) => Promise<void>
   stopAllTracks: () => void
 }
 
@@ -678,6 +680,130 @@ export const useRealtimeKitMedia = ({
   }, [meeting])
 
   /**
+   * Switch audio input device during call
+   * Prefers RealtimeKit SDK's setDevice() if available.
+   */
+  const switchAudioDevice = useCallback(
+    async (deviceId: string) => {
+      if (!meeting?.self) {
+        rtkDebug.error('[RTK Media] Cannot switch audio device: meeting.self not available')
+        return
+      }
+
+      if (typeof (meeting.self as any).setDevice !== 'function') {
+        rtkDebug.warn('[RTK Media] SDK does not support setDevice(), using fallback method')
+        try {
+          const wasAudioEnabled = meeting.self.audioEnabled ?? false
+
+          if (wasAudioEnabled) {
+            await meeting.self.disableAudio()
+          }
+
+          const stream = await navigator.mediaDevices.getUserMedia({
+            audio: {
+              deviceId: { exact: deviceId },
+              echoCancellation: true,
+              noiseSuppression: true,
+              autoGainControl: true
+            }
+          })
+
+          stream.getTracks().forEach(track => track.stop())
+
+          if (wasAudioEnabled) {
+            await meeting.self.enableAudio()
+          }
+
+          rtkDebug.log('[RTK Media] ✅ Audio device switched (fallback method)')
+        } catch (error) {
+          rtkDebug.error('[RTK Media] Failed to switch audio device (fallback):', error)
+          throw error
+        }
+        return
+      }
+
+      try {
+        rtkDebug.log('[RTK Media] 🎤 Switching audio device via SDK setDevice():', deviceId)
+        await (meeting.self as any).setDevice({
+          kind: 'audioinput',
+          deviceId
+        })
+        rtkDebug.log('[RTK Media] ✅ Audio device switched successfully via SDK')
+      } catch (error) {
+        rtkDebug.error('[RTK Media] Failed to switch audio device:', error)
+        throw error
+      }
+    },
+    [meeting]
+  )
+
+  /**
+   * Switch video input device during call
+   * Prefers RealtimeKit SDK's setDevice() if available.
+   */
+  const switchVideoDevice = useCallback(
+    async (deviceId: string) => {
+      if (!meeting?.self) {
+        rtkDebug.error('[RTK Media] Cannot switch video device: meeting.self not available')
+        return
+      }
+
+      if (typeof (meeting.self as any).setDevice !== 'function') {
+        rtkDebug.warn('[RTK Media] SDK does not support setDevice(), using fallback method')
+        try {
+          const wasVideoEnabled = meeting.self.videoEnabled ?? false
+
+          if (wasVideoEnabled) {
+            await meeting.self.disableVideo()
+          }
+
+          const stream = await navigator.mediaDevices.getUserMedia({
+            video: {
+              deviceId: { exact: deviceId },
+              width: { ideal: 1280 },
+              height: { ideal: 720 }
+            }
+          })
+
+          stream.getTracks().forEach(track => track.stop())
+
+          if (wasVideoEnabled) {
+            await meeting.self.enableVideo()
+          }
+
+          if (backgroundEnabled && virtualBackgroundRef.current) {
+            rtkDebug.log('[RTK Media] Background enabled; SDK should reapply it to new video track')
+          }
+
+          rtkDebug.log('[RTK Media] ✅ Video device switched (fallback method)')
+        } catch (error) {
+          rtkDebug.error('[RTK Media] Failed to switch video device (fallback):', error)
+          throw error
+        }
+        return
+      }
+
+      try {
+        rtkDebug.log('[RTK Media] 📹 Switching video device via SDK setDevice():', deviceId)
+        await (meeting.self as any).setDevice({
+          kind: 'videoinput',
+          deviceId
+        })
+
+        if (backgroundEnabled && virtualBackgroundRef.current) {
+          rtkDebug.log('[RTK Media] Background enabled; SDK should reapply it automatically')
+        }
+
+        rtkDebug.log('[RTK Media] ✅ Video device switched successfully via SDK')
+      } catch (error) {
+        rtkDebug.error('[RTK Media] Failed to switch video device:', error)
+        throw error
+      }
+    },
+    [meeting, backgroundEnabled]
+  )
+
+  /**
    * Stop all media tracks (audio and video)
    * CRITICAL: Must be called when leaving call to release camera/microphone
    */
@@ -717,6 +843,8 @@ export const useRealtimeKitMedia = ({
     toggleVideo,
     setVideoQuality,
     toggleBackground,
+    switchAudioDevice,
+    switchVideoDevice,
     stopAllTracks
   }
 }

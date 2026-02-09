@@ -574,7 +574,13 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
    * Confirm and start call with user preferences
    */
   const confirmStartCall = useCallback(
-    async (preferences: { micEnabled: boolean; cameraEnabled: boolean; backgroundEnabled: boolean }) => {
+    async (preferences: {
+      micEnabled: boolean
+      cameraEnabled: boolean
+      backgroundEnabled: boolean
+      audioInputDeviceId?: string | null
+      videoInputDeviceId?: string | null
+    }) => {
       if (!currentUser || !apiClient) {
         rtkDebug.error('[RTK] Cannot start call: missing currentUser or apiClient')
         return
@@ -772,8 +778,16 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
         const initializedMeeting = await initMeeting({
           authToken,
           defaults: {
-            audio: shouldEnableAudio,
-            video: shouldEnableVideo
+            audio: (shouldEnableAudio
+              ? preferences.audioInputDeviceId
+                ? { deviceId: { exact: preferences.audioInputDeviceId } }
+                : true
+              : false) as any,
+            video: (shouldEnableVideo
+              ? preferences.videoInputDeviceId
+                ? { deviceId: { exact: preferences.videoInputDeviceId } }
+                : true
+              : false) as any
           },
           overrides: {
             simulcastConfig: {
@@ -804,6 +818,34 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
             rtkDebug.error('[RTK] ⚠️ Error cleaning up after cancellation:', err)
           }
           return
+        }
+
+        // CRITICAL: Set specific devices if provided (ensures correct device is used)
+        // Must be done AFTER initMeeting but BEFORE join.
+        if (preferences.audioInputDeviceId && typeof (initializedMeeting.self as any).setDevice === 'function') {
+          try {
+            rtkDebug.log('[RTK] Setting audio device before join:', preferences.audioInputDeviceId)
+            await (initializedMeeting.self as any).setDevice({
+              kind: 'audioinput',
+              deviceId: preferences.audioInputDeviceId
+            })
+            rtkDebug.log('[RTK] ✅ Audio device set successfully')
+          } catch (err) {
+            rtkDebug.warn('[RTK] ⚠️ Failed to set audio device:', err)
+          }
+        }
+
+        if (preferences.videoInputDeviceId && typeof (initializedMeeting.self as any).setDevice === 'function') {
+          try {
+            rtkDebug.log('[RTK] Setting video device before join:', preferences.videoInputDeviceId)
+            await (initializedMeeting.self as any).setDevice({
+              kind: 'videoinput',
+              deviceId: preferences.videoInputDeviceId
+            })
+            rtkDebug.log('[RTK] ✅ Video device set successfully')
+          } catch (err) {
+            rtkDebug.warn('[RTK] ⚠️ Failed to set video device:', err)
+          }
         }
 
         // CRITICAL: Configure video middleware before video is enabled (for background effects)
@@ -1168,7 +1210,13 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
       callType: CallType,
       meetingId?: string,
       conversationName?: string,
-      initialPreferences?: { micEnabled: boolean; cameraEnabled: boolean; backgroundEnabled?: boolean },
+      initialPreferences?: {
+        micEnabled: boolean
+        cameraEnabled: boolean
+        backgroundEnabled?: boolean
+        audioInputDeviceId?: string | null
+        videoInputDeviceId?: string | null
+      },
       conversationType?: 'direct' | 'group' | 'meeting'
     ) => {
       if (!currentUser || !apiClient) {
@@ -1254,11 +1302,23 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
           callType
         })
 
+        const audioConstraints: boolean | MediaTrackConstraints = shouldEnableAudio
+          ? initialPreferences?.audioInputDeviceId
+            ? ({ deviceId: { exact: initialPreferences.audioInputDeviceId } } as MediaTrackConstraints)
+            : true
+          : false
+
+        const videoConstraints: boolean | MediaTrackConstraints = shouldEnableVideo
+          ? initialPreferences?.videoInputDeviceId
+            ? ({ deviceId: { exact: initialPreferences.videoInputDeviceId } } as MediaTrackConstraints)
+            : true
+          : false
+
         const initializedMeeting = await initMeeting({
           authToken,
           defaults: {
-            audio: shouldEnableAudio,
-            video: shouldEnableVideo
+            audio: audioConstraints as any,
+            video: videoConstraints as any
           },
           overrides: {
             simulcastConfig: {
@@ -1278,6 +1338,40 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
             finalMeetingId
           })
           throw new Error('Failed to initialize meeting')
+        }
+
+        // CRITICAL: Set specific devices if provided (ensures correct device is used)
+        // Must be done AFTER initMeeting but BEFORE join.
+        if (
+          initialPreferences?.audioInputDeviceId &&
+          typeof (initializedMeeting.self as any).setDevice === 'function'
+        ) {
+          try {
+            rtkDebug.log('[RTK] Setting audio device before join:', initialPreferences.audioInputDeviceId)
+            await (initializedMeeting.self as any).setDevice({
+              kind: 'audioinput',
+              deviceId: initialPreferences.audioInputDeviceId
+            })
+            rtkDebug.log('[RTK] ✅ Audio device set successfully')
+          } catch (err) {
+            rtkDebug.warn('[RTK] ⚠️ Failed to set audio device:', err)
+          }
+        }
+
+        if (
+          initialPreferences?.videoInputDeviceId &&
+          typeof (initializedMeeting.self as any).setDevice === 'function'
+        ) {
+          try {
+            rtkDebug.log('[RTK] Setting video device before join:', initialPreferences.videoInputDeviceId)
+            await (initializedMeeting.self as any).setDevice({
+              kind: 'videoinput',
+              deviceId: initialPreferences.videoInputDeviceId
+            })
+            rtkDebug.log('[RTK] ✅ Video device set successfully')
+          } catch (err) {
+            rtkDebug.warn('[RTK] ⚠️ Failed to set video device:', err)
+          }
         }
 
         // CRITICAL: Configure video middleware before video is enabled (for background effects)
@@ -2050,12 +2144,10 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
         mediaRef.current?.setVideoQuality(quality)
       },
       switchAudioDevice: async (deviceId: string) => {
-        // TODO: Implement device switching in useRealtimeKitMedia hook
-        console.warn('switchAudioDevice not yet implemented for RealtimeKit', deviceId)
+        await mediaRef.current?.switchAudioDevice(deviceId)
       },
       switchVideoDevice: async (deviceId: string) => {
-        // TODO: Implement device switching in useRealtimeKitMedia hook
-        console.warn('switchVideoDevice not yet implemented for RealtimeKit', deviceId)
+        await mediaRef.current?.switchVideoDevice(deviceId)
       },
       onInviteParticipant: (participant: any) => {
         // inviteToCall expects an array, so wrap the single participant
@@ -2944,6 +3036,8 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
     reconnectParticipant: participantsHook.reconnectParticipant,
     getConnectionDiagnostics: stableGetConnectionDiagnostics, // Stable callback
     transcriptionEnabled: callState.transcriptionEnabled,
-    toggleTranscription
+    toggleTranscription,
+    switchAudioDevice: media.switchAudioDevice,
+    switchVideoDevice: media.switchVideoDevice
   }
 }

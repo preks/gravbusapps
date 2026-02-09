@@ -23,9 +23,23 @@ import {
   PhoneDisconnect,
   Smiley,
   HandIcon,
-  DotsThree
+  DotsThree,
+  CaretDownIcon,
+  CheckIcon,
+  SpeakerHigh
 } from '@phosphor-icons/react'
-import { Popover, PopoverContent, PopoverTrigger } from '@newwork/nw-design-system'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
+} from '@newwork/nw-design-system'
+import { useMediaDevices } from '../../hooks/useMediaDevices'
 
 export interface CallControlsBarProps {
   /** Call type (audio or video) */
@@ -56,6 +70,12 @@ export interface CallControlsBarProps {
   onSendReaction?: (emoji: string) => void
   /** Callback to end call */
   onEndCall: () => void
+  /** Callback when microphone device changes */
+  onMicDeviceChange?: (deviceId: string) => void
+  /** Callback when camera device changes */
+  onCameraDeviceChange?: (deviceId: string) => void
+  /** Callback when speaker device changes */
+  onSpeakerDeviceChange?: (deviceId: string) => void
   /** Data test ID prefix */
   prefixDataTestId?: string
   /** Translation function */
@@ -79,11 +99,48 @@ export const CallControlsBar: React.FC<CallControlsBarProps> = ({
   onToggleRaiseHand,
   onSendReaction,
   onEndCall,
+  onMicDeviceChange,
+  onCameraDeviceChange,
+  onSpeakerDeviceChange,
   prefixDataTestId = 'rtk-group-call',
   t = (key: string) => key
 }) => {
   const [reactionsOpen, setReactionsOpen] = useState(false)
   const [moreMenuOpen, setMoreMenuOpen] = useState(false)
+
+  const {
+    audioInputDevices,
+    audioOutputDevices,
+    videoInputDevices,
+    selectedAudioInputId,
+    selectedAudioOutputId,
+    selectedVideoInputId,
+    setSelectedAudioInputId,
+    setSelectedAudioOutputId,
+    setSelectedVideoInputId,
+    refreshDevices,
+    isEnumerating,
+    canSelectAudioOutput
+  } = useMediaDevices({ enabled: true })
+
+  useEffect(() => {
+    refreshDevices({ requestAudio: true, requestVideo: callType === 'video' })
+  }, [refreshDevices, callType])
+
+  const handleMicDeviceChange = (deviceId: string) => {
+    setSelectedAudioInputId(deviceId)
+    onMicDeviceChange?.(deviceId)
+  }
+
+  const handleCameraDeviceChange = (deviceId: string) => {
+    setSelectedVideoInputId(deviceId)
+    onCameraDeviceChange?.(deviceId)
+  }
+
+  const handleSpeakerDeviceChange = (deviceId: string) => {
+    setSelectedAudioOutputId(deviceId)
+    onSpeakerDeviceChange?.(deviceId)
+  }
 
   // Track window size for responsive layout (matches GroupCallModalRtk pattern)
   const [windowWidth, setWindowWidth] = useState(window.innerWidth)
@@ -128,44 +185,164 @@ export const CallControlsBar: React.FC<CallControlsBarProps> = ({
             </div>
           )}
 
-          {/* Mute button */}
-          <button
-            onClick={onToggleMute}
-            className={`${showDesktopLayout ? 'gba:p-3' : 'gba:p-2.5'} gba:rounded-full gba:transition-all ${
-              isMuted
-                ? 'gba:bg-destructive gba:text-destructive-foreground hover:gba:bg-destructive/90'
-                : 'gba:bg-accent gba:text-accent-foreground hover:gba:bg-accent/90'
-            }`}
-            data-testid={`${prefixDataTestId}-mute-btn`}
-            aria-label={isMuted ? t('groupCall-unmute') : t('groupCall-mute')}
-            title={isMuted ? t('groupCall-unmute') : t('groupCall-mute')}
-          >
-            {isMuted ? (
-              <MicrophoneSlash className={showDesktopLayout ? 'gba:w-5 gba:h-5' : 'gba:w-4 gba:h-4'} weight="fill" />
-            ) : (
-              <Microphone className={showDesktopLayout ? 'gba:w-5 gba:h-5' : 'gba:w-4 gba:h-4'} weight="fill" />
-            )}
-          </button>
-
-          {/* Video toggle button */}
-          {callType === 'video' && (
+          {/* Mute Split Button - Toggle + Device Selector */}
+          <div className="gba:flex gba:items-stretch gba:gap-0">
             <button
-              onClick={onToggleVideo}
-              className={`${showDesktopLayout ? 'gba:p-3' : 'gba:p-2.5'} gba:rounded-full gba:transition-all ${
-                !isVideoEnabled
+              onClick={onToggleMute}
+              className={`${showDesktopLayout ? 'gba:p-3' : 'gba:p-2.5'} gba:rounded-l-full gba:transition-all ${
+                isMuted
                   ? 'gba:bg-destructive gba:text-destructive-foreground hover:gba:bg-destructive/90'
                   : 'gba:bg-accent gba:text-accent-foreground hover:gba:bg-accent/90'
               }`}
-              data-testid={`${prefixDataTestId}-video-btn`}
-              aria-label={isVideoEnabled ? t('groupCall-turnOffVideo') : t('groupCall-turnOnVideo')}
-              title={isVideoEnabled ? t('groupCall-turnOffVideo') : t('groupCall-turnOnVideo')}
+              data-testid={`${prefixDataTestId}-mute-btn`}
+              aria-label={isMuted ? t('groupCall-unmute') : t('groupCall-mute')}
+              title={isMuted ? t('groupCall-unmute') : t('groupCall-mute')}
             >
-              {isVideoEnabled ? (
-                <VideoCamera className={showDesktopLayout ? 'gba:w-5 gba:h-5' : 'gba:w-4 gba:h-4'} weight="fill" />
+              {isMuted ? (
+                <MicrophoneSlash className={showDesktopLayout ? 'gba:w-5 gba:h-5' : 'gba:w-4 gba:h-4'} weight="fill" />
               ) : (
-                <VideoCameraSlash className={showDesktopLayout ? 'gba:w-5 gba:h-5' : 'gba:w-4 gba:h-4'} weight="fill" />
+                <Microphone className={showDesktopLayout ? 'gba:w-5 gba:h-5' : 'gba:w-4 gba:h-4'} weight="fill" />
               )}
             </button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  disabled={isEnumerating}
+                  className={`${showDesktopLayout ? 'gba:px-2 gba:py-3' : 'gba:px-1.5 gba:py-2.5'} gba:rounded-r-full gba:transition-all ${
+                    isMuted
+                      ? 'gba:bg-destructive gba:text-destructive-foreground hover:gba:bg-destructive/90'
+                      : 'gba:bg-accent gba:text-accent-foreground hover:gba:bg-accent/90'
+                  } gba:border-l gba:border-white/20 disabled:gba:opacity-50 disabled:gba:cursor-not-allowed`}
+                  data-testid={`${prefixDataTestId}-mic-settings`}
+                  aria-label={t('call-audioSettings')}
+                >
+                  <CaretDownIcon className="gba:w-3 gba:h-3" weight="bold" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent side="top" align="center" className="gba:w-72 gba:bg-gray-800 gba:border-gray-700">
+                <DropdownMenuLabel className="gba:flex gba:items-center gba:gap-2 gba:text-white">
+                  <Microphone className="gba:w-4 gba:h-4" weight="fill" />
+                  {t('call-selectMicrophone')}
+                </DropdownMenuLabel>
+                {audioInputDevices.length > 0 ? (
+                  audioInputDevices.map(device => (
+                    <DropdownMenuItem
+                      key={device.deviceId}
+                      onClick={() => handleMicDeviceChange(device.deviceId)}
+                      className="gba:flex gba:items-center gba:gap-2 gba:text-white hover:gba:bg-gray-700"
+                    >
+                      {selectedAudioInputId === device.deviceId && (
+                        <CheckIcon className="gba:w-4 gba:h-4 gba:text-success" weight="bold" />
+                      )}
+                      <span className={selectedAudioInputId !== device.deviceId ? 'gba:ml-6' : ''}>{device.label}</span>
+                    </DropdownMenuItem>
+                  ))
+                ) : (
+                  <DropdownMenuItem disabled className="gba:text-gray-400">
+                    {t('call-noDevicesFound')}
+                  </DropdownMenuItem>
+                )}
+
+                <DropdownMenuSeparator className="gba:bg-gray-700" />
+
+                <DropdownMenuLabel className="gba:flex gba:items-center gba:gap-2 gba:text-white">
+                  <SpeakerHigh className="gba:w-4 gba:h-4" weight="fill" />
+                  {t('call-selectSpeaker')}
+                </DropdownMenuLabel>
+                {!canSelectAudioOutput ? (
+                  <DropdownMenuItem disabled className="gba:text-gray-400">
+                    {t('call-deviceSettings')}
+                  </DropdownMenuItem>
+                ) : audioOutputDevices.length > 0 ? (
+                  audioOutputDevices.map(device => (
+                    <DropdownMenuItem
+                      key={device.deviceId}
+                      onClick={() => handleSpeakerDeviceChange(device.deviceId)}
+                      className="gba:flex gba:items-center gba:gap-2 gba:text-white hover:gba:bg-gray-700"
+                    >
+                      {selectedAudioOutputId === device.deviceId && (
+                        <CheckIcon className="gba:w-4 gba:h-4 gba:text-success" weight="bold" />
+                      )}
+                      <span className={selectedAudioOutputId !== device.deviceId ? 'gba:ml-6' : ''}>
+                        {device.label}
+                      </span>
+                    </DropdownMenuItem>
+                  ))
+                ) : (
+                  <DropdownMenuItem disabled className="gba:text-gray-400">
+                    {t('call-noDevicesFound')}
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+
+          {/* Video Split Button - Toggle + Device Selector */}
+          {callType === 'video' && (
+            <div className="gba:flex gba:items-stretch gba:gap-0">
+              <button
+                onClick={onToggleVideo}
+                className={`${showDesktopLayout ? 'gba:p-3' : 'gba:p-2.5'} gba:rounded-l-full gba:transition-all ${
+                  !isVideoEnabled
+                    ? 'gba:bg-destructive gba:text-destructive-foreground hover:gba:bg-destructive/90'
+                    : 'gba:bg-accent gba:text-accent-foreground hover:gba:bg-accent/90'
+                }`}
+                data-testid={`${prefixDataTestId}-video-btn`}
+                aria-label={isVideoEnabled ? t('groupCall-turnOffVideo') : t('groupCall-turnOnVideo')}
+                title={isVideoEnabled ? t('groupCall-turnOffVideo') : t('groupCall-turnOnVideo')}
+              >
+                {isVideoEnabled ? (
+                  <VideoCamera className={showDesktopLayout ? 'gba:w-5 gba:h-5' : 'gba:w-4 gba:h-4'} weight="fill" />
+                ) : (
+                  <VideoCameraSlash
+                    className={showDesktopLayout ? 'gba:w-5 gba:h-5' : 'gba:w-4 gba:h-4'}
+                    weight="fill"
+                  />
+                )}
+              </button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    disabled={isEnumerating}
+                    className={`${showDesktopLayout ? 'gba:px-2 gba:py-3' : 'gba:px-1.5 gba:py-2.5'} gba:rounded-r-full gba:transition-all ${
+                      !isVideoEnabled
+                        ? 'gba:bg-destructive gba:text-destructive-foreground hover:gba:bg-destructive/90'
+                        : 'gba:bg-accent gba:text-accent-foreground hover:gba:bg-accent/90'
+                    } gba:border-l gba:border-white/20 disabled:gba:opacity-50 disabled:gba:cursor-not-allowed`}
+                    data-testid={`${prefixDataTestId}-camera-settings`}
+                    aria-label={t('call-videoSettings')}
+                  >
+                    <CaretDownIcon className="gba:w-3 gba:h-3" weight="bold" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent side="top" align="center" className="gba:w-72 gba:bg-gray-800 gba:border-gray-700">
+                  <DropdownMenuLabel className="gba:flex gba:items-center gba:gap-2 gba:text-white">
+                    <VideoCamera className="gba:w-4 gba:h-4" weight="fill" />
+                    {t('call-selectCamera')}
+                  </DropdownMenuLabel>
+                  {videoInputDevices.length > 0 ? (
+                    videoInputDevices.map(device => (
+                      <DropdownMenuItem
+                        key={device.deviceId}
+                        onClick={() => handleCameraDeviceChange(device.deviceId)}
+                        className="gba:flex gba:items-center gba:gap-2 gba:text-white hover:gba:bg-gray-700"
+                      >
+                        {selectedVideoInputId === device.deviceId && (
+                          <CheckIcon className="gba:w-4 gba:h-4 gba:text-success" weight="bold" />
+                        )}
+                        <span className={selectedVideoInputId !== device.deviceId ? 'gba:ml-6' : ''}>
+                          {device.label}
+                        </span>
+                      </DropdownMenuItem>
+                    ))
+                  ) : (
+                    <DropdownMenuItem disabled className="gba:text-gray-400">
+                      {t('call-noDevicesFound')}
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           )}
         </div>
 

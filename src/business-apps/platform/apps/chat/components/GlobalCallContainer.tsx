@@ -459,6 +459,8 @@ export const GlobalCallContainer: React.FC = () => {
           onToggleRaiseHand={handleToggleRaiseHand}
           onSendReaction={handleSendReaction}
           onSetVideoQuality={callData.setVideoQuality || (() => {})}
+          onMicDeviceChange={callData.switchAudioDevice || undefined}
+          onCameraDeviceChange={callData.switchVideoDevice || undefined}
           apiClient={callData.apiClient}
           wsClient={callData.wsClient}
           accessToken={callData.accessToken || undefined}

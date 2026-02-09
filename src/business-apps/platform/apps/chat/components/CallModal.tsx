@@ -7,13 +7,20 @@ import {
   Avatar,
   AvatarImage,
   AvatarFallback,
-  IconAvatar
+  IconAvatar,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
 } from '@newwork/nw-design-system'
-import { UserIcon, Maximize2, Minimize2, Expand, Shrink, Monitor } from 'lucide-react'
+import { UserIcon, Maximize2, Minimize2, Expand, Shrink, Monitor, Settings, ChevronDown, Check } from 'lucide-react'
 import { CallControls } from './CallControls'
 import { AddParticipantDropdown } from './AddParticipantDropdown'
 import type { CallState, CallParticipant } from '../services/webrtcClient'
 import { useChatTranslation } from '../contexts/TranslationContext'
+import { useMediaDevices } from '../hooks/useMediaDevices'
 
 interface AvailableParticipant {
   id: string
@@ -30,6 +37,8 @@ interface CallModalProps {
   onToggleMute: () => void
   onToggleVideo: () => void
   onToggleScreenShare: () => void
+  onMicDeviceChange?: (deviceId: string) => void
+  onCameraDeviceChange?: (deviceId: string) => void
   prefixDataTestId?: string
   // For adding participants (upgrading to group call)
   availableParticipants?: AvailableParticipant[]
@@ -133,6 +142,8 @@ export const CallModal: React.FC<CallModalProps> = memo(
     onToggleMute,
     onToggleVideo,
     onToggleScreenShare,
+    onMicDeviceChange,
+    onCameraDeviceChange,
     prefixDataTestId = 'call-modal',
     availableParticipants = [],
     onAddParticipant,
@@ -143,6 +154,7 @@ export const CallModal: React.FC<CallModalProps> = memo(
     const localVideoRef = useRef<HTMLVideoElement>(null)
     const remoteVideoRef = useRef<HTMLVideoElement>(null)
     const expandedVideoRef = useRef<HTMLVideoElement>(null)
+    const remoteAudioRef = useRef<HTMLAudioElement>(null)
     const [duration, setDuration] = useState('00:00')
     const [isFullscreen, setIsFullscreen] = useState(false)
     const [localVideoMinimized, setLocalVideoMinimized] = useState(false)
@@ -152,6 +164,54 @@ export const CallModal: React.FC<CallModalProps> = memo(
     const isConnected = callState.status === 'connected'
     const remoteParticipant = callState.remoteParticipant
     const participantName = getParticipantName(remoteParticipant)
+
+    const {
+      audioInputDevices,
+      audioOutputDevices,
+      videoInputDevices,
+      selectedAudioInputId,
+      selectedAudioOutputId,
+      selectedVideoInputId,
+      setSelectedAudioInputId,
+      setSelectedAudioOutputId,
+      setSelectedVideoInputId,
+      refreshDevices,
+      isEnumerating,
+      canSelectAudioOutput
+    } = useMediaDevices({ enabled: callState.status !== 'idle' })
+
+    useEffect(() => {
+      if (callState.status === 'idle') return
+      refreshDevices({ requestAudio: true, requestVideo: isVideoCall })
+    }, [callState.status, isVideoCall, refreshDevices])
+
+    const applySinkIdToElement = async (el: HTMLMediaElement | null, deviceId: string | null) => {
+      if (!el || !deviceId) return
+      const setSinkId = (el as any).setSinkId as ((id: string) => Promise<void>) | undefined
+      if (typeof setSinkId !== 'function') return
+      try {
+        await setSinkId.call(el, deviceId)
+      } catch (err) {
+        console.debug('[CallModal] Failed to set sinkId', err)
+      }
+    }
+
+    const handleMicDeviceChange = (deviceId: string) => {
+      setSelectedAudioInputId(deviceId)
+      onMicDeviceChange?.(deviceId)
+    }
+
+    const handleCameraDeviceChange = (deviceId: string) => {
+      setSelectedVideoInputId(deviceId)
+      onCameraDeviceChange?.(deviceId)
+    }
+
+    const handleSpeakerDeviceChange = (deviceId: string) => {
+      setSelectedAudioOutputId(deviceId)
+      void applySinkIdToElement(remoteVideoRef.current, deviceId)
+      void applySinkIdToElement(expandedVideoRef.current, deviceId)
+      void applySinkIdToElement(remoteAudioRef.current, deviceId)
+    }
 
     // Check if remote stream is a screen share
     const isRemoteScreenShare = isScreenShareStream(remoteStream)
@@ -177,16 +237,29 @@ export const CallModal: React.FC<CallModalProps> = memo(
     useEffect(() => {
       if (remoteVideoRef.current && remoteStream) {
         remoteVideoRef.current.srcObject = remoteStream
+        void applySinkIdToElement(remoteVideoRef.current, selectedAudioOutputId)
       }
-    }, [remoteStream])
+    }, [remoteStream, selectedAudioOutputId])
+
+    // Audio-only calls: ensure remote audio is played (no remote video element is rendered)
+    useEffect(() => {
+      if (isVideoCall) return
+      if (!remoteAudioRef.current || !remoteStream) return
+      remoteAudioRef.current.srcObject = remoteStream
+      void applySinkIdToElement(remoteAudioRef.current, selectedAudioOutputId)
+      remoteAudioRef.current.play().catch(() => {
+        // Best-effort only (autoplay restrictions)
+      })
+    }, [isVideoCall, remoteStream, selectedAudioOutputId])
 
     // Set expanded video stream
     useEffect(() => {
       if (expandedStream && expandedVideoRef.current) {
         expandedVideoRef.current.srcObject = expandedStream.stream
+        void applySinkIdToElement(expandedVideoRef.current, selectedAudioOutputId)
         expandedVideoRef.current.play().catch(err => console.debug('Expanded video play error:', err))
       }
-    }, [expandedStream])
+    }, [expandedStream, selectedAudioOutputId])
 
     // Update call duration timer
     useEffect(() => {
@@ -280,6 +353,7 @@ export const CallModal: React.FC<CallModalProps> = memo(
               ) : (
                 // Audio call or no video - show avatar
                 <div className="gba:w-full gba:h-full gba:flex gba:flex-col gba:items-center gba:justify-center gba:gap-4">
+                  {!isVideoCall && remoteStream && <audio ref={remoteAudioRef} autoPlay className="gba:hidden" />}
                   {remoteParticipant?.avatarUrl ? (
                     <Avatar className="gba:w-32 gba:h-32 gba:ring-4 gba:ring-white/20">
                       <AvatarImage src={remoteParticipant.avatarUrl} alt={participantName} />
@@ -354,6 +428,108 @@ export const CallModal: React.FC<CallModalProps> = memo(
                 onEndCall={onEndCall}
                 prefixDataTestId={`${prefixDataTestId}-controls`}
               />
+
+              {/* Device settings (in-call UI) */}
+              <div className="gba:absolute gba:bottom-4 gba:left-6">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      disabled={isEnumerating}
+                      className="gba:flex gba:items-center gba:gap-2 gba:px-3 gba:py-2 gba:rounded-full gba:bg-white/10 hover:gba:bg-white/20 gba:text-white gba:text-sm gba:transition-colors disabled:gba:opacity-50 disabled:gba:cursor-not-allowed"
+                      data-testid={`${prefixDataTestId}-device-settings`}
+                      aria-label={t('call-deviceSettings')}
+                    >
+                      <Settings className="gba:w-4 gba:h-4" />
+                      <span className="gba:hidden md:gba:inline">{t('call-deviceSettings')}</span>
+                      <ChevronDown className="gba:w-4 gba:h-4" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    side="top"
+                    align="start"
+                    className="gba:w-80 gba:bg-gray-800 gba:border-gray-700"
+                  >
+                    <DropdownMenuLabel className="gba:text-white">{t('call-selectMicrophone')}</DropdownMenuLabel>
+                    <DropdownMenuSeparator className="gba:bg-gray-700" />
+                    {audioInputDevices.length > 0 ? (
+                      audioInputDevices.map(device => (
+                        <DropdownMenuItem
+                          key={device.deviceId}
+                          onClick={() => handleMicDeviceChange(device.deviceId)}
+                          className="gba:flex gba:items-center gba:gap-2 gba:text-white hover:gba:bg-gray-700"
+                        >
+                          {selectedAudioInputId === device.deviceId && (
+                            <Check className="gba:w-4 gba:h-4 gba:text-success" />
+                          )}
+                          <span className={selectedAudioInputId !== device.deviceId ? 'gba:ml-6' : ''}>
+                            {device.label}
+                          </span>
+                        </DropdownMenuItem>
+                      ))
+                    ) : (
+                      <DropdownMenuItem disabled className="gba:text-gray-400">
+                        {t('call-noDevicesFound')}
+                      </DropdownMenuItem>
+                    )}
+
+                    <DropdownMenuSeparator className="gba:bg-gray-700" />
+                    <DropdownMenuLabel className="gba:text-white">{t('call-selectSpeaker')}</DropdownMenuLabel>
+                    <DropdownMenuSeparator className="gba:bg-gray-700" />
+                    {!canSelectAudioOutput ? (
+                      <DropdownMenuItem disabled className="gba:text-gray-400">
+                        {t('call-deviceSettings')}
+                      </DropdownMenuItem>
+                    ) : audioOutputDevices.length > 0 ? (
+                      audioOutputDevices.map(device => (
+                        <DropdownMenuItem
+                          key={device.deviceId}
+                          onClick={() => handleSpeakerDeviceChange(device.deviceId)}
+                          className="gba:flex gba:items-center gba:gap-2 gba:text-white hover:gba:bg-gray-700"
+                        >
+                          {selectedAudioOutputId === device.deviceId && (
+                            <Check className="gba:w-4 gba:h-4 gba:text-success" />
+                          )}
+                          <span className={selectedAudioOutputId !== device.deviceId ? 'gba:ml-6' : ''}>
+                            {device.label}
+                          </span>
+                        </DropdownMenuItem>
+                      ))
+                    ) : (
+                      <DropdownMenuItem disabled className="gba:text-gray-400">
+                        {t('call-noDevicesFound')}
+                      </DropdownMenuItem>
+                    )}
+
+                    {isVideoCall && (
+                      <>
+                        <DropdownMenuSeparator className="gba:bg-gray-700" />
+                        <DropdownMenuLabel className="gba:text-white">{t('call-selectCamera')}</DropdownMenuLabel>
+                        <DropdownMenuSeparator className="gba:bg-gray-700" />
+                        {videoInputDevices.length > 0 ? (
+                          videoInputDevices.map(device => (
+                            <DropdownMenuItem
+                              key={device.deviceId}
+                              onClick={() => handleCameraDeviceChange(device.deviceId)}
+                              className="gba:flex gba:items-center gba:gap-2 gba:text-white hover:gba:bg-gray-700"
+                            >
+                              {selectedVideoInputId === device.deviceId && (
+                                <Check className="gba:w-4 gba:h-4 gba:text-success" />
+                              )}
+                              <span className={selectedVideoInputId !== device.deviceId ? 'gba:ml-6' : ''}>
+                                {device.label}
+                              </span>
+                            </DropdownMenuItem>
+                          ))
+                        ) : (
+                          <DropdownMenuItem disabled className="gba:text-gray-400">
+                            {t('call-noDevicesFound')}
+                          </DropdownMenuItem>
+                        )}
+                      </>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
 
               {/* Add participant button - positioned in the controls bar */}
               {onAddParticipant && accessToken && isConnected && (

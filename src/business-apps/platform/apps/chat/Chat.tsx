@@ -456,6 +456,8 @@ const ChatInner: React.FC<ChatProps> = memo(
       toggleMute,
       toggleVideo,
       toggleScreenShare,
+      switchAudioDevice,
+      switchVideoDevice,
       localStream,
       remoteStream
     } = useCall({
@@ -2243,6 +2245,8 @@ const ChatInner: React.FC<ChatProps> = memo(
             onToggleMute={toggleMute}
             onToggleVideo={toggleVideo}
             onToggleScreenShare={toggleScreenShare}
+            onMicDeviceChange={switchAudioDevice}
+            onCameraDeviceChange={switchVideoDevice}
             prefixDataTestId={`${prefixDataTestId}-call`}
             availableParticipants={availableParticipantsForCall}
             onAddParticipant={handleUpgradeToGroupCall}

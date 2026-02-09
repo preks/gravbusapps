@@ -117,6 +117,8 @@ export interface UseGroupCallReturn {
     micEnabled: boolean
     cameraEnabled: boolean
     backgroundEnabled: boolean
+    audioInputDeviceId?: string | null
+    videoInputDeviceId?: string | null
   }) => Promise<void>
   /**
    * Cancel pre-call setup (RTK only)
@@ -142,7 +144,13 @@ export interface UseGroupCallReturn {
     callType: CallType,
     initialParticipantsOrPreferences?:
       | CallParticipant[]
-      | { micEnabled: boolean; cameraEnabled: boolean; backgroundEnabled?: boolean }
+      | {
+          micEnabled: boolean
+          cameraEnabled: boolean
+          backgroundEnabled?: boolean
+          audioInputDeviceId?: string | null
+          videoInputDeviceId?: string | null
+        }
   ) => Promise<void>
   acceptInvite: () => Promise<void>
   declineInvite: () => void
@@ -153,6 +161,8 @@ export interface UseGroupCallReturn {
   setVideoQuality: (quality: VideoQuality) => Promise<void>
   toggleMinimize: () => void
   toggleBackground: () => void
+  switchAudioDevice?: (deviceId: string) => Promise<void>
+  switchVideoDevice?: (deviceId: string) => Promise<void>
   toggleRaiseHand?: () => Promise<boolean>
   sendReaction?: (emoji: string) => Promise<void>
   inviteToCall: (participants: CallParticipant[], conversationName?: string) => void

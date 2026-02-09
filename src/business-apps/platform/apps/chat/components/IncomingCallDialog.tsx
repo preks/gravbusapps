@@ -8,15 +8,22 @@ import {
   Avatar,
   AvatarImage,
   AvatarFallback,
-  IconAvatar
+  IconAvatar,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
 } from '@newwork/nw-design-system'
-import { Phone, PhoneOff, Video, UserIcon } from 'lucide-react'
+import { Phone, PhoneOff, Video, UserIcon, ChevronDown, Check } from 'lucide-react'
 import type { CallState, CallParticipant } from '../services/webrtcClient'
 import { useChatTranslation } from '../contexts/TranslationContext'
+import { useMediaDevices } from '../hooks/useMediaDevices'
 
 interface IncomingCallDialogProps {
   callState: CallState
-  onAccept: () => void
+  onAccept: (preferences?: { audioInputDeviceId?: string | null; videoInputDeviceId?: string | null }) => void
   onReject: () => void
   prefixDataTestId?: string
 }
@@ -58,6 +65,29 @@ export const IncomingCallDialog: React.FC<IncomingCallDialogProps> = memo(
     const remoteParticipant = callState.remoteParticipant
     const participantName = getParticipantName(remoteParticipant)
     const isVideoCall = callState.type === 'video'
+
+    const {
+      audioInputDevices,
+      videoInputDevices,
+      selectedAudioInputId,
+      selectedVideoInputId,
+      setSelectedAudioInputId,
+      setSelectedVideoInputId,
+      refreshDevices,
+      isEnumerating
+    } = useMediaDevices({ enabled: isOpen })
+
+    useEffect(() => {
+      if (!isOpen) return
+      refreshDevices({ requestAudio: true, requestVideo: isVideoCall })
+    }, [isOpen, isVideoCall, refreshDevices])
+
+    const handleAccept = () => {
+      onAccept({
+        audioInputDeviceId: selectedAudioInputId,
+        videoInputDeviceId: selectedVideoInputId
+      })
+    }
 
     // Ring animation counter (for visual feedback)
     useEffect(() => {
@@ -188,6 +218,89 @@ export const IncomingCallDialog: React.FC<IncomingCallDialogProps> = memo(
               <span className="gba:inline-block gba:w-8">{'.'.repeat((ringCount % 3) + 1)}</span>
             </p>
 
+            {/* Device selection (invite modal) */}
+            <div className="gba:w-full gba:max-w-xs gba:mb-6 gba:flex gba:flex-col gba:gap-2">
+              <div className="gba:flex gba:items-center gba:justify-center gba:gap-2">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      disabled={isEnumerating}
+                      className="gba:flex gba:items-center gba:justify-between gba:gap-2 gba:px-3 gba:py-2 gba:rounded-full gba:bg-gray-700/50 hover:gba:bg-gray-700 gba:text-white gba:text-sm gba:border gba:border-gray-600 disabled:gba:opacity-50 disabled:gba:cursor-not-allowed gba:min-w-[160px]"
+                      data-testid={`${prefixDataTestId}-mic-settings`}
+                      aria-label={t('call-selectMicrophone')}
+                    >
+                      <span className="gba:truncate">{t('call-selectMicrophone')}</span>
+                      <ChevronDown className="gba:w-4 gba:h-4" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="center" className="gba:w-72 gba:bg-gray-800 gba:border-gray-700">
+                    <DropdownMenuLabel className="gba:text-white">{t('call-selectMicrophone')}</DropdownMenuLabel>
+                    <DropdownMenuSeparator className="gba:bg-gray-700" />
+                    {audioInputDevices.length > 0 ? (
+                      audioInputDevices.map(device => (
+                        <DropdownMenuItem
+                          key={device.deviceId}
+                          onClick={() => setSelectedAudioInputId(device.deviceId)}
+                          className="gba:flex gba:items-center gba:gap-2 gba:text-white hover:gba:bg-gray-700"
+                        >
+                          {selectedAudioInputId === device.deviceId && (
+                            <Check className="gba:w-4 gba:h-4 gba:text-success" />
+                          )}
+                          <span className={selectedAudioInputId !== device.deviceId ? 'gba:ml-6' : ''}>
+                            {device.label}
+                          </span>
+                        </DropdownMenuItem>
+                      ))
+                    ) : (
+                      <DropdownMenuItem disabled className="gba:text-gray-400">
+                        {t('call-noDevicesFound')}
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
+                {isVideoCall && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        disabled={isEnumerating}
+                        className="gba:flex gba:items-center gba:justify-between gba:gap-2 gba:px-3 gba:py-2 gba:rounded-full gba:bg-gray-700/50 hover:gba:bg-gray-700 gba:text-white gba:text-sm gba:border gba:border-gray-600 disabled:gba:opacity-50 disabled:gba:cursor-not-allowed gba:min-w-[160px]"
+                        data-testid={`${prefixDataTestId}-camera-settings`}
+                        aria-label={t('call-selectCamera')}
+                      >
+                        <span className="gba:truncate">{t('call-selectCamera')}</span>
+                        <ChevronDown className="gba:w-4 gba:h-4" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="center" className="gba:w-72 gba:bg-gray-800 gba:border-gray-700">
+                      <DropdownMenuLabel className="gba:text-white">{t('call-selectCamera')}</DropdownMenuLabel>
+                      <DropdownMenuSeparator className="gba:bg-gray-700" />
+                      {videoInputDevices.length > 0 ? (
+                        videoInputDevices.map(device => (
+                          <DropdownMenuItem
+                            key={device.deviceId}
+                            onClick={() => setSelectedVideoInputId(device.deviceId)}
+                            className="gba:flex gba:items-center gba:gap-2 gba:text-white hover:gba:bg-gray-700"
+                          >
+                            {selectedVideoInputId === device.deviceId && (
+                              <Check className="gba:w-4 gba:h-4 gba:text-success" />
+                            )}
+                            <span className={selectedVideoInputId !== device.deviceId ? 'gba:ml-6' : ''}>
+                              {device.label}
+                            </span>
+                          </DropdownMenuItem>
+                        ))
+                      ) : (
+                        <DropdownMenuItem disabled className="gba:text-gray-400">
+                          {t('call-noDevicesFound')}
+                        </DropdownMenuItem>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+              </div>
+            </div>
+
             {/* Action Buttons */}
             <div className="gba:flex gba:items-center gba:justify-center gba:gap-8">
               {/* Reject Button */}
@@ -208,7 +321,7 @@ export const IncomingCallDialog: React.FC<IncomingCallDialogProps> = memo(
               <div className="gba:flex gba:flex-col gba:items-center gba:gap-2">
                 <Button
                   size="icon"
-                  onClick={onAccept}
+                  onClick={handleAccept}
                   className="gba:w-16 gba:h-16 gba:rounded-full gba:shadow-lg gba:bg-success gba:hover:bg-success/90"
                   data-testid={`${prefixDataTestId}-accept`}
                 >

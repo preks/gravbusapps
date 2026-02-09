@@ -75,6 +75,8 @@ interface GroupCallModalRtkProps {
   onToggleBackground?: () => void
   onToggleRaiseHand?: () => void
   onSendReaction?: (emoji: string) => void
+  onMicDeviceChange?: (deviceId: string) => Promise<void>
+  onCameraDeviceChange?: (deviceId: string) => Promise<void>
   backgroundEnabled?: boolean
   prefixDataTestId?: string
   availableParticipants?: AvailableParticipant[]
@@ -183,6 +185,8 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
   onToggleBackground,
   onToggleRaiseHand,
   onSendReaction,
+  onMicDeviceChange,
+  onCameraDeviceChange,
   onInviteParticipant,
   prefixDataTestId = 'rtk-group-call',
   conversationName,
@@ -283,6 +287,21 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
   const remoteVideoRefs = useRef<Map<string, HTMLVideoElement>>(new Map())
   const screenShareVideoRefs = useRef<Map<string, HTMLVideoElement>>(new Map())
 
+  // Speaker output selection (sinkId). Updated by CallControlsBar.
+  const selectedAudioOutputIdRef = useRef<string | null>(null)
+
+  const applySinkIdToElement = useCallback(async (el: HTMLMediaElement | null, deviceId: string | null) => {
+    if (!el || !deviceId) return
+    const setSinkId = (el as any).setSinkId as ((id: string) => Promise<void>) | undefined
+    if (typeof setSinkId !== 'function') return
+    try {
+      await setSinkId.call(el, deviceId)
+    } catch (err) {
+      // Best-effort only (browser support / secure context / user gesture constraints).
+      console.debug('[RTK Modal] Failed to set sinkId', err)
+    }
+  }, [])
+
   // Track when video elements are created/destroyed to trigger stream attachment effect
   // This avoids adding callState.isMinimized to effect deps which causes re-render loops
   const [videoElementsVersion, setVideoElementsVersion] = useState(0)
@@ -313,6 +332,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
             setLocalVideoRef(el)
           } else {
             remoteVideoRefs.current.set(peerId, el)
+            void applySinkIdToElement(el, selectedAudioOutputIdRef.current)
             setVideoElementsVersion(v => v + 1)
           }
         } else {
@@ -2361,6 +2381,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
           setTimeout(() => {
             videoEl.srcObject = stream
             videoEl.muted = item.isLocal
+            void applySinkIdToElement(videoEl, selectedAudioOutputIdRef.current)
             videoEl.play().catch(err => rtkDebug.warn(`[RTK Modal] Could not auto-play video ${item.peerId}:`, err))
           }, 10)
         }
@@ -2380,6 +2401,22 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
 
   // Minimized view refs - for audio management in PiP-style window
   const pipAudioRefs = useRef<Map<string, HTMLAudioElement>>(new Map())
+
+  const handleSpeakerDeviceChange = useCallback(
+    (deviceId: string) => {
+      selectedAudioOutputIdRef.current = deviceId
+
+      // Apply to all currently mounted remote media elements
+      remoteVideoRefs.current.forEach(videoEl => {
+        void applySinkIdToElement(videoEl, deviceId)
+      })
+      pipAudioRefs.current.forEach(audioEl => {
+        void applySinkIdToElement(audioEl, deviceId)
+      })
+      void applySinkIdToElement(expandedScreenShareVideoRef.current, deviceId)
+    },
+    [applySinkIdToElement]
+  )
 
   // Set expanded video stream - simplified to match old implementation
   useEffect(() => {
@@ -2559,6 +2596,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
           const audio = document.createElement('audio')
           audio.autoplay = true
           audio.srcObject = stream
+          void applySinkIdToElement(audio, selectedAudioOutputIdRef.current)
           audio
             .play()
             .then(() => rtkDebug.log('[Minimized] Audio playing for:', peerName))
@@ -2576,6 +2614,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
               newTrackId
             })
             existingAudio.srcObject = stream
+            void applySinkIdToElement(existingAudio, selectedAudioOutputIdRef.current)
             existingAudio.play().catch(err => console.error('[Minimized] Audio play error for', peerName, ':', err))
           }
         }
@@ -3006,6 +3045,21 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
                   onToggleBackground={onToggleBackground}
                   onToggleRaiseHand={hideReactionsAndHandRaise ? undefined : onToggleRaiseHand}
                   onSendReaction={hideReactionsAndHandRaise ? undefined : onSendReaction}
+                  onMicDeviceChange={
+                    onMicDeviceChange
+                      ? deviceId => {
+                          void onMicDeviceChange(deviceId)
+                        }
+                      : undefined
+                  }
+                  onCameraDeviceChange={
+                    onCameraDeviceChange
+                      ? deviceId => {
+                          void onCameraDeviceChange(deviceId)
+                        }
+                      : undefined
+                  }
+                  onSpeakerDeviceChange={handleSpeakerDeviceChange}
                   onEndCall={onEndCall}
                   prefixDataTestId={prefixDataTestId}
                   t={t}
