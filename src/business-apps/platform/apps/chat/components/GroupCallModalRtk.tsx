@@ -2418,6 +2418,31 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
     [applySinkIdToElement]
   )
 
+  // Apply saved speaker output automatically when call UI mounts (so pre-call selection takes effect immediately).
+  const hasAppliedInitialSinkIdRef = useRef(false)
+  useEffect(() => {
+    if (hasAppliedInitialSinkIdRef.current) return
+    if (typeof window === 'undefined') return
+    if (!callState.roomId) return
+
+    try {
+      const saved = localStorage.getItem('chat-preferred-audio-output')
+      if (saved) {
+        handleSpeakerDeviceChange(saved)
+      }
+    } catch {
+      // ignore
+    } finally {
+      hasAppliedInitialSinkIdRef.current = true
+    }
+  }, [callState.roomId, handleSpeakerDeviceChange])
+
+  // Reset when call ends so the next call can apply again.
+  useEffect(() => {
+    if (callState.roomId) return
+    hasAppliedInitialSinkIdRef.current = false
+  }, [callState.roomId])
+
   // Set expanded video stream - simplified to match old implementation
   useEffect(() => {
     if (expandedScreenShare && expandedScreenShareVideoRef.current) {

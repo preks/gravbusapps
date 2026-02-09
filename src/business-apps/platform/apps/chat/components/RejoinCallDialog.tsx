@@ -26,11 +26,13 @@ import {
   UsersThreeIcon,
   UserIcon,
   CaretDownIcon,
-  CheckIcon
+  CheckIcon,
+  SpeakerHighIcon
 } from '@phosphor-icons/react'
 import { useChatTranslation } from '../contexts/TranslationContext'
 import { rtkDebug } from '../utils/rtkDebug'
 import { useMediaDevices } from '../hooks/useMediaDevices'
+import { DeviceTestDialog } from './DeviceTestDialog'
 
 // Helper to get user initials from name
 const getInitials = (name: string): string => {
@@ -77,6 +79,7 @@ export const RejoinCallDialog: React.FC<RejoinCallDialogProps> = memo(
     const [cameraEnabled, setCameraEnabled] = useState(callType === 'video')
     const [backgroundEnabled, setBackgroundEnabled] = useState(true)
     const [isLoadingPreview, setIsLoadingPreview] = useState(false)
+    const [isDeviceTestOpen, setIsDeviceTestOpen] = useState(false)
 
     const videoRef = useRef<HTMLVideoElement>(null)
     const streamTracksRef = useRef<MediaStreamTrack[]>([])
@@ -85,13 +88,17 @@ export const RejoinCallDialog: React.FC<RejoinCallDialogProps> = memo(
 
     const {
       audioInputDevices,
+      audioOutputDevices,
       videoInputDevices,
       selectedAudioInputId,
+      selectedAudioOutputId,
       selectedVideoInputId,
       setSelectedAudioInputId,
+      setSelectedAudioOutputId,
       setSelectedVideoInputId,
       refreshDevices,
-      isEnumerating
+      isEnumerating,
+      canSelectAudioOutput
     } = useMediaDevices({ enabled: isOpen })
 
     // CRITICAL: Reset state when dialog opens or callType changes
@@ -409,6 +416,47 @@ export const RejoinCallDialog: React.FC<RejoinCallDialogProps> = memo(
                         {t('call-noDevicesFound') || 'No devices found'}
                       </DropdownMenuItem>
                     )}
+
+                    <DropdownMenuSeparator className="gba:bg-gray-700" />
+                    <DropdownMenuLabel className="gba:flex gba:items-center gba:gap-2 gba:text-white">
+                      <SpeakerHighIcon className="gba:w-4 gba:h-4" />
+                      {t('call-selectSpeaker') || 'Select Speaker'}
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator className="gba:bg-gray-700" />
+                    {!canSelectAudioOutput ? (
+                      <DropdownMenuItem disabled className="gba:text-gray-400">
+                        {t('call-speakerNotSupported') || 'Speaker selection not supported in this browser'}
+                      </DropdownMenuItem>
+                    ) : audioOutputDevices.length > 0 ? (
+                      audioOutputDevices.map((device, idx) => (
+                        <DropdownMenuItem
+                          key={device.deviceId}
+                          onClick={() => setSelectedAudioOutputId(device.deviceId)}
+                          className="gba:flex gba:items-center gba:gap-2 gba:text-white hover:gba:bg-gray-700"
+                          data-testid={`${prefixDataTestId}-speaker-device-${idx}`}
+                        >
+                          {selectedAudioOutputId === device.deviceId && (
+                            <CheckIcon className="gba:w-4 gba:h-4 gba:text-success" weight="bold" />
+                          )}
+                          <span className={selectedAudioOutputId !== device.deviceId ? 'gba:ml-6' : ''}>
+                            {device.label}
+                          </span>
+                        </DropdownMenuItem>
+                      ))
+                    ) : (
+                      <DropdownMenuItem disabled className="gba:text-gray-400">
+                        {t('call-noDevicesFound') || 'No devices found'}
+                      </DropdownMenuItem>
+                    )}
+
+                    <DropdownMenuSeparator className="gba:bg-gray-700" />
+                    <DropdownMenuItem
+                      onClick={() => setIsDeviceTestOpen(true)}
+                      className="gba:text-white hover:gba:bg-gray-700"
+                      data-testid={`${prefixDataTestId}-test-devices`}
+                    >
+                      {t('call-testDevices') || 'Test devices'}
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
@@ -493,6 +541,20 @@ export const RejoinCallDialog: React.FC<RejoinCallDialogProps> = memo(
                 </button>
               )}
             </div>
+
+            <DeviceTestDialog
+              isOpen={isDeviceTestOpen}
+              onOpenChange={setIsDeviceTestOpen}
+              t={t}
+              audioInputDevices={audioInputDevices}
+              audioOutputDevices={audioOutputDevices}
+              selectedAudioInputId={selectedAudioInputId}
+              selectedAudioOutputId={selectedAudioOutputId}
+              setSelectedAudioInputId={setSelectedAudioInputId}
+              setSelectedAudioOutputId={setSelectedAudioOutputId}
+              canSelectAudioOutput={canSelectAudioOutput}
+              prefixDataTestId={`${prefixDataTestId}-device-test`}
+            />
 
             {/* Action Buttons */}
             <div className="gba:flex gba:items-center gba:justify-center gba:gap-8">
