@@ -1,28 +1,54 @@
 import React from 'react'
 import { Button } from '@newwork/nw-design-system'
 import { Canvas } from '../layouts/Canvas'
-import { ErrorState } from '../state-screens/ErrorState'
+import { BuildResultsView } from '../build-results'
 import type { ComponentSpec } from '../../types'
 
 export interface ErrorViewProps {
   error: string
   partialComponents?: ComponentSpec[]
+  jobId?: string
+  buildDuration?: number
+  accessToken?: string
+  userInfo?: any
   onReset: () => void
+  onRetry?: () => void
   onModifyPlan: () => void
 }
 
-export const ErrorView: React.FC<ErrorViewProps> = ({ error, partialComponents, onReset, onModifyPlan }) => {
+export const ErrorView: React.FC<ErrorViewProps> = ({
+  error,
+  partialComponents = [],
+  jobId,
+  buildDuration = 0,
+  accessToken,
+  userInfo,
+  onReset,
+  onRetry,
+  onModifyPlan
+}) => {
   return (
     <Canvas
-      title="Error"
-      subtitle="Something went wrong"
+      title="Build Results"
+      subtitle="Review what happened"
       actions={
         <Button variant="ghost" onClick={onReset}>
           ← Start Over
         </Button>
       }
     >
-      <ErrorState error={error} partialComponents={partialComponents} onRetry={onReset} onModifyPlan={onModifyPlan} />
+      <BuildResultsView
+        success={false}
+        components={partialComponents}
+        jobId={jobId}
+        buildDuration={buildDuration}
+        errorMessage={error}
+        accessToken={accessToken}
+        userInfo={userInfo}
+        onReset={onReset}
+        onRetry={onRetry}
+        onModifyPlan={onModifyPlan}
+      />
     </Canvas>
   )
 }
