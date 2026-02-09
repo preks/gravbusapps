@@ -102,6 +102,7 @@ export const sanitizeInvestmentReport = (
       }
     ] as any[]
   }
+  // PRIVATE_EQUITY: No dedicated report table - data stored in main reportPayload via investment.additionalProperties
 
   return reportPayload
 }

@@ -27,7 +27,7 @@ import 'dayjs/locale/it'
 import { Pin } from 'lucide-react'
 import { UnifiedTask } from '../types'
 import { EmployeeAvatarData } from '../hooks/useEmployeeAvatarsBatch'
-import { base64ToObjectURL } from '../utils/avatarUtils'
+import { base64ToDataURL } from '../utils/avatarUtils'
 
 dayjs.extend(relativeTime)
 dayjs.extend(localizedFormat)
@@ -182,7 +182,7 @@ export const TaskCard: React.FC<TaskCardProps> = memo(
     // Avatar URL from base64
     const avatarUrl = useMemo(() => {
       if (employeeData?.pictureThumbnail) {
-        return base64ToObjectURL(employeeData.pictureThumbnail)
+        return base64ToDataURL(employeeData.pictureThumbnail)
       }
       return undefined
     }, [employeeData?.pictureThumbnail])
@@ -277,7 +277,7 @@ export const TaskCard: React.FC<TaskCardProps> = memo(
             </span>
           </div>
 
-          {/* Right: Pinned + Timestamp */}
+          {/* Right: Pinned + Priority + Timestamp */}
           <div className="gba:flex gba:flex-col gba:items-end gba:gap-1 gba:flex-shrink-0">
             {(isPinned || priorityIndicator || dueInline) && (
               <div className="gba:flex gba:items-center gba:justify-end gba:gap-1 gba:flex-wrap">

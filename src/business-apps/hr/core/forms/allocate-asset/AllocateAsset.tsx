@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react'
+import React, { useMemo, useState, useEffect, useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import {
   Form,
@@ -20,6 +20,7 @@ import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
+import dayjs from 'dayjs'
 import FormHeader from '../components/FormHeader'
 import flowIconUrl from '@/assets/icons/flowSmall.svg'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
@@ -71,26 +72,59 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
     return () => clearInterval(interval)
   }, [currentLocale])
 
+  const acquisitionDate = existingAsset?.acquisitionDate
+
+  const issueDateBeforePurchaseMessage = getTranslationFromI18nKeyAndLabel(
+    'lowcoder:hr_assets.issue_date_not_before_purchase',
+    'Issue date cannot be earlier than the purchase date.'
+  )
+
+  const isStartDateBeforeAcquisition = useCallback(
+    (startDateStr: string): boolean => {
+      if (!startDateStr || !acquisitionDate) return false
+      let start = dayjs(startDateStr).startOf('day')
+      if (!start.isValid() && /^\d{1,2}\/\d{1,2}\/\d{4}$/.test(startDateStr.trim())) {
+        const [d, m, y] = startDateStr.split('/').map(Number)
+        start = dayjs(new Date(y, m - 1, d))
+      }
+      const acquisition = dayjs(acquisitionDate).startOf('day')
+      if (!start.isValid() || !acquisition.isValid()) return false
+      return start.isBefore(acquisition)
+    },
+    [acquisitionDate]
+  )
+
   const formSchema = useMemo(
     () =>
-      z.object({
-        employeeId: z
-          .string()
-          .min(
-            1,
-            getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.please_select_employee', 'Please select an employee')
-          ),
-        startDate: z
-          .string()
-          .min(
-            1,
-            getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.start_date_required', 'Start date is required')
-          ),
-        expectedEndDate: z.string().optional(),
-        startAssetConditionRef: z.string().optional(),
-        notes: z.string().optional()
-      }),
-    [currentLocale]
+      z
+        .object({
+          employeeId: z
+            .string()
+            .min(
+              1,
+              getTranslationFromI18nKeyAndLabel(
+                'lowcoder:hr_assets.please_select_employee',
+                'Please select an employee'
+              )
+            ),
+          startDate: z
+            .string()
+            .min(
+              1,
+              getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.start_date_required', 'Start date is required')
+            ),
+          expectedEndDate: z.string().optional(),
+          startAssetConditionRef: z.string().optional(),
+          notes: z.string().optional()
+        })
+        .refine(
+          data => {
+            if (!data.startDate || !acquisitionDate) return true
+            return !isStartDateBeforeAcquisition(data.startDate)
+          },
+          { message: issueDateBeforePurchaseMessage, path: ['startDate'] }
+        ),
+    [currentLocale, acquisitionDate, isStartDateBeforeAcquisition, issueDateBeforePurchaseMessage]
   )
 
   const {
@@ -108,12 +142,19 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
 
   const { options: conditionOptions, isLoading: conditionsLoading } = useAssetConditionCatalog(context)
 
+  const defaultStartDate = useMemo(() => {
+    const today = dayjs().format('YYYY-MM-DD')
+    if (!acquisitionDate) return today
+    const acquisitionStr = dayjs(acquisitionDate).format('YYYY-MM-DD')
+    return dayjs(today).isBefore(dayjs(acquisitionStr), 'day') ? acquisitionStr : today
+  }, [acquisitionDate])
+
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     mode: 'onChange',
     defaultValues: {
       employeeId: '',
-      startDate: new Date().toISOString().split('T')[0],
+      startDate: defaultStartDate,
       expectedEndDate: '',
       startAssetConditionRef: '',
       notes: ''
@@ -177,14 +218,17 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
         for (const allocation of existingAllocations) {
           if (allocation.isDeleted) continue
           if (allocation.endDate) continue
+          if (!allocation.startDate || allocation.startDate.trim() === '') continue
+          const existingStart = new Date(allocation.startDate)
+          if (Number.isNaN(existingStart.getTime())) continue
+          existingStart.setHours(0, 0, 0, 0)
+          if (existingStart.getTime() === 0) continue
+
           if (allocation.expectedEndDate) {
             const expectedEnd = new Date(allocation.expectedEndDate)
             expectedEnd.setHours(0, 0, 0, 0)
             if (expectedEnd < today) continue
           }
-
-          const existingStart = new Date(allocation.startDate)
-          existingStart.setHours(0, 0, 0, 0)
           const existingEnd = allocation.expectedEndDate ? new Date(allocation.expectedEndDate) : null
           if (existingEnd) {
             existingEnd.setHours(0, 0, 0, 0)
@@ -305,12 +349,12 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
         )}
       />
 
-      <div className="gba:flex gba:gap-4">
+      <div className="gba:flex gba:gap-4 gba:items-start">
         <FormField
           control={form.control}
           name="startDate"
           render={({ field }) => (
-            <FormItem className="gba:flex-1">
+            <FormItem className="gba:flex-1 gba:min-w-0">
               <Label htmlFor="startDate" data-testid="start-date-label">
                 {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.allocation_start_date', 'Allocation Start Date')}{' '}
                 *
@@ -326,6 +370,14 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
                   form.clearErrors('expectedEndDate')
 
                   if (dateValue) {
+                    if (isStartDateBeforeAcquisition(dateValue)) {
+                      form.setError('startDate', {
+                        type: 'manual',
+                        message: issueDateBeforePurchaseMessage
+                      })
+                      return
+                    }
+                    form.trigger('startDate')
                     const expectedEndDate = form.getValues('expectedEndDate')
                     checkAllocationOverlap(dateValue, expectedEndDate).then(error => {
                       if (error) {
@@ -356,7 +408,7 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
             const startDate = form.watch('startDate')
 
             return (
-              <FormItem className="gba:flex-1">
+              <FormItem className="gba:flex-1 gba:min-w-0">
                 <Label htmlFor="expectedEndDate" data-testid="expected-end-date-label">
                   {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.expected_return_date', 'Expected Return Date')}
                 </Label>
@@ -394,9 +446,13 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
           }}
         />
       </div>
-      {allocationError && (
-        <p className="gba:text-sm gba:font-medium gba:text-destructive" data-testid="allocation-overlap-error">
-          {allocationError}
+      {(form.formState.errors.startDate?.message ||
+        form.formState.errors.expectedEndDate?.message ||
+        allocationError) && (
+        <p className="gba:text-sm gba:font-medium gba:text-destructive gba:mt-1" data-testid="start-date-error">
+          {form.formState.errors.startDate?.message ||
+            form.formState.errors.expectedEndDate?.message ||
+            allocationError}
         </p>
       )}
 
@@ -526,6 +582,11 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
                   }
 
                   const values = form.getValues()
+
+                  if (values.startDate && acquisitionDate && isStartDateBeforeAcquisition(values.startDate)) {
+                    form.setError('startDate', { type: 'manual', message: issueDateBeforePurchaseMessage })
+                    return
+                  }
 
                   if (values.startDate) {
                     const overlapError = await checkAllocationOverlap(values.startDate, values.expectedEndDate)

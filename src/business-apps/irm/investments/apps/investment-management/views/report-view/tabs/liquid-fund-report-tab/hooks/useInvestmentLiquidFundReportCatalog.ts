@@ -20,15 +20,20 @@ export interface LiquidFundReportType {
   investmentTypes: string[] // Investment types that belong to this liquid fund type
 }
 
+interface UseInvestmentLiquidFundReportCatalogParams extends BusinessAppContextProps {
+  catalogData?: InvestmentCatalogData | null
+}
+
 /**
  * Hook for fetching and processing liquid fund catalog data for reports
  * Follows the same pattern as useInvestmentLiquidFundTypeCatalog but optimized for reports
  */
-export const useInvestmentLiquidFundReportCatalog = (context: BusinessAppContextProps) => {
+export const useInvestmentLiquidFundReportCatalog = (params: UseInvestmentLiquidFundReportCatalogParams) => {
+  const { catalogData: providedCatalogData, ...context } = params
   const [reportTypes, setReportTypes] = useState<LiquidFundReportType[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [catalogData, setCatalogData] = useState<InvestmentCatalogData | null>(null)
+  const [catalogData, setCatalogData] = useState<InvestmentCatalogData | null>(providedCatalogData || null)
 
   const { fetchInvestmentCatalogData } = useGetInvestmentCatalogData(context)
 
@@ -42,8 +47,11 @@ export const useInvestmentLiquidFundReportCatalog = (context: BusinessAppContext
     setError(null)
 
     try {
-      const data = await fetchInvestmentCatalogData()
-      setCatalogData(data)
+      // Use provided catalogData if available, otherwise fetch it
+      const data = providedCatalogData || (await fetchInvestmentCatalogData())
+      if (!providedCatalogData) {
+        setCatalogData(data)
+      }
 
       // Transform liquid fund types into report types with dynamic columns
       const transformedReportTypes: LiquidFundReportType[] = data.investmentLiquidFundTypes.map(
@@ -77,11 +85,18 @@ export const useInvestmentLiquidFundReportCatalog = (context: BusinessAppContext
     } finally {
       setIsLoading(false)
     }
-  }, [context.accessToken, fetchInvestmentCatalogData])
+  }, [context.accessToken, providedCatalogData, fetchInvestmentCatalogData])
 
   useEffect(() => {
     loadCatalogData()
   }, [loadCatalogData])
+
+  // Update local catalogData when providedCatalogData changes
+  useEffect(() => {
+    if (providedCatalogData) {
+      setCatalogData(providedCatalogData)
+    }
+  }, [providedCatalogData])
 
   /**
    * Get dynamic columns for a specific liquid fund type

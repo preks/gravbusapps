@@ -31,7 +31,7 @@ import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogMan
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import dayjs from 'dayjs'
 import { createGeneralExpenseFormSchema, type GeneralExpenseFormSchema } from '../../schemas'
-import { formatDateForInput, checkPeriodUniqueness } from '../../utils'
+import { formatDateForInput, checkPeriodUniqueness, normalizeDateInputValue } from '../../utils'
 import { UsageInfo } from '../../types'
 
 export type GeneralExpenseFormData = GeneralExpenseFormSchema
@@ -507,7 +507,11 @@ const GeneralExpenseForm: React.FC<GeneralExpenseFormProps> = ({
                     <FormControl>
                       <DateInput
                         value={field.value || ''}
-                        onChange={date => field.onChange(date)}
+                        onChange={date => {
+                          const normalized = normalizeDateInputValue(date) ?? ''
+                          field.onChange(normalized)
+                        }}
+                        outputFormat="iso"
                         disabled={isRestrictedEdit}
                         data-testid="general-expense-active-from-input"
                       />
@@ -526,7 +530,10 @@ const GeneralExpenseForm: React.FC<GeneralExpenseFormProps> = ({
                     <FormControl>
                       <DateInput
                         value={field.value || ''}
-                        onChange={date => field.onChange(date)}
+                        onChange={date => {
+                          field.onChange(normalizeDateInputValue(date))
+                        }}
+                        outputFormat="iso"
                         data-testid="general-expense-active-to-input"
                       />
                     </FormControl>

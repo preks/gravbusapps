@@ -33,7 +33,7 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { expenseSettingsClient } from '../../utils/ExpenseSettingsClient'
 import MileageRulesPagination from '../mileage-rules/MileageRulesPagination'
 import AllowanceRegionRuleForm from '../../forms/allowance-region-rule-form/AllowanceRegionRuleForm'
-import dayjs from 'dayjs'
+import { formatDate } from '../../utils'
 
 interface UnassignedAllowanceRegionRule {
   id: string
@@ -202,10 +202,6 @@ const UnassignedRulesView: React.FC<UnassignedRulesViewProps> = ({ accessToken, 
       loadTravelRegionSets()
     }
   }, [accessToken, loadTravelRegionSets])
-
-  const formatDate = (dateString: string): string => {
-    return dayjs(dateString).format('DD/MM/YYYY')
-  }
 
   const handleAssignToSet = (ruleId: string) => {
     const rule = unassignedRules.find(r => r.id === ruleId)

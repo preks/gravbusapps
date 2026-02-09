@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, useMemo } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { buildWhere } from '@/common/network/graphql/queryHelpers'
@@ -14,10 +14,11 @@ interface InvestmentCountResponse {
   InvestmentAggregate: CountAggregateResult
 }
 
-type InvestmentType = 'overview' | 'equity' | 'liquidFund' | 'realEstate'
+type InvestmentType = string
 
 /**
- * Hook to fetch aggregate count for a single investment type
+ * Hook to fetch aggregate count for a single investment type/group
+ * Now supports both legacy type names and new dynamic group tab IDs
  * Fetches on mount (after filters are ready) and refetches when filters or currency change
  * Uses standard descriptor-based filtering from common
  */
@@ -33,6 +34,32 @@ export const useInvestmentTypeCount = (
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  // Memoize custom conditions to prevent infinite loops
+  const customConditions = useMemo(() => {
+    const conditions: Record<string, any>[] = []
+
+    // Legacy support for hardcoded types
+    if (investmentType === 'equity') {
+      conditions.push({ equityInvestment: { id: { _isNull: false } } })
+    } else if (investmentType === 'liquidFund') {
+      conditions.push({ liquidFundInvestment: { id: { _isNull: false } } })
+    } else if (investmentType === 'realEstate') {
+      conditions.push({ realEstateInvestment: { id: { _isNull: false } } })
+    } else if (investmentType && investmentType !== 'overview') {
+      // For dynamic groups (including Private Equity, TEST, etc.), convert tab ID to group code
+      // Tab IDs are like 'equity-investments' -> group code is 'EQUITY'
+      // Tab IDs are like 'test-investments' -> group code is 'TEST'
+      const groupCode = investmentType.replace('-investments', '').replace(/-/g, '_').toUpperCase()
+      conditions.push({ investmentGroup: { id: { _eq: `InvestmentGroup:v1:${groupCode}` } } })
+    }
+
+    if (currencyFilter) {
+      conditions.push({ currency: { code: { _eq: currencyFilter } } })
+    }
+
+    return conditions
+  }, [investmentType, currencyFilter])
+
   const fetchCount = useCallback(async () => {
     if (!context.accessToken) {
       setError('Access token is required')
@@ -44,20 +71,6 @@ export const useInvestmentTypeCount = (
     setError(null)
 
     try {
-      const customConditions: Record<string, any>[] = []
-
-      if (investmentType === 'equity') {
-        customConditions.push({ equityInvestment: { id: { _isNull: false } } })
-      } else if (investmentType === 'liquidFund') {
-        customConditions.push({ liquidFundInvestment: { id: { _isNull: false } } })
-      } else if (investmentType === 'realEstate') {
-        customConditions.push({ realEstateInvestment: { id: { _isNull: false } } })
-      }
-
-      if (currencyFilter) {
-        customConditions.push({ currency: { code: { _eq: currencyFilter } } })
-      }
-
       const whereObj = buildWhere({
         variables: filters || {},
         descriptors: INVESTMENT_DESCRIPTORS,
@@ -84,7 +97,7 @@ export const useInvestmentTypeCount = (
     } finally {
       setIsLoading(false)
     }
-  }, [context.accessToken, graphqlClient, investmentType, currencyFilter, filters])
+  }, [context.accessToken, graphqlClient, customConditions, JSON.stringify(filters)])
 
   // Fetch count on mount and whenever filters or currency change
   // Wait for initial filters to be ready before fetching

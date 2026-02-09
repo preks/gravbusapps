@@ -3,8 +3,6 @@
  * Handles peer connection, media streams, and call signaling
  */
 
-import { debugLog } from '../utils/debugLog'
-
 export type CallType = 'audio' | 'video'
 export type CallStatus = 'idle' | 'initiating' | 'ringing' | 'connecting' | 'connected' | 'ended' | 'failed'
 export type CallDirection = 'outgoing' | 'incoming'
@@ -169,7 +167,6 @@ export class WebRTCClient {
 
     // Handle incoming tracks (remote stream)
     this.peerConnection.ontrack = event => {
-      debugLog('Received remote track:', event.track.kind)
       if (!this.remoteStream) {
         this.remoteStream = new MediaStream()
       }
@@ -180,7 +177,6 @@ export class WebRTCClient {
     // Handle ICE candidates
     this.peerConnection.onicecandidate = event => {
       if (event.candidate) {
-        debugLog('Generated ICE candidate')
         this.emit('signalReady', {
           type: 'ice-candidate',
           payload: event.candidate.toJSON()
@@ -191,7 +187,6 @@ export class WebRTCClient {
     // Handle ICE connection state changes
     this.peerConnection.oniceconnectionstatechange = () => {
       const state = this.peerConnection?.iceConnectionState
-      debugLog('ICE connection state:', state)
       this.emit('iceConnectionStateChanged', state)
 
       if (state === 'failed') {
@@ -205,7 +200,6 @@ export class WebRTCClient {
     // Handle connection state changes
     this.peerConnection.onconnectionstatechange = () => {
       const state = this.peerConnection?.connectionState
-      debugLog('Connection state:', state)
       this.emit('callStateChanged', state)
     }
 
@@ -229,7 +223,6 @@ export class WebRTCClient {
     })
 
     await this.peerConnection.setLocalDescription(offer)
-    debugLog('Created offer')
     return offer
   }
 
@@ -243,14 +236,12 @@ export class WebRTCClient {
 
     await this.peerConnection!.setRemoteDescription(new RTCSessionDescription(offer))
     this.isRemoteDescriptionSet = true
-    debugLog('Set remote description (offer)')
 
     // Process any pending ICE candidates
     await this.processPendingIceCandidates()
 
     const answer = await this.peerConnection!.createAnswer()
     await this.peerConnection!.setLocalDescription(answer)
-    debugLog('Created answer')
     return answer
   }
 
@@ -264,7 +255,6 @@ export class WebRTCClient {
 
     await this.peerConnection.setRemoteDescription(new RTCSessionDescription(answer))
     this.isRemoteDescriptionSet = true
-    debugLog('Set remote description (answer)')
 
     // Process any pending ICE candidates
     await this.processPendingIceCandidates()
@@ -281,14 +271,12 @@ export class WebRTCClient {
     }
 
     if (!this.isRemoteDescriptionSet) {
-      debugLog('Remote description not set, queuing ICE candidate')
       this.pendingIceCandidates.push(candidate)
       return
     }
 
     try {
       await this.peerConnection.addIceCandidate(new RTCIceCandidate(candidate))
-      debugLog('Added ICE candidate')
     } catch (error) {
       console.error('Failed to add ICE candidate:', error)
     }
@@ -299,8 +287,6 @@ export class WebRTCClient {
    */
   private async processPendingIceCandidates(): Promise<void> {
     if (!this.peerConnection || !this.isRemoteDescriptionSet) return
-
-    debugLog(`Processing ${this.pendingIceCandidates.length} pending ICE candidates`)
 
     for (const candidate of this.pendingIceCandidates) {
       try {
@@ -424,8 +410,6 @@ export class WebRTCClient {
     this.remoteStream = null
     this.isRemoteDescriptionSet = false
     this.pendingIceCandidates = []
-
-    debugLog('Call ended, resources cleaned up')
   }
 
   /**

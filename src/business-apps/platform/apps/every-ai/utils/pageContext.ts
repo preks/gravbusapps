@@ -46,7 +46,13 @@ const ENTITY_URL_PATTERNS = [
   { pattern: /content-portal.*view=documents/, entity_name: 'document_creator' },
 
   // Flow/Workflow entities
-  { pattern: /\/platform\/apps\/flow\/apps\/creator\?[^#]*templateId=([^&#]+)/, entity_name: 'workflow_template' }
+  { pattern: /\/platform\/apps\/flow\/apps\/creator\?[^#]*templateId=([^&#]+)/, entity_name: 'workflow_template' },
+
+  // Other entities
+  { pattern: /\/platform\/documents\?docId=([^&]+)/, entity_name: 'document' },
+  { pattern: /\/platform\/spreadsheets\?appId=([^&]+)/, entity_name: 'spreadsheet' },
+  { pattern: /\/platform\/notes\?noteId=([^&]+)/, entity_name: 'note' },
+  { pattern: /\/platform\/slides\?slideId=([^&]+)/, entity_name: 'slide' }
 ] as const
 
 /**
@@ -71,7 +77,13 @@ const OVERVIEW_URL_PATTERNS = [
   { pattern: /\/platform\/irm\/investment-management\?view=investments/, entity_name: 'investment' },
 
   // Asset management overviews
-  { pattern: /\/platform\/assets/, entity_name: 'asset' }
+  { pattern: /\/platform\/assets/, entity_name: 'asset' },
+
+  // Other overviews
+  { pattern: /\/platform\/documents/, entity_name: 'document' },
+  { pattern: /\/platform\/spreadsheets/, entity_name: 'spreadsheet' },
+  { pattern: /\/platform\/notes/, entity_name: 'note' },
+  { pattern: /\/platform\/slides/, entity_name: 'slide' }
 ] as const
 
 /**

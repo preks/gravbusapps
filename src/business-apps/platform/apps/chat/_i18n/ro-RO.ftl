@@ -316,6 +316,7 @@ participants-everyones-here = Toată lumea e aici!
 participants-all-members-in-call = Toți membrii conversației sunt fie în apel, fie au fost invitați.
 participants-in-call = În apel
 participants-invited = Invitați
+participants-left-call = A părăsit apelul
 participants-unknown = Necunoscut
 participants-you = Tu
 participants-declined-invite = Invitație refuzată

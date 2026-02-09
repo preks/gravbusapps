@@ -28,8 +28,8 @@ export const useGroupedDetails = ({ formData, countries, currencies }: UseGroupe
           currencyRef: detail.currencyRef,
           currencyCode: currency?.code || 'USD',
           homeFlag: detail.home,
-          validFrom: detail.activeFrom,
-          validTo: detail.activeTo,
+          activeFrom: detail.activeFrom,
+          activeTo: detail.activeTo,
           amounts: [],
           detailIds: []
         }

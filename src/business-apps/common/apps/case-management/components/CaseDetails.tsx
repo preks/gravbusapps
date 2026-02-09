@@ -50,7 +50,10 @@ import {
   Loader2,
   LayoutDashboard,
   GitBranch,
-  Link2
+  Link2,
+  Trash2,
+  RotateCcw,
+  Network
 } from 'lucide-react'
 import { BusinessAppContextProps } from '@/business-apps/types'
 import { Case, AddFlowRequest, LinkedEntity, LinkedFlow, CasePriority } from '../types'
@@ -62,6 +65,7 @@ import { EntityLinkingPanel } from './EntityLinkingPanel'
 import { RelatedCasesPanel } from './RelatedCasesPanel'
 import { CaseActivityFeed } from './CaseActivityFeed'
 import { EditCaseModal } from './EditCaseModal'
+import { CaseRelationshipGraph } from './CaseRelationshipGraph'
 import { useCaseData } from '../hooks'
 import { openEveryAI } from '@/common/utils/openEveryAI'
 import { useEmployeeNamesBatch } from '@/business-apps/ser/hooks/useEmployeeNamesBatch'
@@ -136,6 +140,8 @@ interface CaseDetailsProps {
   onAddFlow: (caseId: string, request: AddFlowRequest) => Promise<void>
   onRemoveFlow: (caseId: string, workflowId: string) => Promise<void>
   onAddNote: (caseId: string, content: string, visibility: 'internal' | 'external') => Promise<void>
+  onEditNote?: (caseId: string, noteId: string, content: string) => Promise<void>
+  onDeleteNote?: (caseId: string, noteId: string) => Promise<void>
   onLinkEntity: (caseId: string, entity: LinkedEntity) => Promise<void>
   onUnlinkEntity: (caseId: string, entityId: string) => Promise<void>
   onLinkCase?: (caseId: string, targetCaseId: string, relationship: 'parent' | 'child' | 'related') => Promise<void>
@@ -145,6 +151,10 @@ interface CaseDetailsProps {
     caseId: string,
     updates: { title?: string; description?: string; priority?: CasePriority }
   ) => Promise<void>
+  /** Handler for soft deleting a case. terminateFlows param controls whether linked flows are terminated */
+  onDeleteCase?: (caseId: string, terminateFlows: boolean) => Promise<void>
+  /** Handler for restoring a soft-deleted case */
+  onRestoreCase?: (caseId: string) => Promise<void>
   allowEdit?: boolean
 }
 
@@ -158,12 +168,16 @@ export const CaseDetails: React.FC<CaseDetailsProps> = ({
   onAddFlow,
   onRemoveFlow,
   onAddNote,
+  onEditNote,
+  onDeleteNote,
   onLinkEntity,
   onUnlinkEntity,
   onLinkCase,
   onUnlinkCase,
   onNavigateToCase,
   onUpdateCase,
+  onDeleteCase,
+  onRestoreCase,
   allowEdit = true
 }) => {
   const { caseData, linkedFlows, isLoading, refetch } = useCaseData(caseId, context)
@@ -173,6 +187,7 @@ export const CaseDetails: React.FC<CaseDetailsProps> = ({
   const [aiPrompt, setAiPrompt] = useState('')
   const [promptCopied, setPromptCopied] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
+  const [isRestoring, setIsRestoring] = useState(false)
   const [isAssigningToMe, setIsAssigningToMe] = useState(false)
 
   // Calculate active flows and participants (must be before hook calls)
@@ -299,6 +314,28 @@ export const CaseDetails: React.FC<CaseDetailsProps> = ({
     }
   }
 
+  const handleDelete = async (terminateFlows: boolean) => {
+    if (!onDeleteCase) return
+    await onDeleteCase(caseId, terminateFlows)
+    // Navigation back will be handled by the parent component
+  }
+
+  const handleRestore = async () => {
+    if (!onRestoreCase || isRestoring) return
+    try {
+      setIsRestoring(true)
+      await onRestoreCase(caseId)
+      await refetch()
+    } catch (error) {
+      console.error('Failed to restore case:', error)
+    } finally {
+      setIsRestoring(false)
+    }
+  }
+
+  // Check if case is deleted (soft deleted)
+  const isDeleted = metadata?.deleted === true
+
   // Build header actions
   const headerActions = (
     <div className="nw:flex nw:items-center nw:gap-2">
@@ -332,40 +369,55 @@ export const CaseDetails: React.FC<CaseDetailsProps> = ({
         <RefreshCw className="nw:h-4 nw:w-4 nw:mr-2" />
         Refresh
       </Button>
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span>
-              <Button
-                onClick={handleComplete}
-                disabled={!canComplete || isCompleting}
-                variant={blockingFlows.length > 0 ? 'outline' : 'default'}
-                size="sm"
-              >
-                {blockingFlows.length > 0 ? (
-                  <AlertTriangle className="nw:h-4 nw:w-4 nw:mr-2 nw:text-yellow-600" />
-                ) : (
-                  <Check className="nw:h-4 nw:w-4 nw:mr-2" />
-                )}
-                {isCompleting ? 'Completing...' : 'Complete Case'}
-              </Button>
-            </span>
-          </TooltipTrigger>
-          {blockingFlows.length > 0 && (
-            <TooltipContent side="bottom" className="nw:max-w-xs">
-              <div className="nw:flex nw:items-start nw:gap-2">
-                <AlertTriangle className="nw:h-4 nw:w-4 nw:text-yellow-600 nw:mt-0.5 nw:flex-shrink-0" />
-                <div>
-                  <p className="nw:font-medium">Cannot complete case</p>
-                  <p className="nw:text-xs nw:text-muted-foreground nw:mt-1">
-                    {blockingFlows.length} flow{blockingFlows.length > 1 ? 's are' : ' is'} not in terminal state.
-                  </p>
+      {!isDeleted && (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span>
+                <Button
+                  onClick={handleComplete}
+                  disabled={!canComplete || isCompleting}
+                  variant={blockingFlows.length > 0 ? 'outline' : 'default'}
+                  size="sm"
+                >
+                  {blockingFlows.length > 0 ? (
+                    <AlertTriangle className="nw:h-4 nw:w-4 nw:mr-2 nw:text-yellow-600" />
+                  ) : (
+                    <Check className="nw:h-4 nw:w-4 nw:mr-2" />
+                  )}
+                  {isCompleting ? 'Completing...' : 'Complete Case'}
+                </Button>
+              </span>
+            </TooltipTrigger>
+            {blockingFlows.length > 0 && (
+              <TooltipContent side="bottom" className="nw:max-w-xs">
+                <div className="nw:flex nw:items-start nw:gap-2">
+                  <AlertTriangle className="nw:h-4 nw:w-4 nw:text-yellow-600 nw:mt-0.5 nw:flex-shrink-0" />
+                  <div>
+                    <p className="nw:font-medium">Cannot complete case</p>
+                    <p className="nw:text-xs nw:text-muted-foreground nw:mt-1">
+                      {blockingFlows.length} flow{blockingFlows.length > 1 ? 's are' : ' is'} not in terminal state.
+                    </p>
+                  </div>
                 </div>
-              </div>
-            </TooltipContent>
-          )}
-        </Tooltip>
-      </TooltipProvider>
+              </TooltipContent>
+            )}
+          </Tooltip>
+        </TooltipProvider>
+      )}
+      {/* Restore button - only show for deleted cases */}
+      {isDeleted && onRestoreCase && (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleRestore}
+          disabled={isRestoring}
+          className="nw:text-green-600 nw:border-green-600 hover:nw:bg-green-50"
+        >
+          <RotateCcw className="nw:h-4 nw:w-4 nw:mr-2" />
+          {isRestoring ? 'Restoring...' : 'Restore Case'}
+        </Button>
+      )}
     </div>
   )
 
@@ -584,9 +636,12 @@ export const CaseDetails: React.FC<CaseDetailsProps> = ({
                       )
                     })}
                     {activeFlows.length > 3 && (
-                      <p className="nw:text-xs nw:text-muted-foreground nw:text-center nw:pt-1">
+                      <button
+                        className="nw:text-xs nw:text-primary nw:text-center nw:pt-1 nw:w-full hover:nw:underline nw:cursor-pointer"
+                        onClick={() => setActiveTab('flows')}
+                      >
                         +{activeFlows.length - 3} more flows
-                      </p>
+                      </button>
                     )}
                   </div>
                 </div>
@@ -758,6 +813,8 @@ export const CaseDetails: React.FC<CaseDetailsProps> = ({
         context={context}
         appTag={appTag}
         readOnly={!allowEdit}
+        caseCreatedAt={caseData.createdAt}
+        caseDueDate={metadata?.dueDate}
       />
     </div>
   )
@@ -771,6 +828,22 @@ export const CaseDetails: React.FC<CaseDetailsProps> = ({
           await onAddNote(caseId, content, visibility)
           await refetch()
         }}
+        onEditNote={
+          onEditNote
+            ? async (noteId, content) => {
+                await onEditNote(caseId, noteId, content)
+                await refetch()
+              }
+            : undefined
+        }
+        onDeleteNote={
+          onDeleteNote
+            ? async noteId => {
+                await onDeleteNote(caseId, noteId)
+                await refetch()
+              }
+            : undefined
+        }
         currentUserId={context.userInfo?.id || 'system'}
         readOnly={!allowEdit}
         accessToken={context.accessToken}
@@ -809,6 +882,28 @@ export const CaseDetails: React.FC<CaseDetailsProps> = ({
     </div>
   )
 
+  // Diagram Tab Content - Case Relationship Graph
+  const diagramContent = (
+    <div className="nw:col-span-full">
+      <CaseRelationshipGraph
+        caseId={caseId}
+        context={context}
+        currentCase={caseData}
+        linkedCases={metadata?.linkedCases || []}
+        onCaseSelect={selectedCaseId => {
+          console.log('Case selected in diagram:', selectedCaseId)
+        }}
+        onNavigateToCase={navigateCaseId => {
+          if (onNavigateToCase) {
+            onNavigateToCase(navigateCaseId)
+          }
+        }}
+        height={600}
+        showMinimap={true}
+      />
+    </div>
+  )
+
   // Links Tab Content
   const linksContent = (
     <div className="nw:col-span-full">
@@ -830,6 +925,33 @@ export const CaseDetails: React.FC<CaseDetailsProps> = ({
 
   return (
     <>
+      {/* Deleted Case Banner */}
+      {isDeleted && (
+        <div className="nw:bg-destructive/10 nw:border-b nw:border-destructive/20 nw:px-4 nw:py-3">
+          <div className="nw:flex nw:items-center nw:justify-center nw:gap-3">
+            <Trash2 className="nw:h-5 nw:w-5 nw:text-destructive" />
+            <div className="nw:text-center">
+              <span className="nw:font-medium nw:text-destructive">This case has been deleted</span>
+              {metadata?.deletedAt && (
+                <span className="nw:text-sm nw:text-muted-foreground nw:ml-2">on {formatDate(metadata.deletedAt)}</span>
+              )}
+            </div>
+            {onRestoreCase && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRestore}
+                disabled={isRestoring}
+                className="nw:ml-4 nw:text-green-600 nw:border-green-600 hover:nw:bg-green-50"
+              >
+                <RotateCcw className="nw:h-4 nw:w-4 nw:mr-2" />
+                {isRestoring ? 'Restoring...' : 'Restore'}
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
+
       <RecordLayout
         headerCategory={headerCategory}
         onBack={onBack}
@@ -867,6 +989,13 @@ export const CaseDetails: React.FC<CaseDetailsProps> = ({
               label: 'Related Cases',
               icon: <GitBranch className="nw:h-4 nw:w-4" />,
               content: relatedCasesContent,
+              contentClassName: autoHeightGridClass
+            },
+            {
+              value: 'diagram',
+              label: 'Diagram',
+              icon: <Network className="nw:h-4 nw:w-4" />,
+              content: diagramContent,
               contentClassName: autoHeightGridClass
             },
             {
@@ -968,6 +1097,8 @@ export const CaseDetails: React.FC<CaseDetailsProps> = ({
             await onUpdateCase(caseId, updates)
             await refetch()
           }}
+          onDelete={onDeleteCase ? handleDelete : undefined}
+          activeFlowsCount={activeFlows.length}
         />
       )}
     </>

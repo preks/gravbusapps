@@ -8,6 +8,7 @@ tab-values = Valori
 button-add = Adaugă
 button-cancel = Anulează
 button-save = Salvează
+button-start = Pornește
 button-activate = Activează
 button-deactivate = Dezactivează
 button-delete = Șterge
@@ -82,6 +83,7 @@ cycle-saved-to-database = Ciclul de performanță "{ $name }" a fost salvat.
 cycle-activated-to-database = "{ $name }" a fost activat.
 cycle-deactivated-to-database = "{ $name }" a fost dezactivat.
 cycle-deleted-to-database = "{ $name }" a fost șters.
+cycle-started = Se pornește ciclul: { $name }
 value-saved-to-database = Valoarea companiei "{ $title }" a fost salvată.
 value-deleted-to-database = "{ $title }" a fost ștearsă.
 value-activated-to-database = "{ $title }" a fost activată.
@@ -97,4 +99,5 @@ values-modal-description = Definește o valoare a companiei și descrierea ei.
 # Erori
 values-error-cannot-deactivate-active-cycle = Valoarea nu poate fi dezactivată cât timp este folosită într-un ciclu activ.
 cycles-error-no-rating-scales = Este necesară cel puțin o scală de evaluare pentru a crea un ciclu.
+error-activate-out-of-period = Ciclul nu poate fi activat. Data de astăzi este în afara perioadei ciclului.
 

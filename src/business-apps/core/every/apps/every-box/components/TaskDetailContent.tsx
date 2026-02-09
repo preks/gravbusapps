@@ -12,8 +12,10 @@ import { RemoteScreenLoader } from './RemoteScreenLoader'
 import { LowcoderScreenLoader } from './LowcoderScreenLoader'
 import { useKogitoProcess } from '../hooks/useKogitoProcess'
 import { env } from '@/common/env/EnvUtils'
+import { storeCommunication } from '../../every-api/services/AiService'
 import { UniversalCflowTaskDetails } from './UniversalCflowTaskDetails'
 import { useFlowStepData } from '../hooks/useFlowStepData'
+import { TaskAiSection } from './TaskAiSection'
 import translations from '../_i18n'
 
 interface TaskDetailContentProps {
@@ -83,6 +85,24 @@ export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
     accessToken,
     onSuccess: () => {
       toast.success(t('task-dialog-completed-success'))
+
+      // Store kogito task completion for AI learning (fire and forget)
+      if (task?.id) {
+        storeCommunication(
+          {
+            taskId: task.id,
+            source: task.source as 'cflow' | 'kogito',
+            messageType: 'completion',
+            content: `Task completed: ${task.title || task.name || task.id}`,
+            recipientId: task.sourceMetadata?.creatorUserId as string | undefined,
+            aiAssisted: false
+          },
+          accessToken
+        ).catch(() => {
+          // Silent failure - don't interrupt user flow
+        })
+      }
+
       // Call onTaskCompleted first for instant UI feedback (removes from local state)
       // Don't call onTaskUpdated - it triggers a slow full refetch that's not needed
       // handleTaskCompleted already calls onCompletedRefresh for background sync
@@ -128,6 +148,22 @@ export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
 
           if (response.ok) {
             toast.success(t('task-dialog-completed-success'))
+
+            // Store cflow task completion via screen event for AI learning (fire and forget)
+            storeCommunication(
+              {
+                taskId: task.id,
+                source: 'cflow',
+                messageType: 'completion',
+                content: `Task completed: ${task.title || task.name || task.id}`,
+                recipientId: task.sourceMetadata?.creatorUserId as string | undefined,
+                aiAssisted: false
+              },
+              accessToken
+            ).catch(() => {
+              // Silent failure
+            })
+
             // Call onTaskCompleted first for instant UI feedback
             if (onTaskCompleted && task.id) {
               onTaskCompleted(task.id)
@@ -141,6 +177,23 @@ export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
           toast.error(t('task-dialog-action-failed'))
         }
       } else {
+        // Store task completion for AI learning (fire and forget)
+        if (task?.id) {
+          storeCommunication(
+            {
+              taskId: task.id,
+              source: task.source as 'cflow' | 'kogito',
+              messageType: 'completion',
+              content: `Task completed: ${task.title || task.name || task.id}`,
+              recipientId: task.sourceMetadata?.creatorUserId as string | undefined,
+              aiAssisted: false
+            },
+            accessToken
+          ).catch(() => {
+            // Silent failure
+          })
+        }
+
         // Call onTaskCompleted first for instant UI feedback
         if (onTaskCompleted && task?.id) {
           onTaskCompleted(task.id)
@@ -182,7 +235,11 @@ export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
       psi_availableActions: task?.availableActions,
       psi_flowStepData: currentStepData,
       psi_flowOverview: flowOverview,
-      psi_currentStep: currentStep
+      psi_currentStep: currentStep,
+      // AI context for screens
+      psi_aiEnabled: true,
+      psi_taskId: task?.id,
+      psi_taskSource: task?.source
     }
     return data
   }, [
@@ -198,7 +255,9 @@ export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
     task?.availableActions,
     currentStepData,
     flowOverview,
-    currentStep
+    currentStep,
+    task?.id,
+    task?.source
   ])
 
   const lowcoderScreenAdditionalData = React.useMemo(
@@ -209,9 +268,23 @@ export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
       psi_availableActions: task?.availableActions,
       psi_flowStepData: currentStepData,
       psi_flowOverview: flowOverview,
-      psi_currentStep: currentStep
+      psi_currentStep: currentStep,
+      // AI context for screens
+      psi_aiEnabled: true,
+      psi_taskId: task?.id,
+      psi_taskSource: task?.source
     }),
-    [taskInputs, task?.sourceMetadata, task?.status, task?.availableActions, currentStepData, flowOverview, currentStep]
+    [
+      taskInputs,
+      task?.sourceMetadata,
+      task?.status,
+      task?.availableActions,
+      currentStepData,
+      flowOverview,
+      currentStep,
+      task?.id,
+      task?.source
+    ]
   )
 
   const isBlinkTask = task?.source === 'cflow' && task?.tags?.app === 'quick-task'
@@ -350,6 +423,21 @@ export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
 
       toast.success(t('task-dialog-blink-completed-success'))
 
+      // Store task completion for AI learning (fire and forget)
+      storeCommunication(
+        {
+          taskId: task.id,
+          source: task.source as 'cflow' | 'kogito',
+          messageType: 'completion',
+          content: `Task completed: ${task.title || task.name || task.id}`,
+          recipientId: task.sourceMetadata?.creatorUserId as string | undefined,
+          aiAssisted: false
+        },
+        accessToken
+      ).catch(() => {
+        // Silent failure - don't interrupt user flow
+      })
+
       // Call onTaskCompleted first for instant UI feedback (removes from local state)
       // Don't call onTaskUpdated - it triggers a slow full refetch that's not needed
       if (onTaskCompleted && task.id) {
@@ -391,32 +479,86 @@ export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
 
     if (screenMetadata?.builderType === 'NATIVE_SCREEN' && screenMetadata.componentPath) {
       return (
-        <RemoteScreenLoader
-          componentPath={screenMetadata.componentPath}
-          version={screenMetadata.version}
-          accessToken={accessToken}
-          userInfo={userInfo}
-          additionalData={nativeScreenAdditionalData}
-          onClose={onClose}
-          onTaskCompleted={onTaskCompleted}
-          onTaskUpdated={onTaskUpdated}
-          isLoadingMetadata={false}
-        />
+        <div className="gba:flex gba:flex-col gba:h-full gba:overflow-hidden gba:relative">
+          {/* Screen content - AI summary will be injected below header */}
+          <div className="gba:flex-1 gba:min-h-0 gba:overflow-auto">
+            <RemoteScreenLoader
+              componentPath={screenMetadata.componentPath}
+              version={screenMetadata.version}
+              accessToken={accessToken}
+              userInfo={userInfo}
+              additionalData={nativeScreenAdditionalData}
+              onClose={onClose}
+              onTaskCompleted={onTaskCompleted}
+              onTaskUpdated={onTaskUpdated}
+              isLoadingMetadata={false}
+              belowHeaderSlot={
+                <TaskAiSection
+                  taskId={task.id}
+                  source={task.source}
+                  accessToken={accessToken}
+                  taskTitle={task.title || task.name}
+                  taskDescription={task.description}
+                  contactId={task.sourceMetadata?.creatorUserId as string | undefined}
+                />
+              }
+            />
+          </div>
+        </div>
       )
     }
 
     if (screenMetadata?.builderType === 'LOWCODER' && screenMetadata.appId) {
       return (
-        <LowcoderScreenLoader
-          appId={screenMetadata.appId}
-          appName={screenMetadata.appName || t('task-dialog-lowcoder-screen')}
-          accessToken={accessToken}
-          userInfo={userInfo}
-          additionalData={lowcoderScreenAdditionalData}
-          onClose={onClose}
-          onTaskCompleted={onTaskCompleted}
-          onTaskUpdated={onTaskUpdated}
-        />
+        <div className="gba:flex gba:flex-col gba:h-full gba:overflow-hidden gba:relative">
+          {/* AI Summary (cannot be injected into iframe) */}
+          <div className="gba:px-6 gba:pt-4">
+            <TaskAiSection
+              taskId={task.id}
+              source={task.source}
+              accessToken={accessToken}
+              taskTitle={task.title || task.name}
+              taskDescription={task.description}
+              contactId={task.sourceMetadata?.creatorUserId as string | undefined}
+            />
+          </div>
+
+          {/* Screen content */}
+          <div className="gba:flex-1 gba:min-h-0 gba:overflow-auto">
+            <LowcoderScreenLoader
+              appId={screenMetadata.appId}
+              appName={screenMetadata.appName || t('task-dialog-lowcoder-screen')}
+              accessToken={accessToken}
+              userInfo={userInfo}
+              additionalData={lowcoderScreenAdditionalData}
+              onClose={onClose}
+              onTaskCompleted={onTaskCompleted}
+              onTaskUpdated={onTaskUpdated}
+            />
+          </div>
+        </div>
+      )
+    }
+
+    // Fallback for kogito tasks without custom screens
+    if (task.source === 'kogito') {
+      return (
+        <div className="gba:px-6 gba:py-4 gba:space-y-6">
+          {/* AI Summary at top */}
+          <TaskAiSection
+            taskId={task.id}
+            source={task.source}
+            accessToken={accessToken}
+            taskTitle={task.title || task.name}
+            taskDescription={task.description}
+            contactId={task.sourceMetadata?.creatorUserId as string | undefined}
+          />
+
+          {/* Placeholder for tasks without screens */}
+          <div className="gba:text-muted-foreground gba:text-center gba:py-4">
+            {t('task-dialog-no-screen-available')}
+          </div>
+        </div>
       )
     }
 

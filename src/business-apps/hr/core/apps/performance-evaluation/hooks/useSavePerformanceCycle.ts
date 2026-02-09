@@ -108,7 +108,7 @@ function buildSavePayload(values: CycleEditorValues): SavePerformanceCyclePayloa
       frequency: frequencyApi,
       ratingScale: values.ratingScaleId ?? null,
       participants,
-      ...(changeMode === 'INSERT' ? { status: 'DRAFT_PERFORMANCE_CYCLE_STATUS' } : {}),
+      ...(changeMode === 'INSERT' ? { status: 'DEACTIVATED_PERFORMANCE_CYCLE_STATUS' } : {}),
       ...(companyValues.length > 0 ? { companyValues } : {})
     }
   }
@@ -122,7 +122,7 @@ export interface CycleForUpdate {
 
 /** Build minimal payload for updatePerformanceCycle (id, version, status only). */
 function buildUpdateActivePayload(cycle: CycleForUpdate, isActive: boolean): UpdatePerformanceCyclePayload {
-  const status = isActive ? 'ACTIVE_PERFORMANCE_CYCLE_STATUS' : 'DRAFT_PERFORMANCE_CYCLE_STATUS'
+  const status = isActive ? 'DRAFT_PERFORMANCE_CYCLE_STATUS' : 'DEACTIVATED_PERFORMANCE_CYCLE_STATUS'
   return {
     performanceCycle: {
       id: cycle.id,

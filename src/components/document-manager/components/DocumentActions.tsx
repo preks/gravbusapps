@@ -13,6 +13,7 @@ import { startProcess } from '@/common/utils/start-process'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { env } from '@/common/env/EnvUtils'
 import { DocumentActionProps } from '../types/documentTypes'
+import { isPreviewableFile } from '@/common/utils/filePreview'
 
 export const DocumentActions: React.FC<DocumentActionProps> = ({
   document,
@@ -33,11 +34,18 @@ export const DocumentActions: React.FC<DocumentActionProps> = ({
     try {
       const link = window.document.createElement('a')
       link.href = document.file
-      link.download = document.name || 'document'
+      link.target = '_blank'
+
+      // Only set download attribute for non-previewable files
+      // Note: document.mimeType might be undefined, no fileInfo in this component
+      const canPreview = isPreviewableFile(document.mimeType)
+      if (!canPreview) {
+        link.download = document.name || 'document'
+      }
+
       window.document.body.appendChild(link)
       link.click()
       window.document.body.removeChild(link)
-      console.log('Download started')
     } catch (error) {
       console.error('Download error:', error)
       console.error('Failed to download document')

@@ -18,6 +18,9 @@ import {
   extractFieldType
 } from './utils/formSchemaUtils'
 import { SearchableUuidField } from './SearchableUuidField'
+import { FlowProposalFileField, type FlowProposalFileUploadHints } from './FlowProposalFileField'
+import { useFlowProposalFileUpload } from '../../context/FlowProposalFileUploadContext'
+import { useFlowProposalId } from '../../context/FlowProposalFormContext'
 
 interface SchemaFieldProps {
   name: string
@@ -46,7 +49,7 @@ export const SchemaField: React.FC<SchemaFieldProps> = ({
 }) => {
   const fieldPath = path ? `${path}.${name}` : name
   const controlId = sanitizeControlId(fieldPath)
-  const label = formatFieldName(name)
+  const label = String(schema?.title ?? formatFieldName(name))
 
   // Inject styles for react-quill text selection visibility
   useEffect(() => {
@@ -110,8 +113,38 @@ export const SchemaField: React.FC<SchemaFieldProps> = ({
   }
 
   const fieldType = extractFieldType(schema)
+  const fileSource = (schema as any)?.['x-fileSource']
+  const fileUploadHints = (schema as any)?.['x-fileUpload'] as FlowProposalFileUploadHints | undefined
+  const isFlowProposalFileField = fileSource === 'flow_proposal' && !!fileUploadHints
+  const flowProposalId = useFlowProposalId()
+  const uploadFlowProposalFiles = useFlowProposalFileUpload()
 
   const renderField = () => {
+    if (isFlowProposalFileField) {
+      if (!flowProposalId) {
+        return (
+          <div className="gba:text-xs gba:text-muted-foreground">
+            File upload is not available (missing flow proposal id).
+          </div>
+        )
+      }
+
+      return (
+        <FlowProposalFileField
+          controlId={controlId}
+          label={label}
+          required={required}
+          disabled={disabled}
+          value={Array.isArray(value) ? value : []}
+          onChange={onChange}
+          onUpload={uploadFlowProposalFiles}
+          flowProposalId={flowProposalId}
+          fieldKey={name}
+          hints={fileUploadHints}
+        />
+      )
+    }
+
     switch (fieldType) {
       case 'string': {
         const rawEnumOptions = schema.enum ?? null
@@ -457,6 +490,10 @@ export const SchemaField: React.FC<SchemaFieldProps> = ({
 
   if (schema.type === 'boolean') {
     return renderField()
+  }
+
+  if (isFlowProposalFileField) {
+    return <div className="gba:mb-4">{renderField()}</div>
   }
 
   return (

@@ -1,12 +1,16 @@
 import dayjs from 'dayjs'
+import utc from 'dayjs/plugin/utc'
+import { toISOStartOfDay, toISOEndOfDay } from '../../../utils/dateUtils'
+
+dayjs.extend(utc)
 
 export interface CustomFieldFormValues {
   source: 'Expense' | 'Mileage'
   relatedId: string
   infoValue: string
   mandatory: boolean
-  validFrom: string
-  validTo?: string
+  activeFrom: string
+  activeTo?: string
 }
 
 export interface CustomFieldEditingItem {
@@ -14,7 +18,7 @@ export interface CustomFieldEditingItem {
   version?: number
   source: 'Expense' | 'Mileage'
   relatedId: string
-  validFrom: string
+  activeFrom: string
 }
 
 export interface CustomFieldSaveData {
@@ -43,7 +47,7 @@ const buildRelatedIds = (source: 'Expense' | 'Mileage', relatedId: string) => ({
 })
 
 /**
- * Transforms form values for a restricted update (only validTo and infoValue can change)
+ * Transforms form values for a restricted update (only activeTo and infoValue can change)
  */
 export const transformCustomFieldForRestrictedUpdate = (
   formValues: CustomFieldFormValues,
@@ -57,8 +61,8 @@ export const transformCustomFieldForRestrictedUpdate = (
   source: mapSourceToApiEnum(editingItem.source),
   infoValue: formValues.infoValue,
   mandatory: editingItem.mandatory as unknown as boolean,
-  activeFrom: editingItem.validFrom ? dayjs(editingItem.validFrom).startOf('day').toISOString() : null,
-  activeTo: formValues.validTo ? dayjs(formValues.validTo).endOf('day').toISOString() : null,
+  activeFrom: editingItem.activeFrom ? toISOStartOfDay(editingItem.activeFrom) : null,
+  activeTo: formValues.activeTo ? toISOEndOfDay(formValues.activeTo) : null,
   ...buildRelatedIds(editingItem.source, editingItem.relatedId)
 })
 
@@ -74,11 +78,11 @@ export const transformCustomFieldForSave = (
   ...(editingItem && { id: editingItem.id, version: editingItem.version }),
   expenseRuleId: ruleId,
   businessKey: undefined,
-  activeTo: formValues.validTo ? dayjs(formValues.validTo).endOf('day').toISOString() : null,
+  activeTo: formValues.activeTo ? toISOEndOfDay(formValues.activeTo) : null,
   additionalProperties: undefined,
   source: mapSourceToApiEnum(formValues.source),
   infoValue: formValues.infoValue,
   mandatory: formValues.mandatory,
-  activeFrom: formValues.validFrom ? dayjs(formValues.validFrom).startOf('day').toISOString() : null,
+  activeFrom: formValues.activeFrom ? toISOStartOfDay(formValues.activeFrom) : null,
   ...buildRelatedIds(formValues.source, formValues.relatedId)
 })

@@ -276,3 +276,11 @@ due-date-days-left = { $days ->
     [one] { $days }T übrig
    *[other] { $days }T übrig
 }
+
+# AI Assistant
+ai-assistant-applied = Angewendet
+ai-assistant-draft-helper = KI Schreibassistent
+ai-assistant-draft-placeholder = Nutzen Sie KI, um Ihre Antwort zu verfassen...
+ai-assistant-copy = Kopieren
+ai-assistant-copied = In Zwischenablage kopiert
+ai-assistant-ai-assisted = KI-unterstützt
