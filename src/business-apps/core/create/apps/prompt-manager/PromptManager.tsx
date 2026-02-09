@@ -12,6 +12,77 @@ import translations from './_i18n'
 import type { KnowledgeSource } from '@/common/network/ai/prompt-manager/PromptManagerClient'
 import type { AgentBuilderInitialState } from './hooks/useAgentBuilderState'
 
+/** Generate a random ID for knowledge sources. */
+const makeKnowledgeSourceId = () => {
+  try {
+    return globalThis.crypto?.randomUUID?.() || `ks_${Math.random().toString(16).slice(2)}`
+  } catch {
+    return `ks_${Math.random().toString(16).slice(2)}`
+  }
+}
+
+/** Build the initial state for a policy-based expert from URL params. */
+const buildPolicyInitialState = (params: URLSearchParams): AgentBuilderInitialState | undefined => {
+  const sourceContentEntryId = params.get('sourceContentEntryId')
+  const policyRootId = params.get('policyRootId')
+  const policyTitle = params.get('policyTitle')
+  if (!sourceContentEntryId && !policyRootId) return undefined
+
+  const now = new Date().toISOString()
+  const knowledgeSources: KnowledgeSource[] = sourceContentEntryId
+    ? [
+        {
+          id: makeKnowledgeSourceId(),
+          type: 'content_entry',
+          name: policyTitle ? `Policy: ${policyTitle}` : 'Policy',
+          description: policyTitle ? `Knowledge source: ${policyTitle}` : undefined,
+          contentEntryId: sourceContentEntryId,
+          lastUpdated: now,
+          createdAt: now
+        }
+      ]
+    : []
+
+  const tags = [`policy:${policyRootId || sourceContentEntryId || ''}`]
+
+  return {
+    name: policyTitle ? `Policy expert — ${policyTitle}` : '',
+    agentType: 'everyai',
+    specialty: policyTitle ? `Policy: ${policyTitle}` : 'Policy expert',
+    knowledgeSources,
+    tags
+  }
+}
+
+type UrlAction =
+  | { type: 'create'; initialState?: AgentBuilderInitialState }
+  | { type: 'edit'; expertId: string }
+  | { type: 'view'; expertId: string }
+  | { type: 'tab'; tab: 'monitoring' }
+  | null
+
+/** Parse URL search params into a navigation action. */
+const parseUrlAction = (search: string): UrlAction => {
+  const params = new URLSearchParams(search)
+  const pmTab = params.get('pmTab')
+  const expertId = params.get('expertId')
+  const expertMode = params.get('expertMode')
+
+  if (expertId === 'new') {
+    return { type: 'create', initialState: buildPolicyInitialState(params) }
+  }
+  if (expertId && expertMode === 'edit') {
+    return { type: 'edit', expertId }
+  }
+  if (expertId) {
+    return { type: 'view', expertId }
+  }
+  if (pmTab === 'monitoring') {
+    return { type: 'tab', tab: 'monitoring' }
+  }
+  return null
+}
+
 const TaskExpertStudio: React.FC<BusinessAppContextProps> = context => {
   const { t } = useTranslation(translations)
   const [isCreateOpen, setIsCreateOpen] = useState(false)
@@ -38,63 +109,24 @@ const TaskExpertStudio: React.FC<BusinessAppContextProps> = context => {
 
   // Handle URL parameter for direct expert access
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search)
-    const pmTab = urlParams.get('pmTab')
-    if (pmTab === 'monitoring') {
-      setActiveTab('monitoring')
-    }
-    const expertId = urlParams.get('expertId')
-    const expertMode = urlParams.get('expertMode') // 'edit' or default to 'view'
-    if (expertId && !editingPromptId && !viewingPromptId && !isCreateOpen) {
-      if (expertId === 'new') {
-        const sourceContentEntryId = urlParams.get('sourceContentEntryId')
-        const policyRootId = urlParams.get('policyRootId')
-        const policyTitle = urlParams.get('policyTitle')
-        const now = new Date().toISOString()
-        const makeId = () => {
-          try {
-            return globalThis.crypto?.randomUUID?.() || `ks_${Math.random().toString(16).slice(2)}`
-          } catch {
-            return `ks_${Math.random().toString(16).slice(2)}`
-          }
-        }
+    if (editingPromptId || viewingPromptId || isCreateOpen) return
+    const action = parseUrlAction(window.location.search)
+    if (!action) return
 
-        const knowledgeSources: KnowledgeSource[] = sourceContentEntryId
-          ? [
-              {
-                id: makeId(),
-                type: 'content_entry',
-                name: policyTitle ? `Policy: ${policyTitle}` : 'Policy',
-                description: policyTitle ? `Knowledge source: ${policyTitle}` : undefined,
-                contentEntryId: sourceContentEntryId,
-                lastUpdated: now,
-                createdAt: now
-              }
-            ]
-          : []
-
-        const tags =
-          policyRootId || sourceContentEntryId
-            ? [`policy:${policyRootId || sourceContentEntryId || ''}`]
-            : ([] as string[])
-
-        setCreateInitialState(
-          sourceContentEntryId || policyRootId
-            ? {
-                name: policyTitle ? `Policy expert — ${policyTitle}` : '',
-                agentType: 'everyai',
-                specialty: policyTitle ? `Policy: ${policyTitle}` : 'Policy expert',
-                knowledgeSources,
-                tags
-              }
-            : undefined
-        )
+    switch (action.type) {
+      case 'create':
+        setCreateInitialState(action.initialState)
         setIsCreateOpen(true)
-      } else if (expertMode === 'edit') {
-        setEditingPromptId(expertId)
-      } else {
-        setViewingPromptId(expertId)
-      }
+        break
+      case 'edit':
+        setEditingPromptId(action.expertId)
+        break
+      case 'view':
+        setViewingPromptId(action.expertId)
+        break
+      case 'tab':
+        setActiveTab(action.tab)
+        break
     }
   }, [])
 

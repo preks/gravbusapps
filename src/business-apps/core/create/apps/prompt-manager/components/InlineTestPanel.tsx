@@ -23,6 +23,14 @@ import translations from '../_i18n'
 
 type ParamRow = { key: string; value: string }
 
+/** Merge discovered parameter keys with existing rows, preserving user-entered values. */
+const mergeParamRows = (keys: string[], existing: ParamRow[]): ParamRow[] =>
+  keys.map(k => existing.find(r => r.key === k) || { key: k, value: '' })
+
+/** Update a single row value at the given index. */
+const updateRowValue = (rows: ParamRow[], idx: number, value: string): ParamRow[] =>
+  rows.map((row, i) => (i === idx ? { ...row, value } : row))
+
 export interface InlineTestPanelProps {
   promptId: string
   accessToken: string
@@ -51,12 +59,12 @@ export const InlineTestPanel: React.FC<InlineTestPanelProps> = ({ promptId, acce
       .getPromptParameters(promptId)
       .then(res => {
         if (cancelled) return
-        const up = (res.user_parameters || []).sort()
-        const sp = (res.system_parameters || []).sort()
+        const up = (res.user_parameters || []).sort((a: string, b: string) => a.localeCompare(b))
+        const sp = (res.system_parameters || []).sort((a: string, b: string) => a.localeCompare(b))
         setUserParamKeys(up)
         setSystemParamKeys(sp)
-        setUserParamsRows(prev => up.map(k => prev.find(r => r.key === k) || { key: k, value: '' }))
-        setSystemParamsRows(prev => sp.map(k => prev.find(r => r.key === k) || { key: k, value: '' }))
+        setUserParamsRows(prev => mergeParamRows(up, prev))
+        setSystemParamsRows(prev => mergeParamRows(sp, prev))
       })
       .catch(() => {
         /* silent */
@@ -212,10 +220,7 @@ export const InlineTestPanel: React.FC<InlineTestPanelProps> = ({ promptId, acce
                       <Input
                         placeholder="Enter value..."
                         value={r.value}
-                        onChange={e => {
-                          const v = e.target.value
-                          setUserParamsRows(prev => prev.map((x, i) => (i === idx ? { ...x, value: v } : x)))
-                        }}
+                        onChange={e => setUserParamsRows(prev => updateRowValue(prev, idx, e.target.value))}
                         data-testid={`expert-view-test-user-param-${r.key}`}
                       />
                     </div>
@@ -243,10 +248,7 @@ export const InlineTestPanel: React.FC<InlineTestPanelProps> = ({ promptId, acce
                       <Input
                         placeholder="Enter value..."
                         value={r.value}
-                        onChange={e => {
-                          const v = e.target.value
-                          setSystemParamsRows(prev => prev.map((x, i) => (i === idx ? { ...x, value: v } : x)))
-                        }}
+                        onChange={e => setSystemParamsRows(prev => updateRowValue(prev, idx, e.target.value))}
                         data-testid={`expert-view-test-system-param-${r.key}`}
                       />
                     </div>
