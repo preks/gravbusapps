@@ -4,7 +4,7 @@
  * Supports composing, reading, folder navigation, and account management.
  */
 
-import React, { useState, useCallback, useEffect, useRef } from 'react'
+import React, { useState, useCallback, useEffect } from 'react'
 import { toast } from 'sonner'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo } from '@/common/utils/navigationUtils'
@@ -16,33 +16,27 @@ import {
   EmailReader,
   EmailComposer,
   AccountSetupDialog,
+  AccountManagementDialog,
   EmailEmptyState,
   MicrosoftOAuthCallback
 } from './components'
 import type { EmailMessage, ComposeMode } from './types'
 
-// ============================================
-// CRITICAL: Capture OAuth params IMMEDIATELY before platform can strip them
-// This runs at module load time, before React renders
-// ============================================
+// Capture OAuth params at module load time (before platform can strip them)
 ;(() => {
   try {
-    const url = window.location.href
     const searchParams = new URLSearchParams(window.location.search)
     const hashParams = window.location.hash ? new URLSearchParams(window.location.hash.substring(1)) : null
 
-    // Check for OAuth code in query params or hash
     const code = searchParams.get('code') || hashParams?.get('code')
     const state = searchParams.get('state') || hashParams?.get('state')
 
     if (code && state) {
-      console.log('[EmailAppsHub:INIT] OAuth params detected! Saving to sessionStorage')
-      console.log('[EmailAppsHub:INIT] URL:', url)
       sessionStorage.setItem('ms_oauth_code', code)
       sessionStorage.setItem('ms_oauth_callback_state', state)
     }
-  } catch (e) {
-    console.error('[EmailAppsHub:INIT] Error capturing OAuth params:', e)
+  } catch {
+    // Silently ignore
   }
 })()
 
@@ -52,48 +46,34 @@ export interface EmailAppsHubProps extends BusinessAppContextProps {
 
 export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
   accessToken,
-  // userInfo - available if needed for user display name
   'data-testid': testId = 'email-apps-hub'
 }) => {
-  // ============================================
-  // ALL HOOKS MUST BE DECLARED BEFORE ANY CONDITIONAL RETURNS
-  // ============================================
-
-  // Check if this is an OAuth callback (check URL params, hash, AND sessionStorage)
+  // Check if this is an OAuth callback redirect
   const [isOAuthCallback, setIsOAuthCallback] = useState(() => {
-    // Check query params first
-    const queryParams = new URLSearchParams(window.location.search)
-    let hasCode = queryParams.has('code')
-    let hasState = queryParams.has('state')
+    // Must have a PKCE verifier in sessionStorage (proves an OAuth flow is in progress)
+    const hasVerifier = !!(
+      sessionStorage.getItem('ms_oauth_verifier') || sessionStorage.getItem('google_oauth_verifier')
+    )
+    if (!hasVerifier) return false
 
-    // If not in query, check hash fragment
+    // Check for code in URL query params
+    const queryParams = new URLSearchParams(window.location.search)
+    let hasCode = queryParams.has('code') && queryParams.has('state')
+
+    // Check hash fragment
     if (!hasCode && window.location.hash) {
       const hashParams = new URLSearchParams(window.location.hash.substring(1))
-      hasCode = hashParams.has('code')
-      hasState = hashParams.has('state')
+      hasCode = hashParams.has('code') && hashParams.has('state')
     }
 
-    // If still not found, check sessionStorage (platform may have stripped params)
+    // Check sessionStorage (captured by IIFE before platform might strip params)
     if (!hasCode) {
       const savedCode = sessionStorage.getItem('ms_oauth_code')
-      const savedState = sessionStorage.getItem('ms_oauth_callback_state')
-      if (savedCode && savedState) {
-        console.log('[EmailAppsHub] Found OAuth params in sessionStorage!')
-        hasCode = true
-        hasState = true
-      }
+      hasCode = !!savedCode
     }
 
-    console.log('[EmailAppsHub] URL check:', window.location.href)
-    console.log('[EmailAppsHub] Query params:', window.location.search)
-    console.log('[EmailAppsHub] Hash fragment:', window.location.hash)
-    console.log('[EmailAppsHub] SessionStorage code:', sessionStorage.getItem('ms_oauth_code') ? 'present' : 'none')
-    console.log('[EmailAppsHub] Has code:', hasCode, 'Has state:', hasState)
-    return hasCode && hasState
+    return hasCode
   })
-
-  // Track if we've processed pending OAuth
-  const pendingOAuthProcessed = useRef(false)
 
   // UI state
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
@@ -106,13 +86,14 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [isAccountDialogOpen, setIsAccountDialogOpen] = useState(false)
+  const [isManageDialogOpen, setIsManageDialogOpen] = useState(false)
 
   // Compose state
   const [isComposing, setIsComposing] = useState(false)
   const [composeMode, setComposeMode] = useState<ComposeMode>('new')
   const [replyToMessage, setReplyToMessage] = useState<EmailMessage | null>(null)
 
-  // Data hooks - always call even if OAuth callback (hooks must be consistent)
+  // Data hooks
   const {
     accounts,
     defaultAccount,
@@ -140,19 +121,22 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
     search: searchQuery || undefined
   })
 
+  // Set access token on API service
+  useEffect(() => {
+    if (accessToken) {
+      EmailApiService.setAccessToken(accessToken)
+    }
+  }, [accessToken])
+
   // Handle OAuth callback completion
   const handleOAuthSuccess = useCallback(() => {
-    console.log(
-      '[EmailAppsHub] OAuth success, checking stored data:',
-      sessionStorage.getItem('ms_oauth_pending') ? 'found' : 'not found'
-    )
     window.history.replaceState({}, '', '/platform/mail')
     setIsOAuthCallback(false)
-    // Don't reload - let the useEffect handle account creation
-  }, [])
+    refreshAccounts()
+  }, [refreshAccounts])
 
   const handleOAuthError = useCallback((error: string) => {
-    toast.error(`Microsoft sign-in failed: ${error}`)
+    toast.error(`Sign-in failed: ${error}`)
     window.history.replaceState({}, '', '/platform/mail')
     setIsOAuthCallback(false)
   }, [])
@@ -200,64 +184,6 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
     navigateTo('/platform/every-office')
   }, [])
 
-  // Check for pending Microsoft OAuth data and create account
-  useEffect(() => {
-    const processPendingOAuth = async () => {
-      console.log('[EmailAppsHub] processPendingOAuth called', {
-        pendingOAuthProcessed: pendingOAuthProcessed.current,
-        hasAccessToken: !!accessToken,
-        isOAuthCallback
-      })
-
-      if (pendingOAuthProcessed.current || !accessToken || isOAuthCallback) {
-        console.log('[EmailAppsHub] Skipping pending OAuth processing')
-        return
-      }
-
-      const pendingData = sessionStorage.getItem('ms_oauth_pending')
-      console.log('[EmailAppsHub] Pending OAuth data:', pendingData ? 'found' : 'not found')
-
-      if (!pendingData) return
-
-      pendingOAuthProcessed.current = true
-      sessionStorage.removeItem('ms_oauth_pending')
-
-      try {
-        const data = JSON.parse(pendingData)
-        console.log('[EmailAppsHub] Creating account for:', data.email)
-        EmailApiService.setAccessToken(accessToken)
-
-        toast.info('Setting up your Microsoft email account...')
-
-        const account = await EmailApiService.createAccount({
-          displayName: data.name || data.email.split('@')[0],
-          emailAddress: data.email,
-          provider: 'microsoft',
-          imapHost: 'outlook.office365.com',
-          imapPort: 993,
-          imapSecure: true,
-          smtpHost: 'smtp.office365.com',
-          smtpPort: 587,
-          smtpSecure: false,
-          oauthAccessToken: data.accessToken,
-          oauthRefreshToken: data.refreshToken,
-          isDefault: true
-        })
-
-        console.log('[EmailAppsHub] Account created:', account)
-        toast.success('Microsoft email account connected!')
-
-        // Refresh accounts instead of full page reload
-        await refreshAccounts()
-      } catch (err) {
-        console.error('[EmailAppsHub] Failed to create Microsoft email account:', err)
-        toast.error('Failed to connect Microsoft account. Please try again.')
-      }
-    }
-
-    processPendingOAuth()
-  }, [accessToken, isOAuthCallback, refreshAccounts])
-
   // Auto-select inbox when folders load
   useEffect(() => {
     if (inboxFolder && !selectedFolderId) {
@@ -269,14 +195,12 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
   useEffect(() => {
     try {
       localStorage.setItem('email-hub-sidebar-collapsed', String(isSidebarCollapsed))
-    } catch {}
+    } catch {
+      // Ignore
+    }
   }, [isSidebarCollapsed])
 
-  // ============================================
-  // CONDITIONAL RENDERS (after all hooks)
-  // ============================================
-
-  // Show OAuth callback handler if we're processing a callback
+  // OAuth callback view
   if (isOAuthCallback) {
     return (
       <div className="gba:flex gba:h-full gba:bg-background gba:items-center gba:justify-center" data-testid={testId}>
@@ -285,10 +209,9 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
     )
   }
 
-  // Get current folder name
   const currentFolderName = folders.find(f => f.id === selectedFolderId)?.name || 'Inbox'
 
-  // If no accounts and done loading, show empty state
+  // Empty state: no accounts
   if (!isLoadingAccounts && accounts.length === 0) {
     return (
       <div className="gba:flex gba:h-full gba:bg-background" data-testid={testId}>
@@ -297,6 +220,7 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
           open={isAccountDialogOpen}
           onOpenChange={setIsAccountDialogOpen}
           onAccountCreated={refreshAccounts}
+          accessToken={accessToken}
         />
       </div>
     )
@@ -311,7 +235,7 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
         onSelectFolder={handleSelectFolder}
         onCompose={() => handleCompose('new')}
         onSync={handleSync}
-        onSettings={() => setIsAccountDialogOpen(true)}
+        onSettings={() => setIsManageDialogOpen(true)}
         onBack={handleBack}
         accounts={accounts}
         activeAccount={defaultAccount}
@@ -351,11 +275,24 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
         onSent={refreshMessages}
       />
 
+      {/* Account management dialog */}
+      <AccountManagementDialog
+        open={isManageDialogOpen}
+        onOpenChange={setIsManageDialogOpen}
+        accounts={accounts}
+        onAccountsChanged={refreshAccounts}
+        onAddAccount={() => {
+          setIsManageDialogOpen(false)
+          setIsAccountDialogOpen(true)
+        }}
+      />
+
       {/* Account setup dialog */}
       <AccountSetupDialog
         open={isAccountDialogOpen}
         onOpenChange={setIsAccountDialogOpen}
         onAccountCreated={refreshAccounts}
+        accessToken={accessToken}
       />
     </div>
   )

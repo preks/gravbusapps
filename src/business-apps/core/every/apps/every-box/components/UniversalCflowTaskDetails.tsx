@@ -663,7 +663,7 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
     (task.sourceMetadata as any)?.app === 'glossary-entry-request'
 
   if (isGlossaryRequestTask || (task.source === 'cflow' && hasGlossaryTag)) {
-    // Extract term and context from task tags, sourceMetadata tags, workflowMeta, or initial parameters
+    // Extract term and contextDescription from task tags, sourceMetadata tags, workflowMeta, or initial parameters
     const allTags = {
       ...task.tags,
       ...task.sourceMetadata?.tags,
@@ -672,7 +672,7 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
     }
     const term =
       allTags?.term || task.sourceMetadata?.initialParameters?.term || (task.sourceMetadata as any)?.term || ''
-    const context =
+    const contextDescription =
       allTags?.context || task.sourceMetadata?.initialParameters?.context || (task.sourceMetadata as any)?.context || ''
 
     // Get userInfo from task if available
@@ -692,7 +692,7 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
         additionalData={{
           psi_taskPayload: {
             term,
-            context,
+            context: contextDescription,
             requesterUserId: task.sourceMetadata?.flowInitiatedBy
           },
           psi_processMetadata: task.sourceMetadata,

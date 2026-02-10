@@ -6,6 +6,7 @@
  */
 
 import DOMPurify from 'dompurify'
+import JSZip from 'jszip'
 
 /**
  * Escape plain text for safe insertion into HTML text nodes / <title>
@@ -538,11 +539,356 @@ export async function exportToText(title: string, htmlContent: string): Promise<
   downloadBlob(blob, `${sanitizeFilename(title)}.txt`)
 }
 
+/**
+ * Export document to ODF format (.odt)
+ *
+ * Builds an ODF-compliant ZIP archive with content.xml, styles.xml,
+ * manifest, and mimetype. Uses JSZip for ZIP creation.
+ */
+export async function exportToOdt(title: string, htmlContent: string): Promise<void> {
+  const safeHtml = sanitizeHtmlForExport(htmlContent)
+  const odfContent = htmlToOdfXml(safeHtml)
+  const safeTitle = escapeHtmlText(title || 'Document')
+
+  const zip = new JSZip()
+
+  // mimetype MUST be first entry and uncompressed (ODF spec requirement)
+  zip.file('mimetype', 'application/vnd.oasis.opendocument.text', { compression: 'STORE' })
+
+  // META-INF/manifest.xml
+  zip.file(
+    'META-INF/manifest.xml',
+    `<?xml version="1.0" encoding="UTF-8"?>
+<manifest:manifest xmlns:manifest="urn:oasis:names:tc:opendocument:xmlns:manifest:1.0" manifest:version="1.2">
+  <manifest:file-entry manifest:full-path="/" manifest:version="1.2" manifest:media-type="application/vnd.oasis.opendocument.text"/>
+  <manifest:file-entry manifest:full-path="content.xml" manifest:media-type="text/xml"/>
+  <manifest:file-entry manifest:full-path="styles.xml" manifest:media-type="text/xml"/>
+  <manifest:file-entry manifest:full-path="meta.xml" manifest:media-type="text/xml"/>
+</manifest:manifest>`
+  )
+
+  // meta.xml
+  const now = new Date().toISOString()
+  zip.file(
+    'meta.xml',
+    `<?xml version="1.0" encoding="UTF-8"?>
+<office:document-meta xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+  xmlns:dc="http://purl.org/dc/elements/1.1/"
+  xmlns:meta="urn:oasis:names:tc:opendocument:xmlns:meta:1.0"
+  office:version="1.2">
+  <office:meta>
+    <dc:title>${safeTitle}</dc:title>
+    <dc:date>${now}</dc:date>
+    <meta:creation-date>${now}</meta:creation-date>
+    <meta:generator>NEWWORK Document Apps</meta:generator>
+  </office:meta>
+</office:document-meta>`
+  )
+
+  // styles.xml (basic document styles)
+  zip.file(
+    'styles.xml',
+    `<?xml version="1.0" encoding="UTF-8"?>
+<office:document-styles xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+  xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0"
+  xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0"
+  office:version="1.2">
+  <office:styles>
+    <style:default-style style:family="paragraph">
+      <style:paragraph-properties fo:margin-top="0cm" fo:margin-bottom="0.35cm"/>
+      <style:text-properties fo:font-family="'Times New Roman'" fo:font-size="12pt" fo:language="en" fo:country="US"/>
+    </style:default-style>
+    <style:style style:name="Heading_1" style:family="paragraph" style:class="text">
+      <style:text-properties fo:font-size="24pt" fo:font-weight="bold"/>
+    </style:style>
+    <style:style style:name="Heading_2" style:family="paragraph" style:class="text">
+      <style:text-properties fo:font-size="18pt" fo:font-weight="bold"/>
+    </style:style>
+    <style:style style:name="Heading_3" style:family="paragraph" style:class="text">
+      <style:text-properties fo:font-size="14pt" fo:font-weight="bold"/>
+    </style:style>
+  </office:styles>
+</office:document-styles>`
+  )
+
+  // content.xml
+  zip.file(
+    'content.xml',
+    `<?xml version="1.0" encoding="UTF-8"?>
+<office:document-content xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+  xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"
+  xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0"
+  xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0"
+  xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0"
+  xmlns:xlink="http://www.w3.org/1999/xlink"
+  office:version="1.2">
+  <office:automatic-styles>
+    <style:style style:name="Bold" style:family="text">
+      <style:text-properties fo:font-weight="bold"/>
+    </style:style>
+    <style:style style:name="Italic" style:family="text">
+      <style:text-properties fo:font-style="italic"/>
+    </style:style>
+    <style:style style:name="BoldItalic" style:family="text">
+      <style:text-properties fo:font-weight="bold" fo:font-style="italic"/>
+    </style:style>
+    <style:style style:name="Underline" style:family="text">
+      <style:text-properties style:text-underline-style="solid" style:text-underline-width="auto"/>
+    </style:style>
+    <style:style style:name="Strikethrough" style:family="text">
+      <style:text-properties style:text-line-through-style="solid"/>
+    </style:style>
+  </office:automatic-styles>
+  <office:body>
+    <office:text>
+${odfContent}
+    </office:text>
+  </office:body>
+</office:document-content>`
+  )
+
+  // Generate the ZIP and download
+  const blob = await zip.generateAsync({
+    type: 'blob',
+    mimeType: 'application/vnd.oasis.opendocument.text',
+    compression: 'DEFLATE',
+    compressionOptions: { level: 6 }
+  })
+
+  downloadBlob(blob, `${sanitizeFilename(title)}.odt`)
+}
+
+/**
+ * Convert HTML content to ODF XML elements.
+ * Maps common HTML tags to their ODF text:* equivalents.
+ */
+function htmlToOdfXml(html: string): string {
+  if (!html) return '      <text:p/>'
+
+  // Parse the HTML using a temporary DOM element
+  const tempDiv = document.createElement('div')
+  tempDiv.innerHTML = html
+
+  const odfParts: string[] = []
+  convertHtmlChildrenToOdf(tempDiv, odfParts, 6)
+
+  return odfParts.join('\n') || '      <text:p/>'
+}
+
+/**
+ * Recursively convert HTML children to ODF XML.
+ */
+function convertHtmlChildrenToOdf(parent: Node, parts: string[], indent: number): void {
+  const pad = ' '.repeat(indent)
+
+  for (let i = 0; i < parent.childNodes.length; i++) {
+    const node = parent.childNodes[i]
+
+    if (node.nodeType === Node.TEXT_NODE) {
+      const text = node.textContent?.trim()
+      if (text) {
+        parts.push(`${pad}<text:p>${escapeOdfText(text)}</text:p>`)
+      }
+    } else if (node.nodeType === Node.ELEMENT_NODE) {
+      const el = node as HTMLElement
+      const tag = el.tagName.toLowerCase()
+
+      switch (tag) {
+        case 'p': {
+          const content = convertInlineHtmlToOdf(el)
+          parts.push(`${pad}<text:p>${content}</text:p>`)
+          break
+        }
+        case 'h1':
+          parts.push(`${pad}<text:h text:outline-level="1">${convertInlineHtmlToOdf(el)}</text:h>`)
+          break
+        case 'h2':
+          parts.push(`${pad}<text:h text:outline-level="2">${convertInlineHtmlToOdf(el)}</text:h>`)
+          break
+        case 'h3':
+          parts.push(`${pad}<text:h text:outline-level="3">${convertInlineHtmlToOdf(el)}</text:h>`)
+          break
+        case 'h4':
+          parts.push(`${pad}<text:h text:outline-level="4">${convertInlineHtmlToOdf(el)}</text:h>`)
+          break
+        case 'h5':
+          parts.push(`${pad}<text:h text:outline-level="5">${convertInlineHtmlToOdf(el)}</text:h>`)
+          break
+        case 'h6':
+          parts.push(`${pad}<text:h text:outline-level="6">${convertInlineHtmlToOdf(el)}</text:h>`)
+          break
+        case 'ul':
+        case 'ol':
+          convertHtmlListToOdf(el, parts, indent)
+          break
+        case 'table':
+          convertHtmlTableToOdf(el, parts, indent)
+          break
+        case 'blockquote': {
+          // Convert blockquote paragraphs as indented text
+          const bqChildren = el.querySelectorAll('p')
+          if (bqChildren.length > 0) {
+            bqChildren.forEach(p => {
+              parts.push(`${pad}<text:p>${convertInlineHtmlToOdf(p)}</text:p>`)
+            })
+          } else {
+            parts.push(`${pad}<text:p>${convertInlineHtmlToOdf(el)}</text:p>`)
+          }
+          break
+        }
+        case 'br':
+          // Line break within a paragraph context gets handled by inline converter
+          break
+        case 'hr':
+          parts.push(`${pad}<text:p/>`)
+          break
+        case 'div':
+          // Recurse into div wrappers
+          convertHtmlChildrenToOdf(el, parts, indent)
+          break
+        default:
+          // For unknown block elements, try to convert as paragraph
+          if (el.textContent?.trim()) {
+            parts.push(`${pad}<text:p>${convertInlineHtmlToOdf(el)}</text:p>`)
+          }
+          break
+      }
+    }
+  }
+}
+
+/**
+ * Convert inline HTML content to ODF inline elements.
+ */
+function convertInlineHtmlToOdf(element: HTMLElement): string {
+  let result = ''
+
+  for (let i = 0; i < element.childNodes.length; i++) {
+    const node = element.childNodes[i]
+
+    if (node.nodeType === Node.TEXT_NODE) {
+      result += escapeOdfText(node.textContent || '')
+    } else if (node.nodeType === Node.ELEMENT_NODE) {
+      const el = node as HTMLElement
+      const tag = el.tagName.toLowerCase()
+
+      switch (tag) {
+        case 'strong':
+        case 'b':
+          result += `<text:span text:style-name="Bold">${convertInlineHtmlToOdf(el)}</text:span>`
+          break
+        case 'em':
+        case 'i':
+          result += `<text:span text:style-name="Italic">${convertInlineHtmlToOdf(el)}</text:span>`
+          break
+        case 'u':
+          result += `<text:span text:style-name="Underline">${convertInlineHtmlToOdf(el)}</text:span>`
+          break
+        case 's':
+        case 'del':
+        case 'strike':
+          result += `<text:span text:style-name="Strikethrough">${convertInlineHtmlToOdf(el)}</text:span>`
+          break
+        case 'a': {
+          const href = el.getAttribute('href') || ''
+          result += `<text:a xlink:type="simple" xlink:href="${escapeOdfText(href)}">${convertInlineHtmlToOdf(el)}</text:a>`
+          break
+        }
+        case 'br':
+          result += '<text:line-break/>'
+          break
+        case 'span':
+          // Pass through spans, converting children
+          result += convertInlineHtmlToOdf(el)
+          break
+        default:
+          result += convertInlineHtmlToOdf(el)
+          break
+      }
+    }
+  }
+
+  return result
+}
+
+/**
+ * Convert an HTML list to ODF.
+ */
+function convertHtmlListToOdf(listEl: HTMLElement, parts: string[], indent: number): void {
+  const pad = ' '.repeat(indent)
+  parts.push(`${pad}<text:list>`)
+
+  const items = listEl.querySelectorAll(':scope > li')
+  items.forEach(li => {
+    parts.push(`${pad}  <text:list-item>`)
+
+    // Convert paragraphs inside the list item
+    const paragraphs = li.querySelectorAll(':scope > p')
+    if (paragraphs.length > 0) {
+      paragraphs.forEach(p => {
+        parts.push(`${pad}    <text:p>${convertInlineHtmlToOdf(p as HTMLElement)}</text:p>`)
+      })
+    } else {
+      // No <p> wrapper, treat direct text content
+      parts.push(`${pad}    <text:p>${convertInlineHtmlToOdf(li as HTMLElement)}</text:p>`)
+    }
+
+    // Handle nested lists
+    const nestedLists = li.querySelectorAll(':scope > ul, :scope > ol')
+    nestedLists.forEach(nested => {
+      convertHtmlListToOdf(nested as HTMLElement, parts, indent + 4)
+    })
+
+    parts.push(`${pad}  </text:list-item>`)
+  })
+
+  parts.push(`${pad}</text:list>`)
+}
+
+/**
+ * Convert an HTML table to ODF.
+ */
+function convertHtmlTableToOdf(tableEl: HTMLElement, parts: string[], indent: number): void {
+  const pad = ' '.repeat(indent)
+  parts.push(`${pad}<table:table>`)
+
+  const rows = tableEl.querySelectorAll('tr')
+  rows.forEach(row => {
+    parts.push(`${pad}  <table:table-row>`)
+
+    const cells = row.querySelectorAll('td, th')
+    cells.forEach(cell => {
+      const colspan = cell.getAttribute('colspan')
+      const spanAttr = colspan ? ` table:number-columns-spanned="${colspan}"` : ''
+      parts.push(
+        `${pad}    <table:table-cell${spanAttr}><text:p>${convertInlineHtmlToOdf(cell as HTMLElement)}</text:p></table:table-cell>`
+      )
+    })
+
+    parts.push(`${pad}  </table:table-row>`)
+  })
+
+  parts.push(`${pad}</table:table>`)
+}
+
+/**
+ * Escape text for use in ODF XML.
+ */
+function escapeOdfText(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;')
+}
+
 export default {
   exportToWord,
   exportToPDF,
   exportToHTML,
   exportToText,
+  exportToOdt,
   prepareContentForExport,
   jsonToHtml
 }

@@ -137,6 +137,7 @@ export interface TaskSectionProps extends BusinessAppContextProps {
   taskEntityActionProps?: Omit<AppActionCommonProps, 'accessToken'>
   sectionTitle?: string
   buildReferenceUrl?: (reference: TaskReference) => string
+  refetch?: () => void
 }
 
 const TaskSection: React.FC<TaskSectionProps> = ({
@@ -145,6 +146,7 @@ const TaskSection: React.FC<TaskSectionProps> = ({
   additionalData,
   tasks: rawTasks,
   taskEntityActionProps,
+  refetch,
   buildReferenceUrl
 }) => {
   const { statusMap, ensureStatus, statusVersion } = useEnvelopeStatusCache(accessToken)
@@ -654,6 +656,7 @@ const TaskSection: React.FC<TaskSectionProps> = ({
         currentUserId={userInfo?.id}
         businessAppContext={businessAppContext}
         flowContext={taskEntityActionProps?.contextsArray?.[0]}
+        onTaskCompleted={() => refetch?.()}
       />
 
       {/* DocuSign Modal (from list actions) */}

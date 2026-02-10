@@ -111,7 +111,7 @@ type SuccessState = {
 
 type EmployeeDetailsState = typeof loadingState | ErrorState | SuccessState
 
-const idToProfileUrl = (id: string) => `/platform/employee-record?tab=summary&employeeId=${id}`
+const idToProfileUrl = (id: string) => `/platform/employee-record?tab=assets&employeeId=${id}`
 
 // In-memory cache for employee details to prevent duplicate requests
 const employeeCache = new Map<string, { data: SuccessState; timestamp: number }>()

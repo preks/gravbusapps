@@ -63,6 +63,24 @@ export const getDocumentIcon = ({
     return <FileText className={`${baseClass} gba:text-[var(--nw-info)]`} size={size} />
   }
 
+  // ODF documents (OpenDocument Format)
+  if (
+    fileName.endsWith('.odt') ||
+    fileName.endsWith('.ods') ||
+    fileName.endsWith('.odp') ||
+    fileName.endsWith('.odg') ||
+    fileName.endsWith('.odf') ||
+    fileName.endsWith('.ott') ||
+    mime.includes('opendocument.text') ||
+    mime.includes('opendocument.spreadsheet') ||
+    mime.includes('opendocument.presentation')
+  ) {
+    if (fileName.endsWith('.ods') || mime.includes('opendocument.spreadsheet')) {
+      return <FileSpreadsheet className={`${baseClass} gba:text-[var(--nw-chart-4)]`} size={size} />
+    }
+    return <FileText className={`${baseClass} gba:text-[var(--nw-chart-4)]`} size={size} />
+  }
+
   // Excel files
   if (
     fileName.endsWith('.xls') ||
