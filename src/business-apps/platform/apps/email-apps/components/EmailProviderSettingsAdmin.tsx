@@ -98,16 +98,33 @@ export const EmailProviderSettingsAdmin: React.FC<EmailProviderSettingsAdminProp
   }, [activeProvider, settings])
 
   const handleSave = useCallback(async () => {
+    if (activeProvider !== 'imap_smtp' && isEnabled) {
+      const missing: string[] = []
+
+      if (!clientId.trim()) missing.push('Client ID')
+      if (activeProvider === 'microsoft' && !authority.trim()) missing.push('Authority (Tenant)')
+      if (!scopes.trim()) missing.push('OAuth scopes')
+
+      const existing = settings.find(s => s.provider === activeProvider)
+      const hasSecret = !!existing?.hasClientSecret
+      if (!hasSecret && !clientSecret.trim()) missing.push('Client Secret')
+
+      if (missing.length > 0) {
+        toast.error(`Missing required settings: ${missing.join(', ')}`)
+        return
+      }
+    }
+
     setIsSaving(true)
     try {
       const publicConfig: Record<string, unknown> = {}
       const privateConfig: Record<string, unknown> = {}
 
       if (activeProvider !== 'imap_smtp') {
-        if (clientId) publicConfig.clientId = clientId
-        if (scopes) publicConfig.scopes = scopes
-        if (activeProvider === 'microsoft' && authority) publicConfig.authority = authority
-        if (clientSecret) privateConfig.clientSecret = clientSecret
+        if (clientId.trim()) publicConfig.clientId = clientId.trim()
+        if (scopes.trim()) publicConfig.scopes = scopes.trim()
+        if (activeProvider === 'microsoft' && authority.trim()) publicConfig.authority = authority.trim()
+        if (clientSecret.trim()) privateConfig.clientSecret = clientSecret.trim()
       } else {
         if (defaultImapHost) publicConfig.defaultImapHost = defaultImapHost
         if (defaultImapPort) publicConfig.defaultImapPort = defaultImapPort
