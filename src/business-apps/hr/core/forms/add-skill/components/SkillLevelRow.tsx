@@ -27,7 +27,9 @@ export const SkillLevelRow: React.FC<SkillLevelRowProps> = ({
   index,
   rowId
 }) => {
-  const suffix = rowId ? `-${rowId}` : index !== undefined ? `-${index}` : ''
+  let suffix = ''
+  if (rowId) suffix = `-${rowId}`
+  else if (index !== undefined) suffix = `-${index}`
   return (
     <div
       className="gba:border gba:border-border gba:rounded-md gba:p-4"

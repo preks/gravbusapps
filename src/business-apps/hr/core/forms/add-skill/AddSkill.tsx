@@ -69,10 +69,10 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = () => {
     ).map(s => {
       let level = 1
       if (s.level !== null && s.level !== undefined) {
-        const parsed = typeof s.level === 'string' ? parseInt(s.level, 10) : s.level
-        level = isNaN(parsed) ? 1 : Math.max(1, Math.min(10, parsed))
+        const parsed = typeof s.level === 'string' ? Number.parseInt(s.level, 10) : s.level
+        level = Number.isNaN(parsed) ? 1 : Math.max(1, Math.min(10, parsed))
       }
-      return { id: (s.skill?.id || '') as string, name: (s.skill?.name || '') as string, isNew: false, level }
+      return { id: s.skill?.id || '', name: s.skill?.name || '', isNew: false, level }
     })
     const deduped: Record<string, { id: string; name: string; isNew: boolean; level: number }> = {}
     existing.forEach(s => {
@@ -88,15 +88,15 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = () => {
   const blurTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   const isSubmitDisabled = useMemo(() => {
-    const initialSkills = (employee?.skills || []) as Array<{ skill?: { id: string }; level?: string | number | null }>
+    const initialSkills = employee?.skills ?? []
     const initialSkillMap = new Map<string, number>()
-    initialSkills.forEach(s => {
+    initialSkills.forEach((s: { skill?: { id: string }; level?: string | number | null }) => {
       const skillId = s.skill?.id
       if (skillId) {
         let level = 1
         if (s.level !== null && s.level !== undefined) {
-          const parsed = typeof s.level === 'string' ? parseInt(s.level, 10) : s.level
-          level = isNaN(parsed) ? 1 : Math.max(1, Math.min(10, parsed))
+          const parsed = typeof s.level === 'string' ? Number.parseInt(s.level, 10) : s.level
+          level = Number.isNaN(parsed) ? 1 : Math.max(1, Math.min(10, parsed))
         }
         initialSkillMap.set(skillId, level)
       }
@@ -151,7 +151,7 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = () => {
   }, [searchTerm, searchSkills])
 
   const handleSelectSkill = (sk: { id: string; name: string }) => {
-    setPendingSkills(prev => (prev.find(x => x.id === sk.id) ? prev : [...prev, { ...sk, level: 1 }]))
+    setPendingSkills(prev => (prev.some(x => x.id === sk.id) ? prev : [...prev, { ...sk, level: 1 }]))
     suppressOpenRef.current = true
     searchSeqRef.current += 1
     setIsDropdownOpen(false)
@@ -187,7 +187,7 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = () => {
       setPendingSkills(prev =>
         prev.map(s => {
           const resolved = fetched.find(r => r.name.toLowerCase() === s.name.toLowerCase())
-          return resolved ? { id: resolved.id, name: resolved.name, level: s.level } : s
+          return resolved !== undefined ? { id: resolved.id, name: resolved.name, level: s.level } : s
         })
       )
     } catch (e) {
@@ -212,18 +212,22 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = () => {
   const handleRemoveSkill = (id: string) => setSelectedSkills(prev => prev.filter(s => s.id !== id))
   const handleRemovePendingSkill = (id: string) => setPendingSkills(prev => prev.filter(s => s.id !== id))
 
-  const handleSearchBlur = useCallback((e: React.FocusEvent<HTMLInputElement>) => {
-    blurTimeoutRef.current = setTimeout(() => {
-      const relatedTarget = e.relatedTarget as HTMLElement
-      if (
-        dropdownRef.current &&
-        (dropdownRef.current.contains(relatedTarget) ||
-          relatedTarget?.closest('[data-testid="add-skill-search-dropdown"]'))
-      )
-        return
-      setIsDropdownOpen(false)
-    }, 150)
+  const runBlurCloseCheck = useCallback((relatedTarget: HTMLElement | null) => {
+    if (
+      dropdownRef.current &&
+      (dropdownRef.current.contains(relatedTarget) ||
+        relatedTarget?.closest('[data-testid="add-skill-search-dropdown"]'))
+    )
+      return
+    setIsDropdownOpen(false)
   }, [])
+
+  const handleSearchBlur = useCallback(
+    (e: React.FocusEvent<HTMLInputElement>) => {
+      blurTimeoutRef.current = setTimeout(() => runBlurCloseCheck(e.relatedTarget as HTMLElement), 150)
+    },
+    [runBlurCloseCheck]
+  )
 
   const handleSearchFocus = useCallback(() => {
     if (blurTimeoutRef.current) {
@@ -265,7 +269,7 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = () => {
 
   const handleAddPendingSkillToEmployee = (pendingSkill: { id: string; name: string; level: number }) => {
     setSelectedSkills(prev =>
-      prev.find(x => x.id === pendingSkill.id)
+      prev.some(x => x.id === pendingSkill.id)
         ? prev
         : [...prev, { id: pendingSkill.id, name: pendingSkill.name, isNew: false, level: pendingSkill.level }]
     )
@@ -406,7 +410,7 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = () => {
                       levelContent={
                         <Select
                           value={skill.level.toString()}
-                          onValueChange={value => handleUpdatePendingSkillLevel(skill.id, parseInt(value, 10))}
+                          onValueChange={value => handleUpdatePendingSkillLevel(skill.id, Number.parseInt(value, 10))}
                           data-testid={`skill-level-select-${skill.id}`}
                         >
                           <SelectTrigger className="gba:w-20" size="sm">
@@ -468,7 +472,7 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = () => {
                       levelContent={
                         <Select
                           value={(skill.level || 1).toString()}
-                          onValueChange={value => handleUpdateExistingSkillLevel(skill.id, parseInt(value, 10))}
+                          onValueChange={value => handleUpdateExistingSkillLevel(skill.id, Number.parseInt(value, 10))}
                           data-testid={`skill-level-select-${skill.id}`}
                         >
                           <SelectTrigger className="gba:w-20" size="sm">
