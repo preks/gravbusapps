@@ -100,9 +100,14 @@ function getCellValue(row: Record<string, unknown>, column: SpreadsheetColumn): 
     }
   }
 
-  // Handle FortuneSheet cell objects - extract raw value
-  if (value && typeof value === 'object' && !Array.isArray(value) && 'v' in (value as Record<string, unknown>)) {
-    return (value as Record<string, unknown>).v
+  // Handle FortuneSheet cell objects - preserve full object when it contains a formula
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    if ('f' in (value as Record<string, unknown>)) {
+      return value
+    }
+    if ('v' in (value as Record<string, unknown>)) {
+      return (value as Record<string, unknown>).v
+    }
   }
 
   // Handle any other objects by returning empty string to prevent crashes
@@ -111,6 +116,10 @@ function getCellValue(row: Record<string, unknown>, column: SpreadsheetColumn): 
   }
 
   return value
+}
+
+function isFortuneSheetCellValue(value: unknown): value is FortuneSheetCell {
+  return !!value && typeof value === 'object' && !Array.isArray(value) && ('f' in value || 'v' in value)
 }
 
 /**
@@ -166,7 +175,14 @@ export function convertToFortuneSheet(
       const isFormula = column.type === 'calculated' && column.formula
 
       let cell: FortuneSheetCell
-      if (isFormula && column.formula) {
+      if (isFortuneSheetCellValue(value)) {
+        cell = value
+        celldata.push({
+          r: rowIndex,
+          c: colIndex,
+          v: cell
+        })
+      } else if (isFormula && column.formula) {
         // Formula cell - FortuneSheet will evaluate it
         cell = {
           f: column.formula.startsWith('=') ? column.formula : `=${column.formula}`,
@@ -383,31 +399,41 @@ export function convertFromFortuneSheet(
         return
       }
 
-      // Extract value - prefer calculated result over stored value for formulas
+      // Extract value - preserve formulas as full cell objects
       let value: unknown
       if (cell.f) {
-        // Formula cell - use the calculated value (v) if available
-        value = cell.v
+        value = {
+          v: cell.v,
+          f: cell.f,
+          m: cell.m,
+          ct: cell.ct
+        }
       } else {
         value = cell.v
       }
 
-      // Convert based on column type
-      switch (column.type) {
-        case 'number':
-        case 'currency':
-        case 'percentage':
-          row[column.id] = typeof value === 'number' ? value : parseFloat(String(value ?? '0'))
-          break
-        case 'boolean':
-          row[column.id] = Boolean(value)
-          break
-        case 'date':
-        case 'datetime':
-          row[column.id] = value
-          break
-        default:
-          row[column.id] = value
+      // Formula cell objects must be preserved as-is regardless of column type
+      // so that formulas survive round-trip serialisation.
+      if (cell.f) {
+        row[column.id] = value
+      } else {
+        // Convert based on column type
+        switch (column.type) {
+          case 'number':
+          case 'currency':
+          case 'percentage':
+            row[column.id] = typeof value === 'number' ? value : parseFloat(String(value ?? '0'))
+            break
+          case 'boolean':
+            row[column.id] = Boolean(value)
+            break
+          case 'date':
+          case 'datetime':
+            row[column.id] = value
+            break
+          default:
+            row[column.id] = value
+        }
       }
 
       // Also set by column name for compatibility

@@ -123,7 +123,21 @@ interface PaginatedResponse<T> {
   totalPages: number
 }
 
-type SpreadsheetRowData = Record<string, unknown> & {
+/**
+ * Cell value stored in a spreadsheet row.
+ * Plain scalars (string, number, boolean, null) represent regular values.
+ * Objects with `f` represent formula cells that preserve formula metadata.
+ */
+type SpreadsheetCellObject = {
+  v?: unknown
+  f?: string
+  m?: string
+  ct?: Record<string, unknown>
+}
+
+type SpreadsheetCellValue = string | number | boolean | null | SpreadsheetCellObject
+
+type SpreadsheetRowData = Record<string, SpreadsheetCellValue> & {
   _clientRowId?: string
 }
 
