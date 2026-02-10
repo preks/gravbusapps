@@ -119,7 +119,8 @@ const BenefitCatalogCard: React.FC<BenefitCatalogCardProps> = ({
   const isScheduled = benefit.isScheduled
   const cardClassName = [
     getCardClassName(),
-    isScheduled ? 'gba:flex gba:flex-col gba:h-full gba:w-full gba:min-h-0' : ''
+    'gba:w-full',
+    isScheduled ? 'gba:flex gba:flex-col gba:h-full gba:min-h-0' : ''
   ]
     .filter(Boolean)
     .join(' ')
