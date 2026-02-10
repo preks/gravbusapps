@@ -597,7 +597,8 @@ export const SpreadsheetApiService = {
   // ============ Rows ============
 
   /**
-   * Get rows for a sheet
+   * Get rows for a sheet.
+   * Automatically paginates through all pages to ensure every row is loaded.
    */
   async getRows(
     appId: string,
@@ -605,31 +606,52 @@ export const SpreadsheetApiService = {
     options?: { page?: number; limit?: number }
   ): Promise<Array<Record<string, unknown>>> {
     try {
-      const params = new URLSearchParams()
-      if (options?.page) params.set('page', options.page.toString())
-      if (options?.limit) params.set('limit', options.limit.toString())
+      const pageSize = options?.limit ?? 100
+      let currentPage = options?.page ?? 1
+      const allRows: Array<Record<string, unknown>> = []
 
-      const queryString = params.toString()
-      const endpoint = `/spreadsheets/${appId}/sheets/${sheetId}/rows${queryString ? `?${queryString}` : ''}`
+      // Fetch pages until all rows are loaded
 
-      debugLog('getRows', endpoint)
+      while (true) {
+        const params = new URLSearchParams()
+        params.set('page', currentPage.toString())
+        params.set('limit', pageSize.toString())
 
-      const response = await apiRequest<PaginatedResponse<Record<string, unknown>>>(endpoint)
-      return response.items.map(row => {
-        const rowData = (((row as Record<string, unknown>).data as Record<string, unknown>) || {}) as SpreadsheetRowData
-        const clientRowId = rowData._clientRowId
-        if (clientRowId) {
+        const queryString = params.toString()
+        const endpoint = `/spreadsheets/${appId}/sheets/${sheetId}/rows?${queryString}`
+
+        debugLog('getRows', endpoint)
+
+        const response = await apiRequest<PaginatedResponse<Record<string, unknown>>>(endpoint)
+
+        const pageRows = response.items.map(row => {
+          const rowData = (((row as Record<string, unknown>).data as Record<string, unknown>) ||
+            {}) as SpreadsheetRowData
+          const clientRowId = rowData._clientRowId
+          if (clientRowId) {
+            return {
+              ...rowData,
+              _id: clientRowId,
+              _rowUuid: (row as Record<string, unknown>).id as string
+            }
+          }
           return {
             ...rowData,
-            _id: clientRowId,
-            _rowUuid: (row as Record<string, unknown>).id as string
+            _id: (row as Record<string, unknown>).id as string
           }
-        }
-        return {
-          ...rowData,
-          _id: (row as Record<string, unknown>).id as string
-        }
-      })
+        })
+
+        allRows.push(...pageRows)
+
+        // If we fetched a specific page (caller passed page option), return just that page
+        if (options?.page) break
+
+        // Otherwise, keep fetching until we have all pages
+        if (currentPage >= (response.totalPages || 1)) break
+        currentPage++
+      }
+
+      return allRows
     } catch (error) {
       console.error('Failed to get rows:', error)
       return []

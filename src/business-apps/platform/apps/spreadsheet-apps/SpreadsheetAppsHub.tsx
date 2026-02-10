@@ -405,11 +405,31 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
 
   const handleSaveApp = useCallback(
     async (updatedApp: SpreadsheetApp) => {
+      // 1. Save app-level properties (name, description, icon, status, settings)
       await updateApp(updatedApp.id, updatedApp)
+
+      // 2. Save sheet-level changes (columns, views, settings) via updateSheet.
+      //    updateApp strips sheets from the payload, so we must persist
+      //    sheet changes separately through the sheet-level API.
+      if (updatedApp.sheets) {
+        for (const sheet of updatedApp.sheets) {
+          await updateSheet(updatedApp.id, sheet.id, {
+            name: sheet.name,
+            description: sheet.description,
+            columns: sheet.columns,
+            views: sheet.views,
+            settings: sheet.settings
+          })
+        }
+      }
+
+      // 3. Reload the full app so the viewer gets fresh data (including rows)
+      await loadApp(updatedApp.id)
+
       setCurrentView('viewer')
       updateUrl(updatedApp.id, 'viewer', updatedApp.filePath)
     },
-    [updateApp, updateUrl]
+    [updateApp, updateSheet, loadApp, updateUrl]
   )
 
   const handleDeleteApp = useCallback(
