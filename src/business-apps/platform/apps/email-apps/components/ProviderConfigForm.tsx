@@ -3,12 +3,21 @@
  * Renders input fields for client credentials, scopes, and server settings.
  */
 
-import React from 'react'
+import React, { useMemo } from 'react'
 import { Button, Input, Badge, Switch } from '@newwork/nw-design-system'
 import { Eye, EyeOff } from 'lucide-react'
 import type { AdminProviderConfig } from '../services/EmailProviderSettingsApi'
 import type { ProviderKey, ProviderGuide } from './permissionGuideConfig'
 import { ProviderPermissionGuide } from './ProviderPermissionGuide'
+
+const OIDC_SCOPES = new Set(['openid', 'profile', 'email', 'offline_access'])
+
+function normalizeMicrosoftScopeForAdminConsent(scope: string): string {
+  if (scope.includes('://')) return scope
+  if (OIDC_SCOPES.has(scope)) return scope
+  if (scope.startsWith('EWS.')) return `https://outlook.office365.com/${scope}`
+  return `https://graph.microsoft.com/${scope}`
+}
 
 export interface ProviderConfigFormProps {
   activeProvider: ProviderKey
@@ -67,6 +76,33 @@ export const ProviderConfigForm: React.FC<ProviderConfigFormProps> = ({
   isSaving,
   testId
 }) => {
+  const microsoftAdminConsentUrl = useMemo(() => {
+    if (activeProvider !== 'microsoft') return null
+
+    const cid = clientId.trim()
+    const auth = authority.trim()
+    const rawScopes = scopes.trim()
+
+    if (!cid || !auth || !rawScopes) return null
+
+    const redirectUri = typeof window !== 'undefined' ? `${window.location.origin}/platform/mail/oauth/callback` : ''
+
+    const normalizedScopes = rawScopes
+      .split(/\s+/)
+      .filter(Boolean)
+      .map(normalizeMicrosoftScopeForAdminConsent)
+      .join(' ')
+
+    const params = new URLSearchParams({
+      client_id: cid,
+      redirect_uri: redirectUri,
+      scope: normalizedScopes,
+      state: 'nw-email-admin-consent'
+    })
+
+    return `https://login.microsoftonline.com/${auth}/v2.0/adminconsent?${params.toString()}`
+  }, [activeProvider, clientId, authority, scopes])
+
   return (
     <div className="gba:space-y-4">
       {/* Enable toggle */}
@@ -153,6 +189,43 @@ export const ProviderConfigForm: React.FC<ProviderConfigFormProps> = ({
               Space-separated list of OAuth scopes. Defaults include email and calendar read.
             </p>
           </div>
+
+          {activeProvider === 'microsoft' && microsoftAdminConsentUrl && (
+            <div className="gba:space-y-2">
+              <label className="gba:text-sm gba:font-medium gba:text-foreground gba:mb-1 gba:block">
+                Admin consent URL (optional)
+              </label>
+              <div className="gba:flex gba:gap-2">
+                <Input value={microsoftAdminConsentUrl} readOnly data-testid={`${testId}-ms-admin-consent-url`} />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => window.open(microsoftAdminConsentUrl, '_blank', 'noopener,noreferrer')}
+                  data-testid={`${testId}-ms-admin-consent-open`}
+                >
+                  Open
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(microsoftAdminConsentUrl)
+                    } catch {
+                      // ignore clipboard failures; URL is still visible for manual copy
+                    }
+                  }}
+                  data-testid={`${testId}-ms-admin-consent-copy`}
+                >
+                  Copy
+                </Button>
+              </div>
+              <p className="gba:text-xs gba:text-muted-foreground">
+                If users see “Need admin approval”, an admin can open this link to grant consent for the configured
+                scopes in the selected tenant.
+              </p>
+            </div>
+          )}
         </>
       )}
 
