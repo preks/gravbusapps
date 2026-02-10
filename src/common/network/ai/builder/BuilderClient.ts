@@ -5,7 +5,7 @@
  * Handles sessions, chat history, admin configuration, and publishing.
  */
 
-import { AI_BUILDER_API_URL } from '@/common/utils/serviceUrl'
+import { AI_BUILDER_API_URL } from '@/common/utils/serviceResolver'
 
 // ============================================================================
 // Types
