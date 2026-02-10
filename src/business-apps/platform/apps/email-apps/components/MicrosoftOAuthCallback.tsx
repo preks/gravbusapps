@@ -7,6 +7,7 @@
 
 import React, { useEffect, useState } from 'react'
 import { Loader2, CheckCircle, XCircle } from 'lucide-react'
+import { Button } from '@newwork/nw-design-system'
 import { EmailProviderSettingsApi } from '../services/EmailProviderSettingsApi'
 
 /** Remove all OAuth-related sessionStorage keys */
@@ -16,6 +17,13 @@ function cleanupOAuthStorage() {
     'ms_oauth_state',
     'ms_oauth_code',
     'ms_oauth_callback_state',
+    'ms_oauth_error',
+    'ms_oauth_error_description',
+    'ms_oauth_error_codes',
+    'ms_oauth_correlation_id',
+    'ms_oauth_trace_id',
+    'ms_oauth_timestamp',
+    'ms_oauth_debug',
     'google_oauth_verifier',
     'google_oauth_state'
   ]
@@ -31,6 +39,7 @@ interface MicrosoftOAuthCallbackProps {
 export const MicrosoftOAuthCallback: React.FC<MicrosoftOAuthCallbackProps> = ({ onSuccess, onError, accessToken }) => {
   const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing')
   const [errorMessage, setErrorMessage] = useState('')
+  const [oauthDebug, setOauthDebug] = useState<{ clientId?: string; authority?: string; scopes?: string } | null>(null)
   const [diagnostics, setDiagnostics] = useState<{
     error?: string | null
     errorDescription?: string | null
@@ -45,17 +54,32 @@ export const MicrosoftOAuthCallback: React.FC<MicrosoftOAuthCallbackProps> = ({ 
     const queryParams = new URLSearchParams(window.location.search)
     const hashParams = window.location.hash ? new URLSearchParams(window.location.hash.substring(1)) : null
 
-    // Check for error in URL (query or hash)
-    const error = queryParams.get('error') || hashParams?.get('error')
-    const errorDescription = queryParams.get('error_description') || hashParams?.get('error_description')
-    const errorCodes = queryParams.get('error_codes') || hashParams?.get('error_codes')
-    const correlationId = queryParams.get('correlation_id') || hashParams?.get('correlation_id')
-    const traceId = queryParams.get('trace_id') || hashParams?.get('trace_id')
-    const timestamp = queryParams.get('timestamp') || hashParams?.get('timestamp')
+    // Check for error in URL (query or hash), with sessionStorage fallback
+    const error = queryParams.get('error') || hashParams?.get('error') || sessionStorage.getItem('ms_oauth_error')
+    const errorDescription =
+      queryParams.get('error_description') ||
+      hashParams?.get('error_description') ||
+      sessionStorage.getItem('ms_oauth_error_description')
+    const errorCodes =
+      queryParams.get('error_codes') || hashParams?.get('error_codes') || sessionStorage.getItem('ms_oauth_error_codes')
+    const correlationId =
+      queryParams.get('correlation_id') ||
+      hashParams?.get('correlation_id') ||
+      sessionStorage.getItem('ms_oauth_correlation_id')
+    const traceId =
+      queryParams.get('trace_id') || hashParams?.get('trace_id') || sessionStorage.getItem('ms_oauth_trace_id')
+    const timestamp =
+      queryParams.get('timestamp') || hashParams?.get('timestamp') || sessionStorage.getItem('ms_oauth_timestamp')
 
     if (error) {
       setStatus('error')
       setErrorMessage(errorDescription || error)
+      try {
+        const raw = sessionStorage.getItem('ms_oauth_debug')
+        setOauthDebug(raw ? (JSON.parse(raw) as { clientId?: string; authority?: string; scopes?: string }) : null)
+      } catch {
+        setOauthDebug(null)
+      }
       setDiagnostics({
         error,
         errorDescription,
@@ -188,7 +212,39 @@ export const MicrosoftOAuthCallback: React.FC<MicrosoftOAuthCallbackProps> = ({ 
             </pre>
           </div>
         )}
-        <p className="gba:text-xs gba:text-muted-foreground gba:mt-4">Redirecting back...</p>
+        {oauthDebug && (oauthDebug.clientId || oauthDebug.authority || oauthDebug.scopes) && (
+          <div className="gba:w-full gba:max-w-xl gba:mt-4 gba:p-3 gba:rounded-md gba:border gba:bg-card">
+            <p className="gba:text-xs gba:font-medium gba:text-foreground gba:mb-2">
+              OAuth request config (share with admin)
+            </p>
+            <pre className="gba:text-[11px] gba:text-muted-foreground gba:whitespace-pre-wrap gba:break-words">
+              {[
+                oauthDebug.clientId ? `client_id: ${oauthDebug.clientId}` : null,
+                oauthDebug.authority ? `authority: ${oauthDebug.authority}` : null,
+                oauthDebug.scopes ? `scope: ${oauthDebug.scopes}` : null
+              ]
+                .filter(Boolean)
+                .join('\n')}
+            </pre>
+          </div>
+        )}
+        <div className="gba:mt-6">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              cleanupOAuthStorage()
+              window.history.replaceState({}, '', '/platform/mail')
+              window.location.href = '/platform/mail'
+            }}
+            data-testid="oauth-error-back"
+          >
+            Back to mail
+          </Button>
+        </div>
+        <p className="gba:text-xs gba:text-muted-foreground gba:mt-4">
+          You can return to mail after copying diagnostics.
+        </p>
       </div>
     )
   }

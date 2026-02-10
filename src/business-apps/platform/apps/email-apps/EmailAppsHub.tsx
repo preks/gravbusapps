@@ -32,10 +32,25 @@ import type { EmailMessage, ComposeMode } from './types'
 
     const code = searchParams.get('code') || hashParams?.get('code')
     const state = searchParams.get('state') || hashParams?.get('state')
+    const error = searchParams.get('error') || hashParams?.get('error')
+    const errorDescription = searchParams.get('error_description') || hashParams?.get('error_description')
+    const errorCodes = searchParams.get('error_codes') || hashParams?.get('error_codes')
+    const correlationId = searchParams.get('correlation_id') || hashParams?.get('correlation_id')
+    const traceId = searchParams.get('trace_id') || hashParams?.get('trace_id')
+    const timestamp = searchParams.get('timestamp') || hashParams?.get('timestamp')
 
     if (code && state) {
       sessionStorage.setItem('ms_oauth_code', code)
       sessionStorage.setItem('ms_oauth_callback_state', state)
+    }
+
+    if (error) {
+      sessionStorage.setItem('ms_oauth_error', error)
+      if (errorDescription) sessionStorage.setItem('ms_oauth_error_description', errorDescription)
+      if (errorCodes) sessionStorage.setItem('ms_oauth_error_codes', errorCodes)
+      if (correlationId) sessionStorage.setItem('ms_oauth_correlation_id', correlationId)
+      if (traceId) sessionStorage.setItem('ms_oauth_trace_id', traceId)
+      if (timestamp) sessionStorage.setItem('ms_oauth_timestamp', timestamp)
     }
   } catch {
     // Silently ignore
@@ -59,10 +74,12 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
 
     const queryParams = new URLSearchParams(window.location.search)
     let hasCode = queryParams.has('code') && queryParams.has('state')
+    let hasError = queryParams.has('error')
 
     if (!hasCode && window.location.hash) {
       const hashParams = new URLSearchParams(window.location.hash.substring(1))
       hasCode = hashParams.has('code') && hashParams.has('state')
+      hasError = hasError || hashParams.has('error')
     }
 
     if (!hasCode) {
@@ -70,7 +87,12 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
       hasCode = !!savedCode
     }
 
-    return hasCode
+    if (!hasError) {
+      const savedError = sessionStorage.getItem('ms_oauth_error')
+      hasError = !!savedError
+    }
+
+    return hasCode || hasError
   })
 
   // UI state
@@ -139,8 +161,7 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
 
   const handleOAuthError = useCallback((error: string) => {
     toast.error(`Sign-in failed: ${error}`)
-    window.history.replaceState({}, '', '/platform/mail')
-    setIsOAuthCallback(false)
+    // Keep the OAuth callback view visible so users can copy diagnostics.
   }, [])
 
   // Handlers
