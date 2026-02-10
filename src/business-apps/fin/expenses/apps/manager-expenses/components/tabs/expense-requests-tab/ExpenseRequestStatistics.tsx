@@ -10,6 +10,8 @@ interface ExpenseRequestStatisticsProps {
   requestStatsError: string | null
   fetchRequestStatistics: () => Promise<void>
   currencyFilter?: string | null
+  /** Clears the currency selection so the table shows all currencies. */
+  clearCurrencyFilter: () => void
   setFilters: (filters: string[]) => void
   selectedFilters: string[]
 }
@@ -20,6 +22,7 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
   requestStatsError,
   fetchRequestStatistics,
   currencyFilter,
+  clearCurrencyFilter,
   setFilters,
   selectedFilters
 }) => {
@@ -61,6 +64,10 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
   // Handle card click functionality with proper filtering logic
   const handleCardClick = useCallback(
     (filterKey: string, isMultiFilter: boolean = false) => {
+      // Cards show currency-agnostic totals, so when drilling down we must ensure
+      // the table also shows all currencies (otherwise card count != table count).
+      clearCurrencyFilter()
+
       if (isMultiFilter) {
         const filtersToToggle = ['PENDING', 'APPROVED', 'VERIFIED', 'BOOKED', 'TRANSFERRED']
         handleMultiFilterToggle(filtersToToggle)
@@ -68,7 +75,7 @@ const ExpenseRequestStatistics: React.FC<ExpenseRequestStatisticsProps> = ({
         handleSingleFilterToggle(filterKey)
       }
     },
-    [handleMultiFilterToggle, handleSingleFilterToggle]
+    [clearCurrencyFilter, handleMultiFilterToggle, handleSingleFilterToggle]
   )
 
   const widgets: WidgetItem[] = useMemo(

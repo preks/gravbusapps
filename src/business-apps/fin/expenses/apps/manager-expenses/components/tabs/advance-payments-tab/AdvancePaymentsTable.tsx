@@ -422,10 +422,12 @@ const AdvancePaymentsTable: React.FC<AdvancePaymentsTableProps> = props => {
                             const emp = record.expensePlan?.employee as any
                             const full = (emp?.fullName || '').trim()
                             const fallback = `${emp?.firstName || ''} ${emp?.lastName || ''}`.trim()
+                            const name = full || fallback || (emp?.displayName || '').trim()
+                            if (name) return name
+                            // When employee is missing or has no name, show plan identifier instead of generic N/A
+                            const planLabel = record.expensePlan?.title?.trim() || record.expensePlan?.code?.trim()
                             return (
-                              full ||
-                              fallback ||
-                              getTranslationFromI18nKeyAndLabel('lowcoder:common.not_available', 'N/A')
+                              planLabel || getTranslationFromI18nKeyAndLabel('lowcoder:common.not_available', 'N/A')
                             )
                           })()}
                         </span>

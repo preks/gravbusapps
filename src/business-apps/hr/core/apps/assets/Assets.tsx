@@ -22,6 +22,7 @@ const moduleColor = MODULE_COLORS.HR
 export const Assets: React.FC<BusinessAppContextProps> = props => {
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null)
   const [isPanelOpen, setIsPanelOpen] = useState(false)
+  const [pendingAssetId, setPendingAssetId] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [searchQuery, setSearchQuery] = useState('')
@@ -68,8 +69,42 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
     [statistics.totalAssets, statistics.allocatedAssets, statistics.availableAssets, statistics.underRepairAssets]
   )
 
-  const { getAllocationsForAsset } = useAssetService(props)
+  const { getAllocationsForAsset, getAssetById } = useAssetService(props)
   const [selectedAssetAllocations, setSelectedAssetAllocations] = useState<any[]>([])
+
+  const getAssetIdFromUrl = useCallback((): string | null => {
+    if (typeof window === 'undefined') {
+      return null
+    }
+
+    const params = new URLSearchParams(window.location.search)
+    const assetId = params.get('assetId')
+    return assetId && assetId.trim() ? assetId : null
+  }, [])
+
+  const updateAssetIdInUrl = useCallback((assetId: string | null) => {
+    if (typeof window === 'undefined') {
+      return
+    }
+
+    const params = new URLSearchParams(window.location.search)
+    if (assetId) {
+      params.set('assetId', assetId)
+    } else {
+      params.delete('assetId')
+    }
+
+    const search = params.toString()
+    const nextUrl = `${window.location.pathname}${search ? `?${search}` : ''}${window.location.hash || ''}`
+    window.history.replaceState({}, '', nextUrl)
+  }, [])
+
+  useEffect(() => {
+    const assetId = getAssetIdFromUrl()
+    if (assetId) {
+      setPendingAssetId(assetId)
+    }
+  }, [getAssetIdFromUrl])
 
   useEffect(() => {
     if (!selectedAsset) {
@@ -90,6 +125,50 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
     loadAllocations()
   }, [selectedAsset, getAllocationsForAsset])
 
+  useEffect(() => {
+    if (!pendingAssetId) {
+      return
+    }
+
+    const existing = assets.find(asset => asset.id === pendingAssetId)
+    if (existing) {
+      setSelectedAsset(existing)
+      setIsPanelOpen(true)
+      setPendingAssetId(null)
+      return
+    }
+
+    if (assetsLoading) {
+      return
+    }
+
+    let isActive = true
+
+    const loadAssetFromUrl = async () => {
+      try {
+        const asset = await getAssetById(pendingAssetId)
+        if (!isActive) {
+          return
+        }
+        if (asset) {
+          setSelectedAsset(asset)
+          setIsPanelOpen(true)
+        }
+      } catch (error) {
+        console.error('Error loading asset from URL:', error)
+      } finally {
+        if (isActive) {
+          setPendingAssetId(null)
+        }
+      }
+    }
+
+    loadAssetFromUrl()
+    return () => {
+      isActive = false
+    }
+  }, [pendingAssetId, assets, assetsLoading, getAssetById])
+
   const handleAssetClick = (asset: Asset) => {
     setSelectedAsset(asset)
     setIsPanelOpen(true)
@@ -99,6 +178,35 @@ export const Assets: React.FC<BusinessAppContextProps> = props => {
     setIsPanelOpen(false)
     setTimeout(() => setSelectedAsset(null), 300)
   }, [])
+
+  useEffect(() => {
+    if (pendingAssetId) {
+      return
+    }
+
+    if (isPanelOpen && selectedAsset?.id) {
+      updateAssetIdInUrl(selectedAsset.id)
+      return
+    }
+
+    if (!isPanelOpen) {
+      updateAssetIdInUrl(null)
+    }
+  }, [isPanelOpen, selectedAsset?.id, pendingAssetId, updateAssetIdInUrl])
+
+  useEffect(() => {
+    const handlePopState = () => {
+      const assetId = getAssetIdFromUrl()
+      if (assetId) {
+        setPendingAssetId(assetId)
+      } else {
+        handlePanelClose()
+      }
+    }
+
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [getAssetIdFromUrl, handlePanelClose])
 
   const handleStatusFilterChange = useCallback((status: string) => {
     setStatusFilter(status)

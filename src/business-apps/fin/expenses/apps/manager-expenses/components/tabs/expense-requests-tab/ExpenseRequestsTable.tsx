@@ -8,9 +8,6 @@ import {
   TableRow,
   TableCell,
   TableHead,
-  Avatar,
-  AvatarImage,
-  AvatarFallback,
   Spinner,
   Alert,
   Sheet,
@@ -18,8 +15,7 @@ import {
   Dialog,
   DialogContent,
   DialogHeader,
-  DialogTitle,
-  Badge
+  DialogTitle
 } from '@newwork/nw-design-system'
 import { PiArrowUp, PiArrowDown } from 'react-icons/pi'
 
@@ -29,12 +25,17 @@ import { DataContainer } from '@/components/layout/dataContainer/DataContainer'
 import ExpenseDetailsShell from '../../../../../common/components/details-panel/ExpenseDetailsShell'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { buildDeduplicatedFilters } from '../../../utils/filterUtils'
+import {
+  separateRequestFiltersByType,
+  applyStatusFilterDiff,
+  applyRequestTypeFilterDiff,
+  applyDateRangeFilterDiff,
+  applyCurrencyFilterDiff
+} from '../../../utils/requestsFilterHelpers'
 import { ExpenseRequest, SortField } from '../../../hooks/useGetExpenseRequests'
-import { getExpenseRequestStatusDisplay } from '../../../utils'
 import ExpenseRequestDetails from './ExpenseRequestDetails'
+import { ExpenseRequestTableRow } from './ExpenseRequestTableRow'
 import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
-import { AppActionButton } from '@/components/app-action-button/AppActionButton'
-import { formatCurrencyDisplay } from '../../../../personal-expenses/utils'
 import { useExpenseRequestFileService } from '../../../../../common/files/useExpenseRequestFileService'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { TablePagination } from '../../../../../components'
@@ -44,6 +45,9 @@ interface ExpenseRequestsTableProps extends BusinessAppContextProps {
   loading: boolean
   error: string | null
   totalCount: number
+  /** Paging state is owned by `ExpenseRequestsTab` (single source of truth). */
+  currentPage: number
+  pageSize: number
   fetchRequests: (
     searchTerm?: string,
     page?: number,
@@ -81,8 +85,6 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     [props.accessToken, props.userInfo]
   )
 
-  const [currentPage, setCurrentPage] = useState<number>(1)
-  const [pageSize, setPageSize] = useState<number>(20)
   const [selectedRequest, setSelectedRequest] = useState<ExpenseRequest | null>(null)
   const [printModalOpen, setPrintModalOpen] = useState<boolean>(false)
   const [printPdfUrl, setPrintPdfUrl] = useState<string>('')
@@ -114,7 +116,9 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     addFilter,
     removeFilter,
     handleDataFilterChange,
-    primaryCurrency
+    primaryCurrency,
+    currentPage,
+    pageSize
   } = props
 
   // Helper to check if a date range is active
@@ -144,16 +148,50 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
   const handleSearchChange = useCallback(
     (value: string) => {
       setSearchTerm(value)
-      setCurrentPage(1)
     },
     [setSearchTerm]
+  )
+
+  const listTitle = useMemo(
+    () => (
+      <div className="gba:flex gba:items-center gba:gap-4">
+        <div className="gba:flex gba:items-center gba:gap-2">
+          <span>
+            {getTranslationFromI18nKeyAndLabel(
+              'lowcoder:employee_list.flows_button.expense_requests',
+              'Expense Requests'
+            )}
+          </span>
+          <span className="gba:text-muted-foreground">({totalCount})</span>
+        </div>
+      </div>
+    ),
+    [totalCount]
+  )
+
+  const controllerFilterLabelMap = useMemo(
+    () => ({
+      ...filterLabelMap,
+      ...(primaryCurrency ? { [`currency:${primaryCurrency}`]: primaryCurrency } : {})
+    }),
+    [filterLabelMap, primaryCurrency]
+  )
+
+  // Step 8: Filter logic delegated to requestsFilterHelpers (classify + apply diff).
+  const handleFilterChange = useCallback(
+    (newFilters: string[]) => {
+      const separated = separateRequestFiltersByType(newFilters)
+      applyStatusFilterDiff(selectedFilters, separated.status, removeFilter, addFilter)
+      applyDateRangeFilterDiff(selectedFilters, newFilters, removeFilter)
+      applyRequestTypeFilterDiff(selectedFilters, separated.requestType, removeFilter, addFilter)
+      applyCurrencyFilterDiff(separated.currency, primaryCurrency, addFilter, removeFilter)
+    },
+    [selectedFilters, primaryCurrency, addFilter, removeFilter]
   )
 
   // Adapter for TablePagination component
   const handleTablePaginationChange = useCallback(
     (pagination: { current: number; pageSize: number }) => {
-      setCurrentPage(pagination.current)
-      setPageSize(pagination.pageSize)
       fetchRequests(
         searchTerm,
         pagination.current,
@@ -188,22 +226,12 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
     (field: SortField) => {
       const newSorting = calculateNextSortState(field, sorting)
       setSorting(newSorting)
-      setCurrentPage(1)
 
       const sortByParam =
         newSorting.field && newSorting.order ? `${newSorting.field}:${newSorting.order.toLowerCase()}` : 'none'
       fetchRequests(searchTerm, 1, pageSize, sortByParam, selectedFilters, undefined, primaryCurrency)
     },
-    [
-      calculateNextSortState,
-      sorting,
-      setCurrentPage,
-      fetchRequests,
-      searchTerm,
-      pageSize,
-      selectedFilters,
-      primaryCurrency
-    ]
+    [calculateNextSortState, sorting, fetchRequests, searchTerm, pageSize, selectedFilters, primaryCurrency]
   )
 
   const { printExpenseRequest, isMounted } = useExpenseRequestFileService(contextProps)
@@ -477,103 +505,16 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
                   </TableCell>
                 </TableRow>
               ) : (
-                requests.map(record => {
-                  const statusConfig = getExpenseRequestStatusDisplay(record.status)
-                  return (
-                    <TableRow
-                      key={record.id}
-                      className="gba:cursor-pointer gba:hover:bg-accent"
-                      onClick={() => handleSelectRequest(record)}
-                      data-testid={`expense-requests-row-${record.id}`}
-                    >
-                      <TableCell
-                        className="gba:w-[60px] gba:min-w-[60px] gba:max-w-[60px] gba:box-border gba:py-3 gba:px-4"
-                        data-testid={`expense-requests-actions-cell-${record.id}`}
-                        onClick={e => e.stopPropagation()}
-                      >
-                        <div className="gba:flex gba:justify-start gba:gap-2">
-                          <AppActionButton
-                            onClick={e => e.stopPropagation()}
-                            data-testid={`expense-requests-update-button-${record.id}`}
-                            size="icon"
-                            staticFlowData={buildStaticFlowData(record)}
-                            prefixDataTestId="expense-requests-update"
-                            accessToken={props.accessToken}
-                            emptyStateBehavior="enable"
-                            deferMainContextRequestsUntilClick
-                          />
-                        </div>
-                      </TableCell>
-                      <TableCell className="gba:text-left gba:py-3 gba:px-4 gba:w-[13%]">
-                        <div className="gba:font-medium gba:text-sm gba:whitespace-nowrap gba:truncate">
-                          {record.title ??
-                            getTranslationFromI18nKeyAndLabel('lowcoder:common.untitled_request', 'Untitled Request')}
-                        </div>
-                        <div className="gba:text-xs gba:text-muted-foreground gba:whitespace-nowrap gba:truncate">
-                          {record.code ?? getTranslationFromI18nKeyAndLabel('lowcoder:common.not_available', 'N/A')}
-                        </div>
-                      </TableCell>
-                      <TableCell className="gba:w-[10%] gba:py-4 gba:px-3 gba:text-sm">
-                        {(record as any)?.expensePlan?.code ??
-                          getTranslationFromI18nKeyAndLabel('lowcoder:common.not_available', 'N/A')}
-                      </TableCell>
-                      <TableCell
-                        className="gba:text-sm gba:py-3 gba:px-4"
-                        data-testid={`expense-requests-start-date-cell-${record.id}`}
-                      >
-                        {formatShortDateSafe(record.startDate)}
-                      </TableCell>
-                      <TableCell
-                        className="gba:text-sm gba:py-3 gba:px-4"
-                        data-testid={`expense-requests-end-date-cell-${record.id}`}
-                      >
-                        {formatShortDateSafe(record.endDate)}
-                      </TableCell>
-                      <TableCell data-testid={`expense-requests-employee-cell-${record.id}`}>
-                        <div className="gba:flex gba:items-center gba:gap-2">
-                          <Avatar className="gba:h-6 gba:w-6">
-                            <AvatarImage
-                              src={
-                                record.employee?.pictureThumbnail
-                                  ? `data:image/gif;base64,${record.employee.pictureThumbnail}`
-                                  : undefined
-                              }
-                              alt={record.employee?.fullName}
-                            />
-                            <AvatarFallback>
-                              {record.employee?.displayName?.charAt(0) || record.employee?.fullName?.charAt(0) || 'U'}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="gba:font-medium gba:text-sm">
-                            {record.employee?.displayName || record.employee?.fullName}
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell
-                        className="gba:text-sm gba:py-3 gba:px-4"
-                        data-testid={`expense-requests-request-date-cell-${record.id}`}
-                      >
-                        {formatShortDateSafe(record.requestDate)}
-                      </TableCell>
-                      <TableCell
-                        className="gba:text-right gba:text-sm"
-                        data-testid={`expense-request-amount-cell-${record.id}`}
-                      >
-                        {typeof record.amount === 'number'
-                          ? formatCurrencyDisplay(record.amount, record.currency)
-                          : formatCurrencyDisplay(0, record.currency || 'EUR')}
-                      </TableCell>
-                      <TableCell className="gba:pr-6 gba:w-[20%]">
-                        <Badge
-                          variant={(statusConfig as any).badgeVariant || 'outline'}
-                          data-testid={`status-pill-${record.status?.toLowerCase()}`}
-                        >
-                          {statusConfig.label}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  )
-                })
+                requests.map(record => (
+                  <ExpenseRequestTableRow
+                    key={record.id}
+                    record={record}
+                    onSelect={handleSelectRequest}
+                    formatShortDateSafe={formatShortDateSafe}
+                    buildStaticFlowData={buildStaticFlowData}
+                    accessToken={props.accessToken}
+                  />
+                ))
               )}
             </TableBody>
           </Table>
@@ -593,7 +534,21 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
         />
       </div>
     )
-  }, [requests, isLoading, error, totalCount, pageSize, currentPage, hasActiveFilters])
+  }, [
+    requests,
+    isLoading,
+    error,
+    totalCount,
+    pageSize,
+    currentPage,
+    hasActiveFilters,
+    handleTablePaginationChange,
+    handleSort,
+    renderSortIndicator,
+    formatShortDateSafe,
+    buildStaticFlowData,
+    handleSelectRequest
+  ])
 
   return (
     <>
@@ -605,68 +560,9 @@ const ExpenseRequestsTable: React.FC<ExpenseRequestsTableProps> = props => {
           setSearch: handleSearchChange,
           // Always keep applied filters visible, even when the current result set is empty
           filter: buildDeduplicatedFilters(selectedFilters, primaryCurrency),
-          setFilter: (newFilters: string[]): void => {
-            // Constants for filter type identification
-            const DATE_RANGE_FILTERS = new Set([
-              'effectiveDateRange',
-              'requestDateRange',
-              'startDateRange',
-              'endDateRange'
-            ])
-            const isCurrencyFilter = (f: string) => f.startsWith('currency:')
-            const isRequestTypeFilter = (f: string) => f.startsWith('ExpenseRequestType:')
-            const isDateRangeFilter = (f: string) => DATE_RANGE_FILTERS.has(f)
-            const isStatusFilter = (f: string) =>
-              !isCurrencyFilter(f) && !isRequestTypeFilter(f) && !isDateRangeFilter(f)
-
-            // Separate filters by type
-            const currencyFilters = newFilters.filter(isCurrencyFilter)
-            const requestTypeFilters = newFilters.filter(isRequestTypeFilter)
-            const statusFilters = newFilters.filter(isStatusFilter)
-
-            // Handle status filter changes
-            const statusToRemove = selectedFilters.filter(f => isStatusFilter(f) && !statusFilters.includes(f))
-            const statusToAdd = statusFilters.filter(f => !selectedFilters.includes(f))
-            statusToRemove.forEach(f => removeFilter(f))
-            statusToAdd.forEach(f => addFilter(f))
-
-            // Handle date range filter removal
-            const dateRangesToRemove = selectedFilters.filter(f => isDateRangeFilter(f) && !newFilters.includes(f))
-            dateRangesToRemove.forEach(f => removeFilter(f))
-
-            // Handle request type filter changes
-            const requestTypesToRemove = selectedFilters.filter(
-              f => isRequestTypeFilter(f) && !requestTypeFilters.includes(f)
-            )
-            const requestTypesToAdd = requestTypeFilters.filter(f => !selectedFilters.includes(f))
-            requestTypesToRemove.forEach(f => removeFilter(f))
-            requestTypesToAdd.forEach(f => addFilter(f))
-
-            // Handle currency filter changes
-            if (currencyFilters.length > 0 && currencyFilters[0] !== `currency:${primaryCurrency}`) {
-              const newCurrencyCode = currencyFilters[0].replace('currency:', '')
-              addFilter(`currency:${newCurrencyCode}`)
-            }
-
-            setCurrentPage(1)
-          },
-          filterLabelMap: {
-            ...filterLabelMap,
-            ...(primaryCurrency ? { [`currency:${primaryCurrency}`]: primaryCurrency } : {})
-          },
-          listTitle: (
-            <div className="gba:flex gba:items-center gba:gap-4">
-              <div className="gba:flex gba:items-center gba:gap-2">
-                <span>
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:employee_list.flows_button.expense_requests',
-                    'Expense Requests'
-                  )}
-                </span>
-                <span className="gba:text-muted-foreground">({totalCount})</span>
-              </div>
-            </div>
-          ),
+          setFilter: handleFilterChange,
+          filterLabelMap: controllerFilterLabelMap,
+          listTitle,
           debounceDelay: 300
         }}
         dataFilterProps={{
