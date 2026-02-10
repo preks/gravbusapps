@@ -13,7 +13,7 @@ import './FortuneSheetGrid.css'
 import type { SpreadsheetSheet, SpreadsheetColumn } from '../types/spreadsheet'
 import type { DocumentParticipant, DocumentOperation } from '../../shared/services/CollaborationClient'
 import type { FortuneSheetOp } from '../types/fortuneSheet'
-import { convertToFortuneSheet, createConversionContext } from '../utils/fortuneSheetConverter'
+import { convertToFortuneSheet, createConversionContext, HEADER_ROW_OFFSET } from '../utils/fortuneSheetConverter'
 import { useFortuneSheetCollaboration, useFortuneSheetCursorTracking } from '../hooks/useFortuneSheetCollaboration'
 
 export interface FortuneSheetGridProps {
@@ -293,15 +293,14 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
           return
         }
 
+        // Remote ops use data row indices; translate to FortuneSheet row by adding header offset
         // Apply the cell update
         if (isFormula && typeof value === 'string') {
-          // For formula property operations, set the cell with the formula
-          applyRemoteCellUpdate(rowIndex, colIndex, { f: value })
+          applyRemoteCellUpdate(rowIndex + HEADER_ROW_OFFSET, colIndex, { f: value })
         } else if (isFullCellWithFormula) {
-          // For full cell objects with formulas, pass the entire object
-          applyRemoteCellUpdate(rowIndex, colIndex, value)
+          applyRemoteCellUpdate(rowIndex + HEADER_ROW_OFFSET, colIndex, value)
         } else {
-          applyRemoteCellUpdate(rowIndex, colIndex, value)
+          applyRemoteCellUpdate(rowIndex + HEADER_ROW_OFFSET, colIndex, value)
         }
 
         // Defer state updates to avoid setState-during-render warning
@@ -361,11 +360,14 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
           if (!collaborationEnabled) return
           if (activeSheetId !== sheet.id) return
 
-          const row = selection?.row?.[0]
+          const fortuneSheetRow = selection?.row?.[0]
           const col = selection?.column?.[0]
 
-          if (typeof row !== 'number' || typeof col !== 'number') return
-          cursorTrackingRef.current.handleCellSelection(row, col)
+          if (typeof fortuneSheetRow !== 'number' || typeof col !== 'number') return
+          // Subtract header offset to get data row index for cursor tracking
+          const dataRow = fortuneSheetRow - HEADER_ROW_OFFSET
+          if (dataRow < 0) return // Header row selected, skip cursor emit
+          cursorTrackingRef.current.handleCellSelection(dataRow, col)
         }
       }
     }, [collaborationEnabled, sheet.id])
@@ -392,9 +394,9 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
             const [cursorSheetId, rowId, columnId] = cursorPath
             if (cursorSheetId !== sheet.id || !rowId || !columnId) return null
 
-            const rowIndex = currentContext.rowIdToIndex.get(String(rowId))
+            const dataRowIndex = currentContext.rowIdToIndex.get(String(rowId))
             const colIndex = currentContext.columnIdToIndex.get(String(columnId))
-            if (rowIndex === undefined || colIndex === undefined) return null
+            if (dataRowIndex === undefined || colIndex === undefined) return null
 
             const userName = participant.userName || participant.userId || 'User'
             return {
@@ -402,7 +404,8 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
               username: userName,
               userId: participant.userId,
               color: participant.userColor || '#3b82f6',
-              selection: { r: rowIndex, c: colIndex }
+              // Add header offset when mapping to FortuneSheet row
+              selection: { r: dataRowIndex + HEADER_ROW_OFFSET, c: colIndex }
             }
           })
           .filter(Boolean) || []
@@ -477,8 +480,16 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
             op.path.length >= 3 &&
             op.path[0] === 'data'
           ) {
-            const rowIndex = op.path[1] as number
+            const fortuneSheetRowIndex = op.path[1] as number
             const colIndex = op.path[2] as number
+
+            // Skip edits to the header row (row 0) - it's not a data row
+            if (fortuneSheetRowIndex < HEADER_ROW_OFFSET) {
+              return
+            }
+
+            // Convert FortuneSheet row index to data row index (subtract header offset)
+            const rowIndex = fortuneSheetRowIndex - HEADER_ROW_OFFSET
 
             // Skip styling-only changes (fc, bg, bl, it, etc.) - they're handled by FortuneSheet UI
             // but we don't persist them to avoid complexity
@@ -491,7 +502,7 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
               }
             }
 
-            // No header row - direct mapping
+            // Map data row index to row ID (context uses data indices, not FortuneSheet indices)
             const rowId = context.rowIndexToId.get(rowIndex)
             const columnId = context.columnIndexToId.get(colIndex)
 
@@ -624,7 +635,9 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
               onColumnsInsert(index, count, direction)
             }
             if (type === 'row' && onRowsInsert) {
-              onRowsInsert(index, count, direction)
+              // Convert FortuneSheet row index to data row index
+              const dataIndex = Math.max(0, index - HEADER_ROW_OFFSET)
+              onRowsInsert(dataIndex, count, direction)
             }
           }
 
@@ -639,7 +652,13 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
               onColumnsDelete(start, end)
             }
             if (type === 'row' && onRowsDelete) {
-              onRowsDelete(start, end)
+              // Convert FortuneSheet row indices to data row indices
+              const dataStart = Math.max(0, start - HEADER_ROW_OFFSET)
+              const dataEnd = Math.max(0, end - HEADER_ROW_OFFSET)
+              // Skip if trying to delete the header row
+              if (dataStart <= dataEnd) {
+                onRowsDelete(dataStart, dataEnd)
+              }
             }
           }
         })
