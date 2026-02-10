@@ -31,6 +31,14 @@ interface MicrosoftOAuthCallbackProps {
 export const MicrosoftOAuthCallback: React.FC<MicrosoftOAuthCallbackProps> = ({ onSuccess, onError, accessToken }) => {
   const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing')
   const [errorMessage, setErrorMessage] = useState('')
+  const [diagnostics, setDiagnostics] = useState<{
+    error?: string | null
+    errorDescription?: string | null
+    errorCodes?: string | null
+    correlationId?: string | null
+    traceId?: string | null
+    timestamp?: string | null
+  } | null>(null)
 
   useEffect(() => {
     // Read from query string, hash fragment, AND sessionStorage (multiple fallbacks)
@@ -40,10 +48,22 @@ export const MicrosoftOAuthCallback: React.FC<MicrosoftOAuthCallbackProps> = ({ 
     // Check for error in URL (query or hash)
     const error = queryParams.get('error') || hashParams?.get('error')
     const errorDescription = queryParams.get('error_description') || hashParams?.get('error_description')
+    const errorCodes = queryParams.get('error_codes') || hashParams?.get('error_codes')
+    const correlationId = queryParams.get('correlation_id') || hashParams?.get('correlation_id')
+    const traceId = queryParams.get('trace_id') || hashParams?.get('trace_id')
+    const timestamp = queryParams.get('timestamp') || hashParams?.get('timestamp')
 
     if (error) {
       setStatus('error')
       setErrorMessage(errorDescription || error)
+      setDiagnostics({
+        error,
+        errorDescription,
+        errorCodes,
+        correlationId,
+        traceId,
+        timestamp
+      })
       onError(errorDescription || error)
       return
     }
@@ -148,6 +168,26 @@ export const MicrosoftOAuthCallback: React.FC<MicrosoftOAuthCallbackProps> = ({ 
         <XCircle className="gba:w-12 gba:h-12 gba:text-destructive gba:mb-4" />
         <p className="gba:text-lg gba:font-medium gba:text-foreground">Sign-in failed</p>
         <p className="gba:text-sm gba:text-muted-foreground gba:mt-2">{errorMessage}</p>
+        {diagnostics && (diagnostics.correlationId || diagnostics.traceId || diagnostics.errorCodes) && (
+          <div
+            className="gba:w-full gba:max-w-xl gba:mt-4 gba:p-3 gba:rounded-md gba:border gba:bg-card"
+            data-testid="oauth-error-diagnostics"
+          >
+            <p className="gba:text-xs gba:font-medium gba:text-foreground gba:mb-2">Diagnostics (share with admin)</p>
+            <pre className="gba:text-[11px] gba:text-muted-foreground gba:whitespace-pre-wrap gba:break-words">
+              {[
+                diagnostics.error ? `error: ${diagnostics.error}` : null,
+                diagnostics.errorDescription ? `error_description: ${diagnostics.errorDescription}` : null,
+                diagnostics.errorCodes ? `error_codes: ${diagnostics.errorCodes}` : null,
+                diagnostics.correlationId ? `correlation_id: ${diagnostics.correlationId}` : null,
+                diagnostics.traceId ? `trace_id: ${diagnostics.traceId}` : null,
+                diagnostics.timestamp ? `timestamp: ${diagnostics.timestamp}` : null
+              ]
+                .filter(Boolean)
+                .join('\n')}
+            </pre>
+          </div>
+        )}
         <p className="gba:text-xs gba:text-muted-foreground gba:mt-4">Redirecting back...</p>
       </div>
     )
