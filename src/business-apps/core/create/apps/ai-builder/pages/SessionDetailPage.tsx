@@ -169,11 +169,14 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
           files: uniqueFiles
         })
       }
+      // Auto-detect screen path from created files.
+      // Uses screen types from screen-discovery.config.json (e.g. apps, forms, popups, records, windows).
+      // Build regex from config: match screen root index.ts exactly one level after a screen type directory.
+      // e.g. src/business-apps/hr/common/apps/employee-list/index.ts
+      // NOT: src/business-apps/hr/common/apps/employee-list/_i18n/index.ts
       if (data.summary && data.summary.files) {
         const screenTypes = (screenDiscoveryConfig as { types: string[] }).types.join('|')
-        const screenRootPattern = new RegExp(
-          String.raw`^src/business-apps/(.+/(?:${screenTypes})/[^/]+)/index\.ts$`
-        )
+        const screenRootPattern = new RegExp(String.raw`^src/business-apps/(.+/(?:${screenTypes})/[^/]+)/index\.ts$`)
         const indexFiles = data.summary.files.filter((f: FileChange) => screenRootPattern.test(f.path))
         if (indexFiles.length > 0) {
           const match = screenRootPattern.exec(indexFiles[0].path)
@@ -183,6 +186,7 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
             setTargetPath(detectedPath)
             const segments = detectedPath.split('/')
             const screenName = segments[segments.length - 1]
+            // Auto-generate resource URL from the last segment (target path name), e.g. "/platform/generated/hello-world"
             setResourceUrl('/platform/generated/' + screenName)
           }
         }
