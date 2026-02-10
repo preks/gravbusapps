@@ -103,6 +103,7 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
     }
   })
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null)
+  const [starredOnly, setStarredOnly] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [isAccountDialogOpen, setIsAccountDialogOpen] = useState(false)
   const [isManageDialogOpen, setIsManageDialogOpen] = useState(false)
@@ -137,7 +138,8 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
     accessToken,
     folderId: selectedFolderId || undefined,
     accountId: defaultAccount?.id,
-    search: searchQuery || undefined
+    search: searchQuery || undefined,
+    starredOnly
   })
 
   // Directory hook for auto-suggest (org directory + provider contacts)
@@ -172,11 +174,19 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
   const handleSelectFolder = useCallback(
     (folderId: string) => {
       setSelectedFolderId(folderId)
+      setStarredOnly(false)
       clearSelection()
       setSearchQuery('')
     },
     [clearSelection]
   )
+
+  const handleSelectStarred = useCallback(() => {
+    setStarredOnly(true)
+    setSelectedFolderId(null)
+    clearSelection()
+    setSearchQuery('')
+  }, [clearSelection])
 
   const handleSync = useCallback(async () => {
     if (!defaultAccount) return
@@ -237,7 +247,7 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
     )
   }
 
-  const currentFolderName = folders.find(f => f.id === selectedFolderId)?.name || 'Inbox'
+  const currentFolderName = starredOnly ? 'Starred' : folders.find(f => f.id === selectedFolderId)?.name || 'Inbox'
 
   // Empty state: no accounts
   if (!isLoadingAccounts && accounts.length === 0) {
@@ -261,6 +271,8 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
         folders={folders}
         selectedFolderId={selectedFolderId}
         onSelectFolder={handleSelectFolder}
+        isStarredView={starredOnly}
+        onSelectStarred={handleSelectStarred}
         onCompose={() => handleCompose('new')}
         onSync={handleSync}
         onSettings={() => setIsManageDialogOpen(true)}

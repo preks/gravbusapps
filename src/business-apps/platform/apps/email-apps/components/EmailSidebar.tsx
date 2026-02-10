@@ -39,6 +39,8 @@ interface EmailSidebarProps {
   folders: EmailFolder[]
   selectedFolderId: string | null
   onSelectFolder: (folderId: string) => void
+  isStarredView?: boolean
+  onSelectStarred?: () => void
   onCompose: () => void
   onSync: () => void
   onSettings: () => void
@@ -54,6 +56,8 @@ export const EmailSidebar: React.FC<EmailSidebarProps> = ({
   folders,
   selectedFolderId,
   onSelectFolder,
+  isStarredView = false,
+  onSelectStarred,
   onCompose,
   onSync,
   onSettings,
@@ -139,6 +143,32 @@ export const EmailSidebar: React.FC<EmailSidebarProps> = ({
       <nav className="gba:flex-1 gba:overflow-y-auto gba:px-2 gba:py-2">
         <div className="gba:space-y-0.5">
           <TooltipProvider>
+            {/* Starred virtual folder */}
+            {onSelectStarred && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={onSelectStarred}
+                    className={`gba:w-full gba:flex gba:items-center gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${
+                      isCollapsed ? 'gba:justify-center' : 'gba:gap-3'
+                    } ${
+                      isStarredView
+                        ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
+                        : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
+                    }`}
+                    data-testid={`${testId}-folder-starred`}
+                  >
+                    <Star className="gba:w-4 gba:h-4 gba:flex-shrink-0" />
+                    {!isCollapsed && <span className="gba:flex-1 gba:text-left">Starred</span>}
+                  </button>
+                </TooltipTrigger>
+                {isCollapsed && <TooltipContent side="right">Starred</TooltipContent>}
+              </Tooltip>
+            )}
+
+            {/* Separator after starred */}
+            {onSelectStarred && !isCollapsed && <div className="gba:border-b gba:my-1" />}
+
             {folders.map(folder => {
               const Icon = FOLDER_ICONS[folder.type] || FolderClosed
               const isActive = selectedFolderId === folder.id
