@@ -178,6 +178,20 @@ export const EmailApiService = {
     return { url, filename }
   },
 
+  // ============ Contacts Search ============
+  /**
+   * Search contacts from a connected provider account (Microsoft/Google).
+   */
+  async searchProviderContacts(
+    accountId: string,
+    query: string,
+    limit = 15
+  ): Promise<Array<{ name: string; email: string; avatarUrl?: string; source: 'microsoft' | 'google' }>> {
+    if (!query || query.trim().length < 2) return []
+    const params = new URLSearchParams({ q: query, limit: String(limit) })
+    return apiRequest(`/emails/accounts/${accountId}/contacts/search?${params.toString()}`)
+  },
+
   // ============ Calendar Sync ============
   /**
    * Fetches external calendar events for an account within a date range.

@@ -5,7 +5,7 @@
  */
 
 import React, { useState, useCallback, useRef, useEffect } from 'react'
-import { Avatar, AvatarFallback, Badge } from '@newwork/nw-design-system'
+import { Avatar, AvatarImage, AvatarFallback, Badge } from '@newwork/nw-design-system'
 import { X, Users, Clock } from 'lucide-react'
 import type { EmailContact, EmailAddress } from '../types'
 
@@ -197,7 +197,8 @@ export const EmailRecipientInput: React.FC<EmailRecipientInputProps> = ({
               data-testid={`${testId}-suggestion-${index}`}
             >
               <Avatar className="gba:w-7 gba:h-7 gba:flex-shrink-0">
-                <AvatarFallback className="gba:text-[10px] gba:bg-primary/10 gba:text-primary">
+                {contact.avatarUrl && <AvatarImage src={contact.avatarUrl} alt={contact.name || contact.email} />}
+                <AvatarFallback className="gba:text-xs gba:bg-primary/10 gba:text-primary">
                   {getInitials(contact.name || contact.email)}
                 </AvatarFallback>
               </Avatar>
@@ -213,10 +214,7 @@ export const EmailRecipientInput: React.FC<EmailRecipientInputProps> = ({
                     <Users className="gba:w-3 gba:h-3 gba:text-muted-foreground gba:flex-shrink-0" />
                   )}
                 </div>
-                <span className="gba:text-xs gba:text-muted-foreground gba:truncate gba:block">
-                  {contact.email}
-                  {contact.department && ` \u00B7 ${contact.department}`}
-                </span>
+                <span className="gba:text-xs gba:text-muted-foreground gba:truncate gba:block">{contact.email}</span>
               </div>
             </button>
           ))}

@@ -23,12 +23,17 @@ import {
   AlertDialogHeader,
   AlertDialogTitle
 } from '@newwork/nw-design-system'
-import { Mail, RefreshCw, Trash2, CheckCircle, XCircle, AlertCircle, Plus, Calendar } from 'lucide-react'
+import { Mail, RefreshCw, Trash2, Plus, Calendar, MessageSquare } from 'lucide-react'
 import { MicrosoftOAuthService } from '../services/MicrosoftOAuthService'
 import { GoogleOAuthService } from '../services/GoogleOAuthService'
 import { EmailApiService } from '../services/EmailApiService'
 import { EmailProviderSettingsApi } from '../services/EmailProviderSettingsApi'
+import { SignatureEditor } from './SignatureEditor'
+import { AccountStatusBadge } from './AccountStatusBadge'
+import { formatRelativeTime } from '../utils/emailDisplayUtils'
 import type { EmailAccount } from '../types'
+
+const THREAD_VIEW_KEY = 'email-thread-view-enabled'
 
 interface AccountManagementDialogProps {
   open: boolean
@@ -51,6 +56,15 @@ export const AccountManagementDialog: React.FC<AccountManagementDialogProps> = (
 }) => {
   const [deletingAccountId, setDeletingAccountId] = useState<string | null>(null)
   const [reconnectingAccountId, setReconnectingAccountId] = useState<string | null>(null)
+  const [threadViewEnabled, setThreadViewEnabled] = useState(() => localStorage.getItem(THREAD_VIEW_KEY) === 'true')
+
+  const handleToggleThreadView = () => {
+    setThreadViewEnabled(prev => {
+      const next = !prev
+      localStorage.setItem(THREAD_VIEW_KEY, String(next))
+      return next
+    })
+  }
 
   const handleReconnect = async (account: EmailAccount) => {
     if (account.provider !== 'microsoft' && account.provider !== 'google') {
@@ -116,56 +130,6 @@ export const AccountManagementDialog: React.FC<AccountManagementDialogProps> = (
     return localStorage.getItem(`email-calendar-sync-${accountId}`) !== 'false'
   }
 
-  const getStatusBadge = (status: EmailAccount['status']) => {
-    switch (status) {
-      case 'active':
-        return (
-          <Badge variant="success" className="gba:gap-1">
-            <CheckCircle className="gba:w-3 gba:h-3" />
-            Active
-          </Badge>
-        )
-      case 'disconnected':
-        return (
-          <Badge variant="destructive" className="gba:gap-1">
-            <XCircle className="gba:w-3 gba:h-3" />
-            Disconnected
-          </Badge>
-        )
-      case 'error':
-        return (
-          <Badge variant="warning" className="gba:gap-1">
-            <AlertCircle className="gba:w-3 gba:h-3" />
-            Error
-          </Badge>
-        )
-      case 'syncing':
-        return (
-          <Badge variant="info" className="gba:gap-1">
-            <RefreshCw className="gba:w-3 gba:h-3 gba:animate-spin" />
-            Syncing
-          </Badge>
-        )
-      default:
-        return null
-    }
-  }
-
-  const formatLastSync = (lastSyncAt?: string | null) => {
-    if (!lastSyncAt) return 'Never synced'
-    const date = new Date(lastSyncAt)
-    const now = new Date()
-    const diffMs = now.getTime() - date.getTime()
-    const diffMins = Math.floor(diffMs / 60000)
-
-    if (diffMins < 1) return 'Just now'
-    if (diffMins < 60) return `${diffMins}m ago`
-    const diffHours = Math.floor(diffMins / 60)
-    if (diffHours < 24) return `${diffHours}h ago`
-    const diffDays = Math.floor(diffHours / 24)
-    return `${diffDays}d ago`
-  }
-
   const supportsCalendar = (provider: string) => provider === 'microsoft' || provider === 'google'
 
   return (
@@ -178,6 +142,20 @@ export const AccountManagementDialog: React.FC<AccountManagementDialogProps> = (
               Manage your connected email accounts. Reconnect disconnected accounts or remove ones you no longer need.
             </DialogDescription>
           </DialogHeader>
+
+          {/* Global settings */}
+          <div className="gba:flex gba:items-center gba:justify-between gba:py-3 gba:px-4 gba:rounded-lg gba:border gba:bg-card">
+            <div className="gba:flex gba:items-center gba:gap-2">
+              <MessageSquare className="gba:w-4 gba:h-4 gba:text-info" />
+              <span className="gba:text-sm gba:text-foreground">Conversation view</span>
+              <span className="gba:text-xs gba:text-muted-foreground">Group email replies into threads</span>
+            </div>
+            <Switch
+              checked={threadViewEnabled}
+              onCheckedChange={handleToggleThreadView}
+              data-testid={`${testId}-thread-toggle`}
+            />
+          </div>
 
           <div className="gba:space-y-3 gba:py-4">
             {accounts.length === 0 ? (
@@ -212,9 +190,9 @@ export const AccountManagementDialog: React.FC<AccountManagementDialogProps> = (
                         {account.emailAddress}
                       </p>
                       <div className="gba:flex gba:items-center gba:gap-3">
-                        {getStatusBadge(account.status)}
+                        <AccountStatusBadge status={account.status} />
                         <span className="gba:text-xs gba:text-muted-foreground">
-                          {formatLastSync(account.lastSyncAt)}
+                          {formatRelativeTime(account.lastSyncAt)}
                         </span>
                       </div>
                       {account.lastSyncError && (
@@ -270,6 +248,16 @@ export const AccountManagementDialog: React.FC<AccountManagementDialogProps> = (
                       />
                     </div>
                   )}
+
+                  {/* Signature editor */}
+                  <div className="gba:mt-3 gba:pt-3 gba:border-t">
+                    <SignatureEditor
+                      accountId={account.id}
+                      currentSignature={account.signature || ''}
+                      onSaved={() => onAccountsChanged()}
+                      data-testid={`${testId}-signature-${account.id}`}
+                    />
+                  </div>
                 </div>
               ))
             )}

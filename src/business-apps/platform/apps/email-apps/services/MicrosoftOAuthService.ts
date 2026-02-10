@@ -7,9 +7,10 @@
  * and the callback page sends the code to the backend for server-side exchange.
  */
 
-const FALLBACK_CLIENT_ID = '861b3af1-129e-4674-9f0e-4fb4a3091fc0'
-const DEFAULT_AUTHORITY = 'organizations'
-const DEFAULT_SCOPES = 'openid profile email offline_access Mail.Read Mail.Send'
+function normalize(value?: string): string | undefined {
+  const trimmed = value?.trim()
+  return trimmed ? trimmed : undefined
+}
 
 /** Generate a random string for PKCE */
 function generateRandomString(length: number): string {
@@ -46,13 +47,33 @@ export interface MicrosoftAuthResult {
 
 export const MicrosoftOAuthService = {
   /**
-   * Builds the OAuth config from tenant settings (if provided) or falls back to defaults.
+   * Builds the OAuth config from tenant settings.
    */
   buildConfig(tenantConfig?: { clientId?: string; authority?: string; scopes?: string }): MicrosoftOAuthConfig {
+    const clientId = normalize(tenantConfig?.clientId)
+    const authority = normalize(tenantConfig?.authority)
+    const scopes = normalize(tenantConfig?.scopes)
+
+    if (!clientId) {
+      throw new Error(
+        'Microsoft OAuth client ID is not configured. Please ask your admin to configure the Microsoft provider.'
+      )
+    }
+    if (!authority) {
+      throw new Error(
+        'Microsoft OAuth authority (tenant) is not configured. Please ask your admin to configure the Microsoft provider.'
+      )
+    }
+    if (!scopes) {
+      throw new Error(
+        'Microsoft OAuth scopes are not configured. Please ask your admin to configure the Microsoft provider.'
+      )
+    }
+
     return {
-      clientId: tenantConfig?.clientId || FALLBACK_CLIENT_ID,
-      authority: tenantConfig?.authority || DEFAULT_AUTHORITY,
-      scopes: tenantConfig?.scopes || DEFAULT_SCOPES
+      clientId,
+      authority,
+      scopes
     }
   },
 

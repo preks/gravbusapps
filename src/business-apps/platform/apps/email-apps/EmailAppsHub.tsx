@@ -120,8 +120,8 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
     search: searchQuery || undefined
   })
 
-  // Directory hook for auto-suggest
-  const { searchContacts, addRecentRecipients } = useEmailDirectory(accessToken)
+  // Directory hook for auto-suggest (org directory + provider contacts)
+  const { searchContacts, addRecentRecipients } = useEmailDirectory(accessToken, accounts)
 
   // Set access token on API service
   useEffect(() => {
