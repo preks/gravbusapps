@@ -62,8 +62,6 @@ export const useCompletedTasks = (
   const hasInitialFetchRef = useRef(false)
   const lastTaskKeysRef = useRef<Set<string>>(new Set())
   const previousUserIdRef = useRef<string>('')
-  const previousSearchRef = useRef<string>('')
-  const previousSortRef = useRef<string>('')
   const isLoadingRef = useRef(false) // Track loading state to prevent duplicate calls
   const prefetchRef = useRef<PrefetchState | null>(null)
   // Store cursor in ref for instant, synchronous access (avoids stale closure issues)
@@ -219,10 +217,13 @@ export const useCompletedTasks = (
       if (!hasNewTasksDetected) return
 
       // Merge: keep newest server-ordered first batch, then keep previously loaded tasks without duplicates
+      // PERF: Cap merged array to prevent unbounded memory growth from repeated polling
+      const MAX_TASKS_IN_MEMORY = 500
       setAllFetchedTasks(prev => {
         const seen = new Set<string>()
         const merged: UnifiedTask[] = []
 
+        // New batch first (freshest data)
         batch.tasks.forEach(t => {
           const k = `${t.source}:${t.id}`
           if (seen.has(k)) return
@@ -230,12 +231,14 @@ export const useCompletedTasks = (
           merged.push(t)
         })
 
-        prev.forEach(t => {
+        // Then existing tasks (up to limit)
+        for (const t of prev) {
+          if (merged.length >= MAX_TASKS_IN_MEMORY) break
           const k = `${t.source}:${t.id}`
-          if (seen.has(k)) return
+          if (seen.has(k)) continue
           seen.add(k)
           merged.push(t)
-        })
+        }
 
         lastTaskKeysRef.current = new Set(merged.map(t => `${t.source}:${t.id}`))
         return merged
@@ -366,12 +369,11 @@ export const useCompletedTasks = (
     dueFilter
   ])
 
-  // Reset and refetch on search change
+  // Reset and refetch when any query parameter changes (search, sort, filter)
+  // Single effect keyed on currentKey prevents double-fire when multiple params change simultaneously
+  const previousKeyRef = useRef<string>('')
   useEffect(() => {
-    if (previousSearchRef.current !== search) {
-      previousSearchRef.current = search
-      previousSortRef.current = `${sortBy}:${sortOrder}:${dueFilter}`
-      hasInitialFetchRef.current = false
+    if (previousKeyRef.current && previousKeyRef.current !== currentKey) {
       isRefetchingRef.current = true
       setAllFetchedTasks([])
       setHasMoreToFetch(true)
@@ -379,24 +381,11 @@ export const useCompletedTasks = (
       lastTaskKeysRef.current.clear()
       prefetchRef.current = null
       loadInitial()
+      // Mark as fetched so the userId effect below doesn't also trigger loadInitial
+      hasInitialFetchRef.current = true
     }
-  }, [search, sortBy, sortOrder, dueFilter, loadInitial, setCursor])
-
-  // Reset and refetch on sort change
-  useEffect(() => {
-    const next = `${sortBy}:${sortOrder}:${dueFilter}`
-    if (previousSortRef.current !== next) {
-      previousSortRef.current = next
-      hasInitialFetchRef.current = false
-      isRefetchingRef.current = true
-      setAllFetchedTasks([])
-      setHasMoreToFetch(true)
-      setCursor(null)
-      lastTaskKeysRef.current.clear()
-      prefetchRef.current = null
-      loadInitial()
-    }
-  }, [sortBy, sortOrder, dueFilter, loadInitial, setCursor])
+    previousKeyRef.current = currentKey
+  }, [currentKey, loadInitial, setCursor])
 
   useEffect(() => {
     // Reset when userId changes

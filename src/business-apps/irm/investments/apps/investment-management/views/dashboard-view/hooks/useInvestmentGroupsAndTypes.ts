@@ -80,47 +80,16 @@ export const useInvestmentGroupsAndTypes = (accessToken: string) => {
 
       const result = await graphqlClient.request(GET_INVESTMENT_GROUPS_AND_TYPES)
 
-      // Process investment groups - if empty, create from investment type parent references
-      let groups: InvestmentGroup[] = (result.investmentGroups || [])
+      // Process investment groups directly from catalog
+      const groups: InvestmentGroup[] = (result.investmentGroups || [])
         .map((group: any) => ({
           id: group.id,
           code: group.code,
           value: group.value,
-          displayOrder: parseInt(group.additionalValue1 || '0', 10),
+          displayOrder: group.displayOrder || parseInt(group.additionalValue1 || '0', 10),
           types: []
         }))
         .sort((a: InvestmentGroup, b: InvestmentGroup) => a.displayOrder - b.displayOrder)
-
-      // If no groups found in catalog, create them from investment type parent references
-      if (groups.length === 0 && result.investmentTypes?.length > 0) {
-        const parentGroupIds = new Set(
-          result.investmentTypes.map((type: any) => type.parentEntryId).filter((parentId: string) => parentId)
-        )
-
-        groups = Array.from(parentGroupIds)
-          .map((parentId: string) => {
-            // Extract group info from parent ID (e.g., "InvestmentGroup:v1:EQUITY" -> "EQUITY")
-            const parts = parentId.split(':')
-            const code = parts[parts.length - 1]
-            const value =
-              code === 'REAL_ESTATE'
-                ? 'RealEstate'
-                : code === 'LIQUID_FUND'
-                  ? 'Liquid Fund'
-                  : code === 'EQUITY'
-                    ? 'Equity'
-                    : code
-
-            return {
-              id: parentId,
-              code: code,
-              value: value,
-              displayOrder: code === 'REAL_ESTATE' ? 1 : code === 'EQUITY' ? 2 : code === 'LIQUID_FUND' ? 3 : 999,
-              types: []
-            }
-          })
-          .sort((a: InvestmentGroup, b: InvestmentGroup) => a.displayOrder - b.displayOrder)
-      }
 
       // Process investment types and group them by parent
       const allTypes: InvestmentType[] = (result.investmentTypes || [])
@@ -128,7 +97,7 @@ export const useInvestmentGroupsAndTypes = (accessToken: string) => {
           id: type.id,
           code: type.code,
           value: type.value,
-          displayOrder: parseInt(type.additionalValue1 || '0', 10),
+          displayOrder: type.displayOrder || parseInt(type.additionalValue1 || '0', 10),
           parentGroupId: type.parentEntryId || ''
         }))
         .sort((a: InvestmentType, b: InvestmentType) => a.displayOrder - b.displayOrder)

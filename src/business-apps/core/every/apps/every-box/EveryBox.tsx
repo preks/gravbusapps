@@ -17,7 +17,7 @@
  *   Example: ?view=outbox&flowId=xyz-789
  */
 
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ThemeProvider,
   Button,
@@ -36,7 +36,7 @@ import {
   TooltipContent
 } from '@newwork/nw-design-system'
 import translations from './_i18n'
-import { Inbox, Send, Zap, Search, ArrowUpDown, RefreshCcw, CalendarDays, Sparkles } from 'lucide-react'
+import { Inbox, Send, Zap, Search, ArrowUpDown, RefreshCcw, CalendarDays, Sparkles, Brain } from 'lucide-react'
 import { FiltersDropdown, FilterType } from './components/FiltersDropdown'
 import { EveryBoxHero } from './components/EveryBoxHero'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -47,6 +47,7 @@ import { useCompletedTasks } from './hooks/useCompletedTasks'
 import { useBlinkTasks } from './hooks/useBlinkCount'
 import { InboxView } from './components/InboxView'
 import { OutboxView } from './components/OutboxView'
+import { AiInsightsDashboard } from './components/AiInsightsDashboard'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import {
   QuickTaskModal,
@@ -62,7 +63,7 @@ interface EveryBoxProps extends BusinessAppContextProps {
   prefixDataTestId?: string
 }
 
-type ViewType = 'inbox' | 'outbox'
+type ViewType = 'inbox' | 'outbox' | 'ai-insights'
 type SortOption = 'newest' | 'oldest' | 'priority'
 type DueDateFilter = 'any' | 'overdue' | 'dueSoon24h' | 'hasDueDate' | 'noDueDate'
 
@@ -72,7 +73,9 @@ type DueDateFilter = 'any' | 'overdue' | 'dueSoon24h' | 'hasDueDate' | 'noDueDat
 const getInitialView = (): ViewType => {
   const urlParams = new URLSearchParams(globalThis.location.search)
   const view = urlParams.get('view')
-  return view === 'outbox' ? 'outbox' : 'inbox'
+  if (view === 'outbox') return 'outbox'
+  if (view === 'ai-insights') return 'ai-insights'
+  return 'inbox'
 }
 
 /**
@@ -116,6 +119,10 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
   const showAiFeatures = isAiFeatureEnabled && aiCapabilities?.aiEnabled
   const semanticSearchAvailable = showAiFeatures && aiCapabilities?.semanticSearchAvailable
 
+  // AI Insights feature flag (requires explicit enablement)
+  const aiInsightsFeature = useFeature(Feature.EveryBox.AiInsightsEnabled.Key)
+  const showAiInsights = (aiInsightsFeature === true || aiInsightsFeature === 'true') && showAiFeatures
+
   // AI semantic search
   const {
     results: aiSearchResults,
@@ -126,11 +133,6 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
   } = useAiSearch(context.accessToken, { limit: 15 })
 
   // All hooks must be called before any early return to satisfy React's rules of hooks
-  // Separate interval refs for each data source (for staggered polling)
-  const activeTasksIntervalRef = useRef<NodeJS.Timeout | null>(null)
-  const completedTasksIntervalRef = useRef<NodeJS.Timeout | null>(null)
-  const outboxFlowsIntervalRef = useRef<NodeJS.Timeout | null>(null)
-
   const [isQuickTaskModalOpen, setIsQuickTaskModalOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<ViewType>(getInitialView())
   const [globalSearch, setGlobalSearch] = useState('')
@@ -138,6 +140,7 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
   const [selectedFilters, setSelectedFilters] = useState<FilterType[]>(['all'])
   const [sortOption, setSortOption] = useState<SortOption>('newest')
   const [dueDateFilter, setDueDateFilter] = useState<DueDateFilter>('any')
+  const [isSearchExpanded, setIsSearchExpanded] = useState(false)
 
   const sortBy = sortOption === 'priority' ? 'priority' : 'createdAt'
   const sortOrder = sortOption === 'oldest' ? 'asc' : sortOption === 'priority' ? 'asc' : 'desc'
@@ -147,6 +150,15 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
     const handle = globalThis.setTimeout(() => setDebouncedSearch(globalSearch), 300)
     return () => globalThis.clearTimeout(handle)
   }, [globalSearch])
+
+  // Trigger semantic search when search text changes (with debounce)
+  useEffect(() => {
+    if (semanticSearchAvailable && debouncedSearch.trim()) {
+      aiSearch(debouncedSearch)
+    } else {
+      aiClearResults()
+    }
+  }, [debouncedSearch, semanticSearchAvailable, aiSearch, aiClearResults])
 
   // File upload hook for Blink attachments
   const { uploadFiles } = useQuickTaskFileUpload({
@@ -171,10 +183,22 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
     dueFilter: dueDateFilter
   })
 
-  // Fetch outbox flows
-  const { flows, isLoading: flowsLoading, error: flowsError, refetch: refetchFlows } = useOutboxFlows(context)
+  // Track which tabs have been visited (lazy-load: only fetch data when tab is first opened)
+  const [visitedTabs, setVisitedTabs] = useState<Set<string>>(() => new Set([getInitialView()]))
 
-  // Fetch completed tasks
+  // Fetch outbox flows - DEFERRED until outbox tab is visited
+  const outboxEnabled = visitedTabs.has('outbox')
+  const {
+    flows,
+    isLoading: flowsLoading,
+    error: flowsError,
+    refetch: refetchFlows,
+    backgroundRefresh: backgroundRefreshFlows
+  } = useOutboxFlows(context, {
+    enabled: outboxEnabled
+  })
+
+  // Fetch completed tasks - needed for filter badge counts in inbox view
   const {
     tasks: completedTasks,
     totalCount: totalCompletedCount,
@@ -225,13 +249,21 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
   }, [isPreviewEnabled])
 
   // Handler to change tab and update URL
-  const handleTabChange = (value: string) => {
+  // PERF: Wrapped in useCallback — all captured values are stable (state setters + updateViewUrl)
+  const handleTabChange = useCallback((value: string) => {
     const newView = value as ViewType
     setActiveTab(newView)
     updateViewUrl(newView)
-  }
+    // Mark tab as visited to trigger lazy data loading
+    setVisitedTabs(prev => {
+      if (prev.has(newView)) return prev
+      const next = new Set(prev)
+      next.add(newView)
+      return next
+    })
+  }, [])
 
-  const handleRefresh = async () => {
+  const handleRefresh = useCallback(async () => {
     if (activeTab === 'outbox') {
       await refetchFlows()
       return
@@ -248,46 +280,67 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
       return
     }
     await refetchTasks()
-  }
+  }, [activeTab, selectedFilters, refetchFlows, refetchCompleted, refetchBlinkTasks, refetchTasks])
 
-  // Set up staggered polling intervals (SMART POLLING - no UI disruption)
+  // PERF: Store polling callbacks in refs so intervals never need to be recreated
+  const bgRefreshInboxRef = useRef(backgroundRefreshInbox)
+  bgRefreshInboxRef.current = backgroundRefreshInbox
+  const bgRefreshCompletedRef = useRef(backgroundRefreshCompleted)
+  bgRefreshCompletedRef.current = backgroundRefreshCompleted
+  const bgRefreshFlowsRef = useRef(backgroundRefreshFlows)
+  bgRefreshFlowsRef.current = backgroundRefreshFlows
+
+  // Track browser tab visibility to pause polling when hidden
+  const isPageVisibleRef = useRef(!document.hidden)
+
+  // Pause/resume polling when browser tab visibility changes
+  // On becoming visible, refresh all data sources for an up-to-date view
   useEffect(() => {
-    if (!isPreviewEnabled) return
-
-    // Active tasks polling - uses backgroundRefresh (no UI reload)
-    if (POLLING_CONFIG.activeTasks.enabled) {
-      activeTasksIntervalRef.current = setInterval(() => {
-        backgroundRefreshInbox()
-      }, POLLING_CONFIG.activeTasks.interval)
-    }
-
-    // Completed tasks polling - uses backgroundRefresh (no UI reload)
-    if (POLLING_CONFIG.completedTasks.enabled) {
-      completedTasksIntervalRef.current = setInterval(() => {
-        backgroundRefreshCompleted()
-      }, POLLING_CONFIG.completedTasks.interval)
-    }
-
-    // Outbox flows polling - still uses refetch (less disruptive for smaller lists)
-    if (POLLING_CONFIG.outboxFlows.enabled) {
-      outboxFlowsIntervalRef.current = setInterval(() => {
-        refetchFlows()
-      }, POLLING_CONFIG.outboxFlows.interval)
-    }
-
-    // Cleanup all intervals on unmount
-    return () => {
-      if (activeTasksIntervalRef.current) {
-        clearInterval(activeTasksIntervalRef.current)
-      }
-      if (completedTasksIntervalRef.current) {
-        clearInterval(completedTasksIntervalRef.current)
-      }
-      if (outboxFlowsIntervalRef.current) {
-        clearInterval(outboxFlowsIntervalRef.current)
+    const handleVisibility = () => {
+      isPageVisibleRef.current = !document.hidden
+      if (!document.hidden) {
+        bgRefreshInboxRef.current()
+        bgRefreshCompletedRef.current()
+        bgRefreshFlowsRef.current()
       }
     }
-  }, [isPreviewEnabled, backgroundRefreshInbox, backgroundRefreshCompleted, refetchFlows])
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => document.removeEventListener('visibilitychange', handleVisibility)
+  }, [])
+
+  // Active tasks polling (always runs, independent of tab) - reads from ref
+  useEffect(() => {
+    if (!isPreviewEnabled || !POLLING_CONFIG.activeTasks.enabled) return
+    const id = setInterval(() => {
+      if (isPageVisibleRef.current) bgRefreshInboxRef.current()
+    }, POLLING_CONFIG.activeTasks.interval)
+    return () => clearInterval(id)
+  }, [isPreviewEnabled])
+
+  // Completed tasks polling - only when inbox tab is active
+  useEffect(() => {
+    if (!isPreviewEnabled || !POLLING_CONFIG.completedTasks.enabled || activeTab !== 'inbox') return
+    const id = setInterval(() => {
+      if (isPageVisibleRef.current) bgRefreshCompletedRef.current()
+    }, POLLING_CONFIG.completedTasks.interval)
+    return () => clearInterval(id)
+  }, [isPreviewEnabled, activeTab])
+
+  // Outbox flows polling - only when outbox tab is active
+  useEffect(() => {
+    if (!isPreviewEnabled || !POLLING_CONFIG.outboxFlows.enabled || activeTab !== 'outbox') return
+    const id = setInterval(() => {
+      if (isPageVisibleRef.current) bgRefreshFlowsRef.current()
+    }, POLLING_CONFIG.outboxFlows.interval)
+    return () => clearInterval(id)
+  }, [isPreviewEnabled, activeTab])
+
+  // PERF: Store refetch callbacks in refs so the process-completion listener
+  // doesn't get torn down and re-added on every filter/sort change
+  const refetchTasksRef = useRef(refetchTasks)
+  refetchTasksRef.current = refetchTasks
+  const refetchCompletedRef = useRef(refetchCompleted)
+  refetchCompletedRef.current = refetchCompleted
 
   // Listen for process completion events to refresh task lists
   useEffect(() => {
@@ -298,9 +351,8 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
       const resolution = customEvent.detail?.resolution
 
       if (resolution === 'success') {
-        // Refresh both active and completed tasks
-        refetchTasks()
-        refetchCompleted()
+        refetchTasksRef.current()
+        refetchCompletedRef.current()
       }
     }
 
@@ -309,71 +361,90 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
     return () => {
       window.removeEventListener('com.newwork.process.processCompletion', handleProcessCompletion)
     }
-  }, [isPreviewEnabled, refetchTasks, refetchCompleted])
+  }, [isPreviewEnabled])
+
+  // Memoize filter counts to avoid .filter() on every render
+  const filterCounts = useMemo(
+    () => ({
+      all: totalTaskCount,
+      blinks: blinkTotalCount || 0,
+      approvals: tasks.filter(task => {
+        const taskName = (task.referenceTaskName || task.name || task.title || '').toLowerCase()
+        const taskType = (task.type || '').toLowerCase()
+        const taskCategory = (task.taskCategory || '').toLowerCase()
+        return (
+          taskName.includes('approval') ||
+          taskName.includes('approve') ||
+          taskType.includes('approval') ||
+          taskCategory.includes('approval') ||
+          task.tags?.category === 'approval'
+        )
+      }).length,
+      completed: totalCompletedCount
+    }),
+    [tasks, totalTaskCount, blinkTotalCount, totalCompletedCount]
+  )
+
+  // Handle Quick Task (Blink) submission
+  const handleQuickTaskSubmit = useCallback(
+    async (data: QuickTaskFormData) => {
+      try {
+        const baseUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || env('NEXT_PUBLIC_BASE_URL') + '/flow-engine'
+
+        let uploadResults: any[] = []
+        if (data.documents && data.documents.length > 0) {
+          const filesToUpload = data.documents
+            .filter(doc => doc.originFileObj && doc.status !== 'error')
+            .map(doc => doc.originFileObj!)
+
+          if (filesToUpload.length > 0) {
+            try {
+              uploadResults = await uploadFiles(filesToUpload)
+            } catch (uploadError) {
+              toast.error(
+                t('blink-upload-error', {
+                  error: uploadError instanceof Error ? uploadError.message : 'Unknown error'
+                })
+              )
+              throw uploadError
+            }
+          }
+        }
+
+        await QuickTaskFlowService.executeQuickTask({
+          formData: data,
+          uploadResults,
+          accessToken: context.accessToken,
+          initiatorId: context.userInfo?.id || context.userInfo?.employeeDetails?.employeeId || 'unknown',
+          apiBaseUrl: baseUrl
+        })
+
+        toast.success(t('blink-created-success', { title: data.title }))
+
+        Promise.all([refetchTasks(), refetchFlows(), refetchCompleted(), refetchBlinkTasks()]).catch(() => {
+          // Ignore errors in background refresh
+        })
+      } catch (error) {
+        toast.error(t('blink-created-error', { error: error instanceof Error ? error.message : 'Unknown error' }))
+        throw error
+      }
+    },
+    [
+      uploadFiles,
+      context.accessToken,
+      context.userInfo,
+      t,
+      refetchTasks,
+      refetchFlows,
+      refetchCompleted,
+      refetchBlinkTasks
+    ]
+  )
 
   // Feature flag guard - render null if preview is disabled (after all hooks)
   if (!isPreviewEnabled) {
     return null
   }
-
-  // Handle Quick Task (Blink) submission
-  const handleQuickTaskSubmit = async (data: QuickTaskFormData) => {
-    try {
-      const baseUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || env('NEXT_PUBLIC_BASE_URL') + '/flow-engine'
-
-      // Step 1: Upload files first if any are attached
-      let uploadResults: any[] = []
-      if (data.documents && data.documents.length > 0) {
-        // Extract actual File objects from QuickTaskUploadFile[] (skip files with errors)
-        const filesToUpload = data.documents
-          .filter(doc => doc.originFileObj && doc.status !== 'error')
-          .map(doc => doc.originFileObj!)
-
-        if (filesToUpload.length > 0) {
-          try {
-            uploadResults = await uploadFiles(filesToUpload)
-          } catch (uploadError) {
-            toast.error(
-              t('blink-upload-error', { error: uploadError instanceof Error ? uploadError.message : 'Unknown error' })
-            )
-            throw uploadError // Re-throw to prevent task creation with missing attachments
-          }
-        }
-      }
-
-      // Step 2: Execute the quick task with uploaded file results
-      await QuickTaskFlowService.executeQuickTask({
-        formData: data,
-        uploadResults, // Now includes actual uploaded file data
-        accessToken: context.accessToken,
-        initiatorId: context.userInfo?.id || context.userInfo?.employeeDetails?.employeeId || 'unknown',
-        apiBaseUrl: baseUrl
-      })
-
-      toast.success(t('blink-created-success', { title: data.title }))
-
-      // Refresh the task lists in the background (don't wait for them)
-      // This allows the modal to close immediately
-      Promise.all([refetchTasks(), refetchFlows(), refetchCompleted(), refetchBlinkTasks()]).catch(() => {
-        // Ignore errors in background refresh
-      })
-    } catch (error) {
-      toast.error(t('blink-created-error', { error: error instanceof Error ? error.message : 'Unknown error' }))
-      throw error // Re-throw to prevent modal from closing on error
-    }
-  }
-
-  // State for expandable search
-  const [isSearchExpanded, setIsSearchExpanded] = useState(false)
-
-  // Trigger semantic search when search text changes (with debounce)
-  useEffect(() => {
-    if (semanticSearchAvailable && debouncedSearch.trim()) {
-      aiSearch(debouncedSearch)
-    } else {
-      aiClearResults()
-    }
-  }, [debouncedSearch, semanticSearchAvailable, aiSearch, aiClearResults])
 
   return (
     <ThemeProvider defaultTheme="light">
@@ -444,6 +515,30 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
                       }`}
                     />
                   </button>
+
+                  {showAiInsights && (
+                    <button
+                      onClick={() => handleTabChange('ai-insights')}
+                      className={`gba:group gba:relative gba:flex gba:items-center gba:gap-2 gba:px-4 gba:py-3 gba:transition-colors ${
+                        activeTab === 'ai-insights'
+                          ? 'gba:text-foreground'
+                          : 'gba:text-muted-foreground gba:hover:text-foreground'
+                      }`}
+                      data-testid={`${prefixDataTestId}-ai-insights-tab`}
+                      data-state={activeTab === 'ai-insights' ? 'active' : 'inactive'}
+                    >
+                      <Brain className="gba:h-4 gba:w-4" />
+                      <span className="gba:text-sm gba:font-medium">AI Insights</span>
+                      {/* Active indicator line */}
+                      <span
+                        className={`gba:absolute gba:bottom-0 gba:left-4 gba:right-4 gba:h-0.5 gba:rounded-full gba:transition-all ${
+                          activeTab === 'ai-insights'
+                            ? 'gba:bg-foreground gba:opacity-100'
+                            : 'gba:bg-transparent gba:opacity-0 gba:group-hover:bg-muted-foreground gba:group-hover:opacity-30'
+                        }`}
+                      />
+                    </button>
+                  )}
                 </div>
 
                 {/* Right: Search, Filter, Blink */}
@@ -527,23 +622,7 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
                   <FiltersDropdown
                     selectedFilters={selectedFilters}
                     onFiltersChange={setSelectedFilters}
-                    filterCounts={{
-                      all: totalTaskCount,
-                      blinks: blinkTotalCount || 0,
-                      approvals: tasks.filter(task => {
-                        const taskName = (task.referenceTaskName || task.name || task.title || '').toLowerCase()
-                        const taskType = (task.type || '').toLowerCase()
-                        const taskCategory = (task.taskCategory || '').toLowerCase()
-                        return (
-                          taskName.includes('approval') ||
-                          taskName.includes('approve') ||
-                          taskType.includes('approval') ||
-                          taskCategory.includes('approval') ||
-                          task.tags?.category === 'approval'
-                        )
-                      }).length,
-                      completed: totalCompletedCount
-                    }}
+                    filterCounts={filterCounts}
                     prefixDataTestId={`${prefixDataTestId}-filters`}
                   />
 
@@ -697,6 +776,12 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
                     selectedFilters={selectedFilters}
                   />
                 </TabsContent>
+
+                {showAiInsights && (
+                  <TabsContent value="ai-insights" className="gba:h-full gba:m-0">
+                    <AiInsightsDashboard {...context} />
+                  </TabsContent>
+                )}
               </div>
             </Tabs>
           </div>

@@ -30,6 +30,7 @@ import { PiArrowLeft, PiWarning, PiCheckCircle, PiCalendar } from 'react-icons/p
 import dayjs from 'dayjs'
 import weekday from 'dayjs/plugin/weekday'
 import localeData from 'dayjs/plugin/localeData'
+import { formatDateForInput, normalizeDateInputValue, toISOStartOfDay, toISOEndOfDay } from '../../utils'
 
 // Register dayjs plugins
 dayjs.extend(weekday)
@@ -153,6 +154,7 @@ const CalculationRuleRecord: React.FC<CalculationRuleRecordProps> = ({
     romanianCalculation: false,
     austrianAbroad: false
   })
+
   // Tab and sub-tab management with query parameters
   const getInitialTab = () => {
     const urlParams = new URLSearchParams(window.location.search)
@@ -288,8 +290,8 @@ const CalculationRuleRecord: React.FC<CalculationRuleRecordProps> = ({
         standard: ruleDetails.standard || false,
 
         // Validity & Configuration
-        activeFrom: ruleDetails.activeFrom ? dayjs(ruleDetails.activeFrom).format('YYYY-MM-DD') : '',
-        activeTo: ruleDetails.activeTo ? dayjs(ruleDetails.activeTo).format('YYYY-MM-DD') : '',
+        activeFrom: formatDateForInput(ruleDetails.activeFrom) || '',
+        activeTo: formatDateForInput(ruleDetails.activeTo) || '',
         calculationTypeRef: ruleDetails.calculationTypeRef || '',
         currencyRef: ruleDetails.currencyRef || '',
 
@@ -308,6 +310,7 @@ const CalculationRuleRecord: React.FC<CalculationRuleRecordProps> = ({
       }
 
       setFormData(initialValues)
+
       setInitialFormData(initialValues)
     } catch (err) {
       console.error('❌ Error loading expense rule details:', err)
@@ -419,8 +422,8 @@ const CalculationRuleRecord: React.FC<CalculationRuleRecordProps> = ({
           code: formData.code,
           name: formData.name,
           standard: formData.standard,
-          activeFrom: formData.activeFrom ? dayjs(formData.activeFrom).startOf('day').toISOString() : null,
-          activeTo: formData.activeTo ? dayjs(formData.activeTo).endOf('day').toISOString() : null,
+          activeFrom: formData.activeFrom ? toISOStartOfDay(formData.activeFrom) : null,
+          activeTo: formData.activeTo ? toISOEndOfDay(formData.activeTo) : null,
           calculationTypeRef: formData.calculationTypeRef || null,
           currencyRef: formData.currencyRef || null,
           countryRef: formData.countryRef || null,
@@ -646,7 +649,8 @@ const CalculationRuleRecord: React.FC<CalculationRuleRecordProps> = ({
                       <DateInput
                         data-testid="rule-active-from-picker"
                         value={formData.activeFrom}
-                        onChange={date => setFormData({ ...formData, activeFrom: date || '' })}
+                        onChange={date => setFormData({ ...formData, activeFrom: normalizeDateInputValue(date) ?? '' })}
+                        outputFormat="iso"
                       />
                     </div>
                     <div>
@@ -657,7 +661,8 @@ const CalculationRuleRecord: React.FC<CalculationRuleRecordProps> = ({
                       <DateInput
                         data-testid="rule-active-to-picker"
                         value={formData.activeTo}
-                        onChange={date => setFormData({ ...formData, activeTo: date || '' })}
+                        onChange={date => setFormData({ ...formData, activeTo: normalizeDateInputValue(date) ?? '' })}
+                        outputFormat="iso"
                       />
                     </div>
                     <div>

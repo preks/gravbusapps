@@ -101,6 +101,16 @@ export const CallControlsBar: React.FC<CallControlsBarProps> = ({
   // Desktop layout at >= 1024px matches dialog maxWidth breakpoint
   const showDesktopLayout = windowWidth >= 1024
 
+  // Count available mobile menu options to determine if we should show "More" menu
+  // Only show "More" menu if we have 2 or more options, otherwise show the single option directly
+  const mobileMenuOptionCount = [
+    onToggleBackground && callType === 'video', // Background effect
+    onToggleRaiseHand, // Raise hand
+    onSendReaction // Reactions
+  ].filter(Boolean).length
+
+  const showMoreMenu = !showDesktopLayout && mobileMenuOptionCount >= 2
+
   return (
     <div className="gba:flex-shrink-0">
       <div
@@ -271,8 +281,94 @@ export const CallControlsBar: React.FC<CallControlsBarProps> = ({
             </div>
           )}
 
-          {/* Mobile: "More" menu for secondary controls */}
-          {!showDesktopLayout && (onToggleBackground || onToggleRaiseHand || onSendReaction) && (
+          {/* Mobile: Single option shown as direct button */}
+          {!showDesktopLayout && mobileMenuOptionCount === 1 && (
+            <div className="gba:flex gba:items-center gba:gap-1">
+              {/* Background effect button */}
+              {onToggleBackground && callType === 'video' && (
+                <button
+                  onClick={onToggleBackground}
+                  className={`gba:p-2.5 gba:rounded-full gba:transition-all ${
+                    backgroundEnabled
+                      ? 'gba:bg-primary gba:text-primary-foreground hover:gba:bg-primary/90'
+                      : 'gba:bg-accent hover:gba:bg-accent/90'
+                  }`}
+                  data-testid={`${prefixDataTestId}-background-btn-mobile`}
+                  aria-label={
+                    backgroundEnabled
+                      ? t('groupCall-disableBackground') || 'Disable background'
+                      : t('groupCall-enableBackground') || 'Enable background'
+                  }
+                  title={
+                    backgroundEnabled
+                      ? t('groupCall-disableBackground') || 'Disable background'
+                      : t('groupCall-enableBackground') || 'Enable background'
+                  }
+                >
+                  <Image className="gba:w-4 gba:h-4" weight="fill" />
+                </button>
+              )}
+
+              {/* Raise hand button */}
+              {onToggleRaiseHand && (
+                <button
+                  onClick={onToggleRaiseHand}
+                  className={`gba:p-2.5 gba:rounded-full gba:transition-all ${
+                    handRaised
+                      ? 'gba:bg-warning gba:text-warning-foreground hover:gba:bg-warning/90'
+                      : 'gba:bg-accent hover:gba:bg-accent/90'
+                  }`}
+                  data-testid={`${prefixDataTestId}-raise-hand-btn-mobile`}
+                  aria-label={handRaised ? 'Lower hand' : 'Raise hand'}
+                  title={handRaised ? 'Lower hand' : 'Raise hand'}
+                >
+                  <HandIcon className="gba:w-4 gba:h-4" weight="fill" />
+                </button>
+              )}
+
+              {/* Reactions popover button */}
+              {onSendReaction && (
+                <Popover open={reactionsOpen} onOpenChange={setReactionsOpen}>
+                  <PopoverTrigger asChild>
+                    <button
+                      className="gba:p-2.5 gba:rounded-full gba:bg-accent hover:gba:bg-accent/90 gba:transition-all"
+                      data-testid={`${prefixDataTestId}-reactions-btn-mobile`}
+                      aria-label="Send reaction"
+                      title="Send reaction"
+                    >
+                      <Smiley className="gba:w-4 gba:h-4" weight="fill" />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent
+                    className="gba:w-auto gba:p-2"
+                    side="top"
+                    data-testid={`${prefixDataTestId}-reactions-popover-mobile`}
+                  >
+                    <div className="gba:flex gba:gap-1">
+                      {REACTIONS.map(emoji => (
+                        <button
+                          key={emoji}
+                          onClick={() => {
+                            onSendReaction(emoji)
+                            setReactionsOpen(false)
+                          }}
+                          className="gba:p-2 gba:rounded-lg hover:gba:bg-accent gba:transition-all gba:text-2xl"
+                          title={`Send ${emoji}`}
+                          data-testid={`${prefixDataTestId}-reaction-${emoji}-mobile`}
+                          aria-label={`Send ${emoji} reaction`}
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              )}
+            </div>
+          )}
+
+          {/* Mobile: "More" menu for secondary controls (only when 2+ options) */}
+          {showMoreMenu && (
             <Popover open={moreMenuOpen} onOpenChange={setMoreMenuOpen}>
               <PopoverTrigger asChild>
                 <button

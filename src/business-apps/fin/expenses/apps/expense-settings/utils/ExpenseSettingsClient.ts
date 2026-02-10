@@ -58,7 +58,6 @@ export class ExpenseSettingsClient extends RestClient {
         ...(data.version !== undefined && { version: data.version }),
         code: data.code,
         name: data.ruleName, // API expects 'name', not 'ruleName'
-        description: data.description,
         rulePeriod: data.rulePeriod,
         activeFrom: data.activeFrom,
         activeTo: data.activeTo,

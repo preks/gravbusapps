@@ -29,6 +29,7 @@ interface JoinMeetingPayload {
   meetingId: string
   conversationId?: string
   title?: string
+  participants?: CallParticipant[] // Optional: if provided, invite these participants
 }
 
 interface UseStartCallFromPlatformProps {
@@ -156,7 +157,7 @@ export const useStartCallFromPlatform = ({
     // Handle joining a calendar meeting from the dashboard (Upcoming Meetings section)
     const handleJoinMeeting = (event: Event) => {
       const customEvent = event as CustomEvent<JoinMeetingPayload>
-      const { meetingId, conversationId, title } = customEvent.detail
+      const { meetingId, conversationId, title, participants } = customEvent.detail
 
       if (!initiateGroupCall) {
         console.warn('[useStartCallFromPlatform] Cannot join meeting - initiateGroupCall not available')
@@ -173,10 +174,12 @@ export const useStartCallFromPlatform = ({
 
       // Join the calendar meeting with video by default
       // Pass the meetingId as calendarMeetingId so the call is linked to the calendar event
+      // If participants are provided, invite them (starting a new meeting)
+      // If no participants, join existing meeting
       initiateGroupCall(
         roomId,
         'video', // Calendar meetings default to video
-        [], // Empty participants - we're joining an existing meeting room
+        participants || [], // Use provided participants or empty array for joining existing
         title, // Use meeting title as the conversation name
         meetingId, // Pass the calendar meeting ID to link the call
         'meeting' // Mark as a calendar meeting

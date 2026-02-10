@@ -5,9 +5,9 @@ import { EquityAnalyticsFilters } from './types'
 import { InvestmentReportTable } from '../../components/shared/InvestmentReportTable'
 import { EQUITY_TABLE_CONFIG } from '../../components/shared/tableConfigs'
 import { useEquityInvestmentTypes } from './hooks/useEquityInvestmentTypes'
-import { useGetInvestmentCatalogData } from '@/common/data/investment/hooks/useInvestmentCatalogs'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { UseReportFiltersReturn, ColumnConfig, useReportFilters } from '../../hooks'
+import { useReportTabCounts } from '../../hooks/useReportTabCounts'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -20,7 +20,8 @@ interface EquityReportProps extends BusinessAppContextProps {
   'data-testid'?: string
   reportFilters: UseReportFiltersReturn
   onCurrenciesUpdate: (currencies: string[]) => void
-  isTransposed: boolean
+  catalogData?: any
+  enabled?: boolean
 }
 
 export const EquityReport: React.FC<EquityReportProps> = ({
@@ -29,29 +30,11 @@ export const EquityReport: React.FC<EquityReportProps> = ({
   'data-testid': dataTestId = 'equity-analytics',
   reportFilters,
   onCurrenciesUpdate,
-  isTransposed
+  catalogData,
+  enabled = true
 }) => {
   // Fetch dynamic equity investment types from catalog
   const { investmentTypes, error: typesError } = useEquityInvestmentTypes(accessToken)
-
-  // Fetch catalog data for dynamic columns
-  const { fetchInvestmentCatalogData } = useGetInvestmentCatalogData({ accessToken, userInfo })
-  const [catalogData, setCatalogData] = useState<any>(null)
-
-  useEffect(() => {
-    const loadCatalogData = async () => {
-      try {
-        const data = await fetchInvestmentCatalogData()
-        setCatalogData(data)
-      } catch (error) {
-        console.error('Error loading catalog data:', error)
-      }
-    }
-
-    if (accessToken) {
-      loadCatalogData()
-    }
-  }, [accessToken, fetchInvestmentCatalogData])
 
   // Use catalog types if available, otherwise use empty array (only Overview tab)
   const effectiveInvestmentTypes = typesError || investmentTypes.length === 0 ? [] : investmentTypes
@@ -65,16 +48,37 @@ export const EquityReport: React.FC<EquityReportProps> = ({
   // Filter state for report-specific filters
   const [selectedFilters, setSelectedFilters] = useState<Record<string, any>>({})
 
+  // Sorting state (following investment tab pattern)
+  const [sortField, setSortField] = useState('')
+  const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC')
+
   // Fetch filter groups using descriptors
   const filterGroups = useFilterGroups({ accessToken, userInfo }, 'InvestmentReport', INVESTMENT_REPORT_DESCRIPTORS, {
     limit: 100
   })
 
-  // Track total counts for each section
-  const [totalCounts, setTotalCounts] = useState<Record<string, { count: number; isLoading: boolean }>>({})
+  // Fetch counts for all tabs in this group
+  const { counts, isLoading: countsLoading } = useReportTabCounts({
+    investmentGroup: 'EQUITY',
+    investmentTypes: effectiveInvestmentTypes,
+    accessToken,
+    filters: {
+      startDate: reportFilters.computedFilters.startDate,
+      endDate: reportFilters.computedFilters.endDate,
+      currencyIds: reportFilters.computedFilters.currencyIds,
+      search
+    },
+    enabled
+  })
 
-  // Track initial load status for each section
-  const [initialLoadDone, setInitialLoadDone] = useState<Record<string, boolean>>({})
+  // Convert counts to the format expected by the component
+  const totalCounts = useMemo(() => {
+    const result: Record<string, { count: number; isLoading: boolean }> = {}
+    effectiveInvestmentTypes.forEach(type => {
+      result[type.code] = { count: counts[type.code] || 0, isLoading: countsLoading }
+    })
+    return result
+  }, [counts, countsLoading, effectiveInvestmentTypes])
 
   // Get initial investment type from URL parameter
   const getInitialInvestmentType = useCallback(() => {
@@ -203,27 +207,6 @@ export const EquityReport: React.FC<EquityReportProps> = ({
   // Column config is managed separately per report component
   const localReportFilters = useReportFilters(initialColumns)
 
-  // Callback for tables to report their total counts
-  const handleTotalCountUpdate = useCallback((sectionId: string, count: number, isLoading: boolean) => {
-    setTotalCounts(prev => ({
-      ...prev,
-      [sectionId]: { count, isLoading }
-    }))
-    // Mark section as loaded when loading completes
-    if (!isLoading) {
-      setInitialLoadDone(prev => {
-        // Only update if not already done
-        if (prev[sectionId]) {
-          return prev
-        }
-        return {
-          ...prev,
-          [sectionId]: true
-        }
-      })
-    }
-  }, []) // Remove initialLoadDone from dependencies to prevent infinite loops
-
   // Find the selected investment type from catalog
   const selectedInvestmentType = useMemo(() => {
     if (currentSection === 'overview') return undefined
@@ -310,10 +293,57 @@ export const EquityReport: React.FC<EquityReportProps> = ({
     [localReportFilters]
   )
 
+  // Convert sorting to DataTable format
+  const sorting = useMemo(() => {
+    if (!sortField) return []
+    return [{ id: sortField, desc: sortOrder === 'DESC' }]
+  }, [sortField, sortOrder])
+
+  // Handle sorting changes (following investment tab pattern)
+  const handleSortingChange = useCallback((newSorting: Array<{ id: string; desc: boolean }>) => {
+    if (newSorting.length === 0) {
+      setSortField('')
+      setSortOrder('DESC')
+    } else {
+      const firstSort = newSorting[0]
+      setSortField(firstSort.id)
+      setSortOrder(firstSort.desc ? 'DESC' : 'ASC')
+    }
+  }, [])
+
   // Filter change handler
   const handleFilterChange = useCallback((newFilters: Record<string, any>) => {
     setSelectedFilters(newFilters)
   }, [])
+
+  // Define sortable columns (matching investment tab pattern)
+  // Catalog columns with direct paths (not additionalProperties) are sortable
+  // The column key mapping converts equityInvestment.* -> equityInvestmentReport.*
+  const sortableColumns = useMemo(
+    () => [
+      { id: 'investment', label: 'Investment' },
+      { id: 'date', label: 'Date' },
+      // Common InvestmentReport sortable fields
+      { id: 'totalInvestmentAmount', label: 'Total Investment Amount' },
+      { id: 'investmentMarketValue', label: 'Market Value' },
+      { id: 'debtFinancingAmount', label: 'Debt Financing' },
+      { id: 'requiredCapitalAmount', label: 'Required Capital' },
+      { id: 'forecastedRevenueAmount', label: 'Forecasted Revenue' },
+      { id: 'forecastedProfitAmount', label: 'Forecasted Profit' },
+      { id: 'stakePercentage', label: 'Stake %' },
+      { id: 'irr', label: 'IRR' },
+      { id: 'moic', label: 'MOIC' },
+      // Fund fields (if applicable)
+      { id: 'totalCommitmentAmount', label: 'Total Commitment' },
+      { id: 'totalDistributionAmount', label: 'Total Distribution' },
+      { id: 'fundManagerName', label: 'Fund Manager' },
+      // Equity specific sortable fields (catalog uses equityInvestment.*, maps to equityInvestmentReport.*)
+      { id: 'equityInvestment_marketValue', label: 'Equity Market Value' },
+      { id: 'equityInvestment_turnoverAmount', label: 'Turnover' },
+      { id: 'equityInvestment_ebitdaAmount', label: 'EBITDA' }
+    ],
+    []
+  )
 
   // Primary action for "Add Report" - memoized to prevent reload on tab change
   const primaryActions = useMemo(() => {
@@ -366,6 +396,9 @@ export const EquityReport: React.FC<EquityReportProps> = ({
         availableColumns={availableColumns}
         visibleColumns={visibleColumns}
         onVisibleColumnsChange={handleVisibleColumnsChange}
+        sorting={sorting}
+        sortableColumns={sortableColumns}
+        onSortingChange={handleSortingChange}
         primaryAction={primaryActions}
         toolbarDensity="default"
       >
@@ -379,11 +412,12 @@ export const EquityReport: React.FC<EquityReportProps> = ({
               investmentType={type.code}
               investmentTypeValue={type.value}
               catalogData={catalogData}
-              isTransposed={isTransposed}
               onCurrenciesChange={onCurrenciesUpdate}
               visibleColumns={visibleColumns}
-              onTotalCountChange={(count, isLoading) => handleTotalCountUpdate(type.code, count, isLoading)}
-              isInitialLoad={!initialLoadDone[type.code]}
+              enabled={enabled && currentSection === type.code}
+              sortField={sortField}
+              sortOrder={sortOrder}
+              onSortingChange={handleSortingChange}
               data-testid={`${dataTestId}-${type.code.toLowerCase()}-table`}
             />
           </div>

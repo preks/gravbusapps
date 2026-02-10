@@ -87,7 +87,7 @@ export interface ConversationParticipant {
 export interface Message {
   id: string
   conversationId: string
-  senderId: string
+  senderId: string | null // System messages have no sender
   type: MessageType
   content: string
   metadata?: Record<string, any>

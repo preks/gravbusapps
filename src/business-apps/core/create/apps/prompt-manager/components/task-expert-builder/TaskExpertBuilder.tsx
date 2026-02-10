@@ -1,27 +1,27 @@
 import React, { useCallback, useState } from 'react'
 import { Button, Tabs, TabsList, TabsTrigger, TabsContent, Spinner } from '@newwork/nw-design-system'
-import { Save, Sparkles } from 'lucide-react'
+import { LayoutDashboard, Save, Sparkles } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
-import { useAgentBuilderState } from '../../hooks/useAgentBuilderState'
+import { useAgentBuilderState, type AgentBuilderInitialState } from '../../hooks/useAgentBuilderState'
 import { OverviewTab } from './OverviewTab'
 import { BehaviorTab } from './BehaviorTab'
 import { KnowledgeTab } from './KnowledgeTab'
 import { CapabilitiesTab } from './CapabilitiesTab'
 import { AdvancedTab } from './AdvancedTab'
-import { TestTab } from './TestTab'
 
 export interface TaskExpertBuilderProps extends BusinessAppContextProps {
   mode: 'create' | 'edit'
   promptId?: string | null
   onSaved: () => void
   onNameLoaded?: (name: string) => void
+  initialState?: AgentBuilderInitialState
 }
 
-type BuilderTab = 'overview' | 'behavior' | 'knowledge' | 'capabilities' | 'advanced' | 'test'
+type BuilderTab = 'overview' | 'behavior' | 'knowledge' | 'capabilities' | 'advanced'
 
 export const TaskExpertBuilder: React.FC<TaskExpertBuilderProps> = props => {
-  const { mode, promptId, onSaved, onNameLoaded } = props
+  const { mode, promptId, onSaved, onNameLoaded, initialState, onGoToDashboard } = props
   const client = usePromptManagerClient(props.accessToken)
   const [activeTab, setActiveTab] = useState<BuilderTab>('overview')
   const [isSaving, setIsSaving] = useState(false)
@@ -30,9 +30,9 @@ export const TaskExpertBuilder: React.FC<TaskExpertBuilderProps> = props => {
     props,
     mode,
     promptId,
-    onNameLoaded
+    onNameLoaded,
+    initialState
   )
-
   // Save handler
   const onSave = useCallback(async () => {
     setIsSaving(true)
@@ -114,6 +114,12 @@ export const TaskExpertBuilder: React.FC<TaskExpertBuilderProps> = props => {
     <div className="gba:space-y-4" data-testid="agent-builder">
       {/* Header actions */}
       <div className="gba:flex gba:items-center gba:justify-end gba:gap-2">
+        {mode === 'edit' && onGoToDashboard && (
+          <Button variant="outline" size="sm" onClick={onGoToDashboard} data-testid="agent-builder-go-dashboard">
+            <LayoutDashboard className="gba:w-4 gba:h-4 gba:mr-1" />
+            Dashboard
+          </Button>
+        )}
         <Button variant="outline" size="sm" disabled data-testid="agent-builder-ai-assist">
           <Sparkles className="gba:w-4 gba:h-4 gba:mr-1" />
           AI Assist
@@ -139,11 +145,11 @@ export const TaskExpertBuilder: React.FC<TaskExpertBuilderProps> = props => {
         </div>
       )}
 
-      {/* Tabs */}
+      {/* Configuration Tabs */}
       <Tabs value={activeTab} onValueChange={v => setActiveTab(v as BuilderTab)} className="gba:w-full">
         <TabsList className="gba:w-full gba:justify-start gba:bg-background" data-testid="agent-builder-tabs">
           <TabsTrigger value="overview" data-testid="agent-builder-tab-overview">
-            Overview
+            General
           </TabsTrigger>
           <TabsTrigger value="behavior" data-testid="agent-builder-tab-behavior">
             Behavior
@@ -152,13 +158,10 @@ export const TaskExpertBuilder: React.FC<TaskExpertBuilderProps> = props => {
             Knowledge
           </TabsTrigger>
           <TabsTrigger value="capabilities" data-testid="agent-builder-tab-capabilities">
-            Capabilities
+            Tools
           </TabsTrigger>
           <TabsTrigger value="advanced" data-testid="agent-builder-tab-advanced">
             Advanced
-          </TabsTrigger>
-          <TabsTrigger value="test" data-testid="agent-builder-tab-test">
-            Test
           </TabsTrigger>
         </TabsList>
 
@@ -183,16 +186,6 @@ export const TaskExpertBuilder: React.FC<TaskExpertBuilderProps> = props => {
         </TabsContent>
         <TabsContent value="advanced" className="gba:mt-4">
           <AdvancedTab context={props} state={state} actions={actions} catalogs={catalogs} mode={mode} />
-        </TabsContent>
-        <TabsContent value="test" className="gba:mt-4">
-          <TestTab
-            context={props}
-            state={state}
-            actions={actions}
-            catalogs={catalogs}
-            mode={mode}
-            promptId={prompt?._id || promptId}
-          />
         </TabsContent>
       </Tabs>
     </div>

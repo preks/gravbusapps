@@ -15,7 +15,7 @@ import 'dayjs/locale/es'
 import 'dayjs/locale/it'
 import { Flow } from '../types'
 import { formatFlowStatus } from '../utils/taskFormatters'
-import { base64ToObjectURL } from '../utils/avatarUtils'
+import { base64ToDataURL } from '../utils/avatarUtils'
 
 dayjs.extend(relativeTime)
 
@@ -60,7 +60,7 @@ export const FlowCard: React.FC<FlowCardProps> = memo(
     // Avatar URL from base64
     const avatarUrl = useMemo(() => {
       if (employeeData?.pictureThumbnail) {
-        return base64ToObjectURL(employeeData.pictureThumbnail)
+        return base64ToDataURL(employeeData.pictureThumbnail)
       }
       return undefined
     }, [employeeData?.pictureThumbnail])

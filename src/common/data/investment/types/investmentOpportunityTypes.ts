@@ -370,7 +370,6 @@ export const buildInvestmentOpportunityContacts = (contactIds: string[] = [], op
  * Handles IRM-prefixed field name mappings (fallback only):
  * - investment → investments
  * - investmentActivity → activities
- * - investmentAddress → addresses
  * - investmentCommunicationChannel → communicationChannels
  * - investmentDocument → documents
  * - investmentLead → leads

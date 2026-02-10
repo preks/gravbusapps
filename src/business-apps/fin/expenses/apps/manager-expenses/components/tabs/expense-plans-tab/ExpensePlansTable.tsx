@@ -76,7 +76,8 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = props => {
   const currentStatusFilter = props.activeFilter || []
 
   // Use the currency filter passed from parent instead of global store
-  const currentCurrencyFilter = props.currencyFilter || 'EUR'
+  // If no currency filter is selected, format each row with its own currency.
+  const currentCurrencyFilter = props.currencyFilter ?? null
 
   // Set up local state
   const [printModalOpen, setPrintModalOpen] = useState<boolean>(false)
@@ -481,8 +482,8 @@ const ExpensePlansTable: React.FC<ExpensePlansTableProps> = props => {
                       <TableCell className="gba:text-right">
                         <span className="gba:font-medium gba:text-sm">
                           {typeof plan.totalAmount === 'number'
-                            ? formatCurrencyDisplay(plan.totalAmount, currentCurrencyFilter || plan.currency || 'EUR')
-                            : formatCurrencyDisplay(0, currentCurrencyFilter || plan.currency || 'EUR')}
+                            ? formatCurrencyDisplay(plan.totalAmount, currentCurrencyFilter ?? plan.currency ?? 'EUR')
+                            : formatCurrencyDisplay(0, currentCurrencyFilter ?? plan.currency ?? 'EUR')}
                         </span>
                       </TableCell>
                       <TableCell className="gba:pr-6 gba:w-[20%]">

@@ -23,6 +23,7 @@ import { PiArrowLeft, PiPlus, PiMapPin, PiFloppyDisk, PiDotsSixVertical, PiTrash
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 import { ExpenseSettingsClient } from '../../utils/ExpenseSettingsClient'
+import { formatDateForInput } from '../../utils'
 import TravelRegionRuleForm from '../../forms/travel-region-rule-form/TravelRegionRuleForm'
 import TravelRegionForm from '../../forms/travel-region-form/TravelRegionForm'
 import { useAllowanceRuleUsageCheck } from '../../hooks'
@@ -1063,10 +1064,10 @@ const TravelRegionMatrixView: React.FC<TravelRegionMatrixViewProps> = ({
                   code: modals.state.selectedRuleForEdit.code,
                   name: modals.state.selectedRuleForEdit.name,
                   activeFrom: modals.state.selectedRuleForEdit.activeFrom
-                    ? dayjs(modals.state.selectedRuleForEdit.activeFrom).format('YYYY-MM-DD')
+                    ? formatDateForInput(modals.state.selectedRuleForEdit.activeFrom) || dayjs().format('YYYY-MM-DD')
                     : dayjs().format('YYYY-MM-DD'),
                   activeTo: modals.state.selectedRuleForEdit.activeTo
-                    ? dayjs(modals.state.selectedRuleForEdit.activeTo).format('YYYY-MM-DD')
+                    ? formatDateForInput(modals.state.selectedRuleForEdit.activeTo) || ''
                     : '',
                   details: []
                 }}

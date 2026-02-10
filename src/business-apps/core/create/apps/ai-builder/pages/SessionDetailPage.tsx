@@ -21,6 +21,7 @@ import { Label } from '@newwork/nw-design-system'
 import { Alert, AlertDescription } from '@newwork/nw-design-system'
 import { Badge } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import screenDiscoveryConfig from '../../../../../../../scripts/screen-discovery.config.json'
 import { SYSTEM_PROMPT } from '../config/systemPrompt'
 import { FileExplorer } from '../components/FileExplorer'
 import { FilePreview } from '../components/FilePreview'
@@ -169,25 +170,20 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
         })
       }
       if (data.summary && data.summary.files) {
-        const indexFiles = data.summary.files.filter((f: FileChange) => {
-          const hasAppStructure =
-            f.path.includes('/apps/') || f.path.includes('/screens/') || f.path.includes('/forms/')
-          const isIndexFile = f.path.endsWith('/index.ts')
-          const isBusinessApp = f.path.startsWith('src/business-apps/')
-          const isRootIndex = !f.path.match(
-            /\/(types|hooks|components|utils|queries|api|config|styles|assets)\/index\.ts$/
-          )
-          return hasAppStructure && isIndexFile && isBusinessApp && isRootIndex
-        })
+        const screenTypes = (screenDiscoveryConfig as { types: string[] }).types.join('|')
+        const screenRootPattern = new RegExp(
+          String.raw`^src/business-apps/(.+/(?:${screenTypes})/[^/]+)/index\.ts$`
+        )
+        const indexFiles = data.summary.files.filter((f: FileChange) => screenRootPattern.test(f.path))
         if (indexFiles.length > 0) {
-          const match = indexFiles[0].path.match(/src\/business-apps\/(.+)\/index\.ts$/)
+          const match = screenRootPattern.exec(indexFiles[0].path)
           if (match) {
             const detectedPath = match[1]
             setDetectedTargetPath(detectedPath)
             setTargetPath(detectedPath)
             const segments = detectedPath.split('/')
             const screenName = segments[segments.length - 1]
-            setResourceUrl('/platform/' + screenName)
+            setResourceUrl('/platform/generated/' + screenName)
           }
         }
       }
