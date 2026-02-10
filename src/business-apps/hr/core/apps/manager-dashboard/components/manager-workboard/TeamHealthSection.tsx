@@ -173,35 +173,38 @@ export const TeamHealthSection: React.FC<TeamHealthSectionProps> = ({
             </div>
           )}
 
-          {/* Key Drivers (Positive - What's Working Well) */}
-          {keyDrivers.length > 0 && overallRisk !== 'high' && (
-            <div>
-              <p className="gba:text-sm gba:font-medium gba:mb-2 gba:text-success">Key Drivers:</p>
-              <div className="gba:space-y-1">
-                {keyDrivers.map((driver, idx) => (
-                  <div key={idx} className="gba:flex gba:items-center gba:gap-2 gba:text-sm">
-                    <TrendingUp className="gba:text-success" size={14} />
-                    <span className="gba:text-muted-foreground">{driver}</span>
-                  </div>
-                ))}
+          {/* Key Drivers and Top Risk Factors - Side by Side */}
+          <div className="gba:grid gba:grid-cols-2 gba:gap-3">
+            {/* Key Drivers (Positive - What's Working Well) */}
+            {keyDrivers.length > 0 && overallRisk !== 'high' && (
+              <div>
+                <p className="gba:text-xs gba:font-medium gba:mb-2 gba:text-success">Key Drivers:</p>
+                <div className="gba:space-y-1">
+                  {keyDrivers.map((driver, idx) => (
+                    <div key={idx} className="gba:flex gba:items-center gba:gap-1.5 gba:text-xs">
+                      <TrendingUp className="gba:text-success gba:flex-shrink-0" size={12} />
+                      <span className="gba:text-muted-foreground gba:truncate">{driver}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Top Risk Factors (Negative - Areas of Concern) */}
-          {topRiskFactors.length > 0 && (
-            <div>
-              <p className="gba:text-sm gba:font-medium gba:mb-2 gba:text-destructive">Top Risk Factors:</p>
-              <div className="gba:space-y-1">
-                {topRiskFactors.map((factor, idx) => (
-                  <div key={idx} className="gba:flex gba:items-center gba:gap-2 gba:text-sm">
-                    <AlertTriangle className="gba:text-destructive" size={14} />
-                    <span className="gba:text-muted-foreground">{factor}</span>
-                  </div>
-                ))}
+            {/* Top Risk Factors (Negative - Areas of Concern) */}
+            {topRiskFactors.length > 0 && (
+              <div>
+                <p className="gba:text-xs gba:font-medium gba:mb-2 gba:text-destructive">Top Risk Factors:</p>
+                <div className="gba:space-y-1">
+                  {topRiskFactors.map((factor, idx) => (
+                    <div key={idx} className="gba:flex gba:items-center gba:gap-1.5 gba:text-xs">
+                      <AlertTriangle className="gba:text-destructive gba:flex-shrink-0" size={12} />
+                      <span className="gba:text-muted-foreground gba:truncate">{factor}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
           {/* Empty state */}
           {(!summary || summary.totalEmployees === 0) && (

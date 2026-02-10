@@ -47,11 +47,11 @@ export const PerformanceGrowthSection: React.FC<PerformanceGrowthSectionProps> =
       style={{ minHeight: '200px', borderRadius: '12px' }}
       className="gba:p-5"
     >
-      <CardHeader>
+      <CardHeader className="gba:pb-3">
         <CardTitle className="gba:text-lg gba:font-semibold">Performance & Growth</CardTitle>
         <p className="gba:text-sm gba:text-muted-foreground">Goals progress distribution</p>
       </CardHeader>
-      <CardContent className="gba:space-y-4">
+      <CardContent className="gba:space-y-3">
         {hasGoals ? (
           <>
             {/* Distribution (Primary) */}
@@ -107,7 +107,7 @@ export const PerformanceGrowthSection: React.FC<PerformanceGrowthSectionProps> =
 
             {/* Action Button */}
             {(atRisk > 0 || behind > 0) && (
-              <Button onClick={onNavigateToTeamPerformance} variant="default" className="gba:w-full">
+              <Button onClick={onNavigateToTeamPerformance} variant="outline" className="gba:w-full">
                 <Target size={16} className="gba:mr-2" />
                 Review at-risk goals
               </Button>

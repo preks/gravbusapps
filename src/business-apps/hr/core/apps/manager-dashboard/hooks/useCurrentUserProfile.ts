@@ -49,6 +49,7 @@ export const useCurrentUserProfile = ({
           query GetCurrentUserProfile($employeeId: uuid!) {
             Employee(where: { id: { _eq: $employeeId } }) {
               id
+              userId
               firstName
               lastName
               pictureThumbnail

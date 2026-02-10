@@ -215,7 +215,7 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
     accessToken: accessToken || '',
     managerId: employeeId || '',
     directReportIds,
-    enableAISentiment: true
+    enableAISentiment: false
   })
 
   const { userProfile } = useCurrentUserProfile({

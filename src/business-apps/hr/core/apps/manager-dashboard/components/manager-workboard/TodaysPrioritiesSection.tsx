@@ -12,7 +12,6 @@ import {
   SheetContent,
   SheetHeader,
   SheetTitle,
-  Separator,
   toast,
   Spinner
 } from '@newwork/nw-design-system'
@@ -161,6 +160,9 @@ const sendClockInNudge = async (
   try {
     const baseUrl = env('NEXT_PUBLIC_CHAT_API') || `${env('NEXT_PUBLIC_BASE_URL')}/chat-service/api/v1`
 
+    console.log('[sendClockInNudge] Creating conversation for employee:', payload.employeeUserId)
+    console.log('[sendClockInNudge] Current user (sender) userId:', payload.currentUserId)
+
     // Step 1: Create or get direct conversation with the employee
     const conversationResponse = await fetch(`${baseUrl}/conversations/direct`, {
       method: 'POST',
@@ -172,31 +174,54 @@ const sendClockInNudge = async (
     })
 
     if (!conversationResponse.ok) {
-      throw new Error(`Failed to create conversation: ${conversationResponse.statusText}`)
+      const errorText = await conversationResponse.text()
+      console.error('[sendClockInNudge] Conversation creation failed:', errorText)
+      throw new Error(`Failed to create conversation: ${conversationResponse.statusText} - ${errorText}`)
     }
 
     const conversation = await conversationResponse.json()
+    console.log('[sendClockInNudge] Conversation response:', JSON.stringify(conversation, null, 2))
 
-    // Step 2: Send the nudge message
+    // Extract conversation ID - check different possible response structures
+    const conversationId = conversation.id || conversation.conversationId || conversation.data?.id
+
+    if (!conversationId) {
+      console.error('[sendClockInNudge] No conversation ID in response:', conversation)
+      throw new Error('No conversation ID returned from API')
+    }
+
+    console.log('[sendClockInNudge] Using conversation ID:', conversationId)
+
+    // Step 2: Send the nudge message with explicit senderId
+    const messagePayload = {
+      conversationId: conversationId,
+      content: "Don't forget to clock in! ⏰",
+      senderId: payload.currentUserId
+    }
+
+    console.log('[sendClockInNudge] Sending message with payload:', JSON.stringify(messagePayload, null, 2))
+
     const messageResponse = await fetch(`${baseUrl}/messages`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${accessToken}`
       },
-      body: JSON.stringify({
-        conversationId: conversation.id,
-        content: "Don't forget to clock in! ⏰",
-        senderId: payload.currentUserId
-      })
+      body: JSON.stringify(messagePayload)
     })
 
     if (!messageResponse.ok) {
-      throw new Error(`Failed to send message: ${messageResponse.statusText}`)
+      const errorText = await messageResponse.text()
+      console.error('[sendClockInNudge] Message send failed:', errorText)
+      throw new Error(`Failed to send message: ${messageResponse.statusText} - ${errorText}`)
     }
+
+    const messageResult = await messageResponse.json()
+    console.log('[sendClockInNudge] Message sent successfully:', messageResult)
 
     return { success: true }
   } catch (err) {
+    console.error('[sendClockInNudge] Error:', err)
     return { success: false, error: err instanceof Error ? err.message : 'Failed to send nudge' }
   }
 }
@@ -473,20 +498,19 @@ export const TodaysPrioritiesSection: React.FC<TodaysPrioritiesSectionProps> = (
 
       {/* Unallocated Members Panel */}
       <Sheet open={isUnallocatedPanelOpen} onOpenChange={setIsUnallocatedPanelOpen}>
-        <SheetContent className="gba:w-full sm:gba:max-w-md" aria-label="Unallocated team members details">
-          <SheetHeader>
-            <div className="gba:flex gba:items-center gba:justify-between">
-              <SheetTitle>Unallocated Team Members</SheetTitle>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setIsUnallocatedPanelOpen(false)}
-                className="gba:h-6 gba:w-6 gba:p-0"
-                aria-label="Close panel"
-              >
-                <X size={16} />
-              </Button>
-            </div>
+        <SheetContent
+          className="gba:w-full sm:gba:max-w-md gba:p-6 gba:overflow-y-auto"
+          aria-label="Unallocated team members details"
+        >
+          <SheetHeader className="gba:mb-6">
+            <button
+              onClick={() => setIsUnallocatedPanelOpen(false)}
+              className="gba:absolute gba:right-4 gba:top-4 gba:rounded-sm gba:opacity-70 gba:ring-offset-background gba:transition-opacity hover:gba:opacity-100 focus:gba:outline-none focus:gba:ring-2 focus:gba:ring-ring focus:gba:ring-offset-2"
+              aria-label="Close"
+            >
+              <X className="gba:h-4 gba:w-4" />
+            </button>
+            <SheetTitle className="gba:text-xl gba:font-semibold">Unallocated Team Members</SheetTitle>
             <p className="gba:text-sm gba:text-muted-foreground gba:pt-2">
               {unallocatedDailyCost > 0
                 ? `Estimated cost: €${unallocatedDailyCost.toLocaleString()} per day`
@@ -494,14 +518,7 @@ export const TodaysPrioritiesSection: React.FC<TodaysPrioritiesSectionProps> = (
             </p>
           </SheetHeader>
 
-          <Separator className="gba:my-4" />
-
-          <div
-            className="gba:space-y-2 gba:overflow-y-auto"
-            style={{ maxHeight: 'calc(100vh - 200px)' }}
-            role="list"
-            aria-label="Unallocated employees"
-          >
+          <div className="gba:space-y-2" role="list" aria-label="Unallocated employees">
             {unallocatedEmployees.map(employee => {
               const availablePercent = 100 - (employee.allocationPercent || 0)
               return (
@@ -519,7 +536,7 @@ export const TodaysPrioritiesSection: React.FC<TodaysPrioritiesSectionProps> = (
                   {onAssignProject && (
                     <Button
                       size="sm"
-                      variant="default"
+                      variant="outline"
                       onClick={() => {
                         onAssignProject(employee.id)
                         setIsUnallocatedPanelOpen(false)
@@ -544,27 +561,22 @@ export const TodaysPrioritiesSection: React.FC<TodaysPrioritiesSectionProps> = (
 
       {/* No Goals Panel */}
       <Sheet open={isNoGoalsPanelOpen} onOpenChange={setIsNoGoalsPanelOpen}>
-        <SheetContent className="gba:w-full sm:gba:max-w-md">
-          <SheetHeader>
-            <div className="gba:flex gba:items-center gba:justify-between">
-              <SheetTitle>Team Members Without Goals</SheetTitle>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setIsNoGoalsPanelOpen(false)}
-                className="gba:h-6 gba:w-6 gba:p-0"
-              >
-                <X size={16} />
-              </Button>
-            </div>
+        <SheetContent className="gba:w-full sm:gba:max-w-md gba:p-6 gba:overflow-y-auto">
+          <SheetHeader className="gba:mb-6">
+            <button
+              onClick={() => setIsNoGoalsPanelOpen(false)}
+              className="gba:absolute gba:right-4 gba:top-4 gba:rounded-sm gba:opacity-70 gba:ring-offset-background gba:transition-opacity hover:gba:opacity-100 focus:gba:outline-none focus:gba:ring-2 focus:gba:ring-ring focus:gba:ring-offset-2"
+              aria-label="Close"
+            >
+              <X className="gba:h-4 gba:w-4" />
+            </button>
+            <SheetTitle className="gba:text-xl gba:font-semibold">Team Members Without Goals</SheetTitle>
             <p className="gba:text-sm gba:text-muted-foreground gba:pt-2">
               {counts.withoutGoals} members need performance goals
             </p>
           </SheetHeader>
 
-          <Separator className="gba:my-4" />
-
-          <div className="gba:space-y-2 gba:overflow-y-auto" style={{ maxHeight: 'calc(100vh - 200px)' }}>
+          <div className="gba:space-y-2">
             {employeesWithoutGoals.map(employee => (
               <div
                 key={employee.id}
@@ -572,8 +584,10 @@ export const TodaysPrioritiesSection: React.FC<TodaysPrioritiesSectionProps> = (
               >
                 <span className="gba:text-sm gba:font-medium">{employee.name}</span>
                 <AppAction
-                  variant="update-primary"
-                  size="sm"
+                  variant="custom"
+                  mode="button"
+                  buttonSize="sm"
+                  buttonVariant="outline"
                   contexts={[
                     {
                       context: FlowContextName.employeePerformanceGoal,
@@ -600,27 +614,25 @@ export const TodaysPrioritiesSection: React.FC<TodaysPrioritiesSectionProps> = (
 
       {/* Goals Behind Target Panel */}
       <Sheet open={isGoalsBehindPanelOpen} onOpenChange={setIsGoalsBehindPanelOpen}>
-        <SheetContent className="gba:w-full sm:gba:max-w-lg">
-          <SheetHeader>
-            <div className="gba:flex gba:items-center gba:justify-between">
-              <SheetTitle>Goals Behind Target</SheetTitle>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setIsGoalsBehindPanelOpen(false)}
-                className="gba:h-6 gba:w-6 gba:p-0"
-              >
-                <X size={16} />
-              </Button>
-            </div>
+        <SheetContent
+          className="gba:w-full sm:gba:max-w-lg gba:p-6 gba:overflow-y-auto"
+          data-testid="goals-behind-panel"
+        >
+          <SheetHeader className="gba:mb-6">
+            <button
+              onClick={() => setIsGoalsBehindPanelOpen(false)}
+              className="gba:absolute gba:right-4 gba:top-4 gba:rounded-sm gba:opacity-70 gba:ring-offset-background gba:transition-opacity hover:gba:opacity-100 focus:gba:outline-none focus:gba:ring-2 focus:gba:ring-ring focus:gba:ring-offset-2"
+              aria-label="Close"
+            >
+              <X className="gba:h-4 gba:w-4" />
+            </button>
+            <SheetTitle className="gba:text-xl gba:font-semibold">Goals Behind Target</SheetTitle>
             <p className="gba:text-sm gba:text-muted-foreground gba:pt-2">
               {counts.goalsBehind} goals require immediate attention
             </p>
           </SheetHeader>
 
-          <Separator className="gba:my-4" />
-
-          <div className="gba:space-y-3 gba:overflow-y-auto" style={{ maxHeight: 'calc(100vh - 200px)' }}>
+          <div className="gba:space-y-3">
             {goalsBehindData.map(employee =>
               employee.goals.map(goal => (
                 <div
@@ -683,27 +695,25 @@ export const TodaysPrioritiesSection: React.FC<TodaysPrioritiesSectionProps> = (
 
       {/* Not Clocked In Panel */}
       <Sheet open={isNotClockedInPanelOpen} onOpenChange={setIsNotClockedInPanelOpen}>
-        <SheetContent className="gba:w-full sm:gba:max-w-md">
-          <SheetHeader>
-            <div className="gba:flex gba:items-center gba:justify-between">
-              <SheetTitle>Not Clocked In</SheetTitle>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setIsNotClockedInPanelOpen(false)}
-                className="gba:h-6 gba:w-6 gba:p-0"
-              >
-                <X size={16} />
-              </Button>
-            </div>
+        <SheetContent
+          className="gba:w-full sm:gba:max-w-md gba:p-6 gba:overflow-y-auto"
+          data-testid="not-clocked-in-panel"
+        >
+          <SheetHeader className="gba:mb-6">
+            <button
+              onClick={() => setIsNotClockedInPanelOpen(false)}
+              className="gba:absolute gba:right-4 gba:top-4 gba:rounded-sm gba:opacity-70 gba:ring-offset-background gba:transition-opacity hover:gba:opacity-100 focus:gba:outline-none focus:gba:ring-2 focus:gba:ring-ring focus:gba:ring-offset-2"
+              aria-label="Close"
+            >
+              <X className="gba:h-4 gba:w-4" />
+            </button>
+            <SheetTitle className="gba:text-xl gba:font-semibold">Not Clocked In</SheetTitle>
             <p className="gba:text-sm gba:text-muted-foreground gba:pt-2">
               {counts.notClockedIn} team members haven't clocked in yet
             </p>
           </SheetHeader>
 
-          <Separator className="gba:my-4" />
-
-          <div className="gba:space-y-2 gba:overflow-y-auto" style={{ maxHeight: 'calc(100vh - 200px)' }}>
+          <div className="gba:space-y-2">
             {notClockedInEmployees.map(employee => (
               <div
                 key={employee.id}
