@@ -475,6 +475,20 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     [activeSheetId, app.id, localSheetDataRef, onDataChange, setLocalSheetData]
   )
 
+  // --- Filter state persistence (FortuneSheet filter state survives refresh) ---
+  const handleFilterStateChange = useCallback(
+    (filterState: {
+      filter?: Record<string, unknown> | null
+      filter_select?: Record<string, unknown>
+      rowhidden?: Record<string, number>
+    }) => {
+      persistSheetPatch({
+        settings: { ...activeSheet.settings, fortuneSheetFilterState: filterState }
+      })
+    },
+    [activeSheet.settings, persistSheetPatch]
+  )
+
   // --- Column visibility from FortuneSheet context menu ---
   const handleColumnVisibilityChange = useCallback(
     (columnIndices: number[], visible: boolean) => {
@@ -679,6 +693,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
             onRowsInsert={handleRowsInsert}
             onRowsDelete={handleRowsDelete}
             onColumnVisibilityChange={handleColumnVisibilityChange}
+            onFilterStateChange={handleFilterStateChange}
             onColumnRename={columnsState.handleRenameColumn}
             participants={collaboration.cursorParticipants}
             onOperationEmit={op => collaboration.emitOperation(op as any)}

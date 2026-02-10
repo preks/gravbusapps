@@ -240,7 +240,7 @@ export function convertToFortuneSheet(
     merge: {},
     rowlen: {},
     columnlen: {},
-    rowhidden: {},
+    rowhidden: sheet.settings?.fortuneSheetFilterState?.rowhidden ?? {},
     colhidden: {},
     borderInfo: [],
     authority: {}
@@ -306,8 +306,8 @@ export function convertToFortuneSheet(
     luckysheet_select_save: luckysheetSelectSave,
     luckysheet_selection_range: luckysheetSelectionRange,
     calcChain: [],
-    filter_select: {},
-    filter: null,
+    filter_select: sheet.settings?.fortuneSheetFilterState?.filter_select ?? {},
+    filter: sheet.settings?.fortuneSheetFilterState?.filter ?? null,
     luckysheet_alternateformat_save: [],
     luckysheet_conditionformat_save: [],
     // Additional properties that may be required for proper initialization

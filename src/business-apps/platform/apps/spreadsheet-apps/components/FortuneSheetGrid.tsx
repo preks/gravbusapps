@@ -63,6 +63,12 @@ export interface FortuneSheetGridProps {
   remoteUpdateKey?: number
   /** Remote operation to apply (from viewer's WebSocket); grid applies it when this changes */
   receivedOperation?: { operation: any; timestamp: number } | null
+  /** Called when FortuneSheet filter state changes (for persistence across refreshes) */
+  onFilterStateChange?: (filterState: {
+    filter?: Record<string, unknown> | null
+    filter_select?: Record<string, unknown>
+    rowhidden?: Record<string, number>
+  }) => void
 }
 
 /** Ref handle for imperative actions */
@@ -96,7 +102,8 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
       collaborationEnabled = false,
       onRemoteChangeApplied,
       remoteUpdateKey = 0,
-      receivedOperation
+      receivedOperation,
+      onFilterStateChange
     } = props
 
     // Track if we're currently processing a local edit (to prevent feedback loops)
@@ -124,8 +131,10 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
       return createConversionContext(columns, data)
     }, [columns, data])
 
-    // Convert data to FortuneSheet format ONLY for initial render
-    // We use a stable reference to avoid re-renders
+    // Convert data to FortuneSheet format ONLY for initial render or full refresh.
+    // Deps intentionally exclude `data` and `columns`: FortuneSheet manages local
+    // edits, column inserts/deletes, and paste internally.  Re-initialisation only
+    // happens on sheet switch (`sheet.id`) or explicit remote refresh (`remoteUpdateKey`).
     const initialFortuneSheetData = useMemo(() => {
       try {
         const converted = convertToFortuneSheet(sheet, data, columns)
@@ -182,7 +191,7 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
         console.error('[FortuneSheetGrid] Conversion error:', error)
         return null
       }
-    }, [sheet.id, data, columns]) // Recompute when sheet, data, or columns change
+    }, [sheet.id, remoteUpdateKey]) // Only reinit on sheet switch or remote refresh
 
     // Apply remote cell updates directly to FortuneSheet without full re-render
     const applyRemoteCellUpdate = useCallback(
@@ -727,6 +736,32 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
             }
           }
         })
+
+        // Capture filter state changes for persistence across refreshes.
+        // FortuneSheet manages filter/sort internally — we read the current
+        // state from the workbook after processing ops that may have changed it.
+        if (onFilterStateChange) {
+          const hasFilterOp = ops.some(
+            op =>
+              op.path[0] === 'filter' ||
+              op.path[0] === 'filter_select' ||
+              (op.op === 'replace' && op.path[0] === 'config' && op.value && typeof op.value === 'object')
+          )
+          if (hasFilterOp) {
+            try {
+              const currentSheet = workbookRef.current?.getSheet()
+              if (currentSheet) {
+                onFilterStateChange({
+                  filter: (currentSheet as any).filter ?? null,
+                  filter_select: (currentSheet as any).filter_select ?? {},
+                  rowhidden: currentSheet.config?.rowhidden ?? {}
+                })
+              }
+            } catch {
+              // Workbook not ready yet
+            }
+          }
+        }
       },
       [
         collaborationEnabled,
@@ -741,6 +776,7 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
         onRowsInsert,
         onRowsDelete,
         onColumnVisibilityChange,
+        onFilterStateChange,
         columns,
         data
       ]
@@ -763,7 +799,7 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
               workbookRef.current = ref
               patchWorkbookSelection(ref)
             }}
-            key={`workbook-${sheet.id}-${columns.length}-${remoteUpdateKey}`}
+            key={`workbook-${sheet.id}-${remoteUpdateKey}`}
             data={
               initialFortuneSheetData
                 ? [

@@ -386,14 +386,24 @@ export function useSpreadsheetColumns({
       if (!activeSheet) return
 
       const currentColumns = latestColumnsRef.current
-      // Determine the actual insert position:
-      // 'lefttop' = insert before the index, 'rightbottom' = insert after the index
-      const insertAt = direction === 'rightbottom' ? insertIndex + 1 : insertIndex
-
-      // Sort columns by order to get visual position alignment with FortuneSheet.
-      // FortuneSheet's insertIndex is a visual position (array index),
-      // NOT the value of the `order` field — which may contain duplicates.
       const sortedColumns = [...currentColumns].sort((a, b) => a.order - b.order)
+
+      // FortuneSheet only sees visible columns, so its insertIndex is a position
+      // within the visible-only subset. Map it back to the full sorted array.
+      const visibleSortedColumns = sortedColumns.filter(c => c.isVisible)
+
+      // Determine visible insert position
+      const visibleInsertAt = direction === 'rightbottom' ? insertIndex + 1 : insertIndex
+
+      // Map the visible position to the full sorted array position
+      let fullInsertAt: number
+      if (visibleInsertAt >= visibleSortedColumns.length) {
+        fullInsertAt = sortedColumns.length
+      } else {
+        const targetCol = visibleSortedColumns[visibleInsertAt]
+        fullInsertAt = sortedColumns.findIndex(c => c.id === targetCol.id)
+        if (fullInsertAt === -1) fullInsertAt = sortedColumns.length
+      }
 
       // Generate new columns for each inserted position
       const newColumns: SpreadsheetColumn[] = []
@@ -408,14 +418,16 @@ export function useSpreadsheetColumns({
           num++
           colName = `column_${num}`
         }
-        newColumns.push(createColumn(colName, `Column ${num}`, insertAt + i))
+        newColumns.push(createColumn(colName, `Column ${num}`, fullInsertAt + i))
       }
 
-      // Splice new columns into the sorted array at the visual insert position
+      // Splice new columns into the sorted array at the mapped position
       // then assign clean sequential orders
-      const allColumns = [...sortedColumns.slice(0, insertAt), ...newColumns, ...sortedColumns.slice(insertAt)].map(
-        (col, idx) => ({ ...col, order: idx })
-      )
+      const allColumns = [
+        ...sortedColumns.slice(0, fullInsertAt),
+        ...newColumns,
+        ...sortedColumns.slice(fullInsertAt)
+      ].map((col, idx) => ({ ...col, order: idx }))
 
       latestColumnsRef.current = allColumns
       hasPendingColumnChanges.current = true
@@ -440,14 +452,13 @@ export function useSpreadsheetColumns({
       if (!activeSheet) return
 
       const currentColumns = latestColumnsRef.current
-
-      // Sort columns by order to get visual position alignment with FortuneSheet.
-      // FortuneSheet's startIndex/endIndex are visual positions (array indices),
-      // NOT the value of the `order` field — which may contain duplicates.
       const sortedColumns = [...currentColumns].sort((a, b) => a.order - b.order)
 
-      // Identify which columns are being deleted by visual position (array index)
-      const deletedColumns = sortedColumns.slice(startIndex, endIndex + 1)
+      // FortuneSheet only sees visible columns, so its startIndex/endIndex are
+      // positions within the visible-only subset. Map through visible columns
+      // to identify which actual columns are being deleted.
+      const visibleSortedColumns = sortedColumns.filter(c => c.isVisible)
+      const deletedColumns = visibleSortedColumns.slice(startIndex, endIndex + 1)
       const deletedColumnIds = new Set(deletedColumns.map(c => c.id))
       const deletedColumnNames = deletedColumns.map(c => c.name)
 

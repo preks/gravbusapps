@@ -48,6 +48,12 @@ export interface TableViewProps {
   remoteUpdateKey?: number
   /** Remote operation to apply (from viewer's WebSocket) */
   receivedOperation?: { operation: any; timestamp: number } | null
+  /** Called when FortuneSheet filter state changes (for persistence) */
+  onFilterStateChange?: (filterState: {
+    filter?: Record<string, unknown> | null
+    filter_select?: Record<string, unknown>
+    rowhidden?: Record<string, number>
+  }) => void
 }
 
 /**
@@ -81,7 +87,8 @@ export const TableView = memo<TableViewProps>(function TableView({
   gridRef,
   onRemoteChangeApplied,
   remoteUpdateKey,
-  receivedOperation
+  receivedOperation,
+  onFilterStateChange
 }) {
   const handleCellChange = useCallback(
     (rowId: string, columnId: string, value: unknown, options?: { fromRemote?: boolean }) => {
@@ -126,6 +133,7 @@ export const TableView = memo<TableViewProps>(function TableView({
         onRemoteChangeApplied={onRemoteChangeApplied}
         remoteUpdateKey={remoteUpdateKey}
         receivedOperation={receivedOperation}
+        onFilterStateChange={onFilterStateChange}
         height="100%"
         width="100%"
       />
