@@ -1,5 +1,6 @@
 'use client'
 
+import { useRef, useState, useEffect } from 'react'
 import {
   cn,
   Label,
@@ -84,6 +85,46 @@ export function TranslatableField({
 
   const hasTranslations = Object.keys(translations).length > 0
   const currentValue = value
+  const [open, setOpen] = useState(false)
+  const contentRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLDivElement>(null)
+  const lastFocusedInContentRef = useRef<HTMLElement | null>(null)
+
+  // Keep focus inside the popover when Radix or parent tries to move it to the inline value
+  const handleFocusOutside = (e: { preventDefault(): void }) => {
+    e.preventDefault()
+    const active = document.activeElement as HTMLElement | null
+    if (contentRef.current?.contains(active)) return
+    const toRestore = lastFocusedInContentRef.current
+    if (toRestore?.offsetParent != null) {
+      requestAnimationFrame(() => toRestore.focus())
+    }
+  }
+
+  const handleFocusInContent = () => {
+    const active = document.activeElement as HTMLElement | null
+    if (active && contentRef.current?.contains(active)) {
+      lastFocusedInContentRef.current = active
+    }
+  }
+
+  // Handle outside click ourselves so clicks inside inputs (e.g. Romanian) don't close the popover
+  useEffect(() => {
+    if (!open) return
+    const handleMouseDown = (e: MouseEvent) => {
+      const target = e.target as Node | null
+      if (contentRef.current?.contains(target)) {
+        if (target instanceof HTMLElement && /^(INPUT|TEXTAREA|SELECT|BUTTON)$/i.test(target.tagName)) {
+          lastFocusedInContentRef.current = target
+        }
+        return
+      }
+      if (triggerRef.current?.contains(target)) return
+      setOpen(false)
+    }
+    document.addEventListener('mousedown', handleMouseDown, true)
+    return () => document.removeEventListener('mousedown', handleMouseDown, true)
+  }, [open])
 
   return (
     <div className={label ? 'gba:space-y-2' : 'gba:space-y-0'} data-testid={dataTestId}>
@@ -126,31 +167,40 @@ export function TranslatableField({
           />
         )}
         <InputGroupAddon align={variant === 'textarea' ? 'block-end' : 'inline-end'}>
-          <Popover>
-            <PopoverTrigger asChild>
-              <InputGroupButton
-                variant="link"
-                size="iconXs"
-                data-testid={`${dataTestId}-TranslateButton`}
-                className="gba:ml-auto"
-              >
-                <Languages
-                  className={`gba:h-4 gba:w-4 gba:transition-colors ${
-                    hasTranslations ? 'gba:text-blue-500' : 'gba:text-gray-400'
-                  }`}
+          <Popover open={open} onOpenChange={setOpen}>
+            <div ref={triggerRef} className="gba:inline-flex">
+              <PopoverTrigger asChild>
+                <InputGroupButton
+                  variant="link"
+                  size="iconXs"
+                  data-testid={`${dataTestId}-TranslateButton`}
+                  className="gba:ml-auto"
+                >
+                  <Languages
+                    className={`gba:h-4 gba:w-4 gba:transition-colors ${
+                      hasTranslations ? 'gba:text-blue-500' : 'gba:text-gray-400'
+                    }`}
+                  />
+                </InputGroupButton>
+              </PopoverTrigger>
+            </div>
+            <PopoverContent
+              className="gba:w-[28rem] gba:p-4 gba:z-[10000] gba:pointer-events-auto"
+              align="end"
+              onPointerDownOutside={e => e.preventDefault()}
+              onFocusOutside={handleFocusOutside}
+            >
+              <div ref={contentRef} className="gba:outline-none" onFocusCapture={handleFocusInContent}>
+                <TranslationWidget
+                  translations={translations}
+                  defaultLanguage={defaultLanguage}
+                  variant={variant}
+                  onTranslationChange={handleTranslationChange}
+                  onDefaultLanguageChange={handleDefaultLanguageChange}
+                  onRemoveLanguage={handleRemoveLanguage}
+                  onDefaultLanguageChangeProp={onDefaultLanguageChange}
                 />
-              </InputGroupButton>
-            </PopoverTrigger>
-            <PopoverContent className="gba:w-[28rem] gba:p-4" align="end">
-              <TranslationWidget
-                translations={translations}
-                defaultLanguage={defaultLanguage}
-                variant={variant}
-                onTranslationChange={handleTranslationChange}
-                onDefaultLanguageChange={handleDefaultLanguageChange}
-                onRemoveLanguage={handleRemoveLanguage}
-                onDefaultLanguageChangeProp={onDefaultLanguageChange}
-              />
+              </div>
             </PopoverContent>
           </Popover>
         </InputGroupAddon>
