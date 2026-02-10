@@ -815,40 +815,14 @@ export class BuilderClient {
   }
 
   /**
-   * Get preview bundle info (triggers build if needed, returns cached bundle version and URL)
+   * Get preview file URL. Endpoint: /previews/{sessionId}/{fileName}
    */
-  async getPreviewBundle(
-    repoId: string,
-    sessionId: string
-  ): Promise<{
-    bundleVersion: string
-    previewUrl: string
-  }> {
-    const response = await fetch(
-      `${this.baseUrl}/previews/bundle?repoId=${encodeURIComponent(repoId)}&sessionId=${encodeURIComponent(sessionId)}`,
-      {
-        method: 'GET',
-        headers: this.getHeaders(false)
-      }
-    )
-
-    if (!response.ok) {
-      const errorText = await response.text()
-      throw new Error(`Preview bundle fetch failed: ${response.status} - ${errorText}`)
-    }
-
-    return response.json()
+  getPreviewFileUrl(sessionId: string, fileName: string): string {
+    return `${this.baseUrl}/previews/${encodeURIComponent(sessionId)}/${encodeURIComponent(fileName)}`
   }
 
   /**
-   * Get preview static file (index.html, preview.js, or preview.css)
-   */
-  getPreviewFileUrl(repoId: string, sessionId: string, filename: 'index.html' | 'preview.js' | 'preview.css'): string {
-    return `${this.baseUrl}/previews/${encodeURIComponent(repoId)}/${encodeURIComponent(sessionId)}/${filename}`
-  }
-
-  /**
-   * @deprecated Use getPreviewBundle() and getPreviewFileUrl() instead
+   * @deprecated Use getPreviewFileUrl(sessionId, fileName) for preview assets
    * Get preview data with source files and private packages for LiveCodes
    * Returns source files + package URLs for private dependencies
    */

@@ -3,6 +3,23 @@ import { SessionMetadata, SessionUser } from '../types/session'
 import { useBuilderClient } from '@/common/network/ai/builder/useBuilderClient'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
+const SESSION_ID_QUERY_PARAM = 'sessionId'
+
+function getSessionIdFromUrl(): string | null {
+  if (typeof window === 'undefined') return null
+  return new URLSearchParams(window.location.search).get(SESSION_ID_QUERY_PARAM)
+}
+
+function setSessionIdInUrl(sid: string | null): void {
+  if (typeof window === 'undefined') return
+  const params = new URLSearchParams(window.location.search)
+  if (sid) params.set(SESSION_ID_QUERY_PARAM, sid)
+  else params.delete(SESSION_ID_QUERY_PARAM)
+  const newSearch = params.toString()
+  const newUrl = window.location.pathname + (newSearch ? '?' + newSearch : '') + window.location.hash
+  window.history.replaceState({}, '', newUrl)
+}
+
 interface UseSessionManagementProps {
   accessToken?: string
   repositoryId: string
@@ -62,6 +79,18 @@ export const useSessionManagement = ({
 
     loadSessionsFromAPI()
   }, [])
+
+  // Open session from URL when sessions are loaded
+  useEffect(() => {
+    if (sessions.length === 0) return
+    const urlSessionId = getSessionIdFromUrl()
+    if (!urlSessionId) return
+    const exists = sessions.some(s => s.sessionId === urlSessionId)
+    if (exists) {
+      setSessionId(urlSessionId)
+      setShowSessionList(false)
+    }
+  }, [sessions])
 
   // Save a single session to API and update local state
   const saveSessionToAPI = async (session: SessionMetadata) => {
@@ -130,6 +159,7 @@ export const useSessionManagement = ({
       updateSessionsState(updatedSessions)
       setSessionId(response.sessionId)
       setShowSessionList(false)
+      setSessionIdInUrl(response.sessionId)
     } catch (error) {
       console.error('Failed to create session:', error)
       alert(
@@ -144,6 +174,7 @@ export const useSessionManagement = ({
   const selectSession = (sid: string) => {
     setSessionId(sid)
     setShowSessionList(false)
+    setSessionIdInUrl(sid)
     // Update last modified time
     const updatedSession = sessions.find(s => s.sessionId === sid)
     if (updatedSession) {
@@ -168,6 +199,7 @@ export const useSessionManagement = ({
       if (sessionId === sid) {
         setSessionId('')
         setShowSessionList(true)
+        setSessionIdInUrl(null)
       }
 
       // Also clean up session data from localStorage
@@ -184,6 +216,7 @@ export const useSessionManagement = ({
 
   const backToSessionList = () => {
     setShowSessionList(true)
+    setSessionIdInUrl(null)
   }
 
   return {

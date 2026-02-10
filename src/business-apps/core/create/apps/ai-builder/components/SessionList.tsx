@@ -266,6 +266,7 @@ export const SessionList: React.FC<SessionListProps> = ({
                       )}
                     </div>
                     <button
+                      type="button"
                       onClick={e => {
                         e.stopPropagation()
                         if (
@@ -279,7 +280,8 @@ export const SessionList: React.FC<SessionListProps> = ({
                           onDeleteSession(session.sessionId)
                         }
                       }}
-                      className="gba:opacity-0 group-hover:gba:opacity-100 gba:transition-opacity gba:text-muted-foreground hover:gba:text-destructive gba:p-1"
+                      className="gba:shrink-0 gba:text-muted-foreground hover:gba:text-destructive gba:p-1.5 gba:rounded gba:transition-colors"
+                      title={getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.sessions.delete', 'Delete session')}
                       data-testid={`delete-session-${session.sessionId}`}
                     >
                       <Trash2 className="gba:w-4 gba:h-4" />

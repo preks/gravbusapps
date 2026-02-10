@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react'
 import { useBuilderClient } from '@/common/network/ai/builder/useBuilderClient'
+import { getRuntimeEnvsForIframe } from '@/common/env/EnvUtils'
 import { Loader2, AlertCircle } from 'lucide-react'
 
 interface PreviewSandboxProps {
@@ -20,14 +21,16 @@ export const PreviewSandbox: React.FC<PreviewSandboxProps> = ({
   onError
 }) => {
   const [loading, setLoading] = useState(true)
+  const [iframeLoaded, setIframeLoaded] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [bundleVersion, setBundleVersion] = useState<string | null>(null)
   const iframeRef = useRef<HTMLIFrameElement>(null)
-  const builderClient = useBuilderClient(accessToken)
+  const builderClient = useBuilderClient(accessToken ?? '')
 
   useEffect(() => {
     let mounted = true
+    setIframeLoaded(false)
 
     const loadPreview = async () => {
       if (!repoId || !sessionId) {
@@ -40,19 +43,11 @@ export const PreviewSandbox: React.FC<PreviewSandboxProps> = ({
         setLoading(true)
         setError(null)
 
-        // Get bundle info (triggers build if needed)
-        const bundle = await builderClient.getPreviewBundle(repoId, sessionId)
-
         if (!mounted) return
 
-        // Set preview URL using the returned path
-        const indexUrl = builderClient.getPreviewFileUrl(repoId, sessionId, 'index.html')
+        const indexUrl = builderClient.getPreviewFileUrl(sessionId, 'index.html')
         setPreviewUrl(indexUrl)
-        setBundleVersion(bundle.bundleVersion)
-
-        if (onReady) {
-          onReady()
-        }
+        setBundleVersion(sessionId)
       } catch (err) {
         if (!mounted) return
 
@@ -77,25 +72,43 @@ export const PreviewSandbox: React.FC<PreviewSandboxProps> = ({
     }
   }, [repoId, sessionId, accessToken])
 
-  // Reload preview when iframe loads
   const handleIframeLoad = () => {
+    setIframeLoaded(true)
     console.log('[PreviewSandbox] Iframe loaded successfully', { bundleVersion })
+    if (onReady) {
+      onReady()
+    }
+  }
 
-    // Send auth data to preview via postMessage
-    if (iframeRef.current?.contentWindow && accessToken) {
-      console.log('[PreviewSandbox] Sending auth data to preview iframe')
-      iframeRef.current.contentWindow.postMessage(
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type !== 'PREVIEW_READY') return
+      const source = event.source
+      if (!source || source === window || typeof (source as Window).postMessage !== 'function') return
+      if (iframeRef.current?.contentWindow && source !== iframeRef.current.contentWindow) return
+
+      const nwEnvs = getRuntimeEnvsForIframe()
+      ;(source as Window).postMessage(
         {
           type: 'BUSINESS_APP_CONTEXT',
           context: {
             accessToken: accessToken,
-            userInfo: userInfo
+            userInfo: userInfo,
+            nwEnvs,
+            sentAt: Date.now()
           }
         },
         '*'
       )
+      console.log('[PreviewSandbox] Sent BUSINESS_APP_CONTEXT to iframe', {
+        hasAccessToken: !!accessToken,
+        hasUserInfo: !!userInfo,
+        nwEnvsKeys: Object.keys(nwEnvs || {})
+      })
     }
-  }
+    window.addEventListener('message', handleMessage)
+    return () => window.removeEventListener('message', handleMessage)
+  }, [accessToken, userInfo])
 
   const handleIframeError = () => {
     const errorMsg = 'Failed to load preview iframe'
@@ -145,6 +158,12 @@ export const PreviewSandbox: React.FC<PreviewSandboxProps> = ({
         onLoad={handleIframeLoad}
         onError={handleIframeError}
       />
+      {!iframeLoaded && (
+        <div className="gba:absolute gba:inset-0 gba:flex gba:flex-col gba:items-center gba:justify-center gba:bg-background/80 gba:text-muted-foreground gba:gap-3">
+          <Loader2 className="gba:w-8 gba:h-8 gba:animate-spin gba:text-primary" />
+          <p className="gba:text-sm">Loading preview...</p>
+        </div>
+      )}
     </div>
   )
 }
