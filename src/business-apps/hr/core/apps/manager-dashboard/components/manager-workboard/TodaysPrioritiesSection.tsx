@@ -21,19 +21,6 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { env } from '@/common/env/EnvUtils'
 
 /**
- * Helper function to create standard assignment targets structure
- */
-const createAssignmentTargets = (userIds: string[]) => ({
-  users: userIds,
-  capabilities: [],
-  organizationalUnits: [],
-  companies: [],
-  siteLocations: [],
-  costCenters: [],
-  matrixTeams: []
-})
-
-/**
  * Check if current time is after 10:30 AM on a working day (Mon-Fri)
  * Memoized to avoid recalculation on every render
  */
@@ -54,95 +41,85 @@ const shouldShowNotClockedInAlert = (): boolean => {
 }
 
 /**
- * Send a blink reminder about goals behind target
+ * Send a chat message reminder about a goal behind target
  */
-const sendGoalReminderBlink = async (
+const sendGoalReminderMessage = async (
   accessToken: string,
   payload: {
     employeeUserId: string
     employeeName: string
-    initiatorId: string
+    currentUserId: string
     goalTitle: string
-    goalId: string
   }
 ): Promise<{ success: boolean; error?: string }> => {
   try {
-    const baseUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || env('NEXT_PUBLIC_BASE_URL') + '/flow-engine'
-    const timestamp = Date.now()
+    const baseUrl = env('NEXT_PUBLIC_CHAT_API') || `${env('NEXT_PUBLIC_BASE_URL')}/chat-service/api/v1`
 
-    const goalUrl = `/platform/employee-record?employeeId=${payload.employeeUserId}&tab=hrGrowth&subView=performance`
+    console.log('[sendGoalReminderMessage] Creating conversation for employee:', payload.employeeUserId)
+    console.log('[sendGoalReminderMessage] Current user (sender) userId:', payload.currentUserId)
 
-    const entityLink = {
-      name: payload.goalTitle,
-      url: `${globalThis.location.origin}${goalUrl}`,
-      type: 'entity:performance-goal',
-      metadata: {
-        entityType: 'performance-goal',
-        entityId: payload.goalId
-      }
-    }
-
-    const tags: Record<string, string> = {
-      app: 'quick-task',
-      blinkGroupId: `goal_reminder_${timestamp}_${payload.initiatorId}`,
-      assignedUserId: payload.employeeUserId,
-      entityType: 'performance-goal',
-      entityId: payload.goalId,
-      entityName: payload.goalTitle,
-      entityDisplayUrl: goalUrl
-    }
-
-    const requestPayload = {
-      templateDefinition: {
-        type: 'TEMPLATE',
-        name: 'Goal Progress Check',
-        description: `Reminder: Goal behind target`,
-        version: 1,
-        steps: [
-          {
-            type: 'TASK',
-            title: 'Goal Progress Check',
-            message: `Please check your goal "${payload.goalTitle}" which is currently behind target. Update your progress or identify any blockers.`,
-            form: [],
-            links: [entityLink],
-            assignment: {
-              assignmentMode: 'ASSIGN',
-              targets: null,
-              allowReassignment: false
-            },
-            dueInMinutes: 4320
-          }
-        ],
-        tags
-      },
-      initiatorId: payload.initiatorId,
-      stepAssignments: {
-        step_0: {
-          assignment: {
-            assignmentMode: 'ASSIGN',
-            targets: createAssignmentTargets([payload.employeeUserId]),
-            allowReassignment: false
-          }
-        }
-      }
-    }
-
-    const response = await fetch(`${baseUrl}/api/templates/execute-dynamic`, {
+    // Step 1: Create or get direct conversation with the employee
+    const conversationResponse = await fetch(`${baseUrl}/conversations/direct`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${accessToken}`
       },
-      body: JSON.stringify(requestPayload)
+      body: JSON.stringify({ userId: payload.employeeUserId })
     })
 
-    if (!response.ok) {
-      throw new Error(`Failed to send blink: ${response.statusText}`)
+    if (!conversationResponse.ok) {
+      const errorText = await conversationResponse.text()
+      console.error('[sendGoalReminderMessage] Conversation creation failed:', errorText)
+      throw new Error(`Failed to create conversation: ${conversationResponse.statusText} - ${errorText}`)
     }
+
+    const conversation = await conversationResponse.json()
+    console.log('[sendGoalReminderMessage] Conversation response:', JSON.stringify(conversation, null, 2))
+
+    // Extract conversation ID - check different possible response structures
+    const conversationId = conversation.id || conversation.conversationId || conversation.data?.id
+
+    if (!conversationId) {
+      console.error('[sendGoalReminderMessage] No conversation ID in response:', conversation)
+      throw new Error('No conversation ID returned from API')
+    }
+
+    console.log('[sendGoalReminderMessage] Using conversation ID:', conversationId)
+
+    // Step 2: Send the goal reminder message with explicit senderId
+    const message = `Please check your goal "${payload.goalTitle}" and take appropriate actions. 🎯`
+
+    const messagePayload = {
+      conversationId: conversationId,
+      content: message,
+      senderId: payload.currentUserId
+    }
+
+    console.log('[sendGoalReminderMessage] Sending message with payload:', JSON.stringify(messagePayload, null, 2))
+
+    const messageResponse = await fetch(`${baseUrl}/messages`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`
+      },
+      body: JSON.stringify(messagePayload)
+    })
+
+    if (!messageResponse.ok) {
+      const errorText = await messageResponse.text()
+      console.error('[sendGoalReminderMessage] Message send failed:', errorText)
+      throw new Error(`Failed to send message: ${messageResponse.statusText} - ${errorText}`)
+    }
+
+    const messageResult = await messageResponse.json()
+    console.log('[sendGoalReminderMessage] Message sent successfully:', messageResult)
 
     return { success: true }
   } catch (err) {
-    return { success: false, error: err instanceof Error ? err.message : 'Failed to send blink' }
+    console.error('[sendGoalReminderMessage] Error:', err)
+    return { success: false, error: err instanceof Error ? err.message : 'Failed to send message' }
   }
 }
 
@@ -283,13 +260,13 @@ export const TodaysPrioritiesSection: React.FC<TodaysPrioritiesSectionProps> = (
   const handleSendGoalReminder = useCallback(
     async (employeeUserId: string, employeeName: string, goalTitle: string, goalId: string) => {
       if (!accessToken || !currentUserId) {
-        console.warn('[TodaysPriorities] Missing authentication credentials for BLINK')
+        console.warn('[TodaysPriorities] Missing authentication credentials for chat message')
         toast.error('Unable to send reminder - please refresh and try again')
         return
       }
 
       if (!employeeUserId) {
-        console.error('[TodaysPriorities] Missing employee userId for BLINK')
+        console.error('[TodaysPriorities] Missing employee userId for chat message')
         toast.error('Unable to send reminder - employee data unavailable')
         return
       }
@@ -297,18 +274,17 @@ export const TodaysPrioritiesSection: React.FC<TodaysPrioritiesSectionProps> = (
       setSendingBlinkFor(goalId)
 
       try {
-        const result = await sendGoalReminderBlink(accessToken, {
+        const result = await sendGoalReminderMessage(accessToken, {
           employeeUserId,
           employeeName,
-          initiatorId: currentUserId,
-          goalTitle,
-          goalId
+          currentUserId,
+          goalTitle
         })
 
         if (result.success) {
           toast.success(`Reminder sent to ${employeeName}`)
         } else {
-          console.error('[TodaysPriorities] BLINK send failed:', result.error)
+          console.error('[TodaysPriorities] Chat message send failed:', result.error)
           toast.error(result.error || 'Failed to send reminder')
         }
       } catch (error) {
@@ -676,7 +652,7 @@ export const TodaysPrioritiesSection: React.FC<TodaysPrioritiesSectionProps> = (
                     ) : (
                       <>
                         <Send size={14} className="gba:mr-2" />
-                        BLINK: Check goal progress
+                        Send reminder
                       </>
                     )}
                   </Button>

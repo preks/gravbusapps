@@ -80,6 +80,7 @@ export const useTeamPerformance = ({ accessToken, managerId }: UseTeamPerformanc
             }
           ) {
             id
+            userId
             firstName
             lastName
             pictureThumbnail
