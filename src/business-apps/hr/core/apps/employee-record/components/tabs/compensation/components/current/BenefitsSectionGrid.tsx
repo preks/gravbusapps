@@ -67,11 +67,11 @@ const BenefitsSectionGrid: React.FC<BenefitsSectionGridProps> = ({
     <div className="gba:mb-8" data-testid={testId}>
       <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-4">{sectionTitle}</h3>
       <div
-        className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:xl:grid-cols-3 gba:gap-4 gba:items-stretch"
+        className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:xl:grid-cols-3 gba:gap-4 gba:items-stretch gba:grid-flow-row"
         data-testid={`${testId}-grid`}
       >
         {benefits.map(benefit => (
-          <div key={benefit.catalogId} className="gba:min-h-0 gba:flex gba:w-full">
+          <div key={benefit.catalogId} className="gba:min-w-0 gba:min-h-0 gba:flex">
             <BenefitCatalogCard
               t={t}
               benefit={benefit}
