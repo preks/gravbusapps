@@ -125,7 +125,7 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
           </div>
         </div>
 
-        {/* FIRST ROW: 2-column grid (2fr 1fr) on desktop, stacks on mobile - Today's Priorities + Team Health */}
+        {/* MAIN LAYOUT: 2-column grid (2fr 1fr) on desktop, stacks on mobile */}
         <div
           className="gba:grid gba:grid-cols-1"
           style={{
@@ -133,112 +133,114 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
             marginBottom: '32px',
             gridTemplateColumns: 'minmax(0, 1fr)'
           }}
-          data-desktop-grid="2fr-1fr"
+          data-desktop-grid="2fr-1fr-main"
         >
           <style>{`
             @media (min-width: 1024px) {
-              [data-desktop-grid="2fr-1fr"] {
+              [data-desktop-grid="2fr-1fr-main"] {
                 grid-template-columns: 2fr 1fr !important;
               }
             }
           `}</style>
-          {/* Left: Today's Priorities (2fr on desktop, full width on mobile) */}
-          <TodaysPrioritiesSection
-            items={vm.priorities.items}
-            loading={vm.priorities.loading}
-            counts={vm.priorities.counts}
-            unallocatedDailyCost={vm.priorities.unallocatedDailyCost}
-            unallocatedEmployees={vm.priorities.unallocatedEmployees}
-            employeesWithoutGoals={vm.priorities.employeesWithoutGoals}
-            goalsBehindData={vm.priorities.goalsBehindData}
-            notClockedInEmployees={vm.priorities.notClockedInEmployees}
-            accessToken={accessToken}
-            currentUserId={vm.userProfile?.userId}
-            onAssignProject={handleAssignProject}
-          />
 
-          {/* Right: Team Health (1fr on desktop, full width on mobile) */}
-          <TeamHealthSection
-            summary={vm.teamHealth.summary}
-            employees={vm.teamHealth.employees}
-            loading={vm.teamHealth.loading}
-            onNavigateToEmployee={vm.actions.navigateToEmployee}
-          />
-        </div>
+          {/* LEFT COLUMN: Today's Priorities + Your Team */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+            {/* Today's Priorities */}
+            <TodaysPrioritiesSection
+              items={vm.priorities.items}
+              loading={vm.priorities.loading}
+              counts={vm.priorities.counts}
+              unallocatedDailyCost={vm.priorities.unallocatedDailyCost}
+              unallocatedEmployees={vm.priorities.unallocatedEmployees}
+              employeesWithoutGoals={vm.priorities.employeesWithoutGoals}
+              goalsBehindData={vm.priorities.goalsBehindData}
+              notClockedInEmployees={vm.priorities.notClockedInEmployees}
+              accessToken={accessToken}
+              currentUserId={vm.userProfile?.userId}
+              onAssignProject={handleAssignProject}
+            />
 
-        {/* YOUR TEAM: Match width of Today's Priorities (2fr on desktop) */}
-        <div
-          className="gba:grid gba:grid-cols-1"
-          style={{
-            gap: '24px',
-            marginBottom: '32px',
-            gridTemplateColumns: 'minmax(0, 1fr)'
-          }}
-          data-desktop-grid="2fr-spacer"
-        >
-          <style>{`
-            @media (min-width: 1024px) {
-              [data-desktop-grid="2fr-spacer"] {
-                grid-template-columns: 2fr 1fr !important;
-              }
-            }
-          `}</style>
-          <TeamAvatarsSection
-            directReports={vm.teamMembers.direct}
-            unallocatedIds={vm.teamMembers.unallocatedIds}
-            loading={vm.teamMembers.loading.directReports}
-            onNavigateToTeammates={vm.actions.navigateToTeammates}
-            onMemberClick={vm.actions.openMemberPanel}
-          />
-          {/* Empty spacer for alignment */}
-          <div />
-        </div>
+            {/* Your Team */}
+            <TeamAvatarsSection
+              directReports={vm.teamMembers.direct}
+              unallocatedIds={vm.teamMembers.unallocatedIds}
+              loading={vm.teamMembers.loading.directReports}
+              onNavigateToTeammates={vm.actions.navigateToTeammates}
+              onMemberClick={vm.actions.openMemberPanel}
+            />
+          </div>
 
-        {/* BOTTOM GRID: 3-column grid on desktop, stacks on mobile */}
-        <div
-          className="gba:grid gba:grid-cols-1"
-          style={{
-            gap: '24px',
-            gridTemplateColumns: 'minmax(0, 1fr)'
-          }}
-          data-desktop-grid="3-columns"
-        >
-          <style>{`
-            @media (min-width: 1024px) {
-              [data-desktop-grid="3-columns"] {
-                grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-              }
-            }
-          `}</style>
-          {/* Column 1: Work & Capacity */}
-          <WorkCapacitySection
-            utilizationPercent={vm.workCapacity.utilizationPercent}
-            idleCount={vm.workCapacity.idleCount}
-            openPositions={vm.workCapacity.openPositions}
-            loading={vm.workCapacity.loading.allocation}
-            onNavigateToUnallocatedTeammates={vm.actions.navigateToUnallocatedTeammates}
-            onNavigateToInsights={vm.actions.navigateToInsights}
-          />
+          {/* RIGHT COLUMN: Team Health (60% height) + Metric Cards */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            {/* Team Health - approximately 60% of Today's Priorities height */}
+            <div style={{ minHeight: '252px', maxHeight: '252px' }}>
+              <TeamHealthSection
+                summary={vm.teamHealth.summary}
+                employees={vm.teamHealth.employees}
+                loading={vm.teamHealth.loading}
+                onNavigateToEmployee={vm.actions.navigateToEmployee}
+              />
+            </div>
 
-          {/* Column 2: Performance & Growth */}
-          <PerformanceGrowthSection
-            onTrack={vm.performanceGrowth.onTrack}
-            atRisk={vm.performanceGrowth.atRisk}
-            behind={vm.performanceGrowth.behind}
-            totalGoals={vm.performanceGrowth.totalGoals}
-            averageProgress={vm.performanceGrowth.averageProgress}
-            loading={vm.performanceGrowth.loading}
-            onNavigateToTeamPerformance={vm.actions.navigateToTeamPerformance}
-          />
+            {/* Work & Capacity */}
+            <WorkCapacitySection
+              utilizationPercent={vm.workCapacity.utilizationPercent}
+              idleCount={vm.workCapacity.idleCount}
+              openPositions={vm.workCapacity.openPositions}
+              loading={vm.workCapacity.loading.allocation}
+              onNavigateToUnallocatedTeammates={vm.actions.navigateToUnallocatedTeammates}
+              onNavigateToInsights={vm.actions.navigateToInsights}
+            />
 
-          {/* Column 3: People & Moments */}
-          <PeopleMomentsSection
-            birthdays={vm.peopleMoments.birthdays}
-            anniversaries={vm.peopleMoments.anniversaries}
-            openPositions={vm.peopleMoments.openPositions}
-            loading={vm.peopleMoments.loading.birthdays}
-            onNavigateToInsights={vm.actions.navigateToInsights}
-          />
+            {/* Performance & Growth */}
+            <PerformanceGrowthSection
+              onTrack={vm.performanceGrowth.onTrack}
+              atRisk={vm.performanceGrowth.atRisk}
+              behind={vm.performanceGrowth.behind}
+              totalGoals={vm.performanceGrowth.totalGoals}
+              averageProgress={vm.performanceGrowth.averageProgress}
+              loading={vm.performanceGrowth.loading}
+              onNavigateToTeamPerformance={vm.actions.navigateToTeamPerformance}
+            />
+
+            {/* People & Moments */}
+            <PeopleMomentsSection
+              birthdays={vm.peopleMoments.birthdays}
+              anniversaries={vm.peopleMoments.anniversaries}
+              openPositions={vm.peopleMoments.openPositions}
+              loading={vm.peopleMoments.loading.birthdays}
+              onNavigateToInsights={vm.actions.navigateToInsights}
+            />
+
+            {/* Open Positions Card */}
+            <Card style={{ borderRadius: '12px' }} className="gba:p-5">
+              <CardHeader>
+                <div className="gba:flex gba:items-center gba:justify-between">
+                  <CardTitle className="gba:text-lg gba:font-semibold">Open Positions</CardTitle>
+                  <Button size="sm" variant="outline" onClick={() => vm.actions.navigateToInsights('open-positions')}>
+                    Manage →
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="gba:space-y-2">
+                  <div className="gba:flex gba:items-center gba:justify-between">
+                    <span className="gba:text-3xl gba:font-bold">{vm.workCapacity.openPositions.length}</span>
+                    <span className="gba:text-sm gba:text-muted-foreground">positions</span>
+                  </div>
+                  {vm.workCapacity.openPositions.length > 0 && (
+                    <p className="gba:text-xs gba:text-muted-foreground">
+                      Estimated cost: €
+                      {vm.workCapacity.openPositions
+                        .reduce((sum, pos) => sum + (pos.estimatedMonthlyCost || 0), 0)
+                        .toLocaleString()}
+                      /mo
+                    </p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
 
