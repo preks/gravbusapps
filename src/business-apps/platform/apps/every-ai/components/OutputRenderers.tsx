@@ -337,7 +337,6 @@ function renderEntity(item: EntityData, accessToken: string) {
         />
       )
     default: {
-      // Standard generic display for all other entity types
       return (
         <GenericEntityDisplay
           key={item.id}
@@ -348,6 +347,7 @@ function renderEntity(item: EntityData, accessToken: string) {
           textHuman={item.text_human}
           textTitle={item.text_title}
           link={item.link}
+          variant="decorative"
         />
       )
     }
