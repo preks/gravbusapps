@@ -166,8 +166,23 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
           />
         </div>
 
-        {/* YOUR TEAM: Full width = TeamAvatarsSection */}
-        <div style={{ marginBottom: '32px' }}>
+        {/* YOUR TEAM: Match width of Today's Priorities (2fr on desktop) */}
+        <div
+          className="gba:grid gba:grid-cols-1"
+          style={{
+            gap: '24px',
+            marginBottom: '32px',
+            gridTemplateColumns: 'minmax(0, 1fr)'
+          }}
+          data-desktop-grid="2fr-spacer"
+        >
+          <style>{`
+            @media (min-width: 1024px) {
+              [data-desktop-grid="2fr-spacer"] {
+                grid-template-columns: 2fr 1fr !important;
+              }
+            }
+          `}</style>
           <TeamAvatarsSection
             directReports={vm.teamMembers.direct}
             unallocatedIds={vm.teamMembers.unallocatedIds}
@@ -175,6 +190,8 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
             onNavigateToTeammates={vm.actions.navigateToTeammates}
             onMemberClick={vm.actions.openMemberPanel}
           />
+          {/* Empty spacer for alignment */}
+          <div />
         </div>
 
         {/* BOTTOM GRID: 3-column grid on desktop, stacks on mobile */}

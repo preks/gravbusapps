@@ -28,6 +28,40 @@ interface TeamAvatarsSectionProps {
   onMemberClick: (memberId: string) => void
 }
 
+/**
+ * Get status indicator colors based on employee status
+ * OOO (Out of Office) statuses: On Leave, Sick Leave
+ * Available: Available status
+ */
+const getStatusColors = (employeeId: string, status: string, unallocatedIds: string[]) => {
+  const isUnallocated = unallocatedIds?.includes(employeeId)
+
+  // OOO statuses - red/destructive color
+  if (status === 'On Leave' || status === 'Sick Leave') {
+    return {
+      ring: 'gba:ring-destructive',
+      dot: 'gba:bg-destructive',
+      label: 'Out of Office'
+    }
+  }
+
+  // Unallocated - warning color
+  if (isUnallocated) {
+    return {
+      ring: 'gba:ring-warning',
+      dot: 'gba:bg-warning',
+      label: 'Unallocated'
+    }
+  }
+
+  // Available - success color
+  return {
+    ring: 'gba:ring-success',
+    dot: 'gba:bg-success',
+    label: 'Available'
+  }
+}
+
 export const TeamAvatarsSection: React.FC<TeamAvatarsSectionProps> = ({
   directReports,
   unallocatedIds,
@@ -42,7 +76,7 @@ export const TeamAvatarsSection: React.FC<TeamAvatarsSectionProps> = ({
           <CardTitle>Your Team</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="gba:animate-pulse gba:grid gba:grid-cols-8 gba:gap-3">
+          <div className="gba:animate-pulse gba:flex gba:flex-wrap gba:gap-2">
             {[...Array(16)].map((_, i) => (
               <div key={i} className="gba:h-10 gba:w-10 gba:bg-muted gba:rounded-full" />
             ))}
@@ -50,16 +84,6 @@ export const TeamAvatarsSection: React.FC<TeamAvatarsSectionProps> = ({
         </CardContent>
       </Card>
     )
-  }
-
-  const getStatusRingColor = (employeeId: string, status: string) => {
-    if (unallocatedIds?.includes(employeeId)) {
-      return 'gba:ring-warning'
-    }
-    if (status === 'On Leave') {
-      return 'gba:ring-muted-foreground'
-    }
-    return 'gba:ring-primary'
   }
 
   return (
@@ -80,19 +104,18 @@ export const TeamAvatarsSection: React.FC<TeamAvatarsSectionProps> = ({
       </CardHeader>
       <CardContent>
         {directReports.length > 0 ? (
-          <div className="gba:grid gba:grid-cols-8 md:gba:grid-cols-10 lg:gba:grid-cols-12 gba:gap-3">
+          <div className="gba:flex gba:flex-wrap gba:gap-2">
             {directReports.map(member => {
-              const statusRingColor = getStatusRingColor(member.id, member.status)
-              const isUnallocated = unallocatedIds?.includes(member.id)
+              const statusColors = getStatusColors(member.id, member.status, unallocatedIds)
 
               return (
                 <button
                   key={member.id}
                   onClick={() => onMemberClick(member.id)}
                   className="gba:group gba:relative gba:flex gba:flex-col gba:items-center gba:gap-1"
-                  title={`${member.firstName} ${member.lastName}${isUnallocated ? ' (Unallocated)' : ''}`}
+                  title={`${member.firstName} ${member.lastName} - ${statusColors.label}`}
                 >
-                  <div className={`gba:relative gba:ring-2 ${statusRingColor} gba:rounded-full gba:p-0.5`}>
+                  <div className={`gba:relative gba:ring-2 ${statusColors.ring} gba:rounded-full gba:p-0.5`}>
                     <Avatar size="md" className="gba:h-10 gba:w-10">
                       <AvatarImage
                         src={
@@ -107,11 +130,13 @@ export const TeamAvatarsSection: React.FC<TeamAvatarsSectionProps> = ({
                         {member.lastName.charAt(0)}
                       </AvatarFallback>
                     </Avatar>
-                    {isUnallocated && (
-                      <div className="gba:absolute -gba:top-1 -gba:right-1 gba:h-3 gba:w-3 gba:bg-warning gba:rounded-full gba:border-2 gba:border-background" />
-                    )}
+                    {/* Chat/Online status dot - bottom right */}
+                    <div
+                      className={`gba:absolute gba:bottom-0 gba:right-0 gba:h-2.5 gba:w-2.5 ${statusColors.dot} gba:rounded-full gba:border-2 gba:border-background`}
+                      aria-label={statusColors.label}
+                    />
                   </div>
-                  <span className="gba:text-xs gba:text-muted-foreground gba:truncate gba:w-full gba:text-center group-hover:gba:text-foreground">
+                  <span className="gba:text-xs gba:text-muted-foreground gba:truncate gba:max-w-[48px] gba:text-center group-hover:gba:text-foreground">
                     {member.firstName}
                   </span>
                 </button>
@@ -130,16 +155,16 @@ export const TeamAvatarsSection: React.FC<TeamAvatarsSectionProps> = ({
         {directReports.length > 0 && (
           <div className="gba:mt-4 gba:pt-4 gba:border-t gba:flex gba:flex-wrap gba:gap-3 gba:text-xs gba:text-muted-foreground">
             <div className="gba:flex gba:items-center gba:gap-1">
-              <div className="gba:h-3 gba:w-3 gba:rounded-full gba:ring-2 gba:ring-primary" />
-              <span>Active</span>
+              <div className="gba:h-2.5 gba:w-2.5 gba:rounded-full gba:bg-success gba:border-2 gba:border-muted" />
+              <span>Available</span>
             </div>
             <div className="gba:flex gba:items-center gba:gap-1">
-              <div className="gba:h-3 gba:w-3 gba:rounded-full gba:ring-2 gba:ring-warning" />
+              <div className="gba:h-2.5 gba:w-2.5 gba:rounded-full gba:bg-warning gba:border-2 gba:border-muted" />
               <span>Unallocated</span>
             </div>
             <div className="gba:flex gba:items-center gba:gap-1">
-              <div className="gba:h-3 gba:w-3 gba:rounded-full gba:ring-2 gba:ring-muted-foreground" />
-              <span>On Leave</span>
+              <div className="gba:h-2.5 gba:w-2.5 gba:rounded-full gba:bg-destructive gba:border-2 gba:border-muted" />
+              <span>Out of Office</span>
             </div>
           </div>
         )}
