@@ -241,6 +241,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     app,
     activeSheet,
     localSheetDataRef,
+    setLocalSheetData,
     handleCellChangeRef,
     onAppUpdate,
     onSheetUpdate,

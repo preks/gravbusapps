@@ -11,6 +11,7 @@ export interface UseSpreadsheetColumnsProps {
   app: SpreadsheetApp
   activeSheet: SpreadsheetSheet
   localSheetDataRef: React.MutableRefObject<Record<string, unknown>[]>
+  setLocalSheetData: React.Dispatch<React.SetStateAction<Record<string, unknown>[]>>
   handleCellChangeRef: React.MutableRefObject<(rowId: string, columnName: string, value: unknown) => void>
   onAppUpdate?: (app: SpreadsheetApp) => void
   onSheetUpdate?: (appId: string, sheetId: string, updates: Partial<SpreadsheetSheet>) => void
@@ -81,6 +82,7 @@ export function useSpreadsheetColumns({
   app,
   activeSheet,
   localSheetDataRef,
+  setLocalSheetData,
   handleCellChangeRef,
   onAppUpdate,
   onSheetUpdate,
@@ -304,6 +306,10 @@ export function useSpreadsheetColumns({
         return newRow
       })
 
+      // Sync cleaned data to local state so the grid re-renders with correct alignment
+      localSheetDataRef.current = updatedData
+      setLocalSheetData(updatedData)
+
       latestColumnsRef.current = updatedColumns
       hasPendingColumnChanges.current = true
 
@@ -316,7 +322,7 @@ export function useSpreadsheetColumns({
         })
       }
     },
-    [activeSheet, isCollaborationConnected, emitOperation, localSheetDataRef, persistColumns]
+    [activeSheet, isCollaborationConnected, emitOperation, localSheetDataRef, setLocalSheetData, persistColumns]
   )
 
   // Rename column handler
@@ -462,6 +468,10 @@ export function useSpreadsheetColumns({
         return newRow
       })
 
+      // Sync cleaned data to local state so the grid re-renders with correct alignment
+      localSheetDataRef.current = updatedData
+      setLocalSheetData(updatedData)
+
       latestColumnsRef.current = remainingColumns
       hasPendingColumnChanges.current = true
 
@@ -476,7 +486,7 @@ export function useSpreadsheetColumns({
         })
       }
     },
-    [activeSheet, isCollaborationConnected, emitOperation, localSheetDataRef, persistColumns]
+    [activeSheet, isCollaborationConnected, emitOperation, localSheetDataRef, setLocalSheetData, persistColumns]
   )
 
   // Handler refs

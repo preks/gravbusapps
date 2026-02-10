@@ -763,7 +763,7 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
               workbookRef.current = ref
               patchWorkbookSelection(ref)
             }}
-            key={`workbook-${sheet.id}-${remoteUpdateKey}`}
+            key={`workbook-${sheet.id}-${columns.length}-${remoteUpdateKey}`}
             data={
               initialFortuneSheetData
                 ? [
