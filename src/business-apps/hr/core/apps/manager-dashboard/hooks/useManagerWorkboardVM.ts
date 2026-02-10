@@ -294,12 +294,13 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
     const notClockedInSet = new Set(notClockedInEmployeeIds)
 
     return directReports
-      .filter(report => notClockedInSet.has(report.id) && report.userId) // Only include with userId
+      .filter(report => notClockedInSet.has(report.id))
       .map(report => ({
         id: report.id,
         name: `${report.firstName} ${report.lastName}`,
-        userId: report.userId
+        userId: report.userId || report.id // Fallback to employee ID if userId doesn't exist
       }))
+      .filter(emp => emp.userId) // Only include those with some ID
   }, [directReports, notClockedInEmployeeIds])
 
   const aiInsightItems = useMemo(() => {

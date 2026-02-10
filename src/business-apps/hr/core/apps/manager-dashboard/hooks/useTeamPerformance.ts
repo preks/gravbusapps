@@ -80,7 +80,6 @@ export const useTeamPerformance = ({ accessToken, managerId }: UseTeamPerformanc
             }
           ) {
             id
-            userId
             firstName
             lastName
             pictureThumbnail
@@ -181,7 +180,7 @@ export const useTeamPerformance = ({ accessToken, managerId }: UseTeamPerformanc
 
         return {
           employeeId: emp.id,
-          userId: emp.userId,
+          userId: emp.userId || emp.id, // Fallback to employee ID if userId doesn't exist
           firstName: emp.firstName,
           lastName: emp.lastName,
           pictureThumbnail: emp.pictureThumbnail,

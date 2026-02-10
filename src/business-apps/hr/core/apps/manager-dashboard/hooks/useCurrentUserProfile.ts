@@ -49,7 +49,6 @@ export const useCurrentUserProfile = ({
           query GetCurrentUserProfile($employeeId: uuid!) {
             Employee(where: { id: { _eq: $employeeId } }) {
               id
-              userId
               firstName
               lastName
               pictureThumbnail
@@ -83,7 +82,7 @@ export const useCurrentUserProfile = ({
 
           setUserProfile({
             id: employee.id,
-            userId: employee.userId,
+            userId: employee.userId || employee.id, // Fallback to employee ID if userId doesn't exist
             firstName: employee.firstName,
             lastName: employee.lastName,
             pictureThumbnail: actualPictureThumbnail
