@@ -1,14 +1,15 @@
 'use client'
 
 import React from 'react'
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@newwork/nw-design-system'
-import { DotsThreeVerticalIcon } from '@phosphor-icons/react'
+import { Sheet, SheetContent, SheetHeader, SheetTitle, Button } from '@newwork/nw-design-system'
+import { DotsThreeVerticalIcon, CheckCircleIcon } from '@phosphor-icons/react'
 import { Task, TaskReference } from './types'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { useTaskCompletion } from './hooks/useTaskCompletion'
 import { TaskDetailContent } from './TaskDetailContent'
+import type { CatalogEntry } from '@/common/network/graphql/commonTypes'
 
 export interface TaskDetailSheetProps {
   task: Task | null

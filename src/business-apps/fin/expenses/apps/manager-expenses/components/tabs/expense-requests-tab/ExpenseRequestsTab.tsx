@@ -42,6 +42,7 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
   const [currentPage, setCurrentPage] = useState<number>(1)
   const [sortBy, setSortBy] = useState<string>('requestDate:desc')
 
+  // Step 5: Only sortBy drives order; dependency array intentionally [sortBy].
   const reqOrderBy = useMemo(() => {
     const [field, dirRaw] = String(sortBy || 'requestDate:desc').split(':')
     const dir = (dirRaw || 'desc').toUpperCase()
@@ -97,20 +98,42 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
     [endDateRange, convertDateRangeToGraphQL]
   )
 
-  const overview = useManagerExpensesOverview(props, {
-    managerId,
-    currencyRef,
-    searchTerm,
-    requests: { limit: pageSize, offset: (currentPage - 1) * pageSize, orderBy: reqOrderBy },
-    requestsStatus: selectedFilters, // selectedFilters already contains only status filters
-    requestsTypeFilter: requestTypeFilter,
-    plans: { limit: 0, offset: 0 },
-    payments: { limit: 0, offset: 0 },
-    requestsEffectiveDateRange,
-    requestsRequestDateRange,
-    requestsStartDateRange,
-    requestsEndDateRange
-  })
+  const overviewParams = useMemo(
+    () => ({
+      managerId,
+      currencyRef,
+      searchTerm,
+      requests: {
+        limit: pageSize,
+        offset: (currentPage - 1) * pageSize,
+        orderBy: reqOrderBy
+      },
+      requestsStatus: selectedFilters,
+      requestsTypeFilter: requestTypeFilter,
+      plans: { limit: 0, offset: 0 },
+      payments: { limit: 0, offset: 0 },
+      requestsEffectiveDateRange,
+      requestsRequestDateRange,
+      requestsStartDateRange,
+      requestsEndDateRange
+    }),
+    [
+      managerId,
+      currencyRef,
+      searchTerm,
+      pageSize,
+      currentPage,
+      reqOrderBy,
+      selectedFilters,
+      requestTypeFilter,
+      requestsEffectiveDateRange,
+      requestsRequestDateRange,
+      requestsStartDateRange,
+      requestsEndDateRange
+    ]
+  )
+
+  const overview = useManagerExpensesOverview(props, overviewParams)
 
   // Use ref to keep the last valid stats to prevent flickering/height changes
   const lastValidStatsRef = useRef<any>(null)
@@ -122,7 +145,7 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
           // Use currency-agnostic counts for card totals
           pendingCount: overview.data.pendingRequestsAll || 0,
           pendingAmount: overview.data.requestPendingAmount || 0,
-          totalRequestsSubmitted: overview.data.totalRequestsAll || 0,
+          totalRequestsSubmitted: overview.data.requestSubmittedCount || 0,
           totalSubmittedAmount: overview.data.requestSubmittedAmount || 0
         }
       : null
@@ -177,10 +200,8 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
   const requestsError = overview.error
   const totalCount = overview.data?.expenseRequestsTotal ?? 0
 
-  // Reset pagination when filters or search change so filtered results are visible from page 1.
-  const prevFilterSignatureRef = useRef<string | null>(null)
-  useEffect(() => {
-    const signature = JSON.stringify({
+  const filterSignature = useMemo(
+    () => ({
       searchTerm,
       selectedFilters,
       primaryCurrency,
@@ -189,13 +210,28 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
       startDateRange,
       endDateRange,
       requestTypeFilter
-    })
+    }),
+    [
+      searchTerm,
+      selectedFilters,
+      primaryCurrency,
+      effectiveDateRange,
+      requestDateRange,
+      startDateRange,
+      endDateRange,
+      requestTypeFilter
+    ]
+  )
+
+  const prevFilterSignatureRef = useRef<string | null>(null)
+  useEffect(() => {
+    const signature = JSON.stringify(filterSignature)
     const prev = prevFilterSignatureRef.current
     if (prev !== null && prev !== signature) {
       setCurrentPage(1)
     }
     prevFilterSignatureRef.current = signature
-  }, [searchTerm, selectedFilters, primaryCurrency, effectiveDateRange, requestDateRange, startDateRange, endDateRange])
+  }, [filterSignature])
 
   const fetchRequests = useCallback(
     (newSearchTerm?: string, page?: number, newPageSize?: number, newSortBy?: string) => {
@@ -208,11 +244,47 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
     [setSearchTerm]
   )
 
-  useEffect(() => {
-    if (props.accessToken) {
-      // Ensure initial load via overview hook defaults
-    }
-  }, [props.accessToken])
+  // Reset tab's page to 1 when filters change so the overview request uses offset 0 (avoids empty table when e.g. on page 3 then applying a filter that has fewer pages)
+  const addFilterWithPageReset = useCallback(
+    (filterId: string) => {
+      setCurrentPage(1)
+      addFilter(filterId)
+    },
+    [addFilter]
+  )
+  const removeFilterWithPageReset = useCallback(
+    (filterId: string) => {
+      setCurrentPage(1)
+      removeFilter(filterId)
+    },
+    [removeFilter]
+  )
+  const setFiltersWithPageReset = useCallback(
+    (filters: string[]) => {
+      setCurrentPage(1)
+      setFilters(filters)
+    },
+    [setFilters]
+  )
+  const handleDataFilterChangeWithPageReset = useCallback(
+    (filterId: string, selected: boolean) => {
+      setCurrentPage(1)
+      handleDataFilterChange(filterId, selected)
+    },
+    [handleDataFilterChange]
+  )
+  const setSearchTermWithPageReset = useCallback(
+    (term: string) => {
+      setCurrentPage(1)
+      setSearchTerm(term)
+    },
+    [setSearchTerm]
+  )
+
+  const clearCurrencyFilterWithPageReset = useCallback(() => {
+    if (!primaryCurrency) return
+    removeFilterWithPageReset(`currency:${primaryCurrency}`)
+  }, [primaryCurrency, removeFilterWithPageReset])
 
   return (
     <div className="gba:h-full gba:flex gba:flex-col" data-testid="expense-requests-tab-container">
@@ -223,7 +295,8 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
           requestStatsError={requestStatsError}
           fetchRequestStatistics={fetchRequestStatistics}
           currencyFilter={primaryCurrency}
-          setFilters={setFilters}
+          clearCurrencyFilter={clearCurrencyFilterWithPageReset}
+          setFilters={setFiltersWithPageReset}
           selectedFilters={selectedFilters}
         />
       </div>
@@ -237,15 +310,17 @@ const ExpenseRequestsTab: React.FC<ExpenseRequestsTabProps> = props => {
             loading={requestsLoading}
             error={requestsError}
             totalCount={totalCount}
+            currentPage={currentPage}
+            pageSize={pageSize}
             fetchRequests={fetchRequests}
             searchTerm={searchTerm}
-            setSearchTerm={setSearchTerm}
+            setSearchTerm={setSearchTermWithPageReset}
             selectedFilters={getAllSelectedFilters}
             filterGroups={filterGroups}
             filterLabelMap={filterLabelMap}
-            addFilter={addFilter}
-            removeFilter={removeFilter}
-            handleDataFilterChange={handleDataFilterChange}
+            addFilter={addFilterWithPageReset}
+            removeFilter={removeFilterWithPageReset}
+            handleDataFilterChange={handleDataFilterChangeWithPageReset}
             primaryCurrency={primaryCurrency}
             effectiveDateRange={effectiveDateRange}
             requestDateRange={requestDateRange}

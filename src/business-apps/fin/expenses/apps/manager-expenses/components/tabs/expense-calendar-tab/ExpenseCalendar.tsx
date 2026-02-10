@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react'
-import { Typography, Spin, Alert } from 'antd'
+import { Spinner, Alert, AlertDescription, Label } from '@newwork/nw-design-system'
 import { CalendarTimeline } from '@newwork/gravity-ui-catalog'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useManagerExpensesOverview } from '../../../hooks/useManagerExpensesOverview'
@@ -8,28 +8,35 @@ import type { ExpenseTimelineEvent, ExpenseTimelineItem } from './expenseCalenda
 import { useTeamMembersByManager } from './useTeamMembersByManager'
 import { buildAllStatusesLegendItems, buildTimelineEvents, buildTimelineItems } from './expenseCalendarTimelineUtils'
 
-const { Text } = Typography
+// Step 5: Overview limits for calendar. Review with product; a lower cap (e.g. 500) can reduce payload if acceptable for UX.
+const CALENDAR_OVERVIEW_REQUESTS_LIMIT = 1000
+const CALENDAR_OVERVIEW_PLANS_LIMIT = 1000
 
 export type ExpenseCalendarProps = BusinessAppContextProps
 
 export const ExpenseCalendar: React.FC<ExpenseCalendarProps> = props => {
   const { userInfo, accessToken } = props
-  const userLocale = getCurrentActiveUserLocale()
+  // Memoize once so timelineEvents useMemo only recomputes when plans/requests change (PERFORMANCE-IMPROVEMENT-PLAN §2.3 / Step 5).
+  const userLocale = useMemo(() => getCurrentActiveUserLocale(), [])
 
   const managerId = userInfo?.employeeDetails?.employeeId || userInfo?.id || ''
 
   const { allTeamMembers, loadingTeamMembers, teamMembersError } = useTeamMembersByManager({ managerId, accessToken })
 
-  // Use consolidated overview to load plans/requests once (high limit for calendar)
-  // Note: currencyRef is intentionally undefined to show all expenses regardless of currency
-  const overview = useManagerExpensesOverview(props, {
-    managerId,
-    currencyRef: undefined,
-    searchTerm: undefined,
-    requests: { limit: 1000, offset: 0 },
-    plans: { limit: 1000, offset: 0 },
-    payments: { limit: 0, offset: 0 }
-  })
+  // Step 1: Memoize overview params so the hook receives a stable reference when managerId is unchanged.
+  const overviewParams = useMemo(
+    () => ({
+      managerId,
+      currencyRef: undefined as string | undefined,
+      searchTerm: undefined as string | undefined,
+      requests: { limit: CALENDAR_OVERVIEW_REQUESTS_LIMIT, offset: 0 },
+      plans: { limit: CALENDAR_OVERVIEW_PLANS_LIMIT, offset: 0 },
+      payments: { limit: 0, offset: 0 }
+    }),
+    [managerId]
+  )
+
+  const overview = useManagerExpensesOverview(props, overviewParams)
 
   const expensePlans = overview.data?.expensePlans || []
   const expenseRequests = overview.data?.expenseRequests || []
@@ -50,7 +57,7 @@ export const ExpenseCalendar: React.FC<ExpenseCalendarProps> = props => {
     if (overview.isLoading || loadingTeamMembers)
       return (
         <div className="gba:flex gba:justify-center gba:items-center gba:h-full" data-testid="expense-calendar-loading">
-          <Spin size="large" data-testid="expense-calendar-loading-spinner" />
+          <Spinner size="lg" data-testid="expense-calendar-loading-spinner" />
         </div>
       )
 
@@ -59,7 +66,9 @@ export const ExpenseCalendar: React.FC<ExpenseCalendarProps> = props => {
     if (teamMembersError) errorMessages.push(teamMembersError)
     if (errorMessages.length > 0)
       return (
-        <Alert message={errorMessages.join('\n')} type="error" showIcon data-testid="expense-calendar-error-alert" />
+        <Alert variant="destructive" data-testid="expense-calendar-error-alert">
+          <AlertDescription>{errorMessages.join('\n')}</AlertDescription>
+        </Alert>
       )
 
     // Always show calendar with all team members, even if there are no expense events
@@ -83,12 +92,8 @@ export const ExpenseCalendar: React.FC<ExpenseCalendarProps> = props => {
           )}
           renderItemContent={item => (
             <div className="gba:p-2">
-              <Text strong>{item.name}</Text>
-              {item.detail && (
-                <Text type="secondary" className="gba:text-xs gba:block">
-                  {item.detail}
-                </Text>
-              )}
+              <Label className="gba:font-semibold">{item.name}</Label>
+              {item.detail && <span className="gba:text-xs gba:block gba:text-muted-foreground">{item.detail}</span>}
             </div>
           )}
           legendItems={legendItems}
