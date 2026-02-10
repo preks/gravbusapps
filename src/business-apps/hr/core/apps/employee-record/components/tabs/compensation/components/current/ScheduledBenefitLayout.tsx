@@ -70,7 +70,7 @@ const ScheduledBenefitLayout: React.FC<ScheduledBenefitLayoutProps> = ({
       {/* Fixed bottom: Scheduled badge (aligned across all cards) */}
       {benefit.startDate && (
         <div className="gba:mt-auto gba:shrink-0 gba:pt-2" data-testid={`benefit-scheduled-badge-${benefit.code}`}>
-          <div className="gba:inline-flex gba:items-center gba:gap-1 gba:text-xs gba:text-decorative-secondary-foreground gba:bg-decorative-secondary gba:px-2 gba:py-1 gba:rounded-md">
+          <div className="gba:inline-flex gba:items-center gba:gap-1 gba:text-xs gba:text-decorative-secondary-foreground gba:bg-decorative-secondary gba:py-1 gba:rounded-md">
             <span className="gba:font-semibold">{t('benefit-scheduled-badge')}</span>
             <span>•</span>
             <span>
