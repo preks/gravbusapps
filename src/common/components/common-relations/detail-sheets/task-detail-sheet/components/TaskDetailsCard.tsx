@@ -138,7 +138,7 @@ export const TaskDetailsCard: React.FC<TaskDetailsCardProps> = ({
               <TooltipTrigger asChild>
                 <button
                   type="button"
-                  className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer gba:hover:bg-accent gba:px-2 gba:py-1 gba:rounded gba:transition-colors gba:w-fit gba:max-w-full gba:min-h-[24px] gba:min-w-0 gba:border-0 gba:bg-transparent gba:text-left"
+                  className="gba:max-w-[280px] gba:flex gba:items-center gba:gap-2 gba:cursor-pointer gba:hover:bg-accent gba:px-2 gba:py-1 gba:rounded gba:transition-colors gba:min-h-[24px] gba:min-w-0 gba:border-0 gba:bg-transparent gba:text-left"
                   onClick={() => {
                     if (task.creatorEmployee) {
                       const url = buildPlatformUrl('/platform/employee-record', {
@@ -163,7 +163,7 @@ export const TaskDetailsCard: React.FC<TaskDetailsCardProps> = ({
                       {getInitials(task.creatorEmployee.firstName || '', task.creatorEmployee.lastName || '')}
                     </AvatarFallback>
                   </Avatar>
-                  <span className="gba:text-sm gba:font-medium gba:truncate">
+                  <span className="gba:flex-1 gba:min-w-0 gba:text-sm gba:font-medium gba:truncate">
                     {task.creatorEmployee.displayName ||
                       `${task.creatorEmployee.firstName || ''} ${task.creatorEmployee.lastName || ''}`.trim() ||
                       'Unknown'}

@@ -28,11 +28,11 @@ export const FieldRow: React.FC<FieldRowProps> = ({
 
   return (
     <div className={`gba:flex ${alignmentClass} gba:gap-3 gba:py-2`} data-testid={testId}>
-      <div className="gba:flex gba:items-center gba:gap-2 gba:min-w-[100px] gba:text-sm gba:text-muted-foreground">
+      <div className="gba:flex gba:items-center gba:gap-2 gba:min-w-[100px] gba:text-sm gba:text-muted-foreground gba:shrink-0">
         <IconComponent size={14} className="gba:text-muted-foreground" />
         <span>{label}</span>
       </div>
-      <div className="gba:flex-1">{children}</div>
+      <div className="gba:flex-1 gba:min-w-0">{children}</div>
     </div>
   )
 }
