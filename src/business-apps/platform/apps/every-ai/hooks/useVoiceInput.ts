@@ -182,18 +182,27 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
     }
 
     recognition.onresult = (event: SpeechRecognitionEvent) => {
+      const previousFinal = finalTranscriptRef.current
       let interim = ''
-      let final = finalTranscriptRef.current
+      const finalParts: string[] = []
 
-      for (let i = event.resultIndex; i < event.results.length; i++) {
+      // Rebuild transcripts from the full results list to avoid duplication
+      for (let i = 0; i < event.results.length; i++) {
         const result = event.results[i]
+        const text = result[0]?.transcript ?? ''
         if (result.isFinal) {
-          final += result[0].transcript + ' '
-          finalTranscriptRef.current = final
+          const trimmed = text.trim()
+          if (trimmed) {
+            finalParts.push(trimmed)
+          }
         } else {
-          interim += result[0].transcript
+          interim = text
         }
       }
+
+      const final = finalParts.join(' ').trim()
+      const cleanedInterim = interim.trim()
+      finalTranscriptRef.current = final
 
       // Track when we last received speech
       lastSpeechTimeRef.current = Date.now()
@@ -205,7 +214,7 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
       }
 
       // Set up new silence timeout - if no new speech for silenceDelay, trigger send
-      if (final.trim() && onEnd) {
+      if (final && onEnd) {
         silenceTimeoutRef.current = setTimeout(() => {
           const textToSend = finalTranscriptRef.current.trim()
           if (textToSend) {
@@ -219,12 +228,12 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
 
       setState(prev => ({
         ...prev,
-        transcript: final.trim(),
-        interimTranscript: interim
+        transcript: final,
+        interimTranscript: cleanedInterim
       }))
 
-      if (final && onTranscript) {
-        onTranscript(final.trim())
+      if (final && onTranscript && final !== previousFinal) {
+        onTranscript(final)
       }
     }
 
