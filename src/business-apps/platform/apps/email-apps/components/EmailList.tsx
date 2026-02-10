@@ -1,11 +1,13 @@
 /**
- * EmailList - Displays a list of email messages with sorting and actions.
- * Supports selection, star toggle, and read/unread indicators.
+ * EmailList - Displays a list of email messages with bulk operations.
+ * Supports selection, star toggle, read/unread indicators, and multi-select.
  */
 
-import React from 'react'
-import { Input, Spinner } from '@newwork/nw-design-system'
-import { Search, Star, Paperclip, AlertCircle } from 'lucide-react'
+import React, { useState, useCallback } from 'react'
+import { toast } from 'sonner'
+import { Input, Spinner, Button, Checkbox } from '@newwork/nw-design-system'
+import { Search, Star, Paperclip, AlertCircle, Trash2, MailOpen, Mail } from 'lucide-react'
+import { EmailApiService } from '../services/EmailApiService'
 import type { EmailMessageSummary } from '../types'
 
 interface EmailListProps {
@@ -16,6 +18,7 @@ interface EmailListProps {
   onSearchChange: (query: string) => void
   onSelectMessage: (id: string) => void
   onToggleStar: (id: string) => void
+  onRefresh: () => void
   folderName: string
   'data-testid'?: string
 }
@@ -48,9 +51,71 @@ export const EmailList: React.FC<EmailListProps> = ({
   onSearchChange,
   onSelectMessage,
   onToggleStar,
+  onRefresh,
   folderName,
   'data-testid': testId = 'email-list'
 }) => {
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [isBulkAction, setIsBulkAction] = useState(false)
+
+  const toggleSelect = useCallback((id: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+  }, [])
+
+  const selectAll = useCallback(() => {
+    if (selectedIds.size === messages.length) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(messages.map(m => m.id)))
+    }
+  }, [messages, selectedIds.size])
+
+  const handleBulkMarkRead = useCallback(
+    async (isRead: boolean) => {
+      if (selectedIds.size === 0) return
+      setIsBulkAction(true)
+      try {
+        await EmailApiService.batchMarkRead(Array.from(selectedIds), isRead)
+        toast.success(`Marked ${selectedIds.size} emails as ${isRead ? 'read' : 'unread'}`)
+        setSelectedIds(new Set())
+        onRefresh()
+      } catch {
+        toast.error('Failed to update emails')
+      } finally {
+        setIsBulkAction(false)
+      }
+    },
+    [selectedIds, onRefresh]
+  )
+
+  const handleBulkDelete = useCallback(async () => {
+    if (selectedIds.size === 0) return
+    setIsBulkAction(true)
+    try {
+      for (const id of selectedIds) {
+        await EmailApiService.deleteMessage(id)
+      }
+      toast.success(`Deleted ${selectedIds.size} emails`)
+      setSelectedIds(new Set())
+      onRefresh()
+    } catch {
+      toast.error('Failed to delete emails')
+    } finally {
+      setIsBulkAction(false)
+    }
+  }, [selectedIds, onRefresh])
+
+  const hasBulkSelection = selectedIds.size > 0
+
   return (
     <div className="gba:flex gba:flex-col gba:h-full gba:border-r gba:w-96 gba:flex-shrink-0" data-testid={testId}>
       {/* Header */}
@@ -67,6 +132,50 @@ export const EmailList: React.FC<EmailListProps> = ({
           />
         </div>
       </div>
+
+      {/* Bulk Actions Bar */}
+      {hasBulkSelection && (
+        <div className="gba:flex gba:items-center gba:gap-2 gba:px-4 gba:py-2 gba:border-b gba:bg-accent/10">
+          <button onClick={selectAll} className="gba:text-xs gba:text-primary gba:font-medium hover:gba:underline">
+            {selectedIds.size === messages.length ? 'Deselect all' : 'Select all'}
+          </button>
+          <span className="gba:text-xs gba:text-muted-foreground">{selectedIds.size} selected</span>
+          <div className="gba:flex-1" />
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => handleBulkMarkRead(true)}
+            disabled={isBulkAction}
+            className="gba:h-7 gba:text-xs"
+            data-testid={`${testId}-bulk-read`}
+          >
+            <MailOpen className="gba:w-3 gba:h-3 gba:mr-1" />
+            Read
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => handleBulkMarkRead(false)}
+            disabled={isBulkAction}
+            className="gba:h-7 gba:text-xs"
+            data-testid={`${testId}-bulk-unread`}
+          >
+            <Mail className="gba:w-3 gba:h-3 gba:mr-1" />
+            Unread
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleBulkDelete}
+            disabled={isBulkAction}
+            className="gba:h-7 gba:text-xs gba:text-destructive"
+            data-testid={`${testId}-bulk-delete`}
+          >
+            <Trash2 className="gba:w-3 gba:h-3 gba:mr-1" />
+            Delete
+          </Button>
+        </div>
+      )}
 
       {/* Message list */}
       <div className="gba:flex-1 gba:overflow-y-auto">
@@ -89,8 +198,10 @@ export const EmailList: React.FC<EmailListProps> = ({
               key={msg.id}
               message={msg}
               isSelected={selectedMessageId === msg.id}
+              isChecked={selectedIds.has(msg.id)}
               onSelect={() => onSelectMessage(msg.id)}
               onToggleStar={() => onToggleStar(msg.id)}
+              onToggleCheck={e => toggleSelect(msg.id, e)}
               testId={`${testId}-item-${msg.id}`}
             />
           ))}
@@ -103,14 +214,18 @@ export const EmailList: React.FC<EmailListProps> = ({
 function EmailListItem({
   message,
   isSelected,
+  isChecked,
   onSelect,
   onToggleStar,
+  onToggleCheck,
   testId
 }: {
   message: EmailMessageSummary
   isSelected: boolean
+  isChecked: boolean
   onSelect: () => void
   onToggleStar: () => void
+  onToggleCheck: (e: React.MouseEvent) => void
   testId: string
 }) {
   return (
@@ -121,6 +236,11 @@ function EmailListItem({
       } ${!message.isRead ? 'gba:bg-accent/5' : ''}`}
       data-testid={testId}
     >
+      {/* Checkbox for bulk select */}
+      <div onClick={onToggleCheck} className="gba:mt-1 gba:flex-shrink-0 gba:cursor-pointer">
+        <Checkbox checked={isChecked} data-testid={`${testId}-checkbox`} />
+      </div>
+
       {/* Star */}
       <button
         onClick={e => {

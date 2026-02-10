@@ -1,14 +1,15 @@
 /**
  * EmailAppsHub - Main entry point for the Email client.
  * Outlook-inspired 3-panel layout: sidebar | email list | email reader.
- * Supports composing, reading, folder navigation, and account management.
+ * Supports composing with auto-suggest, reading, folder navigation,
+ * account management, calendar sync, and admin provider settings.
  */
 
 import React, { useState, useCallback, useEffect } from 'react'
 import { toast } from 'sonner'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo } from '@/common/utils/navigationUtils'
-import { useEmailAccounts, useEmailFolders, useEmails } from './hooks'
+import { useEmailAccounts, useEmailFolders, useEmails, useEmailDirectory } from './hooks'
 import { EmailApiService } from './services/EmailApiService'
 import {
   EmailSidebar,
@@ -18,7 +19,8 @@ import {
   AccountSetupDialog,
   AccountManagementDialog,
   EmailEmptyState,
-  MicrosoftOAuthCallback
+  MicrosoftOAuthCallback,
+  EmailProviderSettingsAdmin
 } from './components'
 import type { EmailMessage, ComposeMode } from './types'
 
@@ -50,23 +52,19 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
 }) => {
   // Check if this is an OAuth callback redirect
   const [isOAuthCallback, setIsOAuthCallback] = useState(() => {
-    // Must have a PKCE verifier in sessionStorage (proves an OAuth flow is in progress)
     const hasVerifier = !!(
       sessionStorage.getItem('ms_oauth_verifier') || sessionStorage.getItem('google_oauth_verifier')
     )
     if (!hasVerifier) return false
 
-    // Check for code in URL query params
     const queryParams = new URLSearchParams(window.location.search)
     let hasCode = queryParams.has('code') && queryParams.has('state')
 
-    // Check hash fragment
     if (!hasCode && window.location.hash) {
       const hashParams = new URLSearchParams(window.location.hash.substring(1))
       hasCode = hashParams.has('code') && hashParams.has('state')
     }
 
-    // Check sessionStorage (captured by IIFE before platform might strip params)
     if (!hasCode) {
       const savedCode = sessionStorage.getItem('ms_oauth_code')
       hasCode = !!savedCode
@@ -87,6 +85,7 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
   const [searchQuery, setSearchQuery] = useState('')
   const [isAccountDialogOpen, setIsAccountDialogOpen] = useState(false)
   const [isManageDialogOpen, setIsManageDialogOpen] = useState(false)
+  const [isAdminSettingsOpen, setIsAdminSettingsOpen] = useState(false)
 
   // Compose state
   const [isComposing, setIsComposing] = useState(false)
@@ -120,6 +119,9 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
     accountId: defaultAccount?.id,
     search: searchQuery || undefined
   })
+
+  // Directory hook for auto-suggest (org directory + provider contacts)
+  const { searchContacts, addRecentRecipients } = useEmailDirectory(accessToken, accounts)
 
   // Set access token on API service
   useEffect(() => {
@@ -183,6 +185,13 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
   const handleBack = useCallback(() => {
     navigateTo('/platform/every-office')
   }, [])
+
+  const handleRecipientsUsed = useCallback(
+    (recipients: Array<{ name?: string; email: string }>) => {
+      addRecentRecipients(recipients)
+    },
+    [addRecentRecipients]
+  )
 
   // Auto-select inbox when folders load
   useEffect(() => {
@@ -252,6 +261,7 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
         onSearchChange={setSearchQuery}
         onSelectMessage={selectMessage}
         onToggleStar={toggleStar}
+        onRefresh={refreshMessages}
         folderName={currentFolderName}
       />
 
@@ -264,7 +274,7 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
         onArchive={handleArchive}
       />
 
-      {/* Composer */}
+      {/* Composer with auto-suggest */}
       <EmailComposer
         isOpen={isComposing}
         onClose={() => setIsComposing(false)}
@@ -273,6 +283,8 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
         accounts={accounts}
         defaultAccountId={defaultAccount?.id}
         onSent={refreshMessages}
+        searchContacts={searchContacts}
+        onRecipientsUsed={handleRecipientsUsed}
       />
 
       {/* Account management dialog */}
@@ -285,6 +297,7 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
           setIsManageDialogOpen(false)
           setIsAccountDialogOpen(true)
         }}
+        onOpenAdminSettings={() => setIsAdminSettingsOpen(true)}
       />
 
       {/* Account setup dialog */}
@@ -292,6 +305,13 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
         open={isAccountDialogOpen}
         onOpenChange={setIsAccountDialogOpen}
         onAccountCreated={refreshAccounts}
+        accessToken={accessToken}
+      />
+
+      {/* Admin provider settings */}
+      <EmailProviderSettingsAdmin
+        open={isAdminSettingsOpen}
+        onOpenChange={setIsAdminSettingsOpen}
         accessToken={accessToken}
       />
     </div>

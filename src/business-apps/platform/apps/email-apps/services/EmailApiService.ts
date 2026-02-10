@@ -11,7 +11,8 @@ import type {
   EmailMessageSummary,
   PaginatedResponse,
   CreateEmailAccountRequest,
-  SendEmailRequest
+  SendEmailRequest,
+  ExternalCalendarEvent
 } from '../types'
 
 const API_URL = getDocumentServiceApiUrl()
@@ -152,6 +153,52 @@ export const EmailApiService = {
       method: 'PATCH',
       body: JSON.stringify({ crmEntityType, crmEntityId })
     })
+  },
+
+  // ============ Attachments ============
+  /**
+   * Downloads an attachment and returns a Blob URL for the browser.
+   */
+  async downloadAttachment(messageId: string, attachmentId: string): Promise<{ url: string; filename: string }> {
+    const token = currentAccessToken
+    const response = await fetch(`${API_URL}/emails/messages/${messageId}/attachments/${attachmentId}/download`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {}
+    })
+
+    if (!response.ok) {
+      throw new Error(`Failed to download attachment: ${response.statusText}`)
+    }
+
+    const contentDisposition = response.headers.get('content-disposition') || ''
+    const filenameMatch = contentDisposition.match(/filename="?([^";\n]+)"?/)
+    const filename = filenameMatch ? decodeURIComponent(filenameMatch[1]) : 'attachment'
+
+    const blob = await response.blob()
+    const url = URL.createObjectURL(blob)
+    return { url, filename }
+  },
+
+  // ============ Contacts Search ============
+  /**
+   * Search contacts from a connected provider account (Microsoft/Google).
+   */
+  async searchProviderContacts(
+    accountId: string,
+    query: string,
+    limit = 15
+  ): Promise<Array<{ name: string; email: string; avatarUrl?: string; source: 'microsoft' | 'google' }>> {
+    if (!query || query.trim().length < 2) return []
+    const params = new URLSearchParams({ q: query, limit: String(limit) })
+    return apiRequest(`/emails/accounts/${accountId}/contacts/search?${params.toString()}`)
+  },
+
+  // ============ Calendar Sync ============
+  /**
+   * Fetches external calendar events for an account within a date range.
+   */
+  async getCalendarEvents(accountId: string, startDate: string, endDate: string): Promise<ExternalCalendarEvent[]> {
+    const params = new URLSearchParams({ startDate, endDate })
+    return apiRequest<ExternalCalendarEvent[]>(`/emails/accounts/${accountId}/calendar/events?${params.toString()}`)
   }
 }
 

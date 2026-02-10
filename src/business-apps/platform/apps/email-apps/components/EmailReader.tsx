@@ -1,9 +1,11 @@
 /**
  * EmailReader - Displays the full content of a selected email message.
- * Shows headers, body, and action buttons (reply, forward, delete).
+ * Shows headers, body, attachments with download, and action buttons.
+ * Supports optional thread/conversation view.
  */
 
-import React, { useRef, useEffect } from 'react'
+import React, { useRef, useEffect, useCallback, useState } from 'react'
+import { toast } from 'sonner'
 import {
   Button,
   Badge,
@@ -14,8 +16,25 @@ import {
   TooltipProvider,
   TooltipTrigger
 } from '@newwork/nw-design-system'
-import { Reply, ReplyAll, Forward, Trash2, Star, Paperclip, Download, Archive, Mail } from 'lucide-react'
+import {
+  Reply,
+  ReplyAll,
+  Forward,
+  Trash2,
+  Star,
+  Paperclip,
+  Download,
+  Archive,
+  Mail,
+  Loader2,
+  MessageSquare
+} from 'lucide-react'
+import { EmailApiService } from '../services/EmailApiService'
+import { EmailThreadView } from './EmailThreadView'
+import { getInitials, formatFullDate, formatFileSize } from '../utils/emailDisplayUtils'
 import type { EmailMessage, ComposeMode } from '../types'
+
+const THREAD_VIEW_KEY = 'email-thread-view-enabled'
 
 interface EmailReaderProps {
   message: EmailMessage | null
@@ -24,35 +43,6 @@ interface EmailReaderProps {
   onToggleStar: (id: string) => void
   onArchive: (id: string) => void
   'data-testid'?: string
-}
-
-function getInitials(name?: string, email?: string): string {
-  const str = name || email || '?'
-  return str
-    .split(/[\s@.]/)
-    .filter(Boolean)
-    .map(p => p[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2)
-}
-
-function formatFullDate(dateString: string): string {
-  const date = new Date(dateString)
-  return date.toLocaleDateString('en-US', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit'
-  })
-}
-
-function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
 export const EmailReader: React.FC<EmailReaderProps> = ({
@@ -64,6 +54,48 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
   'data-testid': testId = 'email-reader'
 }) => {
   const bodyRef = useRef<HTMLDivElement>(null)
+  const [downloadingAttId, setDownloadingAttId] = useState<string | null>(null)
+  const [threadEnabled, setThreadEnabled] = useState(() => localStorage.getItem(THREAD_VIEW_KEY) === 'true')
+  const [threadMessages, setThreadMessages] = useState<EmailMessage[]>([])
+  const [isLoadingThread, setIsLoadingThread] = useState(false)
+  const lastThreadIdRef = useRef<string | null>(null)
+
+  const toggleThreadView = useCallback(() => {
+    setThreadEnabled(prev => {
+      const next = !prev
+      localStorage.setItem(THREAD_VIEW_KEY, String(next))
+      return next
+    })
+  }, [])
+
+  // Fetch thread when enabled and message has a threadId
+  useEffect(() => {
+    if (!message?.threadId || !threadEnabled) {
+      setThreadMessages([])
+      lastThreadIdRef.current = null
+      return
+    }
+    // Avoid refetching the same thread
+    if (lastThreadIdRef.current === message.threadId) return
+    lastThreadIdRef.current = message.threadId
+
+    let cancelled = false
+    setIsLoadingThread(true)
+    EmailApiService.getThread(message.threadId)
+      .then(msgs => {
+        if (!cancelled) setThreadMessages(msgs)
+      })
+      .catch(() => {
+        if (!cancelled) setThreadMessages([])
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoadingThread(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [message?.threadId, threadEnabled, message?.id])
 
   // Safely render HTML body in an isolated div
   useEffect(() => {
@@ -71,6 +103,28 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
       bodyRef.current.innerHTML = message.htmlBody
     }
   }, [message?.htmlBody])
+
+  const showThread = threadEnabled && threadMessages.length > 1
+
+  const handleDownloadAttachment = useCallback(async (messageId: string, attachmentId: string) => {
+    setDownloadingAttId(attachmentId)
+    try {
+      const { url, filename } = await EmailApiService.downloadAttachment(messageId, attachmentId)
+      // Trigger browser download
+      const link = document.createElement('a')
+      link.href = url
+      link.download = filename
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      // Clean up blob URL after a delay
+      setTimeout(() => URL.revokeObjectURL(url), 30000)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to download attachment')
+    } finally {
+      setDownloadingAttId(null)
+    }
+  }, [])
 
   if (!message) {
     return (
@@ -159,6 +213,22 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
             </TooltipTrigger>
             <TooltipContent>{message.isStarred ? 'Unstar' : 'Star'}</TooltipContent>
           </Tooltip>
+
+          <div className="gba:w-px gba:h-5 gba:bg-border gba:mx-1" />
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant={threadEnabled ? 'secondary' : 'ghost'}
+                size="icon"
+                onClick={toggleThreadView}
+                data-testid={`${testId}-thread-toggle`}
+              >
+                <MessageSquare className="gba:w-4 gba:h-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{threadEnabled ? 'Conversation view on' : 'Conversation view off'}</TooltipContent>
+          </Tooltip>
         </TooltipProvider>
       </div>
 
@@ -176,64 +246,94 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
           )}
         </div>
 
-        {/* Sender info */}
-        <div className="gba:flex gba:items-start gba:gap-3 gba:mb-6 gba:pb-4 gba:border-b">
-          <Avatar className="gba:w-10 gba:h-10">
-            <AvatarFallback className="gba:bg-primary/10 gba:text-primary gba:text-sm">
-              {getInitials(from.name, from.address)}
-            </AvatarFallback>
-          </Avatar>
-          <div className="gba:flex-1 gba:min-w-0">
-            <div className="gba:flex gba:items-center gba:justify-between">
-              <span className="gba:font-medium gba:text-foreground">{from.name || from.address}</span>
-              <span className="gba:text-xs gba:text-muted-foreground">{formatFullDate(message.date)}</span>
-            </div>
-            <p className="gba:text-xs gba:text-muted-foreground">
-              To: {toNames}
-              {message.ccAddresses.length > 0 &&
-                ` | CC: ${message.ccAddresses.map(a => a.name || a.address).join(', ')}`}
-            </p>
-          </div>
-        </div>
-
-        {/* Body */}
-        {message.htmlBody ? (
-          <div
-            ref={bodyRef}
-            className="gba:prose gba:prose-sm gba:max-w-none gba:text-foreground"
-            data-testid={`${testId}-body`}
-          />
-        ) : (
-          <div className="gba:whitespace-pre-wrap gba:text-sm gba:text-foreground" data-testid={`${testId}-body`}>
-            {message.textBody || '(empty)'}
+        {/* Thread loading state */}
+        {isLoadingThread && threadEnabled && (
+          <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-muted-foreground gba:mb-4">
+            <Loader2 className="gba:w-4 gba:h-4 gba:animate-spin" />
+            Loading conversation...
           </div>
         )}
 
-        {/* Attachments */}
-        {message.attachments && message.attachments.length > 0 && (
-          <div className="gba:mt-6 gba:pt-4 gba:border-t">
-            <h3 className="gba:text-sm gba:font-medium gba:text-foreground gba:mb-3 gba:flex gba:items-center gba:gap-2">
-              <Paperclip className="gba:w-4 gba:h-4" />
-              Attachments ({message.attachments.length})
-            </h3>
-            <div className="gba:flex gba:flex-wrap gba:gap-2">
-              {message.attachments
-                .filter(a => !a.isInline)
-                .map(att => (
-                  <div
-                    key={att.id}
-                    className="gba:flex gba:items-center gba:gap-2 gba:px-3 gba:py-2 gba:rounded-lg gba:border gba:bg-muted/30 hover:gba:bg-muted/50 gba:cursor-pointer gba:transition-colors"
-                  >
-                    <Paperclip className="gba:w-4 gba:h-4 gba:text-muted-foreground" />
-                    <div>
-                      <p className="gba:text-xs gba:font-medium gba:text-foreground">{att.filename}</p>
-                      <p className="gba:text-[10px] gba:text-muted-foreground">{formatFileSize(att.size)}</p>
-                    </div>
-                    <Download className="gba:w-3 gba:h-3 gba:text-muted-foreground" />
-                  </div>
-                ))}
+        {/* Thread view OR single-message view */}
+        {showThread ? (
+          <EmailThreadView messages={threadMessages} data-testid={`${testId}-thread`} />
+        ) : (
+          <>
+            {/* Sender info */}
+            <div className="gba:flex gba:items-start gba:gap-3 gba:mb-6 gba:pb-4 gba:border-b">
+              <Avatar className="gba:w-10 gba:h-10">
+                <AvatarFallback className="gba:bg-primary/10 gba:text-primary gba:text-sm">
+                  {getInitials(from.name, from.address)}
+                </AvatarFallback>
+              </Avatar>
+              <div className="gba:flex-1 gba:min-w-0">
+                <div className="gba:flex gba:items-center gba:justify-between">
+                  <span className="gba:font-medium gba:text-foreground">{from.name || from.address}</span>
+                  <span className="gba:text-xs gba:text-muted-foreground">{formatFullDate(message.date)}</span>
+                </div>
+                <p className="gba:text-xs gba:text-muted-foreground">
+                  To: {toNames}
+                  {message.ccAddresses.length > 0 &&
+                    ` | CC: ${message.ccAddresses.map(a => a.name || a.address).join(', ')}`}
+                </p>
+              </div>
             </div>
-          </div>
+
+            {/* Body */}
+            {message.htmlBody ? (
+              <div
+                ref={bodyRef}
+                className="gba:prose gba:prose-sm gba:max-w-none gba:text-foreground"
+                data-testid={`${testId}-body`}
+              />
+            ) : (
+              <div className="gba:whitespace-pre-wrap gba:text-sm gba:text-foreground" data-testid={`${testId}-body`}>
+                {message.textBody || '(empty)'}
+              </div>
+            )}
+
+            {/* Attachments with download */}
+            {(message.attachments?.length > 0 || message.hasAttachments) &&
+              (() => {
+                const nonInline = (message.attachments || []).filter(a => !a.isInline)
+                return (
+                  <div className="gba:mt-6 gba:pt-4 gba:border-t">
+                    <h3 className="gba:text-sm gba:font-medium gba:text-foreground gba:mb-3 gba:flex gba:items-center gba:gap-2">
+                      <Paperclip className="gba:w-4 gba:h-4" />
+                      Attachments{nonInline.length > 0 ? ` (${nonInline.length})` : ''}
+                    </h3>
+                    {nonInline.length > 0 ? (
+                      <div className="gba:flex gba:flex-wrap gba:gap-2">
+                        {nonInline.map(att => (
+                          <button
+                            key={att.id}
+                            onClick={() => handleDownloadAttachment(message.id, att.id)}
+                            disabled={downloadingAttId === att.id}
+                            className="gba:flex gba:items-center gba:gap-2 gba:px-3 gba:py-2 gba:rounded-lg gba:border gba:bg-muted/30 hover:gba:bg-muted/50 gba:cursor-pointer gba:transition-colors disabled:gba:opacity-50"
+                            data-testid={`${testId}-attachment-${att.id}`}
+                          >
+                            <Paperclip className="gba:w-4 gba:h-4 gba:text-muted-foreground" />
+                            <div className="gba:text-left">
+                              <p className="gba:text-xs gba:font-medium gba:text-foreground">{att.filename}</p>
+                              <p className="gba:text-[10px] gba:text-muted-foreground">{formatFileSize(att.size)}</p>
+                            </div>
+                            {downloadingAttId === att.id ? (
+                              <Loader2 className="gba:w-3 gba:h-3 gba:text-muted-foreground gba:animate-spin" />
+                            ) : (
+                              <Download className="gba:w-3 gba:h-3 gba:text-muted-foreground" />
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="gba:text-xs gba:text-muted-foreground gba:italic">
+                        Attachment details are being synchronized...
+                      </p>
+                    )}
+                  </div>
+                )
+              })()}
+          </>
         )}
       </div>
     </div>
