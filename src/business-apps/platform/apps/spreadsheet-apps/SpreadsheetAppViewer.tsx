@@ -130,6 +130,9 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     setLocalSheetData,
     onDataChange,
     onAppUpdate,
+    onSheetUpdate,
+    onRowUpdate,
+    onRowAdd,
     saveTimeoutRef
   })
 
