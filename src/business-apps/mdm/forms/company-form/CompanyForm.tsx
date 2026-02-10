@@ -23,7 +23,7 @@ import {
 } from '@newwork/nw-design-system'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { env } from '@/common/env/EnvUtils'
-import type { Company } from '../../apps/organizational-data/types'
+import type { Company, CompanyAddress } from '../../apps/organizational-data/types'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { AddressSegment } from '@/common/components/common-relations/form-segments/address-segment'
 import { EmployeeSelect } from '@/components/employee-select'
@@ -37,9 +37,11 @@ import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogMan
 // Helper to validate no leading whitespace (trailing will be trimmed on submit)
 const noLeadingWhitespace = (value: string) => value === value.trimStart()
 
-// Address schema for validation
+// Address schema for validation (id and companyId preserved for existing addresses)
 const createAddressSchema = (t: (key: string) => string) =>
   z.object({
+    id: z.string().optional(),
+    companyId: z.string().optional(),
     addressType: z.string().optional(),
     addressLine: z
       .object({
@@ -106,7 +108,9 @@ const createCompanySchema = (t: (key: string) => string) =>
     // Addresses array for AddressSegment
     addresses: z.array(createAddressSchema(t)).optional(),
     // Dynamic additional properties from catalog
-    additionalProperties: z.record(z.string(), z.unknown()).optional()
+    additionalProperties: z.record(z.string(), z.unknown()).optional(),
+    // Hidden field for dirty tracking when user uploads/removes picture (not stored in backend)
+    pictureModified: z.boolean().optional()
   })
 
 export type CompanyFormData = z.infer<ReturnType<typeof createCompanySchema>>
@@ -233,6 +237,8 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
     if (!addresses || addresses.length === 0) return []
 
     return addresses.map(addr => ({
+      id: addr.id,
+      companyId: addr.companyId,
       addressType: addr.addressType,
       addressLine: transformBackendAddressLineToForm(addr.addressLine),
       postalCode: addr.postalCode,
@@ -331,6 +337,7 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
     if (files.length === 0) {
       setPictureFile(null)
       setPicturePreview(null)
+      form.setValue('pictureModified', true, { shouldDirty: true })
       return
     }
 
@@ -343,6 +350,7 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
     }
 
     setPictureFile(file)
+    form.setValue('pictureModified', true, { shouldDirty: true })
 
     // Create preview
     const reader = new FileReader()
@@ -364,8 +372,13 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
       tax_identification_number: companyData?.taxIdentificationNumber || '',
       tax_number: companyData?.taxNumber || '',
       value_added_tax_number: companyData?.valueAddedTaxNumber || '',
-      addresses: transformBackendAddressesToForm(companyData?.addresses),
-      additionalProperties: (companyData?.additionalProperties as Record<string, unknown>) || {}
+      addresses:
+        transformBackendAddressesToForm(companyData?.addresses)?.map(addr => ({
+          ...addr,
+          companyId: addr.companyId ?? companyData?.id
+        })) ?? [],
+      additionalProperties: (companyData?.additionalProperties as Record<string, unknown>) || {},
+      pictureModified: false
     }),
     [companyData]
   )
@@ -420,11 +433,14 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
   }
 
   /**
-   * Transform addresses array to backend format
+   * Transform addresses array to backend shape (no changeMode).
+   * Preserves id for existing addresses.
    */
   const transformAddresses = (
     addresses?: CompanyFormData['addresses']
   ): Array<{
+    id?: string
+    companyId?: string
     addressType?: string
     addressLine?: Record<string, string>
     postalCode?: string
@@ -438,6 +454,8 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
       .map(addr => {
         const transformed: Record<string, unknown> = {}
 
+        if (addr.id) transformed.id = addr.id
+        if (addr.companyId) transformed.companyId = addr.companyId
         if (addr.addressType) transformed.addressType = addr.addressType
         const addressLine = transformAddressLine(addr.addressLine)
         if (addressLine) transformed.addressLine = addressLine
@@ -446,11 +464,12 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
         if (addr.regionRef) transformed.regionRef = addr.regionRef
         if (addr.countryRef) transformed.countryRef = addr.countryRef
 
-        // Only include address if it has meaningful data (not just addressType)
-        const hasData = Object.keys(transformed).some(key => key !== 'addressType')
+        const hasData = Object.keys(transformed).some(key => !['id', 'companyId', 'addressType'].includes(key))
         return hasData ? transformed : null
       })
       .filter(Boolean) as Array<{
+      id?: string
+      companyId?: string
       addressType?: string
       addressLine?: Record<string, string>
       postalCode?: string
@@ -458,6 +477,62 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
       regionRef?: string
       countryRef?: string
     }>
+  }
+
+  type AddressPayloadFields = {
+    id?: string
+    companyId?: string
+    addressType?: string
+    addressLine?: Record<string, string>
+    postalCode?: string
+    locality?: string
+    regionRef?: string
+    countryRef?: string
+  }
+
+  type AddressChangePayload =
+    | ({ changeMode: 'UPSERT' } & AddressPayloadFields)
+    | ({ changeMode: 'DELETE' } & AddressPayloadFields)
+
+  /**
+   * Build addresses payload as delta only: UPSERT for create/update, DELETE for removed.
+   * Empty array means "delete all" when in edit mode and company had addresses.
+   * Each address includes companyId when available (from form or companyId param for new addresses).
+   */
+  const buildAddressesDelta = (
+    formAddresses: CompanyFormData['addresses'],
+    originalAddresses: Company['addresses'] | undefined,
+    isEditMode: boolean,
+    companyId?: string
+  ): AddressChangePayload[] => {
+    const transformed = transformAddresses(formAddresses)
+
+    if (isEditMode && originalAddresses && originalAddresses.length > 0 && transformed.length === 0) {
+      return []
+    }
+
+    const originalIds = (originalAddresses?.map(a => a.id).filter(Boolean) ?? []) as string[]
+    const currentIds = transformed.map(a => a.id).filter(Boolean) as string[]
+    const deletedIds = originalIds.filter(id => !currentIds.includes(id))
+
+    const upserts: AddressChangePayload[] = transformed.map(addr => ({
+      changeMode: 'UPSERT' as const,
+      ...addr,
+      ...(companyId && !addr.companyId && { companyId })
+    }))
+
+    const originalById = new Map<string, CompanyAddress>(
+      (originalAddresses ?? []).filter((a): a is CompanyAddress & { id: string } => Boolean(a.id)).map(a => [a.id, a])
+    )
+    const deletes: AddressChangePayload[] = deletedIds
+      .map(id => {
+        const addr = originalById.get(id)
+        if (!addr) return null
+        return { changeMode: 'DELETE' as const, ...addr }
+      })
+      .filter(Boolean) as AddressChangePayload[]
+
+    return [...upserts, ...deletes]
   }
 
   /**
@@ -545,19 +620,22 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
   }
 
   /**
-   * Add addresses to payload
+   * Add addresses to payload as delta only (UPSERT for create/update, DELETE for removed).
+   * Empty array = delete all when in edit and company had addresses.
    */
   const addAddressesToPayload = (
     payload: Record<string, unknown>,
     formValues: CompanyFormData,
     isEditMode: boolean
   ): void => {
-    const transformedAddresses = transformAddresses(formValues.addresses)
-    if (transformedAddresses.length > 0) {
-      payload.addresses = transformedAddresses
-    } else if (isEditMode && companyData?.addresses && companyData.addresses.length > 0) {
-      // In edit mode, send empty array to clear addresses if they were removed
-      payload.addresses = []
+    const addressesDelta = buildAddressesDelta(
+      formValues.addresses,
+      companyData?.addresses,
+      isEditMode,
+      companyData?.id
+    )
+    if (addressesDelta.length > 0 || (isEditMode && companyData?.addresses && companyData.addresses.length > 0)) {
+      payload.addresses = addressesDelta
     }
   }
 
@@ -698,13 +776,15 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
       const currency = getStringFieldValue(trimmedData.currency, companyData?.currencyRef)
       if (currency !== undefined) payload.currencyRef = currency
 
-      // Transform and include addresses
-      const transformedAddresses = transformAddresses(formValues.addresses)
-      if (transformedAddresses.length > 0) {
-        payload.addresses = transformedAddresses
-      } else if (isEditMode && companyData?.addresses && companyData.addresses.length > 0) {
-        // In edit mode, send empty array to clear addresses if they were removed
-        payload.addresses = []
+      // Include addresses as delta (UPSERT/DELETE only)
+      const addressesDelta = buildAddressesDelta(
+        formValues.addresses,
+        companyData?.addresses,
+        isEditMode,
+        companyData?.id
+      )
+      if (addressesDelta.length > 0 || (isEditMode && companyData?.addresses && companyData.addresses.length > 0)) {
+        payload.addresses = addressesDelta
       }
 
       // Transform and include additionalProperties
@@ -887,6 +967,7 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
                     onClick={() => {
                       setPictureFile(null)
                       setPicturePreview(null)
+                      form.setValue('pictureModified', true, { shouldDirty: true })
                     }}
                     className="gba:text-sm gba:text-destructive hover:gba:underline"
                     data-testid={`${dataTestId}-picture-remove-button`}
