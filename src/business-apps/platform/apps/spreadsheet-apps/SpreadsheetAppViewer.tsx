@@ -408,6 +408,25 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     [activeSheetId, app.id, localSheetDataRef, onDataChange, setLocalSheetData]
   )
 
+  // --- Column visibility from FortuneSheet context menu ---
+  const handleColumnVisibilityChange = useCallback(
+    (columnIndices: number[], visible: boolean) => {
+      // FortuneSheet indices correspond to visible columns (we only pass visible ones)
+      const visibleColumns = activeSheet.columns.filter(c => c.isVisible).sort((a, b) => a.order - b.order)
+
+      const affectedColumnIds = new Set(columnIndices.map(idx => visibleColumns[idx]?.id).filter(Boolean))
+
+      if (affectedColumnIds.size === 0) return
+
+      const updatedColumns = activeSheet.columns.map(col =>
+        affectedColumnIds.has(col.id) ? { ...col, isVisible: visible } : col
+      )
+
+      persistSheetPatch({ columns: updatedColumns })
+    },
+    [activeSheet.columns, persistSheetPatch]
+  )
+
   // --- Row insert/delete from FortuneSheet context menu ---
 
   // Helper to extract the backend UUID from a row object
@@ -592,6 +611,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
             onColumnsDelete={columnsState.handleColumnsDelete}
             onRowsInsert={handleRowsInsert}
             onRowsDelete={handleRowsDelete}
+            onColumnVisibilityChange={handleColumnVisibilityChange}
             participants={collaboration.cursorParticipants}
             onOperationEmit={op => collaboration.emitOperation(op as any)}
             onCursorEmit={pos => collaboration.emitCursor({ path: pos.path })}

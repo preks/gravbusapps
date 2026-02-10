@@ -39,6 +39,8 @@ export interface FortuneSheetGridProps {
   onRowsInsert?: (insertIndex: number, count: number, direction: 'lefttop' | 'rightbottom') => void
   /** Callback when rows are deleted via context menu */
   onRowsDelete?: (startIndex: number, endIndex: number) => void
+  /** Callback when columns are hidden/shown via context menu */
+  onColumnVisibilityChange?: (columnIndices: number[], visible: boolean) => void
   /** Callback when formula is evaluated */
   onFormulaEvaluated?: (rowId: string, columnId: string, result: unknown) => void
   /** Active participants in collaboration */
@@ -84,6 +86,7 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
       onColumnsDelete,
       onRowsInsert,
       onRowsDelete,
+      onColumnVisibilityChange,
       participants = [],
       onOperationEmit = () => {},
       onCursorEmit = () => {},
@@ -661,6 +664,44 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
               }
             }
           }
+
+          // Handle column hide/show via context menu
+          // FortuneSheet emits replace ops on config.colhidden when columns are hidden/shown
+          if (
+            onColumnVisibilityChange &&
+            (op.op === 'replace' || op.op === 'add') &&
+            op.path.length >= 2 &&
+            op.path[0] === 'config' &&
+            op.path[1] === 'colhidden'
+          ) {
+            if (op.path.length === 2 && op.value && typeof op.value === 'object') {
+              // Bulk update: path = ['config', 'colhidden'], value = { "0": 0, "2": 0, ... }
+              const hiddenIndices = Object.keys(op.value).map(Number)
+              if (hiddenIndices.length > 0) {
+                onColumnVisibilityChange(hiddenIndices, false)
+              }
+            } else if (op.path.length === 3) {
+              // Single column: path = ['config', 'colhidden', colIndex]
+              const colIndex = Number(op.path[2])
+              if (!isNaN(colIndex)) {
+                onColumnVisibilityChange([colIndex], false)
+              }
+            }
+          }
+
+          // Handle column show (unhide) — FortuneSheet removes entries from colhidden
+          if (
+            onColumnVisibilityChange &&
+            op.op === 'remove' &&
+            op.path.length === 3 &&
+            op.path[0] === 'config' &&
+            op.path[1] === 'colhidden'
+          ) {
+            const colIndex = Number(op.path[2])
+            if (!isNaN(colIndex)) {
+              onColumnVisibilityChange([colIndex], true)
+            }
+          }
         })
       },
       [
@@ -674,6 +715,7 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
         onColumnsDelete,
         onRowsInsert,
         onRowsDelete,
+        onColumnVisibilityChange,
         columns,
         data
       ]

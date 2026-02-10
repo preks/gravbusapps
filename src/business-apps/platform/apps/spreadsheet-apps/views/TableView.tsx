@@ -31,6 +31,8 @@ export interface TableViewProps {
   onRowsInsert?: (insertIndex: number, count: number, direction: 'lefttop' | 'rightbottom') => void
   /** Callback when rows are deleted via context menu */
   onRowsDelete?: (startIndex: number, endIndex: number) => void
+  /** Callback when columns are hidden/shown via context menu */
+  onColumnVisibilityChange?: (columnIndices: number[], visible: boolean) => void
   participants?: DocumentParticipant[]
   onOperationEmit?: (operation: DocumentOperation) => void
   onCursorEmit?: (position: { path: string[] }) => void
@@ -67,6 +69,7 @@ export const TableView = memo<TableViewProps>(function TableView({
   onColumnsDelete,
   onRowsInsert,
   onRowsDelete,
+  onColumnVisibilityChange,
   participants,
   onOperationEmit,
   onCursorEmit,
@@ -111,6 +114,7 @@ export const TableView = memo<TableViewProps>(function TableView({
         onColumnsDelete={onColumnsDelete}
         onRowsInsert={onRowsInsert}
         onRowsDelete={onRowsDelete}
+        onColumnVisibilityChange={onColumnVisibilityChange}
         participants={participants}
         onOperationEmit={onOperationEmit}
         onCursorEmit={onCursorEmit}
