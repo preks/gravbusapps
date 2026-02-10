@@ -39,18 +39,24 @@ export const PERMISSION_GUIDE: Record<string, ProviderGuide> = {
         required: false
       },
       {
+        name: 'Contacts / People Search',
+        scopes: ['People.Read'],
+        description: 'Search contacts from Azure AD and Outlook for recipient auto-suggest',
+        required: false
+      },
+      {
         name: 'User Profile',
         scopes: ['openid', 'profile', 'email', 'offline_access'],
         description: 'Basic user info and refresh token support',
         required: true
       }
     ],
-    defaultScopes: 'openid profile email offline_access Mail.Read Mail.Send Calendars.Read',
+    defaultScopes: 'openid profile email offline_access Mail.Read Mail.Send People.Read Calendars.Read',
     instructions: [
       'Go to Azure Portal > App registrations > New registration',
       'Set "Supported account types" to "Accounts in any organizational directory"',
       'Add redirect URI: {origin}/platform/mail/oauth/callback (Single-page application)',
-      'Under API permissions, add: Mail.Read, Mail.Send, Calendars.Read (Microsoft Graph, Delegated)',
+      'Under API permissions, add: Mail.Read, Mail.Send, Calendars.Read, People.Read (Microsoft Graph, Delegated)',
       'Under Certificates & secrets, create a new client secret',
       'Copy the Application (client) ID and Client secret below'
     ]
@@ -73,18 +79,25 @@ export const PERMISSION_GUIDE: Record<string, ProviderGuide> = {
         required: false
       },
       {
+        name: 'Contacts Search',
+        scopes: ['https://www.googleapis.com/auth/contacts.readonly'],
+        description: 'Search Google contacts for recipient auto-suggest',
+        required: false
+      },
+      {
         name: 'User Profile',
         scopes: ['openid', 'email', 'profile'],
         description: 'Basic user info for account identification',
         required: true
       }
     ],
-    defaultScopes: 'openid email profile https://mail.google.com/ https://www.googleapis.com/auth/calendar.readonly',
+    defaultScopes:
+      'openid email profile https://mail.google.com/ https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/contacts.readonly',
     instructions: [
       'Go to Google Cloud Console > APIs & Services > Credentials',
       'Create an OAuth 2.0 Client ID (Web application)',
       'Add authorized redirect URI: {origin}/platform/mail/oauth/callback',
-      'Enable Gmail API and Google Calendar API in the API Library',
+      'Enable Gmail API, Google Calendar API, and People API in the API Library',
       'Configure the OAuth consent screen with required scopes',
       'Copy the Client ID and Client secret below'
     ]

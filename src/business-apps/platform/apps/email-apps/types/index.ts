@@ -125,6 +125,15 @@ export interface CreateEmailAccountRequest {
   isDefault?: boolean
 }
 
+/** Attachment to send with an email (base64-encoded) */
+export interface SendAttachment {
+  filename: string
+  contentType: string
+  content: string // base64
+  size?: number
+  isInline?: boolean
+}
+
 /** Send email request */
 export interface SendEmailRequest {
   accountId: string
@@ -139,6 +148,7 @@ export interface SendEmailRequest {
   isDraft?: boolean
   crmEntityType?: string
   crmEntityId?: string
+  attachments?: SendAttachment[]
 }
 
 /** Compose mode types */
@@ -152,7 +162,6 @@ export interface EmailContact {
   name: string
   email: string
   avatarUrl?: string
-  department?: string
   source: 'directory' | 'recent' | 'manual'
 }
 
