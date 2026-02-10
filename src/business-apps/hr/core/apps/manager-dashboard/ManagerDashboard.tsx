@@ -11,7 +11,19 @@ import { TeamPerformanceView } from './views/TeamPerformanceView'
 import { TeamInsightsView } from './views/TeamInsightsView'
 import { TeammatesView } from './views/TeammatesView'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { Avatar, AvatarImage, AvatarFallback, Toaster, Sheet, SheetContent } from '@newwork/nw-design-system'
+import {
+  Avatar,
+  AvatarImage,
+  AvatarFallback,
+  Toaster,
+  Sheet,
+  SheetContent,
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  Button
+} from '@newwork/nw-design-system'
 import { JobPositionDetails } from '@/business-apps/hr/core/apps/human-resources/components/views/job-position-view/components/JobPositionDetails'
 // New section components
 import {
