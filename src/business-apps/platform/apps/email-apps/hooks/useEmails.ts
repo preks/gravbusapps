@@ -7,6 +7,7 @@ interface UseEmailsOptions {
   folderId?: string
   accountId?: string
   search?: string
+  starredOnly?: boolean
   /** Auto-refresh interval in milliseconds (default: 30000 = 30 seconds) */
   autoRefreshInterval?: number
 }
@@ -16,6 +17,7 @@ export function useEmails({
   folderId,
   accountId,
   search,
+  starredOnly,
   autoRefreshInterval = 30000 // Default: refresh every 30 seconds
 }: UseEmailsOptions) {
   const [messages, setMessages] = useState<EmailMessageSummary[]>([])
@@ -50,9 +52,10 @@ export function useEmails({
 
       try {
         const result = await EmailApiService.listMessages({
-          folderId,
+          folderId: starredOnly ? undefined : folderId,
           accountId,
           search: search || undefined,
+          starredOnly: starredOnly || undefined,
           page: pageNum,
           limit: 50
         })
@@ -66,7 +69,7 @@ export function useEmails({
         if (!silent) setIsLoading(false)
       }
     },
-    [accessToken, folderId, accountId, search]
+    [accessToken, folderId, accountId, search, starredOnly]
   )
 
   // Initial load on mount or when dependencies change

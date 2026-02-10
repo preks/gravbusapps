@@ -79,25 +79,22 @@ export const AccountManagementDialog: React.FC<AccountManagementDialogProps> = (
       const providerConfig = tenantSettings.find(s => s.provider === providerKey)
 
       if (account.provider === 'microsoft') {
-        const config = MicrosoftOAuthService.buildConfig(providerConfig?.publicConfig)
-        const authResult = await MicrosoftOAuthService.startAuth(config)
-        await EmailProviderSettingsApi.exchangeMicrosoftCode({
-          code: authResult.code,
-          codeVerifier: authResult.codeVerifier,
-          redirectUri: authResult.redirectUri
-        })
+        if (!providerConfig?.isEnabled) {
+          toast.error('Microsoft provider is not enabled. Please ask your admin to enable it in provider settings.')
+          return
+        }
+        const config = MicrosoftOAuthService.buildConfig(providerConfig.publicConfig)
+        // Redirect flow — callback page completes the code exchange.
+        return await MicrosoftOAuthService.startAuth(config)
       } else {
-        const config = GoogleOAuthService.buildConfig(providerConfig?.publicConfig)
-        const authResult = await GoogleOAuthService.startAuth(config)
-        await EmailProviderSettingsApi.exchangeGoogleCode({
-          code: authResult.code,
-          codeVerifier: authResult.codeVerifier,
-          redirectUri: authResult.redirectUri
-        })
+        if (!providerConfig?.isEnabled) {
+          toast.error('Google provider is not enabled. Please ask your admin to enable it in provider settings.')
+          return
+        }
+        const config = GoogleOAuthService.buildConfig(providerConfig.publicConfig)
+        // Redirect flow — callback page completes the code exchange.
+        return await GoogleOAuthService.startAuth(config)
       }
-
-      toast.success('Account reconnected successfully!')
-      onAccountsChanged()
     } catch (err) {
       console.error('[AccountManagement] Reconnect error:', err)
       toast.error(err instanceof Error ? err.message : 'Failed to reconnect account')

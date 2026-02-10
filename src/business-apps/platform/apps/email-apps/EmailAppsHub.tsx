@@ -19,8 +19,7 @@ import {
   AccountSetupDialog,
   AccountManagementDialog,
   EmailEmptyState,
-  MicrosoftOAuthCallback,
-  EmailProviderSettingsAdmin
+  MicrosoftOAuthCallback
 } from './components'
 import type { EmailMessage, ComposeMode } from './types'
 
@@ -32,10 +31,25 @@ import type { EmailMessage, ComposeMode } from './types'
 
     const code = searchParams.get('code') || hashParams?.get('code')
     const state = searchParams.get('state') || hashParams?.get('state')
+    const error = searchParams.get('error') || hashParams?.get('error')
+    const errorDescription = searchParams.get('error_description') || hashParams?.get('error_description')
+    const errorCodes = searchParams.get('error_codes') || hashParams?.get('error_codes')
+    const correlationId = searchParams.get('correlation_id') || hashParams?.get('correlation_id')
+    const traceId = searchParams.get('trace_id') || hashParams?.get('trace_id')
+    const timestamp = searchParams.get('timestamp') || hashParams?.get('timestamp')
 
     if (code && state) {
       sessionStorage.setItem('ms_oauth_code', code)
       sessionStorage.setItem('ms_oauth_callback_state', state)
+    }
+
+    if (error) {
+      sessionStorage.setItem('ms_oauth_error', error)
+      if (errorDescription) sessionStorage.setItem('ms_oauth_error_description', errorDescription)
+      if (errorCodes) sessionStorage.setItem('ms_oauth_error_codes', errorCodes)
+      if (correlationId) sessionStorage.setItem('ms_oauth_correlation_id', correlationId)
+      if (traceId) sessionStorage.setItem('ms_oauth_trace_id', traceId)
+      if (timestamp) sessionStorage.setItem('ms_oauth_timestamp', timestamp)
     }
   } catch {
     // Silently ignore
@@ -59,10 +73,12 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
 
     const queryParams = new URLSearchParams(window.location.search)
     let hasCode = queryParams.has('code') && queryParams.has('state')
+    let hasError = queryParams.has('error')
 
     if (!hasCode && window.location.hash) {
       const hashParams = new URLSearchParams(window.location.hash.substring(1))
       hasCode = hashParams.has('code') && hashParams.has('state')
+      hasError = hasError || hashParams.has('error')
     }
 
     if (!hasCode) {
@@ -70,7 +86,12 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
       hasCode = !!savedCode
     }
 
-    return hasCode
+    if (!hasError) {
+      const savedError = sessionStorage.getItem('ms_oauth_error')
+      hasError = !!savedError
+    }
+
+    return hasCode || hasError
   })
 
   // UI state
@@ -82,10 +103,10 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
     }
   })
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null)
+  const [starredOnly, setStarredOnly] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [isAccountDialogOpen, setIsAccountDialogOpen] = useState(false)
   const [isManageDialogOpen, setIsManageDialogOpen] = useState(false)
-  const [isAdminSettingsOpen, setIsAdminSettingsOpen] = useState(false)
 
   // Compose state
   const [isComposing, setIsComposing] = useState(false)
@@ -117,7 +138,8 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
     accessToken,
     folderId: selectedFolderId || undefined,
     accountId: defaultAccount?.id,
-    search: searchQuery || undefined
+    search: searchQuery || undefined,
+    starredOnly
   })
 
   // Directory hook for auto-suggest (org directory + provider contacts)
@@ -139,8 +161,7 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
 
   const handleOAuthError = useCallback((error: string) => {
     toast.error(`Sign-in failed: ${error}`)
-    window.history.replaceState({}, '', '/platform/mail')
-    setIsOAuthCallback(false)
+    // Keep the OAuth callback view visible so users can copy diagnostics.
   }, [])
 
   // Handlers
@@ -153,11 +174,19 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
   const handleSelectFolder = useCallback(
     (folderId: string) => {
       setSelectedFolderId(folderId)
+      setStarredOnly(false)
       clearSelection()
       setSearchQuery('')
     },
     [clearSelection]
   )
+
+  const handleSelectStarred = useCallback(() => {
+    setStarredOnly(true)
+    setSelectedFolderId(null)
+    clearSelection()
+    setSearchQuery('')
+  }, [clearSelection])
 
   const handleSync = useCallback(async () => {
     if (!defaultAccount) return
@@ -218,7 +247,7 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
     )
   }
 
-  const currentFolderName = folders.find(f => f.id === selectedFolderId)?.name || 'Inbox'
+  const currentFolderName = starredOnly ? 'Starred' : folders.find(f => f.id === selectedFolderId)?.name || 'Inbox'
 
   // Empty state: no accounts
   if (!isLoadingAccounts && accounts.length === 0) {
@@ -242,6 +271,8 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
         folders={folders}
         selectedFolderId={selectedFolderId}
         onSelectFolder={handleSelectFolder}
+        isStarredView={starredOnly}
+        onSelectStarred={handleSelectStarred}
         onCompose={() => handleCompose('new')}
         onSync={handleSync}
         onSettings={() => setIsManageDialogOpen(true)}
@@ -297,7 +328,7 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
           setIsManageDialogOpen(false)
           setIsAccountDialogOpen(true)
         }}
-        onOpenAdminSettings={() => setIsAdminSettingsOpen(true)}
+        onOpenAdminSettings={() => navigateTo('/platform/mail/settings')}
       />
 
       {/* Account setup dialog */}
@@ -305,13 +336,6 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
         open={isAccountDialogOpen}
         onOpenChange={setIsAccountDialogOpen}
         onAccountCreated={refreshAccounts}
-        accessToken={accessToken}
-      />
-
-      {/* Admin provider settings */}
-      <EmailProviderSettingsAdmin
-        open={isAdminSettingsOpen}
-        onOpenChange={setIsAdminSettingsOpen}
         accessToken={accessToken}
       />
     </div>

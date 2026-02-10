@@ -91,6 +91,8 @@ export const AccountSetupDialog: React.FC<AccountSetupDialogProps> = ({
   const [step, setStep] = useState<SetupStep>('provider')
   const [selectedProvider, setSelectedProvider] = useState<ProviderOption | null>(null)
   const [tenantSettings, setTenantSettings] = useState<PublicProviderConfig[]>([])
+  const [isLoadingProviderSettings, setIsLoadingProviderSettings] = useState(false)
+  const [providerSettingsLoaded, setProviderSettingsLoaded] = useState(false)
 
   const [formData, setFormData] = useState<CreateEmailAccountRequest>({
     displayName: '',
@@ -110,84 +112,118 @@ export const AccountSetupDialog: React.FC<AccountSetupDialogProps> = ({
   useEffect(() => {
     if (!open || !accessToken) return
     EmailProviderSettingsApi.setAccessToken(accessToken)
+
+    let cancelled = false
+    setIsLoadingProviderSettings(true)
+    setProviderSettingsLoaded(false)
+
     EmailProviderSettingsApi.getPublicSettings()
-      .then(setTenantSettings)
-      .catch(() => {
-        // Silently fall back to defaults if settings endpoint is unavailable
+      .then(data => {
+        if (cancelled) return
+        setTenantSettings(data)
+        setProviderSettingsLoaded(true)
       })
+      .catch(err => {
+        if (cancelled) return
+        console.error('[AccountSetupDialog] Failed to load provider settings:', err)
+        setTenantSettings([])
+        setProviderSettingsLoaded(false)
+        toast.error('Failed to load email provider settings. Please try again or contact your admin.')
+      })
+      .finally(() => {
+        if (cancelled) return
+        setIsLoadingProviderSettings(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
   }, [open, accessToken])
+
+  const hasValue = (v?: string): boolean => !!v?.trim()
+  const msSettings = tenantSettings.find(s => s.provider === 'microsoft')
+  const googleSettings = tenantSettings.find(s => s.provider === 'google')
+
+  const msReady =
+    providerSettingsLoaded &&
+    !!msSettings?.isEnabled &&
+    hasValue(msSettings.publicConfig?.clientId as string) &&
+    hasValue(msSettings.publicConfig?.authority as string) &&
+    hasValue(msSettings.publicConfig?.scopes as string)
+
+  const googleOAuthReady =
+    providerSettingsLoaded &&
+    !!googleSettings?.isEnabled &&
+    hasValue(googleSettings.publicConfig?.clientId as string) &&
+    hasValue(googleSettings.publicConfig?.scopes as string)
 
   const handleMicrosoftOAuth = useCallback(async () => {
     try {
       setStep('testing')
 
-      const msSettings = tenantSettings.find(s => s.provider === 'microsoft')
+      if (!providerSettingsLoaded) {
+        toast.error(
+          isLoadingProviderSettings
+            ? 'Provider settings are still loading. Please try again.'
+            : 'Microsoft provider is not configured. Please ask your admin to configure it.'
+        )
+        setStep('provider')
+        return
+      }
+
+      if (!msSettings?.isEnabled) {
+        toast.error('Microsoft provider is not enabled. Please ask your admin to enable it in provider settings.')
+        setStep('provider')
+        return
+      }
+
       const config = MicrosoftOAuthService.buildConfig(
-        msSettings?.publicConfig as { clientId?: string; authority?: string; scopes?: string }
+        msSettings.publicConfig as {
+          clientId?: string
+          authority?: string
+          scopes?: string
+        }
       )
 
-      // Start OAuth popup - returns code + verifier (no token exchange in browser)
-      const authResult = await MicrosoftOAuthService.startAuth(config)
-
-      // Send code to backend for server-side exchange
-      if (accessToken) {
-        EmailProviderSettingsApi.setAccessToken(accessToken)
-      }
-      const account = await EmailProviderSettingsApi.exchangeMicrosoftCode({
-        code: authResult.code,
-        codeVerifier: authResult.codeVerifier,
-        redirectUri: authResult.redirectUri
-      })
-
-      toast.success(`Microsoft email account connected: ${account.emailAddress}`)
-      onAccountCreated()
-      onOpenChange(false)
-      resetForm()
+      // Redirect flow — callback page completes the code exchange.
+      await MicrosoftOAuthService.startAuth(config)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to connect Microsoft account')
       setStep('provider')
     }
-  }, [tenantSettings, accessToken, onAccountCreated, onOpenChange])
+  }, [providerSettingsLoaded, isLoadingProviderSettings, msSettings])
 
   const handleGoogleOAuth = useCallback(async () => {
     try {
       setStep('testing')
 
-      const googleSettings = tenantSettings.find(s => s.provider === 'google')
-      const clientId = googleSettings?.publicConfig?.clientId as string
+      if (!providerSettingsLoaded) {
+        toast.error(
+          isLoadingProviderSettings
+            ? 'Provider settings are still loading. Please try again.'
+            : 'Google provider is not configured. Please ask your admin to configure it.'
+        )
+        setStep('provider')
+        return
+      }
 
-      if (!clientId) {
-        toast.error('Google OAuth is not configured. Please ask your admin to set up Google provider settings.')
+      if (!googleSettings?.isEnabled) {
+        toast.error('Google provider is not enabled. Please ask your admin to enable it in provider settings.')
         setStep('provider')
         return
       }
 
       const config = GoogleOAuthService.buildConfig(
-        googleSettings?.publicConfig as { clientId?: string; scopes?: string }
+        googleSettings.publicConfig as { clientId?: string; scopes?: string }
       )
 
-      // Start OAuth popup
-      const authResult = await GoogleOAuthService.startAuth(config)
-
-      // Send code to backend
-      if (accessToken) {
-        EmailProviderSettingsApi.setAccessToken(accessToken)
-      }
-      const account = await EmailProviderSettingsApi.exchangeGoogleCode({
-        code: authResult.code,
-        codeVerifier: authResult.codeVerifier,
-        redirectUri: authResult.redirectUri
-      })
-
-      toast.success(`Google email account connected: ${account.emailAddress}`)
-      onAccountCreated()
-      onOpenChange(false)
-      resetForm()
+      // Redirect flow — callback page completes the code exchange.
+      await GoogleOAuthService.startAuth(config)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to connect Google account')
       setStep('provider')
     }
-  }, [tenantSettings, accessToken, onAccountCreated, onOpenChange])
+  }, [providerSettingsLoaded, isLoadingProviderSettings, googleSettings])
 
   const handleProviderSelect = async (provider: ProviderOption) => {
     if (provider.id === 'microsoft') {
@@ -197,8 +233,7 @@ export const AccountSetupDialog: React.FC<AccountSetupDialogProps> = ({
 
     if (provider.id === 'google') {
       // Check if Google OAuth is available
-      const googleSettings = tenantSettings.find(s => s.provider === 'google' && s.isEnabled)
-      if (googleSettings?.publicConfig?.clientId) {
+      if (googleOAuthReady) {
         // Show choice between OAuth and App Password
         setSelectedProvider(provider)
         setStep('gmail-choice')
@@ -281,7 +316,7 @@ export const AccountSetupDialog: React.FC<AccountSetupDialogProps> = ({
     })
   }
 
-  const msConfigured = tenantSettings.some(s => s.provider === 'microsoft' && s.isEnabled)
+  const msConfigured = msReady
 
   return (
     <Dialog
@@ -309,27 +344,39 @@ export const AccountSetupDialog: React.FC<AccountSetupDialogProps> = ({
                 return !imapSettings || imapSettings.isEnabled
               }
               return true // Microsoft and Google always show (they handle their own enabled state)
-            }).map(provider => (
-              <button
-                key={provider.id}
-                onClick={() => handleProviderSelect(provider)}
-                className="gba:w-full gba:flex gba:items-center gba:gap-4 gba:p-4 gba:rounded-lg gba:border gba:hover:bg-muted/50 gba:transition-colors gba:text-left"
-                data-testid={`${testId}-provider-${provider.id}`}
-              >
-                <div className="gba:w-12 gba:h-12 gba:rounded-lg gba:bg-muted gba:flex gba:items-center gba:justify-center">
-                  {provider.icon}
-                </div>
-                <div className="gba:flex-1">
-                  <p className="gba:font-medium gba:text-foreground">{provider.name}</p>
-                  <p className="gba:text-xs gba:text-muted-foreground">{provider.description}</p>
-                </div>
-                {provider.id === 'microsoft' && (
-                  <span className="gba:text-xs gba:bg-primary/10 gba:text-primary gba:px-2 gba:py-1 gba:rounded">
-                    {msConfigured ? 'OAuth' : 'OAuth (default)'}
-                  </span>
-                )}
-              </button>
-            ))}
+            }).map(provider => {
+              const isMicrosoft = provider.id === 'microsoft'
+              const isDisabled = isMicrosoft && !msReady
+
+              return (
+                <button
+                  key={provider.id}
+                  onClick={() => handleProviderSelect(provider)}
+                  disabled={isDisabled}
+                  className={`gba:w-full gba:flex gba:items-center gba:gap-4 gba:p-4 gba:rounded-lg gba:border gba:transition-colors gba:text-left ${
+                    isDisabled ? 'gba:opacity-50 gba:cursor-not-allowed' : 'gba:hover:bg-muted/50'
+                  }`}
+                  data-testid={`${testId}-provider-${provider.id}`}
+                >
+                  <div className="gba:w-12 gba:h-12 gba:rounded-lg gba:bg-muted gba:flex gba:items-center gba:justify-center">
+                    {provider.icon}
+                  </div>
+                  <div className="gba:flex-1">
+                    <p className="gba:font-medium gba:text-foreground">{provider.name}</p>
+                    <p className="gba:text-xs gba:text-muted-foreground">{provider.description}</p>
+                  </div>
+                  {provider.id === 'microsoft' && (
+                    <span className="gba:text-xs gba:bg-primary/10 gba:text-primary gba:px-2 gba:py-1 gba:rounded">
+                      {msConfigured
+                        ? 'OAuth'
+                        : isLoadingProviderSettings
+                          ? 'OAuth (loading)'
+                          : 'OAuth (needs admin setup)'}
+                    </span>
+                  )}
+                </button>
+              )
+            })}
           </div>
         )}
 
