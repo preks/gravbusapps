@@ -41,6 +41,8 @@ export interface FortuneSheetGridProps {
   onRowsDelete?: (startIndex: number, endIndex: number) => void
   /** Callback when columns are hidden/shown via context menu */
   onColumnVisibilityChange?: (columnIndices: number[], visible: boolean) => void
+  /** Callback when a column header is renamed (user edits the header cell) */
+  onColumnRename?: (columnId: string, newLabel: string) => void
   /** Callback when formula is evaluated */
   onFormulaEvaluated?: (rowId: string, columnId: string, result: unknown) => void
   /** Active participants in collaboration */
@@ -87,6 +89,7 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
       onRowsInsert,
       onRowsDelete,
       onColumnVisibilityChange,
+      onColumnRename,
       participants = [],
       onOperationEmit = () => {},
       onCursorEmit = () => {},
@@ -491,8 +494,29 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
             const fortuneSheetRowIndex = op.path[1] as number
             const colIndex = op.path[2] as number
 
-            // Skip edits to the header row (row 0) - it's not a data row
+            // Header row (row 0) edits = column rename, not data changes
             if (fortuneSheetRowIndex < HEADER_ROW_OFFSET) {
+              if (onColumnRename && (op.op === 'replace' || op.op === 'add')) {
+                // Extract the new column name text from the op value
+                let newLabel: string | null = null
+                if (typeof op.value === 'string') {
+                  newLabel = op.value
+                } else if (op.value && typeof op.value === 'object' && !Array.isArray(op.value)) {
+                  const cellObj = op.value as Record<string, unknown>
+                  if ('v' in cellObj && typeof cellObj.v === 'string') {
+                    newLabel = cellObj.v
+                  } else if ('m' in cellObj && typeof cellObj.m === 'string') {
+                    newLabel = cellObj.m
+                  }
+                }
+
+                if (newLabel && newLabel.trim()) {
+                  const columnId = context.columnIndexToId.get(colIndex)
+                  if (columnId) {
+                    onColumnRename(columnId, newLabel.trim())
+                  }
+                }
+              }
               return
             }
 
@@ -711,6 +735,7 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
         onCellChange,
         onDataChange,
         onColumnAdd,
+        onColumnRename,
         onColumnsInsert,
         onColumnsDelete,
         onRowsInsert,

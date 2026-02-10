@@ -678,6 +678,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
             onRowsInsert={handleRowsInsert}
             onRowsDelete={handleRowsDelete}
             onColumnVisibilityChange={handleColumnVisibilityChange}
+            onColumnRename={columnsState.handleRenameColumn}
             participants={collaboration.cursorParticipants}
             onOperationEmit={op => collaboration.emitOperation(op as any)}
             onCursorEmit={pos => collaboration.emitCursor({ path: pos.path })}
