@@ -1,8 +1,8 @@
 import React from 'react'
 import { AlertCircle } from 'lucide-react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { SessionList } from '../components/SessionList'
-import { SessionMetadata } from '../types/session'
+import { SessionList } from '../../components/SessionList'
+import { SessionMetadata } from '../../types/session'
 
 export interface SessionOverviewPageProps {
   repositoryId: string

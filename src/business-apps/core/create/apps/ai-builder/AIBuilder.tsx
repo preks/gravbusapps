@@ -9,8 +9,8 @@ import { SessionUser } from './types/session'
 import { useBuilderClient } from '@/common/network/ai/builder/useBuilderClient'
 import { useSessionManagement } from './hooks/useSessionManagement'
 import { AdminSettings } from './components/AdminSettings'
-import { SessionOverviewPage } from './pages/SessionOverviewPage'
-import { SessionDetailPage } from './pages/SessionDetailPage'
+import { SessionOverviewPage } from './pages/session-overview-page/SessionOverviewPage'
+import { SessionDetailPage } from './pages/session-detail-page/SessionDetailPage'
 
 interface EmployeeRecord {
   id: string
