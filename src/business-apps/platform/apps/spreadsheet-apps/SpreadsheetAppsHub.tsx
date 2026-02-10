@@ -67,6 +67,7 @@ import {
 } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo } from '@/common/utils/navigationUtils'
+import { GET_EMPLOYEE_LIGHT_BY_USER_ID, GET_EMPLOYEE_LIGHT_BY_ID } from '@/common/data/employee/queries/employeeQueries'
 
 // Components
 import { ExcelUploader } from './components/ExcelUploader'
@@ -215,6 +216,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
   const [selectedAppForShare, setSelectedAppForShare] = useState<SpreadsheetAppSummary | null>(null)
   const [sharedUsers, setSharedUsers] = useState<
     Array<{
+      id: string
       userId: string
       userName: string
       userEmail: string
@@ -452,55 +454,132 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     [exportApp]
   )
 
+  /**
+   * Enrich shared user records with display names and avatars via GraphQL.
+   * Accepts an optional knownUsers map (userId → details) as a fallback
+   * when the GraphQL lookup fails or returns no results.
+   */
+  const enrichSharedUsers = useCallback(
+    async (
+      shares: Array<{
+        id: string
+        userId: string
+        userName: string
+        userEmail: string
+        permission: 'view' | 'edit'
+        sharedAt: string
+        sharedBy: string
+      }>,
+      knownUsers?: Map<string, { displayName: string; avatar?: string; email?: string }>
+    ) => {
+      if (shares.length === 0) return shares
+
+      return Promise.all(
+        shares.map(async share => {
+          // Try GraphQL lookup: first by userId (Keycloak ID), then by id (Employee record ID)
+          if (graphqlClient) {
+            for (const queryFn of [GET_EMPLOYEE_LIGHT_BY_USER_ID, GET_EMPLOYEE_LIGHT_BY_ID]) {
+              try {
+                const query = queryFn(share.userId)
+                const result = await graphqlClient.request<{
+                  Employee: Array<{ displayName: string; pictureThumbnail?: string; workEmail?: string }>
+                }>(query)
+                const emp = result.Employee?.[0]
+                if (emp?.displayName) {
+                  return {
+                    ...share,
+                    userName: emp.displayName,
+                    userEmail: emp.workEmail || '',
+                    userAvatar: emp.pictureThumbnail
+                      ? emp.pictureThumbnail.startsWith('data:')
+                        ? emp.pictureThumbnail
+                        : `data:image/png;base64,${emp.pictureThumbnail}`
+                      : undefined
+                  }
+                }
+              } catch {
+                // Try next lookup strategy
+              }
+            }
+          }
+
+          // Fall back to pre-known user details (e.g. from employee search)
+          const known = knownUsers?.get(share.userId)
+          if (known) {
+            return {
+              ...share,
+              userName: known.displayName,
+              userEmail: known.email || '',
+              userAvatar: known.avatar
+                ? known.avatar.startsWith('data:')
+                  ? known.avatar
+                  : `data:image/png;base64,${known.avatar}`
+                : undefined
+            }
+          }
+
+          // Last resort fallback
+          return {
+            ...share,
+            userName: `User ${share.userId.slice(0, 8)}`,
+            userEmail: ''
+          }
+        })
+      )
+    },
+    [graphqlClient]
+  )
+
+  /**
+   * Build a known-users map from current sharedUsers state as a fallback for GraphQL failures.
+   */
+  const buildKnownUsersMap = useCallback(
+    (extraDetails?: Array<{ userId: string; displayName: string; avatar?: string; email?: string }>) => {
+      const map = new Map<string, { displayName: string; avatar?: string; email?: string }>()
+      sharedUsers.forEach(u => {
+        if (u.userName && !u.userName.startsWith('User ')) {
+          map.set(u.userId, { displayName: u.userName, avatar: u.userAvatar, email: u.userEmail })
+        }
+      })
+      extraDetails?.forEach(u => map.set(u.userId, u))
+      return map
+    },
+    [sharedUsers]
+  )
+
+  /**
+   * Fetch shares for an app, enrich with user details, and update state.
+   */
+  const fetchAndEnrichShares = useCallback(
+    async (
+      appId: string,
+      extraDetails?: Array<{ userId: string; displayName: string; avatar?: string; email?: string }>
+    ) => {
+      const shares = await getSharedUsers(appId)
+      const enrichedUsers = await enrichSharedUsers(shares, buildKnownUsersMap(extraDetails))
+      setSharedUsers(enrichedUsers)
+    },
+    [getSharedUsers, enrichSharedUsers, buildKnownUsersMap]
+  )
+
   const handleShareApp = useCallback(
     async (id: string) => {
       const app = apps.find(a => a.id === id)
       if (app) {
         setSelectedAppForShare(app)
-        // Get shared users from API (returns basic info)
-        const shares = await getSharedUsers(id)
-
-        // Fetch user details via GraphQL for each shared user
-        if (graphqlClient && shares.length > 0) {
-          const enrichedUsers = await Promise.all(
-            shares.map(async share => {
-              try {
-                const query = GET_EMPLOYEE_LIGHT_BY_USER_ID(share.userId)
-                const result = await graphqlClient.request<{
-                  Employee: Array<{ displayName: string; pictureThumbnail?: string; workEmail?: string }>
-                }>(query)
-                const emp = result.Employee?.[0]
-                return {
-                  ...share,
-                  userName: emp?.displayName || `User ${share.userId.slice(0, 8)}`,
-                  userEmail: emp?.workEmail || '',
-                  userAvatar: emp?.pictureThumbnail
-                    ? emp.pictureThumbnail.startsWith('data:')
-                      ? emp.pictureThumbnail
-                      : `data:image/png;base64,${emp.pictureThumbnail}`
-                    : undefined
-                }
-              } catch {
-                return {
-                  ...share,
-                  userName: `User ${share.userId.slice(0, 8)}`,
-                  userEmail: ''
-                }
-              }
-            })
-          )
-          setSharedUsers(enrichedUsers)
-        } else {
-          setSharedUsers(shares)
-        }
+        await fetchAndEnrichShares(id)
         setShareDialogOpen(true)
       }
     },
-    [apps, getSharedUsers, graphqlClient]
+    [apps, fetchAndEnrichShares]
   )
 
   const handleShare = useCallback(
-    async (userIds: string[], permission: 'view' | 'edit' | 'admin') => {
+    async (
+      userIds: string[],
+      permission: 'view' | 'edit' | 'admin',
+      userDetails?: Array<{ userId: string; displayName: string; avatar?: string; email?: string }>
+    ) => {
       const actualPermission = permission === 'admin' ? 'edit' : permission
       if (!selectedAppForShare) return false
 
@@ -513,35 +592,32 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
 
       const success = await shareApp(selectedAppForShare.id, userIds, actualPermission, currentUserName)
       if (success) {
-        const users = await getSharedUsers(selectedAppForShare.id)
-        setSharedUsers(users)
+        await fetchAndEnrichShares(selectedAppForShare.id, userDetails)
         await refreshApps()
       }
       return success
     },
-    [selectedAppForShare, shareApp, getSharedUsers, refreshApps, userInfo]
+    [selectedAppForShare, shareApp, fetchAndEnrichShares, refreshApps, userInfo]
   )
 
   const handleUnshare = useCallback(
-    async (userId: string) => {
+    async (shareId: string) => {
       if (!selectedAppForShare) return false
-      const success = await revokeAccess(selectedAppForShare.id, userId)
+      const success = await revokeAccess(shareId)
       if (success) {
-        const users = await getSharedUsers(selectedAppForShare.id)
-        setSharedUsers(users)
+        await fetchAndEnrichShares(selectedAppForShare.id)
         await refreshApps()
       }
       return success
     },
-    [selectedAppForShare, revokeAccess, getSharedUsers, refreshApps]
+    [selectedAppForShare, revokeAccess, fetchAndEnrichShares, refreshApps]
   )
 
   const handleRefreshShares = useCallback(async () => {
     if (!selectedAppForShare) return
-    const users = await getSharedUsers(selectedAppForShare.id)
-    setSharedUsers(users)
+    await fetchAndEnrichShares(selectedAppForShare.id)
     await refreshApps()
-  }, [selectedAppForShare, getSharedUsers, refreshApps])
+  }, [selectedAppForShare, fetchAndEnrichShares, refreshApps])
 
   // const _handlePromoteApp = useCallback(
   //   async (id: string) => {
