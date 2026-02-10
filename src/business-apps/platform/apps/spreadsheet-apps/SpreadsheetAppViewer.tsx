@@ -322,6 +322,52 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     handleCellChangeRef.current = handleCellChange
   }, [handleCellChange])
 
+  // --- Emergency flush on page unload ---
+  // When the user refreshes or navigates away, the debounced persist timer
+  // (100ms) and any in-flight PATCH requests are cancelled by the browser.
+  // This handler flushes all pending cell updates using `keepalive: true`
+  // so the browser completes the requests even during page teardown.
+  useEffect(() => {
+    const flushPendingOnUnload = () => {
+      // Clear debounce timers — we're sending everything right now
+      if (cellPersistTimerRef.current) {
+        clearTimeout(cellPersistTimerRef.current)
+        cellPersistTimerRef.current = null
+      }
+      if (cellChangeBatchTimerRef.current) {
+        clearTimeout(cellChangeBatchTimerRef.current)
+        cellChangeBatchTimerRef.current = null
+      }
+
+      const pending = new Map(pendingCellUpdates.current)
+      pendingCellUpdates.current.clear()
+
+      if (pending.size === 0) return
+
+      const updates = [...pending.values()].map(({ backendRowId, changes }) => ({
+        rowId: backendRowId,
+        data: changes
+      }))
+
+      // Fire-and-forget with keepalive — browser will complete these after unload
+      SpreadsheetApiService.flushRowUpdates(app.id, activeSheetId, updates)
+    }
+
+    window.addEventListener('beforeunload', flushPendingOnUnload)
+    // Also handle visibilitychange for mobile / tab switching
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        flushPendingOnUnload()
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      window.removeEventListener('beforeunload', flushPendingOnUnload)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [app.id, activeSheetId])
+
   const handleFortuneSheetDataChange = useCallback(
     async (newData: Record<string, unknown>[]) => {
       if (entityEnabled) return

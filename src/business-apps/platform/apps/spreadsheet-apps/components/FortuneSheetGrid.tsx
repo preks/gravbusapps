@@ -107,6 +107,9 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
     // Track pending column creations to prevent infinite loops
     const pendingColumnCreations = useRef<Set<number>>(new Set())
 
+    // Track the previous colhidden state to diff when FortuneSheet replaces the full config
+    const prevColHiddenRef = useRef<Record<string, number>>({})
+
     const workbookRef = useRef<WorkbookInstance | null>(null)
     const presenceUsersRef = useRef<Map<string, { username: string; userId?: string }>>(new Map())
     /** Track last applied remote cell to suppress duplicate apply to adjacent column (G6 value appearing in H6) */
@@ -114,7 +117,9 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
     const REMOTE_APPLY_DEDUPE_MS = 150
 
     // Create conversion context
-    const context = useMemo(() => createConversionContext(columns, data), [columns, data])
+    const context = useMemo(() => {
+      return createConversionContext(columns, data)
+    }, [columns, data])
 
     // Convert data to FortuneSheet format ONLY for initial render
     // We use a stable reference to avoid re-renders
@@ -528,7 +533,6 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
             // Handle new column - user edited beyond existing columns (auto-create)
             if (!columnId) {
               // Auto-create column when user edits beyond existing columns
-              // Auto-create column when user edits beyond existing columns
               if (pendingColumnCreations.current.has(colIndex)) {
                 return // Already creating this column
               }
@@ -621,7 +625,6 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
             if (rowId && columnId) {
               const column = columns.find(c => c.id === columnId)
               const columnName = column?.name || columnId
-
               onCellChange(rowId, columnName, cellValue)
             }
           }
@@ -666,40 +669,37 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
           }
 
           // Handle column hide/show via context menu
-          // FortuneSheet emits replace ops on config.colhidden when columns are hidden/shown
+          // FortuneSheet emits a single replace op on path=["config"] with the
+          // entire config object. We diff config.colhidden against the previous
+          // snapshot to detect which columns were hidden or unhidden.
           if (
             onColumnVisibilityChange &&
-            (op.op === 'replace' || op.op === 'add') &&
-            op.path.length >= 2 &&
+            op.op === 'replace' &&
+            op.path.length === 1 &&
             op.path[0] === 'config' &&
-            op.path[1] === 'colhidden'
+            op.value &&
+            typeof op.value === 'object'
           ) {
-            if (op.path.length === 2 && op.value && typeof op.value === 'object') {
-              // Bulk update: path = ['config', 'colhidden'], value = { "0": 0, "2": 0, ... }
-              const hiddenIndices = Object.keys(op.value).map(Number)
-              if (hiddenIndices.length > 0) {
-                onColumnVisibilityChange(hiddenIndices, false)
-              }
-            } else if (op.path.length === 3) {
-              // Single column: path = ['config', 'colhidden', colIndex]
-              const colIndex = Number(op.path[2])
-              if (!isNaN(colIndex)) {
-                onColumnVisibilityChange([colIndex], false)
-              }
-            }
-          }
+            const newColHidden: Record<string, number> = (op.value as any).colhidden || {}
+            const prevColHidden = prevColHiddenRef.current
 
-          // Handle column show (unhide) — FortuneSheet removes entries from colhidden
-          if (
-            onColumnVisibilityChange &&
-            op.op === 'remove' &&
-            op.path.length === 3 &&
-            op.path[0] === 'config' &&
-            op.path[1] === 'colhidden'
-          ) {
-            const colIndex = Number(op.path[2])
-            if (!isNaN(colIndex)) {
-              onColumnVisibilityChange([colIndex], true)
+            // Detect newly hidden columns (in new but not in prev)
+            const newlyHidden = Object.keys(newColHidden)
+              .filter(k => !(k in prevColHidden))
+              .map(Number)
+            // Detect newly shown columns (in prev but not in new)
+            const newlyShown = Object.keys(prevColHidden)
+              .filter(k => !(k in newColHidden))
+              .map(Number)
+
+            // Update ref for next diff
+            prevColHiddenRef.current = { ...newColHidden }
+
+            if (newlyHidden.length > 0) {
+              onColumnVisibilityChange(newlyHidden, false)
+            }
+            if (newlyShown.length > 0) {
+              onColumnVisibilityChange(newlyShown, true)
             }
           }
         })
