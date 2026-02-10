@@ -5,7 +5,6 @@ import { DocumentSection } from '@/components/document-section'
 import { getIrmDocumentApiConfig } from '@/business-apps/irm/common/utils/documentUtils'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { createDocumentSectionActions } from '@/common/utils/documentSectionActions'
 import { useInvestmentDocuments } from '@/common/data/investment/hooks/useInvestmentDocuments'
 
 interface InvestmentPortalDocumentsProps {
@@ -65,17 +64,21 @@ const InvestmentPortalDocuments: React.FC<InvestmentPortalDocumentsProps> = ({ i
   // API configuration for document operations
   const apiConfig = useMemo(() => getIrmDocumentApiConfig('investment'), [])
 
-  // Use centralized document actions
-  const customActions = useMemo(
-    () =>
-      createDocumentSectionActions({
-        domain: 'investment-relations',
-        documentFieldName: 'investmentDocument',
-        entityType: 'investment',
-        updateProcessName: 'updateInvestmentDocument',
-        deleteEndpoint: '/investment-relations/deleteInvestmentDocument',
-        getTranslation: getTranslationFromI18nKeyAndLabel
-      }),
+  const documentUpdateActionProps = useMemo(
+    () => ({
+      contextsArray: [FlowContextName.investmentDocumentUpdate],
+      buildExternalContextData: (document: any) => ({ documentId: document.id }),
+      prefixDataTestId: 'investment-portal-document-update'
+    }),
+    []
+  )
+
+  const documentDeleteActionProps = useMemo(
+    () => ({
+      contextsArray: [FlowContextName.investmentDocumentDelete],
+      buildExternalContextData: (document: any) => ({ documentId: document.id }),
+      prefixDataTestId: 'investment-portal-document-delete'
+    }),
     []
   )
 
@@ -87,9 +90,10 @@ const InvestmentPortalDocuments: React.FC<InvestmentPortalDocumentsProps> = ({ i
       error={error}
       onRefresh={refetch}
       apiConfig={apiConfig}
-      customActions={customActions}
       createFolderActionProps={documentCreateFolderActionProps}
       uploadActionProps={documentUploadActionProps}
+      updateActionProps={documentUpdateActionProps}
+      deleteActionProps={documentDeleteActionProps}
       data-testid="investment-portal-document-section"
       accessToken={context.accessToken}
       userInfo={context.userInfo}
