@@ -148,7 +148,7 @@ const SkillsSection: React.FC<SkillsSectionProps> = ({ dataTestId, accessToken }
       // Save new skill to backend
       await restClient.post(
         '/processes/employee/saveSkill',
-        { changeMode: 'INSERT', skill: { name: name } },
+        { skill: { name: name } },
         {
           headers: {
             Authorization: `Bearer ${accessToken}`,

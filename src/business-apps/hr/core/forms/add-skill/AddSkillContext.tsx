@@ -15,6 +15,7 @@ export interface SkillRecord {
 export interface EmployeeSkillLink {
   id: string
   version: number
+  level?: number | string | null
   skill: SkillRecord
 }
 
