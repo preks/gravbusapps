@@ -116,8 +116,16 @@ const BenefitCatalogCard: React.FC<BenefitCatalogCardProps> = ({
 
   const valueDisplay = benefit.isActive || benefit.isScheduled ? getBenefitValueDisplay() : null
 
+  const isScheduled = benefit.isScheduled
+  const cardClassName = [
+    getCardClassName(),
+    isScheduled ? 'gba:flex gba:flex-col gba:h-full gba:w-full gba:min-h-0' : ''
+  ]
+    .filter(Boolean)
+    .join(' ')
+
   return (
-    <Card className={getCardClassName()} data-testid={`benefit-catalog-card-${benefit.code}`}>
+    <Card className={cardClassName} data-testid={`benefit-catalog-card-${benefit.code}`}>
       {/* Available Benefits Layout */}
       {!benefit.isActive && !benefit.isScheduled && (
         <AvailableBenefitLayout
@@ -144,16 +152,18 @@ const BenefitCatalogCard: React.FC<BenefitCatalogCardProps> = ({
         />
       )}
 
-      {/* Scheduled Benefits Layout */}
+      {/* Scheduled Benefits Layout - wrapper keeps "Scheduled" section fixed at bottom */}
       {benefit.isScheduled && (
-        <ScheduledBenefitLayout
-          t={t}
-          benefit={benefit}
-          currencyCode={currencyCode}
-          locale={locale}
-          onViewDetails={handleViewDetails}
-          valueDisplay={valueDisplay}
-        />
+        <div className="gba:flex gba:flex-col gba:min-h-0 gba:h-full">
+          <ScheduledBenefitLayout
+            t={t}
+            benefit={benefit}
+            currencyCode={currencyCode}
+            locale={locale}
+            onViewDetails={handleViewDetails}
+            valueDisplay={valueDisplay}
+          />
+        </div>
       )}
     </Card>
   )
