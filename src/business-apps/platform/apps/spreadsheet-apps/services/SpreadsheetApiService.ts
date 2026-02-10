@@ -24,6 +24,14 @@ import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/u
 
 const API_URL = getDocumentServiceApiUrl()
 
+/**
+ * Per-sheet request queue. Ensures only one updateSheet PATCH request is
+ * in-flight per sheet at a time. This prevents race conditions where rapid
+ * column operations fire overlapping PATCHes whose responses arrive out of
+ * order and corrupt the stored column state.
+ */
+const _sheetUpdateQueue = new Map<string, Promise<unknown>>()
+
 const isSpreadsheetAppsDebugEnabled = (): boolean => {
   try {
     return (
@@ -453,11 +461,41 @@ export const SpreadsheetApiService = {
 
   /**
    * Update a sheet
+   *
+   * Requests are serialized per sheet to prevent concurrent PATCH race
+   * conditions. If the backend responds with column orders that differ from
+   * what was sent (a known JSONB merge bug in TypeORM), a single correction
+   * PATCH is automatically retried.
    */
   async updateSheet(appId: string, sheetId: string, updates: Partial<SpreadsheetSheet>): Promise<SpreadsheetSheet> {
+    const queueKey = `${appId}/${sheetId}`
+
+    // Chain onto any pending request for the same sheet so they execute
+    // sequentially. If the previous request failed we still proceed.
+    const prev = _sheetUpdateQueue.get(queueKey) ?? Promise.resolve()
+    const next = prev
+      .catch(() => {
+        /* swallow – we still want to run */
+      })
+      .then(() => this._doUpdateSheet(appId, sheetId, updates))
+
+    _sheetUpdateQueue.set(queueKey, next)
+
+    // Clean up the queue entry once settled to avoid memory leaks.
+    next.finally(() => {
+      if (_sheetUpdateQueue.get(queueKey) === next) {
+        _sheetUpdateQueue.delete(queueKey)
+      }
+    })
+
+    return next
+  },
+
+  /** @internal Actual update logic (called via the serialization queue). */
+  async _doUpdateSheet(appId: string, sheetId: string, updates: Partial<SpreadsheetSheet>): Promise<SpreadsheetSheet> {
     debugLog('updateSheet', appId, sheetId, updates)
 
-    const payload = {
+    const payload: Record<string, unknown> = {
       name: updates.name,
       description: updates.description,
       columns: updates.columns,
@@ -467,15 +505,35 @@ export const SpreadsheetApiService = {
 
     // Remove undefined
     Object.keys(payload).forEach(key => {
-      if (payload[key as keyof typeof payload] === undefined) {
-        delete payload[key as keyof typeof payload]
+      if (payload[key] === undefined) {
+        delete payload[key]
       }
     })
 
-    const updated = await apiRequest<Record<string, unknown>>(`/spreadsheets/${appId}/sheets/${sheetId}`, {
+    const sentColumns = payload.columns as SpreadsheetSheet['columns'] | undefined
+
+    let updated = await apiRequest<Record<string, unknown>>(`/spreadsheets/${appId}/sheets/${sheetId}`, {
       method: 'PATCH',
       body: JSON.stringify(payload)
     })
+
+    // ── Correction retry ──────────────────────────────────────────────
+    // The remote backend may merge JSONB arrays instead of replacing them,
+    // which causes new columns to be appended at the end with stale order
+    // values on existing columns. When that happens, re-sending the same
+    // payload corrects the stored orders because all columns now exist in
+    // the backend (the merge updates properties instead of appending).
+    if (sentColumns && Array.isArray(updated.columns)) {
+      const sentOrder = sentColumns.map(c => c.name).join(',')
+      const returnedOrder = (updated.columns as Array<{ name: string }>).map(c => c.name).join(',')
+
+      if (sentOrder !== returnedOrder) {
+        updated = await apiRequest<Record<string, unknown>>(`/spreadsheets/${appId}/sheets/${sheetId}`, {
+          method: 'PATCH',
+          body: JSON.stringify(payload)
+        })
+      }
+    }
 
     return {
       id: updated.id as string,

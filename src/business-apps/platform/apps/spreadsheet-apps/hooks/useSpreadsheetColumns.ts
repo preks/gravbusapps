@@ -91,7 +91,12 @@ export function useSpreadsheetColumns({
   useEffect(() => {
     // Only sync from props when there are no pending local changes
     if (!hasPendingColumnChanges.current) {
-      latestColumnsRef.current = activeSheet.columns
+      // Normalize orders to sequential values when syncing from props.
+      // Columns may arrive with duplicate order values (e.g. multiple cols
+      // at order=1) which breaks position-based operations like delete/insert.
+      const sorted = [...activeSheet.columns].sort((a, b) => a.order - b.order)
+      const normalized = sorted.map((col, idx) => (col.order === idx ? col : { ...col, order: idx }))
+      latestColumnsRef.current = normalized
     }
   }, [activeSheet.columns])
 
@@ -306,10 +311,17 @@ export function useSpreadsheetColumns({
   // Delete column handler
   const handleDeleteColumn = useCallback(
     (columnId: string) => {
-      if (!activeSheet || activeSheet.columns.length <= 1) return
+      const currentColumns = latestColumnsRef.current
+      if (!activeSheet || currentColumns.length <= 1) return
 
-      const updatedColumns = activeSheet.columns.filter(col => col.id !== columnId)
-      const columnToDelete = activeSheet.columns.find(col => col.id === columnId)
+      const columnToDelete = currentColumns.find(col => col.id === columnId)
+
+      // Remove the deleted column and assign clean sequential orders
+      const updatedColumns = currentColumns
+        .filter(col => col.id !== columnId)
+        .sort((a, b) => a.order - b.order)
+        .map((col, idx) => ({ ...col, order: idx }))
+
       const updatedData = localSheetDataRef.current.map(row => {
         const newRow = { ...row }
         if (columnToDelete) {
@@ -318,14 +330,34 @@ export function useSpreadsheetColumns({
         return newRow
       })
 
-      const updatedSheets = app.sheets.map(sheet => {
-        if (sheet.id === activeSheet.id) {
-          return { ...sheet, columns: updatedColumns, data: updatedData }
-        }
-        return sheet
-      })
+      // Update ref immediately so concurrent operations see the new state
+      latestColumnsRef.current = updatedColumns
+      hasPendingColumnChanges.current = true
 
-      onAppUpdate?.({ ...app, sheets: updatedSheets })
+      // Persist via onSheetUpdate (backend API) — onAppUpdate strips sheets data
+      const currentApp = appRef.current
+      const currentSheet = activeSheetRef.current
+      const sheetUpdate = onSheetUpdateRef.current
+      const appUpdate = onAppUpdateRef.current
+
+      if (sheetUpdate) {
+        void sheetUpdate(currentApp.id, currentSheet.id, { columns: updatedColumns })
+          .then(() => {
+            hasPendingColumnChanges.current = false
+          })
+          .catch((err: unknown) => {
+            console.error('[handleDeleteColumn] onSheetUpdate failed:', err)
+          })
+      } else if (appUpdate) {
+        const updatedSheets = currentApp.sheets.map(sheet => {
+          if (sheet.id === currentSheet.id) {
+            return { ...sheet, columns: updatedColumns, data: updatedData }
+          }
+          return sheet
+        })
+        appUpdate({ ...currentApp, sheets: updatedSheets })
+        hasPendingColumnChanges.current = false
+      }
 
       if (isCollaborationConnected) {
         emitOperation({
@@ -334,7 +366,7 @@ export function useSpreadsheetColumns({
         })
       }
     },
-    [activeSheet, app, onAppUpdate, isCollaborationConnected, emitOperation, localSheetDataRef]
+    [activeSheet, isCollaborationConnected, emitOperation, localSheetDataRef]
   )
 
   // Rename column handler
@@ -431,10 +463,14 @@ export function useSpreadsheetColumns({
       // 'lefttop' = insert before the index, 'rightbottom' = insert after the index
       const insertAt = direction === 'rightbottom' ? insertIndex + 1 : insertIndex
 
+      // Sort columns by order to get visual position alignment with FortuneSheet.
+      // FortuneSheet's insertIndex is a visual position (array index),
+      // NOT the value of the `order` field — which may contain duplicates.
+      const sortedColumns = [...currentColumns].sort((a, b) => a.order - b.order)
+
       // Generate new columns for each inserted position
       const newColumns: SpreadsheetColumn[] = []
       for (let i = 0; i < count; i++) {
-        const position = insertAt + i
         // Find a unique name
         const existingNames = [
           ...currentColumns.map(c => c.name.toLowerCase()),
@@ -457,20 +493,15 @@ export function useSpreadsheetColumns({
           isRequired: false,
           isUnique: false,
           width: 150,
-          order: position
+          order: insertAt + i // placeholder, will be reassigned below
         })
       }
 
-      // Rebuild the columns array: shift orders of existing columns at/after insertAt
-      const updatedColumns = currentColumns.map(col => {
-        if (col.order >= insertAt) {
-          return { ...col, order: col.order + count }
-        }
-        return col
-      })
-
-      // Insert new columns and sort by order
-      const allColumns = [...updatedColumns, ...newColumns].sort((a, b) => a.order - b.order)
+      // Splice new columns into the sorted array at the visual insert position
+      // then assign clean sequential orders
+      const allColumns = [...sortedColumns.slice(0, insertAt), ...newColumns, ...sortedColumns.slice(insertAt)].map(
+        (col, idx) => ({ ...col, order: idx })
+      )
 
       // Update ref immediately
       latestColumnsRef.current = allColumns
@@ -519,25 +550,24 @@ export function useSpreadsheetColumns({
       if (!activeSheet) return
 
       const currentColumns = latestColumnsRef.current
-      const deleteCount = endIndex - startIndex + 1
 
-      // Identify which columns are being deleted (by their order/position)
-      const deletedColumns = currentColumns.filter(col => col.order >= startIndex && col.order <= endIndex)
+      // Sort columns by order to get visual position alignment with FortuneSheet.
+      // FortuneSheet's startIndex/endIndex are visual positions (array indices),
+      // NOT the value of the `order` field — which may contain duplicates.
+      const sortedColumns = [...currentColumns].sort((a, b) => a.order - b.order)
+
+      // Identify which columns are being deleted by visual position (array index)
+      const deletedColumns = sortedColumns.slice(startIndex, endIndex + 1)
+      const deletedColumnIds = new Set(deletedColumns.map(c => c.id))
       const deletedColumnNames = deletedColumns.map(c => c.name)
 
       // Don't allow deleting all columns
       if (deletedColumns.length >= currentColumns.length) return
 
-      // Remove deleted columns and re-order remaining ones
-      const remainingColumns = currentColumns
-        .filter(col => col.order < startIndex || col.order > endIndex)
-        .map(col => {
-          if (col.order > endIndex) {
-            return { ...col, order: col.order - deleteCount }
-          }
-          return col
-        })
-        .sort((a, b) => a.order - b.order)
+      // Remove deleted columns and assign clean sequential orders
+      const remainingColumns = sortedColumns
+        .filter(col => !deletedColumnIds.has(col.id))
+        .map((col, idx) => ({ ...col, order: idx }))
 
       // Remove deleted column data from rows
       const updatedData = localSheetDataRef.current.map(row => {
