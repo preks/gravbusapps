@@ -22,6 +22,7 @@ import type {
   AdminProviderConfig,
   UpsertProviderSettingsRequest
 } from '../../email-apps/services/EmailProviderSettingsApi'
+import { PermissionToggles } from './ScopesEditor'
 
 interface ProviderSettingsCardProps {
   provider: 'microsoft' | 'google'
@@ -188,20 +189,14 @@ export const ProviderSettingsCard: React.FC<ProviderSettingsCardProps> = ({
           </p>
         </div>
 
-        {/* Scopes */}
-        <div className="gba:space-y-2">
-          <Label htmlFor={`${testId}-scopes`}>OAuth Scopes</Label>
-          <Input
-            id={`${testId}-scopes`}
-            value={scopes}
-            onChange={e => setScopes(e.target.value)}
-            placeholder="Space-separated scopes"
-            data-testid={`${testId}-scopes`}
-          />
-          <p className="gba:text-xs gba:text-muted-foreground">
-            Default scopes are pre-filled. Only change if you know what you are doing.
-          </p>
-        </div>
+        {/* Permissions */}
+        <PermissionToggles
+          provider={provider}
+          scopes={scopes}
+          onChange={setScopes}
+          grantedScopes={existingSettings?.grantedScopes}
+          testId={testId}
+        />
 
         {/* Redirect URI (read-only display) */}
         <div className="gba:space-y-2">

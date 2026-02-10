@@ -7,7 +7,7 @@
  * and the callback page sends the code to the backend for server-side exchange.
  */
 
-const DEFAULT_SCOPES = 'openid email profile https://mail.google.com/'
+const DEFAULT_SCOPES = 'openid email profile https://mail.google.com/ https://www.googleapis.com/auth/calendar.readonly'
 
 /** Generate a random string for PKCE */
 function generateRandomString(length: number): string {
