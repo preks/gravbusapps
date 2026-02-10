@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { ChevronRight, ChevronDown, File, Folder, FolderOpen, RefreshCw, Search, X } from 'lucide-react'
 import { Button } from '@newwork/nw-design-system'
-import { ENV } from '../config/environment'
+import { builderClient } from '@/common/network/ai/builder'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface TreeNode {
@@ -27,29 +27,27 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({ repoId, sessionId, o
   const loadTree = async () => {
     setLoading(true)
     try {
-      const response = await fetch(`${ENV.AI_SERVICE_API_URL}/api/tools/execute`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          toolName: 'get_repository_explorer',
-          args: { path: '.', max_depth: 15 },
-          repoId,
-          sessionId
-        })
-      })
-      const data = await response.json()
+      const data = await builderClient.executeTool(
+        'get_repository_explorer',
+        { path: '.', max_depth: 15 },
+        repoId,
+        sessionId
+      )
+
       if (data.success && data.tree) {
-        setTree(data.tree)
+        setTree(data.tree as TreeNode)
         // Auto-expand root level
-        if (data.tree.children) {
+        if ((data.tree as TreeNode).children) {
           const rootPaths = Object.values(data.tree.children as Record<string, TreeNode>).map(
             (node: TreeNode) => node.path
           )
           setExpanded(new Set(rootPaths))
         }
       }
-    } catch {
-      // Failed to load file tree, silent failure
+    } catch (error) {
+      console.error('[FileExplorer] Failed to load file tree:', error)
+      // Set empty tree to show at least the UI
+      setTree(null)
     } finally {
       setLoading(false)
     }

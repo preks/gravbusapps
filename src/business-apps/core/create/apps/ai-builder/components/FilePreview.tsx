@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react'
 import { X, Copy, Check, Search, ChevronUp, ChevronDown } from 'lucide-react'
 import { Button } from '@newwork/nw-design-system'
 import { Input } from '@newwork/nw-design-system'
-import { ENV } from '../config/environment'
+import { builderClient } from '@/common/network/ai/builder'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface FilePreviewProps {
@@ -27,17 +27,8 @@ export const FilePreview: React.FC<FilePreviewProps> = ({ filePath, repoId, sess
   const loadFile = async () => {
     setLoading(true)
     try {
-      const response = await fetch(`${ENV.AI_SERVICE_API_URL}/api/tools/execute`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          toolName: 'read_file',
-          args: { file_path: filePath },
-          repoId,
-          sessionId
-        })
-      })
-      const data = await response.json()
+      const data = await builderClient.executeTool('read_file', { file_path: filePath }, repoId, sessionId)
+
       setContent(
         data.content || getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.file_preview.no_content', 'No content')
       )

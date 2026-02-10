@@ -22,15 +22,7 @@ import {
 } from 'lucide-react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { AutoInitConfig, CreateAutoInitConfigRequest, UpdateAutoInitConfigRequest } from '../types/admin'
-import {
-  getAutoInitConfigs,
-  createAutoInitConfig,
-  updateAutoInitConfig,
-  deleteAutoInitConfig,
-  syncAutoInitConfig,
-  getAllIndexingStatus,
-  IndexingStatus
-} from '../api/adminClient'
+import { builderClient, type IndexingStatus } from '@/common/network/ai/builder'
 
 interface AdminSettingsProps {
   onClose?: () => void
@@ -87,7 +79,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
       if (!isMounted) return
 
       try {
-        const statuses = await getAllIndexingStatus()
+        const statuses = await builderClient.getAllIndexingStatus()
         if (!isMounted) return
 
         const statusMap = new Map<string, IndexingStatus>()
@@ -136,7 +128,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
   const reloadIndexingStatus = async () => {
     if (configs.length === 0) return
     try {
-      const statuses = await getAllIndexingStatus()
+      const statuses = await builderClient.getAllIndexingStatus()
       const statusMap = new Map<string, IndexingStatus>()
       statuses.forEach(s => statusMap.set(s.configId, s))
       setIndexingStatus(statusMap)
@@ -149,7 +141,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
         // Start polling since indexing is now active
         const pollFn = async () => {
           try {
-            const newStatuses = await getAllIndexingStatus()
+            const newStatuses = await builderClient.getAllIndexingStatus()
             const newStatusMap = new Map<string, IndexingStatus>()
             newStatuses.forEach(s => newStatusMap.set(s.configId, s))
             setIndexingStatus(newStatusMap)
@@ -180,7 +172,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
     try {
       setLoading(true)
       setError(null)
-      const data = await getAutoInitConfigs()
+      const data = await builderClient.getAutoInitConfigs()
       setConfigs(data)
     } catch (err) {
       setError(
@@ -206,7 +198,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
           .map(b => b.trim())
           .filter(Boolean)
       }
-      await createAutoInitConfig(config)
+      await builderClient.createAutoInitConfig(config)
       setSuccess(
         getTranslationFromI18nKeyAndLabel(
           'lowcoder:ai_builder.admin.config_created',
@@ -243,7 +235,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
           .map(b => b.trim())
           .filter(Boolean)
       }
-      await updateAutoInitConfig(id, update)
+      await builderClient.updateAutoInitConfig(id, update)
       setSuccess(
         getTranslationFromI18nKeyAndLabel(
           'lowcoder:ai_builder.admin.config_updated',
@@ -274,7 +266,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
     }
     try {
       setError(null)
-      await deleteAutoInitConfig(id)
+      await builderClient.deleteAutoInitConfig(id)
       setSuccess(
         getTranslationFromI18nKeyAndLabel(
           'lowcoder:ai_builder.admin.config_deleted',
@@ -317,7 +309,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
 
   const toggleEnabled = async (config: AutoInitConfig) => {
     try {
-      await updateAutoInitConfig(config.id, { enabled: !config.enabled })
+      await builderClient.updateAutoInitConfig(config.id, { enabled: !config.enabled })
       await loadConfigs()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to toggle configuration')
@@ -328,7 +320,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
     try {
       setError(null)
       setSyncingId(config.id)
-      const result = await syncAutoInitConfig(config.id, false)
+      const result = await builderClient.syncAutoInitConfig(config.id, false)
       setSuccess(result.message)
       setTimeout(() => setSuccess(null), 5000)
       // Reload indexing status after sync to check if indexing started
