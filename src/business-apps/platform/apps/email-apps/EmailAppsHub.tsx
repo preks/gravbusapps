@@ -19,8 +19,7 @@ import {
   AccountSetupDialog,
   AccountManagementDialog,
   EmailEmptyState,
-  MicrosoftOAuthCallback,
-  EmailProviderSettingsAdmin
+  MicrosoftOAuthCallback
 } from './components'
 import type { EmailMessage, ComposeMode } from './types'
 
@@ -107,7 +106,6 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
   const [searchQuery, setSearchQuery] = useState('')
   const [isAccountDialogOpen, setIsAccountDialogOpen] = useState(false)
   const [isManageDialogOpen, setIsManageDialogOpen] = useState(false)
-  const [isAdminSettingsOpen, setIsAdminSettingsOpen] = useState(false)
 
   // Compose state
   const [isComposing, setIsComposing] = useState(false)
@@ -318,7 +316,7 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
           setIsManageDialogOpen(false)
           setIsAccountDialogOpen(true)
         }}
-        onOpenAdminSettings={() => setIsAdminSettingsOpen(true)}
+        onOpenAdminSettings={() => navigateTo('/platform/mail/settings')}
       />
 
       {/* Account setup dialog */}
@@ -326,13 +324,6 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
         open={isAccountDialogOpen}
         onOpenChange={setIsAccountDialogOpen}
         onAccountCreated={refreshAccounts}
-        accessToken={accessToken}
-      />
-
-      {/* Admin provider settings */}
-      <EmailProviderSettingsAdmin
-        open={isAdminSettingsOpen}
-        onOpenChange={setIsAdminSettingsOpen}
         accessToken={accessToken}
       />
     </div>
