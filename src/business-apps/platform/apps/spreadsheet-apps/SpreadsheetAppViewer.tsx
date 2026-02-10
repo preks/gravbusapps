@@ -52,6 +52,8 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   const cellChangeBatchTimerRef = useRef<NodeJS.Timeout | null>(null)
   // Accumulate per-row cell changes so a multi-cell paste sends ONE backend PATCH
   const pendingCellUpdates = useRef<Map<string, { backendRowId: string; changes: Record<string, unknown> }>>(new Map())
+  // Track in-flight PATCH data so beforeunload can re-send with keepalive if page unloads mid-flight
+  const inFlightCellUpdates = useRef<Map<string, { backendRowId: string; changes: Record<string, unknown> }>>(new Map())
   const cellPersistTimerRef = useRef<NodeJS.Timeout | null>(null)
 
   // --- Viewer State (sheet/view + local sheet data) ---
@@ -302,17 +304,29 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         pendingCellUpdates.current.clear()
         cellPersistTimerRef.current = null
 
-        for (const [, { backendRowId: bid, changes }] of pending) {
+        // Store in-flight data so beforeunload can re-send with keepalive
+        // if the page unloads while these PATCHes are still in progress.
+        inFlightCellUpdates.current = new Map(pending)
+
+        // Send all row PATCHes in parallel to minimize the window where a
+        // page refresh could cancel some but not all requests.
+        const patchPromises = [...pending.entries()].map(async ([key, { backendRowId: bid, changes }]) => {
           try {
             if (onRowUpdate) {
               await onRowUpdate(app.id, activeSheetId, bid, changes)
             } else {
               await SpreadsheetApiService.updateRow(app.id, activeSheetId, bid, changes)
             }
+            // Remove from in-flight tracking once successfully persisted
+            inFlightCellUpdates.current.delete(key)
           } catch (error) {
             console.error('[SpreadsheetAppViewer] Failed to persist cell changes:', error)
           }
-        }
+        })
+        await Promise.all(patchPromises)
+
+        // Clear any remaining in-flight entries (all done or failed)
+        inFlightCellUpdates.current.clear()
       }, 100)
     },
     [activeSheetId, app.id, entityEnabled, localSheetDataRef, onDataChange, onRowUpdate, setLocalSheetData]
@@ -339,12 +353,18 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         cellChangeBatchTimerRef.current = null
       }
 
+      // Merge both: pending (not yet sent) + in-flight (sent but may not have completed)
       const pending = new Map(pendingCellUpdates.current)
+      const inFlight = new Map(inFlightCellUpdates.current)
       pendingCellUpdates.current.clear()
+      inFlightCellUpdates.current.clear()
 
-      if (pending.size === 0) return
+      // Merge: in-flight first, then pending overwrites (pending has newer data)
+      const allUpdates = new Map([...inFlight, ...pending])
 
-      const updates = [...pending.values()].map(({ backendRowId, changes }) => ({
+      if (allUpdates.size === 0) return
+
+      const updates = [...allUpdates.values()].map(({ backendRowId, changes }) => ({
         rowId: backendRowId,
         data: changes
       }))

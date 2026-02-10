@@ -224,6 +224,32 @@ function mapApiAppToSpreadsheetApp(apiApp: Record<string, unknown>): Spreadsheet
  * Spreadsheet API Service
  */
 export const SpreadsheetApiService = {
+  /**
+   * Emergency flush: persist row updates with `keepalive: true` so the browser
+   * completes the requests even during page unload (beforeunload / visibilitychange).
+   * Fire-and-forget — callers should NOT await this.
+   */
+  flushRowUpdates(
+    appId: string,
+    sheetId: string,
+    updates: Array<{ rowId: string; data: Record<string, unknown> }>
+  ): void {
+    if (updates.length === 0) return
+    const token = getAuthToken()
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    }
+    for (const { rowId, data } of updates) {
+      fetch(`${API_URL}/spreadsheets/${appId}/sheets/${sheetId}/rows/${rowId}`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify(data),
+        keepalive: true
+      }).catch(() => {})
+    }
+  },
+
   // ============ Apps ============
 
   /**
