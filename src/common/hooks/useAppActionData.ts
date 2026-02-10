@@ -32,8 +32,7 @@ export const appActionPropsComparison = (prevProps: any, nextProps: any): boolea
     'prefixDataTestId',
     'emptyStateBehavior',
     'deferMainContextRequestsUntilClick',
-    'blinkContext',
-    'children'
+    'blinkContext'
   ] as const
 
   for (const key of propsToCompare) {
