@@ -243,8 +243,10 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
   // Approval configuration (using local wizard state type)
   const [approvalSteps, setApprovalSteps] = useState<WizardStepAssignment[]>([])
 
-  // Selected recipients for bulk collection (list of user IDs)
-  const [selectedRecipients, setSelectedRecipients] = useState<Array<{ id: string; name: string; email?: string }>>([])
+  // Selected recipients for bulk collection (id=employeeId for display, userId for assignment - flow engine requires userId)
+  const [selectedRecipients, setSelectedRecipients] = useState<
+    Array<{ id: string; userId?: string; name: string; email?: string }>
+  >([])
 
   // Form fields for bulk collection (what questions to ask)
   const [formFields, setFormFields] = useState<
@@ -526,7 +528,7 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
         automationType === 'bulk_collection'
           ? {
               recipientType: recipientType || 'specific',
-              recipients: selectedRecipients.map(r => r.id),
+              recipients: selectedRecipients.map(r => r.userId || r.id),
               trackingColumns, // Include selected tracking columns
               formFields: formFields.map(f => ({
                 id: f.id,
@@ -545,6 +547,21 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
             }
           : undefined
 
+      // For bulk_collection, build columnMappings from formFields so response formData maps to sheet columns
+      // Table renders with col.name so we need columnId (form key) -> columnName for correct cell keys
+      const effectiveColumnMappings =
+        automationType === 'bulk_collection' && formFields.length > 0
+          ? formFields.map(f => {
+              const col = columns.find(c => c.id === f.targetColumn)
+              return {
+                columnId: f.targetColumn,
+                columnName: col?.name ?? f.targetColumn,
+                workflowParameter: f.targetColumn,
+                direction: 'fromWorkflow' as const
+              }
+            })
+          : columnMappings
+
       const automation: Omit<SpreadsheetAutomation, 'id' | 'createdAt' | 'updatedAt' | 'runCount'> = {
         name,
         description: description || undefined,
@@ -552,7 +569,7 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
         trigger,
         isEnabled: true,
         workflowConfig: {
-          columnMappings,
+          columnMappings: effectiveColumnMappings,
           resultMappings: resultMappings.length > 0 ? resultMappings : undefined,
           statusColumn,
           dynamicTemplate
@@ -578,6 +595,7 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
     description,
     trigger,
     watchColumns,
+    columns,
     columnMappings,
     resultMappings,
     statusColumn,
@@ -1210,6 +1228,7 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
                               setSelectedRecipients(
                                 employees.map(emp => ({
                                   id: emp.id,
+                                  userId: emp.userId,
                                   name: emp.displayName || 'Unknown',
                                   email: undefined
                                 }))

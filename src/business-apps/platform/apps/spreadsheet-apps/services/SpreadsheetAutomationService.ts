@@ -22,19 +22,27 @@ import { env } from '@/common/env/EnvUtils'
 
 // Flow engine API base URL - uses same pattern as other flow apps
 const getFlowEngineApiUrl = () => {
-  // First check for explicit env variable
   const envUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL')
-  if (envUrl) {
-    return `${envUrl}/api`
+  const baseUrl = env('NEXT_PUBLIC_BASE_URL')
+
+  // Prefer dev cflow over localhost when env points to local (avoids ERR_CONNECTION_REFUSED when cflow isn't running locally)
+  if (envUrl && !envUrl.includes('localhost') && !envUrl.includes('127.0.0.1')) {
+    const normalized = envUrl.trim().replace(/\/+$/, '')
+    return normalized.includes('/api') ? normalized : `${normalized}/api`
   }
 
-  // Fallback: derive from current window location (same domain, /flow-engine path)
+  // Use dev/staging flow engine
+  if (baseUrl) {
+    const normalized = baseUrl.trim().replace(/\/+$/, '')
+    return `${normalized}/flow-engine/api`
+  }
+
+  // Fallback: same-origin /flow-engine
   if (typeof window !== 'undefined') {
     const { protocol, host } = window.location
     return `${protocol}//${host}/flow-engine/api`
   }
 
-  // Server-side fallback (shouldn't happen in practice)
   return '/flow-engine/api'
 }
 
@@ -300,6 +308,19 @@ export class SpreadsheetAutomationService {
               executedAt: new Date().toISOString(),
               totalRows: 0
             }
+          }
+        }
+
+        // Resolve employee IDs to user IDs - flow engine assigns tasks by userId
+        if (recipientType === 'specific' && collectionRecipients.length > 0) {
+          try {
+            const resolved = await this.resolveEmployeeIdsToUserIds(collectionRecipients)
+            if (resolved.length > 0) {
+              collectionRecipients = resolved
+              console.log('[SpreadsheetAutomationService] Resolved specific recipients to user IDs:', resolved.length)
+            }
+          } catch (error) {
+            console.warn('[SpreadsheetAutomationService] Could not resolve some recipients to user IDs:', error)
           }
         }
 
@@ -1588,13 +1609,13 @@ export class SpreadsheetAutomationService {
 
   private async resolveBulkFlowFormData(flowId: string, recipientId?: string): Promise<Record<string, unknown>> {
     const fromStep0 = await this.fetchFormDataFromStep0(flowId)
-    if (fromStep0) return fromStep0
+    if (fromStep0 && Object.keys(fromStep0).length > 0) return fromStep0
 
     const fromTasks = recipientId ? await this.fetchFormDataFromCompletedTasks(flowId, recipientId) : null
-    if (fromTasks) return fromTasks
+    if (fromTasks && Object.keys(fromTasks).length > 0) return fromTasks
 
     const fromFlowDetail = await this.fetchFormDataFromFlowDetail(flowId)
-    return fromFlowDetail || {}
+    return fromFlowDetail && Object.keys(fromFlowDetail).length > 0 ? fromFlowDetail : {}
   }
 
   private async fetchFormDataFromStep0(flowId: string): Promise<Record<string, unknown> | null> {
@@ -1610,8 +1631,22 @@ export class SpreadsheetAutomationService {
       if (!Array.isArray(dataEntries) || dataEntries.length === 0) return null
 
       const latestEntry = dataEntries[dataEntries.length - 1] as Record<string, unknown>
-      const formData = (latestEntry.formData || latestEntry.inputData) as Record<string, unknown> | undefined
-      return formData && Object.keys(formData).length > 0 ? formData : null
+      // Primary: formData or inputData from step export
+      let formData = (latestEntry.formData || latestEntry.inputData) as Record<string, unknown> | undefined
+      if (formData && Object.keys(formData).length > 0) return formData
+
+      // Fallback: extract from output_data / outputData (raw task output)
+      const rawOutput =
+        (latestEntry.output_data as Record<string, unknown>) || (latestEntry.outputData as Record<string, unknown>)
+      if (rawOutput && typeof rawOutput === 'object') {
+        formData =
+          (rawOutput.formData as Record<string, unknown>) ||
+          (rawOutput.inputData as Record<string, unknown>) ||
+          rawOutput
+        // Use rawOutput as formData if it has no known nested keys (form fields at top level)
+        if (formData && Object.keys(formData).length > 0) return formData
+      }
+      return null
     } catch (err) {
       console.log('[SpreadsheetAutomationService] /steps/step_0/data endpoint error:', err)
       return null
@@ -1636,12 +1671,18 @@ export class SpreadsheetAutomationService {
       const flowTask = tasks.find((t: Record<string, unknown>) => t.flowId === flowId || t.workflowId === flowId)
       if (!flowTask) return null
 
-      const formData =
-        (flowTask.formData as Record<string, unknown>) ||
-        (flowTask.outputData as Record<string, unknown>) ||
-        (flowTask.data as Record<string, unknown>) ||
-        {}
-      return Object.keys(formData).length > 0 ? formData : null
+      // Try multiple shapes: formData, outputData.formData, outputData.inputData.formData
+      let formData = (flowTask.formData as Record<string, unknown>) || {}
+      if (Object.keys(formData).length === 0) {
+        const outputData = (flowTask.outputData || flowTask.output_data || flowTask.data) as Record<string, unknown>
+        if (outputData && typeof outputData === 'object') {
+          formData =
+            (outputData.formData as Record<string, unknown>) ||
+            ((outputData.inputData as Record<string, unknown>)?.formData as Record<string, unknown>) ||
+            outputData
+        }
+      }
+      return formData && Object.keys(formData).length > 0 ? formData : null
     } catch (err) {
       console.log('[SpreadsheetAutomationService] Error fetching completed tasks:', err)
       return null
@@ -1836,6 +1877,32 @@ export class SpreadsheetAutomationService {
       console.error('[SpreadsheetAutomationService] Error resolving recipients:', error)
       throw error
     }
+  }
+
+  /**
+   * Resolve recipient IDs (employee or user) to user IDs for task assignment.
+   * Flow engine matches tasks by userId; employee IDs won't show in recipient's inbox.
+   * IDs that don't match as employee IDs are assumed to be user IDs (from updated wizard).
+   */
+  private async resolveEmployeeIdsToUserIds(recipientIds: string[]): Promise<string[]> {
+    if (!recipientIds.length) return []
+    const query = `
+      query GetUserIdsForEmployees($ids: [uuid!]!) {
+        Employee(where: { id: { _in: $ids }, isDeleted: { _eq: false } }) {
+          id
+          userId
+        }
+      }
+    `
+    const result = (await this.executeGraphQLQuery(query, { ids: recipientIds })) as {
+      Employee?: Array<{ id: string; userId?: string }>
+    } | null
+    const employees = result?.Employee || []
+    const employeeIdToUserId = new Map<string, string>()
+    for (const emp of employees) {
+      if (emp.userId) employeeIdToUserId.set(emp.id, emp.userId)
+    }
+    return recipientIds.map(id => employeeIdToUserId.get(id) || id)
   }
 
   /**
