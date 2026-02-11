@@ -34,13 +34,18 @@ interface EmailCrmBookingProps {
 }
 
 /** Build contextData for manual record (no entity pre-selected) */
-const buildManualContextData = (message: EmailMessage, aiSummary?: string | null): Record<string, any> => ({
+const buildManualContextData = (
+  message: EmailMessage,
+  aiSummary?: string | null,
+  employeeId?: string
+): Record<string, any> => ({
   title: message.subject || '(No subject)',
   description: aiSummary || message.textBody || message.snippet || '',
   occurredAt: message.date,
   emailActivityTypeHint: 'EMAIL',
   source: 'email',
-  emailMessageId: message.id
+  emailMessageId: message.id,
+  ...(employeeId ? { ownerEmployeeId: employeeId } : {})
 })
 
 export const EmailCrmBooking: React.FC<EmailCrmBookingProps> = ({
@@ -169,6 +174,7 @@ export const EmailCrmBooking: React.FC<EmailCrmBookingProps> = ({
                       message={message}
                       accessToken={accessToken}
                       aiSummary={aiSummary}
+                      employeeId={employeeId}
                       data-testid={`${testId}-email`}
                     />
                   ))}
@@ -220,6 +226,7 @@ export const EmailCrmBooking: React.FC<EmailCrmBookingProps> = ({
                               message={message}
                               accessToken={accessToken}
                               aiSummary={aiSummary}
+                              employeeId={employeeId}
                               data-testid={`${testId}-owned`}
                             />
                           ))}
@@ -254,6 +261,7 @@ export const EmailCrmBooking: React.FC<EmailCrmBookingProps> = ({
                             message={message}
                             accessToken={accessToken}
                             aiSummary={aiSummary}
+                            employeeId={employeeId}
                             data-testid={`${testId}-search`}
                           />
                         ))}
@@ -272,7 +280,7 @@ export const EmailCrmBooking: React.FC<EmailCrmBookingProps> = ({
                       contexts={[
                         {
                           context: FlowContextName.customerActivityCreate,
-                          contextData: buildManualContextData(message, aiSummary)
+                          contextData: buildManualContextData(message, aiSummary, employeeId)
                         }
                       ]}
                       accessToken={accessToken}

@@ -67,6 +67,7 @@ export interface ActivitySectionProps extends BusinessAppContextProps {
 const ActivitySection: React.FC<ActivitySectionProps> = props => {
   const {
     accessToken,
+    userInfo,
     activities: rawActivities = [],
     activitiesLoading = false,
     activitiesError = null,
@@ -75,6 +76,8 @@ const ActivitySection: React.FC<ActivitySectionProps> = props => {
     className,
     alignment = 'left'
   } = props
+
+  const currentEmployeeId = userInfo?.employeeDetails?.employeeId
 
   // Process activities - map from Activity to ActivityItem
   const processedActivities = useMemo(() => {
@@ -247,6 +250,11 @@ const ActivitySection: React.FC<ActivitySectionProps> = props => {
                   <ActivityEmailBody
                     emailMessageId={emailMessageId}
                     accessToken={accessToken}
+                    isEmailOwner={
+                      !!currentEmployeeId &&
+                      !!activity.ownerEmployee?.id &&
+                      currentEmployeeId === activity.ownerEmployee.id
+                    }
                     data-testid={`activity-email-body-${activity.id}`}
                   />
                 )}

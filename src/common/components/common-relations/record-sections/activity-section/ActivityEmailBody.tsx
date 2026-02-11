@@ -24,6 +24,8 @@ interface EmailBody {
 interface ActivityEmailBodyProps {
   emailMessageId: string
   accessToken: string
+  /** Whether the current viewer is the owner of the email (only they can open it in Email app) */
+  isEmailOwner?: boolean
   'data-testid'?: string
 }
 
@@ -32,6 +34,7 @@ const API_URL = getDocumentServiceApiUrl()
 export const ActivityEmailBody: React.FC<ActivityEmailBodyProps> = ({
   emailMessageId,
   accessToken,
+  isEmailOwner = false,
   'data-testid': testId = 'activity-email-body'
 }) => {
   const [isExpanded, setIsExpanded] = useState(false)
@@ -149,13 +152,15 @@ export const ActivityEmailBody: React.FC<ActivityEmailBodyProps> = ({
                 )}
               </div>
 
-              {/* Actions */}
-              <div className="gba:px-3 gba:pb-2 gba:flex gba:justify-end">
-                <Button variant="ghost" size="sm" onClick={handleOpenInEmail} data-testid={`${testId}-open-email`}>
-                  <ArrowSquareOutIcon className="gba:w-3.5 gba:h-3.5 gba:mr-1" />
-                  Open in Email app
-                </Button>
-              </div>
+              {/* Actions — only the email owner can open in Email app */}
+              {isEmailOwner && (
+                <div className="gba:px-3 gba:pb-2 gba:flex gba:justify-end">
+                  <Button variant="ghost" size="sm" onClick={handleOpenInEmail} data-testid={`${testId}-open-email`}>
+                    <ArrowSquareOutIcon className="gba:w-3.5 gba:h-3.5 gba:mr-1" />
+                    Open in Email app
+                  </Button>
+                </div>
+              )}
             </>
           )}
         </div>

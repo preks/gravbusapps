@@ -50,7 +50,8 @@ const ENTITY_LABELS: Record<string, string> = {
 export const buildActivityPayload = (
   entity: CrmEntityMatch,
   message: EmailMessage,
-  description?: string
+  description?: string,
+  employeeId?: string
 ): Record<string, any> => {
   const entityIdKey = `${entity.type}Id`
 
@@ -62,6 +63,7 @@ export const buildActivityPayload = (
       activityTypeRef: EMAIL_ACTIVITY_TYPE_REF,
       source: 'email',
       [entity.type]: entity.id,
+      ...(employeeId ? { ownerEmployeeId: employeeId } : {}),
       additionalProperties: {
         emailMessageId: message.id
       }
@@ -107,6 +109,8 @@ interface CrmEntityRowProps {
   accessToken: string
   /** Pre-fetched AI summary from parent (may be null if still loading) */
   aiSummary?: string | null
+  /** Current user's employee ID — used as activity owner */
+  employeeId?: string
   'data-testid'?: string
 }
 
@@ -115,6 +119,7 @@ export const CrmEntityRow: React.FC<CrmEntityRowProps> = ({
   message,
   accessToken,
   aiSummary,
+  employeeId,
   'data-testid': testId = 'crm-entity-row'
 }) => {
   const Icon = ENTITY_ICONS[entity.type] || UserIcon
@@ -162,14 +167,14 @@ export const CrmEntityRow: React.FC<CrmEntityRowProps> = ({
         setSummarizing(false)
       }
 
-      const payload = buildActivityPayload(entity, message, description || undefined)
+      const payload = buildActivityPayload(entity, message, description || undefined, employeeId)
       execute(payload)
     },
-    [recorded, aiSummary, accessToken, message, entity]
+    [recorded, aiSummary, accessToken, message, entity, employeeId]
   )
 
   // Initial context data for AppActionProvider (used as fallback)
-  const initialContextData = buildActivityPayload(entity, message, aiSummary || undefined)
+  const initialContextData = buildActivityPayload(entity, message, aiSummary || undefined, employeeId)
 
   return (
     <div
