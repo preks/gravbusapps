@@ -705,6 +705,13 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
 
         if (newResponses.length === 0) continue
 
+        // Resolve recipient names/emails via GraphQL (service may return "Unknown" when using flows fallback)
+        const responderIds = newResponses
+          .map(r => r.responderId)
+          .filter((id): id is string => Boolean(id) && id.trim().length > 0)
+        graphQLClient.setAccessToken(accessToken)
+        const recipientDataMap = await fetchRecipientsData(graphQLClient, responderIds)
+
         // Build updates for existing rows (rows that have _workflow_id matching these responses)
         const trackingColumns = ensureRecipientTrackingColumns(
           automation.collectionConfig?.trackingColumns || getDefaultTrackingColumns()
@@ -712,13 +719,20 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
         const statusColumn = automation.workflowConfig.statusColumn
 
         const rowUpdates = newResponses.map(response => {
+          const recipientData = response.responderId ? recipientDataMap.get(response.responderId) : undefined
+          const displayName =
+            response.responderName && response.responderName !== 'Unknown'
+              ? response.responderName
+              : recipientData?.name
+          const displayEmail = response.responderEmail ?? recipientData?.email
+
           // Build tracking column update values
           const trackingValues = buildCompletedRowTrackingValues(
             trackingColumns,
             {
               id: response.responderId,
-              name: response.responderName,
-              email: response.responderEmail
+              name: displayName,
+              email: displayEmail
             },
             new Date().toISOString(), // sentAt - will be overridden if _sent_at exists in row
             response.submittedAt
@@ -813,7 +827,7 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
         console.error('[useSpreadsheetAutomations] Error fetching bulk collection responses:', err)
       }
     }
-  }, [automations, spreadsheetId, sheetId])
+  }, [automations, spreadsheetId, sheetId, accessToken])
 
   // Poll for bulk collection responses
   useEffect(() => {

@@ -90,6 +90,8 @@ export interface AutomationWizardProps {
   sheetId: string
   /** Access token for API calls (user selection) */
   accessToken?: string
+  /** Optional: Update column labels to match form field labels (for bulk collection headers) */
+  onColumnLabelsUpdate?: (updates: Array<{ columnId: string; newLabel: string }>) => void
   /** Data test ID */
   'data-testid'?: string
 }
@@ -218,6 +220,7 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
   existingAutomation,
   columns,
   accessToken,
+  onColumnLabelsUpdate,
   'data-testid': testId = 'automation-wizard'
 }) => {
   const isEditing = !!existingAutomation
@@ -581,6 +584,22 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
         collectionConfig
       }
 
+      // For bulk collection: update column labels to match form field labels (headers)
+      if (automationType === 'bulk_collection' && formFields.length > 0 && onColumnLabelsUpdate) {
+        const labelUpdates = formFields
+          .map(field => {
+            const col = columns.find(c => c.id === field.targetColumn)
+            if (col && field.label.trim() && col.label !== field.label.trim()) {
+              return { columnId: col.id, newLabel: field.label.trim() }
+            }
+            return null
+          })
+          .filter((u): u is { columnId: string; newLabel: string } => u !== null)
+        if (labelUpdates.length > 0) {
+          onColumnLabelsUpdate(labelUpdates)
+        }
+      }
+
       await onSave(automation)
       onClose()
     } catch (error) {
@@ -603,6 +622,7 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
     approvalSteps,
     selectedRecipients,
     formFields,
+    onColumnLabelsUpdate,
     validateCurrentStep,
     onSave,
     onClose

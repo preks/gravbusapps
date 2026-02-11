@@ -24,6 +24,8 @@ export interface AutomationsPanelProps {
   spreadsheetId: string
   sheetId: string
   accessToken: string
+  /** Optional: Update column labels in batch (e.g. for bulk collection form field headers) */
+  onColumnLabelsUpdate?: (updates: Array<{ columnId: string; newLabel: string }>) => void
   onCreateAutomation: (
     automation: Omit<SpreadsheetAutomation, 'id' | 'createdAt' | 'updatedAt' | 'runCount'>
   ) => Promise<unknown>
@@ -48,6 +50,7 @@ export const AutomationsPanel: React.FC<AutomationsPanelProps> = memo(function A
   spreadsheetId,
   sheetId,
   accessToken,
+  onColumnLabelsUpdate,
   onCreateAutomation,
   onUpdateAutomation,
   onDeleteAutomation,
@@ -141,6 +144,7 @@ export const AutomationsPanel: React.FC<AutomationsPanelProps> = memo(function A
         columns={columns}
         existingAutomation={editingAutomation ?? undefined}
         accessToken={accessToken}
+        onColumnLabelsUpdate={onColumnLabelsUpdate}
         onSave={async automation => {
           if (editingAutomation) {
             await onUpdateAutomation(editingAutomation.id, automation)

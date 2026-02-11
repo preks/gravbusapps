@@ -605,6 +605,20 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     [persistSheetPatch]
   )
 
+  // Batch update column labels (e.g. bulk collection form field headers)
+  const handleColumnLabelsUpdate = useCallback(
+    (updates: Array<{ columnId: string; newLabel: string }>) => {
+      if (updates.length === 0) return
+      const updatedColumns = activeSheet.columns.map(col => {
+        const match = updates.find(u => u.columnId === col.id)
+        if (match) return { ...col, label: match.newLabel }
+        return col
+      })
+      persistSheetPatch({ columns: updatedColumns })
+    },
+    [activeSheet.columns, persistSheetPatch]
+  )
+
   // --- Active view type ---
   const viewType = activeView?.config.type || activeSheet.viewType || 'table'
 
@@ -782,6 +796,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         spreadsheetId={app.id}
         sheetId={activeSheetId}
         accessToken={accessToken}
+        onColumnLabelsUpdate={handleColumnLabelsUpdate}
         onCreateAutomation={automations.createAutomation}
         onUpdateAutomation={automations.updateAutomation}
         onDeleteAutomation={automations.deleteAutomation}
