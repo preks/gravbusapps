@@ -15,7 +15,7 @@ import {
   Textarea,
   DateInput
 } from '@newwork/nw-design-system'
-import { useForm } from 'react-hook-form'
+import { useForm, UseFormReturn, Control } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
@@ -43,6 +43,127 @@ type FormValues = {
   currency: string
   status: AssetStatus
   notes?: string
+}
+
+type SerialNumberFieldProps = {
+  form: UseFormReturn<FormValues>
+  control: Control<FormValues>
+  isEditMode: boolean
+  assetId: string | null
+  getAssets: (variables: { where?: { _and: unknown[] }; limit?: number }) => Promise<{ assets: unknown[] }>
+}
+
+const SerialNumberField: React.FC<SerialNumberFieldProps> = ({ form, control, isEditMode, assetId, getAssets }) => {
+  const [isCheckingDuplicate, setIsCheckingDuplicate] = React.useState(false)
+  const [duplicateError, setDuplicateError] = React.useState<string | null>(null)
+  const category = form.watch('category')
+  const brand = form.watch('brand')
+
+  const checkDuplicate = React.useCallback(
+    async (value: string) => {
+      const trimmed = (value ?? '').trim()
+      if (trimmed.length === 0 || trimmed.length < 3) {
+        setDuplicateError(null)
+        return
+      }
+
+      const categoryVal = form.getValues('category')
+      const brandVal = form.getValues('brand')
+      if (!categoryVal || !brandVal) {
+        setDuplicateError(null)
+        return
+      }
+
+      setIsCheckingDuplicate(true)
+      try {
+        const whereConditions: Array<
+          | { serialNumber: { _eq: string } }
+          | { assetCategoryRef: { _eq: string } }
+          | { assetBrandRef: { _eq: string } }
+          | { id: { _neq: string } }
+        > = [
+          { serialNumber: { _eq: trimmed } },
+          { assetCategoryRef: { _eq: categoryVal } },
+          { assetBrandRef: { _eq: brandVal } }
+        ]
+        if (isEditMode && assetId) {
+          whereConditions.push({ id: { _neq: assetId } })
+        }
+        const result = await getAssets({
+          where: { _and: whereConditions },
+          limit: 1
+        })
+
+        if (result.assets.length > 0) {
+          const errorMsg = getTranslationFromI18nKeyAndLabel(
+            'lowcoder:hr_assets.serial_number_duplicate',
+            'A serial number with this combination of category and producer already exists'
+          )
+          setDuplicateError(errorMsg)
+          form.setError('serialNumber', { type: 'manual', message: errorMsg })
+        } else {
+          setDuplicateError(null)
+          form.clearErrors('serialNumber')
+        }
+      } catch (error) {
+        console.error('Error checking duplicate serial number:', error)
+        setDuplicateError(null)
+      } finally {
+        setIsCheckingDuplicate(false)
+      }
+    },
+    [form, getAssets, isEditMode, assetId]
+  )
+
+  React.useEffect(() => {
+    checkDuplicate(form.getValues('serialNumber'))
+  }, [category, brand, checkDuplicate, form])
+
+  return (
+    <FormField
+      control={control}
+      name="serialNumber"
+      render={({ field, fieldState }) => {
+        const handleBlur = async () => {
+          field.onBlur()
+          await checkDuplicate(field.value)
+        }
+
+        const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+          field.onChange(e)
+          if (duplicateError) {
+            setDuplicateError(null)
+            form.clearErrors('serialNumber')
+          }
+        }
+
+        return (
+          <FormItem>
+            <Label htmlFor="serialNumber" data-testid="serial-number-label">
+              {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.serial_number', 'Serial Number')}
+            </Label>
+            <Input
+              id="serialNumber"
+              placeholder={getTranslationFromI18nKeyAndLabel(
+                'lowcoder:hr_assets.serial_number_placeholder',
+                'Unique serial number'
+              )}
+              value={field.value || ''}
+              onChange={handleChange}
+              onBlur={handleBlur}
+              data-testid="serial-number-input"
+              disabled={isEditMode || isCheckingDuplicate}
+            />
+            {(fieldState.error || duplicateError) && (
+              <p className="gba:text-sm gba:font-medium gba:text-destructive" data-testid="serial-number-error">
+                {fieldState.error?.message || duplicateError}
+              </p>
+            )}
+          </FormItem>
+        )
+      }}
+    />
+  )
 }
 
 const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context: BusinessAppContextProps) => {
@@ -160,13 +281,6 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
             getTranslationFromI18nKeyAndLabel(
               'lowcoder:hr_assets.warranty_period_min',
               'Warranty period must be 0 or greater'
-            )
-          )
-          .max(
-            120,
-            getTranslationFromI18nKeyAndLabel(
-              'lowcoder:hr_assets.warranty_period_max',
-              'Warranty period cannot exceed 120 months'
             )
           ),
         inventoryValue: z
@@ -517,113 +631,12 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
         />
       </div>
 
-      <FormField
+      <SerialNumberField
+        form={form}
         control={form.control}
-        name="serialNumber"
-        render={({ field, fieldState }) => {
-          const [isCheckingDuplicate, setIsCheckingDuplicate] = React.useState(false)
-          const [duplicateError, setDuplicateError] = React.useState<string | null>(null)
-          const category = form.watch('category')
-          const brand = form.watch('brand')
-
-          const checkDuplicate = async (value: string) => {
-            const trimmed = (value ?? '').trim()
-            if (trimmed.length === 0 || trimmed.length < 3) {
-              setDuplicateError(null)
-              return
-            }
-
-            const categoryVal = form.getValues('category')
-            const brandVal = form.getValues('brand')
-            if (!categoryVal || !brandVal) {
-              setDuplicateError(null)
-              return
-            }
-
-            setIsCheckingDuplicate(true)
-            try {
-              const whereConditions: Array<
-                | { serialNumber: { _eq: string } }
-                | { assetCategoryRef: { _eq: string } }
-                | { assetBrandRef: { _eq: string } }
-                | { id: { _neq: string } }
-              > = [
-                { serialNumber: { _eq: trimmed } },
-                { assetCategoryRef: { _eq: categoryVal } },
-                { assetBrandRef: { _eq: brandVal } }
-              ]
-              if (isEditMode && assetId) {
-                whereConditions.push({ id: { _neq: assetId } })
-              }
-              const result = await getAssets({
-                where: { _and: whereConditions },
-                limit: 1
-              })
-
-              if (result.assets.length > 0) {
-                const errorMsg = getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:hr_assets.serial_number_duplicate',
-                  'A serial number with this combination of category and producer already exists'
-                )
-                setDuplicateError(errorMsg)
-                form.setError('serialNumber', { type: 'manual', message: errorMsg })
-              } else {
-                setDuplicateError(null)
-                form.clearErrors('serialNumber')
-              }
-            } catch (error) {
-              console.error('Error checking duplicate serial number:', error)
-              setDuplicateError(null)
-            } finally {
-              setIsCheckingDuplicate(false)
-            }
-          }
-
-          const checkDuplicateRef = React.useRef(checkDuplicate)
-          checkDuplicateRef.current = checkDuplicate
-          React.useEffect(() => {
-            checkDuplicateRef.current(form.getValues('serialNumber'))
-          }, [category, brand])
-
-          const handleBlur = async () => {
-            field.onBlur()
-            await checkDuplicate(field.value)
-          }
-
-          const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-            field.onChange(e)
-            // Clear error on change
-            if (duplicateError) {
-              setDuplicateError(null)
-              form.clearErrors('serialNumber')
-            }
-          }
-
-          return (
-            <FormItem>
-              <Label htmlFor="serialNumber" data-testid="serial-number-label">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.serial_number', 'Serial Number')}
-              </Label>
-              <Input
-                id="serialNumber"
-                placeholder={getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:hr_assets.serial_number_placeholder',
-                  'Unique serial number'
-                )}
-                value={field.value || ''}
-                onChange={handleChange}
-                onBlur={handleBlur}
-                data-testid="serial-number-input"
-                disabled={isEditMode || isCheckingDuplicate}
-              />
-              {(fieldState.error || duplicateError) && (
-                <p className="gba:text-sm gba:font-medium gba:text-destructive" data-testid="serial-number-error">
-                  {fieldState.error?.message || duplicateError}
-                </p>
-              )}
-            </FormItem>
-          )
-        }}
+        isEditMode={isEditMode}
+        assetId={assetId}
+        getAssets={getAssets}
       />
 
       <FormField
@@ -707,7 +720,6 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
                   id="warrantyPeriodMonths"
                   type="number"
                   min="0"
-                  max="120"
                   value={displayValue}
                   onChange={e => {
                     const inputValue = e.target.value
