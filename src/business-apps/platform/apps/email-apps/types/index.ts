@@ -61,6 +61,8 @@ export interface EmailMessageSummary {
   folderId: string
   messageId?: string
   threadId?: string
+  /** Number of messages in the thread (populated by backend) */
+  threadMessageCount?: number
   subject: string
   fromAddress: EmailAddress
   toAddresses: EmailAddress[]
@@ -74,6 +76,15 @@ export interface EmailMessageSummary {
   crmEntityType?: string
   crmEntityId?: string
   attachments?: EmailAttachment[]
+}
+
+/** AI-generated thread summary from Groq */
+export interface ThreadSummaryResult {
+  threadId: string
+  summary: string
+  messageCount: number
+  participants: string[]
+  keyPoints: string[]
 }
 
 /** Full email message (for reader view) */

@@ -12,6 +12,23 @@ function normalize(value?: string): string | undefined {
   return trimmed ? trimmed : undefined
 }
 
+const MICROSOFT_OIDC_SCOPES = new Set(['openid', 'profile', 'email', 'offline_access'])
+
+function normalizeMicrosoftScopes(scopes: string): string {
+  // Prevent ambiguous scope resolution between Microsoft Graph and Exchange Online.
+  // If a scope is not a standard OIDC scope and not already resource-qualified,
+  // treat it as a Microsoft Graph delegated scope.
+  return scopes
+    .split(/\s+/)
+    .filter(Boolean)
+    .map(scope => {
+      if (scope.includes('://')) return scope
+      if (MICROSOFT_OIDC_SCOPES.has(scope)) return scope
+      return `https://graph.microsoft.com/${scope}`
+    })
+    .join(' ')
+}
+
 /** Generate a random string for PKCE */
 function generateRandomString(length: number): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~'
@@ -90,6 +107,14 @@ export const MicrosoftOAuthService = {
     // Store PKCE verifier and state for the callback page
     sessionStorage.setItem('ms_oauth_verifier', verifier)
     sessionStorage.setItem('ms_oauth_state', state)
+    sessionStorage.setItem(
+      'ms_oauth_debug',
+      JSON.stringify({
+        clientId: config.clientId,
+        authority: config.authority,
+        scopes: normalizeMicrosoftScopes(config.scopes)
+      })
+    )
 
     const authorityUrl = `https://login.microsoftonline.com/${config.authority}`
 
@@ -97,7 +122,7 @@ export const MicrosoftOAuthService = {
       client_id: config.clientId,
       response_type: 'code',
       redirect_uri: redirectUri,
-      scope: config.scopes,
+      scope: normalizeMicrosoftScopes(config.scopes),
       response_mode: 'fragment',
       state,
       code_challenge: challenge,

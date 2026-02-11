@@ -5,7 +5,6 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useGetCrmDocuments, getCrmDocumentApiConfig } from '@/business-apps/crm/common/utils/documentUtils'
 import { useCrmDocuments } from '@/business-apps/crm/common/hooks/useCrmDocuments'
-import { createDocumentSectionActions } from '@/common/utils/documentSectionActions'
 
 interface DocumentViewProps extends BusinessAppContextProps {
   opportunityId: string
@@ -44,16 +43,21 @@ export const DocumentView: React.FC<DocumentViewProps> = ({ opportunityId, ...co
     [opportunityId]
   )
 
-  const customActions = useMemo(
-    () =>
-      createDocumentSectionActions({
-        domain: 'customer-relations',
-        documentFieldName: 'crmDocument',
-        entityType: 'opportunity',
-        updateProcessName: 'updateCrmDocument',
-        deleteEndpoint: '/customer-relations/deleteCrmDocument',
-        getTranslation: getTranslationFromI18nKeyAndLabel
-      }),
+  const documentUpdateActionProps = useMemo(
+    () => ({
+      contextsArray: [FlowContextName.customerDocumentUpdate],
+      buildExternalContextData: (document: any) => ({ documentId: document.id }),
+      prefixDataTestId: 'opportunity-document-update'
+    }),
+    []
+  )
+
+  const documentDeleteActionProps = useMemo(
+    () => ({
+      contextsArray: [FlowContextName.customerDocumentDelete],
+      buildExternalContextData: (document: any) => ({ documentId: document.id }),
+      prefixDataTestId: 'opportunity-document-delete'
+    }),
     []
   )
 
@@ -66,9 +70,10 @@ export const DocumentView: React.FC<DocumentViewProps> = ({ opportunityId, ...co
         error={error}
         onRefresh={refetch}
         apiConfig={getCrmDocumentApiConfig('opportunity')}
-        customActions={customActions}
         createFolderActionProps={documentCreateFolderActionProps}
         uploadActionProps={documentUploadActionProps}
+        updateActionProps={documentUpdateActionProps}
+        deleteActionProps={documentDeleteActionProps}
         data-testid="opportunity-document-section"
         accessToken={context.accessToken}
         userInfo={context.userInfo}

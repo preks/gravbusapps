@@ -140,16 +140,16 @@ const AccountSection: React.FC<AccountSectionProps> = ({
   }
 
   const config = {
-    type: 'AppActionButton' as const,
+    type: 'AppAction' as const,
     config: {
+      variant: 'header' as const,
       contextsArray: actionButtonProps.contextsArray || [FlowContextName.customerAccountEntity],
       externalContextData: {
         ...actionButtonProps.externalContextData,
         accountId: accountIdToUse // Override with current page accountId (must come after spread)
       },
       prefixDataTestId: actionButtonProps.prefixDataTestId || 'account-section-action',
-      emptyStateBehavior: 'enable' as const,
-      deferMainContextRequestsUntilClick: true
+      emptyStateBehavior: 'enable' as const
     }
   }
 

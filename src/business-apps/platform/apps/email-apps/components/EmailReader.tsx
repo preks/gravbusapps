@@ -10,6 +10,7 @@ import {
   Button,
   Badge,
   Avatar,
+  AvatarImage,
   AvatarFallback,
   Tooltip,
   TooltipContent,
@@ -31,10 +32,10 @@ import {
 } from 'lucide-react'
 import { EmailApiService } from '../services/EmailApiService'
 import { EmailThreadView } from './EmailThreadView'
+import { EmailCrmBooking } from './EmailCrmBooking'
+import { useSenderAvatar } from '../hooks/useSenderAvatar'
 import { getInitials, formatFullDate, formatFileSize } from '../utils/emailDisplayUtils'
-import type { EmailMessage, ComposeMode } from '../types'
-
-const THREAD_VIEW_KEY = 'email-thread-view-enabled'
+import type { EmailMessage, EmailAccount, ComposeMode } from '../types'
 
 interface EmailReaderProps {
   message: EmailMessage | null
@@ -42,6 +43,12 @@ interface EmailReaderProps {
   onDelete: (id: string) => void
   onToggleStar: (id: string) => void
   onArchive: (id: string) => void
+  accessToken?: string
+  activeAccount?: EmailAccount | null
+  employeeId?: string
+  /** Conversation / thread view toggle (controlled by parent) */
+  threadEnabled?: boolean
+  onToggleThreadView?: () => void
   'data-testid'?: string
 }
 
@@ -51,22 +58,24 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
   onDelete,
   onToggleStar,
   onArchive,
+  accessToken,
+  activeAccount,
+  employeeId,
+  threadEnabled = false,
+  onToggleThreadView,
   'data-testid': testId = 'email-reader'
 }) => {
   const bodyRef = useRef<HTMLDivElement>(null)
   const [downloadingAttId, setDownloadingAttId] = useState<string | null>(null)
-  const [threadEnabled, setThreadEnabled] = useState(() => localStorage.getItem(THREAD_VIEW_KEY) === 'true')
   const [threadMessages, setThreadMessages] = useState<EmailMessage[]>([])
   const [isLoadingThread, setIsLoadingThread] = useState(false)
   const lastThreadIdRef = useRef<string | null>(null)
 
+  const senderAvatar = useSenderAvatar(message?.fromAddress?.address, accessToken)
+
   const toggleThreadView = useCallback(() => {
-    setThreadEnabled(prev => {
-      const next = !prev
-      localStorage.setItem(THREAD_VIEW_KEY, String(next))
-      return next
-    })
-  }, [])
+    onToggleThreadView?.()
+  }, [onToggleThreadView])
 
   // Fetch thread when enabled and message has a threadId
   useEffect(() => {
@@ -78,6 +87,7 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
     // Avoid refetching the same thread
     if (lastThreadIdRef.current === message.threadId) return
     lastThreadIdRef.current = message.threadId
+    setThreadMessages([]) // Clear stale thread immediately when switching to different thread
 
     let cancelled = false
     setIsLoadingThread(true)
@@ -104,7 +114,8 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
     }
   }, [message?.htmlBody])
 
-  const showThread = threadEnabled && threadMessages.length > 1
+  const showThread =
+    threadEnabled && threadMessages.length > 1 && !!message?.threadId && lastThreadIdRef.current === message.threadId
 
   const handleDownloadAttachment = useCallback(async (messageId: string, attachmentId: string) => {
     setDownloadingAttId(attachmentId)
@@ -143,7 +154,7 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
   const toNames = message.toAddresses.map(a => a.name || a.address).join(', ')
 
   return (
-    <div className="gba:flex-1 gba:flex gba:flex-col gba:min-w-0 gba:overflow-hidden" data-testid={testId}>
+    <div className="gba:flex-1 gba:flex gba:flex-col gba:min-w-0 gba:min-h-0 gba:overflow-hidden" data-testid={testId}>
       {/* Toolbar */}
       <div className="gba:flex gba:items-center gba:gap-1 gba:px-4 gba:py-2 gba:border-b gba:bg-card">
         <TooltipProvider>
@@ -233,7 +244,7 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
       </div>
 
       {/* Email content */}
-      <div className="gba:flex-1 gba:overflow-y-auto gba:p-6">
+      <div className="gba:flex-1 gba:min-h-0 gba:overflow-y-auto gba:p-6">
         {/* Subject */}
         <div className="gba:flex gba:items-start gba:gap-3 gba:mb-4">
           <h2 className="gba:text-xl gba:font-semibold gba:text-foreground gba:flex-1">
@@ -256,12 +267,13 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
 
         {/* Thread view OR single-message view */}
         {showThread ? (
-          <EmailThreadView messages={threadMessages} data-testid={`${testId}-thread`} />
+          <EmailThreadView messages={threadMessages} accessToken={accessToken} data-testid={`${testId}-thread`} />
         ) : (
           <>
             {/* Sender info */}
             <div className="gba:flex gba:items-start gba:gap-3 gba:mb-6 gba:pb-4 gba:border-b">
               <Avatar className="gba:w-10 gba:h-10">
+                {senderAvatar && <AvatarImage src={senderAvatar} alt={from.name || from.address} />}
                 <AvatarFallback className="gba:bg-primary/10 gba:text-primary gba:text-sm">
                   {getInitials(from.name, from.address)}
                 </AvatarFallback>
@@ -282,6 +294,7 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
             {/* Body */}
             {message.htmlBody ? (
               <div
+                key={message.id}
                 ref={bodyRef}
                 className="gba:prose gba:prose-sm gba:max-w-none gba:text-foreground"
                 data-testid={`${testId}-body`}
@@ -309,7 +322,7 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
                             key={att.id}
                             onClick={() => handleDownloadAttachment(message.id, att.id)}
                             disabled={downloadingAttId === att.id}
-                            className="gba:flex gba:items-center gba:gap-2 gba:px-3 gba:py-2 gba:rounded-lg gba:border gba:bg-muted/30 hover:gba:bg-muted/50 gba:cursor-pointer gba:transition-colors disabled:gba:opacity-50"
+                            className="gba:flex gba:items-center gba:gap-2 gba:px-3 gba:py-2 gba:rounded-lg gba:border gba:bg-muted/30 gba:hover:bg-muted/50 gba:cursor-pointer gba:transition-colors gba:disabled:opacity-50"
                             data-testid={`${testId}-attachment-${att.id}`}
                           >
                             <Paperclip className="gba:w-4 gba:h-4 gba:text-muted-foreground" />
@@ -336,6 +349,17 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
           </>
         )}
       </div>
+
+      {/* CRM Booking Panel */}
+      {accessToken && (
+        <EmailCrmBooking
+          message={message}
+          accessToken={accessToken}
+          activeAccount={activeAccount}
+          employeeId={employeeId}
+          data-testid={`${testId}-crm-booking`}
+        />
+      )}
     </div>
   )
 }

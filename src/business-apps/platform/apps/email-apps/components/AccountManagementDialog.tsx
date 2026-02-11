@@ -33,8 +33,6 @@ import { AccountStatusBadge } from './AccountStatusBadge'
 import { formatRelativeTime } from '../utils/emailDisplayUtils'
 import type { EmailAccount } from '../types'
 
-const THREAD_VIEW_KEY = 'email-thread-view-enabled'
-
 interface AccountManagementDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -42,6 +40,8 @@ interface AccountManagementDialogProps {
   onAccountsChanged: () => void
   onAddAccount: () => void
   onOpenAdminSettings?: () => void
+  threadViewEnabled?: boolean
+  onToggleThreadView?: () => void
   'data-testid'?: string
 }
 
@@ -52,18 +52,15 @@ export const AccountManagementDialog: React.FC<AccountManagementDialogProps> = (
   onAccountsChanged,
   onAddAccount,
   onOpenAdminSettings,
+  threadViewEnabled = false,
+  onToggleThreadView,
   'data-testid': testId = 'account-management'
 }) => {
   const [deletingAccountId, setDeletingAccountId] = useState<string | null>(null)
   const [reconnectingAccountId, setReconnectingAccountId] = useState<string | null>(null)
-  const [threadViewEnabled, setThreadViewEnabled] = useState(() => localStorage.getItem(THREAD_VIEW_KEY) === 'true')
 
   const handleToggleThreadView = () => {
-    setThreadViewEnabled(prev => {
-      const next = !prev
-      localStorage.setItem(THREAD_VIEW_KEY, String(next))
-      return next
-    })
+    onToggleThreadView?.()
   }
 
   const handleReconnect = async (account: EmailAccount) => {
@@ -79,25 +76,22 @@ export const AccountManagementDialog: React.FC<AccountManagementDialogProps> = (
       const providerConfig = tenantSettings.find(s => s.provider === providerKey)
 
       if (account.provider === 'microsoft') {
-        const config = MicrosoftOAuthService.buildConfig(providerConfig?.publicConfig)
-        const authResult = await MicrosoftOAuthService.startAuth(config)
-        await EmailProviderSettingsApi.exchangeMicrosoftCode({
-          code: authResult.code,
-          codeVerifier: authResult.codeVerifier,
-          redirectUri: authResult.redirectUri
-        })
+        if (!providerConfig?.isEnabled) {
+          toast.error('Microsoft provider is not enabled. Please ask your admin to enable it in provider settings.')
+          return
+        }
+        const config = MicrosoftOAuthService.buildConfig(providerConfig.publicConfig)
+        // Redirect flow — callback page completes the code exchange.
+        return await MicrosoftOAuthService.startAuth(config)
       } else {
-        const config = GoogleOAuthService.buildConfig(providerConfig?.publicConfig)
-        const authResult = await GoogleOAuthService.startAuth(config)
-        await EmailProviderSettingsApi.exchangeGoogleCode({
-          code: authResult.code,
-          codeVerifier: authResult.codeVerifier,
-          redirectUri: authResult.redirectUri
-        })
+        if (!providerConfig?.isEnabled) {
+          toast.error('Google provider is not enabled. Please ask your admin to enable it in provider settings.')
+          return
+        }
+        const config = GoogleOAuthService.buildConfig(providerConfig.publicConfig)
+        // Redirect flow — callback page completes the code exchange.
+        return await GoogleOAuthService.startAuth(config)
       }
-
-      toast.success('Account reconnected successfully!')
-      onAccountsChanged()
     } catch (err) {
       console.error('[AccountManagement] Reconnect error:', err)
       toast.error(err instanceof Error ? err.message : 'Failed to reconnect account')

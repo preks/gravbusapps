@@ -2,7 +2,18 @@ import React, { useMemo } from 'react'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
 import { ChangeLogEntry as ChangeLogEntryType } from '../../ChangeLogTab'
 import { getFieldCategories } from './constants'
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@newwork/nw-design-system'
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  Item,
+  ItemContent,
+  ItemTitle,
+  ItemDescription,
+  ItemActions,
+  ItemFooter
+} from '@newwork/nw-design-system'
 
 interface ChangeLogEntryProps {
   entry: ChangeLogEntryType
@@ -27,36 +38,36 @@ export const ChangeLogEntry: React.FC<ChangeLogEntryProps> = ({ entry }) => {
 
   return (
     <>
-      <div
-        className="gba:h-full gba:bg-card gba:text-card-foreground gba:border gba:border-border gba:rounded-lg gba:shadow-md gba:hover:shadow-lg gba:transition-all gba:overflow-hidden gba:cursor-pointer"
-        data-testid={`change-log-card-${entry.id}`}
-        onClick={() => setOpen(true)}
-        role="button"
-        tabIndex={0}
-      >
-        <div className="gba:p-4">
-          <div className="gba:flex gba:justify-between gba:items-start">
-            <div className="gba:flex-1">
-              <h4 className="gba:font-bold gba:text-base gba:mb-1">{entry.fieldName}</h4>
-              <div className="gba:text-sm gba:text-muted-foreground">{categoryInfo?.label}</div>
-            </div>
-            <div className="gba:flex gba:items-center gba:gap-2">
+      <Item variant="muted" size="sm" asChild>
+        <button
+          onClick={() => setOpen(true)}
+          className="gba:text-left gba:h-full"
+          data-testid={`change-log-card-${entry.id}`}
+        >
+          <ItemContent>
+            <ItemTitle>{entry.fieldName}</ItemTitle>
+            <ItemDescription>{categoryInfo?.label}</ItemDescription>
+          </ItemContent>
+          <ItemActions>
+            <div className="gba:flex gba:flex-col gba:items-end gba:gap-1">
               {entry.changeOrigin.isAIGenerated && (
                 <span className="gba:inline-flex gba:items-center gba:px-2 gba:py-1 gba:rounded-full gba:text-xs gba:font-medium gba:bg-info-secondary gba:text-info-secondary-foreground">
                   AI
                 </span>
               )}
-              <span className="gba:text-sm gba:text-muted-foreground">
+              <span className="gba:text-xs gba:text-muted-foreground">
                 {safeFormatDate(entry.timestamp, 'date.short')}
               </span>
             </div>
-          </div>
-          <div className="gba:mt-2 gba:text-sm gba:text-muted-foreground">
-            {getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.privacy.created_by', 'Created by')}{' '}
-            {entry.changedBy.userName || entry.changedBy.userId}
-          </div>
-        </div>
-      </div>
+          </ItemActions>
+          <ItemFooter>
+            <span className="gba:text-xs gba:text-muted-foreground">
+              {getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.privacy.created_by', 'Created by')}{' '}
+              {entry.changedBy.userName || entry.changedBy.userId}
+            </span>
+          </ItemFooter>
+        </button>
+      </Item>
 
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent

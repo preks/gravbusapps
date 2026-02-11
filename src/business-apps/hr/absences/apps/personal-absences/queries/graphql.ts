@@ -111,6 +111,27 @@ export const GET_ENTITLEMENTS_SNAPSHOT = `
   }
 `
 
+export const GET_ENTITLEMENTS_SNAPSHOT_FOR_YEAR = `
+  query EntitlementsSnapshotForYear($employeeId: uuid!, $yearStart: date!, $yearEnd: date!) {
+    EntitlementUsageSnapshotView(
+      where: {
+        employeeId: { _eq: $employeeId }
+        periodStart: { _lte: $yearEnd }
+        periodEnd: { _gte: $yearStart }
+      }
+      orderBy: [{ typeRef: ASC }, { periodStart: ASC }]
+    ) {
+      typeRef
+      totalEntitlement
+      usedApproved
+      usedPending
+      remaining
+      periodStart
+      periodEnd
+    }
+  }
+`
+
 export const GET_EMPLOYEE_ENTITLEMENTS = `
     query GetEmployeeEntitlements($employeeId: uuid!, $activeUserLocale: String!) {
         EmployeeAbsenceEntitlement(where: {employeeId: {_eq: $employeeId}}) {
