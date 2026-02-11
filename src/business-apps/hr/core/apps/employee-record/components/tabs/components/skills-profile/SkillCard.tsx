@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger,
   Progress
 } from '@newwork/nw-design-system'
-import { DotsThreeVertical } from '@phosphor-icons/react'
+import { DotsThree } from '@phosphor-icons/react'
 import { AppAction } from '@/components/app-action/AppAction'
 import {
   EmployeeSkillItem,
@@ -43,7 +43,7 @@ export const SkillCard: React.FC<SkillCardProps> = ({ skill, accessToken, update
   const category = getSkillCategory(skill.skill.additionalProperties)
   const createdLabel = getTimeSince(skill.createdAt || skill.skill.createdAt || '')
   const updatedLabel = getTimeSince(skill.updatedAt || skill.skill.updatedAt || '')
-  const visibilityLabel = skill.acl != null ? getVisibilityLabel(skill.acl) : null
+  const visibilityLabel = skill.acl == null ? null : getVisibilityLabel(skill.acl)
 
   return (
     <Card className="gba:h-full gba:overflow-visible" data-testid={`skills-profile-card-${skill.skill.id}`}>
@@ -120,7 +120,7 @@ export const SkillCard: React.FC<SkillCardProps> = ({ skill, accessToken, update
                 aria-label={t('skills-profile-more-actions')}
                 data-testid={`skills-profile-more-actions-${skill.skill.id}`}
               >
-                <DotsThreeVertical className="gba:h-4 gba:w-4" />
+                <DotsThree className="gba:h-4 gba:w-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent
@@ -130,20 +130,18 @@ export const SkillCard: React.FC<SkillCardProps> = ({ skill, accessToken, update
               style={{ maxHeight: 'none' }}
             >
               {!isVerified && (
-                <DropdownMenuItem className="gba:py-2 gba:px-3 gba:cursor-default" disabled>
-                  <span
-                    className="gba:block gba:text-left gba:w-full gba:text-muted-foreground"
-                    data-testid={`skills-profile-attach-verification-${skill.skill.id}`}
-                  >
-                    {t('skills-action-attach-verification')}
-                  </span>
+                <DropdownMenuItem
+                  className="gba:py-2 gba:px-3"
+                  data-testid={`skills-profile-attach-verification-${skill.skill.id}`}
+                >
+                  <span className="gba:block gba:text-left gba:w-full">{t('skills-action-attach-verification')}</span>
                 </DropdownMenuItem>
               )}
-              <DropdownMenuItem className="gba:py-2 gba:px-3 gba:cursor-default" disabled>
-                <span
-                  className="gba:block gba:text-left gba:w-full gba:text-muted-foreground"
-                  data-testid={`skills-profile-toggle-active-${skill.skill.id}`}
-                >
+              <DropdownMenuItem
+                className="gba:py-2 gba:px-3"
+                data-testid={`skills-profile-toggle-active-${skill.skill.id}`}
+              >
+                <span className="gba:block gba:text-left gba:w-full">
                   {isActive ? t('skills-action-deactivate') : t('skills-action-reactivate')}
                 </span>
               </DropdownMenuItem>

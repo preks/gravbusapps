@@ -80,7 +80,7 @@ export const SkillsDevelopmentPanel: React.FC<SkillsDevelopmentPanelProps> = ({
     [t]
   )
 
-  const hasDistribution = chartData.length > 0 && chartData.some(d => d.count > 0)
+  const hasDistribution = chartData.some(d => d.count > 0)
 
   return (
     <div className="gba:space-y-4" data-testid="skills-development-panel">
@@ -98,9 +98,7 @@ export const SkillsDevelopmentPanel: React.FC<SkillsDevelopmentPanelProps> = ({
           <CardTitle className="gba:text-base">{t('skills-development-distribution')}</CardTitle>
         </CardHeader>
         <CardContent>
-          {!hasDistribution ? (
-            <p className="gba:text-sm gba:text-muted-foreground">{t('skills-development-distribution-empty')}</p>
-          ) : (
+          {hasDistribution ? (
             <ChartContainer config={chartConfig} className="gba:h-[180px] gba:w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartData} margin={{ left: 0, right: 8, top: 4, bottom: 4 }}>
@@ -111,6 +109,8 @@ export const SkillsDevelopmentPanel: React.FC<SkillsDevelopmentPanelProps> = ({
                 </BarChart>
               </ResponsiveContainer>
             </ChartContainer>
+          ) : (
+            <p className="gba:text-sm gba:text-muted-foreground">{t('skills-development-distribution-empty')}</p>
           )}
         </CardContent>
       </Card>
