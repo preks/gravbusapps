@@ -21,7 +21,7 @@ import {
   RefreshCw
 } from 'lucide-react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { AutoInitConfig, CreateAutoInitConfigRequest, UpdateAutoInitConfigRequest } from '../types/admin'
+import { AutoInitConfig, CreateAutoInitConfigRequest, UpdateAutoInitConfigRequest } from '../../../types/admin'
 import { builderClient, type IndexingStatus } from '@/common/network/ai/builder'
 
 interface AdminSettingsProps {

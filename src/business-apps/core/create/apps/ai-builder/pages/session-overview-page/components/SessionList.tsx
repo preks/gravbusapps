@@ -4,8 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-sys
 import { Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
 import { Plus, Clock, FileCode, Search, Trash2, Folder, Settings } from 'lucide-react'
 import { DebouncedInput } from '@/components/debounced-input'
-import { SessionMetadata } from '../types/session'
-import { IndexingProgress } from './IndexingProgress'
+import { SessionMetadata } from '../../../types/session'
+import { IndexingProgress } from '../../../components/IndexingProgress'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface SessionListProps {

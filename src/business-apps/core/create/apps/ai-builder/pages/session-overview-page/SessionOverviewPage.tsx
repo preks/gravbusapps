@@ -1,8 +1,9 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { AlertCircle } from 'lucide-react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { SessionList } from '../../components/SessionList'
+import { SessionList } from './components/SessionList'
 import { SessionMetadata } from '../../types/session'
+import { AdminSettings } from './components/AdminSettings'
 
 export interface SessionOverviewPageProps {
   repositoryId: string
@@ -11,19 +12,26 @@ export interface SessionOverviewPageProps {
   onSelectSession: (sessionId: string) => void
   onCreateSession: () => void
   onDeleteSession: (sessionId: string) => Promise<void>
-  onOpenSettings: () => void
-  disabled: boolean
 }
 
 export const SessionOverviewPage: React.FC<SessionOverviewPageProps> = ({
+  repositoryId,
   configMessage,
   sessions,
   onSelectSession,
   onCreateSession,
-  onDeleteSession,
-  onOpenSettings,
-  disabled
+  onDeleteSession
 }) => {
+  const [showAdminSettings, setShowAdminSettings] = useState(false)
+
+  if (showAdminSettings) {
+    return <AdminSettings onClose={() => setShowAdminSettings(false)} />
+  }
+
+  const disabled = !repositoryId
+  const handleOpenSettings = () => setShowAdminSettings(true)
+  const handleCreateSession = disabled ? handleOpenSettings : onCreateSession
+
   return (
     <div className="gba:flex gba:flex-col gba:h-full">
       {configMessage && (
@@ -34,7 +42,7 @@ export const SessionOverviewPage: React.FC<SessionOverviewPageProps> = ({
               <span className="gba:text-sm gba:text-amber-800 dark:gba:text-amber-200">{configMessage}</span>
             </div>
             <button
-              onClick={onOpenSettings}
+              onClick={handleOpenSettings}
               className="gba:text-sm gba:font-medium gba:text-amber-700 dark:gba:text-amber-300 hover:gba:underline"
             >
               {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.open_settings', 'Open Settings')}
@@ -46,9 +54,9 @@ export const SessionOverviewPage: React.FC<SessionOverviewPageProps> = ({
         <SessionList
           sessions={sessions}
           onSelectSession={onSelectSession}
-          onCreateSession={onCreateSession}
+          onCreateSession={handleCreateSession}
           onDeleteSession={onDeleteSession}
-          onOpenSettings={onOpenSettings}
+          onOpenSettings={handleOpenSettings}
           disabled={disabled}
         />
       </div>
