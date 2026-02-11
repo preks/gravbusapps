@@ -1,6 +1,25 @@
 import axios, { AxiosInstance } from 'axios'
 import type { User, Conversation, Message, PaginatedResponse, ConversationType } from '../types'
 
+type NormalizedConversationsResponse = PaginatedResponse<Conversation>
+
+// In-flight request deduplication to prevent duplicate network calls (e.g. React StrictMode).
+const inFlightConversationsRequests = new Map<string, Promise<NormalizedConversationsResponse>>()
+
+// Short-lived response cache to avoid sequential duplicate loads (e.g. StrictMode remount).
+const conversationsResponseCache = new Map<string, { ts: number; value: NormalizedConversationsResponse }>()
+const CONVERSATIONS_CACHE_TTL_MS = 1000
+
+function hashToken(token: string): number {
+  // Non-cryptographic hash used only for in-memory request keys.
+  // Never log tokens or this hash.
+  let hash = 5381
+  for (let i = 0; i < token.length; i++) {
+    hash = (hash * 33) ^ token.charCodeAt(i)
+  }
+  return hash >>> 0
+}
+
 export class ChatApiClient {
   private client: AxiosInstance
   private token: string | null = null
@@ -58,28 +77,64 @@ export class ChatApiClient {
 
   // Conversation endpoints
   async getConversations(page: number = 1, limit: number = 20) {
-    const response = await this.client.get<
-      | PaginatedResponse<Conversation>
-      | { conversations: Conversation[]; total: number; page: number; limit: number; totalPages: number }
-    >('/conversations', {
-      params: {
-        page,
-        limit
-      }
-      // Removed aggressive cache-busting for performance
-      // WebSocket updates handle real-time changes, so HTTP caching is safe
-    })
-    // Backend returns { conversations: [...] } but we expect { data: [...] }
-    if ('conversations' in response.data) {
-      return {
-        data: response.data.conversations,
-        total: response.data.total,
-        page: response.data.page,
-        limit: response.data.limit,
-        totalPages: response.data.totalPages
-      }
+    const baseURL = this.client.defaults.baseURL ?? ''
+    const tokenKey = this.token ? String(hashToken(this.token)) : 'no-token'
+    const key = `${baseURL}|${tokenKey}|${page}|${limit}`
+
+    const cached = conversationsResponseCache.get(key)
+    if (cached && Date.now() - cached.ts < CONVERSATIONS_CACHE_TTL_MS) {
+      return cached.value
     }
-    return response.data
+
+    const existing = inFlightConversationsRequests.get(key)
+    if (existing) {
+      return existing
+    }
+
+    const requestPromise: Promise<NormalizedConversationsResponse> = this.client
+      .get<
+        | PaginatedResponse<Conversation>
+        | { conversations: Conversation[]; total: number; page: number; limit: number; totalPages: number }
+      >('/conversations', {
+        params: {
+          page,
+          limit
+        }
+        // Removed aggressive cache-busting for performance
+        // WebSocket updates handle real-time changes, so HTTP caching is safe
+      })
+      .then(response => {
+        // Backend returns { conversations: [...] } but we expect { data: [...] }
+        const normalized: NormalizedConversationsResponse =
+          'conversations' in response.data
+            ? {
+                data: response.data.conversations,
+                total: response.data.total,
+                page: response.data.page,
+                limit: response.data.limit,
+                totalPages: response.data.totalPages
+              }
+            : response.data
+
+        conversationsResponseCache.set(key, { ts: Date.now(), value: normalized })
+        if (conversationsResponseCache.size > 50) {
+          // Best-effort bound to avoid unbounded growth.
+          const firstKey = conversationsResponseCache.keys().next().value
+          if (firstKey) {
+            conversationsResponseCache.delete(firstKey)
+          }
+        }
+
+        return normalized
+      })
+      .finally(() => {
+        if (inFlightConversationsRequests.get(key) === requestPromise) {
+          inFlightConversationsRequests.delete(key)
+        }
+      })
+
+    inFlightConversationsRequests.set(key, requestPromise)
+    return requestPromise
   }
 
   async getConversationById(conversationId: string) {
