@@ -9,7 +9,7 @@ interface LowcoderScreenLoaderProps extends BusinessAppContextProps {
   appName: string
   onClose: () => void
   onTaskCompleted?: (taskId: string) => void
-  onTaskUpdated: () => void
+  onTaskUpdated?: (payload?: unknown) => void
 }
 
 const LOWCODER_BASE_URL = 'https://newwork-dev.newwork.com/lowcoder'
@@ -84,7 +84,14 @@ export const LowcoderScreenLoader: React.FC<LowcoderScreenLoaderProps> = ({
           onTaskCompleted(event.data.taskId)
         }
         if (onTaskUpdated) {
-          onTaskUpdated()
+          const payload =
+            event.data?.payload ??
+            event.data?.formData ??
+            event.data?.data ??
+            event.data?.variables ??
+            event.data?.result ??
+            undefined
+          onTaskUpdated(payload)
         }
         if (onClose) {
           onClose()

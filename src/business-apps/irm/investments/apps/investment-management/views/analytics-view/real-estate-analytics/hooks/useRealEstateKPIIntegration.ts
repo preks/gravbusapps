@@ -28,19 +28,32 @@ export interface RealEstateKPIIntegration {
  */
 export const useRealEstateKPIIntegration = (
   context: BusinessAppContextProps,
-  currency?: string
+  currency?: string,
+  filters?: Record<string, any>,
+  enabled: boolean = true
 ): RealEstateKPIIntegration => {
-  const { fetchRealEstateKPIs } = useGetRealEstateKPIs(context, currency)
+  const { fetchRealEstateKPIs } = useGetRealEstateKPIs(context)
+
+  // Calculate comparison date (91 days ago)
+  const comparisonDate = new Date()
+  comparisonDate.setDate(comparisonDate.getDate() - 91)
+  const comparisonDateString = comparisonDate.toISOString()
+
+  // Wrapper that calls fetchRealEstateKPIs with the right parameters
+  const fetcher = async () => {
+    return await fetchRealEstateKPIs(comparisonDateString, currency, filters)
+  }
 
   return useKPIIntegration<RealEstateKPIData>(
     context,
-    fetchRealEstateKPIs,
+    fetcher,
     {
       totalInvestments: 0,
       totalAmountInvested: 0,
       totalMarketValue: 0,
       averageOccupancyRate: 0
     },
-    [currency]
+    [currency, filters],
+    enabled
   )
 }

@@ -14,4 +14,8 @@ suffix-thousand = K
 total-salary = Total Salary
 department-salary-stacked-bar-chart-title = Department Salary Stacked Bar Chart
 
+# Chart states (shared)
+hr-data-filter-error = Error loading data
+hr-data-filter-no-data = No data available
+
 

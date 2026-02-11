@@ -8,7 +8,7 @@ import {
   useLocale,
   Button
 } from '@newwork/nw-design-system'
-import { Video, MapPin, Users, Clock, Check, X, HelpCircle, Phone } from 'lucide-react'
+import { Video, MapPin, Users, Clock, Check, X, HelpCircle, Phone, Globe } from 'lucide-react'
 import type { CalendarEvent, InvitationStatus, MeetingStatus } from '../types'
 
 interface CalendarEventItemProps {
@@ -228,6 +228,9 @@ export const CalendarEventItem: React.FC<CalendarEventItemProps> = ({
           {/* Title and status */}
           {showTitle && (
             <div className="gba:flex gba:items-center gba:gap-1 gba:mb-0.5">
+              {event.source && event.source !== 'internal' && (
+                <Globe className="gba:h-3 gba:w-3 gba:text-info gba:flex-shrink-0" />
+              )}
               <h4 className="gba:font-semibold gba:text-xs gba:text-foreground gba:truncate gba:flex-1">
                 {event.title}
               </h4>
@@ -237,6 +240,11 @@ export const CalendarEventItem: React.FC<CalendarEventItemProps> = ({
                   className="gba:bg-success gba:text-success-foreground gba:text-[8px] gba:px-1 gba:py-0 gba:flex-shrink-0"
                 >
                   Live
+                </Badge>
+              )}
+              {event.source && event.source !== 'internal' && (
+                <Badge variant="secondary" className="gba:text-[8px] gba:px-1 gba:py-0 gba:flex-shrink-0">
+                  {event.source === 'microsoft' ? 'MS' : 'G'}
                 </Badge>
               )}
               {!event.isOrganizer && event.participantStatus && (

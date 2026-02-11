@@ -134,13 +134,12 @@ export const buildInvestmentSubtypePayload = (params: {
       ...existingLiquidFund,
       additionalProperties: updatedSubtypeAdditionalProperties
     }
-  } else if (groupType === 'PRIVATE_EQUITY') {
-    const existingPrivateEquity = Array.isArray((investment as any).privateEquityInvestment)
-      ? (investment as any).privateEquityInvestment[0]
-      : (investment as any).privateEquityInvestment
-    investmentFormData.privateEquityInvestment = {
-      ...existingPrivateEquity,
-      additionalProperties: updatedSubtypeAdditionalProperties
+  } else {
+    // Generic groups (PRIVATE_EQUITY, TEST, etc.) have no dedicated table
+    // additionalProperties go on main investment entity
+    investmentFormData.investment.additionalProperties = {
+      ...investment.additionalProperties,
+      ...updatedSubtypeAdditionalProperties
     }
   }
 

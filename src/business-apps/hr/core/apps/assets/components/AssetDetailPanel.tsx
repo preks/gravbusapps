@@ -11,7 +11,8 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-  Separator
+  Separator,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { CalendarIcon, MapPinIcon, TagIcon, CurrencyDollarIcon } from '@phosphor-icons/react'
 import { AppActionButton } from '@/components/app-action-button/AppActionButton'
@@ -32,6 +33,7 @@ import relativeTime from 'dayjs/plugin/relativeTime'
 import 'dayjs/locale/en'
 import 'dayjs/locale/de'
 import 'dayjs/locale/ro'
+import assetsTranslations from '../_i18n'
 
 dayjs.extend(relativeTime)
 
@@ -113,6 +115,7 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
 }) => {
   if (!asset) return null
 
+  const { t } = useTranslation(assetsTranslations)
   const { options: conditionOptions } = useAssetConditionCatalog({ accessToken } as BusinessAppContextProps)
 
   const conditionLookup = useMemo(() => {
@@ -202,7 +205,7 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
   const sortedAllocations = [...allocations].sort((a, b) => dayjs(b.startDate).diff(dayjs(a.startDate)))
 
   return (
-    <Sheet open={isOpen} onOpenChange={onClose} title="">
+    <Sheet open={isOpen} onOpenChange={onClose}>
       <SheetContent
         className="gba:w-full sm:gba:max-w-xl gba:flex gba:flex-col gba:p-0 gba:h-full"
         data-testid="asset-detail-panel"
@@ -354,9 +357,7 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
                 <Separator />
 
                 <div>
-                  <p className="gba:text-sm gba:font-medium">
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.expiry_date', 'Expiry Date')}
-                  </p>
+                  <p className="gba:text-sm gba:font-medium">{t('end-of-warranty-period')}</p>
                   <p className="gba:text-sm gba:text-muted-foreground" data-testid="warranty-expiry-date">
                     {formatDate(warrantyExpiryDate.toISOString()) || warrantyExpiryDate.toISOString()}
                     {!warrantyExpired && <span className="gba:text-xs gba:ml-2">({warrantyExpiryDate.fromNow()})</span>}

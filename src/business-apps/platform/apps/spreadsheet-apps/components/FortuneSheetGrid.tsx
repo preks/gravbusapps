@@ -31,6 +31,14 @@ export interface FortuneSheetGridProps {
   onDataChange: (data: Record<string, unknown>[]) => void
   /** Callback when a new column needs to be created (auto-column creation) */
   onColumnAdd?: (columnIndex: number, initialValue?: unknown, rowIndex?: number) => void
+  /** Callback when columns are inserted via context menu (insert left/right) */
+  onColumnsInsert?: (insertIndex: number, count: number, direction: 'lefttop' | 'rightbottom') => void
+  /** Callback when columns are deleted via context menu */
+  onColumnsDelete?: (startIndex: number, endIndex: number) => void
+  /** Callback when rows are inserted via context menu */
+  onRowsInsert?: (insertIndex: number, count: number, direction: 'lefttop' | 'rightbottom') => void
+  /** Callback when rows are deleted via context menu */
+  onRowsDelete?: (startIndex: number, endIndex: number) => void
   /** Callback when formula is evaluated */
   onFormulaEvaluated?: (rowId: string, columnId: string, result: unknown) => void
   /** Active participants in collaboration */
@@ -66,6 +74,10 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
       onCellChange,
       onDataChange,
       onColumnAdd,
+      onColumnsInsert,
+      onColumnsDelete,
+      onRowsInsert,
+      onRowsDelete,
       participants = [],
       onOperationEmit = () => {},
       onCursorEmit = () => {},
@@ -75,8 +87,10 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
     // Track if we're currently processing a local edit (to prevent feedback loops)
     const isLocalEditRef = useRef(false)
 
-    // Track pending row creations to prevent infinite loops
-    const pendingRowCreations = useRef<Set<number>>(new Set())
+    // Accumulate cell values for new rows (multi-cell paste into empty rows).
+    // Uses a single flush timer for all pending rows to prevent timer-ordering races.
+    const pendingNewRowCells = useRef<Map<number, Record<string, unknown>>>(new Map())
+    const pendingNewRowFlushTimer = useRef<NodeJS.Timeout | null>(null)
 
     // Track pending column creations to prevent infinite loops
     const pendingColumnCreations = useRef<Set<number>>(new Set())
@@ -356,7 +370,14 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
           // Handle cell changes for callbacks
           // Path format: ['data', rowIndex, colIndex] for cell value
           // Or: ['data', rowIndex, colIndex, 'propertyName'] for cell properties (fc=fontColor, bg=background, etc.)
-          if (op.op === 'replace' && op.path.length >= 3 && op.path[0] === 'data') {
+          // Note: FortuneSheet emits 'replace' for overwriting existing cells, 'add' for
+          // populating empty/null cells (e.g. during paste), and 'remove' for clearing cells
+          // (e.g. Delete key, Clear context menu, or undo of a paste). All must be persisted.
+          if (
+            (op.op === 'replace' || op.op === 'add' || op.op === 'remove') &&
+            op.path.length >= 3 &&
+            op.path[0] === 'data'
+          ) {
             const rowIndex = op.path[1] as number
             const colIndex = op.path[2] as number
 
@@ -376,13 +397,17 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
             const columnId = context.columnIndexToId.get(colIndex)
 
             // Extract cell value - handle both direct values and cell objects
+            // For 'remove' ops (cell clear, undo), the cell should become null
             let cellValue = op.value
-            if (cellValue && typeof cellValue === 'object' && 'v' in cellValue) {
+            if (op.op === 'remove') {
+              cellValue = null
+            } else if (cellValue && typeof cellValue === 'object' && 'v' in cellValue) {
               cellValue = (cellValue as { v: unknown }).v
             }
 
             // Handle new column - user edited beyond existing columns (auto-create)
             if (!columnId) {
+              // Auto-create column when user edits beyond existing columns
               // Auto-create column when user edits beyond existing columns
               if (pendingColumnCreations.current.has(colIndex)) {
                 return // Already creating this column
@@ -402,41 +427,74 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
               return
             }
 
-            // Handle new row - auto-create it when user edits beyond existing data
+            // Handle new row - auto-create it when user edits beyond existing data.
+            // Accumulate all cell values first (e.g. multi-cell paste) then create
+            // all rows at once, sorted by index, to prevent timer-ordering races.
             if (!rowId && columnId) {
-              if (pendingRowCreations.current.has(rowIndex)) {
+              // For 'remove' ops targeting non-existent rows (e.g. undo of paste
+              // into new rows), there's nothing to clear — just cancel any pending
+              // creation for this row if all its values are being removed.
+              if (op.op === 'remove') {
+                const pending = pendingNewRowCells.current.get(rowIndex)
+                if (pending) {
+                  const column = columns.find(c => c.id === columnId)
+                  const columnName = column?.name || columnId
+                  delete pending[columnName]
+                  // If all cells for this pending row were removed, cancel it entirely
+                  if (Object.keys(pending).length === 0) {
+                    pendingNewRowCells.current.delete(rowIndex)
+                  }
+                }
                 return
               }
-
-              pendingRowCreations.current.add(rowIndex)
 
               const column = columns.find(c => c.id === columnId)
               const columnName = column?.name || columnId
 
-              if (onDataChange) {
-                const newRow: Record<string, unknown> = { [columnName]: cellValue }
-                columns.forEach(col => {
-                  if (col.name !== columnName) {
-                    newRow[col.name] = col.defaultValue ?? ''
-                  }
-                })
+              // Accumulate cell values for this new row
+              const existingCells = pendingNewRowCells.current.get(rowIndex) || {}
+              existingCells[columnName] = cellValue
+              pendingNewRowCells.current.set(rowIndex, existingCells)
+
+              // Single debounce timer for ALL pending new rows (prevents timer-ordering
+              // races when pasting across multiple new rows simultaneously)
+              if (pendingNewRowFlushTimer.current) {
+                clearTimeout(pendingNewRowFlushTimer.current)
+              }
+
+              pendingNewRowFlushTimer.current = setTimeout(() => {
+                const allPendingRows = new Map(pendingNewRowCells.current)
+                pendingNewRowCells.current.clear()
+                pendingNewRowFlushTimer.current = null
+
+                if (!onDataChange || allPendingRows.size === 0) return
+
+                // Sort by row index to ensure correct insertion order
+                const sortedEntries = Array.from(allPendingRows.entries()).sort(([a], [b]) => a - b)
 
                 const newData = [...data]
-                while (newData.length < rowIndex) {
-                  const emptyRow: Record<string, unknown> = {}
+                for (const [rowIdx, collectedCells] of sortedEntries) {
+                  const newRow: Record<string, unknown> = { ...collectedCells }
                   columns.forEach(col => {
-                    emptyRow[col.name] = col.defaultValue ?? ''
+                    if (!(col.name in newRow)) {
+                      newRow[col.name] = col.defaultValue ?? ''
+                    }
                   })
-                  newData.push(emptyRow)
+
+                  // Fill gaps with empty rows if needed
+                  while (newData.length < rowIdx) {
+                    const emptyRow: Record<string, unknown> = {}
+                    columns.forEach(col => {
+                      emptyRow[col.name] = col.defaultValue ?? ''
+                    })
+                    newData.push(emptyRow)
+                  }
+                  newData.push(newRow)
                 }
-                newData.push(newRow)
 
                 onDataChange(newData)
+              }, 50)
 
-                setTimeout(() => {
-                  pendingRowCreations.current.delete(rowIndex)
-                }, 1000)
-              }
               return
             }
 
@@ -447,9 +505,53 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
               onCellChange(rowId, columnName, cellValue)
             }
           }
+
+          // Handle column/row insertion via context menu
+          if (op.op === 'insertRowCol' && op.value) {
+            const { type, index, count, direction } = op.value as {
+              type: 'row' | 'column'
+              index: number
+              count: number
+              direction: 'lefttop' | 'rightbottom'
+            }
+            if (type === 'column' && onColumnsInsert) {
+              onColumnsInsert(index, count, direction)
+            }
+            if (type === 'row' && onRowsInsert) {
+              onRowsInsert(index, count, direction)
+            }
+          }
+
+          // Handle column/row deletion via context menu
+          if (op.op === 'deleteRowCol' && op.value) {
+            const { type, start, end } = op.value as {
+              type: 'row' | 'column'
+              start: number
+              end: number
+            }
+            if (type === 'column' && onColumnsDelete) {
+              onColumnsDelete(start, end)
+            }
+            if (type === 'row' && onRowsDelete) {
+              onRowsDelete(start, end)
+            }
+          }
         })
       },
-      [collaborationEnabled, collaboration, context, onCellChange, onDataChange, onColumnAdd, columns, data]
+      [
+        collaborationEnabled,
+        collaboration,
+        context,
+        onCellChange,
+        onDataChange,
+        onColumnAdd,
+        onColumnsInsert,
+        onColumnsDelete,
+        onRowsInsert,
+        onRowsDelete,
+        columns,
+        data
+      ]
     )
 
     // Render loading state
@@ -518,7 +620,6 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
               '|',
               'quick-formula'
             ]}
-            // Keep full context menu for Excel-like experience
             cellContextMenu={[
               'copy',
               'paste',

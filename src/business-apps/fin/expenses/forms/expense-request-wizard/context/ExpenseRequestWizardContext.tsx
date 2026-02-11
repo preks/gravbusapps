@@ -53,6 +53,8 @@ export interface ExpenseRequestWizardContextProps {
   setPayloadItemsLoaded: (loaded: boolean) => void
   payloadItemIds: string[]
   setPayloadItemIds: (ids: string[]) => void
+  showSelectItems: boolean
+  setShowSelectItems: (show: boolean) => void
 }
 
 /**
@@ -103,6 +105,8 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
   const [payloadItemsLoaded, setPayloadItemsLoaded] = useState<boolean>(false)
   // State to track payload item IDs for exclusion from queries
   const [payloadItemIds, setPayloadItemIds] = useState<string[]>([])
+  // State for "select items" sub-view on Items screen (so wizard back button can close it)
+  const [showSelectItems, setShowSelectItems] = useState<boolean>(false)
   const graphqlClient = useGraphqlClient(accessToken)
   const { dispatchProcessContinueEventIfEnabled } = useProcessEventState(additionalData)
 
@@ -377,7 +381,9 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
     payloadItemsLoaded,
     setPayloadItemsLoaded,
     payloadItemIds,
-    setPayloadItemIds
+    setPayloadItemIds,
+    showSelectItems,
+    setShowSelectItems
   }
 
   return <ExpenseRequestWizardContext.Provider value={contextValue}>{children}</ExpenseRequestWizardContext.Provider>

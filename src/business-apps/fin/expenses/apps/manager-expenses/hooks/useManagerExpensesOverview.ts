@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { MANAGER_EXPENSES_OVERVIEW } from '../queries/ManagerExpensesOverview'
@@ -25,6 +25,8 @@ export interface UseManagerExpensesOverviewParams {
   // Optional status filters
   requestsStatus?: string[]
   plansStatus?: string[]
+  /** Optional: statuses to always exclude from plans list (caller-owned; e.g. Plans tab passes PLAN_TAB_HIDDEN_STATUSES). */
+  plansStatusExclude?: readonly string[]
   paymentsStatus?: string[]
   // Date range filters for plans
   plansEffectiveDateRange?: { from?: string | null; to?: string | null } | null
@@ -43,8 +45,10 @@ export interface UseManagerExpensesOverviewParams {
 }
 
 export interface ManagerExpensesOverviewState {
-  // Distinct currencies combined and de-duplicated
+  // Distinct currencies combined and de-duplicated (from requests + plans + payments)
   distinctCurrencies: string[]
+  /** Currencies that have at least one advance payment. Use for Advance Payments tab filter options so chips only show currencies that yield results. */
+  distinctCurrenciesFromPayments: string[]
   // Aggregates
   teamMembersCount: number
   pendingApprovalsCount: number
@@ -204,6 +208,17 @@ function buildStatusWhere(statuses?: string[]): GqlBoolExp {
   return { status: { _neq: 'CREATED' } } as unknown as GqlBoolExp
 }
 
+/** Build plan status filter. When exclude is provided (e.g. PLAN_TAB_HIDDEN_STATUSES), uses it; otherwise excludes only CREATED. */
+function buildPlanStatusWhere(statuses?: string[], exclude?: readonly string[]): GqlBoolExp {
+  const excluded: readonly string[] = Array.isArray(exclude) && exclude.length > 0 ? exclude : ['CREATED']
+  const selected = Array.isArray(statuses) ? statuses.filter(Boolean) : []
+  const allowed = selected.filter(s => !excluded.includes(s))
+  if (allowed.length > 0) {
+    return { status: { _in: allowed } } as unknown as GqlBoolExp
+  }
+  return { status: { _nin: excluded } } as unknown as GqlBoolExp
+}
+
 function buildPlanDateWhereClause(params: UseManagerExpensesOverviewParams): GqlBoolExp {
   const conditions = [
     buildPlanEffectiveDateFilter(params.plansEffectiveDateRange),
@@ -276,7 +291,7 @@ function buildOverviewVariables(params: UseManagerExpensesOverviewParams): Recor
     planDateWhere: buildPlanDateWhereClause(params),
     reqDateWhere: buildRequestDateWhereClause(params),
     reqStatusWhere: buildStatusWhere(params.requestsStatus),
-    planStatusWhere: buildStatusWhere(params.plansStatus),
+    planStatusWhere: buildPlanStatusWhere(params.plansStatus, params.plansStatusExclude),
     payStatusWhere: buildStatusWhere(params.paymentsStatus)
   }
 }
@@ -312,6 +327,19 @@ function extractDistinctCurrencies(result: any): string[] {
     pushRefs(result?.DistinctCurrenciesFromPayments)
   }
 
+  return Array.from(currencyRefs).sort((a, b) => a.localeCompare(b))
+}
+
+/** Currencies that appear in advance payments only (for Advance Payments tab so filter options match actual data). */
+function extractDistinctCurrenciesFromPayments(result: any): string[] {
+  const currencyRefs = new Set<string>()
+  const pushRefs = (arr?: Array<{ currencyRef?: string }>) => {
+    if (!Array.isArray(arr)) return
+    for (const r of arr) {
+      if (r?.currencyRef) currencyRefs.add(r.currencyRef)
+    }
+  }
+  pushRefs(result?.DistinctCurrenciesFromPayments)
   return Array.from(currencyRefs).sort((a, b) => a.localeCompare(b))
 }
 
@@ -373,6 +401,7 @@ function aggregateExpenseCategories(trendItems: any[]): Array<{ name: string; am
 function transformResultToState(
   result: any,
   distinctCurrencies: string[],
+  distinctCurrenciesFromPayments: string[],
   monthlyExpenseTrends: Array<{ month: string; amount: number }>,
   expenseCategories: Array<{ name: string; amount: number }>
 ): ManagerExpensesOverviewState {
@@ -387,6 +416,7 @@ function transformResultToState(
 
   return {
     distinctCurrencies,
+    distinctCurrenciesFromPayments,
     teamMembersCount: Number(result?.TeamMembersAggregate?.aggregate?.count ?? 0),
     pendingApprovalsCount: Number(result?.PendingApprovalsAggregate?.aggregate?.count ?? 0),
     totalPlansAmount: Number(result?.ExpensePlansTotalAggregate?.aggregate?.sum?.totalAmount ?? 0),
@@ -432,6 +462,7 @@ export const useManagerExpensesOverview = (
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [state, setState] = useState<ManagerExpensesOverviewState | null>(null)
+  const latestSignatureRef = useRef<string>('')
 
   // Normalize/prepare variables
   const variables = useMemo(() => {
@@ -455,6 +486,7 @@ export const useManagerExpensesOverview = (
     // Serialize status arrays for dependency comparison
     JSON.stringify(params.requestsStatus || []),
     JSON.stringify(params.plansStatus || []),
+    JSON.stringify(params.plansStatusExclude || []),
     JSON.stringify(params.paymentsStatus || []),
     // Date range filters
     params.plansEffectiveDateRange?.from,
@@ -488,11 +520,13 @@ export const useManagerExpensesOverview = (
     // Use cache to avoid flashes on tab switches
     const cached = cacheBySignature.get(signature)
     if (cached && Date.now() - cached.ts < CACHE_TTL_MS) {
+      latestSignatureRef.current = signature
       setState(cached.data)
       setIsLoading(false)
       return
     }
 
+    latestSignatureRef.current = signature
     setIsLoading(true)
     try {
       let requestPromise = inFlightBySignature.get(signature)
@@ -504,22 +538,33 @@ export const useManagerExpensesOverview = (
       }
       const result: any = await requestPromise
 
+      // Ignore stale response if a newer request was started (e.g. filter + page reset)
+      if (latestSignatureRef.current !== signature) return
+
       // Extract and aggregate data using helper functions
       const distinctCurrencies = extractDistinctCurrencies(result)
+      const distinctCurrenciesFromPayments = extractDistinctCurrenciesFromPayments(result)
 
       const trendItems = Array.isArray(result?.MonthlyExpenseItemsForTrends) ? result.MonthlyExpenseItemsForTrends : []
       const monthlyExpenseTrends = buildMonthlyTrends(trendItems)
       const expenseCategories = aggregateExpenseCategories(trendItems)
 
       // Transform result into final state
-      const nextState = transformResultToState(result, distinctCurrencies, monthlyExpenseTrends, expenseCategories)
+      const nextState = transformResultToState(
+        result,
+        distinctCurrencies,
+        distinctCurrenciesFromPayments,
+        monthlyExpenseTrends,
+        expenseCategories
+      )
 
       setState(nextState)
       cacheBySignature.set(signature, { ts: Date.now(), data: nextState })
     } catch (e: any) {
+      if (latestSignatureRef.current !== signature) return
       setError(e?.message || 'Failed to load manager expenses overview')
     } finally {
-      setIsLoading(false)
+      if (latestSignatureRef.current === signature) setIsLoading(false)
     }
   }, [context.accessToken, graphqlClient, variables])
 

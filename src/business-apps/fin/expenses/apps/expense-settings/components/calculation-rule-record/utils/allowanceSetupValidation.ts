@@ -1,4 +1,8 @@
 import dayjs from 'dayjs'
+import utc from 'dayjs/plugin/utc'
+import { toISOStartOfDay, toISOEndOfDay } from '../../../utils/dateUtils'
+
+dayjs.extend(utc)
 
 export interface SetupDateValidationError {
   message: string
@@ -9,19 +13,19 @@ export interface SetupDateValidationError {
  * Returns error message if invalid, null if valid
  */
 export const validateAllowanceSetupDates = (
-  validFrom: string | undefined,
-  validTo: string | undefined,
+  activeFrom: string | undefined,
+  activeTo: string | undefined,
   ruleActiveFrom: string,
   ruleActiveTo?: string
 ): SetupDateValidationError | null => {
-  if (!validFrom) {
+  if (!activeFrom) {
     return { message: 'Valid From date is required' }
   }
 
   const ruleFrom = dayjs(ruleActiveFrom)
   const ruleTo = ruleActiveTo ? dayjs(ruleActiveTo) : null
-  const setupFrom = dayjs(validFrom)
-  const setupTo = validTo ? dayjs(validTo) : null
+  const setupFrom = dayjs(activeFrom)
+  const setupTo = activeTo ? dayjs(activeTo) : null
 
   // Valid From must be on or after rule's start date
   if (setupFrom.isBefore(ruleFrom, 'day')) {
@@ -49,8 +53,22 @@ export const validateAllowanceSetupDates = (
 
 /**
  * Formats date string to ISO format for backend (java.time.Instant)
+ * For activeFrom dates (start of day)
+ * Handles both YYYY-MM-DD and DD.MM.YYYY formats
+ *
+ * @deprecated Use toISOStartOfDay from utils/dateUtils instead
  */
 export const formatDateToISO = (dateStr: string | undefined): string | undefined => {
-  if (!dateStr) return undefined
-  return dayjs(dateStr).startOf('day').toISOString()
+  return toISOStartOfDay(dateStr)
+}
+
+/**
+ * Formats date string to ISO format for backend (java.time.Instant)
+ * For activeTo dates (end of day)
+ * Handles both YYYY-MM-DD and DD.MM.YYYY formats
+ *
+ * @deprecated Use toISOEndOfDay from utils/dateUtils instead
+ */
+export const formatDateToISOEndOfDay = (dateStr: string | undefined): string | undefined => {
+  return toISOEndOfDay(dateStr)
 }

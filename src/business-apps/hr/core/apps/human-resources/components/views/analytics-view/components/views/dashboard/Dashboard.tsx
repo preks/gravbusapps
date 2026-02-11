@@ -6,7 +6,7 @@ import { DashboardProps, AnalyticsKpiData } from './types/analyticsTypes'
 import { useEmployeeCount } from '../../../hooks/useEmployeeCount'
 import { useNewHiresCount } from '../../../hooks/useNewHiresCount'
 import { useTurnoverRate } from '../../../hooks/useTurnoverRate'
-import { useAverageSalary } from '../../../hooks/useAverageSalary'
+import { useCompensationMetrics } from '../../../hooks/useCompensationMetrics'
 import { useHiresPerYear } from '../../../hooks/useHiresPerYear'
 import { useEmployeesPerYear } from '../../../hooks/useEmployeesPerYear'
 import HiresPerYearChart from './components/charts/HiresPerYearChart'
@@ -29,7 +29,7 @@ const Dashboard: React.FC<DashboardProps> = ({ accessToken }) => {
   } = useEmployeeCount(accessToken)
   const { count: newHiresCount, loading: hiresLoading } = useNewHiresCount(accessToken)
   const { rate: turnoverRate, change: turnoverChange, loading: turnoverLoading } = useTurnoverRate(accessToken)
-  const { averageSalary, loading: salaryLoading } = useAverageSalary(accessToken)
+  const { averageSalary, loading: salaryLoading } = useCompensationMetrics(accessToken)
   const { hiresData, loading: hiresYearlyLoading, error: hiresYearlyError } = useHiresPerYear(accessToken)
   const {
     data: employeesYearlyData,

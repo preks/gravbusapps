@@ -17,6 +17,7 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import dayjs from 'dayjs'
 import weekday from 'dayjs/plugin/weekday'
 import localeData from 'dayjs/plugin/localeData'
+import { formatDate } from '../../utils'
 
 // Register dayjs plugins
 dayjs.extend(weekday)
@@ -337,8 +338,7 @@ const MileageRuleDetails: React.FC<MileageRuleDetailsProps> = ({
                             <div className="gba:flex gba:items-center gba:gap-1">
                               <PiClock size={14} />
                               <span>
-                                {dayjs(rule.activeFrom).format('DD.MM.YYYY')} -
-                                {rule.activeTo ? dayjs(rule.activeTo).format('DD.MM.YYYY') : 'No end'}
+                                {formatDate(rule.activeFrom)} - {rule.activeTo ? formatDate(rule.activeTo) : 'No end'}
                               </span>
                             </div>
                           </div>

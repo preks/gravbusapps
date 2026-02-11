@@ -114,6 +114,7 @@ export const buildInvestmentTaskFragmentForRelations = (): string => {
   taskAssignees(where: { isDeleted: { _eq: false } }) {
     ${buildTaskAssigneeFragment()}
   }
+  businessKey
   code
   creatorEmployee {
     ${EMPLOYEE_REF}
@@ -209,6 +210,7 @@ export const buildInvestmentTaskQuery = (): string => {
         where: $where
       ) {
         ${AUDIT_FIELDS}
+        businessKey
         code
         creatorEmployee {
           ${EMPLOYEE_REF}

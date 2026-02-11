@@ -4,14 +4,11 @@ import { getCurrentActiveUserLocale, getTranslationFromI18nKeyAndLabel } from '@
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { WorkingConditionKpi, WorkingConditionKpiResult } from '../../../../../hooks/useWorkingConditionForecast'
 
-import { useTotalPayroll } from '../../../../../hooks/useTotalPayroll'
-
 interface KpiCardsRowProps extends BusinessAppContextProps {
   kpiData: WorkingConditionKpiResult
 }
 
-const KpiCardsRow: React.FC<KpiCardsRowProps> = ({ kpiData, accessToken }) => {
-  const { loading: payrollLoading } = useTotalPayroll(accessToken)
+const KpiCardsRow: React.FC<KpiCardsRowProps> = ({ kpiData }) => {
   const { loading, data } = kpiData
   const employees: WorkingConditionKpi[] = data as WorkingConditionKpi[]
 
@@ -46,7 +43,7 @@ const KpiCardsRow: React.FC<KpiCardsRowProps> = ({ kpiData, accessToken }) => {
   const sixMonthForecast = totalMonthlySalary * 1.17
 
   return (
-    <Spin spinning={loading || payrollLoading}>
+    <Spin spinning={loading}>
       <div className="gba:flex gba:flex-row gba:w-full gba:gap-4 gba:mb-6" data-testid="forecasting-kpi-row">
         <Card className="gba:shadow gba:rounded gba:p-4 gba:flex-1" data-testid="kpi-total-annual-payroll">
           <div className="gba:text-xs gba:text-muted-foreground gba:mb-1">

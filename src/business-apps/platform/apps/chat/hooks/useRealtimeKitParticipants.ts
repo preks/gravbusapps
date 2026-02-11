@@ -37,6 +37,7 @@ export interface UseRealtimeKitParticipantsReturn {
     overrideCallType?: 'audio' | 'video',
     overrideCalendarMeetingId?: string | null
   ) => void
+  addPendingInvites: (participants: CallParticipant[]) => void
   reconnectParticipant: (participantId: string) => Promise<void>
   handleDeclinedInvite: (participantId: string, status?: 'declined' | 'not-answered') => void
 }
@@ -132,6 +133,20 @@ export const useRealtimeKitParticipants = ({
         return updated
       })
 
+      // Dedupe identical invite/start emits (double click / double handler safety)
+      const emitKey = `${effectiveRoomId}:${effectiveMeetingId}:${effectiveCallType}:${participantsToInvite
+        .map(p => p.id)
+        .sort()
+        .join(',')}`
+      ;(globalThis as any).__RTK_LAST_INVITE_EMIT__ = (globalThis as any).__RTK_LAST_INVITE_EMIT__ || {}
+      const lastEmit = (globalThis as any).__RTK_LAST_INVITE_EMIT__[emitKey] as number | undefined
+      const emitNow = Date.now()
+      if (lastEmit && emitNow - lastEmit < 3000) {
+        rtkDebug.warn('[RTK] ⚠️ Skipping duplicate rtk-group-call:start emit from inviteToCall', { emitKey })
+        return
+      }
+      ;(globalThis as any).__RTK_LAST_INVITE_EMIT__[emitKey] = emitNow
+
       emitSocketEvent('rtk-group-call:start', {
         conversationId: effectiveRoomId,
         meetingId: effectiveMeetingId, // Use actual backend meeting ID, not roomId
@@ -150,6 +165,44 @@ export const useRealtimeKitParticipants = ({
   )
 
   /**
+   * Add participants to pending invites without sending WebSocket event
+   * Used when starting a call to populate the UI before invites are sent
+   */
+  const addPendingInvites = useCallback(
+    (participantsToAdd: CallParticipant[]) => {
+      const now = Date.now()
+      const activeParticipantIds = new Set(participants.map(p => p.odId))
+
+      setPendingInvites(prev => {
+        const updated = new Map(prev)
+        for (const p of participantsToAdd) {
+          // Skip if already in call
+          if (activeParticipantIds.has(p.odId)) {
+            rtkDebug.log('[RTK] Skipping pending invite - already in call:', p.odId)
+            continue
+          }
+
+          updated.set(p.odId, {
+            id: p.odId,
+            odId: p.odId,
+            odName: p.odName,
+            avatarUrl: p.avatarUrl,
+            invitedAt: now,
+            status: 'pending'
+          })
+        }
+        return updated
+      })
+
+      rtkDebug.log('[RTK] Added pending invites:', {
+        count: participantsToAdd.length,
+        participants: participantsToAdd.map(p => ({ id: p.id, odId: p.odId, odName: p.odName }))
+      })
+    },
+    [participants]
+  )
+
+  /**
    * Reconnect participant (not applicable for RealtimeKit SFU)
    * SFU handles reconnections automatically
    */
@@ -157,9 +210,9 @@ export const useRealtimeKitParticipants = ({
     rtkDebug.log('[RTK] Reconnect not needed for RealtimeKit SFU', { participantId })
   }, [])
 
-  // Track previous participants to detect who left (store full info for cleanup)
+  // Track previous participants to detect who left (store full info for cleanup and re-invite)
   const previousParticipantsRef = useRef<
-    Map<string, { peerId: string; userId?: string; customParticipantId?: string }>
+    Map<string, { peerId: string; userId?: string; customParticipantId?: string; name?: string; picture?: string }>
   >(new Map())
 
   /**
@@ -184,12 +237,17 @@ export const useRealtimeKitParticipants = ({
     const remotePeers = allParticipants.filter((p: any) => p.id !== meeting.self?.id)
 
     // Build map of current participants with full ID info
-    const currentParticipants = new Map<string, { peerId: string; userId?: string; customParticipantId?: string }>()
+    const currentParticipants = new Map<
+      string,
+      { peerId: string; userId?: string; customParticipantId?: string; name?: string; picture?: string }
+    >()
     remotePeers.forEach((p: any) => {
       currentParticipants.set(p.id, {
         peerId: p.id,
         userId: p.userId,
-        customParticipantId: p.customParticipantId
+        customParticipantId: p.customParticipantId,
+        name: p.name,
+        picture: p.picture
       })
     })
 
@@ -207,6 +265,35 @@ export const useRealtimeKitParticipants = ({
       leftCount: leftPeerIds.length,
       leftPeerIds
     })
+
+    // Add left participants to pending invites so they remain visible
+    if (leftPeerIds.length > 0) {
+      leftPeerIds.forEach(leftPeerId => {
+        const leftParticipantInfo = previousParticipantsRef.current.get(leftPeerId)
+        if (leftParticipantInfo) {
+          const stableId = leftParticipantInfo.customParticipantId || leftPeerId
+
+          setPendingInvites(prev => {
+            const updated = new Map(prev)
+            updated.set(stableId, {
+              id: stableId,
+              odId: stableId,
+              odName: leftParticipantInfo.name || leftParticipantInfo.userId || 'Unknown',
+              avatarUrl: leftParticipantInfo.picture,
+              invitedAt: Date.now(),
+              status: 'left'
+            })
+            rtkDebug.log('[RTK] 📝 Added left participant to pending invites in updateParticipantList:', {
+              stableId,
+              peerId: leftPeerId,
+              name: leftParticipantInfo.name,
+              userId: leftParticipantInfo.userId
+            })
+            return updated
+          })
+        }
+      })
+    }
 
     // Clean up hand state for participants who left
     if (leftPeerIds.length > 0 && cleanupParticipantHandState) {
@@ -385,12 +472,32 @@ export const useRealtimeKitParticipants = ({
 
     const handleParticipantLeft = (event: any) => {
       const leavingParticipant = event?.participant
+      const stableId = leavingParticipant?.customParticipantId || leavingParticipant?.id
+
       rtkDebug.log('[RTK] 👋 Participant left event:', {
         participantId: leavingParticipant?.id,
         participantName: leavingParticipant?.name,
         userId: leavingParticipant?.userId,
-        customParticipantId: leavingParticipant?.customParticipantId
+        customParticipantId: leavingParticipant?.customParticipantId,
+        stableId
       })
+
+      // Add them to pending invites with "left" status so they remain visible and can be re-invited
+      if (stableId && leavingParticipant) {
+        setPendingInvites(prev => {
+          const updated = new Map(prev)
+          updated.set(stableId, {
+            id: stableId,
+            odId: stableId,
+            odName: leavingParticipant.name || 'Unknown',
+            avatarUrl: leavingParticipant.picture,
+            invitedAt: Date.now(),
+            status: 'left' // New status to indicate they left the call
+          })
+          rtkDebug.log('[RTK] 📝 Added to pending invites with "left" status:', stableId)
+          return updated
+        })
+      }
 
       // updateParticipantList will detect who left and clean up their hand state
       updateParticipantList()
@@ -434,6 +541,7 @@ export const useRealtimeKitParticipants = ({
     remoteStreams,
     pendingInvites,
     inviteToCall,
+    addPendingInvites,
     reconnectParticipant,
     handleDeclinedInvite
   }

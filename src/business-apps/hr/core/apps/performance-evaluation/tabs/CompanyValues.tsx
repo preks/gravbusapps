@@ -135,7 +135,9 @@ export const CompanyValues: React.FC<CompanyValuesProps> = ({
                       <TableCell className="gba:font-medium">{v.title}</TableCell>
                       <TableCell>{v.description}</TableCell>
                       <TableCell>
-                        <Badge variant={v.active ? 'success' : 'secondary'}>{v.active ? 'Active' : 'Inactive'}</Badge>
+                        <Badge variant={v.recordState?.toLowerCase() === 'active' ? 'success' : 'secondary'}>
+                          {v.recordState?.toLowerCase() === 'active' ? 'Active' : 'Inactive'}
+                        </Badge>
                       </TableCell>
                       <TableCell className="gba:text-right">
                         <div className="gba:flex gba:justify-end gba:gap-1">
@@ -150,7 +152,7 @@ export const CompanyValues: React.FC<CompanyValuesProps> = ({
                           >
                             {t('button-edit')}
                           </Button>
-                          {v.active ? (
+                          {v.recordState?.toLowerCase() === 'active' ? (
                             <Button
                               variant="destructive"
                               size="sm"
@@ -198,7 +200,7 @@ export const CompanyValues: React.FC<CompanyValuesProps> = ({
                 version: editingValue.version,
                 title: editingValue.title,
                 description: editingValue.description,
-                active: editingValue.active
+                recordState: editingValue.recordState
               }
             : undefined
         }

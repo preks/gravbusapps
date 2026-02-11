@@ -344,7 +344,10 @@ function MyTasksViewComponent<TTask extends Task = Task, TQueryVariables = any>(
         data-testid={`${dataTestId}-detail-sheet`}
         businessAppContext={{ accessToken, userInfo } as BusinessAppContextProps}
         accessToken={accessToken}
+        assignedUserId={selectedTask?.taskAssignees?.[0]?.assignedUserId}
+        currentUserId={userInfo?.id}
         flowContext={config.flowContexts.entityContext}
+        onTaskCompleted={() => loadTasks(false)}
       />
     </div>
   )

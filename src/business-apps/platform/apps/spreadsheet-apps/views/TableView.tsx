@@ -23,6 +23,14 @@ export interface TableViewProps {
   onDataChange?: (data: Record<string, unknown>[]) => void
   /** Callback when a new column needs to be auto-created */
   onColumnAdd?: (columnIndex: number, initialValue?: unknown, rowIndex?: number) => void
+  /** Callback when columns are inserted via context menu */
+  onColumnsInsert?: (insertIndex: number, count: number, direction: 'lefttop' | 'rightbottom') => void
+  /** Callback when columns are deleted via context menu */
+  onColumnsDelete?: (startIndex: number, endIndex: number) => void
+  /** Callback when rows are inserted via context menu */
+  onRowsInsert?: (insertIndex: number, count: number, direction: 'lefttop' | 'rightbottom') => void
+  /** Callback when rows are deleted via context menu */
+  onRowsDelete?: (startIndex: number, endIndex: number) => void
   participants?: DocumentParticipant[]
   onOperationEmit?: (operation: DocumentOperation) => void
   onCursorEmit?: (position: { path: string[] }) => void
@@ -49,6 +57,10 @@ export const TableView = memo<TableViewProps>(function TableView({
   onCellChange,
   onDataChange,
   onColumnAdd,
+  onColumnsInsert,
+  onColumnsDelete,
+  onRowsInsert,
+  onRowsDelete,
   participants,
   onOperationEmit,
   onCursorEmit,
@@ -87,6 +99,10 @@ export const TableView = memo<TableViewProps>(function TableView({
         onCellChange={handleCellChange}
         onDataChange={handleDataChange}
         onColumnAdd={onColumnAdd}
+        onColumnsInsert={onColumnsInsert}
+        onColumnsDelete={onColumnsDelete}
+        onRowsInsert={onRowsInsert}
+        onRowsDelete={onRowsDelete}
         participants={participants}
         onOperationEmit={onOperationEmit}
         onCursorEmit={onCursorEmit}

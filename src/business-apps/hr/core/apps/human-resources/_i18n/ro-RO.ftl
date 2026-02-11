@@ -241,9 +241,11 @@ hr-analytics-compensation-analysis = Analiza compensațiilor
 hr-analytics-compensation-description = Metrici de compensație, analize salariale și insight-uri de payroll
 hr-analytics-total-payroll = Costuri salariale totale
 hr-analytics-annual-payroll = Costuri salariale anuale
+hr-analytics-coming-soon = În curând
 hr-analytics-median-salary = Salariu median
 hr-analytics-company-median = Mediana companiei
 hr-analytics-avg-salary = Salariu mediu
+hr-analytics-average-salary = Salariu mediu
 hr-analytics-merit-increases = Creșteri bazate pe performanță
 hr-analytics-average-increase = Creștere medie
 
@@ -425,6 +427,8 @@ hr-analytics-not-available = N/A
 
 # Data Filter (generic texts used in HR)
 hr-data-filter-loading = Se încarcă...
+hr-data-filter-error = Eroare la încărcarea datelor
+hr-data-filter-no-data = Nu există date disponibile
 hr-data-filter-error-loading-filters = Eroare la încărcarea filtrelor
 hr-data-filter-search-in = Caută în
 hr-data-filter-search-filters-in = Caută filtre în

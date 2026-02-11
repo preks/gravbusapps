@@ -41,6 +41,7 @@ import {
 } from '@newwork/nw-design-system'
 import { useRealtimeKitSelector } from '@cloudflare/realtimekit-react'
 import { getInitials } from '../../utils/callUtils'
+import { rtkDebug } from '../../utils/rtkDebug'
 import type { PendingInvite } from '../../hooks/useGroupCall'
 
 export interface AvailableParticipant {
@@ -151,6 +152,16 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
   // Handler for inviting a participant with loading state - supports multiple simultaneous invites
   const handleInviteClick = async (participant: CallParticipant) => {
     if (!onInviteParticipant || invitingParticipantIds.has(participant.odId)) return
+
+    // [DEBUG] Log participant data being sent to backend AND current stored data
+    rtkDebug.log('[ParticipantsPanel] 📤 Inviting participant:', {
+      id: participant.id,
+      odId: participant.odId,
+      odName: participant.odName,
+      fullParticipant: participant,
+      allSeenParticipantsKeys: Array.from(allSeenParticipantsRef.current.keys()),
+      allSeenParticipantsValues: Array.from(allSeenParticipantsRef.current.values())
+    })
 
     // Add to inviting set
     setInvitingParticipantIds(prev => new Set([...prev, participant.odId]))
@@ -305,19 +316,129 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
   // Update the persistent record with current active participants from SDK
   // This helps track participants who join and leave
   React.useEffect(() => {
-    activeParticipants.forEach((p: any) => {
-      // Use userId as the primary key for SDK participants
-      const key = p.userId || p.customParticipantId || p.id
-      if (key && !allSeenParticipantsRef.current.has(key)) {
-        allSeenParticipantsRef.current.set(key, {
-          id: p.userId || p.id,
-          odId: p.userId || p.customParticipantId || p.id,
-          odName: p.name || 'Unknown',
+    // Build a complete list of conversation participants from both availableParticipants and activeConversation
+    // This ensures we can match even when availableParticipants is empty (e.g., call initiator)
+    const conversationParticipants = [...availableParticipants]
+
+    // Add participants from activeConversation if available
+    if (activeConversation?.participants) {
+      activeConversation.participants.forEach((cp: any) => {
+        const user = cp.user
+        const participantId = user?.id || cp.userId
+
+        // Only add if not already in availableParticipants
+        if (participantId && !conversationParticipants.find(p => p.id === participantId || p.odId === participantId)) {
+          conversationParticipants.push({
+            id: participantId,
+            odId: participantId,
+            odName: user
+              ? user.displayName ||
+                `${user.firstName || ''} ${user.lastName || ''}`.trim() ||
+                user.username ||
+                'Unknown'
+              : 'User'
+          })
+        }
+      })
+    }
+
+    rtkDebug.log('[ParticipantsPanel] 🔍 Matching SDK participants to conversation participants:', {
+      activeParticipantsCount: activeParticipants.length,
+      availableParticipantsCount: availableParticipants.length,
+      conversationParticipantsCount: conversationParticipants.length,
+      activeParticipants: activeParticipants.map((p: any) => ({
+        userId: p.userId,
+        customParticipantId: p.customParticipantId,
+        id: p.id,
+        name: p.name
+      })),
+      conversationParticipants: conversationParticipants.map((p: any) => ({
+        id: p.id,
+        odId: p.odId,
+        odName: p.odName
+      }))
+    })
+
+    activeParticipants.forEach((sdkParticipant: any) => {
+      // CRITICAL FIX: Match SDK participant to conversation participant to get the REAL user ID
+      // The SDK uses internal IDs which don't match our database user IDs
+      const conversationParticipant = conversationParticipants.find(
+        cp =>
+          cp.odId === sdkParticipant.userId ||
+          cp.odId === sdkParticipant.customParticipantId ||
+          cp.id === sdkParticipant.userId ||
+          cp.odName?.toLowerCase() === sdkParticipant.name?.toLowerCase()
+      )
+
+      rtkDebug.log('[ParticipantsPanel] 🔎 Matching result for participant:', {
+        sdkParticipant: {
+          userId: sdkParticipant.userId,
+          customParticipantId: sdkParticipant.customParticipantId,
+          id: sdkParticipant.id,
+          name: sdkParticipant.name
+        },
+        conversationParticipant: conversationParticipant
+          ? {
+              id: conversationParticipant.id,
+              odId: conversationParticipant.odId,
+              odName: conversationParticipant.odName
+            }
+          : null,
+        foundMatch: !!conversationParticipant
+      })
+
+      // Use the conversation participant's ID if found, otherwise fall back to SDK IDs
+      // CRITICAL: customParticipantId is the REAL user ID set by us, userId is SDK's internal ID
+      // Priority: conversationParticipant.id > customParticipantId > userId (as last resort)
+      const realUserId = conversationParticipant?.id || sdkParticipant.customParticipantId || sdkParticipant.userId
+      const realOdId = conversationParticipant?.odId || sdkParticipant.customParticipantId || sdkParticipant.userId
+
+      // CRITICAL FIX: Always update if we have a real user ID, even if already stored
+      // This handles the case where the initiator was stored with SDK ID initially
+      if (realUserId) {
+        const participantData = {
+          id: realUserId,
+          odId: realOdId || realUserId,
+          odName: conversationParticipant?.odName || sdkParticipant.name || 'Unknown',
           lastSeen: Date.now()
-        })
+        }
+
+        // If we found a conversation match and have a different ID stored, clean up old SDK IDs
+        if (conversationParticipant) {
+          // Remove any old entries with SDK IDs
+          const sdkIds = [sdkParticipant.userId, sdkParticipant.customParticipantId, sdkParticipant.id]
+          sdkIds.forEach(sdkId => {
+            if (sdkId && sdkId !== realUserId && allSeenParticipantsRef.current.has(sdkId)) {
+              rtkDebug.log('[ParticipantsPanel] 🧹 Cleaning up old SDK ID:', {
+                sdkId,
+                realUserId,
+                participantName: conversationParticipant.odName
+              })
+              allSeenParticipantsRef.current.delete(sdkId)
+            }
+          })
+        }
+
+        const isNewEntry = !allSeenParticipantsRef.current.has(realUserId)
+
+        // [DEBUG] Log when adding/updating seen participants
+        rtkDebug.log(
+          isNewEntry
+            ? '[ParticipantsPanel] 👀 Adding to allSeenParticipants:'
+            : '[ParticipantsPanel] 🔄 Updating allSeenParticipants:',
+          {
+            key: realUserId,
+            participantData,
+            rawSdkParticipant: sdkParticipant,
+            matchedConversationParticipant: conversationParticipant,
+            isNewEntry
+          }
+        )
+
+        allSeenParticipantsRef.current.set(realUserId, participantData)
       }
     })
-  }, [activeParticipants])
+  }, [activeParticipants, availableParticipants, activeConversation])
 
   // Get IDs of participants currently in call
   const activeParticipantIds = new Set<string>()
@@ -349,12 +470,35 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
     )
 
     const entry = {
-      id: conversationParticipant?.id || participant.userId || participant.id,
-      odId: conversationParticipant?.odId || participant.userId || participant.customParticipantId || participant.id,
+      id: conversationParticipant?.id || participant.customParticipantId || participant.userId || participant.id,
+      odId: conversationParticipant?.odId || participant.customParticipantId || participant.userId || participant.id,
       odName: conversationParticipant?.odName || participant.name || 'Unknown',
       status: 'in-call' as const,
       activeParticipant: participant,
       inviteDetails: null
+    }
+
+    // CRITICAL FIX: If we found a conversation participant match, UPDATE allSeenParticipantsRef
+    // This corrects any previously stored SDK IDs with the real user IDs
+    if (conversationParticipant) {
+      // Remove any old entries with SDK IDs
+      if (participant.userId && participant.userId !== conversationParticipant.id) {
+        allSeenParticipantsRef.current.delete(participant.userId)
+      }
+      if (participant.customParticipantId && participant.customParticipantId !== conversationParticipant.id) {
+        allSeenParticipantsRef.current.delete(participant.customParticipantId)
+      }
+      if (participant.id && participant.id !== conversationParticipant.id) {
+        allSeenParticipantsRef.current.delete(participant.id)
+      }
+
+      // Store/update with the REAL user ID
+      allSeenParticipantsRef.current.set(conversationParticipant.id, {
+        id: conversationParticipant.id,
+        odId: conversationParticipant.odId,
+        odName: conversationParticipant.odName,
+        lastSeen: Date.now()
+      })
     }
 
     // CRITICAL FIX: Mark ALL possible IDs as processed to prevent duplicates
@@ -386,7 +530,13 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
       }
 
       const status =
-        invite.status === 'declined' ? 'declined' : invite.status === 'not-answered' ? 'not-answered' : 'invited'
+        invite.status === 'declined'
+          ? 'declined'
+          : invite.status === 'not-answered'
+            ? 'not-answered'
+            : invite.status === 'left'
+              ? 'left'
+              : 'invited'
 
       pendingInviteEntries.push({
         id: invite.id,
@@ -421,27 +571,20 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
   })
 
   // Step 5: Add any previously seen participants who aren't in any of the above lists
-  // These are people who were in the call but left, and aren't in the conversation list
-  // CRITICAL: Must check against ALL ID variants to prevent duplicates
+  // These are people who were in the call but left
+  // CRITICAL: Only check processedOdIds to prevent duplicates, not availableParticipants
+  // This ensures participants who left the call remain visible even if they're in the conversation
   const previouslySeenEntries: any[] = []
   allSeenParticipantsRef.current.forEach((seenParticipant, seenKey) => {
     // Check if this participant is already processed under ANY ID
+    // ONLY check against processedOdIds (participants already added to the list)
     const isAlreadyProcessed =
-      processedOdIds.has(seenKey) ||
-      processedOdIds.has(seenParticipant.odId) ||
-      processedOdIds.has(seenParticipant.id) ||
-      // Also check if they match any conversation participant by name (fallback)
-      availableParticipants.some(
-        cp =>
-          cp.odId === seenParticipant.odId ||
-          cp.id === seenParticipant.id ||
-          (cp.odName && seenParticipant.odName && cp.odName.toLowerCase() === seenParticipant.odName.toLowerCase())
-      )
+      processedOdIds.has(seenKey) || processedOdIds.has(seenParticipant.odId) || processedOdIds.has(seenParticipant.id)
 
     if (!isAlreadyProcessed) {
       previouslySeenEntries.push({
         ...seenParticipant,
-        status: 'available' as const,
+        status: 'left' as const, // Mark as 'left' instead of 'available' to distinguish them
         inviteDetails: null,
         activeParticipant: null
       })
@@ -467,9 +610,22 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
   // Separate into sections for rendering
   const filteredActiveParticipants = filteredAllParticipants.filter(p => p.status === 'in-call')
   const filteredInvitedParticipants = filteredAllParticipants.filter(
-    p => p.status === 'invited' || p.status === 'declined' || p.status === 'not-answered'
+    p => p.status === 'invited' || p.status === 'declined' || p.status === 'not-answered' || p.status === 'left'
   )
   const filteredAvailableParticipants = filteredAllParticipants.filter(p => p.status === 'available')
+
+  // [DEBUG] Log participant lists for debugging
+  rtkDebug.log('[ParticipantsPanel] 📊 Participant lists:', {
+    allSeenCount: allSeenParticipantsRef.current.size,
+    allSeenKeys: Array.from(allSeenParticipantsRef.current.keys()),
+    allSeenValues: Array.from(allSeenParticipantsRef.current.values()),
+    previouslySeenEntriesCount: previouslySeenEntries.length,
+    previouslySeenEntries,
+    activeCount: filteredActiveParticipants.length,
+    invitedCount: filteredInvitedParticipants.length,
+    availableCount: filteredAvailableParticipants.length,
+    allParticipantsCount: allParticipantsWithStatus.length
+  })
 
   if (!isOpen) return null
 
@@ -685,6 +841,8 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
                         return t('participants-declined-invite')
                       case 'not-answered':
                         return t('participants-not-answered')
+                      case 'left':
+                        return t('participants-left-call') || 'Left call'
                       case 'invited':
                       default:
                         return t('participants-ringing')
@@ -697,13 +855,15 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
                         return 'gba:text-destructive-secondary'
                       case 'not-answered':
                         return 'gba:text-warning'
+                      case 'left':
+                        return 'gba:text-info'
                       case 'invited':
                       default:
                         return 'gba:text-muted-foreground'
                     }
                   }
 
-                  const canReInvite = p.status === 'declined' || p.status === 'not-answered'
+                  const canReInvite = p.status === 'declined' || p.status === 'not-answered' || p.status === 'left'
 
                   return (
                     <div

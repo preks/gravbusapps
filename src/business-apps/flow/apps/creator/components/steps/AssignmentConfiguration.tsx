@@ -289,7 +289,7 @@ const SimpleAssignmentSelector: React.FC<SimpleAssignmentSelectorProps> = ({
           value={value.assignmentMode || AssignmentMode.CLAIM}
           onChange={mode => onChange({ ...value, assignmentMode: mode })}
           size="small"
-          style={{ width: '120px' }}
+          style={{ width: '160px' }}
           data-testid={`${testId}-mode-select`}
         >
           <Select.Option value={AssignmentMode.CLAIM}>
@@ -297,6 +297,9 @@ const SimpleAssignmentSelector: React.FC<SimpleAssignmentSelectorProps> = ({
           </Select.Option>
           <Select.Option value={AssignmentMode.ASSIGN}>
             {getTranslationFromI18nKeyAndLabel('flow.creator.assignMode', 'Assign')}
+          </Select.Option>
+          <Select.Option value={AssignmentMode.ASSIGN_DEFERRED}>
+            {getTranslationFromI18nKeyAndLabel('flow.creator.assignDeferredMode', 'Assign Deferred')}
           </Select.Option>
         </Select>
       </div>

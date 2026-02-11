@@ -57,6 +57,7 @@ interface AvailableParticipant {
 type SidebarView = 'closed' | 'participants' | 'chat'
 
 interface GroupCallModalRtkProps {
+  viewMode: 'full' | 'minimized' // NEW: Control display mode without unmounting
   callState: GroupCallUIState
   localStream: MediaStream | null
   remoteStreams: Map<string, MediaStream>
@@ -88,6 +89,7 @@ interface GroupCallModalRtkProps {
   apiClient?: ChatApiClient
   activeConversation?: any // For looking up avatar URLs from conversation participants
   activeExperts?: any[] // Every AI experts for mentions in chat
+  hideReactionsAndHandRaise?: boolean // Hide reactions and hand-raising UI (for 1-on-1 calls)
 }
 
 // Helper to get screen share track from peer
@@ -161,6 +163,7 @@ const getScreenShareTrack = (peer: any): MediaStreamTrack | null => {
 const NOOP = () => {}
 
 const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
+  viewMode,
   callState,
   localStream,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -188,8 +191,23 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
   currentUserId,
   currentUser,
   activeConversation,
-  activeExperts
+  activeExperts,
+  hideReactionsAndHandRaise = false
 }) => {
+  // Generate unique instance ID to prevent portal conflicts when multiple instances exist
+  const [instanceId] = useState(() => `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`)
+
+  // Cleanup portal container on unmount
+  useEffect(() => {
+    return () => {
+      const portalContainerId = `rtk-group-call-minimized-portal-${instanceId}`
+      const portalContainer = document.getElementById(portalContainerId)
+      if (portalContainer) {
+        portalContainer.remove()
+      }
+    }
+  }, [instanceId])
+
   // Create conversation object for the call based on roomId
   // Use the call's conversation, NOT the active conversation from sidebar
   // CRITICAL: Use ref + effect to maintain stable object reference
@@ -212,21 +230,48 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
         roomId: callState.roomId,
         calendarMeetingId: callState.calendarMeetingId,
         chatConversationId,
-        isCalendarMeeting: !!callState.calendarMeetingId
+        isCalendarMeeting: !!callState.calendarMeetingId,
+        hasActiveConversation: !!activeConversation,
+        activeConversationId: activeConversation?.id,
+        activeConversationParticipantsCount: activeConversation?.participants?.length || 0
       })
 
       callConversationRef.current = {
         id: chatConversationId, // Use the real conversation ID for chat
         name: conversationName || 'Group Call',
         type: ConversationType.GROUP,
-        participants: activeConversation?.participants || [],
+        participants:
+          activeConversation?.participants ||
+          // Fallback: Create participants from call participants if activeConversation is not available
+          participants.map(p => {
+            // Type assertion to access potentially additional fields that might exist at runtime
+            const pAny = p as any
+
+            // Build display name with fallbacks: odName -> firstName + lastName -> 'Unknown'
+            const displayName =
+              p.odName ||
+              (pAny.firstName || pAny.lastName ? `${pAny.firstName || ''} ${pAny.lastName || ''}`.trim() : '') ||
+              'Unknown'
+
+            return {
+              userId: p.id || p.odId,
+              user: {
+                id: p.id || p.odId,
+                displayName,
+                firstName: pAny.firstName,
+                lastName: pAny.lastName,
+                username: p.odName || displayName,
+                avatarUrl: p.avatarUrl
+              }
+            }
+          }),
         isActive: true,
         createdBy: activeConversation?.createdBy || '',
         createdAt: activeConversation?.createdAt || new Date().toISOString(),
         updatedAt: activeConversation?.updatedAt || new Date().toISOString()
       }
     }
-  }, [callState.roomId, callState.calendarMeetingId]) // Depend on both roomId and calendarMeetingId
+  }, [callState.roomId, callState.calendarMeetingId, activeConversation, conversationName, participants]) // Added participants to deps
 
   // Return the stable reference - this never changes unless chat conversation ID changes
   const callConversation = callConversationRef.current
@@ -261,14 +306,6 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
       // Create new stable callback for this peer
       const callback = (el: HTMLVideoElement | null) => {
         if (el) {
-          rtkDebug.log(`[RTK Modal] 📹 Video element created for ${isLocal ? 'local' : 'peer'}`, {
-            peerId,
-            peerName,
-            isLocal,
-            isMinimized: callState.isMinimized,
-            wasAttached: attachedPeersRef.current.has(peerId),
-            timestamp: Date.now()
-          })
           if (isLocal) {
             setLocalVideoRef(el)
           } else {
@@ -344,23 +381,6 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
     const isRaisedByCustomId = participantCustomId ? remoteHands[participantCustomId] === true : false
     const isRaised = isRaisedByPeerId || isRaisedByUserId || isRaisedByCustomId
 
-    rtkDebug.log('[RTK Modal] 🖐️ isParticipantHandRaised check:', {
-      peerId,
-      participantUserId,
-      participantCustomId,
-      remoteHandsRaisedObject: remoteHands,
-      remoteHandsRaisedKeys: Object.keys(remoteHands),
-      valuesByKey: {
-        byPeerId: peerId ? remoteHands[peerId] : 'N/A',
-        byUserId: participantUserId ? remoteHands[participantUserId] : 'N/A',
-        byCustomId: participantCustomId ? remoteHands[participantCustomId] : 'N/A'
-      },
-      isRaisedByPeerId,
-      isRaisedByUserId,
-      isRaisedByCustomId,
-      finalResult: isRaised
-    })
-
     return isRaised
   }
 
@@ -380,35 +400,14 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
     let foundOrder: number | undefined
     if (peerId && handRaisedOrder[peerId]) {
       foundOrder = handRaisedOrder[peerId].order
-      rtkDebug.log('[RTK Modal] 🔢 Found order by peerId:', {
-        peerId,
-        order: foundOrder,
-        timestamp: handRaisedOrder[peerId].timestamp,
-        allKeys: Object.keys(handRaisedOrder),
-        allValues: handRaisedOrder
-      })
       return foundOrder
     }
     if (participantUserId && handRaisedOrder[participantUserId]) {
       foundOrder = handRaisedOrder[participantUserId].order
-      rtkDebug.log('[RTK Modal] 🔢 Found order by userId:', {
-        participantUserId,
-        order: foundOrder,
-        timestamp: handRaisedOrder[participantUserId].timestamp,
-        allKeys: Object.keys(handRaisedOrder),
-        allValues: handRaisedOrder
-      })
       return foundOrder
     }
     if (participantCustomId && handRaisedOrder[participantCustomId]) {
       foundOrder = handRaisedOrder[participantCustomId].order
-      rtkDebug.log('[RTK Modal] 🔢 Found order by customId:', {
-        participantCustomId,
-        order: foundOrder,
-        timestamp: handRaisedOrder[participantCustomId].timestamp,
-        allKeys: Object.keys(handRaisedOrder),
-        allValues: handRaisedOrder
-      })
       return foundOrder
     }
 
@@ -684,18 +683,6 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
       return testRemotePeers
     }
 
-    rtkDebug.log('[RTK Modal] 🔄 stableRemotePeers recomputed:', {
-      count: remotePeers.length,
-      fingerprint: remotePeersFingerprint,
-      peers: remotePeers.map((p: any) => ({
-        id: p.id,
-        name: p.name,
-        videoTrackId: p.videoTrack?.id,
-        audioTrackId: p.audioTrack?.id,
-        videoEnabled: p.videoEnabled,
-        audioEnabled: p.audioEnabled
-      }))
-    })
     // Return a NEW stable array (shallow copy) so we break the reference to the selector's array
     return [...remotePeers]
   }, [
@@ -2229,18 +2216,51 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
     }
   }, [activeSpeakerId])
 
+  // Enrich peers with avatar data from activeConversation
+  const enrichPeerWithAvatar = useCallback(
+    (peer: any) => {
+      if (!activeConversation?.participants) return peer
+
+      // Try to find matching participant by userId or customParticipantId
+      const conversationParticipant = activeConversation.participants.find(
+        (cp: any) =>
+          cp.userId === peer.userId ||
+          cp.userId === peer.customParticipantId ||
+          cp.user?.id === peer.userId ||
+          cp.user?.id === peer.customParticipantId
+      )
+
+      if (conversationParticipant?.user?.avatarUrl) {
+        rtkDebug.log('[RTK Modal] 🖼️ Enriched peer with avatar:', {
+          peerId: peer.id,
+          userId: peer.userId,
+          customParticipantId: peer.customParticipantId,
+          avatarUrl: conversationParticipant.user.avatarUrl
+        })
+        return {
+          ...peer,
+          avatarUrl: conversationParticipant.user.avatarUrl
+        }
+      }
+
+      return peer
+    },
+    [activeConversation]
+  )
+
   // Get first remote peer for minimized view - prioritize debounced active speaker
   const firstRemotePeer = useMemo(() => {
     // If there's a debounced active speaker, show their video
     if (debouncedActiveSpeaker) {
       const activeSpeaker = stableRemotePeers.find(peer => peer.id === debouncedActiveSpeaker)
       if (activeSpeaker) {
-        return activeSpeaker
+        return enrichPeerWithAvatar(activeSpeaker)
       }
     }
     // Fallback to first peer if no active speaker
-    return remotePeers[0] || null
-  }, [remotePeers, debouncedActiveSpeaker])
+    const firstPeer = remotePeers[0] || null
+    return firstPeer ? enrichPeerWithAvatar(firstPeer) : null
+  }, [remotePeers, debouncedActiveSpeaker, enrichPeerWithAvatar])
 
   // Track audio track IDs to trigger effect when they change
   const remoteAudioTrackIds = useMemo(() => {
@@ -2356,11 +2376,31 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
     })
   }, [callState.isMinimized, remoteAudioTrackIds, remotePeers, buildStreamFromPeer])
 
+  // Cleanup portal container when component unmounts or viewMode changes away from minimized
+  useEffect(() => {
+    // Cleanup function - runs on unmount or when dependencies change
+    return () => {
+      if (viewMode !== 'minimized') {
+        const portalContainer = document.getElementById('rtk-group-call-minimized-portal')
+        if (portalContainer) {
+          // Don't remove the container immediately - let React portal unmount first
+          // This prevents the "appears then disappears" issue
+          setTimeout(() => {
+            const container = document.getElementById('rtk-group-call-minimized-portal')
+            if (container && container.childElementCount === 0) {
+              container.remove()
+            }
+          }, 100)
+        }
+      }
+    }
+  }, [viewMode])
+
   const isOpen =
     callState.status === 'connected' || callState.status === 'joining' || callState.status === 'reconnecting'
 
   // Render minimized view - floating PiP-style window
-  if (isOpen && callState.isMinimized) {
+  if (isOpen && viewMode === 'minimized') {
     const rtkFirstPeer = firstRemotePeer as RealtimeKitPeer | null
     const firstRemoteStream = rtkFirstPeer ? buildStreamFromPeer(rtkFirstPeer) : null
 
@@ -2381,10 +2421,12 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
       : []
 
     // Render minimized view as portal to a dedicated container
-    let portalContainer = document.getElementById('rtk-group-call-minimized-portal')
+    // Use unique instance ID to prevent conflicts when multiple chat modules are loaded
+    const portalContainerId = `rtk-group-call-minimized-portal-${instanceId}`
+    let portalContainer = document.getElementById(portalContainerId)
     if (!portalContainer) {
       portalContainer = document.createElement('div')
-      portalContainer.id = 'rtk-group-call-minimized-portal'
+      portalContainer.id = portalContainerId
       portalContainer.style.cssText = 'position: fixed; z-index: 9999;'
       document.body.appendChild(portalContainer)
     }
@@ -2393,26 +2435,39 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
       ? getHandRaisedOrderNumber(rtkFirstPeer.id, rtkFirstPeer.userId, rtkFirstPeer.customParticipantId)
       : undefined
 
+    rtkDebug.log('[RTK Modal] 🎨 Rendering MinimizedCallView via portal', {
+      portalId: portalContainer.id,
+      viewMode,
+      isOpen,
+      timestamp: Date.now()
+    })
+
+    // Use a unique key based on call start time to force React to properly unmount/remount
+    // when call restarts, preventing duplicate portals from multiple renders
+    const portalKey = `minimized-${callState.status}-${callState.startTime || Date.now()}`
+
     return createPortal(
-      <MinimizedCallView
-        firstRemotePeer={rtkFirstPeer}
-        firstRemoteStream={firstRemoteStream}
-        remotePeerCount={stableRemotePeers.length}
-        callStartTime={callState.startTime}
-        callType={callState.callType}
-        isMuted={callState.isMuted}
-        isVideoEnabled={callState.isVideoEnabled}
-        isHandRaised={isFirstPeerHandRaised}
-        handRaisedOrderNumber={firstPeerHandRaisedOrderNumber}
-        isRemotePeerMuted={isFirstPeerMuted}
-        reactions={firstPeerReactions}
-        onToggleMute={onToggleMute}
-        onToggleVideo={onToggleVideo}
-        onExpand={onToggleMinimize || NOOP}
-        onEndCall={onEndCall}
-        prefixDataTestId={prefixDataTestId}
-        t={t}
-      />,
+      <div key={portalKey} data-view-mode="minimized">
+        <MinimizedCallView
+          firstRemotePeer={rtkFirstPeer}
+          firstRemoteStream={firstRemoteStream}
+          remotePeerCount={stableRemotePeers.length}
+          callStartTime={callState.startTime}
+          callType={callState.callType}
+          isMuted={callState.isMuted}
+          isVideoEnabled={callState.isVideoEnabled}
+          isHandRaised={hideReactionsAndHandRaise ? false : isFirstPeerHandRaised}
+          handRaisedOrderNumber={hideReactionsAndHandRaise ? undefined : firstPeerHandRaisedOrderNumber}
+          isRemotePeerMuted={isFirstPeerMuted}
+          reactions={hideReactionsAndHandRaise ? [] : firstPeerReactions}
+          onToggleMute={onToggleMute}
+          onToggleVideo={onToggleVideo}
+          onExpand={onToggleMinimize || NOOP}
+          onEndCall={onEndCall}
+          prefixDataTestId={prefixDataTestId}
+          t={t}
+        />
+      </div>,
       portalContainer
     )
   }
@@ -2425,16 +2480,17 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
   return (
     <>
       {createPortal(
-        <Dialog open={isOpen} onOpenChange={() => {}}>
-          <DialogContent
-            className="gba:h-[85vh] gba:p-0 gba:overflow-hidden gba:flex gba:flex-col gba:gap-0"
-            style={{
-              width: '90vw',
-              maxWidth: window.innerWidth >= 1280 ? '1800px' : window.innerWidth >= 1024 ? '1600px' : '90vw'
-            }}
-            data-testid={`${prefixDataTestId}-modal`}
-          >
-            <style>{`
+        <div key="full-call-dialog" data-view-mode="full">
+          <Dialog open={isOpen} onOpenChange={() => {}}>
+            <DialogContent
+              className="gba:h-[85vh] gba:p-0 gba:overflow-hidden gba:flex gba:flex-col gba:gap-0"
+              style={{
+                width: '90vw',
+                maxWidth: window.innerWidth >= 1280 ? '1800px' : window.innerWidth >= 1024 ? '1600px' : '90vw'
+              }}
+              data-testid={`${prefixDataTestId}-modal`}
+            >
+              <style>{`
               [data-testid="${prefixDataTestId}-modal"] > button[data-radix-collection-item] {
                 display: none !important;
               }
@@ -2442,299 +2498,307 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
                 display: none !important;
               }
             `}</style>
-            <DialogTitle className="gba:sr-only">{conversationName || t('chat-groupCall') || 'Group Call'}</DialogTitle>
-            <DialogDescription className="gba:sr-only">
-              {callState.callType === 'video' ? t('chat-videoCall') : t('chat-audioCall')} with{' '}
-              {stableRemotePeers.length + 1} {stableRemotePeers.length + 1 === 1 ? 'participant' : 'participants'}
-            </DialogDescription>
+              <DialogTitle className="gba:sr-only">
+                {conversationName || t('chat-groupCall') || 'Group Call'}
+              </DialogTitle>
+              <DialogDescription className="gba:sr-only">
+                {callState.callType === 'video' ? t('chat-videoCall') : t('chat-audioCall')} with{' '}
+                {stableRemotePeers.length + 1} {stableRemotePeers.length + 1 === 1 ? 'participant' : 'participants'}
+              </DialogDescription>
 
-            {/* Row 1: Compact Header */}
-            <div className="gba:bg-background gba:border-b gba:flex-shrink-0">
-              <CallHeader
-                conversationName={conversationName}
-                callStartTime={callState.startTime}
-                participantCount={stableRemotePeers.length + 1}
-                availableParticipantsCount={availableParticipants?.length || 0}
-                callType={callState.callType}
-                showParticipantsPanel={sidebarView === 'participants'}
-                showChatPanel={sidebarView === 'chat'}
-                unreadChatCount={unreadChatCount}
-                onToggleParticipantsPanel={handleToggleParticipants}
-                onToggleChat={handleToggleChat}
-                onToggleMinimize={onToggleMinimize}
-                onClose={onEndCall}
-                prefixDataTestId={prefixDataTestId}
-                t={t}
-              />
-            </div>
-
-            {/* Row 2: Video Area + Sidebar (Grid Layout) */}
-            <div
-              className="gba:flex-1 gba:grid gba:min-h-0 gba:overflow-hidden gba:bg-muted/30"
-              style={{
-                gridTemplateColumns: sidebarView !== 'closed' ? `1fr ${responsiveConfig.sidebarWidth}px` : '1fr'
-              }}
-            >
-              {/* Video Area */}
-              <div className="gba:flex gba:flex-col gba:gap-4 gba:p-4 gba:min-h-0 gba:overflow-hidden">
-                {focusedScreenShare ? (
-                  // PRESENTATION MODE: Dominant screen share + participant filmstrip
-                  <>
-                    {/* Main Screen Share - 75% height */}
-                    <div className="gba:flex-[3] gba:min-h-0 gba:rounded-lg gba:overflow-hidden gba:bg-black gba:relative">
-                      <video
-                        ref={el => {
-                          if (el) {
-                            screenShareVideoRefs.current.set(focusedScreenShare.peerId, el)
-                          }
-                        }}
-                        autoPlay
-                        playsInline
-                        muted
-                        className="gba:w-full gba:h-full gba:object-contain"
-                        data-testid={`${prefixDataTestId}-focused-screen-share`}
-                      />
-
-                      {/* Peer name overlay */}
-                      <div className="gba:absolute gba:bottom-3 gba:left-3 gba:px-3 gba:py-1 gba:bg-black/70 gba:rounded-md gba:text-white gba:text-sm">
-                        {focusedScreenShare.peerName}'s screen
-                      </div>
-
-                      {/* Exit focus button */}
-                      <button
-                        onClick={() => setFocusedScreenShareId(null)}
-                        className="gba:absolute gba:top-3 gba:right-3 gba:p-2 gba:bg-black/70 hover:gba:bg-black/90 gba:rounded-md gba:text-white gba:transition-colors"
-                        data-testid={`${prefixDataTestId}-exit-screen-share-focus-btn`}
-                        aria-label={t('groupCall-exitScreenShareFocus') || 'Exit screen share focus'}
-                      >
-                        <Monitor className="gba:w-5 gba:h-5" />
-                      </button>
-
-                      {/* Expand to fullscreen button */}
-                      <button
-                        onClick={() => {
-                          if (focusedScreenShare.screenShareTrack) {
-                            const stream = new MediaStream([focusedScreenShare.screenShareTrack])
-                            setExpandedScreenShare({
-                              peerId: focusedScreenShare.peerId,
-                              peerName: focusedScreenShare.peerName,
-                              stream
-                            })
-                          }
-                        }}
-                        className="gba:absolute gba:top-3 gba:right-16 gba:p-2 gba:bg-black/70 hover:gba:bg-black/90 gba:rounded-md gba:text-white gba:transition-colors"
-                        data-testid={`${prefixDataTestId}-expand-screen-share-btn`}
-                        aria-label={t('groupCall-expandScreenShare') || 'Expand to fullscreen'}
-                      >
-                        <Maximize2 className="gba:w-5 gba:h-5" />
-                      </button>
-                    </div>
-
-                    {/* Participant Filmstrip - 25% height */}
-                    <div className="gba:flex-[1] gba:min-h-0 gba:border-t gba:border-border">
-                      <HorizontalFilmstrip
-                        participants={
-                          gridItems
-                            .filter(
-                              item =>
-                                item.type === 'video' ||
-                                item.type === 'avatar' ||
-                                (item.type === 'screen-share' && !item.isFocusedScreenShare)
-                            )
-                            .map(item => ({
-                              id: item.id,
-                              peerId: item.peerId,
-                              peerName: item.peerName,
-                              avatarUrl: item.avatarUrl,
-                              userId: item.userId,
-                              customParticipantId: item.customParticipantId,
-                              isLocal: item.isLocal,
-                              isMuted: item.isMuted,
-                              hasVideoTrack: item.hasVideoTrack || false,
-                              hasAudioTrack: item.hasAudioTrack || false,
-                              type: item.type,
-                              screenShareTrack: item.screenShareTrack,
-                              isHandRaised: isParticipantHandRaised(item.peerId, item.userId, item.customParticipantId),
-                              handRaisedOrderNumber: getHandRaisedOrderNumber(
-                                item.peerId,
-                                item.userId,
-                                item.customParticipantId
-                              ),
-                              isActiveSpeaker: item.isActiveSpeaker
-                            })) as any
-                        }
-                        videoRefCallback={(peerId: string, isLocal: boolean) =>
-                          getVideoRefCallback(peerId, '', isLocal)
-                        }
-                        screenShareVideoRefCallback={(peerId: string) => (el: HTMLVideoElement | null) => {
-                          if (el) {
-                            screenShareVideoRefs.current.set(peerId, el)
-                          } else {
-                            screenShareVideoRefs.current.delete(peerId)
-                          }
-                        }}
-                        onScreenShareClick={(peerId: string) => {
-                          rtkDebug.log(`[RTK Modal] 🎯 Focusing screen share from filmstrip: ${peerId}`)
-                          setFocusedScreenShareId(peerId)
-                        }}
-                        activeSpeakerId={activeSpeakerId}
-                        reactions={activeReactions}
-                        t={t}
-                        prefixDataTestId={`${prefixDataTestId}-filmstrip`}
-                        isMinimized={callState.isMinimized}
-                      />
-                    </div>
-                  </>
-                ) : (
-                  // GALLERY MODE: Auto-fit grid
-                  <VideoGrid
-                    mode="auto-fit"
-                    minTileSize={minTileSize}
-                    gridItems={paginatedGridItems.items.map(item => (
-                      <div
-                        key={item.id}
-                        className="gba:relative gba:w-full gba:h-full gba:rounded-lg gba:overflow-hidden gba:bg-muted"
-                        style={{
-                          aspectRatio: window.innerWidth < 768 ? '4/3' : '16/9'
-                        }}
-                        data-testid={`${prefixDataTestId}-grid-item-${item.id}`}
-                      >
-                        <MemoizedParticipantVideoTile
-                          peerId={item.peerId}
-                          peerName={item.peerName}
-                          avatarUrl={item.avatarUrl}
-                          userId={item.userId}
-                          customParticipantId={item.customParticipantId}
-                          isLocal={item.isLocal}
-                          isMuted={item.isMuted}
-                          hasVideoTrack={item.hasVideoTrack || false}
-                          hasAudioTrack={item.hasAudioTrack || false}
-                          screenShareTrack={item.screenShareTrack}
-                          isFocusedScreenShare={false}
-                          totalScreenShares={allScreenShares.length}
-                          isHandRaised={isParticipantHandRaised(item.peerId, item.userId, item.customParticipantId)}
-                          handRaisedOrderNumber={getHandRaisedOrderNumber(
-                            item.peerId,
-                            item.userId,
-                            item.customParticipantId
-                          )}
-                          isActiveSpeaker={item.isActiveSpeaker}
-                          reactions={activeReactions}
-                          isMinimized={callState.isMinimized}
-                          onScreenShareClick={() => {
-                            if (item.screenShareTrack) {
-                              rtkDebug.log(`[RTK Modal] 🎯 Focusing screen share via click for ${item.peerId}`)
-                              setFocusedScreenShareId(item.peerId)
-                            }
-                          }}
-                          onScreenShareFocus={() => {
-                            rtkDebug.log(`[RTK Modal] 🎯 Focus button clicked for ${item.peerId}`)
-                            setFocusedScreenShareId(item.peerId)
-                          }}
-                          videoRef={getVideoRefCallback(item.peerId, item.peerName, item.isLocal)}
-                          screenShareVideoRef={
-                            item.screenShareTrack
-                              ? el => {
-                                  if (el) {
-                                    screenShareVideoRefs.current.set(item.peerId, el)
-                                  } else {
-                                    screenShareVideoRefs.current.delete(item.peerId)
-                                  }
-                                }
-                              : undefined
-                          }
-                          prefixDataTestId={prefixDataTestId}
-                          t={t}
-                        />
-                      </div>
-                    ))}
-                    currentPage={currentPage}
-                    totalPages={paginatedGridItems.totalPages}
-                    totalItems={paginatedGridItems.totalItems}
-                    onPageChange={setCurrentPage}
-                    isEmpty={gridItems.length === 0}
-                    prefixDataTestId={prefixDataTestId}
-                    t={t}
-                  />
-                )}
+              {/* Row 1: Compact Header */}
+              <div className="gba:bg-background gba:border-b gba:flex-shrink-0">
+                <CallHeader
+                  conversationName={conversationName}
+                  conversationType={callState.conversationType}
+                  callStartTime={callState.startTime}
+                  participantCount={stableRemotePeers.length + 1}
+                  availableParticipantsCount={availableParticipants?.length || 0}
+                  callType={callState.callType}
+                  showParticipantsPanel={sidebarView === 'participants'}
+                  showChatPanel={sidebarView === 'chat'}
+                  unreadChatCount={unreadChatCount}
+                  onToggleParticipantsPanel={handleToggleParticipants}
+                  onToggleChat={handleToggleChat}
+                  onToggleMinimize={onToggleMinimize}
+                  onClose={onEndCall}
+                  prefixDataTestId={prefixDataTestId}
+                  t={t}
+                />
               </div>
 
-              {/* Sidebar - Grid Column 2 */}
-              {sidebarView !== 'closed' && (
-                <div className="gba:bg-card gba:flex gba:flex-col gba:border-l gba:min-h-0 gba:overflow-hidden">
-                  {sidebarView === 'participants' && (
-                    <ParticipantsPanel
-                      meeting={meeting}
-                      isOpen={true}
+              {/* Row 2: Video Area + Sidebar (Grid Layout) */}
+              <div
+                className="gba:flex-1 gba:grid gba:min-h-0 gba:overflow-hidden gba:bg-muted/30"
+                style={{
+                  gridTemplateColumns: sidebarView !== 'closed' ? `1fr ${responsiveConfig.sidebarWidth}px` : '1fr'
+                }}
+              >
+                {/* Video Area */}
+                <div className="gba:flex gba:flex-col gba:gap-4 gba:p-4 gba:min-h-0 gba:overflow-hidden">
+                  {focusedScreenShare ? (
+                    // PRESENTATION MODE: Dominant screen share + participant filmstrip
+                    <>
+                      {/* Main Screen Share - 75% height */}
+                      <div className="gba:flex-[3] gba:min-h-0 gba:rounded-lg gba:overflow-hidden gba:bg-black gba:relative">
+                        <video
+                          ref={el => {
+                            if (el) {
+                              screenShareVideoRefs.current.set(focusedScreenShare.peerId, el)
+                            }
+                          }}
+                          autoPlay
+                          playsInline
+                          muted
+                          className="gba:w-full gba:h-full gba:object-contain"
+                          data-testid={`${prefixDataTestId}-focused-screen-share`}
+                        />
+
+                        {/* Peer name overlay */}
+                        <div className="gba:absolute gba:bottom-3 gba:left-3 gba:px-3 gba:py-1 gba:bg-black/70 gba:rounded-md gba:text-white gba:text-sm">
+                          {focusedScreenShare.peerName}'s screen
+                        </div>
+
+                        {/* Exit focus button */}
+                        <button
+                          onClick={() => setFocusedScreenShareId(null)}
+                          className="gba:absolute gba:top-3 gba:right-3 gba:p-2 gba:bg-black/70 hover:gba:bg-black/90 gba:rounded-md gba:text-white gba:transition-colors"
+                          data-testid={`${prefixDataTestId}-exit-screen-share-focus-btn`}
+                          aria-label={t('groupCall-exitScreenShareFocus') || 'Exit screen share focus'}
+                        >
+                          <Monitor className="gba:w-5 gba:h-5" />
+                        </button>
+
+                        {/* Expand to fullscreen button */}
+                        <button
+                          onClick={() => {
+                            if (focusedScreenShare.screenShareTrack) {
+                              const stream = new MediaStream([focusedScreenShare.screenShareTrack])
+                              setExpandedScreenShare({
+                                peerId: focusedScreenShare.peerId,
+                                peerName: focusedScreenShare.peerName,
+                                stream
+                              })
+                            }
+                          }}
+                          className="gba:absolute gba:top-3 gba:right-16 gba:p-2 gba:bg-black/70 hover:gba:bg-black/90 gba:rounded-md gba:text-white gba:transition-colors"
+                          data-testid={`${prefixDataTestId}-expand-screen-share-btn`}
+                          aria-label={t('groupCall-expandScreenShare') || 'Expand to fullscreen'}
+                        >
+                          <Maximize2 className="gba:w-5 gba:h-5" />
+                        </button>
+                      </div>
+
+                      {/* Participant Filmstrip - 25% height */}
+                      <div className="gba:flex-[1] gba:min-h-0 gba:border-t gba:border-border">
+                        <HorizontalFilmstrip
+                          participants={
+                            gridItems
+                              .filter(
+                                item =>
+                                  item.type === 'video' ||
+                                  item.type === 'avatar' ||
+                                  (item.type === 'screen-share' && !item.isFocusedScreenShare)
+                              )
+                              .map(item => ({
+                                id: item.id,
+                                peerId: item.peerId,
+                                peerName: item.peerName,
+                                avatarUrl: item.avatarUrl,
+                                userId: item.userId,
+                                customParticipantId: item.customParticipantId,
+                                isLocal: item.isLocal,
+                                isMuted: item.isMuted,
+                                hasVideoTrack: item.hasVideoTrack || false,
+                                hasAudioTrack: item.hasAudioTrack || false,
+                                type: item.type,
+                                screenShareTrack: item.screenShareTrack,
+                                isHandRaised: hideReactionsAndHandRaise
+                                  ? false
+                                  : isParticipantHandRaised(item.peerId, item.userId, item.customParticipantId),
+                                handRaisedOrderNumber: hideReactionsAndHandRaise
+                                  ? undefined
+                                  : getHandRaisedOrderNumber(item.peerId, item.userId, item.customParticipantId),
+                                isActiveSpeaker: item.isActiveSpeaker
+                              })) as any
+                          }
+                          videoRefCallback={(peerId: string, isLocal: boolean) =>
+                            getVideoRefCallback(peerId, '', isLocal)
+                          }
+                          screenShareVideoRefCallback={(peerId: string) => (el: HTMLVideoElement | null) => {
+                            if (el) {
+                              screenShareVideoRefs.current.set(peerId, el)
+                            } else {
+                              screenShareVideoRefs.current.delete(peerId)
+                            }
+                          }}
+                          onScreenShareClick={(peerId: string) => {
+                            rtkDebug.log(`[RTK Modal] 🎯 Focusing screen share from filmstrip: ${peerId}`)
+                            setFocusedScreenShareId(peerId)
+                          }}
+                          activeSpeakerId={activeSpeakerId}
+                          reactions={hideReactionsAndHandRaise ? [] : activeReactions}
+                          t={t}
+                          prefixDataTestId={`${prefixDataTestId}-filmstrip`}
+                          isMinimized={callState.isMinimized}
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    // GALLERY MODE: Auto-fit grid
+                    <VideoGrid
+                      mode="auto-fit"
+                      minTileSize={minTileSize}
+                      gridItems={paginatedGridItems.items.map(item => (
+                        <div
+                          key={item.id}
+                          className="gba:relative gba:w-full gba:h-full gba:rounded-lg gba:overflow-hidden gba:bg-muted"
+                          style={{
+                            aspectRatio: window.innerWidth < 768 ? '4/3' : '16/9'
+                          }}
+                          data-testid={`${prefixDataTestId}-grid-item-${item.id}`}
+                        >
+                          <MemoizedParticipantVideoTile
+                            peerId={item.peerId}
+                            peerName={item.peerName}
+                            avatarUrl={item.avatarUrl}
+                            userId={item.userId}
+                            customParticipantId={item.customParticipantId}
+                            isLocal={item.isLocal}
+                            isMuted={item.isMuted}
+                            hasVideoTrack={item.hasVideoTrack || false}
+                            hasAudioTrack={item.hasAudioTrack || false}
+                            screenShareTrack={item.screenShareTrack}
+                            isFocusedScreenShare={false}
+                            totalScreenShares={allScreenShares.length}
+                            isHandRaised={
+                              hideReactionsAndHandRaise
+                                ? false
+                                : isParticipantHandRaised(item.peerId, item.userId, item.customParticipantId)
+                            }
+                            handRaisedOrderNumber={
+                              hideReactionsAndHandRaise
+                                ? undefined
+                                : getHandRaisedOrderNumber(item.peerId, item.userId, item.customParticipantId)
+                            }
+                            isActiveSpeaker={item.isActiveSpeaker}
+                            reactions={hideReactionsAndHandRaise ? [] : activeReactions}
+                            isMinimized={callState.isMinimized}
+                            onScreenShareClick={() => {
+                              if (item.screenShareTrack) {
+                                rtkDebug.log(`[RTK Modal] 🎯 Focusing screen share via click for ${item.peerId}`)
+                                setFocusedScreenShareId(item.peerId)
+                              }
+                            }}
+                            onScreenShareFocus={() => {
+                              rtkDebug.log(`[RTK Modal] 🎯 Focus button clicked for ${item.peerId}`)
+                              setFocusedScreenShareId(item.peerId)
+                            }}
+                            videoRef={getVideoRefCallback(item.peerId, item.peerName, item.isLocal)}
+                            screenShareVideoRef={
+                              item.screenShareTrack
+                                ? el => {
+                                    if (el) {
+                                      screenShareVideoRefs.current.set(item.peerId, el)
+                                    } else {
+                                      screenShareVideoRefs.current.delete(item.peerId)
+                                    }
+                                  }
+                                : undefined
+                            }
+                            prefixDataTestId={prefixDataTestId}
+                            t={t}
+                          />
+                        </div>
+                      ))}
+                      currentPage={currentPage}
+                      totalPages={paginatedGridItems.totalPages}
+                      totalItems={paginatedGridItems.totalItems}
+                      onPageChange={setCurrentPage}
+                      isEmpty={gridItems.length === 0}
                       prefixDataTestId={prefixDataTestId}
-                      availableParticipants={availableParticipants}
-                      pendingInvites={pendingInvites}
-                      onInviteParticipant={onInviteParticipant}
-                      onMuteParticipant={handleMuteParticipant}
-                      onMuteAll={handleMuteAll}
-                      activeSpeakerId={activeSpeakerId}
-                      activeSpeakerHistory={activeSpeakerHistory}
-                      remoteHandsRaised={callState.remoteHandsRaised}
-                      handRaisedOrder={callState.handRaisedOrder}
-                      localHandRaised={callState.handRaised}
-                      localUserId={meeting?.self?.userId}
-                      activeConversation={activeConversation}
                       t={t}
                     />
                   )}
-                  {sidebarView === 'chat' && apiClient && accessToken && (
-                    <ChatPanel
-                      conversation={callConversation}
-                      apiClient={apiClient}
-                      wsClient={wsClient || null}
-                      currentUserId={currentUserId || null}
-                      currentUser={currentUser}
-                      accessToken={accessToken || ''}
-                      activeExperts={activeExperts}
-                      isOpen={true}
-                      onClose={() => setSidebarView('closed')}
-                      prefixDataTestId={`${prefixDataTestId}-chat`}
-                    />
-                  )}
                 </div>
+
+                {/* Sidebar - Grid Column 2 */}
+                {sidebarView !== 'closed' && (
+                  <div className="gba:bg-card gba:flex gba:flex-col gba:border-l gba:min-h-0 gba:overflow-hidden">
+                    {sidebarView === 'participants' && (
+                      <ParticipantsPanel
+                        meeting={meeting}
+                        isOpen={true}
+                        prefixDataTestId={prefixDataTestId}
+                        availableParticipants={availableParticipants}
+                        pendingInvites={pendingInvites}
+                        onInviteParticipant={onInviteParticipant}
+                        onMuteParticipant={handleMuteParticipant}
+                        onMuteAll={handleMuteAll}
+                        activeSpeakerId={activeSpeakerId}
+                        activeSpeakerHistory={activeSpeakerHistory}
+                        remoteHandsRaised={hideReactionsAndHandRaise ? {} : callState.remoteHandsRaised}
+                        handRaisedOrder={hideReactionsAndHandRaise ? {} : callState.handRaisedOrder}
+                        localHandRaised={hideReactionsAndHandRaise ? false : callState.handRaised}
+                        localUserId={meeting?.self?.userId}
+                        activeConversation={activeConversation}
+                        t={t}
+                      />
+                    )}
+                    {sidebarView === 'chat' && apiClient && accessToken && (
+                      <ChatPanel
+                        conversation={callConversation}
+                        apiClient={apiClient}
+                        wsClient={wsClient || null}
+                        currentUserId={currentUserId || null}
+                        currentUser={currentUser}
+                        accessToken={accessToken || ''}
+                        activeExperts={activeExperts}
+                        isOpen={true}
+                        onClose={() => setSidebarView('closed')}
+                        prefixDataTestId={`${prefixDataTestId}-chat`}
+                      />
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Row 3: Compact Footer - Call Controls */}
+              <div className="gba:bg-background gba:border-t gba:flex-shrink-0">
+                <CallControlsBar
+                  callType={callState.callType}
+                  isMuted={callState.isMuted}
+                  isVideoEnabled={callState.isVideoEnabled}
+                  isScreenSharing={callState.isScreenSharing}
+                  backgroundEnabled={callState.backgroundEnabled}
+                  handRaised={hideReactionsAndHandRaise ? false : callState.handRaised}
+                  transcriptionActive={transcriptionEnabled}
+                  onToggleMute={onToggleMute}
+                  onToggleVideo={onToggleVideo}
+                  onToggleScreenShare={onToggleScreenShare}
+                  onToggleBackground={onToggleBackground}
+                  onToggleRaiseHand={hideReactionsAndHandRaise ? undefined : onToggleRaiseHand}
+                  onSendReaction={hideReactionsAndHandRaise ? undefined : onSendReaction}
+                  onEndCall={onEndCall}
+                  prefixDataTestId={prefixDataTestId}
+                  t={t}
+                />
+              </div>
+
+              {/* Expanded stream overlay */}
+              {expandedScreenShare && (
+                <ScreenShareView
+                  peerId={expandedScreenShare.peerId}
+                  peerName={expandedScreenShare.peerName}
+                  stream={expandedScreenShare.stream}
+                  onClose={() => setExpandedScreenShare(null)}
+                  prefixDataTestId={prefixDataTestId}
+                  t={t}
+                />
               )}
-            </div>
-
-            {/* Row 3: Compact Footer - Call Controls */}
-            <div className="gba:bg-background gba:border-t gba:flex-shrink-0">
-              <CallControlsBar
-                callType={callState.callType}
-                isMuted={callState.isMuted}
-                isVideoEnabled={callState.isVideoEnabled}
-                isScreenSharing={callState.isScreenSharing}
-                backgroundEnabled={callState.backgroundEnabled}
-                handRaised={callState.handRaised}
-                transcriptionActive={transcriptionEnabled}
-                onToggleMute={onToggleMute}
-                onToggleVideo={onToggleVideo}
-                onToggleScreenShare={onToggleScreenShare}
-                onToggleBackground={onToggleBackground}
-                onToggleRaiseHand={onToggleRaiseHand}
-                onSendReaction={onSendReaction}
-                onEndCall={onEndCall}
-                prefixDataTestId={prefixDataTestId}
-                t={t}
-              />
-            </div>
-
-            {/* Expanded stream overlay */}
-            {expandedScreenShare && (
-              <ScreenShareView
-                peerId={expandedScreenShare.peerId}
-                peerName={expandedScreenShare.peerName}
-                stream={expandedScreenShare.stream}
-                onClose={() => setExpandedScreenShare(null)}
-                prefixDataTestId={prefixDataTestId}
-                t={t}
-              />
-            )}
-          </DialogContent>
-        </Dialog>,
+            </DialogContent>
+          </Dialog>
+        </div>,
         document.body
       )}
     </>
