@@ -340,7 +340,7 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(
               size="sm"
               onClick={() => {
                 if (noteId) {
-                  window.open(`/note-apps?noteId=${noteId}`, '_blank', 'noopener,noreferrer')
+                  navigateTo(`/platform/notes?noteId=${noteId}&view=editor`)
                 }
               }}
               className="gba:mt-1"
