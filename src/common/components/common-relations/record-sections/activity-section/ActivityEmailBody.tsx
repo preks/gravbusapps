@@ -40,13 +40,14 @@ export const ActivityEmailBody: React.FC<ActivityEmailBodyProps> = ({
   const [error, setError] = useState<string | null>(null)
   const iframeRef = useRef<HTMLIFrameElement>(null)
 
-  // Lazy-load the full email message from document-service
+  // Lazy-load the full email message from document-service using shared endpoint
+  // The /shared endpoint allows any authenticated user to view CRM-linked emails
   const fetchEmail = useCallback(async () => {
     if (emailBody || loading) return
     setLoading(true)
     setError(null)
     try {
-      const resp = await fetch(`${API_URL}/emails/messages/${emailMessageId}`, {
+      const resp = await fetch(`${API_URL}/emails/messages/${emailMessageId}/shared`, {
         headers: { Authorization: `Bearer ${accessToken}` }
       })
       if (!resp.ok) throw new Error(`Failed to load email (${resp.status})`)
