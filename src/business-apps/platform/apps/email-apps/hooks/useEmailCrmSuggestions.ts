@@ -179,7 +179,7 @@ export function useEmailCrmSuggestions({
     if (!message) return []
     const ownEmail = activeAccount?.emailAddress?.toLowerCase()
     const emails: string[] = []
-    if (message.status === 'received' || message.status === 'sending') {
+    if (message.status === 'received') {
       if (message.fromAddress?.address) {
         const addr = message.fromAddress.address.toLowerCase()
         if (addr !== ownEmail) emails.push(addr)

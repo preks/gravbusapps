@@ -321,7 +321,7 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
                             key={att.id}
                             onClick={() => handleDownloadAttachment(message.id, att.id)}
                             disabled={downloadingAttId === att.id}
-                            className="gba:flex gba:items-center gba:gap-2 gba:px-3 gba:py-2 gba:rounded-lg gba:border gba:bg-muted/30 hover:gba:bg-muted/50 gba:cursor-pointer gba:transition-colors disabled:gba:opacity-50"
+                            className="gba:flex gba:items-center gba:gap-2 gba:px-3 gba:py-2 gba:rounded-lg gba:border gba:bg-muted/30 gba:hover:bg-muted/50 gba:cursor-pointer gba:transition-colors gba:disabled:opacity-50"
                             data-testid={`${testId}-attachment-${att.id}`}
                           >
                             <Paperclip className="gba:w-4 gba:h-4 gba:text-muted-foreground" />
