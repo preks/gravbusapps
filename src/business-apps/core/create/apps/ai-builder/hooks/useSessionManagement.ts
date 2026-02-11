@@ -6,12 +6,12 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 const SESSION_ID_QUERY_PARAM = 'sessionId'
 
 function getSessionIdFromUrl(): string | null {
-  if (typeof globalThis.window === 'undefined') return null
+  if (globalThis.window === undefined) return null
   return new URLSearchParams(globalThis.window.location.search).get(SESSION_ID_QUERY_PARAM)
 }
 
 function setSessionIdInUrl(sid: string | null): void {
-  if (typeof globalThis.window === 'undefined') return
+  if (globalThis.window === undefined) return
   const params = new URLSearchParams(globalThis.window.location.search)
   if (sid) params.set(SESSION_ID_QUERY_PARAM, sid)
   else params.delete(SESSION_ID_QUERY_PARAM)

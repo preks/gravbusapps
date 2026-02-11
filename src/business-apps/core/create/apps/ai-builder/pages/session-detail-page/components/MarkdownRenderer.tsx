@@ -6,16 +6,19 @@ interface MarkdownRendererProps {
   content: string
 }
 
-// Normalize excessive newlines and fix spacing issues
+// Normalize excessive newlines and fix spacing issues (ReDoS-safe: bounded quantifiers, no backtracking)
 const normalizeNewlines = (text: string): string => {
-  return text
+  let s = text
     .replaceAll(/([.!?])([A-Z])/g, '$1 $2') // Add space between sentence end and next sentence start
     .replaceAll(/\n{3,}/g, '\n\n') // Collapse 3+ newlines to 2
     .replace(/^\n+/, '') // Remove leading newlines
-    .replace(/\n+$/, '') // Remove trailing newlines
-    .replaceAll(/\n\n+/g, '\n\n') // Ensure max 2 consecutive newlines
-    .replaceAll(/\n\n+([-*]|\d+\.)\s/g, '\n$1 ') // Single newline before list items
-    .replaceAll(/([-*]|\d+\.)\s.*\n\n+(?=[-*]|\d+\.)/g, match => match.replaceAll(/\n\n+/g, '\n'))
+  while (s.length > 0 && s[s.length - 1] === '\n') {
+    s = s.slice(0, -1)
+  }
+  return s
+    .replaceAll(/\n{2,100}/g, '\n\n') // Ensure max 2 consecutive newlines (bounded)
+    .replaceAll(/\n{2,100}([-*]|\d+\.)\s/g, '\n$1 ') // Single newline before list items (bounded)
+    .replaceAll(/([-*]|\d+\.)\s[^\n]*\n{2,100}(?=[-*]|\d+\.)/g, match => match.replaceAll(/\n{2,100}/g, '\n'))
 }
 
 export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content: rawContent }) => {
@@ -100,43 +103,45 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content: raw
     return segments.length > 0 ? segments : renderFormatting(text)
   }
 
-  // Render bold, italic, lists
+  // Render one line as bullet, numbered, heading, or plain (extracted to avoid nested ternary + complexity)
+  const renderFormattingLine = (line: string): React.ReactNode => {
+    if (line.startsWith('- ') || line.startsWith('* ')) {
+      return (
+        <div className="gba:flex gba:gap-2 gba:ml-4">
+          <span className="gba:text-primary">•</span>
+          <span>{renderInlineFormatting(line.slice(2))}</span>
+        </div>
+      )
+    }
+    const numberedMatch = /^(\d+)\.\s/.exec(line)
+    if (numberedMatch) {
+      return (
+        <div className="gba:flex gba:gap-2 gba:ml-4">
+          <span className="gba:text-primary gba:font-semibold">{numberedMatch[1]}.</span>
+          <span>{renderInlineFormatting(line.replace(/^\d+\.\s/, ''))}</span>
+        </div>
+      )
+    }
+    if (line.startsWith('# ')) return <h1 className="gba:text-2xl gba:font-bold gba:mt-4 gba:mb-2">{line.slice(2)}</h1>
+    if (line.startsWith('## ')) return <h2 className="gba:text-xl gba:font-bold gba:mt-3 gba:mb-2">{line.slice(3)}</h2>
+    if (line.startsWith('### '))
+      return <h3 className="gba:text-lg gba:font-semibold gba:mt-2 gba:mb-1">{line.slice(4)}</h3>
+    return <>{renderInlineFormatting(line)}</>
+  }
+
   const renderFormatting = (text: string) => {
     const lines = text.split('\n')
     return lines.map((line, i) => {
       const trimmedLine = line.trim()
       const nextLine = lines[i + 1]?.trim()
       const isEmptyLine = trimmedLine === ''
-      const nextIsListItem = nextLine?.startsWith('- ') || nextLine?.startsWith('* ') || /^\d+\.\s/.test(nextLine || '')
+      const nextIsListItem = nextLine?.startsWith('- ') || nextLine?.startsWith('* ') || /^\d+\.\s/.test(nextLine ?? '')
 
-      // Skip empty lines before list items (they add unwanted spacing)
-      if (isEmptyLine && nextIsListItem) {
-        return null
-      }
+      if (isEmptyLine && nextIsListItem) return null
 
-      const numberedMatch = /^(\d+)\.\s/.exec(line)
       return (
         <React.Fragment key={`line-${i}-${line.length}`}>
-          {line.startsWith('- ') || line.startsWith('* ') ? (
-            <div className="gba:flex gba:gap-2 gba:ml-4">
-              <span className="gba:text-primary">•</span>
-              <span>{renderInlineFormatting(line.slice(2))}</span>
-            </div>
-          ) : numberedMatch ? (
-            <div className="gba:flex gba:gap-2 gba:ml-4">
-              <span className="gba:text-primary gba:font-semibold">{numberedMatch[1]}.</span>
-              <span>{renderInlineFormatting(line.replace(/^\d+\.\s/, ''))}</span>
-            </div>
-          ) : line.startsWith('# ') ? (
-            <h1 className="gba:text-2xl gba:font-bold gba:mt-4 gba:mb-2">{line.slice(2)}</h1>
-          ) : line.startsWith('## ') ? (
-            <h2 className="gba:text-xl gba:font-bold gba:mt-3 gba:mb-2">{line.slice(3)}</h2>
-          ) : line.startsWith('### ') ? (
-            <h3 className="gba:text-lg gba:font-semibold gba:mt-2 gba:mb-1">{line.slice(4)}</h3>
-          ) : (
-            <>{renderInlineFormatting(line)}</>
-          )}
-          {/* Only add <br /> if not an empty line and not followed by empty line before list */}
+          {renderFormattingLine(line)}
           {i < lines.length - 1 && !isEmptyLine && <br />}
         </React.Fragment>
       )

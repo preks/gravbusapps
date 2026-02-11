@@ -31,8 +31,11 @@ export function resolveServiceUrl(envVar: string, servicePath: string): string {
     return explicitUrl
   }
 
-  // Priority 2: Construct from base URL (published components)
-  const baseUrl = (env('NEXT_PUBLIC_BASE_URL') || '').replace(/\/+$/, '')
+  // Priority 2: Construct from base URL (published components) - trim trailing slashes without ReDoS
+  let baseUrl = env('NEXT_PUBLIC_BASE_URL') || ''
+  while (baseUrl.length > 0 && baseUrl.endsWith('/')) {
+    baseUrl = baseUrl.slice(0, -1)
+  }
   const cleanPath = servicePath.startsWith('/') ? servicePath : `/${servicePath}`
 
   return `${baseUrl}${cleanPath}`

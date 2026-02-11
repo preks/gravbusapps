@@ -108,31 +108,7 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
           {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.tools', 'Tools')} ({toolCalls.length})
         </span>
         {toolCalls.map(tool => {
-          // Extract file path from tool args
-          let displayText = tool.tool
-          let filePath: string | null = null
-
-          if (tool.args) {
-            const pathRegex = /(?:filePath|path|target_file):\s*"([^"]+)"/
-            const filePathRegex = /file_path:\s*"([^"]+)"/
-            if (tool.tool === 'write_file' || tool.tool === 'read_file') {
-              const pathMatch = pathRegex.exec(tool.args)
-              if (pathMatch) {
-                filePath = pathMatch[1]
-                displayText =
-                  tool.tool === 'write_file'
-                    ? getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.tool_writing', '✍️ Writing')
-                    : getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.tool_reading', '📖 Reading')
-              }
-            } else if (tool.tool === 'propose_change') {
-              const fileMatch = filePathRegex.exec(tool.args)
-              if (fileMatch) {
-                filePath = fileMatch[1]
-                displayText = getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.tool_editing', '🔧 Editing')
-              }
-            }
-          }
-
+          const { displayText, filePath } = getToolDisplay(tool)
           return (
             <div key={tool.id} className="gba:flex gba:items-center gba:gap-2 gba:text-xs">
               <span
@@ -153,6 +129,31 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
         })}
       </div>
     )
+  }
+
+  function getToolDisplay(tool: { tool: string; args?: string }): { displayText: string; filePath: string | null } {
+    let displayText = tool.tool
+    let filePath: string | null = null
+    if (!tool.args) return { displayText, filePath }
+    const pathRegex = /(?:filePath|path|target_file):\s*"([^"]+)"/
+    const filePathRegex = /file_path:\s*"([^"]+)"/
+    if (tool.tool === 'write_file' || tool.tool === 'read_file') {
+      const pathMatch = pathRegex.exec(tool.args)
+      if (pathMatch) {
+        filePath = pathMatch[1]
+        displayText =
+          tool.tool === 'write_file'
+            ? getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.tool_writing', '✍️ Writing')
+            : getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.tool_reading', '📖 Reading')
+      }
+    } else if (tool.tool === 'propose_change') {
+      const fileMatch = filePathRegex.exec(tool.args)
+      if (fileMatch) {
+        filePath = fileMatch[1]
+        displayText = getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.tool_editing', '🔧 Editing')
+      }
+    }
+    return { displayText, filePath }
   }
 
   const renderMarkdown = (content: string) => {

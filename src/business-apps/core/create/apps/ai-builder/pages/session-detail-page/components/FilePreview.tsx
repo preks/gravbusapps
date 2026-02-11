@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { X, Copy, Check, Search, ChevronUp, ChevronDown } from 'lucide-react'
 import { Button, Input } from '@newwork/nw-design-system'
 import { builderClient } from '@/common/network/ai/builder'
@@ -18,9 +18,20 @@ export const FilePreview: React.FC<FilePreviewProps> = ({ filePath, repoId, sess
   const [source, setSource] = useState<string>('')
   const [searchTerm, setSearchTerm] = useState('')
   const [currentMatchIndex, setCurrentMatchIndex] = useState(0)
+  const dialogRef = useRef<HTMLDialogElement>(null)
 
   useEffect(() => {
     loadFile()
+  }, [filePath])
+
+  useEffect(() => {
+    const dialog = dialogRef.current
+    if (dialog && filePath) {
+      dialog.showModal()
+      return () => {
+        dialog.close()
+      }
+    }
   }, [filePath])
 
   const loadFile = async () => {
@@ -157,22 +168,31 @@ export const FilePreview: React.FC<FilePreviewProps> = ({ filePath, repoId, sess
     })
   }, [content, searchTerm, searchMatches, currentMatchIndex])
 
+  const handleClose = () => {
+    dialogRef.current?.close()
+    onClose()
+  }
+  const handleDialogClick = (e: React.MouseEvent<HTMLDialogElement>) => {
+    if (e.target === dialogRef.current) handleClose()
+  }
+  const handleDialogKeyDown = (e: React.KeyboardEvent<HTMLDialogElement>) => {
+    if (e.key === 'Escape') {
+      e.preventDefault()
+      handleClose()
+    }
+  }
+
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      className="gba:fixed gba:inset-0 gba:bg-black/50 gba:flex gba:items-center gba:justify-center gba:z-50"
-      onClick={onClose}
-      onKeyDown={e => {
-        if (e.key === 'Escape') onClose()
-      }}
+    <dialog
+      ref={dialogRef}
+      className="gba:fixed gba:inset-0 gba:flex gba:items-center gba:justify-center gba:z-50 gba:border-0 gba:p-0 gba:max-w-none gba:max-h-none gba:bg-transparent [&::backdrop]:gba:bg-black/50"
+      onClick={handleDialogClick}
+      onKeyDown={handleDialogKeyDown}
+      aria-modal="true"
     >
       <div
-        role="dialog"
-        aria-modal="true"
         className="gba:bg-card gba:rounded-lg gba:shadow-lg gba:w-[900px] gba:max-w-[90vw] gba:max-h-[90vh] gba:flex gba:flex-col"
         onClick={e => e.stopPropagation()}
-        onKeyDown={e => e.stopPropagation()}
       >
         {/* Header */}
         <div className="gba:p-4 gba:border-b gba:border-border gba:space-y-3">
@@ -227,7 +247,7 @@ export const FilePreview: React.FC<FilePreviewProps> = ({ filePath, repoId, sess
               </span>
             </Button>
 
-            <Button size="sm" variant="ghost" onClick={onClose} className="gba:h-8 gba:w-8 gba:p-0">
+            <Button size="sm" variant="ghost" onClick={handleClose} className="gba:h-8 gba:w-8 gba:p-0">
               <X size={16} />
             </Button>
           </div>
@@ -316,6 +336,6 @@ export const FilePreview: React.FC<FilePreviewProps> = ({ filePath, repoId, sess
           )}
         </div>
       </div>
-    </div>
+    </dialog>
   )
 }

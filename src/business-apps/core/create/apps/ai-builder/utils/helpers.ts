@@ -37,15 +37,18 @@ export function getSafeHref(url: string | null): string {
 }
 
 /**
- * Normalize excessive newlines and fix spacing issues
+ * Normalize excessive newlines and fix spacing issues (ReDoS-safe: bounded quantifiers, no backtracking)
  */
 export const normalizeNewlines = (text: string): string => {
-  return text
+  let s = text
     .replaceAll(/([.!?])([A-Z])/g, '$1 $2') // Add space between sentence end and next sentence start
     .replaceAll(/\n{3,}/g, '\n\n') // Collapse 3+ newlines to 2
     .replace(/^\n+/, '') // Remove leading newlines
-    .replace(/\n+$/, '') // Remove trailing newlines
-    .replaceAll(/\n\n+/g, '\n\n') // Ensure max 2 consecutive newlines
-    .replaceAll(/\n\n+([-*]|\d+\.)\s/g, '\n$1 ') // Single newline before list items
-    .replaceAll(/([-*]|\d+\.)\s.*\n\n+(?=[-*]|\d+\.)/g, match => match.replaceAll(/\n\n+/g, '\n'))
+  while (s.length > 0 && s[s.length - 1] === '\n') {
+    s = s.slice(0, -1)
+  }
+  return s
+    .replaceAll(/\n{2,100}/g, '\n\n') // Ensure max 2 consecutive newlines (bounded)
+    .replaceAll(/\n{2,100}([-*]|\d+\.)\s/g, '\n$1 ') // Single newline before list items (bounded)
+    .replaceAll(/([-*]|\d+\.)\s[^\n]*\n{2,100}(?=[-*]|\d+\.)/g, match => match.replaceAll(/\n{2,100}/g, '\n'))
 }

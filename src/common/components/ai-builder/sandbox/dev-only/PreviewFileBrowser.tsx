@@ -105,10 +105,9 @@ export const PreviewFileBrowser: React.FC<PreviewFileBrowserProps> = ({ files, o
 
     return (
       <div key={node.path}>
-        <div
-          role="button"
-          tabIndex={0}
-          className={`gba:flex gba:items-center gba:gap-2 gba:px-2 gba:py-1 gba:cursor-pointer hover:gba:bg-muted/50 ${
+        <button
+          type="button"
+          className={`gba:w-full gba:flex gba:items-center gba:gap-2 gba:px-2 gba:py-1 gba:cursor-pointer hover:gba:bg-muted/50 gba:bg-transparent gba:border-0 gba:text-left ${
             isSelected ? 'gba:bg-primary/10' : ''
           }`}
           style={{ paddingLeft: `${level * 16 + 8}px` }}
@@ -149,7 +148,7 @@ export const PreviewFileBrowser: React.FC<PreviewFileBrowserProps> = ({ files, o
           {node.type === 'file' && node.size !== undefined && (
             <span className="gba:text-xs gba:text-muted-foreground">{formatSize(node.size)}</span>
           )}
-        </div>
+        </button>
 
         {node.type === 'folder' && isExpanded && node.children && (
           <div>{node.children.map(child => renderNode(child, level + 1))}</div>

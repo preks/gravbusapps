@@ -26,8 +26,10 @@ import { useDebounce } from '@/common/hooks/useDebounce'
 import { sanitizeFilename, getSafeHref } from '../../utils/helpers'
 import { SessionMetadata } from '../../types/session'
 
+type MessageRole = 'user' | 'assistant'
+
 interface Message {
-  role: 'user' | 'assistant'
+  role: MessageRole
   content: string
   toolCalls?: Array<{
     tool: string
@@ -240,7 +242,7 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
 
   useEffect(() => {
     if (sessionId && debouncedMessages.length > 0) {
-      builderClient.saveChatHistory(repositoryId, sessionId, debouncedMessages as Message[])
+      builderClient.saveChatHistory(repositoryId, sessionId, debouncedMessages)
     }
   }, [debouncedMessages, sessionId, repositoryId])
 
@@ -303,138 +305,178 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
     }
   }
 
-  const processStreamEvent = (
-    data: Record<string, unknown>,
-    streamState: {
-      assistantMessage: string
-      needsNewMessage: boolean
-      hasCreatedInitialMessage: boolean
-    },
-    ctx: {
-      setMessages: React.Dispatch<React.SetStateAction<Message[]>>
-      setUsage: React.Dispatch<
-        React.SetStateAction<{
-          totalInputTokens: number
-          totalOutputTokens: number
-          totalCost: number
-          lastCallCost: number
-        }>
-      >
-      setThinking: (v: boolean) => void
-      setThinkingContent: (v: React.SetStateAction<string>) => void
-      toolIdCounter: React.MutableRefObject<number>
+  type StreamCtx = {
+    setMessages: React.Dispatch<React.SetStateAction<Message[]>>
+    setUsage: React.Dispatch<
+      React.SetStateAction<{
+        totalInputTokens: number
+        totalOutputTokens: number
+        totalCost: number
+        lastCallCost: number
+      }>
+    >
+    setThinking: (v: boolean) => void
+    setThinkingContent: (v: React.SetStateAction<string>) => void
+    toolIdCounter: React.MutableRefObject<number>
+  }
+  type StreamState = { assistantMessage: string; needsNewMessage: boolean; hasCreatedInitialMessage: boolean }
+
+  const applyUsageEvent = (data: Record<string, unknown>, ctx: StreamCtx): void => {
+    const usageData = typeof data.content === 'string' ? JSON.parse(data.content as string) : data.content
+    const u = usageData as Record<string, number>
+    ctx.setUsage(prev => ({
+      totalInputTokens: prev.totalInputTokens + (u.totalInputTokens || 0),
+      totalOutputTokens: prev.totalOutputTokens + (u.totalOutputTokens || 0),
+      totalCost: prev.totalCost + (u.totalCost || 0),
+      lastCallCost: u.callCost || 0
+    }))
+    ctx.setMessages(prev => {
+      const newMessages = [...prev]
+      for (let i = newMessages.length - 1; i >= 0; i--) {
+        if (newMessages[i].role === 'assistant') {
+          newMessages[i] = {
+            ...newMessages[i],
+            cost: {
+              inputTokens: u.totalInputTokens || 0,
+              outputTokens: u.totalOutputTokens || 0,
+              totalCost: u.totalCost || 0
+            }
+          }
+          break
+        }
+      }
+      return newMessages
+    })
+  }
+
+  const applyThinkingEvent = (data: Record<string, unknown>, ctx: StreamCtx): void => {
+    ctx.setThinking(true)
+    ctx.setThinkingContent(prev => prev + (data.content as string))
+    ctx.setMessages(prev => {
+      const next = [...prev]
+      if (next.length === 0 || next[next.length - 1].role !== 'assistant') {
+        next.push({ role: 'assistant', content: '', thinkingLog: '', thinkingCollapsed: false })
+      }
+      const last = next[next.length - 1]
+      last.thinkingLog = (last.thinkingLog || '') + (data.content as string)
+      if (typeof last.thinkingCollapsed !== 'boolean') last.thinkingCollapsed = false
+      return next
+    })
+  }
+
+  const applyTokenOrResponseEvent = (data: Record<string, unknown>, streamState: StreamState, ctx: StreamCtx): void => {
+    ctx.setThinking(false)
+    ctx.setThinkingContent('')
+    ctx.setMessages(prev => {
+      const next = [...prev]
+      if (next.length > 0 && next[next.length - 1].role === 'assistant' && next[next.length - 1].thinkingLog) {
+        next[next.length - 1].thinkingCollapsed = true
+      }
+      return next
+    })
+    if (!streamState.hasCreatedInitialMessage || streamState.needsNewMessage) {
+      ctx.setMessages(prev => [...prev, { role: 'assistant', content: '' }])
+      streamState.hasCreatedInitialMessage = true
+      streamState.needsNewMessage = false
+      streamState.assistantMessage = ''
     }
-  ): void => {
+    streamState.assistantMessage += data.content as string
+    ctx.setMessages(prev => {
+      const newMessages = [...prev]
+      newMessages[newMessages.length - 1].content = streamState.assistantMessage
+      return newMessages
+    })
+  }
+
+  const applyToolCallEvent = (data: Record<string, unknown>, streamState: StreamState, ctx: StreamCtx): void => {
+    if (!streamState.hasCreatedInitialMessage) {
+      ctx.setMessages(prev => [...prev, { role: 'assistant', content: '' }])
+      streamState.hasCreatedInitialMessage = true
+      streamState.assistantMessage = ''
+    }
+    const contentStr = data.content != null ? String(data.content) : ''
+    const parenMatch = /\(([^)]*)\)/.exec(contentStr)
+    const toolArgs = parenMatch?.[1]
+    ctx.setMessages(prev => {
+      const newMessages = [...prev]
+      const lastMsg = newMessages[newMessages.length - 1]
+      lastMsg.toolCalls ??= []
+      const alreadyExists = lastMsg.toolCalls.some(t => t.tool === data.toolName && t.args === toolArgs)
+      if (!alreadyExists) {
+        ctx.toolIdCounter.current += 1
+        lastMsg.toolCalls.push({
+          tool: String(data.toolName),
+          args: toolArgs,
+          status: 'running',
+          id: `tool-${ctx.toolIdCounter.current}`
+        })
+      }
+      return newMessages
+    })
+  }
+
+  const applyToolResultEvent = (data: Record<string, unknown>, ctx: StreamCtx): void => {
+    ctx.setMessages(prev => {
+      const newMessages = [...prev]
+      const lastMsg = newMessages[newMessages.length - 1]
+      if (!lastMsg.toolCalls) return newMessages
+      const runningTools = lastMsg.toolCalls.filter(t => t.tool === data.toolName && t.status === 'running')
+      if (runningTools.length === 0) return newMessages
+      const tool = runningTools[runningTools.length - 1]
+      tool.status = 'complete'
+      tool.result = data.content as string
+      return newMessages
+    })
+  }
+
+  const processStreamEvent = (data: Record<string, unknown>, streamState: StreamState, ctx: StreamCtx): void => {
     if (data.type === 'iteration_complete') {
       streamState.needsNewMessage = true
       return
     }
     if (data.type === 'usage' && data.content) {
-      const usageData = typeof data.content === 'string' ? JSON.parse(data.content as string) : data.content
-      ctx.setUsage(prev => ({
-        totalInputTokens: prev.totalInputTokens + ((usageData as Record<string, number>).totalInputTokens || 0),
-        totalOutputTokens: prev.totalOutputTokens + ((usageData as Record<string, number>).totalOutputTokens || 0),
-        totalCost: prev.totalCost + ((usageData as Record<string, number>).totalCost || 0),
-        lastCallCost: (usageData as Record<string, number>).callCost || 0
-      }))
-      ctx.setMessages(prev => {
-        const newMessages = [...prev]
-        for (let i = newMessages.length - 1; i >= 0; i--) {
-          if (newMessages[i].role === 'assistant') {
-            const u = usageData as Record<string, number>
-            newMessages[i] = {
-              ...newMessages[i],
-              cost: {
-                inputTokens: u.totalInputTokens || 0,
-                outputTokens: u.totalOutputTokens || 0,
-                totalCost: u.totalCost || 0
-              }
-            }
-            break
-          }
-        }
-        return newMessages
-      })
+      applyUsageEvent(data, ctx)
       return
     }
     if (data.type === 'thinking' && data.content) {
-      ctx.setThinking(true)
-      ctx.setThinkingContent(prev => prev + (data.content as string))
-      ctx.setMessages(prev => {
-        const next = [...prev]
-        if (next.length === 0 || next[next.length - 1].role !== 'assistant') {
-          next.push({ role: 'assistant', content: '', thinkingLog: '', thinkingCollapsed: false })
-        }
-        const last = next[next.length - 1]
-        last.thinkingLog = (last.thinkingLog || '') + (data.content as string)
-        if (typeof last.thinkingCollapsed !== 'boolean') last.thinkingCollapsed = false
-        return next
-      })
+      applyThinkingEvent(data, ctx)
       return
     }
     if ((data.type === 'token' || data.type === 'response') && data.content) {
-      ctx.setThinking(false)
-      ctx.setThinkingContent('')
-      ctx.setMessages(prev => {
-        const next = [...prev]
-        if (next.length > 0 && next[next.length - 1].role === 'assistant' && next[next.length - 1].thinkingLog) {
-          next[next.length - 1].thinkingCollapsed = true
-        }
-        return next
-      })
-      if (!streamState.hasCreatedInitialMessage || streamState.needsNewMessage) {
-        ctx.setMessages(prev => [...prev, { role: 'assistant', content: '' }])
-        streamState.hasCreatedInitialMessage = true
-        streamState.needsNewMessage = false
-        streamState.assistantMessage = ''
-      }
-      streamState.assistantMessage += data.content as string
-      ctx.setMessages(prev => {
-        const newMessages = [...prev]
-        newMessages[newMessages.length - 1].content = streamState.assistantMessage
-        return newMessages
-      })
+      applyTokenOrResponseEvent(data, streamState, ctx)
       return
     }
     if (data.type === 'tool_call' && data.toolName) {
-      if (!streamState.hasCreatedInitialMessage) {
-        ctx.setMessages(prev => [...prev, { role: 'assistant', content: '' }])
-        streamState.hasCreatedInitialMessage = true
-        streamState.assistantMessage = ''
-      }
-      const toolArgs = data.content ? String(data.content).match(/\((.*)\)/)?.[1] : undefined
-      ctx.setMessages(prev => {
-        const newMessages = [...prev]
-        const lastMsg = newMessages[newMessages.length - 1]
-        lastMsg.toolCalls ??= []
-        const alreadyExists = lastMsg.toolCalls.some(t => t.tool === data.toolName && t.args === toolArgs)
-        if (!alreadyExists) {
-          ctx.toolIdCounter.current += 1
-          lastMsg.toolCalls.push({
-            tool: data.toolName as string,
-            args: toolArgs,
-            status: 'running',
-            id: `tool-${ctx.toolIdCounter.current}`
-          })
-        }
-        return newMessages
-      })
+      applyToolCallEvent(data, streamState, ctx)
       return
     }
     if (data.type === 'tool_result' && data.toolName) {
-      ctx.setMessages(prev => {
-        const newMessages = [...prev]
-        const lastMsg = newMessages[newMessages.length - 1]
-        if (lastMsg.toolCalls) {
-          const runningTools = lastMsg.toolCalls.filter(t => t.tool === data.toolName && t.status === 'running')
-          if (runningTools.length > 0) {
-            const tool = runningTools[runningTools.length - 1]
-            tool.status = 'complete'
-            tool.result = data.content as string
-          }
+      applyToolResultEvent(data, ctx)
+    }
+  }
+
+  const runStreamToEnd = async (
+    reader: ReadableStreamDefaultReader<Uint8Array>,
+    streamState: StreamState,
+    ctx: StreamCtx
+  ): Promise<void> => {
+    const decoder = new TextDecoder()
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      const chunk = decoder.decode(value)
+      const lines = chunk.split('\n')
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue
+        try {
+          const jsonStr = line.slice(6).trim()
+          if (!jsonStr) continue
+          const data = JSON.parse(jsonStr) as Record<string, unknown>
+          if (data && typeof data === 'object') processStreamEvent(data, streamState, ctx)
+        } catch {
+          // skip parse error
         }
-        return newMessages
-      })
+      }
     }
   }
 
@@ -469,46 +511,30 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
         SYSTEM_PROMPT
       )
       const reader = stream.getReader()
-      const decoder = new TextDecoder()
-      const streamState = {
+      const streamState: StreamState = {
         assistantMessage: '',
         needsNewMessage: false,
         hasCreatedInitialMessage: false
       }
-      const ctx = {
+      const ctx: StreamCtx = {
         setMessages,
         setUsage,
         setThinking,
         setThinkingContent,
         toolIdCounter
       }
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        const chunk = decoder.decode(value)
-        const lines = chunk.split('\n')
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue
-          try {
-            const jsonStr = line.slice(6).trim()
-            if (!jsonStr) continue
-            const data = JSON.parse(jsonStr) as Record<string, unknown>
-            if (data && typeof data === 'object') processStreamEvent(data, streamState, ctx)
-          } catch {
-            // skip parse error
-          }
-        }
-      }
+      await runStreamToEnd(reader, streamState, ctx)
     } catch (error) {
       console.error('Query failed:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
       setMessages(prev => [
         ...prev,
         {
           role: 'assistant',
           content: getTranslationFromI18nKeyAndLabel(
             'lowcoder:ai_builder.error_message',
-            `Sorry, there was an error: ${error instanceof Error ? error.message : 'Unknown error'}`,
-            { error: error instanceof Error ? error.message : 'Unknown error' }
+            `Sorry, there was an error: ${errorMessage}`,
+            { error: errorMessage }
           )
         }
       ])
@@ -716,31 +742,31 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
                             )}
                           </h3>
                           <span className="gba:px-2 gba:py-0.5 gba:rounded-full gba:bg-primary/10 gba:text-primary gba:text-xs gba:font-medium">
-                            {uniqueFileSummary.totalUniqueFiles}{' '}
-                            {uniqueFileSummary.totalUniqueFiles === 1
+                            {uniqueFileSummary?.totalUniqueFiles}{' '}
+                            {(uniqueFileSummary?.totalUniqueFiles ?? 0) === 1
                               ? getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.file_singular', 'file')
                               : getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.file_plural', 'files')}
                           </span>
                         </div>
                         <div className="gba:flex gba:items-center gba:gap-3 gba:text-xs gba:text-muted-foreground">
-                          {uniqueFileSummary.created > 0 && (
+                          {(uniqueFileSummary?.created ?? 0) > 0 && (
                             <span className="gba:flex gba:items-center gba:gap-1">
                               <span className="gba:w-1.5 gba:h-1.5 gba:rounded-full gba:bg-success" />
-                              {uniqueFileSummary.created}{' '}
+                              {uniqueFileSummary?.created}{' '}
                               {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.created', 'created')}
                             </span>
                           )}
-                          {uniqueFileSummary.modified > 0 && (
+                          {(uniqueFileSummary?.modified ?? 0) > 0 && (
                             <span className="gba:flex gba:items-center gba:gap-1">
                               <span className="gba:w-1.5 gba:h-1.5 gba:rounded-full gba:bg-warning" />
-                              {uniqueFileSummary.modified}{' '}
+                              {uniqueFileSummary?.modified}{' '}
                               {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.modified', 'modified')}
                             </span>
                           )}
-                          {uniqueFileSummary.deleted > 0 && (
+                          {(uniqueFileSummary?.deleted ?? 0) > 0 && (
                             <span className="gba:flex gba:items-center gba:gap-1">
                               <span className="gba:w-1.5 gba:h-1.5 gba:rounded-full gba:bg-destructive" />
-                              {uniqueFileSummary.deleted}{' '}
+                              {uniqueFileSummary?.deleted}{' '}
                               {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.deleted', 'deleted')}
                             </span>
                           )}
@@ -750,7 +776,7 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
                             {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.view_files', 'View files')}
                           </summary>
                           <div className="gba:mt-2 gba:space-y-1 gba:pl-4 gba:max-h-40 gba:overflow-y-auto gba:pr-2">
-                            {uniqueFileSummary.files.map(file => (
+                            {uniqueFileSummary?.files.map(file => (
                               <div
                                 key={file.path}
                                 className="gba:flex gba:items-center gba:gap-2 gba:text-xs gba:py-0.5"
