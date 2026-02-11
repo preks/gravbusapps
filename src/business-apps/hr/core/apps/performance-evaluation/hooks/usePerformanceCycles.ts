@@ -73,7 +73,7 @@ function apiStatusToUiStatus(
   endDate: string,
   active: boolean | null
 ): CycleStatus {
-  // Check recordState first - archived/deleted cycles are always Inactive
+  // Check recordState first - inactive/deleted cycles are always Inactive
   if (recordState && recordState.toLowerCase() !== 'active') return 'Inactive'
 
   // Check explicit status - map status enum to UI status

@@ -34,7 +34,7 @@ interface ConditionCardProps {
   onMouseLeave: () => void
   accessToken: string
   contextsArray: FlowContextName[]
-  externalContextData: { stageConditionStatusId: string }
+  externalContextData: { stageConditionStatusId: string; isCompleted: boolean }
 }
 
 // Helper function - extracted outside to prevent recreation
@@ -248,7 +248,10 @@ const ConditionSection: React.FC<ConditionSectionProps> = memo(
                   onMouseLeave={handleConditionMouseLeave}
                   accessToken={accessToken}
                   contextsArray={conditionContextsArray}
-                  externalContextData={{ stageConditionStatusId: condition.stageConditionStatusId }}
+                  externalContextData={{
+                    stageConditionStatusId: condition.stageConditionStatusId,
+                    isCompleted: condition.isCompleted
+                  }}
                 />
               ))
             ) : (

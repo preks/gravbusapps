@@ -1,6 +1,6 @@
 import React from 'react'
 import { Button, Badge } from '@newwork/nw-design-system'
-import { MoreHorizontal, ChevronDown, ChevronRight } from 'lucide-react'
+import { DotsThreeIcon, CaretDownIcon, CaretRightIcon } from '@phosphor-icons/react'
 import { getDocumentIcon } from '@/common/utils/documentIconUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { DocumentColumn, DocumentItem } from '../types'
@@ -57,9 +57,9 @@ export function createDocumentTableColumns({
                 data-testid={`${dataTestId}-expand-${document.id}`}
               >
                 {isExpanded ? (
-                  <ChevronDown className="gba:h-3 gba:w-3" />
+                  <CaretDownIcon className="gba:h-3 gba:w-3" />
                 ) : (
-                  <ChevronRight className="gba:h-3 gba:w-3" />
+                  <CaretRightIcon className="gba:h-3 gba:w-3" />
                 )}
               </button>
             )}
@@ -159,7 +159,7 @@ export function createDocumentTableColumns({
           onClick={e => handleActionsButtonClick(document, e)}
           data-testid={`${dataTestId}-actions-${document.id}`}
         >
-          <MoreHorizontal className="gba:h-4 gba:w-4" />
+          <DotsThreeIcon className="gba:h-4 gba:w-4" />
         </Button>
       )
     }

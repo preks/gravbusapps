@@ -916,6 +916,9 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
                           >
                             <option value={AssignmentMode.CLAIM}>Claim (Users can claim tasks)</option>
                             <option value={AssignmentMode.ASSIGN}>Assign (Tasks are assigned to specific users)</option>
+                            <option value={AssignmentMode.ASSIGN_DEFERRED}>
+                              Assign Deferred (Resolves after previous steps)
+                            </option>
                           </select>
                         </div>
 
@@ -933,6 +936,8 @@ export const FlowDesigner: React.FC<FlowDesignerProps> = ({
                             assignmentMode={selectedStep.assignment?.assignmentMode || AssignmentMode.CLAIM}
                             accessToken={accessToken}
                             userInfo={userInfo}
+                            template={{ ...initialTemplate, steps } as any}
+                            stepIndex={selectedStepIndex}
                             data-testid={`${testId}-assignment-selector`}
                           />
                         </div>

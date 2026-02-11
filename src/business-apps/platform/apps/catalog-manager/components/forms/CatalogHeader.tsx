@@ -90,6 +90,13 @@ export const CatalogHeaderForm: React.FC<CatalogHeaderFormProps> = ({
     return `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`
   }
 
+  // Format datetime for datetime-local input (YYYY-MM-DDTHH:mm)
+  const formatDateTimeLocal = (dateString?: string) => {
+    if (!dateString) return ''
+    // Remove timezone info and seconds if present
+    return dateString.slice(0, 16)
+  }
+
   return (
     <div className="gba:space-y-6" data-testid={dataTestId}>
       {/* Basic Information */}
@@ -227,10 +234,8 @@ export const CatalogHeaderForm: React.FC<CatalogHeaderFormProps> = ({
               <Input
                 id="valid-from"
                 type="datetime-local"
-                value={data.validFrom ? new Date(data.validFrom).toISOString().slice(0, 16) : ''}
-                onChange={e =>
-                  onChange('validFrom', e.target.value ? new Date(e.target.value).toISOString() : undefined)
-                }
+                value={formatDateTimeLocal(data.validFrom)}
+                onChange={e => onChange('validFrom', e.target.value ? `${e.target.value}:00` : undefined)}
                 disabled={isLoading}
                 data-testid={`${dataTestId}-ValidFromInput`}
               />
@@ -241,8 +246,8 @@ export const CatalogHeaderForm: React.FC<CatalogHeaderFormProps> = ({
               <Input
                 id="valid-to"
                 type="datetime-local"
-                value={data.validTo ? new Date(data.validTo).toISOString().slice(0, 16) : ''}
-                onChange={e => onChange('validTo', e.target.value ? new Date(e.target.value).toISOString() : undefined)}
+                value={formatDateTimeLocal(data.validTo)}
+                onChange={e => onChange('validTo', e.target.value ? `${e.target.value}:00` : undefined)}
                 disabled={isLoading}
                 data-testid={`${dataTestId}-ValidToInput`}
               />

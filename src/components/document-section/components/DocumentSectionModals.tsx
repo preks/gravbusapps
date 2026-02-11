@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import {
   Button,
@@ -13,12 +13,13 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue
+  SelectValue,
+  ActionMenu
 } from '@newwork/nw-design-system'
-import { Folder, Download, Eye } from 'lucide-react'
+import { FolderNotchIcon, DownloadSimpleIcon, EyeIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { AppAction } from '@/components/app-action'
 import { DocumentItem, ConfirmationModalState, NewFolderDialogState } from '../types'
+import { useAppActionData } from '@/common/hooks/useAppActionData'
 
 interface DocumentSectionModalsProps {
   // Confirmation modal
@@ -40,6 +41,17 @@ interface DocumentSectionModalsProps {
   readonly menuOpen: boolean
   readonly setMenuOpen: (open: boolean) => void
   readonly customMenuActions: any[]
+  // AppAction props for update/delete
+  readonly updateActionProps?: {
+    contextsArray: any[]
+    buildExternalContextData: (document: DocumentItem) => Record<string, any>
+    prefixDataTestId: string
+  }
+  readonly deleteActionProps?: {
+    contextsArray: any[]
+    buildExternalContextData: (document: DocumentItem) => Record<string, any>
+    prefixDataTestId: string
+  }
   readonly accessToken?: string
 }
 
@@ -60,18 +72,99 @@ export function DocumentSectionModals({
   menuOpen,
   setMenuOpen,
   customMenuActions,
+  updateActionProps,
+  deleteActionProps,
   accessToken
 }: DocumentSectionModalsProps) {
-  // Add icons to menu actions
-  const enrichedMenuActions = customMenuActions.map(action => {
-    if (action.key === 'download' && !action.icon) {
-      return { ...action, icon: <Download className="gba:h-4 gba:w-4" /> }
+  // Get update action data from flow registry
+  const updateActionData = useAppActionData(
+    updateActionProps && selectedDocument && accessToken
+      ? {
+          contextsArray: updateActionProps.contextsArray,
+          externalContextData: updateActionProps.buildExternalContextData(selectedDocument),
+          accessToken,
+          deferMainContextRequestsUntilClick: false, // Load immediately when menu opens
+          prefixDataTestId: `${updateActionProps.prefixDataTestId}-${selectedDocument.id}`
+        }
+      : {
+          contextsArray: [],
+          accessToken: accessToken || '',
+          deferMainContextRequestsUntilClick: false,
+          prefixDataTestId: 'document-update'
+        },
+    'Update'
+  )
+
+  // Get delete action data from flow registry
+  const deleteActionData = useAppActionData(
+    deleteActionProps && selectedDocument && accessToken
+      ? {
+          contextsArray: deleteActionProps.contextsArray,
+          externalContextData: deleteActionProps.buildExternalContextData(selectedDocument),
+          accessToken,
+          deferMainContextRequestsUntilClick: false, // Load immediately when menu opens
+          prefixDataTestId: `${deleteActionProps.prefixDataTestId}-${selectedDocument.id}`
+        }
+      : {
+          contextsArray: [],
+          accessToken: accessToken || '',
+          deferMainContextRequestsUntilClick: false,
+          prefixDataTestId: 'document-delete'
+        },
+    'Delete'
+  )
+
+  // Build complete menu actions: custom actions + update + delete
+  const enrichedMenuActions = useMemo(() => {
+    const actions = []
+
+    // Add custom actions (download, etc.) with icons
+    customMenuActions.forEach(action => {
+      if (action.key === 'download' && !action.icon) {
+        actions.push({ ...action, icon: <DownloadSimpleIcon className="gba:h-4 gba:w-4" /> })
+      } else if (action.icon) {
+        actions.push(action)
+      } else {
+        actions.push({ ...action, icon: <EyeIcon className="gba:h-4 gba:w-4" /> })
+      }
+    })
+
+    // Add update actions from flow registry
+    if (updateActionData?.combinedData && updateActionData.combinedData.length > 0) {
+      updateActionData.combinedData.forEach(action => {
+        if (action?.onClick) {
+          actions.push({
+            key: `update-${actions.length}`,
+            label: action.label || 'Update',
+            icon: action.icon,
+            onClick: () => {
+              setMenuOpen(false)
+              action.onClick?.()
+            }
+          })
+        }
+      })
     }
-    if (!action.icon) {
-      return { ...action, icon: <Eye className="gba:h-4 gba:w-4" /> }
+
+    // Add delete actions from flow registry
+    if (deleteActionData?.combinedData && deleteActionData.combinedData.length > 0) {
+      deleteActionData.combinedData.forEach(action => {
+        if (action?.onClick) {
+          actions.push({
+            key: `delete-${actions.length}`,
+            label: action.label || 'Delete',
+            icon: action.icon,
+            onClick: () => {
+              setMenuOpen(false)
+              action.onClick?.()
+            }
+          })
+        }
+      })
     }
-    return action
-  })
+
+    return actions
+  }, [customMenuActions, updateActionData?.combinedData, deleteActionData?.combinedData, setMenuOpen])
 
   return (
     <>
@@ -80,21 +173,14 @@ export function DocumentSectionModals({
         menuMountEl &&
         menuOpen &&
         createPortal(
-          <AppAction
-            mode="button"
-            accessToken={accessToken}
-            customActions={enrichedMenuActions}
-            emptyState="enable"
-            lazyLoad={false}
-            prefixDataTestId="document-section"
+          <ActionMenu
+            actions={enrichedMenuActions}
+            open={menuOpen}
+            onOpenChange={setMenuOpen}
             data-testid="document-section-action-menu"
-            onDropdownOpen={() => setMenuOpen(true)}
           >
-            <button
-              type="button"
-              aria-label={getTranslationFromI18nKeyAndLabel('document.aria.openActions', 'Open actions')}
-            />
-          </AppAction>,
+            <div />
+          </ActionMenu>,
           menuMountEl
         )}
 
@@ -178,14 +264,14 @@ export function DocumentSectionModals({
                 <SelectContent>
                   <SelectItem value="root" data-testid="document-section-parent-root">
                     <div className="gba:flex gba:items-center gba:gap-2">
-                      <Folder className="gba:h-4 gba:w-4" />
+                      <FolderNotchIcon className="gba:h-4 gba:w-4" />
                       {getTranslationFromI18nKeyAndLabel('document.folder.root', 'Root Level')}
                     </div>
                   </SelectItem>
                   {availableFolders.map(folder => (
                     <SelectItem key={folder.id} value={folder.id} data-testid={`document-section-parent-${folder.id}`}>
                       <div className="gba:flex gba:items-center gba:gap-2">
-                        <Folder className="gba:h-4 gba:w-4" />
+                        <FolderNotchIcon className="gba:h-4 gba:w-4" />
                         {folder.name ||
                           getTranslationFromI18nKeyAndLabel('document.label.untitledFolder', 'Untitled Folder')}
                       </div>

@@ -12,5 +12,8 @@ export {
   getTaskStatusBadgeVariant,
   getTaskPriorityBadgeVariant,
   getTaskTypeBadgeVariant,
-  getReferenceTypeBadgeVariant
+  getReferenceTypeBadgeVariant,
+  formatDate,
+  formatDateTime,
+  getInitials
 } from './utils'

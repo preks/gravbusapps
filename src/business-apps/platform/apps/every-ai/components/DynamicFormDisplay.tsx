@@ -475,16 +475,26 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
         const currentFormData = formDataRef.current
         console.log('[DynamicFormDisplay] Submitting with formData:', currentFormData)
 
+        // Merge original proposal entity with current form data so that pre-filled/extracted
+        // values (e.g. opportunity, creatorEmployee) are preserved when the form or select
+        // didn't keep them (e.g. Combobox cleared value when option wasn't in list yet).
+        const originalEntity =
+          objectKey && (sourceType === 'task' ? data.arguments?.task?.[objectKey] : data.arguments?.flow?.[objectKey])
+        const mergedEntity =
+          typeof originalEntity === 'object' && originalEntity !== null
+            ? { ...originalEntity, ...currentFormData }
+            : currentFormData
+
         const updatedArguments = { ...data.arguments }
         if (objectKey && sourceType === 'task' && updatedArguments.task?.[objectKey]) {
           updatedArguments.task = {
             ...updatedArguments.task,
-            [objectKey]: currentFormData
+            [objectKey]: mergedEntity
           }
         } else if (objectKey && sourceType === 'flow' && updatedArguments.flow?.[objectKey]) {
           updatedArguments.flow = {
             ...updatedArguments.flow,
-            [objectKey]: currentFormData
+            [objectKey]: mergedEntity
           }
         } else {
           updatedArguments.flow = {
@@ -999,6 +1009,7 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
                         formData={formData}
                         onFieldValueChange={handleFieldValueChange}
                         accessToken={accessToken}
+                        moduleName={data.module_name}
                       />
                     )
                   } catch (error) {
@@ -1020,6 +1031,7 @@ export const DynamicFormDisplay: React.FC<DynamicFormDisplayProps> = ({
                     onFieldValueChange={handleFieldValueChange}
                     onFieldChange={(fieldName, value) => setFormData(prev => ({ ...prev, [fieldName]: value }))}
                     accessToken={accessToken}
+                    moduleName={data.module_name}
                   />
                 )}
               </div>

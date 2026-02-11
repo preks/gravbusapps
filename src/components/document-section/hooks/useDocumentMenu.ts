@@ -10,6 +10,16 @@ interface UseDocumentMenuProps {
     externalContextData: Record<string, any>
     prefixDataTestId: string
   }
+  updateActionProps?: {
+    contextsArray: any[]
+    buildExternalContextData: (document: DocumentItem) => Record<string, any>
+    prefixDataTestId: string
+  }
+  deleteActionProps?: {
+    contextsArray: any[]
+    buildExternalContextData: (document: DocumentItem) => Record<string, any>
+    prefixDataTestId: string
+  }
   customActions?: Array<{
     key: string
     label: string
@@ -39,6 +49,8 @@ export function useDocumentMenu({
   selectedDocument,
   setSelectedDocument,
   downloadActionProps,
+  updateActionProps,
+  deleteActionProps,
   customActions = [],
   accessToken,
   apiConfig,
@@ -53,7 +65,6 @@ export function useDocumentMenu({
   // Handle three-dots click to open custom menu
   const handleActionsButtonClick = (document: DocumentItem, event: React.MouseEvent) => {
     event.stopPropagation()
-    setSelectedDocument(document)
 
     // Create menu mount point relative to the clicked button
     try {
@@ -75,9 +86,11 @@ export function useDocumentMenu({
 
       setMenuMountEl(mount)
       setMenuOpen(true)
+      setSelectedDocument(document)
     } catch (error) {
       console.error('Error creating menu mount:', error)
       setMenuOpen(true)
+      setSelectedDocument(document)
     }
   }
 
@@ -100,7 +113,10 @@ export function useDocumentMenu({
       })
     }
 
-    // Add custom actions from configuration
+    // NOTE: Update and delete actions are now rendered using useAppActionData hooks
+    // in DocumentSectionModals.tsx, not as plain menu items here
+
+    // Add custom actions from configuration (deprecated but still supported for backward compatibility)
     if (customActions && customActions.length > 0 && accessToken && apiConfig) {
       const customActionItems = customActions.map(action => {
         return {
@@ -158,6 +174,10 @@ export function useDocumentMenu({
 
   return {
     handleActionsButtonClick,
-    customMenuActions
+    customMenuActions,
+    // Pass through props for AppActionMenu rendering
+    updateActionProps,
+    deleteActionProps,
+    accessToken
   }
 }

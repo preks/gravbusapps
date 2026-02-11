@@ -12,6 +12,7 @@ type TaskExpertRow = PromptODM & { id: string }
 interface TaskExpertsSpaceProps extends BusinessAppContextProps {
   translations: { enUS: string; deDE: string; roRO: string }
   onCreateTaskExpert: () => void
+  onViewPrompt: (id: string, name: string) => void
   onEditPrompt: (id: string, name: string) => void
   refreshKey: number
 }
@@ -19,6 +20,7 @@ interface TaskExpertsSpaceProps extends BusinessAppContextProps {
 export const TaskExpertsSpace: React.FC<TaskExpertsSpaceProps> = ({
   translations,
   onCreateTaskExpert,
+  onViewPrompt,
   onEditPrompt,
   refreshKey,
   ...context
@@ -96,7 +98,9 @@ export const TaskExpertsSpace: React.FC<TaskExpertsSpaceProps> = ({
           columns={columns}
           loading={isLoading}
           error={error}
+          onRowClick={(row: TaskExpertRow) => onViewPrompt(row._id || '', row.name || '')}
           actions={[
+            { label: t('view'), onClick: (row: TaskExpertRow) => onViewPrompt(row._id || '', row.name || '') },
             { label: t('edit'), onClick: (row: TaskExpertRow) => onEditPrompt(row._id || '', row.name || '') },
             { label: t('test'), onClick: (row: TaskExpertRow) => setTestingPromptId(row._id || '') }
           ]}

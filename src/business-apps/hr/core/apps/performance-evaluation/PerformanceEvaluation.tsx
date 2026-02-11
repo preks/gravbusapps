@@ -299,7 +299,7 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
     const value = valuesStore.find(v => v.id === id)
     if (accessToken && value) {
       try {
-        await updateCompanyValueRecordState(value, 'archived')
+        await updateCompanyValueRecordState(value, 'inactive')
         await refetchValues()
         toast.success(t('value-deactivated-to-database', { title: value.title }) ?? `"${value.title}" deactivated.`)
       } catch (err) {

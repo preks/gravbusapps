@@ -154,13 +154,20 @@ const StepNode = ({ data }: { data: any }) => {
               className={`gba:text-xs gba:flex gba:items-center gba:gap-1 ${
                 data.assignmentMode === 'ASSIGN'
                   ? 'gba:bg-green-100 gba:text-green-700 gba:border-green-300'
-                  : 'gba:bg-purple-100 gba:text-purple-700 gba:border-purple-300'
+                  : data.assignmentMode === 'ASSIGN_DEFERRED'
+                    ? 'gba:bg-teal-100 gba:text-teal-700 gba:border-teal-300'
+                    : 'gba:bg-purple-100 gba:text-purple-700 gba:border-purple-300'
               }`}
             >
               {data.assignmentMode === 'ASSIGN' ? (
                 <>
                   <UserPlus className="gba:h-3 gba:w-3" />
                   Assign
+                </>
+              ) : data.assignmentMode === 'ASSIGN_DEFERRED' ? (
+                <>
+                  <UserPlus className="gba:h-3 gba:w-3" />
+                  Assign Deferred
                 </>
               ) : (
                 <>
