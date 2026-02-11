@@ -137,14 +137,7 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
             endDate: absence.endDate,
             duration: absence.workingDays ? `${absence.workingDays} ${absence.workingDays === 1 ? 'day' : 'days'}` : '',
             description: absence.description || '',
-            icon: (
-              <Paperclip
-                className="gba:w-4 gba:h-4"
-                style={{
-                  color: absence.type?.objectValue?.color ? `#${absence.type.objectValue.color}` : 'var(--nw-chart-4)'
-                }}
-              />
-            ),
+            icon: Paperclip,
             typeColor: absence.type?.objectValue?.color ? absence.type.objectValue.color : 'blue',
             statusColor: statusToColor(absence.status),
             requestDate: absence.createdAt
@@ -157,7 +150,7 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
             .map((a: any, idx: number) => ({
               id: a.id || idx,
               type: a.type ? getCatalogValue(a.type) || '' : '',
-              icon: <Paperclip className="gba:w-4 gba:h-4" style={{ color: 'var(--nw-chart-4)' }} />,
+              icon: Paperclip,
               dates: `${dayjs(a.startDate).format('MM/DD/YYYY')} - ${dayjs(a.endDate).format('MM/DD/YYYY')}`,
               description: a.description,
               timeUntil: timeUntil(a.startDate),
@@ -182,7 +175,7 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
           total: ent.total,
           pending: ent.pending,
           available: ent.available,
-          icon: <Paperclip className="gba:w-4 gba:h-4" style={{ color: ent.color || 'var(--nw-chart-4)' }} />,
+          icon: Paperclip,
           checkEntitlement: undefined
         }))
       )
