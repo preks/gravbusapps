@@ -47,8 +47,20 @@ export function useSlides(accessToken: string | undefined): UseSlidesResult {
     }
     try {
       setState(prev => ({ ...prev, isLoading: true, error: null }))
-      const items = await SlidesApiService.listSlides({ includeShared: true })
-      setState(prev => ({ ...prev, slides: items, isLoading: false }))
+
+      const PAGE_SIZE = 100
+      let allSlides: Awaited<ReturnType<typeof SlidesApiService.listSlides>> = []
+      let page = 1
+      let hasMore = true
+
+      while (hasMore) {
+        const pageItems = await SlidesApiService.listSlides({ includeShared: true, limit: PAGE_SIZE, page })
+        allSlides = [...allSlides, ...pageItems]
+        hasMore = pageItems.length === PAGE_SIZE
+        page++
+      }
+
+      setState(prev => ({ ...prev, slides: allSlides, isLoading: false }))
     } catch (err) {
       console.error('[useSlides] Failed to load slides:', err)
       setState(prev => ({
