@@ -1,5 +1,5 @@
 // Investment Tab Configuration Utilities
-import React, { Suspense } from 'react'
+import React from 'react'
 import {
   HouseIcon,
   ChartBarIcon,
@@ -9,7 +9,6 @@ import {
   GridFourIcon,
   TrendDownIcon
 } from '@phosphor-icons/react'
-import { Spinner } from '@newwork/nw-design-system'
 import { InvestmentDocuments } from '../components/InvestmentDocuments'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -60,14 +59,12 @@ export const createInvestmentTabsConfig = (
       icon: <TrendUpIcon className="gba:h-4 gba:w-4 gba:mr-2" />,
       content: (
         <div className="gba:col-span-12">
-          <Suspense fallback={<Spinner size="lg" />}>
-            <AnalyticsComponent
-              investmentId={investmentId}
-              investment={investment}
-              equityData={typeSpecificData}
-              {...props}
-            />
-          </Suspense>
+          <AnalyticsComponent
+            investmentId={investmentId}
+            investment={investment}
+            equityData={typeSpecificData}
+            {...props}
+          />
         </div>
       )
     })
@@ -105,15 +102,13 @@ export const createInvestmentTabsConfig = (
       label: getTranslationFromI18nKeyAndLabel('crm.investments.tabs.overview', 'Overview'),
       icon: <ChartBarIcon className="gba:h-4 gba:w-4 gba:mr-2" />,
       content: (
-        <Suspense fallback={<Spinner size="lg" />}>
-          <OverviewComponent
-            investment={investment}
-            typeSpecificData={typeSpecificData}
-            processedTiles={processedTiles}
-            onRefresh={loadData}
-            {...props}
-          />
-        </Suspense>
+        <OverviewComponent
+          investment={investment}
+          typeSpecificData={typeSpecificData}
+          processedTiles={processedTiles}
+          onRefresh={loadData}
+          {...props}
+        />
       )
     })
   }

@@ -1,12 +1,15 @@
 import React from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { TaskExpertBuilder } from './task-expert-builder'
+import type { AgentBuilderInitialState } from '../hooks/useAgentBuilderState'
 
 export interface TaskExpertEditorProps extends BusinessAppContextProps {
   mode: 'create' | 'edit'
   promptId?: string | null
   onSaved: () => void
   onNameLoaded?: (name: string) => void
+  initialState?: AgentBuilderInitialState
+  onGoToDashboard?: () => void
 }
 
 /**

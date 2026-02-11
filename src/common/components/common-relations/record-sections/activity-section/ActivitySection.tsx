@@ -18,6 +18,7 @@ import { handleDocumentClick as handleDocumentClickUtil } from '@/common/utils/d
 import { getDocumentIcon } from '@/common/utils/documentIconUtils'
 import { FileInfo } from '@/common/types/FileTypes'
 import type { Activity } from '@/common/data/relations/types/activityTypes'
+import { ActivityEmailBody } from './ActivityEmailBody'
 
 export type ActivityDocument = {
   id: string
@@ -66,6 +67,7 @@ export interface ActivitySectionProps extends BusinessAppContextProps {
 const ActivitySection: React.FC<ActivitySectionProps> = props => {
   const {
     accessToken,
+    userInfo,
     activities: rawActivities = [],
     activitiesLoading = false,
     activitiesError = null,
@@ -74,6 +76,8 @@ const ActivitySection: React.FC<ActivitySectionProps> = props => {
     className,
     alignment = 'left'
   } = props
+
+  const currentEmployeeId = userInfo?.employeeDetails?.employeeId
 
   // Process activities - map from Activity to ActivityItem
   const processedActivities = useMemo(() => {
@@ -91,7 +95,8 @@ const ActivitySection: React.FC<ActivitySectionProps> = props => {
           activity.ownerEmployee.displayName
         : undefined,
       activityType: activity.activityType,
-      documents: activity.documents || []
+      documents: activity.documents || [],
+      emailMessageId: activity.additionalProperties?.emailMessageId || null
     }))
   }, [rawActivities])
 
@@ -174,6 +179,7 @@ const ActivitySection: React.FC<ActivitySectionProps> = props => {
           const activityTypeLabel = getActivityTypeLabel(activity.activityType)
           const ownerName = getOwnerName(activity.ownerEmployee)
           const description = activity.description
+          const emailMessageId = activity.emailMessageId
 
           const activityActions = activityEntityActionProps ? (
             <AppActionMenu
@@ -238,6 +244,19 @@ const ActivitySection: React.FC<ActivitySectionProps> = props => {
                       </button>
                     ))}
                   </div>
+                )}
+                {/* Inline email body for email-type activities */}
+                {emailMessageId && accessToken && (
+                  <ActivityEmailBody
+                    emailMessageId={emailMessageId}
+                    accessToken={accessToken}
+                    isEmailOwner={
+                      !!currentEmployeeId &&
+                      !!activity.ownerEmployee?.id &&
+                      currentEmployeeId === activity.ownerEmployee.id
+                    }
+                    data-testid={`activity-email-body-${activity.id}`}
+                  />
                 )}
               </div>
             ),

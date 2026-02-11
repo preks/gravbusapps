@@ -1,3 +1,37 @@
+/**
+ * @deprecated This utility is deprecated. Use updateActionProps and deleteActionProps
+ * on DocumentSection component instead. This ensures proper permission checks via
+ * Flow Registry and centralized flow configuration.
+ *
+ * Migration guide:
+ * Instead of:
+ *   const customActions = createDocumentSectionActions({
+ *     domain: 'investment-relations',
+ *     documentFieldName: 'investmentDocument',
+ *     entityType: 'opportunity',
+ *     updateProcessName: 'updateInvestmentDocument',
+ *     deleteEndpoint: '/investment-relations/deleteInvestmentDocument'
+ *   })
+ *   <DocumentSection customActions={customActions} ... />
+ *
+ * Use:
+ *   const updateActionProps = useMemo(() => ({
+ *     contextsArray: [FlowContextName.investmentDocumentUpdate],
+ *     externalContextData: { opportunityId },
+ *     prefixDataTestId: 'opportunity-document-update'
+ *   }), [opportunityId])
+ *
+ *   const deleteActionProps = useMemo(() => ({
+ *     contextsArray: [FlowContextName.investmentDocumentDelete],
+ *     externalContextData: { opportunityId },
+ *     prefixDataTestId: 'opportunity-document-delete'
+ *   }), [opportunityId])
+ *
+ *   <DocumentSection updateActionProps={updateActionProps} deleteActionProps={deleteActionProps} ... />
+ *
+ * @see DocumentSection component for the new pattern
+ */
+
 import { Download, Edit, Trash2 } from 'lucide-react'
 import { toast } from '@newwork/nw-design-system'
 import { startProcess } from '@/common/utils/start-process'
