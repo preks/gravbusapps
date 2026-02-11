@@ -14,6 +14,17 @@ export interface ActionButtonConfig {
     emptyStateBehavior?: 'enable' | 'disable' | 'hide'
     deferMainContextRequestsUntilClick?: boolean
     // For AppAction only
+    variant?:
+      | 'header'
+      | 'table-row'
+      | 'list-item'
+      | 'create-primary'
+      | 'create-secondary'
+      | 'update-primary'
+      | 'update-secondary'
+      | 'delete-primary'
+      | 'delete-secondary'
+      | 'custom'
     children?: React.ReactNode
   }
 }
@@ -171,22 +182,33 @@ const SectionWrapper = <T = Record<string, any>,>({
         />
       )
     } else if (config.type === 'AppAction') {
-      if (!config.config.children || !React.isValidElement(config.config.children)) {
+      // When variant is provided, children are optional (variant provides defaults)
+      const hasVariant = config.config.variant && config.config.variant !== 'custom'
+
+      if (!hasVariant && (!config.config.children || !React.isValidElement(config.config.children))) {
         return null
       }
-      // Use externalContextData and contextsArray as key to force re-render when context changes
+
+      // Transform old API (contextsArray + externalContextData) to new API (contexts)
+      const contexts = config.config.contextsArray?.map(context => ({
+        context,
+        contextData: config.config.externalContextData || {}
+      }))
+
+      // Use contexts as key to force re-render when context changes
       const contextKey = JSON.stringify({
         contexts: config.config.contextsArray,
         data: config.config.externalContextData || {}
       })
+
       return (
         <AppAction
           key={`app-action-${contextKey}`}
           accessToken={accessToken}
-          contextsArray={config.config.contextsArray}
-          externalContextData={config.config.externalContextData}
+          variant={config.config.variant}
+          contexts={contexts}
           prefixDataTestId={config.config.prefixDataTestId}
-          emptyStateBehavior={config.config.emptyStateBehavior || 'enable'}
+          emptyState={config.config.emptyStateBehavior || 'enable'}
         >
           {config.config.children}
         </AppAction>

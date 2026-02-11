@@ -34,7 +34,7 @@ import {
   cn
 } from '@newwork/nw-design-system'
 import { useUniversalEntitySearch, UniversalEntityOption, UniversalEntityType } from './hooks/useUniversalEntitySearch'
-import { base64ToObjectURL } from '@/business-apps/core/every/apps/every-box/utils/avatarUtils'
+import { base64ToDataURL } from '@/business-apps/core/every/apps/every-box/utils/avatarUtils'
 
 interface SearchableEntityComboboxProps {
   accessToken: string
@@ -166,8 +166,8 @@ export const SearchableEntityCombobox: React.FC<SearchableEntityComboboxProps> =
     if (avatarUrl.startsWith('http://') || avatarUrl.startsWith('https://')) {
       return avatarUrl
     }
-    // Convert base64 to Object URL
-    return base64ToObjectURL(avatarUrl)
+    // Convert base64 to data URL (no memory leak)
+    return base64ToDataURL(avatarUrl)
   }
 
   // Memoize converted avatar URL for selected entity

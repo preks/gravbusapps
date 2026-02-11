@@ -1,6 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo, startTransition, memo } from 'react'
 import { Alert, AlertDescription, Spinner, Toaster } from '@newwork/nw-design-system'
-import { RealtimeKitProvider } from '@cloudflare/realtimekit-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useChatClient } from './hooks/useChatClient'
 import { useCall } from './hooks/useCall'
@@ -10,6 +9,7 @@ import { RealtimeKitApiClient } from './services/realtimeKitApiClient'
 import { useEveryAIChat } from './hooks/useEveryAIChat'
 import { useChatExperts } from './hooks/useChatExperts'
 import { useOpenChatFromPlatform } from './hooks/useOpenChatFromPlatform'
+import { useStartCallFromPlatform } from './hooks/useStartCallFromPlatform'
 import { ConversationList } from './components/ConversationList'
 import { ExpertSelectorPanel } from './components/ExpertSelectorPanel.tsx'
 import { ActiveExpertsBar } from './components/ActiveExpertsBar.tsx'
@@ -17,17 +17,17 @@ import { ConversationHeader, type ActiveCallInfo } from './components/Conversati
 import { MessageList } from './components/MessageList'
 import { PerformanceMonitor } from './components/PerformanceMonitor'
 import { MessageInput } from './components/MessageInput'
-import { CreateGroupModal } from './components/CreateGroupModal'
+import { CreateGroupModal, type DimensionContext } from './components/CreateGroupModal'
 import { GroupSettingsModal } from './components/GroupSettingsModal'
 import { AIThinkingIndicator, AIResponseRenderer, ExpertThinkingIndicator } from './components/AIResponseRenderer'
 import { playNudgeSound, applyShakeAnimation, injectNudgeStyles } from './utils/nudgeUtils'
 import { IncomingCallDialog } from './components/IncomingCallDialog'
 import { IncomingGroupCallDialog } from './components/IncomingGroupCallDialog'
-import { PreCallSetupDialog } from './components/PreCallSetupDialog'
+import { PreCallSetupStateSync } from './components/PreCallSetupStateSync'
 import { RejoinCallDialog } from './components/RejoinCallDialog'
 import { CallModal } from './components/CallModal'
 import { GroupCallModal } from './components/GroupCallModal'
-import { GroupCallModalRtk } from './components/GroupCallModalRtk'
+// import { GroupCallModalRtk } from './components/GroupCallModalRtk' // Rendered by GlobalCallContainer now
 // import { initGlobalMinimizedCallRenderer } from './components/GlobalMinimizedCall'
 import type { Conversation, User, MessageEntityReference } from './types'
 import type { CallParticipant } from './services/webrtcClient'
@@ -39,12 +39,28 @@ import { seedTestParticipants, TestParticipantPresets } from './utils/seedTestPa
 
 type ViewMode = 'full' | 'compact' | 'mobile'
 
+// Presence info type for sharing with other components
+export interface PresenceInfo {
+  state: 'online' | 'offline'
+  lastSeen?: string
+}
+
 interface ChatProps extends BusinessAppContextProps {
   prefixDataTestId?: string
+  onPresenceMapChange?: (presenceMap: Map<string, PresenceInfo>) => void
+  onActiveCallsChange?: (activeCalls: Record<string, any>) => void
+  calendarApiClient?: any | null // CalendarApiClient type
 }
 
 const ChatInner: React.FC<ChatProps> = memo(
-  ({ accessToken: accessTokenProp, additionalData, prefixDataTestId = 'chat' }) => {
+  ({
+    accessToken: accessTokenProp,
+    additionalData,
+    prefixDataTestId = 'chat',
+    onPresenceMapChange,
+    onActiveCallsChange,
+    calendarApiClient
+  }) => {
     const t = useChatTranslation()
     const containerRef = useRef<HTMLDivElement>(null)
     const chatViewRef = useRef<HTMLDivElement>(null)
@@ -67,6 +83,7 @@ const ChatInner: React.FC<ChatProps> = memo(
     const focusInputRef = useRef<(() => void) | null>(null)
     const urlContextProcessed = useRef(false)
     const conversationIdFromUrlProcessed = useRef(false)
+    const urlCallActionProcessed = useRef(false)
     const activeConversationIdRef = useRef<string | null>(null)
     const presenceInitializedUsersRef = useRef<Set<string>>(new Set())
     const lastNudgeTimeRef = useRef<number>(0)
@@ -214,9 +231,47 @@ const ChatInner: React.FC<ChatProps> = memo(
       sendNudge,
       registerNudgeCallback,
       apiClient,
-      wsClient,
-      activeCalls
+      wsClient
+      // Note: activeCalls is now provided by useRealtimeKitGroupCall hook as activeConversationCalls
     } = chatClient
+
+    // Notify parent component when presence map changes
+    useEffect(() => {
+      if (presenceMap) {
+        // Convert to simpler format for dashboard (only online/offline)
+        const simplifiedMap = new Map<string, PresenceInfo>()
+        presenceMap.forEach((value, key) => {
+          // Map 'away' to 'offline' for simplified dashboard view
+          const state: 'online' | 'offline' = value.state === 'online' ? 'online' : 'offline'
+          simplifiedMap.set(key, {
+            state,
+            lastSeen: value.lastSeen
+          })
+        })
+
+        // Notify parent if callback provided
+        if (onPresenceMapChange) {
+          onPresenceMapChange(simplifiedMap)
+        }
+
+        // Broadcast presence to other apps (e.g., Spaces) via window event
+        window.dispatchEvent(
+          new CustomEvent('chat:presence-broadcast', {
+            detail: {
+              presenceMap: Object.fromEntries(simplifiedMap),
+              timestamp: Date.now()
+            }
+          })
+        )
+      }
+    }, [presenceMap, presenceVersion, onPresenceMapChange])
+
+    // Notify parent of active calls changes
+    useEffect(() => {
+      if (onActiveCallsChange && chatClient.activeCalls) {
+        onActiveCallsChange(chatClient.activeCalls)
+      }
+    }, [chatClient.activeCalls, onActiveCallsChange])
 
     // Keep last known active conversation to avoid transient unmounts when list refreshes
     const lastActiveConversationRef = useRef<typeof activeConversation>(null)
@@ -383,6 +438,9 @@ const ChatInner: React.FC<ChatProps> = memo(
     const realtimeKitGroupCall = useRealtimeKitGroupCall({
       wsClient: wsClient || null,
       apiClient: realtimeKitApiClient,
+      chatApiClient: apiClient, // Pass ChatApiClient for in-call chat functionality
+      calendarApiClient: calendarApiClient, // Pass CalendarApiClient for AI transcription settings
+      activeConversation: activeConversation, // Pass active conversation for participant avatars in in-call chat
       currentUser: currentUserAsParticipant,
       accessToken: stableAccessToken,
       translate: t
@@ -409,15 +467,23 @@ const ChatInner: React.FC<ChatProps> = memo(
       setVideoQuality: setGroupVideoQuality,
       toggleMinimize: toggleGroupMinimize,
       toggleBackground: toggleGroupBackground,
-      toggleRaiseHand: toggleGroupRaiseHand,
-      sendReaction: sendGroupReaction,
+      // toggleRaiseHand: Handled by GlobalCallContainer
+      // sendReaction: Handled by GlobalCallContainer
       inviteToCall: inviteToGroupCall,
       reconnectParticipant: reconnectGroupParticipant,
       getConnectionDiagnostics: getGroupConnectionDiagnostics,
       pendingInvites: groupPendingInvites,
-      transcriptionEnabled
-      // toggleTranscription - Available but not used here (should be in pre-call UI)
+      activeConversationCalls // Active calls from WebSocket for detecting ongoing calls
+      // transcriptionEnabled: Handled by GlobalCallContainer
+      // toggleTranscription: Available but not used here (should be in pre-call UI)
     } = groupCall
+
+    // Listen for platform messages to start calls with specific users (via Cloudflare RealtimeKit)
+    useStartCallFromPlatform({
+      initiateGroupCall,
+      createDirectConversation,
+      isConnected
+    })
 
     // TEST MODE: Allow overriding participants from browser console
     // Usage in console: window.setTestParticipants(5) or window.setTestParticipants('nine')
@@ -510,21 +576,12 @@ const ChatInner: React.FC<ChatProps> = memo(
       }
     }, [testParticipantsOverride, groupParticipantsRaw.length])
 
-    // Stable callback for inviting participants - prevents GroupCallModalRtk re-renders
-    const handleInviteParticipant = useCallback(
-      (participant: CallParticipant) => {
-        inviteToGroupCall([participant], activeConversation?.name)
-      },
-      [inviteToGroupCall, activeConversation?.name]
-    )
-
     // Combined in-call state
     const isInAnyCall = isInCall || isInGroupCall
 
     // Reset isStartingCall when call actually connects
     useEffect(() => {
       if (isInAnyCall && isStartingCall) {
-        rtkDebug.log('[CHAT] Call connected, resetting isStartingCall flag')
         setIsStartingCall(false)
       }
     }, [isInAnyCall, isStartingCall])
@@ -575,7 +632,6 @@ const ChatInner: React.FC<ChatProps> = memo(
     const handleAudioCall = () => {
       // Guard: prevent duplicate call initiation
       if (isStartingCall) {
-        rtkDebug.log('[CHAT] Already starting a call, ignoring duplicate request')
         return
       }
 
@@ -604,14 +660,15 @@ const ChatInner: React.FC<ChatProps> = memo(
 
           // Use RTK for 1-on-1 calls if feature flag enabled
           if (useRealtimeKitForGroupCalls) {
-            rtkDebug.log('[CHAT] Starting 1-on-1 audio call with RTK for direct conversation')
             if (initiateGroupCall) {
+              // Check if conversation is linked to a calendar meeting
+              const calendarMeetingId = activeConversation.metadata?.meetingId || null
               initiateGroupCall(
                 activeConversation.id,
                 'audio',
                 [participant], // Single participant array
                 undefined, // Don't pass participant name as conversationName for direct calls
-                null, // No calendar meeting
+                calendarMeetingId, // Pass calendar meeting ID if available
                 'direct' // Mark as direct conversation for 1-on-1 naming
               )
             }
@@ -667,12 +724,14 @@ const ChatInner: React.FC<ChatProps> = memo(
           if (useRealtimeKitForGroupCalls) {
             rtkDebug.log('[CHAT] Starting 1-on-1 video call with RTK for direct conversation')
             if (initiateGroupCall) {
+              // Check if conversation is linked to a calendar meeting
+              const calendarMeetingId = activeConversation.metadata?.meetingId || null
               initiateGroupCall(
                 activeConversation.id,
                 'video',
                 [participant], // Single participant array
                 undefined, // Don't pass participant name as conversationName for direct calls
-                null, // No calendar meeting
+                calendarMeetingId, // Pass calendar meeting ID if available
                 'direct' // Mark as direct conversation for 1-on-1 naming
               )
             }
@@ -701,18 +760,18 @@ const ChatInner: React.FC<ChatProps> = memo(
       if (!currentUser) return
 
       // Check if there's already an active call in this conversation
-      const existingCall = activeCalls[activeConversation.id]
+      const existingCall = activeConversationCalls.get(activeConversation.id)
       const shouldJoinExisting = isJoiningExisting || !!existingCall
 
       rtkDebug.log('[CHAT] handleGroupCall check:', {
         conversationId: activeConversation.id,
         existingCall,
-        activeCalls,
+        activeConversationCalls: Array.from(activeConversationCalls.entries()),
         shouldJoinExisting
       })
 
       if (shouldJoinExisting) {
-        // Join the existing call using the roomId (meetingId) from activeCalls
+        // Join the existing call using the roomId (meetingId) from activeConversationCalls
         if (!existingCall?.roomId) {
           rtkDebug.error('[CHAT] Cannot join - no roomId in existingCall!')
           return
@@ -749,12 +808,14 @@ const ChatInner: React.FC<ChatProps> = memo(
 
         // Use conversation ID as the room ID, pass conversation name for the invite
         if (initiateGroupCall) {
+          // Check if conversation is linked to a calendar meeting
+          const calendarMeetingId = activeConversation.metadata?.meetingId || null
           initiateGroupCall(
             activeConversation.id,
             callType,
             callParticipants,
             activeConversation.name,
-            null, // No calendar meeting
+            calendarMeetingId, // Pass calendar meeting ID if available
             'group' // Mark as group conversation
           )
         }
@@ -1234,9 +1295,16 @@ const ChatInner: React.FC<ChatProps> = memo(
           const url = new URL(window.location.href)
           url.searchParams.set('conversationId', conversation.id)
           window.history.replaceState({}, '', url.toString())
+
+          // Mark conversation as read when opening it
+          if (apiClient && (conversation.unreadCount ?? 0) > 0) {
+            apiClient.markAsRead(conversation.id).catch(error => {
+              console.error('[Chat] Failed to mark conversation as read:', error)
+            })
+          }
         })
       },
-      [setActiveConversation]
+      [setActiveConversation, apiClient]
     )
 
     const handleBack = useCallback(() => {
@@ -1299,12 +1367,20 @@ const ChatInner: React.FC<ChatProps> = memo(
     }, [])
 
     const handleCreateGroupSubmit = useCallback(
-      async (name: string, participantIds: string[], description?: string) => {
+      async (name: string, participantIds: string[], description?: string, dimensionContext?: DimensionContext) => {
         try {
           // Mark as processed to prevent URL restoration effect from re-triggering
           conversationIdFromUrlProcessed.current = true
 
-          const conversation = await createGroupConversation(name, participantIds, description)
+          // Pass dimension context to link group chat with organizational dimensions (for space integration)
+          const conversation = await createGroupConversation(
+            name,
+            participantIds,
+            description,
+            undefined, // avatarUrl
+            dimensionContext?.type,
+            dimensionContext?.id
+          )
           setShowCreateGroupModal(false)
 
           // Persist conversation ID in URL for panel reopen persistence
@@ -1495,6 +1571,60 @@ const ChatInner: React.FC<ChatProps> = memo(
       }
     }, [conversations, setActiveConversation, activeConversationId, apiClient, conversationsLoading])
 
+    // Handle URL parameters for starting calls (from Spaces or other apps)
+    useEffect(() => {
+      // Only process once
+      if (urlCallActionProcessed.current) {
+        return
+      }
+
+      const urlParams = new URLSearchParams(window.location.search)
+      const actionParam = urlParams.get('action')
+      const callTypeParam = urlParams.get('callType') as 'audio' | 'video' | null
+      const conversationIdParam = urlParams.get('conversationId')
+
+      // Only handle startCall action
+      if (actionParam !== 'startCall' || !conversationIdParam) {
+        return
+      }
+
+      // Wait until we have an active conversation that matches the URL param
+      if (!activeConversation || activeConversation.id !== conversationIdParam) {
+        return
+      }
+
+      // Wait until we can initiate calls
+      if (!initiateGroupCall || !isConnected) {
+        return
+      }
+
+      // Mark as processed to prevent duplicate calls
+      urlCallActionProcessed.current = true
+
+      // Get participants from the conversation
+      const callParticipants = (activeConversation.participants || [])
+        .filter(p => p.userId !== currentUser?.id)
+        .map(p => ({
+          id: p.userId,
+          odId: p.userId,
+          odName: p.user?.displayName || p.user?.firstName || 'Unknown',
+          avatarUrl: p.user?.avatarUrl
+        }))
+
+      const callType = callTypeParam || 'audio'
+
+      // Small delay to ensure UI is ready
+      setTimeout(() => {
+        initiateGroupCall(activeConversation.id, callType, callParticipants, activeConversation.name)
+
+        // Clean up URL params after starting call
+        const url = new URL(window.location.href)
+        url.searchParams.delete('action')
+        url.searchParams.delete('callType')
+        window.history.replaceState({}, '', url.toString())
+      }, 500)
+    }, [activeConversation, initiateGroupCall, isConnected, currentUser])
+
     // Handle URL parameters for context and AI agent conversations (only once)
     useEffect(() => {
       // Only process URL params once when user is connected
@@ -1597,18 +1727,15 @@ const ChatInner: React.FC<ChatProps> = memo(
     const otherUserId = stableActiveConversation ? getOtherParticipantUserId(stableActiveConversation) : null
     const otherUserPresence = otherUserId ? getUserPresence(otherUserId) : undefined
 
-    // Check if there's an active call in this conversation (for group chats)
+    // Check if there's an active call in this conversation (for both group and direct chats)
     const activeCallInfo: ActiveCallInfo | null = useMemo(() => {
-      if (!stableActiveConversation || stableActiveConversation.type !== 'group') return null
+      if (!stableActiveConversation) return null
 
-      const activeCall = activeCalls[stableActiveConversation.id]
+      // Check BOTH activeConversationCalls state AND conversation.activeCall property
+      // This ensures we detect active calls even if activeConversationCalls state hasn't been populated yet
+      const activeCall = activeConversationCalls.get(stableActiveConversation.id) || stableActiveConversation.activeCall
 
-      rtkDebug.log('[CHAT] Building activeCallInfo:', {
-        conversationId: stableActiveConversation.id,
-        hasActiveCall: !!activeCall,
-        activeCall
-      })
-
+      // First, check if there's a backend-reported active call (from WebSocket)
       if (activeCall) {
         const participantNames =
           stableActiveConversation.participants
@@ -1627,7 +1754,13 @@ const ChatInner: React.FC<ChatProps> = memo(
         }
       }
 
-      if (groupCallState.status !== 'idle' && groupCallState.roomId === stableActiveConversation.id) {
+      // Second, check if we're currently in a call in this conversation (local state)
+      // Only for group chats, as direct chats use the backend active call state
+      if (
+        stableActiveConversation.type === 'group' &&
+        groupCallState.status !== 'idle' &&
+        groupCallState.roomId === stableActiveConversation.id
+      ) {
         return {
           roomId: groupCallState.roomId,
           callType: groupCallState.callType,
@@ -1639,7 +1772,7 @@ const ChatInner: React.FC<ChatProps> = memo(
       return null
     }, [
       stableActiveConversation,
-      activeCalls,
+      activeConversationCalls,
       groupCallState.status,
       groupCallState.roomId,
       groupCallState.callType,
@@ -1663,22 +1796,41 @@ const ChatInner: React.FC<ChatProps> = memo(
     // Handle rejoin with user preferences
     const handleRejoinWithPreferences = useCallback(
       (preferences: { micEnabled: boolean; cameraEnabled: boolean; backgroundEnabled: boolean }) => {
-        if (!rejoinModalState) return
+        if (!rejoinModalState || !stableActiveConversation) return
 
         rtkDebug.log('[CHAT] Rejoining call with preferences:', preferences, rejoinModalState)
 
         // Don't close modal immediately - let it show "Joining..." state
         // It will be closed when the call actually starts (via useEffect watching groupCallState)
 
-        // Store preferences for the join
-        // The hook will apply these when joining
-        // For now, we pass them through handleGroupCall which will need to be updated
-        // to accept preferences
+        // For BOTH direct and group calls, we need to JOIN the existing call
+        // Check if there's an active call in activeConversationCalls
+        const existingCall = activeConversationCalls.get(stableActiveConversation.id)
 
-        // Pass true to indicate we're joining an existing call (don't ring everyone)
-        handleGroupCall(rejoinModalState.callType, true)
+        if (!existingCall?.roomId) {
+          rtkDebug.error('[CHAT] Cannot rejoin - no active call found in activeConversationCalls!')
+          return
+        }
+
+        rtkDebug.log('[CHAT] Rejoining existing call:', {
+          conversationType: stableActiveConversation.type,
+          roomId: existingCall.roomId,
+          callType: rejoinModalState.callType,
+          preferences
+        })
+
+        // Use joinGroupCall for BOTH direct and group calls
+        // (RTK treats 1-on-1 as group calls with 2 participants)
+        // Pass the user's preferences as the third parameter (instead of initialParticipants)
+        if (joinGroupCall) {
+          joinGroupCall(
+            existingCall.roomId, // roomId/meetingId
+            rejoinModalState.callType, // callType
+            preferences // preferences object (will be detected by wrapper)
+          )
+        }
       },
-      [rejoinModalState, handleGroupCall]
+      [rejoinModalState, stableActiveConversation, activeConversationCalls, joinGroupCall]
     )
 
     // Close rejoin modal when call actually starts
@@ -2079,121 +2231,47 @@ const ChatInner: React.FC<ChatProps> = memo(
           prefixDataTestId={`${prefixDataTestId}-rejoin-call`}
         />
 
-        {/* Pre-Call Setup Dialog - Show during setup and joining, and connected until room is joined (outgoing calls only) */}
-        <PreCallSetupDialog
-          isOpen={
-            (groupCallState.status === 'setup' ||
-              groupCallState.status === 'joining' ||
-              (groupCallState.status === 'connected' && realtimeKitGroupCall.meeting?.self?.roomState !== 'joined')) &&
-            !groupCallState.isMinimized &&
-            !incomingGroupCallInvite
-          }
-          callType={groupCallState.callType}
-          conversationName={
-            activeConversation?.type === 'direct'
-              ? undefined // For direct calls, don't pass conversation name (will show "Call")
-              : activeConversation?.name // For group/meeting, use conversation name
-          }
-          participantCount={groupParticipants.length}
-          userName={
-            activeConversation?.type === 'direct'
-              ? // For direct calls, show the OTHER participant's name
-                activeConversation.participants?.find(
-                  p => p.userId !== currentUser?.id && p.user?.id !== currentUser?.id
-                )?.user?.displayName ||
-                activeConversation.participants?.find(
-                  p => p.userId !== currentUser?.id && p.user?.id !== currentUser?.id
-                )?.user?.username ||
-                'Unknown'
-              : currentUserAsParticipant?.odName // For group calls, show your name
-          }
-          userAvatarUrl={
-            activeConversation?.type === 'direct'
-              ? // For direct calls, show the OTHER participant's avatar
-                activeConversation.participants?.find(
-                  p => p.userId !== currentUser?.id && p.user?.id !== currentUser?.id
-                )?.user?.avatarUrl
-              : currentUserAsParticipant?.avatarUrl // For group calls, show your avatar
-          }
-          conversationType={activeConversation?.type as 'direct' | 'group' | 'meeting'}
-          onStart={preferences => {
-            if (realtimeKitGroupCall.confirmStartCall) {
-              realtimeKitGroupCall.confirmStartCall(preferences)
-            }
-          }}
-          onCancel={() => {
-            if (realtimeKitGroupCall.cancelSetup) {
-              realtimeKitGroupCall.cancelSetup()
-            }
-          }}
-          prefixDataTestId={`${prefixDataTestId}-pre-call-setup`}
+        {/* Pre-Call Setup Dialog - State synced to global manager, rendered by GlobalPreCallSetupDialog */}
+        {/* This component only updates the global state, the actual dialog is rendered once globally */}
+        <PreCallSetupStateSync
+          groupCallState={groupCallState}
+          realtimeKitGroupCall={realtimeKitGroupCall}
+          activeConversation={activeConversation}
+          currentUser={currentUser}
+          currentUserAsParticipant={currentUserAsParticipant}
+          groupParticipants={groupParticipants}
+          incomingGroupCallInvite={incomingGroupCallInvite}
         />
 
-        {/* Group Call Modal - Use Realtime Kit or Mesh based on feature flag */}
-        {groupCallState.status === 'connected' &&
-          realtimeKitGroupCall.meeting?.self?.roomState === 'joined' &&
-          (useRealtimeKitForGroupCalls ? (
-            <RealtimeKitProvider value={realtimeKitGroupCall.meeting}>
-              <GroupCallModalRtk
-                key={testParticipantsOverride ? `test-${testParticipantsOverride.length}` : 'real'}
-                callState={groupCallState}
-                localStream={groupLocalStream}
-                remoteStreams={groupRemoteStreams}
-                participants={groupParticipants}
-                pendingInvites={groupPendingInvites}
-                activeSpeakerId={realtimeKitGroupCall.activeSpeakerId}
-                activeSpeakerHistory={realtimeKitGroupCall.activeSpeakerHistory}
-                onEndCall={leaveGroupCall}
-                onToggleMute={toggleGroupMute}
-                onToggleVideo={toggleGroupVideo}
-                onToggleScreenShare={toggleGroupScreenShare}
-                onSetVideoQuality={setGroupVideoQuality}
-                onToggleMinimize={toggleGroupMinimize}
-                onToggleBackground={toggleGroupBackground}
-                onToggleRaiseHand={toggleGroupRaiseHand}
-                onSendReaction={sendGroupReaction}
-                backgroundEnabled={groupCallState.backgroundEnabled}
-                prefixDataTestId={`${prefixDataTestId}-rtk-group-call`}
-                availableParticipants={availableParticipantsForCall}
-                onInviteParticipant={handleInviteParticipant}
-                onReconnectParticipant={reconnectGroupParticipant}
-                getConnectionDiagnostics={getGroupConnectionDiagnostics}
-                apiClient={apiClient || undefined}
-                accessToken={accessToken}
-                currentUserId={currentUser?.id || null}
-                currentUser={currentUser}
-                conversationName={realtimeKitGroupCall.currentCallConversationName || activeConversation?.name}
-                wsClient={wsClient}
-                transcriptionEnabled={transcriptionEnabled}
-                activeConversation={activeConversation}
-                activeExperts={activeConversation?.activeExperts || activeExperts || []}
-                hideReactionsAndHandRaise={activeConversation?.type === 'direct' && groupParticipants.length <= 2}
-              />
-            </RealtimeKitProvider>
-          ) : (
-            <GroupCallModal
-              callState={groupCallState}
-              localStream={groupLocalStream}
-              remoteStreams={groupRemoteStreams}
-              participants={groupParticipants}
-              pendingInvites={groupPendingInvites}
-              onEndCall={leaveGroupCall}
-              onToggleMute={toggleGroupMute}
-              onToggleVideo={toggleGroupVideo}
-              onToggleScreenShare={toggleGroupScreenShare}
-              onSetVideoQuality={setGroupVideoQuality}
-              onToggleMinimize={toggleGroupMinimize}
-              onToggleBackground={toggleGroupBackground}
-              backgroundEnabled={groupCallState.backgroundEnabled}
-              prefixDataTestId={`${prefixDataTestId}-group-call`}
-              availableParticipants={availableParticipantsForCall}
-              onInviteParticipant={participant => inviteToGroupCall([participant], activeConversation?.name)}
-              onReconnectParticipant={reconnectGroupParticipant}
-              getConnectionDiagnostics={getGroupConnectionDiagnostics}
-              accessToken={accessToken}
-              currentUserId={currentUser?.id || null}
-            />
-          ))}
+        {/* Group Call Modal - REMOVED: Now handled by GlobalCallContainer at root level */}
+        {/* RealtimeKit calls are rendered by GlobalCallContainer mounted in BusinessAppIDE.tsx */}
+        {/* This allows calls to persist across navigation without unmounting */}
+
+        {/* Mesh calls still render here conditionally for backward compatibility */}
+        {!useRealtimeKitForGroupCalls && groupCallState.status === 'connected' && (
+          <GroupCallModal
+            callState={groupCallState}
+            localStream={groupLocalStream}
+            remoteStreams={groupRemoteStreams}
+            participants={groupParticipants}
+            pendingInvites={groupPendingInvites}
+            onEndCall={leaveGroupCall}
+            onToggleMute={toggleGroupMute}
+            onToggleVideo={toggleGroupVideo}
+            onToggleScreenShare={toggleGroupScreenShare}
+            onSetVideoQuality={setGroupVideoQuality}
+            onToggleMinimize={toggleGroupMinimize}
+            onToggleBackground={toggleGroupBackground}
+            backgroundEnabled={groupCallState.backgroundEnabled}
+            prefixDataTestId={`${prefixDataTestId}-group-call`}
+            availableParticipants={availableParticipantsForCall}
+            onInviteParticipant={participant => inviteToGroupCall([participant], activeConversation?.name)}
+            onReconnectParticipant={reconnectGroupParticipant}
+            getConnectionDiagnostics={getGroupConnectionDiagnostics}
+            accessToken={accessToken}
+            currentUserId={currentUser?.id || null}
+          />
+        )}
       </div>
     )
   },

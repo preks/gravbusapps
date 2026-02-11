@@ -6,6 +6,7 @@ import { z } from 'zod'
  */
 export const assignmentFormSchema = z.object({
   id: z.string().optional(),
+  assignmentOrder: z.number().min(1, 'Order must be at least 1'),
   cascading: z.boolean(),
   applicants: z.boolean(),
   activeFrom: z.string().optional(),

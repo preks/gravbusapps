@@ -316,6 +316,7 @@ participants-everyones-here = Toată lumea e aici!
 participants-all-members-in-call = Toți membrii conversației sunt fie în apel, fie au fost invitați.
 participants-in-call = În apel
 participants-invited = Invitați
+participants-left-call = A părăsit apelul
 participants-unknown = Necunoscut
 participants-you = Tu
 participants-declined-invite = Invitație refuzată
@@ -336,6 +337,20 @@ participants-available-to-invite = Disponibili pentru invitare
 videogrid-page-info = Pagina {$current} din {$total}
 videogrid-previous-page = Pagina anterioară
 videogrid-next-page = Pagina următoare
+
+# Transcription
+chat-call-enableTranscription = Activează transcrierea
+chat-call-transcriptionActive = Înregistrare
+chat-call-recording = Înregistrare
+chat-transcript-ready = Transcriere gata: { $sessionName }
+chat-transcript-view = Vezi transcrierea
+chat-transcript-saved = Transcrierea întâlnirii a fost salvată
+chat-transcript-create-minutes-description = Creează notițe de întâlnire din transcrierea apelului în notițe
+chat-transcript-create-minutes-button = Creează notițe de întâlnire
+chat-transcript-generating-minutes = Se generează notițele de întâlnire...
+chat-transcript-generating-minutes-status = Se generează notițele de întâlnire...
+chat-transcript-failed-create-minutes = Eroare la crearea notițelor de întâlnire
+chat-transcript-retry = Reîncearcă
 
 # Notifications
 notifications-title = Notificări
@@ -462,3 +477,23 @@ calendar-pending-invitations = Invitații în așteptare
 calendar-accept = Acceptă
 calendar-decline = Refuză
 calendar-tentative = Tentativ
+
+# Calendar - Agenda
+calendar-agenda = Agendă
+calendar-agendaOptional = Agendă (opțional)
+calendar-addAgendaItem = Adaugă punct pe agendă
+calendar-agendaItemTitle = Subiect
+calendar-agendaItemTitlePlaceholder = Introdu subiectul...
+calendar-agendaItemDuration = Durată (min)
+calendar-agendaItemAssignee = Atribuie la
+calendar-agendaItemUnassigned = Neatribuit
+calendar-agendaItemRemove = Elimină
+calendar-agendaItemMoveUp = Mută sus
+calendar-agendaItemMoveDown = Mută jos
+calendar-agendaItems = {$count ->
+  [one] {$count} punct pe agendă
+  *[other] {$count} puncte pe agendă
+}
+calendar-agendaTotalDuration = Total: {$minutes} min
+calendar-agendaAssignedTo = Atribuit lui {$name}
+calendar-noAgenda = Niciun punct pe agendă

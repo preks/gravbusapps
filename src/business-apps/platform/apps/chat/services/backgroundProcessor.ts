@@ -4,7 +4,6 @@
 
 import { SelfieSegmentation, Results } from '@mediapipe/selfie_segmentation'
 import backgroundPoster from '../assets/background-poster.jpg'
-import { debugLog } from '../utils/debugLog'
 
 export interface BackgroundProcessorOptions {
   backgroundImageUrl?: string
@@ -20,7 +19,7 @@ export class BackgroundProcessor {
   private animationFrameId: number | null = null
   private outputStream: MediaStream | null = null
   private inputStream: MediaStream | null = null
-  private latestMask: ImageBitmap | HTMLCanvasElement | null = null
+  private latestMask: CanvasImageSource | null = null
   private isInitialized = false
 
   constructor(private options: BackgroundProcessorOptions = {}) {
@@ -38,8 +37,6 @@ export class BackgroundProcessor {
   private async initialize(): Promise<void> {
     if (this.isInitialized) return
 
-    debugLog('BackgroundProcessor: Initializing...')
-
     // Load background image
     await this.loadBackgroundImage(this.options.backgroundImageUrl || backgroundPoster)
 
@@ -50,7 +47,7 @@ export class BackgroundProcessor {
 
     this.selfieSegmentation.setOptions({
       modelSelection: 1, // 0 = general, 1 = landscape (faster)
-      selfieMode: false // Don't auto-mirror, we handle it
+      selfieMode: true // Don't auto-mirror, we handle it
     })
 
     this.selfieSegmentation.onResults((results: Results) => {
@@ -59,7 +56,6 @@ export class BackgroundProcessor {
 
     await this.selfieSegmentation.initialize()
     this.isInitialized = true
-    debugLog('BackgroundProcessor: Initialized')
   }
 
   private async loadBackgroundImage(url: string): Promise<void> {
@@ -68,7 +64,6 @@ export class BackgroundProcessor {
       img.crossOrigin = 'anonymous'
       img.onload = () => {
         this.backgroundImage = img
-        debugLog('BackgroundProcessor: Background loaded')
         resolve()
       }
       img.onerror = reject
@@ -106,7 +101,6 @@ export class BackgroundProcessor {
     this.isRunning = true
     this.processLoop()
 
-    debugLog('BackgroundProcessor: Started')
     return this.outputStream
   }
 
@@ -192,7 +186,6 @@ export class BackgroundProcessor {
     this.inputStream = null
     this.outputStream = null
     this.latestMask = null
-    debugLog('BackgroundProcessor: Stopped')
   }
 
   getOutputStream(): MediaStream | null {
@@ -215,6 +208,5 @@ export class BackgroundProcessor {
     }
     this.backgroundImage = null
     this.isInitialized = false
-    debugLog('BackgroundProcessor: Destroyed')
   }
 }

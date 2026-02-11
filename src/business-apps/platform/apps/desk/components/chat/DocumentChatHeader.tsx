@@ -71,7 +71,7 @@ export const DocumentChatHeader: React.FC<DocumentChatHeaderProps> = ({
             </h3>
             <div className="gba:flex gba:items-center gba:gap-1.5">
               <Badge variant="secondary" className="gba:text-[10px] gba:px-1.5 gba:py-0 gba:h-4 gba:font-normal">
-                {llmProvider === 'groq' ? 'Groq' : 'OpenAI'}
+                {llmProvider === 'groq' ? 'Fast' : 'Smart'}
               </Badge>
             </div>
           </div>
@@ -98,10 +98,10 @@ export const DocumentChatHeader: React.FC<DocumentChatHeaderProps> = ({
                 onClick={() => onLlmProviderChange('openai')}
                 data-testid="chat-llm-provider-option-openai"
               >
-                OpenAI {llmProvider !== 'groq' ? '✓' : ''}
+                Smart {llmProvider !== 'groq' ? '✓' : ''}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => onLlmProviderChange('groq')} data-testid="chat-llm-provider-option-groq">
-                Groq {llmProvider === 'groq' ? '✓' : ''}
+                Fast {llmProvider === 'groq' ? '✓' : ''}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

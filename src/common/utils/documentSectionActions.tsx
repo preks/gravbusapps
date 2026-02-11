@@ -1,8 +1,41 @@
-import React from 'react'
+/**
+ * @deprecated This utility is deprecated. Use updateActionProps and deleteActionProps
+ * on DocumentSection component instead. This ensures proper permission checks via
+ * Flow Registry and centralized flow configuration.
+ *
+ * Migration guide:
+ * Instead of:
+ *   const customActions = createDocumentSectionActions({
+ *     domain: 'investment-relations',
+ *     documentFieldName: 'investmentDocument',
+ *     entityType: 'opportunity',
+ *     updateProcessName: 'updateInvestmentDocument',
+ *     deleteEndpoint: '/investment-relations/deleteInvestmentDocument'
+ *   })
+ *   <DocumentSection customActions={customActions} ... />
+ *
+ * Use:
+ *   const updateActionProps = useMemo(() => ({
+ *     contextsArray: [FlowContextName.investmentDocumentUpdate],
+ *     externalContextData: { opportunityId },
+ *     prefixDataTestId: 'opportunity-document-update'
+ *   }), [opportunityId])
+ *
+ *   const deleteActionProps = useMemo(() => ({
+ *     contextsArray: [FlowContextName.investmentDocumentDelete],
+ *     externalContextData: { opportunityId },
+ *     prefixDataTestId: 'opportunity-document-delete'
+ *   }), [opportunityId])
+ *
+ *   <DocumentSection updateActionProps={updateActionProps} deleteActionProps={deleteActionProps} ... />
+ *
+ * @see DocumentSection component for the new pattern
+ */
+
 import { Download, Edit, Trash2 } from 'lucide-react'
-import { buildFileUrl } from '@/common/utils/fileUtils'
 import { toast } from '@newwork/nw-design-system'
 import { startProcess } from '@/common/utils/start-process'
+import { handleDocumentClick } from '@/common/utils/documentClickHandler'
 
 export interface DocumentSectionActionsConfig {
   /**
@@ -93,30 +126,14 @@ export function createDocumentSectionActions(config: DocumentSectionActionsConfi
       key: 'download',
       label: getTranslation('document.action.download', 'Download'),
       icon: <Download className="gba:h-4 gba:w-4" />,
-      onClick: (_documentId: string, document: any) => {
-        if (!document.fileInfo) {
-          toast.warning(getTranslation('document.warning.no.file', 'No file available to download'))
-          return
-        }
-
-        try {
-          // Use buildFileUrl to get the proper file URL
-          const fileUrl = buildFileUrl(document.fileInfo)
-          const downloadFilename = document.name || 'document'
-
-          // Create link with download attribute to force download
-          const link = globalThis.document.createElement('a')
-          link.href = fileUrl
-          link.download = downloadFilename
-          globalThis.document.body.appendChild(link)
-          link.click()
-          link.remove()
-
-          toast.success(getTranslation('document.success.downloading', `Downloading ${downloadFilename}`))
-        } catch (error) {
-          console.error('Error downloading document:', error)
-          toast.error(getTranslation('document.error.download.failed', 'Failed to download document'))
-        }
+      onClick: async (_documentId: string, document: any, _entityId: string, accessToken?: string) => {
+        await handleDocumentClick(document, accessToken, {
+          showToast: true,
+          onError: error => {
+            console.error('Error downloading document:', error)
+            toast.error(getTranslation('document.error.download.failed', 'Failed to download document'))
+          }
+        })
       }
     },
     {

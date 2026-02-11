@@ -46,6 +46,31 @@ export function useChatSessions(options: UseChatSessionsOptions): UseChatSession
   const maxVisibleSessions = 20
   const storageKey = useMemo(() => `desk-document-chat:last-session:${userId}`, [userId])
 
+  // Keep the sessions list in sync with the active session (e.g. title updates via socket)
+  useEffect(() => {
+    if (!currentSession?.id) return
+    setSessions(prev => {
+      const idx = prev.findIndex(s => s.id === currentSession.id)
+      if (idx === -1) return prev
+      const existing = prev[idx]
+      if (
+        existing.title === currentSession.title &&
+        existing.updatedAt === currentSession.updatedAt &&
+        existing.llmProvider === currentSession.llmProvider
+      ) {
+        return prev
+      }
+      const next = prev.slice()
+      next[idx] = {
+        ...existing,
+        title: currentSession.title,
+        updatedAt: currentSession.updatedAt,
+        llmProvider: currentSession.llmProvider
+      }
+      return next
+    })
+  }, [currentSession?.id, currentSession?.title, currentSession?.updatedAt, currentSession?.llmProvider])
+
   const refreshSessions = useCallback(async (): Promise<ChatSession[]> => {
     const loaded = await getUserSessions()
     const sorted = loaded.slice().sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())

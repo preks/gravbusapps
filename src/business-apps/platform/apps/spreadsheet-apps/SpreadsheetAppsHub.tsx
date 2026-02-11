@@ -67,6 +67,7 @@ import {
 } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo } from '@/common/utils/navigationUtils'
+import { GET_EMPLOYEE_LIGHT_BY_USER_ID, GET_EMPLOYEE_LIGHT_BY_ID } from '@/common/data/employee/queries/employeeQueries'
 
 // Components
 import { ExcelUploader } from './components/ExcelUploader'
@@ -168,6 +169,20 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
   const [currentView, setCurrentView] = useState<HubView>('list')
   const [viewLayout, setViewLayout] = useState<'grid' | 'list'>('list')
   const [searchQuery, setSearchQuery] = useState('')
+
+  // Clear space return URL if not opened from a space
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(globalThis.window.location.search)
+      const spaceId = params.get('spaceId')
+      if (!spaceId) {
+        // Spreadsheet opened from hub, not from a space - clear any stale return URL
+        sessionStorage.removeItem('space_return_url')
+      }
+    } catch (e) {
+      console.warn('Failed to check/clear space_return_url:', e)
+    }
+  }, [])
   const [isCreateEmptyDialogOpen, setIsCreateEmptyDialogOpen] = useState(false)
   const [newAppName, setNewAppName] = useState('')
   const [activeSection, setActiveSection] = useState<SidebarSection>('my-files')
@@ -201,6 +216,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
   const [selectedAppForShare, setSelectedAppForShare] = useState<SpreadsheetAppSummary | null>(null)
   const [sharedUsers, setSharedUsers] = useState<
     Array<{
+      id: string
       userId: string
       userName: string
       userEmail: string
@@ -334,15 +350,22 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
       const createdApp = await createApp(appSchema)
 
       if (createdApp) {
-        setSelectedAppId(createdApp.id)
-        setCurrentView('viewer')
-        updateUrl(createdApp.id, 'viewer', createdApp.filePath)
+        const loadedApp = await loadApp(createdApp.id)
+        if (loadedApp) {
+          setSelectedAppId(loadedApp.id)
+          setCurrentView('editor')
+          updateUrl(loadedApp.id, 'editor', loadedApp.filePath ?? createdApp.filePath)
+        } else {
+          setSelectedAppId(createdApp.id)
+          setCurrentView('viewer')
+          updateUrl(createdApp.id, 'viewer', createdApp.filePath)
+        }
         setParsedFile(null)
         setAnalysis(null)
         resetAI()
       }
     },
-    [parsedFile, userInfo, createApp, resetAI, updateUrl]
+    [parsedFile, userInfo, createApp, loadApp, resetAI, updateUrl]
   )
 
   const handleReanalyze = useCallback(async () => {
@@ -382,11 +405,31 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
 
   const handleSaveApp = useCallback(
     async (updatedApp: SpreadsheetApp) => {
+      // 1. Save app-level properties (name, description, icon, status, settings)
       await updateApp(updatedApp.id, updatedApp)
+
+      // 2. Save sheet-level changes (columns, views, settings) via updateSheet.
+      //    updateApp strips sheets from the payload, so we must persist
+      //    sheet changes separately through the sheet-level API.
+      if (updatedApp.sheets) {
+        for (const sheet of updatedApp.sheets) {
+          await updateSheet(updatedApp.id, sheet.id, {
+            name: sheet.name,
+            description: sheet.description,
+            columns: sheet.columns,
+            views: sheet.views,
+            settings: sheet.settings
+          })
+        }
+      }
+
+      // 3. Reload the full app so the viewer gets fresh data (including rows)
+      await loadApp(updatedApp.id)
+
       setCurrentView('viewer')
       updateUrl(updatedApp.id, 'viewer', updatedApp.filePath)
     },
-    [updateApp, updateUrl]
+    [updateApp, updateSheet, loadApp, updateUrl]
   )
 
   const handleDeleteApp = useCallback(
@@ -431,55 +474,132 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     [exportApp]
   )
 
+  /**
+   * Enrich shared user records with display names and avatars via GraphQL.
+   * Accepts an optional knownUsers map (userId → details) as a fallback
+   * when the GraphQL lookup fails or returns no results.
+   */
+  const enrichSharedUsers = useCallback(
+    async (
+      shares: Array<{
+        id: string
+        userId: string
+        userName: string
+        userEmail: string
+        permission: 'view' | 'edit'
+        sharedAt: string
+        sharedBy: string
+      }>,
+      knownUsers?: Map<string, { displayName: string; avatar?: string; email?: string }>
+    ) => {
+      if (shares.length === 0) return shares
+
+      return Promise.all(
+        shares.map(async share => {
+          // Try GraphQL lookup: first by userId (Keycloak ID), then by id (Employee record ID)
+          if (graphqlClient) {
+            for (const queryFn of [GET_EMPLOYEE_LIGHT_BY_USER_ID, GET_EMPLOYEE_LIGHT_BY_ID]) {
+              try {
+                const query = queryFn(share.userId)
+                const result = await graphqlClient.request<{
+                  Employee: Array<{ displayName: string; pictureThumbnail?: string; workEmail?: string }>
+                }>(query)
+                const emp = result.Employee?.[0]
+                if (emp?.displayName) {
+                  return {
+                    ...share,
+                    userName: emp.displayName,
+                    userEmail: emp.workEmail || '',
+                    userAvatar: emp.pictureThumbnail
+                      ? emp.pictureThumbnail.startsWith('data:')
+                        ? emp.pictureThumbnail
+                        : `data:image/png;base64,${emp.pictureThumbnail}`
+                      : undefined
+                  }
+                }
+              } catch {
+                // Try next lookup strategy
+              }
+            }
+          }
+
+          // Fall back to pre-known user details (e.g. from employee search)
+          const known = knownUsers?.get(share.userId)
+          if (known) {
+            return {
+              ...share,
+              userName: known.displayName,
+              userEmail: known.email || '',
+              userAvatar: known.avatar
+                ? known.avatar.startsWith('data:')
+                  ? known.avatar
+                  : `data:image/png;base64,${known.avatar}`
+                : undefined
+            }
+          }
+
+          // Last resort fallback
+          return {
+            ...share,
+            userName: `User ${share.userId.slice(0, 8)}`,
+            userEmail: ''
+          }
+        })
+      )
+    },
+    [graphqlClient]
+  )
+
+  /**
+   * Build a known-users map from current sharedUsers state as a fallback for GraphQL failures.
+   */
+  const buildKnownUsersMap = useCallback(
+    (extraDetails?: Array<{ userId: string; displayName: string; avatar?: string; email?: string }>) => {
+      const map = new Map<string, { displayName: string; avatar?: string; email?: string }>()
+      sharedUsers.forEach(u => {
+        if (u.userName && !u.userName.startsWith('User ')) {
+          map.set(u.userId, { displayName: u.userName, avatar: u.userAvatar, email: u.userEmail })
+        }
+      })
+      extraDetails?.forEach(u => map.set(u.userId, u))
+      return map
+    },
+    [sharedUsers]
+  )
+
+  /**
+   * Fetch shares for an app, enrich with user details, and update state.
+   */
+  const fetchAndEnrichShares = useCallback(
+    async (
+      appId: string,
+      extraDetails?: Array<{ userId: string; displayName: string; avatar?: string; email?: string }>
+    ) => {
+      const shares = await getSharedUsers(appId)
+      const enrichedUsers = await enrichSharedUsers(shares, buildKnownUsersMap(extraDetails))
+      setSharedUsers(enrichedUsers)
+    },
+    [getSharedUsers, enrichSharedUsers, buildKnownUsersMap]
+  )
+
   const handleShareApp = useCallback(
     async (id: string) => {
       const app = apps.find(a => a.id === id)
       if (app) {
         setSelectedAppForShare(app)
-        // Get shared users from API (returns basic info)
-        const shares = await getSharedUsers(id)
-
-        // Fetch user details via GraphQL for each shared user
-        if (graphqlClient && shares.length > 0) {
-          const enrichedUsers = await Promise.all(
-            shares.map(async share => {
-              try {
-                const query = GET_EMPLOYEE_LIGHT_BY_USER_ID(share.userId)
-                const result = await graphqlClient.request<{
-                  Employee: Array<{ displayName: string; pictureThumbnail?: string; workEmail?: string }>
-                }>(query)
-                const emp = result.Employee?.[0]
-                return {
-                  ...share,
-                  userName: emp?.displayName || `User ${share.userId.slice(0, 8)}`,
-                  userEmail: emp?.workEmail || '',
-                  userAvatar: emp?.pictureThumbnail
-                    ? emp.pictureThumbnail.startsWith('data:')
-                      ? emp.pictureThumbnail
-                      : `data:image/png;base64,${emp.pictureThumbnail}`
-                    : undefined
-                }
-              } catch {
-                return {
-                  ...share,
-                  userName: `User ${share.userId.slice(0, 8)}`,
-                  userEmail: ''
-                }
-              }
-            })
-          )
-          setSharedUsers(enrichedUsers)
-        } else {
-          setSharedUsers(shares)
-        }
+        await fetchAndEnrichShares(id)
         setShareDialogOpen(true)
       }
     },
-    [apps, getSharedUsers, graphqlClient]
+    [apps, fetchAndEnrichShares]
   )
 
   const handleShare = useCallback(
-    async (userIds: string[], permission: 'view' | 'edit' | 'admin') => {
+    async (
+      userIds: string[],
+      permission: 'view' | 'edit' | 'admin',
+      userDetails?: Array<{ userId: string; displayName: string; avatar?: string; email?: string }>
+    ) => {
       const actualPermission = permission === 'admin' ? 'edit' : permission
       if (!selectedAppForShare) return false
 
@@ -492,35 +612,32 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
 
       const success = await shareApp(selectedAppForShare.id, userIds, actualPermission, currentUserName)
       if (success) {
-        const users = await getSharedUsers(selectedAppForShare.id)
-        setSharedUsers(users)
+        await fetchAndEnrichShares(selectedAppForShare.id, userDetails)
         await refreshApps()
       }
       return success
     },
-    [selectedAppForShare, shareApp, getSharedUsers, refreshApps, userInfo]
+    [selectedAppForShare, shareApp, fetchAndEnrichShares, refreshApps, userInfo]
   )
 
   const handleUnshare = useCallback(
-    async (userId: string) => {
+    async (shareId: string) => {
       if (!selectedAppForShare) return false
-      const success = await revokeAccess(selectedAppForShare.id, userId)
+      const success = await revokeAccess(shareId)
       if (success) {
-        const users = await getSharedUsers(selectedAppForShare.id)
-        setSharedUsers(users)
+        await fetchAndEnrichShares(selectedAppForShare.id)
         await refreshApps()
       }
       return success
     },
-    [selectedAppForShare, revokeAccess, getSharedUsers, refreshApps]
+    [selectedAppForShare, revokeAccess, fetchAndEnrichShares, refreshApps]
   )
 
   const handleRefreshShares = useCallback(async () => {
     if (!selectedAppForShare) return
-    const users = await getSharedUsers(selectedAppForShare.id)
-    setSharedUsers(users)
+    await fetchAndEnrichShares(selectedAppForShare.id)
     await refreshApps()
-  }, [selectedAppForShare, getSharedUsers, refreshApps])
+  }, [selectedAppForShare, fetchAndEnrichShares, refreshApps])
 
   // const _handlePromoteApp = useCallback(
   //   async (id: string) => {
@@ -542,6 +659,29 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
   )
 
   const handleBack = useCallback(() => {
+    // Check if there's a space return URL in sessionStorage (takes priority)
+    try {
+      const spaceReturnUrl = sessionStorage.getItem('space_return_url')
+      if (spaceReturnUrl) {
+        sessionStorage.removeItem('space_return_url')
+        globalThis.window.location.href = spaceReturnUrl
+        return
+      }
+    } catch (e) {
+      console.warn('Failed to read space_return_url from sessionStorage:', e)
+    }
+
+    // Fallback: Check if there's a returnUrl parameter
+    const params = new URLSearchParams(globalThis.window.location.search)
+    const returnUrl = params.get('returnUrl')
+
+    if (returnUrl) {
+      // Navigate back to the specified URL (e.g., space)
+      globalThis.window.location.href = returnUrl
+      return
+    }
+
+    // Otherwise, go back to the list view
     clearCurrentApp()
     resetLoadAttempt()
     setSelectedAppId(null)

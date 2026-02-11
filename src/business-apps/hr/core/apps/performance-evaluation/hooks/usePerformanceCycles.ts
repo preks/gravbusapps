@@ -73,16 +73,17 @@ function apiStatusToUiStatus(
   endDate: string,
   active: boolean | null
 ): CycleStatus {
-  // Check recordState first - archived/deleted cycles are always Inactive
+  // Check recordState first - inactive/deleted cycles are always Inactive
   if (recordState && recordState.toLowerCase() !== 'active') return 'Inactive'
 
-  // Check explicit status (only force Inactive for DEACTIVATED/COMPLETED)
+  // Check explicit status - map status enum to UI status
   if (apiStatus === 'ACTIVE_PERFORMANCE_CYCLE_STATUS') return 'Active'
+  if (apiStatus === 'DRAFT_PERFORMANCE_CYCLE_STATUS') return 'Active'
   if (apiStatus === 'DEACTIVATED_PERFORMANCE_CYCLE_STATUS') return 'Inactive'
   if (apiStatus === 'COMPLETED_PERFORMANCE_CYCLE_STATUS') return 'Inactive'
   if (active === false) return 'Inactive'
 
-  // For DRAFT or other statuses, use date-based determination
+  // For other statuses, use date-based determination
   const today = new Date()
   const start = new Date(startDate)
   const end = new Date(endDate)

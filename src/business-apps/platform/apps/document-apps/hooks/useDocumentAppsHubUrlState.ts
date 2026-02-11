@@ -138,6 +138,35 @@ export function useDocumentAppsHubUrlState(params: UseDocumentAppsHubUrlStatePar
         fromDesk?: boolean
       } | null
 
+      // Check if we should return to a space instead of the hub
+      // This happens when going back from a document/hub that was opened from a space
+      if (!state?.docId) {
+        // First, check for stored space return URL
+        try {
+          const spaceReturnUrl = sessionStorage.getItem('space_return_url')
+          if (spaceReturnUrl) {
+            sessionStorage.removeItem('space_return_url')
+            window.location.href = spaceReturnUrl
+            return
+          }
+        } catch (e) {
+          console.warn('Failed to check space_return_url:', e)
+        }
+
+        // Second, check if current URL has a spaceId parameter
+        // If so, we should return to that space
+        const urlParams = new URLSearchParams(window.location.search)
+        const spaceId = urlParams.get('spaceId')
+        if (spaceId) {
+          const isProduction = process.env.NODE_ENV === 'production'
+          const spaceUrl = isProduction
+            ? `/platform/spaces?spaceId=${encodeURIComponent(spaceId)}`
+            : `/platform/apps/spaces?spaceId=${encodeURIComponent(spaceId)}`
+          window.location.href = spaceUrl
+          return
+        }
+      }
+
       // Restore section if present
       if (state?.section) {
         setActiveSection(state.section)

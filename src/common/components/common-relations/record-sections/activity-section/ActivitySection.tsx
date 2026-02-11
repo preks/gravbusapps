@@ -14,9 +14,11 @@ import { AppActionMenu } from '@/components/app-action-menu/AppActionMenu'
 import type { AppActionCommonProps } from '@/common/hooks/useAppActionData'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
-import { buildFileUrl, getFileIcon } from '@/common/utils/fileUtils'
+import { handleDocumentClick as handleDocumentClickUtil } from '@/common/utils/documentClickHandler'
+import { getDocumentIcon } from '@/common/utils/documentIconUtils'
 import { FileInfo } from '@/common/types/FileTypes'
 import type { Activity } from '@/common/data/relations/types/activityTypes'
+import { ActivityEmailBody } from './ActivityEmailBody'
 
 export type ActivityDocument = {
   id: string
@@ -65,6 +67,7 @@ export interface ActivitySectionProps extends BusinessAppContextProps {
 const ActivitySection: React.FC<ActivitySectionProps> = props => {
   const {
     accessToken,
+    userInfo,
     activities: rawActivities = [],
     activitiesLoading = false,
     activitiesError = null,
@@ -73,6 +76,8 @@ const ActivitySection: React.FC<ActivitySectionProps> = props => {
     className,
     alignment = 'left'
   } = props
+
+  const currentEmployeeId = userInfo?.employeeDetails?.employeeId
 
   // Process activities - map from Activity to ActivityItem
   const processedActivities = useMemo(() => {
@@ -90,24 +95,15 @@ const ActivitySection: React.FC<ActivitySectionProps> = props => {
           activity.ownerEmployee.displayName
         : undefined,
       activityType: activity.activityType,
-      documents: activity.documents || []
+      documents: activity.documents || [],
+      emailMessageId: activity.additionalProperties?.emailMessageId || null
     }))
   }, [rawActivities])
 
   // Handle document download
-  const handleDocumentClick = (document: ActivityDocument, e: React.MouseEvent) => {
+  const handleDocumentClick = async (document: ActivityDocument, e: React.MouseEvent) => {
     e.stopPropagation()
-
-    if (!document.fileInfo) {
-      return
-    }
-
-    try {
-      const fileUrl = buildFileUrl(document.fileInfo)
-      window.open(fileUrl, '_blank')
-    } catch {
-      // Silent fail - fileInfo structure invalid
-    }
+    await handleDocumentClickUtil(document, accessToken, { showToast: true })
   }
 
   const getActivityIcon = (activityType: string) => {
@@ -139,13 +135,17 @@ const ActivitySection: React.FC<ActivitySectionProps> = props => {
     navigateTo(buildPlatformUrl('/platform/hr/core/employees/employee-record', { employeeId }))
   }
 
-  return (
-    <div data-testid="activity-section-new-content" className={className}>
-      {activitiesLoading ? (
+  const renderContent = () => {
+    if (activitiesLoading) {
+      return (
         <div className="gba:flex gba:justify-center gba:py-8">
           <Spinner size="lg" />
         </div>
-      ) : activitiesError ? (
+      )
+    }
+
+    if (activitiesError) {
+      return (
         <Alert variant="destructive" data-testid="activity-error-alert">
           <div>
             <strong>
@@ -159,98 +159,121 @@ const ActivitySection: React.FC<ActivitySectionProps> = props => {
             )}
           </div>
         </Alert>
-      ) : processedActivities.length === 0 ? (
+      )
+    }
+
+    if (processedActivities.length === 0) {
+      return (
         <EmptyState
           type="no-data"
           title="No Activities"
           description="No activities yet. Create your first activity."
           data-testid="activity-section-empty-state"
         />
-      ) : (
-        <TimelineLayout
-          items={processedActivities.map((activity: any) => {
-            const activityTypeLabel = getActivityTypeLabel(activity.activityType)
-            const ownerName = getOwnerName(activity.ownerEmployee)
-            const description = activity.description
+      )
+    }
 
-            const activityActions = activityEntityActionProps ? (
-              <AppActionMenu
-                accessToken={accessToken}
-                contextsArray={activityEntityActionProps.contextsArray}
-                externalContextData={{
-                  ...activityEntityActionProps.externalContextData,
-                  activityId: activity.id,
-                  activityType: activity.activityType?.value
-                }}
-                prefixDataTestId={`${activityEntityActionProps.prefixDataTestId}-${activity.id}`}
-                deferMainContextRequestsUntilClick={true}
-                emptyStateBehavior="enable"
+    return (
+      <TimelineLayout
+        items={processedActivities.map((activity: any) => {
+          const activityTypeLabel = getActivityTypeLabel(activity.activityType)
+          const ownerName = getOwnerName(activity.ownerEmployee)
+          const description = activity.description
+          const emailMessageId = activity.emailMessageId
+
+          const activityActions = activityEntityActionProps ? (
+            <AppActionMenu
+              accessToken={accessToken}
+              contextsArray={activityEntityActionProps.contextsArray}
+              externalContextData={{
+                ...activityEntityActionProps.externalContextData,
+                activityId: activity.id,
+                activityType: activity.activityType?.value
+              }}
+              prefixDataTestId={`${activityEntityActionProps.prefixDataTestId}-${activity.id}`}
+              deferMainContextRequestsUntilClick={true}
+              emptyStateBehavior="enable"
+            >
+              <div
+                className="gba:flex gba:items-center gba:justify-center gba:h-6 gba:w-6 gba:cursor-pointer gba:rounded gba:hover:bg-muted gba:transition-colors"
+                data-testid={`activity-menu-${activity.id}`}
               >
-                <div
-                  className="gba:flex gba:items-center gba:justify-center gba:h-6 gba:w-6 gba:cursor-pointer gba:rounded gba:hover:bg-muted gba:transition-colors"
-                  data-testid={`activity-menu-${activity.id}`}
-                >
-                  <DotsThreeVerticalIcon size={16} />
-                </div>
-              </AppActionMenu>
-            ) : null
+                <DotsThreeVerticalIcon size={16} />
+              </div>
+            </AppActionMenu>
+          ) : null
 
-            return {
-              id: activity.id,
-              date: dayjs(activity.occurredAt).format('MMM D, YYYY h:mm A'),
-              actor: activity.ownerEmployee ? (
-                <a
-                  href={buildPlatformUrl('/platform/hr/core/employees/employee-record', {
-                    employeeId: activity.ownerEmployee.id
-                  })}
-                  onClick={e => {
-                    e.preventDefault()
-                    handleEmployeeClick(activity.ownerEmployee.id)
-                  }}
-                  className="gba:font-medium gba:text-primary gba:hover:underline gba:cursor-pointer"
-                >
-                  {ownerName}
-                </a>
-              ) : undefined,
-              title: (
-                <div className="gba:flex gba:items-center gba:justify-between gba:w-full">
-                  <span className="gba:flex-1 gba:truncate">{activity.title}</span>
-                  {activityActions}
-                </div>
-              ),
-              description: (
-                <div className="gba:flex gba:flex-col gba:gap-2">
-                  {description && <span>{description}</span>}
-                  {activity.documents && activity.documents.length > 0 && (
-                    <div className="gba:flex gba:flex-wrap gba:gap-2">
-                      {activity.documents.map((doc: ActivityDocument) => {
-                        const FileIcon = getFileIcon(doc.mimeType)
-                        return (
-                          <button
-                            key={doc.id}
-                            onClick={e => handleDocumentClick(doc, e)}
-                            className="gba:flex gba:items-center gba:gap-1 gba:px-2 gba:py-1 gba:text-xs gba:bg-muted gba:rounded gba:hover:bg-accent gba:transition-colors"
-                            data-testid={`activity-document-${activity.id}-${doc.id}`}
-                            title={doc.name}
-                          >
-                            <FileIcon size={14} weight="bold" />
-                            <span className="gba:truncate gba:max-w-[150px]">{doc.name}</span>
-                          </button>
-                        )
-                      })}
-                    </div>
-                  )}
-                </div>
-              ),
-              icon: getActivityIcon(activityTypeLabel)
-            } as any
-          })}
-          variant="default"
-          orientation="vertical"
-          alignment={alignment}
-          className="gba:w-full"
-        />
-      )}
+          return {
+            id: activity.id,
+            date: dayjs(activity.occurredAt).format('MMM D, YYYY h:mm A'),
+            actor: activity.ownerEmployee ? (
+              <a
+                href={buildPlatformUrl('/platform/hr/core/employees/employee-record', {
+                  employeeId: activity.ownerEmployee.id
+                })}
+                onClick={e => {
+                  e.preventDefault()
+                  handleEmployeeClick(activity.ownerEmployee.id)
+                }}
+                className="gba:font-medium gba:text-primary gba:hover:underline gba:cursor-pointer"
+              >
+                {ownerName}
+              </a>
+            ) : undefined,
+            title: (
+              <div className="gba:flex gba:items-center gba:justify-between gba:w-full">
+                <span className="gba:flex-1 gba:truncate">{activity.title}</span>
+                {activityActions}
+              </div>
+            ),
+            description: (
+              <div className="gba:flex gba:flex-col gba:gap-2">
+                {description && <span>{description}</span>}
+                {activity.documents && activity.documents.length > 0 && (
+                  <div className="gba:flex gba:flex-wrap gba:gap-2">
+                    {activity.documents.map((doc: ActivityDocument) => (
+                      <button
+                        key={doc.id}
+                        onClick={e => handleDocumentClick(doc, e)}
+                        className="gba:flex gba:items-center gba:gap-1 gba:px-2 gba:py-1 gba:text-xs gba:bg-muted gba:rounded gba:hover:bg-accent gba:transition-colors"
+                        data-testid={`activity-document-${activity.id}-${doc.id}`}
+                        title={doc.name}
+                      >
+                        {getDocumentIcon({ name: doc.name, mimeType: doc.mimeType, size: 14 })}
+                        <span className="gba:truncate gba:max-w-[150px]">{doc.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {/* Inline email body for email-type activities */}
+                {emailMessageId && accessToken && (
+                  <ActivityEmailBody
+                    emailMessageId={emailMessageId}
+                    accessToken={accessToken}
+                    isEmailOwner={
+                      !!currentEmployeeId &&
+                      !!activity.ownerEmployee?.id &&
+                      currentEmployeeId === activity.ownerEmployee.id
+                    }
+                    data-testid={`activity-email-body-${activity.id}`}
+                  />
+                )}
+              </div>
+            ),
+            icon: getActivityIcon(activityTypeLabel)
+          } as any
+        })}
+        variant="default"
+        orientation="vertical"
+        alignment={alignment}
+        className="gba:w-full"
+      />
+    )
+  }
+
+  return (
+    <div data-testid="activity-section-new-content" className={className}>
+      {renderContent()}
     </div>
   )
 }

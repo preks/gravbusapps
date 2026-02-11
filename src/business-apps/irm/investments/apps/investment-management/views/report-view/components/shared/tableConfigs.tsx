@@ -28,15 +28,14 @@ export const EQUITY_TABLE_CONFIG: InvestmentReportTableConfig = {
         title: 'Investment',
         width: '200px',
         render: (record: any) => (
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 'var(--nw-spacing-2)'
-            }}
-          >
-            <ChartPieIcon className="gba:w-4 gba:h-4" style={{ color: 'var(--nw-color-text-secondary)' }} />
-            <span className="gba:font-medium">{record.investment?.name || 'N/A'}</span>
+          <div className="gba:flex gba:items-center gba:gap-2 gba:h-8">
+            <ChartPieIcon
+              className="gba:w-4 gba:h-4 gba:shrink-0"
+              style={{ color: 'var(--nw-color-text-secondary)' }}
+            />
+            <span className="gba:font-medium gba:truncate gba:block" title={record.investment?.name || 'N/A'}>
+              {record.investment?.name || 'N/A'}
+            </span>
           </div>
         )
       }
@@ -86,15 +85,18 @@ export const REAL_ESTATE_TABLE_CONFIG: InvestmentReportTableConfig = {
         title: 'Investment',
         width: '200px',
         render: (record: any) => (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--nw-spacing-2)' }}>
+          <div className="gba:flex gba:items-center gba:gap-2 gba:h-8">
             <BuildingsIcon
+              className="gba:shrink-0"
               style={{
                 width: 'var(--nw-spacing-4)',
                 height: 'var(--nw-spacing-4)',
                 color: 'var(--nw-muted-foreground)'
               }}
             />
-            <span className="gba:font-medium">{record.investment?.name || 'N/A'}</span>
+            <span className="gba:font-medium gba:truncate gba:block" title={record.investment?.name || 'N/A'}>
+              {record.investment?.name || 'N/A'}
+            </span>
           </div>
         )
       }

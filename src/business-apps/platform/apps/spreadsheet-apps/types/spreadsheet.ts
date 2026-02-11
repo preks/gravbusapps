@@ -409,10 +409,18 @@ export interface SheetSettings {
   allowAdd: boolean
   allowEdit: boolean
   allowDelete: boolean
+  /** Explicit row ordering (array of backend row UUIDs). When present, rows are sorted by this order on load. */
+  rowOrder?: string[]
   allowExport: boolean
   allowImport: boolean
   rowsPerPage: number
   showRowNumbers: boolean
+  /** Persisted FortuneSheet filter state (restored on reload to preserve active filters). */
+  fortuneSheetFilterState?: {
+    filter?: Record<string, unknown> | null
+    filter_select?: Record<string, unknown>
+    rowhidden?: Record<string, number>
+  }
 }
 
 /**

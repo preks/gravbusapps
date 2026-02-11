@@ -16,11 +16,19 @@ interface UseRealEstateInvestmentTypesReturn {
   refetch: () => Promise<void>
 }
 
-export const useRealEstateInvestmentTypes = (accessToken: string): UseRealEstateInvestmentTypesReturn => {
+interface UseRealEstateInvestmentTypesParams {
+  accessToken: string
+  catalogData?: any
+}
+
+export const useRealEstateInvestmentTypes = ({
+  accessToken,
+  catalogData: providedCatalogData
+}: UseRealEstateInvestmentTypesParams): UseRealEstateInvestmentTypesReturn => {
   const [investmentTypes, setInvestmentTypes] = useState<RealEstateInvestmentType[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [catalogData, setCatalogData] = useState<any>(null)
+  const [catalogData, setCatalogData] = useState<any>(providedCatalogData || null)
 
   const { fetchInvestmentCatalogData } = useGetInvestmentCatalogData({
     accessToken,
@@ -37,8 +45,11 @@ export const useRealEstateInvestmentTypes = (accessToken: string): UseRealEstate
     setError(null)
 
     try {
-      const data = await fetchInvestmentCatalogData()
-      setCatalogData(data)
+      // Use provided catalogData if available, otherwise fetch it
+      const data = providedCatalogData || (await fetchInvestmentCatalogData())
+      if (!providedCatalogData) {
+        setCatalogData(data)
+      }
 
       // Find real estate investment group and get its types
       const realEstateGroup = data.investmentGroups?.find((group: any) => group.code === 'REAL_ESTATE')
@@ -77,11 +88,18 @@ export const useRealEstateInvestmentTypes = (accessToken: string): UseRealEstate
     } finally {
       setLoading(false)
     }
-  }, [accessToken, fetchInvestmentCatalogData])
+  }, [accessToken, providedCatalogData, fetchInvestmentCatalogData])
 
   useEffect(() => {
     loadRealEstateTypes()
   }, [loadRealEstateTypes])
+
+  // Update local catalogData when providedCatalogData changes
+  useEffect(() => {
+    if (providedCatalogData) {
+      setCatalogData(providedCatalogData)
+    }
+  }, [providedCatalogData])
 
   return {
     investmentTypes,

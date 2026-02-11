@@ -17,11 +17,17 @@
  *   Example: ?view=outbox&flowId=xyz-789
  */
 
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ThemeProvider,
   Button,
   useTranslation,
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
   Tabs,
   TabsContent,
   toast,
@@ -30,7 +36,7 @@ import {
   TooltipContent
 } from '@newwork/nw-design-system'
 import translations from './_i18n'
-import { Inbox, Send, Zap, Search } from 'lucide-react'
+import { Inbox, Send, Zap, Search, ArrowUpDown, RefreshCcw, CalendarDays, Sparkles, Brain } from 'lucide-react'
 import { FiltersDropdown, FilterType } from './components/FiltersDropdown'
 import { EveryBoxHero } from './components/EveryBoxHero'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -41,6 +47,7 @@ import { useCompletedTasks } from './hooks/useCompletedTasks'
 import { useBlinkTasks } from './hooks/useBlinkCount'
 import { InboxView } from './components/InboxView'
 import { OutboxView } from './components/OutboxView'
+import { AiInsightsDashboard } from './components/AiInsightsDashboard'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import {
   QuickTaskModal,
@@ -50,12 +57,15 @@ import {
 } from '@/business-apps/flow/common/components/flow-quick-task'
 import { useFeature } from '@/common/hooks/useFeature'
 import { Feature } from '@/common/types/constants/FeatureHub'
+import { useAiCapabilities, useAiSearch } from './hooks/useAi'
 
 interface EveryBoxProps extends BusinessAppContextProps {
   prefixDataTestId?: string
 }
 
-type ViewType = 'inbox' | 'outbox'
+type ViewType = 'inbox' | 'outbox' | 'ai-insights'
+type SortOption = 'newest' | 'oldest' | 'priority'
+type DueDateFilter = 'any' | 'overdue' | 'dueSoon24h' | 'hasDueDate' | 'noDueDate'
 
 /**
  * Get initial view from URL
@@ -63,7 +73,9 @@ type ViewType = 'inbox' | 'outbox'
 const getInitialView = (): ViewType => {
   const urlParams = new URLSearchParams(globalThis.location.search)
   const view = urlParams.get('view')
-  return view === 'outbox' ? 'outbox' : 'inbox'
+  if (view === 'outbox') return 'outbox'
+  if (view === 'ai-insights') return 'ai-insights'
+  return 'inbox'
 }
 
 /**
@@ -77,17 +89,18 @@ const updateViewUrl = (view: ViewType) => {
 }
 
 // Staggered polling intervals for different data types
+// PERFORMANCE: Intervals increased to reduce backend load; hooks have internal throttling
 const POLLING_CONFIG = {
   activeTasks: {
-    interval: 15000, // 15 seconds - Most critical
+    interval: 30000, // 30 seconds - Background refresh (hooks have 10s throttle)
     enabled: true
   },
   completedTasks: {
-    interval: 60000, // 60 seconds - Less urgent
+    interval: 90000, // 90 seconds - Less urgent
     enabled: true
   },
   outboxFlows: {
-    interval: 30000, // 30 seconds - Moderate
+    interval: 45000, // 45 seconds - Moderate
     enabled: true
   }
 }
@@ -99,16 +112,53 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
   const previewFeature = useFeature(Feature.Preview.Enabled.Key)
   const isPreviewEnabled = previewFeature !== false // true if undefined (development) or 'true'
 
-  // All hooks must be called before any early return to satisfy React's rules of hooks
-  // Separate interval refs for each data source (for staggered polling)
-  const activeTasksIntervalRef = useRef<NodeJS.Timeout | null>(null)
-  const completedTasksIntervalRef = useRef<NodeJS.Timeout | null>(null)
-  const outboxFlowsIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  // AI feature flag and capabilities (enabled by default in development when flag is undefined)
+  const aiFeature = useFeature(Feature.EveryBox.AiEnabled.Key)
+  const isAiFeatureEnabled = aiFeature === true || aiFeature === 'true' || aiFeature === undefined
+  const { capabilities: aiCapabilities } = useAiCapabilities(context.accessToken)
+  const showAiFeatures = isAiFeatureEnabled && aiCapabilities?.aiEnabled
+  const semanticSearchAvailable = showAiFeatures && aiCapabilities?.semanticSearchAvailable
 
+  // AI Insights feature flag (requires explicit enablement)
+  const aiInsightsFeature = useFeature(Feature.EveryBox.AiInsightsEnabled.Key)
+  const showAiInsights = (aiInsightsFeature === true || aiInsightsFeature === 'true') && showAiFeatures
+
+  // AI semantic search
+  const {
+    results: aiSearchResults,
+    searchMode: aiSearchMode,
+    isSearching: aiIsSearching,
+    search: aiSearch,
+    clearResults: aiClearResults
+  } = useAiSearch(context.accessToken, { limit: 15 })
+
+  // All hooks must be called before any early return to satisfy React's rules of hooks
   const [isQuickTaskModalOpen, setIsQuickTaskModalOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<ViewType>(getInitialView())
   const [globalSearch, setGlobalSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [selectedFilters, setSelectedFilters] = useState<FilterType[]>(['all'])
+  const [sortOption, setSortOption] = useState<SortOption>('newest')
+  const [dueDateFilter, setDueDateFilter] = useState<DueDateFilter>('any')
+  const [isSearchExpanded, setIsSearchExpanded] = useState(false)
+
+  const sortBy = sortOption === 'priority' ? 'priority' : 'createdAt'
+  const sortOrder = sortOption === 'oldest' ? 'asc' : sortOption === 'priority' ? 'asc' : 'desc'
+
+  // Debounce search to avoid firing backend requests on each keystroke
+  useEffect(() => {
+    const handle = globalThis.setTimeout(() => setDebouncedSearch(globalSearch), 300)
+    return () => globalThis.clearTimeout(handle)
+  }, [globalSearch])
+
+  // Trigger semantic search when search text changes (with debounce)
+  useEffect(() => {
+    if (semanticSearchAvailable && debouncedSearch.trim()) {
+      aiSearch(debouncedSearch)
+    } else {
+      aiClearResults()
+    }
+  }, [debouncedSearch, semanticSearchAvailable, aiSearch, aiClearResults])
 
   // File upload hook for Blink attachments
   const { uploadFiles } = useQuickTaskFileUpload({
@@ -124,15 +174,31 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
     refetch: refetchTasks,
     loadMore: loadMoreTasks,
     hasMore: hasMoreTasks,
-    hasNewTasks: hasNewInboxTasks,
-    backgroundRefresh: backgroundRefreshInbox,
-    clearNewTasksFlag: clearNewInboxTasksFlag
-  } = useInboxTasks(context)
+    backgroundRefresh: backgroundRefreshInbox
+    // When semantic search is available, don't pass search to regular API - let AI search handle filtering
+  } = useInboxTasks(context, {
+    search: semanticSearchAvailable ? '' : debouncedSearch,
+    sortBy,
+    sortOrder,
+    dueFilter: dueDateFilter
+  })
 
-  // Fetch outbox flows
-  const { flows, isLoading: flowsLoading, error: flowsError, refetch: refetchFlows } = useOutboxFlows(context)
+  // Track which tabs have been visited (lazy-load: only fetch data when tab is first opened)
+  const [visitedTabs, setVisitedTabs] = useState<Set<string>>(() => new Set([getInitialView()]))
 
-  // Fetch completed tasks
+  // Fetch outbox flows - DEFERRED until outbox tab is visited
+  const outboxEnabled = visitedTabs.has('outbox')
+  const {
+    flows,
+    isLoading: flowsLoading,
+    error: flowsError,
+    refetch: refetchFlows,
+    backgroundRefresh: backgroundRefreshFlows
+  } = useOutboxFlows(context, {
+    enabled: outboxEnabled
+  })
+
+  // Fetch completed tasks - needed for filter badge counts in inbox view
   const {
     tasks: completedTasks,
     totalCount: totalCompletedCount,
@@ -141,10 +207,14 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
     refetch: refetchCompleted,
     loadMore: loadMoreCompleted,
     hasMore: hasMoreCompleted,
-    hasNewTasks: hasNewCompletedTasks,
-    backgroundRefresh: backgroundRefreshCompleted,
-    clearNewTasksFlag: clearNewCompletedTasksFlag
-  } = useCompletedTasks(context)
+    backgroundRefresh: backgroundRefreshCompleted
+    // When semantic search is available, don't pass search to regular API - let AI search handle filtering
+  } = useCompletedTasks(context, {
+    search: semanticSearchAvailable ? '' : debouncedSearch,
+    sortBy,
+    sortOrder,
+    dueFilter: dueDateFilter
+  })
 
   // Fetch blink tasks using tag filtering (response contains totalCount for badge)
   const {
@@ -179,50 +249,98 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
   }, [isPreviewEnabled])
 
   // Handler to change tab and update URL
-  const handleTabChange = (value: string) => {
+  // PERF: Wrapped in useCallback — all captured values are stable (state setters + updateViewUrl)
+  const handleTabChange = useCallback((value: string) => {
     const newView = value as ViewType
     setActiveTab(newView)
     updateViewUrl(newView)
-  }
+    // Mark tab as visited to trigger lazy data loading
+    setVisitedTabs(prev => {
+      if (prev.has(newView)) return prev
+      const next = new Set(prev)
+      next.add(newView)
+      return next
+    })
+  }, [])
 
-  // Set up staggered polling intervals (SMART POLLING - no UI disruption)
+  const handleRefresh = useCallback(async () => {
+    if (activeTab === 'outbox') {
+      await refetchFlows()
+      return
+    }
+
+    // inbox tab
+    const filter = selectedFilters[0] || 'all'
+    if (filter === 'completed') {
+      await refetchCompleted()
+      return
+    }
+    if (filter === 'blinks') {
+      await refetchBlinkTasks()
+      return
+    }
+    await refetchTasks()
+  }, [activeTab, selectedFilters, refetchFlows, refetchCompleted, refetchBlinkTasks, refetchTasks])
+
+  // PERF: Store polling callbacks in refs so intervals never need to be recreated
+  const bgRefreshInboxRef = useRef(backgroundRefreshInbox)
+  bgRefreshInboxRef.current = backgroundRefreshInbox
+  const bgRefreshCompletedRef = useRef(backgroundRefreshCompleted)
+  bgRefreshCompletedRef.current = backgroundRefreshCompleted
+  const bgRefreshFlowsRef = useRef(backgroundRefreshFlows)
+  bgRefreshFlowsRef.current = backgroundRefreshFlows
+
+  // Track browser tab visibility to pause polling when hidden
+  const isPageVisibleRef = useRef(!document.hidden)
+
+  // Pause/resume polling when browser tab visibility changes
+  // On becoming visible, refresh all data sources for an up-to-date view
   useEffect(() => {
-    if (!isPreviewEnabled) return
-
-    // Active tasks polling - uses backgroundRefresh (no UI reload)
-    if (POLLING_CONFIG.activeTasks.enabled) {
-      activeTasksIntervalRef.current = setInterval(() => {
-        backgroundRefreshInbox()
-      }, POLLING_CONFIG.activeTasks.interval)
-    }
-
-    // Completed tasks polling - uses backgroundRefresh (no UI reload)
-    if (POLLING_CONFIG.completedTasks.enabled) {
-      completedTasksIntervalRef.current = setInterval(() => {
-        backgroundRefreshCompleted()
-      }, POLLING_CONFIG.completedTasks.interval)
-    }
-
-    // Outbox flows polling - still uses refetch (less disruptive for smaller lists)
-    if (POLLING_CONFIG.outboxFlows.enabled) {
-      outboxFlowsIntervalRef.current = setInterval(() => {
-        refetchFlows()
-      }, POLLING_CONFIG.outboxFlows.interval)
-    }
-
-    // Cleanup all intervals on unmount
-    return () => {
-      if (activeTasksIntervalRef.current) {
-        clearInterval(activeTasksIntervalRef.current)
-      }
-      if (completedTasksIntervalRef.current) {
-        clearInterval(completedTasksIntervalRef.current)
-      }
-      if (outboxFlowsIntervalRef.current) {
-        clearInterval(outboxFlowsIntervalRef.current)
+    const handleVisibility = () => {
+      isPageVisibleRef.current = !document.hidden
+      if (!document.hidden) {
+        bgRefreshInboxRef.current()
+        bgRefreshCompletedRef.current()
+        bgRefreshFlowsRef.current()
       }
     }
-  }, [isPreviewEnabled, backgroundRefreshInbox, backgroundRefreshCompleted, refetchFlows])
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => document.removeEventListener('visibilitychange', handleVisibility)
+  }, [])
+
+  // Active tasks polling (always runs, independent of tab) - reads from ref
+  useEffect(() => {
+    if (!isPreviewEnabled || !POLLING_CONFIG.activeTasks.enabled) return
+    const id = setInterval(() => {
+      if (isPageVisibleRef.current) bgRefreshInboxRef.current()
+    }, POLLING_CONFIG.activeTasks.interval)
+    return () => clearInterval(id)
+  }, [isPreviewEnabled])
+
+  // Completed tasks polling - only when inbox tab is active
+  useEffect(() => {
+    if (!isPreviewEnabled || !POLLING_CONFIG.completedTasks.enabled || activeTab !== 'inbox') return
+    const id = setInterval(() => {
+      if (isPageVisibleRef.current) bgRefreshCompletedRef.current()
+    }, POLLING_CONFIG.completedTasks.interval)
+    return () => clearInterval(id)
+  }, [isPreviewEnabled, activeTab])
+
+  // Outbox flows polling - only when outbox tab is active
+  useEffect(() => {
+    if (!isPreviewEnabled || !POLLING_CONFIG.outboxFlows.enabled || activeTab !== 'outbox') return
+    const id = setInterval(() => {
+      if (isPageVisibleRef.current) bgRefreshFlowsRef.current()
+    }, POLLING_CONFIG.outboxFlows.interval)
+    return () => clearInterval(id)
+  }, [isPreviewEnabled, activeTab])
+
+  // PERF: Store refetch callbacks in refs so the process-completion listener
+  // doesn't get torn down and re-added on every filter/sort change
+  const refetchTasksRef = useRef(refetchTasks)
+  refetchTasksRef.current = refetchTasks
+  const refetchCompletedRef = useRef(refetchCompleted)
+  refetchCompletedRef.current = refetchCompleted
 
   // Listen for process completion events to refresh task lists
   useEffect(() => {
@@ -233,9 +351,8 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
       const resolution = customEvent.detail?.resolution
 
       if (resolution === 'success') {
-        // Refresh both active and completed tasks
-        refetchTasks()
-        refetchCompleted()
+        refetchTasksRef.current()
+        refetchCompletedRef.current()
       }
     }
 
@@ -244,62 +361,90 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
     return () => {
       window.removeEventListener('com.newwork.process.processCompletion', handleProcessCompletion)
     }
-  }, [isPreviewEnabled, refetchTasks, refetchCompleted])
+  }, [isPreviewEnabled])
+
+  // Memoize filter counts to avoid .filter() on every render
+  const filterCounts = useMemo(
+    () => ({
+      all: totalTaskCount,
+      blinks: blinkTotalCount || 0,
+      approvals: tasks.filter(task => {
+        const taskName = (task.referenceTaskName || task.name || task.title || '').toLowerCase()
+        const taskType = (task.type || '').toLowerCase()
+        const taskCategory = (task.taskCategory || '').toLowerCase()
+        return (
+          taskName.includes('approval') ||
+          taskName.includes('approve') ||
+          taskType.includes('approval') ||
+          taskCategory.includes('approval') ||
+          task.tags?.category === 'approval'
+        )
+      }).length,
+      completed: totalCompletedCount
+    }),
+    [tasks, totalTaskCount, blinkTotalCount, totalCompletedCount]
+  )
+
+  // Handle Quick Task (Blink) submission
+  const handleQuickTaskSubmit = useCallback(
+    async (data: QuickTaskFormData) => {
+      try {
+        const baseUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || env('NEXT_PUBLIC_BASE_URL') + '/flow-engine'
+
+        let uploadResults: any[] = []
+        if (data.documents && data.documents.length > 0) {
+          const filesToUpload = data.documents
+            .filter(doc => doc.originFileObj && doc.status !== 'error')
+            .map(doc => doc.originFileObj!)
+
+          if (filesToUpload.length > 0) {
+            try {
+              uploadResults = await uploadFiles(filesToUpload)
+            } catch (uploadError) {
+              toast.error(
+                t('blink-upload-error', {
+                  error: uploadError instanceof Error ? uploadError.message : 'Unknown error'
+                })
+              )
+              throw uploadError
+            }
+          }
+        }
+
+        await QuickTaskFlowService.executeQuickTask({
+          formData: data,
+          uploadResults,
+          accessToken: context.accessToken,
+          initiatorId: context.userInfo?.id || context.userInfo?.employeeDetails?.employeeId || 'unknown',
+          apiBaseUrl: baseUrl
+        })
+
+        toast.success(t('blink-created-success', { title: data.title }))
+
+        Promise.all([refetchTasks(), refetchFlows(), refetchCompleted(), refetchBlinkTasks()]).catch(() => {
+          // Ignore errors in background refresh
+        })
+      } catch (error) {
+        toast.error(t('blink-created-error', { error: error instanceof Error ? error.message : 'Unknown error' }))
+        throw error
+      }
+    },
+    [
+      uploadFiles,
+      context.accessToken,
+      context.userInfo,
+      t,
+      refetchTasks,
+      refetchFlows,
+      refetchCompleted,
+      refetchBlinkTasks
+    ]
+  )
 
   // Feature flag guard - render null if preview is disabled (after all hooks)
   if (!isPreviewEnabled) {
     return null
   }
-
-  // Handle Quick Task (Blink) submission
-  const handleQuickTaskSubmit = async (data: QuickTaskFormData) => {
-    try {
-      const baseUrl = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || env('NEXT_PUBLIC_BASE_URL') + '/flow-engine'
-
-      // Step 1: Upload files first if any are attached
-      let uploadResults: any[] = []
-      if (data.documents && data.documents.length > 0) {
-        // Extract actual File objects from QuickTaskUploadFile[] (skip files with errors)
-        const filesToUpload = data.documents
-          .filter(doc => doc.originFileObj && doc.status !== 'error')
-          .map(doc => doc.originFileObj!)
-
-        if (filesToUpload.length > 0) {
-          try {
-            uploadResults = await uploadFiles(filesToUpload)
-          } catch (uploadError) {
-            toast.error(
-              t('blink-upload-error', { error: uploadError instanceof Error ? uploadError.message : 'Unknown error' })
-            )
-            throw uploadError // Re-throw to prevent task creation with missing attachments
-          }
-        }
-      }
-
-      // Step 2: Execute the quick task with uploaded file results
-      await QuickTaskFlowService.executeQuickTask({
-        formData: data,
-        uploadResults, // Now includes actual uploaded file data
-        accessToken: context.accessToken,
-        initiatorId: context.userInfo?.id || context.userInfo?.employeeDetails?.employeeId || 'unknown',
-        apiBaseUrl: baseUrl
-      })
-
-      toast.success(t('blink-created-success', { title: data.title }))
-
-      // Refresh the task lists in the background (don't wait for them)
-      // This allows the modal to close immediately
-      Promise.all([refetchTasks(), refetchFlows(), refetchCompleted(), refetchBlinkTasks()]).catch(() => {
-        // Ignore errors in background refresh
-      })
-    } catch (error) {
-      toast.error(t('blink-created-error', { error: error instanceof Error ? error.message : 'Unknown error' }))
-      throw error // Re-throw to prevent modal from closing on error
-    }
-  }
-
-  // State for expandable search
-  const [isSearchExpanded, setIsSearchExpanded] = useState(false)
 
   return (
     <ThemeProvider defaultTheme="light">
@@ -370,33 +515,74 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
                       }`}
                     />
                   </button>
+
+                  {showAiInsights && (
+                    <button
+                      onClick={() => handleTabChange('ai-insights')}
+                      className={`gba:group gba:relative gba:flex gba:items-center gba:gap-2 gba:px-4 gba:py-3 gba:transition-colors ${
+                        activeTab === 'ai-insights'
+                          ? 'gba:text-foreground'
+                          : 'gba:text-muted-foreground gba:hover:text-foreground'
+                      }`}
+                      data-testid={`${prefixDataTestId}-ai-insights-tab`}
+                      data-state={activeTab === 'ai-insights' ? 'active' : 'inactive'}
+                    >
+                      <Brain className="gba:h-4 gba:w-4" />
+                      <span className="gba:text-sm gba:font-medium">AI Insights</span>
+                      {/* Active indicator line */}
+                      <span
+                        className={`gba:absolute gba:bottom-0 gba:left-4 gba:right-4 gba:h-0.5 gba:rounded-full gba:transition-all ${
+                          activeTab === 'ai-insights'
+                            ? 'gba:bg-foreground gba:opacity-100'
+                            : 'gba:bg-transparent gba:opacity-0 gba:group-hover:bg-muted-foreground gba:group-hover:opacity-30'
+                        }`}
+                      />
+                    </button>
+                  )}
                 </div>
 
                 {/* Right: Search, Filter, Blink */}
                 <div className="gba:flex gba:items-center gba:gap-2">
-                  {/* Expandable Search */}
+                  {/* Expandable Search - AI search filters task list directly */}
                   {isSearchExpanded ? (
-                    <div className="gba:flex gba:items-center gba:gap-1">
-                      <input
-                        type="text"
-                        placeholder={t('every-box-search-placeholder')}
-                        value={globalSearch}
-                        onChange={e => setGlobalSearch(e.target.value)}
-                        className="gba:w-48 gba:h-8 gba:px-3 gba:text-sm gba:bg-background gba:border gba:border-border gba:rounded-md gba:outline-none gba:focus:ring-1 gba:focus:ring-ring"
-                        data-testid={`${prefixDataTestId}-search-input`}
-                        autoFocus
-                        onBlur={() => {
-                          if (!globalSearch) {
-                            setIsSearchExpanded(false)
+                    <div className="gba:relative gba:flex gba:items-center gba:gap-1">
+                      <div className="gba:relative">
+                        <input
+                          type="text"
+                          placeholder={
+                            semanticSearchAvailable ? t('ai-search-placeholder') : t('every-box-search-placeholder')
                           }
-                        }}
-                        onKeyDown={e => {
-                          if (e.key === 'Escape') {
-                            setGlobalSearch('')
-                            setIsSearchExpanded(false)
-                          }
-                        }}
-                      />
+                          value={globalSearch}
+                          onChange={e => setGlobalSearch(e.target.value)}
+                          className="gba:w-56 gba:h-8 gba:px-3 gba:pr-8 gba:text-sm gba:bg-background gba:border gba:border-border gba:rounded-md gba:outline-none gba:focus:ring-1 gba:focus:ring-ring"
+                          data-testid={`${prefixDataTestId}-search-input`}
+                          autoFocus
+                          onBlur={() => {
+                            setTimeout(() => {
+                              if (!globalSearch) {
+                                setIsSearchExpanded(false)
+                              }
+                            }, 300)
+                          }}
+                          onKeyDown={e => {
+                            if (e.key === 'Escape') {
+                              setGlobalSearch('')
+                              setIsSearchExpanded(false)
+                              aiClearResults()
+                            }
+                          }}
+                        />
+                        {/* AI indicator in search input */}
+                        {semanticSearchAvailable && (
+                          <div className="gba:absolute gba:right-2 gba:top-1/2 gba:-translate-y-1/2 gba:pointer-events-none">
+                            {aiIsSearching ? (
+                              <div className="gba:h-3.5 gba:w-3.5 gba:rounded-full gba:border-2 gba:border-slate-300 gba:border-t-slate-600 gba:animate-spin" />
+                            ) : (
+                              <Sparkles className="gba:h-3.5 gba:w-3.5 gba:text-slate-400" />
+                            )}
+                          </div>
+                        )}
+                      </div>
                       {globalSearch && (
                         <Button
                           variant="ghost"
@@ -405,6 +591,7 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
                           onClick={() => {
                             setGlobalSearch('')
                             setIsSearchExpanded(false)
+                            aiClearResults()
                           }}
                           aria-label={t('inbox-clear-search')}
                           data-testid={`${prefixDataTestId}-search-clear`}
@@ -435,25 +622,99 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
                   <FiltersDropdown
                     selectedFilters={selectedFilters}
                     onFiltersChange={setSelectedFilters}
-                    filterCounts={{
-                      all: totalTaskCount,
-                      blinks: blinkTotalCount || 0,
-                      approvals: tasks.filter(task => {
-                        const taskName = (task.referenceTaskName || task.name || task.title || '').toLowerCase()
-                        const taskType = (task.type || '').toLowerCase()
-                        const taskCategory = (task.taskCategory || '').toLowerCase()
-                        return (
-                          taskName.includes('approval') ||
-                          taskName.includes('approve') ||
-                          taskType.includes('approval') ||
-                          taskCategory.includes('approval') ||
-                          task.tags?.category === 'approval'
-                        )
-                      }).length,
-                      completed: totalCompletedCount
-                    }}
+                    filterCounts={filterCounts}
                     prefixDataTestId={`${prefixDataTestId}-filters`}
                   />
+
+                  {/* Due date filter */}
+                  <DropdownMenu>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="gba:h-8 gba:w-8 gba:relative"
+                            aria-label={t('every-box-due-filter-label')}
+                            data-testid={`${prefixDataTestId}-due-filter-trigger`}
+                          >
+                            <CalendarDays className="gba:h-4 gba:w-4" />
+                            {dueDateFilter !== 'any' && (
+                              <span className="gba:absolute gba:top-0.5 gba:right-0.5 gba:h-2 gba:w-2 gba:rounded-full gba:bg-primary" />
+                            )}
+                          </Button>
+                        </DropdownMenuTrigger>
+                      </TooltipTrigger>
+                      <TooltipContent>{t('every-box-due-filter-label')}</TooltipContent>
+                    </Tooltip>
+                    <DropdownMenuContent align="end" className="gba:w-56">
+                      <DropdownMenuRadioGroup
+                        value={dueDateFilter}
+                        onValueChange={v => setDueDateFilter(v as DueDateFilter)}
+                      >
+                        <DropdownMenuRadioItem value="any">{t('every-box-due-filter-any')}</DropdownMenuRadioItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuRadioItem value="overdue">
+                          {t('every-box-due-filter-overdue')}
+                        </DropdownMenuRadioItem>
+                        <DropdownMenuRadioItem value="dueSoon24h">
+                          {t('every-box-due-filter-due-soon')}
+                        </DropdownMenuRadioItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuRadioItem value="hasDueDate">
+                          {t('every-box-due-filter-has')}
+                        </DropdownMenuRadioItem>
+                        <DropdownMenuRadioItem value="noDueDate">
+                          {t('every-box-due-filter-none')}
+                        </DropdownMenuRadioItem>
+                      </DropdownMenuRadioGroup>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+
+                  {/* Sort */}
+                  <DropdownMenu>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="gba:h-8 gba:w-8"
+                            aria-label={t('every-box-sort-label')}
+                            data-testid={`${prefixDataTestId}-sort-trigger`}
+                          >
+                            <ArrowUpDown className="gba:h-4 gba:w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                      </TooltipTrigger>
+                      <TooltipContent>{t('every-box-sort-label')}</TooltipContent>
+                    </Tooltip>
+                    <DropdownMenuContent align="end" className="gba:w-56">
+                      <DropdownMenuRadioGroup value={sortOption} onValueChange={v => setSortOption(v as SortOption)}>
+                        <DropdownMenuRadioItem value="newest">{t('every-box-sort-newest')}</DropdownMenuRadioItem>
+                        <DropdownMenuRadioItem value="oldest">{t('every-box-sort-oldest')}</DropdownMenuRadioItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuRadioItem value="priority">{t('every-box-sort-priority')}</DropdownMenuRadioItem>
+                      </DropdownMenuRadioGroup>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+
+                  {/* Refresh */}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="gba:h-8 gba:w-8"
+                        onClick={handleRefresh}
+                        aria-label={t('every-box-refresh-label')}
+                        data-testid={`${prefixDataTestId}-refresh`}
+                      >
+                        <RefreshCcw className="gba:h-4 gba:w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{t('every-box-refresh-label')}</TooltipContent>
+                  </Tooltip>
 
                   {/* Blink Button */}
                   <Button
@@ -476,11 +737,11 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
                     totalCount={totalTaskCount}
                     isLoading={tasksLoading}
                     error={tasksError}
+                    sortBy={sortBy}
+                    sortOrder={sortOrder}
                     onRefresh={refetchTasks}
                     onLoadMore={loadMoreTasks}
                     hasMore={hasMoreTasks}
-                    hasNewTasks={hasNewInboxTasks}
-                    onLoadNewTasks={clearNewInboxTasksFlag}
                     blinkCount={blinkTotalCount}
                     blinkCountLoading={blinkTasksLoading}
                     blinkTasks={blinkTasks}
@@ -495,10 +756,12 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
                     onCompletedRefresh={refetchCompleted}
                     onCompletedLoadMore={loadMoreCompleted}
                     completedHasMore={hasMoreCompleted}
-                    hasNewCompletedTasks={hasNewCompletedTasks}
-                    onLoadNewCompletedTasks={clearNewCompletedTasksFlag}
                     globalSearch={globalSearch}
                     selectedFilters={selectedFilters}
+                    // AI Search - filters task list directly
+                    aiSearchResults={aiSearchResults}
+                    aiSearchMode={aiSearchMode}
+                    aiIsSearching={aiIsSearching}
                   />
                 </TabsContent>
 
@@ -513,6 +776,12 @@ export const EveryBox: React.FC<EveryBoxProps> = ({ prefixDataTestId = 'every-bo
                     selectedFilters={selectedFilters}
                   />
                 </TabsContent>
+
+                {showAiInsights && (
+                  <TabsContent value="ai-insights" className="gba:h-full gba:m-0">
+                    <AiInsightsDashboard {...context} />
+                  </TabsContent>
+                )}
               </div>
             </Tabs>
           </div>

@@ -65,6 +65,7 @@ export interface SpreadsheetHeaderProps {
 
   /** When provided and canEdit, the app name is editable (rename). Same pattern as document-apps. */
   onRename?: (newName: string) => void
+  onExportToExcel?: () => void
 
   testId: string
 }
@@ -93,6 +94,7 @@ export const SpreadsheetHeader: React.FC<SpreadsheetHeaderProps> = memo(function
   onOpenAutomations,
   onEdit,
   onRename,
+  onExportToExcel,
   testId
 }) {
   const [localName, setLocalName] = useState(app.name)
@@ -109,14 +111,11 @@ export const SpreadsheetHeader: React.FC<SpreadsheetHeaderProps> = memo(function
     }
   }, [localName, app.name, onRename])
 
-  const handleNameKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLInputElement>) => {
-      if (e.key === 'Enter') {
-        ;(e.target as HTMLInputElement).blur()
-      }
-    },
-    []
-  )
+  const handleNameKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      ;(e.target as HTMLInputElement).blur()
+    }
+  }, [])
 
   return (
     <div className="gba:px-4 gba:py-3 gba:border-b gba:border-border/50">
@@ -256,6 +255,7 @@ export const SpreadsheetHeader: React.FC<SpreadsheetHeaderProps> = memo(function
             onOpenAutomations={onOpenAutomations}
             onEdit={onEdit}
             allowExport={activeSheet.settings.allowExport}
+            onExportToExcel={onExportToExcel}
             data-testid={`${testId}-actions-menu`}
           />
         </div>

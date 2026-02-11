@@ -218,20 +218,8 @@ export const useRealtimeKitWebSocket = ({
       return
     }
 
-    rtkDebug.log('[RTK] Raise hand useEffect triggered', {
-      hasSocket: !!wsClient?.getSocket(),
-      roomId,
-      meetingId,
-      userId: currentUser?.id
-    })
-
     const socket = wsClient?.getSocket()
     if (!socket || !meetingId || !currentUser) {
-      rtkDebug.log('[RTK] Cannot attach raise hand listener yet', {
-        hasSocket: !!socket,
-        hasMeetingId: !!meetingId,
-        hasCurrentUser: !!currentUser
-      })
       return
     }
 

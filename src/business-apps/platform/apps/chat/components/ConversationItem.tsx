@@ -126,26 +126,6 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
   // Use enhanced status if available
   const userStatus = otherUserPresence?.userStatus
 
-  // Debug logging
-  if (process.env.NODE_ENV === 'development' && showPresence) {
-    const otherUserId = conversation.participants?.find(p => p.userId !== currentUserId)?.userId
-    rtkDebug.log('[ConversationItem] Presence data:', {
-      conversationId: conversation.id,
-      conversationType: conversation.type,
-      otherUserId,
-      hasOtherUserPresence: !!otherUserPresence,
-      hasUserStatus: !!userStatus,
-      userStatus,
-      fullOtherUserPresence: otherUserPresence,
-      // Last seen debug
-      hasLastSeen: !!otherUserPresence?.lastSeen,
-      lastSeen: otherUserPresence?.lastSeen,
-      presenceStatus,
-      compact,
-      shouldShowLastSeen: showPresence && !!otherUserPresence?.lastSeen && presenceStatus === 'offline'
-    })
-  }
-
   // Get names of participants currently in the call
   const getParticipantsInCall = (): string[] => {
     if (!hasActiveCall || !conversation.activeCall?.participantIds || !conversation.participants) {

@@ -1,11 +1,14 @@
 import dayjs from 'dayjs'
+import utc from 'dayjs/plugin/utc'
+
+dayjs.extend(utc)
 
 /**
  * Format date string to DD/MM/YYYY
  */
 export const formatDate = (dateString?: string): string => {
   if (!dateString) return ''
-  return dayjs(dateString).format('DD/MM/YYYY')
+  return dayjs.utc(dateString).format('DD/MM/YYYY')
 }
 
 /**
@@ -13,7 +16,7 @@ export const formatDate = (dateString?: string): string => {
  */
 export const formatDateShort = (dateString?: string): string => {
   if (!dateString) return ''
-  return dayjs(dateString).format('DD/MM/YY')
+  return dayjs.utc(dateString).format('DD/MM/YY')
 }
 
 /**

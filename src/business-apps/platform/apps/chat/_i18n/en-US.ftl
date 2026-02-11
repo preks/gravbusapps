@@ -316,6 +316,7 @@ participants-everyones-here = Everyone's here!
 participants-all-members-in-call = All conversation members are either in the call or have been invited.
 participants-in-call = In Call
 participants-invited = Invited
+participants-left-call = Left call
 participants-unknown = Unknown
 participants-you = You
 participants-declined-invite = Declined invite
@@ -341,9 +342,15 @@ videogrid-next-page = Next page
 chat-call-enableTranscription = Enable Transcription
 chat-call-transcriptionActive = Recording
 chat-call-recording = Recording
-chat-transcript-ready = Meeting Transcript Ready
+chat-transcript-ready = Transcript Ready: { $sessionName }
 chat-transcript-view = View Transcript
 chat-transcript-saved = Your meeting transcript has been saved
+chat-transcript-create-minutes-description = Create meeting minutes from the call transcript in notes
+chat-transcript-create-minutes-button = Create Meeting Minutes
+chat-transcript-generating-minutes = Generating Meeting Minutes...
+chat-transcript-generating-minutes-status = Generating meeting minutes...
+chat-transcript-failed-create-minutes = Failed to create meeting minutes
+chat-transcript-retry = Retry
 
 # Notifications
 notifications-title = Notifications
@@ -472,3 +479,23 @@ calendar-pending-invitations = Pending Invitations
 calendar-accept = Accept
 calendar-decline = Decline
 calendar-tentative = Tentative
+
+# Calendar - Agenda
+calendar-agenda = Agenda
+calendar-agendaOptional = Agenda (optional)
+calendar-addAgendaItem = Add agenda item
+calendar-agendaItemTitle = Topic
+calendar-agendaItemTitlePlaceholder = Enter topic...
+calendar-agendaItemDuration = Duration (min)
+calendar-agendaItemAssignee = Assign to
+calendar-agendaItemUnassigned = Unassigned
+calendar-agendaItemRemove = Remove item
+calendar-agendaItemMoveUp = Move up
+calendar-agendaItemMoveDown = Move down
+calendar-agendaItems = {$count ->
+  [one] {$count} agenda item
+  *[other] {$count} agenda items
+}
+calendar-agendaTotalDuration = Total: {$minutes} min
+calendar-agendaAssignedTo = Assigned to {$name}
+calendar-noAgenda = No agenda items

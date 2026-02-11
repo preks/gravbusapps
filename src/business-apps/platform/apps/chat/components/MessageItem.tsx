@@ -25,6 +25,7 @@ import { MessageAttachments, type MessageAttachment } from './MessageAttachments
 import { AttachmentPreviewDialog } from './AttachmentPreviewDialog'
 import { isPreviewable } from './utils/attachmentUtils'
 import { getExpertColorStyles } from '../utils/expertColorUtils'
+import { useChatTranslation } from '../contexts/TranslationContext'
 
 interface MessageItemProps {
   message: Message
@@ -98,6 +99,7 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(
     compact = false,
     apiClient = null
   }) => {
+    const t = useChatTranslation()
     const isAIResponse = message.metadata?.isAIResponse === true
     const isExpertResponse = message.metadata?.isEveryExpertResponse === true
     // AI/Expert responses should never be styled as "own message" even if sent by current user
@@ -223,16 +225,15 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(
       }
     })()
 
-    // Transcript ready system message with download link and meeting minutes creation
+    // Transcript ready system message with meeting minutes creation
     if (message.type === 'system' && message.metadata?.transcriptReady) {
-      const downloadUrl = message.metadata.downloadUrl
       const sessionName = message.metadata.sessionName
       const sessionId = message.metadata.sessionId
       const transcriptionStatus = message.metadata.transcriptionStatus
 
-      // For old messages without transcriptionStatus, default to 'READY'
+      // For old messages without transcriptionStatus, default to 'ready'
       // This ensures old transcript messages can still create meeting minutes
-      const effectiveStatus = transcriptionStatus || 'READY'
+      const effectiveStatus = transcriptionStatus || 'ready'
 
       // Initialize meeting minutes hook
       const { createMeetingMinutes, isCreating, error } = useCreateMeetingMinutes(apiClient)
@@ -242,27 +243,16 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(
           <div className="gba:flex gba:flex-col gba:items-center gba:gap-2 gba:bg-success-secondary/20 gba:border gba:border-success gba:px-4 gba:py-3 gba:rounded-lg gba:max-w-md">
             <div className="gba:flex gba:items-center gba:gap-2">
               <span className="gba:text-lg">📝</span>
-              <span className="gba:text-sm gba:font-medium gba:text-foreground">Transcript Ready: {sessionName}</span>
+              <span className="gba:text-sm gba:font-medium gba:text-foreground">
+                {t('chat-transcript-ready', { sessionName })}
+              </span>
             </div>
             <p className="gba:text-xs gba:text-muted-foreground gba:text-center">
-              The call transcript is now available for download
+              {t('chat-transcript-create-minutes-description')}
             </p>
 
             <div className="gba:flex gba:flex-col gba:gap-2 gba:w-full">
-              <Button
-                variant="default"
-                size="sm"
-                onClick={() => {
-                  if (downloadUrl) {
-                    window.open(downloadUrl, '_blank', 'noopener,noreferrer')
-                  }
-                }}
-                data-testid={`transcript-download-btn-${message.id}`}
-              >
-                Download Transcript (CSV)
-              </Button>
-
-              {effectiveStatus === 'READY' && (
+              {effectiveStatus === 'ready' && (
                 <Button
                   variant="default"
                   size="sm"
@@ -277,10 +267,10 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(
                   {isCreating ? (
                     <>
                       <Spinner className="gba:mr-2 gba:h-4 gba:w-4" />
-                      Generating Meeting Minutes...
+                      {t('chat-transcript-generating-minutes')}
                     </>
                   ) : (
-                    'Create Meeting Minutes'
+                    t('chat-transcript-create-minutes-button')
                   )}
                 </Button>
               )}
@@ -288,14 +278,16 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(
               {effectiveStatus === 'PROCESSING' && !isCreating && (
                 <div className="gba:text-sm gba:text-muted-foreground gba:text-center gba:py-2">
                   <Spinner className="gba:inline gba:mr-2 gba:h-4 gba:w-4" />
-                  Generating meeting minutes...
+                  {t('chat-transcript-generating-minutes-status')}
                 </div>
               )}
 
               {effectiveStatus === 'FAILED' && (
                 <>
                   <Alert variant="destructive" data-testid={`transcript-error-${message.id}`}>
-                    <AlertDescription className="gba:text-xs">Failed to create meeting minutes</AlertDescription>
+                    <AlertDescription className="gba:text-xs">
+                      {t('chat-transcript-failed-create-minutes')}
+                    </AlertDescription>
                   </Alert>
                   <Button
                     variant="default"
@@ -308,7 +300,7 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(
                     disabled={isCreating || !sessionId}
                     data-testid={`transcript-retry-btn-${message.id}`}
                   >
-                    Retry
+                    {t('chat-transcript-retry')}
                   </Button>
                 </>
               )}
@@ -348,7 +340,7 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(
               size="sm"
               onClick={() => {
                 if (noteId) {
-                  window.open(`/note-apps?noteId=${noteId}`, '_blank', 'noopener,noreferrer')
+                  navigateTo(`/platform/notes?noteId=${noteId}&view=editor`)
                 }
               }}
               className="gba:mt-1"

@@ -355,9 +355,12 @@ export const TaskForm: React.FC<TaskFormProps> = ({
           statusCatalog={TASK_STATUS_CATALOG}
           // Type selection control
           initialTypeRef={typeRef}
-          catalogSelectConfig={{
-            code: { mode: 'omit', values: ['APPROVAL'] }
-          }}
+          disableTypeSelection={isApprovalTask}
+          catalogSelectConfig={
+            isApprovalTask
+              ? undefined // Don't filter when approval context is set
+              : { code: { mode: 'omit', values: ['APPROVAL'] } }
+          }
           // Assignee mode - multi-select for approvals, single-select for regular tasks
           multiAssigneeMode={isApprovalTask}
           // Assignee selection control - hide in update mode (tasks cannot be reassigned)

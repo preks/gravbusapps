@@ -22,7 +22,7 @@ export const CaseManagement: React.FC<CaseManagementProps> = ({
   appTag,
   allowCreate = true,
   allowEdit = true,
-  allowDelete = false,
+  allowDelete = true,
   showAnalytics = true,
   defaultView = 'dashboard',
   // These will be used in future entity linking features
@@ -170,6 +170,24 @@ export const CaseManagement: React.FC<CaseManagementProps> = ({
     }
   }
 
+  const handleEditNote = async (caseId: string, noteId: string, content: string) => {
+    try {
+      await client.updateNoteInCase(caseId, noteId, { content })
+    } catch (error) {
+      console.error('Failed to edit note:', error)
+      throw error
+    }
+  }
+
+  const handleDeleteNote = async (caseId: string, noteId: string) => {
+    try {
+      await client.deleteNoteFromCase(caseId, noteId)
+    } catch (error) {
+      console.error('Failed to delete note:', error)
+      throw error
+    }
+  }
+
   const handleLinkEntity = async (caseId: string, entity: LinkedEntity) => {
     try {
       await client.linkEntity(caseId, entity, context.userInfo?.id)
@@ -229,6 +247,29 @@ export const CaseManagement: React.FC<CaseManagementProps> = ({
     }
   }
 
+  const handleDeleteCase = async (caseId: string, terminateFlows: boolean = false) => {
+    try {
+      await client.deleteCase(caseId, context.userInfo?.id, terminateFlows)
+      // Navigate back to list after deletion
+      setActiveView('list')
+      setSelectedCaseId(null)
+      loadRecentCases()
+    } catch (error) {
+      console.error('Failed to delete case:', error)
+      throw error
+    }
+  }
+
+  const handleRestoreCase = async (caseId: string) => {
+    try {
+      await client.restoreCase(caseId, context.userInfo?.id)
+      loadRecentCases()
+    } catch (error) {
+      console.error('Failed to restore case:', error)
+      throw error
+    }
+  }
+
   // Render case detail view
   if (activeView === 'detail' && selectedCaseId) {
     return (
@@ -242,12 +283,16 @@ export const CaseManagement: React.FC<CaseManagementProps> = ({
         onAddFlow={handleAddFlow}
         onRemoveFlow={handleRemoveFlow}
         onAddNote={handleAddNote}
+        onEditNote={handleEditNote}
+        onDeleteNote={handleDeleteNote}
         onLinkEntity={handleLinkEntity}
         onUnlinkEntity={handleUnlinkEntity}
         onLinkCase={handleLinkCase}
         onUnlinkCase={handleUnlinkCase}
         onNavigateToCase={handleNavigateToCase}
         onUpdateCase={handleUpdateCase}
+        onDeleteCase={allowDelete ? handleDeleteCase : undefined}
+        onRestoreCase={handleRestoreCase}
         allowEdit={allowEdit}
       />
     )

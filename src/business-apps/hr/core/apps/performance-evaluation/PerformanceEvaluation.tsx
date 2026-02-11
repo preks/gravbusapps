@@ -194,6 +194,13 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
     }
   }
 
+  const handleStartCycle = (cycleId: string) => {
+    const cycle = cycles.find(c => c.id === cycleId)
+    if (!cycle) return
+    // TODO: Navigate to the performance evaluation flow or open the cycle
+    toast.info(t('cycle-started', { name: cycle.name }) ?? `Starting cycle: ${cycle.name}`)
+  }
+
   const handleSaveFromScaleModal = async (values: RatingScaleValues) => {
     const isNewScale = !values.id || values.id.startsWith('scale_')
     if (accessToken && isNewScale) {
@@ -292,7 +299,7 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
     const value = valuesStore.find(v => v.id === id)
     if (accessToken && value) {
       try {
-        await updateCompanyValueRecordState(value, 'archived')
+        await updateCompanyValueRecordState(value, 'inactive')
         await refetchValues()
         toast.success(t('value-deactivated-to-database', { title: value.title }) ?? `"${value.title}" deactivated.`)
       } catch (err) {
@@ -335,6 +342,7 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
             onActivate={handleActivate}
             onDeactivate={handleDeactivate}
             onDeleteCycle={handleDeleteCycle}
+            onStartCycle={handleStartCycle}
           />
         )}
         {activeTab === PerformanceTabEnum.RatingScales && (

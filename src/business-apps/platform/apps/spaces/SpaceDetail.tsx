@@ -1,12 +1,14 @@
 /**
  * SpaceDetail - Individual Space Entry Page
  *
- * Beautiful entry page with hero, stats, pinned content, activity, and content browser
+ * Beautiful entry page with hero, stats, pinned content, activity, and content browser.
+ * Includes team collaboration features (chat, calls, calendar) for dimension-based spaces.
  */
 
-import React, { useState, useCallback, useMemo } from 'react'
+import React, { useState, useCallback, useMemo, useEffect } from 'react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@newwork/nw-design-system'
 
 // Components
 import {
@@ -14,9 +16,14 @@ import {
   SpaceStats,
   SpacePinned,
   SpaceActivity,
-  SpaceContent,
-  SpaceMembers,
-  AddContentDialog
+  SpaceDriveView,
+  SpaceMembersTab,
+  AddContentDialog,
+  SpaceCalendar,
+  ScheduleMeetingButton,
+  SpaceRealTimeActivity,
+  SpaceTeamChatPanel,
+  SpaceTeamPresence
 } from './components'
 import { InviteMemberDialog } from './components/InviteMemberDialog'
 import { MoveContentDialog } from './components/MoveContentDialog'
@@ -27,13 +34,16 @@ import { useSpace } from './hooks/useSpace'
 import { useSpaceContent } from './hooks/useSpaceContent'
 import { useSpaceActivity } from './hooks/useSpaceActivity'
 import { useSpaceUserLookup } from './hooks/useSpaceUserLookup'
+import { useLinkedGroupChat } from './hooks/useLinkedGroupChat'
+import { useSpaceCall } from './hooks/useSpaceCall'
 import type {
-    SpaceContentItem,
-    AddMemberInput,
-    MoveContentInput,
-    SpaceMemberRole,
-    UpdateSpaceInput
-  } from './types/space.types'
+  SpaceContentItem,
+  AddMemberInput,
+  MoveContentInput,
+  SpaceMemberRole,
+  UpdateSpaceInput
+} from './types/space.types'
+import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
 
 export interface SpaceDetailProps extends BusinessAppContextProps {
   spaceId: string
@@ -53,6 +63,8 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
   const [moveDialogOpen, setMoveDialogOpen] = useState(false)
   const [addContentDialogOpen, setAddContentDialogOpen] = useState(false)
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false)
+  const [activeTab, setActiveTab] = useState<'overview' | 'drive' | 'members'>('overview')
+  const [additionalUserIds, setAdditionalUserIds] = useState<string[]>([])
 
   const currentUserId = userInfo?.id || userInfo?.employeeDetails?.employeeId || ''
 
@@ -73,19 +85,84 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
     slides,
     allContent,
     isLoading: contentLoading,
-    moveContent
+    moveContent,
+    removeContent,
+    addItemsToLocalState,
+    refresh: refreshContent
   } = useSpaceContent(spaceId, accessToken, space, refreshSpace)
   const { activities, isLoading: activityLoading } = useSpaceActivity(spaceId, accessToken, 20)
 
-  // Collect user IDs to look up (owner + members)
+  // Add activity user IDs to lookup when activities load
+  useEffect(() => {
+    if (activities.length > 0) {
+      const activityUserIds = activities.map(a => a.userId).filter(Boolean)
+      if (activityUserIds.length > 0) {
+        setAdditionalUserIds(prev => {
+          const existingSet = new Set(prev)
+          const newIds = activityUserIds.filter(id => !existingSet.has(id))
+          if (newIds.length === 0) return prev
+          return [...prev, ...newIds]
+        })
+      }
+    }
+  }, [activities])
+
+  // Get space dimension info for team collaboration features
+  const spaceDimension = space?.settings?.dimension
+
+  // Find linked group chat for dimension-based spaces
+  const {
+    conversation: linkedConversation,
+    isLoading: chatLoading,
+    error: chatError
+  } = useLinkedGroupChat(spaceDimension, accessToken)
+
+  // Hook for starting calls from space
+  const { startAudioCall, startVideoCall, canStartCall } = useSpaceCall(linkedConversation)
+
+  // Whether this space has team collaboration features (dimension-based)
+  const hasTeamCollaboration = !!spaceDimension
+
+  // Debug: prove SpaceDetail is running + whether the collaboration section is mounted
+  useEffect(() => {
+    let debugEnabled = false
+    try {
+      debugEnabled = window.localStorage?.getItem('gba:debug:space-activity') === '1'
+    } catch {
+      debugEnabled = false
+    }
+    if (!debugEnabled) return
+    console.error('[SpaceActivity] SpaceDetail debug', {
+      spaceId,
+      hasTeamCollaboration,
+      allContentCount: allContent.length,
+      href: window.location.href
+    })
+  }, [spaceId, hasTeamCollaboration, allContent.length])
+
+  // Collect user IDs to look up (owner + members + message senders)
   const userIdsToLookup = useMemo(() => {
     const ids: string[] = []
     if (space?.ownerId) ids.push(space.ownerId)
     space?.members?.forEach(m => {
       if (m.userId) ids.push(m.userId)
     })
+    // Include additional IDs (e.g., message senders)
+    additionalUserIds.forEach(id => {
+      if (id) ids.push(id)
+    })
     return [...new Set(ids)]
-  }, [space])
+  }, [space, additionalUserIds])
+
+  // Callback when new user IDs need to be looked up (e.g., message senders)
+  const handleUserIdsNeeded = useCallback((newIds: string[]) => {
+    setAdditionalUserIds(prev => {
+      const existingSet = new Set(prev)
+      const uniqueNewIds = newIds.filter(id => !existingSet.has(id))
+      if (uniqueNewIds.length === 0) return prev
+      return [...prev, ...uniqueNewIds]
+    })
+  }, [])
 
   // Lookup user info for owner and members
   const { getUserInfo } = useSpaceUserLookup({
@@ -106,7 +183,9 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
       return {
         ...member,
         userName: info?.name,
-        userAvatar: info?.avatar
+        userAvatar: info?.avatar,
+        jobTitle: info?.jobTitle,
+        department: info?.department
       }
     })
   }, [space?.members, getUserInfo])
@@ -192,35 +271,52 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
     [removeMember]
   )
 
-  const handleItemClick = useCallback((item: SpaceContentItem) => {
-    const isProduction = process.env.NODE_ENV === 'production'
-    let url: string
+  const handleItemClick = useCallback(
+    (item: SpaceContentItem) => {
+      const isProduction = process.env.NODE_ENV === 'production'
+      let url: string
+      const spaceParam = `spaceId=${encodeURIComponent(spaceId)}`
 
-    switch (item.type) {
-      case 'document':
-        url = isProduction
-          ? `/platform/documents?docId=${item.id}&view=editor`
-          : `/platform/apps/document-apps?docId=${item.id}&view=editor`
-        break
-      case 'note':
-        url = isProduction
-          ? `/platform/notes?noteId=${item.id}&view=editor`
-          : `/platform/apps/note-apps?noteId=${item.id}&view=editor`
-        break
-      case 'spreadsheet':
-        url = isProduction
-          ? `/platform/spreadsheets?appId=${item.id}&view=viewer`
-          : `/platform/apps/spreadsheet-apps?appId=${item.id}&view=viewer`
-        break
-      case 'slide':
-        url = isProduction
-          ? `/platform/slides?slideId=${item.id}&view=editor`
-          : `/platform/apps/slide-apps?slideId=${item.id}&view=editor`
-        break
-    }
+      // Store the current space URL in sessionStorage for the back button
+      const currentSpaceUrl = isProduction
+        ? `/platform/spaces?spaceId=${encodeURIComponent(spaceId)}`
+        : `/platform/apps/spaces?spaceId=${encodeURIComponent(spaceId)}`
 
-    navigateTo(buildPlatformUrl(url))
-  }, [])
+      try {
+        sessionStorage.setItem('space_return_url', currentSpaceUrl)
+      } catch (e) {
+        console.warn('Failed to store return URL in sessionStorage:', e)
+      }
+
+      switch (item.type) {
+        case 'document':
+          url = isProduction
+            ? `/platform/documents?docId=${item.id}&view=editor`
+            : `/platform/apps/document-apps?docId=${item.id}&view=editor`
+          break
+        case 'note':
+          url = isProduction
+            ? `/platform/notes?noteId=${item.id}&view=editor`
+            : `/platform/apps/note-apps?noteId=${item.id}&view=editor`
+          break
+        case 'spreadsheet':
+          url = isProduction
+            ? `/platform/spreadsheets?appId=${item.id}&view=viewer`
+            : `/platform/apps/spreadsheet-apps?appId=${item.id}&view=viewer`
+          break
+        case 'slide':
+          url = isProduction
+            ? `/platform/slides?slideId=${item.id}&view=editor`
+            : `/platform/apps/slide-apps?slideId=${item.id}&view=editor`
+          break
+      }
+
+      // Include spaceId parameter
+      const urlWithParams = url.includes('?') ? `${url}&${spaceParam}` : `${url}?${spaceParam}`
+      navigateTo(buildPlatformUrl(urlWithParams))
+    },
+    [spaceId]
+  )
 
   const handleMoveContent = useCallback(
     async (input: MoveContentInput) => {
@@ -229,14 +325,65 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
     [moveContent]
   )
 
-  const handleAddContent = useCallback(
-    async (items: { type: 'document' | 'note' | 'spreadsheet' | 'slide'; id: string }[]) => {
-      // Add each item to the space
-      for (const item of items) {
-        await moveContent({ contentType: item.type, entityId: item.id })
+  const handleRemoveContent = useCallback(
+    async (item: SpaceContentItem) => {
+      const entityType = item.type === 'spreadsheet' ? 'spreadsheet_app' : item.type
+      const confirmed = confirm(`Remove "${item.title}" from this space?`)
+      if (!confirmed) return
+
+      const success = await removeContent(entityType, item.id)
+      if (success) {
+        // Content is already removed from local state by the hook
       }
     },
-    [moveContent]
+    [removeContent]
+  )
+
+  const handleAddContent = useCallback(
+    async (
+      items: { type: 'document' | 'note' | 'spreadsheet' | 'slide'; id: string; title?: string; name?: string }[]
+    ) => {
+      if (items.length === 0) return
+
+      try {
+        const API_URL = getDocumentServiceApiUrl()
+
+        // Add items to local state immediately for instant UI update
+        addItemsToLocalState(items)
+
+        const response = await fetch(`${API_URL}/spaces/${spaceId}/content/bulk`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            items: items.map(item => ({
+              entityType: item.type === 'spreadsheet' ? 'spreadsheet_app' : item.type,
+              entityId: item.id
+            }))
+          })
+        })
+
+        if (response.ok) {
+          // Fetch full data in background to get accurate info
+          await refreshContent()
+          return
+        }
+
+        // Fallback: add items individually
+        for (const item of items) {
+          await moveContent({ contentType: item.type, entityId: item.id })
+        }
+      } catch (error) {
+        console.error('Failed to add content:', error)
+        // Fallback to individual calls
+        for (const item of items) {
+          await moveContent({ contentType: item.type, entityId: item.id })
+        }
+      }
+    },
+    [spaceId, accessToken, moveContent, addItemsToLocalState, refreshContent]
   )
 
   // Loading state
@@ -281,62 +428,147 @@ export const SpaceDetail: React.FC<SpaceDetailProps> = ({
 
       {/* Content */}
       <main className="gba:max-w-7xl gba:mx-auto gba:px-6 gba:py-8 gba:space-y-8">
-        {/* Quick Stats */}
-        <SpaceStats
-          documents={stats.documents}
-          spreadsheets={stats.spreadsheets}
-          notes={stats.notes}
-          slides={stats.slides}
-          recentActivity={stats.recentActivity}
-          data-testid={`${testId}-stats`}
-        />
+        <Tabs
+          value={activeTab}
+          onValueChange={value => setActiveTab(value as 'overview' | 'drive' | 'members')}
+          className="gba:space-y-6"
+        >
+          <TabsList className="gba:w-fit" data-testid={`${testId}-tabs`}>
+            <TabsTrigger value="overview" data-testid={`${testId}-tab-overview`}>
+              Overview
+            </TabsTrigger>
+            <TabsTrigger value="drive" data-testid={`${testId}-tab-drive`}>
+              Drive
+            </TabsTrigger>
+            <TabsTrigger value="members" data-testid={`${testId}-tab-members`}>
+              Members ({space.members?.length || 0})
+            </TabsTrigger>
+          </TabsList>
 
-        {/* Pinned Content */}
-        {pinnedItems.length > 0 && (
-          <section>
-            <h2 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-4">Pinned</h2>
-            <SpacePinned items={pinnedItems} onItemClick={handleItemClick} data-testid={`${testId}-pinned`} />
-          </section>
-        )}
+          <TabsContent value="overview" className="gba:space-y-8" data-testid={`${testId}-tab-content-overview`}>
+            {/* Quick Stats */}
+            <SpaceStats
+              documents={stats.documents}
+              spreadsheets={stats.spreadsheets}
+              notes={stats.notes}
+              slides={stats.slides}
+              recentActivity={stats.recentActivity}
+              data-testid={`${testId}-stats`}
+            />
 
-        {/* Two Column Layout: Activity & Members */}
-        <div className="gba:grid gba:grid-cols-1 gba:lg:grid-cols-3 gba:gap-8">
-          {/* Left: Activity Feed */}
-          <section className="gba:lg:col-span-2">
-            <h2 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-4">Recent Activity</h2>
-            <div className="gba:rounded-lg gba:bg-card gba:p-4">
-              <SpaceActivity activities={activities} isLoading={activityLoading} data-testid={`${testId}-activity`} />
-            </div>
-          </section>
+            {/* Team Collaboration Section - Only for dimension-based spaces */}
+            {hasTeamCollaboration && (
+              <section data-testid={`${testId}-team-collaboration`} className="gba:space-y-4">
+                {/* Header with Schedule Meeting */}
+                <div className="gba:flex gba:items-center gba:justify-between">
+                  <h2 className="gba:text-lg gba:font-semibold gba:text-foreground">Team Collaboration</h2>
+                  <ScheduleMeetingButton
+                    spaceId={spaceId}
+                    spaceName={space.name}
+                    members={space.members || []}
+                    data-testid={`${testId}-schedule-meeting`}
+                  />
+                </div>
 
-          {/* Right: Members */}
-          <section>
-            <h2 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-4">Members</h2>
-            <div className="gba:rounded-lg gba:bg-card gba:p-4">
-              <SpaceMembers
-                members={enrichedMembers}
-                currentUserId={currentUserId}
-                isOwner={isOwner}
-                canManageMembers={canManageMembers}
-                onInvite={() => setInviteDialogOpen(true)}
-                onUpdateRole={handleUpdateMemberRole}
-                onRemoveMember={handleRemoveMember}
-                data-testid={`${testId}-members`}
-              />
-            </div>
-          </section>
-        </div>
+                {/* Team Presence Indicator - shows who's online (via chat WebSocket) */}
+                <SpaceTeamPresence members={enrichedMembers} maxAvatars={7} data-testid={`${testId}-team-presence`} />
 
-        {/* Content Browser */}
-        <section>
-          <h2 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-4">All Content</h2>
-          <SpaceContent
-            items={allContent}
-            isLoading={contentLoading}
-            onItemClick={handleItemClick}
-            data-testid={`${testId}-content`}
-          />
-        </section>
+                {/* Two Column Layout: Chat Panel + Calendar/Activity */}
+                <div className="gba:grid gba:grid-cols-1 gba:lg:grid-cols-2 gba:gap-4">
+                  {/* Left: Combined Team Chat Panel with messages */}
+                  <SpaceTeamChatPanel
+                    conversation={linkedConversation}
+                    isLoading={chatLoading}
+                    error={chatError}
+                    onStartAudioCall={canStartCall ? startAudioCall : undefined}
+                    onStartVideoCall={canStartCall ? startVideoCall : undefined}
+                    memberCount={space.members?.length}
+                    accessToken={accessToken}
+                    maxMessages={8}
+                    getUserInfo={getUserInfo}
+                    onUserIdsNeeded={handleUserIdsNeeded}
+                    data-testid={`${testId}-team-chat-panel`}
+                  />
+
+                  {/* Right: Calendar and Live Activity stacked */}
+                  <div className="gba:space-y-4">
+                    {/* Team Calendar */}
+                    <SpaceCalendar
+                      spaceId={spaceId}
+                      members={space.members || []}
+                      accessToken={accessToken}
+                      maxMeetings={3}
+                      data-testid={`${testId}-team-calendar`}
+                    />
+
+                    {/* Live Activity */}
+                    <SpaceRealTimeActivity
+                      spaceId={spaceId}
+                      spaceContent={allContent}
+                      accessToken={accessToken}
+                      currentUserId={currentUserId}
+                      maxActivities={5}
+                      data-testid={`${testId}-realtime-activity`}
+                    />
+                  </div>
+                </div>
+              </section>
+            )}
+
+            {/* Pinned Content */}
+            {pinnedItems.length > 0 && (
+              <section>
+                <h2 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-4">Pinned</h2>
+                <SpacePinned items={pinnedItems} onItemClick={handleItemClick} data-testid={`${testId}-pinned`} />
+              </section>
+            )}
+
+            {/* Activity Feed - Full Width */}
+            <section>
+              <h2 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-4">Recent Activity</h2>
+              <div className="gba:rounded-lg gba:bg-card gba:p-4">
+                <SpaceActivity
+                  activities={activities}
+                  isLoading={activityLoading}
+                  spaceId={spaceId}
+                  getUserInfo={getUserInfo}
+                  data-testid={`${testId}-activity`}
+                />
+              </div>
+            </section>
+          </TabsContent>
+
+          <TabsContent value="drive" data-testid={`${testId}-tab-content-drive`}>
+            <SpaceDriveView
+              spaceId={spaceId}
+              accessToken={accessToken}
+              space={space}
+              items={allContent}
+              isLoading={contentLoading}
+              canEdit={canEdit}
+              onItemClick={handleItemClick}
+              onMoveItemToFolder={async (item, folderId) => {
+                await moveContent({ contentType: item.type, entityId: item.id, folderId })
+              }}
+              onRemoveContent={handleRemoveContent}
+              data-testid={`${testId}-drive`}
+            />
+          </TabsContent>
+
+          <TabsContent value="members" data-testid={`${testId}-tab-content-members`}>
+            <SpaceMembersTab
+              members={enrichedMembers}
+              activities={activities}
+              currentUserId={currentUserId}
+              isOwner={isOwner}
+              canManageMembers={canManageMembers}
+              onInvite={() => setInviteDialogOpen(true)}
+              onUpdateRole={handleUpdateMemberRole}
+              onRemoveMember={handleRemoveMember}
+              data-testid={`${testId}-members-tab`}
+            />
+          </TabsContent>
+        </Tabs>
       </main>
 
       {/* Dialogs */}
