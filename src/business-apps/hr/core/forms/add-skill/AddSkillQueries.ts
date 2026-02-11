@@ -12,6 +12,7 @@ export const ADD_SKILL_QUERY = `query MyQuery($id: uuid!) {
     skills(where: {isDeleted: {_eq: false}}) {
       version
       id
+      level
       skill {
         id
         name

@@ -26,6 +26,10 @@ interface DebouncedInputProps {
   type?: string
   /** Optional icon to display on the left side of the input */
   icon?: React.ReactNode
+  /** onBlur handler */
+  onBlur?: (e: React.FocusEvent<HTMLInputElement>) => void
+  /** onFocus handler */
+  onFocus?: (e: React.FocusEvent<HTMLInputElement>) => void
 }
 
 /**
@@ -45,7 +49,9 @@ export const DebouncedInput = forwardRef<HTMLInputElement, DebouncedInputProps>(
       'data-testid': dataTestId = 'debounced-input',
       disabled = false,
       type = 'text',
-      icon
+      icon,
+      onBlur,
+      onFocus
     },
     ref
   ) => {
@@ -86,6 +92,8 @@ export const DebouncedInput = forwardRef<HTMLInputElement, DebouncedInputProps>(
           placeholder={placeholder}
           value={localValue}
           onChange={handleChange}
+          onBlur={onBlur}
+          onFocus={onFocus}
           aria-label={ariaLabel}
           data-testid={dataTestId}
           disabled={disabled}
