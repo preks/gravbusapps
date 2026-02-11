@@ -135,8 +135,9 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
           ),
         serialNumber: z
           .string()
-          .min(
-            3,
+          .transform(s => (s ?? '').trim())
+          .refine(
+            val => val.length === 0 || val.length >= 3,
             getTranslationFromI18nKeyAndLabel(
               'lowcoder:hr_assets.serial_number_min_length',
               'Serial number must be at least 3 characters'
@@ -318,9 +319,11 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
     try {
       const siteLocation = values.location && values.location.trim() !== '' ? values.location.trim() : undefined
 
+      const serialNumber =
+        values.serialNumber?.trim() && values.serialNumber.trim().length > 0 ? values.serialNumber.trim() : undefined
       const response = await assetProcessClient.createAsset({
         model: values.model,
-        serialNumber: values.serialNumber,
+        ...(serialNumber !== undefined && { serialNumber }),
         acquisitionDate: values.acquisitionDate,
         warrantyPeriodMonths: values.warrantyPeriodMonths,
         inventoryValue: values.inventoryValue,
@@ -336,7 +339,7 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
         asset: {
           id: response.assetId,
           model: values.model,
-          serialNumber: values.serialNumber
+          serialNumber: serialNumber ?? values.serialNumber
         }
       }
     } catch (error) {
@@ -367,11 +370,13 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
     try {
       const siteLocation = values.location && values.location.trim() !== '' ? values.location.trim() : undefined
 
+      const serialNumber =
+        values.serialNumber?.trim() && values.serialNumber.trim().length > 0 ? values.serialNumber.trim() : undefined
       await assetProcessClient.updateAsset({
         id: assetId,
         version: assetVersion,
         model: values.model,
-        serialNumber: values.serialNumber,
+        ...(serialNumber !== undefined && { serialNumber }),
         acquisitionDate: values.acquisitionDate,
         warrantyPeriodMonths: values.warrantyPeriodMonths,
         inventoryValue: values.inventoryValue,
@@ -391,7 +396,7 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
           asset: {
             id: assetId,
             model: values.model,
-            serialNumber: values.serialNumber
+            serialNumber: serialNumber ?? values.serialNumber
           }
         }
       }
@@ -518,31 +523,40 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
         render={({ field, fieldState }) => {
           const [isCheckingDuplicate, setIsCheckingDuplicate] = React.useState(false)
           const [duplicateError, setDuplicateError] = React.useState<string | null>(null)
+          const category = form.watch('category')
+          const brand = form.watch('brand')
 
           const checkDuplicate = async (value: string) => {
-            if (!value || value.length < 3 || isEditMode) {
+            const trimmed = (value ?? '').trim()
+            if (trimmed.length === 0 || trimmed.length < 3) {
               setDuplicateError(null)
               return
             }
 
-            const category = form.getValues('category')
-            const brand = form.getValues('brand')
-
-            if (!category || !brand) {
+            const categoryVal = form.getValues('category')
+            const brandVal = form.getValues('brand')
+            if (!categoryVal || !brandVal) {
               setDuplicateError(null)
               return
             }
 
             setIsCheckingDuplicate(true)
             try {
+              const whereConditions: Array<
+                | { serialNumber: { _eq: string } }
+                | { assetCategoryRef: { _eq: string } }
+                | { assetBrandRef: { _eq: string } }
+                | { id: { _neq: string } }
+              > = [
+                { serialNumber: { _eq: trimmed } },
+                { assetCategoryRef: { _eq: categoryVal } },
+                { assetBrandRef: { _eq: brandVal } }
+              ]
+              if (isEditMode && assetId) {
+                whereConditions.push({ id: { _neq: assetId } })
+              }
               const result = await getAssets({
-                where: {
-                  _and: [
-                    { serialNumber: { _eq: value } },
-                    { assetCategoryRef: { _eq: category } },
-                    { assetBrandRef: { _eq: brand } }
-                  ]
-                },
+                where: { _and: whereConditions },
                 limit: 1
               })
 
@@ -565,6 +579,12 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
             }
           }
 
+          const checkDuplicateRef = React.useRef(checkDuplicate)
+          checkDuplicateRef.current = checkDuplicate
+          React.useEffect(() => {
+            checkDuplicateRef.current(form.getValues('serialNumber'))
+          }, [category, brand])
+
           const handleBlur = async () => {
             field.onBlur()
             await checkDuplicate(field.value)
@@ -582,7 +602,7 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
           return (
             <FormItem>
               <Label htmlFor="serialNumber" data-testid="serial-number-label">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.serial_number', 'Serial Number')} *
+                {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.serial_number', 'Serial Number')}
               </Label>
               <Input
                 id="serialNumber"
