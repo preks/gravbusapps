@@ -2,14 +2,18 @@
  * EmailThreadSummary - Premium AI-powered thread summary card.
  * Uses the decorative card style for a sleek, modern appearance.
  * Triggered on-demand via the backend AI model.
+ * Caches summaries by threadId; invalidates when messageCount increases (new email in thread).
  */
 
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useEffect } from 'react'
 import { Button, Card, CardContent } from '@newwork/nw-design-system'
 import { SparkleIcon, CaretDownIcon, CaretUpIcon, UsersIcon, LightningIcon } from '@phosphor-icons/react'
 import { Loader2 } from 'lucide-react'
 import { EmailApiService } from '../services/EmailApiService'
 import type { ThreadSummaryResult } from '../types'
+
+/** Cache key: threadId. Value: { summary, messageCount } */
+const summaryCache = new Map<string, { summary: ThreadSummaryResult; messageCount: number }>()
 
 interface EmailThreadSummaryProps {
   threadId: string
@@ -22,7 +26,11 @@ export const EmailThreadSummary: React.FC<EmailThreadSummaryProps> = ({
   messageCount,
   'data-testid': testId = 'email-thread-summary'
 }) => {
-  const [summary, setSummary] = useState<ThreadSummaryResult | null>(null)
+  const cached = summaryCache.get(threadId)
+  const isStale = cached && cached.messageCount !== messageCount
+  const initialSummary = cached && !isStale ? cached.summary : null
+
+  const [summary, setSummary] = useState<ThreadSummaryResult | null>(initialSummary)
   const [isLoading, setIsLoading] = useState(false)
   const [isExpanded, setIsExpanded] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -34,12 +42,22 @@ export const EmailThreadSummary: React.FC<EmailThreadSummaryProps> = ({
     try {
       const result = await EmailApiService.summarizeThread(threadId)
       setSummary(result)
+      summaryCache.set(threadId, { summary: result, messageCount })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to generate summary')
     } finally {
       setIsLoading(false)
     }
-  }, [threadId, isLoading])
+  }, [threadId, messageCount, isLoading])
+
+  // Invalidate cache when a new email arrives in the thread (messageCount increased)
+  useEffect(() => {
+    if (isStale) {
+      summaryCache.delete(threadId)
+      setSummary(null)
+      setError(null)
+    }
+  }, [threadId, isStale])
 
   // Not yet generated - show trigger button
   if (!summary && !isLoading && !error) {

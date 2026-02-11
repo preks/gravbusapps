@@ -37,8 +37,6 @@ import { useSenderAvatar } from '../hooks/useSenderAvatar'
 import { getInitials, formatFullDate, formatFileSize } from '../utils/emailDisplayUtils'
 import type { EmailMessage, EmailAccount, ComposeMode } from '../types'
 
-const THREAD_VIEW_KEY = 'email-thread-view-enabled'
-
 interface EmailReaderProps {
   message: EmailMessage | null
   onCompose: (mode: ComposeMode, replyTo?: EmailMessage) => void
@@ -48,6 +46,9 @@ interface EmailReaderProps {
   accessToken?: string
   activeAccount?: EmailAccount | null
   employeeId?: string
+  /** Conversation / thread view toggle (controlled by parent) */
+  threadEnabled?: boolean
+  onToggleThreadView?: () => void
   'data-testid'?: string
 }
 
@@ -60,11 +61,12 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
   accessToken,
   activeAccount,
   employeeId,
+  threadEnabled = false,
+  onToggleThreadView,
   'data-testid': testId = 'email-reader'
 }) => {
   const bodyRef = useRef<HTMLDivElement>(null)
   const [downloadingAttId, setDownloadingAttId] = useState<string | null>(null)
-  const [threadEnabled, setThreadEnabled] = useState(() => localStorage.getItem(THREAD_VIEW_KEY) === 'true')
   const [threadMessages, setThreadMessages] = useState<EmailMessage[]>([])
   const [isLoadingThread, setIsLoadingThread] = useState(false)
   const lastThreadIdRef = useRef<string | null>(null)
@@ -72,12 +74,8 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
   const senderAvatar = useSenderAvatar(message?.fromAddress?.address, accessToken)
 
   const toggleThreadView = useCallback(() => {
-    setThreadEnabled(prev => {
-      const next = !prev
-      localStorage.setItem(THREAD_VIEW_KEY, String(next))
-      return next
-    })
-  }, [])
+    onToggleThreadView?.()
+  }, [onToggleThreadView])
 
   // Fetch thread when enabled and message has a threadId
   useEffect(() => {
@@ -89,6 +87,7 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
     // Avoid refetching the same thread
     if (lastThreadIdRef.current === message.threadId) return
     lastThreadIdRef.current = message.threadId
+    setThreadMessages([]) // Clear stale thread immediately when switching to different thread
 
     let cancelled = false
     setIsLoadingThread(true)
@@ -115,7 +114,8 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
     }
   }, [message?.htmlBody])
 
-  const showThread = threadEnabled && threadMessages.length > 1
+  const showThread =
+    threadEnabled && threadMessages.length > 1 && !!message?.threadId && lastThreadIdRef.current === message.threadId
 
   const handleDownloadAttachment = useCallback(async (messageId: string, attachmentId: string) => {
     setDownloadingAttId(attachmentId)
@@ -294,6 +294,7 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
             {/* Body */}
             {message.htmlBody ? (
               <div
+                key={message.id}
                 ref={bodyRef}
                 className="gba:prose gba:prose-sm gba:max-w-none gba:text-foreground"
                 data-testid={`${testId}-body`}

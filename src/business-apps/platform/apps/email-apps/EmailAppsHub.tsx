@@ -108,6 +108,13 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
   const [searchQuery, setSearchQuery] = useState('')
   const [isAccountDialogOpen, setIsAccountDialogOpen] = useState(false)
   const [isManageDialogOpen, setIsManageDialogOpen] = useState(false)
+  const [threadViewEnabled, setThreadViewEnabled] = useState(() => {
+    try {
+      return localStorage.getItem('email-thread-view-enabled') === 'true'
+    } catch {
+      return false
+    }
+  })
 
   // Compose state
   const [isComposing, setIsComposing] = useState(false)
@@ -140,7 +147,8 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
     folderId: selectedFolderId || undefined,
     accountId: defaultAccount?.id,
     search: searchQuery || undefined,
-    starredOnly
+    starredOnly,
+    threadView: threadViewEnabled
   })
 
   // Directory hook for auto-suggest (org directory + provider contacts)
@@ -326,6 +334,16 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
         accessToken={accessToken}
         activeAccount={defaultAccount}
         employeeId={userInfo?.employeeDetails?.employeeId}
+        threadEnabled={threadViewEnabled}
+        onToggleThreadView={() => {
+          setThreadViewEnabled(prev => {
+            const next = !prev
+            try {
+              localStorage.setItem('email-thread-view-enabled', String(next))
+            } catch {}
+            return next
+          })
+        }}
       />
 
       {/* Composer with auto-suggest */}
@@ -347,6 +365,16 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
         onOpenChange={setIsManageDialogOpen}
         accounts={accounts}
         onAccountsChanged={refreshAccounts}
+        threadViewEnabled={threadViewEnabled}
+        onToggleThreadView={() => {
+          setThreadViewEnabled(prev => {
+            const next = !prev
+            try {
+              localStorage.setItem('email-thread-view-enabled', String(next))
+            } catch {}
+            return next
+          })
+        }}
         onAddAccount={() => {
           setIsManageDialogOpen(false)
           setIsAccountDialogOpen(true)
