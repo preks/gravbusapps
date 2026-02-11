@@ -14,12 +14,27 @@ import {
   DialogHeader,
   DialogTitle
 } from '@newwork/nw-design-system'
-import { ArrowLeft, DotsThreeVertical, SignOut, X, Info, Users } from '@phosphor-icons/react'
+import {
+  ArrowLeft,
+  DotsThreeVertical,
+  SignOut,
+  X,
+  Info,
+  Users,
+  Check,
+  Minus,
+  ProhibitInset,
+  Clock,
+  MoonStars,
+  EyeSlash,
+  PhoneCall as PhoneCallIcon,
+  PresentationChart
+} from '@phosphor-icons/react'
 import { UserIcon, Phone, Video, PhoneCall, UserPlus, Bell, CalendarIcon } from 'lucide-react'
-import type { Conversation } from '../types'
+import type { Conversation, UserStatus } from '../types'
+import { UserPresenceStatus, SystemPresenceStatus } from '../types'
 import type { UserPresence } from '../hooks/usePresence'
 import { navigateTo } from '@/common/utils/navigationUtils'
-import { UserStatusIndicator } from './UserStatusIndicator'
 
 export interface ActiveCallInfo {
   roomId: string
@@ -90,89 +105,72 @@ const getConversationAvatarUrl = (conversation: Conversation, currentUserId?: st
   return otherParticipant?.user?.avatarUrl
 }
 
-// Presence status indicator component - only shows for online, not offline/away
-const PresenceIndicator: React.FC<{
-  status: 'online' | 'away' | 'offline'
+// Status badge component - shows user status icon (Available/Busy/etc) on avatar
+const StatusBadge: React.FC<{
+  status?: UserStatus | string
   size?: 'sm' | 'md'
-  t?: (key: string) => string
-}> = ({ status, size = 'md', t }) => {
-  // Don't show indicator for offline or away status
-  if (status === 'offline' || status === 'away') return null
+}> = ({ status, size = 'md' }) => {
+  if (!status) return null
 
-  const statusColors = {
-    online: 'gba:bg-success',
-    away: 'gba:bg-warning',
-    offline: 'gba:bg-muted-foreground'
-  }
+  // Get status string from UserStatus object or use as string
+  const statusString = typeof status === 'object' ? status.status : status
 
-  const getStatusTitle = (status: 'online' | 'away' | 'offline'): string => {
-    if (!t) {
-      if (status === 'online') return 'Online'
-      if (status === 'away') return 'Away'
-      return 'Offline'
+  // Status colors and icons for avatar badge
+  const STATUS_STYLES: Record<string, { bgColor: string; icon: React.ReactNode }> = {
+    [UserPresenceStatus.AVAILABLE]: {
+      bgColor: 'gba:bg-success',
+      icon: <Check size={size === 'sm' ? 8 : 10} weight="bold" className="gba:text-white" />
+    },
+    [UserPresenceStatus.BUSY]: {
+      bgColor: 'gba:bg-destructive',
+      icon: <Minus size={size === 'sm' ? 8 : 10} weight="bold" className="gba:text-white" />
+    },
+    [UserPresenceStatus.DO_NOT_DISTURB]: {
+      bgColor: 'gba:bg-destructive',
+      icon: <ProhibitInset size={size === 'sm' ? 8 : 10} weight="bold" className="gba:text-white" />
+    },
+    [UserPresenceStatus.BE_RIGHT_BACK]: {
+      bgColor: 'gba:bg-warning-secondary',
+      icon: <Clock size={size === 'sm' ? 8 : 10} weight="bold" className="gba:text-white" />
+    },
+    [UserPresenceStatus.APPEAR_AWAY]: {
+      bgColor: 'gba:bg-warning',
+      icon: <MoonStars size={size === 'sm' ? 8 : 10} weight="bold" className="gba:text-white" />
+    },
+    [UserPresenceStatus.APPEAR_OFFLINE]: {
+      bgColor: 'gba:bg-muted-foreground',
+      icon: <EyeSlash size={size === 'sm' ? 8 : 10} weight="bold" className="gba:text-white" />
+    },
+    [SystemPresenceStatus.IN_MEETING]: {
+      bgColor: 'gba:bg-info',
+      icon: <Users size={size === 'sm' ? 8 : 10} weight="bold" className="gba:text-white" />
+    },
+    [SystemPresenceStatus.IN_CALL]: {
+      bgColor: 'gba:bg-info',
+      icon: <PhoneCallIcon size={size === 'sm' ? 8 : 10} weight="bold" className="gba:text-white" />
+    },
+    [SystemPresenceStatus.PRESENTING]: {
+      bgColor: 'gba:bg-info',
+      icon: <PresentationChart size={size === 'sm' ? 8 : 10} weight="bold" className="gba:text-white" />
+    },
+    offline: {
+      bgColor: 'gba:bg-muted-foreground',
+      icon: <EyeSlash size={size === 'sm' ? 8 : 10} weight="bold" className="gba:text-white" />
     }
-    if (status === 'online') return t('chat-statusOnline')
-    if (status === 'away') return t('chat-statusAway')
-    return t('chat-statusOffline')
   }
 
-  const sizeClasses = size === 'sm' ? 'gba:w-2.5 gba:h-2.5' : 'gba:w-3 gba:h-3'
+  const config = statusString ? STATUS_STYLES[statusString] : STATUS_STYLES['offline']
+  if (!config) return null
+
+  const circleSize = size === 'sm' ? 'gba:w-3 gba:h-3' : 'gba:w-4 gba:h-4'
 
   return (
-    <span
-      className={`gba:absolute gba:bottom-0 gba:right-0 gba:rounded-full gba:border-2 gba:border-background ${statusColors[status]} ${sizeClasses}`}
-      title={getStatusTitle(status)}
-    />
+    <div
+      className={`gba:absolute gba:bottom-0 gba:right-0 gba:rounded-full gba:border-2 gba:border-background ${config.bgColor} ${circleSize} gba:flex gba:items-center gba:justify-center gba:flex-shrink-0`}
+    >
+      {config.icon}
+    </div>
   )
-}
-
-// Get presence status text for display
-const getPresenceStatusText = (presence?: UserPresence, t?: (key: string, params?: any) => string): string | null => {
-  if (!presence || !t) return null
-
-  // If user has detailed status, don't show basic presence text
-  if (presence.userStatus) return null
-
-  if (presence.state === 'online') return t('chat-statusOnline')
-  if (presence.state === 'away') return t('chat-statusAway')
-
-  // For offline status, show last seen if available
-  if (presence.state === 'offline' && presence.lastSeen) {
-    try {
-      const lastSeenDate = new Date(presence.lastSeen)
-      // Check if date is valid
-      if (isNaN(lastSeenDate.getTime())) {
-        return null
-      }
-
-      const now = new Date()
-      const diffMs = now.getTime() - lastSeenDate.getTime()
-
-      // Check for negative or invalid differences
-      if (diffMs < 0 || isNaN(diffMs)) {
-        return null
-      }
-
-      const diffMinutes = Math.floor(diffMs / (1000 * 60))
-      const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
-      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
-
-      if (diffMinutes < 60) {
-        return t('chat-lastSeenMinutes', { minutes: diffMinutes })
-      } else if (diffHours < 24) {
-        return t('chat-lastSeenHours', { hours: diffHours })
-      } else if (diffDays < 7) {
-        return t('chat-lastSeenDays', { days: diffDays })
-      } else {
-        return t('chat-lastSeenLongAgo')
-      }
-    } catch (error) {
-      console.error('Error calculating last seen time:', error)
-      return null
-    }
-  }
-
-  return null
 }
 
 export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
@@ -211,9 +209,19 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
     }
   }
   const presenceStatus = otherUserPresence?.state || 'offline'
-  const presenceStatusText = isDirectChat ? getPresenceStatusText(otherUserPresence, t) : null
   // Check for active call from prop or conversation object (applies to both group and direct chats)
   const hasActiveCall = !!activeCall || !!conversation.activeCall
+  // Determine call message key based on call type
+  const getCallMessageKey = (): string => {
+    if (conversation.metadata?.type === 'meeting') {
+      return 'chat-activeCallMeeting'
+    } else if (isDirectChat) {
+      return 'chat-activeCallDirect'
+    } else if (isGroupChat) {
+      return 'chat-activeCallGroup'
+    }
+    return 'chat-activeCallInGroup' // fallback
+  }
 
   const handleRemoveClick = () => {
     setShowRemoveDialog(true)
@@ -262,7 +270,7 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
               icon={isGroupChat ? (conversation.metadata?.type === 'meeting' ? CalendarIcon : Users) : UserIcon}
             />
           )}
-          {isDirectChat && <PresenceIndicator status={presenceStatus} size={compact ? 'sm' : 'md'} t={t} />}
+          {isDirectChat && <StatusBadge status={otherUserPresence?.userStatus} size={compact ? 'sm' : 'md'} />}
         </div>
 
         <div className="gba:flex-1 gba:min-w-0">
@@ -271,14 +279,8 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
           >
             {name}
           </h2>
-          {/* Show user status for direct chats */}
-          {isDirectChat && !compact && otherUserPresence?.userStatus && (
-            <div className="gba:flex gba:items-center gba:gap-1.5">
-              <UserStatusIndicator status={otherUserPresence.userStatus} showLabel={true} size="sm" />
-            </div>
-          )}
           {/* Show "Last seen" for offline users */}
-          {isDirectChat && otherUserPresence?.lastSeen && presenceStatus === 'offline' && (
+          {isDirectChat && !compact && otherUserPresence?.lastSeen && presenceStatus === 'offline' ? (
             <p className="gba:text-xs gba:text-muted-foreground">
               {(() => {
                 try {
@@ -310,27 +312,16 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
                 }
               })()}
             </p>
-          )}
-          {/* Fallback: Show basic presence status if no detailed status */}
-          {isDirectChat &&
-            !compact &&
-            !otherUserPresence?.userStatus &&
-            !otherUserPresence?.lastSeen &&
-            presenceStatusText &&
-            (() => {
-              let statusColorClass = 'gba:text-muted-foreground'
-              if (presenceStatus === 'online') statusColorClass = 'gba:text-success'
-              else if (presenceStatus === 'away') statusColorClass = 'gba:text-warning'
-
-              return <p className={`gba:text-xs ${statusColorClass}`}>{presenceStatusText}</p>
-            })()}
+          ) : hasActiveCall && !compact ? (
+            /* Show active call message only if not showing "Last seen" */
+            <p className="gba:text-xs gba:text-success">{t(getCallMessageKey())}</p>
+          ) : null}
           {/* Show participant count for group chats */}
           {isGroupChat && conversation.participants && !compact && (
             <p className="gba:text-xs gba:text-muted-foreground">
               {t('chat-participantsCount', { count: conversation.participants.length.toString() })}
             </p>
           )}
-          {hasActiveCall && !compact && <p className="gba:text-xs gba:text-success">{t('chat-activeCallInGroup')}</p>}
         </div>
 
         <div className="gba:flex gba:items-center gba:gap-1">

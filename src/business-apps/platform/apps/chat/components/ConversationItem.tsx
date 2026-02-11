@@ -121,34 +121,24 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
   const showPresence = conversation.type === 'direct'
   const rawPresenceStatus = otherUserPresence?.state || 'offline'
   const presenceStatus: 'online' | 'offline' = rawPresenceStatus === 'online' ? 'online' : 'offline'
-  const hasActiveCall = conversation.type === 'group' && !!conversation.activeCall
+  const hasActiveCall = !!conversation.activeCall
+  const isDirectChat = conversation.type === 'direct'
+  const isGroupChat = conversation.type === 'group'
 
   // Use enhanced status if available
   const userStatus = otherUserPresence?.userStatus
 
-  // Get names of participants currently in the call
-  const getParticipantsInCall = (): string[] => {
-    if (!hasActiveCall || !conversation.activeCall?.participantIds || !conversation.participants) {
-      return []
+  // Determine call message key based on call type
+  const getCallMessageKey = (): string => {
+    if (conversation.metadata?.type === 'meeting') {
+      return 'chat-activeCallMeeting'
+    } else if (isDirectChat) {
+      return 'chat-activeCallDirect'
+    } else if (isGroupChat) {
+      return 'chat-activeCallGroup'
     }
-
-    const participantIds = conversation.activeCall.participantIds
-    return conversation.participants
-      .filter(p => {
-        const odId = p.userId || p.user?.id
-        return odId && participantIds.includes(odId)
-      })
-      .map(p => {
-        const user = p.user
-        if (!user) return 'Unknown'
-        const firstName = user.firstName || ''
-        const lastName = user.lastName || ''
-        const fullName = `${firstName} ${lastName}`.trim()
-        return fullName || user.displayName || user.username || 'Unknown'
-      })
+    return 'chat-activeCallInGroup' // fallback
   }
-
-  const participantsInCall = hasActiveCall ? getParticipantsInCall() : []
 
   const handleRemoveClick = (e: React.MouseEvent) => {
     e.stopPropagation() // Prevent conversation selection
@@ -230,7 +220,7 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
               {name}
             </span>
             {hasActiveCall && (
-              <span className="gba:text-[10px] gba:text-success gba:uppercase">{t('chat-activeCallShort')}</span>
+              <span className="gba:text-[10px] gba:text-success gba:uppercase">{t(getCallMessageKey())}</span>
             )}
             {unreadCount > 0 && (
               <Badge
@@ -242,11 +232,7 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
               </Badge>
             )}
           </div>
-          {hasActiveCall && participantsInCall.length > 0 && !compact ? (
-            <p className="gba:text-xs gba:text-success gba:truncate gba:max-w-[180px]">
-              {participantsInCall.join(', ')}
-            </p>
-          ) : showPresence && otherUserPresence?.lastSeen && presenceStatus === 'offline' ? (
+          {showPresence && otherUserPresence?.lastSeen && presenceStatus === 'offline' ? (
             <p className="gba:text-xs gba:text-muted-foreground gba:truncate gba:max-w-[180px]">
               {(() => {
                 try {
