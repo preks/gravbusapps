@@ -167,6 +167,18 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = () => {
 
   const nextNewIdRef = useRef(1)
 
+  const applyFetchedToPending = useCallback(
+    (
+      prev: Array<{ id: string; name: string; level: number }>,
+      fetched: Array<{ id: string; name: string }>
+    ): Array<{ id: string; name: string; level: number }> =>
+      prev.map(s => {
+        const resolved = fetched.find(r => r.name.toLowerCase() === s.name.toLowerCase())
+        return resolved === undefined ? s : { id: resolved.id, name: resolved.name, level: s.level }
+      }),
+    []
+  )
+
   const handleAddNewSkill = async () => {
     const name = searchTerm.trim()
     if (!name) return
@@ -184,12 +196,7 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = () => {
     setAddedNames(prev => Array.from(new Set([...prev, name])))
     try {
       const fetched = await createSkillAndFetchByNames(name, addedNames)
-      setPendingSkills(prev =>
-        prev.map(s => {
-          const resolved = fetched.find(r => r.name.toLowerCase() === s.name.toLowerCase())
-          return resolved !== undefined ? { id: resolved.id, name: resolved.name, level: s.level } : s
-        })
-      )
+      setPendingSkills(prev => applyFetchedToPending(prev, fetched))
     } catch (e) {
       setAddError(
         e instanceof Error
