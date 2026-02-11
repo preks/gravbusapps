@@ -8,6 +8,8 @@ interface UseEmailsOptions {
   accountId?: string
   search?: string
   starredOnly?: boolean
+  /** When true, emails sharing a threadId are collapsed to the latest per thread */
+  threadView?: boolean
   /** Auto-refresh interval in milliseconds (default: 15000 = 15 seconds) */
   autoRefreshInterval?: number
 }
@@ -55,6 +57,7 @@ export function useEmails({
   accountId,
   search,
   starredOnly,
+  threadView = false,
   autoRefreshInterval = 15000
 }: UseEmailsOptions) {
   const [messages, setMessages] = useState<EmailMessageSummary[]>([])
@@ -118,6 +121,9 @@ export function useEmails({
   const loadMessages = useCallback(
     async (pageNum = 1, silent = false) => {
       if (!accessToken) return
+      // Don't fetch until we have a folder (or an explicit starred/search filter)
+      // Otherwise we'd briefly show ALL emails from every folder on first render
+      if (!folderId && !starredOnly && !search) return
       if (loadingRef.current) return
 
       loadingRef.current = true
@@ -133,7 +139,7 @@ export function useEmails({
           limit: 50
         })
 
-        const deduplicated = deduplicateThreads(result.items)
+        const deduplicated = threadView ? deduplicateThreads(result.items) : result.items
 
         if (silent) {
           // Silent refresh: apply local overrides to prevent reverting
@@ -154,7 +160,7 @@ export function useEmails({
         if (!silent) setIsLoading(false)
       }
     },
-    [accessToken, folderId, accountId, search, starredOnly, applyOverrides]
+    [accessToken, folderId, accountId, search, starredOnly, threadView, applyOverrides]
   )
 
   // Initial load on mount or when dependencies change

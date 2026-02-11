@@ -1,5 +1,5 @@
 /**
- * EmailCrmBooking - Panel for recording an email as a CRM Sales Activity.
+ * EmailCrmBooking - Panel for recording an email as a CRM Activity.
  *
  * Priority order:
  *   1. "Email matches" – entities whose email matches the counterparty (shown first)
@@ -10,7 +10,7 @@
 import React, { useState, useRef, useCallback } from 'react'
 import { Button, Badge, Spinner, Input } from '@newwork/nw-design-system'
 import {
-  BookmarkIcon,
+  LinkSimpleIcon,
   CaretDownIcon,
   CaretUpIcon,
   MagnifyingGlassIcon,
@@ -89,26 +89,26 @@ export const EmailCrmBooking: React.FC<EmailCrmBookingProps> = ({
 
   return (
     <div
-      className="gba:border-t gba:bg-card gba:flex gba:flex-col gba:min-h-0 gba:max-h-72 gba:overflow-hidden"
+      className="gba:border-t gba:bg-muted/20 gba:flex gba:flex-col gba:min-h-0 gba:max-h-72 gba:overflow-hidden"
       data-testid={testId}
     >
-      {/* Toggle bar */}
+      {/* Toggle bar — subtle, low-contrast design */}
       <button
-        className="gba:flex gba:items-center gba:gap-2 gba:w-full gba:px-4 gba:py-2 gba:text-sm gba:font-medium gba:text-foreground gba:hover:bg-accent gba:transition-colors"
+        className="gba:flex gba:items-center gba:gap-2.5 gba:w-full gba:px-4 gba:py-2.5 gba:text-sm gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-accent/50 gba:transition-colors"
         onClick={handleToggle}
         data-testid={`${testId}-toggle`}
       >
-        <BookmarkIcon className="gba:w-4 gba:h-4 gba:text-primary" weight="bold" />
-        <span className="gba:flex-1 gba:text-left">Record as Sales Activity</span>
+        <LinkSimpleIcon className="gba:w-4 gba:h-4" weight="bold" />
+        <span className="gba:flex-1 gba:text-left gba:font-medium">Record as Activity</span>
         {!isExpanded && emailMatchCount > 0 && (
           <Badge variant="info" className="gba:text-xs">
             {emailMatchCount} match{emailMatchCount !== 1 ? 'es' : ''}
           </Badge>
         )}
         {isExpanded ? (
-          <CaretUpIcon className="gba:w-4 gba:h-4 gba:text-muted-foreground" />
+          <CaretUpIcon className="gba:w-3.5 gba:h-3.5" />
         ) : (
-          <CaretDownIcon className="gba:w-4 gba:h-4 gba:text-muted-foreground" />
+          <CaretDownIcon className="gba:w-3.5 gba:h-3.5" />
         )}
       </button>
 
