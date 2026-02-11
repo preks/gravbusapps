@@ -87,6 +87,8 @@ import { useSpreadsheetAppsHubFavorites } from './hooks/useSpreadsheetAppsHubFav
 import { useSpreadsheetAppsHubFiltering } from './hooks/useSpreadsheetAppsHubFiltering'
 import { useSpreadsheetAppsHubUrlState } from './hooks/useSpreadsheetAppsHubUrlState'
 import { useSpreadsheetAppsHubUserLookup } from './hooks/useSpreadsheetAppsHubUserLookup'
+import { useHubPagination } from '../shared/hooks/useHubPagination'
+import { HubPaginationFooter } from '../shared/components/HubPaginationFooter'
 
 // Services
 import { generateAppSchema, generateEmptyAppSchema } from './services/SchemaGenerator'
@@ -305,6 +307,15 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     sortBy,
     sortOrder
   })
+
+  const {
+    paginatedItems: paginatedApps,
+    currentPage,
+    totalPages,
+    totalItems,
+    goToPage,
+    pageSize
+  } = useHubPagination({ items: filteredApps, pageSize: 20 })
 
   // Handlers
   const handleManageShares = useCallback(
@@ -1342,7 +1353,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                     <div className="gba:flex gba:items-center gba:px-4 gba:py-2 gba:text-xs gba:font-medium gba:text-muted-foreground">
                       <div className="gba:w-8 gba:flex-shrink-0">
                         <Checkbox
-                          checked={selectedApps.size === filteredApps.length && filteredApps.length > 0}
+                          checked={selectedApps.size === paginatedApps.length && paginatedApps.length > 0}
                           onCheckedChange={selectAllApps}
                         />
                       </div>
@@ -1385,7 +1396,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
 
                   {/* Table Body */}
                   <div className="gba:divide-y gba:divide-border">
-                    {filteredApps.map(app => {
+                    {paginatedApps.map(app => {
                       const isOwner = app.isOwner ?? app.createdBy === currentUserId
                       const isSelected = selectedApps.has(app.id)
                       const isFavorite = favorites.has(app.id)
@@ -1583,7 +1594,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
               {/* Grid View */}
               {!isLoadingApps && filteredApps.length > 0 && viewLayout === 'grid' && (
                 <div className="gba:p-6 gba:grid gba:grid-cols-2 gba:md:grid-cols-3 gba:lg:grid-cols-4 gba:xl:grid-cols-5 gba:gap-4">
-                  {filteredApps.map(app => {
+                  {paginatedApps.map(app => {
                     const isOwner = app.isOwner ?? app.createdBy === currentUserId
                     const isSelected = selectedApps.has(app.id)
                     const isFavorite = favorites.has(app.id)
@@ -1697,6 +1708,18 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                 </div>
               )}
             </div>
+
+            {/* Pagination */}
+            {!isLoadingApps && filteredApps.length > 0 && (
+              <HubPaginationFooter
+                currentPage={currentPage}
+                totalPages={totalPages}
+                totalItems={totalItems}
+                pageSize={pageSize}
+                onPageChange={goToPage}
+                data-testid={`${testId}-pagination`}
+              />
+            )}
           </>
         )}
       </main>

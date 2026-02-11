@@ -21,9 +21,11 @@ export {
   useOrganizationalDimensions,
   type UseOrganizationalDimensionsResult
 } from './hooks/useOrganizationalDimensions'
+export { useHubPagination } from './hooks/useHubPagination'
 
 // Components
 export { PresenceIndicator, type PresenceIndicatorProps } from './components/PresenceIndicator'
+export { HubPaginationFooter, type HubPaginationFooterProps } from './components/HubPaginationFooter'
 export { CollaboratorCursor, type CollaboratorCursorProps } from './components/CollaboratorCursor'
 export { CellCollaboratorIndicator, type CellCollaboratorIndicatorProps } from './components/CellCollaboratorIndicator'
 export { DimensionPicker, type DimensionPickerProps } from './components/DimensionPicker'

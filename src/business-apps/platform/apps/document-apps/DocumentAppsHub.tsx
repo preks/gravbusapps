@@ -83,6 +83,8 @@ import { useDocumentAppsHubUserLookup } from './hooks/useDocumentAppsHubUserLook
 import { useDocumentAppsHubFavorites } from './hooks/useDocumentAppsHubFavorites'
 import { useDocumentAppsHubFiltering } from './hooks/useDocumentAppsHubFiltering'
 import { useDocumentAppsHubUrlState } from './hooks/useDocumentAppsHubUrlState'
+import { useHubPagination } from '../shared/hooks/useHubPagination'
+import { HubPaginationFooter } from '../shared/components/HubPaginationFooter'
 
 // Entities / context
 import { getContextForCategory, getContextForEntityKeys } from './entities'
@@ -277,6 +279,15 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
     sortBy,
     sortOrder
   })
+
+  const {
+    paginatedItems: paginatedDocuments,
+    currentPage,
+    totalPages,
+    totalItems,
+    goToPage,
+    pageSize
+  } = useHubPagination({ items: filteredDocuments, pageSize: 20 })
 
   /**
    * Handle Word file parsed from uploader
@@ -1189,7 +1200,9 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                     <div className="gba:flex gba:items-center gba:px-4 gba:py-2 gba:text-xs gba:font-medium gba:text-muted-foreground">
                       <div className="gba:w-8 gba:flex-shrink-0">
                         <Checkbox
-                          checked={selectedDocuments.size === filteredDocuments.length && filteredDocuments.length > 0}
+                          checked={
+                            selectedDocuments.size === paginatedDocuments.length && paginatedDocuments.length > 0
+                          }
                           onCheckedChange={selectAllDocuments}
                         />
                       </div>
@@ -1231,7 +1244,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
 
                   {/* Table Body */}
                   <div className="gba:divide-y gba:divide-border">
-                    {filteredDocuments.map(doc => {
+                    {paginatedDocuments.map(doc => {
                       const isOwner = doc.isOwner || doc.permission === 'owner'
                       const isSelected = selectedDocuments.has(doc.id)
                       const isFavorite = favorites.has(doc.id)
@@ -1438,7 +1451,7 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
               {/* Grid View */}
               {!isLoadingDocuments && filteredDocuments.length > 0 && viewLayout === 'grid' && (
                 <div className="gba:p-6 gba:grid gba:grid-cols-2 gba:md:grid-cols-3 gba:lg:grid-cols-4 gba:xl:grid-cols-5 gba:gap-4">
-                  {filteredDocuments.map(doc => {
+                  {paginatedDocuments.map(doc => {
                     const isOwner = doc.isOwner || doc.permission === 'owner'
                     const isSelected = selectedDocuments.has(doc.id)
                     const isFavorite = favorites.has(doc.id)
@@ -1515,6 +1528,18 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                 </div>
               )}
             </div>
+
+            {/* Pagination */}
+            {!isLoadingDocuments && filteredDocuments.length > 0 && (
+              <HubPaginationFooter
+                currentPage={currentPage}
+                totalPages={totalPages}
+                totalItems={totalItems}
+                pageSize={pageSize}
+                onPageChange={goToPage}
+                data-testid={`${testId}-pagination`}
+              />
+            )}
           </>
         )}
       </main>
