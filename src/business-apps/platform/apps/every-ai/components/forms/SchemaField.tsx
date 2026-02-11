@@ -33,6 +33,8 @@ interface SchemaFieldProps {
   formData: Record<string, any>
   onFieldValueChange?: (path: string, value: any) => void
   accessToken: string
+  /** Flow module name (e.g. customer-relations, investment-relations). Passed to SearchableUuidField for IRM vs CRM label resolution. */
+  moduleName?: string
 }
 
 export const SchemaField: React.FC<SchemaFieldProps> = ({
@@ -45,7 +47,8 @@ export const SchemaField: React.FC<SchemaFieldProps> = ({
   onChange,
   formData,
   onFieldValueChange,
-  accessToken
+  accessToken,
+  moduleName
 }) => {
   const fieldPath = path ? `${path}.${name}` : name
   const controlId = sanitizeControlId(fieldPath)
@@ -281,6 +284,7 @@ export const SchemaField: React.FC<SchemaFieldProps> = ({
               disabled={disabled}
               value={typeof value === 'string' ? value : (value ?? '')}
               onChange={val => onChange(val)}
+              moduleName={moduleName}
             />
           )
         }
@@ -422,6 +426,7 @@ export const SchemaField: React.FC<SchemaFieldProps> = ({
                       formData={formData}
                       onFieldValueChange={onFieldValueChange}
                       accessToken={accessToken}
+                      moduleName={moduleName}
                     />
                   ))}
                 </div>
@@ -474,6 +479,7 @@ export const SchemaField: React.FC<SchemaFieldProps> = ({
                 formData={formData}
                 onFieldValueChange={onFieldValueChange}
                 accessToken={accessToken}
+                moduleName={moduleName}
               />
             ))}
           </div>
