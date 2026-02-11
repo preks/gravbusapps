@@ -8,9 +8,46 @@ interface UseEmailsOptions {
   accountId?: string
   search?: string
   starredOnly?: boolean
-  /** Auto-refresh interval in milliseconds (default: 30000 = 30 seconds) */
+  /** Auto-refresh interval in milliseconds (default: 15000 = 15 seconds) */
   autoRefreshInterval?: number
 }
+
+/**
+ * Deduplicate messages by threadId, keeping only the latest message per thread.
+ * Messages without threadId are kept as-is.
+ */
+function deduplicateThreads(messages: EmailMessageSummary[]): EmailMessageSummary[] {
+  const threadMap = new Map<string, EmailMessageSummary>()
+  const nonThreaded: EmailMessageSummary[] = []
+
+  for (const msg of messages) {
+    if (!msg.threadId) {
+      nonThreaded.push(msg)
+    } else {
+      const existing = threadMap.get(msg.threadId)
+      if (!existing || new Date(msg.date) > new Date(existing.date)) {
+        threadMap.set(msg.threadId, msg)
+      }
+    }
+  }
+
+  return [...nonThreaded, ...Array.from(threadMap.values())].sort(
+    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+  )
+}
+
+/** Tracks local optimistic changes that must survive server refreshes */
+interface LocalOverride {
+  isRead?: boolean
+  isStarred?: boolean
+  /** Timestamp of the local override – discard after this age (ms) */
+  at: number
+}
+
+/** Local overrides expire after 60 seconds – enough time for the BE
+ *  to propagate the change to the provider and for the next delta sync
+ *  to pick it up. */
+const OVERRIDE_TTL_MS = 60_000
 
 export function useEmails({
   accessToken,
@@ -18,7 +55,7 @@ export function useEmails({
   accountId,
   search,
   starredOnly,
-  autoRefreshInterval = 30000 // Default: refresh every 30 seconds
+  autoRefreshInterval = 15000
 }: UseEmailsOptions) {
   const [messages, setMessages] = useState<EmailMessageSummary[]>([])
   const [selectedMessage, setSelectedMessage] = useState<EmailMessage | null>(null)
@@ -27,6 +64,43 @@ export function useEmails({
   const [page, setPage] = useState(1)
   const [isVisible, setIsVisible] = useState(true)
   const loadingRef = useRef(false)
+
+  /**
+   * Map of messageId → local overrides. These are applied on top of
+   * server data during silent refreshes to prevent flicker/reversion.
+   */
+  const localOverridesRef = useRef<Map<string, LocalOverride>>(new Map())
+
+  /** Prune expired overrides */
+  const pruneOverrides = useCallback(() => {
+    const now = Date.now()
+    const map = localOverridesRef.current
+    for (const [id, override] of map) {
+      if (now - override.at > OVERRIDE_TTL_MS) {
+        map.delete(id)
+      }
+    }
+  }, [])
+
+  /** Apply local overrides on top of server data */
+  const applyOverrides = useCallback(
+    (serverMessages: EmailMessageSummary[]): EmailMessageSummary[] => {
+      pruneOverrides()
+      const map = localOverridesRef.current
+      if (map.size === 0) return serverMessages
+
+      return serverMessages.map(msg => {
+        const override = map.get(msg.id)
+        if (!override) return msg
+        return {
+          ...msg,
+          ...(override.isRead !== undefined ? { isRead: override.isRead } : {}),
+          ...(override.isStarred !== undefined ? { isStarred: override.isStarred } : {})
+        }
+      })
+    },
+    [pruneOverrides]
+  )
 
   useEffect(() => {
     EmailApiService.setAccessToken(accessToken)
@@ -44,7 +118,6 @@ export function useEmails({
   const loadMessages = useCallback(
     async (pageNum = 1, silent = false) => {
       if (!accessToken) return
-      // Prevent concurrent requests
       if (loadingRef.current) return
 
       loadingRef.current = true
@@ -59,7 +132,19 @@ export function useEmails({
           page: pageNum,
           limit: 50
         })
-        setMessages(result.items)
+
+        const deduplicated = deduplicateThreads(result.items)
+
+        if (silent) {
+          // Silent refresh: apply local overrides to prevent reverting
+          // optimistic updates (read status, star) until the provider syncs
+          setMessages(applyOverrides(deduplicated))
+        } else {
+          // Full reload (folder change, manual refresh): trust server state
+          localOverridesRef.current.clear()
+          setMessages(deduplicated)
+        }
+
         setTotal(result.total)
         setPage(pageNum)
       } catch (err) {
@@ -69,7 +154,7 @@ export function useEmails({
         if (!silent) setIsLoading(false)
       }
     },
-    [accessToken, folderId, accountId, search, starredOnly]
+    [accessToken, folderId, accountId, search, starredOnly, applyOverrides]
   )
 
   // Initial load on mount or when dependencies change
@@ -82,7 +167,6 @@ export function useEmails({
     if (!autoRefreshInterval || !isVisible) return
 
     const intervalId = setInterval(() => {
-      // Silent refresh (don't show loading spinner during auto-refresh)
       loadMessages(page, true)
     }, autoRefreshInterval)
 
@@ -95,8 +179,14 @@ export function useEmails({
       setSelectedMessage(message)
       // Mark as read if not already
       if (!message.isRead) {
-        await EmailApiService.markRead(id, true)
+        // Record local override BEFORE the API call so it survives any
+        // concurrent poll that might land between now and the next sync
+        localOverridesRef.current.set(id, {
+          isRead: true,
+          at: Date.now()
+        })
         setMessages(prev => prev.map(m => (m.id === id ? { ...m, isRead: true } : m)))
+        await EmailApiService.markRead(id, true)
       }
     } catch (err) {
       console.error('Failed to load message:', err)
@@ -106,6 +196,14 @@ export function useEmails({
   const toggleStar = useCallback(
     async (id: string) => {
       const result = await EmailApiService.toggleStar(id)
+
+      // Record local override
+      localOverridesRef.current.set(id, {
+        ...localOverridesRef.current.get(id),
+        isStarred: result.isStarred,
+        at: Date.now()
+      })
+
       setMessages(prev => prev.map(m => (m.id === id ? { ...m, isStarred: result.isStarred } : m)))
       if (selectedMessage?.id === id) {
         setSelectedMessage(prev => (prev ? { ...prev, isStarred: result.isStarred } : null))
@@ -117,6 +215,7 @@ export function useEmails({
   const deleteMessage = useCallback(
     async (id: string) => {
       await EmailApiService.deleteMessage(id)
+      localOverridesRef.current.delete(id)
       setMessages(prev => prev.filter(m => m.id !== id))
       if (selectedMessage?.id === id) setSelectedMessage(null)
     },
@@ -126,6 +225,7 @@ export function useEmails({
   const moveToFolder = useCallback(
     async (id: string, targetFolderId: string) => {
       await EmailApiService.moveToFolder(id, targetFolderId)
+      localOverridesRef.current.delete(id)
       setMessages(prev => prev.filter(m => m.id !== id))
       if (selectedMessage?.id === id) setSelectedMessage(null)
     },
@@ -143,6 +243,6 @@ export function useEmails({
     toggleStar,
     deleteMessage,
     moveToFolder,
-    refreshMessages: () => loadMessages(page, false) // Manual refresh shows loading
+    refreshMessages: () => loadMessages(page, false)
   }
 }

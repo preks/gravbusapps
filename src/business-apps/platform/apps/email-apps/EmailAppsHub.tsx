@@ -62,6 +62,7 @@ export interface EmailAppsHubProps extends BusinessAppContextProps {
 
 export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
   accessToken,
+  userInfo,
   'data-testid': testId = 'email-apps-hub'
 }) => {
   // Check if this is an OAuth callback redirect
@@ -229,6 +230,25 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
     }
   }, [inboxFolder, selectedFolderId])
 
+  // Deep-link: auto-open message from ?messageId=<uuid> parameter
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search)
+      const deepLinkMessageId = params.get('messageId')
+      if (deepLinkMessageId && accessToken) {
+        selectMessage(deepLinkMessageId)
+        // Clean up URL param after opening
+        params.delete('messageId')
+        const cleanUrl = params.toString()
+          ? `${window.location.pathname}?${params.toString()}`
+          : window.location.pathname
+        window.history.replaceState({}, '', cleanUrl)
+      }
+    } catch {
+      // Silently ignore URL parsing errors
+    }
+  }, [accessToken, selectMessage])
+
   // Persist sidebar state
   useEffect(() => {
     try {
@@ -303,6 +323,9 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
         onDelete={deleteMessage}
         onToggleStar={toggleStar}
         onArchive={handleArchive}
+        accessToken={accessToken}
+        activeAccount={defaultAccount}
+        employeeId={userInfo?.employeeDetails?.employeeId}
       />
 
       {/* Composer with auto-suggest */}
