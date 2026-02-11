@@ -2,7 +2,7 @@
 
 import React from 'react'
 import { Card, CardHeader, CardTitle, CardContent, Button, Progress, Badge } from '@newwork/nw-design-system'
-import { CheckCircle2, AlertCircle, XCircle, Target } from 'lucide-react'
+import { CheckCircle2, XCircle, Target } from 'lucide-react'
 
 interface PerformanceGrowthSectionProps {
   onTrack: number
@@ -25,13 +25,13 @@ export const PerformanceGrowthSection: React.FC<PerformanceGrowthSectionProps> =
 }) => {
   if (loading) {
     return (
-      <Card style={{ minHeight: '200px', borderRadius: '12px' }} className="gba:p-5">
-        <CardHeader>
-          <CardTitle>Performance & Growth</CardTitle>
+      <Card style={{ borderRadius: '12px' }} className="gba:p-4">
+        <CardHeader className="gba:pb-2">
+          <CardTitle className="gba:text-base">Performance & Growth</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="gba:animate-pulse gba:space-y-3">
-            <div className="gba:h-8 gba:bg-muted gba:rounded" />
+          <div className="gba:animate-pulse gba:space-y-2">
+            <div className="gba:h-6 gba:bg-muted gba:rounded" />
             <div className="gba:h-4 gba:bg-muted gba:rounded" />
           </div>
         </CardContent>
@@ -42,56 +42,46 @@ export const PerformanceGrowthSection: React.FC<PerformanceGrowthSectionProps> =
   const hasGoals = totalGoals > 0
 
   return (
-    <Card
-      data-testid="performance-growth-section"
-      style={{ minHeight: '200px', borderRadius: '12px' }}
-      className="gba:p-5"
-    >
-      <CardHeader className="gba:pb-3">
-        <CardTitle className="gba:text-lg gba:font-semibold">Performance & Growth</CardTitle>
-        <p className="gba:text-sm gba:text-muted-foreground">Goals progress distribution</p>
+    <Card data-testid="performance-growth-section" style={{ borderRadius: '12px' }} className="gba:p-4">
+      <CardHeader className="gba:pb-2">
+        <CardTitle className="gba:text-base gba:font-semibold">Performance & Growth</CardTitle>
+        <p className="gba:text-xs gba:text-muted-foreground">Goals progress distribution</p>
       </CardHeader>
-      <CardContent className="gba:space-y-3">
+      <CardContent className="gba:space-y-2">
         {hasGoals ? (
           <>
             {/* Distribution (Primary) */}
-            <div className="gba:space-y-2">
+            <div className="gba:space-y-1.5">
               {onTrack > 0 && (
-                <div className="gba:flex gba:items-center gba:justify-between gba:p-2 gba:rounded-lg gba:bg-success/10">
-                  <div className="gba:flex gba:items-center gba:gap-2">
-                    <CheckCircle2 className="gba:text-success" size={18} />
-                    <span className="gba:text-sm gba:font-medium">On track</span>
+                <div className="gba:flex gba:items-center gba:justify-between gba:p-1.5 gba:rounded-lg gba:bg-success/10">
+                  <div className="gba:flex gba:items-center gba:gap-1.5">
+                    <CheckCircle2 className="gba:text-success" size={16} />
+                    <span className="gba:text-xs gba:font-medium">On track</span>
                   </div>
-                  <Badge variant="success">{onTrack}</Badge>
-                </div>
-              )}
-
-              {atRisk > 0 && (
-                <div className="gba:flex gba:items-center gba:justify-between gba:p-2 gba:rounded-lg gba:bg-warning/10">
-                  <div className="gba:flex gba:items-center gba:gap-2">
-                    <AlertCircle className="gba:text-warning" size={18} />
-                    <span className="gba:text-sm gba:font-medium">At risk</span>
-                  </div>
-                  <Badge variant="warning">{atRisk}</Badge>
+                  <Badge variant="success" className="gba:text-xs gba:px-2 gba:py-0">
+                    {onTrack}
+                  </Badge>
                 </div>
               )}
 
               {behind > 0 && (
-                <div className="gba:flex gba:items-center gba:justify-between gba:p-2 gba:rounded-lg gba:bg-destructive/10">
-                  <div className="gba:flex gba:items-center gba:gap-2">
-                    <XCircle className="gba:text-destructive" size={18} />
-                    <span className="gba:text-sm gba:font-medium">Behind</span>
+                <div className="gba:flex gba:items-center gba:justify-between gba:p-1.5 gba:rounded-lg gba:bg-destructive/10">
+                  <div className="gba:flex gba:items-center gba:gap-1.5">
+                    <XCircle className="gba:text-destructive" size={16} />
+                    <span className="gba:text-xs gba:font-medium">Behind</span>
                   </div>
-                  <Badge variant="destructive">{behind}</Badge>
+                  <Badge variant="destructive" className="gba:text-xs gba:px-2 gba:py-0">
+                    {behind}
+                  </Badge>
                 </div>
               )}
             </div>
 
             {/* Progress indicator (Secondary) */}
-            <div className="gba:border-t gba:pt-3">
+            <div className="gba:border-t gba:pt-2">
               <Progress
                 value={averageProgress}
-                className="gba:h-2 gba:mb-1"
+                className="gba:h-1.5 gba:mb-1"
                 indicatorClassName={
                   averageProgress >= 70
                     ? 'gba:bg-success'
@@ -107,23 +97,17 @@ export const PerformanceGrowthSection: React.FC<PerformanceGrowthSectionProps> =
 
             {/* Action Button */}
             {(atRisk > 0 || behind > 0) && (
-              <Button onClick={onNavigateToTeamPerformance} variant="outline" className="gba:w-full">
-                <Target size={16} className="gba:mr-2" />
+              <Button onClick={onNavigateToTeamPerformance} variant="outline" size="sm" className="gba:w-full gba:h-8">
+                <Target size={14} className="gba:mr-1.5" />
                 Review at-risk goals
               </Button>
             )}
-
-            {atRisk === 0 && behind === 0 && (
-              <div className="gba:p-3 gba:bg-success/10 gba:border gba:border-success/20 gba:rounded-lg">
-                <p className="gba:text-sm gba:text-success gba:font-medium">All goals on track!</p>
-              </div>
-            )}
           </>
         ) : (
-          <div className="gba:text-center gba:py-8 gba:text-muted-foreground">
-            <Target size={48} className="gba:mx-auto gba:mb-2 gba:opacity-50" />
-            <p className="gba:font-medium">No performance goals set</p>
-            <p className="gba:text-sm gba:mb-4">Set goals to track team progress</p>
+          <div className="gba:text-center gba:py-6 gba:text-muted-foreground">
+            <Target size={40} className="gba:mx-auto gba:mb-2 gba:opacity-50" />
+            <p className="gba:text-sm gba:font-medium">No performance goals set</p>
+            <p className="gba:text-xs gba:mb-3">Set goals to track team progress</p>
             <Button onClick={onNavigateToTeamPerformance} variant="outline" size="sm">
               Set goals
             </Button>

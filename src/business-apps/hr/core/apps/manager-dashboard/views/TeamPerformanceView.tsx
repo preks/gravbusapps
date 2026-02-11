@@ -1,9 +1,11 @@
-import React from 'react'
+import React, { useState } from 'react'
 import dayjs from 'dayjs'
 import { Button, Badge, Spinner, Card, Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
 import { ChevronLeft } from 'lucide-react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { TeamMemberPerformance } from '../hooks/useTeamPerformance'
+
+type GoalStatusFilter = 'ALL' | 'ON_TRACK' | 'AT_RISK' | 'BEHIND_TARGET' | 'ACHIEVED'
 
 export interface TeamPerformanceViewProps {
   teamPerformance: TeamMemberPerformance[]
@@ -36,10 +38,60 @@ export const TeamPerformanceView: React.FC<TeamPerformanceViewProps> = ({
   onNavigateBack,
   onNavigateToEmployee
 }) => {
-  // Filter the team performance data if needed
-  const filteredTeamPerformance = filterGoalsBehindOnly
-    ? teamPerformance.filter(member => member.goalsBehindTarget > 0)
-    : teamPerformance
+  const [statusFilter, setStatusFilter] = useState<GoalStatusFilter>('ALL')
+
+  // Filter individual goals within each member card
+  const getDisplayedGoals = (member: TeamMemberPerformance) => {
+    let goals = filterGoalsBehindOnly
+      ? member.goals.filter(goal => goal.status === 'BEHIND_TARGET' || goal.status === 'NOT_ACHIEVED')
+      : member.goals
+
+    if (statusFilter !== 'ALL') {
+      goals = goals.filter(goal => {
+        switch (statusFilter) {
+          case 'ON_TRACK':
+            return goal.status === 'ON_TRACK' || goal.status === 'ACHIEVED'
+          case 'AT_RISK':
+            return goal.status === 'AT_RISK'
+          case 'BEHIND_TARGET':
+            return goal.status === 'BEHIND_TARGET' || goal.status === 'NOT_ACHIEVED'
+          case 'ACHIEVED':
+            return goal.status === 'ACHIEVED'
+          default:
+            return true
+        }
+      })
+    }
+
+    return goals
+  }
+
+  // Filter members based on whether they have any goals matching the current filter
+  const filteredTeamPerformance = teamPerformance.filter(member => {
+    // First apply the "behind only" filter if active
+    if (filterGoalsBehindOnly && member.goalsBehindTarget === 0) {
+      return false
+    }
+
+    // If status filter is active, check pre-calculated counts on the member
+    if (statusFilter !== 'ALL') {
+      switch (statusFilter) {
+        case 'ON_TRACK':
+          return member.goalsOnTrack > 0
+        case 'AT_RISK':
+          return member.goalsAtRisk > 0
+        case 'BEHIND_TARGET':
+          return member.goalsBehindTarget > 0
+        case 'ACHIEVED':
+          // For achieved, check the goals array since there's no pre-calculated count
+          return member.goals.some(goal => goal.status === 'ACHIEVED')
+        default:
+          return true
+      }
+    }
+
+    return true
+  })
 
   return (
     <div className="gba:p-6 gba:h-full gba:flex gba:flex-col">
@@ -74,32 +126,120 @@ export const TeamPerformanceView: React.FC<TeamPerformanceViewProps> = ({
         </div>
       </div>
 
-      {/* Summary Stats */}
+      {/* Filter Buttons - Hidden, cards are now clickable */}
+      {/* <div className="gba:flex gba:items-center gba:gap-2 gba:mb-4 gba:flex-wrap">
+        <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-muted-foreground">
+          <Filter size={16} />
+          <span>Filter by status:</span>
+        </div>
+        <Button
+          variant={statusFilter === 'ALL' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setStatusFilter('ALL')}
+          className="gba:h-8"
+        >
+          All Goals
+        </Button>
+        <Button
+          variant={statusFilter === 'ON_TRACK' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setStatusFilter('ON_TRACK')}
+          className="gba:h-8"
+        >
+          <div className="gba:w-2 gba:h-2 gba:rounded-full gba:bg-success gba:mr-1.5" />
+          On Track
+        </Button>
+        <Button
+          variant={statusFilter === 'AT_RISK' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setStatusFilter('AT_RISK')}
+          className="gba:h-8"
+        >
+          <div className="gba:w-2 gba:h-2 gba:rounded-full gba:bg-warning gba:mr-1.5" />
+          At Risk
+        </Button>
+        <Button
+          variant={statusFilter === 'BEHIND_TARGET' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setStatusFilter('BEHIND_TARGET')}
+          className="gba:h-8"
+        >
+          <div className="gba:w-2 gba:h-2 gba:rounded-full gba:bg-destructive gba:mr-1.5" />
+          Behind Target
+        </Button>
+        <Button
+          variant={statusFilter === 'ACHIEVED' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setStatusFilter('ACHIEVED')}
+          className="gba:h-8"
+        >
+          <div className="gba:w-2 gba:h-2 gba:rounded-full gba:bg-info gba:mr-1.5" />
+          Achieved
+        </Button>
+      </div> */}
+
+      {/* Summary Stats - Now Clickable Filters */}
       <div className="gba:grid gba:grid-cols-4 gba:gap-4 gba:mb-6">
-        <Card className="gba:p-4">
-          <div className="gba:text-2xl gba:font-bold gba:text-foreground">{averageTeamProgress}%</div>
-          <div className="gba:text-sm gba:text-muted-foreground">
-            {getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.avg_progress', 'Avg. Progress')}
-          </div>
-        </Card>
-        <Card className="gba:p-4">
-          <div className="gba:text-2xl gba:font-bold gba:text-success">{goalsOnTrack}</div>
-          <div className="gba:text-sm gba:text-muted-foreground">
-            {getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.on_track', 'On Track')}
-          </div>
-        </Card>
-        <Card className="gba:p-4">
-          <div className="gba:text-2xl gba:font-bold gba:text-warning">{goalsAtRisk}</div>
-          <div className="gba:text-sm gba:text-muted-foreground">
-            {getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.at_risk', 'At Risk')}
-          </div>
-        </Card>
-        <Card className="gba:p-4">
-          <div className="gba:text-2xl gba:font-bold gba:text-destructive">{goalsBehindTarget}</div>
-          <div className="gba:text-sm gba:text-muted-foreground">
-            {getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.behind_target', 'Behind Target')}
-          </div>
-        </Card>
+        <button
+          onClick={() => setStatusFilter('ALL')}
+          className={`gba:text-left gba:transition-all gba:cursor-pointer gba:rounded-xl ${
+            statusFilter === 'ALL'
+              ? 'gba:ring-2 gba:ring-primary gba:ring-offset-2'
+              : 'hover:gba:ring-2 hover:gba:ring-muted-foreground/20 hover:gba:ring-offset-2'
+          }`}
+        >
+          <Card className="gba:p-4 gba:h-full">
+            <div className="gba:text-2xl gba:font-bold gba:text-foreground">{averageTeamProgress}%</div>
+            <div className="gba:text-sm gba:text-muted-foreground">
+              {getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.avg_progress', 'Avg. Progress')}
+            </div>
+          </Card>
+        </button>
+        <button
+          onClick={() => setStatusFilter('ON_TRACK')}
+          className={`gba:text-left gba:transition-all gba:cursor-pointer gba:rounded-xl ${
+            statusFilter === 'ON_TRACK'
+              ? 'gba:ring-2 gba:ring-success gba:ring-offset-2'
+              : 'hover:gba:ring-2 hover:gba:ring-muted-foreground/20 hover:gba:ring-offset-2'
+          }`}
+        >
+          <Card className="gba:p-4 gba:h-full">
+            <div className="gba:text-2xl gba:font-bold gba:text-success">{goalsOnTrack}</div>
+            <div className="gba:text-sm gba:text-muted-foreground">
+              {getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.on_track', 'On Track')}
+            </div>
+          </Card>
+        </button>
+        <button
+          onClick={() => setStatusFilter('AT_RISK')}
+          className={`gba:text-left gba:transition-all gba:cursor-pointer gba:rounded-xl ${
+            statusFilter === 'AT_RISK'
+              ? 'gba:ring-2 gba:ring-warning gba:ring-offset-2'
+              : 'hover:gba:ring-2 hover:gba:ring-muted-foreground/20 hover:gba:ring-offset-2'
+          }`}
+        >
+          <Card className="gba:p-4 gba:h-full">
+            <div className="gba:text-2xl gba:font-bold gba:text-warning">{goalsAtRisk}</div>
+            <div className="gba:text-sm gba:text-muted-foreground">
+              {getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.at_risk', 'At Risk')}
+            </div>
+          </Card>
+        </button>
+        <button
+          onClick={() => setStatusFilter('BEHIND_TARGET')}
+          className={`gba:text-left gba:transition-all gba:cursor-pointer gba:rounded-xl ${
+            statusFilter === 'BEHIND_TARGET'
+              ? 'gba:ring-2 gba:ring-destructive gba:ring-offset-2'
+              : 'hover:gba:ring-2 hover:gba:ring-muted-foreground/20 hover:gba:ring-offset-2'
+          }`}
+        >
+          <Card className="gba:p-4 gba:h-full">
+            <div className="gba:text-2xl gba:font-bold gba:text-destructive">{goalsBehindTarget}</div>
+            <div className="gba:text-sm gba:text-muted-foreground">
+              {getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.behind_target', 'Behind Target')}
+            </div>
+          </Card>
+        </button>
       </div>
 
       {/* Loading State */}
@@ -126,10 +266,8 @@ export const TeamPerformanceView: React.FC<TeamPerformanceViewProps> = ({
         <div className="gba:flex-1 gba:overflow-auto">
           <div className="gba:space-y-4">
             {filteredTeamPerformance.map(member => {
-              // If filtering by behind target, also filter the goals shown
-              const displayedGoals = filterGoalsBehindOnly
-                ? member.goals.filter(goal => goal.status === 'BEHIND_TARGET')
-                : member.goals
+              // Get filtered goals for this member
+              const displayedGoals = getDisplayedGoals(member)
 
               return (
                 <Card key={member.employeeId} className="gba:p-4">

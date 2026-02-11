@@ -19,13 +19,13 @@ export const WorkCapacitySection: React.FC<WorkCapacitySectionProps> = ({
 }) => {
   if (loading) {
     return (
-      <Card style={{ minHeight: '220px', borderRadius: '12px' }} className="gba:p-5">
-        <CardHeader>
-          <CardTitle>Work & Capacity</CardTitle>
+      <Card style={{ borderRadius: '12px' }} className="gba:p-4">
+        <CardHeader className="gba:pb-2">
+          <CardTitle className="gba:text-base">Work & Capacity</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="gba:animate-pulse gba:space-y-3">
-            <div className="gba:h-8 gba:bg-muted gba:rounded" />
+          <div className="gba:animate-pulse gba:space-y-2">
+            <div className="gba:h-6 gba:bg-muted gba:rounded" />
             <div className="gba:h-4 gba:bg-muted gba:rounded" />
           </div>
         </CardContent>
@@ -34,18 +34,18 @@ export const WorkCapacitySection: React.FC<WorkCapacitySectionProps> = ({
   }
 
   return (
-    <Card data-testid="work-capacity-section" style={{ minHeight: '220px', borderRadius: '12px' }} className="gba:p-5">
-      <CardHeader className="gba:pb-3">
-        <CardTitle className="gba:text-lg gba:font-semibold">Work & Capacity</CardTitle>
-        <p className="gba:text-sm gba:text-muted-foreground">Team utilization overview</p>
+    <Card data-testid="work-capacity-section" style={{ borderRadius: '12px' }} className="gba:p-4">
+      <CardHeader className="gba:pb-2">
+        <CardTitle className="gba:text-base gba:font-semibold">Work & Capacity</CardTitle>
+        <p className="gba:text-xs gba:text-muted-foreground">Team utilization overview</p>
       </CardHeader>
-      <CardContent className="gba:space-y-3">
+      <CardContent className="gba:space-y-2.5">
         {/* Capacity Utilization */}
         <div>
-          <div className="gba:flex gba:items-baseline gba:justify-between gba:mb-2">
+          <div className="gba:flex gba:items-baseline gba:justify-between gba:mb-1.5">
             <div>
-              <p className="gba:text-3xl gba:font-bold">{utilizationPercent}%</p>
-              <p className="gba:text-sm gba:text-muted-foreground">capacity utilized</p>
+              <p className="gba:text-2xl gba:font-bold">{utilizationPercent}%</p>
+              <p className="gba:text-xs gba:text-muted-foreground">capacity utilized</p>
             </div>
             <div className="gba:text-right">
               <p className="gba:text-lg gba:font-semibold">{idleCount}</p>
@@ -59,10 +59,11 @@ export const WorkCapacitySection: React.FC<WorkCapacitySectionProps> = ({
         <Button
           onClick={onNavigateToUnallocatedTeammates}
           variant="outline"
-          className="gba:w-full"
+          size="sm"
+          className="gba:w-full gba:h-8"
           disabled={idleCount === 0}
         >
-          <Briefcase size={16} className="gba:mr-2" />
+          <Briefcase size={14} className="gba:mr-1.5" />
           Assign project
         </Button>
       </CardContent>

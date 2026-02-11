@@ -557,10 +557,10 @@ export const useFlightRiskPrediction = ({
         })
       }
 
-      // Trigger async trend fetching
-      fetchTrends().catch(err => {
-        console.warn('Trend fetching failed:', err)
-      })
+      // Note: Trend fetching temporarily disabled as teamRiskScoreHistory API is not yet available
+      // fetchTrends().catch(err => {
+      //   console.warn('Trend fetching failed:', err)
+      // })
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Failed to fetch flight risk data'))
       console.error('Error fetching flight risk data:', err)

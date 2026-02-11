@@ -1,5 +1,3 @@
-// NO BUSINESS LOGIC HERE. Data + actions come from useManagerWorkboardVM.
-
 import React from 'react'
 import {
   Card,
@@ -10,9 +8,10 @@ import {
   Sheet,
   SheetContent,
   SheetHeader,
-  SheetTitle
+  SheetTitle,
+  Switch
 } from '@newwork/nw-design-system'
-import { AlertTriangle, X, TrendingUp } from 'lucide-react'
+import { AlertTriangle, X, TrendingUp, Sparkles } from 'lucide-react'
 import { FlightRiskDetailPanel } from '../FlightRiskDetailPanel'
 
 interface FlightRiskEmployee {
@@ -43,19 +42,23 @@ interface TeamHealthSectionProps {
   employees: FlightRiskEmployee[]
   loading: boolean
   onNavigateToEmployee: (employeeId: string) => void
+  enableAISentiment?: boolean
+  onToggleSentimentAnalysis?: (enabled: boolean) => void
 }
 
 export const TeamHealthSection: React.FC<TeamHealthSectionProps> = ({
   summary,
   employees,
   loading,
-  onNavigateToEmployee
+  onNavigateToEmployee,
+  enableAISentiment = false,
+  onToggleSentimentAnalysis
 }) => {
   const [isPanelOpen, setIsPanelOpen] = React.useState(false)
 
   if (loading) {
     return (
-      <Card style={{ minHeight: '200px', borderRadius: '12px' }} className="gba:p-5">
+      <Card style={{ borderRadius: '12px' }} className="gba:p-5">
         <CardHeader>
           <CardTitle>Team Health</CardTitle>
         </CardHeader>
@@ -133,52 +136,71 @@ export const TeamHealthSection: React.FC<TeamHealthSectionProps> = ({
     <>
       <Card
         data-testid="team-health-section"
-        style={{ minHeight: '200px', borderRadius: '12px', overflow: 'hidden' }}
+        style={{ borderRadius: '12px' }}
         className="gba:p-5 gba:flex gba:flex-col"
       >
-        <CardHeader className="gba:flex-none">
+        <CardHeader className="gba:flex-none gba:pb-3">
           <div className="gba:flex gba:items-center gba:justify-between">
             <CardTitle className="gba:text-lg gba:font-semibold">Team Health</CardTitle>
             <Badge variant={getRiskBadgeVariant(overallRisk)}>
               {overallRisk === 'high' ? 'High Risk' : overallRisk === 'medium' ? 'Medium Risk' : 'Low Risk'}
             </Badge>
           </div>
-          <p className="gba:text-sm gba:text-muted-foreground">Retention risk monitoring</p>
+          <div className="gba:flex gba:items-center gba:justify-between">
+            <p className="gba:text-sm gba:text-muted-foreground">Retention risk monitoring</p>
+            {onToggleSentimentAnalysis && (
+              <div className="gba:flex gba:items-center gba:gap-2">
+                <label
+                  htmlFor="sentiment-toggle"
+                  className="gba:flex gba:items-center gba:gap-1.5 gba:text-xs gba:text-muted-foreground gba:cursor-pointer"
+                >
+                  <Sparkles size={12} className={enableAISentiment ? 'gba:text-primary' : ''} />
+                  <span>AI Sentiment</span>
+                </label>
+                <Switch
+                  id="sentiment-toggle"
+                  checked={enableAISentiment}
+                  onCheckedChange={onToggleSentimentAnalysis}
+                  className="gba:scale-75"
+                />
+              </div>
+            )}
+          </div>
         </CardHeader>
-        <CardContent className="gba:space-y-4 gba:overflow-y-auto gba:flex-1">
+        <CardContent className="gba:space-y-3 gba:flex-1">
           {/* Summary Stats - Clickable to open detail panel */}
           {summary && summary.totalEmployees > 0 && (
             <div className="gba:grid gba:grid-cols-3 gba:gap-2">
               <button
                 onClick={openDetailPanel}
-                className="gba:p-2 gba:bg-destructive/10 gba:rounded-lg gba:hover:bg-destructive/20 gba:transition-colors gba:text-center gba:cursor-pointer"
+                className="gba:p-2.5 gba:bg-destructive/10 gba:rounded-lg gba:hover:bg-destructive/20 gba:transition-colors gba:text-center gba:cursor-pointer"
               >
-                <p className="gba:text-2xl gba:font-bold gba:text-destructive">{highRiskTotal}</p>
+                <p className="gba:text-xl gba:font-bold gba:text-destructive">{highRiskTotal}</p>
                 <p className="gba:text-xs gba:text-muted-foreground">High Risk</p>
               </button>
               <button
                 onClick={openDetailPanel}
-                className="gba:p-2 gba:bg-warning/10 gba:rounded-lg gba:hover:bg-warning/20 gba:transition-colors gba:text-center gba:cursor-pointer"
+                className="gba:p-2.5 gba:bg-warning/10 gba:rounded-lg gba:hover:bg-warning/20 gba:transition-colors gba:text-center gba:cursor-pointer"
               >
-                <p className="gba:text-2xl gba:font-bold gba:text-warning">{summary.mediumRiskCount}</p>
+                <p className="gba:text-xl gba:font-bold gba:text-warning">{summary.mediumRiskCount}</p>
                 <p className="gba:text-xs gba:text-muted-foreground">Medium Risk</p>
               </button>
               <button
                 onClick={openDetailPanel}
-                className="gba:p-2 gba:bg-success/10 gba:rounded-lg gba:hover:bg-success/20 gba:transition-colors gba:text-center gba:cursor-pointer"
+                className="gba:p-2.5 gba:bg-success/10 gba:rounded-lg gba:hover:bg-success/20 gba:transition-colors gba:text-center gba:cursor-pointer"
               >
-                <p className="gba:text-2xl gba:font-bold gba:text-success">{summary.lowRiskCount}</p>
+                <p className="gba:text-xl gba:font-bold gba:text-success">{summary.lowRiskCount}</p>
                 <p className="gba:text-xs gba:text-muted-foreground">Low Risk</p>
               </button>
             </div>
           )}
 
           {/* Key Drivers and Top Risk Factors - Side by Side */}
-          <div className="gba:grid gba:grid-cols-2 gba:gap-3">
+          <div className="gba:grid gba:grid-cols-2 gba:gap-2.5">
             {/* Key Drivers (Positive - What's Working Well) */}
             {keyDrivers.length > 0 && overallRisk !== 'high' && (
               <div>
-                <p className="gba:text-xs gba:font-medium gba:mb-2 gba:text-success">Key Drivers:</p>
+                <p className="gba:text-xs gba:font-medium gba:mb-1.5 gba:text-success">Key Drivers:</p>
                 <div className="gba:space-y-1">
                   {keyDrivers.map((driver, idx) => (
                     <div key={idx} className="gba:flex gba:items-center gba:gap-1.5 gba:text-xs">
@@ -193,7 +215,7 @@ export const TeamHealthSection: React.FC<TeamHealthSectionProps> = ({
             {/* Top Risk Factors (Negative - Areas of Concern) */}
             {topRiskFactors.length > 0 && (
               <div>
-                <p className="gba:text-xs gba:font-medium gba:mb-2 gba:text-destructive">Top Risk Factors:</p>
+                <p className="gba:text-xs gba:font-medium gba:mb-1.5 gba:text-destructive">Top Risk Factors:</p>
                 <div className="gba:space-y-1">
                   {topRiskFactors.map((factor, idx) => (
                     <div key={idx} className="gba:flex gba:items-center gba:gap-1.5 gba:text-xs">

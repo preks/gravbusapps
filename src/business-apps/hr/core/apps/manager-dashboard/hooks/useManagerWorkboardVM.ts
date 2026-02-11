@@ -38,6 +38,7 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
   const [isPositionSheetOpen, setIsPositionSheetOpen] = useState(false)
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null)
   const [isMemberPanelOpen, setIsMemberPanelOpen] = useState(false)
+  const [enableAISentiment, setEnableAISentiment] = useState(false)
   const [unallocatedDailyCost, setUnallocatedDailyCost] = useState<number>(0)
   const [unallocatedEmployeesWithAllocation, setUnallocatedEmployeesWithAllocation] = useState<
     Array<{ id: string; name: string; allocationPercent: number }>
@@ -215,7 +216,7 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
     accessToken: accessToken || '',
     managerId: employeeId || '',
     directReportIds,
-    enableAISentiment: false
+    enableAISentiment
   })
 
   const { userProfile } = useCurrentUserProfile({
@@ -581,7 +582,8 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
       navigateBackToDashboard: handleNavigateBackToDashboard,
       navigateToEmployee: handleNavigateToEmployee,
       openMemberPanel: handleOpenMemberPanel,
-      closeMemberPanel: handleCloseMemberPanel
+      closeMemberPanel: handleCloseMemberPanel,
+      toggleSentimentAnalysis: setEnableAISentiment
     },
 
     // BACKWARD COMPATIBILITY - Flat structure for existing component code
@@ -649,6 +651,7 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
     selectedMemberId,
     isMemberPanelOpen,
     setIsMemberPanelOpen,
+    enableAISentiment,
     handleNavigateToTeammates,
     handleNavigateToAbsentTeammates,
     handleNavigateToUnallocatedTeammates,
