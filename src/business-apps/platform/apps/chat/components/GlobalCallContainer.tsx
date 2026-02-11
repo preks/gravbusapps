@@ -456,6 +456,7 @@ export const GlobalCallContainer: React.FC = () => {
           onToggleScreenShare={handleToggleScreenShare}
           onToggleMinimize={handleToggleMinimize} // Use enhanced handler
           onToggleBackground={handleToggleBackground}
+          onToggleRnnoise={callData.toggleRnnoise || undefined}
           onToggleRaiseHand={handleToggleRaiseHand}
           onSendReaction={handleSendReaction}
           onSetVideoQuality={callData.setVideoQuality || (() => {})}
@@ -469,6 +470,7 @@ export const GlobalCallContainer: React.FC = () => {
           currentUserId={callData.currentUserId}
           currentUser={callData.currentUser}
           conversationName={callData.conversationName || undefined}
+          rnnoiseEnabled={callData.rnnoiseEnabled}
           callConversation={callData.callConversation || undefined}
           activeConversation={callData.activeConversation || undefined}
           pendingInvites={callData.pendingInvites || new Map()}

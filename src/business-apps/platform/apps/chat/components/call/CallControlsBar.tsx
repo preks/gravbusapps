@@ -54,6 +54,8 @@ export interface CallControlsBarProps {
   isScreenSharing: boolean
   /** Whether virtual background is enabled */
   backgroundEnabled: boolean
+  /** Whether RNNoise AI noise suppression is enabled */
+  rnnoiseEnabled?: boolean
   /** Whether hand is raised */
   handRaised: boolean
   /** Whether transcription is active */
@@ -66,6 +68,8 @@ export interface CallControlsBarProps {
   onToggleScreenShare?: () => void
   /** Callback to toggle background */
   onToggleBackground?: () => void
+  /** Callback to toggle RNNoise */
+  onToggleRnnoise?: () => void
   /** Callback to toggle raise hand */
   onToggleRaiseHand?: () => void
   /** Callback to send reaction */
@@ -96,12 +100,14 @@ export const CallControlsBar: React.FC<CallControlsBarProps> = ({
   isVideoEnabled,
   isScreenSharing,
   backgroundEnabled,
+  rnnoiseEnabled = true,
   handRaised,
   transcriptionActive,
   onToggleMute,
   onToggleVideo,
   onToggleScreenShare,
   onToggleBackground,
+  onToggleRnnoise,
   onToggleRaiseHand,
   onSendReaction,
   onEndCall,
@@ -113,6 +119,13 @@ export const CallControlsBar: React.FC<CallControlsBarProps> = ({
   prefixDataTestId = 'rtk-group-call',
   t = (key: string) => key
 }) => {
+  const handleRnnoiseToggle = () => {
+    console.log('[Call Controls] User toggling RNNoise', {
+      currentState: rnnoiseEnabled,
+      timestamp: new Date().toISOString()
+    })
+    onToggleRnnoise?.()
+  }
   const [reactionsOpen, setReactionsOpen] = useState(false)
   const [moreMenuOpen, setMoreMenuOpen] = useState(false)
   const callPreferences = useCallPreferences()
@@ -284,6 +297,68 @@ export const CallControlsBar: React.FC<CallControlsBarProps> = ({
                 )}
 
                 <DropdownMenuSeparator className="gba:bg-gray-700" />
+
+                {/* RNNoise AI Noise Suppression */}
+                {onToggleRnnoise && (
+                  <>
+                    <DropdownMenuCheckboxItem
+                      checked={rnnoiseEnabled}
+                      onCheckedChange={() => {
+                        handleRnnoiseToggle()
+                      }}
+                      className="gba:text-white hover:gba:bg-gray-700"
+                      data-testid={`${prefixDataTestId}-rnnoise-toggle`}
+                    >
+                      <span className="gba:flex gba:items-center gba:gap-2">
+                        <span className="gba:flex gba:items-center gba:gap-2">
+                          {t('call-aiNoiseSuppression') || 'AI Noise Suppression'}
+                          <span className="gba:text-xs gba:text-gray-400 gba:font-normal">(RNNoise)</span>
+                        </span>
+                        {rnnoiseEnabled && (
+                          <span className="gba:text-xs gba:bg-success/20 gba:text-success gba:px-2 gba:py-0.5 gba:rounded-full gba:font-semibold">
+                            ACTIVE
+                          </span>
+                        )}
+                      </span>
+                    </DropdownMenuCheckboxItem>
+
+                    {rnnoiseEnabled && (
+                      <div className="gba:px-2 gba:py-2 gba:text-xs gba:text-gray-400">
+                        <div className="gba:mb-1">{t('call-rnnoiseMode') || 'Suppression Level'}:</div>
+                        <div className="gba:flex gba:gap-1">
+                          <button
+                            onClick={() => {
+                              console.log('[Call Controls] RNNoise mode: gentle')
+                              // TODO: Add callback to change mode
+                            }}
+                            className="gba:px-2 gba:py-1 gba:rounded gba:bg-gray-700 gba:text-white hover:gba:bg-gray-600 gba:text-xs"
+                          >
+                            Gentle
+                          </button>
+                          <button
+                            onClick={() => {
+                              console.log('[Call Controls] RNNoise mode: moderate')
+                              // TODO: Add callback to change mode
+                            }}
+                            className="gba:px-2 gba:py-1 gba:rounded gba:bg-gray-700 gba:text-white hover:gba:bg-gray-600 gba:text-xs"
+                          >
+                            Moderate
+                          </button>
+                          <button
+                            onClick={() => {
+                              console.log('[Call Controls] RNNoise mode: aggressive')
+                              // TODO: Add callback to change mode
+                            }}
+                            className="gba:px-2 gba:py-1 gba:rounded gba:bg-success gba:text-success-foreground gba:text-xs"
+                          >
+                            Aggressive
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+
                 <DropdownMenuCheckboxItem
                   checked={callPreferences.noiseSuppressionEnabled}
                   onCheckedChange={checked => {
@@ -410,6 +485,25 @@ export const CallControlsBar: React.FC<CallControlsBarProps> = ({
           {/* Desktop: Individual buttons for secondary controls */}
           {showDesktopLayout && (
             <div className="gba:flex gba:items-center gba:gap-2">
+              {/* RNNoise AI noise suppression button */}
+              {onToggleRnnoise && (
+                <button
+                  onClick={handleRnnoiseToggle}
+                  className={`gba:p-3 gba:rounded-full gba:transition-all ${
+                    rnnoiseEnabled
+                      ? 'gba:bg-success gba:text-success-foreground hover:gba:bg-success/90'
+                      : 'gba:bg-accent hover:gba:bg-accent/90'
+                  }`}
+                  data-testid={`${prefixDataTestId}-rnnoise-btn`}
+                  aria-label={rnnoiseEnabled ? 'AI Noise Suppression: ON' : 'AI Noise Suppression: OFF'}
+                  title={
+                    rnnoiseEnabled ? 'AI Noise Suppression: ON (removes background noise)' : 'AI Noise Suppression: OFF'
+                  }
+                >
+                  <Microphone className="gba:w-5 gba:h-5" weight="fill" />
+                </button>
+              )}
+
               {/* Background effect button */}
               {onToggleBackground && callType === 'video' && (
                 <button

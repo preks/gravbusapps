@@ -73,6 +73,7 @@ interface GroupCallModalRtkProps {
   onSetVideoQuality?: (quality: VideoQuality) => void
   onToggleMinimize?: () => void
   onToggleBackground?: () => void
+  onToggleRnnoise?: () => void
   onToggleRaiseHand?: () => void
   onSendReaction?: (emoji: string) => void
   onMicDeviceChange?: (deviceId: string) => Promise<void>
@@ -80,6 +81,7 @@ interface GroupCallModalRtkProps {
   onSetNoiseSuppressionEnabled?: (enabled: boolean) => Promise<void> | void
   onSetAutoGainControlEnabled?: (enabled: boolean) => Promise<void> | void
   backgroundEnabled?: boolean
+  rnnoiseEnabled?: boolean
   prefixDataTestId?: string
   availableParticipants?: AvailableParticipant[]
   onInviteParticipant?: (participant: CallParticipant) => void
@@ -185,6 +187,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
   onToggleScreenShare,
   onToggleMinimize,
   onToggleBackground,
+  onToggleRnnoise,
   onToggleRaiseHand,
   onSendReaction,
   onMicDeviceChange,
@@ -194,6 +197,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
   onInviteParticipant,
   prefixDataTestId = 'rtk-group-call',
   conversationName,
+  rnnoiseEnabled,
   wsClient,
   transcriptionEnabled,
   apiClient,
@@ -3066,12 +3070,14 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
                   isVideoEnabled={effectiveLocalIsVideoEnabled}
                   isScreenSharing={effectiveLocalIsScreenSharing}
                   backgroundEnabled={callState.backgroundEnabled}
+                  rnnoiseEnabled={rnnoiseEnabled}
                   handRaised={hideReactionsAndHandRaise ? false : effectiveLocalHandRaised}
                   transcriptionActive={transcriptionEnabled}
                   onToggleMute={onToggleMute}
                   onToggleVideo={onToggleVideo}
                   onToggleScreenShare={onToggleScreenShare}
                   onToggleBackground={onToggleBackground}
+                  onToggleRnnoise={onToggleRnnoise}
                   onToggleRaiseHand={hideReactionsAndHandRaise ? undefined : onToggleRaiseHand}
                   onSendReaction={hideReactionsAndHandRaise ? undefined : onSendReaction}
                   onMicDeviceChange={
@@ -3148,9 +3154,11 @@ export const GroupCallModalRtk = React.memo(GroupCallModalRtkComponent, (prevPro
   if (prevProps.onSetVideoQuality !== nextProps.onSetVideoQuality) changedProps.push('onSetVideoQuality')
   if (prevProps.onToggleMinimize !== nextProps.onToggleMinimize) changedProps.push('onToggleMinimize')
   if (prevProps.onToggleBackground !== nextProps.onToggleBackground) changedProps.push('onToggleBackground')
+  if (prevProps.onToggleRnnoise !== nextProps.onToggleRnnoise) changedProps.push('onToggleRnnoise')
   if (prevProps.onToggleRaiseHand !== nextProps.onToggleRaiseHand) changedProps.push('onToggleRaiseHand')
   if (prevProps.onSendReaction !== nextProps.onSendReaction) changedProps.push('onSendReaction')
   if (prevProps.backgroundEnabled !== nextProps.backgroundEnabled) changedProps.push('backgroundEnabled')
+  if (prevProps.rnnoiseEnabled !== nextProps.rnnoiseEnabled) changedProps.push('rnnoiseEnabled')
   if (prevProps.prefixDataTestId !== nextProps.prefixDataTestId) changedProps.push('prefixDataTestId')
   if (prevProps.availableParticipants !== nextProps.availableParticipants) changedProps.push('availableParticipants')
   if (prevProps.onInviteParticipant !== nextProps.onInviteParticipant) changedProps.push('onInviteParticipant')

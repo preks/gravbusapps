@@ -74,6 +74,7 @@ interface StoredCallData {
   toggleScreenShare: (() => void) | null
   toggleMinimize: (() => void) | null
   toggleBackground: (() => void) | null
+  toggleRnnoise: (() => Promise<void>) | null
   toggleRaiseHand: (() => void) | null
   sendReaction: ((reaction: string) => void) | null
   setVideoQuality: ((quality: VideoQuality) => void) | null
@@ -88,6 +89,7 @@ interface StoredCallData {
   accessToken: string | null
   currentUserId: string | null
   conversationName: string | null
+  rnnoiseEnabled: boolean
   pendingInvites: Map<string, any> // Changed from array to Map to match GroupCallModalRtk
   availableParticipants: any[]
   activeExperts: any[]
@@ -138,6 +140,7 @@ class GlobalCallManager {
     toggleScreenShare: null,
     toggleMinimize: null,
     toggleBackground: null,
+    toggleRnnoise: null,
     toggleRaiseHand: null,
     sendReaction: null,
     setVideoQuality: null,
@@ -150,6 +153,7 @@ class GlobalCallManager {
     accessToken: null,
     currentUserId: null,
     conversationName: null,
+    rnnoiseEnabled: true, // Default to enabled
     pendingInvites: new Map(), // Changed from [] to new Map()
     availableParticipants: [],
     activeExperts: []

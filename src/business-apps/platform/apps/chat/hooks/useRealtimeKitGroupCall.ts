@@ -798,20 +798,21 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
         const initializedMeeting = await initMeeting({
           authToken,
           defaults: {
-            audio: (shouldEnableAudio
-              ? {
-                  ...(preferences.audioInputDeviceId ? { deviceId: { exact: preferences.audioInputDeviceId } } : {}),
-                  echoCancellation: true,
-                  autoGainControl: getResolvedAutoGainControlEnabled(),
-                  noiseSuppression: getResolvedNoiseSuppressionEnabled()
-                }
-              : false) as any,
-            video: (shouldEnableVideo
-              ? preferences.videoInputDeviceId
-                ? { deviceId: { exact: preferences.videoInputDeviceId } }
-                : true
-              : false) as any
-          },
+            // IMPORTANT:
+            // `defaults.audio` / `defaults.video` are booleans in RealtimeKit.
+            // Audio processing (AEC/AGC/NS) is configured via `defaults.mediaConfiguration.audio`.
+            audio: shouldEnableAudio,
+            video: shouldEnableVideo,
+            mediaConfiguration: {
+              audio: {
+                // Disable browser audio processing to avoid voice cut-off.
+                // NOTE: RTK expects `noiseSupression` (typo) in this config.
+                echoCancellation: false,
+                noiseSupression: false,
+                autoGainControl: false
+              }
+            }
+          } as any,
           overrides: {
             simulcastConfig: {
               encodings: SIMULCAST_ENCODINGS
@@ -843,8 +844,8 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
           return
         }
 
-        // CRITICAL: Set specific devices if provided (ensures correct device is used)
-        // Must be done AFTER initMeeting but BEFORE join.
+        // Set specific devices if provided (ensures correct device is used).
+        // With `defaults.mediaConfiguration.audio` configured, setDevice() should keep the same audio processing mode.
         if (preferences.audioInputDeviceId && typeof (initializedMeeting.self as any).setDevice === 'function') {
           try {
             rtkDebug.log('[RTK] Setting audio device before join:', preferences.audioInputDeviceId)
@@ -1325,29 +1326,24 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
           callType
         })
 
-        const audioConstraints: boolean | MediaTrackConstraints = shouldEnableAudio
-          ? ({
-              ...(initialPreferences?.audioInputDeviceId
-                ? { deviceId: { exact: initialPreferences.audioInputDeviceId } }
-                : {}),
-              echoCancellation: true,
-              autoGainControl: getResolvedAutoGainControlEnabled(),
-              noiseSuppression: getResolvedNoiseSuppressionEnabled()
-            } as MediaTrackConstraints)
-          : false
-
-        const videoConstraints: boolean | MediaTrackConstraints = shouldEnableVideo
-          ? initialPreferences?.videoInputDeviceId
-            ? ({ deviceId: { exact: initialPreferences.videoInputDeviceId } } as MediaTrackConstraints)
-            : true
-          : false
-
         const initializedMeeting = await initMeeting({
           authToken,
           defaults: {
-            audio: audioConstraints as any,
-            video: videoConstraints as any
-          },
+            // IMPORTANT:
+            // `defaults.audio` / `defaults.video` are booleans in RealtimeKit.
+            // Audio processing (AEC/AGC/NS) is configured via `defaults.mediaConfiguration.audio`.
+            audio: shouldEnableAudio,
+            video: shouldEnableVideo,
+            mediaConfiguration: {
+              audio: {
+                // Disable browser audio processing to avoid voice cut-off.
+                // NOTE: RTK expects `noiseSupression` (typo) in this config.
+                echoCancellation: false,
+                noiseSupression: false,
+                autoGainControl: false
+              }
+            }
+          } as any,
           overrides: {
             simulcastConfig: {
               encodings: SIMULCAST_ENCODINGS
@@ -1368,8 +1364,8 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
           throw new Error('Failed to initialize meeting')
         }
 
-        // CRITICAL: Set specific devices if provided (ensures correct device is used)
-        // Must be done AFTER initMeeting but BEFORE join.
+        // Set specific devices if provided (ensures correct device is used).
+        // With `defaults.mediaConfiguration.audio` configured, setDevice() should keep the same audio processing mode.
         if (
           initialPreferences?.audioInputDeviceId &&
           typeof (initializedMeeting.self as any).setDevice === 'function'
@@ -1749,6 +1745,24 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
         wasCancelled: isCancelledRef.current
       })
 
+      // Log call session end with RNNoise stats
+      const duration = callStartTime ? Date.now() - callStartTime : 0
+      const rnnoiseStats = mediaRef.current?.rnnoiseStats
+
+      console.log('[RTK Session] Call ended', {
+        sessionId: sessionIdForEmit,
+        meetingId,
+        duration: (duration / 1000).toFixed(2) + 's',
+        rnnoiseStats: rnnoiseStats
+          ? {
+              framesProcessed: rnnoiseStats.framesProcessed,
+              totalProcessingTime: rnnoiseStats.totalProcessingTime.toFixed(2) + 's',
+              averageLatency: rnnoiseStats.averageLatency.toFixed(2) + 'ms'
+            }
+          : null,
+        timestamp: new Date().toISOString()
+      })
+
       // CRITICAL: Detect if this is a cancellation during setup
       // This happens when user clicks cancel before the call is fully established
       // Check: no stable meeting connection AND not already marked as cancelled
@@ -1812,9 +1826,6 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
       // CRITICAL: Clear any stale incoming invite
       // This ensures a fresh invite dialog can appear if user is re-invited
       setIncomingInvite(null)
-
-      // Calculate duration
-      const duration = callStartTime ? Date.now() - callStartTime : 0
 
       // CRITICAL: Clean up screen share before leaving
       // Use ref to avoid dependency on screenShare object
@@ -2070,6 +2081,52 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
   // when the call first connects (in the useEffect below that monitors callState.status)
 
   /**
+   * Log call session start when connected
+   */
+  useEffect(() => {
+    if (callState.status !== 'connected') {
+      return
+    }
+  }, [
+    callState.status,
+    callState.sessionId,
+    callState.meetingId,
+    callState.roomId,
+    callState.callType,
+    media,
+    participantsHook.participants
+  ])
+
+  /**
+   * Log periodic call quality metrics
+   */
+  useEffect(() => {
+    if (callState.status !== 'connected') {
+      return
+    }
+
+    const logInterval = setInterval(() => {
+      const stats = media.rnnoiseStats
+      const callDuration = Date.now() - (callState.callStartTime ?? Date.now())
+
+      console.log('[RTK Session] Call quality metrics', {
+        duration: (callDuration / 1000).toFixed(0) + 's',
+        rnnoiseEnabled: media.rnnoiseEnabled,
+        rnnoiseStats: stats
+          ? {
+              framesProcessed: stats.framesProcessed,
+              averageLatency: stats.averageLatency.toFixed(2) + 'ms',
+              isActive: stats.isActive
+            }
+          : null,
+        participants: participantsHook.participants.length
+      })
+    }, 30000) // Every 30 seconds
+
+    return () => clearInterval(logInterval)
+  }, [callState.status, callState.callStartTime, media, participantsHook.participants])
+
+  /**
    * Store call data in globalCallManager when connected (for persistent UI)
    */
   useEffect(() => {
@@ -2154,6 +2211,9 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
       toggleBackground: () => {
         mediaRef.current?.toggleBackground()
       },
+      toggleRnnoise: async () => {
+        await mediaRef.current?.toggleRnnoise()
+      },
       toggleRaiseHand: () => {
         // CRITICAL: Get current state from websocket ref, not captured callState
         // callState.handRaised is stale - websocketRef.current.handRaised is the source of truth
@@ -2196,6 +2256,7 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
       accessToken: options.accessToken || null,
       currentUserId: currentUser?.id || null,
       conversationName: callState.conversationName || null,
+      rnnoiseEnabled: media.rnnoiseEnabled,
       activeConversation: activeConversation || null, // Currently active conversation for in-call chat
       // CRITICAL: Compute callConversation from conversations list based on roomId
       // This ensures we always use the conversation where the call was initiated
