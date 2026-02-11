@@ -324,8 +324,7 @@ export function convertToFortuneSheet(
   })
 
   // Build images array for avatar cells (FortuneSheet native image support per docs)
-  const ROW_HEADER_WIDTH = 46
-  const COL_HEADER_HEIGHT = 20
+  // Image coordinates use cell-area space (visibledatacolumn/visibledatarow) - no row/col header offsets
   const AVATAR_SIZE = 24
   const defaultColWidth = 100
   const defaultRowHeight = 25
@@ -342,7 +341,7 @@ export function convertToFortuneSheet(
   }> = []
 
   data.forEach((row, rowIndex) => {
-    let cumulativeLeft = ROW_HEADER_WIDTH
+    let cumulativeLeft = 0
     columns.forEach((column, colIndex) => {
       const colWidth = columnlen[String(colIndex)] ?? defaultColWidth
       if (column.type === 'image') {
@@ -355,8 +354,10 @@ export function convertToFortuneSheet(
           (src.startsWith('data:') || src.startsWith('http://') || src.startsWith('https://') || src.startsWith('/'))
         if (isValidSrc) {
           const fsRow = rowIndex + HEADER_ROW_OFFSET
-          const top = COL_HEADER_HEIGHT + fsRow * defaultRowHeight + (defaultRowHeight - AVATAR_SIZE) / 2
-          const left = cumulativeLeft + (colWidth - AVATAR_SIZE) / 2
+          const cellTop = fsRow * defaultRowHeight
+          const cellLeft = cumulativeLeft
+          const top = cellTop + (defaultRowHeight - AVATAR_SIZE) / 2
+          const left = cellLeft + (colWidth - AVATAR_SIZE) / 2
           images.push({
             id: `avatar_${fsRow}_${colIndex}_${rowIndex}`,
             src,

@@ -117,9 +117,17 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
 }
 
-/* FortuneSheet image layer - avatars as circular images */
+/* FortuneSheet image layer - avatars as circular images, centered in cell */
+.luckysheet-image-container,
+.luckysheet-imageshow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 .luckysheet-image-container img,
 .luckysheet-imageshow img {
   object-fit: cover;
   border-radius: 50%;
+  display: block;
+  margin: 0;
 }
