@@ -123,8 +123,8 @@ const SkillsTab: React.FC<SkillsTabProps> = ({ employee, accessToken }) => {
 
       <SkillsSnapshot snapshot={snapshot} t={t} />
 
-      <div className="gba:grid gba:grid-cols-1 gba:xl:grid-cols-12 gba:gap-4">
-        <div className="gba:xl:col-span-9 gba:space-y-4">
+      <div className="gba:grid gba:grid-cols-1 gba:lg:grid-cols-12 gba:gap-4">
+        <div className="gba:lg:col-span-9 gba:lg:order-1 gba:space-y-4" data-testid="skills-profile-main-column">
           <Card data-testid="skills-profile-filters-card">
             <CardContent className="gba:p-4">
               <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:xl:grid-cols-5 gba:gap-2">
@@ -214,7 +214,7 @@ const SkillsTab: React.FC<SkillsTabProps> = ({ employee, accessToken }) => {
           )}
         </div>
 
-        <div className="gba:xl:col-span-3">
+        <div className="gba:lg:col-span-3 gba:lg:order-2" data-testid="skills-profile-sidebar-column">
           <SkillsDevelopmentPanel
             setLevelsCount={setLevelsCount}
             verifyCount={verifyCount}
