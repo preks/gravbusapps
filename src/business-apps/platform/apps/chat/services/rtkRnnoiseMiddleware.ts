@@ -5,7 +5,9 @@
 
 import type { RealtimeKitMeeting } from '@cloudflare/realtimekit-react'
 
-const RNNOISE_WORKLET_MODULE_URL = new URL('../worklets/rnnoise-processor.ts', import.meta.url).toString()
+// Import worklet as a worker module - Vite will bundle it properly
+import workletUrl from '../worklets/rnnoise-processor.ts?worker&url'
+const RNNOISE_WORKLET_MODULE_URL = workletUrl
 
 export interface RnnoiseConfig {
   enabled: boolean

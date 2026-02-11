@@ -1,20 +1,20 @@
 // RNNoise AudioWorklet processor with stable 128->frame buffering.
 // Uses @jitsi/rnnoise-wasm with proper Emscripten API and sample scaling.
 
+// Import must be at top level for Vite to bundle it properly
 // @ts-expect-error - Jitsi rnnoise-wasm types
 import createRNNWasmModuleSync from '@jitsi/rnnoise-wasm/dist/rnnoise-sync.js'
 
-// Emscripten Module interface from @jitsi/rnnoise-wasm
-interface RnnoiseModule {
-  // Low-level Emscripten functions
-  _rnnoise_create(model: number): number // Returns DenoiseState* pointer
-  _rnnoise_destroy(st: number): void
-  _rnnoise_process_frame(st: number, out: number, in_: number): number // Returns VAD probability (0..1)
-  _malloc(size: number): number // Allocate WASM memory
-  _free(ptr: number): void // Free WASM memory
-  // Memory access helpers
-  HEAPF32: Float32Array // WASM heap for float arrays
-}
+/**
+ * Emscripten Module interface from @jitsi/rnnoise-wasm
+ * @typedef {Object} RnnoiseModule
+ * @property {function(number): number} _rnnoise_create - Creates DenoiseState instance, returns pointer
+ * @property {function(number): void} _rnnoise_destroy - Destroys DenoiseState instance
+ * @property {function(number, number, number): number} _rnnoise_process_frame - Processes frame, returns VAD probability (0..1)
+ * @property {function(number): number} _malloc - Allocates WASM memory, returns pointer
+ * @property {function(number): void} _free - Frees WASM memory
+ * @property {Float32Array} HEAPF32 - WASM heap for float arrays
+ */
 
 // TypeScript shim for AudioWorklet global scope types.
 // Some TS lib.dom versions/configs don't include AudioWorkletProcessor yet.
@@ -28,11 +28,6 @@ declare class AudioWorkletProcessor {
 
 declare function registerProcessor(name: string, processorCtor: typeof AudioWorkletProcessor): void
 
-type RnnoiseProcessorOptions = {
-  strength?: number
-  logLevel?: 'verbose' | 'normal' | 'minimal'
-}
-
 const clamp01 = (value: number): number => Math.max(0, Math.min(1, value))
 
 class RnnoiseProcessor extends AudioWorkletProcessor {
@@ -41,7 +36,7 @@ class RnnoiseProcessor extends AudioWorkletProcessor {
 
   private rnnoiseReady = false
   private stopped = false // Flag to stop processing when disabled
-  private rnnoiseModule: RnnoiseModule | null = null
+  private rnnoiseModule: any = null
   private denoiseStatePtr: number = 0 // WASM pointer to DenoiseState
   private frameSize = 480
 
@@ -64,7 +59,7 @@ class RnnoiseProcessor extends AudioWorkletProcessor {
   constructor(options?: AudioWorkletNodeOptions) {
     super()
 
-    const processorOptions = (options?.processorOptions ?? {}) as RnnoiseProcessorOptions
+    const processorOptions = (options?.processorOptions ?? {}) as any
     this.logLevel = processorOptions.logLevel ?? 'normal'
     this.strength = clamp01(processorOptions.strength ?? 0.8)
 
@@ -105,7 +100,7 @@ class RnnoiseProcessor extends AudioWorkletProcessor {
   private initializeRnnoise(): void {
     try {
       // Use synchronous loading for AudioWorklet context
-      const module = createRNNWasmModuleSync() as RnnoiseModule
+      const module = createRNNWasmModuleSync()
       this.rnnoiseModule = module
 
       // RNNoise always processes 480 samples per frame at 48kHz (10ms frames)
