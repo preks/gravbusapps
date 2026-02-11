@@ -31,6 +31,7 @@ import UpdateEmployeeEntitlements from '../../../../forms/update-employee-entitl
 import { env } from '@/common/env/EnvUtils'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { GET_ENTITLEMENTS_SNAPSHOT_FOR_YEAR } from '@/business-apps/hr/absences/apps/personal-absences/queries/graphql'
 import { fetchHolidayDates } from './utils/fetchHolidayDates'
 
 const AbsencesTab: React.FC<AbsencesTabProps> = ({
@@ -55,6 +56,13 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
   const [isFetchingGroups, setIsFetchingGroups] = useState<boolean>(true)
   const [holidayDates, setHolidayDates] = useState<string[]>([])
   const graphqlClient = useGraphQLClient(accessToken)
+  const A001_TYPE_REF = 'AbsenceType:v1:A001'
+  const [annualLeaveOverride, setAnnualLeaveOverride] = useState<{
+    total: number
+    used: number
+    pending: number
+    available: number
+  } | null>(null)
 
   const startDateFormatted = selectedStartDate?.format('YYYY-MM-DD') ?? ''
   const endDateFormatted = selectedEndDate?.format('YYYY-MM-DD') ?? ''
@@ -81,6 +89,59 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
     const interval = setInterval(checkLocale, 1000)
     return () => clearInterval(interval)
   }, [currentLocale])
+
+  // Fetch Annual Leave (A001) entitlement snapshot for the full current year and aggregate windows
+  useEffect(() => {
+    interface EntitlementSnapshotRow {
+      typeRef: string
+      totalEntitlement?: number | string
+      usedApproved?: number | string
+      usedPending?: number | string
+      remaining?: number | string
+      periodStart?: string
+      periodEnd?: string
+    }
+
+    const fetchAnnualLeaveSnapshot = async () => {
+      try {
+        if (!graphqlClient || !employee?.id) return
+        const year = dayjs().year()
+        const yearStart = dayjs(`${year}-01-01`).format('YYYY-MM-DD')
+        const yearEnd = dayjs(`${year}-12-31`).format('YYYY-MM-DD')
+
+        const res: {
+          EntitlementUsageSnapshotView?: EntitlementSnapshotRow[]
+          entitlement_usage_snapshot_view?: EntitlementSnapshotRow[]
+        } = await graphqlClient.request(GET_ENTITLEMENTS_SNAPSHOT_FOR_YEAR, {
+          employeeId: employee.id,
+          yearStart,
+          yearEnd
+        })
+
+        const rows: EntitlementSnapshotRow[] =
+          res?.EntitlementUsageSnapshotView || res?.entitlement_usage_snapshot_view || []
+        // Filter to Annual Leave type only if backend returns multiple types in range
+        const a001Rows = rows.filter(r => r?.typeRef === A001_TYPE_REF)
+        if (!a001Rows.length) {
+          setAnnualLeaveOverride(null)
+          return
+        }
+        const total = a001Rows.reduce((sum, r) => sum + (Number(r?.totalEntitlement) || 0), 0)
+        const usedApproved = a001Rows.reduce((sum, r) => sum + (Number(r?.usedApproved) || 0), 0)
+        const usedPending = a001Rows.reduce((sum, r) => sum + (Number(r?.usedPending) || 0), 0)
+        const remaining = Math.max(0, total - usedApproved - usedPending)
+        setAnnualLeaveOverride({ total, used: usedApproved, pending: usedPending, available: remaining })
+      } catch (err) {
+        // Gracefully fall back to existing entitlement values; non-fatal
+        if (process?.env?.NODE_ENV !== 'production') {
+          console.warn('Annual leave snapshot fetch failed', err)
+        }
+        setAnnualLeaveOverride(null)
+      }
+    }
+
+    fetchAnnualLeaveSnapshot()
+  }, [graphqlClient, employee?.id])
 
   useEffect(() => {
     const fetchUserGroups = async () => {
@@ -150,6 +211,28 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
     }
   }, [refetch])
 
+  // Merge Annual Leave snapshot override (A001) into entitlements without affecting other types
+  const ANNUAL_LABEL_HINTS = ['annual', 'vacation', 'holiday'] as const
+
+  const mergedEntitlements = React.useMemo(() => {
+    if (!annualLeaveOverride) return entitlements
+    const matchAnnual = (label: string) => {
+      const l = (label || '').toLowerCase()
+      return ANNUAL_LABEL_HINTS.some(h => l.includes(h))
+    }
+    return entitlements.map(e =>
+      matchAnnual(e.type)
+        ? {
+            ...e,
+            used: annualLeaveOverride.used,
+            total: annualLeaveOverride.total,
+            pending: annualLeaveOverride.pending,
+            available: annualLeaveOverride.available
+          }
+        : e
+    )
+  }, [entitlements, annualLeaveOverride])
+
   const tabsItems = [
     {
       key: 'calendar',
@@ -211,7 +294,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
       ),
       children: (
         <div className="gba:entitlements-content">
-          <Entitlements entitlements={entitlements} loading={loading} error={error} />
+          <Entitlements entitlements={mergedEntitlements} loading={loading} error={error} />
         </div>
       )
     }
