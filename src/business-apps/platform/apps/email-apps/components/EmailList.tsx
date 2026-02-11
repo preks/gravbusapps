@@ -6,7 +6,7 @@
 import React, { useState, useCallback } from 'react'
 import { toast } from 'sonner'
 import { Input, Spinner, Button, Checkbox } from '@newwork/nw-design-system'
-import { Search, Star, Paperclip, AlertCircle, Trash2, MailOpen, Mail } from 'lucide-react'
+import { Search, Star, Paperclip, AlertCircle, Trash2, MailOpen, Mail, MessageSquare } from 'lucide-react'
 import { EmailApiService } from '../services/EmailApiService'
 import type { EmailMessageSummary } from '../types'
 
@@ -269,13 +269,24 @@ function EmailListItem({
           </span>
         </div>
 
-        <p
-          className={`gba:text-sm gba:truncate gba:mb-0.5 ${
-            !message.isRead ? 'gba:font-medium gba:text-foreground' : 'gba:text-foreground'
-          }`}
-        >
-          {message.subject || '(no subject)'}
-        </p>
+        <div className="gba:flex gba:items-center gba:gap-1.5 gba:mb-0.5">
+          <p
+            className={`gba:text-sm gba:truncate gba:flex-1 ${
+              !message.isRead ? 'gba:font-medium gba:text-foreground' : 'gba:text-foreground'
+            }`}
+          >
+            {message.subject || '(no subject)'}
+          </p>
+          {(message.threadMessageCount ?? 0) > 1 && (
+            <span
+              className="gba:inline-flex gba:items-center gba:gap-0.5 gba:px-1.5 gba:py-0.5 gba:rounded-full gba:bg-primary/10 gba:text-primary gba:flex-shrink-0"
+              title={`${message.threadMessageCount} messages in thread`}
+            >
+              <MessageSquare className="gba:w-3 gba:h-3" />
+              <span className="gba:text-[10px] gba:font-semibold gba:leading-none">{message.threadMessageCount}</span>
+            </span>
+          )}
+        </div>
 
         <div className="gba:flex gba:items-center gba:gap-2">
           <p className="gba:text-xs gba:text-muted-foreground gba:truncate gba:flex-1">{message.snippet}</p>

@@ -144,6 +144,7 @@ export const buildActivityQuery = (
         ${entityFields.ownerEmployeeId}
         ${entityFields.source}
         ${entityFields.title}
+        additionalProperties
         ${additionalFields || ''}
         ${references || ''}
       }
@@ -189,6 +190,7 @@ export const buildActivityByIdQuery = (
         ${entityFields.ownerEmployeeId}
         ${entityFields.source}
         ${entityFields.title}
+        additionalProperties
   `
 
   // Common entity relations

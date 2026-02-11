@@ -12,7 +12,8 @@ import type {
   PaginatedResponse,
   CreateEmailAccountRequest,
   SendEmailRequest,
-  ExternalCalendarEvent
+  ExternalCalendarEvent,
+  ThreadSummaryResult
 } from '../types'
 
 const API_URL = getDocumentServiceApiUrl()
@@ -110,6 +111,12 @@ export const EmailApiService = {
 
   async getThread(threadId: string): Promise<EmailMessage[]> {
     return apiRequest<EmailMessage[]>(`/emails/threads/${threadId}`)
+  },
+
+  async summarizeThread(threadId: string): Promise<ThreadSummaryResult> {
+    return apiRequest<ThreadSummaryResult>(`/emails/threads/${threadId}/summarize`, {
+      method: 'POST'
+    })
   },
 
   async sendEmail(data: SendEmailRequest): Promise<EmailMessage> {
