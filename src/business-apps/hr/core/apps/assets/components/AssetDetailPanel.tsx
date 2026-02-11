@@ -197,11 +197,18 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
   const dayjsLocale = localeCode === 'ro' ? 'ro' : localeCode === 'de' ? 'de' : 'en'
   dayjs.locale(dayjsLocale)
 
-  const acquisitionDate = dayjs(asset.acquisitionDate)
-  const warrantyExpiryDate = acquisitionDate.add(asset.warrantyPeriodMonths, 'month')
+  const hasValidWarrantyData =
+    asset.acquisitionDate != null &&
+    asset.acquisitionDate !== '' &&
+    typeof asset.warrantyPeriodMonths === 'number' &&
+    !Number.isNaN(asset.warrantyPeriodMonths)
 
-  const warrantyExpired = isWarrantyExpired(warrantyExpiryDate.toISOString())
-  const daysRemaining = getWarrantyDaysRemaining(warrantyExpiryDate.toISOString())
+  const warrantyExpiryDate = hasValidWarrantyData
+    ? dayjs(asset.acquisitionDate).add(asset.warrantyPeriodMonths ?? 0, 'month')
+    : null
+
+  const warrantyExpired = warrantyExpiryDate != null && isWarrantyExpired(warrantyExpiryDate.toISOString())
+  const daysRemaining = warrantyExpiryDate != null ? getWarrantyDaysRemaining(warrantyExpiryDate.toISOString()) : 0
   const sortedAllocations = [...allocations].sort((a, b) => dayjs(b.startDate).diff(dayjs(a.startDate)))
 
   return (
@@ -271,7 +278,8 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
                       className="gba:text-sm gba:text-muted-foreground gba:font-mono"
                       data-testid="asset-serial-number"
                     >
-                      {asset.serialNumber}
+                      {asset.serialNumber ??
+                        getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.not_available', 'N/A')}
                     </p>
                   </div>
                 </div>
@@ -314,7 +322,9 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
                       {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.acquisition_date', 'Acquisition Date')}
                     </p>
                     <p className="gba:text-sm gba:text-muted-foreground" data-testid="asset-acquisition-date">
-                      {formatDate(asset.acquisitionDate) || asset.acquisitionDate}
+                      {asset.acquisitionDate
+                        ? formatDate(asset.acquisitionDate) || asset.acquisitionDate
+                        : getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.not_available', 'N/A')}
                     </p>
                   </div>
                 </div>
@@ -334,24 +344,27 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
                       {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.warranty_period', 'Warranty Period')}
                     </p>
                     <p className="gba:text-sm gba:text-muted-foreground">
-                      {asset.warrantyPeriodMonths}{' '}
-                      {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.months', 'months')}
+                      {typeof asset.warrantyPeriodMonths === 'number'
+                        ? `${asset.warrantyPeriodMonths} ${getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.months', 'months')}`
+                        : getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.not_available', 'N/A')}
                     </p>
                   </div>
-                  {warrantyExpired ? (
-                    <Badge variant="destructive" data-testid="warranty-status-expired">
-                      {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.expired', 'Expired')}
-                    </Badge>
-                  ) : daysRemaining < 90 ? (
-                    <Badge variant="warning" data-testid="warranty-status-expiring">
-                      {Math.ceil(daysRemaining / 30)}{' '}
-                      {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.mo_left', 'mo left')}
-                    </Badge>
-                  ) : (
-                    <Badge variant="success" data-testid="warranty-status-valid">
-                      {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.valid', 'Valid')}
-                    </Badge>
-                  )}
+                  {hasValidWarrantyData ? (
+                    warrantyExpired ? (
+                      <Badge variant="destructive" data-testid="warranty-status-expired">
+                        {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.expired', 'Expired')}
+                      </Badge>
+                    ) : daysRemaining < 90 ? (
+                      <Badge variant="warning" data-testid="warranty-status-expiring">
+                        {Math.ceil(daysRemaining / 30)}{' '}
+                        {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.mo_left', 'mo left')}
+                      </Badge>
+                    ) : (
+                      <Badge variant="success" data-testid="warranty-status-valid">
+                        {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.valid', 'Valid')}
+                      </Badge>
+                    )
+                  ) : null}
                 </div>
 
                 <Separator />
@@ -359,8 +372,16 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
                 <div>
                   <p className="gba:text-sm gba:font-medium">{t('end-of-warranty-period')}</p>
                   <p className="gba:text-sm gba:text-muted-foreground" data-testid="warranty-expiry-date">
-                    {formatDate(warrantyExpiryDate.toISOString()) || warrantyExpiryDate.toISOString()}
-                    {!warrantyExpired && <span className="gba:text-xs gba:ml-2">({warrantyExpiryDate.fromNow()})</span>}
+                    {warrantyExpiryDate != null ? (
+                      <>
+                        {formatDate(warrantyExpiryDate.toISOString()) || warrantyExpiryDate.toISOString()}
+                        {!warrantyExpired && (
+                          <span className="gba:text-xs gba:ml-2">({warrantyExpiryDate.fromNow()})</span>
+                        )}
+                      </>
+                    ) : (
+                      getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.not_available', 'N/A')
+                    )}
                   </p>
                 </div>
               </CardContent>
