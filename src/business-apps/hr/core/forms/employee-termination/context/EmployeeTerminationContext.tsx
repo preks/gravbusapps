@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react'
+import React, { createContext, useContext, useState, useCallback, useEffect, useMemo } from 'react'
 import { useEmployeeTerminationData, EmployeeTerminationData } from '../hooks/useEmployeeTerminationData'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import dayjs, { Dayjs } from 'dayjs'
@@ -81,7 +81,7 @@ export const EmployeeTerminationProvider: React.FC<{
       ...prev,
       terminationDate: exitDate ? dayjs(exitDate) : prev.terminationDate,
       // Only allow terminateJobPosition if employee actually has a job position
-      terminateJobPosition: employeeHasJobPosition && activeTo != null ? true : false
+      terminateJobPosition: employeeHasJobPosition && activeTo != null
     }))
   }, [employee])
 
@@ -89,18 +89,17 @@ export const EmployeeTerminationProvider: React.FC<{
   const combinedError = employeeError
   const combinedLoading = employeeLoading
 
-  return (
-    <EmployeeTerminationContext.Provider
-      value={{
-        formValues: formValuesState,
-        setFormValues,
-        employee,
-        loading: combinedLoading,
-        error: combinedError,
-        hasJobPosition
-      }}
-    >
-      {children}
-    </EmployeeTerminationContext.Provider>
+  const contextValue = useMemo(
+    () => ({
+      formValues: formValuesState,
+      setFormValues,
+      employee,
+      loading: combinedLoading,
+      error: combinedError,
+      hasJobPosition
+    }),
+    [formValuesState, setFormValues, employee, combinedLoading, combinedError, hasJobPosition]
   )
+
+  return <EmployeeTerminationContext.Provider value={contextValue}>{children}</EmployeeTerminationContext.Provider>
 }

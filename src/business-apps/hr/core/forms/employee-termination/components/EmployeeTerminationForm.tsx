@@ -42,7 +42,7 @@ export const EmployeeTerminationForm: React.FC = () => {
 
   if (exitDate) {
     return (
-      <div className="gba:bg-card gba:rounded-2xl gba:flex gba:flex-col gba:p-0">
+      <div className="gba:rounded-2xl gba:flex gba:flex-col gba:p-0">
         <FormHeader
           title={getTranslationFromI18nKeyAndLabel('lowcoder:employee_termination.title', 'Employee Termination')}
           flowIconUrl={flowSmall}
@@ -75,7 +75,7 @@ export const EmployeeTerminationForm: React.FC = () => {
   }
 
   return (
-    <div className="gba:bg-card gba:rounded-2xl gba:flex gba:flex-col gba:min-h-[600px] gba:p-0 gba:[&>div[data-testid='employee-termination-form']]:!pt-0">
+    <div className="gba:rounded-2xl gba:flex gba:flex-col gba:min-h-[600px] gba:p-0 gba:[&>div[data-testid='employee-termination-form']]:!pt-0">
       <FormHeader
         title={getTranslationFromI18nKeyAndLabel('lowcoder:employee_termination.title', 'Employee Termination')}
         flowIconUrl={flowSmall}
@@ -203,7 +203,7 @@ export const EmployeeTerminationForm: React.FC = () => {
                   disabled={!hasJobPosition}
                   data-testid="terminate-job-checkbox"
                 />
-                <span className={!hasJobPosition ? 'gba:text-muted-foreground' : ''}>
+                <span className={hasJobPosition ? '' : 'gba:text-muted-foreground'}>
                   {hasJobPosition
                     ? getTranslationFromI18nKeyAndLabel(
                         'lowcoder:employee_termination.checkbox_description',
