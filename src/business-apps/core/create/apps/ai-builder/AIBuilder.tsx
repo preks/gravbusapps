@@ -28,6 +28,7 @@ import { Alert, AlertDescription } from '@newwork/nw-design-system'
 import { Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
 import { Badge } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import screenDiscoveryConfig from '../../../../../../scripts/screen-discovery.config.json'
 import { SYSTEM_PROMPT } from './config/systemPrompt'
 import { FileExplorer } from './components/FileExplorer'
 import { FilePreview } from './components/FilePreview'
@@ -921,30 +922,17 @@ export const AIBuilder: React.FC<BusinessAppContextProps> = context => {
       }
 
       // Auto-detect screen path from created files
-      // Support both /apps/ and /screens/ structures
+      // Uses screen types from screen-discovery.config.json (e.g., apps, forms, popups, records, windows)
       if (data.summary && data.summary.files) {
-        const indexFiles = data.summary.files.filter((f: FileChange) => {
-          // Must include /apps/, /screens/, or /forms/
-          const hasAppStructure =
-            f.path.includes('/apps/') || f.path.includes('/screens/') || f.path.includes('/forms/')
-          // Must end with /index.ts
-          const isIndexFile = f.path.endsWith('/index.ts')
-          // Must start with src/business-apps/
-          const isBusinessApp = f.path.startsWith('src/business-apps/')
-          // Must NOT be inside a subdirectory (types/, hooks/, components/, etc.)
-          // The pattern should be: src/business-apps/.../apps/screen-name/index.ts
-          // NOT: src/business-apps/.../apps/screen-name/types/index.ts
-          const isRootIndex = !f.path.match(
-            /\/(types|hooks|components|utils|queries|api|config|styles|assets)\/index\.ts$/
-          )
-
-          return hasAppStructure && isIndexFile && isBusinessApp && isRootIndex
-        })
+        // Build regex from config: match screen root index.ts exactly one level after a screen type directory
+        // e.g., src/business-apps/hr/common/apps/employee-list/index.ts ✓
+        // NOT:  src/business-apps/hr/common/apps/employee-list/_i18n/index.ts ✗
+        const screenTypes = screenDiscoveryConfig.types.join('|')
+        const screenRootPattern = new RegExp(`^src/business-apps/(.+/(?:${screenTypes})/[^/]+)/index\\.ts$`)
+        const indexFiles = data.summary.files.filter((f: FileChange) => screenRootPattern.test(f.path))
 
         if (indexFiles.length > 0) {
-          // Extract path like "platform/examples/apps/hello-world" from
-          // "src/business-apps/platform/examples/apps/hello-world/index.ts"
-          const match = indexFiles[0].path.match(/src\/business-apps\/(.+)\/index\.ts$/)
+          const match = indexFiles[0].path.match(screenRootPattern)
           if (match) {
             const detectedPath = match[1]
             setDetectedTargetPath(detectedPath)
@@ -953,7 +941,7 @@ export const AIBuilder: React.FC<BusinessAppContextProps> = context => {
             // Auto-generate resource URL from the last segment (target path name)
             const segments = detectedPath.split('/')
             const screenName = segments[segments.length - 1]
-            const urlPath = '/platform/' + screenName // e.g., "/platform/hello-world"
+            const urlPath = '/platform/generated/' + screenName // e.g., "/platform/generated/hello-world"
             setResourceUrl(urlPath)
           }
         }

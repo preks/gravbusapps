@@ -90,3 +90,59 @@ export const getReferenceTypeBadgeVariant = (type: string): BadgeVariant => {
       return 'default'
   }
 }
+
+/**
+ * Format date string to display format (MMM DD, YYYY)
+ * @param dateString - ISO date string
+ * @returns Formatted date string or '-' if invalid
+ */
+export const formatDate = (dateString: string): string => {
+  if (!dateString) return '-'
+  const date = new Date(dateString)
+  if (Number.isNaN(date.getTime())) return '-'
+
+  const options: Intl.DateTimeFormatOptions = {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric'
+  }
+  return date.toLocaleDateString('en-US', options)
+}
+
+/**
+ * Format date time string to display format (MMM DD, YYYY h:mm A)
+ * @param dateString - ISO date string
+ * @returns Formatted date time string or '-' if invalid
+ */
+export const formatDateTime = (dateString: string): string => {
+  if (!dateString) return '-'
+  const date = new Date(dateString)
+  if (Number.isNaN(date.getTime())) return '-'
+
+  const dateOptions: Intl.DateTimeFormatOptions = {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric'
+  }
+  const timeOptions: Intl.DateTimeFormatOptions = {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  }
+
+  const dateStr = date.toLocaleDateString('en-US', dateOptions)
+  const timeStr = date.toLocaleTimeString('en-US', timeOptions)
+  return `${dateStr} ${timeStr}`
+}
+
+/**
+ * Get initials from first and last name
+ * @param firstName - Employee first name
+ * @param lastName - Employee last name
+ * @returns Uppercase initials (e.g., "JD")
+ */
+export const getInitials = (firstName: string, lastName: string): string => {
+  const first = firstName?.charAt(0) || ''
+  const last = lastName?.charAt(0) || ''
+  return `${first}${last}`.toUpperCase()
+}

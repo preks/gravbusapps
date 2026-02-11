@@ -28,8 +28,10 @@ export interface UseExpenseRequestFiltersReturn {
   setFilters: (filters: string[]) => void
   getFilters: () => Record<string, any>
   handleDataFilterChange: (filterId: string, selected: boolean) => void
+  /** Selected currency code, or null to show all currencies. */
   primaryCurrency: string | null
-  setCurrencyFilter: (currency: string) => void
+  /** Set currency filter (use null to clear and show all currencies). */
+  setCurrencyFilter: (currency: string | null) => void
   mostUsedCurrency: string | null
   availableCurrencies: string[]
   currenciesLoading: boolean
@@ -114,20 +116,17 @@ export const useExpenseRequestFilters = ({
     return fetchedCurrencies || []
   }, [fetchedCurrencies])
 
-  // Helper to handle currency filter change
-  const handleCurrencyFilterChange = useCallback(
-    (filterId: string, selected: boolean) => {
+  // User cleared currency = show all; keep userHasManuallySelectedCurrency true so init effect doesn't overwrite with detected currency.
+  const handleCurrencyFilterChange = useCallback((filterId: string, selected: boolean) => {
+    if (selected) {
       const currency = filterId.replace(/^currency:/, '')
-      if (selected) {
-        setLocalPrimaryCurrency(currency)
-        setUserHasManuallySelectedCurrency(true)
-      } else {
-        setLocalPrimaryCurrency(localMostUsedCurrency || 'EUR')
-        setUserHasManuallySelectedCurrency(false)
-      }
-    },
-    [localMostUsedCurrency]
-  )
+      setLocalPrimaryCurrency(currency)
+      setUserHasManuallySelectedCurrency(true)
+    } else {
+      setLocalPrimaryCurrency(null)
+      setUserHasManuallySelectedCurrency(true)
+    }
+  }, [])
 
   // Helper to handle request type filter change (radio button behavior)
   const handleRequestTypeFilterChange = useCallback((filterId: string, selected: boolean) => {
@@ -449,11 +448,7 @@ export const useExpenseRequestFilters = ({
     setSelectedFilters(uniqueFilters)
   }, [])
 
-  const returnPrimaryCurrency = useMemo(() => {
-    const currency = localPrimaryCurrency || 'EUR'
-
-    return currency
-  }, [localPrimaryCurrency])
+  const returnPrimaryCurrency = useMemo(() => localPrimaryCurrency, [localPrimaryCurrency])
 
   return {
     search,

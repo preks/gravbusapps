@@ -3,6 +3,7 @@ import { Spinner, Alert, Button } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useAppActionData } from '@/common/hooks/useAppActionData'
 import { useRestClient } from '@/common/network/rest/useRestClient'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 import { env } from '@/common/env/EnvUtils'
 import { DocumentSectionProps } from './types'
 import { useDocumentState } from './hooks/useDocumentState'
@@ -31,13 +32,24 @@ export const DocumentSection: React.FC<DocumentSectionProps> = ({
   uploadActionProps,
   createFolderActionProps,
   downloadActionProps,
+  updateActionProps,
+  deleteActionProps,
   accessToken,
   'data-testid': dataTestId = 'document-section'
 }) => {
   // REST client for direct API calls
   const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'))
 
-  // Set up AppAction data hooks for programmatic triggering (upload only)
+  // Listen for process completion events to refresh documents after update/delete flows
+  useProcessCompletion({
+    onSuccess: () => {
+      if (onRefresh) {
+        onRefresh()
+      }
+    }
+  })
+
+  // Set up AppAction data hooks for programmatic triggering (upload only - non-document-specific)
   const uploadActionData = useAppActionData(
     uploadActionProps && accessToken
       ? {
@@ -125,6 +137,8 @@ export const DocumentSection: React.FC<DocumentSectionProps> = ({
     selectedDocument: state.selectedDocument,
     setSelectedDocument: state.setSelectedDocument,
     downloadActionProps,
+    updateActionProps,
+    deleteActionProps,
     customActions,
     accessToken,
     apiConfig,
@@ -254,6 +268,8 @@ export const DocumentSection: React.FC<DocumentSectionProps> = ({
           menuOpen={state.menuOpen}
           setMenuOpen={state.setMenuOpen}
           customMenuActions={menu.customMenuActions}
+          updateActionProps={updateActionProps}
+          deleteActionProps={deleteActionProps}
           accessToken={accessToken}
         />
       </div>

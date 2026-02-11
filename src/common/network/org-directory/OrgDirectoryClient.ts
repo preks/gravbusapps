@@ -298,6 +298,17 @@ export class OrgDirectoryClient {
   }
 
   /**
+   * Get all active users with avatar URLs (lightweight query).
+   * Uses the basic selection which includes pictureThumbnail.
+   * No userId filter — includes all employees in the active org structure
+   * who have an internal email communication record.
+   */
+  async getAllUsersBasic(): Promise<OrgUserBasic[]> {
+    const positions = await this.fetchPositions({}, 'basic')
+    return this.mapPositionsToBasicUnique(positions)
+  }
+
+  /**
    * Get all active users in the organization
    */
   async getAllUsers(): Promise<OrgUser[]> {

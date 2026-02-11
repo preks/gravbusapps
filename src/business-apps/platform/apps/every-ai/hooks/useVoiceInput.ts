@@ -94,6 +94,7 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
 
   // Volume analysis for visualizations
   const startVolumeAnalysis = useCallback(async () => {
+    console.log('[VoiceInput] startVolumeAnalysis: begin')
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       mediaStreamRef.current = stream
@@ -120,11 +121,12 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
 
       updateVolume()
     } catch (err) {
-      console.error('Failed to start volume analysis:', err)
+      console.error('[VoiceInput] startVolumeAnalysis: failed', err)
     }
   }, [])
 
   const stopVolumeAnalysis = useCallback(() => {
+    console.log('[VoiceInput] stopVolumeAnalysis: begin')
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current)
       animationFrameRef.current = null
@@ -142,9 +144,11 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
 
     analyserRef.current = null
     setState(prev => ({ ...prev, volume: 0 }))
+    console.log('[VoiceInput] stopVolumeAnalysis: complete')
   }, [])
 
   const startListening = useCallback(async () => {
+    console.log('[VoiceInput] startListening: begin')
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
 
     if (!SpeechRecognition) {
@@ -182,18 +186,48 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
     }
 
     recognition.onresult = (event: SpeechRecognitionEvent) => {
-      let interim = ''
-      let final = finalTranscriptRef.current
+      const normalizeTranscript = (value: string) =>
+        value
+          .toLowerCase()
+          .replace(/[^a-z0-9\s]/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim()
+      const previousFinal = finalTranscriptRef.current
+      const lastResult = event.results[event.results.length - 1]
+      const lastText = lastResult?.[0]?.transcript ?? ''
+      const lastTrimmed = lastText.trim()
+      let final = previousFinal
+      let cleanedInterim = ''
 
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const result = event.results[i]
-        if (result.isFinal) {
-          final += result[0].transcript + ' '
-          finalTranscriptRef.current = final
+      if (lastResult?.isFinal) {
+        const normalizedPrev = normalizeTranscript(previousFinal)
+        const normalizedLast = normalizeTranscript(lastTrimmed)
+
+        if (!previousFinal) {
+          final = lastTrimmed
+        } else if (normalizedLast && normalizedLast.includes(normalizedPrev)) {
+          // Some WebViews return cumulative results; replace instead of append.
+          final = lastTrimmed
+        } else if (normalizedPrev && normalizedPrev.includes(normalizedLast)) {
+          // Ignore regressions (shorter text than what we already had).
+          final = previousFinal
         } else {
-          interim += result[0].transcript
+          // Standard SpeechRecognition behavior: append new final segment.
+          final = `${previousFinal} ${lastTrimmed}`.trim()
         }
+        cleanedInterim = ''
+      } else {
+        cleanedInterim = lastTrimmed
       }
+
+      finalTranscriptRef.current = final
+      console.log('[VoiceInput] onresult: computed', {
+        final,
+        interim: cleanedInterim,
+        previousFinal,
+        lastResultFinal: !!lastResult?.isFinal,
+        lastText: lastTrimmed
+      })
 
       // Track when we last received speech
       lastSpeechTimeRef.current = Date.now()
@@ -205,7 +239,7 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
       }
 
       // Set up new silence timeout - if no new speech for silenceDelay, trigger send
-      if (final.trim() && onEnd) {
+      if (final && onEnd) {
         silenceTimeoutRef.current = setTimeout(() => {
           const textToSend = finalTranscriptRef.current.trim()
           if (textToSend) {
@@ -219,16 +253,17 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
 
       setState(prev => ({
         ...prev,
-        transcript: final.trim(),
-        interimTranscript: interim
+        transcript: final,
+        interimTranscript: cleanedInterim
       }))
 
-      if (final && onTranscript) {
-        onTranscript(final.trim())
+      if (final && onTranscript && final !== previousFinal) {
+        onTranscript(final)
       }
     }
 
     recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+      console.error('[VoiceInput] onerror', { error: event.error, message: event.message })
       // Don't treat 'no-speech' as an error - just means silence
       if (event.error === 'no-speech') return
 
@@ -245,6 +280,7 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
     }
 
     recognition.onend = () => {
+      console.log('[VoiceInput] onend')
       setState(prev => ({ ...prev, isListening: false }))
       stopVolumeAnalysis()
 
@@ -265,6 +301,7 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
   }, [language, continuous, interimResults, silenceDelay, onTranscript, onEnd, startVolumeAnalysis, stopVolumeAnalysis])
 
   const stopListening = useCallback(() => {
+    console.log('[VoiceInput] stopListening')
     if (recognitionRef.current) {
       recognitionRef.current.stop()
       recognitionRef.current = null
@@ -274,6 +311,7 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
   }, [stopVolumeAnalysis])
 
   const cancelListening = useCallback(() => {
+    console.log('[VoiceInput] cancelListening')
     // Clear any pending send timeout
     if (silenceTimeoutRef.current) {
       clearTimeout(silenceTimeoutRef.current)
@@ -294,6 +332,7 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
   }, [stopVolumeAnalysis])
 
   const resetTranscript = useCallback(() => {
+    console.log('[VoiceInput] resetTranscript')
     finalTranscriptRef.current = ''
     setState(prev => ({
       ...prev,
