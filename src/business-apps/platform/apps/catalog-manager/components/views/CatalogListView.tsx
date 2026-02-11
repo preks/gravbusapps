@@ -125,6 +125,17 @@ export const CatalogListView: React.FC<CatalogListViewProps> = ({
     setIsCreateOpen(true)
   }, [])
 
+  // Helper to format date to YYYY-MM-DDTHH:mm:ss
+  const formatDateTimeForAPI = (dateStr?: string): string | undefined => {
+    if (!dateStr) return undefined
+    // If already has time portion, extract just the date and time without milliseconds/timezone
+    if (dateStr.includes('T')) {
+      return dateStr.slice(0, 19)
+    }
+    // If just a date (YYYY-MM-DD), append time
+    return `${dateStr}T00:00:00`
+  }
+
   const handleSubmitCreate = useCallback(
     async (data: CatalogFormData) => {
       const payload = {
@@ -133,8 +144,8 @@ export const CatalogListView: React.FC<CatalogListViewProps> = ({
         identifier: data.identifier,
         name: data.name,
         version: 'v1',
-        validFrom: data.validFrom || undefined,
-        validTo: data.validTo || undefined,
+        validFrom: formatDateTimeForAPI(data.validFrom),
+        validTo: formatDateTimeForAPI(data.validTo),
         defaultLocale: data.defaultLocale,
         description: data.description || undefined
       } as any
@@ -357,8 +368,8 @@ export const CatalogListView: React.FC<CatalogListViewProps> = ({
             version: editingCatalog.version || 'v1',
             parentId: data.parentId,
             parentName: data.parentName,
-            validFrom: data.validFrom,
-            validTo: data.validTo,
+            validFrom: formatDateTimeForAPI(data.validFrom),
+            validTo: formatDateTimeForAPI(data.validTo),
             defaultLocale: data.defaultLocale as any,
             description: data.description
           } as any)
