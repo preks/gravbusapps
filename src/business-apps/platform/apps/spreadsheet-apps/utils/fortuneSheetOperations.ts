@@ -25,6 +25,10 @@ export function convertFortuneSheetOpToDocumentOp(
         return null
       }
 
+      // Detect which property is being changed (e.g., 'v', 'f', 'm')
+      // Path format: ['data', rowIndex, colIndex, property?]
+      const property = fortuneOp.path.length >= 4 ? String(fortuneOp.path[3]) : 'v'
+
       return {
         type: 'cell_change',
         data: {
@@ -34,6 +38,7 @@ export function convertFortuneSheetOpToDocumentOp(
           rowIndex: cellRef.rowIndex,
           columnIndex: cellRef.columnIndex,
           value: fortuneOp.value,
+          property, // Include which property was changed (v=value, f=formula, m=display)
           path: fortuneOp.path
         }
       }
@@ -161,7 +166,7 @@ export function convertDocumentOpToFortuneSheetOp(
   switch (opType) {
     case 'cell_change': {
       // Cell value change from remote user
-      const { rowIndex, columnIndex, value } = opData
+      const { rowIndex, columnIndex, value, property } = opData
 
       if (rowIndex === undefined || columnIndex === undefined) {
         return null
@@ -174,10 +179,28 @@ export function convertDocumentOpToFortuneSheetOp(
         columnId: context.columnIndexToId.get(columnIndex) || `col_${columnIndex}`
       }
 
+      // Check if value is a full cell object (has formula or cell type info)
+      // If so, we should replace the entire cell, not just a property
+      const isFullCellObject = value && typeof value === 'object' && ('f' in value || ('v' in value && 'ct' in value))
+
+      if (isFullCellObject) {
+        // Replace entire cell - path without property suffix
+        return {
+          op: 'replace',
+          id: sheetId,
+          path: ['data', cellRef.rowIndex, cellRef.columnIndex],
+          value
+        }
+      }
+
+      // Use the property from the operation (f=formula, v=value, m=display)
+      // Default to 'v' for backwards compatibility
+      const targetProperty = property || 'v'
+
       return {
         op: 'replace',
         id: sheetId,
-        path: buildOperationPath(cellRef, 'v'),
+        path: buildOperationPath(cellRef, targetProperty),
         value
       }
     }

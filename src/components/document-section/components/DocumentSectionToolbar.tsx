@@ -1,6 +1,14 @@
 import React from 'react'
 import { Button } from '@newwork/nw-design-system'
-import { Upload, Folder, Search, Expand, Minimize, ListTree, List } from 'lucide-react'
+import {
+  UploadSimpleIcon,
+  FolderNotchIcon,
+  MagnifyingGlassIcon,
+  ArrowsOutIcon,
+  ArrowsInIcon,
+  TreeStructureIcon,
+  ListBulletsIcon
+} from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { DebouncedInput } from '@/components/debounced-input/DebouncedInput'
 import { DocumentItem } from '../types'
@@ -91,7 +99,7 @@ export function DocumentSectionToolbar({
               data-testid={`${dataTestId}-create-folder-button`}
               title={createFolderTitle}
             >
-              <Folder className="gba:h-4 gba:w-4 gba:mr-2" />
+              <FolderNotchIcon className="gba:h-4 gba:w-4 gba:mr-2" />
               {getTranslationFromI18nKeyAndLabel('document.folder.new', 'New Document Folder')}
             </Button>
           )}
@@ -103,7 +111,7 @@ export function DocumentSectionToolbar({
               data-testid={`${dataTestId}-upload-button`}
               title={uploadTitle}
             >
-              <Upload className="gba:h-4 gba:w-4 gba:mr-2" />
+              <UploadSimpleIcon className="gba:h-4 gba:w-4 gba:mr-2" />
               {getTranslationFromI18nKeyAndLabel('document.upload.files', 'Upload Documents')}
             </Button>
           )}
@@ -130,7 +138,7 @@ export function DocumentSectionToolbar({
             value={searchTerm}
             onChange={handleSearchChange}
             placeholder={getTranslationFromI18nKeyAndLabel('document.search.placeholder', 'Search documents...')}
-            icon={<Search className="gba:h-4 gba:w-4 gba:text-muted-foreground" />}
+            icon={<MagnifyingGlassIcon className="gba:h-4 gba:w-4 gba:text-muted-foreground" />}
             data-testid={`${dataTestId}-search-input`}
             debounceDelay={300}
           />
@@ -147,7 +155,7 @@ export function DocumentSectionToolbar({
                 data-testid={`${dataTestId}-expand-all-button`}
                 title={getTranslationFromI18nKeyAndLabel('document.tree.expand.all', 'Expand All')}
               >
-                <Expand className="gba:h-4 gba:w-4 gba:mr-1" />
+                <ArrowsOutIcon className="gba:h-4 gba:w-4 gba:mr-1" />
                 {getTranslationFromI18nKeyAndLabel('document.tree.expand.all', 'Expand All')}
               </Button>
               <Button
@@ -157,7 +165,7 @@ export function DocumentSectionToolbar({
                 data-testid={`${dataTestId}-collapse-all-button`}
                 title={getTranslationFromI18nKeyAndLabel('document.tree.collapse.all', 'Collapse All')}
               >
-                <Minimize className="gba:h-4 gba:w-4 gba:mr-1" />
+                <ArrowsInIcon className="gba:h-4 gba:w-4 gba:mr-1" />
                 {getTranslationFromI18nKeyAndLabel('document.tree.collapse.all', 'Collapse All')}
               </Button>
             </div>
@@ -176,7 +184,7 @@ export function DocumentSectionToolbar({
               className="gba:rounded-r-none gba:border-r"
               data-testid={`${dataTestId}-tree-view-button`}
             >
-              <ListTree className="gba:h-4 gba:w-4 gba:mr-1" />
+              <TreeStructureIcon className="gba:h-4 gba:w-4 gba:mr-1" />
               {getTranslationFromI18nKeyAndLabel('document.view.tree', 'Tree View')}
             </Button>
             <Button
@@ -190,7 +198,7 @@ export function DocumentSectionToolbar({
               className="gba:rounded-l-none"
               data-testid={`${dataTestId}-list-view-button`}
             >
-              <List className="gba:h-4 gba:w-4 gba:mr-1" />
+              <ListBulletsIcon className="gba:h-4 gba:w-4 gba:mr-1" />
               {getTranslationFromI18nKeyAndLabel('document.view.list', 'List View')}
             </Button>
           </div>

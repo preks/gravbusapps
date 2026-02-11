@@ -4,7 +4,6 @@ import { DocumentSection } from '@/components/document-section'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useInvestmentDocuments } from '@/common/data/investment/hooks/useInvestmentDocuments'
-import { createDocumentSectionActions } from '@/common/utils/documentSectionActions'
 import { getIrmDocumentApiConfig, useGetIrmDocuments } from '@/business-apps/irm/common/utils/documentUtils'
 
 interface InvestmentDocumentsProps {
@@ -48,17 +47,21 @@ const InvestmentDocuments: React.FC<InvestmentDocumentsProps> = ({ investmentId,
     [investmentId]
   )
 
-  // Use shared document actions with translation support
-  const customActions = useMemo(
-    () =>
-      createDocumentSectionActions({
-        domain: 'investment-relations',
-        documentFieldName: 'investmentDocument',
-        entityType: 'investment',
-        updateProcessName: 'updateInvestmentDocument',
-        deleteEndpoint: '/investment-relations/deleteInvestmentDocument',
-        getTranslation: getTranslationFromI18nKeyAndLabel
-      }),
+  const documentUpdateActionProps = useMemo(
+    () => ({
+      contextsArray: [FlowContextName.investmentDocumentUpdate],
+      buildExternalContextData: (document: any) => ({ documentId: document.id }),
+      prefixDataTestId: 'investment-document-update'
+    }),
+    []
+  )
+
+  const documentDeleteActionProps = useMemo(
+    () => ({
+      contextsArray: [FlowContextName.investmentDocumentDelete],
+      buildExternalContextData: (document: any) => ({ documentId: document.id }),
+      prefixDataTestId: 'investment-document-delete'
+    }),
     []
   )
 
@@ -70,9 +73,10 @@ const InvestmentDocuments: React.FC<InvestmentDocumentsProps> = ({ investmentId,
       error={error}
       onRefresh={refetch}
       apiConfig={getIrmDocumentApiConfig('investment')}
-      customActions={customActions}
       createFolderActionProps={documentCreateFolderActionProps}
       uploadActionProps={documentUploadActionProps}
+      updateActionProps={documentUpdateActionProps}
+      deleteActionProps={documentDeleteActionProps}
       data-testid="investment-document-section"
       accessToken={context.accessToken}
       userInfo={context.userInfo}

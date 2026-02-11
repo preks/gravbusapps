@@ -21,6 +21,11 @@ import { GlobalCallContainer } from './components/GlobalCallContainer'
 import { GlobalPreCallSetupDialog } from './components/GlobalPreCallSetupDialog'
 import { createCalendarApiClient } from './calendar/calendarApiClient'
 import { env } from '@/common/env/EnvUtils'
+import { useEmailAccounts } from '../email-apps/hooks/useEmailAccounts'
+import { useExternalCalendarEvents } from '../email-apps/hooks/useExternalCalendarEvents'
+import type { CalendarEvent, CalendarEventSource } from './calendar/types'
+import { InvitationStatus, MeetingStatus } from './calendar/types'
+import type { ExternalCalendarEvent } from '../email-apps/types'
 
 type TabValue = 'dashboard' | 'everyai' | 'chat' | 'calendar' | 'reminders'
 
@@ -75,6 +80,82 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
     if (!accessToken || !calendarApiUrl) return null
     return createCalendarApiClient(calendarApiUrl, accessToken)
   }, [accessToken, calendarApiUrl])
+
+  // External calendar events from email accounts
+  const { accounts: emailAccounts } = useEmailAccounts(accessToken)
+
+  // Calculate a broad date range for external events (current month +/- 1 month)
+  const externalDateRange = useMemo(() => {
+    const now = new Date()
+    const start = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+    const end = new Date(now.getFullYear(), now.getMonth() + 2, 0)
+    return { start, end }
+  }, [])
+
+  const { events: rawExternalEvents } = useExternalCalendarEvents({
+    accessToken,
+    accounts: emailAccounts,
+    startDate: externalDateRange.start,
+    endDate: externalDateRange.end,
+    enabled: emailAccounts.length > 0
+  })
+
+  // Map external events to CalendarEvent format for the Calendar component
+  const externalCalendarEvents: CalendarEvent[] = useMemo(() => {
+    return rawExternalEvents
+      .filter(evt => evt.status !== 'cancelled')
+      .map(
+        (evt: ExternalCalendarEvent): CalendarEvent => ({
+          id: evt.id,
+          title: evt.title,
+          description: evt.description,
+          start: new Date(evt.start),
+          end: new Date(evt.end),
+          allDay: evt.allDay,
+          color: evt.provider === 'microsoft' ? '#0078D4' : '#4285F4',
+          status: MeetingStatus.SCHEDULED,
+          participantStatus:
+            evt.responseStatus === 'accepted'
+              ? InvitationStatus.ACCEPTED
+              : evt.responseStatus === 'declined'
+                ? InvitationStatus.DECLINED
+                : evt.responseStatus === 'tentative'
+                  ? InvitationStatus.TENTATIVE
+                  : InvitationStatus.PENDING,
+          isOrganizer: evt.isOrganizer,
+          organizer: {
+            id: '',
+            displayName: evt.organizer?.name || evt.organizer?.email || '',
+            email: evt.organizer?.email || ''
+          },
+          participantCount: evt.attendees?.length || 0,
+          acceptedCount: evt.attendees?.filter(a => a.status === 'accepted').length || 0,
+          participants:
+            evt.attendees?.map(a => ({
+              id: '',
+              email: a.email,
+              firstName: a.name?.split(' ')[0],
+              lastName: a.name?.split(' ').slice(1).join(' '),
+              displayName: a.name || a.email,
+              status:
+                a.status === 'accepted'
+                  ? InvitationStatus.ACCEPTED
+                  : a.status === 'declined'
+                    ? InvitationStatus.DECLINED
+                    : a.status === 'tentative'
+                      ? InvitationStatus.TENTATIVE
+                      : InvitationStatus.PENDING,
+              isOrganizer: false
+            })) || [],
+          meetingLink: evt.meetingLink,
+          location: evt.location,
+          source: evt.provider as CalendarEventSource,
+          externalId: evt.externalId,
+          externalLink: evt.externalLink,
+          isReadOnly: true
+        })
+      )
+  }, [rawExternalEvents])
 
   const isInSidepanel = useMemo(() => {
     if (typeof window === 'undefined') return false
@@ -356,6 +437,7 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
             userInfo={userInfo}
             prefixDataTestId={`${prefixDataTestId}-calendar`}
             activeCalls={activeCalls}
+            externalCalendarEvents={externalCalendarEvents}
             {...props}
           />
         </TabSwitchContent>

@@ -15,6 +15,7 @@ export interface SkillRecord {
 export interface EmployeeSkillLink {
   id: string
   version: number
+  level?: number | string | null
   skill: SkillRecord
 }
 
@@ -98,12 +99,8 @@ export const AddSkillProvider: React.FC<ProviderProps> = ({ children, accessToke
     fetchData()
   }, [fetchData])
 
-  const value: AddSkillContextValue = {
-    data,
-    isLoading,
-    error,
-    refetch: fetchData,
-    searchSkills: async (term: string) => {
+  const searchSkills = useCallback(
+    async (term: string) => {
       const trimmed = (term || '').trim()
       if (!trimmed) return []
       const pattern = `%${trimmed}%`
@@ -113,14 +110,16 @@ export const AddSkillProvider: React.FC<ProviderProps> = ({ children, accessToke
       } as SearchSkillsVariables)
       return result?.skill || []
     },
-    createSkillAndFetchByNames: async (name: string, namesAccumulator: string[]) => {
-      // Validate
+    [graphqlClient]
+  )
+
+  const createSkillAndFetchByNames = useCallback(
+    async (name: string, namesAccumulator: string[]) => {
       const trimmed = (name || '').trim()
       if (!trimmed) return []
-      // POST to processes + employee/saveSkill
       await restClient.post(
         '/processes/employee/saveSkill',
-        { skill: { name: trimmed } },
+        { changeMode: 'INSERT', skill: { name: trimmed } },
         {
           headers: {
             Authorization: `Bearer ${accessToken}`,
@@ -128,7 +127,6 @@ export const AddSkillProvider: React.FC<ProviderProps> = ({ children, accessToke
           }
         }
       )
-      // Query back skills by provided names
       const queryNames = Array.from(new Set([...(namesAccumulator || []), trimmed]))
       type GetSkillsByNamesVariables = { names: string[] }
       const result = await graphqlClient.request<{ skill: SkillRecord[] }>(GET_SKILLS_BY_NAMES, {
@@ -136,8 +134,21 @@ export const AddSkillProvider: React.FC<ProviderProps> = ({ children, accessToke
       } as GetSkillsByNamesVariables)
       return result?.skill || []
     },
-    employeeId
-  }
+    [accessToken, graphqlClient, restClient]
+  )
+
+  const value = useMemo<AddSkillContextValue>(
+    () => ({
+      data,
+      isLoading,
+      error,
+      refetch: fetchData,
+      searchSkills,
+      createSkillAndFetchByNames,
+      employeeId
+    }),
+    [data, isLoading, error, fetchData, searchSkills, createSkillAndFetchByNames, employeeId]
+  )
 
   return <AddSkillContext.Provider value={value}>{children}</AddSkillContext.Provider>
 }

@@ -9,9 +9,7 @@ import { CatalogEntryTable } from '../tables/CatalogEntryTable'
 
 interface CatalogDetailViewProps extends BusinessAppContextProps {
   catalog: Catalog
-  onBack: () => void
   onViewCatalog?: (catalog: Catalog) => void
-  isLoading?: boolean
   'data-testid'?: string
 }
 
@@ -25,9 +23,7 @@ interface CatalogDetailState {
 
 export const CatalogDetailView: React.FC<CatalogDetailViewProps> = ({
   catalog,
-  onBack,
   onViewCatalog,
-  isLoading = false,
   'data-testid': dataTestId = 'CatalogDetailView',
   ...context
 }) => {
@@ -88,6 +84,12 @@ export const CatalogDetailView: React.FC<CatalogDetailViewProps> = ({
     setState(prev => ({ ...prev, isSaving: true, error: null }))
 
     try {
+      // Format dates to YYYY-MM-DDTHH:mm:ss (remove milliseconds and timezone)
+      const formatDateTime = (dateStr?: string) => {
+        if (!dateStr) return undefined
+        return dateStr.slice(0, 19)
+      }
+
       await updateCatalog(state.headerData.identifier, state.headerData.version || 'v1', {
         // Required by API body
         id: state.headerData.id,
@@ -100,8 +102,8 @@ export const CatalogDetailView: React.FC<CatalogDetailViewProps> = ({
 
         // Editable fields
         name: state.headerData.name,
-        validFrom: state.headerData.validFrom,
-        validTo: state.headerData.validTo,
+        validFrom: formatDateTime(state.headerData.validFrom),
+        validTo: formatDateTime(state.headerData.validTo),
         defaultLocale: state.headerData.defaultLocale,
         description: state.headerData.description,
 

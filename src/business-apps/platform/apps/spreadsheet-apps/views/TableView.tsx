@@ -16,7 +16,7 @@ export interface TableViewProps {
   columns: ColumnDef<Record<string, unknown>>[]
   spreadsheetColumns: SpreadsheetColumn[]
   testId: string
-  onCellChange?: (rowId: string, columnName: string, value: unknown) => void
+  onCellChange?: (rowId: string, columnName: string, value: unknown, options?: { fromRemote?: boolean }) => void
   isEditable?: boolean
   onAddRow?: () => void
   showAddRow?: boolean
@@ -31,6 +31,10 @@ export interface TableViewProps {
   onRowsInsert?: (insertIndex: number, count: number, direction: 'lefttop' | 'rightbottom') => void
   /** Callback when rows are deleted via context menu */
   onRowsDelete?: (startIndex: number, endIndex: number) => void
+  /** Callback when columns are hidden/shown via context menu */
+  onColumnVisibilityChange?: (columnIndices: number[], visible: boolean) => void
+  /** Callback when a column header is renamed */
+  onColumnRename?: (columnId: string, newLabel: string) => void
   participants?: DocumentParticipant[]
   onOperationEmit?: (operation: DocumentOperation) => void
   onCursorEmit?: (position: { path: string[] }) => void
@@ -38,6 +42,18 @@ export interface TableViewProps {
   isReadOnly?: boolean
   /** Ref to access FortuneSheetGrid imperative methods */
   gridRef?: React.RefObject<FortuneSheetGridHandle | null>
+  /** Called when a remote cell update was applied */
+  onRemoteChangeApplied?: () => void
+  /** Key to force grid refresh when remote data arrives */
+  remoteUpdateKey?: number
+  /** Remote operation to apply (from viewer's WebSocket) */
+  receivedOperation?: { operation: any; timestamp: number } | null
+  /** Called when FortuneSheet filter state changes (for persistence) */
+  onFilterStateChange?: (filterState: {
+    filter?: Record<string, unknown> | null
+    filter_select?: Record<string, unknown>
+    rowhidden?: Record<string, number>
+  }) => void
 }
 
 /**
@@ -61,18 +77,23 @@ export const TableView = memo<TableViewProps>(function TableView({
   onColumnsDelete,
   onRowsInsert,
   onRowsDelete,
+  onColumnVisibilityChange,
+  onColumnRename,
   participants,
   onOperationEmit,
   onCursorEmit,
   collaborationEnabled,
   isReadOnly,
-  gridRef
+  gridRef,
+  onRemoteChangeApplied,
+  remoteUpdateKey,
+  receivedOperation,
+  onFilterStateChange
 }) {
-  // Handle cell change from FortuneSheet
   const handleCellChange = useCallback(
-    (rowId: string, columnId: string, value: unknown) => {
+    (rowId: string, columnId: string, value: unknown, options?: { fromRemote?: boolean }) => {
       if (onCellChange) {
-        onCellChange(rowId, columnId, value)
+        onCellChange(rowId, columnId, value, options)
       }
     },
     [onCellChange]
@@ -103,10 +124,16 @@ export const TableView = memo<TableViewProps>(function TableView({
         onColumnsDelete={onColumnsDelete}
         onRowsInsert={onRowsInsert}
         onRowsDelete={onRowsDelete}
+        onColumnVisibilityChange={onColumnVisibilityChange}
+        onColumnRename={onColumnRename}
         participants={participants}
         onOperationEmit={onOperationEmit}
         onCursorEmit={onCursorEmit}
         collaborationEnabled={collaborationEnabled}
+        onRemoteChangeApplied={onRemoteChangeApplied}
+        remoteUpdateKey={remoteUpdateKey}
+        receivedOperation={receivedOperation}
+        onFilterStateChange={onFilterStateChange}
         height="100%"
         width="100%"
       />

@@ -26,7 +26,7 @@ const EmployeeLinkChip: React.FC<EmployeeLinkChipProps> = ({ employeeId, token, 
   // Error state: show link text with error styling
   if (state.state === 'error') {
     return (
-      <BaseEntityLinkChip url={`/platform/employee-record?employeeId=${employeeId}`} icon={<span>👤</span>}>
+      <BaseEntityLinkChip url={`/platform/employee-record?tab=assets&employeeId=${employeeId}`} icon={<span>👤</span>}>
         {children}
       </BaseEntityLinkChip>
     )
@@ -46,11 +46,11 @@ const EmployeeLinkChip: React.FC<EmployeeLinkChipProps> = ({ employeeId, token, 
 
   return (
     <BaseEntityLinkChip
-      url={state.employee?.profileUrl || `/platform/employee-record?employeeId=${employeeId}`}
+      url={state.employee?.profileUrl || `/platform/employee-record?tab=assets&employeeId=${employeeId}`}
       icon={icon}
       onClick={e => {
         e.preventDefault()
-        navigateTo(state.employee?.profileUrl || `/platform/employee-record?employeeId=${employeeId}`)
+        navigateTo(state.employee?.profileUrl || `/platform/employee-record?tab=assets&employeeId=${employeeId}`)
       }}
     >
       {children}

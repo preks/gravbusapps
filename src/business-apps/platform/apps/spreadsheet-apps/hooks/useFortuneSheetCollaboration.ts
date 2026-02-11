@@ -55,7 +55,9 @@ export function useFortuneSheetCollaboration(
   const applyingRemoteOpRef = useRef(false)
 
   /**
-   * Flush pending operations to collaboration server
+   * Flush pending operations to collaboration server.
+   * Deduplicate: if we have two replace ops for (row, col) and (row, col+1) with the same value,
+   * emit only (row, col) to avoid the other user seeing the value in both cells.
    */
   const flushPendingOperations = useCallback(() => {
     if (!enabled || pendingOpsRef.current.size === 0) {
@@ -65,8 +67,33 @@ export function useFortuneSheetCollaboration(
     const ops = Array.from(pendingOpsRef.current.values())
     pendingOpsRef.current.clear()
 
-    // Convert and emit each operation
-    ops.forEach(fortuneOp => {
+    const replaceOps = ops.filter(
+      (o): o is FortuneSheetOp => o.op === 'replace' && o.path.length >= 3 && o.path[0] === 'data'
+    )
+    const otherOps = ops.filter(o => o.op !== 'replace' || o.path[0] !== 'data')
+
+    const skipCol = new Set<string>()
+    for (let i = 0; i < replaceOps.length; i++) {
+      for (let j = 0; j < replaceOps.length; j++) {
+        if (i === j) continue
+        const [, r1, c1] = replaceOps[i].path
+        const [, r2, c2] = replaceOps[j].path
+        const sameRow = r1 === r2
+        const adjacentCol = (c2 as number) === (c1 as number) + 1
+        const sameVal =
+          replaceOps[i].value === replaceOps[j].value ||
+          (replaceOps[i].value != null &&
+            replaceOps[j].value != null &&
+            String(replaceOps[i].value) === String(replaceOps[j].value))
+        if (sameRow && adjacentCol && sameVal) {
+          skipCol.add(`${r2}_${c2}`)
+        }
+      }
+    }
+
+    const toEmit = [...replaceOps.filter(op => !skipCol.has(`${op.path[1]}_${op.path[2]}`)), ...otherOps]
+
+    toEmit.forEach(fortuneOp => {
       const docOp = convertFortuneSheetOpToDocumentOp(fortuneOp, context, sheetId)
       if (docOp) {
         onOperationEmit(docOp)
