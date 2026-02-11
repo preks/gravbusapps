@@ -62,7 +62,7 @@ export function useEntitlementSnapshot(
           byType[code] = acc
         })
         Object.keys(byType).forEach(k => {
-          if (!Object.prototype.hasOwnProperty.call(byType, k)) return
+          if (!Object.hasOwn(byType, k)) return
           const v = byType[k]
           v.remaining = Math.max(0, v.total - v.usedApproved - v.usedPending)
         })
