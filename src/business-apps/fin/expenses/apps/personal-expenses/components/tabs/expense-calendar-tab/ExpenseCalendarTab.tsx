@@ -74,11 +74,6 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = props => {
     return value.format('YYYY-MM')
   }, [])
 
-  // Check if current month data is cached (computed on each render)
-  const monthKey = getMonthCacheKey(debouncedCalendarValue)
-  const cachedMonthData = monthCacheRef.current.get(monthKey)
-  const isAllCached = !!(cachedMonthData?.plans && cachedMonthData?.requests)
-
   const {
     items: rawExpensePlans,
     isLoading: isLoadingPlans,
@@ -141,9 +136,12 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = props => {
   }
 
   useEffect(() => {
+    const monthKey = getMonthCacheKey(debouncedCalendarValue)
+    const cachedData = monthCacheRef.current.get(monthKey)
+
     // Check cache first - if cached, use it and skip fetch
-    if (cachedMonthData?.plans) {
-      setCalendarPlanItems(cachedMonthData.plans)
+    if (cachedData?.plans) {
+      setCalendarPlanItems(cachedData.plans)
       return
     }
 
@@ -172,7 +170,7 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = props => {
       console.error('Failed to fetch expense plans:', err)
       setPlansError(err.message || 'Failed to fetch expense plans')
     })
-  }, [fetchPlansHookItems, debouncedCalendarValue, getMonthRange, cachedMonthData])
+  }, [fetchPlansHookItems, debouncedCalendarValue, getMonthRange, getMonthCacheKey])
 
   useEffect(() => {
     if (fetchPlansErrorHook) {
@@ -191,15 +189,19 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = props => {
       setCalendarPlanItems(transformedPlans)
 
       // Update cache
+      const monthKey = getMonthCacheKey(debouncedCalendarValue)
       const cached = monthCacheRef.current.get(monthKey) || { plans: [], requests: [] }
       monthCacheRef.current.set(monthKey, { ...cached, plans: transformedPlans })
     }
-  }, [rawExpensePlans, monthKey])
+  }, [rawExpensePlans, debouncedCalendarValue, getMonthCacheKey])
 
   useEffect(() => {
+    const monthKey = getMonthCacheKey(debouncedCalendarValue)
+    const cachedData = monthCacheRef.current.get(monthKey)
+
     // Check cache first - if cached, use it and skip fetch
-    if (cachedMonthData?.requests) {
-      setCalendarRequestItems(cachedMonthData.requests)
+    if (cachedData?.requests) {
+      setCalendarRequestItems(cachedData.requests)
       return
     }
 
@@ -230,7 +232,7 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = props => {
       console.error('Failed to fetch expense requests:', err)
       setRequestsError(err.message || 'Failed to fetch expense requests')
     })
-  }, [fetchRequestsHookItems, debouncedCalendarValue, getMonthRange, cachedMonthData])
+  }, [fetchRequestsHookItems, debouncedCalendarValue, getMonthRange, getMonthCacheKey])
 
   useEffect(() => {
     if (fetchRequestsErrorHook) {
@@ -249,10 +251,11 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = props => {
       setCalendarRequestItems(transformedRequests)
 
       // Update cache
+      const monthKey = getMonthCacheKey(debouncedCalendarValue)
       const cached = monthCacheRef.current.get(monthKey) || { plans: [], requests: [] }
       monthCacheRef.current.set(monthKey, { ...cached, requests: transformedRequests })
     }
-  }, [rawExpenseRequests, monthKey])
+  }, [rawExpenseRequests, debouncedCalendarValue, getMonthCacheKey])
 
   const dateCellRender = (value: Dayjs) => (
     <DayCellEvents
@@ -267,6 +270,11 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = props => {
 
   // Wrapper for antd v5: use cellRender instead of deprecated dateCellRender
   const cellRender = useStripRcPickerTitle(dateCellRender)
+
+  // Check if current month data is cached (computed on each render for spinner visibility)
+  const monthKey = getMonthCacheKey(debouncedCalendarValue)
+  const cachedMonthData = monthCacheRef.current.get(monthKey)
+  const isAllCached = !!(cachedMonthData?.plans && cachedMonthData?.requests)
 
   return (
     <div
