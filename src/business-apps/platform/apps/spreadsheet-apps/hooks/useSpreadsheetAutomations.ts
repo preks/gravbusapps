@@ -727,9 +727,31 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
           // Build a lookup from columnId to columnName for proper data mapping
           // The table renders using col.name, so we need to store data with column names, not IDs
           const columnIdToName = new Map<string, string>()
+
+          // First, use workflowConfig.columnMappings if available
           if (automation.workflowConfig.columnMappings) {
             for (const mapping of automation.workflowConfig.columnMappings) {
               columnIdToName.set(mapping.columnId, mapping.columnName)
+            }
+          }
+
+          // For bulk_collection, also use collectionConfig.formFields
+          // The form field's columnId is used as the formData key, and we need to map it to the column name
+          if (automation.collectionConfig?.formFields) {
+            for (const field of automation.collectionConfig.formFields) {
+              // The columnId is both the form field name (key in formData) and the target column ID
+              // We need to look up the column name from columnMappings or use the columnId as-is
+              if (field.columnId && !columnIdToName.has(field.columnId)) {
+                // Try to find the column name from columnMappings
+                const mapping = automation.workflowConfig.columnMappings?.find(m => m.columnId === field.columnId)
+                if (mapping) {
+                  columnIdToName.set(field.columnId, mapping.columnName)
+                } else {
+                  // Fall back to using the columnId as both key and value
+                  // This will let handleUpdateRows resolve it via the column map
+                  columnIdToName.set(field.columnId, field.columnId)
+                }
+              }
             }
           }
 
@@ -765,6 +787,7 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
           }
           return {
             workflowId: response.workflowId,
+            recipientId: response.responderId, // Include for matching by recipient when workflowId differs
             cells
           }
         })
@@ -781,11 +804,9 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
             onAddRowsRef.current(
               rowUpdates.map(u => ({
                 cells: u.cells,
-                metadata: { workflowId: u.workflowId }
+                metadata: { workflowId: u.workflowId, recipientId: u.recipientId }
               }))
             )
-          } else {
-            console.error('[useSpreadsheetAutomations] Missing onUpdateRows/onAddRows callbacks')
           }
         }
       } catch (err) {
