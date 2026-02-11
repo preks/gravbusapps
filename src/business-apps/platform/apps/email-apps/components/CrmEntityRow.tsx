@@ -4,7 +4,7 @@
  * immediately (no form) via AppActionProvider with skipScreen.
  */
 
-import React, { useCallback, useMemo, useState } from 'react'
+import React, { useCallback, useState } from 'react'
 import { toast } from 'sonner'
 import {
   Button,
@@ -22,6 +22,7 @@ import { BuildingsIcon, UserIcon, BriefcaseIcon, TargetIcon, CheckIcon } from '@
 import { AppActionProvider } from '@/components/app-action-provider/AppActionProvider'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { env } from '@/common/env/EnvUtils'
+import { EmailApiService } from '../services/EmailApiService'
 import type { CrmEntityMatch } from '../hooks/useEmailCrmSuggestions'
 import type { EmailMessage } from '../types'
 
@@ -46,19 +47,28 @@ const ENTITY_LABELS: Record<string, string> = {
 /* ---------- Helpers ---------- */
 
 /** Build the full activity payload for one-click creation */
-export const buildActivityPayload = (entity: CrmEntityMatch, message: EmailMessage): Record<string, any> => {
+export const buildActivityPayload = (
+  entity: CrmEntityMatch,
+  message: EmailMessage,
+  description?: string,
+  employeeId?: string,
+  /** Pass threadId when recording a full thread instead of a single message */
+  threadId?: string
+): Record<string, any> => {
   const entityIdKey = `${entity.type}Id`
 
   return {
     salesActivity: {
       title: message.subject || '(No subject)',
-      description: message.textBody || message.snippet || '',
+      description: description || message.textBody || message.snippet || '',
       occurredAt: message.date || new Date().toISOString(),
       activityTypeRef: EMAIL_ACTIVITY_TYPE_REF,
       source: 'email',
       [entity.type]: entity.id,
+      ...(employeeId ? { ownerEmployee: employeeId } : {}),
       additionalProperties: {
-        emailMessageId: message.id
+        emailMessageId: message.id,
+        ...(threadId ? { emailThreadId: threadId } : {})
       }
     },
     [entityIdKey]: entity.id,
@@ -100,6 +110,12 @@ interface CrmEntityRowProps {
   entity: CrmEntityMatch
   message: EmailMessage
   accessToken: string
+  /** Pre-fetched AI summary from parent (may be null if still loading) */
+  aiSummary?: string | null
+  /** Current user's employee ID — used as activity owner */
+  employeeId?: string
+  /** Thread ID when recording from a thread view */
+  threadId?: string
   'data-testid'?: string
 }
 
@@ -107,13 +123,15 @@ export const CrmEntityRow: React.FC<CrmEntityRowProps> = ({
   entity,
   message,
   accessToken,
+  aiSummary,
+  employeeId,
+  threadId,
   'data-testid': testId = 'crm-entity-row'
 }) => {
   const Icon = ENTITY_ICONS[entity.type] || UserIcon
   const initials = getInitials(entity.name)
   const [recorded, setRecorded] = useState(false)
-
-  const contextData = useMemo(() => buildActivityPayload(entity, message), [entity, message])
+  const [summarizing, setSummarizing] = useState(false)
 
   const handleSuccess = useCallback(() => {
     setRecorded(true)
@@ -125,11 +143,50 @@ export const CrmEntityRow: React.FC<CrmEntityRowProps> = ({
 
   const handleError = useCallback(
     (error: Error) => {
+      setSummarizing(false)
       console.error('Failed to record activity:', error)
       toast.error(`Failed to record activity for ${entity.name}`)
     },
     [entity.name]
   )
+
+  /**
+   * Click handler: if we already have the AI summary, use it immediately.
+   * Otherwise fetch it on-demand, then execute the action.
+   * When threadId is present, uses thread summarization instead of single-message.
+   */
+  const handleRecord = useCallback(
+    async (execute: (data: Record<string, any>) => void) => {
+      if (recorded) return
+
+      let description = aiSummary || null
+
+      // If no pre-fetched summary, fetch on-demand
+      if (!description) {
+        setSummarizing(true)
+        try {
+          EmailApiService.setAccessToken(accessToken)
+          if (threadId) {
+            const result = await EmailApiService.summarizeThread(threadId)
+            description = result.summary
+          } else {
+            description = await EmailApiService.summarizeMessage(message.id)
+          }
+        } catch {
+          // Fallback to raw text
+          description = null
+        }
+        setSummarizing(false)
+      }
+
+      const payload = buildActivityPayload(entity, message, description || undefined, employeeId, threadId)
+      execute(payload)
+    },
+    [recorded, aiSummary, accessToken, message, entity, employeeId, threadId]
+  )
+
+  // Initial context data for AppActionProvider (used as fallback)
+  const initialContextData = buildActivityPayload(entity, message, aiSummary || undefined, employeeId, threadId)
 
   return (
     <div
@@ -164,7 +221,7 @@ export const CrmEntityRow: React.FC<CrmEntityRowProps> = ({
       <AppActionProvider
         accessToken={accessToken}
         contextsArray={[FlowContextName.customerActivityCreate]}
-        externalContextData={contextData}
+        externalContextData={initialContextData}
         onSuccess={handleSuccess}
         onError={handleError}
       >
@@ -176,14 +233,16 @@ export const CrmEntityRow: React.FC<CrmEntityRowProps> = ({
                   variant={recorded ? 'ghost' : 'default'}
                   size="sm"
                   onClick={() => {
-                    if (!recorded && !ctx.isProcessing) {
-                      ctx.executeAction(contextData)
+                    if (!recorded && !ctx.isProcessing && !summarizing) {
+                      handleRecord(ctx.executeAction)
                     }
                   }}
-                  disabled={ctx.isProcessing || recorded || ctx.isLoading}
+                  disabled={ctx.isProcessing || recorded || ctx.isLoading || summarizing}
                   data-testid={`${testId}-book-${entity.id}`}
                 >
-                  {ctx.isProcessing ? (
+                  {summarizing ? (
+                    <Spinner size="sm" />
+                  ) : ctx.isProcessing ? (
                     <Spinner size="sm" />
                   ) : recorded ? (
                     <>
@@ -198,7 +257,11 @@ export const CrmEntityRow: React.FC<CrmEntityRowProps> = ({
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
-                {recorded ? 'Activity recorded' : `Record email as activity for ${entity.name}`}
+                {summarizing
+                  ? 'Summarizing email with AI...'
+                  : recorded
+                    ? 'Activity recorded'
+                    : `Record email as activity for ${entity.name}`}
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>

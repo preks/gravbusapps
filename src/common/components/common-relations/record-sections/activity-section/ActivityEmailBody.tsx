@@ -24,6 +24,8 @@ interface EmailBody {
 interface ActivityEmailBodyProps {
   emailMessageId: string
   accessToken: string
+  /** Whether the current viewer is the owner of the email (only they can open it in Email app) */
+  isEmailOwner?: boolean
   'data-testid'?: string
 }
 
@@ -32,6 +34,7 @@ const API_URL = getDocumentServiceApiUrl()
 export const ActivityEmailBody: React.FC<ActivityEmailBodyProps> = ({
   emailMessageId,
   accessToken,
+  isEmailOwner = false,
   'data-testid': testId = 'activity-email-body'
 }) => {
   const [isExpanded, setIsExpanded] = useState(false)
@@ -40,13 +43,14 @@ export const ActivityEmailBody: React.FC<ActivityEmailBodyProps> = ({
   const [error, setError] = useState<string | null>(null)
   const iframeRef = useRef<HTMLIFrameElement>(null)
 
-  // Lazy-load the full email message from document-service
+  // Lazy-load the full email message from document-service using shared endpoint
+  // The /shared endpoint allows any authenticated user to view CRM-linked emails
   const fetchEmail = useCallback(async () => {
     if (emailBody || loading) return
     setLoading(true)
     setError(null)
     try {
-      const resp = await fetch(`${API_URL}/emails/messages/${emailMessageId}`, {
+      const resp = await fetch(`${API_URL}/emails/messages/${emailMessageId}/shared`, {
         headers: { Authorization: `Bearer ${accessToken}` }
       })
       if (!resp.ok) throw new Error(`Failed to load email (${resp.status})`)
@@ -148,13 +152,15 @@ export const ActivityEmailBody: React.FC<ActivityEmailBodyProps> = ({
                 )}
               </div>
 
-              {/* Actions */}
-              <div className="gba:px-3 gba:pb-2 gba:flex gba:justify-end">
-                <Button variant="ghost" size="sm" onClick={handleOpenInEmail} data-testid={`${testId}-open-email`}>
-                  <ArrowSquareOutIcon className="gba:w-3.5 gba:h-3.5 gba:mr-1" />
-                  Open in Email app
-                </Button>
-              </div>
+              {/* Actions — only the email owner can open in Email app */}
+              {isEmailOwner && (
+                <div className="gba:px-3 gba:pb-2 gba:flex gba:justify-end">
+                  <Button variant="ghost" size="sm" onClick={handleOpenInEmail} data-testid={`${testId}-open-email`}>
+                    <ArrowSquareOutIcon className="gba:w-3.5 gba:h-3.5 gba:mr-1" />
+                    Open in Email app
+                  </Button>
+                </div>
+              )}
             </>
           )}
         </div>

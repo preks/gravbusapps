@@ -1,5 +1,5 @@
 /**
- * EmailCrmBooking - Panel for recording an email as a CRM Sales Activity.
+ * EmailCrmBooking - Panel for recording an email as a CRM Activity.
  *
  * Priority order:
  *   1. "Email matches" – entities whose email matches the counterparty (shown first)
@@ -7,42 +7,52 @@
  * Plus a "Record manually" fallback that opens the activity form.
  */
 
-import React, { useState, useRef, useCallback } from 'react'
+import React, { useState, useRef, useCallback, useEffect } from 'react'
 import { Button, Badge, Spinner, Input } from '@newwork/nw-design-system'
 import {
-  BookmarkIcon,
+  LinkSimpleIcon,
   CaretDownIcon,
   CaretUpIcon,
   MagnifyingGlassIcon,
   PlusIcon,
-  DotsThreeIcon
+  DotsThreeIcon,
+  SparkleIcon
 } from '@phosphor-icons/react'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { useEmailCrmSuggestions } from '../hooks/useEmailCrmSuggestions'
 import { CrmEntityRow } from './CrmEntityRow'
+import { EmailApiService } from '../services/EmailApiService'
 import type { EmailMessage, EmailAccount } from '../types'
 
 interface EmailCrmBookingProps {
   message: EmailMessage
+  /** When viewing a thread, pass all thread messages for full-thread recording */
+  threadMessages?: EmailMessage[]
   accessToken: string
   activeAccount?: EmailAccount | null
   employeeId?: string
   'data-testid'?: string
 }
 
-/** Build contextData for manual record (no entity pre-selected) – passes full email text */
-const buildManualContextData = (message: EmailMessage): Record<string, any> => ({
+/** Build contextData for manual record (no entity pre-selected) */
+const buildManualContextData = (
+  message: EmailMessage,
+  aiSummary?: string | null,
+  threadId?: string
+): Record<string, any> => ({
   title: message.subject || '(No subject)',
-  description: message.textBody || message.snippet || '',
+  description: aiSummary || message.textBody || message.snippet || '',
   occurredAt: message.date,
   emailActivityTypeHint: 'EMAIL',
   source: 'email',
-  emailMessageId: message.id
+  emailMessageId: message.id,
+  ...(threadId ? { emailThreadId: threadId } : {})
 })
 
 export const EmailCrmBooking: React.FC<EmailCrmBookingProps> = ({
   message,
+  threadMessages,
   accessToken,
   activeAccount,
   employeeId,
@@ -51,6 +61,41 @@ export const EmailCrmBooking: React.FC<EmailCrmBookingProps> = ({
   const [isExpanded, setIsExpanded] = useState(false)
   const [showMoreOptions, setShowMoreOptions] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
+
+  // When viewing a thread, use thread summarization; otherwise single-message
+  const isThread = !!threadMessages && threadMessages.length > 1
+  const threadId = message?.threadId
+
+  /* ---- AI Summary pre-fetch ---- */
+  const [aiSummary, setAiSummary] = useState<string | null>(null)
+  const [summaryLoading, setSummaryLoading] = useState(false)
+  const summaryFetchedForRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    if (!isExpanded || !message?.id || !accessToken) return
+    // Build a cache key that accounts for thread vs single message
+    const cacheKey = isThread ? `thread-${threadId}` : message.id
+    if (summaryFetchedForRef.current === cacheKey) return
+    summaryFetchedForRef.current = cacheKey
+    setSummaryLoading(true)
+    setAiSummary(null)
+
+    EmailApiService.setAccessToken(accessToken)
+
+    // Use thread summarization for threads, single-message for individual emails
+    const summaryPromise =
+      isThread && threadId
+        ? EmailApiService.summarizeThread(threadId).then(r => r.summary)
+        : EmailApiService.summarizeMessage(message.id)
+
+    summaryPromise
+      .then(summary => setAiSummary(summary))
+      .catch(err => {
+        console.error('AI summary failed, will fallback to text:', err)
+        setAiSummary(null)
+      })
+      .finally(() => setSummaryLoading(false))
+  }, [isExpanded, message?.id, accessToken, isThread, threadId])
 
   const {
     ownedEntities,
@@ -89,26 +134,26 @@ export const EmailCrmBooking: React.FC<EmailCrmBookingProps> = ({
 
   return (
     <div
-      className="gba:border-t gba:bg-card gba:flex gba:flex-col gba:min-h-0 gba:max-h-72 gba:overflow-hidden"
+      className="gba:border-t gba:bg-muted/20 gba:flex gba:flex-col gba:min-h-0 gba:max-h-72 gba:overflow-hidden"
       data-testid={testId}
     >
-      {/* Toggle bar */}
+      {/* Toggle bar — subtle, low-contrast design */}
       <button
-        className="gba:flex gba:items-center gba:gap-2 gba:w-full gba:px-4 gba:py-2 gba:text-sm gba:font-medium gba:text-foreground gba:hover:bg-accent gba:transition-colors"
+        className="gba:flex gba:items-center gba:gap-2.5 gba:w-full gba:px-4 gba:py-2.5 gba:text-sm gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-accent/50 gba:transition-colors"
         onClick={handleToggle}
         data-testid={`${testId}-toggle`}
       >
-        <BookmarkIcon className="gba:w-4 gba:h-4 gba:text-primary" weight="bold" />
-        <span className="gba:flex-1 gba:text-left">Record as Sales Activity</span>
+        <LinkSimpleIcon className="gba:w-4 gba:h-4" weight="bold" />
+        <span className="gba:flex-1 gba:text-left gba:font-medium">Record as Activity</span>
         {!isExpanded && emailMatchCount > 0 && (
           <Badge variant="info" className="gba:text-xs">
             {emailMatchCount} match{emailMatchCount !== 1 ? 'es' : ''}
           </Badge>
         )}
         {isExpanded ? (
-          <CaretUpIcon className="gba:w-4 gba:h-4 gba:text-muted-foreground" />
+          <CaretUpIcon className="gba:w-3.5 gba:h-3.5" />
         ) : (
-          <CaretDownIcon className="gba:w-4 gba:h-4 gba:text-muted-foreground" />
+          <CaretDownIcon className="gba:w-3.5 gba:h-3.5" />
         )}
       </button>
 
@@ -118,6 +163,14 @@ export const EmailCrmBooking: React.FC<EmailCrmBookingProps> = ({
           className="gba:flex-1 gba:px-4 gba:pb-3 gba:space-y-3 gba:overflow-y-auto gba:min-h-0"
           data-testid={`${testId}-panel`}
         >
+          {/* AI Summary indicator */}
+          {summaryLoading && (
+            <div className="gba:flex gba:items-center gba:gap-1.5 gba:text-xs gba:text-muted-foreground">
+              <SparkleIcon className="gba:w-3 gba:h-3 gba:animate-pulse" weight="fill" />
+              {isThread ? 'Summarizing thread with AI...' : 'Summarizing email with AI...'}
+            </div>
+          )}
+
           {/* Section 1: Email matches (primary – shown first) */}
           {counterpartyEmails.length > 0 && (
             <div>
@@ -135,6 +188,9 @@ export const EmailCrmBooking: React.FC<EmailCrmBookingProps> = ({
                       entity={entity}
                       message={message}
                       accessToken={accessToken}
+                      aiSummary={aiSummary}
+                      employeeId={employeeId}
+                      threadId={isThread ? threadId : undefined}
                       data-testid={`${testId}-email`}
                     />
                   ))}
@@ -185,6 +241,9 @@ export const EmailCrmBooking: React.FC<EmailCrmBookingProps> = ({
                               entity={entity}
                               message={message}
                               accessToken={accessToken}
+                              aiSummary={aiSummary}
+                              employeeId={employeeId}
+                              threadId={isThread ? threadId : undefined}
                               data-testid={`${testId}-owned`}
                             />
                           ))}
@@ -218,6 +277,9 @@ export const EmailCrmBooking: React.FC<EmailCrmBookingProps> = ({
                             entity={entity}
                             message={message}
                             accessToken={accessToken}
+                            aiSummary={aiSummary}
+                            employeeId={employeeId}
+                            threadId={isThread ? threadId : undefined}
                             data-testid={`${testId}-search`}
                           />
                         ))}
@@ -236,7 +298,7 @@ export const EmailCrmBooking: React.FC<EmailCrmBookingProps> = ({
                       contexts={[
                         {
                           context: FlowContextName.customerActivityCreate,
-                          contextData: buildManualContextData(message)
+                          contextData: buildManualContextData(message, aiSummary, isThread ? threadId : undefined)
                         }
                       ]}
                       accessToken={accessToken}

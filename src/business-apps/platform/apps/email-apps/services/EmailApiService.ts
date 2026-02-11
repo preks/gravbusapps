@@ -162,6 +162,23 @@ export const EmailApiService = {
     })
   },
 
+  /**
+   * AI-summarize a single email message.
+   * Returns a concise summary suitable for CRM activity descriptions.
+   */
+  async summarizeMessage(messageId: string): Promise<string> {
+    const result = await apiRequest<{ summary: string }>(`/emails/messages/${messageId}/summarize`, { method: 'POST' })
+    return result.summary
+  },
+
+  /**
+   * Get a CRM-linked email (shared endpoint, no ownership check).
+   * Only works for emails that have been linked to a CRM entity.
+   */
+  async getSharedMessage(messageId: string): Promise<EmailMessage> {
+    return apiRequest<EmailMessage>(`/emails/messages/${messageId}/shared`)
+  },
+
   // ============ Attachments ============
   /**
    * Downloads an attachment and returns a Blob URL for the browser.

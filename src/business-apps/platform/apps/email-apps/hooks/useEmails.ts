@@ -8,6 +8,8 @@ interface UseEmailsOptions {
   accountId?: string
   search?: string
   starredOnly?: boolean
+  /** When true, emails sharing a threadId are collapsed to the latest per thread */
+  threadView?: boolean
   /** Auto-refresh interval in milliseconds (default: 15000 = 15 seconds) */
   autoRefreshInterval?: number
 }
@@ -55,6 +57,7 @@ export function useEmails({
   accountId,
   search,
   starredOnly,
+  threadView = false,
   autoRefreshInterval = 15000
 }: UseEmailsOptions) {
   const [messages, setMessages] = useState<EmailMessageSummary[]>([])
@@ -115,9 +118,20 @@ export function useEmails({
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
   }, [])
 
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
+  const [hasMore, setHasMore] = useState(true)
+
+  // Use refs for pagination state to avoid stale closures in loadMore
+  const pageRef = useRef(1)
+  const hasMoreRef = useRef(true)
+  const loadingMoreRef = useRef(false)
+
   const loadMessages = useCallback(
     async (pageNum = 1, silent = false) => {
       if (!accessToken) return
+      // Don't fetch until we have a folder (or an explicit starred/search filter)
+      // Otherwise we'd briefly show ALL emails from every folder on first render
+      if (!folderId && !starredOnly && !search) return
       if (loadingRef.current) return
 
       loadingRef.current = true
@@ -130,23 +144,38 @@ export function useEmails({
           search: search || undefined,
           starredOnly: starredOnly || undefined,
           page: pageNum,
-          limit: 50
+          limit: 100
         })
 
-        const deduplicated = deduplicateThreads(result.items)
+        const deduplicated = threadView ? deduplicateThreads(result.items) : result.items
 
-        if (silent) {
-          // Silent refresh: apply local overrides to prevent reverting
-          // optimistic updates (read status, star) until the provider syncs
+        if (silent && pageNum === 1) {
+          // Silent refresh of page 1: merge fresh page-1 data with existing
+          // older pages to avoid losing "load more" results
+          setMessages(prev => {
+            const freshIds = new Set(deduplicated.map(m => m.id))
+            // Keep messages from older pages that aren't in the fresh batch
+            const olderMessages = prev.filter(m => !freshIds.has(m.id))
+            const merged = [...deduplicated, ...olderMessages]
+            const normalized = threadView ? deduplicateThreads(merged) : merged
+            return applyOverrides(normalized)
+          })
+        } else if (silent) {
           setMessages(applyOverrides(deduplicated))
         } else {
           // Full reload (folder change, manual refresh): trust server state
           localOverridesRef.current.clear()
           setMessages(deduplicated)
+          pageRef.current = pageNum
+          setPage(pageNum)
         }
 
         setTotal(result.total)
-        setPage(pageNum)
+        if (!silent) {
+          const more = result.page < result.totalPages
+          hasMoreRef.current = more
+          setHasMore(more)
+        }
       } catch (err) {
         console.error('Failed to load messages:', err)
       } finally {
@@ -154,24 +183,73 @@ export function useEmails({
         if (!silent) setIsLoading(false)
       }
     },
-    [accessToken, folderId, accountId, search, starredOnly, applyOverrides]
+    [accessToken, folderId, accountId, search, starredOnly, threadView, applyOverrides]
   )
+
+  /** Load one additional page (100) */
+  const loadMore = useCallback(async () => {
+    if (!accessToken || !hasMoreRef.current || loadingMoreRef.current) return
+
+    loadingMoreRef.current = true
+    setIsLoadingMore(true)
+
+    try {
+      const nextPage = pageRef.current + 1
+      const result = await EmailApiService.listMessages({
+        folderId: starredOnly ? undefined : folderId,
+        accountId,
+        search: search || undefined,
+        starredOnly: starredOnly || undefined,
+        page: nextPage,
+        limit: 100
+      })
+
+      if (result.items.length > 0) {
+        const newItems = threadView ? deduplicateThreads(result.items) : result.items
+        setMessages(prev => {
+          const existingIds = new Set(prev.map(m => m.id))
+          const unique = newItems.filter(m => !existingIds.has(m.id))
+          const merged = [...prev, ...unique]
+          return threadView ? deduplicateThreads(merged) : merged
+        })
+        pageRef.current = nextPage
+        setPage(nextPage)
+        setTotal(result.total)
+      }
+
+      const more = result.page < result.totalPages
+      hasMoreRef.current = more
+      setHasMore(more)
+    } catch (err) {
+      console.error('Failed to load more messages:', err)
+    } finally {
+      loadingMoreRef.current = false
+      setIsLoadingMore(false)
+    }
+  }, [accessToken, folderId, accountId, search, starredOnly, threadView])
 
   // Initial load on mount or when dependencies change
   useEffect(() => {
+    // Reset pagination when folder/filters change
+    pageRef.current = 1
+    hasMoreRef.current = true
+    loadingMoreRef.current = false
+    setHasMore(true)
+    setIsLoadingMore(false)
     loadMessages(1)
   }, [loadMessages])
 
   // Auto-refresh polling when screen is visible
+  // Always poll page 1 (latest emails) — older pages loaded via loadMore are stable
   useEffect(() => {
     if (!autoRefreshInterval || !isVisible) return
 
     const intervalId = setInterval(() => {
-      loadMessages(page, true)
+      loadMessages(1, true)
     }, autoRefreshInterval)
 
     return () => clearInterval(intervalId)
-  }, [loadMessages, page, autoRefreshInterval, isVisible])
+  }, [loadMessages, autoRefreshInterval, isVisible])
 
   const selectMessage = useCallback(async (id: string) => {
     try {
@@ -236,6 +314,8 @@ export function useEmails({
     messages,
     selectedMessage,
     isLoading,
+    isLoadingMore,
+    hasMore,
     total,
     page,
     selectMessage,
@@ -243,6 +323,7 @@ export function useEmails({
     toggleStar,
     deleteMessage,
     moveToFolder,
-    refreshMessages: () => loadMessages(page, false)
+    loadMore,
+    refreshMessages: () => loadMessages(1, false)
   }
 }
