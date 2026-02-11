@@ -168,7 +168,7 @@ export const CatalogDialog: React.FC<CatalogDialogProps> = ({
               <Input
                 id="validFrom"
                 type="date"
-                value={form.validFrom || ''}
+                value={form.validFrom ? form.validFrom.slice(0, 10) : ''}
                 onChange={e => handleChange('validFrom', e.target.value)}
                 data-testid={`${dataTestId}-ValidFrom`}
               />
@@ -178,7 +178,7 @@ export const CatalogDialog: React.FC<CatalogDialogProps> = ({
               <Input
                 id="validTo"
                 type="date"
-                value={form.validTo || ''}
+                value={form.validTo ? form.validTo.slice(0, 10) : ''}
                 onChange={e => handleChange('validTo', e.target.value)}
                 data-testid={`${dataTestId}-ValidTo`}
               />
