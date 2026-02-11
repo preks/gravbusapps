@@ -82,8 +82,8 @@ export function generateEmptyAppSchema(
     order: index
   }))
 
-  // Create default empty rows (5 empty rows to start with)
-  const defaultRows = Array.from({ length: 5 }, () => {
+  // Create default empty rows (1 row to start with - bulk collection/automation adds real data)
+  const defaultRows = Array.from({ length: 1 }, () => {
     const row: Record<string, unknown> = { _id: generateId('row') }
     columnLetters.forEach(letter => {
       row[`column_${letter.toLowerCase()}`] = ''
