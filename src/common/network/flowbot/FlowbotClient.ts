@@ -1,3 +1,4 @@
+import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
 import { setAccessTokenToAuthorizationHeader } from '../HeaderUtils'
 import { RestClient, type RequestOptions } from '../rest/RestClient'
 
@@ -35,8 +36,9 @@ export interface TextGenerationResponse {
 
 export class FlowbotClient extends RestClient {
   constructor() {
-    // Using the flowbot service URL from the provided endpoint
-    const url = 'https://newwork-dev.newwork.com/flowbot'
+    // Use environment-aware base URL (localhost → dev → env NEXT_PUBLIC_FLOWBOT_ENDPOINT / NEXT_PUBLIC_BASE_URL)
+    const baseUrl = resolveFlowbotBaseUrl()
+    const url = `${baseUrl}/flowbot`
     super(url, {})
   }
 
