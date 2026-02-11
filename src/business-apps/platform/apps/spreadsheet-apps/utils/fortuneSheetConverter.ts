@@ -193,7 +193,7 @@ export function convertToFortuneSheet(
       if (isFortuneSheetCellValue(value)) {
         cell = value
         celldata.push({
-          r: rowIndex,
+          r: rowIndex + HEADER_ROW_OFFSET,
           c: colIndex,
           v: cell
         })
