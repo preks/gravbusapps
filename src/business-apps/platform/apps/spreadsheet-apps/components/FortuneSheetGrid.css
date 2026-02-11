@@ -116,3 +116,10 @@
   border-radius: 4px !important;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
 }
+
+/* FortuneSheet image layer - avatars as circular images */
+.luckysheet-image-container img,
+.luckysheet-imageshow img {
+  object-fit: cover;
+  border-radius: 50%;
+}

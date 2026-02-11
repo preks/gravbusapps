@@ -73,7 +73,10 @@ export function buildSentRowTrackingValues(
 
     switch (colId) {
       case 'recipient_avatar':
-        values[def.name] = recipientInfo.avatar || ''
+        // Only set when we have an avatar URL
+        if (recipientInfo.avatar) {
+          values[def.name] = recipientInfo.avatar
+        }
         break
       case 'recipient_name':
         values[def.name] = recipientInfo.name || 'Unknown'
@@ -116,7 +119,11 @@ export function buildCompletedRowTrackingValues(
 
     switch (colId) {
       case 'recipient_avatar':
-        values[def.name] = recipientInfo.avatar || ''
+        // Only set when we have an avatar URL - avoids overwriting existing avatar
+        // with empty when responderId doesn't match GraphQL (e.g. aggregate-bulk format)
+        if (recipientInfo.avatar) {
+          values[def.name] = recipientInfo.avatar
+        }
         break
       case 'recipient_name':
         values[def.name] = recipientInfo.name || 'Unknown'

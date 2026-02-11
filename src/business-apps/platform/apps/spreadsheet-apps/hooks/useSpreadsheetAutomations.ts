@@ -18,7 +18,7 @@ import {
   WorkflowStatusSyncService,
   createWorkflowStatusSyncService
 } from '../services'
-import { buildSentRowTrackingValues, buildCompletedRowTrackingValues } from '../utils/trackingColumns'
+import { buildSentRowTrackingValues, buildCompletedRowTrackingValues, isTrackingColumn } from '../utils/trackingColumns'
 import { getDefaultTrackingColumns } from '../components/automations/TrackingColumnsConfig'
 import { graphQLClient } from '@/common/network/graphql/GraphQLClient'
 import { fetchRecipientsData } from '../utils/fetchRecipientData'
@@ -726,13 +726,14 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
               : recipientData?.name
           const displayEmail = response.responderEmail ?? recipientData?.email
 
-          // Build tracking column update values
+          // Build tracking column update values (include avatar for recipient_avatar column)
           const trackingValues = buildCompletedRowTrackingValues(
             trackingColumns,
             {
               id: response.responderId,
               name: displayName,
-              email: displayEmail
+              email: displayEmail,
+              avatar: recipientData?.avatar
             },
             new Date().toISOString(), // sentAt - will be overridden if _sent_at exists in row
             response.submittedAt
@@ -780,10 +781,14 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
           }
 
           // Map form data to configured columns using columnName (not columnId!)
+          // Never overwrite tracking columns (avatar, name, email, dates) - those come from our GraphQL fetch
           if (automation.workflowConfig.columnMappings) {
             for (const mapping of automation.workflowConfig.columnMappings) {
-              if (mapping.direction === 'fromWorkflow' && response.formData[mapping.workflowParameter]) {
-                // Use columnName as the key since table renders with row[col.name]
+              if (
+                mapping.direction === 'fromWorkflow' &&
+                response.formData[mapping.workflowParameter] &&
+                !isTrackingColumn(mapping.columnName)
+              ) {
                 cells[mapping.columnName] = response.formData[mapping.workflowParameter]
               }
             }
@@ -791,11 +796,10 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
 
           // Also copy any matching form data keys directly (this is the main data!)
           // Form data keys are column IDs, but we need to map to column names
+          // Never overwrite tracking columns - workflow forms must not override avatar/name/email
           for (const [key, value] of Object.entries(response.formData)) {
-            // Try to map column ID to column name
             const columnName = columnIdToName.get(key) || key
-            // Don't overwrite tracking columns, status column, or already set values
-            if (!cells[columnName] && columnName !== statusColumn) {
+            if (!cells[columnName] && columnName !== statusColumn && !isTrackingColumn(columnName)) {
               cells[columnName] = value
             }
           }

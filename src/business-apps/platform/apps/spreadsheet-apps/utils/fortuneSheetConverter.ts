@@ -13,6 +13,7 @@ import type {
   ConversionContext,
   CellReference
 } from '../types/fortuneSheet'
+import { normalizeImageSrc } from './normalizeImageSrc'
 
 /**
  * Convert Excel column letter to index (A=0, B=1, ..., Z=25, AA=26, etc.)
@@ -123,6 +124,56 @@ function isFortuneSheetCellValue(value: unknown): value is FortuneSheetCell {
 }
 
 /**
+ * Format ISO date/datetime string to human-readable display format
+ */
+function formatDateTimeForDisplay(value: unknown, isDateOnly: boolean): string {
+  if (value === null || value === undefined) return ''
+  const str = String(value).trim()
+  if (!str) return ''
+  try {
+    const d = new Date(str)
+    if (Number.isNaN(d.getTime())) return str
+    if (isDateOnly) {
+      return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+    }
+    return d.toLocaleString(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit'
+    })
+  } catch {
+    return str
+  }
+}
+
+/**
+ * Badge-like colors for status cells (aligned with design system semantics)
+ * Completed/success=green, Sent/info=blue, Pending/warning=amber, Failed/destructive=red
+ */
+function getStatusBadgeStyle(value: unknown): { bg?: string; fc?: string } | null {
+  if (value === null || value === undefined) return null
+  const str = String(value).toLowerCase().trim()
+  if (!str) return null
+  const statusStyles: Record<string, { bg: string; fc: string }> = {
+    completed: { bg: '#dcfce7', fc: '#166534' },
+    done: { bg: '#dcfce7', fc: '#166534' },
+    sent: { bg: '#dbeafe', fc: '#1e40af' },
+    pending: { bg: '#fef3c7', fc: '#92400e' },
+    running: { bg: '#dbeafe', fc: '#1e40af' },
+    failed: { bg: '#fee2e2', fc: '#991b1b' },
+    cancelled: { bg: '#f3f4f6', fc: '#4b5563' }
+  }
+  const exact = statusStyles[str]
+  if (exact) return exact
+  // Partial match for custom statuses like "ready for sales"
+  if (str.includes('ready') || str.includes('ready for')) return { bg: '#dcfce7', fc: '#166534' }
+  if (str.includes('pending') || str.includes('waiting')) return { bg: '#fef3c7', fc: '#92400e' }
+  return null
+}
+
+/**
  * Convert our column type to FortuneSheet cell type
  */
 function getFortuneSheetCellType(columnType: ColumnType): FortuneSheetCell['ct'] {
@@ -137,6 +188,8 @@ function getFortuneSheetCellType(columnType: ColumnType): FortuneSheetCell['ct']
       return { t: 'd', fa: 'yyyy-MM-dd HH:mm:ss' }
     case 'boolean':
       return { t: 'b' }
+    case 'image':
+      return { t: 's' } // Stored as string; avatar drawn via afterRenderCell hook
     default:
       return { t: 's' } // String/text
   }
@@ -209,11 +262,47 @@ export function convertToFortuneSheet(
           v: cell
         })
       } else if (value !== null && value !== undefined && value !== '') {
-        // Regular value cell
+        // Regular value cell - for image type, use empty m so URL isn't shown (avatar drawn via images array)
+        const isDateOnly = column.type === 'date'
+        const isDateTime = column.type === 'datetime'
+        let displayValue: string
+        if (column.type === 'image') {
+          displayValue = ''
+        } else if (column.name === '_responded_at' && isDateTime) {
+          // Avoid duplicate date display when responded_at equals sent_at
+          const sentAt = row[columns.find(c => c.name === '_sent_at')?.name ?? '_sent_at']
+          const valStr = value ? String(value).trim() : ''
+          const sentStr = sentAt ? String(sentAt).trim() : ''
+          if (valStr && sentStr && valStr === sentStr) {
+            displayValue = '—'
+          } else {
+            displayValue = formatDateTimeForDisplay(value, isDateOnly)
+          }
+        } else if (isDateTime || isDateOnly) {
+          displayValue = formatDateTimeForDisplay(value, isDateOnly)
+        } else {
+          displayValue = String(value ?? '')
+        }
         cell = {
           v: value as any,
-          m: String(value ?? ''),
+          m: displayValue,
           ct: getFortuneSheetCellType(column.type)
+        }
+        // Badge-like styling for workflow status and columns named/labeled as status
+        const isStatusCol =
+          column.type === 'workflow_status' ||
+          column.name === '_workflow_status' ||
+          /status/i.test(column.name) ||
+          (column.label && /status/i.test(column.label))
+        if (isStatusCol) {
+          const statusStyle = getStatusBadgeStyle(value)
+          if (statusStyle) {
+            cell.bg = statusStyle.bg
+            cell.fc = statusStyle.fc
+            cell.ht = 1 // center horizontal
+            cell.vt = 1 // center vertical
+            cell.bl = 1 // bold for badge emphasis
+          }
         }
         celldata.push({
           r: rowIndex + HEADER_ROW_OFFSET,
@@ -225,11 +314,63 @@ export function convertToFortuneSheet(
   })
 
   // Build column width config - set custom widths for our defined columns
+  // Image/avatar columns need min width (56) so avatar centers with proper spacing
+  const MIN_AVATAR_COL_WIDTH = 56
   const columnlen: Record<string, number> = {}
   columns.forEach((column, index) => {
-    if (column.width) {
-      columnlen[String(index)] = column.width
-    }
+    const baseWidth = column.width ?? 100
+    const width = column.type === 'image' ? Math.max(MIN_AVATAR_COL_WIDTH, baseWidth) : baseWidth
+    columnlen[String(index)] = width
+  })
+
+  // Build images array for avatar cells (FortuneSheet native image support per docs)
+  const ROW_HEADER_WIDTH = 46
+  const COL_HEADER_HEIGHT = 20
+  const AVATAR_SIZE = 24
+  const defaultColWidth = 100
+  const defaultRowHeight = 25
+
+  const images: Array<{
+    id: string
+    src: string
+    left: number
+    top: number
+    width: number
+    height: number
+    originWidth?: number
+    originHeight?: number
+  }> = []
+
+  data.forEach((row, rowIndex) => {
+    let cumulativeLeft = ROW_HEADER_WIDTH
+    columns.forEach((column, colIndex) => {
+      const colWidth = columnlen[String(colIndex)] ?? defaultColWidth
+      if (column.type === 'image') {
+        const value = getCellValue(row, column)
+        const rawSrc = value !== null && value !== undefined && value !== '' ? String(value) : null
+        const src = rawSrc ? normalizeImageSrc(rawSrc) : null
+        // Only add image if src looks valid (URL or base64); skip plain text like 'sdfdf' to avoid broken icons
+        const isValidSrc =
+          src &&
+          (src.startsWith('data:') || src.startsWith('http://') || src.startsWith('https://') || src.startsWith('/'))
+        if (isValidSrc) {
+          const fsRow = rowIndex + HEADER_ROW_OFFSET
+          const top = COL_HEADER_HEIGHT + fsRow * defaultRowHeight + (defaultRowHeight - AVATAR_SIZE) / 2
+          const left = cumulativeLeft + (colWidth - AVATAR_SIZE) / 2
+          images.push({
+            id: `avatar_${fsRow}_${colIndex}_${rowIndex}`,
+            src,
+            left,
+            top,
+            width: AVATAR_SIZE,
+            height: AVATAR_SIZE,
+            originWidth: AVATAR_SIZE,
+            originHeight: AVATAR_SIZE
+          })
+        }
+      }
+      cumulativeLeft += colWidth
+    })
   })
 
   // Ensure celldata is always a valid array (never undefined/null)
@@ -316,7 +457,9 @@ export function convertToFortuneSheet(
     // Freeze the header row so column names stay visible when scrolling
     frozen: { type: 'row', range: { row_focus: 0, column_focus: 0 } },
     chart: [],
-    image: [],
+    // Luckysheet docs use "image", FortuneSheet code uses "images" - set both for compatibility
+    image: images.length > 0 ? images : [],
+    images: images.length > 0 ? images : undefined,
     zoomRatio: 1,
     showGridLines: 1
   }

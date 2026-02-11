@@ -130,6 +130,17 @@ export interface FortuneSheetConfig {
   luckysheet_alternateformat_save?: unknown[]
   /** Conditional format (defaults to []) */
   luckysheet_conditionformat_save?: unknown[]
+  /** Images (avatars, inserted images) - see FortuneSheet sheet.image docs */
+  images?: Array<{
+    id: string
+    src: string
+    left: number
+    top: number
+    width: number
+    height: number
+    originWidth?: number
+    originHeight?: number
+  }>
 }
 
 /**

@@ -1488,17 +1488,25 @@ export class SpreadsheetAutomationService {
         return this.fetchBulkResponsesFromFlows(params)
       }
 
-      return (data.completedResults || []).map((result: Record<string, unknown>) => ({
-        workflowId: result.workflowId as string,
-        responderId: ((result.outputData as Record<string, unknown>)?.responderId as string) || '',
-        responderName: ((result.outputData as Record<string, unknown>)?.responderName as string) || 'Unknown',
-        responderEmail: (result.outputData as Record<string, unknown>)?.responderEmail as string,
-        submittedAt: (result.completedAt as string) || new Date().toISOString(),
-        formData:
-          ((result.outputData as Record<string, unknown>)?.formData as Record<string, unknown>) ||
-          (result.outputData as Record<string, unknown>),
-        status: 'COMPLETED'
-      }))
+      return (data.completedResults || []).map((result: Record<string, unknown>) => {
+        const outputData = (result.outputData as Record<string, unknown>) || {}
+        const responderId =
+          (outputData.responderId as string) ||
+          (outputData.userId as string) ||
+          (outputData.recipientId as string) ||
+          (outputData.assignedTo as string) ||
+          (result.tags as Record<string, string>)?.recipientId ||
+          ''
+        return {
+          workflowId: result.workflowId as string,
+          responderId: responderId && String(responderId).trim() ? String(responderId).trim() : '',
+          responderName: (outputData.responderName as string) || 'Unknown',
+          responderEmail: outputData.responderEmail as string,
+          submittedAt: (result.completedAt as string) || new Date().toISOString(),
+          formData: (outputData.formData as Record<string, unknown>) || outputData,
+          status: 'COMPLETED'
+        }
+      })
     } catch (error) {
       console.error('[SpreadsheetAutomationService] Fetch bulk responses error:', error)
       // Fall back to querying flows directly

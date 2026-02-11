@@ -131,10 +131,8 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
       return createConversionContext(columns, data)
     }, [columns, data])
 
-    // Convert data to FortuneSheet format ONLY for initial render or full refresh.
-    // Deps intentionally exclude `data` and `columns`: FortuneSheet manages local
-    // edits, column inserts/deletes, and paste internally.  Re-initialisation only
-    // happens on sheet switch (`sheet.id`) or explicit remote refresh (`remoteUpdateKey`).
+    // Convert data to FortuneSheet format. Re-init when sheet, data, or columns change
+    // so that late-arriving data (e.g. bulk collection avatars) is reflected.
     const initialFortuneSheetData = useMemo(() => {
       try {
         const converted = convertToFortuneSheet(sheet, data, columns)
@@ -191,7 +189,15 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
         console.error('[FortuneSheetGrid] Conversion error:', error)
         return null
       }
-    }, [sheet.id, remoteUpdateKey]) // Only reinit on sheet switch or remote refresh
+    }, [sheet.id, remoteUpdateKey, data, columns])
+
+    // Signature that changes when avatar/tracking data is populated - forces Workbook remount
+    // so FortuneSheet picks up late-arriving data (it ignores data prop updates)
+    const dataSignature = useMemo(() => {
+      const avatarCol = columns.find(c => c.type === 'image' && c.name)
+      if (!avatarCol) return ''
+      return data.map(r => (r[avatarCol.name] && '1') || '0').join('')
+    }, [data, columns])
 
     // Apply remote cell updates directly to FortuneSheet without full re-render
     const applyRemoteCellUpdate = useCallback(
@@ -799,7 +805,7 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
               workbookRef.current = ref
               patchWorkbookSelection(ref)
             }}
-            key={`workbook-${sheet.id}-${remoteUpdateKey}`}
+            key={`workbook-${sheet.id}-${remoteUpdateKey}-${dataSignature}`}
             data={
               initialFortuneSheetData
                 ? [
