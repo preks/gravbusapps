@@ -1,6 +1,6 @@
 import React from 'react'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@newwork/nw-design-system'
-import { Folder, File } from 'lucide-react'
+import { FolderNotchIcon, FileIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { DocumentColumn, DocumentItem } from '../types'
 
@@ -73,7 +73,7 @@ export function DocumentSectionTable({
           data-testid={`${dataTestId}-root-drop-zone`}
         >
           <div className="gba:flex gba:items-center gba:justify-center gba:gap-2">
-            <Folder className="gba:h-6 gba:w-6 gba:text-muted-foreground" />
+            <FolderNotchIcon className="gba:h-6 gba:w-6 gba:text-muted-foreground" />
             <span className="gba:text-sm gba:font-medium gba:text-muted-foreground">
               {isOverDropZone
                 ? getTranslationFromI18nKeyAndLabel('document.drop.root.active', 'Release to move to root level')
@@ -116,7 +116,7 @@ export function DocumentSectionTable({
               <TableRow>
                 <TableCell colSpan={columns.length} className="gba:text-center gba:py-12 gba:text-muted-foreground">
                   <div className="gba:space-y-2">
-                    <File className="gba:h-12 gba:w-12 gba:mx-auto gba:text-muted-foreground" />
+                    <FileIcon className="gba:h-12 gba:w-12 gba:mx-auto gba:text-muted-foreground" />
                     <div className="gba:text-lg gba:font-medium">
                       {getTranslationFromI18nKeyAndLabel('document.empty.title', 'No documents found')}
                     </div>

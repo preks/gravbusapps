@@ -185,10 +185,14 @@ export const KnowledgeSourcesPanel: React.FC<KnowledgeSourcesPanelProps> = ({
     [sources, onSourcesChange]
   )
 
+  /** Get a stable identifier for a knowledge source (backend id, or fallback to content/catalog id). */
+  const getSourceKey = (source: KnowledgeSource, idx: number): string =>
+    source.id || source.contentEntryId || source.catalogIdentifier || String(idx)
+
   const handleRemoveSource = useCallback(
-    async (sourceId: string) => {
+    async (idx: number) => {
       // Always remove locally only - the TaskExpertEditor handles backend save
-      onSourcesChange(sources.filter(s => s.id !== sourceId))
+      onSourcesChange(sources.filter((_, i) => i !== idx))
     },
     [sources, onSourcesChange]
   )
@@ -352,9 +356,9 @@ export const KnowledgeSourcesPanel: React.FC<KnowledgeSourcesPanelProps> = ({
             <div className="gba:space-y-2">
               {sources.map((source, idx) => (
                 <div
-                  key={source.id || idx}
+                  key={getSourceKey(source, idx)}
                   className="gba:flex gba:items-start gba:gap-2 gba:p-3 gba:bg-muted/30 gba:rounded-lg gba:border gba:border-border"
-                  data-testid={`${testId}-source-${source.id}`}
+                  data-testid={`${testId}-source-${getSourceKey(source, idx)}`}
                 >
                   <div className="gba:w-8 gba:h-8 gba:rounded gba:bg-primary/10 gba:flex gba:items-center gba:justify-center gba:flex-shrink-0">
                     {source.type === 'url' ? (
@@ -407,9 +411,9 @@ export const KnowledgeSourcesPanel: React.FC<KnowledgeSourcesPanelProps> = ({
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => handleRemoveSource(source.id)}
+                    onClick={() => handleRemoveSource(idx)}
                     className="gba:text-destructive gba:hover:bg-destructive/10"
-                    data-testid={`${testId}-remove-source-${source.id}`}
+                    data-testid={`${testId}-remove-source-${getSourceKey(source, idx)}`}
                   >
                     <Trash2 className="gba:w-4 gba:h-4" />
                   </Button>

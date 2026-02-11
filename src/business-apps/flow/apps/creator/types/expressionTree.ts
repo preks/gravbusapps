@@ -31,6 +31,10 @@ export interface TreeNode {
     | 'catalog-field'
     | 'catalog-browser'
     | 'catalog-entry'
+    | 'orgchart'
+    | 'orgchart-category'
+    | 'orgchart-relation'
+    | 'orgchart-field'
     | 'info'
   icon?: string
   dataType?: 'string' | 'number' | 'date' | 'datetime' | 'boolean' | 'object' | 'array'
@@ -66,6 +70,17 @@ export interface TreeNode {
     dataSourceCatalog?: string
     labelField?: string
     valueField?: string
+    // OrgChart-specific properties
+    relationType?:
+      | 'manager'
+      | 'skipLevelManager'
+      | 'directReports'
+      | 'managerByUserId'
+      | 'skipLevelManagerByUserId'
+      | 'directReportsByUserId'
+    idSourceType?: 'static' | 'workflow' | 'step' | 'expression'
+    employeeIdOrUserId?: string
+    isArrayReturn?: boolean // For directReports which return arrays
   }
   // For catalog-specific nodes
   expressionTemplate?: string // Template like {{$catalog.asset-management[ID_HERE].name}}

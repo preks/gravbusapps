@@ -200,7 +200,7 @@ export const TaskActionForm: React.FC<TaskActionFormProps> = ({
           <div>{getCompletedMessage()}</div>
         </Alert>
 
-        <TaskDetailsDisplay taskData={taskData} moduleType={moduleType} accessToken={context.accessToken} />
+        <TaskDetailsDisplay taskData={taskData} moduleType={moduleType} accessToken={accessToken} />
 
         {(taskPayload?.comment || approvalNote) && (
           <div>
@@ -288,7 +288,7 @@ export const TaskActionForm: React.FC<TaskActionFormProps> = ({
         </Alert>
       )}
 
-      <TaskDetailsDisplay taskData={taskData} moduleType={moduleType} accessToken={context.accessToken} />
+      <TaskDetailsDisplay taskData={taskData} moduleType={moduleType} accessToken={accessToken} />
     </TaskFormLayout>
   )
 }

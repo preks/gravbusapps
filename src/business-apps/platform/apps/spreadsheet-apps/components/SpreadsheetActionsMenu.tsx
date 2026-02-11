@@ -45,6 +45,7 @@ export interface SpreadsheetActionsMenuProps {
   onOpenAutomations: () => void
   onEdit?: () => void
   allowExport?: boolean
+  onExportToExcel?: () => void
 
   'data-testid'?: string
 }
@@ -62,6 +63,7 @@ export const SpreadsheetActionsMenu: React.FC<SpreadsheetActionsMenuProps> = ({
   onOpenAutomations,
   onEdit,
   allowExport,
+  onExportToExcel,
   'data-testid': testId = 'spreadsheet-actions-menu'
 }) => {
   return (
@@ -99,8 +101,8 @@ export const SpreadsheetActionsMenu: React.FC<SpreadsheetActionsMenuProps> = ({
             <Upload className="gba:w-4 gba:h-4 gba:mr-2" />
             Publish...
           </DropdownMenuItem>
-          {allowExport && (
-            <DropdownMenuItem>
+          {allowExport && onExportToExcel && (
+            <DropdownMenuItem onClick={onExportToExcel} data-testid={`${testId}-export-excel`}>
               <Download className="gba:w-4 gba:h-4 gba:mr-2" />
               Export to Excel
             </DropdownMenuItem>

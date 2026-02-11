@@ -415,6 +415,12 @@ export interface SheetSettings {
   allowImport: boolean
   rowsPerPage: number
   showRowNumbers: boolean
+  /** Persisted FortuneSheet filter state (restored on reload to preserve active filters). */
+  fortuneSheetFilterState?: {
+    filter?: Record<string, unknown> | null
+    filter_select?: Record<string, unknown>
+    rowhidden?: Record<string, number>
+  }
 }
 
 /**

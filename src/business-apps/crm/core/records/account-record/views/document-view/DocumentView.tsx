@@ -5,7 +5,6 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useGetCrmDocuments, getCrmDocumentApiConfig } from '@/business-apps/crm/common/utils/documentUtils'
 import { useCrmDocuments } from '@/business-apps/crm/common/hooks/useCrmDocuments'
-import { createDocumentSectionActions } from '@/common/utils/documentSectionActions'
 
 interface DocumentViewProps {
   accountId: string
@@ -45,16 +44,21 @@ const DocumentView: React.FC<DocumentViewProps> = ({ accountId, context }) => {
     [accountId]
   )
 
-  const customActions = useMemo(
-    () =>
-      createDocumentSectionActions({
-        domain: 'customer-relations',
-        documentFieldName: 'crmDocument',
-        entityType: 'account',
-        updateProcessName: 'updateCrmDocument',
-        deleteEndpoint: '/customer-relations/deleteCrmDocument',
-        getTranslation: getTranslationFromI18nKeyAndLabel
-      }),
+  const documentUpdateActionProps = useMemo(
+    () => ({
+      contextsArray: [FlowContextName.customerDocumentUpdate],
+      buildExternalContextData: (document: any) => ({ documentId: document.id }),
+      prefixDataTestId: 'account-document-update'
+    }),
+    []
+  )
+
+  const documentDeleteActionProps = useMemo(
+    () => ({
+      contextsArray: [FlowContextName.customerDocumentDelete],
+      buildExternalContextData: (document: any) => ({ documentId: document.id }),
+      prefixDataTestId: 'account-document-delete'
+    }),
     []
   )
 
@@ -66,9 +70,10 @@ const DocumentView: React.FC<DocumentViewProps> = ({ accountId, context }) => {
       error={error}
       onRefresh={refetch}
       apiConfig={getCrmDocumentApiConfig('account')}
-      customActions={customActions}
       createFolderActionProps={documentCreateFolderActionProps}
       uploadActionProps={documentUploadActionProps}
+      updateActionProps={documentUpdateActionProps}
+      deleteActionProps={documentDeleteActionProps}
       data-testid="account-document-section"
       accessToken={context.accessToken}
       userInfo={context.userInfo}

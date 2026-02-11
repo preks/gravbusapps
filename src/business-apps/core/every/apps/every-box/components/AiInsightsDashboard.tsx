@@ -16,11 +16,17 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue
+  SelectValue,
+  Avatar,
+  AvatarImage,
+  AvatarFallback
 } from '@newwork/nw-design-system'
 import { Brain, TrendingUp, MessageSquare, CheckCircle, Clock, Users, Activity } from 'lucide-react'
 import { AiInsightsService, ComprehensiveInsights } from '../../every-api/services/AiInsightsService'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { useUserManagementClient } from '@/common/network/users/useUserManagementClient'
+import { base64ToDataURL } from '../utils/avatarUtils'
 import translations from '../_i18n'
 import {
   RadarChart,
@@ -55,14 +61,54 @@ const PRIMARY_COLOR = 'hsl(var(--primary))'
 const SECONDARY_COLOR = 'hsl(var(--muted-foreground))'
 const SUCCESS_COLOR = 'hsl(var(--chart-1))'
 
-export const AiInsightsDashboard: React.FC<BusinessAppContextProps> = ({ accessToken, user }) => {
+const GET_EMPLOYEES_BY_USER_IDS = `
+  query GetEmployeesByUserIds($userIds: [String!]!) {
+    Employee(where: { userId: { _in: $userIds }, isDeleted: { _eq: false } }) {
+      userId
+      firstName
+      lastName
+      displayName
+      pictureThumbnail
+    }
+  }
+`
+
+interface EmployeeData {
+  userId: string
+  firstName?: string
+  lastName?: string
+  displayName?: string
+  pictureThumbnail?: string
+}
+
+interface UserDetails {
+  id: string
+  name: string
+  givenName: string
+  familyName: string
+  avatarUrl?: string
+}
+
+export const AiInsightsDashboard: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo }) => {
   useTranslation(translations)
   const [insights, setInsights] = useState<ComprehensiveInsights | null>(null)
   const [loading, setLoading] = useState(true)
   const [availableUsers, setAvailableUsers] = useState<
     Array<{ userId: string; messageCount: number; lastActivity: string }>
   >([])
-  const [viewingUserId, setViewingUserId] = useState(user?.id || '')
+  const [viewingUserId, setViewingUserId] = useState(userInfo?.id || '')
+  const [userDetailsMap, setUserDetailsMap] = useState<Record<string, UserDetails>>({})
+  const [, setLoadingUsers] = useState(false)
+
+  const graphqlClient = useGraphQLClient(accessToken)
+  const userClient = useUserManagementClient(accessToken)
+
+  // Sync viewingUserId when userInfo becomes available
+  useEffect(() => {
+    if (userInfo?.id && !viewingUserId) {
+      setViewingUserId(userInfo.id)
+    }
+  }, [userInfo?.id])
 
   // Load available users on mount
   useEffect(() => {
@@ -79,6 +125,89 @@ export const AiInsightsDashboard: React.FC<BusinessAppContextProps> = ({ accessT
       setInsights(null)
     }
   }, [viewingUserId, accessToken, availableUsers.length])
+
+  // Fetch user details when available users or insights change
+  useEffect(() => {
+    const userIdsToFetch = new Set<string>()
+
+    // Add available users
+    availableUsers.forEach(u => userIdsToFetch.add(u.userId))
+
+    // Add current user if present
+    if (userInfo?.id) userIdsToFetch.add(userInfo.id)
+
+    // Add frequent contacts from insights
+    if (insights?.communicationPatterns?.frequentContacts) {
+      insights.communicationPatterns.frequentContacts.forEach(contact => {
+        if (contact.recipientId) userIdsToFetch.add(contact.recipientId)
+      })
+    }
+
+    // Filter out already loaded users
+    const unloadedUserIds = Array.from(userIdsToFetch).filter(id => !userDetailsMap[id])
+
+    if (unloadedUserIds.length > 0) {
+      fetchUserDetails(unloadedUserIds)
+    }
+  }, [availableUsers, insights, userInfo?.id])
+
+  const fetchUserDetails = async (userIds: string[]) => {
+    if (userIds.length === 0 || !accessToken) return
+
+    setLoadingUsers(true)
+    console.log('[AiInsights] Fetching user details for:', userIds)
+
+    try {
+      // Fetch both user names and employee avatars in parallel
+      const [userDataPromises, employeeResponse] = await Promise.all([
+        Promise.all(
+          userIds.map(async userId => {
+            try {
+              const user = await userClient.getUserById(userId)
+              return { userId, user }
+            } catch (error) {
+              console.warn(`[AiInsights] Failed to fetch user ${userId}:`, error)
+              return { userId, user: null }
+            }
+          })
+        ),
+        graphqlClient.request<{ Employee: EmployeeData[] }>(GET_EMPLOYEES_BY_USER_IDS, { userIds })
+      ])
+
+      // Create a map of userId -> employee data (with avatars)
+      const employeeMap = new Map<string, EmployeeData>()
+      if (employeeResponse?.Employee) {
+        employeeResponse.Employee.forEach(emp => {
+          employeeMap.set(emp.userId, emp)
+        })
+      }
+
+      // Combine user and employee data
+      const newUserDetails: Record<string, UserDetails> = {}
+      userDataPromises.forEach(({ userId, user }) => {
+        const employee = employeeMap.get(userId)
+
+        if (user || employee) {
+          const name =
+            user?.name || employee?.displayName || `${employee?.firstName || ''} ${employee?.lastName || ''}`.trim()
+          newUserDetails[userId] = {
+            id: userId,
+            name: name || userId.substring(0, 8) + '...',
+            givenName: user?.givenName || employee?.firstName || '',
+            familyName: user?.familyName || employee?.lastName || '',
+            avatarUrl: employee?.pictureThumbnail ? base64ToDataURL(employee.pictureThumbnail) : undefined
+          }
+        }
+      })
+
+      setUserDetailsMap(prev => ({ ...prev, ...newUserDetails }))
+      console.log('[AiInsights] Loaded user details:', newUserDetails)
+    } catch (error) {
+      console.error('[AiInsights] Failed to fetch user details:', error)
+    } finally {
+      setLoadingUsers(false)
+    }
+  }
 
   const loadAvailableUsers = async () => {
     console.log('[AiInsights] Loading available users...')
@@ -104,7 +233,11 @@ export const AiInsightsDashboard: React.FC<BusinessAppContextProps> = ({ accessT
 
     try {
       setLoading(true)
-      const data = await AiInsightsService.getUserInsights(accessToken, userId)
+      // When viewing own insights, don't pass targetUserId -- let the backend
+      // use the JWT user.id (same ID used when storing communications).
+      // userInfo.id (platform ID) may differ from the JWT Keycloak ID.
+      const isOwnUser = userId === userInfo?.id
+      const data = await AiInsightsService.getUserInsights(accessToken, isOwnUser ? undefined : userId)
       console.log('[AiInsights] Loaded insights:', data)
       setInsights(data)
     } catch (error) {
@@ -117,6 +250,35 @@ export const AiInsightsDashboard: React.FC<BusinessAppContextProps> = ({ accessT
     } finally {
       setLoading(false)
     }
+  }
+
+  // Helper functions for user display
+  const getUserDisplayName = (userId: string): string => {
+    const userDetails = userDetailsMap[userId]
+    if (userDetails?.name) return userDetails.name
+    if (userDetails?.givenName || userDetails?.familyName) {
+      return `${userDetails.givenName} ${userDetails.familyName}`.trim()
+    }
+    return userId.substring(0, 8) + '...'
+  }
+
+  const getUserInitials = (userId: string): string => {
+    const userDetails = userDetailsMap[userId]
+    if (userDetails?.givenName && userDetails?.familyName) {
+      return `${userDetails.givenName.charAt(0)}${userDetails.familyName.charAt(0)}`.toUpperCase()
+    }
+    if (userDetails?.name) {
+      const parts = userDetails.name.split(' ')
+      if (parts.length >= 2) {
+        return `${parts[0].charAt(0)}${parts[1].charAt(0)}`.toUpperCase()
+      }
+      return userDetails.name.substring(0, 2).toUpperCase()
+    }
+    return userId.substring(0, 2).toUpperCase()
+  }
+
+  const getUserAvatarUrl = (userId: string): string | undefined => {
+    return userDetailsMap[userId]?.avatarUrl
   }
 
   if (loading) {
@@ -157,7 +319,7 @@ export const AiInsightsDashboard: React.FC<BusinessAppContextProps> = ({ accessT
               <span>Relationship and collaboration insights</span>
             </li>
           </ul>
-          <Button onClick={() => loadInsights(user?.id || viewingUserId)} variant="outline">
+          <Button onClick={() => loadInsights(userInfo?.id || viewingUserId)} variant="outline">
             Retry
           </Button>
         </div>
@@ -241,11 +403,15 @@ export const AiInsightsDashboard: React.FC<BusinessAppContextProps> = ({ accessT
                 </SelectTrigger>
                 <SelectContent>
                   {/* Current user at the top */}
-                  {user?.id && (
+                  {userInfo?.id && (
                     <>
-                      <SelectItem value={user.id}>
-                        <div className="gba:flex gba:items-center gba:justify-between gba:w-full">
-                          <span className="gba:font-medium">You ({user.id.substring(0, 8)}...)</span>
+                      <SelectItem value={userInfo.id}>
+                        <div className="gba:flex gba:items-center gba:gap-3 gba:w-full">
+                          <Avatar className="gba:h-6 gba:w-6">
+                            <AvatarImage src={getUserAvatarUrl(userInfo.id)} alt={getUserDisplayName(userInfo.id)} />
+                            <AvatarFallback className="gba:text-xs">{getUserInitials(userInfo.id)}</AvatarFallback>
+                          </Avatar>
+                          <span className="gba:font-medium">You ({getUserDisplayName(userInfo.id)})</span>
                         </div>
                       </SelectItem>
                       {availableUsers.length > 0 && <div className="gba:h-px gba:bg-border gba:my-1" />}
@@ -254,11 +420,22 @@ export const AiInsightsDashboard: React.FC<BusinessAppContextProps> = ({ accessT
 
                   {/* Other users */}
                   {availableUsers
-                    .filter(u => u.userId !== user?.id)
+                    .filter(u => u.userId !== userInfo?.id)
                     .map(availableUser => (
                       <SelectItem key={availableUser.userId} value={availableUser.userId}>
                         <div className="gba:flex gba:items-center gba:justify-between gba:w-full gba:gap-4">
-                          <span className="gba:font-mono gba:text-sm">{availableUser.userId.substring(0, 20)}...</span>
+                          <div className="gba:flex gba:items-center gba:gap-3">
+                            <Avatar className="gba:h-6 gba:w-6">
+                              <AvatarImage
+                                src={getUserAvatarUrl(availableUser.userId)}
+                                alt={getUserDisplayName(availableUser.userId)}
+                              />
+                              <AvatarFallback className="gba:text-xs">
+                                {getUserInitials(availableUser.userId)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="gba:text-sm">{getUserDisplayName(availableUser.userId)}</span>
+                          </div>
                           <span className="gba:text-xs gba:text-muted-foreground">
                             {availableUser.messageCount} msgs
                           </span>
@@ -270,9 +447,17 @@ export const AiInsightsDashboard: React.FC<BusinessAppContextProps> = ({ accessT
             </div>
           </div>
         </div>
-        <div className="gba:mt-2 gba:text-xs gba:text-muted-foreground">
-          Viewing: <span className="gba:font-mono gba:text-foreground">{viewingUserId}</span> | Last updated:{' '}
-          {insights ? new Date(insights.lastUpdated).toLocaleString() : 'Loading...'}
+        <div className="gba:mt-2 gba:flex gba:items-center gba:gap-2 gba:text-xs gba:text-muted-foreground">
+          <span>Viewing:</span>
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <Avatar className="gba:h-5 gba:w-5">
+              <AvatarImage src={getUserAvatarUrl(viewingUserId)} alt={getUserDisplayName(viewingUserId)} />
+              <AvatarFallback className="gba:text-xs">{getUserInitials(viewingUserId)}</AvatarFallback>
+            </Avatar>
+            <span className="gba:text-foreground gba:font-medium">{getUserDisplayName(viewingUserId)}</span>
+          </div>
+          <span>|</span>
+          <span>Last updated: {insights ? new Date(insights.lastUpdated).toLocaleString() : 'Loading...'}</span>
         </div>
       </div>
 
@@ -509,9 +694,16 @@ export const AiInsightsDashboard: React.FC<BusinessAppContextProps> = ({ accessT
                       <div className="gba:h-8 gba:w-8 gba:rounded-full gba:bg-primary/10 gba:flex gba:items-center gba:justify-center gba:text-xs gba:font-medium">
                         {index + 1}
                       </div>
+                      <Avatar className="gba:h-10 gba:w-10">
+                        <AvatarImage
+                          src={getUserAvatarUrl(contact.recipientId)}
+                          alt={contact.recipientName || getUserDisplayName(contact.recipientId)}
+                        />
+                        <AvatarFallback>{getUserInitials(contact.recipientId)}</AvatarFallback>
+                      </Avatar>
                       <div>
-                        <div className="gba:text-sm gba:font-medium gba:font-mono">
-                          {contact.recipientName || contact.recipientId}
+                        <div className="gba:text-sm gba:font-medium">
+                          {contact.recipientName || getUserDisplayName(contact.recipientId)}
                         </div>
                         <div className="gba:text-xs gba:text-muted-foreground gba:capitalize">
                           {contact.relationshipType} contact

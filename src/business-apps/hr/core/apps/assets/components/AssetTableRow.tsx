@@ -26,12 +26,25 @@ export const AssetTableRow: React.FC<AssetTableRowProps> = ({
   onRetireAsset,
   onRetrieveAsset
 }) => {
-  const acquisitionDate = new Date(asset.acquisitionDate)
-  const warrantyExpiryDate = new Date(acquisitionDate)
-  warrantyExpiryDate.setMonth(warrantyExpiryDate.getMonth() + asset.warrantyPeriodMonths)
+  const hasValidWarrantyData =
+    asset.acquisitionDate != null &&
+    asset.acquisitionDate !== '' &&
+    typeof asset.warrantyPeriodMonths === 'number' &&
+    !Number.isNaN(asset.warrantyPeriodMonths)
 
-  const isWarrantyExpired = warrantyExpiryDate < new Date()
-  const warrantyDaysRemaining = Math.ceil((warrantyExpiryDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+  const warrantyExpiryDate = hasValidWarrantyData
+    ? (() => {
+        const d = new Date(asset.acquisitionDate!)
+        d.setMonth(d.getMonth() + (asset.warrantyPeriodMonths ?? 0))
+        return d
+      })()
+    : null
+
+  const isWarrantyExpired = warrantyExpiryDate != null && warrantyExpiryDate.getTime() < new Date().getTime()
+  const warrantyDaysRemaining =
+    warrantyExpiryDate != null
+      ? Math.ceil((warrantyExpiryDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+      : 0
 
   return (
     <TableRow
@@ -79,7 +92,11 @@ export const AssetTableRow: React.FC<AssetTableRowProps> = ({
       </TableCell>
       <TableCell data-testid={`asset-warranty-${asset.id}`}>
         <div className="gba:text-sm">
-          {isWarrantyExpired ? (
+          {!hasValidWarrantyData ? (
+            <span className="gba:text-muted-foreground">
+              {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.not_available', 'N/A')}
+            </span>
+          ) : isWarrantyExpired ? (
             <Badge variant="destructive">
               {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.expired', 'Expired')}
             </Badge>
@@ -90,9 +107,10 @@ export const AssetTableRow: React.FC<AssetTableRowProps> = ({
             </Badge>
           ) : (
             <span className="gba:text-muted-foreground">
-              {formatDate(warrantyExpiryDate) ||
-                formatDate(warrantyExpiryDate.toISOString()) ||
-                warrantyExpiryDate.toLocaleDateString()}
+              {warrantyExpiryDate &&
+                (formatDate(warrantyExpiryDate) ||
+                  formatDate(warrantyExpiryDate.toISOString()) ||
+                  warrantyExpiryDate.toLocaleDateString())}
             </span>
           )}
         </div>
