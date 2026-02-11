@@ -22,6 +22,7 @@ import { useVersioning } from '../shared/hooks/useVersioning'
 import { useComments } from '../shared/hooks/useComments'
 import { useFileLock } from '../shared/hooks/useFileLock'
 import { usePublishing } from '../shared/hooks/usePublishing'
+import { emitDocumentActivity, emitDocumentActivityEnd } from '../spaces/hooks/useSpaceDocumentActivity'
 
 import { TableView, FormView, DashboardView, KanbanView } from './views'
 import { AutomationsPanel } from './components/AutomationsPanel'
@@ -47,6 +48,10 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   'data-testid': testId = 'spreadsheet-app-viewer'
 }) => {
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const cellChangeBatchTimerRef = useRef<NodeJS.Timeout | null>(null)
+  // Accumulate per-row cell changes so a multi-cell paste sends ONE backend PATCH
+  const pendingCellUpdates = useRef<Map<string, { backendRowId: string; changes: Record<string, unknown> }>>(new Map())
+  const cellPersistTimerRef = useRef<NodeJS.Timeout | null>(null)
 
   // --- Viewer State (sheet/view + local sheet data) ---
   const {
@@ -173,6 +178,47 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     onOperationReceived: handleCollaborationOperation
   })
 
+  // Broadcast document activity to Spaces app
+  useEffect(() => {
+    if (!app.id || !userId) return
+
+    const activityType = isEditing ? 'editing' : 'viewing'
+    const docTitle = app.name || 'Untitled Spreadsheet'
+    const urlSpaceId = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('spaceId') : null
+
+    // Emit activity when starting
+    emitDocumentActivity({
+      userId,
+      userName: collaboration.currentUserName || 'User',
+      userAvatar: collaboration.currentUserAvatar,
+      documentId: app.id,
+      documentTitle: docTitle,
+      documentType: 'spreadsheet',
+      activityType,
+      spaceId: urlSpaceId || undefined
+    })
+
+    // Keep-alive: re-emit activity every 30 seconds
+    const keepAliveInterval = setInterval(() => {
+      emitDocumentActivity({
+        userId,
+        userName: collaboration.currentUserName || 'User',
+        userAvatar: collaboration.currentUserAvatar,
+        documentId: app.id,
+        documentTitle: docTitle,
+        documentType: 'spreadsheet',
+        activityType,
+        spaceId: urlSpaceId || undefined
+      })
+    }, 30000)
+
+    // Cleanup: emit activity end when leaving
+    return () => {
+      clearInterval(keepAliveInterval)
+      emitDocumentActivityEnd(userId, app.id)
+    }
+  }, [app.id, app.name, userId, collaboration.currentUserName, collaboration.currentUserAvatar, isEditing])
+
   // --- Column handling (includes auto-add for FortuneSheet) ---
   const handleCellChangeRef = useRef<(rowId: string, columnName: string, value: unknown) => void>(() => {})
 
@@ -201,20 +247,58 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       const row = current[idx]
       const backendRowId = (row as any)._rowUuid || (row as any)._id || (row as any).id || rowId
 
+      // Update the ref IMMEDIATELY (synchronously) so concurrent calls
+      // (e.g. multi-cell paste) each see the previous call's changes.
+      // Without this, all concurrent calls read the same original row
+      // and only the last setLocalSheetData wins — losing all but one cell.
       const updatedRow = { ...row, [columnName]: value, _updatedAt: new Date().toISOString() }
       const next = [...current.slice(0, idx), updatedRow, ...current.slice(idx + 1)]
-      setLocalSheetData(next)
-      onDataChange?.(activeSheetId, next)
+      localSheetDataRef.current = next
 
-      try {
-        if (onRowUpdate) {
-          await onRowUpdate(app.id, activeSheetId, String(backendRowId), { [columnName]: value })
-        } else {
-          await SpreadsheetApiService.updateRow(app.id, activeSheetId, String(backendRowId), { [columnName]: value })
-        }
-      } catch (error) {
-        console.error('[SpreadsheetAppViewer] Failed to persist cell change:', error)
+      // Debounce the React state update so all concurrent cell changes
+      // (from a multi-cell paste) are batched into a single re-render.
+      if (cellChangeBatchTimerRef.current) {
+        clearTimeout(cellChangeBatchTimerRef.current)
       }
+      cellChangeBatchTimerRef.current = setTimeout(() => {
+        setLocalSheetData([...localSheetDataRef.current])
+        onDataChange?.(activeSheetId, localSheetDataRef.current)
+        cellChangeBatchTimerRef.current = null
+      }, 50)
+
+      // Accumulate cell changes per row so a multi-cell paste sends ONE
+      // backend PATCH with all columns, avoiding the backend race condition
+      // where concurrent PATCHes each read the same row and overwrite each other.
+      const existing = pendingCellUpdates.current.get(rowId)
+      if (existing) {
+        existing.changes[columnName] = value
+      } else {
+        pendingCellUpdates.current.set(rowId, {
+          backendRowId: String(backendRowId),
+          changes: { [columnName]: value }
+        })
+      }
+
+      if (cellPersistTimerRef.current) {
+        clearTimeout(cellPersistTimerRef.current)
+      }
+      cellPersistTimerRef.current = setTimeout(async () => {
+        const pending = new Map(pendingCellUpdates.current)
+        pendingCellUpdates.current.clear()
+        cellPersistTimerRef.current = null
+
+        for (const [, { backendRowId: bid, changes }] of pending) {
+          try {
+            if (onRowUpdate) {
+              await onRowUpdate(app.id, activeSheetId, bid, changes)
+            } else {
+              await SpreadsheetApiService.updateRow(app.id, activeSheetId, bid, changes)
+            }
+          } catch (error) {
+            console.error('[SpreadsheetAppViewer] Failed to persist cell changes:', error)
+          }
+        }
+      }, 100)
     },
     [activeSheetId, app.id, entityEnabled, localSheetDataRef, onDataChange, onRowUpdate, setLocalSheetData]
   )
@@ -309,6 +393,96 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     [activeSheetId, app.id, localSheetDataRef, onDataChange, setLocalSheetData]
   )
 
+  // --- Row insert/delete from FortuneSheet context menu ---
+
+  // Helper to extract the backend UUID from a row object
+  const getRowBackendId = useCallback((row: Record<string, unknown>): string => {
+    return String(row._rowUuid ?? row._id ?? row.id ?? '')
+  }, [])
+
+  // Save the current row order to sheet settings so it's preserved across refreshes
+  const persistRowOrder = useCallback(
+    (rows: Record<string, unknown>[]) => {
+      const rowOrder = rows.map(getRowBackendId).filter(Boolean)
+      persistSheetPatch({ settings: { ...activeSheet.settings, rowOrder } })
+    },
+    [activeSheet.settings, getRowBackendId, persistSheetPatch]
+  )
+
+  const handleRowsInsert = useCallback(
+    async (insertIndex: number, count: number, direction: 'lefttop' | 'rightbottom') => {
+      if (entityEnabled) return
+
+      const insertAt = direction === 'rightbottom' ? insertIndex + 1 : insertIndex
+      const current = localSheetDataRef.current
+      const newRows: Record<string, unknown>[] = []
+
+      for (let i = 0; i < count; i++) {
+        const rowPayload: Record<string, unknown> = {}
+        activeSheet.columns.forEach(col => {
+          rowPayload[col.name] = col.defaultValue ?? ''
+        })
+
+        try {
+          const saved = onRowAdd
+            ? await onRowAdd(app.id, activeSheetId, rowPayload)
+            : await SpreadsheetApiService.addRow(app.id, activeSheetId, rowPayload)
+          newRows.push({ ...rowPayload, ...(saved || {}) })
+        } catch (error) {
+          console.error('[SpreadsheetAppViewer] Failed to persist inserted row:', error)
+          newRows.push(rowPayload)
+        }
+      }
+
+      const next = [...current.slice(0, insertAt), ...newRows, ...current.slice(insertAt)]
+      localSheetDataRef.current = next
+      setLocalSheetData(next)
+
+      // Save row order to sheet settings (persists across refresh)
+      persistRowOrder(next)
+    },
+    [
+      activeSheet.columns,
+      activeSheetId,
+      app.id,
+      entityEnabled,
+      localSheetDataRef,
+      onRowAdd,
+      persistRowOrder,
+      setLocalSheetData
+    ]
+  )
+
+  const handleRowsDelete = useCallback(
+    async (startIndex: number, endIndex: number) => {
+      if (entityEnabled) return
+
+      const current = localSheetDataRef.current
+      const rowsToDelete = current.slice(startIndex, endIndex + 1)
+
+      // Remove from local state
+      const next = [...current.slice(0, startIndex), ...current.slice(endIndex + 1)]
+      localSheetDataRef.current = next
+      setLocalSheetData(next)
+
+      // Delete from backend
+      for (const row of rowsToDelete) {
+        const rowId = getRowBackendId(row)
+        if (rowId) {
+          try {
+            await SpreadsheetApiService.deleteRow(app.id, activeSheetId, rowId)
+          } catch (error) {
+            console.error('[SpreadsheetAppViewer] Failed to delete row:', error)
+          }
+        }
+      }
+
+      // Save row order to sheet settings (persists across refresh)
+      persistRowOrder(next)
+    },
+    [activeSheetId, app.id, entityEnabled, getRowBackendId, localSheetDataRef, persistRowOrder, setLocalSheetData]
+  )
+
   // --- Column editing save (from dialog) ---
   const [editingColumns, setEditingColumns] = useState<SpreadsheetColumn[]>([])
   const onSaveColumns = useCallback(
@@ -389,6 +563,10 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
             onCellChange={handleCellChange}
             onDataChange={handleFortuneSheetDataChange}
             onColumnAdd={columnsState.handleAutoColumnAdd}
+            onColumnsInsert={columnsState.handleColumnsInsert}
+            onColumnsDelete={columnsState.handleColumnsDelete}
+            onRowsInsert={handleRowsInsert}
+            onRowsDelete={handleRowsDelete}
             participants={collaboration.cursorParticipants}
             onOperationEmit={op => collaboration.emitOperation(op as any)}
             onCursorEmit={pos => collaboration.emitCursor({ path: pos.path })}

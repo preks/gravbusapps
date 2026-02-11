@@ -1,39 +1,20 @@
 /**
  * Hook to fetch employee avatar data by userId or employeeId
- * Tries userId first (for Kogito tasks), then fallback to employeeId (for CFlow tasks)
- * Fetches pictureThumbnail, firstName, lastName from GraphQL
- *
- * INCLUDES CACHING: Global in-memory cache with 30 min TTL to prevent redundant API calls
+ * Runs both queries in parallel for faster resolution.
+ * Uses shared employeeCacheStore to prevent redundant API calls across hooks.
  */
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { getCached, addToCache } from './employeeCacheStore'
 
 export interface EmployeeAvatarData {
   id: string
-  firstName: string
-  lastName: string
+  firstName?: string
+  lastName?: string
   displayName: string
   pictureThumbnail?: string
   position?: string
-}
-
-// Global in-memory cache for employee avatar data
-const avatarCache = new Map<string, EmployeeAvatarData>()
-const cacheTimestamps = new Map<string, number>()
-const CACHE_TTL_MS = 30 * 60 * 1000 // 30 minutes
-
-// Check if cache entry is valid
-const isCacheValid = (key: string): boolean => {
-  const timestamp = cacheTimestamps.get(key)
-  if (!timestamp) return false
-  return Date.now() - timestamp < CACHE_TTL_MS
-}
-
-// Add to cache
-const addToCache = (key: string, data: EmployeeAvatarData) => {
-  avatarCache.set(key, data)
-  cacheTimestamps.set(key, Date.now())
 }
 
 const GET_EMPLOYEE_AVATAR_BY_USER_ID = `
@@ -90,17 +71,22 @@ export const useEmployeeAvatar = (accessToken: string, id?: string) => {
   const [error, setError] = useState<string | null>(null)
   const graphqlClient = useGraphQLClient(accessToken)
 
+  // Use ref to stabilize graphqlClient reference (it may change every render)
+  const graphqlClientRef = useRef(graphqlClient)
+  graphqlClientRef.current = graphqlClient
+
   const fetchEmployee = useCallback(
-    async (id: string) => {
-      if (!id || !accessToken) {
+    async (employeeId: string) => {
+      if (!employeeId || !accessToken) {
         setEmployeeData(null)
         setError(null)
         return
       }
 
-      // Check cache first
-      if (isCacheValid(id) && avatarCache.has(id)) {
-        setEmployeeData(avatarCache.get(id)!)
+      // Check shared cache first
+      const cached = getCached(employeeId)
+      if (cached) {
+        setEmployeeData(cached)
         setError(null)
         return
       }
@@ -109,41 +95,21 @@ export const useEmployeeAvatar = (accessToken: string, id?: string) => {
       setError(null)
 
       try {
-        // Try querying by userId first (Kogito tasks use userId)
-        const userIdResult = await graphqlClient.request<{
-          Employee: Array<{
-            id: string
-            firstName: string
-            lastName: string
-            displayName: string
-            pictureThumbnail?: string
-            employeePosition?: {
-              jobPosition?: {
-                name?: string
-              }
-            }
-          }>
-        }>(GET_EMPLOYEE_AVATAR_BY_USER_ID, {
-          userId: id
-        })
+        const client = graphqlClientRef.current
 
-        const rawEmployee = userIdResult?.Employee?.[0]
-        let employee: EmployeeAvatarData | null = null
-
-        if (rawEmployee) {
-          employee = {
-            id: rawEmployee.id,
-            firstName: rawEmployee.firstName,
-            lastName: rawEmployee.lastName,
-            displayName: rawEmployee.displayName,
-            pictureThumbnail: rawEmployee.pictureThumbnail,
-            position: rawEmployee.employeePosition?.jobPosition?.name
-          }
-        }
-
-        // If not found by userId, try by employeeId (CFlow might use employeeId)
-        if (!employee) {
-          const employeeIdResult = await graphqlClient.request<{
+        // Run both queries in parallel (instead of sequential fallback)
+        const [userIdResult, employeeIdResult] = await Promise.allSettled([
+          client.request<{
+            Employee: Array<{
+              id: string
+              firstName: string
+              lastName: string
+              displayName: string
+              pictureThumbnail?: string
+              employeePosition?: { jobPosition?: { name?: string } }
+            }>
+          }>(GET_EMPLOYEE_AVATAR_BY_USER_ID, { userId: employeeId }),
+          client.request<{
             EmployeePosition: Array<{
               employee: {
                 id: string
@@ -151,33 +117,46 @@ export const useEmployeeAvatar = (accessToken: string, id?: string) => {
                 lastName: string
                 displayName: string
                 pictureThumbnail?: string
-                employeePosition?: {
-                  jobPosition?: {
-                    name?: string
-                  }
-                }
+                employeePosition?: { jobPosition?: { name?: string } }
               }
             }>
-          }>(GET_EMPLOYEE_AVATAR_BY_EMPLOYEE_ID, {
-            employeeId: id
-          })
+          }>(GET_EMPLOYEE_AVATAR_BY_EMPLOYEE_ID, { employeeId })
+        ])
 
-          const rawEmployeeFromPosition = employeeIdResult?.EmployeePosition?.[0]?.employee
-          if (rawEmployeeFromPosition) {
+        let employee: EmployeeAvatarData | null = null
+
+        // Try userId result first
+        if (userIdResult.status === 'fulfilled') {
+          const raw = userIdResult.value?.Employee?.[0]
+          if (raw) {
             employee = {
-              id: rawEmployeeFromPosition.id,
-              firstName: rawEmployeeFromPosition.firstName,
-              lastName: rawEmployeeFromPosition.lastName,
-              displayName: rawEmployeeFromPosition.displayName,
-              pictureThumbnail: rawEmployeeFromPosition.pictureThumbnail,
-              position: rawEmployeeFromPosition.employeePosition?.jobPosition?.name
+              id: raw.id,
+              firstName: raw.firstName,
+              lastName: raw.lastName,
+              displayName: raw.displayName,
+              pictureThumbnail: raw.pictureThumbnail,
+              position: raw.employeePosition?.jobPosition?.name
+            }
+          }
+        }
+
+        // Fall back to employeeId result
+        if (!employee && employeeIdResult.status === 'fulfilled') {
+          const raw = employeeIdResult.value?.EmployeePosition?.[0]?.employee
+          if (raw) {
+            employee = {
+              id: raw.id,
+              firstName: raw.firstName,
+              lastName: raw.lastName,
+              displayName: raw.displayName,
+              pictureThumbnail: raw.pictureThumbnail,
+              position: raw.employeePosition?.jobPosition?.name
             }
           }
         }
 
         if (employee) {
-          // Add to cache
-          addToCache(id, employee)
+          addToCache(employeeId, employee)
           setEmployeeData(employee)
         } else {
           setEmployeeData(null)
@@ -189,7 +168,7 @@ export const useEmployeeAvatar = (accessToken: string, id?: string) => {
         setIsLoading(false)
       }
     },
-    [accessToken, graphqlClient]
+    [accessToken]
   )
 
   useEffect(() => {

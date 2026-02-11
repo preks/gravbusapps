@@ -381,7 +381,6 @@ const ChangePersonalDataForm: React.FC<ChangePersonalDataFormProps> = ({ accessT
                 firstName: firstName,
                 lastName: lastName,
                 preferredName: values.preferredName || '',
-                displayName: values.displayName || '',
                 fullName: fullName,
                 birthName: values.birthName || '',
                 birthDate: values.birthDate ? formatDateToISO(new Date(values.birthDate)) : '',

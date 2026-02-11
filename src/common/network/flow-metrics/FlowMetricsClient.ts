@@ -159,6 +159,40 @@ export class FlowMetricsClient extends RestClient {
   }
 
   /**
+   * Get flow execution tasks by business key
+   * @param businessKey - The business key that links GraphQL tasks to flow execution tasks
+   * @param params - Optional query parameters (userId, filterState, pagination, etc.)
+   */
+  async getFlowExecutionTasksByBusinessKey(
+    businessKey: string,
+    params?: {
+      size?: number
+      page?: number
+      field?: string
+      direction?: 'ASC' | 'DESC'
+      filterTaskName?: string
+    }
+  ): Promise<FlowExecutionTasksResponse> {
+    const queryParams: Record<string, string | number> = {
+      // Pagination (mandatory)
+      size: params?.size || 20,
+      page: params?.page || 0,
+      // Sort (mandatory)
+      field: params?.field || 'CREATION_DATE',
+      direction: params?.direction || 'DESC'
+    }
+
+    // filterTaskName (optional)
+    if (params?.filterTaskName) {
+      queryParams.filterTaskName = params.filterTaskName
+    }
+
+    return this.get<FlowExecutionTasksResponse>(`/flow-executions/tasks/${businessKey}`, {
+      params: queryParams
+    })
+  }
+
+  /**
    * Complete a flow execution task
    */
   async completeTask(taskId: string, variables?: Record<string, any>): Promise<void> {

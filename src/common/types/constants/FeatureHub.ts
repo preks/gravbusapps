@@ -35,7 +35,8 @@ const HCMFeature = {
   EmployeeAbsence: { Key: 'hcm.employee-absence.enabled' },
   EmployeeExpenses: { Key: 'hcm.employee-expenses.enabled' },
   Compensation: { Key: 'human-resources.compensation.enabled' },
-  Recruiting: { Key: 'human-resources.recruiting.enabled' }
+  Recruiting: { Key: 'human-resources.recruiting.enabled' },
+  Assets: { Key: 'assets.enabled' }
 }
 
 const CRMFeature = {
@@ -62,6 +63,11 @@ const PlatformFeature = {
   EveryAI: { Key: 'everyai.enabled' }
 }
 
+const EveryBoxFeature = {
+  AiEnabled: { Key: 'everybox.ai.enabled' },
+  AiInsightsEnabled: { Key: 'everyboxadmin.ai.enabled' }
+}
+
 const DevFeature = {
   Enabled: { Key: 'dev.enabled' }
 }
@@ -79,5 +85,6 @@ export const Feature = {
   FLOW: FLOWFeature,
   Platform: PlatformFeature,
   Dev: DevFeature,
-  Preview: PreviewFeature
+  Preview: PreviewFeature,
+  EveryBox: EveryBoxFeature
 }

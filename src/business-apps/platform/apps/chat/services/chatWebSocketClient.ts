@@ -234,6 +234,10 @@ export class ChatWebSocketClient {
     this.socket?.on('conversation_created', handler)
   }
 
+  onConversationRead(handler: (data: { conversationId: string; userId: string; readAt: string }) => void) {
+    this.socket?.on('conversation:read', handler)
+  }
+
   onConversationCallStarted(handler: (data: ActiveCall) => void) {
     this.socket?.on('conversation:call-started', handler)
   }
@@ -243,7 +247,9 @@ export class ChatWebSocketClient {
   }
 
   onConversationActiveCalls(handler: (data: ActiveCall[]) => void) {
-    this.socket?.on('conversation:active-calls', handler)
+    this.socket?.on('conversation:active-calls', (data: ActiveCall[]) => {
+      handler(data)
+    })
   }
 
   // Emit events
@@ -260,6 +266,14 @@ export class ChatWebSocketClient {
     this.socket?.emit('leave_conversation', { conversationId })
   }
 
+  markConversationAsRead(conversationId: string) {
+    if (!this.socket || !this.socket.connected) {
+      return
+    }
+
+    this.socket.emit('conversation:mark-read', { conversationId })
+  }
+
   sendMessage(
     conversationId: string,
     content: string,
@@ -268,10 +282,12 @@ export class ChatWebSocketClient {
     metadata?: Record<string, any>
   ) {
     if (!this.socket) {
+      console.warn('[ChatWebSocket] ❌ Cannot send message - socket not initialized')
       return
     }
 
     if (!this.socket.connected) {
+      console.warn('[ChatWebSocket] ❌ Cannot send message - socket not connected')
       return
     }
 
@@ -283,9 +299,7 @@ export class ChatWebSocketClient {
       ...(metadata && { metadata })
     }
 
-    this.socket.emit('send_message', payload, () => {
-      // Message acknowledgment received
-    })
+    this.socket.emit('send_message', payload)
   }
 
   sendTypingStart(conversationId: string) {
@@ -307,7 +321,6 @@ export class ChatWebSocketClient {
    */
   onUserStatusChange(handler: (data: UserStatusChangeEvent) => void) {
     const wrappedHandler = (data: UserStatusChangeEvent) => {
-      rtkDebug.log('[ChatWebSocket] 📡 Received user_status_change event:', data)
       handler(data)
     }
     this.socket?.on('user_status_change', wrappedHandler)

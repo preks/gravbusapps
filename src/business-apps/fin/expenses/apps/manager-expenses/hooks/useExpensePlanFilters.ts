@@ -11,6 +11,7 @@ import weekday from 'dayjs/plugin/weekday'
 import localeData from 'dayjs/plugin/localeData'
 import { createDateRangeFilterComponent } from './dateRangeFilterComponent'
 import { availableFilterStatuses } from './availableFilterStatuses'
+import { PLAN_TAB_HIDDEN_STATUSES } from '../constants/expenseStatus'
 
 // Extend dayjs with required plugins
 dayjs.extend(weekday)
@@ -28,8 +29,8 @@ export interface UseExpensePlanFiltersReturn {
   debouncedSearchTerm: string
   statusFilter: ExpenseStatus[]
   setStatusFilter: (status: ExpenseStatus[]) => void
-  primaryCurrency: string
-  setCurrencyFilter: (currency: string) => void
+  primaryCurrency: string | null
+  setCurrencyFilter: (currency: string | null) => void
   mostUsedCurrency: string | null
   availableCurrencies: string[]
   currenciesLoading: boolean
@@ -70,7 +71,8 @@ export const useExpensePlanFilters = ({
   const [planTypeFilter, setPlanTypeFilter] = useState<string[]>([])
 
   // LOCAL currency state for expense plans tab - independent from dashboard
-  const [localPrimaryCurrency, setLocalPrimaryCurrency] = useState<string>('EUR')
+  // `null` means "no currency filter" (show all currencies)
+  const [localPrimaryCurrency, setLocalPrimaryCurrency] = useState<string | null>('EUR')
   const [localMostUsedCurrency, setLocalMostUsedCurrency] = useState<string | null>(null)
   const [userHasManuallySelectedCurrency, setUserHasManuallySelectedCurrency] = useState<boolean>(false)
   const [filtersInitialized, setFiltersInitialized] = useState(false)
@@ -117,7 +119,12 @@ export const useExpensePlanFilters = ({
 
   // Helper functions to reduce cognitive complexity
   const handleCurrencyFilterChange = useCallback((filterId: string, isSelected: boolean) => {
-    if (!isSelected) return // Currency is single-select, no deselection
+    // Allow clearing the currency selection (meaning: show all currencies)
+    if (!isSelected) {
+      setLocalPrimaryCurrency(null)
+      setUserHasManuallySelectedCurrency(true)
+      return
+    }
     const currencyCode = filterId.split('currency:').join('')
     setLocalPrimaryCurrency(currencyCode)
     setUserHasManuallySelectedCurrency(true)
@@ -231,12 +238,18 @@ export const useExpensePlanFilters = ({
     }
   }, [])
 
+  // Plans tab: filter UI shows only statuses not in PLAN_TAB_HIDDEN_STATUSES (single source of truth).
+  const planVisibleStatuses = useMemo(
+    () => availableFilterStatuses.filter(s => !PLAN_TAB_HIDDEN_STATUSES.includes(s)),
+    []
+  )
+
   // Memoize filterLabelMap with stable dependencies
   const filterLabelMap = useMemo<Record<string, string>>(() => {
     const map: Record<string, string> = {}
 
-    // Add status filter labels with brackets
-    for (const status of availableFilterStatuses) {
+    // Add status filter labels (only statuses visible in Plans tab)
+    for (const status of planVisibleStatuses) {
       map[status] = getStatusDisplayName(status)
     }
 
@@ -248,7 +261,7 @@ export const useExpensePlanFilters = ({
     buildDateRangeLabels(map)
 
     return map
-  }, [buildDateRangeLabels, getStatusDisplayName])
+  }, [buildDateRangeLabels, getStatusDisplayName, planVisibleStatuses])
 
   // Helper to check if date range is active
   const isDateRangeActive = useCallback((range: [Date | null, Date | null] | null): boolean => {
@@ -330,8 +343,8 @@ export const useExpensePlanFilters = ({
 
   // Create filter groups for the DataFilter component
   const filterGroups = useMemo<DataFilterGroup[]>(() => {
-    // Status filters
-    const statusItems: DataFilter[] = availableFilterStatuses.map(status => ({
+    // Status filters (Plans tab: CREATED and DISCARDED are hidden)
+    const statusItems: DataFilter[] = planVisibleStatuses.map(status => ({
       id: status,
       label: filterLabelMap[status],
       selected: statusFilter.includes(status)
@@ -411,7 +424,7 @@ export const useExpensePlanFilters = ({
       }
     ]
   }, [
-    availableFilterStatuses,
+    planVisibleStatuses,
     filterLabelMap,
     statusFilter,
     planTypeFilter,
@@ -426,7 +439,14 @@ export const useExpensePlanFilters = ({
   // Function to reset manual currency selection (useful for clearing filters)
   const resetCurrencySelection = useCallback(() => {
     setUserHasManuallySelectedCurrency(false)
-    setLocalPrimaryCurrency('EUR') // Reset to default
+    setLocalPrimaryCurrency(null) // Clear currency filter
+  }, [])
+
+  // Public setter: setting/clearing currency counts as a manual choice
+  // so auto-detected currency doesn't immediately re-apply.
+  const setCurrencyFilter = useCallback((currency: string | null) => {
+    setLocalPrimaryCurrency(currency)
+    setUserHasManuallySelectedCurrency(true)
   }, [])
 
   // Return the local currency state instead of global store values
@@ -444,7 +464,7 @@ export const useExpensePlanFilters = ({
     filterGroups,
     handleDataFilterChange,
     // Add missing properties to fix linter errors
-    setCurrencyFilter: setLocalPrimaryCurrency, // Alias for backward compatibility
+    setCurrencyFilter,
     filterLabelMap,
     resetCurrencySelection, // Add the reset function
     getFilters: useCallback(() => {

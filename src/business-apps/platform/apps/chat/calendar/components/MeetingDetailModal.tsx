@@ -32,10 +32,14 @@ import {
   Trash2,
   Pencil,
   Phone,
-  MessageSquare
+  MessageSquare,
+  ListTodo,
+  ExternalLink,
+  Globe
 } from 'lucide-react'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { CalendarEvent, InvitationStatus, MeetingStatus } from '../types'
+import { getAgendaFromMetadata, getTotalAgendaDuration } from '../utils/agendaUtils'
 
 dayjs.extend(localizedFormat)
 
@@ -144,9 +148,10 @@ export const MeetingDetailModal: React.FC<MeetingDetailModalProps> = ({
     `${event.organizer.firstName || ''} ${event.organizer.lastName || ''}`.trim() ||
     event.organizer.email
 
-  const canEdit = event.isOrganizer && event.status === 'scheduled'
-  const canDelete = event.isOrganizer
-  const canRespond = !event.isOrganizer && event.status === 'scheduled'
+  const isExternal = event.source && event.source !== 'internal'
+  const canEdit = event.isOrganizer && event.status === 'scheduled' && !isExternal
+  const canDelete = event.isOrganizer && !isExternal
+  const canRespond = !event.isOrganizer && event.status === 'scheduled' && !isExternal
   const canStartCall = event.meetingLink && (event.status === 'scheduled' || event.status === 'in_progress')
 
   const handleResponse = async (status: InvitationStatus) => {
@@ -205,6 +210,12 @@ export const MeetingDetailModal: React.FC<MeetingDetailModalProps> = ({
             <div className="gba:flex-1">
               <DialogTitle className="gba:text-lg gba:mb-1">{event.title}</DialogTitle>
               <div className="gba:flex gba:items-center gba:gap-2">
+                {isExternal && (
+                  <Badge variant="info" className="gba:gap-1">
+                    <Globe className="gba:h-3 gba:w-3" />
+                    {event.source === 'microsoft' ? 'Microsoft' : event.source === 'google' ? 'Google' : 'External'}
+                  </Badge>
+                )}
                 {hasActiveCall && (
                   <Badge variant="default" className="gba:bg-success gba:text-success-foreground">
                     <div className="gba:flex gba:items-center gba:gap-1">
@@ -261,6 +272,85 @@ export const MeetingDetailModal: React.FC<MeetingDetailModalProps> = ({
               {event.description}
             </div>
           )}
+
+          {/* Agenda */}
+          {(() => {
+            const agenda = getAgendaFromMetadata(event.metadata)
+            if (agenda.length === 0) return null
+
+            const totalDuration = getTotalAgendaDuration(agenda)
+
+            // Helper to get participant name by ID
+            const getAssigneeName = (assigneeId?: string) => {
+              if (!assigneeId || !event.participants) return null
+              const participant = event.participants.find(p => p.id === assigneeId)
+              if (!participant) return null
+              return (
+                participant.displayName ||
+                `${participant.firstName || ''} ${participant.lastName || ''}`.trim() ||
+                participant.email
+              )
+            }
+
+            // Helper to get participant avatar by ID
+            const getAssigneeAvatar = (assigneeId?: string) => {
+              if (!assigneeId || !event.participants) return null
+              const participant = event.participants.find(p => p.id === assigneeId)
+              return participant?.avatarUrl
+            }
+
+            return (
+              <div className="gba:space-y-2">
+                <div className="gba:flex gba:items-center gba:justify-between">
+                  <div className="gba:flex gba:items-center gba:gap-2">
+                    <ListTodo className="gba:h-5 gba:w-5 gba:text-muted-foreground" />
+                    <span className="gba:text-sm gba:font-medium">{t('calendar-agenda')}</span>
+                  </div>
+                  {totalDuration > 0 && (
+                    <span className="gba:text-xs gba:text-muted-foreground">
+                      {t('calendar-agendaTotalDuration', { minutes: totalDuration })}
+                    </span>
+                  )}
+                </div>
+                <div className="gba:space-y-1.5 gba:pl-7">
+                  {agenda.map((item, index) => {
+                    const assigneeName = getAssigneeName(item.assigneeId)
+                    const assigneeAvatar = getAssigneeAvatar(item.assigneeId)
+
+                    return (
+                      <div
+                        key={item.id}
+                        className="gba:flex gba:items-center gba:gap-2 gba:py-1.5 gba:px-2 gba:rounded-md gba:bg-muted/30"
+                      >
+                        <span className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:min-w-[20px]">
+                          {index + 1}.
+                        </span>
+                        <div className="gba:flex-1 gba:min-w-0">
+                          <div className="gba:text-sm gba:font-medium gba:truncate">{item.title}</div>
+                          {item.description && (
+                            <div className="gba:text-xs gba:text-muted-foreground gba:truncate">{item.description}</div>
+                          )}
+                        </div>
+                        {item.duration && (
+                          <Badge variant="outline" className="gba:text-[10px] gba:shrink-0">
+                            {item.duration} min
+                          </Badge>
+                        )}
+                        {assigneeName && (
+                          <div className="gba:flex gba:items-center gba:gap-1 gba:shrink-0">
+                            <Avatar className="gba:h-5 gba:w-5">
+                              {assigneeAvatar && <AvatarImage src={assigneeAvatar} alt={assigneeName} />}
+                              <AvatarFallback className="gba:text-[8px]">{getInitials(assigneeName)}</AvatarFallback>
+                            </Avatar>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )
+          })()}
 
           <Separator />
 
@@ -446,7 +536,19 @@ export const MeetingDetailModal: React.FC<MeetingDetailModalProps> = ({
               </Button>
             )}
 
-            {/* Edit button (organizer only) */}
+            {/* Open in provider button (external events) */}
+            {isExternal && event.externalLink && (
+              <Button
+                variant="outline"
+                onClick={() => window.open(event.externalLink, '_blank', 'noopener,noreferrer')}
+              >
+                <ExternalLink className="gba:h-4 gba:w-4 gba:mr-1" />
+                Open in{' '}
+                {event.source === 'microsoft' ? 'Outlook' : event.source === 'google' ? 'Google Calendar' : 'Calendar'}
+              </Button>
+            )}
+
+            {/* Edit button (organizer only, internal events) */}
             {canEdit && onEdit && (
               <Button variant="outline" onClick={onEdit}>
                 <Pencil className="gba:h-4 gba:w-4 gba:mr-1" />

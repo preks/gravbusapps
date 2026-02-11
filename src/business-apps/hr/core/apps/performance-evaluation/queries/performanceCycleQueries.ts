@@ -12,12 +12,17 @@ export const GET_PERFORMANCE_CYCLES = /* GraphQL */ `
       endDate
       frequency
       status
-      isActive
+      recordState
       ratingScaleId
-      performanceCycleParticipant(where: { isDeleted: { _eq: false }, isEnabled: { _eq: true } }) {
+      performanceCycleParticipant(where: { isDeleted: { _eq: false } }) {
+        id
+        version
         participantType
+        enabled
       }
       performanceCycleCompanyValue(where: { isDeleted: { _eq: false } }) {
+        id
+        version
         companyValueId
       }
     }
@@ -25,10 +30,15 @@ export const GET_PERFORMANCE_CYCLES = /* GraphQL */ `
 `
 
 export interface PerformanceCycleParticipantApi {
+  id: string
+  version: number | null
   participantType: string | null
+  enabled: boolean | null
 }
 
 export interface PerformanceCycleCompanyValueApi {
+  id: string
+  version: number | null
   companyValueId: string | null
 }
 
@@ -40,7 +50,7 @@ export interface PerformanceCycleApi {
   endDate: string | null
   frequency: string | null
   status: string | null
-  isActive: boolean | null
+  recordState: string | null
   ratingScaleId: string | null
   performanceCycleParticipant: PerformanceCycleParticipantApi[]
   performanceCycleCompanyValue: PerformanceCycleCompanyValueApi[] | null
@@ -96,12 +106,12 @@ export interface GetRatingScalesResponse {
  */
 export const GET_COMPANY_VALUES = /* GraphQL */ `
   query GetCompanyValues {
-    CompanyValue(where: { isDeleted: { _eq: false } }, orderBy: [{ title: ASC }]) {
+    CompanyValue(orderBy: [{ title: ASC }]) {
       id
       version
       title
       description
-      isActive
+      recordState
     }
   }
 `
@@ -111,7 +121,7 @@ export interface CompanyValueApi {
   version: number | null
   title: string | null
   description: string | null
-  isActive: boolean | null
+  recordState: string | null
 }
 
 export interface GetCompanyValuesResponse {

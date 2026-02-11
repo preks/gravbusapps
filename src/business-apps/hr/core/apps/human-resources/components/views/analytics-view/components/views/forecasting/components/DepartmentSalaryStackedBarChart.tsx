@@ -1,29 +1,59 @@
-import React from 'react'
+import React, { useMemo, useCallback } from 'react'
 import { Card } from 'antd'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { useTranslation } from '@newwork/nw-design-system'
 import translations from './_i18n'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useDepartmentMonthlySalaryStack } from '../../../../hooks/useDepartmentMonthlySalaryStack'
+import { useMonthlySalaryByDepartment } from '../../../../hooks/useMonthlySalaryByDepartment'
+import { ChartStateOverlay } from './ChartStateOverlay'
+import dayjs from 'dayjs'
 
 const DepartmentSalaryStackedBarChart: React.FC<BusinessAppContextProps> = props => {
   const year = new Date().getFullYear()
-  const { data, loading } = useDepartmentMonthlySalaryStack(props, year)
-  const departments = data.length > 0 ? data[0].departments : []
+  const startDate = dayjs(`${year}-01-01`).format('YYYY-MM-DD')
+  const endDate = dayjs(`${year}-12-31`).format('YYYY-MM-DD')
+  const { data, loading, error } = useMonthlySalaryByDepartment(props.accessToken, startDate, endDate)
   const { t } = useTranslation(translations)
   const millionSuffix = t('suffix-million')
   const thousandSuffix = t('suffix-thousand')
   const locale = getCurrentActiveUserLocale() ?? 'en-US'
 
-  // Prepare recharts data format
-  const chartData = data.map(month => {
-    const entry: any = { month: month.month, totalSalary: month.totalSalary }
-    month.departments.forEach(dep => {
-      entry[dep.id] = dep.salary
+  // Get all unique departments across all months
+  const departments = useMemo(() => {
+    if (!data || data.length === 0) return []
+    const deptMap = new Map<string, { id: string; name: string; color: string }>()
+    data.forEach(month => {
+      month.departments.forEach(dept => {
+        if (!deptMap.has(dept.id)) {
+          deptMap.set(dept.id, {
+            id: dept.id,
+            name: dept.name,
+            color: dept.color
+          })
+        }
+      })
     })
-    return entry
-  })
+    return Array.from(deptMap.values())
+  }, [data])
+
+  // Prepare recharts data format
+  const chartData = useMemo(() => {
+    if (!data || data.length === 0) return []
+    return data.map(month => {
+      const entry: any = { month: month.month, totalSalary: month.totalSalary }
+      month.departments.forEach(dep => {
+        entry[dep.id] = dep.salary
+      })
+      // Ensure all departments are represented (even if 0 for that month)
+      departments.forEach(dept => {
+        if (entry[dept.id] === undefined) {
+          entry[dept.id] = 0
+        }
+      })
+      return entry
+    })
+  }, [data, departments])
 
   // Custom Tooltip
   const CustomTooltip = ({ active, payload }: any) => {
@@ -84,6 +114,42 @@ const DepartmentSalaryStackedBarChart: React.FC<BusinessAppContextProps> = props
     )
   }
 
+  const renderChartContent = useCallback(() => {
+    if (error) {
+      return <ChartStateOverlay state="error" message={t('hr-data-filter-error')} />
+    }
+
+    if (chartData.length === 0) {
+      return <ChartStateOverlay state="empty" message={t('hr-data-filter-no-data')} />
+    }
+
+    return (
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={chartData} margin={{ top: 16, right: 24, left: 0, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis
+            dataKey="month"
+            className="gba:text-xs"
+            tickFormatter={month =>
+              new Date(month + '-01').toLocaleString(locale, {
+                month: 'short',
+                year: 'numeric'
+              })
+            }
+          />
+          <YAxis
+            className="gba:text-xs"
+            tickFormatter={v => `${(v / 1e6).toLocaleString(locale, { maximumFractionDigits: 1 })}${millionSuffix}`}
+          />
+          <Tooltip content={<CustomTooltip />} />
+          {departments.map(dep => (
+            <Bar key={dep.id} dataKey={dep.id} stackId="a" fill={dep.color} name={dep.name} />
+          ))}
+        </BarChart>
+      </ResponsiveContainer>
+    )
+  }, [error, chartData, departments, locale, millionSuffix, t])
+
   return (
     <Card
       className="gba:shadow gba:rounded gba:p-4 gba:mb-6"
@@ -91,22 +157,7 @@ const DepartmentSalaryStackedBarChart: React.FC<BusinessAppContextProps> = props
       title={t('department-salary-stacked-bar-chart-title')}
       loading={loading}
     >
-      <div className="gba:w-full gba:h-80">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={chartData} margin={{ top: 16, right: 24, left: 0, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="month" className="gba:text-xs" />
-            <YAxis
-              className="gba:text-xs"
-              tickFormatter={v => `${(v / 1e6).toLocaleString(locale, { maximumFractionDigits: 1 })}${millionSuffix}`}
-            />
-            <Tooltip content={<CustomTooltip />} />
-            {departments.map(dep => (
-              <Bar key={dep.id} dataKey={dep.id} stackId="a" fill={dep.color} name={dep.name} />
-            ))}
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
+      <div className="gba:w-full gba:h-80">{renderChartContent()}</div>
     </Card>
   )
 }

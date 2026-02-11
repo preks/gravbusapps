@@ -524,6 +524,10 @@ export const isLiquidFundInvestment = (groupRef: string): boolean => {
   return getInvestmentGroupType(groupRef) === 'LIQUID_FUND'
 }
 
+export const isPrivateEquityInvestment = (groupRef: string): boolean => {
+  return getInvestmentGroupType(groupRef) === 'PRIVATE_EQUITY'
+}
+
 // ==============================
 // Investment Group References
 // ==============================
@@ -531,7 +535,8 @@ export const isLiquidFundInvestment = (groupRef: string): boolean => {
 export const INVESTMENT_GROUP_REFS = {
   EQUITY: 'InvestmentGroup:v1:EQUITY',
   REAL_ESTATE: 'InvestmentGroup:v1:REAL_ESTATE',
-  LIQUID_FUND: 'InvestmentGroup:v1:LIQUID_FUND'
+  LIQUID_FUND: 'InvestmentGroup:v1:LIQUID_FUND',
+  PRIVATE_EQUITY: 'InvestmentGroup:v1:PRIVATE_EQUITY'
 } as const
 
 export type InvestmentGroupType = keyof typeof INVESTMENT_GROUP_REFS

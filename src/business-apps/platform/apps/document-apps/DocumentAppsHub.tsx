@@ -5,7 +5,7 @@
  * Modern OneDrive-inspired design with sidebar navigation.
  */
 
-import React, { useState, useCallback, useEffect } from 'react'
+import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import { toast } from 'sonner'
 import {
   Card,
@@ -66,12 +66,14 @@ import { navigateTo } from '@/common/utils/navigationUtils'
 // Components
 import { WordUploader } from './components/WordUploader'
 import { PdfUploader } from './components/PdfUploader'
+import { OdfUploader } from './components/OdfUploader'
 import { TemplateGallery } from './components/TemplateGallery'
+import { CreateTemplateDialog } from './components/CreateTemplateDialog'
 import { SendForApprovalDialog } from './components/SendForApprovalDialog'
 import { ShareDocumentDialog } from './components/ShareDocumentDialog'
 import { ManageSharesDialog } from './components/ManageSharesDialog'
-import { PagedDocumentEditor } from './components/PagedDocumentEditor'
-import { PdfDocumentViewer } from './components/PdfDocumentViewer'
+import type { PagedDocumentEditorRef } from './components/PagedDocumentEditor'
+import { DocumentAppsHubEditorView } from './components/DocumentAppsHubEditorView'
 
 // Hooks
 import { useDocumentApps } from './hooks/useDocumentApps'
@@ -82,6 +84,10 @@ import { useDocumentAppsHubFavorites } from './hooks/useDocumentAppsHubFavorites
 import { useDocumentAppsHubFiltering } from './hooks/useDocumentAppsHubFiltering'
 import { useDocumentAppsHubUrlState } from './hooks/useDocumentAppsHubUrlState'
 
+// Entities / context
+import { getContextForCategory, getContextForEntityKeys } from './entities'
+import { extractEntityKeysFromContent } from './utils/templatePlaceholders'
+
 // Types
 import type { DocumentTemplate, ParsedWordDocument, DocumentSummary } from './types'
 
@@ -89,7 +95,7 @@ export interface DocumentAppsHubProps extends BusinessAppContextProps {
   'data-testid'?: string
 }
 
-type HubView = 'list' | 'upload' | 'upload-pdf' | 'editor' | 'templates'
+type HubView = 'list' | 'upload' | 'upload-pdf' | 'upload-odf' | 'editor' | 'templates'
 type SidebarSection = 'home' | 'my-documents' | 'shared' | 'templates' | 'favorites' | 'recent' | 'archived'
 
 /** Get initials from a name */
@@ -147,6 +153,7 @@ function formatDate(dateString: string): string {
 export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
   accessToken,
   userInfo,
+  entityContext,
   'data-testid': testId = 'document-apps-hub'
 }) => {
   // View state
@@ -172,9 +179,45 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
   const [documentForShare, setDocumentForShare] = useState<string | null>(null)
   const [manageSharesDialogOpen, setManageSharesDialogOpen] = useState(false)
   const [documentForManageShares, setDocumentForManageShares] = useState<string | null>(null)
+  const [createTemplateDialogOpen, setCreateTemplateDialogOpen] = useState(false)
+  const [templateBeingEdited, setTemplateBeingEdited] = useState<DocumentTemplate | null>(null)
+  /** Context chosen in create modal; used only to pick entities in the editor (not sent to API). */
+  const [sessionEntityContext, setSessionEntityContext] = useState<string | null>(null)
+  const templateEditorRef = useRef<PagedDocumentEditorRef>(null)
 
   // Get current user ID
   const currentUserId = userInfo?.id || userInfo?.employeeDetails?.employeeId || ''
+
+  // Clear space return URL if not opened from a space
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(globalThis.window.location.search)
+      const spaceId = params.get('spaceId')
+      if (!spaceId) {
+        // Document opened from hub, not from a space - clear any stale return URL
+        sessionStorage.removeItem('space_return_url')
+      }
+    } catch (e) {
+      console.warn('Failed to check/clear space_return_url:', e)
+    }
+  }, [])
+
+  // Entity context: prop > URL ?entityContext= > category-derived (when editing a template) > default
+  const urlEntityContext = useMemo(() => {
+    if (typeof globalThis.window === 'undefined') return undefined
+    const params = new URLSearchParams(globalThis.window.location.search)
+    return params.get('entityContext') ?? undefined
+  }, [typeof globalThis.window === 'undefined' ? '' : globalThis.window.location.search])
+  const effectiveEntityContext =
+    entityContext ??
+    urlEntityContext ??
+    (templateBeingEdited
+      ? (templateBeingEdited.context ??
+        sessionEntityContext ??
+        getContextForEntityKeys(extractEntityKeysFromContent(templateBeingEdited.content)) ??
+        getContextForCategory(templateBeingEdited.category))
+      : undefined) ??
+    'candidate'
 
   // Hooks
   const {
@@ -194,7 +237,10 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
     refreshDocuments
   } = useDocumentApps(accessToken, currentUserId)
 
-  const { templates, createDocumentFromTemplate } = useDocumentTemplates(accessToken, currentUserId)
+  const { templates, createTemplate, updateTemplate, loadTemplate, createDocumentFromTemplate } = useDocumentTemplates(
+    accessToken,
+    currentUserId
+  )
   const { updateUrl, resetLoadAttempt } = useDocumentAppsHubUrlState({
     currentView,
     currentDocumentId: currentDocument?.id || null,
@@ -275,6 +321,21 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
   )
 
   /**
+   * Handle edit template: load full template and open in editor
+   */
+  const handleEditTemplate = useCallback(
+    async (template: { id: string }) => {
+      const full = await loadTemplate(template.id)
+      if (full) {
+        setSessionEntityContext(null)
+        setTemplateBeingEdited(full)
+        setCurrentView('editor')
+      }
+    },
+    [loadTemplate]
+  )
+
+  /**
    * Open a document
    */
   const handleOpenDocument = useCallback(
@@ -347,9 +408,32 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
   }, [])
 
   /**
-   * Go back to list
+   * Go back to list or return URL
    */
   const handleBack = useCallback(() => {
+    // Check if there's a space return URL in sessionStorage (takes priority)
+    try {
+      const spaceReturnUrl = sessionStorage.getItem('space_return_url')
+      if (spaceReturnUrl) {
+        sessionStorage.removeItem('space_return_url')
+        globalThis.window.location.href = spaceReturnUrl
+        return
+      }
+    } catch (e) {
+      console.warn('Failed to read space_return_url from sessionStorage:', e)
+    }
+
+    // Fallback: Check if there's a returnUrl parameter
+    const params = new URLSearchParams(globalThis.window.location.search)
+    const returnUrl = params.get('returnUrl')
+
+    if (returnUrl) {
+      // Navigate back to the specified URL (e.g., space)
+      globalThis.window.location.href = returnUrl
+      return
+    }
+
+    // Otherwise, go back to the list view
     clearCurrentDocument()
     resetLoadAttempt()
     setSelectedDocumentId(null)
@@ -371,6 +455,14 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
    */
   const handleStartPdfUpload = useCallback(() => {
     setCurrentView('upload-pdf')
+  }, [])
+
+  /**
+   * Start ODF upload flow
+   */
+  const handleStartOdfUpload = useCallback(() => {
+    setParsedWordDocument(null)
+    setCurrentView('upload-odf')
   }, [])
 
   /**
@@ -453,102 +545,31 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
 
   // Render editor view
   if (currentView === 'editor') {
-    const canEdit = currentDocumentPermission === 'owner' || currentDocumentPermission === 'edit'
-
-    // If we have a parsed Word document (from upload), create a new document with that content
-    if (parsedWordDocument && !currentDocument) {
-      return (
-        <PagedDocumentEditor
-          initialContent={parsedWordDocument.html}
-          initialTitle={parsedWordDocument.fileName.replace(/\.(docx?|doc)$/i, '')}
-          onSave={async (title, content) => {
-            const newDoc = await createDocument({
-              title,
-              content,
-              status: 'draft',
-              createdBy: currentUserId,
-              sourceFile: {
-                originalName: parsedWordDocument.fileName,
-                fileSize: parsedWordDocument.fileSize,
-                mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                uploadedAt: new Date().toISOString()
-              }
-            })
-            if (newDoc) {
-              setParsedWordDocument(null)
-              setSelectedDocumentId(newDoc.id)
-              await loadDocument(newDoc.id)
-              updateUrl(newDoc.id, 'editor')
-            }
-          }}
-          onBack={handleBack}
-          onSendForApproval={() => {
-            toast.info('Please save the document first before sending for approval')
-          }}
-          accessToken={accessToken}
-          userInfo={userInfo}
-          data-testid={`${testId}-editor`}
-        />
-      )
-    }
-
-    // If we have a current document loaded
-    if (currentDocument) {
-      // Check if this is a PDF document - render read-only viewer
-      const isPdfDocument = currentDocument.sourceFile?.mimeType === 'application/pdf'
-
-      if (isPdfDocument) {
-        return (
-          <PdfDocumentViewer
-            key={currentDocument.id}
-            document={currentDocument}
-            accessToken={accessToken}
-            onBack={handleBack}
-            data-testid={`${testId}-pdf-viewer`}
-          />
-        )
-      }
-
-      return (
-        <PagedDocumentEditor
-          key={currentDocument.id}
-          document={currentDocument}
-          onSave={async (title, content) => {
-            await updateDocument(currentDocument.id, { title, content })
-          }}
-          onBack={handleBack}
-          onSendForApproval={() => handleSendForApprovalClick(currentDocument.id)}
-          isReadOnly={!canEdit}
-          accessToken={accessToken}
-          userInfo={userInfo}
-          data-testid={`${testId}-editor`}
-        />
-      )
-    }
-
-    // Fallback - new document
     return (
-      <PagedDocumentEditor
-        onSave={async (title, content) => {
-          const newDoc = await createDocument({
-            title,
-            content,
-            status: 'draft',
-            createdBy: currentUserId
-          })
-          if (newDoc) {
-            setSelectedDocumentId(newDoc.id)
-            await loadDocument(newDoc.id)
-            updateUrl(newDoc.id, 'editor')
-          }
-        }}
-        onBack={handleBack}
-        onSendForApproval={() => {
-          toast.info('Please save the document first before sending for approval')
-        }}
+      <DocumentAppsHubEditorView
+        templateBeingEdited={templateBeingEdited}
+        setTemplateBeingEdited={setTemplateBeingEdited}
+        setSessionEntityContext={setSessionEntityContext}
+        parsedWordDocument={parsedWordDocument}
+        setParsedWordDocument={setParsedWordDocument}
+        setSelectedDocumentId={setSelectedDocumentId}
+        currentDocument={currentDocument}
+        currentDocumentPermission={currentDocumentPermission ?? ''}
+        createDocument={async opts => createDocument(opts as Parameters<typeof createDocument>[0])}
+        loadDocument={loadDocument}
+        updateDocument={updateDocument}
+        updateTemplate={updateTemplate}
+        updateUrl={(docId, view) => updateUrl(docId, view as HubView | undefined)}
+        setCurrentView={v => setCurrentView(v as HubView)}
+        setActiveSection={s => setActiveSection(s as SidebarSection)}
+        handleBack={handleBack}
+        handleSendForApprovalClick={handleSendForApprovalClick}
+        currentUserId={currentUserId}
         accessToken={accessToken}
         userInfo={userInfo}
-        data-testid={`${testId}-editor`}
+        templateEditorRef={templateEditorRef}
+        effectiveEntityContext={effectiveEntityContext ?? ''}
+        testId={testId}
       />
     )
   }
@@ -655,11 +676,28 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                   <div className="gba:text-xs gba:text-muted-foreground">Import PDF for search & Q&A</div>
                 </div>
               </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleStartOdfUpload}>
+                <FileText className="gba:w-4 gba:h-4 gba:mr-2 gba:text-teal-500" />
+                <div>
+                  <div className="gba:font-medium">Upload ODF</div>
+                  <div className="gba:text-xs gba:text-muted-foreground">Import .odt OpenDocument file</div>
+                </div>
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setActiveSection('templates')}>
                 <Sparkles className="gba:w-4 gba:h-4 gba:mr-2 gba:text-purple-500" />
                 <div>
                   <div className="gba:font-medium">From Template</div>
                   <div className="gba:text-xs gba:text-muted-foreground">Choose a template</div>
+                </div>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setCreateTemplateDialogOpen(true)}
+                data-testid="document-apps-hub-new-create-template"
+              >
+                <LayoutTemplate className="gba:w-4 gba:h-4 gba:mr-2 gba:text-purple-500" />
+                <div>
+                  <div className="gba:font-medium">Create Template</div>
+                  <div className="gba:text-xs gba:text-muted-foreground">Create a new template</div>
                 </div>
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -936,6 +974,34 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
           </div>
         )}
 
+        {/* Upload ODF View */}
+        {currentView === 'upload-odf' && (
+          <div className="gba:flex-1 gba:overflow-auto gba:p-8">
+            <div className="gba:max-w-2xl gba:mx-auto gba:space-y-6">
+              <Button variant="ghost" onClick={handleBack} className="gba:mb-4">
+                <X className="gba:w-4 gba:h-4 gba:mr-2" />
+                Cancel
+              </Button>
+
+              <div className="gba:text-center gba:mb-8">
+                <div className="gba:w-16 gba:h-16 gba:rounded-2xl gba:bg-gradient-to-br gba:from-teal-500 gba:to-teal-600 gba:flex gba:items-center gba:justify-center gba:mx-auto gba:mb-4">
+                  <Upload className="gba:w-8 gba:h-8 gba:text-white" />
+                </div>
+                <h2 className="gba:text-2xl gba:font-bold gba:text-foreground gba:mb-2">Upload ODF Document</h2>
+                <p className="gba:text-muted-foreground">
+                  Upload your OpenDocument text file and we'll preserve the formatting
+                </p>
+              </div>
+
+              <OdfUploader
+                onFileParsed={handleWordFileParsed}
+                onError={error => toast.error(error)}
+                data-testid={`${testId}-odf-uploader`}
+              />
+            </div>
+          </div>
+        )}
+
         {/* Templates View */}
         {currentView === 'list' && activeSection === 'templates' && (
           <>
@@ -950,9 +1016,22 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
               <TemplateGallery
                 templates={templates}
                 onSelectTemplate={handleSelectTemplate}
+                onEditTemplate={handleEditTemplate}
                 data-testid={`${testId}-templates`}
               />
             </div>
+            <CreateTemplateDialog
+              open={createTemplateDialogOpen}
+              onOpenChange={setCreateTemplateDialogOpen}
+              createTemplate={createTemplate}
+              currentUserId={currentUserId}
+              onCreated={(template, options) => {
+                setSessionEntityContext(options?.entityContext ?? null)
+                setTemplateBeingEdited(template)
+                setCurrentView('editor')
+              }}
+              data-testid={`${testId}-create-template-dialog`}
+            />
           </>
         )}
 

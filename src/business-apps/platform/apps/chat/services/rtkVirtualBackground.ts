@@ -16,8 +16,6 @@ export class RTKVirtualBackground {
   async initialize(meeting: RealtimeKitMeeting): Promise<void> {
     if (this.isInitialized) return
 
-    rtkDebug.log('[RTK Virtual Background] 🎨 Initializing transformer...')
-
     // Check browser support
     if (!RealtimeKitVideoBackgroundTransformer.isSupported()) {
       rtkDebug.warn('[RTK Virtual Background] ⚠️ Not supported in this browser')
@@ -37,7 +35,6 @@ export class RTKVirtualBackground {
     })
 
     this.isInitialized = true
-    rtkDebug.log('[RTK Virtual Background] ✅ Transformer initialized')
   }
 
   async enableBackground(meeting: RealtimeKitMeeting, imageUrl?: string): Promise<void> {
@@ -53,13 +50,11 @@ export class RTKVirtualBackground {
 
     // Create and apply background middleware
     const backgroundUrl = imageUrl || backgroundPoster
-    rtkDebug.log('[RTK Virtual Background] 🖼️ Applying background:', backgroundUrl)
 
     this.currentMiddleware = await this.transformer.createStaticBackgroundVideoMiddleware(backgroundUrl)
 
     if (meeting.self?.addVideoMiddleware) {
       meeting.self.addVideoMiddleware(this.currentMiddleware)
-      rtkDebug.log('[RTK Virtual Background] ✅ Background applied')
     }
   }
 
@@ -75,13 +70,10 @@ export class RTKVirtualBackground {
     }
 
     // Create and apply blur middleware
-    rtkDebug.log('[RTK Virtual Background] 💨 Applying blur with strength:', blurStrength)
-
     this.currentMiddleware = await this.transformer.createBackgroundBlurVideoMiddleware(blurStrength)
 
     if (meeting.self?.addVideoMiddleware) {
       meeting.self.addVideoMiddleware(this.currentMiddleware)
-      rtkDebug.log('[RTK Virtual Background] ✅ Blur applied')
     }
   }
 
@@ -89,7 +81,6 @@ export class RTKVirtualBackground {
     if (this.currentMiddleware && meeting.self?.removeVideoMiddleware) {
       meeting.self.removeVideoMiddleware(this.currentMiddleware)
       this.currentMiddleware = null
-      rtkDebug.log('[RTK Virtual Background] ⏸️ Background removed')
     }
   }
 
@@ -97,7 +88,6 @@ export class RTKVirtualBackground {
     this.disable(meeting)
     this.transformer = null
     this.isInitialized = false
-    rtkDebug.log('[RTK Virtual Background] 🗑️ Destroyed')
   }
 
   isSupported(): boolean {

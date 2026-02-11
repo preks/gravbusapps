@@ -3,7 +3,6 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { DocumentSection } from '@/components/document-section'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { useInvestmentDocuments } from '@/common/data/investment/hooks/useInvestmentDocuments'
-import { createDocumentSectionActions } from '@/common/utils/documentSectionActions'
 import { getIrmDocumentApiConfig, useGetIrmDocuments } from '@/business-apps/irm/common/utils/documentUtils'
 
 interface ContactDocumentsProps {
@@ -46,16 +45,21 @@ const ContactDocuments: React.FC<ContactDocumentsProps> = ({ contactId, context 
     [contactId]
   )
 
-  // Use shared document actions
-  const customActions = useMemo(
-    () =>
-      createDocumentSectionActions({
-        domain: 'investment-relations',
-        documentFieldName: 'investmentDocument',
-        entityType: 'contact',
-        updateProcessName: 'updateInvestmentDocument',
-        deleteEndpoint: '/investment-relations/deleteInvestmentDocument'
-      }),
+  const documentUpdateActionProps = useMemo(
+    () => ({
+      contextsArray: [FlowContextName.investmentDocumentUpdate],
+      buildExternalContextData: (document: any) => ({ documentId: document.id }),
+      prefixDataTestId: 'contact-document-update'
+    }),
+    []
+  )
+
+  const documentDeleteActionProps = useMemo(
+    () => ({
+      contextsArray: [FlowContextName.investmentDocumentDelete],
+      buildExternalContextData: (document: any) => ({ documentId: document.id }),
+      prefixDataTestId: 'contact-document-delete'
+    }),
     []
   )
 
@@ -67,9 +71,10 @@ const ContactDocuments: React.FC<ContactDocumentsProps> = ({ contactId, context 
       error={error}
       onRefresh={refetch}
       apiConfig={getIrmDocumentApiConfig('contact')}
-      customActions={customActions}
       createFolderActionProps={documentCreateFolderActionProps}
       uploadActionProps={documentUploadActionProps}
+      updateActionProps={documentUpdateActionProps}
+      deleteActionProps={documentDeleteActionProps}
       data-testid="contact-document-section"
       {...context}
     />

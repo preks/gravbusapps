@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useCallback } from 'react'
 import {
   Card,
   CardContent,
@@ -26,7 +26,8 @@ import {
   CheckCircle,
   XCircle,
   AlertCircle,
-  Calendar
+  Calendar,
+  Sparkles
 } from 'lucide-react'
 import dayjs from 'dayjs'
 import localizedFormat from 'dayjs/plugin/localizedFormat'
@@ -47,6 +48,11 @@ import { InputRenderer } from '@/business-apps/flow/apps/creator/components/shar
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { MarkdownRenderer } from '@/business-apps/ai/forms/scheduled-task-result/components/MarkdownRenderer'
 import { calculateDueDateCriticality, getCriticalityBadgeVariant } from '../utils/dueDateUtils'
+import { TaskAiSection } from './TaskAiSection'
+import { AiToolbar } from './AiToolbar'
+import { useAiAssistant, useAiCapabilities } from '../hooks/useAi'
+import { useFeature } from '@/common/hooks/useFeature'
+import { Feature } from '@/common/types/constants/FeatureHub'
 import translations from '../_i18n'
 
 dayjs.extend(localizedFormat)
@@ -103,6 +109,103 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
   const [formInitialized, setFormInitialized] = useState(false)
   const [currentTaskId, setCurrentTaskId] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+  const [aiUsedForComment, setAiUsedForComment] = useState(false)
+
+  // AI feature check
+  const aiFeature = useFeature(Feature.EveryBox.AiEnabled.Key)
+  const isAiFeatureEnabled = aiFeature === true || aiFeature === 'true' || aiFeature === undefined
+  const { capabilities } = useAiCapabilities(accessToken)
+  const isAiAvailable = isAiFeatureEnabled && capabilities?.aiEnabled
+
+  // AI Assistant hook for comment editing
+  const {
+    suggestedReply,
+    isLoading: isAiLoading,
+    error: aiError,
+    lastAction,
+    getSuggestedReply,
+    improve,
+    changeTone,
+    expand,
+    shorten,
+    applyCustom,
+    saveCommunication,
+    clearSuggestion
+  } = useAiAssistant(task.id, task.source, accessToken)
+
+  // Handle AI suggestion applied to comment
+  const handleAiResultApplied = useCallback(
+    (result: string) => {
+      setComment(result)
+      setAiUsedForComment(true)
+      clearSuggestion()
+    },
+    [clearSuggestion]
+  )
+
+  // AI toolbar handlers
+  const handleAiSuggest = useCallback(async () => {
+    const result = await getSuggestedReply(task.sourceMetadata?.creatorUserId)
+    if (result) {
+      handleAiResultApplied(result)
+      toast.success(t('ai-assistant-applied'))
+    }
+  }, [getSuggestedReply, task.sourceMetadata?.creatorUserId, handleAiResultApplied, t])
+
+  const handleAiImprove = useCallback(
+    async (text: string) => {
+      const result = await improve(text)
+      if (result) {
+        handleAiResultApplied(result)
+        toast.success(t('ai-assistant-applied'))
+      }
+    },
+    [improve, handleAiResultApplied, t]
+  )
+
+  const handleAiTone = useCallback(
+    async (text: string, tone: 'formal' | 'casual' | 'friendly' | 'professional' | 'concise') => {
+      const result = await changeTone(text, tone)
+      if (result) {
+        handleAiResultApplied(result)
+        toast.success(t('ai-assistant-applied'))
+      }
+    },
+    [changeTone, handleAiResultApplied, t]
+  )
+
+  const handleAiExpand = useCallback(
+    async (text: string) => {
+      const result = await expand(text)
+      if (result) {
+        handleAiResultApplied(result)
+        toast.success(t('ai-assistant-applied'))
+      }
+    },
+    [expand, handleAiResultApplied, t]
+  )
+
+  const handleAiShorten = useCallback(
+    async (text: string) => {
+      const result = await shorten(text)
+      if (result) {
+        handleAiResultApplied(result)
+        toast.success(t('ai-assistant-applied'))
+      }
+    },
+    [shorten, handleAiResultApplied, t]
+  )
+
+  const handleAiCustom = useCallback(
+    async (instruction: string, text?: string) => {
+      const result = await applyCustom(instruction, text)
+      if (result) {
+        handleAiResultApplied(result)
+        toast.success(t('ai-assistant-applied'))
+      }
+    },
+    [applyCustom, handleAiResultApplied, t]
+  )
 
   // Format date with Today/Yesterday support
   const formatDateTime = (date: string | Date): string => {
@@ -230,18 +333,13 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
     task.source === 'cflow' &&
     (task.tags?.app === 'glossary-entry-request' || task.sourceMetadata?.tags?.app === 'glossary-entry-request')
 
-  // Debug logging to diagnose tag location
-  if (task.source === 'cflow' && task.title?.includes('Glossary Term Request')) {
-    console.log('[Glossary Request Detection]', {
-      source: task.source,
-      title: task.title,
-      tags: task.tags,
-      sourceMetadata: task.sourceMetadata,
-      sourceMetadataTags: task.sourceMetadata?.tags,
-      workflowMeta: task.workflowMeta,
-      allKeys: Object.keys(task),
-      isGlossaryRequestTask
-    })
+  // Debug logging gated behind dev mode only
+  if (
+    process.env.NODE_ENV === 'development' &&
+    task.source === 'cflow' &&
+    task.title?.includes('Glossary Term Request')
+  ) {
+    console.log('[Glossary Request Detection]', { title: task.title, isGlossaryRequestTask })
   }
 
   const taskTitle = task.title || task.name || task.referenceTaskName || t('task-details-untitled')
@@ -398,10 +496,21 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
 
     toast.success(t('task-dialog-completed-success'))
 
+    // Always store task completion for AI learning (fire and forget)
+    // Records even without a comment so insights track all task activity
+    saveCommunication({
+      messageType: 'completion',
+      content: showComment && comment?.trim() ? comment.trim() : `Task completed: ${task.title || task.id}`,
+      recipientId: task.sourceMetadata?.creatorUserId,
+      aiAssisted: aiUsedForComment,
+      aiAction: aiUsedForComment ? lastAction || undefined : undefined
+    })
+
+    // Call onTaskCompleted for instant UI feedback (removes from local state)
+    // Don't call onTaskUpdated - it triggers a slow full refetch that's not needed
     if (onTaskCompleted && task.id) {
       onTaskCompleted(task.id)
     }
-    onTaskUpdated()
     onClose()
   }
 
@@ -429,10 +538,22 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
 
     toast.success(t('task-details-task-rejected'))
 
+    // Always store task rejection for AI learning (fire and forget)
+    // Records even without a comment so insights track all task activity
+    const rejectionContent = comment || data?.comment || ''
+    saveCommunication({
+      messageType: 'rejection',
+      content: rejectionContent.trim() || `Task rejected: ${task.title || task.id}`,
+      recipientId: task.sourceMetadata?.creatorUserId,
+      aiAssisted: aiUsedForComment,
+      aiAction: aiUsedForComment ? lastAction || undefined : undefined
+    })
+
+    // Call onTaskCompleted for instant UI feedback (removes from local state)
+    // Don't call onTaskUpdated - it triggers a slow full refetch that's not needed
     if (onTaskCompleted && task.id) {
       onTaskCompleted(task.id)
     }
-    onTaskUpdated()
     onClose()
   }
 
@@ -542,7 +663,7 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
     (task.sourceMetadata as any)?.app === 'glossary-entry-request'
 
   if (isGlossaryRequestTask || (task.source === 'cflow' && hasGlossaryTag)) {
-    // Extract term and context from task tags, sourceMetadata tags, workflowMeta, or initial parameters
+    // Extract term and contextDescription from task tags, sourceMetadata tags, workflowMeta, or initial parameters
     const allTags = {
       ...task.tags,
       ...task.sourceMetadata?.tags,
@@ -551,15 +672,8 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
     }
     const term =
       allTags?.term || task.sourceMetadata?.initialParameters?.term || (task.sourceMetadata as any)?.term || ''
-    const context =
+    const contextDescription =
       allTags?.context || task.sourceMetadata?.initialParameters?.context || (task.sourceMetadata as any)?.context || ''
-
-    console.log('[Glossary Request Form] Loading form with data:', {
-      term,
-      context,
-      allTags,
-      sourceMetadata: task.sourceMetadata
-    })
 
     // Get userInfo from task if available
     const userInfo = userId
@@ -578,7 +692,7 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
         additionalData={{
           psi_taskPayload: {
             term,
-            context,
+            context: contextDescription,
             requesterUserId: task.sourceMetadata?.flowInitiatedBy
           },
           psi_processMetadata: task.sourceMetadata,
@@ -594,7 +708,7 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
   // For Blink tasks, use the simple view from every-box
   if (isBlinkTask) {
     return (
-      <div className="gba:flex gba:flex-col gba:h-full" data-testid="universal-cflow-task-details">
+      <div className="gba:flex gba:flex-col gba:flex-1 gba:min-h-0" data-testid="universal-cflow-task-details">
         {/* Task Header */}
         <TaskDetailHeader
           title={taskTitle}
@@ -617,6 +731,16 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
 
         {/* Scrollable Content - Simple Blink Task View */}
         <div className="gba:flex-1 gba:overflow-y-auto gba:space-y-6 gba:min-h-0 gba:px-6">
+          {/* AI Summary & Suggestions */}
+          <TaskAiSection
+            taskId={task.id}
+            source={task.source}
+            accessToken={accessToken}
+            urgencyScore={task.ai?.urgencyScore}
+            currentUserPriority={task.userState?.userPriority}
+            onPriorityApplied={() => onTaskUpdated()}
+          />
+
           {/* Completion Details - Only show for completed tasks */}
           {isCompleted && (
             <Card className="gba:border-success/50 gba:bg-success/5">
@@ -779,7 +903,7 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
 
   // For non-Blink cFlow tasks, use the full form view
   return (
-    <div className="gba:flex gba:flex-col gba:h-full" data-testid="universal-cflow-task-details">
+    <div className="gba:flex gba:flex-col gba:flex-1 gba:min-h-0" data-testid="universal-cflow-task-details">
       {/* Task Header - Using shared TaskDetailHeader component */}
       <TaskDetailHeader
         title={taskTitle}
@@ -801,6 +925,16 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
       />
 
       <div className="gba:flex-1 gba:overflow-y-auto gba:space-y-6 gba:min-h-0 gba:px-6">
+        {/* AI Summary & Suggestions */}
+        <TaskAiSection
+          taskId={task.id}
+          source={task.source}
+          accessToken={accessToken}
+          urgencyScore={task.ai?.urgencyScore}
+          currentUserPriority={task.userState?.userPriority}
+          onPriorityApplied={() => onTaskUpdated()}
+        />
+
         {/* Due Date & Starting Date Section */}
         {(task.dueDate || task.scheduledAt) && (
           <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-4 gba:pb-4 gba:border-b">
@@ -1110,8 +1244,8 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
 
         {/* Comment Section - Only for active tasks with complete/reject actions */}
         {!isCompleted && (task.availableActions?.canComplete || task.availableActions?.canReject) && (
-          <div>
-            <div className="gba:flex gba:items-center gba:gap-2 gba:mb-3">
+          <div className="gba:space-y-3">
+            <div className="gba:flex gba:items-center gba:gap-2">
               <Switch
                 id="show-comment"
                 checked={showComment}
@@ -1128,15 +1262,54 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
             </div>
 
             {showComment && (
-              <Textarea
-                id="comment"
-                placeholder={t('task-details-comment-placeholder')}
-                value={comment}
-                onChange={e => setComment(e.target.value)}
-                rows={4}
-                className="gba:w-full"
-                data-testid="task-comment-input"
-              />
+              <div className="gba:space-y-2">
+                {/* AI Error display */}
+                {aiError && (
+                  <div className="gba:text-sm gba:text-destructive gba:bg-destructive/10 gba:px-3 gba:py-2 gba:rounded-md">
+                    {aiError}
+                  </div>
+                )}
+
+                <Textarea
+                  id="comment"
+                  placeholder={t('task-details-comment-placeholder')}
+                  value={comment}
+                  onChange={e => {
+                    setComment(e.target.value)
+                    // Clear AI used flag when user manually edits after AI
+                    if (aiUsedForComment && e.target.value !== suggestedReply) {
+                      // User modified the AI suggestion - still counts as AI-assisted
+                    }
+                  }}
+                  rows={4}
+                  className="gba:w-full"
+                  data-testid="task-comment-input"
+                />
+
+                {/* AI Toolbar */}
+                {isAiAvailable && (
+                  <AiToolbar
+                    currentText={comment}
+                    isLoading={isAiLoading}
+                    onSuggest={handleAiSuggest}
+                    onImprove={handleAiImprove}
+                    onTone={handleAiTone}
+                    onExpand={handleAiExpand}
+                    onShorten={handleAiShorten}
+                    onCustom={handleAiCustom}
+                    hasText={comment.trim().length > 0}
+                    disabled={isCompleting}
+                  />
+                )}
+
+                {/* AI assisted indicator */}
+                {aiUsedForComment && (
+                  <div className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:text-muted-foreground">
+                    <Sparkles className="gba:h-3 gba:w-3" />
+                    <span>{t('ai-assistant-ai-assisted')}</span>
+                  </div>
+                )}
+              </div>
             )}
           </div>
         )}

@@ -35,6 +35,15 @@ export interface CycleEditorValues {
   stages: EvaluationStage[]
   ratingScaleId?: string
   valueIds?: string[]
+  /** Raw API participants with id/version for updates */
+  _apiParticipants?: Array<{
+    id: string
+    version: number | null
+    participantType: string | null
+    enabled: boolean | null
+  }>
+  /** Raw API company values with id/version for updates */
+  _apiCompanyValues?: Array<{ id: string; version: number | null; companyValueId: string | null }>
 }
 
 const frequencyOptions: FrequencyType[] = ['Annual', 'Quarterly', 'Custom']
@@ -45,11 +54,19 @@ const participantOptions: ParticipantType[] = ['Self', 'Peer', 'Manager']
 // (no-op helper previously used for stages removed)
 import translations from './_i18n'
 
-/** Value option for the cycle editor (from API; id, title, active). */
+/** Value option for the cycle editor (from API; id, title, recordState). */
 export interface CycleEditorValueOption {
   id: string
   title: string
+  recordState: string
   active?: boolean
+}
+
+/** Rating scale option for the cycle editor (from API; id, name, values). */
+export interface CycleEditorRatingScaleOption {
+  id: string
+  name: string
+  values: string[]
 }
 
 interface CycleEditorModalProps {
@@ -59,6 +76,8 @@ interface CycleEditorModalProps {
   initialValues?: CycleEditorValues
   /** Values for the Valori dropdown (from DB). When provided, localStorage is not used. */
   availableValues?: CycleEditorValueOption[]
+  /** Rating scales from the database (not localStorage). */
+  availableRatingScales?: CycleEditorRatingScaleOption[]
 }
 
 function defaultParticipantsState(initialValues?: CycleEditorValues): Record<ParticipantType, boolean> {
@@ -74,7 +93,8 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
   onOpenChange,
   onSave,
   initialValues,
-  availableValues: availableValuesProp = []
+  availableValues: availableValuesProp = [],
+  availableRatingScales: availableRatingScalesProp = []
 }) => {
   const { t } = useTranslation(translations)
   const [name, setName] = useState(initialValues?.name || '')
@@ -86,11 +106,9 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
   )
   const initialStages: EvaluationStage[] = initialValues?.stages ?? []
 
-  // Rating scales (managed in Rating Scales tab)
-  const RATING_SCALES_STORAGE_KEY = 'hr.performance.ratingScales.v1'
-  type RatingScale = { id: string; name: string; values: string[] }
-  const [availableScales, setAvailableScales] = useState<RatingScale[]>([])
+  // Rating scales: from prop (real data from DB via parent)
   const [selectedScaleId, setSelectedScaleId] = useState<string | undefined>(initialValues?.ratingScaleId)
+  const availableScales = availableRatingScalesProp
 
   // Values: from prop (real data from DB via parent's valuesStore)
   const [selectedValueIds, setSelectedValueIds] = useState<string[]>(initialValues?.valueIds ?? [])
@@ -169,18 +187,6 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
     if (computed) setEndDate(computed)
   }, [startDate, frequency])
 
-  // Load available rating scales when modal opens
-  useEffect(() => {
-    if (!open) return
-    try {
-      const rawScales = localStorage.getItem(RATING_SCALES_STORAGE_KEY)
-      const parsedScales = rawScales ? (JSON.parse(rawScales) as RatingScale[]) : []
-      setAvailableScales(Array.isArray(parsedScales) ? parsedScales : [])
-    } catch {
-      setAvailableScales([])
-    }
-  }, [open])
-
   const selectedParticipants = useMemo(() => participantOptions.filter(p => participantsState[p]), [participantsState])
 
   const handleSave = () => {
@@ -197,7 +203,10 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
       participants: selectedParticipants,
       stages: initialStages,
       ratingScaleId: selectedScaleId,
-      valueIds: valueIdsToSave
+      valueIds: valueIdsToSave,
+      // Preserve API metadata for optimistic locking
+      _apiParticipants: initialValues?._apiParticipants,
+      _apiCompanyValues: initialValues?._apiCompanyValues
     })
     onOpenChange(false)
   }
@@ -308,7 +317,7 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
           <div className="gba:space-y-2">
             <Label>{t('field-values')}</Label>
             {(() => {
-              const hasValues = availableValues.filter(v => v.active !== false).length > 0
+              const hasValues = availableValues.some(v => v.recordState?.toLowerCase() === 'active')
               const cycleValuesKey = open ? (initialValues?.id ?? 'new') : 'closed'
               if (!hasValues) {
                 return <div className="gba:text-sm gba:text-muted-foreground">{t('placeholder-no-values')}</div>
@@ -322,7 +331,9 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
                     const next = Array.isArray(ids) ? ids : ids ? [ids] : []
                     setSelectedValueIds([...new Set(next)])
                   }}
-                  options={availableValues.filter(v => v.active !== false).map(v => ({ label: v.title, value: v.id }))}
+                  options={availableValues
+                    .filter(v => v.recordState?.toLowerCase() === 'active')
+                    .map(v => ({ label: v.title, value: v.id }))}
                   placeholder="Select values"
                   searchPlaceholder="Type to search values..."
                   emptyText="No results"

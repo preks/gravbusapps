@@ -133,6 +133,8 @@ export enum FlowContextName {
 
   /// Customer Documents
   customerDocumentCreate = 'customerDocumentCreate',
+  customerDocumentUpdate = 'customerDocumentUpdate',
+  customerDocumentDelete = 'customerDocumentDelete',
 
   customerTaskEntity = 'customerTaskEntity',
   customerTaskCreate = 'customerTaskCreate',
@@ -225,7 +227,6 @@ export enum FlowContextName {
   investmentLiquidityForecastUpdate = 'investmentLiquidityForecastUpdate',
 
   /// Investment Reports
-  investmentReportUpload = 'investmentReportUpload',
   investmentReportEntity = 'investmentReportEntity', // Integrate
   investmentReportGenerate = 'investmentReportGenerate',
   investmentReportCreate = 'investmentReportCreate',

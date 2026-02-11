@@ -1,0 +1,14 @@
+# File Upload Step Translations (English - US)
+
+# Step Header
+step-title = Step 1: Upload CSV File
+
+# Form Labels
+file-select-label = Select CSV File
+
+# File Info
+file-loaded-text = File loaded: { $fileName } ({ $fileSize } KB)
+
+# Button Labels
+analyze-button = Analyze with AI Agent
+analyzing-button = Analyzing with AI...

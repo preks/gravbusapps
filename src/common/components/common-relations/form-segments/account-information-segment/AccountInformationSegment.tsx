@@ -48,7 +48,8 @@ interface AccountInformationSegmentProps {
   accountPriorityCatalogIdentifier?: string
 
   // Context for prospective field label (determines non-prospective label)
-  accountContext?: 'crm' | 'irm'
+  // REQUIRED: Must be explicitly set to 'crm' or 'irm' to ensure correct labels
+  accountContext: 'crm' | 'irm'
 }
 
 const AccountInformationSegment: React.FC<AccountInformationSegmentProps> = ({
@@ -59,7 +60,7 @@ const AccountInformationSegment: React.FC<AccountInformationSegmentProps> = ({
   customFields,
   avatarFileRef,
   accountPriorityCatalogIdentifier,
-  accountContext = 'crm'
+  accountContext
 }) => {
   const form = useFormContext<any>()
   const { t } = useTranslation(translations)
@@ -119,15 +120,17 @@ const AccountInformationSegment: React.FC<AccountInformationSegmentProps> = ({
     jobPosition?: string
     department?: string
   } => {
-    if (ac.contact) {
-      const contact = ac.contact
+    const contactId = ac.contactId || ac.contact?.id || ''
+
+    // Use the nested contact data directly from the accountContact query
+    const contact = ac.contact || useContacts?.contacts?.find((c: any) => c.id === contactId)
+
+    if (contact) {
       const displayName =
-        contact.displayName ||
-        contact.fullName ||
-        `${contact.firstName || ''} ${contact.lastName || ''}`.trim() ||
-        'Unknown Contact'
+        contact.fullName || `${contact.firstName || ''} ${contact.lastName || ''}`.trim() || 'Unknown Contact'
+
       return {
-        id: ac.contactId || ac.contact?.id || '',
+        id: contactId,
         name: displayName,
         contactType: ac.contactType || undefined,
         pictureThumbnail: contact.pictureThumbnail,
@@ -135,9 +138,11 @@ const AccountInformationSegment: React.FC<AccountInformationSegmentProps> = ({
         department: contact.department
       }
     }
+
+    // Fallback if contact not found
     return {
-      id: ac.contactId || '',
-      name: ac.contact?.name || 'Unknown Contact',
+      id: contactId,
+      name: 'Unknown Contact',
       contactType: ac.contactType || undefined
     }
   }
@@ -405,6 +410,7 @@ const AccountInformationSegment: React.FC<AccountInformationSegmentProps> = ({
           name="accountContacts"
           render={({ field, fieldState }) => {
             // Transform accountContacts to ContactSelect format
+            // Contact display data is looked up from useContacts list
             const accountContacts = field.value || []
             const contactSelectValue = accountContacts.map(transformAccountContactToContactSelect)
 

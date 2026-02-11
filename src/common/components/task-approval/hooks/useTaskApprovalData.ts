@@ -250,14 +250,18 @@ export const useTaskApprovalData = ({
     try {
       // Extract task data from additionalData
       // Priority order:
-      // 1. psi_processMetadata.inputs.investmentTask (or customerTask)
-      // 2. psi_taskPayload.investmentTask (or customerTask)
+      // 1. psi_processMetadata.inputs.investmentTask (or customerTask/salesTask)
+      // 2. psi_taskPayload.investmentTask (or customerTask/salesTask)
       // 3. psi_taskPayload directly (old format)
       const taskKey = moduleType === 'irm' ? 'investmentTask' : 'customerTask'
+      // Support legacy 'salesTask' naming for CRM module (used by some Kogito processes)
+      const alternateKey = moduleType === 'crm' ? 'salesTask' : null
 
       const rawTask =
         additionalData?.psi_processMetadata?.inputs?.[taskKey] ||
+        (alternateKey ? additionalData?.psi_processMetadata?.inputs?.[alternateKey] : null) ||
         additionalData?.psi_taskPayload?.[taskKey] ||
+        (alternateKey ? additionalData?.psi_taskPayload?.[alternateKey] : null) ||
         additionalData?.psi_taskPayload ||
         {}
 
@@ -267,9 +271,10 @@ export const useTaskApprovalData = ({
         name: rawTask.name,
         description: rawTask.description,
         dueDate: rawTask.dueDate,
-        taskTiming: rawTask.taskTiming,
-        taskTypeRef: rawTask.taskTypeRef,
-        taskPriorityRef: rawTask.taskPriorityRef,
+        taskTiming: rawTask.taskTiming || rawTask.timingType,
+        // Support both 'taskTypeRef'/'typeRef' and 'taskPriorityRef'/'priorityRef' naming conventions
+        taskTypeRef: rawTask.taskTypeRef || rawTask.typeRef,
+        taskPriorityRef: rawTask.taskPriorityRef || rawTask.priorityRef,
         documents: rawTask.documents || [],
         taskAssignees: rawTask.taskAssignees || [],
         investmentId: rawTask.investment,

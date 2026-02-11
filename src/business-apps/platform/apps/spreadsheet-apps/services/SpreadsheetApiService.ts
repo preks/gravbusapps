@@ -621,6 +621,23 @@ export const SpreadsheetApiService = {
   },
 
   /**
+   * Reorder rows by updating their positions
+   */
+  async reorderRows(appId: string, sheetId: string, rowIds: string[]): Promise<boolean> {
+    try {
+      debugLog('reorderRows', appId, sheetId, rowIds.length, 'rows')
+      await apiRequest(`/spreadsheets/${appId}/sheets/${sheetId}/rows/reorder`, {
+        method: 'PATCH',
+        body: JSON.stringify({ rowIds })
+      })
+      return true
+    } catch (error) {
+      console.error('Failed to reorder rows:', error)
+      return false
+    }
+  },
+
+  /**
    * Bulk add rows
    */
   async bulkAddRows(

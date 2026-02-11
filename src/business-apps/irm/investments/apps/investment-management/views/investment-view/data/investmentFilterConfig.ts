@@ -70,54 +70,14 @@ export const baseInvestmentFilterConfig: FilterConfiguration = {
       ]
     },
     {
-      id: 'investment-phase-group',
-      label: 'Investment Phase',
-      collapsible: true,
-      defaultExpanded: false,
-      filters: [
-        {
-          id: 'investmentPhaseIds',
-          field: 'investmentPhaseIds',
-          label: 'Investment Phase',
-          type: 'multi-select',
-          config: {
-            options: [],
-            searchPlaceholder: 'Search phases...',
-            totalCount: 0,
-            hasMore: false
-          }
-        }
-      ]
-    },
-    {
-      id: 'investment-risk-level-group',
-      label: 'Investment Risk Level',
-      collapsible: true,
-      defaultExpanded: false,
-      filters: [
-        {
-          id: 'investmentRiskLevelIds',
-          field: 'investmentRiskLevelIds',
-          label: 'Investment Risk Level',
-          type: 'multi-select',
-          config: {
-            options: [],
-            searchPlaceholder: 'Search risk levels...',
-            totalCount: 0,
-            hasMore: false
-          }
-        }
-      ]
-    },
-    {
       id: 'account-group',
       label: 'Account',
       collapsible: true,
       defaultExpanded: false,
       filters: [
         {
-          id: 'accountIds',
-          field: 'accountIds',
+          id: 'investmentAccountIds',
+          field: 'investmentAccountIds',
           label: 'Account',
           type: 'multi-select',
           config: {

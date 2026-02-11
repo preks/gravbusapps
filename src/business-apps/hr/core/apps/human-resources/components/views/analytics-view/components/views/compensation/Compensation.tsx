@@ -4,9 +4,7 @@ import { useTranslation } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { SectionKpiCards, KpiCardData, Icon } from '@newwork/nw-design-system'
 import { CalendarIcon, CurrencyDollarIcon } from '@phosphor-icons/react'
-import { useMedianSalary } from '../../../hooks/useMedianSalary'
-import { useTotalPayroll } from '../../../hooks/useTotalPayroll'
-import { useAverageSalary } from '../../../hooks/useAverageSalary'
+import { useCompensationMetrics } from '../../../hooks/useCompensationMetrics'
 import { useSalaryByOrgUnit } from '../../../hooks/useSalaryByOrgUnit'
 import YearlyPayrollChart from './components/charts/YearlyPayrollChart'
 import SalaryByOrgUnitChart from './components/charts/SalaryByOrgUnitChart'
@@ -22,10 +20,14 @@ interface CompensationProps extends BusinessAppContextProps {
 
 export const Compensation: React.FC<CompensationProps> = ({ accessToken, prefixDataTestId = 'Compensation' }) => {
   const { t } = useTranslation(hrTranslations)
-  // Use separate hooks for each metric
-  const { totalPayroll, loading: payrollLoading, error: payrollError } = useTotalPayroll(accessToken)
-  const { medianSalary, loading: medianLoading, error: medianError } = useMedianSalary(accessToken)
-  const { averageSalary, loading: avgSalaryLoading, error: avgSalaryError } = useAverageSalary(accessToken)
+  // Use combined hook for compensation metrics (median, average salary, and merit increase)
+  const {
+    medianSalary,
+    averageSalary,
+    averageMeritIncrease,
+    loading: salaryLoading,
+    error: salaryError
+  } = useCompensationMetrics(accessToken)
   const {
     salaryByOrgUnit,
     loading: salaryByOrgUnitLoading,
@@ -33,13 +35,19 @@ export const Compensation: React.FC<CompensationProps> = ({ accessToken, prefixD
   } = useSalaryByOrgUnit(accessToken)
 
   // Combine loading states
-  const loading = payrollLoading || medianLoading || avgSalaryLoading
+  const loading = salaryLoading || salaryByOrgUnitLoading
 
   // Combine errors (show first one that occurs)
-  const error = payrollError || medianError || avgSalaryError || salaryByOrgUnitError
+  const error = salaryError || salaryByOrgUnitError
 
-  // Default value for merit increases until we implement its hook
-  const meritIncreases = useMemo(() => ({ value: 4.2, label: 'Average increase' }), [])
+  // Format merit increases
+  const meritIncreases = useMemo(
+    () => ({
+      value: averageMeritIncrease,
+      label: 'Average increase'
+    }),
+    [averageMeritIncrease]
+  )
 
   // Format average salary in thousands
   const formattedAverageSalary = useMemo(() => {
@@ -48,14 +56,6 @@ export const Compensation: React.FC<CompensationProps> = ({ accessToken, prefixD
       label: 'Annual average'
     }
   }, [averageSalary])
-
-  // Format total payroll in millions
-  const formattedTotalPayroll = useMemo(() => {
-    return {
-      value: totalPayroll / 1000000, // Convert to millions
-      label: 'Annual payroll'
-    }
-  }, [totalPayroll])
 
   // Format median salary in thousands
   const formattedMedianSalary = useMemo(() => {
@@ -71,7 +71,7 @@ export const Compensation: React.FC<CompensationProps> = ({ accessToken, prefixD
       {
         id: 'total-payroll',
         title: t('hr-analytics-total-payroll'),
-        value: loading ? t('hr-data-filter-loading') : `${formattedTotalPayroll.value.toFixed(1)}M`,
+        value: t('hr-analytics-coming-soon'),
         icon: <Icon icon={CurrencyDollarIcon} size="sm" decorative />,
         iconColor: 'var(--nw-chart-1)',
         footer: t('hr-analytics-annual-payroll')
@@ -101,7 +101,7 @@ export const Compensation: React.FC<CompensationProps> = ({ accessToken, prefixD
         footer: t('hr-analytics-average-increase')
       }
     ],
-    [loading, formattedTotalPayroll, formattedMedianSalary, formattedAverageSalary, meritIncreases, t]
+    [loading, formattedMedianSalary, formattedAverageSalary, meritIncreases, t]
   )
 
   if (error) {
@@ -138,7 +138,7 @@ export const Compensation: React.FC<CompensationProps> = ({ accessToken, prefixD
       </div>
 
       {/* Yearly Payroll Chart */}
-      <YearlyPayrollChart accessToken={accessToken} />
+      <YearlyPayrollChart showComingSoon={true} />
 
       {/* Average Salary by Org Unit Chart */}
       <SalaryByOrgUnitChart data={salaryByOrgUnit} loading={salaryByOrgUnitLoading} error={salaryByOrgUnitError} />

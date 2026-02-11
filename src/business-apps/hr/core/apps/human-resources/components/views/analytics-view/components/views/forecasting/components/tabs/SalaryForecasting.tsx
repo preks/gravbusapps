@@ -3,16 +3,14 @@ import { Typography } from 'antd'
 import { SectionKpiCards, KpiCardData, useTranslation, Icon } from '@newwork/nw-design-system'
 import { UsersIcon, CalendarIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { WorkingConditionKpi } from '../../../../../hooks/useWorkingConditionForecast'
-import { useWorkingConditionForecast } from '../../../../../hooks/useWorkingConditionForecast'
-import { useMonthlySalaryForecast } from '../../../../../hooks/useMonthlySalaryForecast'
-import { useTotalPayroll } from '../../../../../hooks/useTotalPayroll'
+import { useMonthlySalaryForecastEmployee } from '../../../../../hooks/useMonthlySalaryForecastEmployee'
 import SalaryForecastChart from '../SalaryForecastChart'
 import SalaryChangesChart from '../SalaryChangesChart'
 import DepartmentSalaryStackedBarChart from '../DepartmentSalaryStackedBarChart'
 import DepartmentContributionAnalysis from '../DepartmentContributionAnalysis'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import dayjs from 'dayjs'
 
 const { Title, Text } = Typography
 
@@ -23,17 +21,42 @@ interface SalaryForecastingProps extends BusinessAppContextProps {
 export const SalaryForecasting: React.FC<SalaryForecastingProps> = props => {
   const { prefixDataTestId = 'SalaryForecasting' } = props
   const { t } = useTranslation(hrTranslations)
-  const kpiData = useWorkingConditionForecast(props)
-  const { loading: payrollLoading } = useTotalPayroll(props.accessToken)
-  const year = new Date().getFullYear()
-  const { data: monthlyData } = useMonthlySalaryForecast(props, year)
+
+  // Calculate date ranges
+  const today = dayjs()
+  const currentMonthStart = today.startOf('month')
+  const nextMonthStart = currentMonthStart.add(1, 'month')
+  const sixMonthsEnd = currentMonthStart.add(6, 'month').endOf('month')
+  const yearEnd = today.endOf('year')
+
+  // Fetch data for the full year (for the chart and KPI calculations) - start from beginning of current year
+  const fullYearStart = today.startOf('year').format('YYYY-MM-DD')
+  const fullYearEnd = yearEnd.format('YYYY-MM-DD')
+  const { data: fullYearData, loading: fullYearLoading } = useMonthlySalaryForecastEmployee(
+    props.accessToken,
+    fullYearStart,
+    fullYearEnd
+  )
+
+  // Calculate next month and 6-month data from full year data
+  const nextMonthData = useMemo(() => {
+    if (!fullYearData || fullYearData.length === 0) return []
+    const nextMonthStr = nextMonthStart.format('YYYY-MM')
+    return fullYearData.filter(item => item.month === nextMonthStr)
+  }, [fullYearData, nextMonthStart])
+
+  const sixMonthsData = useMemo(() => {
+    if (!fullYearData || fullYearData.length === 0) return []
+    const nextMonthStr = nextMonthStart.format('YYYY-MM')
+    const sixMonthsEndStr = sixMonthsEnd.format('YYYY-MM')
+    return fullYearData.filter(item => item.month >= nextMonthStr && item.month <= sixMonthsEndStr)
+  }, [fullYearData, nextMonthStart, sixMonthsEnd])
+
+  const loading = fullYearLoading
 
   // Calculate Salary-related KPI metrics
   const salaryKpiCards: KpiCardData[] = useMemo(() => {
-    const { loading, data } = kpiData
-    const employees: WorkingConditionKpi[] = data as WorkingConditionKpi[]
-
-    if (loading || payrollLoading) {
+    if (loading) {
       return [
         {
           id: 'total-annual-payroll',
@@ -66,20 +89,11 @@ export const SalaryForecasting: React.FC<SalaryForecastingProps> = props => {
       ]
     }
 
-    // Calculate metrics
-    const today = new Date()
-    const activeEmployees = employees.filter(wc => !wc.exitDate || new Date(wc.exitDate) > today)
+    // Calculate Next Month Forecast (sum of next month's salary)
+    const nextMonthForecast = nextMonthData.reduce((sum, month) => sum + month.totalSalary, 0)
 
-    const totalMonthlySalary = activeEmployees.reduce((sum, wc) => sum + (wc.monthlyGrossSalary || 0), 0)
-    const totalAnnualSalary = activeEmployees.reduce((sum, wc) => sum + (wc.annualGrossSalary || 0), 0)
-
-    const currencyCode =
-      activeEmployees.length && activeEmployees[0].currency && (activeEmployees[0].currency as any).code
-        ? (activeEmployees[0].currency as any).code
-        : ''
-
-    const nextMonthForecast = totalMonthlySalary * 1.05
-    const sixMonthForecast = totalMonthlySalary * 1.17
+    // Calculate 6-Month Forecast (sum of next 6 months' salary)
+    const sixMonthForecast = sixMonthsData.reduce((sum, month) => sum + month.totalSalary, 0)
 
     // Format large numbers
     const formatSalary = (value: number) => {
@@ -96,7 +110,7 @@ export const SalaryForecasting: React.FC<SalaryForecastingProps> = props => {
       {
         id: 'total-annual-payroll',
         title: t('hr-analytics-forecasting-kpi-total-annual-payroll'),
-        value: activeEmployees.length === 0 ? '-' : `${formatSalary(totalAnnualSalary)} ${currencyCode}`,
+        value: t('hr-analytics-coming-soon'),
         icon: <Icon icon={UsersIcon} size="sm" decorative />,
         iconColor: 'var(--nw-chart-1)',
         footer: t('hr-analytics-annual-employee-compensation')
@@ -104,7 +118,7 @@ export const SalaryForecasting: React.FC<SalaryForecastingProps> = props => {
       {
         id: 'total-monthly-salary',
         title: t('hr-analytics-forecasting-kpi-total-monthly-salary'),
-        value: activeEmployees.length === 0 ? '-' : `${formatSalary(totalMonthlySalary)} ${currencyCode}`,
+        value: t('hr-analytics-coming-soon'),
         icon: <Icon icon={UsersIcon} size="sm" decorative />,
         iconColor: 'var(--nw-chart-2)',
         footer: t('hr-analytics-current-monthly-payroll')
@@ -112,7 +126,7 @@ export const SalaryForecasting: React.FC<SalaryForecastingProps> = props => {
       {
         id: 'next-month-forecast',
         title: t('hr-analytics-forecasting-kpi-next-month-forecast'),
-        value: activeEmployees.length === 0 ? '-' : `${formatSalary(nextMonthForecast)} ${currencyCode}`,
+        value: nextMonthData.length === 0 ? '-' : formatSalary(nextMonthForecast),
         icon: <Icon icon={CalendarIcon} size="sm" decorative />,
         iconColor: 'var(--nw-chart-3)',
         footer: t('hr-analytics-projected-monthly-payroll')
@@ -120,13 +134,18 @@ export const SalaryForecasting: React.FC<SalaryForecastingProps> = props => {
       {
         id: 'six-month-forecast',
         title: t('hr-analytics-forecasting-kpi-six-month-forecast'),
-        value: activeEmployees.length === 0 ? '-' : `${formatSalary(sixMonthForecast)} ${currencyCode}`,
+        value: sixMonthsData.length === 0 ? '-' : formatSalary(sixMonthForecast),
         icon: <Icon icon={CalendarIcon} size="sm" decorative />,
         iconColor: 'var(--nw-chart-4)',
         footer: t('hr-analytics-six-month-projection')
       }
     ]
-  }, [kpiData, payrollLoading])
+  }, [loading, nextMonthData, sixMonthsData, t])
+
+  // Use full year data for the chart
+  const monthlyData = useMemo(() => {
+    return fullYearData
+  }, [fullYearData])
 
   return (
     <div data-testid={prefixDataTestId} className="gba:flex gba:flex-col gba:gap-6">

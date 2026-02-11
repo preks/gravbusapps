@@ -166,6 +166,20 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
     }
   })
 
+  // Clear space return URL if not opened from a space
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(globalThis.window.location.search)
+      const spaceId = params.get('spaceId')
+      if (!spaceId) {
+        // Note opened from hub, not from a space - clear any stale return URL
+        sessionStorage.removeItem('space_return_url')
+      }
+    } catch (e) {
+      console.warn('Failed to check/clear space_return_url:', e)
+    }
+  }, [])
+
   // Data state
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null)
   const [sharedUsersMap] = useState<Record<string, SharedUserInfo[]>>({})
@@ -480,9 +494,32 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
   )
 
   /**
-   * Go back to list
+   * Go back to list or return URL
    */
   const handleBack = useCallback(() => {
+    // Check if there's a space return URL in sessionStorage (takes priority)
+    try {
+      const spaceReturnUrl = sessionStorage.getItem('space_return_url')
+      if (spaceReturnUrl) {
+        sessionStorage.removeItem('space_return_url')
+        globalThis.window.location.href = spaceReturnUrl
+        return
+      }
+    } catch (e) {
+      console.warn('Failed to read space_return_url from sessionStorage:', e)
+    }
+
+    // Fallback: Check if there's a returnUrl parameter
+    const params = new URLSearchParams(globalThis.window.location.search)
+    const returnUrl = params.get('returnUrl')
+
+    if (returnUrl) {
+      // Navigate back to the specified URL (e.g., space)
+      globalThis.window.location.href = returnUrl
+      return
+    }
+
+    // Otherwise, go back to the list view
     clearCurrentNote()
     resetLoadAttempt()
     setSelectedNoteId(null)

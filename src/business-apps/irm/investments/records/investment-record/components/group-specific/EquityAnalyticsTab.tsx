@@ -116,7 +116,7 @@ export const EquityAnalyticsTab: React.FC<EquityAnalyticsTabProps> = ({ investme
                 </div>
               </div>
 
-              {/* PencilIcon Planned MOIC Button */}
+              {/* Edit Planned MOIC Button */}
               <AppAction
                 contextsArray={[FlowContextName.investmentKpiForecastUpdate]}
                 externalContextData={{
@@ -130,7 +130,7 @@ export const EquityAnalyticsTab: React.FC<EquityAnalyticsTabProps> = ({ investme
               >
                 <Button size="sm" variant="default" type="button" data-testid="moic-edit-button">
                   <PencilIcon size={16} />
-                  {getTranslationFromI18nKeyAndLabel('crm.investments.analytics.moic.edit', 'PencilIcon Planned')}
+                  {getTranslationFromI18nKeyAndLabel('crm.investments.analytics.moic.edit', 'Edit Planned')}
                 </Button>
               </AppAction>
             </div>
@@ -166,7 +166,7 @@ export const EquityAnalyticsTab: React.FC<EquityAnalyticsTabProps> = ({ investme
                   {formatMOIC(plannedMOIC)}
                 </div>
                 <div className="gba:text-xs gba:text-muted-foreground">
-                  {getTranslationFromI18nKeyAndLabel('crm.investments.analytics.moic.target', 'TargetIcon multiplier')}
+                  {getTranslationFromI18nKeyAndLabel('crm.investments.analytics.moic.target', 'Target multiplier')}
                 </div>
               </div>
             </div>
@@ -204,7 +204,7 @@ export const EquityAnalyticsTab: React.FC<EquityAnalyticsTabProps> = ({ investme
                 </div>
               </div>
 
-              {/* PencilIcon Planned IRR Button */}
+              {/* Edit Planned IRR Button */}
               <AppAction
                 contextsArray={[FlowContextName.investmentKpiForecastUpdate]}
                 externalContextData={{
@@ -218,7 +218,7 @@ export const EquityAnalyticsTab: React.FC<EquityAnalyticsTabProps> = ({ investme
               >
                 <Button size="sm" variant="default" type="button" data-testid="irr-edit-button">
                   <PencilIcon size={16} />
-                  {getTranslationFromI18nKeyAndLabel('crm.investments.analytics.irr.edit', 'PencilIcon Planned')}
+                  {getTranslationFromI18nKeyAndLabel('crm.investments.analytics.irr.edit', 'Edit Planned')}
                 </Button>
               </AppAction>
             </div>
@@ -250,7 +250,7 @@ export const EquityAnalyticsTab: React.FC<EquityAnalyticsTabProps> = ({ investme
                   {formatIRR(plannedIRR)}
                 </div>
                 <div className="gba:text-xs gba:text-muted-foreground">
-                  {getTranslationFromI18nKeyAndLabel('crm.investments.analytics.irr.target', 'TargetIcon return rate')}
+                  {getTranslationFromI18nKeyAndLabel('crm.investments.analytics.irr.target', 'Target return rate')}
                 </div>
               </div>
             </div>

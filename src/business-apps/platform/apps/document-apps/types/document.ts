@@ -161,18 +161,22 @@ export interface DocumentSummary {
 }
 
 /**
- * Template category for organization
+ * Template category for organization.
+ * Values match the document API: GET /document/api/v1/templates?category=
  */
-export type TemplateCategory =
-  | 'contracts'
-  | 'agreements'
-  | 'letters'
-  | 'reports'
-  | 'proposals'
-  | 'policies'
-  | 'procedures'
-  | 'forms'
-  | 'other'
+export const TEMPLATE_CATEGORY_API_VALUES = [
+  'contracts',
+  'agreements',
+  'letters',
+  'reports',
+  'proposals',
+  'policies',
+  'procedures',
+  'forms',
+  'other'
+] as const
+
+export type TemplateCategory = (typeof TEMPLATE_CATEGORY_API_VALUES)[number]
 
 /**
  * Document template definition
@@ -183,6 +187,8 @@ export interface DocumentTemplate {
   description?: string
   content: string // HTML content
   category: TemplateCategory
+  /** Optional entity context for "Insert field" panel (e.g. candidate, employee). When set, overrides derivation from category. */
+  context?: string
   tags?: string[]
   thumbnail?: string // Preview image URL
   createdAt: string
@@ -216,6 +222,7 @@ export interface TemplateSummary {
   name: string
   description?: string
   category: TemplateCategory
+  context?: string
   tags?: string[]
   thumbnail?: string
   createdAt: string
@@ -293,7 +300,7 @@ export interface ApprovalWorkflowConfig {
 /**
  * Export format options
  */
-export type ExportFormat = 'docx' | 'pdf' | 'html' | 'txt'
+export type ExportFormat = 'docx' | 'pdf' | 'html' | 'txt' | 'odt'
 
 /**
  * Export options

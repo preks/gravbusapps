@@ -270,8 +270,18 @@ const InvestmentForm: React.FC<InvestmentFormProps> = ({ accessToken, userInfo, 
   // Handle group selection
   const handleGroupSelect = useCallback(
     (group: string) => {
-      // Don't set investmentTypeId - let user select type manually
-      form.setValue('investment.investmentTypeId', undefined as any)
+      // Check if this group has child types (Level 1 types under this group)
+      const childTypes = getTypesByParent(group)
+      const hasChildTypes = childTypes && childTypes.length > 0
+
+      if (hasChildTypes) {
+        // Has child types (Equity, Real Estate, Liquid Fund) - clear investmentTypeId to force user selection
+        form.setValue('investment.investmentTypeId', undefined as any)
+      } else {
+        // No child types (Private Equity) - use group ID as investmentTypeId so fields are loaded
+        form.setValue('investment.investmentTypeId', group)
+      }
+
       // Set baseTypeId directly
       setBaseTypeId(group)
       if (!formValues.investment.name) {
@@ -289,16 +299,26 @@ const InvestmentForm: React.FC<InvestmentFormProps> = ({ accessToken, userInfo, 
       setSkipAutoDetection(false)
       setCurrentStep('form')
     },
-    [form, formValues.investment.name]
+    [form, formValues.investment.name, getTypesByParent]
   )
 
   // Get form fields definition using getInvestmentFieldsByType
   const formFieldsDefinition = useMemo(() => {
     // In update mode, use the type from fetched data to ensure correct fields are displayed
-    // In create mode, use the type from form state (as user selects types)
     const typeToUse = isUpdate ? fetchedInvestmentTypeId : investmentTypeId
+
+    // Fallback to baseTypeId only if it has no child types (e.g., Private Equity)
+    // Groups with child types (Equity, Real Estate, Liquid Fund) should wait for type selection
+    if (!typeToUse && baseTypeId) {
+      const childTypes = getTypesByParent(baseTypeId)
+      const hasChildTypes = childTypes && childTypes.length > 0
+      if (!hasChildTypes) {
+        return getInvestmentFieldsByType(baseTypeId)
+      }
+    }
+
     return getInvestmentFieldsByType(typeToUse)
-  }, [getInvestmentFieldsByType, investmentTypeId, fetchedInvestmentTypeId, isUpdate])
+  }, [getInvestmentFieldsByType, investmentTypeId, baseTypeId, getTypesByParent, fetchedInvestmentTypeId, isUpdate])
 
   // Create dynamic schema based on formFieldsDefinition
   const dynamicSchema = useMemo(() => {

@@ -5,8 +5,8 @@ import { Employee } from '../../hooks/useEmployeeData'
 import { UserInfoProps } from '@/common/BusinessAppContext'
 import { getUserRequests } from '../../services/service-requests/serviceRequestsService'
 import type { SubmittedRequest } from '../../services/service-requests/serviceRequestsTypes'
-import { Card, Badge, Spinner, Alert, Button, useTranslation } from '@newwork/nw-design-system'
-import { PiReceipt, PiCheckCircle, PiClock, PiPlus } from 'react-icons/pi'
+import { Card, Badge, Spinner, Alert, Button, useTranslation, IconAvatar } from '@newwork/nw-design-system'
+import { ReceiptIcon, CheckCircleIcon, ClockIcon, PlusIcon } from '@phosphor-icons/react'
 import { formatDate } from '@/common/utils/windowUtils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import translations from '../../_i18n'
@@ -211,7 +211,7 @@ const ServiceRequestsTab: React.FC<ServiceRequestsTabProps> = ({ employee, acces
               className="gba:flex gba:items-center gba:gap-2"
               data-testid="create-new-request-button"
             >
-              <PiPlus className="gba:h-4 gba:w-4" />
+              <PlusIcon className="gba:h-4 gba:w-4" />
               {t('service-requests-create-new')}
             </Button>
           </div>
@@ -222,48 +222,40 @@ const ServiceRequestsTab: React.FC<ServiceRequestsTabProps> = ({ employee, acces
       <div className="gba:grid gba:grid-cols-2 gba:md:grid-cols-4 gba:gap-4">
         <Card className="gba:p-4 gba:border gba:border-gray-200">
           <div className="gba:flex gba:items-center gba:gap-3">
-            <div className="gba:p-2 gba:bg-blue-100 gba:rounded-lg">
-              <PiReceipt className="gba:w-5 gba:h-5 gba:text-blue-600" />
-            </div>
+            <IconAvatar icon={ReceiptIcon} variant="decorative" size="md" />
             <div>
               <p className="gba:text-sm gba:text-gray-600">{t('service-requests-total')}</p>
-              <p className="gba:text-2xl gba:font-bold gba:text-gray-900">{stats.total}</p>
+              <p className="gba:text-2xl gba:font-bold gba:text-foreground">{stats.total}</p>
             </div>
           </div>
         </Card>
 
         <Card className="gba:p-4 gba:border gba:border-gray-200">
           <div className="gba:flex gba:items-center gba:gap-3">
-            <div className="gba:p-2 gba:bg-yellow-100 gba:rounded-lg">
-              <PiClock className="gba:w-5 gba:h-5 gba:text-yellow-600" />
-            </div>
+            <IconAvatar icon={ClockIcon} variant="decorative" size="md" />
             <div>
               <p className="gba:text-sm gba:text-gray-600">{t('service-requests-active')}</p>
-              <p className="gba:text-2xl gba:font-bold gba:text-gray-900">{stats.active}</p>
+              <p className="gba:text-2xl gba:font-bold gba:text-foreground">{stats.active}</p>
             </div>
           </div>
         </Card>
 
         <Card className="gba:p-4 gba:border gba:border-gray-200">
           <div className="gba:flex gba:items-center gba:gap-3">
-            <div className="gba:p-2 gba:bg-green-100 gba:rounded-lg">
-              <PiCheckCircle className="gba:w-5 gba:h-5 gba:text-green-600" />
-            </div>
+            <IconAvatar icon={CheckCircleIcon} variant="decorative" size="md" />
             <div>
               <p className="gba:text-sm gba:text-gray-600">{t('service-requests-completed')}</p>
-              <p className="gba:text-2xl gba:font-bold gba:text-gray-900">{stats.completed}</p>
+              <p className="gba:text-2xl gba:font-bold gba:text-foreground">{stats.completed}</p>
             </div>
           </div>
         </Card>
 
         <Card className="gba:p-4 gba:border gba:border-gray-200">
           <div className="gba:flex gba:items-center gba:gap-3">
-            <div className="gba:p-2 gba:bg-purple-100 gba:rounded-lg">
-              <PiCheckCircle className="gba:w-5 gba:h-5 gba:text-purple-600" />
-            </div>
+            <IconAvatar icon={CheckCircleIcon} variant="decorative" size="md" />
             <div>
               <p className="gba:text-sm gba:text-gray-600">{t('service-requests-completion-rate')}</p>
-              <p className="gba:text-2xl gba:font-bold gba:text-gray-900">{stats.completionRate}%</p>
+              <p className="gba:text-2xl gba:font-bold gba:text-foreground">{stats.completionRate}%</p>
             </div>
           </div>
         </Card>
@@ -272,8 +264,8 @@ const ServiceRequestsTab: React.FC<ServiceRequestsTabProps> = ({ employee, acces
       {/* Requests List */}
       {requests.length === 0 ? (
         <Card className="gba:p-12 gba:text-center gba:border gba:border-gray-200">
-          <PiReceipt className="gba:w-16 gba:h-16 gba:mx-auto gba:mb-4 gba:text-gray-400" />
-          <h4 className="gba:text-lg gba:font-semibold gba:text-gray-900 gba:mb-2">
+          <ReceiptIcon className="gba:w-16 gba:h-16 gba:mx-auto gba:mb-4 gba:text-gray-400" />
+          <h4 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-2">
             {t('service-requests-no-service-requests')}
           </h4>
           <p className="gba:text-gray-600">

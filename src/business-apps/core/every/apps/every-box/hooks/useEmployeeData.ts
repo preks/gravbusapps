@@ -18,6 +18,7 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
+import { getCached, addToCache, removeFromCache } from './employeeCacheStore'
 
 export interface EmployeeData {
   id: string
@@ -29,29 +30,10 @@ export interface EmployeeData {
 }
 
 interface UseEmployeeDataOptions {
-  /**
-   * Employee ID (UUID format)
-   */
   employeeId?: string
-
-  /**
-   * User ID (alternative to employeeId)
-   */
   userId?: string
-
-  /**
-   * Access token for GraphQL authentication
-   */
   accessToken: string
-
-  /**
-   * Fallback name if employee fetch fails
-   */
   fallbackName?: string
-
-  /**
-   * Skip fetching (useful for conditional fetching)
-   */
   skip?: boolean
 }
 
@@ -61,9 +43,6 @@ interface UseEmployeeDataResult {
   error: string | null
   refetch: () => void
 }
-
-// In-memory cache for employee data
-const employeeCache = new Map<string, EmployeeData>()
 
 /**
  * Convert base64 image string to data URL
@@ -121,8 +100,8 @@ export const useEmployeeData = ({
         return
       }
 
-      // Check cache first
-      const cached = employeeCache.get(cacheKey)
+      // Check shared cache first (with TTL)
+      const cached = getCached(cacheKey)
       if (cached) {
         setEmployeeData(cached)
         setIsLoading(false)
@@ -220,8 +199,8 @@ export const useEmployeeData = ({
             position
           }
 
-          // Cache the result
-          employeeCache.set(cacheKey, data)
+          // Cache the result (shared cache with TTL + LRU eviction)
+          addToCache(cacheKey, data)
           setEmployeeData(data)
         } else {
           // Fallback to name if provided
@@ -243,9 +222,9 @@ export const useEmployeeData = ({
   }, [cacheKey, accessToken, employeeId, userId, fallbackName, skip, refetchTrigger])
 
   const refetch = () => {
-    // Clear cache and trigger refetch
+    // Clear cache entry and trigger refetch
     if (cacheKey) {
-      employeeCache.delete(cacheKey)
+      removeFromCache(cacheKey)
     }
     setRefetchTrigger(prev => prev + 1)
   }
@@ -258,10 +237,5 @@ export const useEmployeeData = ({
   }
 }
 
-/**
- * Clear the employee data cache
- * Useful for testing or when you need to force fresh data
- */
-export const clearEmployeeCache = () => {
-  employeeCache.clear()
-}
+// Re-export clearAllEmployeeCaches for convenience
+export { clearAllEmployeeCaches } from './employeeCacheStore'
