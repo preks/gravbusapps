@@ -8,17 +8,14 @@ interface MarkdownRendererProps {
 
 // Normalize excessive newlines and fix spacing issues
 const normalizeNewlines = (text: string): string => {
-  return (
-    text
-      .replace(/([.!?])([A-Z])/g, '$1 $2') // Add space between sentence end and next sentence start
-      .replace(/\n{3,}/g, '\n\n') // Collapse 3+ newlines to 2
-      .replace(/^\n+/, '') // Remove leading newlines
-      .replace(/\n+$/, '') // Remove trailing newlines
-      .replace(/\n\n+/g, '\n\n') // Ensure max 2 consecutive newlines
-      // Remove extra newlines around list items (- or * or numbered)
-      .replace(/\n\n+([-*]|\d+\.)\s/g, '\n$1 ') // Single newline before list items
-      .replace(/([-*]|\d+\.)\s.*\n\n+(?=[-*]|\d+\.)/g, match => match.replace(/\n\n+/g, '\n'))
-  ) // Single newline between list items
+  return text
+    .replaceAll(/([.!?])([A-Z])/g, '$1 $2') // Add space between sentence end and next sentence start
+    .replaceAll(/\n{3,}/g, '\n\n') // Collapse 3+ newlines to 2
+    .replace(/^\n+/, '') // Remove leading newlines
+    .replace(/\n+$/, '') // Remove trailing newlines
+    .replaceAll(/\n\n+/g, '\n\n') // Ensure max 2 consecutive newlines
+    .replaceAll(/\n\n+([-*]|\d+\.)\s/g, '\n$1 ') // Single newline before list items
+    .replaceAll(/([-*]|\d+\.)\s.*\n\n+(?=[-*]|\d+\.)/g, match => match.replaceAll(/\n\n+/g, '\n'))
 }
 
 export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content: rawContent }) => {
@@ -70,35 +67,34 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content: raw
 
   // Render inline code and formatting in text parts
   const renderText = (text: string) => {
-    // Handle inline code `code`
     const inlineCodeRegex = /`([^`]+)`/g
     const segments: React.ReactNode[] = []
     let lastIndex = 0
+    let match: RegExpExecArray | null
+    let segIdx = 0
 
-    text.replace(inlineCodeRegex, (match, code, offset) => {
-      // Add text before code
+    while ((match = inlineCodeRegex.exec(text)) !== null) {
+      const [fullMatch, code] = match
+      const offset = match.index
       if (offset > lastIndex) {
         const beforeText = text.slice(lastIndex, offset)
-        segments.push(<span key={`text-${lastIndex}`}>{renderFormatting(beforeText)}</span>)
+        segments.push(<span key={`text-${segIdx}-${lastIndex}`}>{renderFormatting(beforeText)}</span>)
+        segIdx += 1
       }
-
-      // Add inline code
       segments.push(
         <code
-          key={`code-${offset}`}
+          key={`code-${segIdx}-${offset}`}
           className="gba:px-1.5 gba:py-0.5 gba:rounded gba:bg-muted gba:text-sm gba:font-mono gba:text-primary"
         >
           {code}
         </code>
       )
+      segIdx += 1
+      lastIndex = offset + fullMatch.length
+    }
 
-      lastIndex = offset + match.length
-      return match
-    })
-
-    // Add remaining text
     if (lastIndex < text.length) {
-      segments.push(<span key={`text-${lastIndex}`}>{renderFormatting(text.slice(lastIndex))}</span>)
+      segments.push(<span key={`text-${segIdx}-${lastIndex}`}>{renderFormatting(text.slice(lastIndex))}</span>)
     }
 
     return segments.length > 0 ? segments : renderFormatting(text)
@@ -118,16 +114,17 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content: raw
         return null
       }
 
+      const numberedMatch = /^(\d+)\.\s/.exec(line)
       return (
-        <React.Fragment key={i}>
+        <React.Fragment key={`line-${i}-${line.length}`}>
           {line.startsWith('- ') || line.startsWith('* ') ? (
             <div className="gba:flex gba:gap-2 gba:ml-4">
               <span className="gba:text-primary">•</span>
               <span>{renderInlineFormatting(line.slice(2))}</span>
             </div>
-          ) : line.match(/^\d+\.\s/) ? (
+          ) : numberedMatch ? (
             <div className="gba:flex gba:gap-2 gba:ml-4">
-              <span className="gba:text-primary gba:font-semibold">{line.match(/^(\d+)\./)?.[1]}.</span>
+              <span className="gba:text-primary gba:font-semibold">{numberedMatch[1]}.</span>
               <span>{renderInlineFormatting(line.replace(/^\d+\.\s/, ''))}</span>
             </div>
           ) : line.startsWith('# ') ? (
@@ -151,9 +148,9 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content: raw
     // Handle **bold**
     const result: React.ReactNode[] = []
     let lastIndex = 0
-    const boldRegex = /\*\*([^\*]+)\*\*/g
+    const boldRegex = /\*\*([^*]+)\*\*/g
 
-    text.replace(boldRegex, (match, content, offset) => {
+    text.replaceAll(boldRegex, (match, content, offset) => {
       if (offset > lastIndex) {
         result.push(text.slice(lastIndex, offset))
       }
@@ -181,7 +178,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content: raw
           const currentBlockIndex = blockIndex++
 
           return (
-            <div key={i} className="gba:relative gba:group">
+            <div key={`code-${i}-${part.content.length}-${part.language ?? ''}`} className="gba:relative gba:group">
               <div className="gba:absolute gba:right-2 gba:top-2 gba:opacity-0 group-hover:gba:opacity-100 gba:transition-opacity">
                 <button
                   onClick={() => copyToClipboard(part.content, currentBlockIndex)}
@@ -210,7 +207,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content: raw
         }
 
         return (
-          <div key={i} className="gba:text-sm gba:leading-relaxed">
+          <div key={`text-${i}-${part.content.length}`} className="gba:text-sm gba:leading-relaxed">
             {renderText(part.content)}
           </div>
         )

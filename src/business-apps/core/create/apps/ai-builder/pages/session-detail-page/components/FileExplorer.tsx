@@ -103,6 +103,17 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({ repoId, sessionId, o
     return false
   }
 
+  const getNodeIcon = (type: string, isExpanded: boolean): React.ReactNode => {
+    if (type === 'directory') {
+      return isExpanded ? (
+        <FolderOpen size={16} className="gba:text-primary gba:flex-shrink-0" />
+      ) : (
+        <Folder size={16} className="gba:text-primary gba:flex-shrink-0" />
+      )
+    }
+    return <File size={16} className="gba:text-muted-foreground gba:flex-shrink-0" />
+  }
+
   const renderNode = (node: TreeNode, depth: number = 0): React.ReactNode | null => {
     if (!matchesSearch(node)) return null
 
@@ -112,6 +123,8 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({ repoId, sessionId, o
     return (
       <div key={node.path}>
         <div
+          role="button"
+          tabIndex={0}
           className={`gba:flex gba:items-center gba:gap-2 gba:py-1 gba:px-2 gba:cursor-pointer gba:hover:bg-accent gba:rounded gba:transition-colors ${node.modified ? 'gba:bg-warning/10' : ''}`}
           style={{ paddingLeft: `${depth * 16 + 8}px` }}
           onClick={() => {
@@ -119,6 +132,16 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({ repoId, sessionId, o
               toggleExpand(node.path)
             } else {
               onFileClick?.(node.path)
+            }
+          }}
+          onKeyDown={e => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault()
+              if (node.type === 'directory') {
+                toggleExpand(node.path)
+              } else {
+                onFileClick?.(node.path)
+              }
             }
           }}
         >
@@ -132,15 +155,7 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({ repoId, sessionId, o
 
           {node.type === 'directory' && !hasChildren && <span className="gba:w-4 gba:flex-shrink-0" />}
 
-          {node.type === 'directory' ? (
-            isExpanded ? (
-              <FolderOpen size={16} className="gba:text-primary gba:flex-shrink-0" />
-            ) : (
-              <Folder size={16} className="gba:text-primary gba:flex-shrink-0" />
-            )
-          ) : (
-            <File size={16} className="gba:text-muted-foreground gba:flex-shrink-0" />
-          )}
+          {getNodeIcon(node.type, isExpanded)}
 
           <span
             className={`gba:text-sm gba:truncate ${node.modified ? 'gba:text-warning gba:font-semibold' : 'gba:text-foreground'}`}
@@ -227,7 +242,6 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({ repoId, sessionId, o
           <div className="gba:p-2">
             {Object.values(tree.children)
               .sort((a, b) => {
-                // Directories first, then files
                 if (a.type !== b.type) return a.type === 'directory' ? -1 : 1
                 return a.name.localeCompare(b.name)
               })

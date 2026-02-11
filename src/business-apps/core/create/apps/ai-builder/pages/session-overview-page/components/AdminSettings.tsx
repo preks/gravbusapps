@@ -1,11 +1,17 @@
 import React, { useState, useEffect } from 'react'
-import { Button } from '@newwork/nw-design-system'
-import { Input } from '@newwork/nw-design-system'
-import { Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system'
-import { Label } from '@newwork/nw-design-system'
-import { Badge } from '@newwork/nw-design-system'
-import { Alert, AlertDescription } from '@newwork/nw-design-system'
-import { Switch } from '@newwork/nw-design-system'
+import {
+  Button,
+  Input,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Label,
+  Badge,
+  Alert,
+  AlertDescription,
+  Switch
+} from '@newwork/nw-design-system'
 import {
   Loader2,
   Plus,
@@ -13,7 +19,7 @@ import {
   Edit,
   Save,
   GitBranch,
-  Github,
+  Github as GithubIcon,
   AlertCircle,
   CheckCircle,
   Settings,
@@ -22,7 +28,51 @@ import {
 } from 'lucide-react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { AutoInitConfig, CreateAutoInitConfigRequest, UpdateAutoInitConfigRequest } from '../../../types/admin'
-import { builderClient, type IndexingStatus } from '@/common/network/ai/builder'
+import {
+  builderClient,
+  type IndexingStatus,
+  type AutoInitConfig as ApiAutoInitConfig,
+  type CreateAutoInitConfigRequest as ApiCreateAutoInitConfigRequest
+} from '@/common/network/ai/builder'
+
+function mapApiConfigToAdmin(api: ApiAutoInitConfig): AutoInitConfig {
+  const source = api.url.includes('bitbucket') ? 'bitbucket' : 'github'
+  const extended = api as ApiAutoInitConfig & Partial<AutoInitConfig>
+  return {
+    id: api.id,
+    url: api.url,
+    branch: api.branch,
+    source,
+    owner: api.owner,
+    name: api.name,
+    repoId: api.repoId ?? null,
+    enabled: api.enabled,
+    autoInitOnStartup: extended.autoInitOnStartup ?? false,
+    blockedBranches: extended.blockedBranches ?? [],
+    supportsPublish: extended.supportsPublish ?? false,
+    publishBasePath: extended.publishBasePath ?? null,
+    publishAssetsPath: extended.publishAssetsPath ?? null,
+    publishAzureEnabled: extended.publishAzureEnabled ?? false,
+    createdAt: api.createdAt,
+    updatedAt: api.updatedAt
+  }
+}
+
+function parseOwnerAndNameFromUrl(url: string): { owner: string; name: string } {
+  try {
+    const u = new URL(url)
+    const pathParts = u.pathname
+      .replace(/^\//, '')
+      .replace(/\.git$/, '')
+      .split('/')
+      .filter(Boolean)
+    const name = pathParts.pop() ?? 'repo'
+    const owner = pathParts.pop() ?? 'owner'
+    return { owner, name }
+  } catch {
+    return { owner: 'owner', name: 'repo' }
+  }
+}
 
 interface AdminSettingsProps {
   onClose?: () => void
@@ -96,12 +146,10 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
           if (!pollIntervalRef.current) {
             pollIntervalRef.current = setInterval(loadStatus, 2000) // Poll every 2 seconds
           }
-        } else {
+        } else if (pollIntervalRef.current) {
           // Stop polling when no active indexing
-          if (pollIntervalRef.current) {
-            clearInterval(pollIntervalRef.current)
-            pollIntervalRef.current = null
-          }
+          clearInterval(pollIntervalRef.current)
+          pollIntervalRef.current = null
         }
       } catch {
         // Failed to load indexing status, stop polling on error
@@ -173,7 +221,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
       setLoading(true)
       setError(null)
       const data = await builderClient.getAutoInitConfigs()
-      setConfigs(data)
+      setConfigs(data.map(mapApiConfigToAdmin))
     } catch (err) {
       setError(
         err instanceof Error
@@ -191,14 +239,25 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
   const handleCreate = async () => {
     try {
       setError(null)
-      const config: CreateAutoInitConfigRequest = {
-        ...newConfig,
-        blockedBranches: blockedBranchesInput
-          .split(',')
-          .map(b => b.trim())
-          .filter(Boolean)
+      const blockedBranches = blockedBranchesInput
+        .split(',')
+        .map(b => b.trim())
+        .filter(Boolean)
+      const { owner, name } = parseOwnerAndNameFromUrl(newConfig.url)
+      const apiRequest: ApiCreateAutoInitConfigRequest = {
+        url: newConfig.url,
+        owner,
+        name,
+        branch: newConfig.branch,
+        enabled: newConfig.enabled ?? true,
+        ...(newConfig.autoInitOnStartup !== undefined && { autoInitOnStartup: newConfig.autoInitOnStartup }),
+        ...(blockedBranches.length > 0 && { blockedBranches }),
+        ...(newConfig.supportsPublish !== undefined && { supportsPublish: newConfig.supportsPublish }),
+        ...(newConfig.publishBasePath && { publishBasePath: newConfig.publishBasePath }),
+        ...(newConfig.publishAssetsPath && { publishAssetsPath: newConfig.publishAssetsPath }),
+        ...(newConfig.publishAzureEnabled !== undefined && { publishAzureEnabled: newConfig.publishAzureEnabled })
       }
-      await builderClient.createAutoInitConfig(config)
+      await builderClient.createAutoInitConfig(apiRequest)
       setSuccess(
         getTranslationFromI18nKeyAndLabel(
           'lowcoder:ai_builder.admin.config_created',
@@ -359,6 +418,16 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
     }
   }
 
+  const getRepoStatusLabel = (repoStatus: string): string => {
+    if (repoStatus === 'indexed') {
+      return getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.admin.status_ready', 'Ready')
+    }
+    if (repoStatus === 'indexing') {
+      return getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.admin.status_indexing', 'Indexing...')
+    }
+    return repoStatus
+  }
+
   // Render progress bar for a config
   const renderProgress = (configId: string) => {
     const status = indexingStatus.get(configId)
@@ -408,11 +477,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
           <span
             className={`gba:text-xs gba:px-2 gba:py-1 gba:rounded-full ${statusColors[repoStatus] || 'gba:bg-muted gba:text-muted-foreground'}`}
           >
-            {repoStatus === 'indexed'
-              ? getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.admin.status_ready', 'Ready')
-              : repoStatus === 'indexing'
-                ? getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.admin.status_indexing', 'Indexing...')
-                : repoStatus}
+            {getRepoStatusLabel(repoStatus)}
           </span>
         </div>
       )
@@ -430,6 +495,262 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
     }
 
     return null
+  }
+
+  function renderConfigList(): React.ReactNode {
+    if (loading) {
+      return (
+        <div className="gba:flex gba:items-center gba:justify-center gba:py-12">
+          <Loader2 className="gba:w-8 gba:h-8 gba:animate-spin gba:text-muted-foreground" />
+        </div>
+      )
+    }
+    if (configs.length > 0) {
+      return (
+        <div className="gba:space-y-4">
+          {configs.map(config => (
+            <Card
+              key={config.id}
+              className={`gba:shadow-lg gba:transition-all ${!config.enabled ? 'gba:opacity-60' : ''}`}
+            >
+              <CardContent className="gba:py-4">
+                {editingId === config.id ? (
+                  <div className="gba:space-y-4">
+                    <div className="gba:space-y-2">
+                      <Label>{getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.admin.branch', 'Branch')}</Label>
+                      <Input
+                        value={editForm.branch || ''}
+                        onChange={e => setEditForm({ ...editForm, branch: e.target.value })}
+                      />
+                    </div>
+                    <div className="gba:space-y-2">
+                      <Label>
+                        {getTranslationFromI18nKeyAndLabel(
+                          'lowcoder:ai_builder.admin.blocked_branches',
+                          'Blocked Branches (comma-separated)'
+                        )}
+                      </Label>
+                      <Input value={editBlockedBranches} onChange={e => setEditBlockedBranches(e.target.value)} />
+                    </div>
+                    <div className="gba:flex gba:items-center gba:gap-3">
+                      <Switch
+                        checked={editForm.autoInitOnStartup ?? config.autoInitOnStartup}
+                        onCheckedChange={checked => setEditForm({ ...editForm, autoInitOnStartup: checked })}
+                      />
+                      <Label className="gba:cursor-pointer">
+                        {getTranslationFromI18nKeyAndLabel(
+                          'lowcoder:ai_builder.admin.auto_init_startup',
+                          'Auto-initialize on startup'
+                        )}
+                      </Label>
+                    </div>
+                    <div className="gba:border-t gba:pt-4 gba:mt-2">
+                      <h4 className="gba:text-sm gba:font-medium gba:text-foreground gba:mb-3">
+                        {getTranslationFromI18nKeyAndLabel(
+                          'lowcoder:ai_builder.admin.publish_config',
+                          'Publish Configuration'
+                        )}
+                      </h4>
+                      <div className="gba:space-y-4">
+                        <div className="gba:flex gba:items-center gba:gap-3">
+                          <Switch
+                            checked={editForm.supportsPublish ?? config.supportsPublish}
+                            onCheckedChange={checked => setEditForm({ ...editForm, supportsPublish: checked })}
+                          />
+                          <Label className="gba:cursor-pointer">
+                            {getTranslationFromI18nKeyAndLabel(
+                              'lowcoder:ai_builder.admin.supports_publish',
+                              'Enable publishing for this repository'
+                            )}
+                          </Label>
+                        </div>
+                        {(editForm.supportsPublish ?? config.supportsPublish) && (
+                          <div className="gba:ml-6 gba:pl-4 gba:border-l-2 gba:border-muted gba:space-y-4">
+                            <div className="gba:space-y-2">
+                              <Label>
+                                {getTranslationFromI18nKeyAndLabel(
+                                  'lowcoder:ai_builder.admin.publish_base_path',
+                                  'Publish Base Path'
+                                )}
+                              </Label>
+                              <Input
+                                placeholder="src/business-apps"
+                                value={editForm.publishBasePath ?? config.publishBasePath ?? ''}
+                                onChange={e => setEditForm({ ...editForm, publishBasePath: e.target.value })}
+                              />
+                              <p className="gba:text-xs gba:text-muted-foreground">
+                                {getTranslationFromI18nKeyAndLabel(
+                                  'lowcoder:ai_builder.admin.publish_base_path_help',
+                                  'Source path prefix for target paths (leave empty for repo root)'
+                                )}
+                              </p>
+                            </div>
+                            <div className="gba:flex gba:items-center gba:gap-3">
+                              <Switch
+                                checked={editForm.publishAzureEnabled ?? config.publishAzureEnabled}
+                                onCheckedChange={checked => setEditForm({ ...editForm, publishAzureEnabled: checked })}
+                              />
+                              <Label className="gba:cursor-pointer">
+                                {getTranslationFromI18nKeyAndLabel(
+                                  'lowcoder:ai_builder.admin.azure_upload',
+                                  'Upload to Azure Blob Storage'
+                                )}
+                              </Label>
+                            </div>
+                            {(editForm.publishAzureEnabled ?? config.publishAzureEnabled) && (
+                              <div className="gba:ml-6 gba:pl-4 gba:border-l-2 gba:border-muted gba:space-y-2">
+                                <Label>
+                                  {getTranslationFromI18nKeyAndLabel(
+                                    'lowcoder:ai_builder.admin.publish_assets_path',
+                                    'Assets Path (relative to dist/)'
+                                  )}
+                                </Label>
+                                <Input
+                                  placeholder="assets"
+                                  value={editForm.publishAssetsPath ?? config.publishAssetsPath ?? ''}
+                                  onChange={e => setEditForm({ ...editForm, publishAssetsPath: e.target.value })}
+                                />
+                                <p className="gba:text-xs gba:text-muted-foreground">
+                                  {getTranslationFromI18nKeyAndLabel(
+                                    'lowcoder:ai_builder.admin.publish_assets_path_help',
+                                    'Directory containing CSS/assets to upload (e.g., "assets" for dist/assets/)'
+                                  )}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="gba:flex gba:gap-3 gba:pt-2">
+                      <Button size="sm" onClick={() => handleUpdate(config.id)} className="gba:gap-2">
+                        <Save className="gba:w-4 gba:h-4" />
+                        {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.admin.save', 'Save')}
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={cancelEdit}>
+                        {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.admin.cancel', 'Cancel')}
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <div className="gba:flex gba:items-start gba:justify-between gba:gap-4">
+                      <div className="gba:space-y-2 gba:flex-1 gba:min-w-0">
+                        <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap">
+                          <GithubIcon className="gba:w-5 gba:h-5 gba:text-muted-foreground gba:flex-shrink-0" />
+                          <span className="gba:font-semibold gba:text-foreground">
+                            {config.owner}/{config.name}
+                          </span>
+                          <Badge variant={config.enabled ? 'default' : 'secondary'}>
+                            {config.enabled
+                              ? getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.admin.enabled', 'Enabled')
+                              : getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.admin.disabled', 'Disabled')}
+                          </Badge>
+                          {config.autoInitOnStartup && (
+                            <Badge variant="outline">
+                              {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.admin.auto_init', 'Auto-init')}
+                            </Badge>
+                          )}
+                          {config.supportsPublish && (
+                            <Badge
+                              variant="outline"
+                              className="gba:bg-blue-100 gba:text-blue-700 dark:gba:bg-blue-900/30 dark:gba:text-blue-400"
+                            >
+                              {getTranslationFromI18nKeyAndLabel(
+                                'lowcoder:ai_builder.admin.publish_enabled',
+                                'Publish'
+                              )}
+                            </Badge>
+                          )}
+                          {config.publishAzureEnabled && (
+                            <Badge
+                              variant="outline"
+                              className="gba:bg-purple-100 gba:text-purple-700 dark:gba:bg-purple-900/30 dark:gba:text-purple-400"
+                            >
+                              {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.admin.azure', 'Azure')}
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="gba:flex gba:items-center gba:gap-1 gba:text-sm gba:text-muted-foreground">
+                          <GitBranch className="gba:w-4 gba:h-4" />
+                          <span>{config.branch}</span>
+                        </div>
+                        {config.blockedBranches.length > 0 && (
+                          <div className="gba:text-sm gba:text-muted-foreground">
+                            <span className="gba:text-destructive gba:font-medium">
+                              {getTranslationFromI18nKeyAndLabel(
+                                'lowcoder:ai_builder.admin.blocked_label',
+                                'Blocked:'
+                              )}{' '}
+                            </span>
+                            {config.blockedBranches.join(', ')}
+                          </div>
+                        )}
+                        <div className="gba:text-xs gba:text-muted-foreground gba:truncate">{config.url}</div>
+                      </div>
+                      <div className="gba:flex gba:items-center gba:gap-2 gba:flex-shrink-0">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleSync(config)}
+                          disabled={syncingId === config.id}
+                          title={getTranslationFromI18nKeyAndLabel(
+                            'lowcoder:ai_builder.admin.sync_repository',
+                            'Sync repository'
+                          )}
+                          className="gba:gap-1"
+                        >
+                          <RefreshCw
+                            className={`gba:w-4 gba:h-4 ${syncingId === config.id ? 'gba:animate-spin' : ''}`}
+                          />
+                          <span className="gba:hidden sm:gba:inline">
+                            {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.admin.sync', 'Sync')}
+                          </span>
+                        </Button>
+                        <Switch checked={config.enabled} onCheckedChange={() => toggleEnabled(config)} />
+                        <Button size="sm" variant="ghost" onClick={() => startEdit(config)}>
+                          <Edit className="gba:w-4 gba:h-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="gba:text-destructive hover:gba:text-destructive"
+                          onClick={() => handleDelete(config.id, `${config.owner}/${config.name}`)}
+                        >
+                          <Trash2 className="gba:w-4 gba:h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                    {renderProgress(config.id)}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )
+    }
+    return (
+      <Card className="gba:shadow-lg">
+        <CardContent className="gba:py-12 gba:text-center">
+          <div className="gba:w-16 gba:h-16 gba:mx-auto gba:rounded-full gba:bg-muted gba:flex gba:items-center gba:justify-center gba:mb-4">
+            <Settings className="gba:w-8 gba:h-8 gba:text-muted-foreground" />
+          </div>
+          <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-2">
+            {getTranslationFromI18nKeyAndLabel(
+              'lowcoder:ai_builder.admin.no_configs_found',
+              'No repository configurations found'
+            )}
+          </h3>
+          <p className="gba:text-sm gba:text-muted-foreground">
+            {getTranslationFromI18nKeyAndLabel(
+              'lowcoder:ai_builder.admin.no_configs_help',
+              'Add a repository to get started with AI Builder'
+            )}
+          </p>
+        </CardContent>
+      </Card>
+    )
   }
 
   return (
@@ -671,274 +992,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
         )}
 
         {/* Config List */}
-        {loading ? (
-          <div className="gba:flex gba:items-center gba:justify-center gba:py-12">
-            <Loader2 className="gba:w-8 gba:h-8 gba:animate-spin gba:text-muted-foreground" />
-          </div>
-        ) : configs.length === 0 ? (
-          <Card className="gba:shadow-lg">
-            <CardContent className="gba:py-12 gba:text-center">
-              <div className="gba:w-16 gba:h-16 gba:mx-auto gba:rounded-full gba:bg-muted gba:flex gba:items-center gba:justify-center gba:mb-4">
-                <Settings className="gba:w-8 gba:h-8 gba:text-muted-foreground" />
-              </div>
-              <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-2">
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:ai_builder.admin.no_configs_found',
-                  'No repository configurations found'
-                )}
-              </h3>
-              <p className="gba:text-sm gba:text-muted-foreground">
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:ai_builder.admin.no_configs_help',
-                  'Add a repository to get started with AI Builder'
-                )}
-              </p>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="gba:space-y-4">
-            {configs.map(config => (
-              <Card
-                key={config.id}
-                className={`gba:shadow-lg gba:transition-all ${!config.enabled ? 'gba:opacity-60' : ''}`}
-              >
-                <CardContent className="gba:py-4">
-                  {editingId === config.id ? (
-                    // Edit Mode
-                    <div className="gba:space-y-4">
-                      <div className="gba:space-y-2">
-                        <Label>{getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.admin.branch', 'Branch')}</Label>
-                        <Input
-                          value={editForm.branch || ''}
-                          onChange={e => setEditForm({ ...editForm, branch: e.target.value })}
-                        />
-                      </div>
-                      <div className="gba:space-y-2">
-                        <Label>
-                          {getTranslationFromI18nKeyAndLabel(
-                            'lowcoder:ai_builder.admin.blocked_branches',
-                            'Blocked Branches (comma-separated)'
-                          )}
-                        </Label>
-                        <Input value={editBlockedBranches} onChange={e => setEditBlockedBranches(e.target.value)} />
-                      </div>
-                      <div className="gba:flex gba:items-center gba:gap-3">
-                        <Switch
-                          checked={editForm.autoInitOnStartup ?? config.autoInitOnStartup}
-                          onCheckedChange={checked => setEditForm({ ...editForm, autoInitOnStartup: checked })}
-                        />
-                        <Label className="gba:cursor-pointer">
-                          {getTranslationFromI18nKeyAndLabel(
-                            'lowcoder:ai_builder.admin.auto_init_startup',
-                            'Auto-initialize on startup'
-                          )}
-                        </Label>
-                      </div>
-
-                      {/* Publish Configuration Section */}
-                      <div className="gba:border-t gba:pt-4 gba:mt-2">
-                        <h4 className="gba:text-sm gba:font-medium gba:text-foreground gba:mb-3">
-                          {getTranslationFromI18nKeyAndLabel(
-                            'lowcoder:ai_builder.admin.publish_config',
-                            'Publish Configuration'
-                          )}
-                        </h4>
-                        <div className="gba:space-y-4">
-                          <div className="gba:flex gba:items-center gba:gap-3">
-                            <Switch
-                              checked={editForm.supportsPublish ?? config.supportsPublish}
-                              onCheckedChange={checked => setEditForm({ ...editForm, supportsPublish: checked })}
-                            />
-                            <Label className="gba:cursor-pointer">
-                              {getTranslationFromI18nKeyAndLabel(
-                                'lowcoder:ai_builder.admin.supports_publish',
-                                'Enable publishing for this repository'
-                              )}
-                            </Label>
-                          </div>
-                          {(editForm.supportsPublish ?? config.supportsPublish) && (
-                            <div className="gba:ml-6 gba:pl-4 gba:border-l-2 gba:border-muted gba:space-y-4">
-                              <div className="gba:space-y-2">
-                                <Label>
-                                  {getTranslationFromI18nKeyAndLabel(
-                                    'lowcoder:ai_builder.admin.publish_base_path',
-                                    'Publish Base Path'
-                                  )}
-                                </Label>
-                                <Input
-                                  placeholder="src/business-apps"
-                                  value={editForm.publishBasePath ?? config.publishBasePath ?? ''}
-                                  onChange={e => setEditForm({ ...editForm, publishBasePath: e.target.value })}
-                                />
-                                <p className="gba:text-xs gba:text-muted-foreground">
-                                  {getTranslationFromI18nKeyAndLabel(
-                                    'lowcoder:ai_builder.admin.publish_base_path_help',
-                                    'Source path prefix for target paths (leave empty for repo root)'
-                                  )}
-                                </p>
-                              </div>
-                              <div className="gba:flex gba:items-center gba:gap-3">
-                                <Switch
-                                  checked={editForm.publishAzureEnabled ?? config.publishAzureEnabled}
-                                  onCheckedChange={checked =>
-                                    setEditForm({ ...editForm, publishAzureEnabled: checked })
-                                  }
-                                />
-                                <Label className="gba:cursor-pointer">
-                                  {getTranslationFromI18nKeyAndLabel(
-                                    'lowcoder:ai_builder.admin.azure_upload',
-                                    'Upload to Azure Blob Storage'
-                                  )}
-                                </Label>
-                              </div>
-                              {(editForm.publishAzureEnabled ?? config.publishAzureEnabled) && (
-                                <div className="gba:ml-6 gba:pl-4 gba:border-l-2 gba:border-muted gba:space-y-2">
-                                  <Label>
-                                    {getTranslationFromI18nKeyAndLabel(
-                                      'lowcoder:ai_builder.admin.publish_assets_path',
-                                      'Assets Path (relative to dist/)'
-                                    )}
-                                  </Label>
-                                  <Input
-                                    placeholder="assets"
-                                    value={editForm.publishAssetsPath ?? config.publishAssetsPath ?? ''}
-                                    onChange={e => setEditForm({ ...editForm, publishAssetsPath: e.target.value })}
-                                  />
-                                  <p className="gba:text-xs gba:text-muted-foreground">
-                                    {getTranslationFromI18nKeyAndLabel(
-                                      'lowcoder:ai_builder.admin.publish_assets_path_help',
-                                      'Directory containing CSS/assets to upload (e.g., "assets" for dist/assets/)'
-                                    )}
-                                  </p>
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="gba:flex gba:gap-3 gba:pt-2">
-                        <Button size="sm" onClick={() => handleUpdate(config.id)} className="gba:gap-2">
-                          <Save className="gba:w-4 gba:h-4" />
-                          {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.admin.save', 'Save')}
-                        </Button>
-                        <Button size="sm" variant="outline" onClick={cancelEdit}>
-                          {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.admin.cancel', 'Cancel')}
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    // View Mode
-                    <div>
-                      <div className="gba:flex gba:items-start gba:justify-between gba:gap-4">
-                        <div className="gba:space-y-2 gba:flex-1 gba:min-w-0">
-                          <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap">
-                            <Github className="gba:w-5 gba:h-5 gba:text-muted-foreground gba:flex-shrink-0" />
-                            <span className="gba:font-semibold gba:text-foreground">
-                              {config.owner}/{config.name}
-                            </span>
-                            <Badge variant={config.enabled ? 'default' : 'secondary'}>
-                              {config.enabled
-                                ? getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.admin.enabled', 'Enabled')
-                                : getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.admin.disabled', 'Disabled')}
-                            </Badge>
-                            {config.autoInitOnStartup && (
-                              <Badge variant="outline">
-                                {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.admin.auto_init', 'Auto-init')}
-                              </Badge>
-                            )}
-                            {config.supportsPublish && (
-                              <Badge
-                                variant="outline"
-                                className="gba:bg-blue-100 gba:text-blue-700 dark:gba:bg-blue-900/30 dark:gba:text-blue-400"
-                              >
-                                {getTranslationFromI18nKeyAndLabel(
-                                  'lowcoder:ai_builder.admin.publish_enabled',
-                                  'Publish'
-                                )}
-                              </Badge>
-                            )}
-                            {config.publishAzureEnabled && (
-                              <Badge
-                                variant="outline"
-                                className="gba:bg-purple-100 gba:text-purple-700 dark:gba:bg-purple-900/30 dark:gba:text-purple-400"
-                              >
-                                {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.admin.azure', 'Azure')}
-                              </Badge>
-                            )}
-                          </div>
-                          <div className="gba:flex gba:items-center gba:gap-1 gba:text-sm gba:text-muted-foreground">
-                            <GitBranch className="gba:w-4 gba:h-4" />
-                            <span>{config.branch}</span>
-                          </div>
-                          {config.blockedBranches.length > 0 && (
-                            <div className="gba:text-sm gba:text-muted-foreground">
-                              <span className="gba:text-destructive gba:font-medium">
-                                {getTranslationFromI18nKeyAndLabel(
-                                  'lowcoder:ai_builder.admin.blocked_label',
-                                  'Blocked:'
-                                )}{' '}
-                              </span>
-                              {config.blockedBranches.join(', ')}
-                            </div>
-                          )}
-                          <div className="gba:text-xs gba:text-muted-foreground gba:truncate">{config.url}</div>
-                        </div>
-                        <div className="gba:flex gba:items-center gba:gap-2 gba:flex-shrink-0">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleSync(config)}
-                            disabled={syncingId === config.id}
-                            title={getTranslationFromI18nKeyAndLabel(
-                              'lowcoder:ai_builder.admin.sync_repository',
-                              'Sync repository'
-                            )}
-                            className="gba:gap-1"
-                          >
-                            <RefreshCw
-                              className={`gba:w-4 gba:h-4 ${syncingId === config.id ? 'gba:animate-spin' : ''}`}
-                            />
-                            <span className="gba:hidden sm:gba:inline">
-                              {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.admin.sync', 'Sync')}
-                            </span>
-                          </Button>
-                          <Switch checked={config.enabled} onCheckedChange={() => toggleEnabled(config)} />
-                          <Button size="sm" variant="ghost" onClick={() => startEdit(config)}>
-                            <Edit className="gba:w-4 gba:h-4" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="gba:text-destructive hover:gba:text-destructive"
-                            onClick={() => handleDelete(config.id, `${config.owner}/${config.name}`)}
-                          >
-                            <Trash2 className="gba:w-4 gba:h-4" />
-                          </Button>
-                        </div>
-                      </div>
-                      {/* Indexing Progress */}
-                      {renderProgress(config.id)}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
-
-        {/* Stats */}
-        {configs.length > 0 && (
-          <div className="gba:flex gba:items-center gba:justify-center gba:text-sm gba:text-muted-foreground">
-            <span>
-              {configs.length}{' '}
-              {configs.length === 1
-                ? getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.admin.repository_singular', 'repository')
-                : getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.admin.repository_plural', 'repositories')}{' '}
-              {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.admin.configured', 'configured')}
-            </span>
-          </div>
-        )}
+        {renderConfigList()}
       </div>
     </div>
   )

@@ -3,7 +3,7 @@
  * Only allows alphanumeric characters, hyphens, underscores, and dots.
  */
 export function sanitizeFilename(filename: string): string {
-  return filename.replace(/[^a-zA-Z0-9._-]/g, '_')
+  return filename.replaceAll(/[^a-zA-Z0-9._-]/g, '_')
 }
 
 /**
@@ -15,7 +15,7 @@ export function getSafeHref(url: string | null): string {
   if (!url) return '#'
 
   // Remove any leading/trailing whitespace and control characters
-  const trimmedUrl = url.trim().replace(/[\x00-\x1f\x7f]/g, '')
+  const trimmedUrl = url.trim().replaceAll(/[\x00-\x1F\x7F]/g, '')
 
   // Block dangerous protocols (case-insensitive)
   const dangerousProtocols = /^(javascript|data|vbscript|file):/i
@@ -40,15 +40,12 @@ export function getSafeHref(url: string | null): string {
  * Normalize excessive newlines and fix spacing issues
  */
 export const normalizeNewlines = (text: string): string => {
-  return (
-    text
-      .replace(/([.!?])([A-Z])/g, '$1 $2') // Add space between sentence end and next sentence start
-      .replace(/\n{3,}/g, '\n\n') // Collapse 3+ newlines to 2
-      .replace(/^\n+/, '') // Remove leading newlines
-      .replace(/\n+$/, '') // Remove trailing newlines
-      .replace(/\n\n+/g, '\n\n') // Ensure max 2 consecutive newlines
-      // Remove extra newlines around list items (- or * or numbered)
-      .replace(/\n\n+([-*]|\d+\.)\s/g, '\n$1 ') // Single newline before list items
-      .replace(/([-*]|\d+\.)\s.*\n\n+(?=[-*]|\d+\.)/g, match => match.replace(/\n\n+/g, '\n'))
-  ) // Single newline between list items
+  return text
+    .replaceAll(/([.!?])([A-Z])/g, '$1 $2') // Add space between sentence end and next sentence start
+    .replaceAll(/\n{3,}/g, '\n\n') // Collapse 3+ newlines to 2
+    .replace(/^\n+/, '') // Remove leading newlines
+    .replace(/\n+$/, '') // Remove trailing newlines
+    .replaceAll(/\n\n+/g, '\n\n') // Ensure max 2 consecutive newlines
+    .replaceAll(/\n\n+([-*]|\d+\.)\s/g, '\n$1 ') // Single newline before list items
+    .replaceAll(/([-*]|\d+\.)\s.*\n\n+(?=[-*]|\d+\.)/g, match => match.replaceAll(/\n\n+/g, '\n'))
 }

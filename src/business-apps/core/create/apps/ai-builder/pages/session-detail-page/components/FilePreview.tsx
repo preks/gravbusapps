@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { X, Copy, Check, Search, ChevronUp, ChevronDown } from 'lucide-react'
-import { Button } from '@newwork/nw-design-system'
-import { Input } from '@newwork/nw-design-system'
+import { Button, Input } from '@newwork/nw-design-system'
 import { builderClient } from '@/common/network/ai/builder'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
@@ -151,7 +150,7 @@ export const FilePreview: React.FC<FilePreviewProps> = ({ filePath, repoId, sess
       }
 
       return (
-        <div key={lineIndex} className="gba:leading-relaxed">
+        <div key={`line-${lineIndex}-${line.length}`} className="gba:leading-relaxed">
           {parts.length > 0 ? parts : line}
         </div>
       )
@@ -160,12 +159,20 @@ export const FilePreview: React.FC<FilePreviewProps> = ({ filePath, repoId, sess
 
   return (
     <div
+      role="button"
+      tabIndex={0}
       className="gba:fixed gba:inset-0 gba:bg-black/50 gba:flex gba:items-center gba:justify-center gba:z-50"
       onClick={onClose}
+      onKeyDown={e => {
+        if (e.key === 'Escape') onClose()
+      }}
     >
       <div
+        role="dialog"
+        aria-modal="true"
         className="gba:bg-card gba:rounded-lg gba:shadow-lg gba:w-[900px] gba:max-w-[90vw] gba:max-h-[90vh] gba:flex gba:flex-col"
         onClick={e => e.stopPropagation()}
+        onKeyDown={e => e.stopPropagation()}
       >
         {/* Header */}
         <div className="gba:p-4 gba:border-b gba:border-border gba:space-y-3">
@@ -291,8 +298,8 @@ export const FilePreview: React.FC<FilePreviewProps> = ({ filePath, repoId, sess
             <div className="gba:flex gba:font-mono gba:text-xs">
               {/* Line numbers */}
               <div className="gba:flex-shrink-0 gba:py-4 gba:pl-4 gba:pr-3 gba:bg-muted/30 gba:text-muted-foreground gba:select-none gba:text-right gba:border-r gba:border-border">
-                {content.split('\n').map((_, i) => (
-                  <div key={i} className="gba:leading-relaxed">
+                {content.split('\n').map((line, i) => (
+                  <div key={`line-num-${i}-${line.length}`} className="gba:leading-relaxed">
                     {i + 1}
                   </div>
                 ))}

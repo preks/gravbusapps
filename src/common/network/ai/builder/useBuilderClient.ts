@@ -6,9 +6,15 @@ export const useBuilderClient = (accessToken: string) => {
 
   useEffect(
     function addRefreshedTokenToAuthorizationHeader() {
-      window.addEventListener('com.newwork.token.shouldRefreshAuthorizationHeader', listener as EventListener)
+      globalThis.window.addEventListener(
+        'com.newwork.token.shouldRefreshAuthorizationHeader',
+        listener as EventListener
+      )
       return () => {
-        window.removeEventListener('com.newwork.token.shouldRefreshAuthorizationHeader', listener as EventListener)
+        globalThis.window.removeEventListener(
+          'com.newwork.token.shouldRefreshAuthorizationHeader',
+          listener as EventListener
+        )
       }
 
       function listener() {

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react'
+import React, { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import { useBuilderClient } from '@/common/network/ai/builder/useBuilderClient'
 import { getRuntimeEnvsForIframe } from '@/common/env/EnvUtils'
 import { Loader2, AlertCircle } from 'lucide-react'
@@ -12,21 +12,42 @@ interface PreviewSandboxProps {
   onError?: (error: Error) => void
 }
 
-export const PreviewSandbox: React.FC<PreviewSandboxProps> = ({
-  repoId,
-  sessionId,
-  accessToken,
-  userInfo,
-  onReady,
-  onError
-}) => {
+export interface PreviewSandboxHandle {
+  reload: () => void
+}
+
+export const PreviewSandbox = forwardRef<PreviewSandboxHandle, PreviewSandboxProps>(function PreviewSandbox(
+  { repoId, sessionId, accessToken, userInfo, onReady, onError },
+  ref
+) {
   const [loading, setLoading] = useState(true)
   const [iframeLoaded, setIframeLoaded] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [bundleVersion, setBundleVersion] = useState<string | null>(null)
   const iframeRef = useRef<HTMLIFrameElement>(null)
+  const previewUrlRef = useRef<string | null>(null)
   const builderClient = useBuilderClient(accessToken ?? '')
+
+  previewUrlRef.current = previewUrl
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      reload() {
+        const iframe = iframeRef.current
+        if (!iframe) return
+        setIframeLoaded(false)
+        try {
+          iframe.contentWindow?.location.reload()
+        } catch {
+          const url = previewUrlRef.current
+          if (url) iframe.src = url
+        }
+      }
+    }),
+    []
+  )
 
   useEffect(() => {
     let mounted = true
@@ -84,10 +105,11 @@ export const PreviewSandbox: React.FC<PreviewSandboxProps> = ({
     const handleMessage = (event: MessageEvent) => {
       if (event.data?.type !== 'PREVIEW_READY') return
       const source = event.source
-      if (!source || source === window || typeof (source as Window).postMessage !== 'function') return
+      if (!source || source === globalThis.window || typeof (source as Window).postMessage !== 'function') return
       if (iframeRef.current?.contentWindow && source !== iframeRef.current.contentWindow) return
 
       const nwEnvs = getRuntimeEnvsForIframe()
+      const targetOrigin = typeof event.origin === 'string' ? event.origin : '*'
       ;(source as Window).postMessage(
         {
           type: 'BUSINESS_APP_CONTEXT',
@@ -98,7 +120,7 @@ export const PreviewSandbox: React.FC<PreviewSandboxProps> = ({
             sentAt: Date.now()
           }
         },
-        '*'
+        targetOrigin
       )
       console.log('[PreviewSandbox] Sent BUSINESS_APP_CONTEXT to iframe', {
         hasAccessToken: !!accessToken,
@@ -166,4 +188,4 @@ export const PreviewSandbox: React.FC<PreviewSandboxProps> = ({
       )}
     </div>
   )
-}
+})

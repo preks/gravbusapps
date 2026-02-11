@@ -1,9 +1,15 @@
 import React from 'react'
-import { Button } from '@newwork/nw-design-system'
-import { Input } from '@newwork/nw-design-system'
-import { Label } from '@newwork/nw-design-system'
-import { Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system'
-import { Alert, AlertDescription } from '@newwork/nw-design-system'
+import {
+  Alert,
+  AlertDescription,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Input,
+  Label
+} from '@newwork/nw-design-system'
 import { Upload, Loader2, X, AlertCircle, CheckCircle2 } from 'lucide-react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
@@ -43,6 +49,12 @@ export const PublishDialog: React.FC<PublishDialogProps> = ({
   onResourceUrlChange,
   onPublish
 }) => {
+  const getFileTypeDotClass = (type: 'create' | 'modify' | 'delete'): string => {
+    if (type === 'create') return 'gba:bg-success'
+    if (type === 'delete') return 'gba:bg-destructive'
+    return 'gba:bg-warning'
+  }
+
   return (
     <div className="gba:fixed gba:inset-0 gba:bg-background/80 gba:backdrop-blur-sm gba:flex gba:items-center gba:justify-center gba:z-50 gba:p-4">
       <Card className="gba:w-full gba:max-w-2xl">
@@ -93,16 +105,10 @@ export const PublishDialog: React.FC<PublishDialogProps> = ({
               </div>
               {uniqueFileSummary && uniqueFileSummary.files.length > 0 && (
                 <div className="gba:mt-2 gba:space-y-1 gba:max-h-32 gba:overflow-y-auto gba:text-xs">
-                  {uniqueFileSummary.files.map((file, index) => (
-                    <div key={index} className="gba:flex gba:items-center gba:gap-2 gba:py-0.5">
+                  {uniqueFileSummary.files.map(file => (
+                    <div key={file.path} className="gba:flex gba:items-center gba:gap-2 gba:py-0.5">
                       <span
-                        className={`gba:w-1 gba:h-1 gba:rounded-full gba:flex-shrink-0 ${
-                          file.type === 'create'
-                            ? 'gba:bg-success'
-                            : file.type === 'delete'
-                              ? 'gba:bg-destructive'
-                              : 'gba:bg-warning'
-                        }`}
+                        className={`gba:w-1 gba:h-1 gba:rounded-full gba:flex-shrink-0 ${getFileTypeDotClass(file.type)}`}
                       />
                       <span className="gba:font-mono gba:text-muted-foreground gba:truncate" title={file.path}>
                         {file.path}

@@ -6,18 +6,19 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 const SESSION_ID_QUERY_PARAM = 'sessionId'
 
 function getSessionIdFromUrl(): string | null {
-  if (typeof window === 'undefined') return null
-  return new URLSearchParams(window.location.search).get(SESSION_ID_QUERY_PARAM)
+  if (typeof globalThis.window === 'undefined') return null
+  return new URLSearchParams(globalThis.window.location.search).get(SESSION_ID_QUERY_PARAM)
 }
 
 function setSessionIdInUrl(sid: string | null): void {
-  if (typeof window === 'undefined') return
-  const params = new URLSearchParams(window.location.search)
+  if (typeof globalThis.window === 'undefined') return
+  const params = new URLSearchParams(globalThis.window.location.search)
   if (sid) params.set(SESSION_ID_QUERY_PARAM, sid)
   else params.delete(SESSION_ID_QUERY_PARAM)
   const newSearch = params.toString()
-  const newUrl = window.location.pathname + (newSearch ? '?' + newSearch : '') + window.location.hash
-  window.history.replaceState({}, '', newUrl)
+  const newUrl =
+    globalThis.window.location.pathname + (newSearch ? '?' + newSearch : '') + globalThis.window.location.hash
+  globalThis.window.history.replaceState({}, '', newUrl)
 }
 
 interface UseSessionManagementProps {

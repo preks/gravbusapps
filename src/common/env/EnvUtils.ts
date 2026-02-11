@@ -73,14 +73,17 @@ export function env(key: string): string | undefined {
  * Used to pass the same object to the preview iframe so it can set window['nw-envs'] and use env() unchanged.
  */
 export function getRuntimeEnvsForIframe(): Record<string, string | undefined> {
-  if (typeof window !== 'undefined' && window[WINDOW_ENV_KEY] && typeof window[WINDOW_ENV_KEY] === 'object') {
-    return { ...window[WINDOW_ENV_KEY] }
+  if (
+    typeof globalThis.window !== 'undefined' &&
+    globalThis.window[WINDOW_ENV_KEY] !== undefined &&
+    typeof globalThis.window[WINDOW_ENV_KEY] === 'object'
+  ) {
+    return { ...globalThis.window[WINDOW_ENV_KEY] }
   }
-  if (typeof process !== 'undefined' && process.env) {
-    return Object.fromEntries(Object.entries(process.env).filter(([key]) => key.startsWith('NEXT_PUBLIC_'))) as Record<
-      string,
-      string | undefined
-    >
+  if (typeof globalThis.process !== 'undefined' && globalThis.process.env !== undefined) {
+    return Object.fromEntries(
+      Object.entries(globalThis.process.env).filter(([key]) => key.startsWith('NEXT_PUBLIC_'))
+    ) as Record<string, string | undefined>
   }
   return {}
 }

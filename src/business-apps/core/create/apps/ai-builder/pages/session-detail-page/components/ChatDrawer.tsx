@@ -113,10 +113,10 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
           let filePath: string | null = null
 
           if (tool.args) {
-            // Try to extract file path from different tool types
+            const pathRegex = /(?:filePath|path|target_file):\s*"([^"]+)"/
+            const filePathRegex = /file_path:\s*"([^"]+)"/
             if (tool.tool === 'write_file' || tool.tool === 'read_file') {
-              // Match patterns like: filePath: "src/..." or path: "src/..."
-              const pathMatch = tool.args.match(/(?:filePath|path|target_file):\s*"([^"]+)"/)
+              const pathMatch = pathRegex.exec(tool.args)
               if (pathMatch) {
                 filePath = pathMatch[1]
                 displayText =
@@ -125,7 +125,7 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
                     : getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.tool_reading', '📖 Reading')
               }
             } else if (tool.tool === 'propose_change') {
-              const fileMatch = tool.args.match(/file_path:\s*"([^"]+)"/)
+              const fileMatch = filePathRegex.exec(tool.args)
               if (fileMatch) {
                 filePath = fileMatch[1]
                 displayText = getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.tool_editing', '🔧 Editing')
@@ -188,9 +188,9 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
             </p>
             {examplePrompts && examplePrompts.length > 0 && (
               <div className="gba:flex gba:flex-wrap gba:gap-2 gba:justify-center gba:mt-4">
-                {examplePrompts.map((s, i) => (
+                {examplePrompts.map(s => (
                   <button
-                    key={i}
+                    key={s}
                     onClick={() => onInputChange(s)}
                     className="gba:px-4 gba:py-2 gba:text-sm gba:rounded-lg gba:bg-muted hover:gba:bg-muted/80 gba:border"
                   >
@@ -211,7 +211,11 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
 
             {messages.map((message, idx) => (
               <div
-                key={idx}
+                key={
+                  message.role === 'user'
+                    ? `user-${idx}-${message.content.length}`
+                    : `assistant-${idx}-${message.toolCalls?.[0]?.id ?? message.content.length}`
+                }
                 className={`gba:flex gba:gap-3 ${message.role === 'user' ? 'gba:justify-end' : 'gba:justify-start'}`}
               >
                 {message.role === 'assistant' && (

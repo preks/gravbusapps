@@ -156,7 +156,7 @@ export interface PublishResponse {
 // ============================================================================
 
 export class BuilderClient {
-  private baseUrl: string
+  private readonly baseUrl: string
   private accessToken?: string
 
   constructor(accessToken?: string) {
@@ -539,6 +539,7 @@ export class BuilderClient {
         message: data.message || 'Published successfully'
       }
     } catch (error) {
+      console.error('Publish screen failed', error)
       throw error
     }
   }
@@ -561,7 +562,7 @@ export class BuilderClient {
       }
     }
 
-    const parts = path.split('/').filter(p => p)
+    const parts = path.split('/').filter(Boolean)
     if (parts.length < 1) {
       return {
         valid: false,
@@ -590,7 +591,7 @@ export class BuilderClient {
       }
     }
 
-    const parts = url.split('/').filter(p => p)
+    const parts = url.split('/').filter(Boolean)
     if (parts.length < 2) {
       return {
         valid: false,

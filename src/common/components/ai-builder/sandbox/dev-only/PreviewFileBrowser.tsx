@@ -37,9 +37,7 @@ export const PreviewFileBrowser: React.FC<PreviewFileBrowserProps> = ({ files, o
         const isFile = index === parts.length - 1
         const path = parts.slice(0, index + 1).join('/')
 
-        if (!currentNode.children) {
-          currentNode.children = []
-        }
+        currentNode.children ??= []
 
         let childNode = currentNode.children.find(child => child.name === part)
 
@@ -108,6 +106,8 @@ export const PreviewFileBrowser: React.FC<PreviewFileBrowserProps> = ({ files, o
     return (
       <div key={node.path}>
         <div
+          role="button"
+          tabIndex={0}
           className={`gba:flex gba:items-center gba:gap-2 gba:px-2 gba:py-1 gba:cursor-pointer hover:gba:bg-muted/50 ${
             isSelected ? 'gba:bg-primary/10' : ''
           }`}
@@ -117,6 +117,16 @@ export const PreviewFileBrowser: React.FC<PreviewFileBrowserProps> = ({ files, o
               toggleFolder(node.path)
             } else {
               setSelectedFile(node.path)
+            }
+          }}
+          onKeyDown={e => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault()
+              if (node.type === 'folder') {
+                toggleFolder(node.path)
+              } else {
+                setSelectedFile(node.path)
+              }
             }
           }}
         >

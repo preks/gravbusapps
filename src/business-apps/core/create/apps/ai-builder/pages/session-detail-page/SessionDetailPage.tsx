@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { Button } from '@newwork/nw-design-system'
-import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@newwork/nw-design-system'
+import { Badge, Button, ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@newwork/nw-design-system'
 import {
   Sparkles,
   Upload,
@@ -13,7 +12,6 @@ import {
   PanelLeftClose,
   ArrowLeft
 } from 'lucide-react'
-import { Badge } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import screenDiscoveryConfig from '../../../../../../../../scripts/screen-discovery.config.json'
 import { SYSTEM_PROMPT } from '../../config/systemPrompt'
@@ -22,7 +20,7 @@ import { FilePreview } from './components/FilePreview'
 import { IndexingProgress } from '../../components/IndexingProgress'
 import { ChatDrawer } from './components/ChatDrawer'
 import { PublishDialog } from './components/PublishDialog'
-import { PreviewSandbox } from '@/common/components/ai-builder/sandbox'
+import { PreviewSandbox, type PreviewSandboxHandle } from '@/common/components/ai-builder/sandbox'
 import { useBuilderClient } from '@/common/network/ai/builder/useBuilderClient'
 import { useDebounce } from '@/common/hooks/useDebounce'
 import { sanitizeFilename, getSafeHref } from '../../utils/helpers'
@@ -131,6 +129,8 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
 
   const builderClient = useBuilderClient(context.accessToken)
   const toolIdCounter = useRef(0)
+  const previewSandboxRef = useRef<PreviewSandboxHandle>(null)
+  const previousChangeCountRef = useRef(0)
 
   const toggleFileExplorer = () => {
     const newValue = !showFileExplorer
@@ -138,18 +138,30 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
     localStorage.setItem('ai-builder-show-file-explorer', String(newValue))
   }
 
-  const checkForChanges = async () => {
-    if (!sessionId) return
+  const getNormalizedChangeType = (type: string): 'create' | 'modify' | 'delete' => {
+    if (type === 'create') return 'create'
+    if (type === 'delete') return 'delete'
+    return 'modify'
+  }
+
+  const getFileTypeDotClass = (type: 'create' | 'modify' | 'delete'): string => {
+    if (type === 'create') return 'gba:bg-success'
+    if (type === 'delete') return 'gba:bg-destructive'
+    return 'gba:bg-warning'
+  }
+
+  const checkForChanges = async (): Promise<number> => {
+    if (!sessionId) return 0
     const currentSession = sessions.find(s => s.sessionId === sessionId)
-    const repoIdToUse = currentSession?.repoId || repositoryId
-    if (!repoIdToUse) return
+    const repoIdToUse = currentSession?.repoId ?? repositoryId
+    if (!repoIdToUse) return 0
     try {
       const data: ChangesResponse = await builderClient.getChanges(repoIdToUse, sessionId)
-      if (data.summary && data.summary.files) {
+      const fileCount = data.summary?.files?.length ?? 0
+      if (data.summary?.files) {
         const fileMap = new Map<string, { path: string; type: 'create' | 'modify' | 'delete' }>()
         data.summary.files.forEach((file: FileChange) => {
-          const normalizedType = file.type === 'create' ? 'create' : file.type === 'delete' ? 'delete' : 'modify'
-          fileMap.set(file.path, { path: file.path, type: normalizedType })
+          fileMap.set(file.path, { path: file.path, type: getNormalizedChangeType(file.type) })
         })
         const uniqueFiles = Array.from(fileMap.values())
         const created = uniqueFiles.filter(f => f.type === 'create').length
@@ -169,7 +181,7 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
       // Build regex from config: match screen root index.ts exactly one level after a screen type directory.
       // e.g. src/business-apps/hr/common/apps/employee-list/index.ts
       // NOT: src/business-apps/hr/common/apps/employee-list/_i18n/index.ts
-      if (data.summary && data.summary.files) {
+      if (data.summary?.files) {
         const screenTypes = (screenDiscoveryConfig as { types: string[] }).types.join('|')
         const screenRootPattern = new RegExp(String.raw`^src/business-apps/(.+/(?:${screenTypes})/[^/]+)/index\.ts$`)
         const indexFiles = data.summary.files.filter((f: FileChange) => screenRootPattern.test(f.path))
@@ -186,8 +198,10 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
           }
         }
       }
+      return fileCount
     } catch (error) {
       console.error('Failed to get changes:', error)
+      return 0
     }
   }
 
@@ -196,10 +210,10 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
     if (!currentSession) return
     const updatedSession: SessionMetadata = {
       ...currentSession,
-      targetPath: detectedTargetPath || targetPath || currentSession.targetPath,
+      targetPath: detectedTargetPath ?? targetPath ?? currentSession.targetPath ?? null,
       resourceUrl: resourceUrl || currentSession.resourceUrl,
       lastModified: new Date().toISOString(),
-      fileCount: uniqueFileSummary?.totalUniqueFiles || currentSession.fileCount
+      fileCount: uniqueFileSummary?.totalUniqueFiles ?? currentSession.fileCount
     }
     const updated = sessions.map(s => (s.sessionId === sessionId ? updatedSession : s))
     updateSessionsState(updated)
@@ -212,7 +226,7 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
     builderClient
       .loadChatHistory(repositoryId, sessionId)
       .then(history => {
-        if (history && history.length > 0) {
+        if (history?.length) {
           setMessages(history as Message[])
         } else {
           setMessages([])
@@ -289,6 +303,141 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
     }
   }
 
+  const processStreamEvent = (
+    data: Record<string, unknown>,
+    streamState: {
+      assistantMessage: string
+      needsNewMessage: boolean
+      hasCreatedInitialMessage: boolean
+    },
+    ctx: {
+      setMessages: React.Dispatch<React.SetStateAction<Message[]>>
+      setUsage: React.Dispatch<
+        React.SetStateAction<{
+          totalInputTokens: number
+          totalOutputTokens: number
+          totalCost: number
+          lastCallCost: number
+        }>
+      >
+      setThinking: (v: boolean) => void
+      setThinkingContent: (v: React.SetStateAction<string>) => void
+      toolIdCounter: React.MutableRefObject<number>
+    }
+  ): void => {
+    if (data.type === 'iteration_complete') {
+      streamState.needsNewMessage = true
+      return
+    }
+    if (data.type === 'usage' && data.content) {
+      const usageData = typeof data.content === 'string' ? JSON.parse(data.content as string) : data.content
+      ctx.setUsage(prev => ({
+        totalInputTokens: prev.totalInputTokens + ((usageData as Record<string, number>).totalInputTokens || 0),
+        totalOutputTokens: prev.totalOutputTokens + ((usageData as Record<string, number>).totalOutputTokens || 0),
+        totalCost: prev.totalCost + ((usageData as Record<string, number>).totalCost || 0),
+        lastCallCost: (usageData as Record<string, number>).callCost || 0
+      }))
+      ctx.setMessages(prev => {
+        const newMessages = [...prev]
+        for (let i = newMessages.length - 1; i >= 0; i--) {
+          if (newMessages[i].role === 'assistant') {
+            const u = usageData as Record<string, number>
+            newMessages[i] = {
+              ...newMessages[i],
+              cost: {
+                inputTokens: u.totalInputTokens || 0,
+                outputTokens: u.totalOutputTokens || 0,
+                totalCost: u.totalCost || 0
+              }
+            }
+            break
+          }
+        }
+        return newMessages
+      })
+      return
+    }
+    if (data.type === 'thinking' && data.content) {
+      ctx.setThinking(true)
+      ctx.setThinkingContent(prev => prev + (data.content as string))
+      ctx.setMessages(prev => {
+        const next = [...prev]
+        if (next.length === 0 || next[next.length - 1].role !== 'assistant') {
+          next.push({ role: 'assistant', content: '', thinkingLog: '', thinkingCollapsed: false })
+        }
+        const last = next[next.length - 1]
+        last.thinkingLog = (last.thinkingLog || '') + (data.content as string)
+        if (typeof last.thinkingCollapsed !== 'boolean') last.thinkingCollapsed = false
+        return next
+      })
+      return
+    }
+    if ((data.type === 'token' || data.type === 'response') && data.content) {
+      ctx.setThinking(false)
+      ctx.setThinkingContent('')
+      ctx.setMessages(prev => {
+        const next = [...prev]
+        if (next.length > 0 && next[next.length - 1].role === 'assistant' && next[next.length - 1].thinkingLog) {
+          next[next.length - 1].thinkingCollapsed = true
+        }
+        return next
+      })
+      if (!streamState.hasCreatedInitialMessage || streamState.needsNewMessage) {
+        ctx.setMessages(prev => [...prev, { role: 'assistant', content: '' }])
+        streamState.hasCreatedInitialMessage = true
+        streamState.needsNewMessage = false
+        streamState.assistantMessage = ''
+      }
+      streamState.assistantMessage += data.content as string
+      ctx.setMessages(prev => {
+        const newMessages = [...prev]
+        newMessages[newMessages.length - 1].content = streamState.assistantMessage
+        return newMessages
+      })
+      return
+    }
+    if (data.type === 'tool_call' && data.toolName) {
+      if (!streamState.hasCreatedInitialMessage) {
+        ctx.setMessages(prev => [...prev, { role: 'assistant', content: '' }])
+        streamState.hasCreatedInitialMessage = true
+        streamState.assistantMessage = ''
+      }
+      const toolArgs = data.content ? String(data.content).match(/\((.*)\)/)?.[1] : undefined
+      ctx.setMessages(prev => {
+        const newMessages = [...prev]
+        const lastMsg = newMessages[newMessages.length - 1]
+        lastMsg.toolCalls ??= []
+        const alreadyExists = lastMsg.toolCalls.some(t => t.tool === data.toolName && t.args === toolArgs)
+        if (!alreadyExists) {
+          ctx.toolIdCounter.current += 1
+          lastMsg.toolCalls.push({
+            tool: data.toolName as string,
+            args: toolArgs,
+            status: 'running',
+            id: `tool-${ctx.toolIdCounter.current}`
+          })
+        }
+        return newMessages
+      })
+      return
+    }
+    if (data.type === 'tool_result' && data.toolName) {
+      ctx.setMessages(prev => {
+        const newMessages = [...prev]
+        const lastMsg = newMessages[newMessages.length - 1]
+        if (lastMsg.toolCalls) {
+          const runningTools = lastMsg.toolCalls.filter(t => t.tool === data.toolName && t.status === 'running')
+          if (runningTools.length > 0) {
+            const tool = runningTools[runningTools.length - 1]
+            tool.status = 'complete'
+            tool.result = data.content as string
+          }
+        }
+        return newMessages
+      })
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!input.trim() || loading) return
@@ -302,8 +451,13 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
     try {
       setThinking(true)
       setThinkingContent('')
-      const optimizedHistory = messages.slice(-20)
-      const history = optimizedHistory
+      const currentSession = sessions.find(s => s.sessionId === sessionId)
+      const repoIdToUse = currentSession?.repoId ?? repositoryId
+      if (repoIdToUse) {
+        const data: ChangesResponse = await builderClient.getChanges(repoIdToUse, sessionId)
+        previousChangeCountRef.current = data.summary?.files?.length ?? 0
+      }
+      const history = messages.slice(-20)
       const stream = await builderClient.queryCode(
         repositoryId,
         userInput,
@@ -316,135 +470,32 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
       )
       const reader = stream.getReader()
       const decoder = new TextDecoder()
-      let assistantMessage = ''
-      let needsNewMessage = false
-      let hasCreatedInitialMessage = false
+      const streamState = {
+        assistantMessage: '',
+        needsNewMessage: false,
+        hasCreatedInitialMessage: false
+      }
+      const ctx = {
+        setMessages,
+        setUsage,
+        setThinking,
+        setThinkingContent,
+        toolIdCounter
+      }
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
         const chunk = decoder.decode(value)
         const lines = chunk.split('\n')
         for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            try {
-              const jsonStr = line.slice(6).trim()
-              if (!jsonStr) continue
-              const data = JSON.parse(jsonStr)
-              if (data.type === 'iteration_complete') {
-                needsNewMessage = true
-                continue
-              }
-              if (data.type === 'usage' && data.content) {
-                const usageData = typeof data.content === 'string' ? JSON.parse(data.content) : data.content
-                setUsage(prev => ({
-                  totalInputTokens: prev.totalInputTokens + (usageData.totalInputTokens || 0),
-                  totalOutputTokens: prev.totalOutputTokens + (usageData.totalOutputTokens || 0),
-                  totalCost: prev.totalCost + (usageData.totalCost || 0),
-                  lastCallCost: usageData.callCost || 0
-                }))
-                setMessages(prev => {
-                  const newMessages = [...prev]
-                  for (let i = newMessages.length - 1; i >= 0; i--) {
-                    if (newMessages[i].role === 'assistant') {
-                      newMessages[i] = {
-                        ...newMessages[i],
-                        cost: {
-                          inputTokens: usageData.totalInputTokens || 0,
-                          outputTokens: usageData.totalOutputTokens || 0,
-                          totalCost: usageData.totalCost || 0
-                        }
-                      }
-                      break
-                    }
-                  }
-                  return newMessages
-                })
-                continue
-              }
-              if (data.type === 'thinking' && data.content) {
-                setThinking(true)
-                setThinkingContent(prev => prev + data.content)
-                setMessages(prev => {
-                  const next = [...prev]
-                  if (next.length === 0 || next[next.length - 1].role !== 'assistant') {
-                    next.push({ role: 'assistant', content: '', thinkingLog: '', thinkingCollapsed: false })
-                  }
-                  const last = next[next.length - 1]
-                  last.thinkingLog = (last.thinkingLog || '') + data.content
-                  if (typeof last.thinkingCollapsed !== 'boolean') last.thinkingCollapsed = false
-                  return next
-                })
-                continue
-              }
-              if ((data.type === 'token' || data.type === 'response') && data.content) {
-                setThinking(false)
-                setThinkingContent('')
-                setMessages(prev => {
-                  const next = [...prev]
-                  if (
-                    next.length > 0 &&
-                    next[next.length - 1].role === 'assistant' &&
-                    next[next.length - 1].thinkingLog
-                  ) {
-                    next[next.length - 1].thinkingCollapsed = true
-                  }
-                  return next
-                })
-                if (!hasCreatedInitialMessage || needsNewMessage) {
-                  setMessages(prev => [...prev, { role: 'assistant', content: '' }])
-                  hasCreatedInitialMessage = true
-                  needsNewMessage = false
-                  assistantMessage = ''
-                }
-                assistantMessage += data.content
-                setMessages(prev => {
-                  const newMessages = [...prev]
-                  newMessages[newMessages.length - 1].content = assistantMessage
-                  return newMessages
-                })
-              } else if (data.type === 'tool_call' && data.toolName) {
-                if (!hasCreatedInitialMessage) {
-                  setMessages(prev => [...prev, { role: 'assistant', content: '' }])
-                  hasCreatedInitialMessage = true
-                  assistantMessage = ''
-                }
-                const toolArgs = data.content ? data.content.match(/\((.*)\)/)?.[1] : undefined
-                setMessages(prev => {
-                  const newMessages = [...prev]
-                  const lastMsg = newMessages[newMessages.length - 1]
-                  if (!lastMsg.toolCalls) lastMsg.toolCalls = []
-                  const alreadyExists = lastMsg.toolCalls.some(t => t.tool === data.toolName && t.args === toolArgs)
-                  if (!alreadyExists) {
-                    toolIdCounter.current += 1
-                    lastMsg.toolCalls.push({
-                      tool: data.toolName,
-                      args: toolArgs,
-                      status: 'running',
-                      id: `tool-${toolIdCounter.current}`
-                    })
-                  }
-                  return newMessages
-                })
-              } else if (data.type === 'tool_result' && data.toolName) {
-                setMessages(prev => {
-                  const newMessages = [...prev]
-                  const lastMsg = newMessages[newMessages.length - 1]
-                  if (lastMsg.toolCalls) {
-                    const runningTools = lastMsg.toolCalls.filter(
-                      t => t.tool === data.toolName && t.status === 'running'
-                    )
-                    if (runningTools.length > 0) {
-                      const tool = runningTools[runningTools.length - 1]
-                      tool.status = 'complete'
-                      tool.result = data.content
-                    }
-                  }
-                  return newMessages
-                })
-              }
-            } catch {
-              // skip parse error
-            }
+          if (!line.startsWith('data: ')) continue
+          try {
+            const jsonStr = line.slice(6).trim()
+            if (!jsonStr) continue
+            const data = JSON.parse(jsonStr) as Record<string, unknown>
+            if (data && typeof data === 'object') processStreamEvent(data, streamState, ctx)
+          } catch {
+            // skip parse error
           }
         }
       }
@@ -463,7 +514,13 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
       ])
     } finally {
       setLoading(false)
-      setTimeout(() => checkForChanges(), 2000)
+      setTimeout(async () => {
+        const newCount = await checkForChanges()
+        if (newCount > previousChangeCountRef.current) {
+          previewSandboxRef.current?.reload()
+        }
+        previousChangeCountRef.current = newCount
+      }, 2000)
     }
   }
 
@@ -491,374 +548,294 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
       </div>
 
       <div className="gba:relative gba:z-10 gba:flex gba:w-full gba:h-full">
-        <>
-          {fileExplorerEnabled && showFileExplorer && sessionId && (
-            <div className="gba:w-[320px] gba:border-r gba:border-border gba:flex-shrink-0 gba:bg-card/80 gba:backdrop-blur-sm">
-              <FileExplorer repoId={repositoryId} sessionId={sessionId} onFileClick={path => setSelectedFile(path)} />
+        {fileExplorerEnabled && showFileExplorer && sessionId && (
+          <div className="gba:w-[320px] gba:border-r gba:border-border gba:flex-shrink-0 gba:bg-card/80 gba:backdrop-blur-sm">
+            <FileExplorer repoId={repositoryId} sessionId={sessionId} onFileClick={path => setSelectedFile(path)} />
+          </div>
+        )}
+
+        <div className="gba:flex gba:flex-col gba:flex-1 gba:min-w-0">
+          {publishSuccess && (
+            <div className="gba:bg-success-secondary gba:border-b gba:border-success">
+              <div className="gba:container gba:mx-auto gba:px-6 gba:py-3">
+                <div className="gba:flex gba:items-center gba:justify-between">
+                  <div className="gba:flex gba:items-center gba:gap-3">
+                    <CheckCircle className="gba:w-5 gba:h-5 gba:text-success" />
+                    <div>
+                      <p className="gba:text-sm gba:font-medium gba:text-success-secondary-foreground">
+                        {getTranslationFromI18nKeyAndLabel(
+                          'lowcoder:ai_builder.publish_success',
+                          'Screen published successfully!'
+                        )}
+                      </p>
+                      <a
+                        href={getSafeHref(publishSuccess)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="gba:text-xs gba:text-success hover:gba:underline gba:flex gba:items-center gba:gap-1"
+                      >
+                        {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.open_screen', 'Open screen')}:{' '}
+                        {publishSuccess}
+                        <svg className="gba:w-3 gba:h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                          />
+                        </svg>
+                      </a>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setPublishSuccess(null)}
+                    className="gba:text-success-secondary-foreground hover:gba:opacity-80"
+                  >
+                    <X className="gba:w-4 gba:h-4" />
+                  </button>
+                </div>
+              </div>
             </div>
           )}
 
-          <div className="gba:flex gba:flex-col gba:flex-1 gba:min-w-0">
-            {publishSuccess && (
-              <div className="gba:bg-success-secondary gba:border-b gba:border-success">
-                <div className="gba:container gba:mx-auto gba:px-6 gba:py-3">
-                  <div className="gba:flex gba:items-center gba:justify-between">
-                    <div className="gba:flex gba:items-center gba:gap-3">
-                      <CheckCircle className="gba:w-5 gba:h-5 gba:text-success" />
-                      <div>
-                        <p className="gba:text-sm gba:font-medium gba:text-success-secondary-foreground">
-                          {getTranslationFromI18nKeyAndLabel(
-                            'lowcoder:ai_builder.publish_success',
-                            'Screen published successfully!'
-                          )}
-                        </p>
-                        <a
-                          href={getSafeHref(publishSuccess)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="gba:text-xs gba:text-success hover:gba:underline gba:flex gba:items-center gba:gap-1"
-                        >
-                          {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.open_screen', 'Open screen')}:{' '}
-                          {publishSuccess}
-                          <svg className="gba:w-3 gba:h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-                            />
-                          </svg>
-                        </a>
-                      </div>
+          <div className="gba:border-b gba:border-border/50 gba:bg-card/60 gba:backdrop-blur-md gba:shadow-sm">
+            <div className="gba:container gba:mx-auto gba:px-6 gba:py-4">
+              <div className="gba:flex gba:items-center gba:justify-between">
+                <div className="gba:flex gba:items-center gba:gap-3">
+                  <div className="gba:w-10 gba:h-10 gba:rounded-lg gba:bg-gradient-to-br gba:from-primary gba:to-accent gba:flex gba:items-center gba:justify-center gba:shadow-lg">
+                    <Sparkles className="gba:w-5 gba:h-5 gba:text-primary-foreground" />
+                  </div>
+                  <div>
+                    <div className="gba:flex gba:items-center gba:gap-2">
+                      <h1 className="gba:text-xl gba:font-bold gba:bg-gradient-to-r gba:from-primary gba:to-accent gba:bg-clip-text gba:text-transparent">
+                        {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.title', 'NEWWORK AI Builder')}
+                      </h1>
+                      <Badge variant="aiGenerated" className="gba:text-[10px] gba:px-1.5 gba:py-0">
+                        {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.beta_badge', 'BETA')}
+                      </Badge>
                     </div>
-                    <button
-                      onClick={() => setPublishSuccess(null)}
-                      className="gba:text-success-secondary-foreground hover:gba:opacity-80"
-                    >
-                      <X className="gba:w-4 gba:h-4" />
-                    </button>
+                    <p className="gba:text-xs gba:text-muted-foreground">
+                      {getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:ai_builder.subtitle',
+                        'Build screens with natural language • Powered by Claude 4.5 Sonnet'
+                      )}
+                      {sessionId && (
+                        <span className="gba:ml-2 gba:px-2 gba:py-0.5 gba:bg-primary/10 gba:rounded gba:font-mono gba:text-[10px] gba:text-primary">
+                          {sessionId.split('-').pop()}
+                        </span>
+                      )}
+                    </p>
                   </div>
                 </div>
-              </div>
-            )}
 
-            <div className="gba:border-b gba:border-border/50 gba:bg-card/60 gba:backdrop-blur-md gba:shadow-sm">
-              <div className="gba:container gba:mx-auto gba:px-6 gba:py-4">
-                <div className="gba:flex gba:items-center gba:justify-between">
-                  <div className="gba:flex gba:items-center gba:gap-3">
-                    <div className="gba:w-10 gba:h-10 gba:rounded-lg gba:bg-gradient-to-br gba:from-primary gba:to-accent gba:flex gba:items-center gba:justify-center gba:shadow-lg">
-                      <Sparkles className="gba:w-5 gba:h-5 gba:text-primary-foreground" />
+                <div className="gba:flex gba:items-center gba:gap-3">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={backToSessionList}
+                    className="gba:gap-2"
+                    title={getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:ai_builder.back_to_sessions_title',
+                      'Back to session list'
+                    )}
+                    data-testid="back-to-sessions-button"
+                  >
+                    <ArrowLeft className="gba:w-4 gba:h-4" />
+                    <span className="gba:hidden md:gba:inline">
+                      {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.sessions_button', 'Sessions')}
+                    </span>
+                  </Button>
+
+                  {fileExplorerEnabled && sessionId && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={toggleFileExplorer}
+                      className="gba:gap-2"
+                      title={
+                        showFileExplorer
+                          ? getTranslationFromI18nKeyAndLabel(
+                              'lowcoder:ai_builder.hide_file_explorer',
+                              'Hide file explorer'
+                            )
+                          : getTranslationFromI18nKeyAndLabel(
+                              'lowcoder:ai_builder.show_file_explorer',
+                              'Show file explorer'
+                            )
+                      }
+                      data-testid="file-explorer-toggle-button"
+                    >
+                      {showFileExplorer ? (
+                        <PanelLeftClose className="gba:w-4 gba:h-4" />
+                      ) : (
+                        <PanelLeft className="gba:w-4 gba:h-4" />
+                      )}
+                      <span className="gba:hidden md:gba:inline">
+                        {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.files_button', 'Files')}
+                      </span>
+                    </Button>
+                  )}
+
+                  {usage.totalCost > 0 && (
+                    <div className="gba:text-xs gba:text-muted-foreground">
+                      <span>{(usage.totalInputTokens / 1000).toFixed(1)}K in / </span>
+                      <span>{(usage.totalOutputTokens / 1000).toFixed(1)}K out • </span>
+                      <span className="gba:font-semibold gba:text-success">${usage.totalCost.toFixed(4)}</span>
                     </div>
-                    <div>
-                      <div className="gba:flex gba:items-center gba:gap-2">
-                        <h1 className="gba:text-xl gba:font-bold gba:bg-gradient-to-r gba:from-primary gba:to-accent gba:bg-clip-text gba:text-transparent">
-                          {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.title', 'NEWWORK AI Builder')}
-                        </h1>
-                        <Badge variant="aiGenerated" className="gba:text-[10px] gba:px-1.5 gba:py-0">
-                          {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.beta_badge', 'BETA')}
-                        </Badge>
+                  )}
+
+                  <Button size="sm" variant="outline" onClick={checkForChanges} className="gba:gap-2">
+                    <Download className="gba:w-4 gba:h-4" />
+                    {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.refresh_files', 'Refresh Files')}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <IndexingProgress />
+
+          {uniqueFileSummary && uniqueFileSummary.totalUniqueFiles > 0 && (
+            <div className="gba:bg-gradient-to-r gba:from-primary/10 gba:via-accent/5 gba:to-primary/10 gba:backdrop-blur-md gba:border-b gba:border-primary/20">
+              <div className="gba:container gba:mx-auto gba:px-6 gba:py-4">
+                <div className="gba:flex gba:items-start gba:justify-between gba:gap-4">
+                  <div className="gba:flex gba:items-start gba:gap-4 gba:flex-1">
+                    <div className="gba:flex gba:items-center gba:gap-3">
+                      <div className="gba:relative gba:flex gba:items-center gba:justify-center">
+                        <div className="gba:w-8 gba:h-8 gba:rounded-full gba:bg-primary/10 gba:flex gba:items-center gba:justify-center">
+                          <CheckCircle2 className="gba:w-4 gba:h-4 gba:text-primary" />
+                        </div>
+                        <div className="gba:absolute gba:w-8 gba:h-8 gba:rounded-full gba:bg-primary/20 gba:animate-ping" />
                       </div>
-                      <p className="gba:text-xs gba:text-muted-foreground">
-                        {getTranslationFromI18nKeyAndLabel(
-                          'lowcoder:ai_builder.subtitle',
-                          'Build screens with natural language • Powered by Claude 4.5 Sonnet'
-                        )}
-                        {sessionId && (
-                          <span className="gba:ml-2 gba:px-2 gba:py-0.5 gba:bg-primary/10 gba:rounded gba:font-mono gba:text-[10px] gba:text-primary">
-                            {sessionId.split('-').pop()}
+                      <div className="gba:space-y-1">
+                        <div className="gba:flex gba:items-center gba:gap-2">
+                          <h3 className="gba:font-semibold gba:text-foreground gba:text-sm">
+                            {getTranslationFromI18nKeyAndLabel(
+                              'lowcoder:ai_builder.ready_to_publish',
+                              'Ready to Publish'
+                            )}
+                          </h3>
+                          <span className="gba:px-2 gba:py-0.5 gba:rounded-full gba:bg-primary/10 gba:text-primary gba:text-xs gba:font-medium">
+                            {uniqueFileSummary.totalUniqueFiles}{' '}
+                            {uniqueFileSummary.totalUniqueFiles === 1
+                              ? getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.file_singular', 'file')
+                              : getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.file_plural', 'files')}
                           </span>
-                        )}
-                      </p>
+                        </div>
+                        <div className="gba:flex gba:items-center gba:gap-3 gba:text-xs gba:text-muted-foreground">
+                          {uniqueFileSummary.created > 0 && (
+                            <span className="gba:flex gba:items-center gba:gap-1">
+                              <span className="gba:w-1.5 gba:h-1.5 gba:rounded-full gba:bg-success" />
+                              {uniqueFileSummary.created}{' '}
+                              {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.created', 'created')}
+                            </span>
+                          )}
+                          {uniqueFileSummary.modified > 0 && (
+                            <span className="gba:flex gba:items-center gba:gap-1">
+                              <span className="gba:w-1.5 gba:h-1.5 gba:rounded-full gba:bg-warning" />
+                              {uniqueFileSummary.modified}{' '}
+                              {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.modified', 'modified')}
+                            </span>
+                          )}
+                          {uniqueFileSummary.deleted > 0 && (
+                            <span className="gba:flex gba:items-center gba:gap-1">
+                              <span className="gba:w-1.5 gba:h-1.5 gba:rounded-full gba:bg-destructive" />
+                              {uniqueFileSummary.deleted}{' '}
+                              {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.deleted', 'deleted')}
+                            </span>
+                          )}
+                        </div>
+                        <details className="gba:mt-2 gba:text-xs">
+                          <summary className="gba:cursor-pointer gba:text-muted-foreground hover:gba:text-foreground gba:transition-colors">
+                            {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.view_files', 'View files')}
+                          </summary>
+                          <div className="gba:mt-2 gba:space-y-1 gba:pl-4 gba:max-h-40 gba:overflow-y-auto gba:pr-2">
+                            {uniqueFileSummary.files.map(file => (
+                              <div
+                                key={file.path}
+                                className="gba:flex gba:items-center gba:gap-2 gba:text-xs gba:py-0.5"
+                              >
+                                <span
+                                  className={`gba:w-1 gba:h-1 gba:rounded-full gba:flex-shrink-0 ${getFileTypeDotClass(file.type)}`}
+                                />
+                                <span
+                                  className="gba:font-mono gba:text-muted-foreground gba:truncate"
+                                  title={file.path}
+                                >
+                                  {file.path}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </details>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="gba:flex gba:items-center gba:gap-3">
+                  <div className="gba:flex gba:gap-2 gba:flex-shrink-0">
                     <Button
                       size="sm"
-                      variant="ghost"
-                      onClick={backToSessionList}
-                      className="gba:gap-2"
-                      title={getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:ai_builder.back_to_sessions_title',
-                        'Back to session list'
-                      )}
-                      data-testid="back-to-sessions-button"
+                      variant="default"
+                      onClick={() => {
+                        setPublishError(null)
+                        setShowPublishDialog(true)
+                      }}
+                      className="gba:gap-2 gba:shadow-sm"
                     >
-                      <ArrowLeft className="gba:w-4 gba:h-4" />
-                      <span className="gba:hidden md:gba:inline">
-                        {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.sessions_button', 'Sessions')}
-                      </span>
+                      <Upload className="gba:w-4 gba:h-4" />
+                      {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.publish_button', 'Publish')}
                     </Button>
-
-                    {fileExplorerEnabled && sessionId && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={toggleFileExplorer}
-                        className="gba:gap-2"
-                        title={
-                          showFileExplorer
-                            ? getTranslationFromI18nKeyAndLabel(
-                                'lowcoder:ai_builder.hide_file_explorer',
-                                'Hide file explorer'
-                              )
-                            : getTranslationFromI18nKeyAndLabel(
-                                'lowcoder:ai_builder.show_file_explorer',
-                                'Show file explorer'
-                              )
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={async () => {
+                        try {
+                          const blob = await builderClient.downloadPatch(repositoryId, sessionId)
+                          const safeSessionId = sanitizeFilename(sessionId)
+                          const safeFilename = `ai-builder-${safeSessionId}.patch`
+                          const blobUrl = URL.createObjectURL(blob)
+                          try {
+                            const link = Object.assign(document.createElement('a'), {
+                              href: blobUrl,
+                              download: safeFilename
+                            })
+                            link.click()
+                          } finally {
+                            URL.revokeObjectURL(blobUrl)
+                          }
+                        } catch (error) {
+                          alert(
+                            error instanceof Error
+                              ? error.message
+                              : getTranslationFromI18nKeyAndLabel(
+                                  'lowcoder:ai_builder.download_patch_failed',
+                                  'Failed to download patch'
+                                )
+                          )
                         }
-                        data-testid="file-explorer-toggle-button"
-                      >
-                        {showFileExplorer ? (
-                          <PanelLeftClose className="gba:w-4 gba:h-4" />
-                        ) : (
-                          <PanelLeft className="gba:w-4 gba:h-4" />
-                        )}
-                        <span className="gba:hidden md:gba:inline">
-                          {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.files_button', 'Files')}
-                        </span>
-                      </Button>
-                    )}
-
-                    {usage.totalCost > 0 && (
-                      <div className="gba:text-xs gba:text-muted-foreground">
-                        <span>{(usage.totalInputTokens / 1000).toFixed(1)}K in / </span>
-                        <span>{(usage.totalOutputTokens / 1000).toFixed(1)}K out • </span>
-                        <span className="gba:font-semibold gba:text-success">${usage.totalCost.toFixed(4)}</span>
-                      </div>
-                    )}
-
-                    <Button size="sm" variant="outline" onClick={checkForChanges} className="gba:gap-2">
+                      }}
+                      className="gba:gap-2"
+                    >
                       <Download className="gba:w-4 gba:h-4" />
-                      {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.refresh_files', 'Refresh Files')}
+                      {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.patch_button', 'Patch')}
                     </Button>
                   </div>
                 </div>
               </div>
             </div>
+          )}
 
-            <IndexingProgress />
-
-            {uniqueFileSummary && uniqueFileSummary.totalUniqueFiles > 0 && (
-              <div className="gba:bg-gradient-to-r gba:from-primary/10 gba:via-accent/5 gba:to-primary/10 gba:backdrop-blur-md gba:border-b gba:border-primary/20">
-                <div className="gba:container gba:mx-auto gba:px-6 gba:py-4">
-                  <div className="gba:flex gba:items-start gba:justify-between gba:gap-4">
-                    <div className="gba:flex gba:items-start gba:gap-4 gba:flex-1">
-                      <div className="gba:flex gba:items-center gba:gap-3">
-                        <div className="gba:relative gba:flex gba:items-center gba:justify-center">
-                          <div className="gba:w-8 gba:h-8 gba:rounded-full gba:bg-primary/10 gba:flex gba:items-center gba:justify-center">
-                            <CheckCircle2 className="gba:w-4 gba:h-4 gba:text-primary" />
-                          </div>
-                          <div className="gba:absolute gba:w-8 gba:h-8 gba:rounded-full gba:bg-primary/20 gba:animate-ping" />
-                        </div>
-                        <div className="gba:space-y-1">
-                          <div className="gba:flex gba:items-center gba:gap-2">
-                            <h3 className="gba:font-semibold gba:text-foreground gba:text-sm">
-                              {getTranslationFromI18nKeyAndLabel(
-                                'lowcoder:ai_builder.ready_to_publish',
-                                'Ready to Publish'
-                              )}
-                            </h3>
-                            <span className="gba:px-2 gba:py-0.5 gba:rounded-full gba:bg-primary/10 gba:text-primary gba:text-xs gba:font-medium">
-                              {uniqueFileSummary.totalUniqueFiles}{' '}
-                              {uniqueFileSummary.totalUniqueFiles === 1
-                                ? getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.file_singular', 'file')
-                                : getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.file_plural', 'files')}
-                            </span>
-                          </div>
-                          <div className="gba:flex gba:items-center gba:gap-3 gba:text-xs gba:text-muted-foreground">
-                            {uniqueFileSummary.created > 0 && (
-                              <span className="gba:flex gba:items-center gba:gap-1">
-                                <span className="gba:w-1.5 gba:h-1.5 gba:rounded-full gba:bg-success" />
-                                {uniqueFileSummary.created}{' '}
-                                {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.created', 'created')}
-                              </span>
-                            )}
-                            {uniqueFileSummary.modified > 0 && (
-                              <span className="gba:flex gba:items-center gba:gap-1">
-                                <span className="gba:w-1.5 gba:h-1.5 gba:rounded-full gba:bg-warning" />
-                                {uniqueFileSummary.modified}{' '}
-                                {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.modified', 'modified')}
-                              </span>
-                            )}
-                            {uniqueFileSummary.deleted > 0 && (
-                              <span className="gba:flex gba:items-center gba:gap-1">
-                                <span className="gba:w-1.5 gba:h-1.5 gba:rounded-full gba:bg-destructive" />
-                                {uniqueFileSummary.deleted}{' '}
-                                {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.deleted', 'deleted')}
-                              </span>
-                            )}
-                          </div>
-                          <details className="gba:mt-2 gba:text-xs">
-                            <summary className="gba:cursor-pointer gba:text-muted-foreground hover:gba:text-foreground gba:transition-colors">
-                              {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.view_files', 'View files')}
-                            </summary>
-                            <div className="gba:mt-2 gba:space-y-1 gba:pl-4 gba:max-h-40 gba:overflow-y-auto gba:pr-2">
-                              {uniqueFileSummary.files.map((file, index) => (
-                                <div key={index} className="gba:flex gba:items-center gba:gap-2 gba:text-xs gba:py-0.5">
-                                  <span
-                                    className={`gba:w-1 gba:h-1 gba:rounded-full gba:flex-shrink-0 ${
-                                      file.type === 'create'
-                                        ? 'gba:bg-success'
-                                        : file.type === 'delete'
-                                          ? 'gba:bg-destructive'
-                                          : 'gba:bg-warning'
-                                    }`}
-                                  />
-                                  <span
-                                    className="gba:font-mono gba:text-muted-foreground gba:truncate"
-                                    title={file.path}
-                                  >
-                                    {file.path}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          </details>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="gba:flex gba:gap-2 gba:flex-shrink-0">
-                      <Button
-                        size="sm"
-                        variant="default"
-                        onClick={() => {
-                          setPublishError(null)
-                          setShowPublishDialog(true)
-                        }}
-                        className="gba:gap-2 gba:shadow-sm"
-                      >
-                        <Upload className="gba:w-4 gba:h-4" />
-                        {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.publish_button', 'Publish')}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={async () => {
-                          try {
-                            const blob = await builderClient.downloadPatch(repositoryId, sessionId)
-                            const safeSessionId = sanitizeFilename(sessionId)
-                            const safeFilename = `ai-builder-${safeSessionId}.patch`
-                            const blobUrl = URL.createObjectURL(blob)
-                            try {
-                              const link = Object.assign(document.createElement('a'), {
-                                href: blobUrl,
-                                download: safeFilename
-                              })
-                              link.click()
-                            } finally {
-                              URL.revokeObjectURL(blobUrl)
-                            }
-                          } catch (error) {
-                            alert(
-                              error instanceof Error
-                                ? error.message
-                                : getTranslationFromI18nKeyAndLabel(
-                                    'lowcoder:ai_builder.download_patch_failed',
-                                    'Failed to download patch'
-                                  )
-                            )
-                          }
-                        }}
-                        className="gba:gap-2"
-                      >
-                        <Download className="gba:w-4 gba:h-4" />
-                        {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.patch_button', 'Patch')}
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div className="gba:flex-1 gba:flex gba:min-h-0 gba:overflow-hidden">
-              {sessionId &&
-              repositoryId &&
-              ((uniqueFileSummary?.totalUniqueFiles ?? 0) > 0 ||
-                (sessions.find(s => s.sessionId === sessionId)?.fileCount ?? 0) > 0) ? (
-                <ResizablePanelGroup direction="horizontal" className="gba:flex-1 gba:min-h-0 gba:w-full">
-                  <ResizablePanel
-                    defaultSize={25}
-                    minSize={25}
-                    className="gba:flex gba:flex-col gba:min-h-0 gba:rounded-none"
-                  >
-                    <ChatDrawer
-                      messages={messages}
-                      input={input}
-                      onInputChange={v => setInput(v)}
-                      onSendMessage={() => handleSubmit({ preventDefault: () => {} } as React.FormEvent)}
-                      isProcessing={loading}
-                      thinking={thinking}
-                      userName={
-                        context.userInfo
-                          ? `${context.userInfo.givenName ?? ''} ${context.userInfo.familyName ?? ''}`.trim() ||
-                            getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.you', 'You')
-                          : getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.you', 'You')
-                      }
-                      userAvatar={userPictureThumbnail ? `data:image/jpeg;base64,${userPictureThumbnail}` : undefined}
-                      onToggleThinking={idx =>
-                        setMessages(prev => {
-                          const next = [...prev]
-                          next[idx].thinkingCollapsed = !next[idx].thinkingCollapsed
-                          return next
-                        })
-                      }
-                      examplePrompts={[
-                        getTranslationFromI18nKeyAndLabel(
-                          'lowcoder:ai_builder.example_prompt_1',
-                          'Create a lead list screen'
-                        ),
-                        getTranslationFromI18nKeyAndLabel(
-                          'lowcoder:ai_builder.example_prompt_2',
-                          'Build a customer dashboard'
-                        ),
-                        getTranslationFromI18nKeyAndLabel(
-                          'lowcoder:ai_builder.example_prompt_3',
-                          'Generate a contact form'
-                        )
-                      ]}
-                      inputPlaceholder={getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:ai_builder.input_placeholder',
-                        'Describe the screen you want to build... (Press Enter to send, Shift+Enter for new line)'
-                      )}
-                      analyzingRequestText={getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:ai_builder.analyzing_request',
-                        'AI is analyzing your request and exploring the codebase...'
-                      )}
-                      tipText={getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:ai_builder.tip_message',
-                        'Tip: Be specific! Example: "Build a lead list screen with search, table, and pagination"'
-                      )}
-                      emptyTitle={getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:ai_builder.welcome_title',
-                        'Build Screens with AI'
-                      )}
-                      emptyDescription={getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:ai_builder.welcome_description',
-                        "Describe what you want to build and I'll create it following NEWWORK patterns"
-                      )}
-                      className="gba:flex-1 gba:min-h-0"
-                    />
-                  </ResizablePanel>
-                  <ResizableHandle withHandle className="gba:bg-border" />
-                  <ResizablePanel
-                    defaultSize={75}
-                    minSize={25}
-                    className="gba:flex gba:flex-col gba:min-h-0 gba:rounded-none"
-                  >
-                    <div className="gba:flex-1 gba:min-h-0 gba:relative gba:bg-card gba:overflow-hidden">
-                      <PreviewSandbox
-                        repoId={repositoryId}
-                        sessionId={sessionId}
-                        accessToken={context.accessToken}
-                        userInfo={context.userInfo}
-                      />
-                    </div>
-                  </ResizablePanel>
-                </ResizablePanelGroup>
-              ) : (
-                <main className="gba:flex-1 gba:flex gba:flex-col gba:min-h-0 gba:rounded-none">
+          <div className="gba:flex-1 gba:flex gba:min-h-0 gba:overflow-hidden">
+            {sessionId &&
+            repositoryId &&
+            ((uniqueFileSummary?.totalUniqueFiles ?? 0) > 0 ||
+              (sessions.find(s => s.sessionId === sessionId)?.fileCount ?? 0) > 0) ? (
+              <ResizablePanelGroup direction="horizontal" className="gba:flex-1 gba:min-h-0 gba:w-full">
+                <ResizablePanel
+                  defaultSize={25}
+                  minSize={25}
+                  className="gba:flex gba:flex-col gba:min-h-0 gba:rounded-none"
+                >
                   <ChatDrawer
                     messages={messages}
                     input={input}
@@ -916,34 +893,107 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
                     )}
                     className="gba:flex-1 gba:min-h-0"
                   />
-                </main>
-              )}
-            </div>
-            {showPublishDialog && (
-              <PublishDialog
-                uniqueFileSummary={uniqueFileSummary}
-                detectedTargetPath={detectedTargetPath}
-                targetPath={targetPath}
-                resourceUrl={resourceUrl}
-                publishError={publishError}
-                isPublishing={isPublishing}
-                onClose={() => setShowPublishDialog(false)}
-                onTargetPathChange={setTargetPath}
-                onResourceUrlChange={setResourceUrl}
-                onPublish={handlePublish}
-              />
-            )}
-
-            {selectedFile && (
-              <FilePreview
-                filePath={selectedFile}
-                repoId={repositoryId}
-                sessionId={sessionId}
-                onClose={() => setSelectedFile(null)}
-              />
+                </ResizablePanel>
+                <ResizableHandle withHandle className="gba:bg-border" />
+                <ResizablePanel
+                  defaultSize={75}
+                  minSize={25}
+                  className="gba:flex gba:flex-col gba:min-h-0 gba:rounded-none"
+                >
+                  <div className="gba:flex-1 gba:min-h-0 gba:relative gba:bg-card gba:overflow-hidden">
+                    <PreviewSandbox
+                      ref={previewSandboxRef}
+                      repoId={repositoryId}
+                      sessionId={sessionId}
+                      accessToken={context.accessToken}
+                      userInfo={context.userInfo}
+                    />
+                  </div>
+                </ResizablePanel>
+              </ResizablePanelGroup>
+            ) : (
+              <main className="gba:flex-1 gba:flex gba:flex-col gba:min-h-0 gba:rounded-none">
+                <ChatDrawer
+                  messages={messages}
+                  input={input}
+                  onInputChange={v => setInput(v)}
+                  onSendMessage={() => handleSubmit({ preventDefault: () => {} } as React.FormEvent)}
+                  isProcessing={loading}
+                  thinking={thinking}
+                  userName={
+                    context.userInfo
+                      ? `${context.userInfo.givenName ?? ''} ${context.userInfo.familyName ?? ''}`.trim() ||
+                        getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.you', 'You')
+                      : getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.you', 'You')
+                  }
+                  userAvatar={userPictureThumbnail ? `data:image/jpeg;base64,${userPictureThumbnail}` : undefined}
+                  onToggleThinking={idx =>
+                    setMessages(prev => {
+                      const next = [...prev]
+                      next[idx].thinkingCollapsed = !next[idx].thinkingCollapsed
+                      return next
+                    })
+                  }
+                  examplePrompts={[
+                    getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:ai_builder.example_prompt_1',
+                      'Create a lead list screen'
+                    ),
+                    getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:ai_builder.example_prompt_2',
+                      'Build a customer dashboard'
+                    ),
+                    getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.example_prompt_3', 'Generate a contact form')
+                  ]}
+                  inputPlaceholder={getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:ai_builder.input_placeholder',
+                    'Describe the screen you want to build... (Press Enter to send, Shift+Enter for new line)'
+                  )}
+                  analyzingRequestText={getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:ai_builder.analyzing_request',
+                    'AI is analyzing your request and exploring the codebase...'
+                  )}
+                  tipText={getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:ai_builder.tip_message',
+                    'Tip: Be specific! Example: "Build a lead list screen with search, table, and pagination"'
+                  )}
+                  emptyTitle={getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:ai_builder.welcome_title',
+                    'Build Screens with AI'
+                  )}
+                  emptyDescription={getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:ai_builder.welcome_description',
+                    "Describe what you want to build and I'll create it following NEWWORK patterns"
+                  )}
+                  className="gba:flex-1 gba:min-h-0"
+                />
+              </main>
             )}
           </div>
-        </>
+          {showPublishDialog && (
+            <PublishDialog
+              uniqueFileSummary={uniqueFileSummary}
+              detectedTargetPath={detectedTargetPath}
+              targetPath={targetPath}
+              resourceUrl={resourceUrl}
+              publishError={publishError}
+              isPublishing={isPublishing}
+              onClose={() => setShowPublishDialog(false)}
+              onTargetPathChange={setTargetPath}
+              onResourceUrlChange={setResourceUrl}
+              onPublish={handlePublish}
+            />
+          )}
+
+          {selectedFile && (
+            <FilePreview
+              filePath={selectedFile}
+              repoId={repositoryId}
+              sessionId={sessionId}
+              onClose={() => setSelectedFile(null)}
+            />
+          )}
+        </div>
       </div>
     </div>
   )
