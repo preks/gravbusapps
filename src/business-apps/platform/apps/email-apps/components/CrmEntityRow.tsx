@@ -51,7 +51,9 @@ export const buildActivityPayload = (
   entity: CrmEntityMatch,
   message: EmailMessage,
   description?: string,
-  employeeId?: string
+  employeeId?: string,
+  /** Pass threadId when recording a full thread instead of a single message */
+  threadId?: string
 ): Record<string, any> => {
   const entityIdKey = `${entity.type}Id`
 
@@ -63,9 +65,10 @@ export const buildActivityPayload = (
       activityTypeRef: EMAIL_ACTIVITY_TYPE_REF,
       source: 'email',
       [entity.type]: entity.id,
-      ...(employeeId ? { ownerEmployeeId: employeeId } : {}),
+      ...(employeeId ? { ownerEmployee: employeeId } : {}),
       additionalProperties: {
-        emailMessageId: message.id
+        emailMessageId: message.id,
+        ...(threadId ? { emailThreadId: threadId } : {})
       }
     },
     [entityIdKey]: entity.id,
@@ -111,6 +114,8 @@ interface CrmEntityRowProps {
   aiSummary?: string | null
   /** Current user's employee ID — used as activity owner */
   employeeId?: string
+  /** Thread ID when recording from a thread view */
+  threadId?: string
   'data-testid'?: string
 }
 
@@ -120,6 +125,7 @@ export const CrmEntityRow: React.FC<CrmEntityRowProps> = ({
   accessToken,
   aiSummary,
   employeeId,
+  threadId,
   'data-testid': testId = 'crm-entity-row'
 }) => {
   const Icon = ENTITY_ICONS[entity.type] || UserIcon
@@ -147,6 +153,7 @@ export const CrmEntityRow: React.FC<CrmEntityRowProps> = ({
   /**
    * Click handler: if we already have the AI summary, use it immediately.
    * Otherwise fetch it on-demand, then execute the action.
+   * When threadId is present, uses thread summarization instead of single-message.
    */
   const handleRecord = useCallback(
     async (execute: (data: Record<string, any>) => void) => {
@@ -159,7 +166,12 @@ export const CrmEntityRow: React.FC<CrmEntityRowProps> = ({
         setSummarizing(true)
         try {
           EmailApiService.setAccessToken(accessToken)
-          description = await EmailApiService.summarizeMessage(message.id)
+          if (threadId) {
+            const result = await EmailApiService.summarizeThread(threadId)
+            description = result.summary
+          } else {
+            description = await EmailApiService.summarizeMessage(message.id)
+          }
         } catch {
           // Fallback to raw text
           description = null
@@ -167,14 +179,14 @@ export const CrmEntityRow: React.FC<CrmEntityRowProps> = ({
         setSummarizing(false)
       }
 
-      const payload = buildActivityPayload(entity, message, description || undefined, employeeId)
+      const payload = buildActivityPayload(entity, message, description || undefined, employeeId, threadId)
       execute(payload)
     },
-    [recorded, aiSummary, accessToken, message, entity, employeeId]
+    [recorded, aiSummary, accessToken, message, entity, employeeId, threadId]
   )
 
   // Initial context data for AppActionProvider (used as fallback)
-  const initialContextData = buildActivityPayload(entity, message, aiSummary || undefined, employeeId)
+  const initialContextData = buildActivityPayload(entity, message, aiSummary || undefined, employeeId, threadId)
 
   return (
     <div

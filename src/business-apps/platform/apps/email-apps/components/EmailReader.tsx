@@ -354,6 +354,7 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
       {accessToken && (
         <EmailCrmBooking
           message={message}
+          threadMessages={showThread ? threadMessages : undefined}
           accessToken={accessToken}
           activeAccount={activeAccount}
           employeeId={employeeId}

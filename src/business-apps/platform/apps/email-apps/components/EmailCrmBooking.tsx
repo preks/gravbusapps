@@ -27,6 +27,8 @@ import type { EmailMessage, EmailAccount } from '../types'
 
 interface EmailCrmBookingProps {
   message: EmailMessage
+  /** When viewing a thread, pass all thread messages for full-thread recording */
+  threadMessages?: EmailMessage[]
   accessToken: string
   activeAccount?: EmailAccount | null
   employeeId?: string
@@ -37,7 +39,7 @@ interface EmailCrmBookingProps {
 const buildManualContextData = (
   message: EmailMessage,
   aiSummary?: string | null,
-  employeeId?: string
+  threadId?: string
 ): Record<string, any> => ({
   title: message.subject || '(No subject)',
   description: aiSummary || message.textBody || message.snippet || '',
@@ -45,11 +47,12 @@ const buildManualContextData = (
   emailActivityTypeHint: 'EMAIL',
   source: 'email',
   emailMessageId: message.id,
-  ...(employeeId ? { ownerEmployeeId: employeeId } : {})
+  ...(threadId ? { emailThreadId: threadId } : {})
 })
 
 export const EmailCrmBooking: React.FC<EmailCrmBookingProps> = ({
   message,
+  threadMessages,
   accessToken,
   activeAccount,
   employeeId,
@@ -59,6 +62,10 @@ export const EmailCrmBooking: React.FC<EmailCrmBookingProps> = ({
   const [showMoreOptions, setShowMoreOptions] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
 
+  // When viewing a thread, use thread summarization; otherwise single-message
+  const isThread = !!threadMessages && threadMessages.length > 1
+  const threadId = message?.threadId
+
   /* ---- AI Summary pre-fetch ---- */
   const [aiSummary, setAiSummary] = useState<string | null>(null)
   const [summaryLoading, setSummaryLoading] = useState(false)
@@ -66,21 +73,29 @@ export const EmailCrmBooking: React.FC<EmailCrmBookingProps> = ({
 
   useEffect(() => {
     if (!isExpanded || !message?.id || !accessToken) return
-    // Already fetched for this message
-    if (summaryFetchedForRef.current === message.id) return
-    summaryFetchedForRef.current = message.id
+    // Build a cache key that accounts for thread vs single message
+    const cacheKey = isThread ? `thread-${threadId}` : message.id
+    if (summaryFetchedForRef.current === cacheKey) return
+    summaryFetchedForRef.current = cacheKey
     setSummaryLoading(true)
     setAiSummary(null)
 
     EmailApiService.setAccessToken(accessToken)
-    EmailApiService.summarizeMessage(message.id)
+
+    // Use thread summarization for threads, single-message for individual emails
+    const summaryPromise =
+      isThread && threadId
+        ? EmailApiService.summarizeThread(threadId).then(r => r.summary)
+        : EmailApiService.summarizeMessage(message.id)
+
+    summaryPromise
       .then(summary => setAiSummary(summary))
       .catch(err => {
         console.error('AI summary failed, will fallback to text:', err)
         setAiSummary(null)
       })
       .finally(() => setSummaryLoading(false))
-  }, [isExpanded, message?.id, accessToken])
+  }, [isExpanded, message?.id, accessToken, isThread, threadId])
 
   const {
     ownedEntities,
@@ -152,7 +167,7 @@ export const EmailCrmBooking: React.FC<EmailCrmBookingProps> = ({
           {summaryLoading && (
             <div className="gba:flex gba:items-center gba:gap-1.5 gba:text-xs gba:text-muted-foreground">
               <SparkleIcon className="gba:w-3 gba:h-3 gba:animate-pulse" weight="fill" />
-              Summarizing email with AI...
+              {isThread ? 'Summarizing thread with AI...' : 'Summarizing email with AI...'}
             </div>
           )}
 
@@ -175,6 +190,7 @@ export const EmailCrmBooking: React.FC<EmailCrmBookingProps> = ({
                       accessToken={accessToken}
                       aiSummary={aiSummary}
                       employeeId={employeeId}
+                      threadId={isThread ? threadId : undefined}
                       data-testid={`${testId}-email`}
                     />
                   ))}
@@ -227,6 +243,7 @@ export const EmailCrmBooking: React.FC<EmailCrmBookingProps> = ({
                               accessToken={accessToken}
                               aiSummary={aiSummary}
                               employeeId={employeeId}
+                              threadId={isThread ? threadId : undefined}
                               data-testid={`${testId}-owned`}
                             />
                           ))}
@@ -262,6 +279,7 @@ export const EmailCrmBooking: React.FC<EmailCrmBookingProps> = ({
                             accessToken={accessToken}
                             aiSummary={aiSummary}
                             employeeId={employeeId}
+                            threadId={isThread ? threadId : undefined}
                             data-testid={`${testId}-search`}
                           />
                         ))}
@@ -280,7 +298,7 @@ export const EmailCrmBooking: React.FC<EmailCrmBookingProps> = ({
                       contexts={[
                         {
                           context: FlowContextName.customerActivityCreate,
-                          contextData: buildManualContextData(message, aiSummary, employeeId)
+                          contextData: buildManualContextData(message, aiSummary, isThread ? threadId : undefined)
                         }
                       ]}
                       accessToken={accessToken}
