@@ -10,6 +10,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { SpreadsheetAppViewerProps, SpreadsheetColumn, SpreadsheetSheet } from './types'
 import { columnToFormField } from './types'
 import { SpreadsheetApiService } from './services/SpreadsheetApiService'
+import { exportSheetToExcel } from './utils/exportUtils'
 
 import { useSpreadsheetViewerState } from './hooks/useSpreadsheetViewerState'
 import { useSpreadsheetViewerCollaboration } from './hooks/useSpreadsheetViewerCollaboration'
@@ -51,6 +52,8 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   const cellChangeBatchTimerRef = useRef<NodeJS.Timeout | null>(null)
   // Accumulate per-row cell changes so a multi-cell paste sends ONE backend PATCH
   const pendingCellUpdates = useRef<Map<string, { backendRowId: string; changes: Record<string, unknown> }>>(new Map())
+  // Track in-flight PATCH data so beforeunload can re-send with keepalive if page unloads mid-flight
+  const inFlightCellUpdates = useRef<Map<string, { backendRowId: string; changes: Record<string, unknown> }>>(new Map())
   const cellPersistTimerRef = useRef<NodeJS.Timeout | null>(null)
 
   // --- Viewer State (sheet/view + local sheet data) ---
@@ -130,6 +133,9 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     setLocalSheetData,
     onDataChange,
     onAppUpdate,
+    onSheetUpdate,
+    onRowUpdate,
+    onRowAdd,
     saveTimeoutRef
   })
 
@@ -165,11 +171,18 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   })
 
   const [isAutomationsOpen, setIsAutomationsOpen] = useState(false)
+  const [remoteUpdateKey, setRemoteUpdateKey] = useState(0)
+  const [receivedOperation, setReceivedOperation] = useState<{
+    operation: any
+    timestamp: number
+  } | null>(null)
 
   // --- Collaboration (header presence + FortuneSheet operations/cursors) ---
-  const handleCollaborationOperation = useCallback(() => {
-    // FortuneSheetGrid applies ops internally; we keep app-level state authoritative.
-    // If we later need to reflect ops into non-table views, we can handle it here.
+  const handleCollaborationOperation = useCallback((op: any) => {
+    // Pass received operation to the grid so it can apply it
+    if (op?.operation) {
+      setReceivedOperation({ operation: op.operation, timestamp: Date.now() })
+    }
   }, [])
 
   const collaboration = useSpreadsheetViewerCollaboration({
@@ -220,12 +233,15 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   }, [app.id, app.name, userId, collaboration.currentUserName, collaboration.currentUserAvatar, isEditing])
 
   // --- Column handling (includes auto-add for FortuneSheet) ---
-  const handleCellChangeRef = useRef<(rowId: string, columnName: string, value: unknown) => void>(() => {})
+  const handleCellChangeRef = useRef<
+    (rowId: string, columnName: string, value: unknown, options?: { fromRemote?: boolean }) => void
+  >(() => {})
 
   const columnsState = useSpreadsheetColumns({
     app,
     activeSheet,
     localSheetDataRef,
+    setLocalSheetData,
     handleCellChangeRef,
     onAppUpdate,
     onSheetUpdate,
@@ -237,8 +253,8 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   const [editingRow, setEditingRow] = useState<Record<string, unknown> | null>(null)
 
   const handleCellChange = useCallback(
-    async (rowId: string, columnName: string, value: unknown) => {
-      if (entityEnabled) return // entity-sourced sheets are treated as read-only for now
+    async (rowId: string, columnName: string, value: unknown, options?: { fromRemote?: boolean }) => {
+      if (entityEnabled) return
 
       const current = localSheetDataRef.current
       const idx = current.findIndex(r => String(r._id ?? r.id ?? '') === String(rowId))
@@ -254,6 +270,8 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       const updatedRow = { ...row, [columnName]: value, _updatedAt: new Date().toISOString() }
       const next = [...current.slice(0, idx), updatedRow, ...current.slice(idx + 1)]
       localSheetDataRef.current = next
+
+      if (options?.fromRemote) return
 
       // Debounce the React state update so all concurrent cell changes
       // (from a multi-cell paste) are batched into a single re-render.
@@ -287,17 +305,29 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         pendingCellUpdates.current.clear()
         cellPersistTimerRef.current = null
 
-        for (const [, { backendRowId: bid, changes }] of pending) {
+        // Store in-flight data so beforeunload can re-send with keepalive
+        // if the page unloads while these PATCHes are still in progress.
+        inFlightCellUpdates.current = new Map(pending)
+
+        // Send all row PATCHes in parallel to minimize the window where a
+        // page refresh could cancel some but not all requests.
+        const patchPromises = [...pending.entries()].map(async ([key, { backendRowId: bid, changes }]) => {
           try {
             if (onRowUpdate) {
               await onRowUpdate(app.id, activeSheetId, bid, changes)
             } else {
               await SpreadsheetApiService.updateRow(app.id, activeSheetId, bid, changes)
             }
+            // Remove from in-flight tracking once successfully persisted
+            inFlightCellUpdates.current.delete(key)
           } catch (error) {
             console.error('[SpreadsheetAppViewer] Failed to persist cell changes:', error)
           }
-        }
+        })
+        await Promise.all(patchPromises)
+
+        // Clear any remaining in-flight entries (all done or failed)
+        inFlightCellUpdates.current.clear()
       }, 100)
     },
     [activeSheetId, app.id, entityEnabled, localSheetDataRef, onDataChange, onRowUpdate, setLocalSheetData]
@@ -306,6 +336,58 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   useEffect(() => {
     handleCellChangeRef.current = handleCellChange
   }, [handleCellChange])
+
+  // --- Emergency flush on page unload ---
+  // When the user refreshes or navigates away, the debounced persist timer
+  // (100ms) and any in-flight PATCH requests are cancelled by the browser.
+  // This handler flushes all pending cell updates using `keepalive: true`
+  // so the browser completes the requests even during page teardown.
+  useEffect(() => {
+    const flushPendingOnUnload = () => {
+      // Clear debounce timers — we're sending everything right now
+      if (cellPersistTimerRef.current) {
+        clearTimeout(cellPersistTimerRef.current)
+        cellPersistTimerRef.current = null
+      }
+      if (cellChangeBatchTimerRef.current) {
+        clearTimeout(cellChangeBatchTimerRef.current)
+        cellChangeBatchTimerRef.current = null
+      }
+
+      // Merge both: pending (not yet sent) + in-flight (sent but may not have completed)
+      const pending = new Map(pendingCellUpdates.current)
+      const inFlight = new Map(inFlightCellUpdates.current)
+      pendingCellUpdates.current.clear()
+      inFlightCellUpdates.current.clear()
+
+      // Merge: in-flight first, then pending overwrites (pending has newer data)
+      const allUpdates = new Map([...inFlight, ...pending])
+
+      if (allUpdates.size === 0) return
+
+      const updates = [...allUpdates.values()].map(({ backendRowId, changes }) => ({
+        rowId: backendRowId,
+        data: changes
+      }))
+
+      // Fire-and-forget with keepalive — browser will complete these after unload
+      SpreadsheetApiService.flushRowUpdates(app.id, activeSheetId, updates)
+    }
+
+    window.addEventListener('beforeunload', flushPendingOnUnload)
+    // Also handle visibilitychange for mobile / tab switching
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        flushPendingOnUnload()
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      window.removeEventListener('beforeunload', flushPendingOnUnload)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [app.id, activeSheetId])
 
   const handleFortuneSheetDataChange = useCallback(
     async (newData: Record<string, unknown>[]) => {
@@ -391,6 +473,39 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       }
     },
     [activeSheetId, app.id, localSheetDataRef, onDataChange, setLocalSheetData]
+  )
+
+  // --- Filter state persistence (FortuneSheet filter state survives refresh) ---
+  const handleFilterStateChange = useCallback(
+    (filterState: {
+      filter?: Record<string, unknown> | null
+      filter_select?: Record<string, unknown>
+      rowhidden?: Record<string, number>
+    }) => {
+      persistSheetPatch({
+        settings: { ...activeSheet.settings, fortuneSheetFilterState: filterState }
+      })
+    },
+    [activeSheet.settings, persistSheetPatch]
+  )
+
+  // --- Column visibility from FortuneSheet context menu ---
+  const handleColumnVisibilityChange = useCallback(
+    (columnIndices: number[], visible: boolean) => {
+      // FortuneSheet indices correspond to visible columns (we only pass visible ones)
+      const visibleColumns = activeSheet.columns.filter(c => c.isVisible).sort((a, b) => a.order - b.order)
+
+      const affectedColumnIds = new Set(columnIndices.map(idx => visibleColumns[idx]?.id).filter(Boolean))
+
+      if (affectedColumnIds.size === 0) return
+
+      const updatedColumns = activeSheet.columns.map(col =>
+        affectedColumnIds.has(col.id) ? { ...col, isVisible: visible } : col
+      )
+
+      persistSheetPatch({ columns: updatedColumns })
+    },
+    [activeSheet.columns, persistSheetPatch]
   )
 
   // --- Row insert/delete from FortuneSheet context menu ---
@@ -493,6 +608,15 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   // --- Active view type ---
   const viewType = activeView?.config.type || activeSheet.viewType || 'table'
 
+  // --- Export to Excel ---
+  const handleExportToExcel = useCallback(async () => {
+    try {
+      await exportSheetToExcel(app.name, activeSheet, sheetData)
+    } catch (error) {
+      console.error('[SpreadsheetAppViewer] Failed to export to Excel:', error)
+    }
+  }, [app.name, activeSheet, sheetData])
+
   return (
     <div className="gba:flex gba:flex-col gba:w-full gba:h-full gba:overflow-hidden" data-testid={testId}>
       <SpreadsheetHeader
@@ -527,6 +651,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         onManageColumns={() => columnsState.setIsManageColumnsDialogOpen(true)}
         onOpenAutomations={() => setIsAutomationsOpen(true)}
         onEdit={onEdit}
+        onExportToExcel={handleExportToExcel}
         onRename={
           onAppUpdate
             ? newName => {
@@ -567,10 +692,16 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
             onColumnsDelete={columnsState.handleColumnsDelete}
             onRowsInsert={handleRowsInsert}
             onRowsDelete={handleRowsDelete}
+            onColumnVisibilityChange={handleColumnVisibilityChange}
+            onFilterStateChange={handleFilterStateChange}
+            onColumnRename={columnsState.handleRenameColumn}
             participants={collaboration.cursorParticipants}
             onOperationEmit={op => collaboration.emitOperation(op as any)}
             onCursorEmit={pos => collaboration.emitCursor({ path: pos.path })}
             collaborationEnabled={collaboration.isCollaborationConnected}
+            onRemoteChangeApplied={() => setRemoteUpdateKey(k => k + 1)}
+            remoteUpdateKey={remoteUpdateKey}
+            receivedOperation={receivedOperation}
             isReadOnly={!isEditing || entityEnabled}
           />
         )}

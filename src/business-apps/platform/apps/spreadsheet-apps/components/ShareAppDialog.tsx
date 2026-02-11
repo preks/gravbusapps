@@ -45,6 +45,7 @@ export interface ShareAppDialogProps {
   currentUserName?: string
   isOwner: boolean
   sharedUsers: Array<{
+    id: string
     userId: string
     userName: string
     userEmail: string
@@ -52,8 +53,12 @@ export interface ShareAppDialogProps {
     permission: SharePermission
     sharedAt: string
   }>
-  onShare: (userIds: string[], permission: SharePermission) => Promise<boolean>
-  onUnshare: (userId: string) => Promise<boolean>
+  onShare: (
+    userIds: string[],
+    permission: SharePermission,
+    userDetails?: Array<{ userId: string; displayName: string; avatar?: string; email?: string }>
+  ) => Promise<boolean>
+  onUnshare: (shareId: string) => Promise<boolean>
   onRefreshShares: () => Promise<void>
 }
 
@@ -223,6 +228,7 @@ export const ShareAppDialog: React.FC<ShareAppDialogProps> = ({
   const [selectedUsers, setSelectedUsers] = useState<EmployeeLiteOption[]>([])
   const [resolvedSharedUsers, setResolvedSharedUsers] = useState<
     Array<{
+      id: string
       userId: string
       userName: string
       userEmail: string
@@ -324,7 +330,14 @@ export const ShareAppDialog: React.FC<ShareAppDialogProps> = ({
       const userIds = selectedUsers.map(u => u.userId || u.id).filter(Boolean) as string[]
       // Map 'admin' permission to 'edit' since backend only supports 'view' | 'edit'
       const permission: 'view' | 'edit' = selectedPermission === 'admin' ? 'edit' : selectedPermission
-      const success = await onShare(userIds, permission)
+      // Pass known user details so the Hub doesn't need to re-fetch them
+      const userDetails = selectedUsers.map(u => ({
+        userId: (u.userId || u.id) as string,
+        displayName: u.displayName,
+        avatar: u.pictureThumbnail,
+        email: ''
+      }))
+      const success = await onShare(userIds, permission, userDetails)
 
       if (success) {
         // Send Blink notifications
@@ -384,9 +397,9 @@ export const ShareAppDialog: React.FC<ShareAppDialogProps> = ({
    * Handle removing a share
    */
   const handleUnshare = useCallback(
-    async (userId: string) => {
+    async (shareId: string) => {
       try {
-        const success = await onUnshare(userId)
+        const success = await onUnshare(shareId)
         if (success) {
           await onRefreshShares()
         }
@@ -625,7 +638,7 @@ export const ShareAppDialog: React.FC<ShareAppDialogProps> = ({
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleUnshare(user.userId)}
+                          onClick={() => handleUnshare(user.id)}
                           className="gba:text-destructive hover:gba:text-destructive"
                           data-testid={`unshare-button-${user.userId}`}
                         >
