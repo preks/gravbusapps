@@ -37,6 +37,7 @@ export interface UseRealtimeKitMediaReturn {
   noiseSuppressionEnabled: boolean
   autoGainControlEnabled: boolean
   rnnoiseEnabled: boolean
+  rnnoiseMode: 'gentle' | 'moderate' | 'aggressive'
   rnnoiseStats: RnnoiseStats | null
   videoQuality: VideoQuality
   toggleMute: () => boolean
@@ -44,6 +45,7 @@ export interface UseRealtimeKitMediaReturn {
   setVideoQuality: (quality: VideoQuality) => Promise<void>
   toggleBackground: () => Promise<void>
   toggleRnnoise: () => Promise<void>
+  setRnnoiseMode: (mode: 'gentle' | 'moderate' | 'aggressive') => void
   setNoiseSuppressionEnabled: (enabled: boolean) => Promise<void>
   setAutoGainControlEnabled: (enabled: boolean) => Promise<void>
   switchAudioDevice: (deviceId: string) => Promise<void>
@@ -565,6 +567,19 @@ export const useRealtimeKitMedia = ({
       onRnnoiseStateChange?.(false)
     }
   }, [meeting, rnnoiseEnabled, onRnnoiseStateChange])
+
+  /**
+   * Set RNNoise suppression mode (gentle, moderate, aggressive)
+   */
+  const setRnnoiseMode = useCallback((mode: 'gentle' | 'moderate' | 'aggressive'): void => {
+    if (!rnnoiseMiddlewareRef.current) {
+      console.warn('[RTK Media] Cannot set RNNoise mode - middleware not initialized')
+      return
+    }
+
+    console.log('[RTK Media] Setting RNNoise mode:', mode)
+    rnnoiseMiddlewareRef.current.setMode(mode)
+  }, [])
 
   /**
    * Initialize RNNoise middleware when meeting connects.
@@ -1166,6 +1181,7 @@ export const useRealtimeKitMedia = ({
     noiseSuppressionEnabled,
     autoGainControlEnabled,
     rnnoiseEnabled,
+    rnnoiseMode: rnnoiseMiddlewareRef.current?.getMode() ?? 'aggressive',
     rnnoiseStats: rnnoiseMiddlewareRef.current?.getStats() ?? null,
     videoQuality,
     toggleMute,
@@ -1173,6 +1189,7 @@ export const useRealtimeKitMedia = ({
     setVideoQuality,
     toggleBackground,
     toggleRnnoise,
+    setRnnoiseMode,
     setNoiseSuppressionEnabled,
     setAutoGainControlEnabled,
     switchAudioDevice,

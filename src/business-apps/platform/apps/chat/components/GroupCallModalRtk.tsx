@@ -74,6 +74,7 @@ interface GroupCallModalRtkProps {
   onToggleMinimize?: () => void
   onToggleBackground?: () => void
   onToggleRnnoise?: () => void
+  onRnnoiseModeChange?: (mode: 'gentle' | 'moderate' | 'aggressive') => void
   onToggleRaiseHand?: () => void
   onSendReaction?: (emoji: string) => void
   onMicDeviceChange?: (deviceId: string) => Promise<void>
@@ -82,6 +83,7 @@ interface GroupCallModalRtkProps {
   onSetAutoGainControlEnabled?: (enabled: boolean) => Promise<void> | void
   backgroundEnabled?: boolean
   rnnoiseEnabled?: boolean
+  rnnoiseMode?: 'gentle' | 'moderate' | 'aggressive'
   prefixDataTestId?: string
   availableParticipants?: AvailableParticipant[]
   onInviteParticipant?: (participant: CallParticipant) => void
@@ -188,6 +190,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
   onToggleMinimize,
   onToggleBackground,
   onToggleRnnoise,
+  onRnnoiseModeChange,
   onToggleRaiseHand,
   onSendReaction,
   onMicDeviceChange,
@@ -198,6 +201,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
   prefixDataTestId = 'rtk-group-call',
   conversationName,
   rnnoiseEnabled,
+  rnnoiseMode = 'aggressive',
   wsClient,
   transcriptionEnabled,
   apiClient,
@@ -3071,6 +3075,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
                   isScreenSharing={effectiveLocalIsScreenSharing}
                   backgroundEnabled={callState.backgroundEnabled}
                   rnnoiseEnabled={rnnoiseEnabled}
+                  rnnoiseMode={rnnoiseMode}
                   handRaised={hideReactionsAndHandRaise ? false : effectiveLocalHandRaised}
                   transcriptionActive={transcriptionEnabled}
                   onToggleMute={onToggleMute}
@@ -3078,6 +3083,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
                   onToggleScreenShare={onToggleScreenShare}
                   onToggleBackground={onToggleBackground}
                   onToggleRnnoise={onToggleRnnoise}
+                  onRnnoiseModeChange={onRnnoiseModeChange}
                   onToggleRaiseHand={hideReactionsAndHandRaise ? undefined : onToggleRaiseHand}
                   onSendReaction={hideReactionsAndHandRaise ? undefined : onSendReaction}
                   onMicDeviceChange={

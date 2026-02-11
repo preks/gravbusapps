@@ -56,6 +56,8 @@ export interface CallControlsBarProps {
   backgroundEnabled: boolean
   /** Whether RNNoise AI noise suppression is enabled */
   rnnoiseEnabled?: boolean
+  /** Current RNNoise mode */
+  rnnoiseMode?: 'gentle' | 'moderate' | 'aggressive'
   /** Whether hand is raised */
   handRaised: boolean
   /** Whether transcription is active */
@@ -70,6 +72,8 @@ export interface CallControlsBarProps {
   onToggleBackground?: () => void
   /** Callback to toggle RNNoise */
   onToggleRnnoise?: () => void
+  /** Callback to change RNNoise mode */
+  onRnnoiseModeChange?: (mode: 'gentle' | 'moderate' | 'aggressive') => void
   /** Callback to toggle raise hand */
   onToggleRaiseHand?: () => void
   /** Callback to send reaction */
@@ -101,6 +105,7 @@ export const CallControlsBar: React.FC<CallControlsBarProps> = ({
   isScreenSharing,
   backgroundEnabled,
   rnnoiseEnabled = true,
+  rnnoiseMode = 'aggressive',
   handRaised,
   transcriptionActive,
   onToggleMute,
@@ -108,6 +113,7 @@ export const CallControlsBar: React.FC<CallControlsBarProps> = ({
   onToggleScreenShare,
   onToggleBackground,
   onToggleRnnoise,
+  onRnnoiseModeChange,
   onToggleRaiseHand,
   onSendReaction,
   onEndCall,
@@ -322,34 +328,46 @@ export const CallControlsBar: React.FC<CallControlsBarProps> = ({
                       </span>
                     </DropdownMenuCheckboxItem>
 
-                    {rnnoiseEnabled && (
+                    {rnnoiseEnabled && onRnnoiseModeChange && (
                       <div className="gba:px-2 gba:py-2 gba:text-xs gba:text-gray-400">
                         <div className="gba:mb-1">{t('call-rnnoiseMode') || 'Suppression Level'}:</div>
                         <div className="gba:flex gba:gap-1">
                           <button
                             onClick={() => {
                               console.log('[Call Controls] RNNoise mode: gentle')
-                              // TODO: Add callback to change mode
+                              onRnnoiseModeChange('gentle')
                             }}
-                            className="gba:px-2 gba:py-1 gba:rounded gba:bg-gray-700 gba:text-white hover:gba:bg-gray-600 gba:text-xs"
+                            className={`gba:px-2 gba:py-1 gba:rounded gba:text-xs ${
+                              rnnoiseMode === 'gentle'
+                                ? 'gba:bg-success gba:text-success-foreground'
+                                : 'gba:bg-gray-700 gba:text-white hover:gba:bg-gray-600'
+                            }`}
                           >
                             Gentle
                           </button>
                           <button
                             onClick={() => {
                               console.log('[Call Controls] RNNoise mode: moderate')
-                              // TODO: Add callback to change mode
+                              onRnnoiseModeChange('moderate')
                             }}
-                            className="gba:px-2 gba:py-1 gba:rounded gba:bg-gray-700 gba:text-white hover:gba:bg-gray-600 gba:text-xs"
+                            className={`gba:px-2 gba:py-1 gba:rounded gba:text-xs ${
+                              rnnoiseMode === 'moderate'
+                                ? 'gba:bg-success gba:text-success-foreground'
+                                : 'gba:bg-gray-700 gba:text-white hover:gba:bg-gray-600'
+                            }`}
                           >
                             Moderate
                           </button>
                           <button
                             onClick={() => {
                               console.log('[Call Controls] RNNoise mode: aggressive')
-                              // TODO: Add callback to change mode
+                              onRnnoiseModeChange('aggressive')
                             }}
-                            className="gba:px-2 gba:py-1 gba:rounded gba:bg-success gba:text-success-foreground gba:text-xs"
+                            className={`gba:px-2 gba:py-1 gba:rounded gba:text-xs ${
+                              rnnoiseMode === 'aggressive'
+                                ? 'gba:bg-success gba:text-success-foreground'
+                                : 'gba:bg-gray-700 gba:text-white hover:gba:bg-gray-600'
+                            }`}
                           >
                             Aggressive
                           </button>

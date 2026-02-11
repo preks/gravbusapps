@@ -2214,6 +2214,9 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
       toggleRnnoise: async () => {
         await mediaRef.current?.toggleRnnoise()
       },
+      setRnnoiseMode: (mode: 'gentle' | 'moderate' | 'aggressive') => {
+        mediaRef.current?.setRnnoiseMode(mode)
+      },
       toggleRaiseHand: () => {
         // CRITICAL: Get current state from websocket ref, not captured callState
         // callState.handRaised is stale - websocketRef.current.handRaised is the source of truth
@@ -2257,6 +2260,7 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
       currentUserId: currentUser?.id || null,
       conversationName: callState.conversationName || null,
       rnnoiseEnabled: media.rnnoiseEnabled,
+      rnnoiseMode: media.rnnoiseMode,
       activeConversation: activeConversation || null, // Currently active conversation for in-call chat
       // CRITICAL: Compute callConversation from conversations list based on roomId
       // This ensures we always use the conversation where the call was initiated

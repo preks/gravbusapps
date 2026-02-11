@@ -75,6 +75,7 @@ interface StoredCallData {
   toggleMinimize: (() => void) | null
   toggleBackground: (() => void) | null
   toggleRnnoise: (() => Promise<void>) | null
+  setRnnoiseMode: ((mode: 'gentle' | 'moderate' | 'aggressive') => void) | null
   toggleRaiseHand: (() => void) | null
   sendReaction: ((reaction: string) => void) | null
   setVideoQuality: ((quality: VideoQuality) => void) | null
@@ -90,6 +91,7 @@ interface StoredCallData {
   currentUserId: string | null
   conversationName: string | null
   rnnoiseEnabled: boolean
+  rnnoiseMode: 'gentle' | 'moderate' | 'aggressive'
   pendingInvites: Map<string, any> // Changed from array to Map to match GroupCallModalRtk
   availableParticipants: any[]
   activeExperts: any[]
@@ -141,6 +143,7 @@ class GlobalCallManager {
     toggleMinimize: null,
     toggleBackground: null,
     toggleRnnoise: null,
+    setRnnoiseMode: null,
     toggleRaiseHand: null,
     sendReaction: null,
     setVideoQuality: null,
@@ -154,6 +157,7 @@ class GlobalCallManager {
     currentUserId: null,
     conversationName: null,
     rnnoiseEnabled: true, // Default to enabled
+    rnnoiseMode: 'aggressive', // Default to aggressive mode
     pendingInvites: new Map(), // Changed from [] to new Map()
     availableParticipants: [],
     activeExperts: []
