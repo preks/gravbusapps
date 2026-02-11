@@ -6,7 +6,7 @@
 import React, { useState, useCallback } from 'react'
 import { toast } from 'sonner'
 import { Input, Spinner, Button, Checkbox } from '@newwork/nw-design-system'
-import { Search, Star, Paperclip, AlertCircle, Trash2, MailOpen, Mail } from 'lucide-react'
+import { Search, Star, Paperclip, AlertCircle, Trash2, MailOpen, Mail, MessageSquare } from 'lucide-react'
 import { EmailApiService } from '../services/EmailApiService'
 import type { EmailMessageSummary } from '../types'
 
@@ -14,11 +14,15 @@ interface EmailListProps {
   messages: EmailMessageSummary[]
   selectedMessageId: string | null
   isLoading: boolean
+  isLoadingMore?: boolean
+  hasMore?: boolean
+  total?: number
   searchQuery: string
   onSearchChange: (query: string) => void
   onSelectMessage: (id: string) => void
   onToggleStar: (id: string) => void
   onRefresh: () => void
+  onLoadMore?: () => void
   folderName: string
   'data-testid'?: string
 }
@@ -47,11 +51,15 @@ export const EmailList: React.FC<EmailListProps> = ({
   messages,
   selectedMessageId,
   isLoading,
+  isLoadingMore = false,
+  hasMore = false,
+  total = 0,
   searchQuery,
   onSearchChange,
   onSelectMessage,
   onToggleStar,
   onRefresh,
+  onLoadMore,
   folderName,
   'data-testid': testId = 'email-list'
 }) => {
@@ -115,6 +123,24 @@ export const EmailList: React.FC<EmailListProps> = ({
   }, [selectedIds, onRefresh])
 
   const hasBulkSelection = selectedIds.size > 0
+  const remaining = Math.max(total - messages.length, 0)
+
+  const handleLoadMore = useCallback(() => {
+    if (onLoadMore && hasMore && !isLoadingMore) {
+      onLoadMore()
+    }
+  }, [onLoadMore, hasMore, isLoadingMore])
+
+  const handleListScroll = useCallback(
+    (e: React.UIEvent<HTMLDivElement>) => {
+      if (!onLoadMore || !hasMore || isLoadingMore || isLoading) return
+      const el = e.currentTarget
+      // Trigger slightly before bottom to feel seamless
+      const nearBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 140
+      if (nearBottom) onLoadMore()
+    },
+    [onLoadMore, hasMore, isLoadingMore, isLoading]
+  )
 
   return (
     <div className="gba:flex gba:flex-col gba:h-full gba:border-r gba:w-96 gba:flex-shrink-0" data-testid={testId}>
@@ -178,7 +204,7 @@ export const EmailList: React.FC<EmailListProps> = ({
       )}
 
       {/* Message list */}
-      <div className="gba:flex-1 gba:overflow-y-auto">
+      <div className="gba:flex-1 gba:overflow-y-auto" onScroll={handleListScroll}>
         {isLoading && (
           <div className="gba:flex gba:items-center gba:justify-center gba:py-16">
             <Spinner size="lg" />
@@ -205,6 +231,35 @@ export const EmailList: React.FC<EmailListProps> = ({
               testId={`${testId}-item-${msg.id}`}
             />
           ))}
+
+        {/* Load more button */}
+        {!isLoading && messages.length > 0 && hasMore && (
+          <div className="gba:py-3 gba:px-4 gba:flex gba:flex-col gba:items-center gba:gap-1.5">
+            {isLoadingMore ? (
+              <div className="gba:flex gba:items-center gba:gap-2 gba:py-1">
+                <Spinner size="sm" />
+                <span className="gba:text-xs gba:text-muted-foreground">Loading more emails...</span>
+              </div>
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gba:w-full gba:text-xs"
+                onClick={handleLoadMore}
+                data-testid={`${testId}-load-more`}
+              >
+                {remaining > 0 ? `Load more emails (${remaining} remaining)` : 'Load more emails'}
+              </Button>
+            )}
+          </div>
+        )}
+
+        {/* End of list indicator */}
+        {!isLoading && messages.length > 0 && !hasMore && total > 50 && (
+          <div className="gba:py-3 gba:text-center">
+            <span className="gba:text-xs gba:text-muted-foreground">All available emails loaded</span>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -269,13 +324,24 @@ function EmailListItem({
           </span>
         </div>
 
-        <p
-          className={`gba:text-sm gba:truncate gba:mb-0.5 ${
-            !message.isRead ? 'gba:font-medium gba:text-foreground' : 'gba:text-foreground'
-          }`}
-        >
-          {message.subject || '(no subject)'}
-        </p>
+        <div className="gba:flex gba:items-center gba:gap-1.5 gba:mb-0.5">
+          <p
+            className={`gba:text-sm gba:truncate gba:flex-1 ${
+              !message.isRead ? 'gba:font-medium gba:text-foreground' : 'gba:text-foreground'
+            }`}
+          >
+            {message.subject || '(no subject)'}
+          </p>
+          {(message.threadMessageCount ?? 0) > 1 && (
+            <span
+              className="gba:inline-flex gba:items-center gba:gap-0.5 gba:px-1.5 gba:py-0.5 gba:rounded-full gba:bg-primary/10 gba:text-primary gba:flex-shrink-0"
+              title={`${message.threadMessageCount} messages in thread`}
+            >
+              <MessageSquare className="gba:w-3 gba:h-3" />
+              <span className="gba:text-[10px] gba:font-semibold gba:leading-none">{message.threadMessageCount}</span>
+            </span>
+          )}
+        </div>
 
         <div className="gba:flex gba:items-center gba:gap-2">
           <p className="gba:text-xs gba:text-muted-foreground gba:truncate gba:flex-1">{message.snippet}</p>

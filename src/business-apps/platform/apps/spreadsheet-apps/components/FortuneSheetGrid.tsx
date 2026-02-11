@@ -13,7 +13,7 @@ import './FortuneSheetGrid.css'
 import type { SpreadsheetSheet, SpreadsheetColumn } from '../types/spreadsheet'
 import type { DocumentParticipant, DocumentOperation } from '../../shared/services/CollaborationClient'
 import type { FortuneSheetOp } from '../types/fortuneSheet'
-import { convertToFortuneSheet, createConversionContext } from '../utils/fortuneSheetConverter'
+import { convertToFortuneSheet, createConversionContext, HEADER_ROW_OFFSET } from '../utils/fortuneSheetConverter'
 import { useFortuneSheetCollaboration, useFortuneSheetCursorTracking } from '../hooks/useFortuneSheetCollaboration'
 
 export interface FortuneSheetGridProps {
@@ -25,8 +25,8 @@ export interface FortuneSheetGridProps {
   columns: SpreadsheetColumn[]
   /** Whether grid is read-only */
   isReadOnly: boolean
-  /** Callback when cell value changes */
-  onCellChange: (rowId: string, columnId: string, value: unknown) => void
+  /** Callback when cell value changes (options.fromRemote = true when applying received collaboration op) */
+  onCellChange: (rowId: string, columnId: string, value: unknown, options?: { fromRemote?: boolean }) => void
   /** Callback when data changes (batch update) */
   onDataChange: (data: Record<string, unknown>[]) => void
   /** Callback when a new column needs to be created (auto-column creation) */
@@ -39,6 +39,10 @@ export interface FortuneSheetGridProps {
   onRowsInsert?: (insertIndex: number, count: number, direction: 'lefttop' | 'rightbottom') => void
   /** Callback when rows are deleted via context menu */
   onRowsDelete?: (startIndex: number, endIndex: number) => void
+  /** Callback when columns are hidden/shown via context menu */
+  onColumnVisibilityChange?: (columnIndices: number[], visible: boolean) => void
+  /** Callback when a column header is renamed (user edits the header cell) */
+  onColumnRename?: (columnId: string, newLabel: string) => void
   /** Callback when formula is evaluated */
   onFormulaEvaluated?: (rowId: string, columnId: string, result: unknown) => void
   /** Active participants in collaboration */
@@ -53,6 +57,18 @@ export interface FortuneSheetGridProps {
   height?: string | number
   /** Container width */
   width?: string | number
+  /** Called when a remote cell update was applied so parent can force grid refresh */
+  onRemoteChangeApplied?: () => void
+  /** Key to force Workbook remount when remote data arrives (bump when onRemoteChangeApplied is called) */
+  remoteUpdateKey?: number
+  /** Remote operation to apply (from viewer's WebSocket); grid applies it when this changes */
+  receivedOperation?: { operation: any; timestamp: number } | null
+  /** Called when FortuneSheet filter state changes (for persistence across refreshes) */
+  onFilterStateChange?: (filterState: {
+    filter?: Record<string, unknown> | null
+    filter_select?: Record<string, unknown>
+    rowhidden?: Record<string, number>
+  }) => void
 }
 
 /** Ref handle for imperative actions */
@@ -78,10 +94,16 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
       onColumnsDelete,
       onRowsInsert,
       onRowsDelete,
+      onColumnVisibilityChange,
+      onColumnRename,
       participants = [],
       onOperationEmit = () => {},
       onCursorEmit = () => {},
-      collaborationEnabled = false
+      collaborationEnabled = false,
+      onRemoteChangeApplied,
+      remoteUpdateKey = 0,
+      receivedOperation,
+      onFilterStateChange
     } = props
 
     // Track if we're currently processing a local edit (to prevent feedback loops)
@@ -95,14 +117,24 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
     // Track pending column creations to prevent infinite loops
     const pendingColumnCreations = useRef<Set<number>>(new Set())
 
+    // Track the previous colhidden state to diff when FortuneSheet replaces the full config
+    const prevColHiddenRef = useRef<Record<string, number>>({})
+
     const workbookRef = useRef<WorkbookInstance | null>(null)
     const presenceUsersRef = useRef<Map<string, { username: string; userId?: string }>>(new Map())
+    /** Track last applied remote cell to suppress duplicate apply to adjacent column (G6 value appearing in H6) */
+    const lastRemoteAppliedRef = useRef<{ row: number; col: number; value: unknown; at: number } | null>(null)
+    const REMOTE_APPLY_DEDUPE_MS = 150
 
     // Create conversion context
-    const context = useMemo(() => createConversionContext(columns, data), [columns, data])
+    const context = useMemo(() => {
+      return createConversionContext(columns, data)
+    }, [columns, data])
 
-    // Convert data to FortuneSheet format ONLY for initial render
-    // We use a stable reference to avoid re-renders
+    // Convert data to FortuneSheet format ONLY for initial render or full refresh.
+    // Deps intentionally exclude `data` and `columns`: FortuneSheet manages local
+    // edits, column inserts/deletes, and paste internally.  Re-initialisation only
+    // happens on sheet switch (`sheet.id`) or explicit remote refresh (`remoteUpdateKey`).
     const initialFortuneSheetData = useMemo(() => {
       try {
         const converted = convertToFortuneSheet(sheet, data, columns)
@@ -159,24 +191,47 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
         console.error('[FortuneSheetGrid] Conversion error:', error)
         return null
       }
-    }, [sheet.id, data, columns]) // Recompute when sheet, data, or columns change
+    }, [sheet.id, remoteUpdateKey]) // Only reinit on sheet switch or remote refresh
 
     // Apply remote cell updates directly to FortuneSheet without full re-render
-    const applyRemoteCellUpdate = useCallback((rowIndex: number, colIndex: number, value: unknown) => {
-      const workbook = workbookRef.current
-      if (!workbook) return
+    const applyRemoteCellUpdate = useCallback(
+      (rowIndex: number, colIndex: number, value: unknown) => {
+        const workbook = workbookRef.current
+        if (!workbook) return
 
-      try {
-        isLocalEditRef.current = true
-        workbook.setCellValue(rowIndex, colIndex, value)
-      } catch (error) {
-        console.error('[FortuneSheetGrid] Failed to apply remote cell update:', error)
-      } finally {
-        setTimeout(() => {
-          isLocalEditRef.current = false
-        }, 50)
-      }
-    }, [])
+        try {
+          isLocalEditRef.current = true
+
+          if (value && typeof value === 'object' && 'f' in value) {
+            const cellObj = value as { f: string; v?: unknown; m?: string }
+            try {
+              workbook.setCellFormat(rowIndex, colIndex, 'f', cellObj.f, { id: sheet.id })
+              if (cellObj.v !== undefined) {
+                workbook.setCellFormat(rowIndex, colIndex, 'v', cellObj.v, { id: sheet.id })
+              }
+              if (cellObj.m !== undefined) {
+                workbook.setCellFormat(rowIndex, colIndex, 'm', cellObj.m, { id: sheet.id })
+              }
+              workbook.calculateFormula(sheet.id)
+            } catch (error) {
+              console.error('[FortuneSheetGrid] Failed to apply formula update:', error)
+              workbook.setCellValue(rowIndex, colIndex, cellObj.v, { id: sheet.id })
+            }
+          } else {
+            workbook.setCellValue(rowIndex, colIndex, value, { id: sheet.id })
+          }
+
+          lastRemoteAppliedRef.current = { row: rowIndex, col: colIndex, value, at: Date.now() }
+        } catch (error) {
+          console.error('[FortuneSheetGrid] Failed to apply remote cell update:', error)
+        } finally {
+          setTimeout(() => {
+            isLocalEditRef.current = false
+          }, REMOTE_APPLY_DEDUPE_MS)
+        }
+      },
+      [sheet.id]
+    )
 
     /**
      * Defensive hardening:
@@ -217,21 +272,75 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
     )
 
     /**
-     * Apply remote operation to FortuneSheet using cell-level API
+     * Apply remote operation to FortuneSheet using cell-level API.
+     * Deduplicates spurious duplicate: when first user edits G6, sometimes a second op
+     * for H6 with the same value is emitted; we skip applying that so the other user
+     * only sees the value in G6.
+     * Also syncs the change into parent data via onCellChange so the grid re-renders immediately.
      */
     const applyOperationToFortuneSheet = useCallback(
       (op: FortuneSheetOp) => {
-        if (op.op === 'replace' && op.path.length >= 3 && op.path[0] === 'data') {
-          const rowIndex = op.path[1] as number
-          const colIndex = op.path[2] as number
-          let value = op.value
-          if (value && typeof value === 'object' && 'v' in value) {
-            value = (value as { v: unknown }).v
-          }
-          applyRemoteCellUpdate(rowIndex, colIndex, value)
+        if (op.op !== 'replace' || op.path.length < 3 || op.path[0] !== 'data') return
+
+        const rowIndex = op.path[1] as number
+        const colIndex = op.path[2] as number
+        // Check if this is a formula operation (path ends with 'f')
+        const property = op.path.length >= 4 ? String(op.path[3]) : 'v'
+        const isFormula = property === 'f'
+
+        let value = op.value
+        // Check if value is a full cell object with a formula
+        const isFullCellWithFormula =
+          value && typeof value === 'object' && 'f' in value && typeof (value as any).f === 'string'
+
+        // For regular value operations WITHOUT formulas, extract v from cell objects
+        // But preserve the full cell object if it contains a formula
+        if (!isFormula && !isFullCellWithFormula && value && typeof value === 'object' && 'v' in value) {
+          value = (value as { v: unknown }).v
         }
+
+        const last = lastRemoteAppliedRef.current
+        const now = Date.now()
+        // For deduplication, compare the display value
+        const displayValue = isFullCellWithFormula ? (value as any).v : value
+        if (
+          last &&
+          now - last.at < REMOTE_APPLY_DEDUPE_MS &&
+          last.row === rowIndex &&
+          last.col === colIndex - 1 &&
+          last.value === displayValue
+        ) {
+          return
+        }
+
+        // Remote ops use data row indices; translate to FortuneSheet row by adding header offset
+        // Apply the cell update
+        if (isFormula && typeof value === 'string') {
+          applyRemoteCellUpdate(rowIndex + HEADER_ROW_OFFSET, colIndex, { f: value })
+        } else if (isFullCellWithFormula) {
+          applyRemoteCellUpdate(rowIndex + HEADER_ROW_OFFSET, colIndex, value)
+        } else {
+          applyRemoteCellUpdate(rowIndex + HEADER_ROW_OFFSET, colIndex, value)
+        }
+
+        // Defer state updates to avoid setState-during-render warning
+        const rowId = context.rowIndexToId.get(rowIndex)
+        const columnId = context.columnIndexToId.get(colIndex)
+        const isFormulaOnly = isFormula && typeof value === 'string'
+        setTimeout(() => {
+          if (onCellChange && rowId && columnId) {
+            const column = columns.find(c => c.id === columnId)
+            const columnName = column?.name ?? columnId
+            const changeValue = isFormulaOnly ? { f: value } : value
+            onCellChange(rowId, columnName, changeValue, { fromRemote: true })
+          }
+          // Avoid remount for formula cells to preserve formula state
+          if (!isFullCellWithFormula && !isFormulaOnly) {
+            onRemoteChangeApplied?.()
+          }
+        }, 0)
       },
-      [applyRemoteCellUpdate]
+      [applyRemoteCellUpdate, context, columns, onCellChange, onRemoteChangeApplied]
     )
 
     // Collaboration hooks
@@ -243,6 +352,15 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
       onApplyOperation: applyOperationToFortuneSheet,
       debounceDelay: 300
     })
+
+    // Apply received remote operations from the viewer's WebSocket
+    const lastAppliedOpTimestamp = useRef<number>(0)
+    useEffect(() => {
+      if (!receivedOperation || !collaborationEnabled) return
+      if (receivedOperation.timestamp <= lastAppliedOpTimestamp.current) return
+      lastAppliedOpTimestamp.current = receivedOperation.timestamp
+      collaboration.handleDocumentOp(receivedOperation.operation)
+    }, [receivedOperation, collaborationEnabled, collaboration])
 
     const cursorTracking = useFortuneSheetCursorTracking({
       sheetId: sheet.id,
@@ -262,11 +380,14 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
           if (!collaborationEnabled) return
           if (activeSheetId !== sheet.id) return
 
-          const row = selection?.row?.[0]
+          const fortuneSheetRow = selection?.row?.[0]
           const col = selection?.column?.[0]
 
-          if (typeof row !== 'number' || typeof col !== 'number') return
-          cursorTrackingRef.current.handleCellSelection(row, col)
+          if (typeof fortuneSheetRow !== 'number' || typeof col !== 'number') return
+          // Subtract header offset to get data row index for cursor tracking
+          const dataRow = fortuneSheetRow - HEADER_ROW_OFFSET
+          if (dataRow < 0) return // Header row selected, skip cursor emit
+          cursorTrackingRef.current.handleCellSelection(dataRow, col)
         }
       }
     }, [collaborationEnabled, sheet.id])
@@ -293,9 +414,9 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
             const [cursorSheetId, rowId, columnId] = cursorPath
             if (cursorSheetId !== sheet.id || !rowId || !columnId) return null
 
-            const rowIndex = currentContext.rowIdToIndex.get(String(rowId))
+            const dataRowIndex = currentContext.rowIdToIndex.get(String(rowId))
             const colIndex = currentContext.columnIdToIndex.get(String(columnId))
-            if (rowIndex === undefined || colIndex === undefined) return null
+            if (dataRowIndex === undefined || colIndex === undefined) return null
 
             const userName = participant.userName || participant.userId || 'User'
             return {
@@ -303,7 +424,8 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
               username: userName,
               userId: participant.userId,
               color: participant.userColor || '#3b82f6',
-              selection: { r: rowIndex, c: colIndex }
+              // Add header offset when mapping to FortuneSheet row
+              selection: { r: dataRowIndex + HEADER_ROW_OFFSET, c: colIndex }
             }
           })
           .filter(Boolean) || []
@@ -378,21 +500,50 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
             op.path.length >= 3 &&
             op.path[0] === 'data'
           ) {
-            const rowIndex = op.path[1] as number
+            const fortuneSheetRowIndex = op.path[1] as number
             const colIndex = op.path[2] as number
+
+            // Header row (row 0) edits = column rename, not data changes
+            if (fortuneSheetRowIndex < HEADER_ROW_OFFSET) {
+              if (onColumnRename && (op.op === 'replace' || op.op === 'add')) {
+                // Extract the new column name text from the op value
+                let newLabel: string | null = null
+                if (typeof op.value === 'string') {
+                  newLabel = op.value
+                } else if (op.value && typeof op.value === 'object' && !Array.isArray(op.value)) {
+                  const cellObj = op.value as Record<string, unknown>
+                  if ('v' in cellObj && typeof cellObj.v === 'string') {
+                    newLabel = cellObj.v
+                  } else if ('m' in cellObj && typeof cellObj.m === 'string') {
+                    newLabel = cellObj.m
+                  }
+                }
+
+                if (newLabel && newLabel.trim()) {
+                  const columnId = context.columnIndexToId.get(colIndex)
+                  if (columnId) {
+                    onColumnRename(columnId, newLabel.trim())
+                  }
+                }
+              }
+              return
+            }
+
+            // Convert FortuneSheet row index to data row index (subtract header offset)
+            const rowIndex = fortuneSheetRowIndex - HEADER_ROW_OFFSET
 
             // Skip styling-only changes (fc, bg, bl, it, etc.) - they're handled by FortuneSheet UI
             // but we don't persist them to avoid complexity
             // path.length === 4 means: ['data', row, col, 'property'] → specific property change
             if (op.path.length === 4) {
               const prop = op.path[3]
-              // Only persist 'v' (value) changes, skip styling properties
-              if (prop !== 'v') {
+              // Persist 'v' (value) and 'f' (formula) changes, skip styling properties
+              if (prop !== 'v' && prop !== 'f') {
                 return
               }
             }
 
-            // No header row - direct mapping
+            // Map data row index to row ID (context uses data indices, not FortuneSheet indices)
             const rowId = context.rowIndexToId.get(rowIndex)
             const columnId = context.columnIndexToId.get(colIndex)
 
@@ -401,13 +552,19 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
             let cellValue = op.value
             if (op.op === 'remove') {
               cellValue = null
-            } else if (cellValue && typeof cellValue === 'object' && 'v' in cellValue) {
-              cellValue = (cellValue as { v: unknown }).v
+            } else {
+              const isCellObject = cellValue && typeof cellValue === 'object' && !Array.isArray(cellValue)
+              if (isCellObject && 'f' in (cellValue as Record<string, unknown>)) {
+                // Preserve full cell object when it includes a formula
+              } else if (isCellObject && 'v' in (cellValue as Record<string, unknown>)) {
+                cellValue = (cellValue as { v: unknown }).v
+              } else if (isCellObject) {
+                cellValue = ''
+              }
             }
 
             // Handle new column - user edited beyond existing columns (auto-create)
             if (!columnId) {
-              // Auto-create column when user edits beyond existing columns
               // Auto-create column when user edits beyond existing columns
               if (pendingColumnCreations.current.has(colIndex)) {
                 return // Already creating this column
@@ -501,7 +658,6 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
             if (rowId && columnId) {
               const column = columns.find(c => c.id === columnId)
               const columnName = column?.name || columnId
-
               onCellChange(rowId, columnName, cellValue)
             }
           }
@@ -518,7 +674,9 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
               onColumnsInsert(index, count, direction)
             }
             if (type === 'row' && onRowsInsert) {
-              onRowsInsert(index, count, direction)
+              // Convert FortuneSheet row index to data row index
+              const dataIndex = Math.max(0, index - HEADER_ROW_OFFSET)
+              onRowsInsert(dataIndex, count, direction)
             }
           }
 
@@ -533,10 +691,77 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
               onColumnsDelete(start, end)
             }
             if (type === 'row' && onRowsDelete) {
-              onRowsDelete(start, end)
+              // Convert FortuneSheet row indices to data row indices
+              const dataStart = Math.max(0, start - HEADER_ROW_OFFSET)
+              const dataEnd = Math.max(0, end - HEADER_ROW_OFFSET)
+              // Skip if trying to delete the header row
+              if (dataStart <= dataEnd) {
+                onRowsDelete(dataStart, dataEnd)
+              }
+            }
+          }
+
+          // Handle column hide/show via context menu
+          // FortuneSheet emits a single replace op on path=["config"] with the
+          // entire config object. We diff config.colhidden against the previous
+          // snapshot to detect which columns were hidden or unhidden.
+          if (
+            onColumnVisibilityChange &&
+            op.op === 'replace' &&
+            op.path.length === 1 &&
+            op.path[0] === 'config' &&
+            op.value &&
+            typeof op.value === 'object'
+          ) {
+            const newColHidden: Record<string, number> = (op.value as any).colhidden || {}
+            const prevColHidden = prevColHiddenRef.current
+
+            // Detect newly hidden columns (in new but not in prev)
+            const newlyHidden = Object.keys(newColHidden)
+              .filter(k => !(k in prevColHidden))
+              .map(Number)
+            // Detect newly shown columns (in prev but not in new)
+            const newlyShown = Object.keys(prevColHidden)
+              .filter(k => !(k in newColHidden))
+              .map(Number)
+
+            // Update ref for next diff
+            prevColHiddenRef.current = { ...newColHidden }
+
+            if (newlyHidden.length > 0) {
+              onColumnVisibilityChange(newlyHidden, false)
+            }
+            if (newlyShown.length > 0) {
+              onColumnVisibilityChange(newlyShown, true)
             }
           }
         })
+
+        // Capture filter state changes for persistence across refreshes.
+        // FortuneSheet manages filter/sort internally — we read the current
+        // state from the workbook after processing ops that may have changed it.
+        if (onFilterStateChange) {
+          const hasFilterOp = ops.some(
+            op =>
+              op.path[0] === 'filter' ||
+              op.path[0] === 'filter_select' ||
+              (op.op === 'replace' && op.path[0] === 'config' && op.value && typeof op.value === 'object')
+          )
+          if (hasFilterOp) {
+            try {
+              const currentSheet = workbookRef.current?.getSheet()
+              if (currentSheet) {
+                onFilterStateChange({
+                  filter: (currentSheet as any).filter ?? null,
+                  filter_select: (currentSheet as any).filter_select ?? {},
+                  rowhidden: currentSheet.config?.rowhidden ?? {}
+                })
+              }
+            } catch {
+              // Workbook not ready yet
+            }
+          }
+        }
       },
       [
         collaborationEnabled,
@@ -545,10 +770,13 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
         onCellChange,
         onDataChange,
         onColumnAdd,
+        onColumnRename,
         onColumnsInsert,
         onColumnsDelete,
         onRowsInsert,
         onRowsDelete,
+        onColumnVisibilityChange,
+        onFilterStateChange,
         columns,
         data
       ]
@@ -571,7 +799,7 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
               workbookRef.current = ref
               patchWorkbookSelection(ref)
             }}
-            key={`workbook-${sheet.id}`}
+            key={`workbook-${sheet.id}-${remoteUpdateKey}`}
             data={
               initialFortuneSheetData
                 ? [

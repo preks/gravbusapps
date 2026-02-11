@@ -11,6 +11,7 @@ export interface UseSpreadsheetColumnsProps {
   app: SpreadsheetApp
   activeSheet: SpreadsheetSheet
   localSheetDataRef: React.MutableRefObject<Record<string, unknown>[]>
+  setLocalSheetData: React.Dispatch<React.SetStateAction<Record<string, unknown>[]>>
   handleCellChangeRef: React.MutableRefObject<(rowId: string, columnName: string, value: unknown) => void>
   onAppUpdate?: (app: SpreadsheetApp) => void
   onSheetUpdate?: (appId: string, sheetId: string, updates: Partial<SpreadsheetSheet>) => void
@@ -51,10 +52,37 @@ export interface SpreadsheetColumnsState {
   columnIndexToLetter: (index: number) => string
 }
 
+/** Creates a new SpreadsheetColumn with default properties. */
+const createColumn = (name: string, label: string, order: number, width: number = 150): SpreadsheetColumn => ({
+  id: crypto.randomUUID(),
+  name,
+  label,
+  type: 'text',
+  isVisible: true,
+  isEditable: true,
+  isRequired: false,
+  isUnique: false,
+  width,
+  order
+})
+
+/** Converts a zero-based column index to an Excel-style letter (0 → A, 25 → Z, 26 → AA). */
+const indexToColumnLetter = (idx: number): string => {
+  let col = ''
+  let num = idx + 1
+  while (num > 0) {
+    const remainder = (num - 1) % 26
+    col = String.fromCharCode(65 + remainder) + col
+    num = Math.floor((num - 1) / 26)
+  }
+  return col
+}
+
 export function useSpreadsheetColumns({
   app,
   activeSheet,
   localSheetDataRef,
+  setLocalSheetData,
   handleCellChangeRef,
   onAppUpdate,
   onSheetUpdate,
@@ -91,9 +119,59 @@ export function useSpreadsheetColumns({
   useEffect(() => {
     // Only sync from props when there are no pending local changes
     if (!hasPendingColumnChanges.current) {
-      latestColumnsRef.current = activeSheet.columns
+      // Normalize orders to sequential values when syncing from props.
+      // Columns may arrive with duplicate order values (e.g. multiple cols
+      // at order=1) which breaks position-based operations like delete/insert.
+      const sorted = [...activeSheet.columns].sort((a, b) => a.order - b.order)
+      const normalized = sorted.map((col, idx) => (col.order === idx ? col : { ...col, order: idx }))
+      latestColumnsRef.current = normalized
     }
   }, [activeSheet.columns])
+
+  /**
+   * Persist column changes to the backend via onSheetUpdate or onAppUpdate.
+   * Centralises the duplicated persist pattern used by every column handler.
+   */
+  const persistColumns = useCallback(
+    (
+      columns: SpreadsheetColumn[],
+      handlerName: string,
+      options?: { data?: Record<string, unknown>[]; async?: boolean }
+    ): void | Promise<void> => {
+      const currentApp = appRef.current
+      const currentSheet = activeSheetRef.current
+      const sheetUpdate = onSheetUpdateRef.current
+      const appUpdate = onAppUpdateRef.current
+
+      if (sheetUpdate) {
+        const promise = sheetUpdate(currentApp.id, currentSheet.id, { columns })
+          .then(() => {
+            hasPendingColumnChanges.current = false
+          })
+          .catch((err: unknown) => {
+            console.error(`[${handlerName}] onSheetUpdate failed:`, err)
+          })
+        if (options?.async) return promise
+        void promise
+      } else if (appUpdate) {
+        const updatedSheets = currentApp.sheets.map(sheet => {
+          if (sheet.id === currentSheet.id) {
+            return {
+              ...sheet,
+              columns,
+              data: options?.data ?? localSheetDataRef.current
+            }
+          }
+          return sheet
+        })
+        appUpdate({ ...currentApp, sheets: updatedSheets })
+        hasPendingColumnChanges.current = false
+      } else {
+        console.warn(`[${handlerName}] No persistence callback available`)
+      }
+    },
+    [localSheetDataRef]
+  )
 
   // Inline editing state
   const [editingColumnId, setEditingColumnIdState] = useState<string | null>(null)
@@ -129,50 +207,13 @@ export function useSpreadsheetColumns({
       columnName = `column_${columnNumber}`
     }
 
-    const newColumn: SpreadsheetColumn = {
-      id: crypto.randomUUID(),
-      name: columnName,
-      label: `Column ${columnNumber}`,
-      type: 'text',
-      isVisible: true,
-      isEditable: true,
-      isRequired: false,
-      isUnique: false,
-      width: 150,
-      order: currentColumns.length
-    }
+    const newColumn = createColumn(columnName, `Column ${columnNumber}`, currentColumns.length)
 
     const updatedColumns = [...currentColumns, newColumn]
-    // Update ref immediately so the next rapid call sees this column
     latestColumnsRef.current = updatedColumns
     hasPendingColumnChanges.current = true
 
-    // Persist immediately using refs (avoids stale closure issues)
-    const currentApp = appRef.current
-    const currentSheet = activeSheetRef.current
-    const sheetUpdate = onSheetUpdateRef.current
-    const appUpdate = onAppUpdateRef.current
-
-    if (sheetUpdate) {
-      void sheetUpdate(currentApp.id, currentSheet.id, { columns: updatedColumns })
-        .then(() => {
-          hasPendingColumnChanges.current = false
-        })
-        .catch((err: unknown) => {
-          console.error('[handleAddColumn] onSheetUpdate failed:', err)
-        })
-    } else if (appUpdate) {
-      const updatedSheets = currentApp.sheets.map(sheet => {
-        if (sheet.id === currentSheet.id) {
-          return { ...sheet, data: localSheetDataRef.current, columns: updatedColumns }
-        }
-        return sheet
-      })
-      appUpdate({ ...currentApp, sheets: updatedSheets })
-      hasPendingColumnChanges.current = false
-    } else {
-      console.warn('[handleAddColumn] No persistence callback available')
-    }
+    persistColumns(updatedColumns, 'handleAddColumn')
 
     if (isCollaborationConnected) {
       emitOperation({
@@ -180,25 +221,14 @@ export function useSpreadsheetColumns({
         data: { sheetId: activeSheet.id, column: newColumn }
       })
     }
-  }, [activeSheet, isCollaborationConnected, emitOperation, localSheetDataRef])
+  }, [activeSheet, isCollaborationConnected, emitOperation, persistColumns])
 
   // Auto column add handler
   const handleAutoColumnAdd = useCallback(
     async (columnIndex: number, initialValue?: unknown, rowIndex?: number) => {
       if (!activeSheet) return
 
-      const getColumnLetter = (idx: number): string => {
-        let col = ''
-        let num = idx + 1
-        while (num > 0) {
-          const remainder = (num - 1) % 26
-          col = String.fromCharCode(65 + remainder) + col
-          num = Math.floor((num - 1) / 26)
-        }
-        return col
-      }
-
-      const columnLetter = getColumnLetter(columnIndex)
+      const columnLetter = indexToColumnLetter(columnIndex)
       const columnName = `column_${columnLetter.toLowerCase()}`
       const columnLabel = `Column ${columnLetter}`
 
@@ -214,64 +244,24 @@ export function useSpreadsheetColumns({
         return
       }
 
-      const newColumn: SpreadsheetColumn = {
-        id: crypto.randomUUID(),
-        name: columnName,
-        label: columnLabel,
-        type: 'text',
-        isVisible: true,
-        isEditable: true,
-        isRequired: false,
-        isUnique: false,
-        width: 100,
-        order: columnIndex
-      }
+      const newColumn = createColumn(columnName, columnLabel, columnIndex, 100)
 
+      // Fill gap columns between current count and target index
       const columnsToAdd: SpreadsheetColumn[] = []
       for (let i = currentColumns.length; i < columnIndex; i++) {
-        const gapLetter = getColumnLetter(i)
+        const gapLetter = indexToColumnLetter(i)
         const gapColName = `column_${gapLetter.toLowerCase()}`
         if (!currentColumns.find(c => c.name === gapColName)) {
-          columnsToAdd.push({
-            id: crypto.randomUUID(),
-            name: gapColName,
-            label: `Column ${gapLetter}`,
-            type: 'text',
-            isVisible: true,
-            isEditable: true,
-            isRequired: false,
-            isUnique: false,
-            width: 100,
-            order: i
-          })
+          columnsToAdd.push(createColumn(gapColName, `Column ${gapLetter}`, i, 100))
         }
       }
       columnsToAdd.push(newColumn)
 
       const updatedColumns = [...currentColumns, ...columnsToAdd]
-      // Update ref immediately so concurrent calls see these columns
       latestColumnsRef.current = updatedColumns
       hasPendingColumnChanges.current = true
 
-      // Persist immediately using refs (avoids stale closure issues)
-      const currentApp = appRef.current
-      const currentSheet = activeSheetRef.current
-      const sheetUpdate = onSheetUpdateRef.current
-      const appUpdate = onAppUpdateRef.current
-
-      if (sheetUpdate) {
-        await sheetUpdate(currentApp.id, currentSheet.id, { columns: updatedColumns })
-        hasPendingColumnChanges.current = false
-      } else if (appUpdate) {
-        const updatedSheets = currentApp.sheets.map(sheet => {
-          if (sheet.id === currentSheet.id) {
-            return { ...sheet, data: localSheetDataRef.current, columns: updatedColumns }
-          }
-          return sheet
-        })
-        appUpdate({ ...currentApp, sheets: updatedSheets })
-        hasPendingColumnChanges.current = false
-      }
+      await persistColumns(updatedColumns, 'handleAutoColumnAdd', { async: true })
 
       if (isCollaborationConnected) {
         columnsToAdd.forEach(col => {
@@ -291,25 +281,23 @@ export function useSpreadsheetColumns({
         }, 400)
       }
     },
-    [
-      activeSheet,
-      app,
-      onAppUpdate,
-      onSheetUpdate,
-      isCollaborationConnected,
-      emitOperation,
-      localSheetDataRef,
-      handleCellChangeRef
-    ]
+    [activeSheet, isCollaborationConnected, emitOperation, localSheetDataRef, handleCellChangeRef, persistColumns]
   )
 
   // Delete column handler
   const handleDeleteColumn = useCallback(
     (columnId: string) => {
-      if (!activeSheet || activeSheet.columns.length <= 1) return
+      const currentColumns = latestColumnsRef.current
+      if (!activeSheet || currentColumns.length <= 1) return
 
-      const updatedColumns = activeSheet.columns.filter(col => col.id !== columnId)
-      const columnToDelete = activeSheet.columns.find(col => col.id === columnId)
+      const columnToDelete = currentColumns.find(col => col.id === columnId)
+
+      // Remove the deleted column and assign clean sequential orders
+      const updatedColumns = currentColumns
+        .filter(col => col.id !== columnId)
+        .sort((a, b) => a.order - b.order)
+        .map((col, idx) => ({ ...col, order: idx }))
+
       const updatedData = localSheetDataRef.current.map(row => {
         const newRow = { ...row }
         if (columnToDelete) {
@@ -318,14 +306,14 @@ export function useSpreadsheetColumns({
         return newRow
       })
 
-      const updatedSheets = app.sheets.map(sheet => {
-        if (sheet.id === activeSheet.id) {
-          return { ...sheet, columns: updatedColumns, data: updatedData }
-        }
-        return sheet
-      })
+      // Sync cleaned data to local state so the grid re-renders with correct alignment
+      localSheetDataRef.current = updatedData
+      setLocalSheetData(updatedData)
 
-      onAppUpdate?.({ ...app, sheets: updatedSheets })
+      latestColumnsRef.current = updatedColumns
+      hasPendingColumnChanges.current = true
+
+      persistColumns(updatedColumns, 'handleDeleteColumn', { data: updatedData })
 
       if (isCollaborationConnected) {
         emitOperation({
@@ -334,7 +322,7 @@ export function useSpreadsheetColumns({
         })
       }
     },
-    [activeSheet, app, onAppUpdate, isCollaborationConnected, emitOperation, localSheetDataRef]
+    [activeSheet, isCollaborationConnected, emitOperation, localSheetDataRef, setLocalSheetData, persistColumns]
   )
 
   // Rename column handler
@@ -349,17 +337,7 @@ export function useSpreadsheetColumns({
         return col
       })
 
-      if (onSheetUpdate) {
-        onSheetUpdate(app.id, activeSheet.id, { columns: updatedColumns })
-      } else if (onAppUpdate) {
-        const updatedSheets = app.sheets.map(sheet => {
-          if (sheet.id === activeSheet.id) {
-            return { ...sheet, columns: updatedColumns }
-          }
-          return sheet
-        })
-        onAppUpdate({ ...app, sheets: updatedSheets })
-      }
+      persistColumns(updatedColumns, 'handleRenameColumn')
 
       if (isCollaborationConnected) {
         emitOperation({
@@ -371,16 +349,7 @@ export function useSpreadsheetColumns({
       setEditingColumnId(null)
       setEditingColumnLabel('')
     },
-    [
-      activeSheet,
-      app,
-      onAppUpdate,
-      onSheetUpdate,
-      isCollaborationConnected,
-      emitOperation,
-      setEditingColumnId,
-      setEditingColumnLabel
-    ]
+    [activeSheet, isCollaborationConnected, emitOperation, setEditingColumnId, setEditingColumnLabel, persistColumns]
   )
 
   // Reorder columns handler
@@ -399,17 +368,7 @@ export function useSpreadsheetColumns({
 
       const reorderedColumns = columns.map((col, idx) => ({ ...col, order: idx }))
 
-      if (onSheetUpdate) {
-        onSheetUpdate(app.id, activeSheet.id, { columns: reorderedColumns })
-      } else if (onAppUpdate) {
-        const updatedSheets = app.sheets.map(sheet => {
-          if (sheet.id === activeSheet.id) {
-            return { ...sheet, columns: reorderedColumns }
-          }
-          return sheet
-        })
-        onAppUpdate({ ...app, sheets: updatedSheets })
-      }
+      persistColumns(reorderedColumns, 'handleReorderColumns')
 
       if (isCollaborationConnected) {
         emitOperation({
@@ -418,7 +377,7 @@ export function useSpreadsheetColumns({
         })
       }
     },
-    [activeSheet, app, onAppUpdate, onSheetUpdate, isCollaborationConnected, emitOperation]
+    [activeSheet, isCollaborationConnected, emitOperation, persistColumns]
   )
 
   // Insert columns handler (from FortuneSheet context menu: insert column left/right)
@@ -427,15 +386,28 @@ export function useSpreadsheetColumns({
       if (!activeSheet) return
 
       const currentColumns = latestColumnsRef.current
-      // Determine the actual insert position:
-      // 'lefttop' = insert before the index, 'rightbottom' = insert after the index
-      const insertAt = direction === 'rightbottom' ? insertIndex + 1 : insertIndex
+      const sortedColumns = [...currentColumns].sort((a, b) => a.order - b.order)
+
+      // FortuneSheet only sees visible columns, so its insertIndex is a position
+      // within the visible-only subset. Map it back to the full sorted array.
+      const visibleSortedColumns = sortedColumns.filter(c => c.isVisible)
+
+      // Determine visible insert position
+      const visibleInsertAt = direction === 'rightbottom' ? insertIndex + 1 : insertIndex
+
+      // Map the visible position to the full sorted array position
+      let fullInsertAt: number
+      if (visibleInsertAt >= visibleSortedColumns.length) {
+        fullInsertAt = sortedColumns.length
+      } else {
+        const targetCol = visibleSortedColumns[visibleInsertAt]
+        fullInsertAt = sortedColumns.findIndex(c => c.id === targetCol.id)
+        if (fullInsertAt === -1) fullInsertAt = sortedColumns.length
+      }
 
       // Generate new columns for each inserted position
       const newColumns: SpreadsheetColumn[] = []
       for (let i = 0; i < count; i++) {
-        const position = insertAt + i
-        // Find a unique name
         const existingNames = [
           ...currentColumns.map(c => c.name.toLowerCase()),
           ...newColumns.map(c => c.name.toLowerCase())
@@ -446,60 +418,21 @@ export function useSpreadsheetColumns({
           num++
           colName = `column_${num}`
         }
-
-        newColumns.push({
-          id: crypto.randomUUID(),
-          name: colName,
-          label: `Column ${num}`,
-          type: 'text',
-          isVisible: true,
-          isEditable: true,
-          isRequired: false,
-          isUnique: false,
-          width: 150,
-          order: position
-        })
+        newColumns.push(createColumn(colName, `Column ${num}`, fullInsertAt + i))
       }
 
-      // Rebuild the columns array: shift orders of existing columns at/after insertAt
-      const updatedColumns = currentColumns.map(col => {
-        if (col.order >= insertAt) {
-          return { ...col, order: col.order + count }
-        }
-        return col
-      })
+      // Splice new columns into the sorted array at the mapped position
+      // then assign clean sequential orders
+      const allColumns = [
+        ...sortedColumns.slice(0, fullInsertAt),
+        ...newColumns,
+        ...sortedColumns.slice(fullInsertAt)
+      ].map((col, idx) => ({ ...col, order: idx }))
 
-      // Insert new columns and sort by order
-      const allColumns = [...updatedColumns, ...newColumns].sort((a, b) => a.order - b.order)
-
-      // Update ref immediately
       latestColumnsRef.current = allColumns
       hasPendingColumnChanges.current = true
 
-      // Persist
-      const currentApp = appRef.current
-      const currentSheet = activeSheetRef.current
-      const sheetUpdate = onSheetUpdateRef.current
-      const appUpdate = onAppUpdateRef.current
-
-      if (sheetUpdate) {
-        void sheetUpdate(currentApp.id, currentSheet.id, { columns: allColumns })
-          .then(() => {
-            hasPendingColumnChanges.current = false
-          })
-          .catch((err: unknown) => {
-            console.error('[handleColumnsInsert] onSheetUpdate failed:', err)
-          })
-      } else if (appUpdate) {
-        const updatedSheets = currentApp.sheets.map(sheet => {
-          if (sheet.id === currentSheet.id) {
-            return { ...sheet, data: localSheetDataRef.current, columns: allColumns }
-          }
-          return sheet
-        })
-        appUpdate({ ...currentApp, sheets: updatedSheets })
-        hasPendingColumnChanges.current = false
-      }
+      persistColumns(allColumns, 'handleColumnsInsert')
 
       if (isCollaborationConnected) {
         newColumns.forEach(col => {
@@ -510,7 +443,7 @@ export function useSpreadsheetColumns({
         })
       }
     },
-    [activeSheet, isCollaborationConnected, emitOperation, localSheetDataRef]
+    [activeSheet, isCollaborationConnected, emitOperation, persistColumns]
   )
 
   // Delete columns handler (from FortuneSheet context menu: delete column)
@@ -519,25 +452,23 @@ export function useSpreadsheetColumns({
       if (!activeSheet) return
 
       const currentColumns = latestColumnsRef.current
-      const deleteCount = endIndex - startIndex + 1
+      const sortedColumns = [...currentColumns].sort((a, b) => a.order - b.order)
 
-      // Identify which columns are being deleted (by their order/position)
-      const deletedColumns = currentColumns.filter(col => col.order >= startIndex && col.order <= endIndex)
+      // FortuneSheet only sees visible columns, so its startIndex/endIndex are
+      // positions within the visible-only subset. Map through visible columns
+      // to identify which actual columns are being deleted.
+      const visibleSortedColumns = sortedColumns.filter(c => c.isVisible)
+      const deletedColumns = visibleSortedColumns.slice(startIndex, endIndex + 1)
+      const deletedColumnIds = new Set(deletedColumns.map(c => c.id))
       const deletedColumnNames = deletedColumns.map(c => c.name)
 
       // Don't allow deleting all columns
       if (deletedColumns.length >= currentColumns.length) return
 
-      // Remove deleted columns and re-order remaining ones
-      const remainingColumns = currentColumns
-        .filter(col => col.order < startIndex || col.order > endIndex)
-        .map(col => {
-          if (col.order > endIndex) {
-            return { ...col, order: col.order - deleteCount }
-          }
-          return col
-        })
-        .sort((a, b) => a.order - b.order)
+      // Remove deleted columns and assign clean sequential orders
+      const remainingColumns = sortedColumns
+        .filter(col => !deletedColumnIds.has(col.id))
+        .map((col, idx) => ({ ...col, order: idx }))
 
       // Remove deleted column data from rows
       const updatedData = localSheetDataRef.current.map(row => {
@@ -548,34 +479,14 @@ export function useSpreadsheetColumns({
         return newRow
       })
 
-      // Update ref immediately
+      // Sync cleaned data to local state so the grid re-renders with correct alignment
+      localSheetDataRef.current = updatedData
+      setLocalSheetData(updatedData)
+
       latestColumnsRef.current = remainingColumns
       hasPendingColumnChanges.current = true
 
-      // Persist
-      const currentApp = appRef.current
-      const currentSheet = activeSheetRef.current
-      const sheetUpdate = onSheetUpdateRef.current
-      const appUpdate = onAppUpdateRef.current
-
-      if (sheetUpdate) {
-        void sheetUpdate(currentApp.id, currentSheet.id, { columns: remainingColumns })
-          .then(() => {
-            hasPendingColumnChanges.current = false
-          })
-          .catch((err: unknown) => {
-            console.error('[handleColumnsDelete] onSheetUpdate failed:', err)
-          })
-      } else if (appUpdate) {
-        const updatedSheets = currentApp.sheets.map(sheet => {
-          if (sheet.id === currentSheet.id) {
-            return { ...sheet, data: updatedData, columns: remainingColumns }
-          }
-          return sheet
-        })
-        appUpdate({ ...currentApp, sheets: updatedSheets })
-        hasPendingColumnChanges.current = false
-      }
+      persistColumns(remainingColumns, 'handleColumnsDelete', { data: updatedData })
 
       if (isCollaborationConnected) {
         deletedColumns.forEach(col => {
@@ -586,7 +497,7 @@ export function useSpreadsheetColumns({
         })
       }
     },
-    [activeSheet, isCollaborationConnected, emitOperation, localSheetDataRef]
+    [activeSheet, isCollaborationConnected, emitOperation, localSheetDataRef, setLocalSheetData, persistColumns]
   )
 
   // Handler refs
@@ -606,17 +517,8 @@ export function useSpreadsheetColumns({
     handleReorderColumnsRef.current = handleReorderColumns
   }, [handleReorderColumns])
 
-  // Column index to letter utility
-  const columnIndexToLetter = useCallback((index: number): string => {
-    let result = ''
-    index += 1
-    while (index > 0) {
-      index -= 1
-      result = String.fromCharCode(65 + (index % 26)) + result
-      index = Math.floor(index / 26)
-    }
-    return result
-  }, [])
+  // Column index to letter utility — delegates to the shared helper
+  const columnIndexToLetter = useCallback((index: number): string => indexToColumnLetter(index), [])
 
   return {
     isManageColumnsDialogOpen,

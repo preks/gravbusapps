@@ -7,6 +7,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { toast } from 'sonner'
 import {
   Avatar,
+  AvatarImage,
   AvatarFallback,
   Badge,
   Tooltip,
@@ -16,11 +17,14 @@ import {
 } from '@newwork/nw-design-system'
 import { ChevronDown, ChevronRight, Paperclip, Download, Loader2 } from 'lucide-react'
 import { EmailApiService } from '../services/EmailApiService'
+import { EmailThreadSummary } from './EmailThreadSummary'
+import { useSenderAvatar } from '../hooks/useSenderAvatar'
 import { getInitials, formatCompactDate, formatFileSize } from '../utils/emailDisplayUtils'
 import type { EmailMessage } from '../types'
 
 interface EmailThreadViewProps {
   messages: EmailMessage[]
+  accessToken?: string
   'data-testid'?: string
 }
 
@@ -29,7 +33,8 @@ const ThreadMessage: React.FC<{
   message: EmailMessage
   isLatest: boolean
   testId: string
-}> = ({ message, isLatest, testId }) => {
+  accessToken?: string
+}> = ({ message, isLatest, testId, accessToken }) => {
   const [isExpanded, setIsExpanded] = useState(isLatest)
   const [downloadingAttId, setDownloadingAttId] = useState<string | null>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
@@ -63,6 +68,7 @@ const ThreadMessage: React.FC<{
 
   const from = message.fromAddress
   const attachmentCount = message.attachments?.filter(a => !a.isInline).length || 0
+  const senderAvatar = useSenderAvatar(from?.address, accessToken)
 
   return (
     <div
@@ -81,6 +87,7 @@ const ThreadMessage: React.FC<{
           <ChevronRight className="gba:w-4 gba:h-4 gba:text-muted-foreground gba:flex-shrink-0" />
         )}
         <Avatar className="gba:w-8 gba:h-8 gba:flex-shrink-0">
+          {senderAvatar && <AvatarImage src={senderAvatar} alt={from.name || from.address} />}
           <AvatarFallback className="gba:bg-primary/10 gba:text-primary gba:text-xs">
             {getInitials(from.name, from.address)}
           </AvatarFallback>
@@ -176,18 +183,31 @@ const ThreadMessage: React.FC<{
 
 export const EmailThreadView: React.FC<EmailThreadViewProps> = ({
   messages,
+  accessToken,
   'data-testid': testId = 'email-thread'
 }) => {
   // Sort messages chronologically (oldest first), latest at bottom
   const sorted = [...messages].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+  const threadId = sorted[0]?.threadId
 
   return (
-    <div className="gba:space-y-2" data-testid={testId}>
+    <div className="gba:space-y-3" data-testid={testId}>
+      {/* AI Summary - shown for threads with 2+ messages */}
+      {threadId && sorted.length > 1 && (
+        <EmailThreadSummary threadId={threadId} messageCount={sorted.length} data-testid={`${testId}-ai-summary`} />
+      )}
+
       <p className="gba:text-xs gba:text-muted-foreground gba:px-1">
         {sorted.length} message{sorted.length !== 1 ? 's' : ''} in this conversation
       </p>
       {sorted.map((msg, idx) => (
-        <ThreadMessage key={msg.id} message={msg} isLatest={idx === sorted.length - 1} testId={testId} />
+        <ThreadMessage
+          key={msg.id}
+          message={msg}
+          isLatest={idx === sorted.length - 1}
+          testId={testId}
+          accessToken={accessToken}
+        />
       ))}
     </div>
   )

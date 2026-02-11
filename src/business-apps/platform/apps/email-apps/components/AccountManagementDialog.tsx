@@ -33,8 +33,6 @@ import { AccountStatusBadge } from './AccountStatusBadge'
 import { formatRelativeTime } from '../utils/emailDisplayUtils'
 import type { EmailAccount } from '../types'
 
-const THREAD_VIEW_KEY = 'email-thread-view-enabled'
-
 interface AccountManagementDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -42,6 +40,8 @@ interface AccountManagementDialogProps {
   onAccountsChanged: () => void
   onAddAccount: () => void
   onOpenAdminSettings?: () => void
+  threadViewEnabled?: boolean
+  onToggleThreadView?: () => void
   'data-testid'?: string
 }
 
@@ -52,18 +52,15 @@ export const AccountManagementDialog: React.FC<AccountManagementDialogProps> = (
   onAccountsChanged,
   onAddAccount,
   onOpenAdminSettings,
+  threadViewEnabled = false,
+  onToggleThreadView,
   'data-testid': testId = 'account-management'
 }) => {
   const [deletingAccountId, setDeletingAccountId] = useState<string | null>(null)
   const [reconnectingAccountId, setReconnectingAccountId] = useState<string | null>(null)
-  const [threadViewEnabled, setThreadViewEnabled] = useState(() => localStorage.getItem(THREAD_VIEW_KEY) === 'true')
 
   const handleToggleThreadView = () => {
-    setThreadViewEnabled(prev => {
-      const next = !prev
-      localStorage.setItem(THREAD_VIEW_KEY, String(next))
-      return next
-    })
+    onToggleThreadView?.()
   }
 
   const handleReconnect = async (account: EmailAccount) => {
