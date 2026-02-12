@@ -150,6 +150,7 @@ export const useRealtimeKitMedia = ({
   const rnnoiseMiddlewareRef = useRef<RTKRnnoiseMiddleware | null>(null)
   const rnnoiseToggleInFlightRef = useRef<Promise<void> | null>(null)
   const rnnoiseNeedsPrimeOnUnmuteRef = useRef(false)
+  const rnnoisePrimedTrackIdRef = useRef<string | null>(null)
   const isTogglingRnnoiseRef = useRef(false) // Prevent continuous sync from interfering during toggle
   const hasJustJoinedRef = useRef(false)
   const hasAppliedInitialBackgroundRef = useRef(false)
@@ -172,6 +173,7 @@ export const useRealtimeKitMedia = ({
     if (previousMeetingRef.current !== meeting) {
       hasInitializedFromSDKRef.current = false
       previousMeetingRef.current = meeting
+      rnnoisePrimedTrackIdRef.current = null
     }
   }, [meeting])
 
@@ -672,6 +674,71 @@ export const useRealtimeKitMedia = ({
       }
     }
   }, [meeting?.self, rnnoiseEnabled, callStatus, onRnnoiseStateChange])
+
+  // RNNoise can be registered before the mic track exists (or while muted), in which
+  // case RTK may not invoke it until the next audio graph rebuild. Prime once when
+  // the user becomes unmuted and we have a live mic track.
+  useEffect(() => {
+    if (!meeting?.self) return
+    if (!rnnoiseEnabled) return
+
+    const middleware = rnnoiseMiddlewareRef.current
+    if (!middleware) return
+
+    const trackId = meeting.self.audioTrack?.id ?? null
+    if (!trackId) return
+
+    if (!getEffectiveAudioEnabled(meeting.self)) return
+    if (rnnoisePrimedTrackIdRef.current === trackId) return
+
+    let cancelled = false
+
+    const timeoutId = setTimeout(() => {
+      void (async () => {
+        if (cancelled) return
+        if (!meeting?.self) return
+        if (!getEffectiveAudioEnabled(meeting.self)) return
+
+        const invokedAt = middleware.getLastInvokedAt?.() ?? null
+        if (invokedAt) {
+          rnnoisePrimedTrackIdRef.current = trackId
+          return
+        }
+
+        rnnoisePrimedTrackIdRef.current = trackId
+
+        try {
+          middleware.disable(meeting as any)
+          await middleware.enable(meeting as any)
+        } catch {
+          // Best-effort
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 150))
+        if (cancelled) return
+        if (!meeting?.self) return
+        if (!getEffectiveAudioEnabled(meeting.self)) return
+
+        const invokedAfterReadd = middleware.getLastInvokedAt?.() ?? null
+        if (invokedAfterReadd) return
+
+        try {
+          await globalCallManager.executeAudioOperation(async () => {
+            await meeting.self!.disableAudio()
+            await new Promise(resolve => setTimeout(resolve, 100))
+            await meeting.self!.enableAudio()
+          })
+        } catch {
+          // Best-effort
+        }
+      })()
+    }, 100)
+
+    return () => {
+      cancelled = true
+      clearTimeout(timeoutId)
+    }
+  }, [meeting?.self?.audioTrack?.id, meeting?.self?.audioEnabled, rnnoiseEnabled])
 
   useEffect(() => {
     if (!meeting?.self) return
