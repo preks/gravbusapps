@@ -63,6 +63,9 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
     pending: number
     available: number
   } | null>(null)
+  const [snapshotByType, setSnapshotByType] = useState<
+    Record<string, { total: number; usedApproved: number; usedPending: number; remaining: number }>
+  >({})
 
   const startDateFormatted = selectedStartDate?.format('YYYY-MM-DD') ?? ''
   const endDateFormatted = selectedEndDate?.format('YYYY-MM-DD') ?? ''
@@ -105,7 +108,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
     const fetchAnnualLeaveSnapshot = async () => {
       try {
         if (!graphqlClient || !employee?.id) return
-        const year = dayjs().year()
+        const year = currentDate.year()
         const yearStart = dayjs(`${year}-01-01`).format('YYYY-MM-DD')
         const yearEnd = dayjs(`${year}-12-31`).format('YYYY-MM-DD')
 
@@ -120,28 +123,51 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
 
         const rows: EntitlementSnapshotRow[] =
           res?.EntitlementUsageSnapshotView || res?.entitlement_usage_snapshot_view || []
-        // Filter to Annual Leave type only if backend returns multiple types in range
-        const a001Rows = rows.filter(r => r?.typeRef === A001_TYPE_REF)
-        if (!a001Rows.length) {
+
+        // Aggregate all rows per typeRef for Entitlements tab and donut use
+        const byType: Record<string, { total: number; usedApproved: number; usedPending: number; remaining: number }> =
+          {}
+        rows.forEach(r => {
+          const key = r?.typeRef
+          if (!key) return
+          const acc = byType[key] || { total: 0, usedApproved: 0, usedPending: 0, remaining: 0 }
+          acc.total += Number(r?.totalEntitlement) || 0
+          acc.usedApproved += Number(r?.usedApproved) || 0
+          acc.usedPending += Number(r?.usedPending) || 0
+          // remaining is per-window; recompute after summing components to avoid drift
+          byType[key] = acc
+        })
+        // Recompute remaining per type after summation
+        Object.keys(byType).forEach(k => {
+          const v = byType[k]
+          v.remaining = Math.max(0, v.total - v.usedApproved - v.usedPending)
+        })
+        setSnapshotByType(byType)
+
+        // Derive A001 override from aggregated map
+        const a = byType[A001_TYPE_REF]
+        if (a) {
+          setAnnualLeaveOverride({
+            total: a.total,
+            used: a.usedApproved,
+            pending: a.usedPending,
+            available: a.remaining
+          })
+        } else {
           setAnnualLeaveOverride(null)
-          return
         }
-        const total = a001Rows.reduce((sum, r) => sum + (Number(r?.totalEntitlement) || 0), 0)
-        const usedApproved = a001Rows.reduce((sum, r) => sum + (Number(r?.usedApproved) || 0), 0)
-        const usedPending = a001Rows.reduce((sum, r) => sum + (Number(r?.usedPending) || 0), 0)
-        const remaining = Math.max(0, total - usedApproved - usedPending)
-        setAnnualLeaveOverride({ total, used: usedApproved, pending: usedPending, available: remaining })
       } catch (err) {
         // Gracefully fall back to existing entitlement values; non-fatal
         if (process?.env?.NODE_ENV !== 'production') {
           console.warn('Annual leave snapshot fetch failed', err)
         }
         setAnnualLeaveOverride(null)
+        setSnapshotByType({})
       }
     }
 
     fetchAnnualLeaveSnapshot()
-  }, [graphqlClient, employee?.id])
+  }, [graphqlClient, employee?.id, currentDate])
 
   useEffect(() => {
     const fetchUserGroups = async () => {
@@ -220,7 +246,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
       const l = (label || '').toLowerCase()
       return ANNUAL_LABEL_HINTS.some(h => l.includes(h))
     }
-    return entitlements.map(e =>
+    const a001Applied = entitlements.map(e =>
       matchAnnual(e.type)
         ? {
             ...e,
@@ -231,7 +257,31 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
           }
         : e
     )
-  }, [entitlements, annualLeaveOverride])
+    const withTypeIdApplied = a001Applied.map(e => {
+      const snap = snapshotByType[e.typeId]
+      return snap
+        ? { ...e, used: snap.usedApproved, total: snap.total, pending: snap.usedPending, available: snap.remaining }
+        : e
+    })
+    const hasAnnual = withTypeIdApplied.some(e => matchAnnual(e.type) || (e.typeId || '').includes('A001'))
+    if (!hasAnnual) {
+      return [
+        ...withTypeIdApplied,
+        {
+          type: 'Annual Leave',
+          used: annualLeaveOverride.used,
+          total: annualLeaveOverride.total,
+          pending: annualLeaveOverride.pending,
+          available: annualLeaveOverride.available,
+          color: '2F80ED',
+          icon: undefined,
+          typeId: A001_TYPE_REF,
+          checkEntitlement: undefined
+        } as any
+      ]
+    }
+    return withTypeIdApplied
+  }, [entitlements, annualLeaveOverride, snapshotByType])
 
   const tabsItems = [
     {
@@ -381,7 +431,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
 
       <AbsenceCharts
         key={`absence-charts-${currentLocale}`}
-        entitlements={entitlements}
+        entitlements={mergedEntitlements}
         absenceList={absenceList}
         loading={loading}
         error={error}

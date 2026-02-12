@@ -136,11 +136,15 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
     messages,
     selectedMessage,
     isLoading: isLoadingMessages,
+    isLoadingMore,
+    hasMore,
+    total,
     selectMessage,
     clearSelection,
     toggleStar,
     deleteMessage,
     moveToFolder,
+    loadMore,
     refreshMessages
   } = useEmails({
     accessToken,
@@ -316,11 +320,15 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
         messages={messages}
         selectedMessageId={selectedMessage?.id || null}
         isLoading={isLoadingMessages}
+        isLoadingMore={isLoadingMore}
+        hasMore={hasMore}
+        total={total}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         onSelectMessage={selectMessage}
         onToggleStar={toggleStar}
         onRefresh={refreshMessages}
+        onLoadMore={loadMore}
         folderName={currentFolderName}
       />
 
