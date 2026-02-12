@@ -11,17 +11,19 @@ const buildFromBaseUrl = (baseUrl: string): string => {
 }
 
 export const getDocumentServiceApiUrl = (): string => {
-  // In development (localhost), use relative path to leverage Vite proxy
-  if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
-    return '/document/api/v1'
+  // 1. First priority: Explicit debug URL (for local development pointing to dev server)
+  const debugUrl = env('NEXT_PUBLIC_DOCUMENT_SERVICE_DEBUG_URL')
+  if (debugUrl) {
+    return trimTrailingSlash(debugUrl)
   }
 
+  // 2. Check for explicit document service URL
   const publicUrl = env('NEXT_PUBLIC_DOCUMENT_SERVICE_URL')
   if (publicUrl) {
-    // Treat the env var as authoritative (same as other NEXT_PUBLIC_* URL configs)
     return trimTrailingSlash(publicUrl)
   }
 
+  // 3. Build from base URL
   const baseUrl = env('NEXT_PUBLIC_BASE_URL')
   if (baseUrl) {
     return buildFromBaseUrl(baseUrl)
