@@ -1,7 +1,7 @@
 export interface AbsenceItem {
   id: number
   type: string
-  icon: React.ReactNode
+  icon: React.ElementType | React.ReactNode
   dates: string
   description: string
   timeUntil: string
@@ -17,7 +17,7 @@ export interface AbsenceListCardAbsence {
   duration: string
   description: string
   requestedInfo: string
-  icon: React.ReactNode
+  icon: React.ElementType | React.ReactNode
   typeColor: string
   statusColor: string
   requestDate: string
@@ -33,7 +33,7 @@ export interface StatItem {
   used: number
   total: number
   progress: number
-  icon: React.ReactNode
+  icon: React.ElementType | React.ReactNode
   color: string
   textColor: string
 }
