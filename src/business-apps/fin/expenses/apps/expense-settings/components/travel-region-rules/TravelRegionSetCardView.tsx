@@ -15,7 +15,7 @@ import {
   DialogDescription,
   DialogFooter
 } from '@newwork/nw-design-system'
-import { PiPlus, PiMapPin, PiTable, PiTrash, PiPencil, PiWarning } from 'react-icons/pi'
+import { PiPlus, PiMapPin, PiTable, PiTrash, PiPencil } from 'react-icons/pi'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
@@ -41,15 +41,13 @@ interface TravelRegionSetCardViewProps extends BusinessAppContextProps {
   prefixDataTestId?: string
   onSelectSet: (setId: string, setName: string) => void
   onViewUnassigned: () => void
-  onViewIntegrity: () => void
 }
 
 const TravelRegionSetCardView: React.FC<TravelRegionSetCardViewProps> = ({
   accessToken,
   prefixDataTestId = '',
   onSelectSet,
-  onViewUnassigned,
-  onViewIntegrity
+  onViewUnassigned
 }) => {
   const [travelRegionSets, setTravelRegionSets] = useState<TravelRegionSet[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -431,15 +429,6 @@ const TravelRegionSetCardView: React.FC<TravelRegionSetCardViewProps> = ({
             </p>
           </div>
           <div className="gba:flex gba:gap-3">
-            <Button
-              variant="outline"
-              onClick={onViewIntegrity}
-              data-testid={`${prefixDataTestId}-view-integrity-button`}
-              className="gba:text-warning hover:gba:text-warning"
-            >
-              <PiWarning className="gba:w-4 gba:h-4 gba:mr-2" />
-              Data Integrity
-            </Button>
             <Button
               variant="outline"
               onClick={onViewUnassigned}
