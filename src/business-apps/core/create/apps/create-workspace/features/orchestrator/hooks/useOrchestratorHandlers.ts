@@ -74,7 +74,7 @@ export const useOrchestratorHandlers = ({
       state.setEditError(null)
 
       try {
-        await orchestratorClient.updatePlan(orchestratorClient.currentPlan.job_id, {
+        await orchestratorClient.updatePlan(orchestratorClient.currentPlan.jobId, {
           components: updatedComponents,
           update_reason: 'User modified plan from UI'
         })
@@ -97,7 +97,7 @@ export const useOrchestratorHandlers = ({
     async (feedback: string) => {
       if (!orchestratorClient.currentPlan) return
 
-      await orchestratorClient.refinePlan(orchestratorClient.currentPlan.job_id, feedback)
+      await orchestratorClient.refinePlan(orchestratorClient.currentPlan.jobId, feedback)
       // Plan is automatically updated by the hook
       // Summary is shown in the UI
     },

@@ -150,14 +150,14 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
               name: c.name,
               type: c.type,
               status: c.status,
-              published_file_count: c.published_file_count
+              publishedFileCount: c.publishedFileCount
             }))
           })
         }
         return (
           <CompleteView
             components={orchestratorClient.currentPlan.components}
-            jobId={orchestratorClient.currentPlan?.job_id}
+            jobId={orchestratorClient.currentPlan?.jobId}
             buildDuration={state.buildDuration}
             accessToken={accessToken}
             userInfo={userInfo}
@@ -175,7 +175,7 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
               'An error occurred'
             }
             partialComponents={orchestratorClient.currentPlan?.components}
-            jobId={orchestratorClient.currentPlan?.job_id}
+            jobId={orchestratorClient.currentPlan?.jobId}
             buildDuration={state.buildDuration}
             accessToken={accessToken}
             userInfo={userInfo}

@@ -55,11 +55,10 @@ export const UserSummaryView: React.FC<UserSummaryViewProps> = ({
   onCancel,
   testId
 }) => {
-  const { user_summary } = plan
+  const userSummary = plan.userSummary
 
-  // user_summary is always provided by the backend
-  if (!user_summary) {
-    console.error('BuildPlan missing user_summary - this should not happen')
+  if (!userSummary) {
+    console.error('BuildPlan missing userSummary - this should not happen')
     return null
   }
 
@@ -70,7 +69,7 @@ export const UserSummaryView: React.FC<UserSummaryViewProps> = ({
         <div className="gba:space-y-1.5">
           <h3 className="gba:text-sm gba:font-semibold gba:text-foreground">What You're Getting</h3>
           <ul className="gba:space-y-1">
-            {user_summary.what_you_get.map(item => (
+            {userSummary.whatYouGet.map(item => (
               <li
                 key={`getting-${item.slice(0, 30)}`}
                 className="gba:flex gba:gap-2 gba:text-sm gba:text-foreground gba:leading-relaxed"
@@ -85,7 +84,7 @@ export const UserSummaryView: React.FC<UserSummaryViewProps> = ({
         <div className="gba:space-y-1.5">
           <h3 className="gba:text-sm gba:font-semibold gba:text-foreground">What You Can Do</h3>
           <ul className="gba:space-y-1">
-            {user_summary.what_you_can_do.map(item => (
+            {userSummary.whatYouCanDo.map(item => (
               <li
                 key={`cando-${item.slice(0, 30)}`}
                 className="gba:flex gba:gap-2 gba:text-sm gba:text-foreground gba:leading-relaxed"
@@ -101,13 +100,13 @@ export const UserSummaryView: React.FC<UserSummaryViewProps> = ({
       {/* Why This Matters */}
       <div className="gba:space-y-1.5">
         <h3 className="gba:text-sm gba:font-semibold gba:text-foreground">Why This Matters</h3>
-        <p className="gba:text-sm gba:text-foreground gba:leading-relaxed">{user_summary.business_value}</p>
+        <p className="gba:text-sm gba:text-foreground gba:leading-relaxed">{userSummary.businessValue}</p>
       </div>
 
       {/* Build Time */}
       <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-muted-foreground gba:py-2 gba:border-y gba:border-border">
         <span className="gba:font-medium">Build Time:</span>
-        <span>{user_summary.estimated_time}</span>
+        <span>{userSummary.estimatedTime}</span>
       </div>
 
       {/* Clarifying Questions */}

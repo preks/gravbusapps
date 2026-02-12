@@ -72,20 +72,20 @@ export const SuccessState: React.FC<SuccessStateProps> = ({
   className,
   'data-testid': testId = 'success-state'
 }) => {
-  const createdComponents = components.filter(c => c.status === 'completed' && c.created_id)
+  const createdComponents = components.filter(c => c.status === 'completed' && c.createdId)
   const reusedComponents = components.filter(c => c.status === 'reused')
 
   const handleOpenComponent = (component: ComponentSpec) => {
-    // For screens with resource_url, navigate directly to the built screen
-    if (component.type === 'screen' && component.resource_url) {
-      navigateTo(buildPlatformUrl(component.resource_url))
+    // For screens with resourceUrl, navigate directly to the built screen
+    if (component.type === 'screen' && component.resourceUrl) {
+      navigateTo(buildPlatformUrl(component.resourceUrl))
       return
     }
 
-    // For other components or screens without resource_url, use admin route
-    if (!component.created_id && !component.existing_id) return
+    // For other components or screens without resourceUrl, use admin route
+    if (!component.createdId && !component.existingId) return
 
-    const id = component.created_id || component.existing_id!
+    const id = component.createdId || component.existingId!
     const route = componentTypeInfo[component.type].route(id)
     navigateTo(buildPlatformUrl(route))
   }
@@ -197,37 +197,37 @@ export const SuccessState: React.FC<SuccessStateProps> = ({
                         </p>
                         <div className="gba:space-y-1">
                           {/* Resource URL (for screens) */}
-                          {component.resource_url && (
+                          {component.resourceUrl && (
                             <div className="gba:flex gba:items-center gba:gap-2">
                               <ExternalLink className="gba:w-3 gba:h-3 gba:text-info" />
-                              <code className="gba:text-xs gba:text-info gba:font-mono">{component.resource_url}</code>
+                              <code className="gba:text-xs gba:text-info gba:font-mono">{component.resourceUrl}</code>
                             </div>
                           )}
                           {/* Component ID */}
                           <div className="gba:flex gba:items-center gba:gap-2">
                             <code className="gba:text-xs gba:text-muted-foreground gba:font-mono gba:bg-muted gba:px-2 gba:py-1 gba:rounded">
-                              {component.created_id?.slice(0, 16)}...
+                              {component.createdId?.slice(0, 16)}...
                             </code>
                           </div>
                           {/* Azure CDN URL (if published) */}
-                          {component.azure_url && (
+                          {component.azureUrl && (
                             <div className="gba:flex gba:items-center gba:gap-2 gba:text-xs gba:text-muted-foreground">
                               <span>CDN:</span>
                               <a
-                                href={component.azure_url}
+                                href={component.azureUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="gba:text-info hover:gba:underline gba:font-mono gba:truncate"
                                 onClick={e => e.stopPropagation()}
                               >
-                                {component.azure_url.slice(0, 40)}...
+                                {component.azureUrl.slice(0, 40)}...
                               </a>
                             </div>
                           )}
                           {/* Published files count */}
-                          {component.published_file_count !== undefined && (
+                          {component.publishedFileCount !== undefined && (
                             <div className="gba:text-xs gba:text-muted-foreground">
-                              Published {component.published_file_count} files
+                              Published {component.publishedFileCount} files
                             </div>
                           )}
                         </div>

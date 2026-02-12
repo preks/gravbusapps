@@ -21,11 +21,11 @@ export type ComponentType = 'screen' | 'agent' | 'function' | 'flow' | 'data_mod
 
 // Specification for building a screen/UI component
 export interface ScreenSpec {
-  screen_type: 'form' | 'list' | 'dashboard' | 'detail'
+  screenType: 'form' | 'list' | 'dashboard' | 'detail'
   name: string
   title: string
   description?: string
-  entity_type?: string
+  entityType?: string
   fields?: Array<Record<string, unknown>>
   filters?: Array<Record<string, unknown>>
   charts?: Array<Record<string, unknown>>
@@ -36,15 +36,15 @@ export interface ScreenSpec {
 export interface AgentSpec {
   name: string
   description: string
-  system_prompt: string
-  user_prompt_template: string
+  systemPrompt: string
+  userPromptTemplate: string
   tools: string[]
-  agent_type: 'flow' | 'everyai' | 'general'
+  agentType: 'flow' | 'everyai' | 'general'
   specialty?: string
-  response_style: 'formal' | 'conversational' | 'technical'
-  citation_mode: 'always' | 'when_needed' | 'never'
-  response_schema?: Record<string, unknown>
-  knowledge_sources?: Array<Record<string, unknown>>
+  responseStyle: 'formal' | 'conversational' | 'technical'
+  citationMode: 'always' | 'when_needed' | 'never'
+  responseSchema?: Record<string, unknown>
+  knowledgeSources?: Array<Record<string, unknown>>
   tags: string[]
 }
 
@@ -52,11 +52,11 @@ export interface AgentSpec {
 export interface FunctionSpec {
   name: string
   description: string
-  source_code: string
-  input_schema: Record<string, unknown>
-  output_schema: Record<string, unknown>
-  agent_enabled: boolean
-  workflow_enabled: boolean
+  sourceCode: string
+  inputSchema: Record<string, unknown>
+  outputSchema: Record<string, unknown>
+  agentEnabled: boolean
+  workflowEnabled: boolean
   config: Record<string, string>
 }
 
@@ -66,20 +66,20 @@ export interface FlowStepSpec {
   title: string
   message?: string
   form?: Array<Record<string, unknown>>
-  assignment_mode: 'ASSIGN' | 'CLAIM'
-  function_config?: Record<string, unknown>
-  agent_config?: Record<string, unknown>
-  due_in_minutes?: number
+  assignmentMode: 'ASSIGN' | 'CLAIM'
+  functionConfig?: Record<string, unknown>
+  agentConfig?: Record<string, unknown>
+  dueInMinutes?: number
 }
 
 // Specification for building a workflow/flow
 export interface FlowSpec {
   name: string
   description: string
-  flow_type: 'TEMPLATE' | 'SELF_SERVICE'
+  flowType: 'TEMPLATE' | 'SELF_SERVICE'
   steps: FlowStepSpec[]
-  trigger_type?: 'manual' | 'webhook' | 'schedule' | 'event'
-  trigger_config?: Record<string, unknown>
+  triggerType?: 'manual' | 'webhook' | 'schedule' | 'event'
+  triggerConfig?: Record<string, unknown>
   tags: Record<string, string>
 }
 
@@ -90,18 +90,18 @@ export interface DataModelFieldSpec {
   label: string
   required: boolean
   options?: Array<{ value: string; label: string }>
-  reference_entity?: string
+  referenceEntity?: string
 }
 
 // Specification for building a data model/entity
 export interface DataModelSpec {
   name: string
   description: string
-  model_type: 'entity' | 'catalog'
+  modelType: 'entity' | 'catalog'
   identifier: string
   namespace: string // Namespace for custom data entities
   fields: DataModelFieldSpec[]
-  initial_entries?: Array<Record<string, unknown>>
+  initialEntries?: Array<Record<string, unknown>>
   relationships?: Array<Record<string, unknown>> // Entity relationships
 }
 
@@ -111,38 +111,38 @@ export interface ComponentSpec {
   type: ComponentType
   name: string
   description: string
-  user_friendly_description?: string
+  userFriendlyDescription?: string
   status: BuildStatus
   dependencies: string[]
 
   // Type-specific specs (only one will be populated based on type)
-  screen_spec?: ScreenSpec
-  agent_spec?: AgentSpec
-  function_spec?: FunctionSpec
-  flow_spec?: FlowSpec
-  data_model_spec?: DataModelSpec
+  screenSpec?: ScreenSpec
+  agentSpec?: AgentSpec
+  functionSpec?: FunctionSpec
+  flowSpec?: FlowSpec
+  dataModelSpec?: DataModelSpec
 
   // Discovery fields - for reusing existing resources
-  existing_id?: string // If found, use this instead of creating new
-  reuse_existing?: boolean // Flag to skip creation and reuse existing
-  discovery_match?: string // How it was matched (exact_name, similar_name, etc.)
+  existingId?: string // If found, use this instead of creating new
+  reuseExisting?: boolean // Flag to skip creation and reuse existing
+  discoveryMatch?: string // How it was matched (exact_name, similar_name, etc.)
 
   // Build results
-  created_id?: string
-  error_message?: string
-  build_started_at?: string
-  build_completed_at?: string
+  createdId?: string
+  errorMessage?: string
+  buildStartedAt?: string
+  buildCompletedAt?: string
 
   // Publish/deployment results
-  resource_url?: string // URL path for the screen (e.g., /screens/user-profile)
-  azure_url?: string // Azure CDN URL where assets are deployed
-  published_file_count?: number // Number of files published
+  resourceUrl?: string // URL path for the screen (e.g., /screens/user-profile)
+  azureUrl?: string // Azure CDN URL where assets are deployed
+  publishedFileCount?: number // Number of files published
 
   // Runtime metadata from backend
   metadata?: {
-    session_id?: string // AI Builder session ID for accessing generated files
-    repo_id?: string // Repository ID for the build
-    resource_url?: string // Resource URL (may differ from top-level field)
+    sessionId?: string // AI Builder session ID for accessing generated files
+    repoId?: string // Repository ID for the build
+    resourceUrl?: string // Resource URL (may differ from top-level field)
     [key: string]: unknown // Additional dynamic metadata
   }
 }

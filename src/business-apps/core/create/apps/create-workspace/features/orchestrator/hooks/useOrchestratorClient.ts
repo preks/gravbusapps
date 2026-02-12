@@ -43,11 +43,11 @@ export interface UseOrchestratorClientResult {
     componentId: string,
     updates: Partial<{
       status: BuildStatus
-      resource_url: string
-      azure_url: string
-      published_file_count: number
-      error_message: string
-      created_id: string
+      resourceUrl: string
+      azureUrl: string
+      publishedFileCount: number
+      errorMessage: string
+      createdId: string
     }>
   ) => void
   client: OrchestratorClient
@@ -154,7 +154,7 @@ export function useOrchestratorClient({ accessToken }: UseOrchestratorClientOpti
 
         if (response.success && response.plan) {
           setCurrentPlan(response.plan)
-          setRefinementSummary(response.refinement_summary || null)
+          setRefinementSummary(response.refinementSummary ?? null)
         } else {
           setRefineError(response.error || 'Refinement failed')
         }
@@ -179,7 +179,7 @@ export function useOrchestratorClient({ accessToken }: UseOrchestratorClientOpti
       const updatedPlan = await client.updatePlan(jobId, request)
 
       // Update local state with the updated plan
-      if (currentPlan?.job_id === jobId) {
+      if (currentPlan?.jobId === jobId) {
         setCurrentPlan(updatedPlan)
       }
 
@@ -204,7 +204,7 @@ export function useOrchestratorClient({ accessToken }: UseOrchestratorClientOpti
   const cancelBuild = useCallback(
     async (jobId: string): Promise<void> => {
       await client.cancelBuild(jobId)
-      if (currentPlan?.job_id === jobId) {
+      if (currentPlan?.jobId === jobId) {
         setCurrentPlan(null)
       }
     },
@@ -238,11 +238,11 @@ export function useOrchestratorClient({ accessToken }: UseOrchestratorClientOpti
       componentId: string,
       updates: Partial<{
         status: BuildStatus
-        resource_url: string
-        azure_url: string
-        published_file_count: number
-        error_message: string
-        created_id: string
+        resourceUrl: string
+        azureUrl: string
+        publishedFileCount: number
+        errorMessage: string
+        createdId: string
       }>
     ) => {
       setCurrentPlan(prevPlan => {

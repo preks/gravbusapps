@@ -83,7 +83,7 @@ export const EditPlanModal: React.FC<EditPlanModalProps> = ({
 
   // Get component description (user-friendly if available)
   const getComponentDescription = useCallback((comp: EditableComponent) => {
-    return comp.user_friendly_description || comp.description
+    return comp.userFriendlyDescription || comp.description
   }, [])
 
   // Group components by type
@@ -104,9 +104,9 @@ export const EditPlanModal: React.FC<EditPlanModalProps> = ({
   // Calculate estimated duration (only for included components)
   const estimatedMinutes = useMemo(() => {
     const includedComponents = components.filter(c => c.included)
-    const seconds = plan.estimated_duration_seconds || includedComponents.length * 60
+    const seconds = plan.estimatedDurationSeconds || includedComponents.length * 60
     return Math.ceil(seconds / 60)
-  }, [components, plan.estimated_duration_seconds])
+  }, [components, plan.estimatedDurationSeconds])
 
   // Toggle component inclusion
   const toggleComponent = useCallback((componentId: string) => {

@@ -83,9 +83,9 @@ export const ReviewView: React.FC<ReviewViewProps> = ({
     <>
       <style>{promptGlowStyles}</style>
       <Canvas
-        title={plan.user_summary?.title || 'Review Plan'}
+        title={plan.userSummary?.title || 'Review Plan'}
         subtitle={
-          plan.user_summary
+          plan.userSummary
             ? 'Review what will be built and customize if needed'
             : 'Review the proposed components and make any adjustments'
         }

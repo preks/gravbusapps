@@ -27,7 +27,7 @@ export const typeLabels: Record<ComponentType, string> = {
  * Get component description (user-friendly if available)
  */
 export const getComponentDescription = (comp: BuildPlan['components'][0]): string => {
-  return comp.user_friendly_description || comp.description
+  return comp.userFriendlyDescription || comp.description
 }
 
 /**

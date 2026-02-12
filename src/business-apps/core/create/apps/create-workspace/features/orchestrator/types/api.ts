@@ -17,23 +17,23 @@ export interface AnalyzeRequest {
 export interface AnalyzeResponse {
   success: boolean
   plan?: BuildPlan
-  refinement_summary?: string
+  refinementSummary?: string
   error?: string
 }
 
 // Request to execute a build plan
 export interface ExecuteRequest {
-  job_id: string
+  jobId: string
   plan?: BuildPlan
-  skip_components?: string[]
+  skipComponents?: string[]
 }
 
 // Request to update an existing build plan
 export interface UpdatePlanRequest {
   components?: ComponentSpec[]
-  estimated_duration_seconds?: number
-  analysis_notes?: string[]
-  update_reason?: string
+  estimatedDurationSeconds?: number
+  analysisNotes?: string[]
+  updateReason?: string
 }
 
 // Request to refine an existing build plan with natural language feedback

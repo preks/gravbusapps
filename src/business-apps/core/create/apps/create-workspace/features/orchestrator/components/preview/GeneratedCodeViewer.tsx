@@ -1,5 +1,5 @@
 /**
- * GeneratedCodeViewer - Fallback code viewer when azure_url is not available
+ * GeneratedCodeViewer - Fallback code viewer when azureUrl is not available
  *
  * Shows generated files from the AI Builder session using the same API
  * that ai-builder uses to display code.

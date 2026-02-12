@@ -26,11 +26,11 @@ export interface UseBuildProgressOptions {
     componentId: string,
     updates: Partial<{
       status: string
-      resource_url: string
-      azure_url: string
-      published_file_count: number
-      error_message: string
-      created_id: string
+      resourceUrl: string
+      azureUrl: string
+      publishedFileCount: number
+      errorMessage: string
+      createdId: string
       metadata: Record<string, unknown>
     }>
   ) => void
@@ -193,14 +193,14 @@ export function useBuildProgress({
     setPhaseMessage(null)
   }, [plan])
 
-  // Reset tile state ONLY when job_id changes (new build), NOT on every plan object change
+  // Reset tile state ONLY when jobId changes (new build), NOT on every plan object change
   useEffect(() => {
-    const newJobId = plan?.job_id || null
+    const newJobId = plan?.jobId ?? null
     if (currentJobIdRef.current !== newJobId) {
       currentJobIdRef.current = newJobId
       resetState()
     }
-  }, [plan?.job_id, resetState])
+  }, [plan?.jobId, resetState])
 
   const totalCount = plan?.components.length || 0
 
@@ -271,7 +271,7 @@ export function useBuildProgress({
         }
       }
 
-      const handler = phaseHandlers[event.event_type]
+      const handler = phaseHandlers[event.eventType]
       if (handler) {
         handler()
         return true
@@ -285,19 +285,19 @@ export function useBuildProgress({
    * Handle component-level events
    */
   const handleComponentEvent = useCallback((event: BuildProgressEvent) => {
-    if (!event.component_type) return
+    if (!event.componentType) return
 
     // Use reducer dispatch to update tile atomically
     dispatchTiles({
       type: 'UPDATE_TILE',
-      componentType: event.component_type,
+      componentType: event.componentType,
       updater: (tile: any) => {
         const eventHandlers: Record<string, (t: any, e: BuildProgressEvent) => void> = {
           component_reused: (t, e) => {
             t.currentOperation = e.message
             t.reusedCount = (t.reusedCount || 0) + 1
             t.items = t.items.map((i: any) =>
-              i.id === e.component_id ? { ...i, status: 'reused', createdId: e.created_id, reused: true } : i
+              i.id === e.componentId ? { ...i, status: 'reused', createdId: e.createdId, reused: true } : i
             )
             // Only mark tile as completed when all items are done (mirror component_completed logic)
             const allDone = t.items.every((i: any) => ['completed', 'reused', 'error', 'skipped'].includes(i.status))
@@ -306,22 +306,22 @@ export function useBuildProgress({
             } else if (t.status !== 'building') {
               t.status = 'building' // Ensure tile shows as in-progress if not all done
             }
-            if (e.component_id) {
-              onComponentUpdateRef.current?.(e.component_id, { status: 'reused', created_id: e.created_id })
+            if (e.componentId) {
+              onComponentUpdateRef.current?.(e.componentId, { status: 'reused', createdId: e.createdId })
             }
           },
           component_started: (t, e) => {
             t.status = 'building'
             t.currentOperation = e.message
-            t.items = t.items.map((i: any) => (i.id === e.component_id ? { ...i, status: 'building' } : i))
-            if (e.component_id) {
-              onComponentUpdateRef.current?.(e.component_id, { status: 'building' })
+            t.items = t.items.map((i: any) => (i.id === e.componentId ? { ...i, status: 'building' } : i))
+            if (e.componentId) {
+              onComponentUpdateRef.current?.(e.componentId, { status: 'building' })
             }
           },
           component_completed: (t, e) => {
             t.currentOperation = undefined
             t.items = t.items.map((i: any) =>
-              i.id === e.component_id ? { ...i, status: 'completed', createdId: e.created_id } : i
+              i.id === e.componentId ? { ...i, status: 'completed', createdId: e.createdId } : i
             )
             const allDone = t.items.every((i: any) => ['completed', 'reused', 'error', 'skipped'].includes(i.status))
             if (allDone) {
@@ -329,28 +329,28 @@ export function useBuildProgress({
             }
 
             // Pass metadata and status to the component update
-            if (e.component_id) {
+            if (e.componentId) {
               const updates: any = {
                 status: 'completed',
-                created_id: e.created_id
+                createdId: e.createdId
               }
 
               if (e.metadata) {
                 updates.metadata = e.metadata
               }
 
-              onComponentUpdateRef.current?.(e.component_id, updates)
+              onComponentUpdateRef.current?.(e.componentId, updates)
             }
           },
           component_error: (t, e) => {
             t.currentOperation = undefined
             t.items = t.items.map((i: any) =>
-              i.id === e.component_id ? { ...i, status: 'error', error: e.error_details } : i
+              i.id === e.componentId ? { ...i, status: 'error', error: e.errorDetails } : i
             )
-            if (e.component_id) {
+            if (e.componentId) {
               const updates: any = {
                 status: 'error',
-                error_message: e.error_details || e.message
+                errorMessage: e.errorDetails || e.message
               }
 
               // Include metadata if present (for accessing partial generated code)
@@ -358,27 +358,27 @@ export function useBuildProgress({
                 updates.metadata = e.metadata
               }
 
-              onComponentUpdateRef.current?.(e.component_id, updates)
+              onComponentUpdateRef.current?.(e.componentId, updates)
             }
           },
           component_progress: (t, e) => {
             t.currentOperation = e.message
-            if (e.progress_percent !== undefined) t.progressPercent = e.progress_percent
+            if (e.progressPercent !== undefined) t.progressPercent = e.progressPercent
           },
           publish_progress: (t, e) => {
             t.currentOperation = e.message
-            if (e.component_id) {
-              onComponentUpdateRef.current?.(e.component_id, {
-                resource_url: e.resource_url,
-                azure_url: e.azure_url,
-                published_file_count: e.files_published,
+            if (e.componentId) {
+              onComponentUpdateRef.current?.(e.componentId, {
+                resourceUrl: e.resourceUrl,
+                azureUrl: e.azureUrl,
+                publishedFileCount: e.filesPublished,
                 metadata: e.metadata
               })
             }
           }
         }
 
-        eventHandlers[event.event_type]?.(tile, event)
+        eventHandlers[event.eventType]?.(tile, event)
       }
     })
 
@@ -388,7 +388,7 @@ export function useBuildProgress({
       component_error: () => setFailedCount(prev => prev + 1),
       component_reused: () => setReusedCount(prev => prev + 1)
     }
-    countUpdaters[event.event_type]?.()
+    countUpdaters[event.eventType]?.()
   }, [])
 
   /**
@@ -421,13 +421,13 @@ export function useBuildProgress({
       abortControllerRef.current = new AbortController()
 
       const request: ExecuteRequest = {
-        job_id: plan.job_id,
-        skip_components: skipComponents
+        jobId: plan.jobId,
+        skipComponents: skipComponents
       }
 
       try {
         await client.executeWithProgress(
-          plan.job_id,
+          plan.jobId,
           request,
           handleProgressEvent,
           error => {
@@ -458,7 +458,7 @@ export function useBuildProgress({
     setIsBuilding(false)
 
     if (plan) {
-      client.cancelBuild(plan.job_id).catch(console.error)
+      client.cancelBuild(plan.jobId).catch(console.error)
     }
   }, [client, plan])
 

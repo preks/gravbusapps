@@ -40,7 +40,7 @@ export const ScreenPreviewModal: React.FC<ScreenPreviewModalProps> = ({
           <DialogTitle className="gba:text-xl">{component.name}</DialogTitle>
           {component.description && (
             <DialogDescription className="gba:mt-1">
-              {component.user_friendly_description || component.description}
+              {component.userFriendlyDescription || component.description}
             </DialogDescription>
           )}
         </DialogHeader>

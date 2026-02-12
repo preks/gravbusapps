@@ -214,9 +214,9 @@ export const ErrorState: React.FC<ErrorStateProps> = ({
                       <div className="gba:text-xs gba:text-muted-foreground gba:mt-1">{component.type}</div>
                     </div>
                   </div>
-                  {component.error_message && (
+                  {component.errorMessage && (
                     <div className="gba:mt-2 gba:p-3 gba:bg-background gba:rounded gba:border gba:border-border">
-                      <p className="gba:text-xs gba:text-muted-foreground gba:font-mono">{component.error_message}</p>
+                      <p className="gba:text-xs gba:text-muted-foreground gba:font-mono">{component.errorMessage}</p>
                     </div>
                   )}
                 </div>

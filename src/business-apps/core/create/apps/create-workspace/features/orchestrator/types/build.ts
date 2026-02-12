@@ -22,32 +22,32 @@ export interface BuildAnalysis {
   summary: string
   intent: string
   complexity: 'simple' | 'moderate' | 'complex'
-  requires_data_model: boolean
-  requires_functions: boolean
-  requires_agents: boolean
-  requires_flows: boolean
-  requires_screens: boolean
+  requiresDataModel: boolean
+  requiresFunctions: boolean
+  requiresAgents: boolean
+  requiresFlows: boolean
+  requiresScreens: boolean
   notes?: string[]
 }
 
 // User-friendly summary for non-technical users
 export interface UserSummary {
   title: string
-  what_you_get: string[]
-  what_you_can_do: string[]
-  business_value: string
-  estimated_time: string
+  whatYouGet: string[]
+  whatYouCanDo: string[]
+  businessValue: string
+  estimatedTime: string
 }
 
 // Complete build plan
 export interface BuildPlan {
-  job_id: string
-  original_prompt: string
+  jobId: string
+  originalPrompt: string
   analysis: BuildAnalysis
-  user_summary?: UserSummary
+  userSummary?: UserSummary
   components: ComponentSpec[]
   questions?: ClarifyingQuestion[]
-  estimated_duration_seconds: number
-  created_at: string
+  estimatedDurationSeconds: number
+  createdAt: string
   status: BuildStatus
 }

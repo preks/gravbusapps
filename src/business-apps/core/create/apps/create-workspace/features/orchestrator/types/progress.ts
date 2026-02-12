@@ -41,22 +41,22 @@ export type ProgressEventType =
 
 // Progress event from SSE
 export interface BuildProgressEvent {
-  event_type: ProgressEventType
-  job_id: string
+  eventType: ProgressEventType
+  jobId: string
   timestamp: string
-  component_type?: ComponentType
-  component_id?: string
-  component_name?: string
+  componentType?: ComponentType
+  componentId?: string
+  componentName?: string
   status: BuildStatus
   message: string
-  progress_percent?: number
-  created_id?: string
-  error_details?: string
+  progressPercent?: number
+  createdId?: string
+  errorDetails?: string
 
   // Publish/deployment data
-  resource_url?: string // URL path for the published screen
-  azure_url?: string // Azure CDN URL
-  files_published?: number // Number of files published
+  resourceUrl?: string // URL path for the published screen
+  azureUrl?: string // Azure CDN URL
+  filesPublished?: number // Number of files published
 
   // AI Builder streaming data
   content?: string // Streaming text content from AI Builder responses
@@ -65,26 +65,26 @@ export interface BuildProgressEvent {
   metadata?: Record<string, unknown>
 
   // Summary for build_complete event
-  total_components?: number
-  completed_components?: number
-  failed_components?: number
-  skipped_components?: number
+  totalComponents?: number
+  completedComponents?: number
+  failedComponents?: number
+  skippedComponents?: number
 }
 
 // Build job status
 export interface BuildJobStatus {
-  job_id: string
+  jobId: string
   status: BuildStatus
-  original_prompt: string
-  started_at?: string
-  completed_at?: string
+  originalPrompt: string
+  startedAt?: string
+  completedAt?: string
   components: ComponentSpec[]
-  total_components: number
-  completed_components: number
-  failed_components: number
-  skipped_components: number
-  reused_components?: number // Components reused from existing resources
-  current_component?: string
-  current_phase?: BuildPhase // Current phase: discovery, building, wiring
+  totalComponents: number
+  completedComponents: number
+  failedComponents: number
+  skippedComponents: number
+  reusedComponents?: number // Components reused from existing resources
+  currentComponent?: string
+  currentPhase?: BuildPhase // Current phase: discovery, building, wiring
   error?: string
 }

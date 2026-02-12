@@ -141,11 +141,11 @@ function groupComponents(components: ComponentSpec[]) {
 }
 
 function handleOpenComponent(component: ComponentSpec) {
-  if (component.type === 'screen' && component.resource_url) {
-    navigateTo(buildPlatformUrl(component.resource_url))
+  if (component.type === 'screen' && component.resourceUrl) {
+    navigateTo(buildPlatformUrl(component.resourceUrl))
     return
   }
-  const id = component.created_id || component.existing_id
+  const id = component.createdId || component.existingId
   if (!id) return
 
   const typeMeta = COMPONENT_TYPE_META[component.type] || DEFAULT_COMPONENT_TYPE_META
@@ -194,18 +194,18 @@ const ComponentCard: React.FC<{
   const StatusIcon = statusMeta.icon
 
   const isClickable = component.status === 'completed' || component.status === 'reused'
-  const hasError = component.status === 'error' && component.error_message
+  const hasError = component.status === 'error' && component.errorMessage
 
   // Check if preview is available
   // Preview available if:
   // 1. It's a screen component (completed successfully OR failed but may have partial code)
-  // 2. AND either: has azure_url (live preview) OR has identifiers for code viewer (jobId, created_id, or metadata)
+  // 2. AND either: has azureUrl (live preview) OR has identifiers for code viewer (jobId, createdId, or metadata)
   // 3. AND accessToken is available (required for ScreenPreviewModal)
   const hasPreviewData = !!(
-    component.azure_url ||
-    component.created_id ||
+    component.azureUrl ||
+    component.createdId ||
     jobId ||
-    (component.metadata?.session_id && component.metadata?.repo_id)
+    (component.metadata?.sessionId && component.metadata?.repoId)
   )
 
   const typeCheck = component.type === 'screen'
@@ -268,47 +268,47 @@ const ComponentCard: React.FC<{
 
             {/* Description */}
             <p className="gba:text-sm gba:text-muted-foreground gba:line-clamp-2 gba:mb-2">
-              {component.user_friendly_description || component.description}
+              {component.userFriendlyDescription || component.description}
             </p>
 
             {/* Metadata row */}
             <div className="gba:space-y-1">
               {/* Resource URL for screens */}
-              {component.resource_url && (
+              {component.resourceUrl && (
                 <div className="gba:flex gba:items-center gba:gap-1.5">
                   <ExternalLink className="gba:w-3 gba:h-3 gba:text-emerald-600" />
-                  <code className="gba:text-xs gba:text-emerald-600 gba:font-mono">{component.resource_url}</code>
+                  <code className="gba:text-xs gba:text-emerald-600 gba:font-mono">{component.resourceUrl}</code>
                 </div>
               )}
 
               {/* Azure CDN */}
-              {component.azure_url && (
+              {component.azureUrl && (
                 <div className="gba:flex gba:items-center gba:gap-1.5 gba:text-xs gba:text-muted-foreground">
                   <span>CDN:</span>
                   <a
-                    href={component.azure_url}
+                    href={component.azureUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="gba:text-blue-500 hover:gba:underline gba:font-mono gba:truncate"
                     onClick={e => e.stopPropagation()}
                   >
-                    {component.azure_url.length > 50 ? `${component.azure_url.slice(0, 50)}...` : component.azure_url}
+                    {component.azureUrl.length > 50 ? `${component.azureUrl.slice(0, 50)}...` : component.azureUrl}
                   </a>
                 </div>
               )}
 
               {/* Published file count */}
-              {component.published_file_count != null && component.published_file_count > 0 && (
+              {component.publishedFileCount != null && component.publishedFileCount > 0 && (
                 <div className="gba:text-xs gba:text-muted-foreground">
-                  Published {component.published_file_count} file{component.published_file_count !== 1 ? 's' : ''}
+                  Published {component.publishedFileCount} file{component.publishedFileCount !== 1 ? 's' : ''}
                 </div>
               )}
 
               {/* Component ID */}
-              {(component.created_id || component.existing_id) && (
+              {(component.createdId || component.existingId) && (
                 <code className="gba:text-[11px] gba:text-muted-foreground/70 gba:font-mono">
-                  ID: {(component.created_id || component.existing_id)?.slice(0, 20)}
-                  {(component.created_id || component.existing_id || '').length > 20 ? '...' : ''}
+                  ID: {(component.createdId || component.existingId)?.slice(0, 20)}
+                  {(component.createdId || component.existingId || '').length > 20 ? '...' : ''}
                 </code>
               )}
             </div>
@@ -334,7 +334,7 @@ const ComponentCard: React.FC<{
                 {errorExpanded && (
                   <div className="gba:mt-2 gba:p-3 gba:bg-destructive/5 gba:border gba:border-destructive/20 gba:rounded-lg">
                     <p className="gba:text-xs gba:text-muted-foreground gba:font-mono gba:break-all gba:whitespace-pre-wrap">
-                      {component.error_message}
+                      {component.errorMessage}
                     </p>
                   </div>
                 )}

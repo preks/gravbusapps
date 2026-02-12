@@ -38,7 +38,7 @@ export interface ComponentTileInfo {
   reusedCount?: number // Number of items reused from existing resources
 }
 
-// Tile state for the progress grid
+// Tile state for the progress grid (keys match ComponentType)
 export interface TileState {
   screen: ComponentTileInfo
   agent: ComponentTileInfo
