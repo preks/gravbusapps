@@ -499,14 +499,6 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
         odName: conversationParticipant.odName,
         lastSeen: Date.now()
       })
-
-      console.log('[ParticipantsPanel] 🔄 Updated allSeenParticipants with real ID:', {
-        removedSdkIds: [participant.userId, participant.customParticipantId, participant.id].filter(
-          id => id !== conversationParticipant.id
-        ),
-        storedRealId: conversationParticipant.id,
-        conversationParticipant
-      })
     }
 
     // CRITICAL FIX: Mark ALL possible IDs as processed to prevent duplicates

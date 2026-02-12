@@ -4,6 +4,7 @@ export interface ExistingEmployeeSkillRecord {
   id?: string
   version?: number
   skill?: { id?: string }
+  level?: string | number | null
 }
 
 export const getSkillValidationError = (name: string): string | null => {
@@ -31,10 +32,11 @@ export const getSkillValidationError = (name: string): string | null => {
 export const buildEmployeeSkillsPayload = (args: {
   employeeId?: string
   selectedSkillIds: string[]
+  selectedSkillLevels: Map<string, number>
   existingSkills: ExistingEmployeeSkillRecord[]
   event?: string
 }) => {
-  const { employeeId, selectedSkillIds, existingSkills, event } = args
+  const { employeeId, selectedSkillIds, selectedSkillLevels, existingSkills, event } = args
 
   const existingBySkillId: Record<string, { id?: string; version?: number }> = {}
   ;(existingSkills || []).forEach(es => {
@@ -44,14 +46,14 @@ export const buildEmployeeSkillsPayload = (args: {
 
   const skillsPayload = (selectedSkillIds || []).map(skillId => {
     const existing = existingBySkillId[skillId]
+    const level = selectedSkillLevels.get(skillId) || 1
     if (existing?.id && existing?.version !== undefined) {
       const rawVersion = (existing as any)?.version
       const versionToSend = rawVersion === null ? 0 : rawVersion
-      return { id: existing.id, version: versionToSend, employeeId, skill: skillId }
+      return { id: existing.id, version: versionToSend, employeeId, skill: skillId, level }
     }
-    return { employeeId, skill: skillId }
+    return { employeeId, skill: skillId, level }
   })
-
   return {
     employeeSkills: { employeeId, skills: skillsPayload },
     event: event || 'pse_submit'

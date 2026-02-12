@@ -15,8 +15,6 @@ import {
   UserIcon,
   FileTextIcon,
   LightbulbIcon,
-  TrashIcon,
-  PencilSimpleIcon,
   StarIcon,
   CalendarIcon,
   CurrencyDollarIcon
@@ -51,7 +49,7 @@ import ActivitySection from '@/common/components/common-relations/record-section
 import NoteSection from '@/common/components/common-relations/record-sections/note-section/NoteSection'
 import TaskSection from '@/common/components/common-relations/record-sections/task-section/TaskSection'
 import SectionWrapper from '@/common/components/common-relations/record-sections/section-card/SectionCard'
-import { DocumentSection, type DocumentItem } from '@/components/document-section'
+import { DocumentView } from './views/document-view'
 import {
   useGetInvestmentActivitiesByOpportunityId,
   useGetInvestmentNotesByOpportunityId,
@@ -59,12 +57,6 @@ import {
 } from '@/common/data/investment/hooks/useInvestmentOpportunities'
 import { useInvestment } from '@/common/data/investment/hooks/useInvestment.new'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { startProcess } from '@/common/utils/start-process'
-import {
-  getIrmDocumentApiConfig,
-  useGetIrmDocuments,
-  transformInvestmentDocuments
-} from '@/business-apps/irm/common/utils/documentUtils'
 
 interface OpportunityRecordContentProps extends BusinessAppContextProps {
   opportunityId: string
@@ -226,11 +218,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
   const [tasks, setTasks] = useState<any[]>([])
   const [approvals, setApprovals] = useState<any[]>([])
 
-  // Documents data loading
-  const { fetchDocuments: fetchOpportunityDocuments } = useGetIrmDocuments('opportunity', props)
-  const [documents, setDocuments] = useState<DocumentItem[]>([])
-  const [documentsLoading, setDocumentsLoading] = useState(false)
-  const [documentsError, setDocumentsError] = useState<string | null>(null)
+  // Documents are now handled by DocumentView component
 
   // State for rejection reasons
   const [rejectionReasons, setRejectionReasons] = useState<RejectionReason[]>([])
@@ -294,29 +282,14 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
     }
   }
 
-  const loadDocuments = async () => {
-    if (!opportunityId) return
-
-    setDocumentsLoading(true)
-    setDocumentsError(null)
-
-    try {
-      const result = await fetchOpportunityDocuments(opportunityId)
-      const transformedDocuments = transformInvestmentDocuments(result || [])
-      setDocuments(transformedDocuments)
-    } catch (err) {
-      setDocumentsError(err instanceof Error ? err.message : 'Failed to load documents')
-    } finally {
-      setDocumentsLoading(false)
-    }
-  }
+  // Document loading is now handled by DocumentView component
 
   // Load all data on mount and when opportunityId changes
   useEffect(() => {
     loadActivities()
     loadNotes()
     loadTasksAndApprovals()
-    loadDocuments()
+    // Documents are loaded by DocumentView component
   }, [opportunityId])
 
   // Load rejection reasons function
@@ -445,28 +418,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
     [opportunityId]
   )
 
-  const documentCreateFolderActionProps = useMemo(
-    () => ({
-      contextsArray: [FlowContextName.investmentDocumentCreate],
-      externalContextData: {
-        opportunityId,
-        folder: true
-      },
-      prefixDataTestId: 'opportunity-document-create-folder'
-    }),
-    [opportunityId]
-  )
-
-  const documentUploadActionProps = useMemo(
-    () => ({
-      contextsArray: [FlowContextName.investmentDocumentCreate],
-      externalContextData: {
-        opportunityId
-      },
-      prefixDataTestId: 'opportunity-document-upload'
-    }),
-    [opportunityId]
-  )
+  // Document action props are now handled by DocumentView component
 
   const activityActionProps = useMemo(
     () => ({
@@ -1097,54 +1049,7 @@ const InvestmentOpportunityRecordContent: React.FC<OpportunityRecordContentProps
         icon: <FileTextIcon size={16} style={{ marginRight: 'var(--nw-spacing-xs)' }} />,
         content: (
           <div className="gba:col-span-12">
-            <DocumentSection
-              entityId={opportunityId}
-              documents={documents}
-              isLoading={documentsLoading}
-              error={documentsError}
-              onRefresh={loadDocuments}
-              apiConfig={getIrmDocumentApiConfig('opportunity')}
-              customActions={[
-                {
-                  key: 'delete',
-                  label: 'Delete',
-                  icon: <TrashIcon size={16} />,
-                  apiEndpoint: '/investment-relations/deleteInvestmentDocument',
-                  confirmMessage: 'Are you sure you want to delete this document? This action cannot be undone.'
-                },
-                {
-                  key: 'update',
-                  label: 'Update',
-                  icon: <PencilSimpleIcon size={16} />,
-                  onClick: (documentId: string, document: any, entityId: string) => {
-                    // Open the document update popup
-                    startProcess({
-                      domain: 'investment-relations',
-                      processName: 'updateInvestmentDocument',
-                      payload: {
-                        documentId: documentId,
-                        opportunityId: entityId,
-                        investmentDocument: {
-                          id: documentId,
-                          version: document.version,
-                          name: document.name,
-                          documentGroupRef: document.documentGroup?.id,
-                          documentTypeRef: document.documentType?.id,
-                          expirationDate: document.expirationDate,
-                          description: document.description,
-                          folder: document.folder || false
-                        }
-                      },
-                      builderType: 'NATIVE_SCREEN'
-                    })
-                  }
-                }
-              ]}
-              createFolderActionProps={documentCreateFolderActionProps}
-              uploadActionProps={documentUploadActionProps}
-              data-testid="opportunity-document-section"
-              {...props}
-            />
+            <DocumentView opportunityId={opportunityId} context={props} />
           </div>
         )
       }

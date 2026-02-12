@@ -33,7 +33,9 @@ import {
   Pencil,
   Phone,
   MessageSquare,
-  ListTodo
+  ListTodo,
+  ExternalLink,
+  Globe
 } from 'lucide-react'
 import { navigateTo } from '@/common/utils/navigationUtils'
 import { CalendarEvent, InvitationStatus, MeetingStatus } from '../types'
@@ -146,9 +148,10 @@ export const MeetingDetailModal: React.FC<MeetingDetailModalProps> = ({
     `${event.organizer.firstName || ''} ${event.organizer.lastName || ''}`.trim() ||
     event.organizer.email
 
-  const canEdit = event.isOrganizer && event.status === 'scheduled'
-  const canDelete = event.isOrganizer
-  const canRespond = !event.isOrganizer && event.status === 'scheduled'
+  const isExternal = event.source && event.source !== 'internal'
+  const canEdit = event.isOrganizer && event.status === 'scheduled' && !isExternal
+  const canDelete = event.isOrganizer && !isExternal
+  const canRespond = !event.isOrganizer && event.status === 'scheduled' && !isExternal
   const canStartCall = event.meetingLink && (event.status === 'scheduled' || event.status === 'in_progress')
 
   const handleResponse = async (status: InvitationStatus) => {
@@ -207,6 +210,12 @@ export const MeetingDetailModal: React.FC<MeetingDetailModalProps> = ({
             <div className="gba:flex-1">
               <DialogTitle className="gba:text-lg gba:mb-1">{event.title}</DialogTitle>
               <div className="gba:flex gba:items-center gba:gap-2">
+                {isExternal && (
+                  <Badge variant="info" className="gba:gap-1">
+                    <Globe className="gba:h-3 gba:w-3" />
+                    {event.source === 'microsoft' ? 'Microsoft' : event.source === 'google' ? 'Google' : 'External'}
+                  </Badge>
+                )}
                 {hasActiveCall && (
                   <Badge variant="default" className="gba:bg-success gba:text-success-foreground">
                     <div className="gba:flex gba:items-center gba:gap-1">
@@ -527,7 +536,19 @@ export const MeetingDetailModal: React.FC<MeetingDetailModalProps> = ({
               </Button>
             )}
 
-            {/* Edit button (organizer only) */}
+            {/* Open in provider button (external events) */}
+            {isExternal && event.externalLink && (
+              <Button
+                variant="outline"
+                onClick={() => window.open(event.externalLink, '_blank', 'noopener,noreferrer')}
+              >
+                <ExternalLink className="gba:h-4 gba:w-4 gba:mr-1" />
+                Open in{' '}
+                {event.source === 'microsoft' ? 'Outlook' : event.source === 'google' ? 'Google Calendar' : 'Calendar'}
+              </Button>
+            )}
+
+            {/* Edit button (organizer only, internal events) */}
             {canEdit && onEdit && (
               <Button variant="outline" onClick={onEdit}>
                 <Pencil className="gba:h-4 gba:w-4 gba:mr-1" />

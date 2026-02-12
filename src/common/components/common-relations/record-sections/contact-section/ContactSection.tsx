@@ -79,16 +79,16 @@ const ContactSection: React.FC<ContactSectionProps> = ({ contact, contacts, clas
   }
 
   const config = {
-    type: 'AppActionButton' as const,
+    type: 'AppAction' as const,
     config: {
+      variant: 'header' as const,
       contextsArray: actionButtonProps.contextsArray || [FlowContextName.customerContactEntity],
       externalContextData: {
         ...actionButtonProps.externalContextData,
         contactId: contactIdToUse // Override with current page contactId (must come after spread)
       },
       prefixDataTestId: actionButtonProps.prefixDataTestId || 'contact-section-action',
-      emptyStateBehavior: 'enable' as const,
-      deferMainContextRequestsUntilClick: true
+      emptyStateBehavior: 'enable' as const
     }
   }
 

@@ -74,8 +74,17 @@ export const ServicePortal: React.FC<ServicePortalProps> = ({
   const servicesFeature = useFeature(Feature.Services.Enabled.Key)
 
   // Initialize workflow engine - prefer passed engine, fallback to real Conductor engine, then mock for development
-  const activeWorkflowEngine =
-    workflowEngine || (contextProps.accessToken ? createConductorWorkflowEngine(contextProps) : mockWorkflowEngine)
+  // Memoize to prevent recreating on every render (which causes all children to refetch data)
+  const activeWorkflowEngine = React.useMemo(() => {
+    console.log('[ServicePortal] Initializing workflow engine', {
+      hasProvidedEngine: !!workflowEngine,
+      hasAccessToken: !!contextProps.accessToken,
+      timestamp: new Date().toISOString()
+    })
+    return (
+      workflowEngine || (contextProps.accessToken ? createConductorWorkflowEngine(contextProps) : mockWorkflowEngine)
+    )
+  }, [workflowEngine, contextProps.accessToken])
 
   // Loading state for template from URL
   const [isLoadingTemplateFromUrl, setIsLoadingTemplateFromUrl] = useState(

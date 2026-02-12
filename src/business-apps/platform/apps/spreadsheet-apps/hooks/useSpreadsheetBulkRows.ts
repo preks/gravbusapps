@@ -28,18 +28,30 @@ export interface UseSpreadsheetBulkRowsProps {
   setLocalSheetData: React.Dispatch<React.SetStateAction<Record<string, unknown>[]>>
   onDataChange?: (sheetId: string, data: Record<string, unknown>[]) => void
   onAppUpdate?: (app: SpreadsheetApp) => void
+  onSheetUpdate?: (appId: string, sheetId: string, updates: Partial<SpreadsheetSheet>) => Promise<unknown>
+  onRowUpdate?: (
+    appId: string,
+    sheetId: string,
+    rowId: string,
+    updates: Record<string, unknown>
+  ) => Promise<Record<string, unknown> | null>
+  onRowAdd?: (appId: string, sheetId: string, data: Record<string, unknown>) => Promise<Record<string, unknown>>
   saveTimeoutRef: React.MutableRefObject<NodeJS.Timeout | null>
 }
 
 export interface SpreadsheetBulkRowsHandlers {
   handleAddRows: (rows: Array<{ cells: Record<string, unknown>; metadata?: Record<string, unknown> }>) => void
-  handleUpdateRows: (updates: Array<{ workflowId: string; cells: Record<string, unknown> }>) => void
+  handleUpdateRows: (
+    updates: Array<{ workflowId: string; recipientId?: string; cells: Record<string, unknown> }>
+  ) => void
   handleAddRowsRef: React.MutableRefObject<typeof handleAddRows | null>
   handleUpdateRowsRef: React.MutableRefObject<typeof handleUpdateRows | null>
 }
 
 type HandleAddRowsFn = (rows: Array<{ cells: Record<string, unknown>; metadata?: Record<string, unknown> }>) => void
-type HandleUpdateRowsFn = (updates: Array<{ workflowId: string; cells: Record<string, unknown> }>) => void
+type HandleUpdateRowsFn = (
+  updates: Array<{ workflowId: string; recipientId?: string; cells: Record<string, unknown> }>
+) => void
 
 /**
  * Collect field names from row data, filtering out internal metadata
@@ -146,6 +158,9 @@ export function useSpreadsheetBulkRows({
   setLocalSheetData,
   onDataChange,
   onAppUpdate,
+  onSheetUpdate,
+  onRowUpdate,
+  onRowAdd,
   saveTimeoutRef
 }: UseSpreadsheetBulkRowsProps): SpreadsheetBulkRowsHandlers {
   const handleAddRowsRef = useRef<HandleAddRowsFn | null>(null)
@@ -219,7 +234,7 @@ export function useSpreadsheetBulkRows({
   )
 
   const handleUpdateRows = useCallback(
-    (updates: Array<{ workflowId: string; cells: Record<string, unknown> }>) => {
+    (updates: Array<{ workflowId: string; recipientId?: string; cells: Record<string, unknown> }>) => {
       // Cancel pending saves
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current)
@@ -244,43 +259,191 @@ export function useSpreadsheetBulkRows({
       const newColumns = createColumnsForFields(newFieldNames)
       const updatedColumns = mergeColumns(activeSheet.columns, newColumns)
 
-      // Build update map
-      const updateMap = new Map(updates.map(u => [u.workflowId, u.cells]))
+      // Build column lookup map
+      const columnMap = new Map<string, SpreadsheetColumn>()
+      updatedColumns.forEach(col => {
+        columnMap.set(col.id, col)
+        columnMap.set(col.name, col)
+      })
 
-      // Update rows
+      // Build update maps for both workflowId and recipientId matching
+      const updateByWorkflowId = new Map(updates.map(u => [u.workflowId, u]))
+      const updateByRecipientId = new Map(updates.filter(u => u.recipientId).map(u => [u.recipientId!, u]))
+
+      // Update rows - try matching by workflowId first, then by recipientId
       const currentData = localSheetDataRef.current
+
       let matchCount = 0
-      const newData = currentData.map(row => {
+      const matchedUpdateIds = new Set<string>()
+
+      const updatedExisting = currentData.map(row => {
         const workflowId = row._workflow_id as string | undefined
-        if (workflowId && updateMap.has(workflowId)) {
-          matchCount++
-          const cellUpdates = updateMap.get(workflowId)!
-          return { ...row, ...cellUpdates, _updatedAt: new Date().toISOString() }
+        const recipientId = row.recipientId as string | undefined
+
+        // Helper to map cell keys to column names
+        const mapCellsToColumnNames = (cells: Record<string, unknown>): Record<string, unknown> => {
+          const mappedCells: Record<string, unknown> = {}
+          for (const [key, value] of Object.entries(cells)) {
+            const column = columnMap.get(key)
+            if (column) {
+              mappedCells[column.name] = value
+            } else {
+              mappedCells[key] = value
+            }
+          }
+          return mappedCells
         }
+
+        // First try to match by workflowId
+        if (workflowId && updateByWorkflowId.has(workflowId)) {
+          matchCount++
+          const update = updateByWorkflowId.get(workflowId)!
+          matchedUpdateIds.add(update.workflowId)
+          const mappedCells = mapCellsToColumnNames(update.cells)
+          return { ...row, ...mappedCells, _updatedAt: new Date().toISOString() }
+        }
+
+        // Fallback: match by recipientId (for bulk collection where workflow IDs differ)
+        if (recipientId && updateByRecipientId.has(recipientId)) {
+          matchCount++
+          const update = updateByRecipientId.get(recipientId)!
+          matchedUpdateIds.add(update.workflowId)
+          const mappedCells = mapCellsToColumnNames(update.cells)
+          // Also update the workflow ID to the new one for future matching
+          return {
+            ...row,
+            ...mappedCells,
+            _workflow_id: update.workflowId,
+            _updatedAt: new Date().toISOString()
+          }
+        }
+
         return row
       })
 
-      if (matchCount === 0 && newColumns.length === 0) return
+      // Create new rows for updates that didn't match any existing row
+      const unmatchedUpdates = updates.filter(u => !matchedUpdateIds.has(u.workflowId))
+      let addedRows: Record<string, unknown>[] = []
+
+      if (unmatchedUpdates.length > 0) {
+        const createdAt = new Date().toISOString()
+        addedRows = unmatchedUpdates.map(update => {
+          const newRow: Record<string, unknown> = {
+            _id: crypto.randomUUID(),
+            _createdAt: createdAt,
+            _workflow_id: update.workflowId
+          }
+
+          // Also store recipientId if available for future matching
+          if (update.recipientId) {
+            newRow.recipientId = update.recipientId
+          }
+
+          for (const [key, value] of Object.entries(update.cells)) {
+            const column = columnMap.get(key)
+            if (column) {
+              newRow[column.name] = value
+            } else {
+              newRow[key] = value
+            }
+          }
+
+          return newRow
+        })
+      }
+
+      const newData = matchCount > 0 || addedRows.length > 0 ? [...updatedExisting, ...addedRows] : updatedExisting
+
+      if (matchCount === 0 && addedRows.length === 0 && newColumns.length === 0) return
 
       localSheetDataRef.current = newData
       setLocalSheetData(newData)
 
-      // Persist changes
-      if (newColumns.length > 0 && onAppUpdate) {
-        const updatedSheets = app.sheets.map(sheet =>
-          sheet.id === activeSheet.id ? { ...sheet, columns: updatedColumns, data: newData } : sheet
-        )
-        onAppUpdate({ ...app, sheets: updatedSheets })
-      } else if (onAppUpdate && matchCount > 0) {
-        const updatedSheets = app.sheets.map(sheet =>
-          sheet.id === activeSheet.id ? { ...sheet, data: newData } : sheet
-        )
-        onAppUpdate({ ...app, sheets: updatedSheets })
-      } else if (matchCount > 0) {
+      // Persist changes using proper API methods
+      // 1. Update columns if new ones were created
+      if (newColumns.length > 0) {
+        if (onSheetUpdate) {
+          Promise.resolve(onSheetUpdate(app.id, activeSheet.id, { columns: updatedColumns })).catch(err =>
+            console.error('[handleUpdateRows] onSheetUpdate failed:', err)
+          )
+        } else if (onAppUpdate) {
+          // Fallback to onAppUpdate for column updates (though this won't persist data)
+          const updatedSheets = app.sheets.map(sheet =>
+            sheet.id === activeSheet.id ? { ...sheet, columns: updatedColumns } : sheet
+          )
+          Promise.resolve(onAppUpdate({ ...app, sheets: updatedSheets })).catch(err =>
+            console.error('[handleUpdateRows] onAppUpdate (columns) failed:', err)
+          )
+        }
+      }
+
+      // 2. Update each modified row individually
+      if (matchCount > 0 && onRowUpdate) {
+        // Find the updated rows and persist them
+        for (const update of updates) {
+          // IMPORTANT: Prioritize workflowId match over recipientId match
+          // This ensures we update the correct row when multiple rows have the same recipientId
+          let updatedRow = newData.find(row => row._workflow_id === update.workflowId)
+          if (!updatedRow && update.recipientId) {
+            updatedRow = newData.find(row => row.recipientId === update.recipientId)
+          }
+          if (updatedRow) {
+            const rowId = String(updatedRow._id ?? updatedRow.id ?? '')
+            if (rowId) {
+              // Map the cells to column names for persistence
+              const mappedCells: Record<string, unknown> = {}
+              for (const [key, value] of Object.entries(update.cells)) {
+                const column = columnMap.get(key)
+                if (column) {
+                  mappedCells[column.name] = value
+                } else {
+                  mappedCells[key] = value
+                }
+              }
+
+              // Try to update the row, but if it fails (returns null), fall back to adding the row
+              onRowUpdate(app.id, activeSheet.id, rowId, mappedCells)
+                .then(async result => {
+                  // If result is null, the update failed (row doesn't exist in backend)
+                  // Fall back to adding the row instead
+                  if (result === null && onRowAdd) {
+                    try {
+                      // Build full row data for adding (not just the update cells)
+                      const fullRowData: Record<string, unknown> = { ...mappedCells }
+                      // Include workflow metadata so we can track it
+                      if (updatedRow._workflow_id) fullRowData._workflow_id = updatedRow._workflow_id
+                      if (updatedRow.recipientId) fullRowData.recipientId = updatedRow.recipientId
+                      if (updatedRow._workflow_status) fullRowData._workflow_status = updatedRow._workflow_status
+
+                      await onRowAdd(app.id, activeSheet.id, fullRowData)
+                    } catch (addErr) {
+                      console.error('[handleUpdateRows] onRowAdd failed:', addErr)
+                    }
+                  }
+                })
+                .catch(err => {
+                  console.error('[handleUpdateRows] onRowUpdate failed for row:', rowId, err)
+                })
+            }
+          }
+        }
+      } else if (matchCount > 0 || addedRows.length > 0) {
+        // Fallback to onDataChange for local state sync
         onDataChange?.(activeSheet.id, newData)
       }
     },
-    [activeSheet, app, onDataChange, onAppUpdate, localSheetDataRef, setLocalSheetData, saveTimeoutRef]
+    [
+      activeSheet,
+      app,
+      onDataChange,
+      onAppUpdate,
+      onSheetUpdate,
+      onRowUpdate,
+      onRowAdd,
+      localSheetDataRef,
+      setLocalSheetData,
+      saveTimeoutRef
+    ]
   )
 
   // Keep refs updated
