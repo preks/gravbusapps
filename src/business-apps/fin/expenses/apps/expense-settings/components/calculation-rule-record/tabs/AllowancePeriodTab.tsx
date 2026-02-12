@@ -1142,8 +1142,15 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                               }
                               // Accept both separators and normalize internally to dot.
                               const normalized = next.replace(',', '.')
-                              if (!/^\d*\.?\d*$/.test(normalized)) return
-                              if ((normalized.match(/\./g) || []).length > 1) return
+                              let dotCount = 0
+                              for (const char of normalized) {
+                                if (char === '.') {
+                                  dotCount += 1
+                                  if (dotCount > 1) return
+                                  continue
+                                }
+                                if (char < '0' || char > '9') return
+                              }
                               // Keep as string during editing to preserve partial decimals like "8." / "8,"
                               field.onChange(normalized)
                             }}
