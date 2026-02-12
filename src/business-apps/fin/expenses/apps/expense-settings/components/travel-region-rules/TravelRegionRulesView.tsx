@@ -3,12 +3,13 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import TravelRegionSetCardView from './TravelRegionSetCardView'
 import TravelRegionMatrixView from './TravelRegionMatrixView'
 import UnassignedRulesView from './UnassignedRulesView'
+import DataIntegrityChecker from './DataIntegrityChecker'
 
 export interface TravelRegionRulesViewProps extends BusinessAppContextProps {
   prefixDataTestId?: string
 }
 
-type ViewMode = 'sets' | 'matrix' | 'unassigned'
+type ViewMode = 'sets' | 'matrix' | 'unassigned' | 'integrity'
 
 interface SelectedSet {
   id: string
@@ -30,6 +31,10 @@ const getViewStateFromUrl = (): { viewMode: ViewMode; selectedSet: SelectedSet |
     return { viewMode: 'unassigned', selectedSet: null }
   }
 
+  if (mode === 'integrity') {
+    return { viewMode: 'integrity', selectedSet: null }
+  }
+
   return { viewMode: 'sets', selectedSet: null }
 }
 
@@ -49,6 +54,8 @@ const updateUrlWithViewState = (viewMode: ViewMode, selectedSet: SelectedSet | n
     urlParams.set('setName', selectedSet.name)
   } else if (viewMode === 'unassigned') {
     urlParams.set('viewMode', 'unassigned')
+  } else if (viewMode === 'integrity') {
+    urlParams.set('viewMode', 'integrity')
   }
   // For 'sets' view, we don't set any parameters (clean URL)
 
@@ -78,6 +85,10 @@ const TravelRegionRulesView: React.FC<TravelRegionRulesViewProps> = context => {
     setViewMode('unassigned')
   }
 
+  const handleViewIntegrity = () => {
+    setViewMode('integrity')
+  }
+
   const handleBackToSets = () => {
     setSelectedSet(null)
     setViewMode('sets')
@@ -99,6 +110,13 @@ const TravelRegionRulesView: React.FC<TravelRegionRulesViewProps> = context => {
     case 'unassigned':
       return <UnassignedRulesView {...context} prefixDataTestId={prefixDataTestId} onBack={handleBackToSets} />
 
+    case 'integrity':
+      return (
+        <div className="gba:p-6">
+          <DataIntegrityChecker {...context} prefixDataTestId={prefixDataTestId} />
+        </div>
+      )
+
     case 'sets':
     default:
       return (
@@ -107,6 +125,7 @@ const TravelRegionRulesView: React.FC<TravelRegionRulesViewProps> = context => {
           prefixDataTestId={prefixDataTestId}
           onSelectSet={handleSelectSet}
           onViewUnassigned={handleViewUnassigned}
+          onViewIntegrity={handleViewIntegrity}
         />
       )
   }
