@@ -1,7 +1,7 @@
 # Conversion Result Step Translations (German - Germany)
 
 # Step Header
-step-title = Schritt 3: Konvertierungsergebnis
+conversion-result-step-title = Schritt 3: Konvertierungsergebnis
 
 # Action Buttons
 download-json-button = JSON herunterladen
