@@ -246,7 +246,6 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
       const l = (label || '').toLowerCase()
       return ANNUAL_LABEL_HINTS.some(h => l.includes(h))
     }
-    // Apply A001 override by label hints to ensure donut finds correct entry even if labels vary
     const a001Applied = entitlements.map(e =>
       matchAnnual(e.type)
         ? {
@@ -258,13 +257,30 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
           }
         : e
     )
-    // Also replace any entitlement that has an exact typeId match in snapshotByType (all types aggregation)
-    return a001Applied.map(e => {
+    const withTypeIdApplied = a001Applied.map(e => {
       const snap = snapshotByType[e.typeId]
       return snap
         ? { ...e, used: snap.usedApproved, total: snap.total, pending: snap.usedPending, available: snap.remaining }
         : e
     })
+    const hasAnnual = withTypeIdApplied.some(e => matchAnnual(e.type) || (e.typeId || '').includes('A001'))
+    if (!hasAnnual) {
+      return [
+        ...withTypeIdApplied,
+        {
+          type: 'Annual Leave',
+          used: annualLeaveOverride.used,
+          total: annualLeaveOverride.total,
+          pending: annualLeaveOverride.pending,
+          available: annualLeaveOverride.available,
+          color: '2F80ED',
+          icon: undefined,
+          typeId: A001_TYPE_REF,
+          checkEntitlement: undefined
+        } as any
+      ]
+    }
+    return withTypeIdApplied
   }, [entitlements, annualLeaveOverride, snapshotByType])
 
   const tabsItems = [
