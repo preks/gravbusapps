@@ -33,11 +33,9 @@ export const GlobalCallContainer: React.FC = () => {
   useEffect(() => {
     // Prevent duplicate subscriptions from the same instance
     if (isSubscribedRef.current) {
-      console.log('[GlobalCallContainer] Already subscribed, skipping duplicate subscription', { instanceId })
       return unsubscribeRef.current || undefined
     }
 
-    console.log('[GlobalCallContainer] Setting up subscription', { instanceId })
     isSubscribedRef.current = true
 
     const unsubscribe = globalCallManager.subscribe(() => {
@@ -297,10 +295,6 @@ export const GlobalCallContainer: React.FC = () => {
         // Extra safety: even if the hook resolves quickly, ensure the SDK meeting was actually left.
         setTimeout(async () => {
           const roomState = (meetingForFallback as any)?.self?.roomState as string | undefined
-          console.log('[GlobalCallContainer] handleEndCall: Extra safety check (1s)', {
-            roomState,
-            shouldSkip: roomState && roomState !== 'joined'
-          })
           if (roomState && roomState !== 'joined') return
           try {
             await meetingForFallback?.leave?.()

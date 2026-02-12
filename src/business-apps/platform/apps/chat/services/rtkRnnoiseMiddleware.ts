@@ -37,9 +37,19 @@ export class RTKRnnoiseMiddleware {
   }
   private config: RnnoiseConfig = {
     enabled: true,
-    logLevel: 'normal', // normal is the default, verbose is more detailed, minimal is the least detailed
+    logLevel: 'minimal', // minimal = no info logs; normal/verbose for debugging
     strength: 1.0, // Maximum strength for most aggressive noise suppression
     mode: 'aggressive' // Preset mode for easy UX
+  }
+
+  private log(...args: unknown[]): void {
+    if (this.config.logLevel === 'minimal') return
+    console.log(...args)
+  }
+
+  private logVerbose(...args: unknown[]): void {
+    if (this.config.logLevel !== 'verbose') return
+    console.log(...args)
   }
 
   // Preset strength values for different modes
@@ -66,17 +76,17 @@ export class RTKRnnoiseMiddleware {
   private async getWorkletModuleUrl(): Promise<string> {
     // Return cached blob URL if already created
     if (RTKRnnoiseMiddleware.cachedWorkletBlobUrl) {
-      console.log('[RNNoise] Using cached blob URL from bundled worklet')
+      this.log('[RNNoise] Using cached blob URL from bundled worklet')
       return RTKRnnoiseMiddleware.cachedWorkletBlobUrl
     }
 
-    console.log('[RNNoise] Creating blob URL from bundled worklet code')
+    this.log('[RNNoise] Creating blob URL from bundled worklet code')
 
     // Create blob from inline worklet code
     const blob = new Blob([workletCode], { type: 'application/javascript' })
     RTKRnnoiseMiddleware.cachedWorkletBlobUrl = URL.createObjectURL(blob)
 
-    console.log('[RNNoise] ✅ Created blob URL:', RTKRnnoiseMiddleware.cachedWorkletBlobUrl)
+    this.log('[RNNoise] ✅ Created blob URL:', RTKRnnoiseMiddleware.cachedWorkletBlobUrl)
 
     return RTKRnnoiseMiddleware.cachedWorkletBlobUrl
   }
@@ -86,15 +96,15 @@ export class RTKRnnoiseMiddleware {
    */
   async initialize(): Promise<void> {
     if (this.isInitialized) {
-      console.log('[RNNoise] Already initialized, skipping')
+      this.log('[RNNoise] Already initialized, skipping')
       return
     }
 
-    console.log('[RNNoise] Initializing RNNoise middleware...')
+    this.log('[RNNoise] Initializing RNNoise middleware...')
 
     try {
       this.isInitialized = true
-      console.log('[RNNoise] Initialization complete')
+      this.log('[RNNoise] Initialization complete')
     } catch (error) {
       console.error('[RNNoise] Failed to initialize:', error)
       this.isInitialized = false
@@ -123,12 +133,12 @@ export class RTKRnnoiseMiddleware {
 
     // Prevent duplicate middleware
     if (this.currentMiddleware) {
-      console.log('[RNNoise] ⚠️ Middleware already enabled, skipping')
+      this.log('[RNNoise] ⚠️ Middleware already enabled, skipping')
       return
     }
 
-    console.log('[RNNoise] 🔊 Enabling noise suppression...')
-    console.log('[RNNoise] 📋 Meeting state:', {
+    this.log('[RNNoise] 🔊 Enabling noise suppression...')
+    this.logVerbose('[RNNoise] 📋 Meeting state:', {
       meetingId: meeting.id,
       audioEnabled: self.audioEnabled,
       audioTrackId: self.audioTrack?.id,
@@ -150,13 +160,13 @@ export class RTKRnnoiseMiddleware {
       // Add middleware to RTK meeting
       if (self.addAudioMiddleware) {
         const result = (self.addAudioMiddleware as any)(this.currentMiddleware) as unknown
-        console.log('[RNNoise] addAudioMiddleware returned:', result)
+        this.logVerbose('[RNNoise] addAudioMiddleware returned:', result)
         if (result && typeof (result as any).then === 'function') {
           await (result as Promise<unknown>)
-          console.log('[RNNoise] addAudioMiddleware promise resolved')
+          this.log('[RNNoise] addAudioMiddleware promise resolved')
         }
 
-        console.log('[RNNoise] Middleware added to RTK meeting', {
+        this.log('[RNNoise] Middleware added to RTK meeting', {
           meetingId: meeting.id,
           audioTrackId: self.audioTrack?.id,
           middlewareType: typeof this.currentMiddleware
@@ -166,7 +176,9 @@ export class RTKRnnoiseMiddleware {
         this.stats.totalProcessingTime = 0
         this.stats.averageLatency = 0
       } else {
-        console.warn('[RNNoise] addAudioMiddleware not available on meeting.self')
+        if (this.config.logLevel !== 'minimal') {
+          console.warn('[RNNoise] addAudioMiddleware not available on meeting.self')
+        }
         throw new Error('addAudioMiddleware not supported')
       }
     })()
@@ -187,7 +199,7 @@ export class RTKRnnoiseMiddleware {
    * Disable RNNoise middleware and remove from RTK meeting
    */
   disable(meeting: RealtimeKitMeeting): void {
-    console.log('[RNNoise] 🔇 Disabling noise suppression')
+    this.log('[RNNoise] 🔇 Disabling noise suppression')
 
     // Set inactive immediately to prevent stats processing
     this.stats.isActive = false
@@ -207,7 +219,7 @@ export class RTKRnnoiseMiddleware {
     if (this.currentMiddleware && meeting?.self?.removeAudioMiddleware) {
       meeting.self.removeAudioMiddleware(this.currentMiddleware)
 
-      console.log('[RNNoise] ✅ Middleware removed', {
+      this.log('[RNNoise] ✅ Middleware removed', {
         totalFrames: this.stats.framesProcessed,
         totalTime: this.stats.totalProcessingTime.toFixed(2) + 's',
         epoch: this.middlewareEpoch
@@ -220,14 +232,14 @@ export class RTKRnnoiseMiddleware {
     // CRITICAL: Reset permanent failure flag to allow re-enable after transient errors
     // This ensures RNNoise can be toggled on again after being turned off
     RTKRnnoiseMiddleware.workletLoadPermanentlyFailed = false
-    console.log('[RNNoise] ♻️ Reset workletLoadPermanentlyFailed flag to allow re-enable')
+    this.logVerbose('[RNNoise] ♻️ Reset workletLoadPermanentlyFailed flag to allow re-enable')
   }
 
   /**
    * Destroy RNNoise middleware and clean up resources
    */
   destroy(meeting: RealtimeKitMeeting): void {
-    console.log('[RNNoise] Destroying middleware and cleaning up resources')
+    this.log('[RNNoise] Destroying middleware and cleaning up resources')
 
     this.disable(meeting)
 
@@ -241,7 +253,7 @@ export class RTKRnnoiseMiddleware {
       isActive: false
     }
 
-    console.log('[RNNoise] Cleanup complete')
+    this.log('[RNNoise] Cleanup complete')
   }
 
   /**
@@ -262,7 +274,7 @@ export class RTKRnnoiseMiddleware {
     this.config.mode = mode
     this.config.strength = RTKRnnoiseMiddleware.MODE_STRENGTHS[mode]
 
-    console.log('[RNNoise] Mode changed:', {
+    this.logVerbose('[RNNoise] Mode changed:', {
       mode,
       strength: this.config.strength
     })
@@ -308,7 +320,7 @@ export class RTKRnnoiseMiddleware {
     return async (audioContext: AudioContext) => {
       // If we're already disabled (e.g., a race where middleware init is still finishing), bail out.
       if (!this.stats.isActive || epoch !== this.middlewareEpoch) {
-        console.log('[RNNoise] ⚠️ Middleware function called but inactive/stale epoch, returning passthrough', {
+        this.logVerbose('[RNNoise] ⚠️ Middleware function called but inactive/stale epoch, returning passthrough', {
           isActive: this.stats.isActive,
           epoch,
           currentEpoch: this.middlewareEpoch
@@ -317,7 +329,7 @@ export class RTKRnnoiseMiddleware {
       }
 
       this.lastInvokedAt = Date.now()
-      console.log('[RNNoise] 🎤 Middleware function INVOKED by RTK!', {
+      this.logVerbose('[RNNoise] 🎤 Middleware function INVOKED by RTK!', {
         sampleRate: audioContext.sampleRate,
         state: audioContext.state,
         epoch,
@@ -342,26 +354,26 @@ export class RTKRnnoiseMiddleware {
         const initPromise = (async (): Promise<AudioNode> => {
           // Register worklet module for this AudioContext (required per context).
           if (!RTKRnnoiseMiddleware.registeredContexts.has(audioContext)) {
-            console.log('[RNNoise] 🔄 About to register worklet module...')
+            this.logVerbose('[RNNoise] 🔄 About to register worklet module...')
 
             // Get worklet URL (may fetch from CDN and convert to blob: if cross-origin)
             const workletUrl = await this.getWorkletModuleUrl()
 
-            console.log('[RNNoise] 📦 Worklet URL ready:', {
+            this.logVerbose('[RNNoise] 📦 Worklet URL ready:', {
               url: workletUrl.substring(0, 50) + '...',
               isBlob: workletUrl.startsWith('blob:'),
               isData: workletUrl.startsWith('data:')
             })
 
-            console.log('[RNNoise] 🔄 Calling audioContext.audioWorklet.addModule()...')
+            this.logVerbose('[RNNoise] 🔄 Calling audioContext.audioWorklet.addModule()...')
             await audioContext.audioWorklet.addModule(workletUrl)
 
             RTKRnnoiseMiddleware.registeredContexts.add(audioContext)
-            console.log('[RNNoise] ✅ AudioWorklet processor registered for AudioContext', {
+            this.log('[RNNoise] ✅ AudioWorklet processor registered for AudioContext', {
               processorName: 'rnnoise-processor'
             })
           } else {
-            console.log('[RNNoise] ℹ️ AudioWorklet already registered for this context, skipping')
+            this.logVerbose('[RNNoise] ℹ️ AudioWorklet already registered for this context, skipping')
           }
 
           // If we were disabled while init was in-flight, do not create a worklet node.
@@ -370,7 +382,7 @@ export class RTKRnnoiseMiddleware {
           }
 
           // Create AudioWorklet node
-          console.log('[RNNoise] 🔄 Creating AudioWorklet node...')
+          this.logVerbose('[RNNoise] 🔄 Creating AudioWorklet node...')
           const node = new AudioWorkletNode(audioContext, 'rnnoise-processor', {
             numberOfInputs: 1,
             numberOfOutputs: 1,
@@ -381,7 +393,7 @@ export class RTKRnnoiseMiddleware {
             }
           })
 
-          console.log('[RNNoise] ✅ AudioWorklet node created:', {
+          this.logVerbose('[RNNoise] ✅ AudioWorklet node created:', {
             processorName: 'rnnoise-processor',
             strength: this.config.strength,
             logLevel: this.config.logLevel,
@@ -394,12 +406,12 @@ export class RTKRnnoiseMiddleware {
             if (!this.stats.isActive) return
 
             if (event.data?.type === 'first-frame') {
-              console.log('[RNNoise] 🎙️ process() method called! Audio is flowing into worklet:', event.data)
+              this.logVerbose('[RNNoise] 🎙️ process() method called! Audio is flowing into worklet:', event.data)
               return
             }
 
             if (event.data?.type === 'rnnoise-ready') {
-              console.log('[RNNoise] ✅ Worklet ready and loaded WASM successfully', event.data)
+              this.log('[RNNoise] ✅ Worklet ready and loaded WASM successfully', event.data)
               return
             }
 
@@ -420,14 +432,14 @@ export class RTKRnnoiseMiddleware {
               this.stats.totalProcessingTime = event.data.totalProcessingTime ?? 0
               this.stats.averageLatency = event.data.averageLatency ?? 0
 
-              // Log first frame to confirm audio is flowing
+              // Log first frame only in verbose
               if (event.data.framesProcessed === 1) {
-                console.log('[RNNoise] 🎙️ First audio frame processed! Audio is flowing through RNNoise')
+                this.logVerbose('[RNNoise] 🎙️ First audio frame processed! Audio is flowing through RNNoise')
               }
 
-              // Log stats periodically (every 100 frames) with audio level info
+              // Log stats periodically only in verbose (every 100 frames)
               if (event.data.framesProcessed % 100 === 0) {
-                console.log('[RNNoise] 📊 Processing stats:', {
+                this.logVerbose('[RNNoise] 📊 Processing stats:', {
                   frames: event.data.framesProcessed,
                   inputLevel: event.data.inputLevel?.toFixed(3),
                   outputLevel: event.data.outputLevel?.toFixed(3),
@@ -448,7 +460,7 @@ export class RTKRnnoiseMiddleware {
           this.workletNodeByContext.set(audioContext, node)
           this.activeWorkletNodes.add(node)
 
-          console.log('[RNNoise] AudioWorklet node created and processing')
+          this.logVerbose('[RNNoise] AudioWorklet node created and processing')
           return node
         })()
 

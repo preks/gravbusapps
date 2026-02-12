@@ -1697,11 +1697,11 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
         wasCancelled: isCancelledRef.current
       })
 
-      // Log call session end with RNNoise stats
+      // Log call session end with RNNoise stats (only when RTK_DEBUG is set)
       const duration = callStartTime ? Date.now() - callStartTime : 0
       const rnnoiseStats = mediaRef.current?.rnnoiseStats
 
-      console.log('[RTK Session] Call ended', {
+      rtkDebug.log('[RTK Session] Call ended', {
         sessionId: sessionIdForEmit,
         meetingId,
         duration: (duration / 1000).toFixed(2) + 's',

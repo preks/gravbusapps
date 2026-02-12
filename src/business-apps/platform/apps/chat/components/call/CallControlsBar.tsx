@@ -126,10 +126,6 @@ export const CallControlsBar: React.FC<CallControlsBarProps> = ({
   t = (key: string) => key
 }) => {
   const handleRnnoiseToggle = () => {
-    console.log('[Call Controls] User toggling RNNoise', {
-      currentState: rnnoiseEnabled,
-      timestamp: new Date().toISOString()
-    })
     onToggleRnnoise?.()
   }
   const [reactionsOpen, setReactionsOpen] = useState(false)
@@ -334,7 +330,6 @@ export const CallControlsBar: React.FC<CallControlsBarProps> = ({
                         <div className="gba:flex gba:gap-1">
                           <button
                             onClick={() => {
-                              console.log('[Call Controls] RNNoise mode: gentle')
                               onRnnoiseModeChange('gentle')
                             }}
                             className={`gba:px-2 gba:py-1 gba:rounded gba:text-xs ${
@@ -347,7 +342,6 @@ export const CallControlsBar: React.FC<CallControlsBarProps> = ({
                           </button>
                           <button
                             onClick={() => {
-                              console.log('[Call Controls] RNNoise mode: moderate')
                               onRnnoiseModeChange('moderate')
                             }}
                             className={`gba:px-2 gba:py-1 gba:rounded gba:text-xs ${
@@ -360,7 +354,6 @@ export const CallControlsBar: React.FC<CallControlsBarProps> = ({
                           </button>
                           <button
                             onClick={() => {
-                              console.log('[Call Controls] RNNoise mode: aggressive')
                               onRnnoiseModeChange('aggressive')
                             }}
                             className={`gba:px-2 gba:py-1 gba:rounded gba:text-xs ${

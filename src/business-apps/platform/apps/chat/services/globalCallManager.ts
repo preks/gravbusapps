@@ -315,20 +315,14 @@ class GlobalCallManager {
 
   claimSubscriptionOwner(instanceId: string): boolean {
     if (!this.subscriptionOwnerId || this.subscriptionOwnerId === instanceId) {
-      const changed = this.subscriptionOwnerId !== instanceId
       this.subscriptionOwnerId = instanceId
-      if (changed) {
-        console.log('[GlobalCallManager] Subscription ownership claimed:', instanceId)
-      }
       return true
     }
-    console.log('[GlobalCallManager] Subscription ownership denied:', instanceId, 'Owner:', this.subscriptionOwnerId)
     return false
   }
 
   releaseSubscriptionOwner(instanceId: string) {
     if (this.subscriptionOwnerId === instanceId) {
-      console.log('[GlobalCallManager] Subscription ownership released:', instanceId)
       this.subscriptionOwnerId = null
     }
   }
@@ -416,7 +410,6 @@ class GlobalCallManager {
 
     // Clear any stale instance registrations (they should have unsubscribed, but just in case)
     if (this.activeInstances.size > 0) {
-      console.warn('[GlobalCallManager] Clearing stale instances on call end:', this.activeInstances.size)
       this.activeInstances.clear()
     }
 
@@ -446,21 +439,17 @@ class GlobalCallManager {
   async executeAudioOperation(fn: () => Promise<void>): Promise<void> {
     // Wait for any in-flight operation to complete first
     if (this.audioOperationInFlight) {
-      console.log('[GlobalCallManager] ⏳ Audio operation already in flight, waiting...')
       try {
         await this.audioOperationInFlight
       } catch {
         // Ignore errors from previous operation
       }
-      console.log('[GlobalCallManager] ✅ Previous audio operation completed, proceeding...')
     }
 
     // Execute this operation and track it
-    console.log('[GlobalCallManager] 🎵 Executing new audio operation...')
     this.audioOperationInFlight = (async () => {
       try {
         await fn()
-        console.log('[GlobalCallManager] ✅ Audio operation completed successfully')
       } catch (error) {
         console.error('[GlobalCallManager] ❌ Audio operation failed:', error)
         throw error
@@ -478,34 +467,16 @@ class GlobalCallManager {
     // Track instance registration
     if (instanceId) {
       this.activeInstances.add(instanceId)
-      console.log('[GlobalCallManager] Instance registered:', instanceId, 'Total active:', this.activeInstances.size)
 
       // Try to claim subscription ownership
       const canSubscribe = this.claimSubscriptionOwner(instanceId)
 
       if (!canSubscribe) {
-        // This instance cannot subscribe - another instance owns it
-        console.log(
-          '[GlobalCallManager] Instance',
-          instanceId,
-          'registered but NOT subscribed (passive mode). Owner:',
-          this.subscriptionOwnerId
-        )
-
         // Return a cleanup function that only handles instance tracking
         return () => {
           this.activeInstances.delete(instanceId)
-          console.log(
-            '[GlobalCallManager] Passive instance unregistered:',
-            instanceId,
-            'Total active:',
-            this.activeInstances.size
-          )
         }
       }
-
-      // This instance successfully claimed subscription ownership
-      console.log('[GlobalCallManager] Instance', instanceId, 'is now the active subscriber')
     }
 
     // Add listener and notify immediately
@@ -518,12 +489,6 @@ class GlobalCallManager {
       if (instanceId) {
         this.releaseSubscriptionOwner(instanceId)
         this.activeInstances.delete(instanceId)
-        console.log(
-          '[GlobalCallManager] Active subscriber unregistered:',
-          instanceId,
-          'Total active:',
-          this.activeInstances.size
-        )
       }
     }
   }
@@ -539,18 +504,6 @@ class GlobalCallManager {
   }
 
   private notifyListeners() {
-    // Warn if we have too many active listeners (not instances - instances can be passive)
-    // With subscription ownership, we should only have 1 listener even with multiple instances
-    if (this.listeners.size > 1) {
-      console.warn(
-        '[GlobalCallManager] ⚠️ Multiple active listeners detected:',
-        this.listeners.size,
-        'listeners with',
-        this.activeInstances.size,
-        'instances. Expected 1 listener with subscription ownership.'
-      )
-    }
-
     this.listeners.forEach(listener => listener())
   }
 }
