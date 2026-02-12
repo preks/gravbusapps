@@ -78,7 +78,7 @@ export const ConversionResultStep = <T = ConvertedEntity,>({
       <Card>
         <CardHeader>
           <div className="gba:flex gba:justify-between gba:items-center">
-            <CardTitle>{t('step-title')}</CardTitle>
+            <CardTitle>{t('conversion-result-step-title')}</CardTitle>
             <div className="gba:flex gba:gap-2">
               <Button variant="outline" size="sm" onClick={onDownloadJSON} data-testid={`${testId}-download-button`}>
                 <DownloadIcon className="gba:w-4 gba:h-4 gba:mr-2" />
