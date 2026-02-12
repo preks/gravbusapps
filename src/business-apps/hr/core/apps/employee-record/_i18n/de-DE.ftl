@@ -392,6 +392,17 @@ skills-development-distribution = Skills-Verteilung
 skills-development-distribution-empty = Keine Skills anzuzeigen
 skills-development-groups = Skill-Gruppen
 
+# Add Skill Form
+add-skill-form-title = Fähigkeit hinzufügen
+add-skill-form-update-level-title = Skill-Level aktualisieren
+add-skill-form-search-skills-title = Fähigkeiten suchen
+add-skill-form-search-skill-placeholder = Fähigkeit suchen...
+add-skill-form-selected-skills-label = Skill-Level wählen
+add-skill-form-current-employee-skills-label = Aktuelle Mitarbeiterfähigkeiten
+add-skill-form-no-current-skills = Keine aktuellen Fähigkeiten
+add-skill-form-add-button = Hinzufügen
+add-skill-form-skill-add-error = Fähigkeit konnte nicht hinzugefügt werden
+
 # Performance Tab
 performance-title = Leistungsziele
 performance-description = Mitarbeiterleistungsziele anzeigen und verwalten

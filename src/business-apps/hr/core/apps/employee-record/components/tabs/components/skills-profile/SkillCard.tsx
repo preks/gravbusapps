@@ -104,7 +104,18 @@ export const SkillCard: React.FC<SkillCardProps> = ({ skill, accessToken, update
             buttonSize="default"
             buttonVariant="outline"
             data-testid={`skills-profile-update-level-${skill.skill.id}`}
-            contexts={[updateSkillContext]}
+            contexts={[
+              {
+                ...updateSkillContext,
+                contextData: {
+                  ...updateSkillContext.contextData,
+                  mode: 'changeLevel',
+                  skillId: skill.skill.id,
+                  employeeSkillId: skill.id,
+                  currentLevel: skill.level ?? null
+                }
+              }
+            ]}
             prefixDataTestId={`skills-profile-update-level-${skill.skill.id}`}
             accessToken={accessToken}
             autoExecute={true}

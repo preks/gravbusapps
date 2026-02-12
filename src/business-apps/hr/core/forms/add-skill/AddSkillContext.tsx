@@ -42,6 +42,13 @@ export interface AddSkillDataResponse {
   employee: DetailedEmployee
 }
 
+export interface ChangeLevelParams {
+  mode: 'changeLevel'
+  skillId: string
+  employeeSkillId: string
+  currentLevel: number | null
+}
+
 interface AddSkillContextValue {
   data: AddSkillDataResponse | null
   isLoading: boolean
@@ -50,6 +57,18 @@ interface AddSkillContextValue {
   searchSkills: (term: string) => Promise<SkillRecord[]>
   createSkillAndFetchByNames: (name: string, namesAccumulator: string[]) => Promise<SkillRecord[]>
   employeeId?: string
+  changeLevelParams: ChangeLevelParams | null
+}
+
+const DEFAULT_ADD_SKILL_VALUE: AddSkillContextValue = {
+  data: null,
+  isLoading: false,
+  error: 'Missing context. Open this form from the employee record (Add skill) or from a flow.',
+  refetch: async () => {},
+  searchSkills: async () => [],
+  createSkillAndFetchByNames: async () => [],
+  employeeId: undefined,
+  changeLevelParams: null
 }
 
 const AddSkillContext = createContext<AddSkillContextValue | undefined>(undefined)
@@ -73,6 +92,24 @@ export const AddSkillProvider: React.FC<ProviderProps> = ({ children, accessToke
       userInfo?.employeeDetails?.employeeId
     )
   }, [additionalData, userInfo])
+
+  const changeLevelParams: ChangeLevelParams | null = useMemo(() => {
+    const params = additionalData?.contextData ?? additionalData?.psi_taskPayload?.psi_initialParameters ?? undefined
+    if (!params || params.mode !== 'changeLevel' || !params.skillId) return null
+    const currentLevel =
+      params.currentLevel != null
+        ? typeof params.currentLevel === 'number'
+          ? params.currentLevel
+          : Number.parseInt(String(params.currentLevel), 10)
+        : null
+    const level = Number.isNaN(currentLevel as number) ? null : (currentLevel as number)
+    return {
+      mode: 'changeLevel',
+      skillId: String(params.skillId),
+      employeeSkillId: params.employeeSkillId != null ? String(params.employeeSkillId) : '',
+      currentLevel: level
+    }
+  }, [additionalData?.contextData, additionalData?.psi_taskPayload?.psi_initialParameters])
 
   const fetchData = useCallback(async () => {
     if (!accessToken || !employeeId) {
@@ -150,18 +187,18 @@ export const AddSkillProvider: React.FC<ProviderProps> = ({ children, accessToke
       refetch: fetchData,
       searchSkills,
       createSkillAndFetchByNames,
-      employeeId
+      employeeId,
+      changeLevelParams
     }),
-    [data, isLoading, error, fetchData, searchSkills, createSkillAndFetchByNames, employeeId]
+    [data, isLoading, error, fetchData, searchSkills, createSkillAndFetchByNames, employeeId, changeLevelParams]
   )
 
   return <AddSkillContext.Provider value={value}>{children}</AddSkillContext.Provider>
 }
 
-export const useAddSkill = () => {
+export const useAddSkill = (): AddSkillContextValue => {
   const ctx = useContext(AddSkillContext)
-  if (!ctx) throw new Error('useAddSkill must be used within AddSkillProvider')
-  return ctx
+  return ctx ?? DEFAULT_ADD_SKILL_VALUE
 }
 
 export default AddSkillContext

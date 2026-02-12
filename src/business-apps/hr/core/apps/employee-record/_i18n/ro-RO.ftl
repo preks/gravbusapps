@@ -392,6 +392,17 @@ skills-development-distribution = Distribuția competențelor
 skills-development-distribution-empty = Nicio competență de afișat
 skills-development-groups = Grupuri de competențe
 
+# Add Skill Form
+add-skill-form-title = Adaugă competență
+add-skill-form-update-level-title = Actualizează nivelul competenței
+add-skill-form-search-skills-title = Caută competențe
+add-skill-form-search-skill-placeholder = Caută competență...
+add-skill-form-selected-skills-label = Selectează nivelul competenței
+add-skill-form-current-employee-skills-label = Competențele curente ale angajatului
+add-skill-form-no-current-skills = Nicio competență curentă
+add-skill-form-add-button = Adaugă
+add-skill-form-skill-add-error = Nu s-a putut adăuga competența
+
 # Performance Tab
 performance-title = Obiective de performanță
 performance-description = Vizualizați și gestionați obiectivele de performanță ale angajaților

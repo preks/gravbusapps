@@ -399,6 +399,17 @@ skills-development-distribution = Skill Distribution
 skills-development-distribution-empty = No skills to display
 skills-development-groups = Skill Groups
 
+# Add Skill Form
+add-skill-form-title = Add Skill
+add-skill-form-update-level-title = Update skill level
+add-skill-form-search-skills-title = Search Skills
+add-skill-form-search-skill-placeholder = Search skill...
+add-skill-form-selected-skills-label = Select Skill Level
+add-skill-form-current-employee-skills-label = Current Employee Skills
+add-skill-form-no-current-skills = No current skills
+add-skill-form-add-button = Add
+add-skill-form-skill-add-error = Failed to add skill
+
 # Performance Tab
 performance-title = Performance Goals
 performance-description = View and manage employee performance goals

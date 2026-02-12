@@ -15,6 +15,8 @@ export interface SkillLevelRowProps {
   actionButton?: React.ReactNode
   index?: number
   rowId?: string
+  /** When false, the Remove button is not rendered (e.g. single-skill level update). */
+  showRemove?: boolean
 }
 
 export const SkillLevelRow: React.FC<SkillLevelRowProps> = ({
@@ -25,7 +27,8 @@ export const SkillLevelRow: React.FC<SkillLevelRowProps> = ({
   removeButtonTestId,
   actionButton,
   index,
-  rowId
+  rowId,
+  showRemove = true
 }) => {
   let suffix = ''
   if (rowId) suffix = `-${rowId}`
@@ -50,19 +53,21 @@ export const SkillLevelRow: React.FC<SkillLevelRowProps> = ({
 
         {actionButton}
 
-        <Button
-          type="button"
-          variant="destructive"
-          size="sm"
-          onClick={onRemove}
-          className="gba:flex-shrink-0"
-          data-testid={removeButtonTestId || `${dataTestIdPrefix}-remove-skill`}
-        >
-          {getTranslationFromI18nKeyAndLabel(
-            'lowcoder:employee_profile.details_layout.add_skill_form.remove_aria_label',
-            'Remove'
-          )}
-        </Button>
+        {showRemove && (
+          <Button
+            type="button"
+            variant="destructive"
+            size="sm"
+            onClick={onRemove}
+            className="gba:flex-shrink-0"
+            data-testid={removeButtonTestId || `${dataTestIdPrefix}-remove-skill`}
+          >
+            {getTranslationFromI18nKeyAndLabel(
+              'lowcoder:employee_profile.details_layout.add_skill_form.remove_aria_label',
+              'Remove'
+            )}
+          </Button>
+        )}
       </div>
     </div>
   )

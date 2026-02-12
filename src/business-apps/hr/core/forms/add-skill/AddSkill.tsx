@@ -10,14 +10,32 @@ import { DebouncedInput } from '@/components/debounced-input'
 import { getSkillValidationError, buildEmployeeSkillsPayload } from './utils/addSkillUtils'
 import { AddSkillSearchDropdown } from './components/AddSkillSearchDropdown'
 import { SkillLevelRow } from './components/SkillLevelRow'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Button } from '@newwork/nw-design-system'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Button,
+  useTranslation
+} from '@newwork/nw-design-system'
+import translations from '@/business-apps/hr/core/apps/employee-record/_i18n'
 
 interface AddSkillFormValues {
   targetEmployeeId?: string
 }
 
 const AddSkillContent: React.FC<BusinessAppContextProps> = () => {
-  const { data, searchSkills, createSkillAndFetchByNames, employeeId: ctxEmployeeId } = useAddSkill()
+  const { t } = useTranslation(translations)
+  const {
+    data,
+    searchSkills,
+    createSkillAndFetchByNames,
+    employeeId: ctxEmployeeId,
+    changeLevelParams,
+    error: contextError,
+    isLoading: contextLoading
+  } = useAddSkill()
   const [searchTerm, setSearchTerm] = useState('')
   const [results, setResults] = useState<Array<any>>([])
   const [isSearching, setIsSearching] = useState(false)
@@ -51,12 +69,8 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = () => {
   })
 
   const title = useMemo(
-    () =>
-      getTranslationFromI18nKeyAndLabel(
-        'lowcoder:employee_profile.details_layout.add_skill_form.form_title',
-        'Add Skill'
-      ),
-    []
+    () => (changeLevelParams ? t('add-skill-form-update-level-title') : t('add-skill-form-title')),
+    [changeLevelParams, t]
   )
 
   const employee = data?.employee
@@ -64,9 +78,27 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = () => {
   const normalizedDefaults: AddSkillFormValues = useMemo(() => ({ targetEmployeeId: employee?.id }), [employee?.id])
 
   useEffect(() => {
-    const existing = (
-      (employee?.skills || []) as Array<{ skill?: { id: string; name: string }; level?: string | number | null }>
-    ).map(s => {
+    const skills = (employee?.skills || []) as Array<{
+      skill?: { id: string; name: string }
+      level?: string | number | null
+    }>
+    if (changeLevelParams?.skillId) {
+      const match = skills.find(s => s.skill?.id === changeLevelParams.skillId)
+      if (match) {
+        let level = 1
+        if (changeLevelParams.currentLevel != null) {
+          level = Math.max(1, Math.min(10, changeLevelParams.currentLevel))
+        } else if (match.level !== null && match.level !== undefined) {
+          const parsed = typeof match.level === 'string' ? Number.parseInt(match.level, 10) : match.level
+          level = Number.isNaN(parsed) ? 1 : Math.max(1, Math.min(10, parsed))
+        }
+        setSelectedSkills([
+          { id: match.skill?.id ?? changeLevelParams.skillId, name: match.skill?.name ?? '', isNew: false, level }
+        ])
+      }
+      return
+    }
+    const existing = skills.map(s => {
       let level = 1
       if (s.level !== null && s.level !== undefined) {
         const parsed = typeof s.level === 'string' ? Number.parseInt(s.level, 10) : s.level
@@ -79,7 +111,7 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = () => {
       if (s.id) deduped[s.id] = s
     })
     setSelectedSkills(Object.values(deduped))
-  }, [employee?.skills])
+  }, [employee?.skills, changeLevelParams?.skillId, changeLevelParams?.currentLevel])
 
   const suppressOpenRef = useRef(false)
   const searchSeqRef = useRef(0)
@@ -103,6 +135,11 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = () => {
     })
     const currentSkillMap = new Map<string, number>()
     selectedSkills.forEach(s => currentSkillMap.set(s.id, s.level || 1))
+    if (changeLevelParams?.skillId) {
+      const initialLevel = initialSkillMap.get(changeLevelParams.skillId) ?? 1
+      const currentLevel = currentSkillMap.get(changeLevelParams.skillId) ?? 1
+      return initialLevel === currentLevel
+    }
     const skillsChanged =
       initialSkillMap.size !== currentSkillMap.size ||
       Array.from(initialSkillMap.keys()).some(id => !currentSkillMap.has(id)) ||
@@ -112,7 +149,7 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = () => {
       return currentLevel !== undefined && currentLevel !== level
     })
     return !(skillsChanged || levelsChanged)
-  }, [employee?.skills, selectedSkills])
+  }, [employee?.skills, selectedSkills, changeLevelParams?.skillId])
 
   useEffect(() => {
     let isActive = true
@@ -198,14 +235,7 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = () => {
       const fetched = await createSkillAndFetchByNames(name, addedNames)
       setPendingSkills(prev => applyFetchedToPending(prev, fetched))
     } catch (e) {
-      setAddError(
-        e instanceof Error
-          ? e.message
-          : getTranslationFromI18nKeyAndLabel(
-              'lowcoder:employee_profile.details_layout.add_skill_form.skill_add_error',
-              'Failed to add skill'
-            )
-      )
+      setAddError(e instanceof Error ? e.message : t('add-skill-form-skill-add-error'))
     }
     suppressOpenRef.current = true
     searchSeqRef.current += 1
@@ -283,6 +313,19 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = () => {
     setPendingSkills(prev => prev.filter(s => s.id !== pendingSkill.id))
   }
 
+  if (!contextLoading && contextError) {
+    return (
+      <div
+        className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-full gba:p-4"
+        data-testid="flw_addSkills_addSkillsContainer"
+      >
+        <div className="gba:text-destructive gba:text-sm" data-testid="add-skill-context-error">
+          {contextError}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div
       className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-full"
@@ -325,141 +368,161 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = () => {
           )}
           onSubmit={async (values: AddSkillFormValues) => {
             const employeeId = ctxEmployeeId || values.targetEmployeeId
-            const selectedIds = selectedSkills.map(s => s.id)
+            const existingSkillsList = (employee?.skills || []) as Array<{
+              skill?: { id: string }
+              level?: string | number | null
+            }>
+            let selectedIds: string[]
             const selectedLevels = new Map<string, number>()
-            selectedSkills.forEach(s => selectedLevels.set(s.id, s.level || 1))
+            if (changeLevelParams?.skillId) {
+              selectedIds = existingSkillsList.map(s => s.skill?.id).filter(Boolean) as string[]
+              existingSkillsList.forEach(s => {
+                const skillId = s.skill?.id
+                if (!skillId) return
+                let level = 1
+                if (s.level !== null && s.level !== undefined) {
+                  const parsed = typeof s.level === 'string' ? Number.parseInt(s.level, 10) : s.level
+                  level = Number.isNaN(parsed) ? 1 : Math.max(1, Math.min(10, parsed))
+                }
+                selectedLevels.set(skillId, level)
+              })
+              const editedLevel = selectedSkills.find(s => s.id === changeLevelParams.skillId)?.level ?? 1
+              selectedLevels.set(changeLevelParams.skillId, editedLevel)
+            } else {
+              selectedIds = selectedSkills.map(s => s.id)
+              selectedSkills.forEach(s => selectedLevels.set(s.id, s.level || 1))
+            }
             return buildEmployeeSkillsPayload({
               employeeId,
               selectedSkillIds: selectedIds,
               selectedSkillLevels: selectedLevels,
-              existingSkills: (employee?.skills || []) as any,
+              existingSkills: existingSkillsList as any,
               event: 'pse_submit'
             })
           }}
           data-testid="add-skill-form"
         >
           <div className="gba:flex-1 gba:space-y-3">
-            <span
-              className="gba:block gba:text-muted-foreground gba:font-bold gba:mb-2"
-              data-testid="add-skill-search-title"
-            >
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:employee_profile.details_layout.add_skill_form.search_skills_title',
-                'Search Skills'
-              )}
-            </span>
-            <div className="gba:flex gba:flex-col gba:gap-2" data-testid="add-skill-search-filters">
-              <div
-                className="gba:relative gba:w-full"
-                data-testid="add-skill-search-container"
-                ref={searchContainerRef}
-              >
-                <DebouncedInput
-                  key={inputKey}
-                  value={searchTerm}
-                  onChange={setSearchTerm}
-                  onBlur={handleSearchBlur}
-                  onFocus={handleSearchFocus}
-                  debounceDelay={300}
-                  placeholder={getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:employee_profile.details_layout.add_skill_form.search_skill_placeholder',
-                    'Search skill...'
-                  )}
-                  data-testid="flw_addSkills_searchInput"
-                  className="gba:w-full"
-                />
-                <AddSkillSearchDropdown
-                  ref={dropdownRef}
-                  isOpen={
-                    isDropdownOpen &&
-                    (isSearching ||
-                      filteredResults.length > 0 ||
-                      (searchTerm.trim().length > 0 && filteredResults.length === 0))
-                  }
-                  isSearching={isSearching}
-                  filteredResults={filteredResults as any}
-                  searchTerm={searchTerm}
-                  onSelect={handleSelectSkill}
-                  onAddNew={handleAddNewSkill}
-                />
-              </div>
-            </div>
-
-            {addError && (
-              <div className="gba:text-destructive" data-testid="add-skill-error">
-                {addError}
-              </div>
-            )}
-
-            {pendingSkills.length > 0 && (
-              <div className="gba:space-y-2 gba:mt-5">
+            {!changeLevelParams ? (
+              <>
                 <span
-                  className="gba:block gba:text-muted-foreground gba:font-bold gba:mb-4"
-                  data-testid="add-skill-selected-skills-label"
+                  className="gba:block gba:text-muted-foreground gba:font-bold gba:mb-2"
+                  data-testid="add-skill-search-title"
                 >
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:employee_profile.details_layout.add_skill_form.selected_skills_label',
-                    'Select Skill Level'
-                  )}
+                  {t('add-skill-form-search-skills-title')}
                 </span>
-                <div
-                  className="gba:flex gba:flex-col gba:gap-2 gba:max-h-[350px] gba:overflow-y-auto"
-                  data-testid="add-skill-pending-container"
-                >
-                  {pendingSkills.map(skill => (
-                    <SkillLevelRow
-                      key={skill.id}
-                      skillName={skill.name}
-                      onRemove={() => handleRemovePendingSkill(skill.id)}
-                      dataTestIdPrefix="add-skill-pending"
-                      removeButtonTestId={`skill-level-row-remove-${skill.id}`}
-                      rowId={skill.id}
-                      levelContent={
-                        <Select
-                          value={skill.level.toString()}
-                          onValueChange={value => handleUpdatePendingSkillLevel(skill.id, Number.parseInt(value, 10))}
-                          data-testid={`skill-level-select-${skill.id}`}
-                        >
-                          <SelectTrigger className="gba:w-20" size="sm">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {Array.from({ length: 10 }, (_, i) => i + 1).map(level => (
-                              <SelectItem key={level} value={level.toString()}>
-                                {level}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      }
-                      actionButton={
-                        <Button
-                          type="button"
-                          size="sm"
-                          onClick={() => handleAddPendingSkillToEmployee(skill)}
-                          data-testid={`add-skill-pending-add-${skill.id}`}
-                        >
-                          {getTranslationFromI18nKeyAndLabel(
-                            'lowcoder:employee_profile.details_layout.add_skill_form.add_button',
-                            'Add'
-                          )}
-                        </Button>
-                      }
+                <div className="gba:flex gba:flex-col gba:gap-2" data-testid="add-skill-search-filters">
+                  <div
+                    className="gba:relative gba:w-full"
+                    data-testid="add-skill-search-container"
+                    ref={searchContainerRef}
+                  >
+                    <DebouncedInput
+                      key={inputKey}
+                      value={searchTerm}
+                      onChange={setSearchTerm}
+                      onBlur={handleSearchBlur}
+                      onFocus={handleSearchFocus}
+                      debounceDelay={300}
+                      placeholder={t('add-skill-form-search-skill-placeholder')}
+                      data-testid="flw_addSkills_searchInput"
+                      className="gba:w-full"
                     />
-                  ))}
+                    <AddSkillSearchDropdown
+                      ref={dropdownRef}
+                      isOpen={
+                        isDropdownOpen &&
+                        (isSearching ||
+                          filteredResults.length > 0 ||
+                          (searchTerm.trim().length > 0 && filteredResults.length === 0))
+                      }
+                      isSearching={isSearching}
+                      filteredResults={filteredResults as any}
+                      searchTerm={searchTerm}
+                      onSelect={handleSelectSkill}
+                      onAddNew={handleAddNewSkill}
+                    />
+                  </div>
                 </div>
-              </div>
-            )}
 
-            <span
-              className="gba:block gba:text-muted-foreground gba:font-bold gba:mb-4 gba:mt-5"
-              data-testid="add-skill-employee-skills-label"
-            >
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:employee_profile.details_layout.add_skill_form.current_employee_skills_label',
-                'Current Employee Skills'
-              )}
-            </span>
+                {addError && (
+                  <div className="gba:text-destructive" data-testid="add-skill-error">
+                    {addError}
+                  </div>
+                )}
+
+                {pendingSkills.length > 0 && (
+                  <div className="gba:space-y-2 gba:mt-5">
+                    <span
+                      className="gba:block gba:text-muted-foreground gba:font-bold gba:mb-4"
+                      data-testid="add-skill-selected-skills-label"
+                    >
+                      {t('add-skill-form-selected-skills-label')}
+                    </span>
+                    <div
+                      className="gba:flex gba:flex-col gba:gap-2 gba:max-h-[350px] gba:overflow-y-auto"
+                      data-testid="add-skill-pending-container"
+                    >
+                      {pendingSkills.map(skill => (
+                        <SkillLevelRow
+                          key={skill.id}
+                          skillName={skill.name}
+                          onRemove={() => handleRemovePendingSkill(skill.id)}
+                          dataTestIdPrefix="add-skill-pending"
+                          removeButtonTestId={`skill-level-row-remove-${skill.id}`}
+                          rowId={skill.id}
+                          levelContent={
+                            <Select
+                              value={skill.level.toString()}
+                              onValueChange={value =>
+                                handleUpdatePendingSkillLevel(skill.id, Number.parseInt(value, 10))
+                              }
+                              data-testid={`skill-level-select-${skill.id}`}
+                            >
+                              <SelectTrigger className="gba:w-20" size="sm">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {Array.from({ length: 10 }, (_, i) => i + 1).map(level => (
+                                  <SelectItem key={level} value={level.toString()}>
+                                    {level}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          }
+                          actionButton={
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => handleAddPendingSkillToEmployee(skill)}
+                              data-testid={`add-skill-pending-add-${skill.id}`}
+                            >
+                              {t('add-skill-form-add-button')}
+                            </Button>
+                          }
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <span
+                  className="gba:block gba:text-muted-foreground gba:font-bold gba:mb-4 gba:mt-5"
+                  data-testid="add-skill-employee-skills-label"
+                >
+                  {t('add-skill-form-current-employee-skills-label')}
+                </span>
+              </>
+            ) : (
+              <span
+                className="gba:block gba:text-muted-foreground gba:font-bold gba:mb-4"
+                data-testid="add-skill-change-level-label"
+              >
+                {t('add-skill-form-update-level-title')}
+              </span>
+            )}
 
             {selectedSkills.length > 0 ? (
               <div
@@ -476,6 +539,7 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = () => {
                       dataTestIdPrefix="add-skill-existing"
                       removeButtonTestId={`skill-level-row-remove-${skill.id}`}
                       rowId={skill.id}
+                      showRemove={!changeLevelParams}
                       levelContent={
                         <Select
                           value={(skill.level || 1).toString()}
@@ -498,12 +562,11 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = () => {
                   ))}
               </div>
             ) : (
-              <div className="gba:text-sm gba:text-muted-foreground gba:py-2">
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:employee_profile.details_layout.add_skill_form.no_current_skills',
-                  'No current skills'
-                )}
-              </div>
+              !changeLevelParams && (
+                <div className="gba:text-sm gba:text-muted-foreground gba:py-2">
+                  {t('add-skill-form-no-current-skills')}
+                </div>
+              )
             )}
           </div>
         </AppActionForm>
