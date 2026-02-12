@@ -58,6 +58,7 @@ import localeData from 'dayjs/plugin/localeData'
 dayjs.extend(weekday)
 dayjs.extend(localeData)
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { formatNumberFunction, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { expenseSettingsClient } from '../../../utils/ExpenseSettingsClient'
 import { formatDateForInput, checkPeriodUniqueness, formatDate, normalizeDateInputValue } from '../../../utils'
 import {
@@ -168,6 +169,54 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
   const [isDeleting, setIsDeleting] = useState(false)
 
   const isMidnightRuleEnabled = !!form.watch('midnightRule')
+  const decimalSeparator = useMemo(() => {
+    const localeCandidates = [
+      getCurrentActiveUserLocale(),
+      (globalThis as any)?.window?.lowcoder?.i18n?.selectedLocale,
+      (globalThis as any)?.window?.lowcoder?.i18n?.language,
+      globalThis.navigator?.language
+    ]
+      .filter(Boolean)
+      .map(value => String(value).toLowerCase())
+
+    // Align with expense wizard locale handling: DE/RO use comma decimal separator.
+    const isCommaLocale = localeCandidates.some(locale => /(^|[-_])(de|ro)($|[-_])/.test(locale))
+    if (isCommaLocale) return ','
+
+    // Prefer platform formatter because it reflects the actual active UI locale.
+    const platformFormatted = formatNumberFunction(1.1, '0.00[,]00')
+    if (typeof platformFormatted === 'string') {
+      if (platformFormatted.includes(',')) return ','
+      if (platformFormatted.includes('.')) return '.'
+    }
+
+    const fallbackLocales = [...localeCandidates, 'en-US'] as string[]
+
+    for (const locale of fallbackLocales) {
+      try {
+        const separator =
+          new Intl.NumberFormat(locale).formatToParts(1.1).find(part => part.type === 'decimal')?.value || '.'
+        return separator
+      } catch {
+        // Continue trying fallback locales
+      }
+    }
+
+    try {
+      return new Intl.NumberFormat('en-US').formatToParts(1.1).find(part => part.type === 'decimal')?.value || '.'
+    } catch {
+      return '.'
+    }
+  }, [])
+
+  const formatMinHoursForInput = useCallback(
+    (value: number | string | undefined) => {
+      if (value === undefined || value === null || value === '') return ''
+      const normalized = String(value).replace(',', '.')
+      return decimalSeparator === ',' ? normalized.replace('.', ',') : normalized
+    },
+    [decimalSeparator]
+  )
 
   // Usage check state
   const [, setIsCheckingUsage] = useState(false)
@@ -858,7 +907,7 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                         data-testid={`allowance-period-min-hours-cell-${record.id}`}
                       >
                         <Badge variant="default" data-testid={`allowance-period-min-hours-badge-${record.id}`}>
-                          {record.minHours}
+                          {formatMinHoursForInput(record.minHours)}
                         </Badge>
                       </TableCell>
 
@@ -1059,8 +1108,13 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                     name="minHours"
                     rules={{
                       required: 'Minimum Hours is required',
-                      min: { value: 0, message: 'Must be at least 0' },
-                      max: { value: 24, message: 'Must be at most 24' }
+                      validate: value => {
+                        const numericValue = parseFloat(String(value ?? '').replace(',', '.'))
+                        if (Number.isNaN(numericValue)) return 'Must be a valid number'
+                        if (numericValue < 0) return 'Must be at least 0'
+                        if (numericValue > 24) return 'Must be at most 24'
+                        return true
+                      }
                     }}
                     render={({ field }) => (
                       <FormItem data-testid="allowance-period-min-hours-field">
@@ -1070,8 +1124,8 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                             type="text"
                             inputMode="decimal"
                             autoComplete="off"
-                            placeholder="e.g., 12 or 12.5"
-                            value={field.value ?? ''}
+                            placeholder={decimalSeparator === ',' ? 'e.g., 12 or 12,5' : 'e.g., 12 or 12.5'}
+                            value={formatMinHoursForInput(field.value)}
                             onFocus={e => {
                               // Improve UX: allow overwriting the default "0" without arrow controls
                               if (field.value === 0) e.currentTarget.select()
@@ -1086,12 +1140,12 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                                 field.onChange('')
                                 return
                               }
-                              // Allow digits, decimal point, and partial decimals like "0." or "."
-                              if (!/^\d*\.?\d*$/.test(next)) return
-                              // Prevent invalid decimal patterns like "1.2.3"
-                              if ((next.match(/\./g) || []).length > 1) return
-                              // Keep as string during editing to allow "0." or "12."
-                              field.onChange(next)
+                              // Accept both separators and normalize internally to dot.
+                              const normalized = next.replace(',', '.')
+                              if (!/^\d*\.?\d*$/.test(normalized)) return
+                              if ((normalized.match(/\./g) || []).length > 1) return
+                              // Keep as string during editing to preserve partial decimals like "8." / "8,"
+                              field.onChange(normalized)
                             }}
                             disabled={isRestrictedEdit}
                             data-testid="allowance-period-min-hours-input"
