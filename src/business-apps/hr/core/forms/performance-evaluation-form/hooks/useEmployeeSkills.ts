@@ -57,17 +57,13 @@ export const useEmployeeSkills = ({ accessToken, employeeId }: UseEmployeeSkills
 
       try {
         const query = GET_EMPLOYEE_SKILLS(targetEmployeeId)
-        console.log('[useEmployeeSkills] Fetching employee skills for:', targetEmployeeId)
         const result = await graphqlClient.request<EmployeeSkillsResponse>(query)
-        console.log('[useEmployeeSkills] Result:', result)
 
         if (result.Employee && result.Employee.length > 0) {
           const employeeSkills = result.Employee[0].skills || []
           setSkills(employeeSkills)
-          console.log('[useEmployeeSkills] Found skills:', employeeSkills.length)
         } else {
           setSkills([])
-          console.log('[useEmployeeSkills] No employee found')
         }
       } catch (err) {
         console.error('[useEmployeeSkills] Error:', err)

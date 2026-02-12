@@ -24,9 +24,6 @@ const PerformanceEvaluationForm: React.FC<BusinessAppContextProps & PerformanceE
     )
   }
 
-  console.log('userInfo from form', userInfo)
-  console.log('additionalData from form', additionalData)
-
   const businessAppContext: BusinessAppContextProps = {
     accessToken,
     userInfo,
@@ -36,9 +33,6 @@ const PerformanceEvaluationForm: React.FC<BusinessAppContextProps & PerformanceE
   // If preSelectedUserId is not provided explicitly, try to get it from userInfo
   // Note: userInfo.id is the userId, not userInfo.userId
   const effectivePreSelectedUserId = preSelectedUserId || userInfo?.id
-  console.log('effectivePreSelectedUserId', effectivePreSelectedUserId)
-  console.log('preSelectedUserId (prop)', preSelectedUserId)
-  console.log('userInfo?.id', userInfo?.id)
 
   return (
     <PerformanceEvaluationFormProvider

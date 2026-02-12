@@ -54,9 +54,7 @@ export const usePerformanceCycleById = ({ accessToken, cycleId }: UsePerformance
 
       try {
         const query = GET_CYCLE_BY_ID(targetCycleId)
-        console.log('[usePerformanceCycleById] Fetching cycle:', targetCycleId)
         const result = await graphqlClient.request<PerformanceCycleResponse>(query)
-        console.log('[usePerformanceCycleById] Result:', result)
 
         if (result.PerformanceCycle && result.PerformanceCycle.length > 0) {
           const apiCycle = result.PerformanceCycle[0]

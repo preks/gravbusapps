@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
 export interface EmployeeByUserIdData {
@@ -92,7 +92,7 @@ export const GET_EMPLOYEE_BY_USER_ID = (userId: string): string => {
 /**
  * Custom hook for fetching a single employee by userId
  */
-export const useEmployeeByUserId = ({ accessToken, userId }: UseEmployeeByUserIdProps): UseEmployeeByUserIdReturn => {
+export const useEmployeeByUserId = ({ accessToken }: UseEmployeeByUserIdProps): UseEmployeeByUserIdReturn => {
   const [employee, setEmployee] = useState<EmployeeByUserIdData | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -109,15 +109,11 @@ export const useEmployeeByUserId = ({ accessToken, userId }: UseEmployeeByUserId
 
       try {
         const query = GET_EMPLOYEE_BY_USER_ID(targetUserId)
-        console.log('[useEmployeeByUserId] Executing query for userId:', targetUserId)
         const result = await graphqlClient.request<EmployeeByUserIdResponse>(query)
-        console.log('[useEmployeeByUserId] Query result:', result)
 
         if (result.EmployeePosition && result.EmployeePosition.length > 0) {
-          console.log('[useEmployeeByUserId] Employee found:', result.EmployeePosition[0])
           setEmployee(result.EmployeePosition[0])
         } else {
-          console.log('[useEmployeeByUserId] Employee not found')
           setEmployee(null)
           setError('Employee not found')
         }
@@ -131,16 +127,6 @@ export const useEmployeeByUserId = ({ accessToken, userId }: UseEmployeeByUserId
     },
     [accessToken, graphqlClient]
   )
-
-  useEffect(() => {
-    console.log('[useEmployeeByUserId] useEffect triggered:', { userId, accessToken: !!accessToken })
-    if (userId) {
-      console.log('[useEmployeeByUserId] Fetching employee for userId:', userId)
-      fetchEmployeeByUserId(userId)
-    } else {
-      console.log('[useEmployeeByUserId] No userId provided, skipping fetch')
-    }
-  }, [userId, fetchEmployeeByUserId])
 
   return {
     employee,

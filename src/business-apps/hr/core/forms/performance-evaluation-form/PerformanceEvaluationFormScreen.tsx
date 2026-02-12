@@ -14,13 +14,8 @@ const PerformanceEvaluationFormScreen: React.FC<PerformanceEvaluationFormScreenP
   additionalData,
   preSelectedEmployeeId
 }) => {
-  console.log('userInfoCosti', userInfo)
-  console.log('additionalDataCosti', additionalData)
-
   // Extract employeeId from task payload (for performance evaluation flow)
   const employeeIdFromTaskPayload = (additionalData as any)?.psi_taskPayload?.employeePerformanceEvaluation?.employee
-
-  console.log('employeeIdFromTaskPayload', employeeIdFromTaskPayload)
 
   // Extract employeeId with priority to task payload
   const employeeId =
