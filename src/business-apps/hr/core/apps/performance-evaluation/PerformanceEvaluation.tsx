@@ -69,11 +69,17 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
   const { savePerformanceCycle, updateCycleActive, deletePerformanceCycle } = useSavePerformanceCycle(accessToken)
   const { saveCompanyValue, deleteCompanyValue, updateCompanyValueRecordState } = useSaveCompanyValue(accessToken)
 
-  // Fetch manager's userId for process payload
+  // Fetch manager's userId and current employee's userId for process payload
   const platformContext = getPlatformContext()
   const { managerUserId } = useManagerUserId({
     accessToken,
     managerId: platformContext.managerId
+  })
+
+  // Fetch current employee's userId (not to be confused with employeeId)
+  const { managerUserId: currentEmployeeUserId } = useManagerUserId({
+    accessToken,
+    managerId: platformContext.employeeId // Using the hook to get userId for current employee
   })
 
   const [cycles, setCycles] = useState<PerformanceCycle[]>([])
@@ -232,8 +238,6 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
         return date.toISOString()
       }
 
-      const mockUser = '388c8c22-94de-4105-8ff8-a29acf5f3f56'
-
       // Build the payload according to the API specification
       const payload = {
         employeePerformanceEvaluation: {
@@ -246,12 +250,8 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
           employee: platformContext.employeeId,
           performanceCycle: cycle.id
         },
-        //ToDo: Remove this after testing and use the managerUserId from the platform context
-        // managerUserId: managerUserId || '',
-        managerUserId: mockUser || managerUserId,
-        // employeeUserId: platformContext.userId || ''
-        //ToDo: Remove this after testing and use the employeeUserId from the platform context
-        employeeUserId: mockUser || platformContext.userId
+        managerUserId: managerUserId || '',
+        employeeUserId: currentEmployeeUserId || ''
       }
 
       // Start the Kogito process
