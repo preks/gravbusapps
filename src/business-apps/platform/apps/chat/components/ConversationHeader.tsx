@@ -12,7 +12,11 @@ import {
   DialogDescription,
   DialogFooter,
   DialogHeader,
-  DialogTitle
+  DialogTitle,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger
 } from '@newwork/nw-design-system'
 import {
   ArrowLeft,
@@ -282,12 +286,21 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
           </h2>
           {/* Show status message for direct chats with active users */}
           {isDirectChat && !compact && otherUserPresence?.userStatus?.statusMessage && presenceStatus !== 'offline' ? (
-            <div className="gba:flex gba:items-center gba:gap-1.5">
-              <ChatText size={14} weight="duotone" className="gba:text-muted-foreground gba:flex-shrink-0" />
-              <p className="gba:text-xs gba:text-muted-foreground gba:truncate gba:italic">
-                {otherUserPresence.userStatus.statusMessage}
-              </p>
-            </div>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="gba:flex gba:items-center gba:gap-1.5 gba:cursor-default">
+                    <ChatText size={14} weight="duotone" className="gba:text-muted-foreground gba:flex-shrink-0" />
+                    <p className="gba:text-xs gba:text-muted-foreground gba:truncate gba:italic">
+                      {otherUserPresence.userStatus.statusMessage}
+                    </p>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" align="start">
+                  <p className="gba:max-w-xs gba:break-words">{otherUserPresence.userStatus.statusMessage}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           ) : /* Show "Last seen" for offline users */ isDirectChat &&
             !compact &&
             otherUserPresence?.lastSeen &&

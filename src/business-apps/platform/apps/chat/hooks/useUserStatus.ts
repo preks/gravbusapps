@@ -63,6 +63,38 @@ export function useUserStatus({ client, isConnected, currentUserId }: UseUserSta
     }
   }, [client, isConnected, currentUserId])
 
+  // Auto-clear expired status messages (frontend safeguard)
+  useEffect(() => {
+    if (!myStatus?.statusMessage || !myStatus?.statusMessageExpiresAt) return
+
+    const checkExpiration = () => {
+      try {
+        const expiresAt = new Date(myStatus.statusMessageExpiresAt!)
+        const now = new Date()
+
+        if (expiresAt.getTime() <= now.getTime()) {
+          // Status message has expired - clear it locally
+          rtkDebug.log('[useUserStatus] ⏰ Status message expired, clearing locally')
+          setMyStatus(prev => ({
+            ...prev!,
+            statusMessage: undefined,
+            statusMessageExpiresAt: undefined
+          }))
+        }
+      } catch (error) {
+        console.error('[useUserStatus] Error checking expiration:', error)
+      }
+    }
+
+    // Check immediately
+    checkExpiration()
+
+    // Check every 30 seconds
+    const interval = setInterval(checkExpiration, 30000)
+
+    return () => clearInterval(interval)
+  }, [myStatus?.statusMessage, myStatus?.statusMessageExpiresAt])
+
   // Set user's manual status
   const setStatus = useCallback(
     async (status: UserPresenceStatus, statusMessage?: string, expiresAt?: Date) => {

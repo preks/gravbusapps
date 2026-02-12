@@ -3,6 +3,8 @@
  * Handles peer connection, media streams, and call signaling
  */
 
+import { getAudioConstraints } from '../config/audioConstraints'
+
 export type CallType = 'audio' | 'video'
 export type CallStatus = 'idle' | 'initiating' | 'ringing' | 'connecting' | 'connected' | 'ended' | 'failed'
 export type CallDirection = 'outgoing' | 'incoming'
@@ -145,12 +147,11 @@ export class WebRTCClient {
       })()
 
       const constraints: MediaStreamConstraints = {
-        audio: {
+        audio: getAudioConstraints({
           ...(options?.audioDeviceId ? { deviceId: { exact: options.audioDeviceId } } : {}),
-          echoCancellation: true,
           noiseSuppression: resolvedNoiseSuppressionEnabled,
           autoGainControl: resolvedAutoGainControlEnabled
-        },
+        }),
         video:
           type === 'video'
             ? {
@@ -201,12 +202,11 @@ export class WebRTCClient {
     })()
 
     const newStream = await navigator.mediaDevices.getUserMedia({
-      audio: {
+      audio: getAudioConstraints({
         deviceId: { exact: deviceId },
-        echoCancellation: true,
         noiseSuppression: resolvedNoiseSuppressionEnabled,
         autoGainControl: resolvedAutoGainControlEnabled
-      },
+      }),
       video: false
     })
 

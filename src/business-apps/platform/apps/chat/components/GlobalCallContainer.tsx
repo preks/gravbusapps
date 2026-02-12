@@ -11,12 +11,13 @@
  */
 
 import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react'
+import { flushSync } from 'react-dom'
 import { globalCallManager } from '../services/globalCallManager'
 import { GroupCallModalRtk } from './GroupCallModalRtk'
 import { RealtimeKitProvider } from '@cloudflare/realtimekit-react'
 import { TranslationProvider } from '../contexts/TranslationContext'
-import { navigateTo } from '@/common/utils/navigationUtils'
 import { RTKVirtualBackground } from '../services/rtkVirtualBackground'
+import { STORAGE_KEY_ACCESS_TOKEN } from '@/common/constants/ideStorageKeys'
 
 export const GlobalCallContainer: React.FC = () => {
   const [instanceId] = useState(() => `global-call-container-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`)
@@ -28,12 +29,20 @@ export const GlobalCallContainer: React.FC = () => {
   useEffect(() => {
     const unsubscribe = globalCallManager.subscribe(() => {
       const data = globalCallManager.getCallData()
-      // IMPORTANT: always create a new reference so React re-renders even when the manager mutates in place
-      setCallData({ ...data })
-      setUiOwnerId(globalCallManager.getUiOwnerId())
+      console.log('[GlobalCallContainer] Subscription fired', {
+        isMinimized: data.callState.isMinimized,
+        status: data.callState.status,
+        instanceId
+      })
+      // IMPORTANT: Use flushSync to ensure state updates immediately without batching
+      // This prevents timing issues when toggling minimize/maximize rapidly
+      flushSync(() => {
+        setCallData({ ...data })
+        setUiOwnerId(globalCallManager.getUiOwnerId())
+      })
     })
     return unsubscribe
-  }, [])
+  }, [instanceId])
 
   const isEligibleRealtimeKitCall = useMemo(() => {
     return (
@@ -68,138 +77,460 @@ export const GlobalCallContainer: React.FC = () => {
     }
   }, [instanceId, isEligibleRealtimeKitCall, uiOwnerId])
 
-  // Enhanced toggle minimize handler - navigates to chat when maximizing
+  // Toggle minimize handler - no navigation, just state update
   const handleToggleMinimize = useCallback(() => {
     // CRITICAL: Get LATEST callData inside the function, not from closure
-    // This ensures we have the most up-to-date callbacks after component remounts
     const latestCallData = globalCallManager.getCallData()
     const isCurrentlyMinimized = latestCallData.callState.isMinimized
+    const newMinimizedState = !isCurrentlyMinimized
 
-    // If maximizing from another page, update globalCallManager FIRST before navigating
-    // This ensures the component remounts with the correct maximized state
-    if (isCurrentlyMinimized) {
-      const isProduction = process.env.NODE_ENV === 'production'
-      const isAlreadyOnChatPage = isProduction
-        ? window.location.pathname.startsWith('/platform/chat')
-        : new URLSearchParams(window.location.search).get('app') === 'platform/apps/chat'
+    console.log('[GlobalCallContainer] handleToggleMinimize called', {
+      isCurrentlyMinimized,
+      newMinimizedState,
+      hasToggleCallback: !!latestCallData.toggleMinimize,
+      instanceId
+    })
 
-      if (!isAlreadyOnChatPage) {
-        // Update globalCallManager state BEFORE navigation
-        globalCallManager.updateCallState({ isMinimized: false, hasBeenMinimized: true })
+    // Always update globalCallManager first - this will trigger subscription
+    globalCallManager.updateCallState({ isMinimized: newMinimizedState, hasBeenMinimized: true })
 
-        // Then navigate - component will remount with correct maximized state
-        navigateTo('/platform/chat')
-        return
-      }
-    }
-
-    // Always use the hook's callback if available for proper state sync
+    // Try to use the hook's callback if available (for additional side effects)
     if (latestCallData.toggleMinimize) {
       const before = globalCallManager.getCallData().callState.isMinimized
-      latestCallData.toggleMinimize()
-      const after = globalCallManager.getCallData().callState.isMinimized
 
-      // If the callback was stale/no-op (possible with multiple mounted hook instances),
-      // fall back to a direct state update so maximize/minimize still works.
-      if (after === before) {
-        console.warn('[GlobalCallContainer] toggleMinimize callback did not change state; using fallback update')
-        globalCallManager.updateCallState({ isMinimized: !before, hasBeenMinimized: true })
-      }
-      return
-    }
-
-    // Fallback: Hook not available (chat component unmounted)
-    if (isCurrentlyMinimized) {
-      // Maximizing - navigate to chat first, then update state
-      const isProduction = process.env.NODE_ENV === 'production'
-      const isAlreadyOnChatPage = isProduction
-        ? window.location.pathname.startsWith('/platform/chat')
-        : new URLSearchParams(window.location.search).get('app') === 'platform/apps/chat'
-
-      if (!isAlreadyOnChatPage) {
-        // Navigate to chat - this will mount the component and register callbacks
-        navigateTo('/platform/chat')
-
-        // Wait for chat to mount and check if callback is now available
-        setTimeout(() => {
-          const updatedCallData = globalCallManager.getCallData()
-          if (updatedCallData.toggleMinimize) {
-            updatedCallData.toggleMinimize()
-          } else {
-            globalCallManager.updateCallState({ isMinimized: false, hasBeenMinimized: true })
-          }
-        }, 150)
+      // Only call the callback if it's still out of sync (to trigger its internal effects)
+      if (before !== newMinimizedState) {
+        console.log('[GlobalCallContainer] Calling hook callback to trigger side effects')
+        latestCallData.toggleMinimize()
       } else {
-        // Already on chat page, just update state
-        globalCallManager.updateCallState({ isMinimized: false, hasBeenMinimized: true })
+        console.log('[GlobalCallContainer] State already updated by globalCallManager, skipping callback')
       }
-    } else {
-      // Minimizing - just update state
-      globalCallManager.updateCallState({ isMinimized: true, hasBeenMinimized: true })
     }
-  }, []) // Empty deps - always get fresh data from globalCallManager
+
+    // Subscription will fire automatically from updateCallState -> notifyListeners
+    // No need to manually setCallData here
+  }, [instanceId])
 
   // End call handler with fallback cleanup.
   // After navigation, stored callbacks can become stale/no-op; this ensures UI doesn't get stuck.
   const handleEndCall = useCallback(() => {
-    const latest = globalCallManager.getCallData()
+    void (async () => {
+      const latest = globalCallManager.getCallData()
+      const meetingForFallback = latest.realtimeKitMeeting
+      const wsClientForFallback = latest.wsClient
+      const tokenForFallback = latest.accessToken
+      const conversationIdForFallback = latest.callState.roomId
+      const meetingIdForFallback = latest.callState.meetingId ?? null
+      const sessionIdForFallback = latest.callState.sessionId ?? null
+      const participantIdForFallback = latest.currentUserId || latest.currentUser?.id || null
+      const isMeetingForFallback = latest.callState.conversationType === 'meeting'
 
-    // Prefer hook callback if available
-    if (latest.leaveCall) {
-      latest.leaveCall()
-
-      // Fallback: if the callback didn't clear the call UI (stale closure), force cleanup.
-      setTimeout(async () => {
-        const after = globalCallManager.getCallData()
-        if (after.callState.status === 'idle') return
-
-        console.warn('[GlobalCallContainer] leaveCall callback did not clear call; running fallback cleanup')
-
+      const getLatestAccessToken = () => {
         try {
-          await after.realtimeKitMeeting?.self?.disableScreenShare?.()
+          const fromStorage = localStorage.getItem(STORAGE_KEY_ACCESS_TOKEN)
+          const fromManager = globalCallManager.getCallData().accessToken
+          const token = fromStorage || fromManager || tokenForFallback || null
+
+          if (token && token !== fromManager) {
+            // Keep global state fresh for subsequent best-effort emits.
+            globalCallManager.setCall({ accessToken: token })
+          }
+
+          return token
         } catch {
-          // Best-effort
+          return globalCallManager.getCallData().accessToken || tokenForFallback || null
         }
-        try {
-          await after.realtimeKitMeeting?.leave?.()
-        } catch {
-          // Best-effort
-        }
-        try {
-          after.localStream?.getTracks?.().forEach((t: MediaStreamTrack) => t.stop())
-        } catch {
-          // Best-effort
-        }
+      }
 
-        // Best-effort backend notify (optional): emit left so backend can clean up participant state.
+      const ensureConnectedSocket = async () => {
         try {
-          const wsClient = after.wsClient
-          let socket = wsClient?.getSocket?.()
-          const token = after.accessToken
-          if (!socket && wsClient && token) {
+          const wsClient = wsClientForFallback
+          console.log('[GlobalCallContainer] ensureConnectedSocket: wsClient exists?', !!wsClient)
+          if (!wsClient) {
+            console.warn('[GlobalCallContainer] ensureConnectedSocket: No wsClient available')
+            return null
+          }
+
+          let socket = wsClient.getSocket?.()
+          console.log('[GlobalCallContainer] ensureConnectedSocket: initial socket state', {
+            exists: !!socket,
+            connected: socket?.connected,
+            id: socket?.id
+          })
+
+          if (socket && !socket.connected && typeof (socket as any).connect === 'function') {
+            console.log('[GlobalCallContainer] ensureConnectedSocket: Attempting to reconnect existing socket')
+            try {
+              ;(socket as any).connect()
+            } catch (err) {
+              console.error('[GlobalCallContainer] ensureConnectedSocket: Reconnect failed', err)
+            }
+          }
+
+          if (socket && !socket.connected) {
+            console.log('[GlobalCallContainer] ensureConnectedSocket: Waiting for connection (600ms)...')
+            await new Promise<void>(resolve => {
+              const timeout = setTimeout(() => {
+                console.log('[GlobalCallContainer] ensureConnectedSocket: Connection wait timeout')
+                resolve()
+              }, 600)
+              socket!.once('connect', () => {
+                console.log('[GlobalCallContainer] ensureConnectedSocket: Socket connected!')
+                clearTimeout(timeout)
+                resolve()
+              })
+            })
+          }
+
+          if (!socket) {
+            console.log('[GlobalCallContainer] ensureConnectedSocket: No socket, creating new connection')
+            const token = getLatestAccessToken()
+            if (!token) {
+              console.warn('[GlobalCallContainer] ensureConnectedSocket: No access token available')
+              return null
+            }
+
+            console.log('[GlobalCallContainer] ensureConnectedSocket: Calling wsClient.connect()')
             wsClient.connect(token)
-            socket = wsClient.getSocket()
+            socket = wsClient.getSocket?.()
+            console.log('[GlobalCallContainer] ensureConnectedSocket: New socket obtained', {
+              exists: !!socket,
+              connected: socket?.connected
+            })
           }
 
-          const conversationId = after.callState.roomId
-          const meetingId = after.callState.meetingId
-          const participantId = after.currentUserId
+          if (socket && !socket.connected) {
+            console.log('[GlobalCallContainer] ensureConnectedSocket: Waiting for new connection (600ms)...')
+            await new Promise<void>(resolve => {
+              const timeout = setTimeout(() => {
+                console.log('[GlobalCallContainer] ensureConnectedSocket: New connection wait timeout')
+                resolve()
+              }, 600)
+              socket!.once('connect', () => {
+                console.log('[GlobalCallContainer] ensureConnectedSocket: New socket connected!')
+                clearTimeout(timeout)
+                resolve()
+              })
+            })
+          }
 
-          if (socket && conversationId && meetingId && participantId) {
-            socket.emit('rtk-group-call:left', { conversationId, meetingId, participantId })
+          const finalState = {
+            exists: !!socket,
+            connected: socket?.connected,
+            id: socket?.id
+          }
+          console.log('[GlobalCallContainer] ensureConnectedSocket: Final socket state', finalState)
+
+          if (!socket || !socket.connected) {
+            console.warn('[GlobalCallContainer] ensureConnectedSocket: Failed to get connected socket')
+            return null
+          }
+          return socket
+        } catch (err) {
+          console.error('[GlobalCallContainer] ensureConnectedSocket: Exception', err)
+          return null
+        }
+      }
+
+      const emitLeftBestEffort = async () => {
+        console.log('[GlobalCallContainer] emitLeftBestEffort: Starting...', {
+          conversationId: conversationIdForFallback,
+          meetingId: meetingIdForFallback,
+          participantId: participantIdForFallback
+        })
+
+        try {
+          const socket = await ensureConnectedSocket()
+          if (!socket) {
+            console.warn('[GlobalCallContainer] emitLeftBestEffort: No connected socket, cannot emit')
+            return
+          }
+
+          if (conversationIdForFallback && meetingIdForFallback && participantIdForFallback) {
+            const payload = {
+              conversationId: conversationIdForFallback,
+              meetingId: meetingIdForFallback,
+              sessionId: sessionIdForFallback,
+              isMeeting: isMeetingForFallback,
+              participantId: participantIdForFallback
+            }
+
+            console.log('[GlobalCallContainer] emitLeftBestEffort: Emitting rtk-group-call:left', payload)
+
+            // Prefer ack so the event has a chance to reach backend before teardown.
+            if (typeof (socket as any).timeout === 'function') {
+              console.log('[GlobalCallContainer] emitLeftBestEffort: Using socket.timeout().emit() with ack')
+              await new Promise<void>(resolve => {
+                ;(socket as any).timeout(800).emit('rtk-group-call:left', payload, () => {
+                  console.log('[GlobalCallContainer] emitLeftBestEffort: ✅ Ack received from backend')
+                  resolve()
+                })
+              })
+            } else {
+              console.log('[GlobalCallContainer] emitLeftBestEffort: Using socket.emit() without ack')
+              socket.emit('rtk-group-call:left', payload)
+              await new Promise(resolve => setTimeout(resolve, 0))
+              console.log('[GlobalCallContainer] emitLeftBestEffort: Emit completed (no ack available)')
+            }
+          } else {
+            console.warn('[GlobalCallContainer] emitLeftBestEffort: Missing required data', {
+              hasConversationId: !!conversationIdForFallback,
+              hasMeetingId: !!meetingIdForFallback,
+              hasParticipantId: !!participantIdForFallback
+            })
+          }
+        } catch (err) {
+          console.error('[GlobalCallContainer] emitLeftBestEffort: Exception', err)
+        }
+      }
+
+      // Prefer hook callback if available
+      if (latest.leaveCall) {
+        let leaveSettled = false
+        console.log('[GlobalCallContainer] handleEndCall: Hook leaveCall callback available, invoking...')
+        try {
+          // IMPORTANT: When navigating away, the chat module may be unmounted and its WebSocket torn down.
+          // Emit "left" best-effort from the persistent container BEFORE calling into hook cleanup.
+          await emitLeftBestEffort()
+
+          console.log('[GlobalCallContainer] handleEndCall: Calling latest.leaveCall()')
+          const maybePromise = latest.leaveCall()
+          if (maybePromise && typeof (maybePromise as any).finally === 'function') {
+            ;(maybePromise as Promise<unknown>).finally(() => {
+              console.log('[GlobalCallContainer] handleEndCall: Hook leaveCall promise settled')
+              leaveSettled = true
+            })
+          } else {
+            console.log('[GlobalCallContainer] handleEndCall: Hook leaveCall returned non-promise')
+            leaveSettled = true
+          }
+        } catch (err) {
+          console.error('[GlobalCallContainer] handleEndCall: Hook leaveCall threw error', err)
+          // If callback throws synchronously, fall back below.
+          leaveSettled = false
+        }
+
+        // Extra safety: even if the hook resolves quickly, ensure the SDK meeting was actually left.
+        setTimeout(async () => {
+          const roomState = (meetingForFallback as any)?.self?.roomState as string | undefined
+          console.log('[GlobalCallContainer] handleEndCall: Extra safety check (1s)', {
+            roomState,
+            shouldSkip: roomState && roomState !== 'joined'
+          })
+          if (roomState && roomState !== 'joined') return
+          try {
+            console.log('[GlobalCallContainer] handleEndCall: Extra safety - calling meeting.leave()')
+            await meetingForFallback?.leave?.()
+          } catch (err) {
+            console.error('[GlobalCallContainer] handleEndCall: Extra safety leave failed', err)
+          }
+          await emitLeftBestEffort()
+        }, 1000)
+
+        // Fallback: if leave is stuck (or callback is stale), force cleanup.
+        setTimeout(async () => {
+          console.log('[GlobalCallContainer] handleEndCall: Fallback cleanup check (2s)', { leaveSettled })
+          const after = globalCallManager.getCallData()
+
+          // If the hook already finished and the SDK meeting is not joined, do nothing.
+          const roomState = (meetingForFallback as any)?.self?.roomState as string | undefined
+          if (leaveSettled && roomState && roomState !== 'joined') {
+            console.log(
+              '[GlobalCallContainer] handleEndCall: Fallback - leave settled and meeting not joined, skipping'
+            )
+            return
+          }
+
+          // Even if the callback cleared state early, ensure we actually left the SDK meeting.
+          // We keep a reference to the meeting object captured BEFORE invoking leaveCall().
+          if (after.callState.status === 'idle' && !meetingForFallback) {
+            console.log('[GlobalCallContainer] handleEndCall: Fallback - already idle and no meeting, skipping')
+            return
+          }
+
+          console.warn('[GlobalCallContainer] leaveCall may have failed; running fallback cleanup')
+
+          try {
+            console.log('[GlobalCallContainer] handleEndCall: Fallback - disabling screen share')
+            await (after.realtimeKitMeeting || meetingForFallback)?.self?.disableScreenShare?.()
+          } catch (err) {
+            console.error('[GlobalCallContainer] handleEndCall: Fallback - screen share disable failed', err)
+          }
+          try {
+            console.log('[GlobalCallContainer] handleEndCall: Fallback - calling meeting.leave()')
+            await (after.realtimeKitMeeting || meetingForFallback)?.leave?.()
+          } catch (err) {
+            console.error('[GlobalCallContainer] handleEndCall: Fallback - meeting leave failed', err)
+          }
+          try {
+            console.log('[GlobalCallContainer] handleEndCall: Fallback - stopping local stream tracks')
+            after.localStream?.getTracks?.().forEach((t: MediaStreamTrack) => t.stop())
+          } catch (err) {
+            console.error('[GlobalCallContainer] handleEndCall: Fallback - stop tracks failed', err)
+          }
+
+          // Best-effort backend notify: emit the same payload as the hook's leaveCall.
+          await emitLeftBestEffort()
+
+          console.log('[GlobalCallContainer] handleEndCall: Fallback - clearing globalCallManager')
+          globalCallManager.clearCall()
+        }, 2000)
+
+        return
+      }
+
+      console.log('[GlobalCallContainer] handleEndCall: No hook callback, just clearing UI')
+      // No callback at all - at least close UI
+      globalCallManager.clearCall()
+    })()
+  }, [])
+
+  // Mute wrapper with SDK fallback.
+  // After navigation, stored callbacks can become stale/no-op; this ensures the button still works.
+  const handleToggleMute = useCallback(() => {
+    const latest = globalCallManager.getCallData()
+    const sdkSelf = latest.realtimeKitMeeting?.self
+    const sdkAudioEnabled = sdkSelf?.audioEnabled ?? undefined
+    const beforeMuted = sdkAudioEnabled !== undefined ? !sdkAudioEnabled : latest.callState.isMuted
+
+    if (latest.toggleMute) {
+      latest.toggleMute()
+
+      setTimeout(async () => {
+        const afterData = globalCallManager.getCallData()
+        const afterSelf = afterData.realtimeKitMeeting?.self
+        const afterSdkAudioEnabled = afterSelf?.audioEnabled ?? undefined
+        const afterMuted =
+          afterSdkAudioEnabled !== undefined ? !afterSdkAudioEnabled : globalCallManager.getCallData().callState.isMuted
+
+        if (afterMuted !== beforeMuted) {
+          // Keep UI in sync even if the callback worked but callState didn't update.
+          globalCallManager.updateCallState({ isMuted: afterMuted })
+          return
+        }
+
+        console.warn('[GlobalCallContainer] toggleMute callback did not change state; using SDK fallback')
+
+        try {
+          const currentEnabled = afterSelf?.audioEnabled ?? false
+          if (currentEnabled && afterSelf?.disableAudio) {
+            await globalCallManager.executeAudioOperation(async () => {
+              await afterSelf!.disableAudio()
+            })
+            globalCallManager.updateCallState({ isMuted: true })
+            return
+          }
+          if (!currentEnabled && afterSelf?.enableAudio) {
+            await globalCallManager.executeAudioOperation(async () => {
+              await afterSelf!.enableAudio()
+            })
+            globalCallManager.updateCallState({ isMuted: false })
+            return
           }
         } catch {
           // Best-effort
         }
 
-        globalCallManager.clearCall()
-      }, 350)
+        // Last resort: optimistic UI toggle (may be wrong if SDK couldn't change)
+        globalCallManager.updateCallState({ isMuted: !beforeMuted })
+      }, 250)
 
       return
     }
 
-    // No callback at all - at least close UI
-    globalCallManager.clearCall()
+    // No callback - use SDK directly.
+    ;(async () => {
+      try {
+        const currentEnabled = sdkSelf?.audioEnabled ?? false
+        if (currentEnabled && sdkSelf?.disableAudio) {
+          await globalCallManager.executeAudioOperation(async () => {
+            await sdkSelf!.disableAudio()
+          })
+          globalCallManager.updateCallState({ isMuted: true })
+          return
+        }
+        if (!currentEnabled && sdkSelf?.enableAudio) {
+          await globalCallManager.executeAudioOperation(async () => {
+            await sdkSelf!.enableAudio()
+          })
+          globalCallManager.updateCallState({ isMuted: false })
+          return
+        }
+      } catch {
+        // Best-effort
+      }
+    })()
+  }, [])
+
+  // Video wrapper with SDK fallback.
+  // After navigation, stored callbacks can become stale/no-op; this ensures the button still works.
+  const handleToggleVideo = useCallback(() => {
+    const latest = globalCallManager.getCallData()
+    const sdkSelf = latest.realtimeKitMeeting?.self
+    const sdkVideoEnabled = sdkSelf?.videoEnabled ?? undefined
+    const beforeEnabled = sdkVideoEnabled !== undefined ? sdkVideoEnabled : latest.callState.isVideoEnabled
+
+    if (latest.toggleVideo) {
+      latest.toggleVideo()
+
+      setTimeout(async () => {
+        const afterData = globalCallManager.getCallData()
+        const afterSelf = afterData.realtimeKitMeeting?.self
+        const afterSdkVideoEnabled = afterSelf?.videoEnabled ?? undefined
+        const afterEnabled =
+          afterSdkVideoEnabled !== undefined
+            ? afterSdkVideoEnabled
+            : globalCallManager.getCallData().callState.isVideoEnabled
+
+        if (afterEnabled !== beforeEnabled) {
+          // Keep UI in sync even if the callback worked but callState didn't update.
+          globalCallManager.updateCallState({ isVideoEnabled: afterEnabled })
+          return
+        }
+
+        console.warn('[GlobalCallContainer] toggleVideo callback did not change state; using SDK fallback')
+
+        try {
+          const currentEnabled = afterSelf?.videoEnabled ?? false
+          if (currentEnabled && afterSelf?.disableVideo) {
+            await afterSelf.disableVideo()
+            globalCallManager.updateCallState({ isVideoEnabled: false })
+            return
+          }
+          if (!currentEnabled && afterSelf?.enableVideo) {
+            await afterSelf.enableVideo()
+            globalCallManager.updateCallState({ isVideoEnabled: true })
+            return
+          }
+        } catch {
+          // Best-effort
+        }
+
+        // Last resort: optimistic UI toggle (may be wrong if SDK couldn't change)
+        globalCallManager.updateCallState({ isVideoEnabled: !beforeEnabled })
+      }, 250)
+
+      return
+    }
+
+    // No callback - use SDK directly.
+    ;(async () => {
+      try {
+        const currentEnabled = sdkSelf?.videoEnabled ?? false
+        if (currentEnabled && sdkSelf?.disableVideo) {
+          await sdkSelf.disableVideo()
+          globalCallManager.updateCallState({ isVideoEnabled: false })
+          return
+        }
+        if (!currentEnabled && sdkSelf?.enableVideo) {
+          await sdkSelf.enableVideo()
+          globalCallManager.updateCallState({ isVideoEnabled: true })
+          return
+        }
+      } catch {
+        // Best-effort
+      }
+    })()
   }, [])
 
   // Raise-hand wrapper to avoid stuck UI if callback becomes stale after navigation.
@@ -471,8 +802,8 @@ export const GlobalCallContainer: React.FC = () => {
           activeSpeakerId={callData.activeSpeakerId}
           activeSpeakerHistory={callData.activeSpeakerHistory}
           onEndCall={handleEndCall}
-          onToggleMute={callData.toggleMute || (() => {})}
-          onToggleVideo={callData.toggleVideo || (() => {})}
+          onToggleMute={handleToggleMute}
+          onToggleVideo={handleToggleVideo}
           onToggleScreenShare={handleToggleScreenShare}
           onToggleMinimize={handleToggleMinimize}
           onToggleBackground={handleToggleBackground}

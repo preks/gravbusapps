@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { getAudioConstraints } from '../config/audioConstraints'
 
 interface UseMicrophoneTestParams {
   isOpen: boolean
@@ -53,11 +54,7 @@ export const useMicrophoneTest = ({
     try {
       if (!navigator.mediaDevices?.getUserMedia) throw new Error('getUserMedia missing')
 
-      const audioConstraints: MediaTrackConstraints = {
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: false
-      }
+      const audioConstraints: MediaTrackConstraints = getAudioConstraints()
       if (selectedAudioInputId) {
         audioConstraints.deviceId = { exact: selectedAudioInputId }
       }

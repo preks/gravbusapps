@@ -22,8 +22,7 @@ import {
   Users,
   PhoneCall,
   PresentationChart,
-  Check,
-  X
+  Check
 } from '@phosphor-icons/react'
 
 export interface UserStatusDropdownProps {
@@ -223,18 +222,6 @@ export const UserStatusDropdown: React.FC<UserStatusDropdownProps> = ({
     }
   }
 
-  const handleClearStatusMessage = async () => {
-    if (!myStatus) return
-    try {
-      setStatusMessage('')
-      setSelectedDuration(null)
-      setCustomExpiresAt(null)
-      await setStatus(myStatus.status as UserPresenceStatus, undefined, undefined)
-    } catch (error) {
-      console.error('Failed to clear status message:', error)
-    }
-  }
-
   // Format custom date/time for input (must be in local timezone format for datetime-local)
   const getDateTimeLocalValue = (date: Date | null): string => {
     if (!date) {
@@ -340,12 +327,13 @@ export const UserStatusDropdown: React.FC<UserStatusDropdownProps> = ({
         {myStatus?.statusMessage && !showStatusMessageInput && (
           <>
             <div className="gba:px-3 gba:py-2 gba:bg-muted/50 gba:rounded-md gba:mx-2 gba:mt-2">
-              <div className="gba:flex gba:items-start gba:justify-between gba:gap-2">
-                <div className="gba:flex-1 gba:min-w-0">
-                  <div className="gba:text-xs gba:text-muted-foreground gba:mb-1">Status message</div>
-                  <div className="gba:text-sm gba:break-words gba:mb-1">{myStatus.statusMessage}</div>
-                  {myStatus.statusMessageExpiresAt && (
-                    <div className="gba:text-xs gba:text-muted-foreground">
+              <div className="gba:flex-1 gba:min-w-0">
+                <div className="gba:text-xs gba:text-muted-foreground gba:mb-1">Status message</div>
+                <div className="gba:text-sm gba:break-words gba:mb-1">{myStatus.statusMessage}</div>
+                {/* Always show expiration info */}
+                <div className="gba:text-xs gba:text-muted-foreground">
+                  {myStatus.statusMessageExpiresAt ? (
+                    <>
                       Clears{' '}
                       {(() => {
                         try {
@@ -372,19 +360,11 @@ export const UserStatusDropdown: React.FC<UserStatusDropdownProps> = ({
                           return ''
                         }
                       })()}
-                    </div>
+                    </>
+                  ) : (
+                    "Won't clear automatically"
                   )}
                 </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleClearStatusMessage}
-                  disabled={isLoading}
-                  className="gba:h-6 gba:w-6 gba:p-0 gba:flex-shrink-0"
-                  data-testid="chat-clear-status-message"
-                >
-                  <X size={14} />
-                </Button>
               </div>
             </div>
             <DropdownMenuSeparator />

@@ -18,6 +18,7 @@ import {
 } from '@newwork/nw-design-system'
 import { UserIcon, Maximize2, Minimize2, Expand, Shrink, Monitor, Settings, ChevronDown, Check } from 'lucide-react'
 import { CallControls } from './CallControls'
+import { getAudioConstraints } from '../config/audioConstraints'
 import { AddParticipantDropdown } from './AddParticipantDropdown'
 import type { CallState, CallParticipant } from '../services/webrtcClient'
 import { useChatTranslation } from '../contexts/TranslationContext'
@@ -218,14 +219,14 @@ export const CallModal: React.FC<CallModalProps> = memo(
 
     const handleNoiseSuppressionChange = (enabled: boolean) => {
       callPreferences.setNoiseSuppressionEnabled(enabled)
-      const track = localStream?.getAudioTracks?.()[0]
+      const track = localStream?.getAudioTracks?.()?.[0]
       if (!track || typeof track.applyConstraints !== 'function') return
       void track
-        .applyConstraints({
-          echoCancellation: true,
-          autoGainControl: false,
-          noiseSuppression: enabled
-        } as MediaTrackConstraints)
+        .applyConstraints(
+          getAudioConstraints({
+            noiseSuppression: enabled
+          })
+        )
         .catch(() => {
           // best-effort
         })

@@ -11,6 +11,7 @@
 import type { GroupWebRTCClient, GroupCallParticipant, VideoQuality } from './groupWebrtcClient'
 import type { ChatWebSocketClient } from './chatWebSocketClient'
 import type { CallParticipant, CallType } from './webrtcClient'
+import type { RTKRnnoiseMiddleware } from './rtkRnnoiseMiddleware'
 
 // Extend Window interface for TypeScript
 declare global {
@@ -36,6 +37,7 @@ export interface GlobalCallState {
   duration: number
   videoQuality: VideoQuality
   backgroundEnabled: boolean
+  rnnoiseEnabled: boolean // Whether RNNoise AI noise suppression is enabled
   startTime: number | null
   participants: GroupCallParticipant[]
   handRaised: boolean // Whether local user has hand raised
@@ -56,6 +58,9 @@ interface StoredCallData {
 
   // RealtimeKit meeting object
   realtimeKitMeeting: any | null
+
+  // RNNoise middleware instance (must outlive React component lifecycle)
+  rnnoiseMiddlewareInstance: RTKRnnoiseMiddleware | null
 
   // Active speaker tracking
   activeSpeakerId: string | null
@@ -113,6 +118,7 @@ const initialCallState: GlobalCallState = {
   duration: 0,
   videoQuality: 'low',
   backgroundEnabled: false,
+  rnnoiseEnabled: true, // Default to enabled
   startTime: null,
   participants: [],
   handRaised: false,
@@ -132,6 +138,7 @@ class GlobalCallManager {
     currentUser: null,
     durationInterval: null,
     realtimeKitMeeting: null,
+    rnnoiseMiddlewareInstance: null,
     activeSpeakerId: null,
     activeSpeakerHistory: [],
     callConversation: null,
@@ -167,6 +174,10 @@ class GlobalCallManager {
   // This is needed because the chat screen can be loaded/mounted multiple times (remote loader),
   // which would otherwise render duplicate call modals/minimized widgets.
   private uiOwnerId: string | null = null
+
+  // Single-flight guard for RTK audio operations (disableAudio/enableAudio)
+  // RTK SDK throws error on concurrent calls: "Unsupported concurrent calls on method: meeting.self.disableAudio"
+  private audioOperationInFlight: Promise<void> | null = null
 
   constructor() {
     // Check if there's existing call data from a previous instance
@@ -250,11 +261,15 @@ class GlobalCallManager {
         | 'toggleScreenShare'
         | 'toggleMinimize'
         | 'toggleBackground'
+        | 'toggleRnnoise'
+        | 'setRnnoiseMode'
         | 'toggleRaiseHand'
         | 'sendReaction'
         | 'setVideoQuality'
         | 'switchAudioDevice'
         | 'switchVideoDevice'
+        | 'setNoiseSuppressionEnabled'
+        | 'setAutoGainControlEnabled'
         | 'onInviteParticipant'
       >
     >
@@ -314,6 +329,13 @@ class GlobalCallManager {
       clearInterval(this.callData.durationInterval)
     }
 
+    // Best-effort cleanup of RNNoise middleware (can be left attached across navigation).
+    try {
+      this.callData.rnnoiseMiddlewareInstance?.destroy(this.callData.realtimeKitMeeting)
+    } catch {
+      // Best-effort
+    }
+
     this.callData = {
       webrtcClient: null,
       wsClient: null,
@@ -324,6 +346,7 @@ class GlobalCallManager {
       currentUser: null,
       durationInterval: null,
       realtimeKitMeeting: null,
+      rnnoiseMiddlewareInstance: null,
       activeSpeakerId: null,
       activeSpeakerHistory: [],
       leaveCall: null,
@@ -332,6 +355,8 @@ class GlobalCallManager {
       toggleScreenShare: null,
       toggleMinimize: null,
       toggleBackground: null,
+      toggleRnnoise: null,
+      setRnnoiseMode: null,
       toggleRaiseHand: null,
       sendReaction: null,
       setVideoQuality: null,
@@ -344,6 +369,8 @@ class GlobalCallManager {
       accessToken: null,
       currentUserId: null,
       conversationName: null,
+      rnnoiseEnabled: true,
+      rnnoiseMode: 'aggressive',
       pendingInvites: new Map(), // Changed from [] to new Map()
       availableParticipants: [],
       activeExperts: []
@@ -369,6 +396,40 @@ class GlobalCallManager {
         this.notifyListeners()
       }
     }, 1000)
+  }
+
+  /**
+   * Execute RTK audio operation (disableAudio/enableAudio) with single-flight guard.
+   * RTK SDK throws error on concurrent calls: "Unsupported concurrent calls on method: meeting.self.disableAudio"
+   */
+  async executeAudioOperation(fn: () => Promise<void>): Promise<void> {
+    // Wait for any in-flight operation to complete first
+    if (this.audioOperationInFlight) {
+      console.log('[GlobalCallManager] ⏳ Audio operation already in flight, waiting...')
+      try {
+        await this.audioOperationInFlight
+      } catch {
+        // Ignore errors from previous operation
+      }
+      console.log('[GlobalCallManager] ✅ Previous audio operation completed, proceeding...')
+    }
+
+    // Execute this operation and track it
+    console.log('[GlobalCallManager] 🎵 Executing new audio operation...')
+    this.audioOperationInFlight = (async () => {
+      try {
+        await fn()
+        console.log('[GlobalCallManager] ✅ Audio operation completed successfully')
+      } catch (error) {
+        console.error('[GlobalCallManager] ❌ Audio operation failed:', error)
+        throw error
+      } finally {
+        // Clear in-flight flag after completion
+        this.audioOperationInFlight = null
+      }
+    })()
+
+    return this.audioOperationInFlight
   }
 
   // Subscribe to changes

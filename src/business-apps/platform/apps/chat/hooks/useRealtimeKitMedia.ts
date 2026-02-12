@@ -11,7 +11,9 @@ import type { CallType } from '../services/webrtcClient'
 import { QUALITY_TO_RID } from '../services/realtimeKitSimulcast'
 import { RTKVirtualBackground } from '../services/rtkVirtualBackground'
 import { RTKRnnoiseMiddleware, type RnnoiseStats } from '../services/rtkRnnoiseMiddleware'
+import { globalCallManager } from '../services/globalCallManager'
 import { rtkDebug } from '../utils/rtkDebug'
+import { getAudioConstraints } from '../config/audioConstraints'
 
 export interface UseRealtimeKitMediaOptions {
   meeting: any // RealtimeKit meeting object
@@ -71,9 +73,9 @@ export const useRealtimeKitMedia = ({
   meeting,
   callType,
   initialVideoQuality = 'low',
-  initialBackgroundEnabled = false, // Disabled by default to prevent feedback loop
-  initialNoiseSuppressionEnabled = false, // Disabled - causes voice cutoff
-  initialAutoGainControlEnabled = false,
+  initialBackgroundEnabled = true, // Disabled by default to prevent feedback loop
+  initialNoiseSuppressionEnabled = true, // Disabled - causes voice cutoff
+  initialAutoGainControlEnabled = true,
   initialRnnoiseEnabled = true,
   onMediaStateChange,
   onRnnoiseStateChange,
@@ -125,11 +127,21 @@ export const useRealtimeKitMedia = ({
 
   const virtualBackgroundRef = useRef<RTKVirtualBackground | null>(null)
   const rnnoiseMiddlewareRef = useRef<RTKRnnoiseMiddleware | null>(null)
+  const rnnoiseToggleInFlightRef = useRef<Promise<void> | null>(null)
   const hasJustJoinedRef = useRef(false)
   const hasAppliedInitialBackgroundRef = useRef(false)
   const previousCallTypeRef = useRef<'audio' | 'video'>(callType)
   const hasInitializedFromSDKRef = useRef(false)
   const previousMeetingRef = useRef(meeting)
+
+  // If the chat module unmounts during navigation, we must keep RNNoise alive.
+  // Restore a previously created middleware instance from globalCallManager.
+  if (!rnnoiseMiddlewareRef.current) {
+    const globalData = globalCallManager.getCallData()
+    if (globalData.rnnoiseMiddlewareInstance && globalData.realtimeKitMeeting === meeting) {
+      rnnoiseMiddlewareRef.current = globalData.rnnoiseMiddlewareInstance as RTKRnnoiseMiddleware
+    }
+  }
 
   // CRITICAL: Reset initialization flag when meeting changes (component remount or new call)
   // This ensures we re-sync from SDK when navigating back to chat
@@ -367,9 +379,13 @@ export const useRealtimeKitMedia = ({
     })
 
     if (currentEnabled) {
-      meeting.self.disableAudio()
+      void globalCallManager.executeAudioOperation(async () => {
+        await meeting.self!.disableAudio()
+      })
     } else {
-      meeting.self.enableAudio()
+      void globalCallManager.executeAudioOperation(async () => {
+        await meeting.self!.enableAudio()
+      })
     }
 
     // Return intended new mute state (for optimistic UI update)
@@ -510,61 +526,114 @@ export const useRealtimeKitMedia = ({
    * Enables/disables RNNoise audio middleware for background noise removal
    */
   const toggleRnnoise = useCallback(async (): Promise<void> => {
-    const newState = !rnnoiseEnabled
+    if (rnnoiseToggleInFlightRef.current) {
+      await rnnoiseToggleInFlightRef.current
+      return
+    }
 
-    console.log('[RTK Media] Toggling RNNoise', {
-      from: rnnoiseEnabled,
+    // IMPORTANT: This hook may be unmounted during navigation while the call continues.
+    // In that case React state (rnnoiseEnabled) will stop updating, so always derive the
+    // current value from globalCallManager (source of truth for persistent call UI).
+    const latestCallData = globalCallManager.getCallData()
+    const currentEnabled =
+      latestCallData.callState.callImplementation === 'realtime-kit'
+        ? latestCallData.callState.rnnoiseEnabled
+        : rnnoiseEnabled
+
+    const newState = !currentEnabled
+
+    const meetingForToggle = meeting?.self ? meeting : globalCallManager.getCallData().realtimeKitMeeting
+
+    console.log('[RTK Media] 🔄 Toggling RNNoise', {
+      from: currentEnabled,
       to: newState,
-      hasMeeting: !!meeting
+      hasMeeting: !!meetingForToggle,
+      meetingId: meetingForToggle?.id,
+      audioEnabled: meetingForToggle?.self?.audioEnabled
     })
 
-    if (!meeting || !meeting.self) {
+    if (!meetingForToggle || !meetingForToggle.self) {
       console.warn('[RTK Media] Cannot toggle RNNoise - meeting not available')
       return
     }
 
-    try {
-      if (newState) {
-        // Initialize and enable RNNoise
-        if (!rnnoiseMiddlewareRef.current) {
-          rnnoiseMiddlewareRef.current = new RTKRnnoiseMiddleware()
-        }
-
-        if (!rnnoiseMiddlewareRef.current.isSupported()) {
-          console.warn('[RTK Media] RNNoise not supported in this browser')
-          return
-        }
-
-        await rnnoiseMiddlewareRef.current.initialize()
-        await rnnoiseMiddlewareRef.current.enable(meeting)
-        // Cloudflare docs note that middlewares apply when mic is turned on after adding them.
-        // If audio is already enabled, restart it so the SDK rebuilds the outgoing chain.
-        if (meeting.self.audioEnabled) {
-          console.log('[RTK Media] 🔁 Restarting microphone to apply RNNoise middleware')
-          await meeting.self.disableAudio()
-          await meeting.self.enableAudio()
-        }
-        console.log('[RTK Media] RNNoise enabled')
-      } else {
-        // Disable RNNoise
-        if (rnnoiseMiddlewareRef.current) {
-          const wasAudioEnabled = meeting.self.audioEnabled ?? false
-          rnnoiseMiddlewareRef.current.disable(meeting)
-          if (wasAudioEnabled) {
-            console.log('[RTK Media] 🔁 Restarting microphone to remove RNNoise middleware')
-            await meeting.self.disableAudio()
-            await meeting.self.enableAudio()
+    const togglePromise = (async () => {
+      try {
+        if (newState) {
+          // Initialize and enable RNNoise
+          if (!rnnoiseMiddlewareRef.current) {
+            rnnoiseMiddlewareRef.current = new RTKRnnoiseMiddleware()
+            globalCallManager.setCall({ rnnoiseMiddlewareInstance: rnnoiseMiddlewareRef.current })
           }
-          console.log('[RTK Media] RNNoise disabled')
-        }
-      }
 
-      setRnnoiseEnabled(newState)
-      onRnnoiseStateChange?.(newState)
-    } catch (error) {
-      console.error('[RTK Media] Failed to toggle RNNoise:', error)
-      setRnnoiseEnabled(false)
-      onRnnoiseStateChange?.(false)
+          if (!rnnoiseMiddlewareRef.current.isSupported()) {
+            console.warn('[RTK Media] RNNoise not supported in this browser')
+            return
+          }
+
+          const wasAudioEnabled = meetingForToggle.self.audioEnabled ?? false
+
+          // Ensure the next mic enable happens with the middleware already registered.
+          if (wasAudioEnabled) {
+            console.log('[RTK Media] 🔁 Stopping microphone before applying RNNoise middleware')
+            await globalCallManager.executeAudioOperation(async () => {
+              await meetingForToggle.self.disableAudio()
+            })
+          }
+
+          await rnnoiseMiddlewareRef.current.initialize()
+          await rnnoiseMiddlewareRef.current.enable(meetingForToggle)
+          globalCallManager.setCall({ rnnoiseMiddlewareInstance: rnnoiseMiddlewareRef.current })
+
+          if (wasAudioEnabled) {
+            console.log('[RTK Media] 🔁 Starting microphone to apply RNNoise middleware')
+            await globalCallManager.executeAudioOperation(async () => {
+              await meetingForToggle.self.enableAudio()
+            })
+          }
+
+          console.log('[RTK Media] RNNoise enabled')
+        } else {
+          // Disable RNNoise
+          if (rnnoiseMiddlewareRef.current) {
+            const wasAudioEnabled = meetingForToggle.self.audioEnabled ?? false
+
+            // Stop mic BEFORE removing middleware so the next enable rebuilds without RNNoise.
+            if (wasAudioEnabled) {
+              console.log('[RTK Media] 🔁 Stopping microphone before removing RNNoise middleware')
+              await globalCallManager.executeAudioOperation(async () => {
+                await meetingForToggle.self.disableAudio()
+              })
+            }
+
+            rnnoiseMiddlewareRef.current.disable(meetingForToggle)
+            globalCallManager.setCall({ rnnoiseMiddlewareInstance: rnnoiseMiddlewareRef.current })
+
+            if (wasAudioEnabled) {
+              console.log('[RTK Media] 🔁 Starting microphone to remove RNNoise middleware')
+              await globalCallManager.executeAudioOperation(async () => {
+                await meetingForToggle.self.enableAudio()
+              })
+            }
+
+            console.log('[RTK Media] RNNoise disabled')
+          }
+        }
+
+        setRnnoiseEnabled(newState)
+        onRnnoiseStateChange?.(newState)
+      } catch (error) {
+        console.error('[RTK Media] Failed to toggle RNNoise:', error)
+        setRnnoiseEnabled(false)
+        onRnnoiseStateChange?.(false)
+      }
+    })()
+
+    rnnoiseToggleInFlightRef.current = togglePromise
+    try {
+      await togglePromise
+    } finally {
+      rnnoiseToggleInFlightRef.current = null
     }
   }, [meeting, rnnoiseEnabled, onRnnoiseStateChange])
 
@@ -598,6 +667,7 @@ export const useRealtimeKitMedia = ({
         console.log('[RTK Media] 🧹 Cleaning up RNNoise middleware (call ended)')
         rnnoiseMiddlewareRef.current.destroy(meeting)
         rnnoiseMiddlewareRef.current = null
+        globalCallManager.setCall({ rnnoiseMiddlewareInstance: null })
       }
       return
     }
@@ -625,10 +695,24 @@ export const useRealtimeKitMedia = ({
     if (rnnoiseMiddlewareRef.current) {
       console.log('[RTK Media] RNNoise middleware already exists, skipping initialization')
       return () => {
+        // IMPORTANT: Do not destroy RNNoise on unmount/navigation.
+        // The call can continue via GlobalCallContainer even if this hook unmounts.
+        const globalData = globalCallManager.getCallData()
+        const shouldPersist =
+          globalData.callState.status !== 'idle' &&
+          globalData.callState.callImplementation === 'realtime-kit' &&
+          globalData.realtimeKitMeeting === meeting
+
+        if (shouldPersist) {
+          globalCallManager.setCall({ rnnoiseMiddlewareInstance: rnnoiseMiddlewareRef.current })
+          return
+        }
+
         if (rnnoiseMiddlewareRef.current && meeting) {
           console.log('[RTK Media] 🧹 Cleaning up RNNoise middleware')
           rnnoiseMiddlewareRef.current.destroy(meeting)
           rnnoiseMiddlewareRef.current = null
+          globalCallManager.setCall({ rnnoiseMiddlewareInstance: null })
         }
       }
     }
@@ -643,6 +727,7 @@ export const useRealtimeKitMedia = ({
     const initRnnoise = async () => {
       try {
         rnnoiseMiddlewareRef.current = new RTKRnnoiseMiddleware()
+        globalCallManager.setCall({ rnnoiseMiddlewareInstance: rnnoiseMiddlewareRef.current })
 
         if (!rnnoiseMiddlewareRef.current.isSupported()) {
           console.warn('[RTK Media] RNNoise not supported in this browser')
@@ -656,12 +741,17 @@ export const useRealtimeKitMedia = ({
 
         await rnnoiseMiddlewareRef.current.enable(meeting)
         console.log('[RTK Media] ✅ RNNoise enabled and processing audio')
+        globalCallManager.setCall({ rnnoiseMiddlewareInstance: rnnoiseMiddlewareRef.current })
 
         // If the mic is already enabled, restart it so the SDK rebuilds with the middleware.
         if (meeting.self?.audioEnabled) {
           console.log('[RTK Media] 🔁 Restarting microphone to apply RNNoise middleware (meeting init)')
-          await meeting.self.disableAudio()
-          await meeting.self.enableAudio()
+          await globalCallManager.executeAudioOperation(async () => {
+            await meeting.self!.disableAudio()
+          })
+          await globalCallManager.executeAudioOperation(async () => {
+            await meeting.self!.enableAudio()
+          })
         }
       } catch (error) {
         console.error('[RTK Media] ❌ Failed to initialize RNNoise:', error)
@@ -673,10 +763,24 @@ export const useRealtimeKitMedia = ({
     initRnnoise()
 
     return () => {
+      // IMPORTANT: Do not destroy RNNoise on unmount/navigation.
+      // The call can continue via GlobalCallContainer even if this hook unmounts.
+      const globalData = globalCallManager.getCallData()
+      const shouldPersist =
+        globalData.callState.status !== 'idle' &&
+        globalData.callState.callImplementation === 'realtime-kit' &&
+        globalData.realtimeKitMeeting === meeting
+
+      if (shouldPersist) {
+        globalCallManager.setCall({ rnnoiseMiddlewareInstance: rnnoiseMiddlewareRef.current })
+        return
+      }
+
       if (rnnoiseMiddlewareRef.current && meeting) {
         console.log('[RTK Media] 🧹 Cleaning up RNNoise middleware (useEffect cleanup)')
         rnnoiseMiddlewareRef.current.destroy(meeting)
         rnnoiseMiddlewareRef.current = null
+        globalCallManager.setCall({ rnnoiseMiddlewareInstance: null })
       }
     }
   }, [meeting?.self, rnnoiseEnabled, callStatus, onRnnoiseStateChange])
@@ -931,22 +1035,23 @@ export const useRealtimeKitMedia = ({
           const wasAudioEnabled = meeting.self.audioEnabled ?? false
 
           if (wasAudioEnabled) {
-            await meeting.self.disableAudio()
+            await globalCallManager.executeAudioOperation(async () => {
+              await meeting.self!.disableAudio()
+            })
           }
 
           const stream = await navigator.mediaDevices.getUserMedia({
-            audio: {
-              deviceId: { exact: deviceId },
-              echoCancellation: false, // Disabled - can cause voice cutoff
-              noiseSuppression: noiseSuppressionEnabled,
-              autoGainControl: autoGainControlEnabled
-            }
+            audio: getAudioConstraints({
+              deviceId: { exact: deviceId }
+            })
           })
 
           stream.getTracks().forEach(track => track.stop())
 
           if (wasAudioEnabled) {
-            await meeting.self.enableAudio()
+            await globalCallManager.executeAudioOperation(async () => {
+              await meeting.self!.enableAudio()
+            })
           }
 
           rtkDebug.log('[RTK Media] ✅ Audio device switched (fallback method)')
@@ -982,11 +1087,9 @@ export const useRealtimeKitMedia = ({
       const track: MediaStreamTrack | undefined = meeting?.self?.audioTrack
       if (!track || typeof track.applyConstraints !== 'function') return
       try {
-        const constraints = {
-          echoCancellation: false, // Disabled - can cause voice cutoff
-          autoGainControl: autoGainControlEnabled,
+        const constraints = getAudioConstraints({
           noiseSuppression: enabled
-        } as MediaTrackConstraints
+        })
 
         console.log('[RTK Media] 🎙️ Applying audio constraints (noise suppression toggle):', constraints)
         await track.applyConstraints(constraints)
@@ -1017,11 +1120,9 @@ export const useRealtimeKitMedia = ({
       const track: MediaStreamTrack | undefined = meeting?.self?.audioTrack
       if (!track || typeof track.applyConstraints !== 'function') return
       try {
-        const constraints = {
-          echoCancellation: false, // Disabled - can cause voice cutoff
-          autoGainControl: enabled,
-          noiseSuppression: noiseSuppressionEnabled
-        } as MediaTrackConstraints
+        const constraints = getAudioConstraints({
+          autoGainControl: enabled
+        })
 
         console.log('[RTK Media] 🎙️ Applying audio constraints (AGC toggle):', constraints)
         await track.applyConstraints(constraints)
