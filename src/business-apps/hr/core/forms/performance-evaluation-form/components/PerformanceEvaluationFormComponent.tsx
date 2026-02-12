@@ -220,7 +220,6 @@ const PerformanceEvaluationFormComponent: React.FC = () => {
 
         {/* Topics Section */}
         <div className="gba:space-y-6">
-          {console.log('[Component] Rendering topics, count:', formValues.topics.length, 'topics:', formValues.topics)}
           {formValues.topics.map(topic => (
             <div
               key={topic.id}
