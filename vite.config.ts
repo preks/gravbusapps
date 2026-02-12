@@ -897,16 +897,6 @@ export default wrapWithUiCatalog(wrapWithLocalizationProvider(wrapWithBlinkProvi
   console.log('[vite.config.ts] wrappedEntries:', wrappedEntries)
 
   return {
-    server: {
-      proxy: {
-        '/document': {
-          target: env.NEXT_PUBLIC_BASE_URL || 'https://newwork-dev.newwork.com',
-          changeOrigin: true,
-          secure: false,
-          rewrite: path => path
-        }
-      }
-    },
     optimizeDeps: {
       include: [
         'antd',
