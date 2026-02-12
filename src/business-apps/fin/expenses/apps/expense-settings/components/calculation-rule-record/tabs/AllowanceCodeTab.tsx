@@ -42,13 +42,9 @@ import {
   FormControl,
   FormMessage,
   DateInput,
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
   Textarea
 } from '@newwork/nw-design-system'
-import { DeleteConfirmationDialog } from '../shared'
+import { DeleteConfirmationDialog, AdditionalPropertiesDisplay } from '../shared'
 import {
   PiPlus,
   PiPencil,
@@ -58,8 +54,7 @@ import {
   PiCode,
   PiDotsThreeVertical,
   PiTrash,
-  PiWarning,
-  PiInfo
+  PiWarning
 } from 'react-icons/pi'
 import { toast } from 'sonner'
 import dayjs from 'dayjs'
@@ -649,6 +644,87 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
     [ruleId, graphqlClient]
   )
 
+  const parseAdditionalPropertiesJson = (): { isValid: true; value?: Record<string, unknown> } | { isValid: false } => {
+    if (!additionalPropertiesJson.trim()) {
+      return { isValid: true, value: undefined }
+    }
+
+    try {
+      return { isValid: true, value: JSON.parse(additionalPropertiesJson) as Record<string, unknown> }
+    } catch {
+      toast.error('Invalid JSON in Additional Info field')
+      return { isValid: false }
+    }
+  }
+
+  const hasValidAmountPercentage = (formValues: AllowanceCodeFormData): boolean => {
+    const amountPercentageError = validateAmountAndPercentage(
+      formValues.amount,
+      formValues.firstAllowanceRegionRulePercent
+    )
+
+    if (!amountPercentageError) {
+      return true
+    }
+
+    form.setError('amount', { type: 'manual', message: amountPercentageError })
+    form.setError('firstAllowanceRegionRulePercent', { type: 'manual', message: amountPercentageError })
+    return false
+  }
+
+  const hasValidDates = (formValues: AllowanceCodeFormData): boolean => {
+    const dateErrors = validateAllowanceCodeDates(formValues.activeFrom, formValues.activeTo, activeFrom, activeTo)
+
+    if (dateErrors.length === 0) {
+      return true
+    }
+
+    dateErrors.forEach(err => {
+      form.setError(err.field, { type: 'manual', message: err.message })
+    })
+    return false
+  }
+
+  const hasUniqueCodeForPeriod = async (formValues: AllowanceCodeFormData): Promise<boolean> => {
+    const uniquenessCheck = await checkCodeUniqueness(
+      formValues.code,
+      formValues.activeFrom,
+      formValues.activeTo,
+      editingItem?.id
+    )
+
+    if (!uniquenessCheck.isDuplicate) {
+      return true
+    }
+
+    if (uniquenessCheck.existingName) {
+      form.setValue('name', uniquenessCheck.existingName)
+    }
+    form.setError('code', {
+      type: 'manual',
+      message: getCodeUniquenessErrorMessage(uniquenessCheck.existingName)
+    })
+    return false
+  }
+
+  const buildSaveData = (
+    formValues: AllowanceCodeFormData,
+    additionalProperties?: Record<string, unknown>
+  ): AllowanceCodeSaveData => {
+    if (!editingItem) {
+      return transformAllowanceCodeForCreate({ ...formValues, additionalProperties }, ruleId)
+    }
+
+    const formValuesWithAdditional = {
+      ...formValues,
+      additionalProperties
+    }
+
+    return isRestrictedEdit
+      ? transformAllowanceCodeForRestrictedUpdate(formValuesWithAdditional, editingItem, ruleId)
+      : transformAllowanceCodeForUnrestrictedUpdate(formValuesWithAdditional, editingItem, ruleId)
+  }
+
   const handleSave = async () => {
     try {
       setIsSaving(true)
@@ -657,81 +733,24 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
       form.clearErrors(['activeFrom', 'activeTo', 'amount', 'firstAllowanceRegionRulePercent', 'code'])
 
       const formValues = form.getValues()
-      let parsedAdditionalProperties: Record<string, unknown> | undefined
-
-      if (additionalPropertiesJson.trim()) {
-        try {
-          parsedAdditionalProperties = JSON.parse(additionalPropertiesJson)
-        } catch {
-          toast.error('Invalid JSON in Additional Info field')
-          setIsSaving(false)
-          return
-        }
-      }
-
-      // Validate mutual exclusivity: Amount and Percentage
-      const amountPercentageError = validateAmountAndPercentage(
-        formValues.amount,
-        formValues.firstAllowanceRegionRulePercent
-      )
-
-      if (amountPercentageError) {
-        form.setError('amount', { type: 'manual', message: amountPercentageError })
-        form.setError('firstAllowanceRegionRulePercent', { type: 'manual', message: amountPercentageError })
-        setIsSaving(false)
+      const parsedAdditionalProperties = parseAdditionalPropertiesJson()
+      if (!parsedAdditionalProperties.isValid) {
         return
       }
 
-      // Date validation
-      const dateErrors = validateAllowanceCodeDates(formValues.activeFrom, formValues.activeTo, activeFrom, activeTo)
-
-      if (dateErrors.length > 0) {
-        dateErrors.forEach(err => {
-          form.setError(err.field, { type: 'manual', message: err.message })
-        })
-        setIsSaving(false)
+      if (!hasValidAmountPercentage(formValues)) {
         return
       }
 
-      // Check code uniqueness within overlapping validity periods
-      const uniquenessCheck = await checkCodeUniqueness(
-        formValues.code,
-        formValues.activeFrom,
-        formValues.activeTo,
-        editingItem?.id
-      )
-
-      if (uniquenessCheck.isDuplicate) {
-        if (uniquenessCheck.existingName) {
-          form.setValue('name', uniquenessCheck.existingName)
-        }
-        form.setError('code', {
-          type: 'manual',
-          message: getCodeUniquenessErrorMessage(uniquenessCheck.existingName)
-        })
-        setIsSaving(false)
+      if (!hasValidDates(formValues)) {
         return
       }
 
-      // Build saveData based on edit mode
-      const isUpdate = !!editingItem
-      let saveData: AllowanceCodeSaveData
-
-      if (isUpdate) {
-        const formValuesWithAdditional = {
-          ...formValues,
-          additionalProperties: parsedAdditionalProperties
-        }
-        saveData = isRestrictedEdit
-          ? transformAllowanceCodeForRestrictedUpdate(formValuesWithAdditional, editingItem, ruleId)
-          : transformAllowanceCodeForUnrestrictedUpdate(formValuesWithAdditional, editingItem, ruleId)
-      } else {
-        saveData = transformAllowanceCodeForCreate(
-          { ...formValues, additionalProperties: parsedAdditionalProperties },
-          ruleId
-        )
+      if (!(await hasUniqueCodeForPeriod(formValues))) {
+        return
       }
 
+      const saveData = buildSaveData(formValues, parsedAdditionalProperties.value)
       await expenseSettingsClient.saveExpenseRuleAllowanceCode(saveData)
       toast.success(`Allowance code ${editingItem ? 'updated' : 'created'} successfully`)
       setIsModalVisible(false)
@@ -753,35 +772,6 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
   }
 
   // Removed Ant Design columns definition - using NW design system Table now
-
-  const renderAdditionalProperties = (additionalProperties?: Record<string, unknown>) => {
-    if (!additionalProperties || Object.keys(additionalProperties).length === 0) {
-      return <span className="gba:text-muted-foreground">None</span>
-    }
-
-    const propertyCount = Object.keys(additionalProperties).length
-
-    return (
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div className="gba:flex gba:items-center gba:gap-1 gba:cursor-help">
-              <Badge variant="secondary">{propertyCount}</Badge>
-              <Button variant="ghost" size="icon" className="gba:h-6 gba:w-6 gba:text-info">
-                <PiInfo className="gba:h-4 gba:w-4" />
-              </Button>
-            </div>
-          </TooltipTrigger>
-          <TooltipContent side="left" className="gba:max-w-md gba:p-3 gba:bg-popover gba:text-popover-foreground">
-            <div className="gba:font-medium gba:mb-2">Additional Properties:</div>
-            <pre className="gba:text-xs gba:bg-background gba:text-foreground gba:p-2 gba:rounded gba:overflow-auto gba:max-h-64 gba:whitespace-pre-wrap gba:border">
-              {JSON.stringify(additionalProperties, null, 2)}
-            </pre>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-    )
-  }
 
   if (isLoading) {
     return (
@@ -1132,7 +1122,7 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
                         data-testid={`allowance-code-additional-info-cell-${record.id}`}
                         className="gba:text-center"
                       >
-                        {renderAdditionalProperties(record.additionalProperties)}
+                        <AdditionalPropertiesDisplay additionalProperties={record.additionalProperties} />
                       </TableCell>
 
                       {/* Valid From Column */}

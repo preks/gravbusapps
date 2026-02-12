@@ -1109,7 +1109,7 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                     rules={{
                       required: 'Minimum Hours is required',
                       validate: value => {
-                        const numericValue = parseFloat(String(value ?? '').replace(',', '.'))
+                        const numericValue = Number.parseFloat(String(value ?? '').replace(',', '.'))
                         if (Number.isNaN(numericValue)) return 'Must be a valid number'
                         if (numericValue < 0) return 'Must be at least 0'
                         if (numericValue > 24) return 'Must be at most 24'

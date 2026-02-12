@@ -92,7 +92,7 @@ export const transformAllowancePeriodForSave = (
   overnightAccomodation: formValues.overnightAccommodation,
   fromTime: formValues.fromTime,
   toTime: formValues.toTime,
-  minHours: typeof formValues.minHours === 'string' ? parseFloat(formValues.minHours) || 0 : formValues.minHours,
+  minHours: typeof formValues.minHours === 'string' ? Number.parseFloat(formValues.minHours) || 0 : formValues.minHours,
   midnightRule: formValues.midnightRule,
   startAfter: formValues.startAfter,
   returnBefore: formValues.returnBefore,

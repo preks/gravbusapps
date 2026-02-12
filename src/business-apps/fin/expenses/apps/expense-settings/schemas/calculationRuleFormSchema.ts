@@ -6,7 +6,7 @@ import { z } from 'zod'
 const dateStringSchema = z.string().refine(
   val => {
     if (!val) return true // Optional dates can be empty
-    const year = parseInt(val.split('-')[0])
+    const year = Number.parseInt(val.split('-')[0], 10)
     return year >= 1900 && year <= 9999
   },
   { message: 'Date year must be between 1900 and 9999' }
