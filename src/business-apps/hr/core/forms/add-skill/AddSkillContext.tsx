@@ -3,7 +3,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { ADD_SKILL_QUERY, SEARCH_SKILLS_QUERY, GET_SKILLS_BY_NAMES } from './AddSkillQueries'
 import { useRestClient } from '@/common/network/rest/useRestClient'
-
+import { hybridSearchSkills } from '@/common/network/flowbot/hybridSearchSkills'
 import { env } from '@/common/env/EnvUtils'
 
 export interface SkillRecord {
@@ -100,17 +100,22 @@ export const AddSkillProvider: React.FC<ProviderProps> = ({ children, accessToke
   }, [fetchData])
 
   const searchSkills = useCallback(
-    async (term: string) => {
+    async (term: string): Promise<SkillRecord[]> => {
       const trimmed = (term || '').trim()
-      if (!trimmed) return []
-      const pattern = `%${trimmed}%`
-      type SearchSkillsVariables = { search: string }
-      const result = await graphqlClient.request<{ skill: SkillRecord[] }>(SEARCH_SKILLS_QUERY, {
-        search: pattern
-      } as SearchSkillsVariables)
-      return result?.skill || []
+      if (!trimmed || trimmed.length < 2) return []
+      try {
+        const matches = await hybridSearchSkills(trimmed, accessToken ?? '', 20)
+        return matches.map(m => ({ id: m.id, name: m.name, version: m.version }))
+      } catch {
+        const pattern = `%${trimmed}%`
+        type SearchSkillsVariables = { search: string }
+        const result = await graphqlClient.request<{ skill: SkillRecord[] }>(SEARCH_SKILLS_QUERY, {
+          search: pattern
+        } as SearchSkillsVariables)
+        return result?.skill ?? []
+      }
     },
-    [graphqlClient]
+    [accessToken, graphqlClient]
   )
 
   const createSkillAndFetchByNames = useCallback(

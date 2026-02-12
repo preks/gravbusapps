@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from 'react'
 import {
-  Button,
   Card,
   CardContent,
   EmptyState,
@@ -115,14 +114,6 @@ const SkillsTab: React.FC<SkillsTabProps> = ({ employee, accessToken }) => {
           >
             {t('skills-profile-add-skill')}
           </AppAction>
-          <Button
-            variant="outline"
-            data-testid="employee-skills-request-review-button"
-            onClick={e => e.preventDefault()}
-            type="button"
-          >
-            {t('skills-profile-request-review')}
-          </Button>
         </div>
       </div>
 
