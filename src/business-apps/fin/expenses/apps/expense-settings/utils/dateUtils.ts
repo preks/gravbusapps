@@ -39,8 +39,10 @@ const normalizeDateString = (dateStr: string): string => {
   }
 
   // Fallback for ISO strings or other parseable formats
-  const formatted = dayjs.utc(trimmed).format('YYYY-MM-DD')
-  return formatted === 'Invalid Date' ? trimmed : formatted
+  // CRITICAL: Never use dayjs parsing for far-future dates like 9999-12-31
+  // because it can overflow to 10000-01-01 in local timezone.
+  // If we reach here, return the trimmed string as-is (safer than parsing)
+  return trimmed
 }
 
 /**
@@ -73,9 +75,9 @@ export const formatDate = (dateString: string): string => {
     return `${dd}.${mm}.${yyyy}`
   }
 
-  // Fallback (should be rare)
-  const formatted = dayjs.utc(dateString).format('DD.MM.YYYY')
-  return formatted === 'Invalid Date' ? '' : formatted
+  // Fallback: If normalization fails, return empty string (safer than parsing)
+  // NEVER use dayjs parsing here as it can cause 9999-12-31 -> 10000-01-01
+  return ''
 }
 
 /**
