@@ -1072,9 +1072,9 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                         <FormControl>
                           <Input
                             type="text"
-                            inputMode="numeric"
+                            inputMode="decimal"
                             autoComplete="off"
-                            placeholder="24"
+                            placeholder="e.g., 12 or 12.5"
                             value={field.value ?? ''}
                             onFocus={e => {
                               // Improve UX: allow overwriting the default "0" without arrow controls
@@ -1090,9 +1090,11 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                                 field.onChange(undefined)
                                 return
                               }
-                              // Only allow digits; keep editing UX predictable.
-                              if (!/^\d+$/.test(next)) return
-                              field.onChange(Number(next))
+                              // Allow digits and decimal point (not comma)
+                              if (!/^\d*\.?\d*$/.test(next)) return
+                              // Prevent invalid decimal patterns like "1.2.3" or ".."
+                              if ((next.match(/\./g) || []).length > 1) return
+                              field.onChange(next === '' ? undefined : Number(next))
                             }}
                             disabled={isRestrictedEdit}
                             data-testid="allowance-period-min-hours-input"
