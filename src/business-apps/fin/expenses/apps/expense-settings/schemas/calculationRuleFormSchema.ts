@@ -1,6 +1,18 @@
 import { z } from 'zod'
 
 /**
+ * Custom date validation that ensures dates are within valid range
+ */
+const dateStringSchema = z.string().refine(
+  val => {
+    if (!val) return true // Optional dates can be empty
+    const year = parseInt(val.split('-')[0])
+    return year >= 1900 && year <= 9999
+  },
+  { message: 'Date year must be between 1900 and 9999' }
+)
+
+/**
  * Zod schema for CalculationRuleForm validation
  */
 export const calculationRuleFormSchema = z.object({
@@ -9,8 +21,8 @@ export const calculationRuleFormSchema = z.object({
   name: z.string().optional(),
   description: z.string().optional(),
   standard: z.boolean(),
-  activeFrom: z.string().min(1, 'Active from is required'),
-  activeTo: z.string().optional(),
+  activeFrom: dateStringSchema.refine(val => val && val.length > 0, { message: 'Active from is required' }),
+  activeTo: dateStringSchema,
   deductionLimit: z.boolean(),
   useLastCountry: z.boolean(),
   useSingleCurrency: z.boolean(),
