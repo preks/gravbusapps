@@ -11,9 +11,9 @@ import { env } from '@/common/env/EnvUtils'
 
 export interface CreateAssetPayload {
   model: string
-  serialNumber: string
-  acquisitionDate: string
-  warrantyPeriodMonths: number
+  serialNumber?: string
+  acquisitionDate?: string
+  warrantyPeriodMonths?: number
   inventoryValue: number
   assetStatus: string
   assetBrandRef: string
