@@ -132,7 +132,7 @@ export type CalendarEvent = {
 
 export type CalendarViewData = {
   type: 'calendar'
-  view: 'year' | 'month' | 'week'
+  view: 'year' | 'month' | 'week' | 'day'
   startDate: string
   events: CalendarEvent[]
   title: string
@@ -227,6 +227,7 @@ export type Mention = {
   data?: any
 }
 
+// Legacy fallback for historical turns. New turns carry mention links directly in `text`.
 export type UserTurn = { side: 'user'; text: string; files?: FileMeta[]; mentions?: Mention[] }
 export type AgentTurn = { side: 'agent'; outputs: OutputItem[] }
 export type ConversationTurn = UserTurn | AgentTurn
