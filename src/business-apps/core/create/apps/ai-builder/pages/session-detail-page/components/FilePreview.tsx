@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { X, Copy, Check, Search, ChevronUp, ChevronDown } from 'lucide-react'
-import { Button } from '@newwork/nw-design-system'
-import { Input } from '@newwork/nw-design-system'
-import { ENV } from '../config/environment'
+import { Button, Input } from '@newwork/nw-design-system'
+import { builderClient } from '@/common/network/ai/builder'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface FilePreviewProps {
@@ -19,25 +18,27 @@ export const FilePreview: React.FC<FilePreviewProps> = ({ filePath, repoId, sess
   const [source, setSource] = useState<string>('')
   const [searchTerm, setSearchTerm] = useState('')
   const [currentMatchIndex, setCurrentMatchIndex] = useState(0)
+  const dialogRef = useRef<HTMLDialogElement>(null)
 
   useEffect(() => {
     loadFile()
   }, [filePath])
 
+  useEffect(() => {
+    const dialog = dialogRef.current
+    if (dialog && filePath) {
+      dialog.showModal()
+      return () => {
+        dialog.close()
+      }
+    }
+  }, [filePath])
+
   const loadFile = async () => {
     setLoading(true)
     try {
-      const response = await fetch(`${ENV.AI_SERVICE_API_URL}/api/tools/execute`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          toolName: 'read_file',
-          args: { file_path: filePath },
-          repoId,
-          sessionId
-        })
-      })
-      const data = await response.json()
+      const data = await builderClient.executeTool('read_file', { file_path: filePath }, repoId, sessionId)
+
       setContent(
         data.content || getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.file_preview.no_content', 'No content')
       )
@@ -160,17 +161,34 @@ export const FilePreview: React.FC<FilePreviewProps> = ({ filePath, repoId, sess
       }
 
       return (
-        <div key={lineIndex} className="gba:leading-relaxed">
+        <div key={`line-${lineIndex}-${line.length}`} className="gba:leading-relaxed">
           {parts.length > 0 ? parts : line}
         </div>
       )
     })
   }, [content, searchTerm, searchMatches, currentMatchIndex])
 
+  const handleClose = () => {
+    dialogRef.current?.close()
+    onClose()
+  }
+  const handleDialogClick = (e: React.MouseEvent<HTMLDialogElement>) => {
+    if (e.target === dialogRef.current) handleClose()
+  }
+  const handleDialogKeyDown = (e: React.KeyboardEvent<HTMLDialogElement>) => {
+    if (e.key === 'Escape') {
+      e.preventDefault()
+      handleClose()
+    }
+  }
+
   return (
-    <div
-      className="gba:fixed gba:inset-0 gba:bg-black/50 gba:flex gba:items-center gba:justify-center gba:z-50"
-      onClick={onClose}
+    <dialog
+      ref={dialogRef}
+      className="gba:fixed gba:inset-0 gba:flex gba:items-center gba:justify-center gba:z-50 gba:border-0 gba:p-0 gba:max-w-none gba:max-h-none gba:bg-transparent [&::backdrop]:gba:bg-black/50"
+      onClick={handleDialogClick}
+      onKeyDown={handleDialogKeyDown}
+      aria-modal="true"
     >
       <div
         className="gba:bg-card gba:rounded-lg gba:shadow-lg gba:w-[900px] gba:max-w-[90vw] gba:max-h-[90vh] gba:flex gba:flex-col"
@@ -229,7 +247,7 @@ export const FilePreview: React.FC<FilePreviewProps> = ({ filePath, repoId, sess
               </span>
             </Button>
 
-            <Button size="sm" variant="ghost" onClick={onClose} className="gba:h-8 gba:w-8 gba:p-0">
+            <Button size="sm" variant="ghost" onClick={handleClose} className="gba:h-8 gba:w-8 gba:p-0">
               <X size={16} />
             </Button>
           </div>
@@ -300,8 +318,8 @@ export const FilePreview: React.FC<FilePreviewProps> = ({ filePath, repoId, sess
             <div className="gba:flex gba:font-mono gba:text-xs">
               {/* Line numbers */}
               <div className="gba:flex-shrink-0 gba:py-4 gba:pl-4 gba:pr-3 gba:bg-muted/30 gba:text-muted-foreground gba:select-none gba:text-right gba:border-r gba:border-border">
-                {content.split('\n').map((_, i) => (
-                  <div key={i} className="gba:leading-relaxed">
+                {content.split('\n').map((line, i) => (
+                  <div key={`line-num-${i}-${line.length}`} className="gba:leading-relaxed">
                     {i + 1}
                   </div>
                 ))}
@@ -318,6 +336,6 @@ export const FilePreview: React.FC<FilePreviewProps> = ({ filePath, repoId, sess
           )}
         </div>
       </div>
-    </div>
+    </dialog>
   )
 }

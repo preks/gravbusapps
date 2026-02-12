@@ -1,11 +1,19 @@
 import React, { useState, useEffect } from 'react'
-import { AiButton, Button } from '@newwork/nw-design-system'
-import { Card, CardContent, CardHeader, CardTitle } from '@newwork/nw-design-system'
-import { Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
+import {
+  AiButton,
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle
+} from '@newwork/nw-design-system'
 import { Plus, Clock, FileCode, Search, Trash2, Folder, Settings } from 'lucide-react'
 import { DebouncedInput } from '@/components/debounced-input'
-import { SessionMetadata } from '../types/session'
-import { IndexingProgress } from './IndexingProgress'
+import { SessionMetadata } from '../../../types/session'
+import { IndexingProgress } from '../../../components/IndexingProgress'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface SessionListProps {
@@ -84,6 +92,38 @@ export const SessionList: React.FC<SessionListProps> = ({
 
   const getUserInitials = (user: SessionMetadata['createdBy']) => {
     return `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`.toUpperCase() || 'U'
+  }
+
+  const getEmptyStateTitle = (): string => {
+    if (disabled) {
+      return getTranslationFromI18nKeyAndLabel(
+        'lowcoder:ai_builder.sessions.repo_not_configured',
+        'Repository Not Configured'
+      )
+    }
+    if (searchTerm) {
+      return getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.sessions.no_sessions_found', 'No sessions found')
+    }
+    return getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.sessions.no_sessions_yet', 'No sessions yet')
+  }
+
+  const getEmptyStateDescription = (): string => {
+    if (disabled) {
+      return getTranslationFromI18nKeyAndLabel(
+        'lowcoder:ai_builder.sessions.configure_repo_help',
+        'Please configure a repository in Settings to get started'
+      )
+    }
+    if (searchTerm) {
+      return getTranslationFromI18nKeyAndLabel(
+        'lowcoder:ai_builder.sessions.adjust_search',
+        'Try adjusting your search terms'
+      )
+    }
+    return getTranslationFromI18nKeyAndLabel(
+      'lowcoder:ai_builder.sessions.create_first_help',
+      'Create your first session to start building screens with AI'
+    )
   }
 
   return (
@@ -187,38 +227,8 @@ export const SessionList: React.FC<SessionListProps> = ({
                 )}
               </div>
               <div>
-                <h3 className="gba:text-lg gba:font-semibold gba:text-foreground">
-                  {disabled
-                    ? getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:ai_builder.sessions.repo_not_configured',
-                        'Repository Not Configured'
-                      )
-                    : searchTerm
-                      ? getTranslationFromI18nKeyAndLabel(
-                          'lowcoder:ai_builder.sessions.no_sessions_found',
-                          'No sessions found'
-                        )
-                      : getTranslationFromI18nKeyAndLabel(
-                          'lowcoder:ai_builder.sessions.no_sessions_yet',
-                          'No sessions yet'
-                        )}
-                </h3>
-                <p className="gba:text-sm gba:text-muted-foreground gba:mt-1">
-                  {disabled
-                    ? getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:ai_builder.sessions.configure_repo_help',
-                        'Please configure a repository in Settings to get started'
-                      )
-                    : searchTerm
-                      ? getTranslationFromI18nKeyAndLabel(
-                          'lowcoder:ai_builder.sessions.adjust_search',
-                          'Try adjusting your search terms'
-                        )
-                      : getTranslationFromI18nKeyAndLabel(
-                          'lowcoder:ai_builder.sessions.create_first_help',
-                          'Create your first session to start building screens with AI'
-                        )}
-                </p>
+                <h3 className="gba:text-lg gba:font-semibold gba:text-foreground">{getEmptyStateTitle()}</h3>
+                <p className="gba:text-sm gba:text-muted-foreground gba:mt-1">{getEmptyStateDescription()}</p>
               </div>
               {!searchTerm && !disabled && (
                 <AiButton onClick={onCreateSession} className="gba:gap-2">
@@ -266,6 +276,7 @@ export const SessionList: React.FC<SessionListProps> = ({
                       )}
                     </div>
                     <button
+                      type="button"
                       onClick={e => {
                         e.stopPropagation()
                         if (
@@ -279,7 +290,8 @@ export const SessionList: React.FC<SessionListProps> = ({
                           onDeleteSession(session.sessionId)
                         }
                       }}
-                      className="gba:opacity-0 group-hover:gba:opacity-100 gba:transition-opacity gba:text-muted-foreground hover:gba:text-destructive gba:p-1"
+                      className="gba:shrink-0 gba:text-muted-foreground hover:gba:text-destructive gba:p-1.5 gba:rounded gba:transition-colors"
+                      title={getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.sessions.delete', 'Delete session')}
                       data-testid={`delete-session-${session.sessionId}`}
                     >
                       <Trash2 className="gba:w-4 gba:h-4" />

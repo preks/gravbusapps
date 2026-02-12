@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { ChevronRight, ChevronDown, File, Folder, FolderOpen, RefreshCw, Search, X } from 'lucide-react'
 import { Button } from '@newwork/nw-design-system'
-import { ENV } from '../config/environment'
+import { builderClient } from '@/common/network/ai/builder'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface TreeNode {
@@ -27,29 +27,27 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({ repoId, sessionId, o
   const loadTree = async () => {
     setLoading(true)
     try {
-      const response = await fetch(`${ENV.AI_SERVICE_API_URL}/api/tools/execute`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          toolName: 'get_repository_explorer',
-          args: { path: '.', max_depth: 15 },
-          repoId,
-          sessionId
-        })
-      })
-      const data = await response.json()
+      const data = await builderClient.executeTool(
+        'get_repository_explorer',
+        { path: '.', max_depth: 15 },
+        repoId,
+        sessionId
+      )
+
       if (data.success && data.tree) {
-        setTree(data.tree)
+        setTree(data.tree as TreeNode)
         // Auto-expand root level
-        if (data.tree.children) {
+        if ((data.tree as TreeNode).children) {
           const rootPaths = Object.values(data.tree.children as Record<string, TreeNode>).map(
             (node: TreeNode) => node.path
           )
           setExpanded(new Set(rootPaths))
         }
       }
-    } catch {
-      // Failed to load file tree, silent failure
+    } catch (error) {
+      console.error('[FileExplorer] Failed to load file tree:', error)
+      // Set empty tree to show at least the UI
+      setTree(null)
     } finally {
       setLoading(false)
     }
@@ -105,6 +103,17 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({ repoId, sessionId, o
     return false
   }
 
+  const getNodeIcon = (type: string, isExpanded: boolean): React.ReactNode => {
+    if (type === 'directory') {
+      return isExpanded ? (
+        <FolderOpen size={16} className="gba:text-primary gba:flex-shrink-0" />
+      ) : (
+        <Folder size={16} className="gba:text-primary gba:flex-shrink-0" />
+      )
+    }
+    return <File size={16} className="gba:text-muted-foreground gba:flex-shrink-0" />
+  }
+
   const renderNode = (node: TreeNode, depth: number = 0): React.ReactNode | null => {
     if (!matchesSearch(node)) return null
 
@@ -113,14 +122,25 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({ repoId, sessionId, o
 
     return (
       <div key={node.path}>
-        <div
-          className={`gba:flex gba:items-center gba:gap-2 gba:py-1 gba:px-2 gba:cursor-pointer gba:hover:bg-accent gba:rounded gba:transition-colors ${node.modified ? 'gba:bg-warning/10' : ''}`}
+        <button
+          type="button"
+          className={`gba:w-full gba:flex gba:items-center gba:gap-2 gba:py-1 gba:px-2 gba:cursor-pointer gba:hover:bg-accent gba:rounded gba:transition-colors gba:bg-transparent gba:border-0 gba:text-left ${node.modified ? 'gba:bg-warning/10' : ''}`}
           style={{ paddingLeft: `${depth * 16 + 8}px` }}
           onClick={() => {
             if (node.type === 'directory') {
               toggleExpand(node.path)
             } else {
               onFileClick?.(node.path)
+            }
+          }}
+          onKeyDown={e => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault()
+              if (node.type === 'directory') {
+                toggleExpand(node.path)
+              } else {
+                onFileClick?.(node.path)
+              }
             }
           }}
         >
@@ -134,15 +154,7 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({ repoId, sessionId, o
 
           {node.type === 'directory' && !hasChildren && <span className="gba:w-4 gba:flex-shrink-0" />}
 
-          {node.type === 'directory' ? (
-            isExpanded ? (
-              <FolderOpen size={16} className="gba:text-primary gba:flex-shrink-0" />
-            ) : (
-              <Folder size={16} className="gba:text-primary gba:flex-shrink-0" />
-            )
-          ) : (
-            <File size={16} className="gba:text-muted-foreground gba:flex-shrink-0" />
-          )}
+          {getNodeIcon(node.type, isExpanded)}
 
           <span
             className={`gba:text-sm gba:truncate ${node.modified ? 'gba:text-warning gba:font-semibold' : 'gba:text-foreground'}`}
@@ -153,7 +165,7 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({ repoId, sessionId, o
           {node.modified && (
             <span className="gba:text-warning gba:text-xs gba:font-bold gba:ml-auto gba:flex-shrink-0">●</span>
           )}
-        </div>
+        </button>
 
         {node.type === 'directory' && isExpanded && node.children && (
           <div>
@@ -229,7 +241,6 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({ repoId, sessionId, o
           <div className="gba:p-2">
             {Object.values(tree.children)
               .sort((a, b) => {
-                // Directories first, then files
                 if (a.type !== b.type) return a.type === 'directory' ? -1 : 1
                 return a.name.localeCompare(b.name)
               })
