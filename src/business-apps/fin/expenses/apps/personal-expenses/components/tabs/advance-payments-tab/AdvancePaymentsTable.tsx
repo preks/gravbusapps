@@ -117,6 +117,96 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
   // Initialize GraphQL client
   const graphqlClient = useGraphQLClient(contextProps.accessToken)
 
+  // Helper: Fetch approval comment from GraphQL
+  const fetchApprovalComment = useCallback(
+    async (
+      entityId: string,
+      entityType: 'ExpensePlan' | 'AdvancePayment'
+    ): Promise<{
+      approver?: string
+      date?: string
+    }> => {
+      const commentEntity = `${entityType}Comment`
+      const idField = entityType === 'ExpensePlan' ? 'expensePlanId' : 'advancePaymentId'
+
+      try {
+        // Try APPROVE_COMMENT first
+        const approveQuery = `
+          query Get${commentEntity}Approval($entityId: uuid!) {
+            ${commentEntity}(
+              where: { 
+                ${idField}: { _eq: $entityId }
+                commentType: { _eq: "APPROVE_COMMENT" }
+              }
+              orderBy: { commentDate: DESC }
+              limit: 1
+            ) {
+              authorEmployee {
+                fullName
+                firstName
+                lastName
+              }
+              commentDate
+            }
+          }
+        `
+        const approveResult = await graphqlClient.request<{
+          [key: string]: Array<{
+            authorEmployee: { fullName?: string; firstName?: string; lastName?: string }
+            commentDate?: string
+          }>
+        }>(approveQuery, { entityId })
+
+        let comment = approveResult?.[commentEntity]?.[0]
+
+        // Fallback to SYSTEM_COMMENT only for ExpensePlan
+        if (!comment && entityType === 'ExpensePlan') {
+          const systemQuery = `
+            query Get${commentEntity}System($entityId: uuid!) {
+              ${commentEntity}(
+                where: { 
+                  ${idField}: { _eq: $entityId }
+                  commentType: { _eq: "SYSTEM_COMMENT" }
+                  comment: { _ilike: "%to: APPROVED%" }
+                }
+                orderBy: { commentDate: DESC }
+                limit: 1
+              ) {
+                authorEmployee {
+                  fullName
+                  firstName
+                  lastName
+                }
+                commentDate
+              }
+            }
+          `
+          const systemResult = await graphqlClient.request<{
+            [key: string]: Array<{
+              authorEmployee: { fullName?: string; firstName?: string; lastName?: string }
+              commentDate?: string
+            }>
+          }>(systemQuery, { entityId })
+
+          comment = systemResult?.[commentEntity]?.[0]
+        }
+
+        if (comment) {
+          const author = comment.authorEmployee
+          const approver = author
+            ? author.fullName || `${author.firstName || ''} ${author.lastName || ''}`.trim()
+            : undefined
+          return { approver, date: comment.commentDate }
+        }
+      } catch (error) {
+        console.error(`Error fetching ${entityType} approval:`, error)
+      }
+
+      return {}
+    },
+    [graphqlClient]
+  )
+
   // Fetch approver and supervisor data when generate dialog opens
   useEffect(() => {
     if (!generateDocOpen || !generateDocRecord || !contextProps.accessToken) {
@@ -132,147 +222,22 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
         const advPaymentId = generateDocRecord.id
         const employeeId = plan?.employee?.id
 
-        // Get expense plan approval info from ExpensePlanComment
-        let expensePlanApprover: string | undefined
-        let expensePlanApprovalDate: string | undefined
+        // Fetch expense plan approval
+        const expensePlanApproval = planId ? await fetchApprovalComment(planId, 'ExpensePlan') : {}
 
-        if (planId) {
-          try {
-            // First try APPROVE_COMMENT
-            const approveCommentQuery = `
-              query GetExpensePlanApprovalComment($expensePlanId: uuid!) {
-                ExpensePlanComment(
-                  where: { 
-                    expensePlanId: { _eq: $expensePlanId }
-                    commentType: { _eq: "APPROVE_COMMENT" }
-                  }
-                  orderBy: { commentDate: DESC }
-                  limit: 1
-                ) {
-                  authorEmployee {
-                    fullName
-                    firstName
-                    lastName
-                  }
-                  commentDate
-                }
-              }
-            `
-            const approveResult = await graphqlClient.request<{
-              ExpensePlanComment: Array<{
-                authorEmployee: { fullName?: string; firstName?: string; lastName?: string }
-                commentDate?: string
-              }>
-            }>(approveCommentQuery, { expensePlanId: planId })
+        // Fetch advance payment approval (only APPROVE_COMMENT, no SYSTEM_COMMENT fallback)
+        let advancePaymentApproval = advPaymentId ? await fetchApprovalComment(advPaymentId, 'AdvancePayment') : {}
 
-            let comment = approveResult?.ExpensePlanComment?.[0]
-
-            // If no APPROVE_COMMENT, fallback to SYSTEM_COMMENT showing approval
-            if (!comment) {
-              const systemCommentQuery = `
-                query GetExpensePlanSystemComment($expensePlanId: uuid!) {
-                  ExpensePlanComment(
-                    where: { 
-                      expensePlanId: { _eq: $expensePlanId }
-                      commentType: { _eq: "SYSTEM_COMMENT" }
-                      comment: { _ilike: "%to: APPROVED%" }
-                    }
-                    orderBy: { commentDate: DESC }
-                    limit: 1
-                  ) {
-                    authorEmployee {
-                      fullName
-                      firstName
-                      lastName
-                    }
-                    commentDate
-                  }
-                }
-              `
-              const systemResult = await graphqlClient.request<{
-                ExpensePlanComment: Array<{
-                  authorEmployee: { fullName?: string; firstName?: string; lastName?: string }
-                  commentDate?: string
-                }>
-              }>(systemCommentQuery, { expensePlanId: planId })
-
-              comment = systemResult?.ExpensePlanComment?.[0]
-            }
-
-            if (comment) {
-              const author = comment.authorEmployee
-              if (author) {
-                expensePlanApprover = author.fullName || `${author.firstName || ''} ${author.lastName || ''}`.trim()
-              }
-              expensePlanApprovalDate = comment.commentDate
-            }
-          } catch (error) {
-            console.error('[Approval Data] Error fetching expense plan approver:', error)
-          }
-        }
-
-        // Fetch advance payment approval comment
-        // Note: Check for explicit APPROVE_COMMENT only, don't fall back to SYSTEM_COMMENT
-        // If no APPROVE_COMMENT, use expense plan approval
-        let advancePaymentApprover: string | undefined
-        let advancePaymentApprovalDate: string | undefined
-
-        if (advPaymentId) {
-          try {
-            // Only try APPROVE_COMMENT (explicit manager approval)
-            const approveCommentQuery = `
-              query GetAdvancePaymentApprovalComment($advPaymentId: uuid!) {
-                AdvancePaymentComment(
-                  where: { 
-                    advancePaymentId: { _eq: $advPaymentId }
-                    commentType: { _eq: "APPROVE_COMMENT" }
-                  }
-                  orderBy: { commentDate: DESC }
-                  limit: 1
-                ) {
-                  authorEmployee {
-                    fullName
-                    firstName
-                    lastName
-                  }
-                  commentDate
-                }
-              }
-            `
-            const approveResult = await graphqlClient.request<{
-              AdvancePaymentComment: Array<{
-                authorEmployee: { fullName?: string; firstName?: string; lastName?: string }
-                commentDate?: string
-              }>
-            }>(approveCommentQuery, { advPaymentId })
-
-            const comment = approveResult?.AdvancePaymentComment?.[0]
-
-            if (comment) {
-              const author = comment.authorEmployee
-              if (author) {
-                advancePaymentApprover = author.fullName || `${author.firstName || ''} ${author.lastName || ''}`.trim()
-              }
-              advancePaymentApprovalDate = comment.commentDate
-            } else {
-              // No explicit advance payment approval, will fall back to expense plan
-            }
-          } catch (error) {
-            console.error('[Approval Data] Error fetching advance payment approver:', error)
-          }
-        }
-
-        // If advance payment has no explicit approver, use the expense plan's approver
-        if (!advancePaymentApprover) {
-          advancePaymentApprover = expensePlanApprover
-          advancePaymentApprovalDate = expensePlanApprovalDate
+        // If advance payment has no explicit approval, use expense plan approval
+        if (!advancePaymentApproval.approver) {
+          advancePaymentApproval = expensePlanApproval
         }
 
         setApproverData({
-          expensePlanApprover,
-          advancePaymentApprover,
-          expensePlanApprovalDate,
-          advancePaymentApprovalDate
+          expensePlanApprover: expensePlanApproval.approver,
+          advancePaymentApprover: advancePaymentApproval.approver,
+          expensePlanApprovalDate: expensePlanApproval.date,
+          advancePaymentApprovalDate: advancePaymentApproval.date
         })
 
         // Fetch supervisor name
