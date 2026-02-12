@@ -77,7 +77,7 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
   })
 
   /**
-   * Load all apps from the backend
+   * Load all apps from the backend (paginated fetch, max 100 per request)
    */
   const loadApps = useCallback(async () => {
     if (!accessToken) {
@@ -89,14 +89,26 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
 
     try {
       console.log('[useSpreadsheetApps] Loading apps from document-service backend')
-      const apps = await SpreadsheetApiService.listApps()
+
+      const PAGE_SIZE = 100
+      let allApps: Awaited<ReturnType<typeof SpreadsheetApiService.listApps>> = []
+      let page = 1
+      let hasMore = true
+
+      while (hasMore) {
+        const pageItems = await SpreadsheetApiService.listApps({ limit: PAGE_SIZE, page })
+        allApps = [...allApps, ...pageItems]
+        hasMore = pageItems.length === PAGE_SIZE
+        page++
+      }
+
       setState(prev => ({
         ...prev,
-        apps,
+        apps: allApps,
         isLoading: false,
         storageMode: 'database'
       }))
-      console.log('[useSpreadsheetApps] Apps loaded from database:', apps.length)
+      console.log('[useSpreadsheetApps] Apps loaded from database:', allApps.length)
     } catch (error) {
       console.error('[useSpreadsheetApps] Failed to load apps:', error)
       setState(prev => ({
@@ -205,7 +217,8 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
           ...prev,
           currentApp: newApp,
           isSaving: false,
-          storageMode: 'database'
+          storageMode: 'database',
+          currentAppPermission: 'owner' // Creator is always the owner
         }))
 
         toast.success('App saved to database!')

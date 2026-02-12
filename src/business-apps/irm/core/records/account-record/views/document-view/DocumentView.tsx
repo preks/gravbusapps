@@ -3,7 +3,6 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { DocumentSection } from '@/components/document-section'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { useInvestmentDocuments } from '@/common/data/investment/hooks/useInvestmentDocuments'
-import { createDocumentSectionActions } from '@/common/utils/documentSectionActions'
 import { getIrmDocumentApiConfig, useGetIrmDocuments } from '@/business-apps/irm/common/utils/documentUtils'
 
 interface DocumentViewProps {
@@ -46,16 +45,21 @@ const DocumentView: React.FC<DocumentViewProps> = ({ accountId, context }) => {
     [accountId]
   )
 
-  // Use shared document actions
-  const customActions = useMemo(
-    () =>
-      createDocumentSectionActions({
-        domain: 'investment-relations',
-        documentFieldName: 'investmentDocument',
-        entityType: 'account',
-        updateProcessName: 'updateInvestmentDocument',
-        deleteEndpoint: '/investment-relations/deleteInvestmentDocument'
-      }),
+  const documentUpdateActionProps = useMemo(
+    () => ({
+      contextsArray: [FlowContextName.investmentDocumentUpdate],
+      buildExternalContextData: (document: any) => ({ documentId: document.id }),
+      prefixDataTestId: 'account-document-update'
+    }),
+    []
+  )
+
+  const documentDeleteActionProps = useMemo(
+    () => ({
+      contextsArray: [FlowContextName.investmentDocumentDelete],
+      buildExternalContextData: (document: any) => ({ documentId: document.id }),
+      prefixDataTestId: 'account-document-delete'
+    }),
     []
   )
 
@@ -67,9 +71,10 @@ const DocumentView: React.FC<DocumentViewProps> = ({ accountId, context }) => {
       error={error}
       onRefresh={refetch}
       apiConfig={getIrmDocumentApiConfig('account')}
-      customActions={customActions}
       createFolderActionProps={documentCreateFolderActionProps}
       uploadActionProps={documentUploadActionProps}
+      updateActionProps={documentUpdateActionProps}
+      deleteActionProps={documentDeleteActionProps}
       data-testid="account-document-section"
       {...context}
     />

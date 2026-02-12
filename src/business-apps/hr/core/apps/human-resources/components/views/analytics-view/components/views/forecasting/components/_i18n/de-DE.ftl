@@ -14,4 +14,8 @@ suffix-thousand = Tsd.
 total-salary = Gesamtgehälter
 department-salary-stacked-bar-chart-title = Gestapelte Balkendiagramme der Abteilungsgehälter
 
+# Chart states (shared)
+hr-data-filter-error = Fehler beim Laden der Daten
+hr-data-filter-no-data = Keine Daten verfügbar
+
 

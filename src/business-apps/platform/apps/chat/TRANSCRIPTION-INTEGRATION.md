@@ -55,7 +55,7 @@ useEffect(() => {
       duration: 10000
     })
 
-    console.log('View transcript at:', `/note-apps?noteId=${data.noteId}`)
+    console.log('View transcript at:', `/platform/notes?noteId=${data.noteId}`)
   }
 
   socket.on('transcript-ready', handleTranscriptReady)
@@ -139,7 +139,7 @@ export interface UseGroupCallReturn {
 3. **During Call**: Recording indicator shows in call controls bar
 4. **After Call**: Backend background job automatically processes transcript (2-10 minutes)
 5. **Notification**: **All participants** receive toast notification when transcript is ready
-6. **View**: Any participant can navigate to `/note-apps?noteId={noteId}` to view transcript
+6. **View**: Any participant can navigate to `/platform/notes?noteId={noteId}` to view transcript
 7. **Collaboration**: Transcript is owned by meeting creator and shared with all participants
 
 ### Technical Flow
@@ -189,7 +189,7 @@ No frontend environment variables required. Backend needs:
 7. Wait 1-2 minutes
 8. Verify toast notification appears
 9. Check browser console for note ID
-10. Navigate to `/note-apps?noteId={id}` to verify transcript
+10. Navigate to `/platform/notes?noteId={id}` to verify transcript
 
 ### Debugging
 
@@ -197,7 +197,7 @@ Check browser console for:
 
 ```
 [RTK] 📝 Transcript ready: { noteId, title, meetingId, meetingTitle }
-[RTK] 📝 View transcript at: /note-apps?noteId=...
+[RTK] 📝 View transcript at: /platform/notes?noteId=...
 ```
 
 Check chat-service logs for:

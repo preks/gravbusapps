@@ -4,6 +4,8 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { EntityOption } from '@/common/components/common-relations/form-segments/activity-segment/ActivitySegment'
 
 // GraphQL query for relation entities (accounts, contacts, opportunities, leads)
+// Uses communicationChannels for Account/Contact/Opportunity email (the field shown on record pages)
+// and flat email/companyEmail for Lead (which uses flat fields in its data model)
 const GET_CUSTOMER_RELATION_ENTITIES_QUERY = `
   query GetCustomerRelationEntities($searchPattern: String!, $limit: Int, $offset: Int) {
     Account(
@@ -15,8 +17,8 @@ const GET_CUSTOMER_RELATION_ENTITIES_QUERY = `
           {
             _or: [
               { name: { _ilike: $searchPattern } }
-              { email: { _ilike: $searchPattern } }
               { code: { _ilike: $searchPattern } }
+              { communicationChannels: { value: { _ilike: $searchPattern }, communicationChannelRef: { _ilike: "%e-mail%" } } }
             ]
           }
         ]
@@ -26,7 +28,10 @@ const GET_CUSTOMER_RELATION_ENTITIES_QUERY = `
       id
       code
       name
-      email
+      communicationChannels(where: { isDeleted: { _eq: false }, communicationChannelRef: { _ilike: "%e-mail%" } }, limit: 1) {
+        value
+        communicationChannelRef
+      }
     }
     
     Contact(
@@ -40,8 +45,8 @@ const GET_CUSTOMER_RELATION_ENTITIES_QUERY = `
               { firstName: { _ilike: $searchPattern } }
               { lastName: { _ilike: $searchPattern } }
               { fullName: { _ilike: $searchPattern } }
-              { email: { _ilike: $searchPattern } }
               { code: { _ilike: $searchPattern } }
+              { communicationChannels: { value: { _ilike: $searchPattern }, communicationChannelRef: { _ilike: "%e-mail%" } } }
             ]
           }
         ]
@@ -53,7 +58,10 @@ const GET_CUSTOMER_RELATION_ENTITIES_QUERY = `
       firstName
       lastName
       fullName
-      email
+      communicationChannels(where: { isDeleted: { _eq: false }, communicationChannelRef: { _ilike: "%e-mail%" } }, limit: 1) {
+        value
+        communicationChannelRef
+      }
     }
     
     Opportunity(
@@ -66,6 +74,7 @@ const GET_CUSTOMER_RELATION_ENTITIES_QUERY = `
             _or: [
               { name: { _ilike: $searchPattern } }
               { code: { _ilike: $searchPattern } }
+              { communicationChannels: { value: { _ilike: $searchPattern }, communicationChannelRef: { _ilike: "%e-mail%" } } }
             ]
           }
         ]
@@ -76,6 +85,10 @@ const GET_CUSTOMER_RELATION_ENTITIES_QUERY = `
       code
       name
       stage
+      communicationChannels(where: { isDeleted: { _eq: false }, communicationChannelRef: { _ilike: "%e-mail%" } }, limit: 1) {
+        value
+        communicationChannelRef
+      }
     }
     
     Lead(
@@ -90,6 +103,7 @@ const GET_CUSTOMER_RELATION_ENTITIES_QUERY = `
               { lastName: { _ilike: $searchPattern } }
               { companyName: { _ilike: $searchPattern } }
               { email: { _ilike: $searchPattern } }
+              { companyEmail: { _ilike: $searchPattern } }
               { code: { _ilike: $searchPattern } }
             ]
           }
@@ -103,9 +117,22 @@ const GET_CUSTOMER_RELATION_ENTITIES_QUERY = `
       lastName
       companyName
       email
+      companyEmail
     }
   }
 `
+
+/** Communication channel sub-selection returned for Account/Contact/Opportunity */
+interface EmailChannelEntry {
+  value?: string
+  communicationChannelRef?: string
+}
+
+/** Helper to extract the first email from communication channels */
+const getEmailFromChannels = (channels?: EmailChannelEntry[]): string | undefined => {
+  if (!channels || channels.length === 0) return undefined
+  return channels[0]?.value || undefined
+}
 
 // Type for the GraphQL response
 interface CustomerEntitiesResponse {
@@ -113,7 +140,7 @@ interface CustomerEntitiesResponse {
     id: string
     code?: string
     name?: string
-    email?: string
+    communicationChannels?: EmailChannelEntry[]
   }>
   Contact: Array<{
     id: string
@@ -121,13 +148,14 @@ interface CustomerEntitiesResponse {
     firstName?: string
     lastName?: string
     fullName?: string
-    email?: string
+    communicationChannels?: EmailChannelEntry[]
   }>
   Opportunity: Array<{
     id: string
     code?: string
     name?: string
     stage?: string
+    communicationChannels?: EmailChannelEntry[]
   }>
   Lead: Array<{
     id: string
@@ -136,6 +164,7 @@ interface CustomerEntitiesResponse {
     lastName?: string
     companyName?: string
     email?: string
+    companyEmail?: string
   }>
 }
 
@@ -166,11 +195,13 @@ export const useCustomerRelatedEntities = (context: BusinessAppContextProps) => 
         })
 
         // Map results to EntityOption format
+        // Account/Contact/Opportunity use communicationChannels EMAIL for subtitle
+        // Lead uses flat email / companyEmail fields
         const accountOptions: EntityOption[] = (result.Account || []).map(acc => ({
           id: acc.id,
           name: acc.name || '',
           type: 'account' as const,
-          subtitle: acc.email || acc.code || undefined
+          subtitle: getEmailFromChannels(acc.communicationChannels) || acc.code || undefined
         }))
 
         const contactOptions: EntityOption[] = (result.Contact || []).map(contact => ({
@@ -181,21 +212,21 @@ export const useCustomerRelatedEntities = (context: BusinessAppContextProps) => 
             contact.code ||
             'Contact',
           type: 'contact' as const,
-          subtitle: contact.email || contact.code || undefined
+          subtitle: getEmailFromChannels(contact.communicationChannels) || contact.code || undefined
         }))
 
         const opportunityOptions: EntityOption[] = (result.Opportunity || []).map(opp => ({
           id: opp.id,
           name: opp.name || '',
           type: 'opportunity' as const,
-          subtitle: opp.stage || opp.code || undefined
+          subtitle: getEmailFromChannels(opp.communicationChannels) || opp.stage || opp.code || undefined
         }))
 
         const leadOptions: EntityOption[] = (result.Lead || []).map(lead => ({
           id: lead.id,
           name: lead.companyName || `${lead.firstName || ''} ${lead.lastName || ''}`.trim() || 'Unknown Lead',
           type: 'lead' as const,
-          subtitle: lead.email || lead.code || undefined
+          subtitle: lead.email || lead.companyEmail || lead.code || undefined
         }))
 
         const combined = [...accountOptions, ...contactOptions, ...opportunityOptions, ...leadOptions]
@@ -258,15 +289,20 @@ export const useCustomerRelatedEntities = (context: BusinessAppContextProps) => 
     async (type: 'account' | 'contact' | 'opportunity' | 'lead', entityId: string) => {
       try {
         const typename = type.charAt(0).toUpperCase() + type.slice(1)
+        // Account/Contact/Opportunity fetch communicationChannels for email subtitle
+        const emailChannelFragment =
+          type !== 'lead'
+            ? `communicationChannels(where: { isDeleted: { _eq: false }, communicationChannelRef: { _ilike: "%e-mail%" } }, limit: 1) { value communicationChannelRef }`
+            : ''
         const query = `
           query GetEntity {
             ${typename}(where: { id: { _eq: "${entityId}" } }) {
               id
               code
-              ${type === 'account' ? 'name email' : ''}
-              ${type === 'contact' ? 'firstName lastName fullName email' : ''}
-              ${type === 'opportunity' ? 'name stage' : ''}
-              ${type === 'lead' ? 'firstName lastName companyName email' : ''}
+              ${type === 'account' ? `name ${emailChannelFragment}` : ''}
+              ${type === 'contact' ? `firstName lastName fullName ${emailChannelFragment}` : ''}
+              ${type === 'opportunity' ? `name stage ${emailChannelFragment}` : ''}
+              ${type === 'lead' ? 'firstName lastName companyName email companyEmail' : ''}
             }
           }
         `
@@ -279,16 +315,16 @@ export const useCustomerRelatedEntities = (context: BusinessAppContextProps) => 
 
           if (type === 'account') {
             name = item.name || ''
-            subtitle = item.email || item.code || ''
+            subtitle = getEmailFromChannels(item.communicationChannels) || item.code || ''
           } else if (type === 'contact') {
             name = `${item.firstName || ''} ${item.lastName || ''}`.trim() || item.fullName || item.code || 'Contact'
-            subtitle = item.email || item.code || ''
+            subtitle = getEmailFromChannels(item.communicationChannels) || item.code || ''
           } else if (type === 'opportunity') {
             name = item.name || ''
-            subtitle = item.stage || item.code || ''
+            subtitle = getEmailFromChannels(item.communicationChannels) || item.stage || item.code || ''
           } else if (type === 'lead') {
             name = item.companyName || `${item.firstName || ''} ${item.lastName || ''}`.trim()
-            subtitle = item.email || item.code || ''
+            subtitle = item.email || item.companyEmail || item.code || ''
           }
 
           const entityOption: EntityOption = {

@@ -11,9 +11,16 @@ import { rtkDebug } from '../utils/rtkDebug'
 interface CalendarProps extends BusinessAppContextProps {
   prefixDataTestId?: string
   activeCalls?: Record<string, any> // Active calls passed from Chat
+  /** External calendar events from email providers to merge in */
+  externalCalendarEvents?: CalendarEvent[]
 }
 
-const CalendarInner: React.FC<CalendarProps> = ({ accessToken, prefixDataTestId = 'calendar', activeCalls = {} }) => {
+const CalendarInner: React.FC<CalendarProps> = ({
+  accessToken,
+  prefixDataTestId = 'calendar',
+  activeCalls = {},
+  externalCalendarEvents = []
+}) => {
   // Build API URL for calendar API
   let baseUrl = env('NEXT_PUBLIC_BASE_URL') || ''
   baseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl
@@ -68,7 +75,8 @@ const CalendarInner: React.FC<CalendarProps> = ({ accessToken, prefixDataTestId 
     viewTitle
   } = useCalendar({
     accessToken,
-    apiUrl
+    apiUrl,
+    externalEvents: externalCalendarEvents
   })
 
   // Modal states

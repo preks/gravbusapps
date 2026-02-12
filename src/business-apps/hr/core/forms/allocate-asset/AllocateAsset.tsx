@@ -13,7 +13,8 @@ import {
   SelectContent,
   SelectItem,
   Textarea,
-  DateInput
+  DateInput,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
@@ -32,6 +33,7 @@ import { useAssetFormData } from '../return-asset/hooks/useAssetFormData'
 import { useAssetVersion } from '../return-asset/hooks/useAssetVersion'
 import { dispatchProcessCompletionEvents } from '../return-asset/utils/processEventUtils'
 import { useAssetService } from '../../apps/assets/services/useAssetService'
+import assetsTranslations from '../../apps/assets/_i18n'
 
 type FormValues = {
   employeeId: string
@@ -55,6 +57,7 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
   const [currentLocale, setCurrentLocale] = useState(getCurrentActiveUserLocale())
   const [allocationError, setAllocationError] = React.useState<string | null>(null)
 
+  const { t } = useTranslation(assetsTranslations)
   const { getAllocationsForAsset } = useAssetService(context)
 
   useEffect(() => {
@@ -74,10 +77,7 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
 
   const acquisitionDate = existingAsset?.acquisitionDate
 
-  const issueDateBeforePurchaseMessage = getTranslationFromI18nKeyAndLabel(
-    'lowcoder:hr_assets.issue_date_not_before_purchase',
-    'Issue date cannot be earlier than the purchase date.'
-  )
+  const issueDateBeforePurchaseMessage = t('issue-date-not-before-purchase')
 
   const isStartDateBeforeAcquisition = useCallback(
     (startDateStr: string): boolean => {

@@ -4,7 +4,7 @@
  */
 
 import React from 'react'
-import { Button, cn, useTranslation } from '@newwork/nw-design-system'
+import { Button, cn, toast, useTranslation } from '@newwork/nw-design-system'
 import { CheckCircle } from 'lucide-react'
 import { UnifiedTask } from '../types'
 import { useScreenManagementApi } from '../hooks/useScreenManagementApi'
@@ -12,10 +12,42 @@ import { RemoteScreenLoader } from './RemoteScreenLoader'
 import { LowcoderScreenLoader } from './LowcoderScreenLoader'
 import { useKogitoProcess } from '../hooks/useKogitoProcess'
 import { env } from '@/common/env/EnvUtils'
+import { storeCommunication } from '../../every-api/services/AiService'
 import { UniversalCflowTaskDetails } from './UniversalCflowTaskDetails'
 import { useFlowStepData } from '../hooks/useFlowStepData'
 import { TaskAiSection } from './TaskAiSection'
 import translations from '../_i18n'
+
+const isExpenseTask = (task: UnifiedTask): boolean => {
+  const parts: Array<string> = []
+
+  const tagValues =
+    task?.tags && typeof task.tags === 'object'
+      ? Object.values(task.tags)
+          .map(v => (typeof v === 'string' ? v : ''))
+          .filter(Boolean)
+      : []
+
+  parts.push(
+    String(task?.referenceTaskName || ''),
+    String(task?.name || ''),
+    String(task?.title || ''),
+    String(task?.type || ''),
+    String(task?.taskCategory || ''),
+    String(task?.message || ''),
+    ...tagValues
+  )
+
+  const haystack = parts.join(' ').toLowerCase()
+
+  // Finance/Expenses-related task screens where the AI summary banner is noisy.
+  return (
+    haystack.includes('expense') ||
+    haystack.includes('advance payment') ||
+    haystack.includes('handout payment') ||
+    haystack.includes('transfer payment')
+  )
+}
 
 interface TaskDetailContentProps {
   task: UnifiedTask
@@ -84,6 +116,24 @@ export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
     accessToken,
     onSuccess: () => {
       toast.success(t('task-dialog-completed-success'))
+
+      // Store kogito task completion for AI learning (fire and forget)
+      if (task?.id) {
+        storeCommunication(
+          {
+            taskId: task.id,
+            source: task.source as 'cflow' | 'kogito',
+            messageType: 'completion',
+            content: `Task completed: ${task.title || task.name || task.id}`,
+            recipientId: task.sourceMetadata?.creatorUserId as string | undefined,
+            aiAssisted: false
+          },
+          accessToken
+        ).catch(() => {
+          // Silent failure - don't interrupt user flow
+        })
+      }
+
       // Call onTaskCompleted first for instant UI feedback (removes from local state)
       // Don't call onTaskUpdated - it triggers a slow full refetch that's not needed
       // handleTaskCompleted already calls onCompletedRefresh for background sync
@@ -129,6 +179,22 @@ export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
 
           if (response.ok) {
             toast.success(t('task-dialog-completed-success'))
+
+            // Store cflow task completion via screen event for AI learning (fire and forget)
+            storeCommunication(
+              {
+                taskId: task.id,
+                source: 'cflow',
+                messageType: 'completion',
+                content: `Task completed: ${task.title || task.name || task.id}`,
+                recipientId: task.sourceMetadata?.creatorUserId as string | undefined,
+                aiAssisted: false
+              },
+              accessToken
+            ).catch(() => {
+              // Silent failure
+            })
+
             // Call onTaskCompleted first for instant UI feedback
             if (onTaskCompleted && task.id) {
               onTaskCompleted(task.id)
@@ -142,6 +208,23 @@ export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
           toast.error(t('task-dialog-action-failed'))
         }
       } else {
+        // Store task completion for AI learning (fire and forget)
+        if (task?.id) {
+          storeCommunication(
+            {
+              taskId: task.id,
+              source: task.source as 'cflow' | 'kogito',
+              messageType: 'completion',
+              content: `Task completed: ${task.title || task.name || task.id}`,
+              recipientId: task.sourceMetadata?.creatorUserId as string | undefined,
+              aiAssisted: false
+            },
+            accessToken
+          ).catch(() => {
+            // Silent failure
+          })
+        }
+
         // Call onTaskCompleted first for instant UI feedback
         if (onTaskCompleted && task?.id) {
           onTaskCompleted(task.id)
@@ -169,6 +252,7 @@ export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
   ])
 
   const taskInputs = task?.sourceMetadata?.inputs || task?.inputs
+  const shouldShowAiSection = !isExpenseTask(task)
 
   const nativeScreenAdditionalData = React.useMemo(() => {
     const data = {
@@ -371,6 +455,21 @@ export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
 
       toast.success(t('task-dialog-blink-completed-success'))
 
+      // Store task completion for AI learning (fire and forget)
+      storeCommunication(
+        {
+          taskId: task.id,
+          source: task.source as 'cflow' | 'kogito',
+          messageType: 'completion',
+          content: `Task completed: ${task.title || task.name || task.id}`,
+          recipientId: task.sourceMetadata?.creatorUserId as string | undefined,
+          aiAssisted: false
+        },
+        accessToken
+      ).catch(() => {
+        // Silent failure - don't interrupt user flow
+      })
+
       // Call onTaskCompleted first for instant UI feedback (removes from local state)
       // Don't call onTaskUpdated - it triggers a slow full refetch that's not needed
       if (onTaskCompleted && task.id) {
@@ -426,14 +525,16 @@ export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
               onTaskUpdated={onTaskUpdated}
               isLoadingMetadata={false}
               belowHeaderSlot={
-                <TaskAiSection
-                  taskId={task.id}
-                  source={task.source}
-                  accessToken={accessToken}
-                  taskTitle={task.title || task.name}
-                  taskDescription={task.description}
-                  contactId={task.sourceMetadata?.creatorUserId as string | undefined}
-                />
+                shouldShowAiSection ? (
+                  <TaskAiSection
+                    taskId={task.id}
+                    source={task.source}
+                    accessToken={accessToken}
+                    taskTitle={task.title || task.name}
+                    taskDescription={task.description}
+                    contactId={task.sourceMetadata?.creatorUserId as string | undefined}
+                  />
+                ) : null
               }
             />
           </div>
@@ -445,16 +546,18 @@ export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
       return (
         <div className="gba:flex gba:flex-col gba:h-full gba:overflow-hidden gba:relative">
           {/* AI Summary (cannot be injected into iframe) */}
-          <div className="gba:px-6 gba:pt-4">
-            <TaskAiSection
-              taskId={task.id}
-              source={task.source}
-              accessToken={accessToken}
-              taskTitle={task.title || task.name}
-              taskDescription={task.description}
-              contactId={task.sourceMetadata?.creatorUserId as string | undefined}
-            />
-          </div>
+          {shouldShowAiSection && (
+            <div className="gba:px-6 gba:pt-4">
+              <TaskAiSection
+                taskId={task.id}
+                source={task.source}
+                accessToken={accessToken}
+                taskTitle={task.title || task.name}
+                taskDescription={task.description}
+                contactId={task.sourceMetadata?.creatorUserId as string | undefined}
+              />
+            </div>
+          )}
 
           {/* Screen content */}
           <div className="gba:flex-1 gba:min-h-0 gba:overflow-auto">
@@ -478,14 +581,16 @@ export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
       return (
         <div className="gba:px-6 gba:py-4 gba:space-y-6">
           {/* AI Summary at top */}
-          <TaskAiSection
-            taskId={task.id}
-            source={task.source}
-            accessToken={accessToken}
-            taskTitle={task.title || task.name}
-            taskDescription={task.description}
-            contactId={task.sourceMetadata?.creatorUserId as string | undefined}
-          />
+          {shouldShowAiSection && (
+            <TaskAiSection
+              taskId={task.id}
+              source={task.source}
+              accessToken={accessToken}
+              taskTitle={task.title || task.name}
+              taskDescription={task.description}
+              contactId={task.sourceMetadata?.creatorUserId as string | undefined}
+            />
+          )}
 
           {/* Placeholder for tasks without screens */}
           <div className="gba:text-muted-foreground gba:text-center gba:py-4">

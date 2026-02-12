@@ -4,6 +4,7 @@ import { DataContainer } from '@/components/layout/dataContainer'
 import { useAdvancePaymentFilters } from '../../../hooks/useAdvancePaymentFilters'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { buildDeduplicatedFilters } from '../../../utils/filterUtils'
+import { separateFiltersByType } from '../../../utils/plansFilterHelpers'
 import AdvancePaymentStatistics from './AdvancePaymentStatistics'
 import AdvancePaymentsTable from './AdvancePaymentsTable'
 import { useManagerExpensesOverview } from '../../../hooks/useManagerExpensesOverview'
@@ -20,7 +21,8 @@ const AdvancePaymentsTab: React.FC<BusinessAppContextProps> = props => {
     statusFilter,
     setStatusFilter,
     currencyFilter,
-    filterGroups: statusFilterGroup, // Only contains status filters - currency is added below
+    setCurrencyFilter,
+    filterGroups: statusFilterGroup,
     handleDataFilterChange: baseHandleDataFilterChange,
     filterLabelMap: baseLabelMap
   } = useAdvancePaymentFilters({
@@ -71,22 +73,39 @@ const AdvancePaymentsTab: React.FC<BusinessAppContextProps> = props => {
       default:
         return [{ createdAt: 'DESC' } as any]
     }
-  }, [sorting])
+  }, [sorting.field, sorting.order])
 
   const currencyRef = useMemo(
     () => (currencyFilter ? standardizeCurrencyRef(currencyFilter) : undefined),
     [currencyFilter]
   )
 
-  const overview = useManagerExpensesOverview(props, {
-    managerId,
-    currencyRef,
-    searchTerm,
-    payments: { limit: pageSize, offset: (currentPage - 1) * pageSize, orderBy: payOrderBy },
-    paymentsStatus: statusFilter || undefined,
-    requests: { limit: 0, offset: 0 },
-    plans: { limit: 0, offset: 0 }
-  })
+  const requestsParams = useMemo(() => ({ limit: 0, offset: 0 }), [])
+  const plansParams = useMemo(() => ({ limit: 0, offset: 0 }), [])
+
+  const paymentsParams = useMemo(
+    () => ({
+      limit: pageSize,
+      offset: (currentPage - 1) * pageSize,
+      orderBy: payOrderBy
+    }),
+    [pageSize, currentPage, payOrderBy]
+  )
+
+  const overviewParams = useMemo(
+    () => ({
+      managerId,
+      currencyRef,
+      searchTerm,
+      payments: paymentsParams,
+      paymentsStatus: statusFilter || undefined,
+      requests: requestsParams,
+      plans: plansParams
+    }),
+    [managerId, currencyRef, searchTerm, paymentsParams, statusFilter, requestsParams, plansParams]
+  )
+
+  const overview = useManagerExpensesOverview(props, overviewParams)
 
   // Use ref to keep the last valid stats to prevent flickering/height changes
   const lastValidStatsRef = useRef<any>(null)
@@ -145,10 +164,10 @@ const AdvancePaymentsTab: React.FC<BusinessAppContextProps> = props => {
   const paymentsError = overview.error ? new Error(overview.error) : null
   const totalCount = overview.data?.advancePaymentsTotal ?? 0
 
-  // Get currencies from overview
+  // Only show currencies that have advance payments (avoids e.g. USD from requests/plans with 0 payments)
   const availableCurrencies = useMemo(() => {
-    return overview.data?.distinctCurrencies || []
-  }, [overview.data?.distinctCurrencies])
+    return overview.data?.distinctCurrenciesFromPayments ?? overview.data?.distinctCurrencies ?? []
+  }, [overview.data?.distinctCurrenciesFromPayments, overview.data?.distinctCurrencies])
 
   // Initialize currencyFilter with first available currency if empty
   const hasInitializedCurrency = useRef(false)
@@ -222,6 +241,7 @@ const AdvancePaymentsTab: React.FC<BusinessAppContextProps> = props => {
   const handleSearchChange = useCallback(
     (search: string) => {
       setSearchTerm(search)
+      setCurrentPage(1)
     },
     [setSearchTerm]
   )
@@ -229,22 +249,83 @@ const AdvancePaymentsTab: React.FC<BusinessAppContextProps> = props => {
   const clearAllFilters = useCallback(() => {
     setSearchTerm('')
     setStatusFilter([])
-  }, [setSearchTerm, setStatusFilter])
+    setCurrencyFilter('')
+    setCurrentPage(1)
+  }, [setSearchTerm, setStatusFilter, setCurrencyFilter])
 
-  // Reset pagination when filters or search change so filtered results are visible from page 1.
+  const onFilterChangeWithPageReset = useCallback(
+    (filterId: string, selected: boolean) => {
+      setCurrentPage(1)
+      handleDataFilterChange(filterId, selected)
+    },
+    [handleDataFilterChange]
+  )
+
+  const handleTableStatusFilterChange = useCallback(
+    (filter: string[] | null) => {
+      setStatusFilter(filter || [])
+      setCurrentPage(1)
+    },
+    [setStatusFilter]
+  )
+
+  const handleFilterChange = useCallback(
+    (newFilters: string[]) => {
+      setCurrentPage(1)
+      const { currency: currencyIncoming, status: statusIncoming } = separateFiltersByType(newFilters)
+      setStatusFilter(statusIncoming.length > 0 ? statusIncoming : [])
+
+      const hasCurrency = currencyIncoming.length > 0
+      const newCurrencyCode = hasCurrency ? currencyIncoming[0].replace('currency:', '') : null
+      if (hasCurrency && newCurrencyCode && `currency:${newCurrencyCode}` !== `currency:${currencyFilter}`) {
+        handleDataFilterChange(`currency:${newCurrencyCode}`, true)
+      }
+      if (!hasCurrency && currencyFilter) {
+        setCurrencyFilter('')
+      }
+    },
+    [currencyFilter, handleDataFilterChange, setStatusFilter, setCurrencyFilter]
+  )
+
+  const filterSignature = useMemo(
+    () => ({ searchTerm, statusFilter, currencyFilter }),
+    [searchTerm, statusFilter, currencyFilter]
+  )
+
   const prevFilterSignatureRef = useRef<string | null>(null)
   useEffect(() => {
-    const signature = JSON.stringify({
-      searchTerm,
-      statusFilter,
-      currencyFilter
-    })
+    const signature = JSON.stringify(filterSignature)
     const prev = prevFilterSignatureRef.current
     if (prev !== null && prev !== signature) {
       setCurrentPage(1)
     }
     prevFilterSignatureRef.current = signature
-  }, [searchTerm, statusFilter, currencyFilter])
+  }, [filterSignature])
+
+  const listTitle = useMemo(
+    () => (
+      <div className="gba:flex gba:items-center gba:gap-4">
+        <div className="gba:flex gba:items-center gba:gap-2">
+          <span>
+            {getTranslationFromI18nKeyAndLabel(
+              'lowcoder:backoffice_expense_landing_page.advance_title',
+              'Advance Payments'
+            )}
+          </span>
+          <span className="gba:text-muted-foreground">({totalCount})</span>
+        </div>
+      </div>
+    ),
+    [totalCount]
+  )
+
+  const controllerFilterLabelMap = useMemo(
+    () => ({
+      ...filterLabelMap,
+      ...(currencyFilter ? { [`currency:${currencyFilter}`]: currencyFilter } : {})
+    }),
+    [filterLabelMap, currencyFilter]
+  )
 
   return (
     <div className="gba:h-full gba:flex gba:flex-col" data-testid="advance-payments-tab-container">
@@ -262,49 +343,21 @@ const AdvancePaymentsTab: React.FC<BusinessAppContextProps> = props => {
       {/* Data Container with Table */}
       <DataContainer
         key="advance-payments-data-container"
-        contentBackground="background"
+        contentBackground="gray"
         addLeftPaddingWhenNoFilter={true}
         dataControllerProps={{
           search: searchTerm,
           // Always keep applied filters visible, even when there are no advance payments yet
           filter: buildDeduplicatedFilters(statusFilter ?? undefined, currencyFilter),
           setSearch: handleSearchChange,
-          setFilter: (newFilters: string[]) => {
-            const currencyFilters = newFilters.filter(f => f.startsWith('currency:'))
-            const statusFiltersIncoming = newFilters.filter(f => !f.startsWith('currency:'))
-
-            setStatusFilter(statusFiltersIncoming.length > 0 ? statusFiltersIncoming : [])
-
-            // Currency remains selected even when clearing all filters
-            const hasCurrency = currencyFilters.length > 0
-            if (hasCurrency && currencyFilters[0] !== `currency:${currencyFilter}`) {
-              const newCurrencyCode = currencyFilters[0].replace('currency:', '')
-              handleDataFilterChange(`currency:${newCurrencyCode}`, true)
-            }
-          },
-          filterLabelMap: {
-            ...filterLabelMap,
-            ...(currencyFilter ? { [`currency:${currencyFilter}`]: currencyFilter } : {})
-          },
-          listTitle: (
-            <div className="gba:flex gba:items-center gba:gap-4">
-              <div className="gba:flex gba:items-center gba:gap-2">
-                <span>
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:backoffice_expense_landing_page.advance_title',
-                    'Advance Payments'
-                  )}
-                </span>
-                <span className="gba:text-muted-foreground">({totalCount})</span>
-              </div>
-            </div>
-          ),
+          setFilter: handleFilterChange,
+          filterLabelMap: controllerFilterLabelMap,
+          listTitle,
           debounceDelay: 300
         }}
         dataFilterProps={{
-          // Keep filter sidebar available regardless of current result count
           filterGroups,
-          onFilterChange: handleDataFilterChange
+          onFilterChange: onFilterChangeWithPageReset
         }}
         dataBody={
           <div data-testid="advance-payments-table-container">
@@ -314,7 +367,7 @@ const AdvancePaymentsTab: React.FC<BusinessAppContextProps> = props => {
               search={searchTerm}
               onSearchChange={handleSearchChange}
               activeFilter={statusFilter}
-              onFilterChange={filter => setStatusFilter(filter || [])}
+              onFilterChange={handleTableStatusFilterChange}
               onClearFilters={clearAllFilters}
               currencyFilter={currencyFilter}
               // Pass data from the main hook

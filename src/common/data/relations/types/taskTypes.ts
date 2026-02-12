@@ -24,6 +24,7 @@ export interface Task extends BaseEntity {
   taskAssignees?: TaskAssignee[]
   taskAssigneesAggregate?: { aggregate: { count: number } }
 
+  businessKey?: string // IRM | CRM - Process business key shared by all task instances
   code?: string // IRM | CRM
   comments?: any[] // IRM | TODO
   contact?: any // IRM | CRM
@@ -66,6 +67,7 @@ export const TaskFields = {
   taskAssignees: 'taskAssignees',
   taskAssigneesAggregate: 'taskAssigneesAggregate',
 
+  businessKey: 'businessKey',
   code: 'code',
   comments: 'comments',
   contact: 'contact',

@@ -100,9 +100,14 @@ function getCellValue(row: Record<string, unknown>, column: SpreadsheetColumn): 
     }
   }
 
-  // Handle FortuneSheet cell objects - extract raw value
-  if (value && typeof value === 'object' && !Array.isArray(value) && 'v' in (value as Record<string, unknown>)) {
-    return (value as Record<string, unknown>).v
+  // Handle FortuneSheet cell objects - preserve full object when it contains a formula
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    if ('f' in (value as Record<string, unknown>)) {
+      return value
+    }
+    if ('v' in (value as Record<string, unknown>)) {
+      return (value as Record<string, unknown>).v
+    }
   }
 
   // Handle any other objects by returning empty string to prevent crashes
@@ -111,6 +116,10 @@ function getCellValue(row: Record<string, unknown>, column: SpreadsheetColumn): 
   }
 
   return value
+}
+
+function isFortuneSheetCellValue(value: unknown): value is FortuneSheetCell {
+  return !!value && typeof value === 'object' && !Array.isArray(value) && ('f' in value || 'v' in value)
 }
 
 /**
@@ -134,6 +143,12 @@ function getFortuneSheetCellType(columnType: ColumnType): FortuneSheetCell['ct']
 }
 
 /**
+ * Number of rows reserved for the header in FortuneSheet.
+ * Row 0 contains column labels; data starts at row 1.
+ */
+export const HEADER_ROW_OFFSET = 1
+
+/**
  * Convert our data format to FortuneSheet format
  */
 export function convertToFortuneSheet(
@@ -153,10 +168,19 @@ export function convertToFortuneSheet(
   const excelColumns = 100
   const excelRows = 1000
 
-  // No header row - data starts from row 0 (pure Excel behavior)
-  // Column letters (A, B, C, etc.) are shown by FortuneSheet's native column headers
+  // Add header row at row 0 with column labels (bold, gray background)
+  columns.forEach((column, colIndex) => {
+    const headerCell: FortuneSheetCell = {
+      v: column.label || column.name,
+      m: column.label || column.name,
+      ct: { t: 's' },
+      bl: 1, // bold
+      bg: '#f0f0f0' // light gray background
+    }
+    celldata.push({ r: 0, c: colIndex, v: headerCell })
+  })
 
-  // Add data rows (starting from row 0, pure Excel style)
+  // Add data rows (starting from row HEADER_ROW_OFFSET)
   // Only populate cells that have data in our defined columns
   data.forEach((row, rowIndex) => {
     columns.forEach((column, colIndex) => {
@@ -166,14 +190,21 @@ export function convertToFortuneSheet(
       const isFormula = column.type === 'calculated' && column.formula
 
       let cell: FortuneSheetCell
-      if (isFormula && column.formula) {
+      if (isFortuneSheetCellValue(value)) {
+        cell = value
+        celldata.push({
+          r: rowIndex,
+          c: colIndex,
+          v: cell
+        })
+      } else if (isFormula && column.formula) {
         // Formula cell - FortuneSheet will evaluate it
         cell = {
           f: column.formula.startsWith('=') ? column.formula : `=${column.formula}`,
           ct: getFortuneSheetCellType(column.type)
         }
         celldata.push({
-          r: rowIndex,
+          r: rowIndex + HEADER_ROW_OFFSET,
           c: colIndex,
           v: cell
         })
@@ -185,7 +216,7 @@ export function convertToFortuneSheet(
           ct: getFortuneSheetCellType(column.type)
         }
         celldata.push({
-          r: rowIndex,
+          r: rowIndex + HEADER_ROW_OFFSET,
           c: colIndex,
           v: cell
         })
@@ -209,7 +240,7 @@ export function convertToFortuneSheet(
     merge: {},
     rowlen: {},
     columnlen: {},
-    rowhidden: {},
+    rowhidden: sheet.settings?.fortuneSheetFilterState?.rowhidden ?? {},
     colhidden: {},
     borderInfo: [],
     authority: {}
@@ -275,19 +306,19 @@ export function convertToFortuneSheet(
     luckysheet_select_save: luckysheetSelectSave,
     luckysheet_selection_range: luckysheetSelectionRange,
     calcChain: [],
-    filter_select: {},
-    filter: null,
+    filter_select: sheet.settings?.fortuneSheetFilterState?.filter_select ?? {},
+    filter: sheet.settings?.fortuneSheetFilterState?.filter ?? null,
     luckysheet_alternateformat_save: [],
     luckysheet_conditionformat_save: [],
     // Additional properties that may be required for proper initialization
     isPivotTable: false,
     pivotTable: {},
-    frozen: undefined, // Don't set frozen - let FortuneSheet handle it
+    // Freeze the header row so column names stay visible when scrolling
+    frozen: { type: 'row', range: { row_focus: 0, column_focus: 0 } },
     chart: [],
     image: [],
     zoomRatio: 1,
     showGridLines: 1
-    // No frozen rows - pure Excel behavior (users can freeze rows themselves if needed)
   }
 
   // Validate that all critical properties are present before returning
@@ -365,14 +396,16 @@ export function convertFromFortuneSheet(
     })
   }
 
-  // Convert back to our format (data starts from row 0, no header row)
+  // Convert back to our format (data starts from row HEADER_ROW_OFFSET, row 0 is the header)
   const data: Record<string, unknown>[] = []
 
-  for (let r = 0; r < maxRow; r++) {
+  for (let r = HEADER_ROW_OFFSET; r < maxRow; r++) {
     const row: Record<string, unknown> = {}
 
+    // Map FortuneSheet row index back to data index (subtract header offset)
+    const dataIndex = r - HEADER_ROW_OFFSET
     // Generate or retrieve row ID
-    const rowId = context.rowIndexToId.get(r) || `row_${r}`
+    const rowId = context.rowIndexToId.get(dataIndex) || `row_${dataIndex}`
     row._id = rowId
 
     columns.forEach((column, c) => {
@@ -383,31 +416,41 @@ export function convertFromFortuneSheet(
         return
       }
 
-      // Extract value - prefer calculated result over stored value for formulas
+      // Extract value - preserve formulas as full cell objects
       let value: unknown
       if (cell.f) {
-        // Formula cell - use the calculated value (v) if available
-        value = cell.v
+        value = {
+          v: cell.v,
+          f: cell.f,
+          m: cell.m,
+          ct: cell.ct
+        }
       } else {
         value = cell.v
       }
 
-      // Convert based on column type
-      switch (column.type) {
-        case 'number':
-        case 'currency':
-        case 'percentage':
-          row[column.id] = typeof value === 'number' ? value : parseFloat(String(value ?? '0'))
-          break
-        case 'boolean':
-          row[column.id] = Boolean(value)
-          break
-        case 'date':
-        case 'datetime':
-          row[column.id] = value
-          break
-        default:
-          row[column.id] = value
+      // Formula cell objects must be preserved as-is regardless of column type
+      // so that formulas survive round-trip serialisation.
+      if (cell.f) {
+        row[column.id] = value
+      } else {
+        // Convert based on column type
+        switch (column.type) {
+          case 'number':
+          case 'currency':
+          case 'percentage':
+            row[column.id] = typeof value === 'number' ? value : parseFloat(String(value ?? '0'))
+            break
+          case 'boolean':
+            row[column.id] = Boolean(value)
+            break
+          case 'date':
+          case 'datetime':
+            row[column.id] = value
+            break
+          default:
+            row[column.id] = value
+        }
       }
 
       // Also set by column name for compatibility
@@ -445,11 +488,17 @@ export function parseCellReferenceFromPath(
     return null
   }
 
-  const rowIndex = path[1] as number
+  const fortuneSheetRowIndex = path[1] as number
   const columnIndex = path[2] as number
 
-  // No header row - direct mapping
-  const rowId = context.rowIndexToId.get(rowIndex)
+  // Account for the header row offset: FortuneSheet row 0 is the header,
+  // data rows start at HEADER_ROW_OFFSET
+  const dataRowIndex = fortuneSheetRowIndex - HEADER_ROW_OFFSET
+  if (dataRowIndex < 0) {
+    return null // This is the header row, not a data row
+  }
+
+  const rowId = context.rowIndexToId.get(dataRowIndex)
   const columnId = context.columnIndexToId.get(columnIndex)
 
   if (!rowId || !columnId) {
@@ -457,7 +506,7 @@ export function parseCellReferenceFromPath(
   }
 
   return {
-    rowIndex,
+    rowIndex: dataRowIndex,
     columnIndex,
     rowId,
     columnId
@@ -468,7 +517,8 @@ export function parseCellReferenceFromPath(
  * Build FortuneSheet operation path from cell reference
  */
 export function buildOperationPath(cellRef: CellReference, property: string = 'v'): (string | number)[] {
-  return ['data', cellRef.rowIndex, cellRef.columnIndex, property] // Direct mapping, no header row
+  // Add header row offset: data row index 0 maps to FortuneSheet row HEADER_ROW_OFFSET
+  return ['data', cellRef.rowIndex + HEADER_ROW_OFFSET, cellRef.columnIndex, property]
 }
 
 /**

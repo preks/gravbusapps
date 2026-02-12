@@ -27,7 +27,6 @@ export const GlobalPreCallSetupDialog: React.FC = () => {
         // No owner and dialog should be open, claim it
         if (globalPreCallSetupManager.claimUiOwner(instanceId)) {
           setIsUiOwner(true)
-          console.log('[GlobalPreCallSetupDialog] ✅ Claimed UI ownership', { instanceId })
         }
       } else if (currentOwner === instanceId) {
         // We are the owner

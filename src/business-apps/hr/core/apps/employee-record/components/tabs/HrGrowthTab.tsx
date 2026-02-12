@@ -11,6 +11,7 @@ import { Employee, EmployeePerformanceGoal, EmployeeFeedback } from '../../hooks
 import { useEmployeePermissions } from '../../hooks/useEmployeePermissions'
 import { useScopePermissionCheck } from '@/common/hooks/useScopePermissionCheck'
 import translations from '../../_i18n'
+import SkillsTabOld from './SkillsTabOld'
 
 interface HrGrowthTabProps extends BusinessAppContextProps {
   employee: Employee
@@ -190,7 +191,11 @@ const HrGrowthTab: React.FC<HrGrowthTabProps> = ({
         </TabsList>
 
         <TabsContent value="skills" data-testid="hr-growth-skills-content" className="gba:mt-4">
-          <SkillsTab employee={employee} accessToken={accessToken} employeeId={employeeId} userInfo={userInfo} />
+          {devFeatureFlag ? (
+            <SkillsTab employee={employee} accessToken={accessToken} employeeId={employeeId} userInfo={userInfo} />
+          ) : (
+            <SkillsTabOld employee={employee} accessToken={accessToken} employeeId={employeeId} userInfo={userInfo} />
+          )}
         </TabsContent>
 
         {devFeatureFlag && (

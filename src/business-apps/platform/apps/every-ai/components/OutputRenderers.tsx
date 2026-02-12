@@ -13,9 +13,9 @@ import type {
   ScatterGraphData,
   CalendarViewData,
   EntityData,
-  FlowProposalOutput
+  FlowProposalOutput,
+  ConversationTurn
 } from '../types/models'
-import type { ConversationTurn } from '../types/models'
 import DynamicFormDisplay from './DynamicFormDisplay'
 // Standardized entity card
 import GenericEntityDisplay from './entities/GenericEntityDisplay'
@@ -23,6 +23,7 @@ import WorkflowDisplay from './entities/WorkflowDisplay'
 import { MarkdownWithChipsRenderer, UnifiedTableRenderer } from '@/common/components/markdown'
 import NavigationDisplay from './displays/NavigationDisplay'
 import { ReminderDisplay } from './displays/ReminderDisplay'
+import { RemoteFormDisplay } from './displays/RemoteFormDisplay'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface FlowProposalBoundaryProps {
@@ -336,7 +337,6 @@ function renderEntity(item: EntityData, accessToken: string) {
         />
       )
     default: {
-      // Standard generic display for all other entity types
       return (
         <GenericEntityDisplay
           key={item.id}
@@ -347,6 +347,7 @@ function renderEntity(item: EntityData, accessToken: string) {
           textHuman={item.text_human}
           textTitle={item.text_title}
           link={item.link}
+          variant="decorative"
         />
       )
     }
@@ -1001,6 +1002,7 @@ export const OutputItemRenderer: React.FC<{
   sessionId?: string
   onCancelGeneration?: () => void
   isAgentGenerating?: boolean
+  userInfo?: any
 }> = ({
   item,
   accessToken,
@@ -1009,7 +1011,8 @@ export const OutputItemRenderer: React.FC<{
   isVoiceMode = false,
   sessionId,
   onCancelGeneration,
-  isAgentGenerating
+  isAgentGenerating,
+  userInfo
 }) => {
   switch (item.type) {
     case 'answer':
@@ -1028,6 +1031,107 @@ export const OutputItemRenderer: React.FC<{
           </Card>
         )
       }
+
+      // Check if this is a content_entry flow proposal - show RemoteFormDisplay instead
+      const isContentEntryFlow =
+        item.flow_name?.toLowerCase().includes('content') ||
+        item.module_name?.toLowerCase().includes('content') ||
+        item.flow_name === 'createContentEntry' ||
+        item.flow_name === 'saveContentEntry' ||
+        item.flow_name === 'frm_createContentEntry'
+
+      if (isContentEntryFlow) {
+        // Extract and transform flow proposal data for the form
+        const flowData = item.arguments?.flow || {}
+        const taskData = item.arguments?.task || {}
+        const flowContentEntry =
+          typeof flowData.contentEntry === 'object' && flowData.contentEntry ? flowData.contentEntry : null
+        const taskContentEntry =
+          typeof taskData.contentEntry === 'object' && taskData.contentEntry ? taskData.contentEntry : null
+        const flowRootContent =
+          flowData &&
+          (flowData.title ||
+            flowData.preview ||
+            flowData.previewText ||
+            flowData.content ||
+            flowData.contentGroupRef ||
+            flowData.contentTypeRef ||
+            flowData.role)
+            ? flowData
+            : null
+        const taskRootContent =
+          taskData &&
+          (taskData.title ||
+            taskData.preview ||
+            taskData.previewText ||
+            taskData.content ||
+            taskData.contentGroupRef ||
+            taskData.contentTypeRef ||
+            taskData.role)
+            ? taskData
+            : null
+
+        const contentEntryData = flowContentEntry || taskContentEntry || flowRootContent || taskRootContent || {}
+
+        // Transform the data structure to match what the form component expects
+        // The form component likely reads from additionalData and expects fields at top level
+        // or nested under contentEntry. We provide both for maximum compatibility.
+        // IMPORTANT: Avoid circular references by creating fresh objects instead of spreading nested structures
+
+        // Create a clean contentEntry object without circular references
+        // Use nullish coalescing to preserve empty strings but default to empty string if undefined
+        const cleanContentEntry = {
+          title: contentEntryData.title ?? '',
+          preview: contentEntryData.preview ?? '',
+          previewText: contentEntryData.preview ?? '', // Some forms use previewText instead of preview
+          content: contentEntryData.content ?? '',
+          role: contentEntryData.role ?? '',
+          contentGroupRef: contentEntryData.contentGroupRef ?? '',
+          contentTypeRef:
+            contentEntryData.contentTypeRef ?? contentEntryData.contentType ?? contentEntryData.contentTypeName ?? '',
+          creatorEmployee: contentEntryData.creatorEmployee ?? ''
+        }
+
+        const formData = {
+          // Primary format: Flattened fields at top level (form fields can access directly)
+          ...cleanContentEntry,
+          changeMode: flowData.changeMode || 'INSERT',
+
+          // Nested format: Under contentEntry (for components expecting nested structure)
+          contentEntry: cleanContentEntry,
+
+          // Flow structure: Keep original flow structure (avoid circular reference)
+          flow: {
+            changeMode: flowData.changeMode || 'INSERT',
+            contentEntry: cleanContentEntry
+            // Don't spread flowData here to avoid circular reference
+          },
+
+          // Include flow proposal metadata
+          flowProposal: {
+            uuid: item.uuid,
+            flow_name: item.flow_name,
+            module_name: item.module_name,
+            operation: item.operation
+          }
+        }
+
+        return (
+          <RemoteFormDisplay
+            screenKey="frm_createContentEntry"
+            accessToken={accessToken}
+            userInfo={userInfo}
+            formData={formData}
+            onClose={() => {}}
+            sendMessage={sendMessage}
+            flowName={item.flow_name}
+            moduleName={item.module_name}
+            flowUuid={item.uuid}
+          />
+        )
+      }
+
+      // For other flow proposals, use the default DynamicFormDisplay
       return (
         <FlowProposalBoundary data={item} sendMessage={sendMessage}>
           <DynamicFormDisplay

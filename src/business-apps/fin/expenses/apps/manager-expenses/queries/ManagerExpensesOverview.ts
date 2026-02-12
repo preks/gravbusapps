@@ -424,7 +424,7 @@ export const MANAGER_EXPENSES_OVERVIEW = `
         costCenter { id name code }
         project { id name }
         employee { 
-          id code fullName displayName pictureThumbnail
+          id code fullName displayName firstName lastName pictureThumbnail
           additionalProperties
           employeePosition { 
             organizationalUnit { id name }

@@ -176,6 +176,7 @@ export const buildTaskQuery = (
           }
         }
         
+        ${entityFields.businessKey}
         ${entityFields.code}
         ${entityFields.creatorEmployee} {
           ${EMPLOYEE_REF}
@@ -243,6 +244,7 @@ export const buildTaskByIdQuery = (
             count
           }
         }
+        ${entityFields.businessKey}
         ${entityFields.code}
         ${entityFields.creatorEmployee} {
           ${EMPLOYEE_REF}

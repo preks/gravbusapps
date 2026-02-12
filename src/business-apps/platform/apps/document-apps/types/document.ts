@@ -300,7 +300,7 @@ export interface ApprovalWorkflowConfig {
 /**
  * Export format options
  */
-export type ExportFormat = 'docx' | 'pdf' | 'html' | 'txt'
+export type ExportFormat = 'docx' | 'pdf' | 'html' | 'txt' | 'odt'
 
 /**
  * Export options

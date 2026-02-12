@@ -177,15 +177,6 @@ export class ChatWebSocketClient {
   // Event listeners
   onNewMessage(handler: (message: Message) => void) {
     this.socket?.on('new_message', (message: Message) => {
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[ChatWebSocket] 📨 Received new_message event:', {
-          id: message.id,
-          type: message.type,
-          senderId: message.senderId,
-          conversationId: message.conversationId,
-          content: message.content?.substring(0, 50)
-        })
-      }
       handler(message)
     })
   }
@@ -257,36 +248,18 @@ export class ChatWebSocketClient {
 
   onConversationActiveCalls(handler: (data: ActiveCall[]) => void) {
     this.socket?.on('conversation:active-calls', (data: ActiveCall[]) => {
-      console.log('[WS CLIENT] Received conversation:active-calls event:', data)
       handler(data)
     })
   }
 
   // Emit events
   joinConversation(conversationId: string, lastMessageTimestamp?: number) {
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[ChatWebSocket] 🚪 Emitting join_conversation:', {
-        conversationId,
-        lastMessageTimestamp,
-        socketId: this.socket?.id,
-        connected: this.socket?.connected
-      })
-    }
-
     // PERFORMANCE: Tell backend the newest message we have
     // Backend should skip sending historical messages older than this timestamp
-    this.socket?.emit(
-      'join_conversation',
-      {
-        conversationId,
-        lastMessageTimestamp: lastMessageTimestamp || 0
-      },
-      (ack?: any) => {
-        if (process.env.NODE_ENV === 'development') {
-          console.log('[ChatWebSocket] ✅ join_conversation acknowledged:', { conversationId, ack })
-        }
-      }
-    )
+    this.socket?.emit('join_conversation', {
+      conversationId,
+      lastMessageTimestamp: lastMessageTimestamp || 0
+    })
   }
 
   leaveConversation(conversationId: string) {
@@ -326,20 +299,7 @@ export class ChatWebSocketClient {
       ...(metadata && { metadata })
     }
 
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[ChatWebSocket] 📤 Sending message:', {
-        conversationId,
-        content: content.substring(0, 50),
-        senderId,
-        socketId: this.socket.id
-      })
-    }
-
-    this.socket.emit('send_message', payload, (ack?: any) => {
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[ChatWebSocket] ✅ Message send acknowledged:', { conversationId, ack })
-      }
-    })
+    this.socket.emit('send_message', payload)
   }
 
   sendTypingStart(conversationId: string) {
@@ -351,7 +311,6 @@ export class ChatWebSocketClient {
   }
 
   requestActiveCalls() {
-    console.log('[WS CLIENT] Requesting active calls from server')
     this.socket?.emit('conversation:get-active-calls')
   }
 

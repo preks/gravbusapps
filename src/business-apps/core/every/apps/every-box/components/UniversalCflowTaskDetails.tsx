@@ -333,18 +333,13 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
     task.source === 'cflow' &&
     (task.tags?.app === 'glossary-entry-request' || task.sourceMetadata?.tags?.app === 'glossary-entry-request')
 
-  // Debug logging to diagnose tag location
-  if (task.source === 'cflow' && task.title?.includes('Glossary Term Request')) {
-    console.log('[Glossary Request Detection]', {
-      source: task.source,
-      title: task.title,
-      tags: task.tags,
-      sourceMetadata: task.sourceMetadata,
-      sourceMetadataTags: task.sourceMetadata?.tags,
-      workflowMeta: task.workflowMeta,
-      allKeys: Object.keys(task),
-      isGlossaryRequestTask
-    })
+  // Debug logging gated behind dev mode only
+  if (
+    process.env.NODE_ENV === 'development' &&
+    task.source === 'cflow' &&
+    task.title?.includes('Glossary Term Request')
+  ) {
+    console.log('[Glossary Request Detection]', { title: task.title, isGlossaryRequestTask })
   }
 
   const taskTitle = task.title || task.name || task.referenceTaskName || t('task-details-untitled')
@@ -501,16 +496,15 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
 
     toast.success(t('task-dialog-completed-success'))
 
-    // Store communication for AI learning (fire and forget)
-    if (showComment && comment?.trim()) {
-      saveCommunication({
-        messageType: 'completion',
-        content: comment.trim(),
-        recipientId: task.sourceMetadata?.creatorUserId,
-        aiAssisted: aiUsedForComment,
-        aiAction: aiUsedForComment ? lastAction || undefined : undefined
-      })
-    }
+    // Always store task completion for AI learning (fire and forget)
+    // Records even without a comment so insights track all task activity
+    saveCommunication({
+      messageType: 'completion',
+      content: showComment && comment?.trim() ? comment.trim() : `Task completed: ${task.title || task.id}`,
+      recipientId: task.sourceMetadata?.creatorUserId,
+      aiAssisted: aiUsedForComment,
+      aiAction: aiUsedForComment ? lastAction || undefined : undefined
+    })
 
     // Call onTaskCompleted for instant UI feedback (removes from local state)
     // Don't call onTaskUpdated - it triggers a slow full refetch that's not needed
@@ -544,17 +538,16 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
 
     toast.success(t('task-details-task-rejected'))
 
-    // Store communication for AI learning (fire and forget)
+    // Always store task rejection for AI learning (fire and forget)
+    // Records even without a comment so insights track all task activity
     const rejectionContent = comment || data?.comment || ''
-    if (rejectionContent.trim()) {
-      saveCommunication({
-        messageType: 'rejection',
-        content: rejectionContent.trim(),
-        recipientId: task.sourceMetadata?.creatorUserId,
-        aiAssisted: aiUsedForComment,
-        aiAction: aiUsedForComment ? lastAction || undefined : undefined
-      })
-    }
+    saveCommunication({
+      messageType: 'rejection',
+      content: rejectionContent.trim() || `Task rejected: ${task.title || task.id}`,
+      recipientId: task.sourceMetadata?.creatorUserId,
+      aiAssisted: aiUsedForComment,
+      aiAction: aiUsedForComment ? lastAction || undefined : undefined
+    })
 
     // Call onTaskCompleted for instant UI feedback (removes from local state)
     // Don't call onTaskUpdated - it triggers a slow full refetch that's not needed
@@ -670,7 +663,7 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
     (task.sourceMetadata as any)?.app === 'glossary-entry-request'
 
   if (isGlossaryRequestTask || (task.source === 'cflow' && hasGlossaryTag)) {
-    // Extract term and context from task tags, sourceMetadata tags, workflowMeta, or initial parameters
+    // Extract term and contextDescription from task tags, sourceMetadata tags, workflowMeta, or initial parameters
     const allTags = {
       ...task.tags,
       ...task.sourceMetadata?.tags,
@@ -679,15 +672,8 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
     }
     const term =
       allTags?.term || task.sourceMetadata?.initialParameters?.term || (task.sourceMetadata as any)?.term || ''
-    const context =
+    const contextDescription =
       allTags?.context || task.sourceMetadata?.initialParameters?.context || (task.sourceMetadata as any)?.context || ''
-
-    console.log('[Glossary Request Form] Loading form with data:', {
-      term,
-      context,
-      allTags,
-      sourceMetadata: task.sourceMetadata
-    })
 
     // Get userInfo from task if available
     const userInfo = userId
@@ -706,7 +692,7 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
         additionalData={{
           psi_taskPayload: {
             term,
-            context,
+            context: contextDescription,
             requesterUserId: task.sourceMetadata?.flowInitiatedBy
           },
           psi_processMetadata: task.sourceMetadata,
