@@ -9,7 +9,7 @@ import { CatalogSelect } from '@/components/catalog-select'
 import { useCreateCatalogEntries } from '@/common/data/catalog/hooks/useCreateCatalogEntries'
 import { useCatalogEntries } from '@/common/data/catalog/hooks/useCatalogEntries'
 import { useFileClient } from '@/common/network/files/useFileClient'
-import { ContentRole } from '@/common/data/content/types/contentEnums'
+import { ContentRole, ContentGroup } from '@/common/data/content/types/contentEnums'
 import { buildContentEntryPayload } from '@/common/data/content/payloads/contentEntryPayloads'
 import { useContentEntry } from '@/common/data/content/hooks/useContentEntry'
 import { buildFileUrl } from '@/common/utils/fileUtils'
@@ -17,6 +17,7 @@ import ArticleSegment from './segments/ArticleSegment'
 import QuestionSegment from './segments/QuestionSegment'
 import DocumentSegment from './segments/DocumentSegment'
 import GlossarySegment from './segments/GlossarySegment'
+import PolicySegment from './segments/PolicySegment'
 import translations from './_i18n'
 
 export interface ContentEntryWindowProps extends BusinessAppContextProps {
@@ -727,12 +728,14 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
   const currentSegment = useMemo(() => {
     if (!watchContentGroupRef) return 'article'
 
-    if (watchContentGroupRef === 'ContentGroup:v1:QUESTION') {
+    if (watchContentGroupRef === ContentGroup.QUESTION) {
       return 'question'
-    } else if (watchContentGroupRef === 'ContentGroup:v1:DOCUMENT') {
+    } else if (watchContentGroupRef === ContentGroup.DOCUMENT) {
       return 'document'
-    } else if (watchContentGroupRef === 'ContentGroup:v1:GLOSSARY') {
+    } else if (watchContentGroupRef === ContentGroup.GLOSSARY) {
       return 'glossary'
+    } else if (watchContentGroupRef === ContentGroup.POLICY) {
+      return 'policy'
     } else {
       // NEWS, KNOWLEDGE, INTRANET use article segment
       return 'article'
@@ -973,11 +976,11 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
       // Employee relations
       ...(isUpdate ? { updaterEmployeeId: employeeId } : { creatorEmployeeId: employeeId }),
 
-      // Settings
+      // Settings - Policies: always disable comments and reactions
       displayCreator: data.displayAuthor,
       displayUpdater: false,
-      allowComment: data.allowComment,
-      allowReaction: data.allowReaction,
+      allowComment: data.contentGroupRef === ContentGroup.POLICY ? false : data.allowComment,
+      allowReaction: data.contentGroupRef === ContentGroup.POLICY ? false : data.allowReaction,
 
       // Optional fields
       activeFrom: data.startDate || null,
@@ -1099,6 +1102,30 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
             onCreateTag={onCreateTag}
             onCategoriesChange={handleCategoriesChange}
             onTagsChange={handleTagsChange}
+          />
+        )}
+
+        {currentSegment === 'policy' && (
+          <PolicySegment
+            control={control}
+            watchTitle={watchTitle}
+            watchPreviewText={watchPreviewText}
+            watchContent={watchContent}
+            watchContentTypeRef={watchContentTypeRef}
+            watchCategories={watchCategories}
+            watchTags={watchTags}
+            setValue={setValue}
+            context={context}
+            extractedContentGroupRef={extractedContentGroupRef}
+            onCreateCategory={onCreateCategory}
+            onCreateTag={onCreateTag}
+            onCategoriesChange={handleCategoriesChange}
+            onTagsChange={handleTagsChange}
+            onContentTypeRefChange={handleContentTypeRefChange}
+            onContentCategoryRefsChange={handleContentCategoryRefsChange}
+            onContentCategoryNamesChange={handleContentCategoryNamesChange}
+            onContentTagRefsChange={handleContentTagRefsChange}
+            onContentTagNamesChange={handleContentTagNamesChange}
           />
         )}
       </div>
