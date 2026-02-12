@@ -1145,8 +1145,9 @@ export const DocumentApiService = {
         lockExpiry: response.lockExpiry as string | undefined,
         lockReason: response.lockReason as string | undefined
       }
-    } catch (error) {
-      console.error('Failed to get lock status:', error)
+    } catch {
+      // Silently return null if lock endpoint doesn't exist (404) or fails
+      // Lock feature may not be implemented on backend yet
       return null
     }
   },

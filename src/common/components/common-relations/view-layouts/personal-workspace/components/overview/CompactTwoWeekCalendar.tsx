@@ -461,7 +461,19 @@ export const CompactTwoWeekCalendar: React.FC<CompactTwoWeekCalendarProps> = ({
             data-testid="calendar-task-detail-sheet"
             businessAppContext={{ accessToken, userInfo } as BusinessAppContextProps}
             accessToken={accessToken}
+            assignedUserId={selectedTask?.taskAssignees?.[0]?.assignedUserId}
+            currentUserId={userInfo?.id}
             flowContext={config.myTasksConfig?.flowContexts?.entityContext}
+            onTaskCompleted={() => {
+              // Refetch calendar data after task completion
+              setSelectedTask(null)
+              if (refetchTasksRef.current) {
+                const currentStartOfTwoWeeks = dayjs().add(weekOffset, 'week').startOf('week')
+                const rangeStart = currentStartOfTwoWeeks.subtract(1, 'day').startOf('day').toISOString()
+                const rangeEnd = currentStartOfTwoWeeks.add(2, 'week').endOf('day').toISOString()
+                void refetchTasksRef.current({ dueDateFrom: rangeStart, dueDateTo: rangeEnd })
+              }
+            }}
           />
         )}
 

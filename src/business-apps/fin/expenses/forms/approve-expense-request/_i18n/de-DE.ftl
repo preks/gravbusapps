@@ -28,6 +28,7 @@ label-request-id = Anfrage-ID
 label-type = Typ
 label-title = Titel
 label-comment = Kommentar
+label-employee-comment = Kommentar des Mitarbeiters
 label-cost-center = Kostenstelle
 label-project = Projekt
 label-currency = Währung

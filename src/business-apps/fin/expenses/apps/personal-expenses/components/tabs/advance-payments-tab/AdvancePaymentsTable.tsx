@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useDebounce } from '@/common/hooks/useDebounce'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import {
   Table,
   TableHeader,
@@ -75,6 +76,15 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
   const [generateDocOpen, setGenerateDocOpen] = useState(false)
   const [generateDocRecord, setGenerateDocRecord] = useState<AdvancePayment | null>(null)
 
+  // State for approver and supervisor data
+  const [approverData, setApproverData] = useState<{
+    expensePlanApprover?: string
+    advancePaymentApprover?: string
+    expensePlanApprovalDate?: string
+    advancePaymentApprovalDate?: string
+  }>({})
+  const [supervisorName, setSupervisorName] = useState<string | undefined>(undefined)
+
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
   const savedPageBeforeSearchRef = useRef<number | null>(null)
@@ -96,6 +106,188 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
   const debouncedAmountRange = useDebounce(currentAmountRange, 200)
   const debouncedAdvanceRange = useDebounce(currentAdvanceRange, 200)
   const debouncedSearchText = useDebounce(searchText, 200)
+
+  // Set access token for DocumentApiService once when component mounts or token changes
+  useEffect(() => {
+    if (contextProps.accessToken) {
+      DocumentApiService.setAccessToken(contextProps.accessToken)
+    }
+  }, [contextProps.accessToken])
+
+  // Initialize GraphQL client
+  const graphqlClient = useGraphQLClient(contextProps.accessToken)
+
+  // Helper: Fetch approval comment from GraphQL
+  const fetchApprovalComment = useCallback(
+    async (
+      entityId: string,
+      entityType: 'ExpensePlan' | 'AdvancePayment'
+    ): Promise<{
+      approver?: string
+      date?: string
+    }> => {
+      const commentEntity = `${entityType}Comment`
+      const idField = entityType === 'ExpensePlan' ? 'expensePlanId' : 'advancePaymentId'
+
+      try {
+        // Try APPROVE_COMMENT first
+        const approveQuery = `
+          query Get${commentEntity}Approval($entityId: uuid!) {
+            ${commentEntity}(
+              where: { 
+                ${idField}: { _eq: $entityId }
+                commentType: { _eq: "APPROVE_COMMENT" }
+              }
+              orderBy: { commentDate: DESC }
+              limit: 1
+            ) {
+              authorEmployee {
+                fullName
+                firstName
+                lastName
+              }
+              commentDate
+            }
+          }
+        `
+        const approveResult = await graphqlClient.request<{
+          [key: string]: Array<{
+            authorEmployee: { fullName?: string; firstName?: string; lastName?: string }
+            commentDate?: string
+          }>
+        }>(approveQuery, { entityId })
+
+        let comment = approveResult?.[commentEntity]?.[0]
+
+        // Fallback to SYSTEM_COMMENT only for ExpensePlan
+        if (!comment && entityType === 'ExpensePlan') {
+          const systemQuery = `
+            query Get${commentEntity}System($entityId: uuid!) {
+              ${commentEntity}(
+                where: { 
+                  ${idField}: { _eq: $entityId }
+                  commentType: { _eq: "SYSTEM_COMMENT" }
+                  comment: { _ilike: "%to: APPROVED%" }
+                }
+                orderBy: { commentDate: DESC }
+                limit: 1
+              ) {
+                authorEmployee {
+                  fullName
+                  firstName
+                  lastName
+                }
+                commentDate
+              }
+            }
+          `
+          const systemResult = await graphqlClient.request<{
+            [key: string]: Array<{
+              authorEmployee: { fullName?: string; firstName?: string; lastName?: string }
+              commentDate?: string
+            }>
+          }>(systemQuery, { entityId })
+
+          comment = systemResult?.[commentEntity]?.[0]
+        }
+
+        if (comment) {
+          const author = comment.authorEmployee
+          const approver = author
+            ? author.fullName || `${author.firstName || ''} ${author.lastName || ''}`.trim()
+            : undefined
+          return { approver, date: comment.commentDate }
+        }
+      } catch (error) {
+        console.error(`Error fetching ${entityType} approval:`, error)
+      }
+
+      return {}
+    },
+    [graphqlClient]
+  )
+
+  // Fetch approver and supervisor data when generate dialog opens
+  useEffect(() => {
+    if (!generateDocOpen || !generateDocRecord || !contextProps.accessToken) {
+      setApproverData({})
+      setSupervisorName(undefined)
+      return
+    }
+
+    const fetchApprovalData = async () => {
+      try {
+        const plan = generateDocRecord.expensePlan
+        const planId = plan?.id
+        const advPaymentId = generateDocRecord.id
+        const employeeId = plan?.employee?.id
+
+        // Fetch expense plan approval
+        const expensePlanApproval = planId ? await fetchApprovalComment(planId, 'ExpensePlan') : {}
+
+        // Fetch advance payment approval (only APPROVE_COMMENT, no SYSTEM_COMMENT fallback)
+        let advancePaymentApproval = advPaymentId ? await fetchApprovalComment(advPaymentId, 'AdvancePayment') : {}
+
+        // If advance payment has no explicit approval, use expense plan approval
+        if (!advancePaymentApproval.approver) {
+          advancePaymentApproval = expensePlanApproval
+        }
+
+        setApproverData({
+          expensePlanApprover: expensePlanApproval.approver,
+          advancePaymentApprover: advancePaymentApproval.approver,
+          expensePlanApprovalDate: expensePlanApproval.date,
+          advancePaymentApprovalDate: advancePaymentApproval.date
+        })
+
+        // Fetch supervisor name
+        if (employeeId) {
+          const employeeQuery = `
+            query GetEmployeeSupervisor($employeeId: uuid!) {
+              Employee(where: { id: { _eq: $employeeId } }) {
+                employeePosition {
+                  supervisorEmployeeId
+                }
+              }
+            }
+          `
+          const employeeResult = await graphqlClient.request<{
+            Employee: Array<{ employeePosition?: { supervisorEmployeeId?: string } }>
+          }>(employeeQuery, { employeeId })
+
+          const supervisorId = employeeResult?.Employee?.[0]?.employeePosition?.supervisorEmployeeId
+          if (supervisorId) {
+            const supervisorQuery = `
+              query GetSupervisor($supervisorId: uuid!) {
+                Employee(where: { id: { _eq: $supervisorId } }) {
+                  fullName
+                  firstName
+                  lastName
+                }
+              }
+            `
+            const supervisorResult = await graphqlClient.request<{
+              Employee: Array<{ fullName?: string; firstName?: string; lastName?: string }>
+            }>(supervisorQuery, { supervisorId })
+
+            const supervisor = supervisorResult?.Employee?.[0]
+            if (supervisor) {
+              const name = supervisor.fullName || `${supervisor.firstName || ''} ${supervisor.lastName || ''}`.trim()
+              setSupervisorName(name)
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching approval data:', error)
+        // Gracefully handle errors - leave fields empty
+        setApproverData({})
+        setSupervisorName(undefined)
+      }
+    }
+
+    fetchApprovalData()
+  }, [generateDocOpen, generateDocRecord, contextProps.accessToken, graphqlClient])
+
   const currencyLabelMap = useMemo(() => {
     const map: Record<string, string> = {}
     currencyStats.forEach(cs => {
@@ -112,14 +304,23 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
       (typeof generateDocRecord.currencyRef === 'string' && generateDocRecord.currencyRef
         ? generateDocRecord.currencyRef.replace(/^.*:([A-Za-z]{2,4})$/, '$1').toUpperCase()
         : '')
+
     const map: Record<string, Record<string, unknown>> = {
       adv_payment: {
         ...(generateDocRecord as unknown as Record<string, unknown>),
-        currencyCode
+        currencyCode,
+        approvedBy: approverData.advancePaymentApprover || '',
+        approvalDate: approverData.advancePaymentApprovalDate || ''
       }
     }
+
     if (plan) {
-      map.expense_plan = plan as unknown as Record<string, unknown>
+      map.expense_plan = {
+        ...(plan as unknown as Record<string, unknown>),
+        approvedBy: approverData.expensePlanApprover || '',
+        approvalDate: approverData.expensePlanApprovalDate || ''
+      }
+
       const emp = plan.employee
       if (emp) {
         const pos = emp.employeePosition
@@ -128,7 +329,8 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
           lastName: emp.lastName ?? '',
           fullName: emp.fullName ?? `${emp.firstName ?? ''} ${emp.lastName ?? ''}`.trim(),
           jobPosition: pos?.jobPosition ? { name: pos.jobPosition.name ?? '' } : { name: '' },
-          organizationalUnit: pos?.organizationalUnit ? { name: pos.organizationalUnit.name ?? '' } : { name: '' }
+          organizationalUnit: pos?.organizationalUnit ? { name: pos.organizationalUnit.name ?? '' } : { name: '' },
+          supervisorName: supervisorName || ''
         }
       }
       const trips = plan.expenseRequestTrip ?? []
@@ -163,7 +365,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
       }
     }
     return map
-  }, [generateDocRecord])
+  }, [generateDocRecord, approverData, supervisorName])
 
   const prevFilterSignatureRef = useRef<string | null>(null)
 
@@ -901,7 +1103,11 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
         open={generateDocOpen}
         onOpenChange={open => {
           setGenerateDocOpen(open)
-          if (!open) setGenerateDocRecord(null)
+          if (!open) {
+            setGenerateDocRecord(null)
+            setApproverData({})
+            setSupervisorName(undefined)
+          }
         }}
         entityDataMap={entityDataMapForDoc}
         defaultTitle={

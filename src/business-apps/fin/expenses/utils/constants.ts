@@ -10,7 +10,7 @@ export const FILES_ENDPOINT = env('NEXT_PUBLIC_FILE_SERVICE_ENDPOINT')
 
 export const EMPLOYEE_FILES_LOCATION = '/api/v1/tenant/files'
 
-export const FILES_ENGINE_ENDPOINT = env('NEXT_PUBLIC_BASE_URL') + '/docs-engine/api/v1'
+export const FILES_ENGINE_ENDPOINT = env('NEXT_PUBLIC_BASE_URL') + '/flowbot/api/expense'
 
 export const PROCESSES_ENDPOINT = env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT')
 

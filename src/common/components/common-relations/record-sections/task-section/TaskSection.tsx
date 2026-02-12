@@ -336,6 +336,7 @@ const TaskSection: React.FC<TaskSectionProps> = ({
       id: taskItem.id,
       name: taskItem.title,
       code: rawTask?.code,
+      businessKey: rawTask?.businessKey,
       description: taskItem.description || rawTask?.description || '',
       assignedTo,
       taskAssignees: (taskItem.taskAssignees || rawTask?.taskAssignees)?.filter(assignee => !!assignee.id) as

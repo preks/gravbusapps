@@ -24,15 +24,5 @@ export const equityInvestmentTargetFields: TargetFieldDefinition[] = [
 export const equityInvestmentImportConfig: ImportConfig = {
   entityType: 'equity-investment',
   domain: 'investment',
-  aiAgentName: 'EquityInvestmentImportAnalyzer',
-  targetFields: equityInvestmentTargetFields,
-  requiredCatalogs: [
-    'InvestmentGroup',
-    'InvestmentType',
-    'InvestmentPhase',
-    'InvestmentStatus',
-    'InvestmentStakeType',
-    'InvestmentRiskLevel',
-    'Currency'
-  ]
+  targetFields: equityInvestmentTargetFields
 }
