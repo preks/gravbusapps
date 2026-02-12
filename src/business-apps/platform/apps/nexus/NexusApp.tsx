@@ -3,6 +3,7 @@ import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useNexusSocket } from './hooks/useNexusSocket'
 import { useNexusSessions } from './hooks/useNexusSessions'
 import { useArtifact } from './hooks/useArtifact'
+import { useSpaces } from '@/business-apps/platform/apps/spaces/hooks/useSpaces'
 import { NexusLayout } from './components/layout/NexusLayout'
 import { NexusSidebar } from './components/layout/NexusSidebar'
 import { NexusChat } from './components/chat/NexusChat'
@@ -68,6 +69,12 @@ export const NexusApp: React.FC<NexusAppProps> = ({ accessToken, userInfo }) => 
   } = useNexusSessions({ accessToken: accessToken || '' })
 
   const { saveArtifact } = useArtifact({ accessToken: accessToken || '' })
+
+  const { spaces: rawSpaces } = useSpaces(accessToken, {
+    includeMembers: false,
+    includeContent: false
+  })
+  const spaces = rawSpaces.map(s => ({ id: s.id, name: s.name }))
 
   // Sync dataAccessEnabled from session whenever currentSession changes
   useEffect(() => {
@@ -193,7 +200,7 @@ export const NexusApp: React.FC<NexusAppProps> = ({ accessToken, userInfo }) => 
             accessToken={accessToken}
             scope={scope}
             spaceId={spaceId}
-            spaces={[]}
+            spaces={spaces}
             activeArtifact={activeArtifact}
             sessionTitle={currentSession?.title}
             llmProvider={llmProvider}
