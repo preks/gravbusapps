@@ -110,7 +110,7 @@ declare module '@cloudflare/realtimekit-virtual-background' {
   export interface SegmentationConfig {
     model?: 'meet' | 'mlkit'
     backend?: 'wasmSimd'
-    inputResolution?: '256x256' | '256x144'
+    inputResolution?: '640x360' | '256x256' | '256x144'
     pipeline?: 'webgl2' | 'canvas2dCpu'
     targetFps?: number
   }

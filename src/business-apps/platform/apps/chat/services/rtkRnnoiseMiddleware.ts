@@ -28,6 +28,7 @@ export class RTKRnnoiseMiddleware {
   private isInitialized: boolean = false
   private enableInFlight: Promise<void> | null = null
   private middlewareEpoch: number = 0
+  private lastInvokedAt: number | null = null
   private stats: RnnoiseStats = {
     framesProcessed: 0,
     totalProcessingTime: 0,
@@ -122,17 +123,24 @@ export class RTKRnnoiseMiddleware {
 
     // Prevent duplicate middleware
     if (this.currentMiddleware) {
-      console.log('[RNNoise] Middleware already enabled, skipping')
+      console.log('[RNNoise] ⚠️ Middleware already enabled, skipping')
       return
     }
 
-    console.log('[RNNoise] Enabling noise suppression...')
-    console.log('[RNNoise] meeting.self type:', typeof meeting.self)
-    console.log('[RNNoise] meeting.self.addAudioMiddleware exists?', typeof meeting.self.addAudioMiddleware)
+    console.log('[RNNoise] 🔊 Enabling noise suppression...')
+    console.log('[RNNoise] 📋 Meeting state:', {
+      meetingId: meeting.id,
+      audioEnabled: self.audioEnabled,
+      audioTrackId: self.audioTrack?.id,
+      audioTrackState: self.audioTrack?.readyState,
+      hasAddMiddleware: typeof self.addAudioMiddleware === 'function',
+      epoch: this.middlewareEpoch
+    })
 
     this.enableInFlight = (async () => {
       // Mark active early so a concurrent middleware invocation doesn't bail out.
       this.stats.isActive = true
+      this.lastInvokedAt = null
 
       // Create audio middleware function
       this.middlewareEpoch += 1
@@ -179,10 +187,11 @@ export class RTKRnnoiseMiddleware {
    * Disable RNNoise middleware and remove from RTK meeting
    */
   disable(meeting: RealtimeKitMeeting): void {
-    console.log('[RNNoise] Disabling noise suppression')
+    console.log('[RNNoise] 🔇 Disabling noise suppression')
 
     // Set inactive immediately to prevent stats processing
     this.stats.isActive = false
+    this.lastInvokedAt = null
     // Invalidate any in-flight middleware initialization.
     this.middlewareEpoch += 1
 
@@ -198,14 +207,20 @@ export class RTKRnnoiseMiddleware {
     if (this.currentMiddleware && meeting?.self?.removeAudioMiddleware) {
       meeting.self.removeAudioMiddleware(this.currentMiddleware)
 
-      console.log('[RNNoise] Middleware removed', {
+      console.log('[RNNoise] ✅ Middleware removed', {
         totalFrames: this.stats.framesProcessed,
-        totalTime: this.stats.totalProcessingTime.toFixed(2) + 's'
+        totalTime: this.stats.totalProcessingTime.toFixed(2) + 's',
+        epoch: this.middlewareEpoch
       })
     }
 
     // CRITICAL: Always null the middleware reference to prevent stale state
     this.currentMiddleware = null
+
+    // CRITICAL: Reset permanent failure flag to allow re-enable after transient errors
+    // This ensures RNNoise can be toggled on again after being turned off
+    RTKRnnoiseMiddleware.workletLoadPermanentlyFailed = false
+    console.log('[RNNoise] ♻️ Reset workletLoadPermanentlyFailed flag to allow re-enable')
   }
 
   /**
@@ -234,6 +249,10 @@ export class RTKRnnoiseMiddleware {
    */
   getStats(): RnnoiseStats {
     return { ...this.stats }
+  }
+
+  getLastInvokedAt(): number | null {
+    return this.lastInvokedAt
   }
 
   /**
@@ -289,12 +308,20 @@ export class RTKRnnoiseMiddleware {
     return async (audioContext: AudioContext) => {
       // If we're already disabled (e.g., a race where middleware init is still finishing), bail out.
       if (!this.stats.isActive || epoch !== this.middlewareEpoch) {
+        console.log('[RNNoise] ⚠️ Middleware function called but inactive/stale epoch, returning passthrough', {
+          isActive: this.stats.isActive,
+          epoch,
+          currentEpoch: this.middlewareEpoch
+        })
         return audioContext.createGain()
       }
 
-      console.log('[RNNoise] Middleware function called', {
+      this.lastInvokedAt = Date.now()
+      console.log('[RNNoise] 🎤 Middleware function INVOKED by RTK!', {
         sampleRate: audioContext.sampleRate,
-        state: audioContext.state
+        state: audioContext.state,
+        epoch,
+        timestamp: new Date().toISOString()
       })
 
       try {
@@ -367,9 +394,7 @@ export class RTKRnnoiseMiddleware {
             if (!this.stats.isActive) return
 
             if (event.data?.type === 'first-frame') {
-              if (this.config.logLevel === 'verbose') {
-                console.log('[RNNoise] 🎙️ process() method called! Audio is flowing into worklet:', event.data)
-              }
+              console.log('[RNNoise] 🎙️ process() method called! Audio is flowing into worklet:', event.data)
               return
             }
 
@@ -400,12 +425,16 @@ export class RTKRnnoiseMiddleware {
                 console.log('[RNNoise] 🎙️ First audio frame processed! Audio is flowing through RNNoise')
               }
 
-              // Log stats periodically (every 100 frames)
+              // Log stats periodically (every 100 frames) with audio level info
               if (event.data.framesProcessed % 100 === 0) {
-                //console.log('[RNNoise] Processing stats:', {
-                //framesProcessed: event.data.framesProcessed,
-                //isActive: event.data.isActive
-                //})
+                console.log('[RNNoise] 📊 Processing stats:', {
+                  frames: event.data.framesProcessed,
+                  inputLevel: event.data.inputLevel?.toFixed(3),
+                  outputLevel: event.data.outputLevel?.toFixed(3),
+                  suppression: event.data.suppression?.toFixed(3),
+                  isActive: event.data.isActive,
+                  epoch: this.middlewareEpoch
+                })
               }
             }
           }
