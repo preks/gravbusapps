@@ -74,6 +74,13 @@ const PerformanceEvaluationFormComponent: React.FC = () => {
     }
   }, [preSelectedEmployee, preSelectedEmployeeLoading])
 
+  // Detect if rating scale uses star format
+  const isStarBasedRating = useMemo(() => {
+    if (ratingScaleValues.length === 0) return true // Default to stars
+    // Check if any label contains "star"
+    return ratingScaleValues.some(scale => scale.label.toLowerCase().includes('star'))
+  }, [ratingScaleValues])
+
   // Defer rendering the form for requested-evaluation flow until the preselected employee is applied to form state,
   // so no UI (including Cancel) flashes before we know the final state.
   if (isRequestedEvaluationFlow && !formValues.employeeId) {
@@ -84,13 +91,6 @@ const PerformanceEvaluationFormComponent: React.FC = () => {
     'lowcoder:performance_evaluation_form.title',
     'Performance Evaluation'
   )
-
-  // Detect if rating scale uses star format
-  const isStarBasedRating = useMemo(() => {
-    if (ratingScaleValues.length === 0) return true // Default to stars
-    // Check if any label contains "star"
-    return ratingScaleValues.some(scale => scale.label.toLowerCase().includes('star'))
-  }, [ratingScaleValues])
 
   // Rating component for a specific topic using rating scale values
   const renderTopicRating = (topicId: string, currentRating?: number) => {

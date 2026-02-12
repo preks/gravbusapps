@@ -165,9 +165,9 @@ export const PerformanceEvaluationFormProvider: React.FC<PerformanceEvaluationFo
     }
 
     // Add company values as topics (only if performance cycle exists)
-    if (performanceCycle && performanceCycle.companyValueIds && performanceCycle.companyValueIds.length > 0) {
+    if ((performanceCycle?.companyValueIds?.length ?? 0) > 0) {
       console.log('[Context] Adding company values from performance cycle')
-      performanceCycle.companyValueIds.forEach(valueId => {
+      performanceCycle!.companyValueIds!.forEach(valueId => {
         const value = companyValues.find(v => v.id === valueId)
         if (value) {
           topicsFromCycle.push({
