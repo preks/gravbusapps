@@ -545,7 +545,6 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                                 data-testid="clock-in-button"
                                 onClick={() => {
                                   // Clock in action logic would go here
-                                  console.log('Clock in clicked')
                                 }}
                               >
                                 <span data-testid="clock-in-button-text">
@@ -564,7 +563,6 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                                 data-testid="clock-out-button"
                                 onClick={() => {
                                   // Clock out action logic would go here
-                                  console.log('Clock out clicked')
                                 }}
                               >
                                 <span data-testid="clock-out-button-text">

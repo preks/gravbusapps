@@ -771,7 +771,9 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
               variant="outline"
               className="gba:flex gba:items-center gba:gap-2"
               data-testid="export-feedback-button"
-              onClick={() => console.log('Export feedback')}
+              onClick={() => {
+                // Export feedback action logic would go here
+              }}
             >
               <Download className="gba:h-4 gba:w-4" />{' '}
               {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.export', 'Export')}
