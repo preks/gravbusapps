@@ -179,6 +179,9 @@ class GlobalCallManager {
   // RTK SDK throws error on concurrent calls: "Unsupported concurrent calls on method: meeting.self.disableAudio"
   private audioOperationInFlight: Promise<void> | null = null
 
+  // Track active container instances to detect duplicates
+  private activeInstances: Set<string> = new Set()
+
   constructor() {
     // Check if there's existing call data from a previous instance
   }
@@ -379,6 +382,12 @@ class GlobalCallManager {
     // Reset UI owner so the next call can be claimed by any mounted instance
     this.uiOwnerId = null
 
+    // Clear any stale instance registrations (they should have unsubscribed, but just in case)
+    if (this.activeInstances.size > 0) {
+      console.warn('[GlobalCallManager] Clearing stale instances on call end:', this.activeInstances.size)
+      this.activeInstances.clear()
+    }
+
     // No more DOM manipulation - React handles all UI through GlobalCallContainer
     this.notifyListeners()
   }
@@ -433,14 +442,57 @@ class GlobalCallManager {
   }
 
   // Subscribe to changes
-  subscribe(listener: () => void): () => void {
+  subscribe(listener: () => void, instanceId?: string): () => void {
+    // Track instance registration
+    if (instanceId) {
+      if (this.activeInstances.has(instanceId)) {
+        console.warn('[GlobalCallManager] Instance already registered:', instanceId)
+      } else {
+        this.activeInstances.add(instanceId)
+        console.log('[GlobalCallManager] Instance registered:', instanceId, 'Total active:', this.activeInstances.size)
+      }
+    }
+
     this.listeners.add(listener)
     // Immediately notify the new listener of current state
     listener()
-    return () => this.listeners.delete(listener)
+
+    return () => {
+      this.listeners.delete(listener)
+      if (instanceId) {
+        this.activeInstances.delete(instanceId)
+        console.log(
+          '[GlobalCallManager] Instance unregistered:',
+          instanceId,
+          'Total active:',
+          this.activeInstances.size
+        )
+      }
+    }
+  }
+
+  // Get count of active instances for debugging
+  getActiveInstanceCount(): number {
+    return this.activeInstances.size
+  }
+
+  // Get active listener count for debugging
+  getActiveListenerCount(): number {
+    return this.listeners.size
   }
 
   private notifyListeners() {
+    // Warn if we have too many active instances (likely indicates duplicate mounting)
+    if (this.activeInstances.size > 2) {
+      console.warn(
+        '[GlobalCallManager] ⚠️ Multiple instances detected:',
+        this.activeInstances.size,
+        'instances with',
+        this.listeners.size,
+        'listeners. This may indicate React StrictMode or module hot-reloading.'
+      )
+    }
+
     this.listeners.forEach(listener => listener())
   }
 }

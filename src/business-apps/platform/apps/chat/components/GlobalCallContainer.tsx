@@ -24,15 +24,28 @@ export const GlobalCallContainer: React.FC = () => {
   const [callData, setCallData] = useState(() => ({ ...globalCallManager.getCallData() }))
   const [uiOwnerId, setUiOwnerId] = useState<string | null>(() => globalCallManager.getUiOwnerId())
   const virtualBackgroundRef = useRef<RTKVirtualBackground | null>(null)
+  const isSubscribedRef = useRef(false)
+  const unsubscribeRef = useRef<(() => void) | null>(null)
 
-  // Subscribe to global call manager changes
+  // Subscribe to global call manager changes with deduplication
   useEffect(() => {
+    // Prevent duplicate subscriptions from the same instance
+    if (isSubscribedRef.current) {
+      console.log('[GlobalCallContainer] Already subscribed, skipping duplicate subscription', { instanceId })
+      return unsubscribeRef.current || undefined
+    }
+
+    console.log('[GlobalCallContainer] Setting up subscription', { instanceId })
+    isSubscribedRef.current = true
+
     const unsubscribe = globalCallManager.subscribe(() => {
       const data = globalCallManager.getCallData()
       console.log('[GlobalCallContainer] Subscription fired', {
         isMinimized: data.callState.isMinimized,
         status: data.callState.status,
-        instanceId
+        instanceId,
+        activeInstances: globalCallManager.getActiveInstanceCount(),
+        activeListeners: globalCallManager.getActiveListenerCount()
       })
       // IMPORTANT: Use flushSync to ensure state updates immediately without batching
       // This prevents timing issues when toggling minimize/maximize rapidly
@@ -40,8 +53,16 @@ export const GlobalCallContainer: React.FC = () => {
         setCallData({ ...data })
         setUiOwnerId(globalCallManager.getUiOwnerId())
       })
-    })
-    return unsubscribe
+    }, instanceId)
+
+    unsubscribeRef.current = unsubscribe
+
+    return () => {
+      console.log('[GlobalCallContainer] Cleaning up subscription', { instanceId })
+      isSubscribedRef.current = false
+      unsubscribeRef.current = null
+      unsubscribe()
+    }
   }, [instanceId])
 
   const isEligibleRealtimeKitCall = useMemo(() => {
