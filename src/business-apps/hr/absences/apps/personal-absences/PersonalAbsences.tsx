@@ -184,7 +184,7 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
       setStats(
         snapshotStats.map(s => ({
           ...s,
-          icon: <Paperclip className="gba:w-4 gba:h-4" style={{ color: s.color || 'var(--nw-chart-4)' }} />
+          icon: Paperclip
         })) as any
       )
     }
@@ -286,17 +286,17 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
   const viewOptions = [
     {
       key: 'calendar',
-      icon: <Calendar className="gba:w-4 gba:h-4" />,
+      icon: <Calendar className="w-5 h-5" />,
       label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.calendar', 'Calendar')
     },
     {
       key: 'absence-list',
-      icon: <List className="gba:w-4 gba:h-4" />,
+      icon: <List className="w-5 h-5" />,
       label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.absence_list', 'Absence List')
     },
     {
       key: 'entitlements',
-      icon: <Paperclip className="gba:w-4 gba:h-4" />,
+      icon: <Paperclip className="w-5 h-5" />,
       label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.entitlements', 'Entitlements')
     }
   ]
