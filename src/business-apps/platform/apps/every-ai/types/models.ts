@@ -1,3 +1,6 @@
+import type { AssetSummaryData } from '../components/displays/asset-summary'
+import type { TeamAvailabilityData } from '../components/displays/team-availability'
+
 /**
  * AI Assistant Models and Types
  * Based on gravity-platform's EveryChat implementation
@@ -146,7 +149,7 @@ export type NavigationData = {
   reason: string
 }
 
-export type { TeamAvailabilityData } from '../components/displays/team-availability'
+export type { AssetSummaryData, TeamAvailabilityData }
 export type DisplayData =
   | TextBlockData
   | TableData
@@ -157,6 +160,7 @@ export type DisplayData =
   | CalendarViewData
   | NavigationData
   | ReminderData
+  | AssetSummaryData
   | TeamAvailabilityData
 
 export type NextStepProposal = {

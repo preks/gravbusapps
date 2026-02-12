@@ -24,6 +24,7 @@ import { MarkdownWithChipsRenderer, UnifiedTableRenderer } from '@/common/compon
 import NavigationDisplay from './displays/NavigationDisplay'
 import { ReminderDisplay } from './displays/ReminderDisplay'
 import { RemoteFormDisplay } from './displays/RemoteFormDisplay'
+import { AssetSummaryDisplay } from './displays/asset-summary'
 import { TeamAvailabilityDisplay } from './displays/team-availability'
 import { FlowbotCalendarDisplay } from './displays/calendar/FlowbotCalendarDisplay'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -759,6 +760,8 @@ function renderDisplayData(item: DisplayData, idx: number, accessToken: string) 
       return <ScatterGraphDisplay key={idx} data={item} />
     case 'calendar':
       return <CalendarDisplay key={idx} data={item} />
+    case 'assetSummary':
+      return <AssetSummaryDisplay key={idx} data={item} />
     case 'teamAvailability':
       return <TeamAvailabilityDisplay key={idx} data={item} />
     case 'navigation':
