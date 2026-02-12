@@ -1,10 +1,12 @@
 /**
- * Contact Import Configuration
+ * Base Contact Import Configuration
+ * Common fields shared between IRM and CRM contact imports
+ * Following the same pattern as Contact → InvestmentContact / CustomerContact entity types
  */
 
-import { TargetFieldDefinition, ImportConfig } from '@/common/components/common-relations/apps/data-import/types'
+import { TargetFieldDefinition } from '@/common/components/common-relations/apps/data-import/types'
 
-export const contactTargetFields: TargetFieldDefinition[] = [
+export const baseContactImportFields: TargetFieldDefinition[] = [
   // Personal Information
   { value: 'salutationRef', label: 'Salutation (Catalog)', type: 'catalog', catalog: 'Salutation' },
   { value: 'academicTitleRef', label: 'Academic Title (Catalog)', type: 'catalog', catalog: 'AcademicTitle' },
@@ -48,11 +50,3 @@ export const contactTargetFields: TargetFieldDefinition[] = [
   { value: 'description', label: 'Description', type: 'direct' },
   { value: 'notesSummary', label: 'Notes Summary', type: 'direct' }
 ]
-
-export const contactImportConfig: ImportConfig = {
-  entityType: 'contact',
-  domain: 'customer',
-  aiAgentName: 'ContactImportAnalyzer',
-  targetFields: contactTargetFields,
-  requiredCatalogs: ['Salutation', 'AcademicTitle', 'Language', 'Country']
-}

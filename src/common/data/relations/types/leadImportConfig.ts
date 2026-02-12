@@ -1,11 +1,12 @@
 /**
- * Lead Import Configuration
- * Extracted from LeadImportExample lines 68-93
+ * Base Lead Import Configuration
+ * Common fields shared between IRM and CRM lead imports
+ * Following the same pattern as Lead → InvestmentLead / CustomerLead entity types
  */
 
-import { TargetFieldDefinition, ImportConfig } from '@/common/components/common-relations/apps/data-import/types'
+import { TargetFieldDefinition } from '@/common/components/common-relations/apps/data-import/types'
 
-export const leadTargetFields: TargetFieldDefinition[] = [
+export const baseLeadImportFields: TargetFieldDefinition[] = [
   // Personal Information
   { value: 'salutationRef', label: 'Salutation (Catalog)', type: 'catalog', catalog: 'Salutation' },
   { value: 'academicTitleRef', label: 'Academic Title (Catalog)', type: 'catalog', catalog: 'AcademicTitle' },
@@ -58,23 +59,3 @@ export const leadTargetFields: TargetFieldDefinition[] = [
   { value: 'description', label: 'Description', type: 'direct' },
   { value: 'sensitive', label: 'Sensitive/Confidential', type: 'direct' }
 ]
-
-export const leadImportConfig: ImportConfig = {
-  entityType: 'lead',
-  domain: 'customer',
-  aiAgentName: 'LeadImportAnalyzer',
-  targetFields: leadTargetFields,
-  requiredCatalogs: [
-    'Salutation',
-    'AcademicTitle',
-    'Country',
-    // Note: Region requires country-specific filtering, not loaded by default
-    'CompanySize',
-    'IndustryClass',
-    'AnnualRevenue',
-    'LeadSource',
-    'LeadStatus',
-    'LeadRating',
-    'LegalForm'
-  ]
-}

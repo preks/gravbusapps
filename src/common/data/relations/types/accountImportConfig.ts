@@ -1,10 +1,12 @@
 /**
- * Account Import Configuration
+ * Base Account Import Configuration
+ * Common fields shared between IRM and CRM account imports
+ * Following the same pattern as Account → InvestmentAccount / CustomerAccount entity types
  */
 
-import { TargetFieldDefinition, ImportConfig } from '@/common/components/common-relations/apps/data-import/types'
+import { TargetFieldDefinition } from '@/common/components/common-relations/apps/data-import/types'
 
-export const accountTargetFields: TargetFieldDefinition[] = [
+export const baseAccountImportFields: TargetFieldDefinition[] = [
   // Company Information
   { value: 'name', label: 'Company Name', type: 'direct' },
   { value: 'code', label: 'Account Code', type: 'direct' },
@@ -58,19 +60,3 @@ export const accountTargetFields: TargetFieldDefinition[] = [
   { value: 'picture', label: 'Picture URL', type: 'direct' },
   { value: 'pictureThumbnail', label: 'Picture Thumbnail URL', type: 'direct' }
 ]
-
-export const accountImportConfig: ImportConfig = {
-  entityType: 'account',
-  domain: 'customer',
-  aiAgentName: 'AccountImportAnalyzer',
-  targetFields: accountTargetFields,
-  requiredCatalogs: [
-    'LegalForm',
-    'CompanySize',
-    'IndustryClass',
-    'AnnualRevenue',
-    'AccountPriority',
-    'Country',
-    'TimeZone'
-  ]
-}
