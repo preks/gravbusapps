@@ -41,7 +41,12 @@ import {
   FormLabel,
   FormControl,
   FormMessage,
-  DateInput
+  DateInput,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+  Textarea
 } from '@newwork/nw-design-system'
 import { DeleteConfirmationDialog } from '../shared'
 import {
@@ -53,7 +58,8 @@ import {
   PiCode,
   PiDotsThreeVertical,
   PiTrash,
-  PiWarning
+  PiWarning,
+  PiInfo
 } from 'react-icons/pi'
 import { toast } from 'sonner'
 import dayjs from 'dayjs'
@@ -147,6 +153,7 @@ interface AllowanceCodeFormData {
   activeFrom: string
   activeTo?: string
   version?: number
+  additionalProperties?: Record<string, unknown>
 }
 
 const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken, activeFrom, activeTo }) => {
@@ -158,6 +165,7 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
   const [isModalVisible, setIsModalVisible] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [editingItem, setEditingItem] = useState<AllowanceCode | null>(null)
+  const [additionalPropertiesJson, setAdditionalPropertiesJson] = useState<string>('')
 
   // formatDateForInput is imported from shared utils
 
@@ -488,6 +496,7 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
       activeFrom: entryActiveFrom,
       activeTo: entryActiveTo
     })
+    setAdditionalPropertiesJson('')
     // Keep the travel region set filter - don't reset it between adds
     setIsModalVisible(true)
   }
@@ -521,8 +530,12 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
         activeFrom:
           formatDateForInput(record.activeFrom) || formatDateForInput(activeFrom) || dayjs().format('YYYY-MM-DD'),
         activeTo: formatDateForInput(record.activeTo),
-        version: record.version
+        version: record.version,
+        additionalProperties: record.additionalProperties
       })
+      setAdditionalPropertiesJson(
+        record.additionalProperties ? JSON.stringify(record.additionalProperties, null, 2) : ''
+      )
 
       // If editing the only code, set the filter based on its region rule (editable)
       if (allowanceCodes.length === 1 && record.firstAllowanceRegionRuleId) {
@@ -644,6 +657,17 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
       form.clearErrors(['activeFrom', 'activeTo', 'amount', 'firstAllowanceRegionRulePercent', 'code'])
 
       const formValues = form.getValues()
+      let parsedAdditionalProperties: Record<string, unknown> | undefined
+
+      if (additionalPropertiesJson.trim()) {
+        try {
+          parsedAdditionalProperties = JSON.parse(additionalPropertiesJson)
+        } catch {
+          toast.error('Invalid JSON in Additional Info field')
+          setIsSaving(false)
+          return
+        }
+      }
 
       // Validate mutual exclusivity: Amount and Percentage
       const amountPercentageError = validateAmountAndPercentage(
@@ -694,11 +718,18 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
       let saveData: AllowanceCodeSaveData
 
       if (isUpdate) {
+        const formValuesWithAdditional = {
+          ...formValues,
+          additionalProperties: parsedAdditionalProperties
+        }
         saveData = isRestrictedEdit
-          ? transformAllowanceCodeForRestrictedUpdate(formValues, editingItem, ruleId)
-          : transformAllowanceCodeForUnrestrictedUpdate(formValues, editingItem, ruleId)
+          ? transformAllowanceCodeForRestrictedUpdate(formValuesWithAdditional, editingItem, ruleId)
+          : transformAllowanceCodeForUnrestrictedUpdate(formValuesWithAdditional, editingItem, ruleId)
       } else {
-        saveData = transformAllowanceCodeForCreate(formValues, ruleId)
+        saveData = transformAllowanceCodeForCreate(
+          { ...formValues, additionalProperties: parsedAdditionalProperties },
+          ruleId
+        )
       }
 
       await expenseSettingsClient.saveExpenseRuleAllowanceCode(saveData)
@@ -722,6 +753,35 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
   }
 
   // Removed Ant Design columns definition - using NW design system Table now
+
+  const renderAdditionalProperties = (additionalProperties?: Record<string, unknown>) => {
+    if (!additionalProperties || Object.keys(additionalProperties).length === 0) {
+      return <span className="gba:text-muted-foreground">None</span>
+    }
+
+    const propertyCount = Object.keys(additionalProperties).length
+
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="gba:flex gba:items-center gba:gap-1 gba:cursor-help">
+              <Badge variant="secondary">{propertyCount}</Badge>
+              <Button variant="ghost" size="icon" className="gba:h-6 gba:w-6 gba:text-info">
+                <PiInfo className="gba:h-4 gba:w-4" />
+              </Button>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="left" className="gba:max-w-md gba:p-3 gba:bg-popover gba:text-popover-foreground">
+            <div className="gba:font-medium gba:mb-2">Additional Properties:</div>
+            <pre className="gba:text-xs gba:bg-background gba:text-foreground gba:p-2 gba:rounded gba:overflow-auto gba:max-h-64 gba:whitespace-pre-wrap gba:border">
+              {JSON.stringify(additionalProperties, null, 2)}
+            </pre>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    )
+  }
 
   if (isLoading) {
     return (
@@ -870,6 +930,9 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
                         EXPENSE GROUP
                         {sorting.renderSortIcon('expenseGroup')}
                       </div>
+                    </TableHead>
+                    <TableHead className="gba:w-[160px]" data-testid="allowance-codes-table-header-additional-info">
+                      ADDITIONAL INFO
                     </TableHead>
                     <TableHead
                       className="gba:w-[120px] gba:cursor-pointer gba:select-none gba:hover:bg-accent"
@@ -1065,6 +1128,13 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
                         </Badge>
                       </TableCell>
 
+                      <TableCell
+                        data-testid={`allowance-code-additional-info-cell-${record.id}`}
+                        className="gba:text-center"
+                      >
+                        {renderAdditionalProperties(record.additionalProperties)}
+                      </TableCell>
+
                       {/* Valid From Column */}
                       <TableCell data-testid={`allowance-code-valid-from-cell-${record.id}`}>
                         <div className="gba:flex gba:items-center gba:gap-1">
@@ -1140,7 +1210,8 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
               >
                 <PiWarning className="gba:h-4 gba:w-4 gba:text-warning" />
                 <AlertDescription>
-                  This allowance code is used in expense items. Only &quot;Valid To&quot; can be edited.
+                  This allowance code is used in expense items. Only &quot;Valid To&quot; and &quot;Additional
+                  Info&quot; can be edited.
                 </AlertDescription>
               </Alert>
             )}
@@ -1602,6 +1673,22 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
                     </FormItem>
                   )}
                 />
+
+                <FormItem data-testid="allowance-code-additional-field">
+                  <FormLabel data-testid="allowance-code-additional-label">Additional Info (JSON)</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      value={additionalPropertiesJson}
+                      onChange={e => setAdditionalPropertiesJson(e.target.value)}
+                      placeholder='{"postingDetails": {"text": "", "account": "", "accountDetail": ""}}'
+                      className="gba:font-mono gba:text-sm gba:min-h-[100px]"
+                      data-testid="allowance-code-additional-textarea"
+                    />
+                  </FormControl>
+                  <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">
+                    Enter valid JSON for posting details and other additional data
+                  </p>
+                </FormItem>
               </div>
             </Form>
           </div>

@@ -167,6 +167,8 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
   const [itemToDelete, setItemToDelete] = useState<AllowancePeriod | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
 
+  const isMidnightRuleEnabled = !!form.watch('midnightRule')
+
   // Usage check state
   const [, setIsCheckingUsage] = useState(false)
   const [currentUsageInfo, setCurrentUsageInfo] = useState<UsageInfo | null>(null)
@@ -1165,48 +1167,6 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                     )}
                   />
 
-                  {/* Start After */}
-                  <FormField
-                    control={form.control}
-                    name="startAfter"
-                    render={({ field }) => (
-                      <FormItem data-testid="allowance-period-start-after-field">
-                        <FormLabel data-testid="allowance-period-start-after-label">Start After</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="time"
-                            value={field.value || ''}
-                            onChange={e => field.onChange(e.target.value || undefined)}
-                            disabled={isRestrictedEdit}
-                            data-testid="allowance-period-start-after-input"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  {/* Return Before */}
-                  <FormField
-                    control={form.control}
-                    name="returnBefore"
-                    render={({ field }) => (
-                      <FormItem data-testid="allowance-period-return-before-field">
-                        <FormLabel data-testid="allowance-period-return-before-label">Return Before</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="time"
-                            value={field.value || ''}
-                            onChange={e => field.onChange(e.target.value || undefined)}
-                            disabled={isRestrictedEdit}
-                            data-testid="allowance-period-return-before-input"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
                   {/* Valid From */}
                   <FormField
                     control={form.control}
@@ -1254,35 +1214,6 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                 <div className="gba:space-y-4">
                   <FormField
                     control={form.control}
-                    name="midnightRule"
-                    render={({ field }) => (
-                      <FormItem
-                        className="gba:flex gba:items-center gba:justify-between"
-                        data-testid="allowance-period-midnight-rule-field"
-                      >
-                        <FormLabel data-testid="allowance-period-midnight-rule-label">Midnight Rule</FormLabel>
-                        <div className="gba:flex gba:items-center gba:gap-2">
-                          <span
-                            className="gba:text-sm gba:text-foreground"
-                            data-testid="allowance-period-midnight-rule-status"
-                          >
-                            {field.value ? 'Yes' : 'No'}
-                          </span>
-                          <FormControl>
-                            <NWSwitch
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                              disabled={isRestrictedEdit}
-                              data-testid="allowance-period-midnight-rule-switch"
-                            />
-                          </FormControl>
-                        </div>
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
                     name="overnightAccommodation"
                     render={({ field }) => (
                       <FormItem
@@ -1309,6 +1240,87 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                       </FormItem>
                     )}
                   />
+
+                  <FormField
+                    control={form.control}
+                    name="midnightRule"
+                    render={({ field }) => (
+                      <FormItem
+                        className="gba:flex gba:items-center gba:justify-between"
+                        data-testid="allowance-period-midnight-rule-field"
+                      >
+                        <FormLabel data-testid="allowance-period-midnight-rule-label">Midnight Rule</FormLabel>
+                        <div className="gba:flex gba:items-center gba:gap-2">
+                          <span
+                            className="gba:text-sm gba:text-foreground"
+                            data-testid="allowance-period-midnight-rule-status"
+                          >
+                            {field.value ? 'Yes' : 'No'}
+                          </span>
+                          <FormControl>
+                            <NWSwitch
+                              checked={field.value}
+                              onCheckedChange={checked => {
+                                field.onChange(checked)
+                                if (!checked) {
+                                  form.setValue('startAfter', undefined)
+                                  form.setValue('returnBefore', undefined)
+                                }
+                              }}
+                              disabled={isRestrictedEdit}
+                              data-testid="allowance-period-midnight-rule-switch"
+                            />
+                          </FormControl>
+                        </div>
+                      </FormItem>
+                    )}
+                  />
+
+                  {isMidnightRuleEnabled && (
+                    <>
+                      {/* Start After */}
+                      <FormField
+                        control={form.control}
+                        name="startAfter"
+                        render={({ field }) => (
+                          <FormItem data-testid="allowance-period-start-after-field">
+                            <FormLabel data-testid="allowance-period-start-after-label">Start After</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="time"
+                                value={field.value || ''}
+                                onChange={e => field.onChange(e.target.value || undefined)}
+                                disabled={isRestrictedEdit}
+                                data-testid="allowance-period-start-after-input"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      {/* Return Before */}
+                      <FormField
+                        control={form.control}
+                        name="returnBefore"
+                        render={({ field }) => (
+                          <FormItem data-testid="allowance-period-return-before-field">
+                            <FormLabel data-testid="allowance-period-return-before-label">Return Before</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="time"
+                                value={field.value || ''}
+                                onChange={e => field.onChange(e.target.value || undefined)}
+                                disabled={isRestrictedEdit}
+                                data-testid="allowance-period-return-before-input"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </>
+                  )}
                 </div>
               </div>
             </Form>
