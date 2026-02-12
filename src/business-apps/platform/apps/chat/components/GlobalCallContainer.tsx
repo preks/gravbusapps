@@ -421,6 +421,26 @@ export const GlobalCallContainer: React.FC = () => {
     })()
   }, [])
 
+  // RNNoise toggle wrapper
+  const handleToggleRnnoise = useCallback(() => {
+    const latest = globalCallManager.getCallData()
+    if (latest.toggleRnnoise) {
+      latest.toggleRnnoise()
+      return
+    }
+    console.warn('[GlobalCallContainer] toggleRnnoise callback not available')
+  }, [])
+
+  // RNNoise mode change wrapper
+  const handleRnnoiseModeChange = useCallback((mode: 'gentle' | 'moderate' | 'aggressive') => {
+    const latest = globalCallManager.getCallData()
+    if (latest.setRnnoiseMode) {
+      latest.setRnnoiseMode(mode)
+      return
+    }
+    console.warn('[GlobalCallContainer] setRnnoiseMode callback not available')
+  }, [])
+
   // Only render if we have an eligible RTK call
   if (!isEligibleRealtimeKitCall) {
     return null
@@ -454,10 +474,12 @@ export const GlobalCallContainer: React.FC = () => {
           onToggleMute={callData.toggleMute || (() => {})}
           onToggleVideo={callData.toggleVideo || (() => {})}
           onToggleScreenShare={handleToggleScreenShare}
-          onToggleMinimize={handleToggleMinimize} // Use enhanced handler
+          onToggleMinimize={handleToggleMinimize}
           onToggleBackground={handleToggleBackground}
-          onToggleRnnoise={callData.toggleRnnoise || undefined}
-          onRnnoiseModeChange={callData.setRnnoiseMode || undefined}
+          onToggleRnnoise={handleToggleRnnoise}
+          onRnnoiseModeChange={handleRnnoiseModeChange}
+          rnnoiseEnabled={callData.rnnoiseEnabled}
+          rnnoiseMode={callData.rnnoiseMode}
           onToggleRaiseHand={handleToggleRaiseHand}
           onSendReaction={handleSendReaction}
           onSetVideoQuality={callData.setVideoQuality || (() => {})}
@@ -471,8 +493,6 @@ export const GlobalCallContainer: React.FC = () => {
           currentUserId={callData.currentUserId}
           currentUser={callData.currentUser}
           conversationName={callData.conversationName || undefined}
-          rnnoiseEnabled={callData.rnnoiseEnabled}
-          rnnoiseMode={callData.rnnoiseMode}
           callConversation={callData.callConversation || undefined}
           activeConversation={callData.activeConversation || undefined}
           pendingInvites={callData.pendingInvites || new Map()}

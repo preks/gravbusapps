@@ -3138,6 +3138,8 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
     getConnectionDiagnostics: stableGetConnectionDiagnostics, // Stable callback
     transcriptionEnabled: callState.transcriptionEnabled,
     toggleTranscription,
+    toggleRnnoise: media.toggleRnnoise,
+    setRnnoiseMode: media.setRnnoiseMode,
     switchAudioDevice: media.switchAudioDevice,
     switchVideoDevice: media.switchVideoDevice
   }

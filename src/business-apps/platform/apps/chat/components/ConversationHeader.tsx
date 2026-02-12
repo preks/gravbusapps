@@ -28,7 +28,8 @@ import {
   MoonStars,
   EyeSlash,
   PhoneCall as PhoneCallIcon,
-  PresentationChart
+  PresentationChart,
+  ChatText
 } from '@phosphor-icons/react'
 import { UserIcon, Phone, Video, PhoneCall, UserPlus, Bell, CalendarIcon } from 'lucide-react'
 import type { Conversation, UserStatus } from '../types'
@@ -279,8 +280,18 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
           >
             {name}
           </h2>
-          {/* Show "Last seen" for offline users */}
-          {isDirectChat && !compact && otherUserPresence?.lastSeen && presenceStatus === 'offline' ? (
+          {/* Show status message for direct chats with active users */}
+          {isDirectChat && !compact && otherUserPresence?.userStatus?.statusMessage && presenceStatus !== 'offline' ? (
+            <div className="gba:flex gba:items-center gba:gap-1.5">
+              <ChatText size={14} weight="duotone" className="gba:text-muted-foreground gba:flex-shrink-0" />
+              <p className="gba:text-xs gba:text-muted-foreground gba:truncate gba:italic">
+                {otherUserPresence.userStatus.statusMessage}
+              </p>
+            </div>
+          ) : /* Show "Last seen" for offline users */ isDirectChat &&
+            !compact &&
+            otherUserPresence?.lastSeen &&
+            presenceStatus === 'offline' ? (
             <p className="gba:text-xs gba:text-muted-foreground">
               {(() => {
                 try {
@@ -313,7 +324,7 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
               })()}
             </p>
           ) : hasActiveCall && !compact ? (
-            /* Show active call message only if not showing "Last seen" */
+            /* Show active call message only if not showing status message or "Last seen" */
             <p className="gba:text-xs gba:text-success">{t(getCallMessageKey())}</p>
           ) : null}
           {/* Show participant count for group chats */}

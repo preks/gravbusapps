@@ -10,7 +10,7 @@
  * - Empty state
  */
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { Users, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Button } from '@newwork/nw-design-system'
 
@@ -41,6 +41,8 @@ export interface VideoGridProps {
   mode?: 'auto-fit' | 'fixed-grid'
   /** Minimum tile size for auto-fit mode (in pixels) */
   minTileSize?: number
+  /** Maximum tile size for auto-fit mode (in pixels) */
+  maxTileSize?: number
   /** Grid layout configuration (only used in fixed-grid mode) */
   gridLayout?: GridLayout
 }
@@ -55,14 +57,28 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
   t = (key: string) => key,
   mode = 'auto-fit',
   minTileSize = 250,
+  maxTileSize = 500,
   gridLayout
 }) => {
   // Track window size for responsive grid
   const [, setWindowWidth] = useState(window.innerWidth)
 
+  // Container ref for width tracking
+  const gridContainerRef = useRef<HTMLDivElement>(null)
+  const [availableWidth, setAvailableWidth] = useState(0)
+
   useEffect(() => {
     const handleResize = () => {
       setWindowWidth(window.innerWidth)
+      // Update available width
+      if (gridContainerRef.current) {
+        setAvailableWidth(gridContainerRef.current.offsetWidth)
+      }
+    }
+
+    // Initial width calculation
+    if (gridContainerRef.current) {
+      setAvailableWidth(gridContainerRef.current.offsetWidth)
     }
 
     window.addEventListener('resize', handleResize)
@@ -128,16 +144,34 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
     }
 
     // Desktop screens (>= 1024px)
-    if (itemCount <= 1) return 1
-    if (itemCount <= 2) return 2
-    if (itemCount <= 4) return 2
-    if (itemCount <= 6) return 3 // 3×3 for better aspect ratio instead of 3×2
-    if (itemCount <= 9) return 3 // 3×3 for 7-9 participants
-    if (itemCount <= 12) return 3 // 3×4 for 10-12 participants
-    if (itemCount <= 16) return 4
-    if (itemCount <= 25) return 5
-    // For larger counts, use square root rounded up, but cap at 6 columns max
-    return Math.min(Math.ceil(Math.sqrt(itemCount)), 6)
+    // Calculate how many tiles can fit at max width with available space
+    let baseColumns
+    if (itemCount <= 1) baseColumns = 1
+    else if (itemCount <= 2) baseColumns = 2
+    else if (itemCount <= 4) baseColumns = 2
+    else if (itemCount <= 6)
+      baseColumns = 3 // 3×3 for better aspect ratio instead of 3×2
+    else if (itemCount <= 9)
+      baseColumns = 3 // 3×3 for 7-9 participants
+    else if (itemCount <= 12)
+      baseColumns = 3 // 3×4 for 10-12 participants
+    else if (itemCount <= 16) baseColumns = 4
+    else if (itemCount <= 25) baseColumns = 5
+    else {
+      // For larger counts, use square root rounded up, but cap at 6 columns max
+      baseColumns = Math.min(Math.ceil(Math.sqrt(itemCount)), 6)
+    }
+
+    // If we have available width, calculate how many tiles can fit at max width
+    if (availableWidth > 0 && maxTileSize < 9999) {
+      const gap = 12 // gba:gap-3 is 12px
+      const maxColumnsByWidth = Math.floor((availableWidth + gap) / (maxTileSize + gap))
+
+      // Use the minimum to prevent stretching beyond max width
+      return Math.max(1, Math.min(baseColumns, maxColumnsByWidth))
+    }
+
+    return baseColumns
   }
 
   // Calculate optimal row height based on screen size
@@ -159,7 +193,7 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
   const gridStyle =
     mode === 'auto-fit'
       ? {
-          gridTemplateColumns: `repeat(${calculateOptimalColumns(gridItems.length)}, minmax(${minTileSize}px, 1fr))`,
+          gridTemplateColumns: `repeat(${calculateOptimalColumns(gridItems.length)}, minmax(${minTileSize}px, min(${maxTileSize}px, 1fr)))`,
           gridAutoRows: calculateRowHeight()
         }
       : {
@@ -188,7 +222,8 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
 
         {/* Grid Container */}
         <div
-          className="gba:w-full gba:h-full gba:grid gba:gap-3 gba:content-start gba:overflow-hidden"
+          ref={gridContainerRef}
+          className="gba:w-full gba:h-full gba:grid gba:gap-3 gba:content-start gba:overflow-hidden gba:justify-center"
           style={gridStyle}
           data-testid={`${prefixDataTestId}-video-grid`}
         >

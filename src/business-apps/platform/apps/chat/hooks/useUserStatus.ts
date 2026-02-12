@@ -40,6 +40,7 @@ export function useUserStatus({ client, isConnected, currentUserId }: UseUserSta
         status: data.status,
         isSystemStatus: data.isSystemStatus,
         statusMessage: data.statusMessage,
+        statusMessageExpiresAt: data.statusMessageExpiresAt,
         isOnline: data.isOnline
       }
 
@@ -88,7 +89,8 @@ export function useUserStatus({ client, isConnected, currentUserId }: UseUserSta
             ...prev!,
             status: response.status as any,
             isSystemStatus: false,
-            statusMessage
+            statusMessage,
+            statusMessageExpiresAt: expiresAt?.toISOString()
           }))
         }
       } catch (err) {

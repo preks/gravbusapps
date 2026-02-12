@@ -11,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle
 } from '@newwork/nw-design-system'
+import { ChatText } from '@phosphor-icons/react'
 import type { Conversation } from '../types'
 import type { UserPresence } from '../hooks/usePresence'
 import { UserIcon, UsersIcon, Sparkles, CalendarIcon } from 'lucide-react'
@@ -232,7 +233,13 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
               </Badge>
             )}
           </div>
-          {showPresence && otherUserPresence?.lastSeen && presenceStatus === 'offline' ? (
+          {/* Show status message for online users in direct chats */}
+          {showPresence && userStatus?.statusMessage && presenceStatus !== 'offline' ? (
+            <div className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:text-muted-foreground gba:truncate gba:max-w-[180px]">
+              <ChatText size={12} weight="duotone" className="gba:flex-shrink-0" />
+              <span className="gba:italic gba:truncate">{userStatus.statusMessage}</span>
+            </div>
+          ) : showPresence && otherUserPresence?.lastSeen && presenceStatus === 'offline' ? (
             <p className="gba:text-xs gba:text-muted-foreground gba:truncate gba:max-w-[180px]">
               {(() => {
                 try {

@@ -169,6 +169,27 @@ const getScreenShareTrack = (peer: any): MediaStreamTrack | null => {
   return null
 }
 
+// Helper to calculate optimal aspect ratio based on tile width and participant count
+const getOptimalAspectRatio = (tileWidth: number, participantCount: number, isScreenShare: boolean): string => {
+  // Screen shares always use 16:9
+  if (isScreenShare) {
+    return '16/9'
+  }
+
+  // For very wide tiles with few participants, use portrait-ish ratio for better face framing
+  if (tileWidth > 400 && participantCount <= 4) {
+    return '3/4'
+  }
+
+  // For medium tiles, use 4:3
+  if (tileWidth > 250) {
+    return '4/3'
+  }
+
+  // For narrow tiles, use 16:9
+  return '16/9'
+}
+
 // Stable empty function for missing callbacks
 const NOOP = () => {}
 
@@ -2188,7 +2209,8 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
     return {
       sidebarWidth: width < 768 ? 280 : width < 1024 ? 320 : 360,
       minTileSize: width < 768 ? 150 : width < 1024 ? 180 : 250,
-      minTileSizeWithSidebar: width < 768 ? 120 : width < 1024 ? 150 : 200
+      minTileSizeWithSidebar: width < 768 ? 120 : width < 1024 ? 150 : 200,
+      maxTileSize: width < 768 ? 9999 : width < 1024 ? 300 : width < 1440 ? 400 : width < 1920 ? 450 : 500
     }
   })
 
@@ -2199,7 +2221,8 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
       setResponsiveConfig({
         sidebarWidth: width < 768 ? 280 : width < 1024 ? 320 : 360,
         minTileSize: width < 768 ? 150 : width < 1024 ? 180 : 250,
-        minTileSizeWithSidebar: width < 768 ? 120 : width < 1024 ? 150 : 200
+        minTileSizeWithSidebar: width < 768 ? 120 : width < 1024 ? 150 : 200,
+        maxTileSize: width < 768 ? 9999 : width < 1024 ? 300 : width < 1440 ? 400 : width < 1920 ? 450 : 500
       })
     }
 
@@ -2952,12 +2975,17 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
                     <VideoGrid
                       mode="auto-fit"
                       minTileSize={minTileSize}
+                      maxTileSize={responsiveConfig.maxTileSize}
                       gridItems={paginatedGridItems.items.map(item => (
                         <div
                           key={item.id}
                           className="gba:relative gba:w-full gba:h-full gba:rounded-lg gba:overflow-hidden gba:bg-muted"
                           style={{
-                            aspectRatio: window.innerWidth < 768 ? '4/3' : '16/9'
+                            aspectRatio: getOptimalAspectRatio(
+                              responsiveConfig.maxTileSize,
+                              paginatedGridItems.items.length,
+                              item.type === 'screen-share'
+                            )
                           }}
                           data-testid={`${prefixDataTestId}-grid-item-${item.id}`}
                         >

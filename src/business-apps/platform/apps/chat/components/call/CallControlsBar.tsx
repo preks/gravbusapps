@@ -503,25 +503,6 @@ export const CallControlsBar: React.FC<CallControlsBarProps> = ({
           {/* Desktop: Individual buttons for secondary controls */}
           {showDesktopLayout && (
             <div className="gba:flex gba:items-center gba:gap-2">
-              {/* RNNoise AI noise suppression button */}
-              {onToggleRnnoise && (
-                <button
-                  onClick={handleRnnoiseToggle}
-                  className={`gba:p-3 gba:rounded-full gba:transition-all ${
-                    rnnoiseEnabled
-                      ? 'gba:bg-success gba:text-success-foreground hover:gba:bg-success/90'
-                      : 'gba:bg-accent hover:gba:bg-accent/90'
-                  }`}
-                  data-testid={`${prefixDataTestId}-rnnoise-btn`}
-                  aria-label={rnnoiseEnabled ? 'AI Noise Suppression: ON' : 'AI Noise Suppression: OFF'}
-                  title={
-                    rnnoiseEnabled ? 'AI Noise Suppression: ON (removes background noise)' : 'AI Noise Suppression: OFF'
-                  }
-                >
-                  <Microphone className="gba:w-5 gba:h-5" weight="fill" />
-                </button>
-              )}
-
               {/* Background effect button */}
               {onToggleBackground && callType === 'video' && (
                 <button

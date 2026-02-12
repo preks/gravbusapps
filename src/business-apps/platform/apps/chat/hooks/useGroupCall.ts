@@ -169,6 +169,8 @@ export interface UseGroupCallReturn {
   reconnectParticipant: (participantId: string) => Promise<void>
   transcriptionEnabled?: boolean
   toggleTranscription?: () => void
+  toggleRnnoise?: (enabled: boolean) => Promise<void>
+  setRnnoiseMode?: (mode: 'gentle' | 'moderate' | 'aggressive') => void
   // Debugging
   getConnectionDiagnostics: () => Map<string, any>
 }
