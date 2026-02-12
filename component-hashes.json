@@ -116,7 +116,7 @@
   "flow/apps/template-manager": "59c58c0b16a8b8694f0558c116a03670",
   "hr/absences/apps/backoffice-absences": "f3b08010c80ce7bdf5b7cc0db646c979",
   "hr/absences/apps/manager-absences": "d4e8b900a4b8ac8d224b7b0fbafdcc19",
-  "hr/absences/apps/personal-absences": "fd4df7af4147a683fcd44528e1673e8f",
+  "hr/absences/apps/personal-absences": "dd64a795c1979cfbee93be336005613e",
   "hr/absences/forms/acknowledge-employee-sick-leave-HR": "72ba5a7ba72363f61674c2c4bbba16b2",
   "hr/absences/forms/acknowledge-employee-sick-leave-manager": "f1cf164941d41b578d26bef2203bbc13",
   "hr/absences/forms/acknowledge-employee-special-leave": "a810283184820cff90db7f02b3d6ebec",
