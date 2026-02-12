@@ -1,5 +1,12 @@
 import React from 'react'
-import { Pagination } from 'antd'
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious
+} from '@newwork/nw-design-system'
 import { IconAvatar } from '@newwork/nw-design-system'
 import { AbsenceListProps } from '../../../queries/types'
 import { formatDate, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -14,8 +21,7 @@ const AbsenceList: React.FC<AbsenceListProps> = ({
   error,
   currentPage,
   setCurrentPage,
-  pageSize,
-  setPageSize
+  pageSize
 }) => {
   if (loading) {
     return (
@@ -117,30 +123,53 @@ const AbsenceList: React.FC<AbsenceListProps> = ({
 
       {absenceList.length > pageSize && (
         <div
-          className="gba:absenceListPagination gba:mt-6 gba:flex gba:justify-center"
+          className="gba:absenceListPagination gba:mt-6 gba:flex gba:justify-center gba:items-center gba:gap-4"
           data-testid="absencehub-absence-list-pagination"
         >
-          <Pagination
-            current={currentPage}
-            pageSize={pageSize}
-            total={absenceList.length}
-            showSizeChanger
-            pageSizeOptions={['10', '20', '50']}
-            onChange={(page: number, size?: number) => {
-              setCurrentPage(page)
-              if (size) setPageSize(size)
-            }}
-            showTotal={(total: number, range: [number, number]) =>
-              getTranslationFromI18nKeyAndLabel(
-                'lowcoder:absence_hub.pagination',
-                '{{range0}}-{{range1}} of {{total}}',
-                { range0: range[0], range1: range[1], total }
-              )
-            }
-            locale={{
-              items_per_page: getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.per_page', '/ page')
-            }}
-          />
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious
+                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                  className={currentPage === 1 ? 'gba:pointer-events-none gba:opacity-50' : 'gba:cursor-pointer'}
+                />
+              </PaginationItem>
+
+              {Array.from({ length: Math.ceil(absenceList.length / pageSize) }, (_, i) => i + 1).map(page => (
+                <PaginationItem key={page}>
+                  <PaginationLink
+                    onClick={() => setCurrentPage(page)}
+                    isActive={currentPage === page}
+                    className="gba:cursor-pointer"
+                  >
+                    {page}
+                  </PaginationLink>
+                </PaginationItem>
+              ))}
+
+              <PaginationItem>
+                <PaginationNext
+                  onClick={() => setCurrentPage(Math.min(Math.ceil(absenceList.length / pageSize), currentPage + 1))}
+                  className={
+                    currentPage === Math.ceil(absenceList.length / pageSize)
+                      ? 'gba:pointer-events-none gba:opacity-50'
+                      : 'gba:cursor-pointer'
+                  }
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+          <div className="gba:text-sm gba:text-muted-foreground">
+            {getTranslationFromI18nKeyAndLabel(
+              'lowcoder:absence_hub.pagination',
+              '{{range0}}-{{range1}} of {{total}}',
+              {
+                range0: (currentPage - 1) * pageSize + 1,
+                range1: Math.min(currentPage * pageSize, absenceList.length),
+                total: absenceList.length
+              }
+            )}
+          </div>
         </div>
       )}
     </>

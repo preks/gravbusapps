@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react'
 import dayjs from 'dayjs'
 import isBetween from 'dayjs/plugin/isBetween'
-import { Button, useTranslation } from '@newwork/nw-design-system'
-import { Spin, Tooltip } from 'antd'
-import { LeftOutlined, RightOutlined } from '@ant-design/icons'
+import { Button, Spinner, Tooltip, TooltipContent, TooltipTrigger, useTranslation } from '@newwork/nw-design-system'
+import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react'
 import { CalendarProps } from '../../../queries/types'
 
 import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
@@ -36,10 +35,7 @@ const getAbsenceTooltipContent = (absence: any, opts?: { showStatus?: boolean; s
   return (
     <div className="gba:max-w-xs gba:p-2">
       <div className="gba:font-semibold gba:text-sm gba:mb-2 gba:flex gba:items-center gba:gap-2">
-        <div
-          className="gba:w-3 gba:h-3 gba:rounded-full"
-          style={{ backgroundColor: absence.statusColor || 'var(--nw-offline)' }}
-        />
+        <div className={`gba:w-3 gba:h-3 gba:rounded-full gba:bg-[${absence.statusColor || 'var(--nw-offline)'}]`} />
         {absence.type}
       </div>
       <div className="gba:space-y-1 gba:text-xs">
@@ -48,7 +44,7 @@ const getAbsenceTooltipContent = (absence: any, opts?: { showStatus?: boolean; s
             <span className="gba:font-medium">
               {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status')}:
             </span>
-            <span className="gba:font-medium" style={{ color: absence.statusColor || 'var(--nw-offline)' }}>
+            <span className={`gba:font-medium gba:text-[${absence.statusColor || 'var(--nw-offline)'}]`}>
               {getAbsenceStatusLabel(absence.originalStatus || absence.status)}
             </span>
           </div>
@@ -284,7 +280,7 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
   if (loading) {
     return (
       <div className="gba:loading gba:flex gba:justify-center gba:items-center gba:py-8">
-        <Spin size="large" />
+        <Spinner size="lg" />
       </div>
     )
   }
@@ -302,11 +298,7 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
       {contextMenuOpen && (
         <div
           ref={contextMenuRef}
-          className="gba:fixed gba:bg-popover gba:border gba:border-border gba:rounded-md gba:shadow-lg gba:z-[10000] gba:w-[180px] gba:py-1"
-          style={{
-            left: `${contextMenuPosition.x}px`,
-            top: `${contextMenuPosition.y}px`
-          }}
+          className={`gba:fixed gba:bg-popover gba:border gba:border-border gba:rounded-md gba:shadow-lg gba:z-[10000] gba:w-[180px] gba:py-1 gba:left-[${contextMenuPosition.x}px] gba:top-[${contextMenuPosition.y}px]`}
           data-testid="absence-context-menu"
         >
           {AVAILABLE_ABSENCE_TYPES.map(absenceType => (
@@ -354,7 +346,7 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
                 data-testid="calendar-prev-month"
                 onClick={() => setCurrentDate(dayjs(currentDate).subtract(1, 'month'))}
               >
-                <LeftOutlined className="gba:mr-1" />
+                <ChevronLeftIcon className="gba:mr-1 gba:h-4 gba:w-4" />
                 {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.previous', 'Previous')}
               </Button>
             )}
@@ -376,7 +368,7 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
                 onClick={() => setCurrentDate(dayjs(currentDate).add(1, 'month'))}
               >
                 {getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.next', 'Next')}
-                <RightOutlined className="gba:ml-1" />
+                <ChevronRightIcon className="gba:ml-1 gba:h-4 gba:w-4" />
               </Button>
             )}
           </div>
@@ -527,7 +519,6 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
                           // Render small colored segments for each overlapping absence (max 3)
                           const maxSegments = 3
                           const segments = overlappingAbsences.slice(0, maxSegments)
-                          const segmentWidth = `${100 / segments.length}%`
 
                           const resolveSegmentBgClass = (a: any): string => {
                             // When consumer provides planned/effective minutes (e.g., DailyLog)
@@ -543,26 +534,22 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
                           return (
                             <div className="gba:flex gba:gap-1 gba:mt-1">
                               {segments.map((a: any, idx: number) => (
-                                <Tooltip
-                                  key={`seg-${idx}`}
-                                  title={getAbsenceTooltipContent(a, {
-                                    showStatus: showStatusInTooltip,
-                                    showDuration: showDurationInTooltip
-                                  })}
-                                  placement="top"
-                                  mouseEnterDelay={0.3}
-                                  overlayStyle={{ zIndex: 9999 }}
-                                >
-                                  <div
-                                    className={`gba:flex gba:items-center gba:justify-center gba:rounded-full gba:cursor-help gba:transition-all gba:duration-200 hover:gba:h-6 gba:min-h-4 gba:px-1 ${resolveSegmentBgClass(a)}`}
-                                    style={{
-                                      width: segmentWidth
-                                    }}
-                                  >
-                                    <span className="gba:text-xs gba:font-medium gba:text-primary gba:truncate gba:leading-none">
-                                      {a.type}
-                                    </span>
-                                  </div>
+                                <Tooltip key={`seg-${idx}`}>
+                                  <TooltipTrigger asChild>
+                                    <div
+                                      className={`gba:flex gba:items-center gba:justify-center gba:rounded-full gba:cursor-help gba:transition-all gba:duration-200 hover:gba:h-6 gba:min-h-4 gba:px-1 gba:w-[${100 / segments.length}%] ${resolveSegmentBgClass(a)}`}
+                                    >
+                                      <span className="gba:text-xs gba:font-medium gba:text-primary gba:truncate gba:leading-none">
+                                        {a.type}
+                                      </span>
+                                    </div>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top" className="gba:max-w-xs gba:z-[9999]">
+                                    {getAbsenceTooltipContent(a, {
+                                      showStatus: showStatusInTooltip,
+                                      showDuration: showDurationInTooltip
+                                    })}
+                                  </TooltipContent>
                                 </Tooltip>
                               ))}
                             </div>

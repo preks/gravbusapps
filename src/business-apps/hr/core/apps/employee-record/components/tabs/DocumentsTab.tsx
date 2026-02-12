@@ -913,8 +913,7 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
                       <object
                         data={documentUrl}
                         type="application/pdf"
-                        className="gba:w-full gba:border-0 gba:rounded-md"
-                        style={{ width: '100%', height: '500px', display: 'block', border: 'none' }}
+                        className="gba:w-full gba:h-[500px] gba:block gba:border-0 gba:rounded-md"
                         data-testid="pdf-viewer"
                       >
                         <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-full gba:p-4">
@@ -1000,8 +999,7 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
                         <img
                           src={documentUrl}
                           alt={currentDocument?.title || t('documents-count-one')}
-                          className="gba:max-w-full gba:object-contain gba:rounded-md"
-                          style={{ maxWidth: '100%', maxHeight: '500px' }}
+                          className="gba:max-w-full gba:max-h-[500px] gba:object-contain gba:rounded-md"
                           onError={() => {
                             setError(t('documents-error-image-display'))
                           }}

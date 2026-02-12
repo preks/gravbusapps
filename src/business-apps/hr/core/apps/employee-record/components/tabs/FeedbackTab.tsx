@@ -2,9 +2,29 @@
 
 import React, { useState, useEffect } from 'react'
 import { Employee, EmployeeFeedback } from '../../hooks/useEmployeeData'
-import { Card, Avatar } from '@newwork/gravity-ui-catalog'
-import { Button, useTranslation, Badge } from '@newwork/nw-design-system'
-import { Empty, Spin, Input, Select, Rate, Pagination } from 'antd'
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+  Button,
+  Card,
+  CardContent,
+  EmptyState,
+  Input,
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Spinner,
+  Badge
+} from '@newwork/nw-design-system'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { EMPLOYEE_FEEDBACK_REQUESTS_QUERY_PAGED_WITH_COUNT } from './queries/EmployeeFeedbackRequestQueries'
 import { employeeFeedbackQuery } from '../../queries/feedbackQueries'
@@ -13,8 +33,7 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
 import { startProcess } from '@/common/utils/start-process'
 import { UserInfoProps } from '../../../../../../../common/BusinessAppContext'
-import translations from '../../_i18n'
-import { CalendarOutlined, SearchOutlined, DownloadOutlined } from '@ant-design/icons'
+import { Calendar, Search, Download } from 'lucide-react'
 import { useFlowExecutionTasks } from '@/business-apps/fin/expenses/apps/manager-expenses/hooks/useFlowExecutionTasks'
 import { PiPencilSimple } from 'react-icons/pi'
 
@@ -114,7 +133,6 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
   employeeFeedback = [],
   isSelfView = false // Default to false if not provided
 }) => {
-  const { t } = useTranslation(translations)
   // State variables for feedback and requests
   const [localFeedback, setLocalFeedback] = useState<ExtendedEmployeeFeedback[]>([])
   // No local state needed for approval tasks in this column
@@ -361,7 +379,7 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
   if (loading && !allFormattedFeedback.length) {
     return (
       <div className="gba:flex gba:justify-center gba:items-center gba:h-40" data-testid="feedback-loading">
-        <Spin size="large" />
+        <Spinner size="lg" />
       </div>
     )
   }
@@ -398,7 +416,7 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
             <h2 className="gba:font-bold gba:text-2xl" data-testid="feedback-title">
               {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.feedback_tab_title', 'Feedback')}
             </h2>
-            <p className="gba:text-gray-500 gba:text-lg" data-testid="feedback-description">
+            <p className="gba:text-muted-foreground gba:text-lg" data-testid="feedback-description">
               {getTranslationFromI18nKeyAndLabel(
                 'lowcoder:feedback_tab.feedback_tab_description',
                 'Give and receive feedback from colleagues and managers to improve performance.'
@@ -470,17 +488,17 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
                 if (receivedLoading) {
                   return (
                     <div className="gba:flex gba:justify-center gba:items-center gba:h-40">
-                      <Spin size="default" />
+                      <Spinner size="md" />
                     </div>
                   )
                 }
                 if (receivedError) {
-                  return <div className="gba:text-red-500">{receivedError}</div>
+                  return <div className="gba:text-destructive">{receivedError}</div>
                 }
                 if (feedbackRequests.length === 0) {
                   return (
-                    <Empty
-                      description={getTranslationFromI18nKeyAndLabel(
+                    <EmptyState
+                      title={getTranslationFromI18nKeyAndLabel(
                         'lowcoder:feedback_tab.no_feedback_requests',
                         'No feedback requests'
                       )}
@@ -498,7 +516,6 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
                           <Card
                             key={request.id}
                             className="gba:p-1 gba:cursor-pointer"
-                            size="small"
                             data-testid={`received-request-item-${request.id}`}
                             onClick={() => handleRespondClick(request)}
                             role="button"
@@ -510,56 +527,100 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
                               }
                             }}
                           >
-                            <div className="gba:flex gba:items-center gba:justify-between gba:min-h-10">
-                              <div className="gba:flex gba:flex-col">
-                                <div className="gba:font-medium" data-testid={`received-request-line-${request.id}`}>
-                                  {getTranslationFromI18nKeyAndLabel(
-                                    'lowcoder:feedback_tab.from_on_text',
-                                    `From ${request.creatorName || ''} on ${dateLabel}`,
-                                    {
-                                      employee: request.creatorName || '',
-                                      date: dateLabel,
-                                      interpolation: {
-                                        escapeValue: false
+                            <CardContent className="gba:p-2">
+                              <div className="gba:flex gba:items-center gba:justify-between gba:min-h-10">
+                                <div className="gba:flex gba:flex-col">
+                                  <div className="gba:font-medium" data-testid={`received-request-line-${request.id}`}>
+                                    {getTranslationFromI18nKeyAndLabel(
+                                      'lowcoder:feedback_tab.from_on_text',
+                                      `From ${request.creatorName || ''} on ${dateLabel}`,
+                                      {
+                                        employee: request.creatorName || '',
+                                        date: dateLabel,
+                                        interpolation: {
+                                          escapeValue: false
+                                        }
                                       }
-                                    }
-                                  )}
+                                    )}
+                                  </div>
                                 </div>
+                                <Button
+                                  size="sm"
+                                  variant="secondary"
+                                  onClick={e => {
+                                    e.stopPropagation()
+                                    handleRespondClick(request)
+                                  }}
+                                  data-testid={`received-request-respond-button-${request.id}`}
+                                  className="gba:flex gba:items-center gba:gap-2"
+                                >
+                                  <PiPencilSimple />
+                                  {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.respond', 'Respond')}
+                                </Button>
                               </div>
-                              <Button
-                                size="sm"
-                                variant="secondary"
-                                onClick={e => {
-                                  e.stopPropagation()
-                                  handleRespondClick(request)
-                                }}
-                                data-testid={`received-request-respond-button-${request.id}`}
-                                className="gba:flex gba:items-center gba:gap-2"
-                              >
-                                <PiPencilSimple />
-                                {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.respond', 'Respond')}
-                              </Button>
-                            </div>
+                            </CardContent>
                           </Card>
                         )
                       })}
                     </div>
-                    <div className="gba:mt-4 gba:flex gba:justify-end">
-                      <Pagination
-                        current={receivedCurrentPage}
-                        pageSize={receivedPageSize}
-                        total={receivedTotalCount || 0}
-                        onChange={(page, pageSize) => {
-                          setReceivedCurrentPage(page)
-                          setReceivedPageSize(pageSize)
-                        }}
-                        data-testid="received-requests-pagination"
-                        showSizeChanger
-                        pageSizeOptions={['3', '10', '20', '50']}
-                        locale={{
-                          items_per_page: t('feedback-pagination-per-page')
-                        }}
-                      />
+                    <div className="gba:mt-4 gba:flex gba:justify-end gba:items-center gba:gap-4">
+                      <Pagination>
+                        <PaginationContent>
+                          <PaginationItem>
+                            <PaginationPrevious
+                              onClick={() => setReceivedCurrentPage(Math.max(1, receivedCurrentPage - 1))}
+                              className={
+                                receivedCurrentPage === 1
+                                  ? 'gba:pointer-events-none gba:opacity-50'
+                                  : 'gba:cursor-pointer'
+                              }
+                            />
+                          </PaginationItem>
+                          {Array.from(
+                            { length: Math.ceil((receivedTotalCount || 0) / receivedPageSize) },
+                            (_, i) => i + 1
+                          ).map(page => (
+                            <PaginationItem key={page}>
+                              <PaginationLink
+                                onClick={() => setReceivedCurrentPage(page)}
+                                isActive={receivedCurrentPage === page}
+                                className="gba:cursor-pointer"
+                              >
+                                {page}
+                              </PaginationLink>
+                            </PaginationItem>
+                          ))}
+                          <PaginationItem>
+                            <PaginationNext
+                              onClick={() =>
+                                setReceivedCurrentPage(
+                                  Math.min(
+                                    Math.ceil((receivedTotalCount || 0) / receivedPageSize),
+                                    receivedCurrentPage + 1
+                                  )
+                                )
+                              }
+                              className={
+                                receivedCurrentPage >= Math.ceil((receivedTotalCount || 0) / receivedPageSize)
+                                  ? 'gba:pointer-events-none gba:opacity-50'
+                                  : 'gba:cursor-pointer'
+                              }
+                            />
+                          </PaginationItem>
+                        </PaginationContent>
+                      </Pagination>
+                      <Select value={String(receivedPageSize)} onValueChange={v => setReceivedPageSize(Number(v))}>
+                        <SelectTrigger className="gba:w-20">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {[3, 10, 20, 50].map(n => (
+                            <SelectItem key={n} value={String(n)}>
+                              {n}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                   </>
                 )
@@ -576,17 +637,17 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
                 if (requestsLoadingApproval) {
                   return (
                     <div className="gba:flex gba:justify-center gba:items-center gba:h-40">
-                      <Spin size="default" />
+                      <Spinner size="md" />
                     </div>
                   )
                 }
                 if (requestsErrorApproval) {
-                  return <div className="gba:text-red-500">{requestsErrorApproval}</div>
+                  return <div className="gba:text-destructive">{requestsErrorApproval}</div>
                 }
                 if (requestedFeedback.length === 0) {
                   return (
-                    <Empty
-                      description={getTranslationFromI18nKeyAndLabel(
+                    <EmptyState
+                      title={getTranslationFromI18nKeyAndLabel(
                         'lowcoder:feedback_tab.no_approval_requests',
                         'No approval requests'
                       )}
@@ -605,46 +666,89 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
                           <Card
                             key={request.id}
                             className="gba:p-1"
-                            size="small"
                             data-testid={`requested-request-item-${request.id}`}
                           >
-                            <div className="gba:flex gba:items-center gba:justify-between gba:min-h-10">
-                              <div className="gba:flex gba:flex-col">
-                                <div className="gba:font-medium" data-testid={`requested-request-line-${request.id}`}>
-                                  {getTranslationFromI18nKeyAndLabel(
-                                    'lowcoder:feedback_tab.from_since_text',
-                                    `From ${fromName} since ${dateLabel}`,
-                                    {
-                                      employee: fromName,
-                                      date: dateLabel,
-                                      interpolation: {
-                                        escapeValue: false
+                            <CardContent className="gba:p-2">
+                              <div className="gba:flex gba:items-center gba:justify-between gba:min-h-10">
+                                <div className="gba:flex gba:flex-col">
+                                  <div className="gba:font-medium" data-testid={`requested-request-line-${request.id}`}>
+                                    {getTranslationFromI18nKeyAndLabel(
+                                      'lowcoder:feedback_tab.from_since_text',
+                                      `From ${fromName} since ${dateLabel}`,
+                                      {
+                                        employee: fromName,
+                                        date: dateLabel,
+                                        interpolation: {
+                                          escapeValue: false
+                                        }
                                       }
-                                    }
-                                  )}
+                                    )}
+                                  </div>
                                 </div>
                               </div>
-                            </div>
+                            </CardContent>
                           </Card>
                         )
                       })}
                     </div>
-                    <div className="gba:mt-4 gba:flex gba:justify-end">
-                      <Pagination
-                        current={requestedCurrentPage}
-                        pageSize={requestedPageSize}
-                        total={requestedTotalCount ?? 0}
-                        onChange={(page, pageSize) => {
-                          setRequestedCurrentPage(page)
-                          setRequestedPageSize(pageSize)
-                        }}
-                        data-testid="requested-requests-pagination"
-                        showSizeChanger
-                        pageSizeOptions={['3', '10', '20', '50']}
-                        locale={{
-                          items_per_page: t('feedback-pagination-per-page')
-                        }}
-                      />
+                    <div className="gba:mt-4 gba:flex gba:justify-end gba:items-center gba:gap-4">
+                      <Pagination>
+                        <PaginationContent>
+                          <PaginationItem>
+                            <PaginationPrevious
+                              onClick={() => setRequestedCurrentPage(Math.max(1, requestedCurrentPage - 1))}
+                              className={
+                                requestedCurrentPage === 1
+                                  ? 'gba:pointer-events-none gba:opacity-50'
+                                  : 'gba:cursor-pointer'
+                              }
+                            />
+                          </PaginationItem>
+                          {Array.from(
+                            { length: Math.ceil((requestedTotalCount ?? 0) / requestedPageSize) },
+                            (_, i) => i + 1
+                          ).map(page => (
+                            <PaginationItem key={page}>
+                              <PaginationLink
+                                onClick={() => setRequestedCurrentPage(page)}
+                                isActive={requestedCurrentPage === page}
+                                className="gba:cursor-pointer"
+                              >
+                                {page}
+                              </PaginationLink>
+                            </PaginationItem>
+                          ))}
+                          <PaginationItem>
+                            <PaginationNext
+                              onClick={() =>
+                                setRequestedCurrentPage(
+                                  Math.min(
+                                    Math.ceil((requestedTotalCount ?? 0) / requestedPageSize),
+                                    requestedCurrentPage + 1
+                                  )
+                                )
+                              }
+                              className={
+                                requestedCurrentPage >= Math.ceil((requestedTotalCount ?? 0) / requestedPageSize)
+                                  ? 'gba:pointer-events-none gba:opacity-50'
+                                  : 'gba:cursor-pointer'
+                              }
+                            />
+                          </PaginationItem>
+                        </PaginationContent>
+                      </Pagination>
+                      <Select value={String(requestedPageSize)} onValueChange={v => setRequestedPageSize(Number(v))}>
+                        <SelectTrigger className="gba:w-20">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {[3, 10, 20, 50].map(n => (
+                            <SelectItem key={n} value={String(n)}>
+                              {n}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                   </>
                 )
@@ -663,51 +767,48 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
 
           <div className="gba:flex gba:items-center gba:gap-4">
             {/* Export Button */}
-            <button
-              className="gba:flex gba:items-center gba:gap-2 gba:text-info gba:hover:text-blue-800 gba:transition-colors gba:px-3 gba:py-1.5 gba:rounded-md gba:border gba:border-border gba:hover:border-blue-300"
+            <Button
+              variant="outline"
+              className="gba:flex gba:items-center gba:gap-2"
               data-testid="export-feedback-button"
               onClick={() => console.log('Export feedback')}
             >
-              <DownloadOutlined /> {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.export', 'Export')}
-            </button>
+              <Download className="gba:h-4 gba:w-4" />{' '}
+              {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.export', 'Export')}
+            </Button>
 
             {/* Search Input */}
-            <Input
-              placeholder={getTranslationFromI18nKeyAndLabel(
-                'lowcoder:feedback_tab.search_placeholder',
-                'Search feedback'
-              )}
-              prefix={<SearchOutlined className="gba:text-gray-400" />}
-              className="gba:w-64 gba:rounded-md"
-              data-testid="feedback-search-input"
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-            />
+            <div className="gba:relative">
+              <Search className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:h-4 gba:w-4 gba:text-muted-foreground" />
+              <Input
+                placeholder={getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:feedback_tab.search_placeholder',
+                  'Search feedback'
+                )}
+                className="gba:w-64 gba:pl-9"
+                data-testid="feedback-search-input"
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+              />
+            </div>
 
             {/* Filter Dropdown */}
-            <Select
-              defaultValue="all"
-              className="gba:w-40"
-              data-testid="feedback-filter-select"
-              value={filterType}
-              onChange={value => setFilterType(value)}
-              options={[
-                {
-                  value: 'all',
-                  label: getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.filter_all', 'All Feedback')
-                },
-                {
-                  value: 'private',
-                  label: getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.filter_private', 'Private')
-                },
-                {
-                  value: 'public',
-                  label: getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.filter_public', 'Public')
-                }
-              ]}
-              suffixIcon={<DownloadOutlined className="gba:text-muted-foreground gba:rotate-180" />}
-              popupClassName="gba:rounded-md gba:shadow-lg"
-            />
+            <Select value={filterType} onValueChange={setFilterType} data-testid="feedback-filter-select">
+              <SelectTrigger className="gba:w-40">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.filter_all', 'All Feedback')}
+                </SelectItem>
+                <SelectItem value="private">
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.filter_private', 'Private')}
+                </SelectItem>
+                <SelectItem value="public">
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.filter_public', 'Public')}
+                </SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
@@ -716,7 +817,7 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
           if (loading) {
             return (
               <div className="gba:flex gba:justify-center gba:items-center gba:h-40" data-testid="feedback-loading">
-                <Spin size="large" />
+                <Spinner size="lg" />
               </div>
             )
           }
@@ -725,77 +826,79 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
             return (
               <div className="gba:space-y-4 gba:px-4" data-testid="feedback-list">
                 {formattedFilteredFeedback.map((feedback, index) => (
-                  <Card
-                    key={feedback.id || index}
-                    className="gba:h-full"
-                    bodyStyle={{ height: '100%', display: 'flex', flexDirection: 'column' }}
-                    data-testid={`feedback-card-${index}`}
-                  >
-                    <div className="gba:flex gba:items-start gba:gap-4">
-                      {/* Avatar */}
-                      <div className="gba:shrink-0 gba:mr-2" data-testid="feedback-avatar-container">
-                        <Avatar
-                          src={toAvatarSrc(feedback.avatar)}
-                          initials={`${feedback.firstName?.[0] || ''}${feedback.lastName?.[0] || ''}`}
-                          alt={`${feedback.firstName} ${feedback.lastName}`}
-                          // @ts-expect-error gravity-ui-catalog Avatar allows non-typed contentType
-                          contentType={feedback.avatar ? 'image' : 'initials'}
-                          // @ts-expect-error gravity-ui-catalog Avatar supports numeric/string size tokens
-                          size="lg"
-                          // @ts-expect-error gravity-ui-catalog Avatar supports circle shape
-                          shape="circle"
-                          // @ts-expect-error gravity-ui-catalog Avatar supports appearance prop
-                          appearance="gradient"
-                        />
-                      </div>
-
-                      {/* Feedback Content */}
-                      <div className="gba:flex-grow">
-                        <div className="gba:flex gba:items-center gba:flex-wrap gba:gap-2">
-                          <span
-                            className="gba:font-semibold gba:text-foreground"
-                            data-testid={`feedback-sender-${index}`}
-                          >
-                            {feedback.sender}
-                          </span>
-
-                          {/* Type Badge */}
-                          {feedback.type && (
-                            <Badge variant="decorative" data-testid={`feedback-type-${index}`}>
-                              {feedback.type}
-                            </Badge>
-                          )}
-
-                          {/* Private Badge */}
-                          {feedback.private && (
-                            <Badge variant="destructive" data-testid={`feedback-privacy-${index}`}>
-                              {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.private_badge', 'Private')}
-                            </Badge>
-                          )}
+                  <Card key={feedback.id || index} className="gba:h-full" data-testid={`feedback-card-${index}`}>
+                    <CardContent className="gba:p-4 gba:flex gba:flex-col gba:h-full">
+                      <div className="gba:flex gba:items-start gba:gap-4">
+                        {/* Avatar */}
+                        <div className="gba:shrink-0 gba:mr-2" data-testid="feedback-avatar-container">
+                          <Avatar className="gba:h-10 gba:w-10">
+                            {toAvatarSrc(feedback.avatar) && (
+                              <AvatarImage
+                                src={toAvatarSrc(feedback.avatar)}
+                                alt={`${feedback.firstName} ${feedback.lastName}`}
+                              />
+                            )}
+                            <AvatarFallback>
+                              {`${feedback.firstName?.[0] || ''}${feedback.lastName?.[0] || ''}`}
+                            </AvatarFallback>
+                          </Avatar>
                         </div>
 
-                        <div
-                          className="gba:flex gba:items-center gba:gap-1 gba:text-muted-foreground gba:text-sm gba:mt-1"
-                          data-testid={`feedback-date-${index}`}
-                        >
-                          <CalendarOutlined /> {feedback.date}
-                        </div>
+                        {/* Feedback Content */}
+                        <div className="gba:flex-grow">
+                          <div className="gba:flex gba:items-center gba:flex-wrap gba:gap-2">
+                            <span
+                              className="gba:font-semibold gba:text-foreground"
+                              data-testid={`feedback-sender-${index}`}
+                            >
+                              {feedback.sender}
+                            </span>
 
-                        {/* Rating */}
-                        {feedback.rating !== undefined && (
-                          <div className="gba:my-2">
-                            <Rate disabled value={feedback.rating} className="gba:text-warning" />
+                            {/* Type Badge */}
+                            {feedback.type && (
+                              <Badge variant="decorative" data-testid={`feedback-type-${index}`}>
+                                {feedback.type}
+                              </Badge>
+                            )}
+
+                            {/* Private Badge */}
+                            {feedback.private && (
+                              <Badge variant="destructive" data-testid={`feedback-privacy-${index}`}>
+                                {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.private_badge', 'Private')}
+                              </Badge>
+                            )}
                           </div>
-                        )}
 
-                        <div
-                          className="gba:mt-3 gba:text-muted-foreground gba:border-t gba:border-border gba:pt-3"
-                          data-testid={`feedback-content-${index}`}
-                        >
-                          {feedback.content}
+                          <div
+                            className="gba:flex gba:items-center gba:gap-1 gba:text-muted-foreground gba:text-sm gba:mt-1"
+                            data-testid={`feedback-date-${index}`}
+                          >
+                            <Calendar className="gba:h-4 gba:w-4" /> {feedback.date}
+                          </div>
+
+                          {/* Rating - custom star display since Rate has no nw-design-system equivalent */}
+                          {feedback.rating !== undefined && feedback.rating > 0 && (
+                            <div className="gba:my-2 gba:flex gba:gap-0.5">
+                              {Array.from({ length: 5 }).map((_, i) => (
+                                <span
+                                  key={i}
+                                  className={`gba:text-lg ${i < (feedback.rating ?? 0) ? 'gba:text-warning' : 'gba:text-muted-foreground'}`}
+                                >
+                                  ★
+                                </span>
+                              ))}
+                            </div>
+                          )}
+
+                          <div
+                            className="gba:mt-3 gba:text-muted-foreground gba:border-t gba:border-border gba:pt-3"
+                            data-testid={`feedback-content-${index}`}
+                          >
+                            {feedback.content}
+                          </div>
                         </div>
                       </div>
-                    </div>
+                    </CardContent>
                   </Card>
                 ))}
               </div>
@@ -804,11 +907,8 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
 
           return (
             <>
-              <Empty
-                description={getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:feedback_tab.no_feedback',
-                  'No feedback available'
-                )}
+              <EmptyState
+                title={getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.no_feedback', 'No feedback available')}
                 data-testid="feedback-empty"
               />
               {error && (

@@ -30,7 +30,7 @@ import {
 } from '@newwork/nw-design-system'
 import translations from '../_i18n'
 import { StarIcon } from 'lucide-react'
-import { TeamOutlined } from '@ant-design/icons'
+import { UsersThreeIcon } from '@phosphor-icons/react'
 
 // Team item type
 interface MatrixUnitEmployee {
@@ -313,7 +313,7 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
               {employee.employeePosition.matrixUnitEmployees.map((teamItem: MatrixUnitEmployee, index: number) => (
                 <TagItem
                   key={teamItem.matrixUnit?.id || `team-${index}`}
-                  icon={<TeamOutlined className="gba:h-4 gba:w-4 gba:text-muted-foreground" />}
+                  icon={<UsersThreeIcon className="gba:h-4 gba:w-4 gba:text-muted-foreground" />}
                   label={teamItem.matrixUnit.name}
                   bgColorClass="gba:bg-info-secondary"
                   textColorClass="gba:text-info"

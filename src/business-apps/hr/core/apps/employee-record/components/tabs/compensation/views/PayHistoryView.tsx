@@ -62,18 +62,20 @@ const PayHistoryView: React.FC<PayHistoryViewProps> = ({
   if (error) {
     return (
       <div className="gba:space-y-6" data-testid="compensation-history-view-error">
-        <Card className="gba:p-8">
-          <div className="gba:text-center gba:space-y-4">
-            <div className="gba:text-destructive gba:text-lg gba:font-semibold">{t('compensation-error-title')}</div>
-            <div className="gba:text-muted-foreground">{error}</div>
-            {onRetry && (
-              <div className="gba:mt-4">
-                <Button variant="default" onClick={onRetry} data-testid="compensation-history-retry-button">
-                  {t('compensation-error-retry')}
-                </Button>
-              </div>
-            )}
-          </div>
+        <Card>
+          <CardContent className="gba:p-8">
+            <div className="gba:text-center gba:space-y-4">
+              <div className="gba:text-destructive gba:text-lg gba:font-semibold">{t('compensation-error-title')}</div>
+              <div className="gba:text-muted-foreground">{error}</div>
+              {onRetry && (
+                <div className="gba:mt-4">
+                  <Button variant="default" onClick={onRetry} data-testid="compensation-history-retry-button">
+                    {t('compensation-error-retry')}
+                  </Button>
+                </div>
+              )}
+            </div>
+          </CardContent>
         </Card>
       </div>
     )
@@ -167,7 +169,9 @@ const PayHistoryView: React.FC<PayHistoryViewProps> = ({
                       <div className="gba:text-xs gba:text-muted-foreground">{t('current-annually')}</div>
                     </>
                   ) : (
-                    <div className="gba:text-muted-foreground gba:italic">{t('no-salary-record', 'No salary record')}</div>
+                    <div className="gba:text-muted-foreground gba:italic">
+                      {t('no-salary-record', 'No salary record')}
+                    </div>
                   )}
                 </TableCell>
                 <TableCell>

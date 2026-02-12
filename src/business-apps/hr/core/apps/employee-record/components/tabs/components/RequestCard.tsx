@@ -1,5 +1,5 @@
 import React from 'react'
-import { Card, Avatar } from '@newwork/gravity-ui-catalog'
+import { Card, CardContent, Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
 
 export interface ReviewerAvatar {
   id?: string
@@ -54,24 +54,20 @@ export const RequestCard: React.FC<RequestCardProps> = ({
   highlightCreatorName = false
 }) => {
   return (
-    <Card
-      className="gba:shadow-sm gba:hover:shadow-md gba:transition-shadow gba:h-full"
-      data-testid={`${dataTestIdPrefix}-card-${id}`}
-      bodyStyle={{ height: '100%', display: 'flex', flexDirection: 'column' }}
-    >
-      <div className="gba:flex gba:flex-col gba:gap-4 gba:h-full">
+    <Card className="gba:transition-shadow gba:h-full" data-testid={`${dataTestIdPrefix}-card-${id}`}>
+      <CardContent className="gba:p-4 gba:flex gba:flex-col gba:gap-4 gba:h-full">
         <div className="gba:flex gba:justify-between gba:items-start gba:w-full">
           <div className="gba:flex gba:flex-col gba:gap-1">
             <div className="gba:font-medium" data-testid={`${dataTestIdPrefix}-title-${id}`}>
               {title}
             </div>
             {subtitle && (
-              <div className="gba:text-sm gba:text-gray-600" data-testid={`${dataTestIdPrefix}-subtitle-${id}`}>
+              <div className="gba:text-sm gba:text-muted-foreground" data-testid={`${dataTestIdPrefix}-subtitle-${id}`}>
                 {subtitle}
               </div>
             )}
             {dateText && (
-              <div className="gba:flex gba:items-center gba:gap-1 gba:text-gray-500 gba:text-sm">
+              <div className="gba:flex gba:items-center gba:gap-1 gba:text-muted-foreground gba:text-sm">
                 <span data-testid={`${dataTestIdPrefix}-date-${id}`}>{dateText}</span>
               </div>
             )}
@@ -97,19 +93,15 @@ export const RequestCard: React.FC<RequestCardProps> = ({
                     className="gba:w-8 gba:h-8"
                     data-testid={`${dataTestIdPrefix}-avatar-${id}-${idx}`}
                   >
-                    <Avatar
-                      src={toAvatarSrc(rev.pictureThumbnail)}
-                      initials={`${rev.firstName?.[0] || ''}${rev.lastName?.[0] || ''}`}
-                      alt={`${rev.firstName || ''} ${rev.lastName || ''}`}
-                      // @ts-expect-error gravity-ui-catalog Avatar allows non-typed contentType
-                      contentType={rev.pictureThumbnail ? 'image' : 'initials'}
-                      // @ts-expect-error gravity-ui-catalog Avatar supports numeric/string size tokens
-                      size="md"
-                      // @ts-expect-error gravity-ui-catalog Avatar supports circle shape
-                      shape="circle"
-                      // @ts-expect-error gravity-ui-catalog Avatar supports appearance prop
-                      appearance="gradient"
-                    />
+                    <Avatar className="gba:h-8 gba:w-8">
+                      {toAvatarSrc(rev.pictureThumbnail) && (
+                        <AvatarImage
+                          src={toAvatarSrc(rev.pictureThumbnail)}
+                          alt={`${rev.firstName || ''} ${rev.lastName || ''}`}
+                        />
+                      )}
+                      <AvatarFallback>{`${rev.firstName?.[0] || ''}${rev.lastName?.[0] || ''}`}</AvatarFallback>
+                    </Avatar>
                   </div>
                 ))}
               </div>
@@ -118,7 +110,7 @@ export const RequestCard: React.FC<RequestCardProps> = ({
                 {reviewerNames.map((name, nIdx) => (
                   <span
                     key={`${id}-name-${nIdx}`}
-                    className="gba:text-sm gba:text-gray-700"
+                    className="gba:text-sm gba:text-foreground"
                     data-testid={`${dataTestIdPrefix}-name-${id}-${nIdx}`}
                   >
                     {name}
@@ -138,7 +130,7 @@ export const RequestCard: React.FC<RequestCardProps> = ({
             )}
           </div>
         </div>
-      </div>
+      </CardContent>
     </Card>
   )
 }

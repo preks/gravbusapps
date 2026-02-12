@@ -186,7 +186,7 @@ const TotalRewardsCard: React.FC<TotalRewardsCardProps> = ({ t, compensationData
                   data-testid={`reward-category-${category.name}`}
                 >
                   <div className="gba:flex gba:items-center gba:gap-3">
-                    <div className="gba:w-4 gba:h-4 gba:rounded-full" style={{ backgroundColor: category.fill }} />
+                    <div className={`gba:w-4 gba:h-4 gba:rounded-full gba:bg-[${category.fill}]`} />
                     <div>
                       <div className="gba:font-medium gba:text-foreground">{category.label}</div>
                       <div className="gba:text-sm gba:text-muted-foreground">{category.percentage.toFixed(1)}%</div>
