@@ -42,13 +42,6 @@ export const GlobalCallContainer: React.FC = () => {
 
     const unsubscribe = globalCallManager.subscribe(() => {
       const data = globalCallManager.getCallData()
-      console.log('[GlobalCallContainer] Subscription fired', {
-        isMinimized: data.callState.isMinimized,
-        status: data.callState.status,
-        instanceId,
-        activeInstances: globalCallManager.getActiveInstanceCount(),
-        activeListeners: globalCallManager.getActiveListenerCount()
-      })
       // IMPORTANT: Use flushSync to ensure state updates immediately without batching
       // This prevents timing issues when toggling minimize/maximize rapidly
       flushSync(() => {
@@ -65,8 +58,6 @@ export const GlobalCallContainer: React.FC = () => {
 
     // If in passive mode, poll for state changes instead of subscribing
     if (isPassiveModeRef.current) {
-      console.log('[GlobalCallContainer] Running in passive mode, setting up polling', { instanceId })
-
       pollingIntervalRef.current = setInterval(() => {
         const data = globalCallManager.getCallData()
         const currentOwner = globalCallManager.getUiOwnerId()
@@ -80,11 +71,6 @@ export const GlobalCallContainer: React.FC = () => {
     }
 
     return () => {
-      console.log('[GlobalCallContainer] Cleaning up subscription', {
-        instanceId,
-        wasPassive: isPassiveModeRef.current
-      })
-
       // Clear polling if in passive mode
       if (pollingIntervalRef.current) {
         clearInterval(pollingIntervalRef.current)
@@ -137,13 +123,6 @@ export const GlobalCallContainer: React.FC = () => {
     const isCurrentlyMinimized = latestCallData.callState.isMinimized
     const newMinimizedState = !isCurrentlyMinimized
 
-    console.log('[GlobalCallContainer] handleToggleMinimize called', {
-      isCurrentlyMinimized,
-      newMinimizedState,
-      hasToggleCallback: !!latestCallData.toggleMinimize,
-      instanceId
-    })
-
     // Always update globalCallManager first - this will trigger subscription
     globalCallManager.updateCallState({ isMinimized: newMinimizedState, hasBeenMinimized: true })
 
@@ -153,10 +132,7 @@ export const GlobalCallContainer: React.FC = () => {
 
       // Only call the callback if it's still out of sync (to trigger its internal effects)
       if (before !== newMinimizedState) {
-        console.log('[GlobalCallContainer] Calling hook callback to trigger side effects')
         latestCallData.toggleMinimize()
-      } else {
-        console.log('[GlobalCallContainer] State already updated by globalCallManager, skipping callback')
       }
     }
 
@@ -198,21 +174,13 @@ export const GlobalCallContainer: React.FC = () => {
       const ensureConnectedSocket = async () => {
         try {
           const wsClient = wsClientForFallback
-          console.log('[GlobalCallContainer] ensureConnectedSocket: wsClient exists?', !!wsClient)
           if (!wsClient) {
-            console.warn('[GlobalCallContainer] ensureConnectedSocket: No wsClient available')
             return null
           }
 
           let socket = wsClient.getSocket?.()
-          console.log('[GlobalCallContainer] ensureConnectedSocket: initial socket state', {
-            exists: !!socket,
-            connected: socket?.connected,
-            id: socket?.id
-          })
 
           if (socket && !socket.connected && typeof (socket as any).connect === 'function') {
-            console.log('[GlobalCallContainer] ensureConnectedSocket: Attempting to reconnect existing socket')
             try {
               ;(socket as any).connect()
             } catch (err) {
@@ -221,14 +189,11 @@ export const GlobalCallContainer: React.FC = () => {
           }
 
           if (socket && !socket.connected) {
-            console.log('[GlobalCallContainer] ensureConnectedSocket: Waiting for connection (600ms)...')
             await new Promise<void>(resolve => {
               const timeout = setTimeout(() => {
-                console.log('[GlobalCallContainer] ensureConnectedSocket: Connection wait timeout')
                 resolve()
               }, 600)
               socket!.once('connect', () => {
-                console.log('[GlobalCallContainer] ensureConnectedSocket: Socket connected!')
                 clearTimeout(timeout)
                 resolve()
               })
@@ -236,46 +201,28 @@ export const GlobalCallContainer: React.FC = () => {
           }
 
           if (!socket) {
-            console.log('[GlobalCallContainer] ensureConnectedSocket: No socket, creating new connection')
             const token = getLatestAccessToken()
             if (!token) {
-              console.warn('[GlobalCallContainer] ensureConnectedSocket: No access token available')
               return null
             }
 
-            console.log('[GlobalCallContainer] ensureConnectedSocket: Calling wsClient.connect()')
             wsClient.connect(token)
             socket = wsClient.getSocket?.()
-            console.log('[GlobalCallContainer] ensureConnectedSocket: New socket obtained', {
-              exists: !!socket,
-              connected: socket?.connected
-            })
           }
 
           if (socket && !socket.connected) {
-            console.log('[GlobalCallContainer] ensureConnectedSocket: Waiting for new connection (600ms)...')
             await new Promise<void>(resolve => {
               const timeout = setTimeout(() => {
-                console.log('[GlobalCallContainer] ensureConnectedSocket: New connection wait timeout')
                 resolve()
               }, 600)
               socket!.once('connect', () => {
-                console.log('[GlobalCallContainer] ensureConnectedSocket: New socket connected!')
                 clearTimeout(timeout)
                 resolve()
               })
             })
           }
 
-          const finalState = {
-            exists: !!socket,
-            connected: socket?.connected,
-            id: socket?.id
-          }
-          console.log('[GlobalCallContainer] ensureConnectedSocket: Final socket state', finalState)
-
           if (!socket || !socket.connected) {
-            console.warn('[GlobalCallContainer] ensureConnectedSocket: Failed to get connected socket')
             return null
           }
           return socket
@@ -286,12 +233,6 @@ export const GlobalCallContainer: React.FC = () => {
       }
 
       const emitLeftBestEffort = async () => {
-        console.log('[GlobalCallContainer] emitLeftBestEffort: Starting...', {
-          conversationId: conversationIdForFallback,
-          meetingId: meetingIdForFallback,
-          participantId: participantIdForFallback
-        })
-
         try {
           const socket = await ensureConnectedSocket()
           if (!socket) {
@@ -308,22 +249,16 @@ export const GlobalCallContainer: React.FC = () => {
               participantId: participantIdForFallback
             }
 
-            console.log('[GlobalCallContainer] emitLeftBestEffort: Emitting rtk-group-call:left', payload)
-
             // Prefer ack so the event has a chance to reach backend before teardown.
             if (typeof (socket as any).timeout === 'function') {
-              console.log('[GlobalCallContainer] emitLeftBestEffort: Using socket.timeout().emit() with ack')
               await new Promise<void>(resolve => {
                 ;(socket as any).timeout(800).emit('rtk-group-call:left', payload, () => {
-                  console.log('[GlobalCallContainer] emitLeftBestEffort: ✅ Ack received from backend')
                   resolve()
                 })
               })
             } else {
-              console.log('[GlobalCallContainer] emitLeftBestEffort: Using socket.emit() without ack')
               socket.emit('rtk-group-call:left', payload)
               await new Promise(resolve => setTimeout(resolve, 0))
-              console.log('[GlobalCallContainer] emitLeftBestEffort: Emit completed (no ack available)')
             }
           } else {
             console.warn('[GlobalCallContainer] emitLeftBestEffort: Missing required data', {
@@ -340,21 +275,17 @@ export const GlobalCallContainer: React.FC = () => {
       // Prefer hook callback if available
       if (latest.leaveCall) {
         let leaveSettled = false
-        console.log('[GlobalCallContainer] handleEndCall: Hook leaveCall callback available, invoking...')
         try {
           // IMPORTANT: When navigating away, the chat module may be unmounted and its WebSocket torn down.
           // Emit "left" best-effort from the persistent container BEFORE calling into hook cleanup.
           await emitLeftBestEffort()
 
-          console.log('[GlobalCallContainer] handleEndCall: Calling latest.leaveCall()')
           const maybePromise = latest.leaveCall()
           if (maybePromise && typeof (maybePromise as any).finally === 'function') {
             ;(maybePromise as Promise<unknown>).finally(() => {
-              console.log('[GlobalCallContainer] handleEndCall: Hook leaveCall promise settled')
               leaveSettled = true
             })
           } else {
-            console.log('[GlobalCallContainer] handleEndCall: Hook leaveCall returned non-promise')
             leaveSettled = true
           }
         } catch (err) {
@@ -372,7 +303,6 @@ export const GlobalCallContainer: React.FC = () => {
           })
           if (roomState && roomState !== 'joined') return
           try {
-            console.log('[GlobalCallContainer] handleEndCall: Extra safety - calling meeting.leave()')
             await meetingForFallback?.leave?.()
           } catch (err) {
             console.error('[GlobalCallContainer] handleEndCall: Extra safety leave failed', err)
@@ -382,41 +312,31 @@ export const GlobalCallContainer: React.FC = () => {
 
         // Fallback: if leave is stuck (or callback is stale), force cleanup.
         setTimeout(async () => {
-          console.log('[GlobalCallContainer] handleEndCall: Fallback cleanup check (2s)', { leaveSettled })
           const after = globalCallManager.getCallData()
 
           // If the hook already finished and the SDK meeting is not joined, do nothing.
           const roomState = (meetingForFallback as any)?.self?.roomState as string | undefined
           if (leaveSettled && roomState && roomState !== 'joined') {
-            console.log(
-              '[GlobalCallContainer] handleEndCall: Fallback - leave settled and meeting not joined, skipping'
-            )
             return
           }
 
           // Even if the callback cleared state early, ensure we actually left the SDK meeting.
           // We keep a reference to the meeting object captured BEFORE invoking leaveCall().
           if (after.callState.status === 'idle' && !meetingForFallback) {
-            console.log('[GlobalCallContainer] handleEndCall: Fallback - already idle and no meeting, skipping')
             return
           }
 
-          console.warn('[GlobalCallContainer] leaveCall may have failed; running fallback cleanup')
-
           try {
-            console.log('[GlobalCallContainer] handleEndCall: Fallback - disabling screen share')
             await (after.realtimeKitMeeting || meetingForFallback)?.self?.disableScreenShare?.()
           } catch (err) {
             console.error('[GlobalCallContainer] handleEndCall: Fallback - screen share disable failed', err)
           }
           try {
-            console.log('[GlobalCallContainer] handleEndCall: Fallback - calling meeting.leave()')
             await (after.realtimeKitMeeting || meetingForFallback)?.leave?.()
           } catch (err) {
             console.error('[GlobalCallContainer] handleEndCall: Fallback - meeting leave failed', err)
           }
           try {
-            console.log('[GlobalCallContainer] handleEndCall: Fallback - stopping local stream tracks')
             after.localStream?.getTracks?.().forEach((t: MediaStreamTrack) => t.stop())
           } catch (err) {
             console.error('[GlobalCallContainer] handleEndCall: Fallback - stop tracks failed', err)
@@ -425,14 +345,12 @@ export const GlobalCallContainer: React.FC = () => {
           // Best-effort backend notify: emit the same payload as the hook's leaveCall.
           await emitLeftBestEffort()
 
-          console.log('[GlobalCallContainer] handleEndCall: Fallback - clearing globalCallManager')
           globalCallManager.clearCall()
         }, 2000)
 
         return
       }
 
-      console.log('[GlobalCallContainer] handleEndCall: No hook callback, just clearing UI')
       // No callback at all - at least close UI
       globalCallManager.clearCall()
     })()
@@ -461,9 +379,6 @@ export const GlobalCallContainer: React.FC = () => {
           globalCallManager.updateCallState({ isMuted: afterMuted })
           return
         }
-
-        console.warn('[GlobalCallContainer] toggleMute callback did not change state; using SDK fallback')
-
         try {
           const currentEnabled = afterSelf?.audioEnabled ?? false
           if (currentEnabled && afterSelf?.disableAudio) {
