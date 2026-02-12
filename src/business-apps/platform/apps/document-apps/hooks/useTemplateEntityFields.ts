@@ -354,6 +354,26 @@ export function useTemplateEntityFields(
       }
 
       const { direct, catalogs } = await processTypeFields(type, graphqlClient)
+
+      // Add synthetic fields for specific entities
+      if (entityKey === 'adv_payment' || entityKey === 'expense_plan') {
+        direct.push({
+          key: 'approvedBy',
+          displayName: 'Approved by'
+        })
+        direct.push({
+          key: 'approvalDate',
+          displayName: 'Approval date'
+        })
+      }
+
+      if (entityKey === 'employee_position') {
+        direct.push({
+          key: 'supervisorName',
+          displayName: 'Supervisor name'
+        })
+      }
+
       setDirectFields(direct)
       setCatalogGroups(catalogs)
     } catch (err) {

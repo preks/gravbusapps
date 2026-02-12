@@ -11,6 +11,11 @@ const buildFromBaseUrl = (baseUrl: string): string => {
 }
 
 export const getDocumentServiceApiUrl = (): string => {
+  // In development (localhost), use relative path to leverage Vite proxy
+  if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+    return '/document/api/v1'
+  }
+
   const publicUrl = env('NEXT_PUBLIC_DOCUMENT_SERVICE_URL')
   if (publicUrl) {
     // Treat the env var as authoritative (same as other NEXT_PUBLIC_* URL configs)
