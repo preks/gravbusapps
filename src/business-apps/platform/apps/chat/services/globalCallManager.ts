@@ -175,6 +175,11 @@ class GlobalCallManager {
   // which would otherwise render duplicate call modals/minimized widgets.
   private uiOwnerId: string | null = null
 
+  // Subscription ownership lock to prevent duplicate event processing.
+  // Only one instance is allowed to subscribe to state changes at a time.
+  // Other instances will be passive (no subscription) and rely on direct state queries.
+  private subscriptionOwnerId: string | null = null
+
   // Single-flight guard for RTK audio operations (disableAudio/enableAudio)
   // RTK SDK throws error on concurrent calls: "Unsupported concurrent calls on method: meeting.self.disableAudio"
   private audioOperationInFlight: Promise<void> | null = null
@@ -302,6 +307,32 @@ class GlobalCallManager {
     return this.callData
   }
 
+  // ---- Subscription Owner Lock -----------------------------------------------
+  // Ensures only one instance subscribes to state changes to prevent duplicate event processing.
+  getSubscriptionOwnerId(): string | null {
+    return this.subscriptionOwnerId
+  }
+
+  claimSubscriptionOwner(instanceId: string): boolean {
+    if (!this.subscriptionOwnerId || this.subscriptionOwnerId === instanceId) {
+      const changed = this.subscriptionOwnerId !== instanceId
+      this.subscriptionOwnerId = instanceId
+      if (changed) {
+        console.log('[GlobalCallManager] Subscription ownership claimed:', instanceId)
+      }
+      return true
+    }
+    console.log('[GlobalCallManager] Subscription ownership denied:', instanceId, 'Owner:', this.subscriptionOwnerId)
+    return false
+  }
+
+  releaseSubscriptionOwner(instanceId: string) {
+    if (this.subscriptionOwnerId === instanceId) {
+      console.log('[GlobalCallManager] Subscription ownership released:', instanceId)
+      this.subscriptionOwnerId = null
+    }
+  }
+
   // ---- UI Owner Lock -------------------------------------------------------
   // NOTE: This lock is intentionally managed here (and this manager is stored on `window`)
   // so it works across module reloads / duplicate mounts.
@@ -379,8 +410,9 @@ class GlobalCallManager {
       activeExperts: []
     }
 
-    // Reset UI owner so the next call can be claimed by any mounted instance
+    // Reset both ownership locks so the next call can be claimed by any mounted instance
     this.uiOwnerId = null
+    this.subscriptionOwnerId = null
 
     // Clear any stale instance registrations (they should have unsubscribed, but just in case)
     if (this.activeInstances.size > 0) {
@@ -441,28 +473,53 @@ class GlobalCallManager {
     return this.audioOperationInFlight
   }
 
-  // Subscribe to changes
+  // Subscribe to changes with subscription ownership locking
   subscribe(listener: () => void, instanceId?: string): () => void {
     // Track instance registration
     if (instanceId) {
-      if (this.activeInstances.has(instanceId)) {
-        console.warn('[GlobalCallManager] Instance already registered:', instanceId)
-      } else {
-        this.activeInstances.add(instanceId)
-        console.log('[GlobalCallManager] Instance registered:', instanceId, 'Total active:', this.activeInstances.size)
+      this.activeInstances.add(instanceId)
+      console.log('[GlobalCallManager] Instance registered:', instanceId, 'Total active:', this.activeInstances.size)
+
+      // Try to claim subscription ownership
+      const canSubscribe = this.claimSubscriptionOwner(instanceId)
+
+      if (!canSubscribe) {
+        // This instance cannot subscribe - another instance owns it
+        console.log(
+          '[GlobalCallManager] Instance',
+          instanceId,
+          'registered but NOT subscribed (passive mode). Owner:',
+          this.subscriptionOwnerId
+        )
+
+        // Return a cleanup function that only handles instance tracking
+        return () => {
+          this.activeInstances.delete(instanceId)
+          console.log(
+            '[GlobalCallManager] Passive instance unregistered:',
+            instanceId,
+            'Total active:',
+            this.activeInstances.size
+          )
+        }
       }
+
+      // This instance successfully claimed subscription ownership
+      console.log('[GlobalCallManager] Instance', instanceId, 'is now the active subscriber')
     }
 
+    // Add listener and notify immediately
     this.listeners.add(listener)
-    // Immediately notify the new listener of current state
     listener()
 
+    // Return cleanup function
     return () => {
       this.listeners.delete(listener)
       if (instanceId) {
+        this.releaseSubscriptionOwner(instanceId)
         this.activeInstances.delete(instanceId)
         console.log(
-          '[GlobalCallManager] Instance unregistered:',
+          '[GlobalCallManager] Active subscriber unregistered:',
           instanceId,
           'Total active:',
           this.activeInstances.size
@@ -482,14 +539,15 @@ class GlobalCallManager {
   }
 
   private notifyListeners() {
-    // Warn if we have too many active instances (likely indicates duplicate mounting)
-    if (this.activeInstances.size > 2) {
+    // Warn if we have too many active listeners (not instances - instances can be passive)
+    // With subscription ownership, we should only have 1 listener even with multiple instances
+    if (this.listeners.size > 1) {
       console.warn(
-        '[GlobalCallManager] ⚠️ Multiple instances detected:',
-        this.activeInstances.size,
-        'instances with',
+        '[GlobalCallManager] ⚠️ Multiple active listeners detected:',
         this.listeners.size,
-        'listeners. This may indicate React StrictMode or module hot-reloading.'
+        'listeners with',
+        this.activeInstances.size,
+        'instances. Expected 1 listener with subscription ownership.'
       )
     }
 

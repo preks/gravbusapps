@@ -408,9 +408,11 @@ export const useGroupCall = ({
     }
   }, []) // Only run on mount
 
-  // Also subscribe to global call manager for expand events
+  // Poll global call manager for expand events (avoids adding extra listeners that trigger the "multiple listeners" warning)
   useEffect(() => {
-    const unsubscribe = globalCallManager.subscribe(() => {
+    const POLL_INTERVAL_MS = 500
+
+    const pollForExpand = () => {
       const storedData = globalCallManager.getCallData()
 
       // If expand was triggered (isMinimized changed to false) and we have an active call
@@ -420,13 +422,12 @@ export const useGroupCall = ({
         !storedData.callState.isMinimized &&
         callStateRef.current.status === 'idle' // Only if we don't already have a call
       ) {
-        rtkDebug.debug('useGroupCall: Expand triggered, restoring call')
+        rtkDebug.debug('useGroupCall: Expand detected via poll, restoring call')
 
         // Restore refs
         webrtcRef.current = storedData.webrtcClient
 
         // Restore state - convert GlobalCallState back to GroupCallUIState
-        // Map GlobalCallState status to GroupCallUIState status (GlobalCallState doesn't have 'reconnecting' or 'ended')
         const globalStatus = storedData.callState.status as 'idle' | 'joining' | 'connected'
         let uiStatus: 'idle' | 'joining' | 'connected' | 'reconnecting' | 'ended'
         if (globalStatus === 'idle') {
@@ -434,8 +435,7 @@ export const useGroupCall = ({
         } else if (globalStatus === 'joining') {
           uiStatus = 'joining'
         } else {
-          // TypeScript knows this must be 'connected' at this point
-          uiStatus = 'connected' // 'connected' is the only other option in GlobalCallState
+          uiStatus = 'connected'
         }
 
         const restoredState: GroupCallUIState = {
@@ -468,9 +468,10 @@ export const useGroupCall = ({
         // Clear the global manager
         globalCallManager.clearCall()
       }
-    })
+    }
 
-    return unsubscribe
+    const intervalId = setInterval(pollForExpand, POLL_INTERVAL_MS)
+    return () => clearInterval(intervalId)
   }, [])
 
   // Fallback TURN servers for when backend doesn't provide them
@@ -1413,6 +1414,7 @@ export const useGroupCall = ({
         duration: callState.duration,
         videoQuality: callState.videoQuality,
         backgroundEnabled: callState.backgroundEnabled,
+        rnnoiseEnabled: true, // Mesh implementation defaults to true; RTK uses its own value
         startTime: callState.startTime,
         participants: [...participants], // Include participants in state
         handRaised: callState.handRaised,
@@ -1496,6 +1498,7 @@ export const useGroupCall = ({
             duration: callStateRef.current.duration,
             videoQuality: callStateRef.current.videoQuality,
             backgroundEnabled: callStateRef.current.backgroundEnabled,
+            rnnoiseEnabled: true, // Mesh implementation defaults to true; RTK uses its own value
             startTime: callStateRef.current.startTime,
             participants: [...participantsRef.current], // Include participants in state
             handRaised: callStateRef.current.handRaised,

@@ -26,8 +26,10 @@ export const GlobalCallContainer: React.FC = () => {
   const virtualBackgroundRef = useRef<RTKVirtualBackground | null>(null)
   const isSubscribedRef = useRef(false)
   const unsubscribeRef = useRef<(() => void) | null>(null)
+  const isPassiveModeRef = useRef(false)
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
-  // Subscribe to global call manager changes with deduplication
+  // Subscribe to global call manager changes with subscription ownership locking
   useEffect(() => {
     // Prevent duplicate subscriptions from the same instance
     if (isSubscribedRef.current) {
@@ -57,8 +59,38 @@ export const GlobalCallContainer: React.FC = () => {
 
     unsubscribeRef.current = unsubscribe
 
+    // Check if this instance is in passive mode (couldn't claim subscription ownership)
+    const subscriptionOwner = globalCallManager.getSubscriptionOwnerId()
+    isPassiveModeRef.current = subscriptionOwner !== instanceId
+
+    // If in passive mode, poll for state changes instead of subscribing
+    if (isPassiveModeRef.current) {
+      console.log('[GlobalCallContainer] Running in passive mode, setting up polling', { instanceId })
+
+      pollingIntervalRef.current = setInterval(() => {
+        const data = globalCallManager.getCallData()
+        const currentOwner = globalCallManager.getUiOwnerId()
+
+        // Only update state if we're the UI owner or becoming eligible
+        if (currentOwner === instanceId || !currentOwner) {
+          setCallData({ ...data })
+          setUiOwnerId(currentOwner)
+        }
+      }, 500) // Poll every 500ms for passive instances
+    }
+
     return () => {
-      console.log('[GlobalCallContainer] Cleaning up subscription', { instanceId })
+      console.log('[GlobalCallContainer] Cleaning up subscription', {
+        instanceId,
+        wasPassive: isPassiveModeRef.current
+      })
+
+      // Clear polling if in passive mode
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current)
+        pollingIntervalRef.current = null
+      }
+
       isSubscribedRef.current = false
       unsubscribeRef.current = null
       unsubscribe()
