@@ -384,6 +384,7 @@ skills-action-set-level = Setează nivel
 skills-action-attach-verification = Atașează verificare
 skills-action-deactivate = Dezactivează
 skills-action-reactivate = Reactivează
+skills-action-activate = Activează
 skills-development-next-actions = Următoarele acțiuni recomandate
 skills-development-set-levels = Setează niveluri pentru { $count } competențe
 skills-development-verify = Verifică { $count } competențe
@@ -402,6 +403,11 @@ add-skill-form-current-employee-skills-label = Competențele curente ale angajat
 add-skill-form-no-current-skills = Nicio competență curentă
 add-skill-form-add-button = Adaugă
 add-skill-form-skill-add-error = Nu s-a putut adăuga competența
+add-skill-form-deactivate-title = Dezactivează competența
+add-skill-form-activate-title = Activează competența
+add-skill-form-deactivate-message = Veți dezactiva competența { $skillName }.
+add-skill-form-activate-message = Veți activa competența { $skillName }.
+add-skill-form-skill-deactivated-label = Dezactivată
 
 # Performance Tab
 performance-title = Obiective de performanță

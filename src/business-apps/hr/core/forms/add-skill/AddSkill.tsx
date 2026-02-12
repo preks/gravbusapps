@@ -33,6 +33,7 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = () => {
     createSkillAndFetchByNames,
     employeeId: ctxEmployeeId,
     changeLevelParams,
+    flowFormParams,
     error: contextError,
     isLoading: contextLoading
   } = useAddSkill()
@@ -68,10 +69,12 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = () => {
     shouldUnregister: true
   })
 
-  const title = useMemo(
-    () => (changeLevelParams ? t('add-skill-form-update-level-title') : t('add-skill-form-title')),
-    [changeLevelParams, t]
-  )
+  const title = useMemo(() => {
+    if (flowFormParams?.mode === 'deactivate') return t('add-skill-form-deactivate-title')
+    if (flowFormParams?.mode === 'activate') return t('add-skill-form-activate-title')
+    if (changeLevelParams) return t('add-skill-form-update-level-title')
+    return t('add-skill-form-title')
+  }, [flowFormParams, changeLevelParams, t])
 
   const employee = data?.employee
 
@@ -120,6 +123,7 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = () => {
   const blurTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   const isSubmitDisabled = useMemo(() => {
+    if (flowFormParams?.mode === 'deactivate' || flowFormParams?.mode === 'activate') return false
     const initialSkills = employee?.skills ?? []
     const initialSkillMap = new Map<string, number>()
     initialSkills.forEach((s: { skill?: { id: string }; level?: string | number | null }) => {
@@ -149,7 +153,7 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = () => {
       return currentLevel !== undefined && currentLevel !== level
     })
     return !(skillsChanged || levelsChanged)
-  }, [employee?.skills, selectedSkills, changeLevelParams?.skillId])
+  }, [employee?.skills, selectedSkills, changeLevelParams?.skillId, flowFormParams?.mode])
 
   useEffect(() => {
     let isActive = true
@@ -371,10 +375,28 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = () => {
             const existingSkillsList = (employee?.skills || []) as Array<{
               skill?: { id: string }
               level?: string | number | null
+              activeTo?: string | null
             }>
             let selectedIds: string[]
             const selectedLevels = new Map<string, number>()
-            if (changeLevelParams?.skillId) {
+            let skillActiveTo: Record<string, string | null> | undefined
+            if (flowFormParams?.mode === 'deactivate' || flowFormParams?.mode === 'activate') {
+              selectedIds = existingSkillsList.map(s => s.skill?.id).filter(Boolean) as string[]
+              existingSkillsList.forEach(s => {
+                const skillId = s.skill?.id
+                if (!skillId) return
+                let level = 1
+                if (s.level !== null && s.level !== undefined) {
+                  const parsed = typeof s.level === 'string' ? Number.parseInt(s.level, 10) : s.level
+                  level = Number.isNaN(parsed) ? 1 : Math.max(1, Math.min(10, parsed))
+                }
+                selectedLevels.set(skillId, level)
+              })
+              skillActiveTo = {
+                [flowFormParams.skillId]:
+                  flowFormParams.mode === 'deactivate' ? new Date(Date.now() - 1000).toISOString() : null
+              }
+            } else if (changeLevelParams?.skillId) {
               selectedIds = existingSkillsList.map(s => s.skill?.id).filter(Boolean) as string[]
               existingSkillsList.forEach(s => {
                 const skillId = s.skill?.id
@@ -397,13 +419,26 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = () => {
               selectedSkillIds: selectedIds,
               selectedSkillLevels: selectedLevels,
               existingSkills: existingSkillsList as any,
+              skillActiveTo,
               event: 'pse_submit'
             })
           }}
           data-testid="add-skill-form"
         >
           <div className="gba:flex-1 gba:space-y-3">
-            {!changeLevelParams ? (
+            {flowFormParams?.mode === 'deactivate' ? (
+              <p className="gba:text-muted-foreground gba:py-2" data-testid="add-skill-deactivate-message">
+                {t('add-skill-form-deactivate-message', {
+                  skillName: flowFormParams.skillName || flowFormParams.skillId
+                })}
+              </p>
+            ) : flowFormParams?.mode === 'activate' ? (
+              <p className="gba:text-muted-foreground gba:py-2" data-testid="add-skill-activate-message">
+                {t('add-skill-form-activate-message', {
+                  skillName: flowFormParams.skillName || flowFormParams.skillId
+                })}
+              </p>
+            ) : !changeLevelParams ? (
               <>
                 <span
                   className="gba:block gba:text-muted-foreground gba:font-bold gba:mb-2"
@@ -524,44 +559,57 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = () => {
               </span>
             )}
 
-            {selectedSkills.length > 0 ? (
+            {selectedSkills.length > 0 &&
+            flowFormParams?.mode !== 'deactivate' &&
+            flowFormParams?.mode !== 'activate' ? (
               <div
                 className="gba:flex gba:flex-col gba:gap-2 gba:max-h-[350px] gba:overflow-y-auto"
                 data-testid="add-skill-existing-container"
               >
                 {selectedSkills
                   .filter(skill => skill.level !== undefined)
-                  .map(skill => (
-                    <SkillLevelRow
-                      key={skill.id}
-                      skillName={skill.name}
-                      onRemove={() => handleRemoveSkill(skill.id)}
-                      dataTestIdPrefix="add-skill-existing"
-                      removeButtonTestId={`skill-level-row-remove-${skill.id}`}
-                      rowId={skill.id}
-                      showRemove={!changeLevelParams}
-                      levelContent={
-                        <Select
-                          value={(skill.level || 1).toString()}
-                          onValueChange={value => handleUpdateExistingSkillLevel(skill.id, Number.parseInt(value, 10))}
-                          data-testid={`skill-level-select-${skill.id}`}
-                        >
-                          <SelectTrigger className="gba:w-20" size="sm">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {Array.from({ length: 10 }, (_, i) => i + 1).map(level => (
-                              <SelectItem key={level} value={level.toString()}>
-                                {level}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      }
-                    />
-                  ))}
+                  .map(skill => {
+                    const empSkill = (
+                      employee?.skills as Array<{ skill?: { id: string }; activeTo?: string | null }> | undefined
+                    )?.find(s => s.skill?.id === skill.id)
+                    const isDeactivated = empSkill?.activeTo ? new Date(empSkill.activeTo) <= new Date() : false
+                    return (
+                      <SkillLevelRow
+                        key={skill.id}
+                        skillName={skill.name}
+                        onRemove={() => handleRemoveSkill(skill.id)}
+                        dataTestIdPrefix="add-skill-existing"
+                        removeButtonTestId={`skill-level-row-remove-${skill.id}`}
+                        rowId={skill.id}
+                        showRemove={!changeLevelParams}
+                        statusLabel={isDeactivated ? t('add-skill-form-skill-deactivated-label') : undefined}
+                        levelContent={
+                          <Select
+                            value={(skill.level || 1).toString()}
+                            onValueChange={value =>
+                              handleUpdateExistingSkillLevel(skill.id, Number.parseInt(value, 10))
+                            }
+                            data-testid={`skill-level-select-${skill.id}`}
+                          >
+                            <SelectTrigger className="gba:w-20" size="sm">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {Array.from({ length: 10 }, (_, i) => i + 1).map(level => (
+                                <SelectItem key={level} value={level.toString()}>
+                                  {level}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        }
+                      />
+                    )
+                  })}
               </div>
             ) : (
+              flowFormParams?.mode !== 'deactivate' &&
+              flowFormParams?.mode !== 'activate' &&
               !changeLevelParams && (
                 <div className="gba:text-sm gba:text-muted-foreground gba:py-2">
                   {t('add-skill-form-no-current-skills')}

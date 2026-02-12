@@ -13,6 +13,8 @@ export const ADD_SKILL_QUERY = `query MyQuery($id: uuid!) {
       version
       id
       level
+      activeFrom
+      activeTo
       skill {
         id
         name

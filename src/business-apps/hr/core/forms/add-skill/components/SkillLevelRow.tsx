@@ -17,6 +17,8 @@ export interface SkillLevelRowProps {
   rowId?: string
   /** When false, the Remove button is not rendered (e.g. single-skill level update). */
   showRemove?: boolean
+  /** Optional label shown next to skill name (e.g. "Deactivated"). */
+  statusLabel?: string
 }
 
 export const SkillLevelRow: React.FC<SkillLevelRowProps> = ({
@@ -28,7 +30,8 @@ export const SkillLevelRow: React.FC<SkillLevelRowProps> = ({
   actionButton,
   index,
   rowId,
-  showRemove = true
+  showRemove = true,
+  statusLabel
 }) => {
   let suffix = ''
   if (rowId) suffix = `-${rowId}`
@@ -47,6 +50,11 @@ export const SkillLevelRow: React.FC<SkillLevelRowProps> = ({
           <span className="gba:flex-1 gba:min-w-0 gba:px-1 gba:truncate" title={skillName || ''}>
             {skillName || 'Unknown Skill'}
           </span>
+          {statusLabel && (
+            <Badge variant="destructive" className="gba:shrink-0 gba:py-0 gba:px-2 gba:text-xs">
+              {statusLabel}
+            </Badge>
+          )}
         </Badge>
 
         <div className="gba:w-24 gba:flex-shrink-0">{levelContent}</div>

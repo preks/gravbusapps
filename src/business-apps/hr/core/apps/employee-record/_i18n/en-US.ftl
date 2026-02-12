@@ -391,6 +391,7 @@ skills-action-set-level = Set level
 skills-action-attach-verification = Attach Verification
 skills-action-deactivate = Deactivate
 skills-action-reactivate = Reactivate
+skills-action-activate = Activate
 skills-development-next-actions = Next Best Actions
 skills-development-set-levels = Set levels for { $count } skills
 skills-development-verify = Verify { $count } skills
@@ -409,6 +410,11 @@ add-skill-form-current-employee-skills-label = Current Employee Skills
 add-skill-form-no-current-skills = No current skills
 add-skill-form-add-button = Add
 add-skill-form-skill-add-error = Failed to add skill
+add-skill-form-deactivate-title = Deactivate skill
+add-skill-form-activate-title = Activate skill
+add-skill-form-deactivate-message = You will deactivate the skill { $skillName }.
+add-skill-form-activate-message = You will activate the skill { $skillName }.
+add-skill-form-skill-deactivated-label = Deactivated
 
 # Performance Tab
 performance-title = Performance Goals

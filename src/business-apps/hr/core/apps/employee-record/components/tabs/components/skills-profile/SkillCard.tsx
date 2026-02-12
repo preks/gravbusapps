@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useRef } from 'react'
 import {
   Badge,
   Button,
@@ -35,6 +35,8 @@ interface SkillCardProps {
 }
 
 export const SkillCard: React.FC<SkillCardProps> = ({ skill, accessToken, updateSkillContext, t }) => {
+  const deactivateActivateTriggerRef = useRef<HTMLDivElement>(null)
+
   const parsedLevel = parseSkillLevel(skill.level)
   const hasLevel = parsedLevel !== null
   const isVerified = isSkillVerified(skill)
@@ -149,15 +151,45 @@ export const SkillCard: React.FC<SkillCardProps> = ({ skill, accessToken, update
                 </DropdownMenuItem>
               )}
               <DropdownMenuItem
-                className="gba:py-2 gba:px-3"
+                className="gba:py-2 gba:px-3 gba:cursor-pointer"
                 data-testid={`skills-profile-toggle-active-${skill.skill.id}`}
+                onSelect={() => {
+                  deactivateActivateTriggerRef.current?.querySelector('button')?.click()
+                }}
               >
                 <span className="gba:block gba:text-left gba:w-full">
-                  {isActive ? t('skills-action-deactivate') : t('skills-action-reactivate')}
+                  {isActive ? t('skills-action-deactivate') : t('skills-action-activate')}
                 </span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+          {/* Same pattern as Update level: AppAction always mounted so flow data is ready when user clicks the menu item */}
+          <div
+            ref={deactivateActivateTriggerRef}
+            className="gba:fixed gba:opacity-0 gba:pointer-events-none gba:left-[-9999px] gba:top-0"
+            aria-hidden="true"
+          >
+            <AppAction
+              variant="update-secondary"
+              contexts={[
+                {
+                  ...updateSkillContext,
+                  contextData: {
+                    ...updateSkillContext.contextData,
+                    mode: isActive ? 'deactivate' : 'activate',
+                    skillId: skill.skill.id,
+                    employeeSkillId: skill.id,
+                    skillName: skill.skill.name
+                  }
+                }
+              ]}
+              accessToken={accessToken}
+              autoExecute={true}
+              prefixDataTestId={`skills-profile-toggle-active-${skill.skill.id}`}
+            >
+              <span />
+            </AppAction>
+          </div>
         </div>
       </CardContent>
     </Card>

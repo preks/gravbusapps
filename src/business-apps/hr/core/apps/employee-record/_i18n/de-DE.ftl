@@ -384,6 +384,7 @@ skills-action-set-level = Level setzen
 skills-action-attach-verification = Verifizierung anhängen
 skills-action-deactivate = Deaktivieren
 skills-action-reactivate = Reaktivieren
+skills-action-activate = Aktivieren
 skills-development-next-actions = Nächste beste Aktionen
 skills-development-set-levels = Level für { $count } Fähigkeiten setzen
 skills-development-verify = { $count } Fähigkeiten verifizieren
@@ -402,6 +403,11 @@ add-skill-form-current-employee-skills-label = Aktuelle Mitarbeiterfähigkeiten
 add-skill-form-no-current-skills = Keine aktuellen Fähigkeiten
 add-skill-form-add-button = Hinzufügen
 add-skill-form-skill-add-error = Fähigkeit konnte nicht hinzugefügt werden
+add-skill-form-deactivate-title = Fähigkeit deaktivieren
+add-skill-form-activate-title = Fähigkeit aktivieren
+add-skill-form-deactivate-message = Sie werden die Fähigkeit { $skillName } deaktivieren.
+add-skill-form-activate-message = Sie werden die Fähigkeit { $skillName } aktivieren.
+add-skill-form-skill-deactivated-label = Deaktiviert
 
 # Performance Tab
 performance-title = Leistungsziele
