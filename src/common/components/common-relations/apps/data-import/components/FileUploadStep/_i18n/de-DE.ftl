@@ -1,7 +1,7 @@
 # File Upload Step Translations (German - Germany)
 
 # Step Header
-step-title = Schritt 1: CSV-Datei hochladen
+file-upload-step-title = Schritt 1: CSV-Datei hochladen
 
 # Form Labels
 file-select-label = CSV-Datei auswählen

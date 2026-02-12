@@ -1,11 +1,12 @@
 # Mapping Review Step Translations (German - Germany)
 
 # Step Header
-step-title = Schritt 2: Feldzuordnungen überprüfen und bearbeiten
+mapping-review-step-title = Schritt 2: Feldzuordnungen überprüfen und bearbeiten
 
 # Buttons
 start-over-button = Neu starten
 convert-button = { $count } { $entityType } konvertieren
+convert-button-no-count = { $entityType } konvertieren
 converting-button = Wird konvertiert...
 
 # Summary Section

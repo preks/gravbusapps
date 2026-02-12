@@ -13,7 +13,7 @@ import {
   MappingReviewStep,
   ConversionResultStep
 } from '@/common/components/common-relations/apps/data-import/components'
-import { leadImportConfig } from './config/leadImportConfig'
+import { customerLeadImportConfig } from '@/common/data/customer/types/customerLeadImportConfig'
 import { ConvertedLead } from './types/leadImportTypes'
 
 export interface LeadImportViewProps extends BusinessAppContextProps {
@@ -29,7 +29,6 @@ export const LeadImportView: React.FC<LeadImportViewProps> = ({
   // Main import hook
   const {
     file,
-    parsedData,
     agentResponse,
     convertedEntities: convertedLeads,
     step,
@@ -42,11 +41,11 @@ export const LeadImportView: React.FC<LeadImportViewProps> = ({
     importToBackend,
     downloadJSON,
     reset
-  } = useEntityImport<ConvertedLead>(context, leadImportConfig)
+  } = useEntityImport<ConvertedLead>(context, customerLeadImportConfig)
 
   // Mappings hook (initialized from agent response)
   const { mappings, setMappings, updateMapping, removeMapping, addMapping } = useEntityMappings(
-    leadImportConfig.targetFields,
+    customerLeadImportConfig.targetFields,
     agentResponse?.fieldMappings || []
   )
 
@@ -58,8 +57,8 @@ export const LeadImportView: React.FC<LeadImportViewProps> = ({
   }, [agentResponse, setMappings])
 
   // Handle conversion with current mappings
-  const handleConvert = () => {
-    convertData(mappings)
+  const handleConvert = async () => {
+    await convertData(mappings)
   }
 
   return (
@@ -95,8 +94,7 @@ export const LeadImportView: React.FC<LeadImportViewProps> = ({
         <MappingReviewStep
           agentResponse={agentResponse}
           mappings={mappings}
-          targetFieldsConfig={leadImportConfig.targetFields}
-          parsedDataCount={parsedData.length}
+          targetFieldsConfig={customerLeadImportConfig.targetFields}
           entityType="leads"
           isLoading={isLoading}
           onUpdateMapping={updateMapping}
@@ -112,7 +110,7 @@ export const LeadImportView: React.FC<LeadImportViewProps> = ({
       {step === 'result' && (
         <ConversionResultStep
           convertedEntities={convertedLeads}
-          targetFieldsConfig={leadImportConfig.targetFields}
+          targetFieldsConfig={customerLeadImportConfig.targetFields}
           entityType="lead"
           isLoading={isLoading}
           importResult={importResult}

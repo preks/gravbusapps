@@ -34,6 +34,47 @@ export interface TextGenerationResponse {
   generated_texts: string[]
 }
 
+export interface MapFromFileRequest {
+  entity_type: string
+  import_file: File
+  llm_model?: string
+}
+
+export interface MapFromFileResponse {
+  fieldMappings: Array<{
+    sourceField: string
+    targetField: string
+    transformationType: 'direct' | 'catalog'
+    catalogIdentifier?: string | null
+  }>
+  sourceFields: string[]
+  unmappedSourceFields: string[]
+  totalRowsRead?: number
+}
+
+export interface ExtractFromFileRequest {
+  entity_type: string
+  import_file: File
+  mapping_json: string
+  offset?: number
+  max_rows?: number
+}
+
+export interface ExtractFromFileResponse {
+  entityType: 'Lead' | 'Contact' | 'Account' | 'Opportunity'
+  records: Array<Record<string, any>>
+  totalRowsRead: number
+  warnings: string[]
+  fieldMappings: Array<{
+    sourceField: string
+    targetField: string
+    transformationType: 'direct' | 'catalog'
+    catalogIdentifier?: string | null
+  }>
+  sourceFields: string[]
+  unmappedSourceFields: string[]
+}
+
 export class FlowbotClient extends RestClient {
   constructor() {
     // Use environment-aware base URL (localhost → dev → env NEXT_PUBLIC_FLOWBOT_ENDPOINT / NEXT_PUBLIC_BASE_URL)
@@ -85,6 +126,40 @@ export class FlowbotClient extends RestClient {
     }
 
     return this.post<TextGenerationResponse>('/api/text-generation/generate', requestBody, options)
+  }
+
+  public async mapFromFile(
+    entityType: string,
+    importFile: File,
+    llmModel?: string,
+    options: Omit<RequestOptions, 'body'> = {}
+  ): Promise<MapFromFileResponse> {
+    const formData = new FormData()
+    formData.append('entity_type', entityType)
+    formData.append('import_file', importFile)
+    if (llmModel) {
+      formData.append('llm_model', llmModel)
+    }
+
+    return this.post<MapFromFileResponse>('/extraction/data/entities/map-from-file', formData, options)
+  }
+
+  public async extractFromFile(
+    entityType: string,
+    importFile: File,
+    mappingJson: string,
+    offset: number = 0,
+    maxRows: number = 5000,
+    options: Omit<RequestOptions, 'body'> = {}
+  ): Promise<ExtractFromFileResponse> {
+    const formData = new FormData()
+    formData.append('entity_type', entityType)
+    formData.append('import_file', importFile)
+    formData.append('mapping_json', mappingJson)
+    formData.append('offset', offset.toString())
+    formData.append('max_rows', maxRows.toString())
+
+    return this.post<ExtractFromFileResponse>('/extraction/data/entities/extract-from-file', formData, options)
   }
 }
 

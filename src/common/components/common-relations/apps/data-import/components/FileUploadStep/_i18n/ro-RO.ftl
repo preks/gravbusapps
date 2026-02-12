@@ -1,7 +1,7 @@
 # File Upload Step Translations (Romanian - Romania)
 
 # Step Header
-step-title = Pasul 1: Încărcați fișierul CSV
+file-upload-step-title = Pasul 1: Încărcați fișierul CSV
 
 # Form Labels
 file-select-label = Selectați fișier CSV

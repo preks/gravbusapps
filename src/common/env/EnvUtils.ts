@@ -67,3 +67,22 @@ export function env(key: string): string | undefined {
 
   return undefined
 }
+
+/**
+ * Returns the full runtime env object used by env() (window['nw-envs'] or process.env filtered by NEXT_PUBLIC_).
+ * Used to pass the same object to the preview iframe so it can set window['nw-envs'] and use env() unchanged.
+ */
+export function getRuntimeEnvsForIframe(): Record<string, string | undefined> {
+  const windowEnvs = globalThis.window?.[WINDOW_ENV_KEY]
+  if (globalThis.window !== undefined && windowEnvs !== undefined && typeof windowEnvs === 'object') {
+    return { ...windowEnvs }
+  }
+  const processEnv = globalThis.process?.env
+  if (processEnv !== undefined) {
+    return Object.fromEntries(Object.entries(processEnv).filter(([key]) => key.startsWith('NEXT_PUBLIC_'))) as Record<
+      string,
+      string | undefined
+    >
+  }
+  return {}
+}
