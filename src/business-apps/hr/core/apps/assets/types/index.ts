@@ -8,7 +8,7 @@ export enum AssetStatus {
 export interface Asset {
   id: string
   model: string
-  serialNumber: string
+  serialNumber?: string
   acquisitionDate: string
   warrantyPeriodMonths: number
   inventoryValue: number
