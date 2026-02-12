@@ -5,9 +5,9 @@
 
 import type { AudioMiddleware, RealtimeKitMeeting } from '@cloudflare/realtimekit-react'
 
-// Import worklet as a worker module - Vite will bundle it properly
-import workletUrl from '../worklets/rnnoise-processor.ts?worker&url'
-const RNNOISE_WORKLET_MODULE_URL = workletUrl
+// Import worklet code as inline string - Vite will compile and inline it in the bundle
+// Using custom ?inline suffix that our plugin will handle
+import workletCode from '../worklets/rnnoise-processor.ts?inline'
 
 export interface RnnoiseConfig {
   enabled: boolean
@@ -53,127 +53,24 @@ export class RTKRnnoiseMiddleware {
   private static workletLoadPermanentlyFailed: boolean = false
 
   /**
-   * Get worklet module URL, converting cross-origin URLs to same-origin blob: URLs.
-   * This mirrors the pattern used in remote-component-loader for loading scripts from Azure CDN.
+   * Get worklet module URL by creating a blob from bundled worklet code.
    */
   private async getWorkletModuleUrl(): Promise<string> {
+    // Return cached blob URL if already created
     if (RTKRnnoiseMiddleware.cachedWorkletBlobUrl) {
-      console.log('[RNNoise] Using cached blob: URL')
+      console.log('[RNNoise] Using cached blob URL from bundled worklet')
       return RTKRnnoiseMiddleware.cachedWorkletBlobUrl
     }
 
-    let workletUrl = RNNOISE_WORKLET_MODULE_URL
+    console.log('[RNNoise] Creating blob URL from bundled worklet code')
 
-    // Log the initial value to debug
-    console.log('[RNNoise] Initial worklet URL from Vite import:', {
-      url: workletUrl,
-      type: typeof workletUrl,
-      length: workletUrl?.length,
-      isUndefined: workletUrl === undefined,
-      isNull: workletUrl === null
-    })
+    // Create blob from inline worklet code
+    const blob = new Blob([workletCode], { type: 'application/javascript' })
+    RTKRnnoiseMiddleware.cachedWorkletBlobUrl = URL.createObjectURL(blob)
 
-    // Vite can inline assets as `data:*;base64,...` (we've seen it come through as `data:video/mp2t`).
-    // AudioWorklet expects JS; normalize by creating a blob URL with an explicit JS MIME type.
-    if (workletUrl.startsWith('data:')) {
-      console.log('[RNNoise] Converting data: URL to blob:')
-      try {
-        const base64Match = workletUrl.match(/^data:[^;]+;base64,(.+)$/)
-        if (base64Match) {
-          const jsCode = atob(base64Match[1])
-          const blob = new Blob([jsCode], { type: 'application/javascript' })
-          RTKRnnoiseMiddleware.cachedWorkletBlobUrl = URL.createObjectURL(blob)
-          console.log('[RNNoise] ✅ Converted data: URL to blob:')
-          return RTKRnnoiseMiddleware.cachedWorkletBlobUrl
-        }
-      } catch (error) {
-        console.warn('[RNNoise] Failed to convert data: URL, falling back to original:', error)
-      }
-    }
+    console.log('[RNNoise] ✅ Created blob URL:', RTKRnnoiseMiddleware.cachedWorkletBlobUrl)
 
-    // WORKAROUND: Rewrite Vite's generated /assets/ path to match actual upload location
-    // Vite generates: ../../../assets/rnnoise-processor-BzzgNUaP.js
-    // But publish script uploads to: platform/apps/chat/rnnoise-processor-BzzgNUaP.js
-    // So we rewrite /assets/ URLs to be in the same directory as index.js
-    if (workletUrl.includes('/assets/')) {
-      // First resolve the URL to get the full path, then extract filename
-      const resolvedUrl = new URL(workletUrl, window.location.href).href
-      const urlParts = resolvedUrl.split('/')
-      const workletFilename = urlParts[urlParts.length - 1] || ''
-
-      // Validate we got a filename
-      if (!workletFilename || workletFilename === 'undefined') {
-        console.error('[RNNoise] Failed to extract filename from URL', {
-          original: workletUrl,
-          resolved: resolvedUrl,
-          urlParts,
-          lastPart: urlParts[urlParts.length - 1]
-        })
-        throw new Error(`Failed to extract filename from worklet URL: ${workletUrl}`)
-      }
-
-      // Construct the rewritten URL by replacing /assets/ path with the screen's path
-      // Pattern: .../screens/assets/file.js -> .../screens/platform/apps/chat/file.js
-      const rewrittenUrl = resolvedUrl.replace('/screens/assets/', '/screens/platform/apps/chat/')
-
-      console.log('[RNNoise] 🔄 Rewriting worklet URL to match upload location', {
-        original: workletUrl,
-        resolved: resolvedUrl,
-        filename: workletFilename,
-        rewritten: rewrittenUrl
-      })
-      workletUrl = rewrittenUrl
-    }
-
-    // Check if worklet URL is cross-origin
-    const resolvedUrl = new URL(workletUrl, window.location.href).toString()
-    const workletOrigin = new URL(resolvedUrl).origin
-    const isCrossOrigin = workletOrigin !== window.location.origin
-
-    // If cross-origin, fetch and convert to blob: URL (mirrors remote-component-loader pattern)
-    if (isCrossOrigin) {
-      console.log('[RNNoise] Cross-origin worklet detected, fetching and converting to blob: URL', {
-        pageOrigin: window.location.origin,
-        workletOrigin,
-        workletUrl: resolvedUrl.substring(0, 100) + '...'
-      })
-
-      try {
-        // Fetch the worklet code from Azure CDN (this respects CORS for fetch API)
-        const response = await fetch(resolvedUrl)
-
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`)
-        }
-
-        const workletCode = await response.text()
-        console.log('[RNNoise] ✅ Fetched worklet code', {
-          sizeBytes: workletCode.length,
-          sizeKB: (workletCode.length / 1024).toFixed(2)
-        })
-
-        // Create blob: URL (same-origin) with proper MIME type
-        const blob = new Blob([workletCode], { type: 'application/javascript' })
-        const blobUrl = URL.createObjectURL(blob)
-
-        // Cache it for future use
-        RTKRnnoiseMiddleware.cachedWorkletBlobUrl = blobUrl
-
-        console.log('[RNNoise] ✅ Converted to same-origin blob: URL', {
-          original: resolvedUrl.substring(0, 50) + '...',
-          blob: blobUrl
-        })
-
-        return blobUrl
-      } catch (error) {
-        console.error('[RNNoise] ❌ Failed to fetch/convert worklet to blob:', error)
-        throw new Error(`Failed to load worklet from ${resolvedUrl}: ${error}`)
-      }
-    }
-
-    // Already same-origin or localhost, use directly
-    console.log('[RNNoise] Using same-origin worklet URL directly')
-    return workletUrl
+    return RTKRnnoiseMiddleware.cachedWorkletBlobUrl
   }
 
   /**

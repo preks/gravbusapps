@@ -169,24 +169,40 @@ const getScreenShareTrack = (peer: any): MediaStreamTrack | null => {
   return null
 }
 
-// Helper to calculate optimal aspect ratio based on tile width and participant count
-const getOptimalAspectRatio = (tileWidth: number, participantCount: number, isScreenShare: boolean): string => {
+// Helper to calculate optimal aspect ratio based on screen width, participant count, and sidebar state
+const getOptimalAspectRatio = (
+  screenWidth: number,
+  participantCount: number,
+  isScreenShare: boolean,
+  hasSidebar: boolean
+): string => {
   // Screen shares always use 16:9
   if (isScreenShare) {
     return '16/9'
   }
 
-  // For very wide tiles with few participants, use portrait-ish ratio for better face framing
-  if (tileWidth > 400 && participantCount <= 4) {
-    return '3/4'
-  }
-
-  // For medium tiles, use 4:3
-  if (tileWidth > 250) {
+  // Mobile screens (< 768px): Use 4:3 for better vertical space usage
+  if (screenWidth < 768) {
     return '4/3'
   }
 
-  // For narrow tiles, use 16:9
+  // Tablet screens (768px - 1023px)
+  if (screenWidth < 1024) {
+    // With sidebar or many participants, use 4:3
+    if (hasSidebar || participantCount > 4) {
+      return '4/3'
+    }
+    // Without sidebar and few participants, use 16:9
+    return '16/9'
+  }
+
+  // Desktop screens (>= 1024px)
+  // With sidebar open, use more square-ish ratios
+  if (hasSidebar) {
+    return participantCount <= 2 ? '4/3' : '16/9'
+  }
+
+  // Without sidebar: use 16:9 for natural video appearance
   return '16/9'
 }
 
@@ -2210,7 +2226,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
       sidebarWidth: width < 768 ? 280 : width < 1024 ? 320 : 360,
       minTileSize: width < 768 ? 150 : width < 1024 ? 180 : 250,
       minTileSizeWithSidebar: width < 768 ? 120 : width < 1024 ? 150 : 200,
-      maxTileSize: width < 768 ? 9999 : width < 1024 ? 300 : width < 1440 ? 400 : width < 1920 ? 450 : 500
+      maxTileSize: width < 768 ? 9999 : width < 1024 ? 450 : width < 1440 ? 600 : width < 1920 ? 700 : 800
     }
   })
 
@@ -2222,7 +2238,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
         sidebarWidth: width < 768 ? 280 : width < 1024 ? 320 : 360,
         minTileSize: width < 768 ? 150 : width < 1024 ? 180 : 250,
         minTileSizeWithSidebar: width < 768 ? 120 : width < 1024 ? 150 : 200,
-        maxTileSize: width < 768 ? 9999 : width < 1024 ? 300 : width < 1440 ? 400 : width < 1920 ? 450 : 500
+        maxTileSize: width < 768 ? 9999 : width < 1024 ? 450 : width < 1440 ? 600 : width < 1920 ? 700 : 800
       })
     }
 
@@ -2638,6 +2654,13 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
     // Create or update audio elements for each remote peer
     stableRemotePeers.forEach(peer => {
       const rtkPeer = peer as RealtimeKitPeer
+
+      // CRITICAL: Skip local participant to prevent echo/hearing yourself
+      if (peer.id === meeting?.self?.id) {
+        rtkDebug.log('[Minimized] Skipping audio for local participant:', peer.id)
+        return
+      }
+
       const peerName = rtkPeer.name || rtkPeer.odName
       const stream = buildStreamFromPeer(rtkPeer)
       if (stream && stream.getAudioTracks().length > 0) {
@@ -2982,9 +3005,10 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
                           className="gba:relative gba:w-full gba:h-full gba:rounded-lg gba:overflow-hidden gba:bg-muted"
                           style={{
                             aspectRatio: getOptimalAspectRatio(
-                              responsiveConfig.maxTileSize,
+                              window.innerWidth,
                               paginatedGridItems.items.length,
-                              item.type === 'screen-share'
+                              item.type === 'screen-share',
+                              sidebarView !== 'closed'
                             )
                           }}
                           data-testid={`${prefixDataTestId}-grid-item-${item.id}`}

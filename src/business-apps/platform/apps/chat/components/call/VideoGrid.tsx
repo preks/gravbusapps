@@ -144,17 +144,14 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
     }
 
     // Desktop screens (>= 1024px)
-    // Calculate how many tiles can fit at max width with available space
+    // Calculate base columns based on participant count
     let baseColumns
     if (itemCount <= 1) baseColumns = 1
     else if (itemCount <= 2) baseColumns = 2
     else if (itemCount <= 4) baseColumns = 2
-    else if (itemCount <= 6)
-      baseColumns = 3 // 3×3 for better aspect ratio instead of 3×2
-    else if (itemCount <= 9)
-      baseColumns = 3 // 3×3 for 7-9 participants
-    else if (itemCount <= 12)
-      baseColumns = 3 // 3×4 for 10-12 participants
+    else if (itemCount <= 6) baseColumns = 3
+    else if (itemCount <= 9) baseColumns = 3
+    else if (itemCount <= 12) baseColumns = 3
     else if (itemCount <= 16) baseColumns = 4
     else if (itemCount <= 25) baseColumns = 5
     else {
@@ -162,39 +159,27 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
       baseColumns = Math.min(Math.ceil(Math.sqrt(itemCount)), 6)
     }
 
-    // If we have available width, calculate how many tiles can fit at max width
-    if (availableWidth > 0 && maxTileSize < 9999) {
+    // Apply max width constraint only if we have measured width and it would help
+    // Don't reduce columns below base for small participant counts (1-4)
+    if (availableWidth > 0 && maxTileSize < 9999 && itemCount > 4) {
       const gap = 12 // gba:gap-3 is 12px
       const maxColumnsByWidth = Math.floor((availableWidth + gap) / (maxTileSize + gap))
 
-      // Use the minimum to prevent stretching beyond max width
-      return Math.max(1, Math.min(baseColumns, maxColumnsByWidth))
+      // Only apply constraint if it wouldn't reduce columns too much
+      if (maxColumnsByWidth >= 2) {
+        return Math.max(2, Math.min(baseColumns, maxColumnsByWidth))
+      }
     }
 
     return baseColumns
-  }
-
-  // Calculate optimal row height based on screen size
-  const calculateRowHeight = (): string => {
-    const screenWidth = window.innerWidth
-
-    // On mobile, make tiles taller to fill vertical space better
-    if (screenWidth < 768) {
-      // For 2 columns, calculate height to fill available space
-      // Account for gap and padding
-      return `minmax(${minTileSize * 0.8}px, 1fr)`
-    }
-
-    // On larger screens, maintain aspect ratio
-    return 'minmax(200px, 1fr)'
   }
 
   // Determine grid style based on mode
   const gridStyle =
     mode === 'auto-fit'
       ? {
-          gridTemplateColumns: `repeat(${calculateOptimalColumns(gridItems.length)}, minmax(${minTileSize}px, min(${maxTileSize}px, 1fr)))`,
-          gridAutoRows: calculateRowHeight()
+          gridTemplateColumns: `repeat(${calculateOptimalColumns(gridItems.length)}, minmax(${minTileSize}px, ${maxTileSize}px))`,
+          gridAutoRows: 'auto' // Let aspect-ratio control height
         }
       : {
           gridTemplateColumns: `repeat(${gridLayout?.cols || 1}, 1fr)`,

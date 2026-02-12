@@ -805,9 +805,9 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
             video: shouldEnableVideo,
             mediaConfiguration: {
               audio: {
-                // Disable browser audio processing to avoid voice cut-off.
+                // Enable echo cancellation to prevent feedback loops
                 // NOTE: RTK expects `noiseSupression` (typo) in this config.
-                echoCancellation: false,
+                echoCancellation: true,
                 noiseSupression: false,
                 autoGainControl: false
               }
@@ -1336,9 +1336,9 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
             video: shouldEnableVideo,
             mediaConfiguration: {
               audio: {
-                // Disable browser audio processing to avoid voice cut-off.
+                // Enable echo cancellation to prevent feedback loops
                 // NOTE: RTK expects `noiseSupression` (typo) in this config.
-                echoCancellation: false,
+                echoCancellation: true,
                 noiseSupression: false,
                 autoGainControl: false
               }
