@@ -283,21 +283,21 @@ export const getCompleteAggregationsQuery = (timeFilter: string, vacationGroupId
         : ''
     }
 
-    entitlementSnapshot: entitlement_usage_snapshot_view(
+    entitlementSnapshot: EntitlementUsageSnapshotView(
       where: {
-        period_start: { _lte: "${currentYearEnd}" }
-        period_end: { _gte: "${currentYearStart}" }
-        type_ref: { _eq: "AbsenceType:v1:A001" }
+        periodStart: { _lte: "${currentYearEnd}" }
+        periodEnd: { _gte: "${currentYearStart}" }
+        typeRef: { _eq: "AbsenceType:v1:A001" }
       }
     ) {
-      employee_id
-      type_ref
-      total_entitlement
-      used_approved
-      used_pending
+      employeeId
+      typeRef
+      totalEntitlement
+      usedApproved
+      usedPending
       remaining
-      period_start
-      period_end
+      periodStart
+      periodEnd
     }
 
     
