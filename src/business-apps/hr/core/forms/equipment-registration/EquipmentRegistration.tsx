@@ -37,7 +37,7 @@ type FormValues = {
   model: string
   serialNumber: string
   location?: string
-  acquisitionDate: string
+  acquisitionDate?: string
   warrantyPeriodMonths: number
   inventoryValue: number
   currency: string
@@ -265,15 +265,7 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
             )
           ),
         location: z.string().optional(),
-        acquisitionDate: z
-          .string()
-          .min(
-            1,
-            getTranslationFromI18nKeyAndLabel(
-              'lowcoder:hr_assets.acquisition_date_required',
-              'Acquisition date is required'
-            )
-          ),
+        acquisitionDate: z.string().optional(),
         warrantyPeriodMonths: z
           .number()
           .min(
@@ -435,11 +427,19 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
 
       const serialNumber =
         values.serialNumber?.trim() && values.serialNumber.trim().length > 0 ? values.serialNumber.trim() : undefined
+      const acquisitionDate =
+        values.acquisitionDate?.trim() && values.acquisitionDate.trim().length > 0
+          ? values.acquisitionDate.trim()
+          : undefined
+      const warrantyPeriodMonths =
+        typeof values.warrantyPeriodMonths === 'number' && values.warrantyPeriodMonths > 0
+          ? values.warrantyPeriodMonths
+          : undefined
       const response = await assetProcessClient.createAsset({
         model: values.model,
         ...(serialNumber !== undefined && { serialNumber }),
-        acquisitionDate: values.acquisitionDate,
-        warrantyPeriodMonths: values.warrantyPeriodMonths,
+        ...(acquisitionDate !== undefined && { acquisitionDate }),
+        ...(warrantyPeriodMonths !== undefined && { warrantyPeriodMonths }),
         inventoryValue: values.inventoryValue,
         assetStatus: values.status,
         assetBrandRef: values.brand,
@@ -486,13 +486,21 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
 
       const serialNumber =
         values.serialNumber?.trim() && values.serialNumber.trim().length > 0 ? values.serialNumber.trim() : undefined
+      const acquisitionDate =
+        values.acquisitionDate?.trim() && values.acquisitionDate.trim().length > 0
+          ? values.acquisitionDate.trim()
+          : undefined
+      const warrantyPeriodMonths =
+        typeof values.warrantyPeriodMonths === 'number' && values.warrantyPeriodMonths > 0
+          ? values.warrantyPeriodMonths
+          : undefined
       await assetProcessClient.updateAsset({
         id: assetId,
         version: assetVersion,
         model: values.model,
         ...(serialNumber !== undefined && { serialNumber }),
-        acquisitionDate: values.acquisitionDate,
-        warrantyPeriodMonths: values.warrantyPeriodMonths,
+        ...(acquisitionDate !== undefined && { acquisitionDate }),
+        ...(warrantyPeriodMonths !== undefined && { warrantyPeriodMonths }),
         inventoryValue: values.inventoryValue,
         assetStatus: values.status,
         assetBrandRef: values.brand,
@@ -679,7 +687,7 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
           render={({ field }) => (
             <FormItem>
               <Label htmlFor="acquisitionDate" data-testid="acquisition-date-label">
-                {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.acquisition_date', 'Acquisition Date')} *
+                {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.acquisition_date', 'Acquisition Date')}
               </Label>
               <DateInput
                 type="date"
@@ -714,7 +722,7 @@ const EquipmentRegistrationContent: React.FC<BusinessAppContextProps> = (context
             return (
               <FormItem>
                 <Label htmlFor="warrantyPeriodMonths" data-testid="warranty-period-label">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.warranty_months', 'Warranty (months)')} *
+                  {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.warranty_months', 'Warranty (months)')}
                 </Label>
                 <Input
                   id="warrantyPeriodMonths"

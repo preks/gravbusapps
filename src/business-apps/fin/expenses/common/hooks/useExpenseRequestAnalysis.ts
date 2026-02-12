@@ -5,7 +5,7 @@
  * The analysis includes warnings or informational messages about
  * potential issues with the expense request.
  *
- * API Documentation: /flowbot/docs#/API%20for%20Agent/get_expense_insights_flowbot_api_agent_expense_insights_post
+ * API Documentation: /flowbot/docs#/API%20for%20Expenses/get_expense_insights_flowbot_api_expense_expense_insights_post
  */
 
 import { useState, useEffect, useCallback } from 'react'
@@ -38,7 +38,7 @@ interface UseExpenseRequestAnalysisReturn {
 }
 
 /** API endpoint for expense insights */
-const EXPENSE_INSIGHTS_ENDPOINT = '/flowbot/api/agent/expense-insights'
+const EXPENSE_INSIGHTS_ENDPOINT = '/flowbot/api/expense/expense-insights'
 
 const isAnalysisType = (value: unknown): value is AnalysisType => value === 'WARNING' || value === 'INFO'
 
