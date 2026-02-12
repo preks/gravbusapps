@@ -36,9 +36,12 @@ export const NexusScopeSelector = ({
   }
 
   return (
-    <div className="gba:px-4 gba:py-2" data-testid={testId}>
+    <div className="gba:px-4 gba:py-1.5" data-testid={testId}>
       <Select value={currentValue} onValueChange={handleChange}>
-        <SelectTrigger className="gba:h-8 gba:text-xs" data-testid={`${testId}-trigger`}>
+        <SelectTrigger
+          className="gba:h-7 gba:text-[11px] gba:border-0 gba:bg-transparent gba:px-0 gba:font-medium gba:text-muted-foreground gba:hover:text-foreground gba:transition-colors"
+          data-testid={`${testId}-trigger`}
+        >
           <SelectValue placeholder="Select scope" />
         </SelectTrigger>
         <SelectContent>

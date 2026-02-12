@@ -12,6 +12,7 @@ interface ArtifactCanvasProps {
   artifactStreaming: boolean
   artifactStreamContent: string
   accessToken: string
+  onOpenChat: () => void
   onSuggestionClick: (prompt: string) => void
   onSaveArtifact: (
     artifactId: string,
@@ -25,6 +26,7 @@ export const ArtifactCanvas = ({
   artifactStreaming,
   artifactStreamContent,
   accessToken,
+  onOpenChat,
   onSuggestionClick,
   onSaveArtifact,
   testId = 'nexus-canvas'
@@ -67,7 +69,7 @@ export const ArtifactCanvas = ({
 
   // Empty state
   if (!artifact) {
-    return <EmptyCanvas onSuggestionClick={onSuggestionClick} />
+    return <EmptyCanvas onOpenChat={onOpenChat} onSuggestionClick={onSuggestionClick} />
   }
 
   return (

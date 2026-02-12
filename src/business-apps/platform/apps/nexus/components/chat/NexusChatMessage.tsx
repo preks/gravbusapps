@@ -43,12 +43,12 @@ export const NexusChatMessage = ({
 
   if (isUser) {
     return (
-      <div className="gba:flex gba:justify-end gba:gap-2.5 gba:mb-3" data-testid={`${testId}-user`}>
-        <div className="gba:max-w-[80%] gba:rounded-2xl gba:rounded-br-md gba:bg-primary gba:text-primary-foreground gba:px-4 gba:py-2.5">
+      <div className="gba:flex gba:justify-end gba:gap-2.5 gba:mb-4" data-testid={`${testId}-user`}>
+        <div className="gba:max-w-[80%] gba:rounded-2xl gba:rounded-br-sm gba:bg-primary gba:text-primary-foreground gba:px-4 gba:py-3">
           <p className="gba:text-sm gba:leading-relaxed gba:whitespace-pre-wrap">{message.content}</p>
         </div>
         <Avatar className="gba:h-7 gba:w-7 gba:flex-shrink-0 gba:mt-0.5">
-          <AvatarFallback className="gba:text-xs gba:bg-secondary gba:text-secondary-foreground">
+          <AvatarFallback className="gba:text-[10px] gba:font-semibold gba:bg-secondary gba:text-secondary-foreground">
             {userName ? userName.charAt(0).toUpperCase() : 'U'}
           </AvatarFallback>
         </Avatar>
@@ -57,22 +57,23 @@ export const NexusChatMessage = ({
   }
 
   return (
-    <div className="gba:flex gba:gap-2.5 gba:mb-3" data-testid={`${testId}-assistant`}>
+    <div className="gba:flex gba:gap-2.5 gba:mb-4" data-testid={`${testId}-assistant`}>
       <Avatar className="gba:h-7 gba:w-7 gba:flex-shrink-0 gba:mt-0.5">
-        <AvatarFallback className="gba:text-xs gba:bg-accent gba:text-accent-foreground">
+        <AvatarFallback className="gba:bg-primary/10 gba:text-primary">
           <Bot className="gba:h-3.5 gba:w-3.5" />
         </AvatarFallback>
       </Avatar>
-      <div className="gba:max-w-[85%] gba:space-y-1.5">
-        <div className="gba:rounded-2xl gba:rounded-bl-md gba:bg-muted gba:px-4 gba:py-2.5">
+      <div className="gba:max-w-[85%] gba:space-y-2">
+        <div className="gba:rounded-2xl gba:rounded-bl-sm gba:bg-muted/60 gba:px-4 gba:py-3">
           {content ? (
             <MarkdownWithChipsRenderer content={content} accessToken={accessToken} variant="chat" />
           ) : isStreaming ? (
-            <div className="gba:flex gba:items-center gba:gap-0.5 gba:text-sm gba:text-muted-foreground">
-              <span className="gba:animate-pulse">Thinking</span>
-              <span className="gba:animate-pulse">.</span>
-              <span className="gba:animate-pulse">.</span>
-              <span className="gba:animate-pulse">.</span>
+            <div className="gba:flex gba:items-center gba:gap-1.5 gba:py-0.5">
+              <div className="gba:flex gba:items-center gba:gap-1">
+                <span className="gba:w-1.5 gba:h-1.5 gba:rounded-full gba:bg-primary gba:animate-bounce" />
+                <span className="gba:w-1.5 gba:h-1.5 gba:rounded-full gba:bg-primary gba:animate-bounce gba:[animation-delay:150ms]" />
+                <span className="gba:w-1.5 gba:h-1.5 gba:rounded-full gba:bg-primary gba:animate-bounce gba:[animation-delay:300ms]" />
+              </div>
             </div>
           ) : null}
         </div>
@@ -81,14 +82,23 @@ export const NexusChatMessage = ({
         {message.artifactId && artifactType && (
           <button
             onClick={onViewArtifact}
-            className="gba:flex gba:items-center gba:gap-2 gba:px-3 gba:py-2 gba:rounded-lg gba:border gba:border-border gba:bg-card gba:hover:bg-accent gba:transition-colors gba:cursor-pointer gba:w-full"
+            className="gba:flex gba:items-center gba:gap-2.5 gba:px-3.5 gba:py-2.5 gba:rounded-xl gba:border gba:border-border gba:bg-card gba:hover:bg-accent/50 gba:transition-all gba:duration-200 gba:cursor-pointer gba:w-full gba:group"
             data-testid={`${testId}-artifact-link`}
           >
             {(() => {
               const Icon = artifactIcons[artifactType]
-              return <Icon className="gba:h-4 gba:w-4 gba:text-primary" />
+              return (
+                <div className="gba:h-8 gba:w-8 gba:rounded-lg gba:bg-primary/10 gba:flex gba:items-center gba:justify-center gba:flex-shrink-0">
+                  <Icon className="gba:h-4 gba:w-4 gba:text-primary" />
+                </div>
+              )
             })()}
-            <span className="gba:text-xs gba:font-medium">{artifactLabels[artifactType]} created</span>
+            <div className="gba:text-left">
+              <span className="gba:text-xs gba:font-semibold gba:text-foreground">
+                {artifactLabels[artifactType]} created
+              </span>
+              <span className="gba:text-[10px] gba:text-muted-foreground gba:block">Click to view on canvas</span>
+            </div>
             <Badge variant="secondary" className="gba:ml-auto gba:text-[10px]">
               View
             </Badge>

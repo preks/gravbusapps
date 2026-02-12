@@ -16,12 +16,12 @@ export const SlidesRenderer = ({ content, testId = 'nexus-slides' }: SlidesRende
   if (slides.length === 0) return null
 
   return (
-    <div className="gba:flex gba:flex-col gba:h-full gba:px-6 gba:py-6" data-testid={testId}>
+    <div className="gba:flex gba:flex-col gba:h-full gba:px-8 gba:py-8" data-testid={testId}>
       {/* Slide Preview */}
       <div className="gba:flex-1 gba:flex gba:items-center gba:justify-center">
         <div className="gba:w-full gba:max-w-4xl gba:aspect-[16/9]">
-          <Card className="gba:h-full gba:overflow-hidden">
-            <CardContent className="gba:h-full gba:flex gba:flex-col gba:justify-center gba:p-10">
+          <Card className="gba:h-full gba:overflow-hidden gba:ring-1 gba:ring-border/30">
+            <CardContent className="gba:h-full gba:flex gba:flex-col gba:justify-center gba:p-12">
               {currentSlide && <SlideContent slide={currentSlide} />}
             </CardContent>
           </Card>
@@ -29,11 +29,11 @@ export const SlidesRenderer = ({ content, testId = 'nexus-slides' }: SlidesRende
       </div>
 
       {/* Navigation */}
-      <div className="gba:flex gba:items-center gba:justify-center gba:gap-4 gba:mt-4">
+      <div className="gba:flex gba:items-center gba:justify-center gba:gap-4 gba:mt-5">
         <Button
           variant="outline"
           size="icon"
-          className="gba:h-8 gba:w-8"
+          className="gba:h-9 gba:w-9 gba:rounded-xl"
           onClick={() => setCurrentIndex(i => Math.max(0, i - 1))}
           disabled={currentIndex === 0}
           data-testid={`${testId}-prev`}
@@ -41,14 +41,14 @@ export const SlidesRenderer = ({ content, testId = 'nexus-slides' }: SlidesRende
           <ChevronLeft className="gba:h-4 gba:w-4" />
         </Button>
 
-        <span className="gba:text-sm gba:text-muted-foreground gba:tabular-nums">
+        <span className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:tabular-nums gba:min-w-[60px] gba:text-center">
           {currentIndex + 1} / {slides.length}
         </span>
 
         <Button
           variant="outline"
           size="icon"
-          className="gba:h-8 gba:w-8"
+          className="gba:h-9 gba:w-9 gba:rounded-xl"
           onClick={() => setCurrentIndex(i => Math.min(slides.length - 1, i + 1))}
           disabled={currentIndex === slides.length - 1}
           data-testid={`${testId}-next`}
@@ -58,20 +58,20 @@ export const SlidesRenderer = ({ content, testId = 'nexus-slides' }: SlidesRende
       </div>
 
       {/* Slide Thumbnails */}
-      <div className="gba:flex gba:gap-2 gba:overflow-x-auto gba:py-4 gba:px-1 gba:mt-2">
+      <div className="gba:flex gba:gap-2 gba:overflow-x-auto gba:py-4 gba:px-1 gba:mt-3 gba:justify-center">
         {slides.map((slide, idx) => (
           <button
             key={idx}
             onClick={() => setCurrentIndex(idx)}
-            className={`gba:flex-shrink-0 gba:w-28 gba:h-16 gba:rounded-md gba:border gba:text-left gba:px-2 gba:py-1.5 gba:transition-colors ${
+            className={`gba:flex-shrink-0 gba:w-28 gba:h-16 gba:rounded-lg gba:border gba:text-left gba:px-2.5 gba:py-2 gba:transition-all gba:duration-150 ${
               idx === currentIndex
-                ? 'gba:border-primary gba:bg-primary/5'
-                : 'gba:border-border gba:hover:border-primary/30'
+                ? 'gba:border-primary gba:bg-primary/5 gba:ring-1 gba:ring-primary/20'
+                : 'gba:border-border gba:hover:border-primary/30 gba:hover:bg-muted/30'
             }`}
             data-testid={`${testId}-thumb-${idx}`}
           >
-            <p className="gba:text-[8px] gba:font-medium gba:text-foreground gba:truncate">{slide.title}</p>
-            <p className="gba:text-[7px] gba:text-muted-foreground gba:truncate">{slide.layout}</p>
+            <p className="gba:text-[8px] gba:font-semibold gba:text-foreground gba:truncate">{slide.title}</p>
+            <p className="gba:text-[7px] gba:text-muted-foreground gba:truncate gba:mt-0.5">{slide.layout}</p>
           </button>
         ))}
       </div>

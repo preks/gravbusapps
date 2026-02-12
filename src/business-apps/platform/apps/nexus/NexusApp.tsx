@@ -22,6 +22,8 @@ export const NexusApp: React.FC<NexusAppProps> = ({ accessToken, userInfo }) => 
   const [scope, setScope] = useState<'all' | 'space'>('all')
   const [spaceId, setSpaceId] = useState<string | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [chatVisible, setChatVisible] = useState(false)
+  const [prefillText, setPrefillText] = useState<string | null>(null)
   const [dataAccessEnabled, setDataAccessEnabled] = useState(false)
   const [llmProvider, setLlmProvider] = useState<string | undefined>(() => {
     try {
@@ -82,6 +84,13 @@ export const NexusApp: React.FC<NexusAppProps> = ({ accessToken, userInfo }) => 
       setDataAccessEnabled(currentSession.contextConfig.dataAccessEnabled)
     }
   }, [currentSession])
+
+  // Ensure chat is visible whenever there are messages or an active session
+  useEffect(() => {
+    if (messages.length > 0 || isStreaming || currentSession) {
+      setChatVisible(true)
+    }
+  }, [messages.length, isStreaming, currentSession])
 
   // Send pending message once currentSession becomes available
   useEffect(() => {
@@ -150,12 +159,21 @@ export const NexusApp: React.FC<NexusAppProps> = ({ accessToken, userInfo }) => 
     [toggleDataAccess]
   )
 
-  const handleSuggestionClick = useCallback(
-    (prompt: string) => {
-      handleSend(prompt)
-    },
-    [handleSend]
-  )
+  // Open chat panel (no text)
+  const handleOpenChat = useCallback(() => {
+    setChatVisible(true)
+  }, [])
+
+  // Open chat + type suggestion text into the input (don't send yet)
+  const handleSuggestionClick = useCallback((prompt: string) => {
+    setChatVisible(true)
+    // Small delay so the panel transition starts before the typing animation
+    setTimeout(() => setPrefillText(prompt), 100)
+  }, [])
+
+  const handlePrefillComplete = useCallback(() => {
+    setPrefillText(null)
+  }, [])
 
   const handleSaveArtifact = useCallback(
     async (artifactId: string, targetType: 'document' | 'slides') => {
@@ -179,7 +197,7 @@ export const NexusApp: React.FC<NexusAppProps> = ({ accessToken, userInfo }) => 
     <div className="gba:h-full gba:w-full" data-testid={TEST_ID}>
       <NexusLayout
         sidebarOpen={sidebarOpen}
-        onSidebarClose={() => setSidebarOpen(false)}
+        chatVisible={chatVisible}
         sidebar={
           <NexusSidebar
             sessions={sessions}
@@ -205,6 +223,8 @@ export const NexusApp: React.FC<NexusAppProps> = ({ accessToken, userInfo }) => 
             sessionTitle={currentSession?.title}
             llmProvider={llmProvider}
             dataAccessEnabled={dataAccessEnabled}
+            prefillText={prefillText}
+            onPrefillComplete={handlePrefillComplete}
             onLlmProviderChange={setLlmProvider}
             onDataAccessToggle={handleDataAccessToggle}
             onSend={handleSend}
@@ -214,6 +234,7 @@ export const NexusApp: React.FC<NexusAppProps> = ({ accessToken, userInfo }) => 
             onOpenHistory={() => {
               fetchSessions()
               setSidebarOpen(true)
+              setChatVisible(true)
             }}
           />
         }
@@ -223,6 +244,7 @@ export const NexusApp: React.FC<NexusAppProps> = ({ accessToken, userInfo }) => 
             artifactStreaming={artifactStreaming}
             artifactStreamContent={artifactStreamContent}
             accessToken={accessToken}
+            onOpenChat={handleOpenChat}
             onSuggestionClick={handleSuggestionClick}
             onSaveArtifact={handleSaveArtifact}
           />

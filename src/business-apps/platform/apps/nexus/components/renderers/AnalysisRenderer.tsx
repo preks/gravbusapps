@@ -1,5 +1,5 @@
 import { Card, CardContent, Separator } from '@newwork/nw-design-system'
-import { Loader2, Lightbulb, TrendingUp, BarChart3, Calendar } from 'lucide-react'
+import { Loader2, Lightbulb, TrendingUp, BarChart3, Calendar, FileText } from 'lucide-react'
 import { MarkdownWithChipsRenderer } from '@/common/components/markdown/MarkdownWithChipsRenderer'
 import { AnalysisKpiCard } from './AnalysisKpiCard'
 import { AnalysisChart } from './AnalysisChart'
@@ -27,11 +27,16 @@ const SectionRenderer = ({
 }) => {
   if (section.type === 'narrative' && section.content) {
     return (
-      <section data-testid={`${testId}-section-${index}`}>
+      <section data-testid={`${testId}-section-${index}`} className="gba:space-y-3">
         {section.title && (
-          <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-3">{section.title}</h3>
+          <div className="gba:flex gba:items-center gba:gap-2">
+            <div className="gba:h-6 gba:w-6 gba:rounded-md gba:bg-primary/10 gba:flex gba:items-center gba:justify-center gba:flex-shrink-0">
+              <FileText className="gba:h-3 gba:w-3 gba:text-primary" />
+            </div>
+            <h3 className="gba:text-base gba:font-semibold gba:text-foreground">{section.title}</h3>
+          </div>
         )}
-        <div className="gba:max-w-4xl gba:prose-sm">
+        <div className="gba:max-w-4xl gba:prose-sm gba:pl-8">
           <MarkdownWithChipsRenderer content={section.content} accessToken={accessToken} variant="default" />
         </div>
       </section>
@@ -82,6 +87,8 @@ const extractInsightTitle = (text: string): string => {
   return text.slice(0, 60) + (text.length > 60 ? '…' : '')
 }
 
+const insightIcons = [Lightbulb, TrendingUp, BarChart3, Calendar, Lightbulb, TrendingUp]
+
 const InsightGrid = ({
   insights,
   accessToken,
@@ -95,25 +102,30 @@ const InsightGrid = ({
 
   return (
     <div className={`gba:grid gba:gap-4 ${gridClasses}`}>
-      {insights.map((insight, i) => (
-        <Card
-          key={i}
-          className="gba:bg-card-decorative gba:border-0 gba:overflow-hidden"
-          data-testid={`${testId}-insight-${i}`}
-        >
-          <CardContent className="gba:p-5 gba:space-y-3">
-            <div className="gba:flex gba:items-center gba:gap-2.5">
-              <div className="gba:flex gba:items-center gba:justify-center gba:w-8 gba:h-8 gba:rounded-lg gba:bg-white/15 gba:flex-shrink-0">
-                <Lightbulb className="gba:h-4 gba:w-4 gba:text-white" />
+      {insights.map((insight, i) => {
+        const IconComponent = insightIcons[i % insightIcons.length]
+        return (
+          <Card
+            key={i}
+            className="gba:bg-card-decorative gba:border-0 gba:overflow-hidden"
+            data-testid={`${testId}-insight-${i}`}
+          >
+            <CardContent className="gba:p-5 gba:space-y-3">
+              <div className="gba:flex gba:items-center gba:gap-2.5">
+                <div className="gba:flex gba:items-center gba:justify-center gba:w-8 gba:h-8 gba:rounded-lg gba:bg-white/15 gba:flex-shrink-0">
+                  <IconComponent className="gba:h-4 gba:w-4 gba:text-white" />
+                </div>
+                <span className="gba:text-sm gba:font-bold gba:text-white gba:leading-snug">
+                  {extractInsightTitle(insight)}
+                </span>
               </div>
-              <span className="gba:text-sm gba:font-semibold gba:text-white">{extractInsightTitle(insight)}</span>
-            </div>
-            <div className="gba:text-sm gba:leading-relaxed gba:[&_p]:text-white/90 gba:[&_strong]:text-white gba:[&_li]:text-white/90 gba:[&_em]:text-white/80 gba:[&_a]:text-white gba:[&_a]:underline gba:[&_code]:text-white/80 gba:[&_h1]:text-white gba:[&_h2]:text-white gba:[&_h3]:text-white gba:[&_blockquote]:text-white/80">
-              <MarkdownWithChipsRenderer content={insight} accessToken={accessToken} variant="default" />
-            </div>
-          </CardContent>
-        </Card>
-      ))}
+              <div className="gba:text-[13px] gba:leading-relaxed gba:[&_p]:text-white/90 gba:[&_strong]:text-white gba:[&_li]:text-white/90 gba:[&_em]:text-white/80 gba:[&_a]:text-white gba:[&_a]:underline gba:[&_code]:text-white/80 gba:[&_h1]:text-white gba:[&_h2]:text-white gba:[&_h3]:text-white gba:[&_blockquote]:text-white/80">
+                <MarkdownWithChipsRenderer content={insight} accessToken={accessToken} variant="default" />
+              </div>
+            </CardContent>
+          </Card>
+        )
+      })}
     </div>
   )
 }
@@ -132,9 +144,15 @@ export const AnalysisRenderer = ({
 
   if (!hasContent && isStreaming) {
     return (
-      <div className="gba:flex gba:items-center gba:justify-center gba:h-64" data-testid={testId}>
+      <div
+        className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-64 gba:space-y-3"
+        data-testid={testId}
+      >
+        <div className="gba:h-10 gba:w-10 gba:rounded-xl gba:bg-primary/10 gba:flex gba:items-center gba:justify-center">
+          <BarChart3 className="gba:h-5 gba:w-5 gba:text-primary gba:animate-pulse" />
+        </div>
         <div className="gba:flex gba:items-center gba:gap-2 gba:text-muted-foreground">
-          <Loader2 className="gba:h-5 gba:w-5 gba:animate-spin" />
+          <Loader2 className="gba:h-4 gba:w-4 gba:animate-spin" />
           <span className="gba:text-sm">Building analysis report...</span>
         </div>
       </div>
@@ -148,30 +166,30 @@ export const AnalysisRenderer = ({
   })
 
   return (
-    <div className="gba:px-6 gba:py-8 gba:space-y-8" data-testid={testId}>
+    <div className="gba:max-w-5xl gba:mx-auto gba:px-8 gba:py-10 gba:space-y-8" data-testid={testId}>
       {/* Report Header */}
       {title && (
-        <header className="gba:text-center gba:space-y-3 gba:pb-4" data-testid={`${testId}-header`}>
-          <div className="gba:flex gba:items-center gba:justify-center gba:gap-2 gba:text-muted-foreground">
-            <BarChart3 className="gba:h-4 gba:w-4" />
-            <span className="gba:text-xs gba:font-medium gba:uppercase gba:tracking-widest">Analysis Report</span>
+        <header className="gba:text-center gba:space-y-4 gba:pb-6" data-testid={`${testId}-header`}>
+          <div className="gba:inline-flex gba:items-center gba:gap-2 gba:px-3 gba:py-1.5 gba:rounded-full gba:bg-primary/10 gba:text-primary">
+            <BarChart3 className="gba:h-3.5 gba:w-3.5" />
+            <span className="gba:text-[11px] gba:font-semibold gba:uppercase gba:tracking-widest">Analysis Report</span>
           </div>
-          <h1 className="gba:text-2xl gba:font-bold gba:text-foreground gba:tracking-tight gba:max-w-3xl gba:mx-auto">
+          <h1 className="gba:text-2xl gba:font-bold gba:text-foreground gba:tracking-tight gba:max-w-3xl gba:mx-auto gba:leading-tight">
             {title}
           </h1>
           <div className="gba:flex gba:items-center gba:justify-center gba:gap-1.5 gba:text-muted-foreground">
-            <Calendar className="gba:h-3.5 gba:w-3.5" />
-            <span className="gba:text-xs">{reportDate}</span>
+            <Calendar className="gba:h-3 gba:w-3" />
+            <span className="gba:text-[11px]">{reportDate}</span>
           </div>
-          <Separator className="gba:mt-4" />
+          <Separator />
         </header>
       )}
 
       {/* Executive Summary */}
       {content.summary && (
         <section data-testid={`${testId}-summary`}>
-          <div className="gba:max-w-4xl gba:mx-auto gba:bg-card gba:border gba:border-border gba:rounded-xl gba:px-6 gba:py-5">
-            <div className="gba:prose-sm">
+          <div className="gba:max-w-4xl gba:mx-auto gba:bg-card gba:border gba:border-border gba:rounded-2xl gba:px-8 gba:py-6 gba:ring-1 gba:ring-border/30">
+            <div className="gba:prose-sm gba:leading-relaxed">
               <MarkdownWithChipsRenderer content={content.summary} accessToken={accessToken} variant="default" />
             </div>
           </div>
@@ -181,9 +199,11 @@ export const AnalysisRenderer = ({
       {/* Key Insights — decorative cards */}
       {content.insights && content.insights.length > 0 && (
         <section data-testid={`${testId}-insights`}>
-          <div className="gba:flex gba:items-center gba:gap-2 gba:mb-4">
-            <TrendingUp className="gba:h-4 gba:w-4 gba:text-primary" />
-            <h3 className="gba:text-sm gba:font-semibold gba:text-foreground">Key Insights</h3>
+          <div className="gba:flex gba:items-center gba:gap-2 gba:mb-5">
+            <div className="gba:h-6 gba:w-6 gba:rounded-md gba:bg-primary/10 gba:flex gba:items-center gba:justify-center">
+              <TrendingUp className="gba:h-3 gba:w-3 gba:text-primary" />
+            </div>
+            <h3 className="gba:text-sm gba:font-bold gba:text-foreground">Key Insights</h3>
           </div>
           <InsightGrid insights={content.insights} accessToken={accessToken} testId={testId} />
         </section>
@@ -192,9 +212,11 @@ export const AnalysisRenderer = ({
       {/* KPIs */}
       {content.kpis && content.kpis.length > 0 && (
         <section data-testid={`${testId}-kpis`}>
-          <h3 className="gba:text-xs gba:font-semibold gba:text-muted-foreground gba:uppercase gba:tracking-wider gba:mb-4">
-            Key Metrics
-          </h3>
+          <div className="gba:flex gba:items-center gba:gap-2 gba:mb-5">
+            <h3 className="gba:text-[11px] gba:font-bold gba:text-muted-foreground gba:uppercase gba:tracking-widest">
+              Key Metrics
+            </h3>
+          </div>
           <div className="gba:grid gba:grid-cols-2 gba:lg:grid-cols-3 gba:xl:grid-cols-4 gba:gap-4">
             {content.kpis.map((kpi, i) => (
               <AnalysisKpiCard key={i} kpi={kpi} testId={`${testId}-kpi-${i}`} />
@@ -203,7 +225,7 @@ export const AnalysisRenderer = ({
         </section>
       )}
 
-      <Separator className="gba:my-2" />
+      <Separator />
 
       {/* Dynamic Sections (mixed narrative + charts + tables) */}
       {hasSections &&
@@ -216,7 +238,7 @@ export const AnalysisRenderer = ({
         <>
           {content.charts && content.charts.length > 0 && (
             <section data-testid={`${testId}-charts`}>
-              <h3 className="gba:text-xs gba:font-semibold gba:text-muted-foreground gba:uppercase gba:tracking-wider gba:mb-4">
+              <h3 className="gba:text-[11px] gba:font-bold gba:text-muted-foreground gba:uppercase gba:tracking-widest gba:mb-5">
                 Visualizations
               </h3>
               <div className="gba:grid gba:grid-cols-1 gba:lg:grid-cols-2 gba:gap-4">
@@ -228,7 +250,7 @@ export const AnalysisRenderer = ({
           )}
           {content.tables && content.tables.length > 0 && (
             <section data-testid={`${testId}-tables`}>
-              <h3 className="gba:text-xs gba:font-semibold gba:text-muted-foreground gba:uppercase gba:tracking-wider gba:mb-4">
+              <h3 className="gba:text-[11px] gba:font-bold gba:text-muted-foreground gba:uppercase gba:tracking-widest gba:mb-5">
                 Data Tables
               </h3>
               <div className="gba:space-y-4">
@@ -243,9 +265,9 @@ export const AnalysisRenderer = ({
 
       {/* Streaming indicator */}
       {isStreaming && (
-        <div className="gba:flex gba:items-center gba:gap-2 gba:text-muted-foreground gba:justify-center gba:py-4">
-          <Loader2 className="gba:h-4 gba:w-4 gba:animate-spin" />
-          <span className="gba:text-xs">Finalizing analysis...</span>
+        <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center gba:py-6">
+          <Loader2 className="gba:h-4 gba:w-4 gba:animate-spin gba:text-primary" />
+          <span className="gba:text-xs gba:font-medium gba:text-muted-foreground">Finalizing analysis...</span>
         </div>
       )}
     </div>

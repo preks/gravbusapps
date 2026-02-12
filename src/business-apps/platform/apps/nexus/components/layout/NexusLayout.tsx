@@ -5,7 +5,7 @@ interface NexusLayoutProps {
   canvasPanel: React.ReactNode
   sidebar?: React.ReactNode
   sidebarOpen: boolean
-  onSidebarClose: () => void
+  chatVisible: boolean
   testId?: string
 }
 
@@ -18,7 +18,7 @@ export const NexusLayout = ({
   canvasPanel,
   sidebar,
   sidebarOpen,
-  onSidebarClose,
+  chatVisible,
   testId = 'nexus'
 }: NexusLayoutProps) => {
   const [chatWidth, setChatWidth] = useState(DEFAULT_CHAT_WIDTH)
@@ -53,50 +53,35 @@ export const NexusLayout = ({
     [chatWidth]
   )
 
+  const panelOpen = chatVisible || sidebarOpen
+
   return (
     <div
       ref={containerRef}
       className="gba:flex gba:h-full gba:w-full gba:overflow-hidden gba:bg-background"
       data-testid={`${testId}-layout`}
     >
-      {/* Sidebar overlay */}
-      {sidebarOpen && sidebar && (
-        <>
-          <div
-            className="gba:fixed gba:inset-0 gba:z-40 gba:bg-muted/60"
-            onClick={onSidebarClose}
-            data-testid={`${testId}-sidebar-overlay`}
-          />
-          <div
-            className="gba:fixed gba:left-0 gba:top-0 gba:bottom-0 gba:z-50 gba:w-80 gba:bg-background gba:border-r gba:border-border"
-            data-testid={`${testId}-sidebar`}
-          >
-            {sidebar}
-          </div>
-        </>
-      )}
-
-      {/* Chat Panel */}
+      {/* Chat / Sidebar Panel — slides in/out with CSS transition */}
       <div
-        className="gba:flex-shrink-0 gba:flex gba:flex-col gba:border-r gba:border-border gba:overflow-hidden"
-        style={{ width: chatWidth }}
+        className="gba:flex-shrink-0 gba:flex gba:flex-col gba:overflow-hidden gba:bg-background gba:transition-[width,opacity] gba:duration-500 gba:ease-[cubic-bezier(0.4,0,0.2,1)]"
+        style={{ width: panelOpen ? chatWidth : 0, opacity: panelOpen ? 1 : 0 }}
         data-testid={`${testId}-chat-panel`}
       >
-        {chatPanel}
+        {sidebarOpen && sidebar ? sidebar : chatPanel}
       </div>
 
-      {/* Resize Handle */}
+      {/* Resize Handle — only visible when panel is open */}
       <div
-        className={`gba:w-1 gba:cursor-col-resize gba:flex-shrink-0 gba:transition-colors ${
-          isDragging ? 'gba:bg-primary' : 'gba:bg-transparent gba:hover:bg-border'
-        }`}
-        onMouseDown={handleMouseDown}
+        className={`gba:flex-shrink-0 gba:transition-all gba:duration-500 ${
+          panelOpen ? 'gba:w-1 gba:cursor-col-resize' : 'gba:w-0'
+        } ${isDragging ? 'gba:bg-primary' : 'gba:bg-transparent gba:hover:bg-primary/30'}`}
+        onMouseDown={panelOpen ? handleMouseDown : undefined}
         data-testid={`${testId}-resize-handle`}
       />
 
       {/* Canvas Panel */}
       <div
-        className="gba:flex-1 gba:flex gba:flex-col gba:overflow-hidden gba:min-w-0"
+        className="gba:flex-1 gba:flex gba:flex-col gba:overflow-hidden gba:min-w-0 gba:bg-muted/20"
         data-testid={`${testId}-canvas-panel`}
       >
         {canvasPanel}

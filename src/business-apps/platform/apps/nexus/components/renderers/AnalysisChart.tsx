@@ -64,12 +64,14 @@ export const AnalysisChart = ({ chart, testId = 'nexus-chart' }: AnalysisChartPr
   }, [chart])
 
   return (
-    <Card data-testid={testId}>
-      <CardHeader className="gba:pb-2">
-        <CardTitle className="gba:text-sm">{chart.title}</CardTitle>
-        {chart.description && <CardDescription className="gba:text-xs">{chart.description}</CardDescription>}
+    <Card className="gba:overflow-hidden" data-testid={testId}>
+      <CardHeader className="gba:pb-2 gba:px-5 gba:pt-5">
+        <CardTitle className="gba:text-sm gba:font-semibold">{chart.title}</CardTitle>
+        {chart.description && (
+          <CardDescription className="gba:text-xs gba:leading-relaxed">{chart.description}</CardDescription>
+        )}
       </CardHeader>
-      <CardContent>
+      <CardContent className="gba:px-5 gba:pb-5">
         <ChartContainer config={chartConfig} className="gba:h-[280px] gba:w-full">
           {chart.type === 'bar' ? (
             <BarChart data={chart.data as any[]} margin={{ left: 8, right: 8 }}>

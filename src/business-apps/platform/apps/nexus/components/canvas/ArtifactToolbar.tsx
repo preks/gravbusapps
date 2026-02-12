@@ -33,13 +33,15 @@ export const ArtifactToolbar = ({
 
   return (
     <div
-      className="gba:flex gba:items-center gba:gap-3 gba:px-6 gba:py-3 gba:border-b gba:border-border gba:bg-card"
+      className="gba:flex gba:items-center gba:gap-3 gba:px-6 gba:py-2.5 gba:border-b gba:border-border gba:bg-card/80"
       data-testid={testId}
     >
       {/* Artifact info */}
-      <div className="gba:flex gba:items-center gba:gap-2 gba:flex-1 gba:min-w-0">
-        <Icon className="gba:h-4 gba:w-4 gba:text-primary gba:flex-shrink-0" />
-        <span className="gba:text-sm gba:font-medium gba:truncate">{artifact.title}</span>
+      <div className="gba:flex gba:items-center gba:gap-2.5 gba:flex-1 gba:min-w-0">
+        <div className="gba:h-7 gba:w-7 gba:rounded-lg gba:bg-primary/10 gba:flex gba:items-center gba:justify-center gba:flex-shrink-0">
+          <Icon className="gba:h-3.5 gba:w-3.5 gba:text-primary" />
+        </div>
+        <span className="gba:text-sm gba:font-semibold gba:truncate gba:text-foreground">{artifact.title}</span>
         <Badge
           variant={artifact.status === 'complete' ? 'secondary' : 'outline'}
           className="gba:text-[10px] gba:flex-shrink-0"
@@ -57,22 +59,21 @@ export const ArtifactToolbar = ({
 
       {/* Actions */}
       {artifact.status === 'complete' && (
-        <div className="gba:flex gba:items-center gba:gap-1">
+        <div className="gba:flex gba:items-center gba:gap-1.5">
           <Button
             variant="ghost"
             size="sm"
-            className="gba:h-8 gba:gap-1.5"
+            className="gba:h-8 gba:gap-1.5 gba:rounded-lg"
             onClick={onCopy}
             data-testid={`${testId}-copy`}
           >
             <Copy className="gba:h-3.5 gba:w-3.5" />
-            <span className="gba:text-xs">Copy</span>
+            <span className="gba:text-xs gba:font-medium">Copy</span>
           </Button>
 
           <Button
-            variant="outline"
             size="sm"
-            className="gba:h-8 gba:gap-1.5"
+            className="gba:h-8 gba:gap-1.5 gba:rounded-lg"
             onClick={() => onSave(artifact.type === 'slides' ? 'slides' : 'document')}
             disabled={isSaving}
             data-testid={`${testId}-save`}
@@ -82,7 +83,9 @@ export const ArtifactToolbar = ({
             ) : (
               <Save className="gba:h-3.5 gba:w-3.5" />
             )}
-            <span className="gba:text-xs">Save to {artifact.type === 'slides' ? 'Slides' : 'Documents'}</span>
+            <span className="gba:text-xs gba:font-medium">
+              Save to {artifact.type === 'slides' ? 'Slides' : 'Documents'}
+            </span>
           </Button>
         </div>
       )}
