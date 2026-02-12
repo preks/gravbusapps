@@ -535,8 +535,10 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
 
                           return (
                             <div className="gba:flex gba:gap-1 gba:mt-1">
-                              {segments.map((a: any, idx: number) => (
-                                <Tooltip key={`seg-${idx}`}>
+                              {segments.map((a: any) => (
+                                <Tooltip
+                                  key={`${a.id || a.type}-${a.startDate}-${a.endDate}-${a.originalStatus || a.status}`}
+                                >
                                   <TooltipTrigger asChild>
                                     <div
                                       className="gba:flex gba:items-center gba:justify-center gba:rounded-full gba:cursor-help gba:transition-all gba:duration-200 hover:gba:h-6 gba:min-h-4 gba:px-1 gba:bg-background"

@@ -10,10 +10,12 @@ import {
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
-  AlertDialogTitle
+  AlertDialogTitle,
+  Avatar,
+  AvatarImage,
+  AvatarFallback
 } from '@newwork/nw-design-system'
-import { Plus, MagnifyingGlass, PencilSimple, Trash } from '@phosphor-icons/react'
-import { Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
+import { PlusIcon, MagnifyingGlassIcon, PencilSimpleIcon, TrashIcon } from '@phosphor-icons/react'
 import { useGetEmployeeNotes } from '../../queries/EmployeeNoteQueries'
 import type { EmployeeNoteData } from '../../queries/EmployeeNoteQueries'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -168,7 +170,7 @@ export const HrNotesTab: React.FC<HrNotesTabProps> = props => {
                       }}
                       data-testid={`hr-note-edit-${note.id}`}
                     >
-                      <PencilSimple className="gba:h-[18px] gba:w-[18px]" />
+                      <PencilSimpleIcon className="gba:h-[18px] gba:w-[18px]" />
                     </Button>
                     <Button
                       variant="ghost"
@@ -180,7 +182,7 @@ export const HrNotesTab: React.FC<HrNotesTabProps> = props => {
                         setDeleteDialogOpen(true)
                       }}
                     >
-                      <Trash className="gba:h-[18px] gba:w-[18px]" />
+                      <TrashIcon className="gba:h-[18px] gba:w-[18px]" />
                     </Button>
                   </div>
                 </div>
@@ -267,7 +269,7 @@ export const HrNotesTab: React.FC<HrNotesTabProps> = props => {
             autoExecuteSingleAction={true}
           >
             <div className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer gba:text-foreground gba:hover:text-foreground/80 gba:font-normal gba:text-base">
-              <Plus className="gba:h-5 gba:w-5 gba:text-foreground" />
+              <PlusIcon className="gba:h-5 gba:w-5 gba:text-foreground" />
               {getTranslationFromI18nKeyAndLabel('lowcoder:hr_notes.add_note', 'Add Note')}
             </div>
           </AppActionMenu>
@@ -276,7 +278,7 @@ export const HrNotesTab: React.FC<HrNotesTabProps> = props => {
 
       <div className="gba:border gba:border-border gba:rounded-lg gba:p-3 gba:bg-card">
         <div className="gba:relative">
-          <MagnifyingGlass className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:text-muted-foreground gba:pointer-events-none gba:z-10 gba:h-5 gba:w-5" />
+          <MagnifyingGlassIcon className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:text-muted-foreground gba:pointer-events-none gba:z-10 gba:h-5 gba:w-5" />
           <Input
             placeholder={getTranslationFromI18nKeyAndLabel('lowcoder:hr_notes.search_placeholder', 'Search notes...')}
             value={searchQuery}

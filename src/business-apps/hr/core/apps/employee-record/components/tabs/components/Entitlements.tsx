@@ -11,8 +11,8 @@ const Entitlements: React.FC<EntitlementsProps> = ({ entitlements, loading, erro
         className="gba:loading-skeleton gba:grid gba:grid-cols-1 md:gba:grid-cols-2 lg:gba:grid-cols-3 gba:gap-4"
         data-testid="entitlements-loading"
       >
-        {[1, 2, 3].map(i => (
-          <div key={i} className="gba:h-40 gba:bg-muted gba:rounded gba:animate-pulse"></div>
+        {['skeleton-1', 'skeleton-2', 'skeleton-3'].map(skeletonId => (
+          <div key={skeletonId} className="gba:h-40 gba:bg-muted gba:rounded gba:animate-pulse"></div>
         ))}
       </div>
     )
@@ -49,7 +49,7 @@ const Entitlements: React.FC<EntitlementsProps> = ({ entitlements, loading, erro
     >
       {entitlements.map((entitlement, idx) => (
         <div
-          key={`${entitlement.type}-${idx}`}
+          key={entitlement.typeId || entitlement.type}
           className="gba:entitlement-card gba:border gba:rounded gba:p-4"
           data-testid={`entitlement-card-${idx}`}
         >

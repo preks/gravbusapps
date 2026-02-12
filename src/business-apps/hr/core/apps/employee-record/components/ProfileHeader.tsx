@@ -13,7 +13,8 @@ import {
   GlobeHemisphereWestIcon,
   BookmarksIcon,
   ChatCircleIcon,
-  VideoCameraIcon
+  VideoCameraIcon,
+  UsersThreeIcon
 } from '@phosphor-icons/react'
 import { Employee } from '../hooks/useEmployeeData'
 import { formatPhoneNumber } from '../utils/formatters'
@@ -30,7 +31,6 @@ import {
 } from '@newwork/nw-design-system'
 import translations from '../_i18n'
 import { StarIcon } from 'lucide-react'
-import { UsersThreeIcon } from '@phosphor-icons/react'
 
 // Team item type
 interface MatrixUnitEmployee {

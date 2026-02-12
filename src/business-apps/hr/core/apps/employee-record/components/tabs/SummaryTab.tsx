@@ -9,8 +9,18 @@ import { Employee, EmployeeAbsenceEntitlement } from '../../hooks/useEmployeeDat
 // Extend dayjs with plugins
 dayjs.extend(isSameOrAfter)
 dayjs.extend(isSameOrBefore)
-import { Card, CardContent, Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
-import { useTranslation, Button, Tooltip, TooltipTrigger, TooltipContent } from '@newwork/nw-design-system'
+import {
+  Card,
+  CardContent,
+  Avatar,
+  AvatarImage,
+  AvatarFallback,
+  useTranslation,
+  Button,
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent
+} from '@newwork/nw-design-system'
 import {
   PiBriefcase,
   PiStack,

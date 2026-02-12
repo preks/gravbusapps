@@ -827,82 +827,85 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
           if (formattedFilteredFeedback.length > 0) {
             return (
               <div className="gba:space-y-4 gba:px-4" data-testid="feedback-list">
-                {formattedFilteredFeedback.map((feedback, index) => (
-                  <Card key={feedback.id || index} className="gba:h-full" data-testid={`feedback-card-${index}`}>
-                    <CardContent className="gba:p-4 gba:flex gba:flex-col gba:h-full">
-                      <div className="gba:flex gba:items-start gba:gap-4">
-                        {/* Avatar */}
-                        <div className="gba:shrink-0 gba:mr-2" data-testid="feedback-avatar-container">
-                          <Avatar className="gba:h-10 gba:w-10">
-                            {toAvatarSrc(feedback.avatar) && (
-                              <AvatarImage
-                                src={toAvatarSrc(feedback.avatar)}
-                                alt={`${feedback.firstName} ${feedback.lastName}`}
-                              />
-                            )}
-                            <AvatarFallback>
-                              {`${feedback.firstName?.[0] || ''}${feedback.lastName?.[0] || ''}`}
-                            </AvatarFallback>
-                          </Avatar>
-                        </div>
-
-                        {/* Feedback Content */}
-                        <div className="gba:flex-grow">
-                          <div className="gba:flex gba:items-center gba:flex-wrap gba:gap-2">
-                            <span
-                              className="gba:font-semibold gba:text-foreground"
-                              data-testid={`feedback-sender-${index}`}
-                            >
-                              {feedback.sender}
-                            </span>
-
-                            {/* Type Badge */}
-                            {feedback.type && (
-                              <Badge variant="decorative" data-testid={`feedback-type-${index}`}>
-                                {feedback.type}
-                              </Badge>
-                            )}
-
-                            {/* Private Badge */}
-                            {feedback.private && (
-                              <Badge variant="destructive" data-testid={`feedback-privacy-${index}`}>
-                                {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.private_badge', 'Private')}
-                              </Badge>
-                            )}
+                {formattedFilteredFeedback.map((feedback, index) => {
+                  const feedbackKey = feedback.id || `${feedback.senderId || feedback.sender}-${feedback.date}`
+                  return (
+                    <Card key={feedbackKey} className="gba:h-full" data-testid={`feedback-card-${index}`}>
+                      <CardContent className="gba:p-4 gba:flex gba:flex-col gba:h-full">
+                        <div className="gba:flex gba:items-start gba:gap-4">
+                          {/* Avatar */}
+                          <div className="gba:shrink-0 gba:mr-2" data-testid="feedback-avatar-container">
+                            <Avatar className="gba:h-10 gba:w-10">
+                              {toAvatarSrc(feedback.avatar) && (
+                                <AvatarImage
+                                  src={toAvatarSrc(feedback.avatar)}
+                                  alt={`${feedback.firstName} ${feedback.lastName}`}
+                                />
+                              )}
+                              <AvatarFallback>
+                                {`${feedback.firstName?.[0] || ''}${feedback.lastName?.[0] || ''}`}
+                              </AvatarFallback>
+                            </Avatar>
                           </div>
 
-                          <div
-                            className="gba:flex gba:items-center gba:gap-1 gba:text-muted-foreground gba:text-sm gba:mt-1"
-                            data-testid={`feedback-date-${index}`}
-                          >
-                            <Calendar className="gba:h-4 gba:w-4" /> {feedback.date}
-                          </div>
+                          {/* Feedback Content */}
+                          <div className="gba:flex-grow">
+                            <div className="gba:flex gba:items-center gba:flex-wrap gba:gap-2">
+                              <span
+                                className="gba:font-semibold gba:text-foreground"
+                                data-testid={`feedback-sender-${index}`}
+                              >
+                                {feedback.sender}
+                              </span>
 
-                          {/* Rating - custom star display since Rate has no nw-design-system equivalent */}
-                          {feedback.rating !== undefined && feedback.rating > 0 && (
-                            <div className="gba:my-2 gba:flex gba:gap-0.5">
-                              {Array.from({ length: 5 }).map((_, i) => (
-                                <span
-                                  key={i}
-                                  className={`gba:text-lg ${i < (feedback.rating ?? 0) ? 'gba:text-warning' : 'gba:text-muted-foreground'}`}
-                                >
-                                  ★
-                                </span>
-                              ))}
+                              {/* Type Badge */}
+                              {feedback.type && (
+                                <Badge variant="decorative" data-testid={`feedback-type-${index}`}>
+                                  {feedback.type}
+                                </Badge>
+                              )}
+
+                              {/* Private Badge */}
+                              {feedback.private && (
+                                <Badge variant="destructive" data-testid={`feedback-privacy-${index}`}>
+                                  {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.private_badge', 'Private')}
+                                </Badge>
+                              )}
                             </div>
-                          )}
 
-                          <div
-                            className="gba:mt-3 gba:text-muted-foreground gba:border-t gba:border-border gba:pt-3"
-                            data-testid={`feedback-content-${index}`}
-                          >
-                            {feedback.content}
+                            <div
+                              className="gba:flex gba:items-center gba:gap-1 gba:text-muted-foreground gba:text-sm gba:mt-1"
+                              data-testid={`feedback-date-${index}`}
+                            >
+                              <Calendar className="gba:h-4 gba:w-4" /> {feedback.date}
+                            </div>
+
+                            {/* Rating - custom star display since Rate has no nw-design-system equivalent */}
+                            {feedback.rating !== undefined && feedback.rating > 0 && (
+                              <div className="gba:my-2 gba:flex gba:gap-0.5">
+                                {[1, 2, 3, 4, 5].map(starValue => (
+                                  <span
+                                    key={`${feedbackKey}-star-${starValue}`}
+                                    className={`gba:text-lg ${starValue <= (feedback.rating ?? 0) ? 'gba:text-warning' : 'gba:text-muted-foreground'}`}
+                                  >
+                                    ★
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+
+                            <div
+                              className="gba:mt-3 gba:text-muted-foreground gba:border-t gba:border-border gba:pt-3"
+                              data-testid={`feedback-content-${index}`}
+                            >
+                              {feedback.content}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                      </CardContent>
+                    </Card>
+                  )
+                })}
               </div>
             )
           }

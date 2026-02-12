@@ -2,8 +2,7 @@
 
 import React from 'react'
 import dayjs from 'dayjs'
-import { Card, CardContent } from '@newwork/nw-design-system'
-import { useTranslation } from '@newwork/nw-design-system'
+import { Card, CardContent, useTranslation } from '@newwork/nw-design-system'
 import { Employee } from '../../hooks/useEmployeeData'
 import { formatPhoneNumberWithCountryCode, getTranslatedValue } from '../../utils/formatters'
 import useEmployeePermissions, { SECTION_KEYS } from '../../hooks/useEmployeePermissions'
@@ -377,8 +376,8 @@ const DetailsTab: React.FC<DetailsTabProps> = ({
             </div>
             <div className="gba:flex gba:flex-col gba:gap-2">
               {emergencyContactData && emergencyContactData.length > 0 ? (
-                emergencyContactData.map((items, idx) => (
-                  <div key={`emergency-contact-${idx}`}>
+                emergencyContactData.map(items => (
+                  <div key={`emergency-contact-${items.map(item => `${item.label}-${item.value}`).join('|')}`}>
                     {renderDataItems(items.map(item => ({ ...item, sectionKey: SECTION_KEYS.details.relationships })))}
                   </div>
                 ))

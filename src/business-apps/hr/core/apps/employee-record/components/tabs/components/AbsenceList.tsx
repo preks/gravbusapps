@@ -5,9 +5,9 @@ import {
   PaginationItem,
   PaginationLink,
   PaginationNext,
-  PaginationPrevious
+  PaginationPrevious,
+  IconAvatar
 } from '@newwork/nw-design-system'
-import { IconAvatar } from '@newwork/nw-design-system'
 import { AbsenceListProps } from '../../../queries/types'
 import { formatDate, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import {
@@ -29,8 +29,8 @@ const AbsenceList: React.FC<AbsenceListProps> = ({
         className="gba:loading-skeleton gba:grid gba:grid-cols-1 md:gba:grid-cols-2 lg:gba:grid-cols-3 gba:gap-4"
         data-testid="absencehub-loading"
       >
-        {[1, 2, 3].map(i => (
-          <div key={i} className="gba:h-40 gba:bg-muted gba:rounded gba:animate-pulse"></div>
+        {['skeleton-1', 'skeleton-2', 'skeleton-3'].map(skeletonId => (
+          <div key={skeletonId} className="gba:h-40 gba:bg-muted gba:rounded gba:animate-pulse"></div>
         ))}
       </div>
     )
@@ -61,7 +61,7 @@ const AbsenceList: React.FC<AbsenceListProps> = ({
         >
           {paginatedAbsenceList.map((absence, idx) => (
             <div
-              key={idx + (currentPage - 1) * pageSize}
+              key={absence.id || `${absence.startDate}-${absence.endDate}-${absence.title}`}
               className="gba:absence-card gba:border gba:rounded gba:p-4"
               data-testid={`absence-card-${idx}`}
             >
