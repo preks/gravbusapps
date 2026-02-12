@@ -24,6 +24,7 @@ import { MarkdownWithChipsRenderer, UnifiedTableRenderer } from '@/common/compon
 import NavigationDisplay from './displays/NavigationDisplay'
 import { ReminderDisplay } from './displays/ReminderDisplay'
 import { RemoteFormDisplay } from './displays/RemoteFormDisplay'
+import { TeamAvailabilityDisplay } from './displays/team-availability'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface FlowProposalBoundaryProps {
@@ -782,6 +783,8 @@ function renderDisplayData(item: DisplayData, idx: number, accessToken: string) 
       return <ScatterGraphDisplay key={idx} data={item} />
     case 'calendar':
       return <CalendarDisplay key={idx} data={item} />
+    case 'teamAvailability':
+      return <TeamAvailabilityDisplay key={idx} data={item} />
     case 'navigation':
       return <NavigationDisplay key={idx} data={item} />
     case 'entity':

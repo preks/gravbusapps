@@ -13,7 +13,7 @@ import {
   MappingReviewStep,
   ConversionResultStep
 } from '@/common/components/common-relations/apps/data-import/components'
-import { contactImportConfig } from './config/contactImportConfig'
+import { investmentContactImportConfig } from '@/common/data/investment/types/investmentContactImportConfig'
 import { ConvertedContact } from './types/contactImportTypes'
 import translations from './_i18n'
 
@@ -32,7 +32,6 @@ export const ContactImportView: React.FC<ContactImportViewProps> = ({
   // Main import hook
   const {
     file,
-    parsedData,
     agentResponse,
     convertedEntities: convertedContacts,
     step,
@@ -45,11 +44,11 @@ export const ContactImportView: React.FC<ContactImportViewProps> = ({
     importToBackend,
     downloadJSON,
     reset
-  } = useEntityImport<ConvertedContact>(context, contactImportConfig)
+  } = useEntityImport<ConvertedContact>(context, investmentContactImportConfig)
 
   // Mappings hook (initialized from agent response)
   const { mappings, setMappings, updateMapping, removeMapping, addMapping } = useEntityMappings(
-    contactImportConfig.targetFields,
+    investmentContactImportConfig.targetFields,
     agentResponse?.fieldMappings || []
   )
 
@@ -61,8 +60,8 @@ export const ContactImportView: React.FC<ContactImportViewProps> = ({
   }, [agentResponse, setMappings])
 
   // Handle conversion with current mappings
-  const handleConvert = () => {
-    convertData(mappings)
+  const handleConvert = async () => {
+    await convertData(mappings)
   }
 
   return (
@@ -98,8 +97,7 @@ export const ContactImportView: React.FC<ContactImportViewProps> = ({
         <MappingReviewStep
           agentResponse={agentResponse}
           mappings={mappings}
-          targetFieldsConfig={contactImportConfig.targetFields}
-          parsedDataCount={parsedData.length}
+          targetFieldsConfig={investmentContactImportConfig.targetFields}
           entityType={t('entity-type')}
           isLoading={isLoading}
           onUpdateMapping={updateMapping}
@@ -115,7 +113,7 @@ export const ContactImportView: React.FC<ContactImportViewProps> = ({
       {step === 'result' && (
         <ConversionResultStep
           convertedEntities={convertedContacts}
-          targetFieldsConfig={contactImportConfig.targetFields}
+          targetFieldsConfig={investmentContactImportConfig.targetFields}
           entityType={t('entity-type-singular')}
           isLoading={isLoading}
           importResult={importResult}

@@ -354,7 +354,31 @@ export function useTemplateEntityFields(
       }
 
       const { direct, catalogs } = await processTypeFields(type, graphqlClient)
-      setDirectFields(direct)
+
+      // Add synthetic fields for specific entities
+      const syntheticFields: TemplateEntityFieldFromGraphQL[] = []
+
+      if (entityKey === 'adv_payment' || entityKey === 'expense_plan') {
+        syntheticFields.push(
+          {
+            key: 'approvedBy',
+            displayName: 'Approved by'
+          },
+          {
+            key: 'approvalDate',
+            displayName: 'Approval date'
+          }
+        )
+      }
+
+      if (entityKey === 'employee_position') {
+        syntheticFields.push({
+          key: 'supervisorName',
+          displayName: 'Supervisor name'
+        })
+      }
+
+      setDirectFields([...direct, ...syntheticFields])
       setCatalogGroups(catalogs)
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Unknown error'))

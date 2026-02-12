@@ -146,6 +146,7 @@ export type NavigationData = {
   reason: string
 }
 
+export type { TeamAvailabilityData } from '../components/displays/team-availability'
 export type DisplayData =
   | TextBlockData
   | TableData
@@ -156,6 +157,7 @@ export type DisplayData =
   | CalendarViewData
   | NavigationData
   | ReminderData
+  | TeamAvailabilityData
 
 export type NextStepProposal = {
   heading: string
