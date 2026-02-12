@@ -14,6 +14,8 @@ const PerformanceEvaluationFormScreen: React.FC<PerformanceEvaluationFormScreenP
   additionalData,
   preSelectedEmployeeId
 }) => {
+  console.log('userInfoCosti', userInfo)
+  console.log('additionalDataCosti', additionalData)
   // Extract employeeId from additionalData following the same pattern as other forms
   const employeeId =
     additionalData?.employeeId ||

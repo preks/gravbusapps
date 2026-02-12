@@ -109,16 +109,20 @@ export const useEmployeeByUserId = ({ accessToken, userId }: UseEmployeeByUserId
 
       try {
         const query = GET_EMPLOYEE_BY_USER_ID(targetUserId)
+        console.log('[useEmployeeByUserId] Executing query for userId:', targetUserId)
         const result = await graphqlClient.request<EmployeeByUserIdResponse>(query)
+        console.log('[useEmployeeByUserId] Query result:', result)
 
         if (result.EmployeePosition && result.EmployeePosition.length > 0) {
+          console.log('[useEmployeeByUserId] Employee found:', result.EmployeePosition[0])
           setEmployee(result.EmployeePosition[0])
         } else {
+          console.log('[useEmployeeByUserId] Employee not found')
           setEmployee(null)
           setError('Employee not found')
         }
       } catch (err) {
-        console.error('Error fetching employee by userId:', err)
+        console.error('[useEmployeeByUserId] Error fetching employee by userId:', err)
         setError(err instanceof Error ? err.message : 'Failed to fetch employee')
         setEmployee(null)
       } finally {
@@ -129,8 +133,12 @@ export const useEmployeeByUserId = ({ accessToken, userId }: UseEmployeeByUserId
   )
 
   useEffect(() => {
+    console.log('[useEmployeeByUserId] useEffect triggered:', { userId, accessToken: !!accessToken })
     if (userId) {
+      console.log('[useEmployeeByUserId] Fetching employee for userId:', userId)
       fetchEmployeeByUserId(userId)
+    } else {
+      console.log('[useEmployeeByUserId] No userId provided, skipping fetch')
     }
   }, [userId, fetchEmployeeByUserId])
 
