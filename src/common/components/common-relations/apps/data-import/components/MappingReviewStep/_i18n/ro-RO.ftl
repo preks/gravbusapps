@@ -1,11 +1,12 @@
 # Mapping Review Step Translations (Romanian - Romania)
 
 # Step Header
-step-title = Pasul 2: Revizuiți și editați mapările câmpurilor
+mapping-review-step-title = Pasul 2: Revizuiți și editați mapările câmpurilor
 
 # Buttons
 start-over-button = Reîncepe
 convert-button = Convertiți { $count } { $entityType }
+convert-button-no-count = Convertiți { $entityType }
 converting-button = Se convertește...
 
 # Summary Section

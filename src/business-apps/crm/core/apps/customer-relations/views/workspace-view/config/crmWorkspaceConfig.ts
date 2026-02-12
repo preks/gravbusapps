@@ -11,6 +11,7 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { MyTasksTab } from '../components/MyTasksTab'
 import { MyActivitiesTab } from '../components/MyActivitiesTab'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import type { TaskReference } from '@/common/data/relations/types/taskTypes'
 
 /**
  * CRM-specific configuration for Personal Workspace
@@ -146,6 +147,20 @@ const buildCrmWorkspaceConfig = (
     flowContexts: {
       entityContext: FlowContextName.customerTaskEntity,
       createContext: FlowContextName.customerTaskCreate
+    },
+    buildReferenceUrl: (reference: TaskReference) => {
+      switch (reference.type) {
+        case 'lead':
+          return buildPlatformUrl('/platform/crm/lead-record', { leadId: reference.id })
+        case 'account':
+          return buildPlatformUrl('/platform/crm/account-record', { accountId: reference.id })
+        case 'contact':
+          return buildPlatformUrl('/platform/crm/contact-record', { contactId: reference.id })
+        case 'opportunity':
+          return buildPlatformUrl('/platform/crm/opportunity-record', { opportunityId: reference.id })
+        default:
+          return ''
+      }
     }
   } as any,
 

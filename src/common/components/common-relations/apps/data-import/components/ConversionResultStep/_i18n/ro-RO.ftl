@@ -1,7 +1,7 @@
 # Conversion Result Step Translations (Romanian - Romania)
 
 # Step Header
-step-title = Pasul 3: Rezultat conversie
+conversion-result-step-title = Pasul 3: Rezultat conversie
 
 # Action Buttons
 download-json-button = Descarcă JSON

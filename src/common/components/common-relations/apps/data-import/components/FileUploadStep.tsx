@@ -44,7 +44,7 @@ export const FileUploadStep: React.FC<FileUploadStepProps> = ({
   return (
     <Card data-testid={testId}>
       <CardHeader>
-        <CardTitle>{t('step-title')}</CardTitle>
+        <CardTitle>{t('file-upload-step-title')}</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="gba:space-y-4">

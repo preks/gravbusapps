@@ -18,15 +18,6 @@ export interface OverviewViewProps extends Pick<BusinessAppContextProps, 'access
  * Fetches data only when this component is mounted (lazy loading per tab)
  */
 export const OverviewView: React.FC<OverviewViewProps> = ({ config, employeeId, accessToken, userInfo }) => {
-  console.log('[OverviewView] Component render, employeeId:', employeeId)
-
-  React.useEffect(() => {
-    console.log('[OverviewView] Component MOUNTED')
-    return () => {
-      console.log('[OverviewView] Component UNMOUNTED')
-    }
-  }, [])
-
   // Fetch Overview tab data (only when this component is mounted)
   const kpisResult = config.hooks.useKpis({ accessToken, userInfo }, employeeId)
   const recentActivitiesResult = config.hooks.useActivities({ accessToken, userInfo }, employeeId)
