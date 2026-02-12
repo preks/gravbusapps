@@ -130,28 +130,66 @@ export const useNexusSocket = ({ userId, accessToken }: UseNexusSocketProps) => 
       artifactStreamRef.current = ''
       setArtifactStreamContent('')
 
-      const initialContent =
-        data.type === 'document'
-          ? { markdown: '', title: data.title }
-          : data.type === 'analysis'
-            ? { summary: '', kpis: [], charts: [], tables: [], insights: [] }
-            : { title: data.title, slides: [] }
+      setActiveArtifact(prev => {
+        // If we already have an artifact (refinement case), keep its content visible
+        // and just update the id/status so the user doesn't lose what they're looking at
+        if (prev && prev.status === 'complete') {
+          return {
+            ...prev,
+            id: data.id,
+            status: 'generating' as const
+          }
+        }
 
-      setActiveArtifact({
-        id: data.id,
-        sessionId: '',
-        type: data.type,
-        title: data.title,
-        status: 'generating',
-        content: initialContent,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        // New artifact — start with empty content
+        const initialContent =
+          data.type === 'document'
+            ? { markdown: '', title: data.title }
+            : data.type === 'analysis'
+              ? { summary: '', kpis: [], charts: [], tables: [], insights: [], sections: [] }
+              : { title: data.title, slides: [] }
+
+        return {
+          id: data.id,
+          sessionId: '',
+          type: data.type,
+          title: data.title,
+          status: 'generating' as const,
+          content: initialContent,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        }
       })
     })
 
     newSocket.on('artifact-chunk', (data: ArtifactChunkEvent) => {
-      artifactStreamRef.current += data.chunk
-      setArtifactStreamContent(artifactStreamRef.current)
+      if (data.chunkType === 'analysis-partial') {
+        // Progressive analysis update: merge parsed fields into existing content
+        try {
+          const partial = JSON.parse(data.chunk)
+          setActiveArtifact(prev => {
+            if (!prev) return prev
+            const prevContent = (prev.content || {}) as Record<string, unknown>
+            return {
+              ...prev,
+              title: partial.title || prev.title,
+              content: {
+                summary: partial.summary || prevContent.summary || '',
+                kpis: partial.kpis?.length ? partial.kpis : (prevContent.kpis as unknown[]) || [],
+                charts: partial.charts?.length ? partial.charts : (prevContent.charts as unknown[]) || [],
+                tables: partial.tables?.length ? partial.tables : (prevContent.tables as unknown[]) || [],
+                insights: partial.insights?.length ? partial.insights : (prevContent.insights as unknown[]) || [],
+                sections: partial.sections?.length ? partial.sections : (prevContent.sections as unknown[]) || []
+              }
+            }
+          })
+        } catch {
+          // Partial JSON not parseable yet — skip this chunk
+        }
+      } else {
+        artifactStreamRef.current += data.chunk
+        setArtifactStreamContent(artifactStreamRef.current)
+      }
     })
 
     newSocket.on('artifact-complete', (data: ArtifactCompleteEvent) => {
@@ -219,6 +257,11 @@ export const useNexusSocket = ({ userId, accessToken }: UseNexusSocketProps) => 
       const result: any = await socket.emitWithAck('join', { sessionId })
       if (!result?.success) return
 
+      // Update current session with full data (including contextConfig)
+      if (result.session) {
+        setCurrentSession(result.session)
+      }
+
       const historyResult: any = await socket.emitWithAck('get-history', { sessionId })
       if (historyResult?.success) {
         setMessages(historyResult.history || [])
@@ -244,7 +287,15 @@ export const useNexusSocket = ({ userId, accessToken }: UseNexusSocketProps) => 
   )
 
   const sendMessage = useCallback(
-    (message: string, opts?: { scope?: 'all' | 'space'; spaceId?: string; llmProvider?: string }) => {
+    (
+      message: string,
+      opts?: {
+        scope?: 'all' | 'space'
+        spaceId?: string
+        llmProvider?: string
+        dataAccessEnabled?: boolean
+      }
+    ) => {
       if (!socket || !currentSession) return
 
       setIsStreaming(true)

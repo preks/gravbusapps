@@ -20,12 +20,21 @@ export interface DocumentContent {
   title: string
 }
 
+export interface AnalysisSection {
+  type: 'narrative' | 'chart' | 'table'
+  title?: string
+  content?: string
+  chart?: AnalysisChart
+  table?: AnalysisTable
+}
+
 export interface AnalysisContent {
   summary: string
   kpis: AnalysisKpi[]
   charts: AnalysisChart[]
   tables: AnalysisTable[]
   insights: string[]
+  sections?: AnalysisSection[]
 }
 
 export interface AnalysisKpi {
@@ -96,6 +105,9 @@ export interface NexusSession {
   scope: 'all' | 'space'
   spaceId?: string
   llmProvider?: string
+  contextConfig?: {
+    dataAccessEnabled?: boolean
+  }
   createdAt: string
   updatedAt: string
 }

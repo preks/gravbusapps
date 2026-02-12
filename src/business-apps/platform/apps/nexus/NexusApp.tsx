@@ -69,14 +69,26 @@ export const NexusApp: React.FC<NexusAppProps> = ({ accessToken, userInfo }) => 
 
   const { saveArtifact } = useArtifact({ accessToken: accessToken || '' })
 
+  // Sync dataAccessEnabled from session whenever currentSession changes
+  useEffect(() => {
+    if (currentSession?.contextConfig?.dataAccessEnabled != null) {
+      setDataAccessEnabled(currentSession.contextConfig.dataAccessEnabled)
+    }
+  }, [currentSession])
+
   // Send pending message once currentSession becomes available
   useEffect(() => {
     if (currentSession && pendingMessageRef.current) {
       const message = pendingMessageRef.current
       pendingMessageRef.current = null
-      sendMessage(message, { scope, spaceId: spaceId || undefined, llmProvider })
+      sendMessage(message, {
+        scope,
+        spaceId: spaceId || undefined,
+        llmProvider,
+        dataAccessEnabled
+      })
     }
-  }, [currentSession, sendMessage, scope, spaceId, llmProvider])
+  }, [currentSession, sendMessage, scope, spaceId, llmProvider, dataAccessEnabled])
 
   // Create session on first message if none exists
   const handleSend = useCallback(
@@ -86,9 +98,14 @@ export const NexusApp: React.FC<NexusAppProps> = ({ accessToken, userInfo }) => 
         createSession({ scope, spaceId: spaceId || undefined, llmProvider })
         return
       }
-      sendMessage(message, { scope, spaceId: spaceId || undefined, llmProvider })
+      sendMessage(message, {
+        scope,
+        spaceId: spaceId || undefined,
+        llmProvider,
+        dataAccessEnabled
+      })
     },
-    [currentSession, createSession, sendMessage, scope, spaceId, llmProvider]
+    [currentSession, createSession, sendMessage, scope, spaceId, llmProvider, dataAccessEnabled]
   )
 
   const handleNewSession = useCallback(() => {
@@ -104,6 +121,7 @@ export const NexusApp: React.FC<NexusAppProps> = ({ accessToken, userInfo }) => 
       if (session) {
         setScope(session.scope)
         setSpaceId(session.spaceId || null)
+        setDataAccessEnabled(session.contextConfig?.dataAccessEnabled ?? false)
       }
     },
     [joinSession, sessions]
@@ -151,7 +169,7 @@ export const NexusApp: React.FC<NexusAppProps> = ({ accessToken, userInfo }) => 
   }
 
   return (
-    <div className="gba:h-screen gba:w-full" data-testid={TEST_ID}>
+    <div className="gba:h-full gba:w-full" data-testid={TEST_ID}>
       <NexusLayout
         sidebarOpen={sidebarOpen}
         onSidebarClose={() => setSidebarOpen(false)}

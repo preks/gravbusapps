@@ -87,6 +87,7 @@ export const ArtifactCanvas = ({
         {artifact.type === 'analysis' && (
           <AnalysisRenderer
             content={artifact.content as AnalysisContent}
+            title={artifact.title}
             isStreaming={artifactStreaming}
             accessToken={accessToken}
           />
