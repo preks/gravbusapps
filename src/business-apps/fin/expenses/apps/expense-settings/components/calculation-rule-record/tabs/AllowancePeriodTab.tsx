@@ -101,7 +101,7 @@ interface AllowancePeriodFormData {
   name: string
   fromTime?: string
   toTime?: string
-  minHours: number
+  minHours: number | string // Allow string during editing
   midnightRule: boolean
   overnightAccommodation?: boolean
   startAfter?: string
@@ -692,16 +692,6 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                       </div>
                     </TableHead>
                     <TableHead
-                      className="gba:w-[120px] gba:cursor-pointer gba:select-none gba:hover:bg-accent gba:text-center"
-                      onClick={() => sorting.handleSort('periodOrder')}
-                      data-testid="allowance-periods-table-header-order"
-                    >
-                      <div className="gba:flex gba:items-center gba:justify-center">
-                        ORDER
-                        {sorting.renderSortIcon('periodOrder')}
-                      </div>
-                    </TableHead>
-                    <TableHead
                       className="gba:w-[120px] gba:text-center gba:cursor-pointer gba:select-none gba:hover:bg-accent"
                       onClick={() => sorting.handleSort('returnBefore')}
                       data-testid="allowance-periods-table-header-return-before"
@@ -709,6 +699,16 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                       <div className="gba:flex gba:items-center gba:justify-center">
                         RETURN BEFORE
                         {sorting.renderSortIcon('returnBefore')}
+                      </div>
+                    </TableHead>
+                    <TableHead
+                      className="gba:w-[120px] gba:cursor-pointer gba:select-none gba:hover:bg-accent gba:text-center"
+                      onClick={() => sorting.handleSort('periodOrder')}
+                      data-testid="allowance-periods-table-header-period-order"
+                    >
+                      <div className="gba:flex gba:items-center gba:justify-center">
+                        ORDER
+                        {sorting.renderSortIcon('periodOrder')}
                       </div>
                     </TableHead>
                     <TableHead
@@ -730,12 +730,6 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                         VALID TO
                         {sorting.renderSortIcon('activeTo')}
                       </div>
-                    </TableHead>
-                    <TableHead
-                      className="gba:w-[80px] gba:text-center"
-                      data-testid="allowance-periods-table-header-order"
-                    >
-                      ORDER
                     </TableHead>
                   </TableRow>
                 </TableHeader>
@@ -922,6 +916,13 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                         </div>
                       </TableCell>
 
+                      {/* Order Column */}
+                      <TableCell className="gba:text-center" data-testid={`allowance-period-order-cell-${record.id}`}>
+                        <Badge variant="secondary" data-testid={`allowance-period-order-badge-${record.id}`}>
+                          {record.order}
+                        </Badge>
+                      </TableCell>
+
                       {/* Valid From Column */}
                       <TableCell data-testid={`allowance-period-valid-from-cell-${record.id}`}>
                         <div className="gba:flex gba:items-center gba:gap-1">
@@ -946,13 +947,6 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                             {record.activeTo ? formatDate(record.activeTo) : '∞'}
                           </span>
                         </div>
-                      </TableCell>
-
-                      {/* Order Column */}
-                      <TableCell className="gba:text-center" data-testid={`allowance-period-order-cell-${record.id}`}>
-                        <Badge variant="secondary" data-testid={`allowance-period-order-badge-${record.id}`}>
-                          {record.order}
-                        </Badge>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -1087,14 +1081,15 @@ const AllowancePeriodTab: React.FC<AllowancePeriodTabProps> = ({ ruleId, accessT
                             onChange={e => {
                               const next = e.target.value
                               if (next === '') {
-                                field.onChange(undefined)
+                                field.onChange('')
                                 return
                               }
-                              // Allow digits and decimal point (not comma)
+                              // Allow digits, decimal point, and partial decimals like "0." or "."
                               if (!/^\d*\.?\d*$/.test(next)) return
-                              // Prevent invalid decimal patterns like "1.2.3" or ".."
+                              // Prevent invalid decimal patterns like "1.2.3"
                               if ((next.match(/\./g) || []).length > 1) return
-                              field.onChange(next === '' ? undefined : Number(next))
+                              // Keep as string during editing to allow "0." or "12."
+                              field.onChange(next)
                             }}
                             disabled={isRestrictedEdit}
                             data-testid="allowance-period-min-hours-input"

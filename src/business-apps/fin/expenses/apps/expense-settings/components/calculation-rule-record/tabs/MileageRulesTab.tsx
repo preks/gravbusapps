@@ -651,8 +651,7 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
 
   const measurementUnitOptions = [
     { value: 'MeasurementUnit:v1:km', label: 'Kilometers (km)' },
-    { value: 'MeasurementUnit:v1:mile', label: 'Miles (mile)' },
-    { value: 'MeasurementUnit:v1:hour', label: 'Hours (hr)' }
+    { value: 'MeasurementUnit:v1:mile', label: 'Miles (mile)' }
   ]
 
   const formatReimbursable = (reimbursable: boolean): React.ReactNode => {

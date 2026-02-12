@@ -1,6 +1,7 @@
 import React from 'react'
 import { Popover, PopoverContent, PopoverTrigger, Button, Calendar } from '@newwork/nw-design-system'
-import { formatDate, formatDateToISO } from '@/common/utils/windowUtils'
+import { formatDateToISO } from '@/common/utils/windowUtils'
+import { formatDate } from '../../../../../utils/dateUtils'
 
 interface ValidityPeriodFilterProps {
   from: string | null
@@ -32,9 +33,7 @@ const ValidityPeriodFilter: React.FC<ValidityPeriodFilterProps> = ({
             data-testid={(dataTestId || 'validity-period-filter') + '-trigger'}
             className="gba:whitespace-normal gba:p-5"
           >
-            {from || to
-              ? `${formatDate(from || '', 'date.long')} → ${formatDate(to || '', 'date.long')}`
-              : 'Select range'}
+            {from || to ? `${formatDate(from || '')} → ${formatDate(to || '')}` : 'Select range'}
           </Button>
         </PopoverTrigger>
         <PopoverContent align="start" className="gba:p-2">
