@@ -8,6 +8,7 @@ import { getAbsenceStatusLabel, getAbsenceStatusColor } from '../../../../../../
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { GET_ABSENCES_FOR_CALENDAR } from '../../../../queries/AbsenceQueries'
 import { getAbsenceTypeName, getAbsenceStatusDisplay } from '../../../../utils'
+import { useAbsenceTypeCatalog } from '../../../../../personal-absences/hooks/useAbsenceTypeCatalog'
 
 interface AbsenceTimelineItem extends TimelineItem {
   name: string
@@ -25,6 +26,7 @@ const CalendarList: React.FC<BusinessAppContextProps> = props => {
   const [error, setError] = useState<string | null>(null)
 
   const graphqlClient = useGraphQLClient(accessToken)
+  const { mapType } = useAbsenceTypeCatalog(accessToken)
 
   const loadCalendarData = async () => {
     if (!supervisorId) {
@@ -104,6 +106,11 @@ const CalendarList: React.FC<BusinessAppContextProps> = props => {
       const statusDisplay = getAbsenceStatusDisplay(absence.status)
       const translatedAbsenceType = getAbsenceTypeName(absence.type, userLocale)
 
+      // Get color from absence type catalog (like personal calendar)
+      const typeCode = absence.type?.value || absence.type
+      const catalogType = mapType(typeCode)
+      const eventColor = catalogType?.color || getAbsenceStatusColor(absence.status)
+
       const event: TimelineEvent = {
         id: uniqueEventId,
         itemId: absence.employee.id,
@@ -112,6 +119,7 @@ const CalendarList: React.FC<BusinessAppContextProps> = props => {
         endDate: absence.endDate,
         status: statusDisplay.label,
         type: statusDisplay.type,
+        color: eventColor,
         note: `${translatedAbsenceType} - ${statusDisplay.label}`
       }
 
@@ -195,7 +203,23 @@ const CalendarList: React.FC<BusinessAppContextProps> = props => {
     }
   ]
 
-  return <div>{renderDataBody()}</div>
+  return (
+    <div className="team-absence-calendar-overrides">
+      <style>
+        {`
+          .team-absence-calendar-overrides .guic-bg-green-500 {
+            background-color: #ffffff !important;
+            border: 1px solid #73d9be !important;
+          }
+
+          .team-absence-calendar-overrides .guic-bg-green-500 .guic-text-white {
+            color: #73d9be !important;
+          }
+        `}
+      </style>
+      {renderDataBody()}
+    </div>
+  )
 }
 
 export default CalendarList
