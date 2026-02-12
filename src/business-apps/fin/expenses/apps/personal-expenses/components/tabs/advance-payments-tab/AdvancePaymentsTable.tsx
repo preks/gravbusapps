@@ -206,22 +206,20 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
               }
               expensePlanApprovalDate = comment.commentDate
             }
-
-            console.log('[Approval Data] Expense plan approval:', {
-              approver: expensePlanApprover,
-              date: expensePlanApprovalDate
-            })
           } catch (error) {
             console.error('[Approval Data] Error fetching expense plan approver:', error)
           }
         }
 
         // Fetch advance payment approval comment
+        // Note: Check for explicit APPROVE_COMMENT only, don't fall back to SYSTEM_COMMENT
+        // If no APPROVE_COMMENT, use expense plan approval
         let advancePaymentApprover: string | undefined
         let advancePaymentApprovalDate: string | undefined
+
         if (advPaymentId) {
           try {
-            // First try APPROVE_COMMENT
+            // Only try APPROVE_COMMENT (explicit manager approval)
             const approveCommentQuery = `
               query GetAdvancePaymentApprovalComment($advPaymentId: uuid!) {
                 AdvancePaymentComment(
@@ -248,39 +246,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
               }>
             }>(approveCommentQuery, { advPaymentId })
 
-            let comment = approveResult?.AdvancePaymentComment?.[0]
-
-            // If no APPROVE_COMMENT, fallback to SYSTEM_COMMENT showing approval
-            if (!comment) {
-              const systemCommentQuery = `
-                query GetAdvancePaymentSystemComment($advPaymentId: uuid!) {
-                  AdvancePaymentComment(
-                    where: { 
-                      advancePaymentId: { _eq: $advPaymentId }
-                      commentType: { _eq: "SYSTEM_COMMENT" }
-                      comment: { _ilike: "%to: APPROVED%" }
-                    }
-                    orderBy: { commentDate: DESC }
-                    limit: 1
-                  ) {
-                    authorEmployee {
-                      fullName
-                      firstName
-                      lastName
-                    }
-                    commentDate
-                  }
-                }
-              `
-              const systemResult = await graphqlClient.request<{
-                AdvancePaymentComment: Array<{
-                  authorEmployee: { fullName?: string; firstName?: string; lastName?: string }
-                  commentDate?: string
-                }>
-              }>(systemCommentQuery, { advPaymentId })
-
-              comment = systemResult?.AdvancePaymentComment?.[0]
-            }
+            const comment = approveResult?.AdvancePaymentComment?.[0]
 
             if (comment) {
               const author = comment.authorEmployee
@@ -288,33 +254,25 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
                 advancePaymentApprover = author.fullName || `${author.firstName || ''} ${author.lastName || ''}`.trim()
               }
               advancePaymentApprovalDate = comment.commentDate
+            } else {
+              // No explicit advance payment approval, will fall back to expense plan
             }
-
-            console.log('[Approval Data] Advance payment approval:', {
-              approver: advancePaymentApprover,
-              date: advancePaymentApprovalDate
-            })
           } catch (error) {
             console.error('[Approval Data] Error fetching advance payment approver:', error)
           }
         }
 
-        // If advance payment has no direct approver, use the expense plan's approver as fallback
-        const finalAdvancePaymentApprover = advancePaymentApprover || expensePlanApprover
-        const finalAdvancePaymentApprovalDate = advancePaymentApprovalDate || expensePlanApprovalDate
-
-        console.log('[Approval Data] Final approver data:', {
-          expensePlanApprover,
-          advancePaymentApprover: finalAdvancePaymentApprover,
-          expensePlanApprovalDate,
-          advancePaymentApprovalDate: finalAdvancePaymentApprovalDate
-        })
+        // If advance payment has no explicit approver, use the expense plan's approver
+        if (!advancePaymentApprover) {
+          advancePaymentApprover = expensePlanApprover
+          advancePaymentApprovalDate = expensePlanApprovalDate
+        }
 
         setApproverData({
           expensePlanApprover,
-          advancePaymentApprover: finalAdvancePaymentApprover,
+          advancePaymentApprover,
           expensePlanApprovalDate,
-          advancePaymentApprovalDate: finalAdvancePaymentApprovalDate
+          advancePaymentApprovalDate
         })
 
         // Fetch supervisor name
@@ -391,22 +349,12 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
       }
     }
 
-    console.log('[Entity Data Map] adv_payment approver data:', {
-      approvedBy: approverData.advancePaymentApprover || '(empty)',
-      approvalDate: approverData.advancePaymentApprovalDate || '(empty)'
-    })
-
     if (plan) {
       map.expense_plan = {
         ...(plan as unknown as Record<string, unknown>),
         approvedBy: approverData.expensePlanApprover || '',
         approvalDate: approverData.expensePlanApprovalDate || ''
       }
-
-      console.log('[Entity Data Map] expense_plan approver data:', {
-        approvedBy: approverData.expensePlanApprover || '(empty)',
-        approvalDate: approverData.expensePlanApprovalDate || '(empty)'
-      })
 
       const emp = plan.employee
       if (emp) {
