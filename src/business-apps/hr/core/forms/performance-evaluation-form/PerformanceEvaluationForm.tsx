@@ -9,6 +9,7 @@ const PerformanceEvaluationForm: React.FC<BusinessAppContextProps & PerformanceE
   onSubmit = async () => {},
   onCancel = async () => {},
   preSelectedEmployeeId,
+  preSelectedUserId,
   accessToken,
   userInfo,
   additionalData
@@ -29,6 +30,10 @@ const PerformanceEvaluationForm: React.FC<BusinessAppContextProps & PerformanceE
     additionalData
   }
 
+  // If preSelectedUserId is not provided explicitly, try to get it from userInfo
+  // Note: userInfo.id is the userId, not userInfo.userId
+  const effectivePreSelectedUserId = preSelectedUserId || userInfo?.id
+
   return (
     <PerformanceEvaluationFormProvider
       businessAppContext={businessAppContext}
@@ -36,6 +41,7 @@ const PerformanceEvaluationForm: React.FC<BusinessAppContextProps & PerformanceE
       onSubmit={onSubmit}
       onCancel={onCancel}
       preSelectedEmployeeId={preSelectedEmployeeId}
+      preSelectedUserId={effectivePreSelectedUserId}
     >
       <PerformanceEvaluationFormComponent />
     </PerformanceEvaluationFormProvider>

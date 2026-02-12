@@ -11,7 +11,7 @@ import {
   getAbsenceStatusLabel,
   getAllAbsenceStatusConfigs,
   getAbsenceStatusBackgroundClass,
-  getBadgeVariantBackgroundClass
+  getAbsenceStatusTextClass
 } from '@/business-apps/hr/absences/utils/absenceStatusUtils'
 import translations from './_i18n'
 import { calculateContextMenuPosition } from './utils/contextMenuPositioning'
@@ -471,7 +471,7 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
                   } else if (isInSelectedRange) {
                     bgClass = 'gba:bg-info-secondary/20'
                   } else if (isToday) {
-                    bgClass = 'gba:bg-info-secondary/20 gba:border-info'
+                    bgClass = 'gba:bg-primary/05'
                   } else if (isHolidayDay) {
                     bgClass = 'gba:bg-card gba:border-warning'
                   }
@@ -498,8 +498,8 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
                       </div>
                       {isCurrentMonth && isHolidayDay && (
                         <div className="gba:flex gba:gap-1 gba:mt-1">
-                          <div className="gba:flex gba:items-center gba:justify-center gba:rounded-full gba:min-h-4 gba:px-1 gba:w-full gba:bg-warning-secondary/80">
-                            <span className="gba:text-xs gba:font-medium gba:text-primary gba:truncate gba:leading-none">
+                          <div className="gba:flex gba:items-center gba:justify-center gba:rounded-full gba:min-h-4 gba:px-1 gba:w-full gba:bg-background">
+                            <span className="gba:text-xs gba:font-medium gba:text-info-on-card gba:truncate gba:leading-none">
                               {t('holiday')}
                             </span>
                           </div>
@@ -507,8 +507,8 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
                       )}
                       {isCurrentMonth && isToday && (
                         <div className="gba:flex gba:gap-1 gba:mt-1">
-                          <div className="gba:flex gba:items-center gba:justify-center gba:rounded-full gba:min-h-4 gba:px-1 gba:w-full gba:bg-info-secondary/80">
-                            <span className="gba:text-xs gba:font-medium gba:text-primary gba:truncate gba:leading-none">
+                          <div className="gba:flex gba:items-center gba:justify-center gba:rounded-full gba:min-h-4 gba:px-1 gba:w-full gba:bg-primary">
+                            <span className="gba:text-xs gba:font-medium gba:text-primary-foreground gba:truncate gba:leading-none">
                               {t('today')}
                             </span>
                           </div>
@@ -529,15 +529,15 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
                           const segments = overlappingAbsences.slice(0, maxSegments)
                           const segmentWidth = `${100 / segments.length}%`
 
-                          const resolveSegmentBgClass = (a: any): string => {
+                          const resolveSegmentTextClass = (a: any): string => {
                             // When consumer provides planned/effective minutes (e.g., DailyLog)
                             if (typeof a?.plannedMinutes === 'number' && typeof a?.effectiveMinutes === 'number') {
                               if (a.effectiveMinutes >= a.plannedMinutes) {
-                                return getBadgeVariantBackgroundClass('success')
+                                return 'gba:text-success-on-card'
                               }
-                              return getBadgeVariantBackgroundClass('warning')
+                              return 'gba:text-warning-on-card'
                             }
-                            return getAbsenceStatusBackgroundClass(a.originalStatus || a.status)
+                            return getAbsenceStatusTextClass(a.originalStatus || a.status)
                           }
 
                           return (
@@ -554,12 +554,14 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
                                   overlayStyle={{ zIndex: 9999 }}
                                 >
                                   <div
-                                    className={`gba:flex gba:items-center gba:justify-center gba:rounded-full gba:cursor-help gba:transition-all gba:duration-200 hover:gba:h-6 gba:min-h-4 gba:px-1 ${resolveSegmentBgClass(a)}`}
+                                    className="gba:flex gba:items-center gba:justify-center gba:rounded-full gba:cursor-help gba:transition-all gba:duration-200 hover:gba:h-6 gba:min-h-4 gba:px-1 gba:bg-background"
                                     style={{
                                       width: segmentWidth
                                     }}
                                   >
-                                    <span className="gba:text-xs gba:font-medium gba:text-primary gba:truncate gba:leading-none">
+                                    <span
+                                      className={`gba:text-xs gba:font-medium gba:truncate gba:leading-none ${resolveSegmentTextClass(a)}`}
+                                    >
                                       {a.type}
                                     </span>
                                   </div>
@@ -634,7 +636,7 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
                   </div>
                 ))}
               <div className="gba:flex gba:items-center gba:gap-2">
-                <div className="gba:w-3 gba:h-3 gba:rounded-full gba:bg-warning-secondary" />
+                <div className="gba:w-3 gba:h-3 gba:rounded-full gba:bg-info-secondary" />
                 <span className="gba:text-xs">{t('holiday')}</span>
               </div>
               <div className="gba:flex gba:items-center gba:gap-2">

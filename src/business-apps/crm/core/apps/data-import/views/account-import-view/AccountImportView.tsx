@@ -13,7 +13,7 @@ import {
   MappingReviewStep,
   ConversionResultStep
 } from '@/common/components/common-relations/apps/data-import/components'
-import { accountImportConfig } from './config/accountImportConfig'
+import { customerAccountImportConfig } from '@/common/data/customer/types/customerAccountImportConfig'
 import { ConvertedAccount } from './types/accountImportTypes'
 
 export interface AccountImportViewProps extends BusinessAppContextProps {
@@ -29,7 +29,6 @@ export const AccountImportView: React.FC<AccountImportViewProps> = ({
   // Main import hook
   const {
     file,
-    parsedData,
     agentResponse,
     convertedEntities: convertedAccounts,
     step,
@@ -42,11 +41,11 @@ export const AccountImportView: React.FC<AccountImportViewProps> = ({
     importToBackend,
     downloadJSON,
     reset
-  } = useEntityImport<ConvertedAccount>(context, accountImportConfig)
+  } = useEntityImport<ConvertedAccount>(context, customerAccountImportConfig)
 
   // Mappings hook (initialized from agent response)
   const { mappings, setMappings, updateMapping, removeMapping, addMapping } = useEntityMappings(
-    accountImportConfig.targetFields,
+    customerAccountImportConfig.targetFields,
     agentResponse?.fieldMappings || []
   )
 
@@ -58,8 +57,8 @@ export const AccountImportView: React.FC<AccountImportViewProps> = ({
   }, [agentResponse, setMappings])
 
   // Handle conversion with current mappings
-  const handleConvert = () => {
-    convertData(mappings)
+  const handleConvert = async () => {
+    await convertData(mappings)
   }
 
   return (
@@ -95,8 +94,7 @@ export const AccountImportView: React.FC<AccountImportViewProps> = ({
         <MappingReviewStep
           agentResponse={agentResponse}
           mappings={mappings}
-          targetFieldsConfig={accountImportConfig.targetFields}
-          parsedDataCount={parsedData.length}
+          targetFieldsConfig={customerAccountImportConfig.targetFields}
           entityType="accounts"
           isLoading={isLoading}
           onUpdateMapping={updateMapping}
@@ -112,7 +110,7 @@ export const AccountImportView: React.FC<AccountImportViewProps> = ({
       {step === 'result' && (
         <ConversionResultStep
           convertedEntities={convertedAccounts}
-          targetFieldsConfig={accountImportConfig.targetFields}
+          targetFieldsConfig={customerAccountImportConfig.targetFields}
           entityType="account"
           isLoading={isLoading}
           importResult={importResult}

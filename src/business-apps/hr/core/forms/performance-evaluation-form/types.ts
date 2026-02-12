@@ -40,4 +40,5 @@ export interface PerformanceEvaluationFormProps {
   onSubmit?: (values: PerformanceEvaluationFormValues) => Promise<void>
   onCancel?: () => Promise<void>
   preSelectedEmployeeId?: string
+  preSelectedUserId?: string
 }
