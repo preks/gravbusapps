@@ -61,7 +61,7 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
   }, [accessToken])
 
   /**
-   * Load all documents from the backend
+   * Load all documents from the backend (paginated fetch, max 100 per request)
    */
   const refreshDocuments = useCallback(async () => {
     if (!accessToken) {
@@ -71,7 +71,20 @@ export function useDocumentApps(accessToken: string, userId?: string): UseDocume
 
     try {
       setState(prev => ({ ...prev, isLoading: true, error: null }))
-      const rawDocuments = await DocumentApiService.listDocuments()
+
+      const PAGE_SIZE = 100
+      let allRawDocuments: Awaited<ReturnType<typeof DocumentApiService.listDocuments>> = []
+      let page = 1
+      let hasMore = true
+
+      while (hasMore) {
+        const pageItems = await DocumentApiService.listDocuments({ limit: PAGE_SIZE, page })
+        allRawDocuments = [...allRawDocuments, ...pageItems]
+        hasMore = pageItems.length === PAGE_SIZE
+        page++
+      }
+
+      const rawDocuments = allRawDocuments
 
       // Enhance documents with ownership info (backend may already provide some of this)
       const documents = rawDocuments.map(doc => {
