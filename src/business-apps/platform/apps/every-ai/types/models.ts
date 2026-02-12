@@ -1,5 +1,6 @@
 import type { AssetSummaryData } from '../components/displays/asset-summary'
 import type { TeamAvailabilityData } from '../components/displays/team-availability'
+import type { CrmFunnelData } from '../components/displays/crm-funnel'
 
 /**
  * AI Assistant Models and Types
@@ -150,6 +151,7 @@ export type NavigationData = {
 }
 
 export type { AssetSummaryData, TeamAvailabilityData }
+export type { CrmFunnelData }
 export type DisplayData =
   | TextBlockData
   | TableData
@@ -160,6 +162,7 @@ export type DisplayData =
   | CalendarViewData
   | NavigationData
   | ReminderData
+  | CrmFunnelData
   | AssetSummaryData
   | TeamAvailabilityData
 

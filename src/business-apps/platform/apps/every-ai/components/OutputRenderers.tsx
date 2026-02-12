@@ -24,6 +24,7 @@ import { MarkdownWithChipsRenderer, UnifiedTableRenderer } from '@/common/compon
 import NavigationDisplay from './displays/NavigationDisplay'
 import { ReminderDisplay } from './displays/ReminderDisplay'
 import { RemoteFormDisplay } from './displays/RemoteFormDisplay'
+import { CrmFunnelDisplay } from './displays/crm-funnel'
 import { AssetSummaryDisplay } from './displays/asset-summary'
 import { TeamAvailabilityDisplay } from './displays/team-availability'
 import { FlowbotCalendarDisplay } from './displays/calendar/FlowbotCalendarDisplay'
@@ -760,6 +761,8 @@ function renderDisplayData(item: DisplayData, idx: number, accessToken: string) 
       return <ScatterGraphDisplay key={idx} data={item} />
     case 'calendar':
       return <CalendarDisplay key={idx} data={item} />
+    case 'crmFunnel':
+      return <CrmFunnelDisplay key={idx} data={item} />
     case 'assetSummary':
       return <AssetSummaryDisplay key={idx} data={item} />
     case 'teamAvailability':
