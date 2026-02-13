@@ -280,6 +280,16 @@ call-microphone = Microfon
 call-speaker = Difuzor
 call-effectsAndAvatars = Efecte și avatare
 call-moreAudioSettings = Mai multe setări audio
+call-advancedSettings = Setări avansate
+call-rnnoiseAI = Reducerea zgomotului
+call-rnnoiseDescription = Reduce zgomotul de fundal ca să fii auzit mai clar.
+call-rnnoiseGentle = Blând
+call-rnnoiseGentleDesc = Ușor – păstrează vocea naturală
+call-rnnoiseModerate = Moderat
+call-rnnoiseModerateDesc = Echilibrat – potrivit pentru majoritatea apelurilor
+call-rnnoiseAggressive = Agresiv
+call-rnnoiseAggressiveDesc = Puternic – cel mai bun pentru încăperi zgomotoase
+call-rnnoiseWarning = Folosirea unui headset poate îmbunătăți calitatea microfonului.
 
 # Call Settings
 call-video = video

@@ -247,7 +247,7 @@ export const AudioSettingsModal: React.FC<AudioSettingsModalProps> = ({
               <div className="gba:space-y-2">
                 <div className="gba:flex gba:items-center gba:justify-between">
                   <div className="gba:flex gba:items-center gba:gap-2">
-                    <Label className="gba:text-sm gba:font-semibold">{t('call-rnnoiseAI') || 'RNNoise (AI)'}</Label>
+                    <Label className="gba:text-sm gba:font-semibold">{t('call-rnnoiseAI') || 'Noise reduction'}</Label>
                   </div>
                   <Switch
                     checked={rnnoiseEnabled}
@@ -256,7 +256,7 @@ export const AudioSettingsModal: React.FC<AudioSettingsModalProps> = ({
                   />
                 </div>
                 <p className="gba:text-xs gba:text-muted-foreground">
-                  {t('call-rnnoiseDescription') || 'Advanced AI-powered noise cancellation'}
+                  {t('call-rnnoiseDescription') || 'Reduce background noise so others hear you more clearly.'}
                 </p>
 
                 {/* RNNoise Mode Selection */}
@@ -277,7 +277,7 @@ export const AudioSettingsModal: React.FC<AudioSettingsModalProps> = ({
                           {t('call-rnnoiseGentle') || 'Gentle'}
                         </Label>
                         <p className="gba:text-xs gba:text-muted-foreground">
-                          {t('call-rnnoiseGentleDesc') || 'Light filtering, preserves natural sound'}
+                          {t('call-rnnoiseGentleDesc') || 'Light touch – keeps your voice natural'}
                         </p>
                       </div>
                     </div>
@@ -293,7 +293,7 @@ export const AudioSettingsModal: React.FC<AudioSettingsModalProps> = ({
                           {t('call-rnnoiseModerate') || 'Moderate'}
                         </Label>
                         <p className="gba:text-xs gba:text-muted-foreground">
-                          {t('call-rnnoiseModerateDesc') || 'Balanced noise reduction'}
+                          {t('call-rnnoiseModerateDesc') || 'Balanced – good for most calls'}
                         </p>
                       </div>
                     </div>
@@ -309,7 +309,7 @@ export const AudioSettingsModal: React.FC<AudioSettingsModalProps> = ({
                           {t('call-rnnoiseAggressive') || 'Aggressive'}
                         </Label>
                         <p className="gba:text-xs gba:text-muted-foreground">
-                          {t('call-rnnoiseAggressiveDesc') || 'Maximum filtering for noisy environments'}
+                          {t('call-rnnoiseAggressiveDesc') || 'Strong – best for noisy rooms'}
                         </p>
                       </div>
                     </div>
@@ -324,8 +324,7 @@ export const AudioSettingsModal: React.FC<AudioSettingsModalProps> = ({
                       weight="fill"
                     />
                     <p className="gba:text-xs gba:text-warning-secondary-foreground">
-                      {t('call-rnnoiseWarning') ||
-                        'RNNoise may impact CPU performance. Test different modes to find the best balance.'}
+                      {t('call-rnnoiseWarning') || 'Using a headset can improve mic quality.'}
                     </p>
                   </div>
                 )}

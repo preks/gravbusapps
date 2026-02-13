@@ -280,6 +280,16 @@ call-microphone = Mikrofon
 call-speaker = Lautsprecher
 call-effectsAndAvatars = Effekte und Avatare
 call-moreAudioSettings = Weitere Audioeinstellungen
+call-advancedSettings = Erweiterte Einstellungen
+call-rnnoiseAI = Geräuschreduzierung
+call-rnnoiseDescription = Reduziert Hintergrundgeräusche, damit Sie besser verstanden werden.
+call-rnnoiseGentle = Sanft
+call-rnnoiseGentleDesc = Leichte Reduzierung – Ihre Stimme klingt natürlich
+call-rnnoiseModerate = Mittel
+call-rnnoiseModerateDesc = Ausgewogen – gut für die meisten Anrufe
+call-rnnoiseAggressive = Stark
+call-rnnoiseAggressiveDesc = Starke Reduzierung – ideal bei lauter Umgebung
+call-rnnoiseWarning = Ein Headset kann die Mikrofonqualität verbessern.
 
 # Call Settings
 call-video = Video

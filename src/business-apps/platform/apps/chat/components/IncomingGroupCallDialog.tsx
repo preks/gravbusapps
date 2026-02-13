@@ -38,7 +38,6 @@ import {
 import type { GroupCallInvite } from '../hooks/useGroupCall'
 import { useChatTranslation } from '../contexts/TranslationContext'
 import { useMediaDevices } from '../hooks/useMediaDevices'
-import { useCallPreferences } from '../hooks/useCallPreferences'
 import { MicLevelIndicator } from './call/MicLevelIndicator'
 
 interface IncomingGroupCallDialogProps {
@@ -82,7 +81,6 @@ const PulsingRing: React.FC<{ colorClass?: string }> = ({ colorClass = 'gba:bg-p
 export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = memo(
   ({ invite, userName, userAvatarUrl, onAccept, onDecline, prefixDataTestId = 'incoming-group-call-dialog' }) => {
     const t = useChatTranslation()
-    const callPreferences = useCallPreferences()
     const [ringCount, setRingCount] = useState(0)
     const [isJoining, setIsJoining] = useState(false)
     const [micEnabled, setMicEnabled] = useState(true)
@@ -630,30 +628,6 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = m
                       {t('call-speakerNotSupported') || 'Speaker selection not supported in this browser'}
                     </p>
                   )}
-                </div>
-
-                {/* Noise suppression & Auto gain (callPreferences – used when call starts) */}
-                <div className="gba:space-y-2 gba:pt-2 gba:border-t gba:border-border">
-                  <div className="gba:flex gba:items-center gba:gap-2">
-                    <Label className="gba:text-sm gba:flex-1">
-                      {t('call-noiseSuppression') || 'Noise suppression'}
-                    </Label>
-                    <Switch
-                      checked={callPreferences.noiseSuppressionEnabled}
-                      onCheckedChange={callPreferences.setNoiseSuppressionEnabled}
-                      disabled={isJoining}
-                      data-testid={`${prefixDataTestId}-noise-suppression-toggle`}
-                    />
-                  </div>
-                  <div className="gba:flex gba:items-center gba:gap-2">
-                    <Label className="gba:text-sm gba:flex-1">{t('call-autoGainControl') || 'Auto gain control'}</Label>
-                    <Switch
-                      checked={callPreferences.autoGainControlEnabled}
-                      onCheckedChange={callPreferences.setAutoGainControlEnabled}
-                      disabled={isJoining}
-                      data-testid={`${prefixDataTestId}-auto-gain-control-toggle`}
-                    />
-                  </div>
                 </div>
               </div>
             </div>
