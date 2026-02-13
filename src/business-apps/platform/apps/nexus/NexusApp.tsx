@@ -19,12 +19,13 @@ export const NexusApp: React.FC<NexusAppProps> = ({ accessToken, userInfo }) => 
   const currentUserId = userInfo?.id || userInfo?.employeeDetails?.employeeId || ''
   const userName = userInfo?.givenName || userInfo?.userName || 'User'
 
-  const [scope, setScope] = useState<'all' | 'space'>('all')
+  const [scope, setScope] = useState<'all' | 'space' | 'none'>('all')
   const [spaceId, setSpaceId] = useState<string | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [chatVisible, setChatVisible] = useState(false)
   const [prefillText, setPrefillText] = useState<string | null>(null)
   const [dataAccessEnabled, setDataAccessEnabled] = useState(false)
+  const [webSearchEnabled, setWebSearchEnabled] = useState(false)
   const [llmProvider, setLlmProvider] = useState<string | undefined>(() => {
     try {
       return window.localStorage.getItem('nexus-llm-provider') || undefined
@@ -55,10 +56,13 @@ export const NexusApp: React.FC<NexusAppProps> = ({ accessToken, userInfo }) => 
     activeArtifact,
     artifactStreaming,
     artifactStreamContent,
+    thinkingStatus,
+    thinkingSources,
     createSession,
     joinSession,
     sendMessage,
-    toggleDataAccess
+    toggleDataAccess,
+    toggleWebSearch
   } = useNexusSocket({
     userId: currentUserId,
     accessToken: accessToken || ''
@@ -78,10 +82,13 @@ export const NexusApp: React.FC<NexusAppProps> = ({ accessToken, userInfo }) => 
   })
   const spaces = rawSpaces.map(s => ({ id: s.id, name: s.name }))
 
-  // Sync dataAccessEnabled from session whenever currentSession changes
+  // Sync dataAccessEnabled and webSearchEnabled from session whenever currentSession changes
   useEffect(() => {
     if (currentSession?.contextConfig?.dataAccessEnabled != null) {
       setDataAccessEnabled(currentSession.contextConfig.dataAccessEnabled)
+    }
+    if (currentSession?.contextConfig?.webSearchEnabled != null) {
+      setWebSearchEnabled(currentSession.contextConfig.webSearchEnabled)
     }
   }, [currentSession])
 
@@ -101,10 +108,11 @@ export const NexusApp: React.FC<NexusAppProps> = ({ accessToken, userInfo }) => 
         scope,
         spaceId: spaceId || undefined,
         llmProvider,
-        dataAccessEnabled
+        dataAccessEnabled,
+        webSearchEnabled
       })
     }
-  }, [currentSession, sendMessage, scope, spaceId, llmProvider, dataAccessEnabled])
+  }, [currentSession, sendMessage, scope, spaceId, llmProvider, dataAccessEnabled, webSearchEnabled])
 
   // Create session on first message if none exists
   const handleSend = useCallback(
@@ -118,10 +126,11 @@ export const NexusApp: React.FC<NexusAppProps> = ({ accessToken, userInfo }) => 
         scope,
         spaceId: spaceId || undefined,
         llmProvider,
-        dataAccessEnabled
+        dataAccessEnabled,
+        webSearchEnabled
       })
     },
-    [currentSession, createSession, sendMessage, scope, spaceId, llmProvider, dataAccessEnabled]
+    [currentSession, createSession, sendMessage, scope, spaceId, llmProvider, dataAccessEnabled, webSearchEnabled]
   )
 
   const handleNewSession = useCallback(() => {
@@ -138,6 +147,7 @@ export const NexusApp: React.FC<NexusAppProps> = ({ accessToken, userInfo }) => 
         setScope(session.scope)
         setSpaceId(session.spaceId || null)
         setDataAccessEnabled(session.contextConfig?.dataAccessEnabled ?? false)
+        setWebSearchEnabled(session.contextConfig?.webSearchEnabled ?? false)
       }
     },
     [joinSession, sessions]
@@ -157,6 +167,14 @@ export const NexusApp: React.FC<NexusAppProps> = ({ accessToken, userInfo }) => 
       toggleDataAccess(enabled)
     },
     [toggleDataAccess]
+  )
+
+  const handleWebSearchToggle = useCallback(
+    (enabled: boolean) => {
+      setWebSearchEnabled(enabled)
+      toggleWebSearch(enabled)
+    },
+    [toggleWebSearch]
   )
 
   // Open chat panel (no text)
@@ -213,6 +231,8 @@ export const NexusApp: React.FC<NexusAppProps> = ({ accessToken, userInfo }) => 
             messages={messages}
             isStreaming={isStreaming}
             streamingContent={streamingContent}
+            thinkingStatus={thinkingStatus}
+            thinkingSources={thinkingSources}
             isConnected={isConnected}
             userName={userName}
             accessToken={accessToken}
@@ -223,10 +243,12 @@ export const NexusApp: React.FC<NexusAppProps> = ({ accessToken, userInfo }) => 
             sessionTitle={currentSession?.title}
             llmProvider={llmProvider}
             dataAccessEnabled={dataAccessEnabled}
+            webSearchEnabled={webSearchEnabled}
             prefillText={prefillText}
             onPrefillComplete={handlePrefillComplete}
             onLlmProviderChange={setLlmProvider}
             onDataAccessToggle={handleDataAccessToggle}
+            onWebSearchToggle={handleWebSearchToggle}
             onSend={handleSend}
             onScopeChange={setScope}
             onSpaceChange={setSpaceId}

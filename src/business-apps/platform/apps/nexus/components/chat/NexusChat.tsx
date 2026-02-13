@@ -6,7 +6,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger
 } from '@newwork/nw-design-system'
-import { History, Plus, Sparkles, Zap, Brain, Database, MessageSquare } from 'lucide-react'
+import { History, Plus, Sparkles, Zap, Brain, Database, MessageSquare, Search } from 'lucide-react'
 import { NexusChatMessage } from './NexusChatMessage'
 import { NexusChatInput } from './NexusChatInput'
 import { NexusScopeSelector } from './NexusScopeSelector'
@@ -21,22 +21,26 @@ interface NexusChatProps {
   messages: NexusMessage[]
   isStreaming: boolean
   streamingContent: string
+  thinkingStatus?: string | null
+  thinkingSources?: Array<{ title: string; url: string }>
   isConnected: boolean
   userName?: string
   accessToken: string
-  scope: 'all' | 'space'
+  scope: 'all' | 'space' | 'none'
   spaceId: string | null
   spaces: Space[]
   activeArtifact: NexusArtifact | null
   sessionTitle?: string
   llmProvider?: string
   dataAccessEnabled: boolean
+  webSearchEnabled: boolean
   prefillText?: string | null
   onPrefillComplete?: () => void
   onLlmProviderChange: (provider?: string) => void
   onDataAccessToggle: (enabled: boolean) => void
+  onWebSearchToggle: (enabled: boolean) => void
   onSend: (message: string) => void
-  onScopeChange: (scope: 'all' | 'space') => void
+  onScopeChange: (scope: 'all' | 'space' | 'none') => void
   onSpaceChange: (spaceId: string | null) => void
   onNewSession: () => void
   onOpenHistory: () => void
@@ -47,6 +51,8 @@ export const NexusChat = ({
   messages,
   isStreaming,
   streamingContent,
+  thinkingStatus,
+  thinkingSources,
   isConnected,
   userName,
   accessToken,
@@ -57,10 +63,12 @@ export const NexusChat = ({
   sessionTitle,
   llmProvider,
   dataAccessEnabled,
+  webSearchEnabled,
   prefillText,
   onPrefillComplete,
   onLlmProviderChange,
   onDataAccessToggle,
+  onWebSearchToggle,
   onSend,
   onScopeChange,
   onSpaceChange,
@@ -103,15 +111,6 @@ export const NexusChat = ({
           <Plus className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
         </Button>
       </div>
-
-      {/* Scope Selector */}
-      <NexusScopeSelector
-        scope={scope}
-        spaceId={spaceId}
-        spaces={spaces}
-        onScopeChange={onScopeChange}
-        onSpaceChange={onSpaceChange}
-      />
 
       {/* Messages */}
       <div className="gba:flex-1 gba:overflow-y-auto gba:px-4 gba:py-4" data-testid={`${testId}-messages`}>
@@ -159,6 +158,8 @@ export const NexusChat = ({
             accessToken={accessToken}
             isStreaming
             streamingContent={streamingContent}
+            thinkingStatus={thinkingStatus}
+            thinkingSources={thinkingSources}
           />
         )}
 
@@ -173,6 +174,15 @@ export const NexusChat = ({
         onPrefillComplete={onPrefillComplete}
         toolbar={
           <>
+            {/* Content Scope pill */}
+            <NexusScopeSelector
+              scope={scope}
+              spaceId={spaceId}
+              spaces={spaces}
+              onScopeChange={onScopeChange}
+              onSpaceChange={onSpaceChange}
+            />
+
             {/* LLM Provider pill */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -215,6 +225,20 @@ export const NexusChat = ({
             >
               <Database className="gba:h-3 gba:w-3" />
               Data
+            </button>
+
+            {/* Web Search pill */}
+            <button
+              className={`gba:flex gba:items-center gba:gap-1.5 gba:h-7 gba:px-2.5 gba:rounded-full gba:text-[11px] gba:font-semibold gba:transition-all gba:duration-200 gba:cursor-pointer gba:outline-none ${
+                webSearchEnabled
+                  ? 'gba:bg-info-secondary gba:text-info-secondary-foreground'
+                  : 'gba:bg-muted gba:text-muted-foreground gba:hover:bg-accent'
+              }`}
+              onClick={() => onWebSearchToggle(!webSearchEnabled)}
+              data-testid={`${testId}-web-search-toggle`}
+            >
+              <Search className="gba:h-3 gba:w-3" />
+              Web
             </button>
           </>
         }

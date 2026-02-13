@@ -47,6 +47,10 @@ export const useNexusSocket = ({ userId, accessToken }: UseNexusSocketProps) => 
   const [artifactStreaming, setArtifactStreaming] = useState(false)
   const [artifactStreamContent, setArtifactStreamContent] = useState('')
 
+  // Thinking status (e.g. "Searching the web...", "Generating document...")
+  const [thinkingStatus, setThinkingStatus] = useState<string | null>(null)
+  const [thinkingSources, setThinkingSources] = useState<Array<{ title: string; url: string }>>([])
+
   const streamingContentRef = useRef('')
   const artifactStreamRef = useRef('')
   const pendingUserMessageRef = useRef<{
@@ -123,12 +127,26 @@ export const useNexusSocket = ({ userId, accessToken }: UseNexusSocketProps) => 
     newSocket.on('token', ({ token }: { token: string }) => {
       streamingContentRef.current += token
       setStreamingContent(streamingContentRef.current)
+      // Clear thinking status once actual content starts arriving
+      // Keep thinkingSources visible — they persist until response completes
+      setThinkingStatus(null)
+    })
+
+    newSocket.on('status', ({ status }: { status: string }) => {
+      setThinkingStatus(status)
+    })
+
+    newSocket.on('web-sources', ({ sources }: { sources: Array<{ title: string; url: string }> }) => {
+      setThinkingSources(sources)
     })
 
     newSocket.on('artifact-start', (data: ArtifactStartEvent) => {
       setArtifactStreaming(true)
       artifactStreamRef.current = ''
       setArtifactStreamContent('')
+      // Clear thinking status once artifact generation actually begins
+      // Keep thinkingSources visible — they persist until response completes
+      setThinkingStatus(null)
 
       setActiveArtifact(prev => {
         // If we already have an artifact (refinement case), keep its content visible
@@ -199,6 +217,8 @@ export const useNexusSocket = ({ userId, accessToken }: UseNexusSocketProps) => 
 
     newSocket.on('complete', (data: NexusCompleteEvent) => {
       setIsStreaming(false)
+      setThinkingStatus(null)
+      setThinkingSources([])
       streamingContentRef.current = ''
       setStreamingContent('')
 
@@ -226,6 +246,8 @@ export const useNexusSocket = ({ userId, accessToken }: UseNexusSocketProps) => 
     newSocket.on('error', ({ message }: { message: string }) => {
       setError(message)
       setIsStreaming(false)
+      setThinkingStatus(null)
+      setThinkingSources([])
     })
 
     setSocket(newSocket)
@@ -237,7 +259,7 @@ export const useNexusSocket = ({ userId, accessToken }: UseNexusSocketProps) => 
   // ── Actions ─────────────────────────────────────────────────
 
   const createSession = useCallback(
-    (opts?: { scope?: 'all' | 'space'; spaceId?: string; title?: string; llmProvider?: string }) => {
+    (opts?: { scope?: 'all' | 'space' | 'none'; spaceId?: string; title?: string; llmProvider?: string }) => {
       if (!socket) return
       setMessages([])
       setActiveArtifact(null)
@@ -286,14 +308,26 @@ export const useNexusSocket = ({ userId, accessToken }: UseNexusSocketProps) => 
     [socket, currentSession]
   )
 
+  const toggleWebSearch = useCallback(
+    (enabled: boolean) => {
+      if (!socket || !currentSession) return
+      socket.emit('toggle-web-search', {
+        sessionId: currentSession.id,
+        enabled
+      })
+    },
+    [socket, currentSession]
+  )
+
   const sendMessage = useCallback(
     (
       message: string,
       opts?: {
-        scope?: 'all' | 'space'
+        scope?: 'all' | 'space' | 'none'
         spaceId?: string
         llmProvider?: string
         dataAccessEnabled?: boolean
+        webSearchEnabled?: boolean
       }
     ) => {
       if (!socket || !currentSession) return
@@ -336,6 +370,8 @@ export const useNexusSocket = ({ userId, accessToken }: UseNexusSocketProps) => 
     messages,
     isStreaming,
     streamingContent,
+    thinkingStatus,
+    thinkingSources,
     error,
     activeArtifact,
     artifactStreaming,
@@ -345,6 +381,7 @@ export const useNexusSocket = ({ userId, accessToken }: UseNexusSocketProps) => 
     joinSession,
     sendMessage,
     toggleDataAccess,
+    toggleWebSearch,
     setCurrentSession,
     setActiveArtifact
   }

@@ -1,5 +1,5 @@
 import { Card, CardContent, Separator } from '@newwork/nw-design-system'
-import { Loader2, Lightbulb, TrendingUp, BarChart3, Calendar, FileText } from 'lucide-react'
+import { Loader2, Lightbulb, TrendingUp, BarChart3, Calendar, FileText, Sparkles } from 'lucide-react'
 import { MarkdownWithChipsRenderer } from '@/common/components/markdown/MarkdownWithChipsRenderer'
 import { AnalysisKpiCard } from './AnalysisKpiCard'
 import { AnalysisChart } from './AnalysisChart'
@@ -142,19 +142,18 @@ export const AnalysisRenderer = ({
   const hasContent =
     content.summary || content.kpis?.length > 0 || content.insights?.length > 0 || hasSections || hasLegacyContent
 
+  // Compact waiting state while first content arrives
   if (!hasContent && isStreaming) {
     return (
       <div
-        className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-64 gba:space-y-3"
-        data-testid={testId}
+        className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-full gba:min-h-[400px] gba:gap-4"
+        data-testid={`${testId}-loading`}
       >
-        <div className="gba:h-10 gba:w-10 gba:rounded-xl gba:bg-primary/10 gba:flex gba:items-center gba:justify-center">
-          <BarChart3 className="gba:h-5 gba:w-5 gba:text-primary gba:animate-pulse" />
+        <div className="gba:relative gba:h-10 gba:w-10">
+          <Loader2 className="gba:h-10 gba:w-10 gba:animate-spin gba:text-primary/30" />
+          <Sparkles className="gba:absolute gba:inset-0 gba:m-auto gba:h-4 gba:w-4 gba:text-primary" />
         </div>
-        <div className="gba:flex gba:items-center gba:gap-2 gba:text-muted-foreground">
-          <Loader2 className="gba:h-4 gba:w-4 gba:animate-spin" />
-          <span className="gba:text-sm">Building analysis report...</span>
-        </div>
+        <p className="gba:text-sm gba:font-medium gba:text-muted-foreground">Generating analysis...</p>
       </div>
     )
   }
@@ -267,7 +266,7 @@ export const AnalysisRenderer = ({
       {isStreaming && (
         <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center gba:py-6">
           <Loader2 className="gba:h-4 gba:w-4 gba:animate-spin gba:text-primary" />
-          <span className="gba:text-xs gba:font-medium gba:text-muted-foreground">Finalizing analysis...</span>
+          <span className="gba:text-xs gba:font-medium gba:text-muted-foreground">Building analysis...</span>
         </div>
       )}
     </div>

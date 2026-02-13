@@ -102,11 +102,12 @@ export interface NexusSession {
   id: string
   userId: string
   title: string
-  scope: 'all' | 'space'
+  scope: 'all' | 'space' | 'none'
   spaceId?: string
   llmProvider?: string
   contextConfig?: {
     dataAccessEnabled?: boolean
+    webSearchEnabled?: boolean
   }
   createdAt: string
   updatedAt: string

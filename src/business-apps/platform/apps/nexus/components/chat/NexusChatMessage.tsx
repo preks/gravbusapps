@@ -1,9 +1,25 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useCallback } from 'react'
 import { Avatar, AvatarFallback, Badge } from '@newwork/nw-design-system'
-import { Bot, FileText, BarChart3, Presentation, StickyNote, Table, ChevronDown, ChevronUp } from 'lucide-react'
+import {
+  Bot,
+  FileText,
+  BarChart3,
+  Presentation,
+  StickyNote,
+  Table,
+  ChevronDown,
+  ChevronUp,
+  ExternalLink,
+  Globe
+} from 'lucide-react'
 import { MarkdownWithChipsRenderer } from '@/common/components/markdown/MarkdownWithChipsRenderer'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import type { NexusMessage, NexusSource, ArtifactType } from '../../types/nexus.types'
+
+interface WebSource {
+  title: string
+  url: string
+}
 
 interface NexusChatMessageProps {
   message: NexusMessage
@@ -11,6 +27,8 @@ interface NexusChatMessageProps {
   accessToken: string
   isStreaming?: boolean
   streamingContent?: string
+  thinkingStatus?: string | null
+  thinkingSources?: WebSource[]
   artifactType?: ArtifactType
   onViewArtifact?: () => void
   testId?: string
@@ -34,6 +52,8 @@ export const NexusChatMessage = ({
   accessToken,
   isStreaming = false,
   streamingContent,
+  thinkingStatus,
+  thinkingSources = [],
   artifactType,
   onViewArtifact,
   testId = 'nexus-chat-message'
@@ -64,16 +84,22 @@ export const NexusChatMessage = ({
         </AvatarFallback>
       </Avatar>
       <div className="gba:max-w-[85%] gba:space-y-2">
+        {/* Web sources — persistent section, stays visible during streaming */}
+        {thinkingSources.length > 0 && <WebSearchSources sources={thinkingSources} testId={testId} />}
+
         <div className="gba:rounded-2xl gba:rounded-bl-sm gba:bg-muted/60 gba:px-4 gba:py-3">
           {content ? (
             <MarkdownWithChipsRenderer content={content} accessToken={accessToken} variant="chat" />
           ) : isStreaming ? (
-            <div className="gba:flex gba:items-center gba:gap-1.5 gba:py-0.5">
+            <div className="gba:flex gba:items-center gba:gap-2 gba:py-0.5">
               <div className="gba:flex gba:items-center gba:gap-1">
                 <span className="gba:w-1.5 gba:h-1.5 gba:rounded-full gba:bg-primary gba:animate-bounce" />
                 <span className="gba:w-1.5 gba:h-1.5 gba:rounded-full gba:bg-primary gba:animate-bounce gba:[animation-delay:150ms]" />
                 <span className="gba:w-1.5 gba:h-1.5 gba:rounded-full gba:bg-primary gba:animate-bounce gba:[animation-delay:300ms]" />
               </div>
+              {thinkingStatus && (
+                <span className="gba:text-xs gba:text-muted-foreground gba:animate-pulse">{thinkingStatus}</span>
+              )}
             </div>
           ) : null}
         </div>
@@ -108,6 +134,72 @@ export const NexusChatMessage = ({
         {/* Sources */}
         {message.sources && message.sources.length > 0 && <SourceCitation sources={message.sources} testId={testId} />}
       </div>
+    </div>
+  )
+}
+
+const WebSearchSources = ({ sources, testId }: { sources: WebSource[]; testId: string }) => {
+  const [isExpanded, setIsExpanded] = useState(true)
+
+  const uniqueSources = useMemo(() => {
+    const seen = new Map<string, WebSource>()
+    for (const s of sources) {
+      try {
+        const key = new URL(s.url).origin + new URL(s.url).pathname
+        if (!seen.has(key)) seen.set(key, s)
+      } catch {
+        seen.set(s.url, s)
+      }
+    }
+    return Array.from(seen.values())
+  }, [sources])
+
+  const getDomain = useCallback((url: string) => {
+    try {
+      return new URL(url).hostname.replace('www.', '')
+    } catch {
+      return url
+    }
+  }, [])
+
+  return (
+    <div
+      className="gba:rounded-xl gba:border gba:border-border/50 gba:bg-muted/30 gba:px-3 gba:py-2"
+      data-testid={`${testId}-web-sources`}
+    >
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="gba:flex gba:items-center gba:gap-1.5 gba:w-full gba:text-left"
+        data-testid={`${testId}-web-sources-toggle`}
+      >
+        <Globe className="gba:h-3.5 gba:w-3.5 gba:text-info" />
+        <span className="gba:text-xs gba:font-semibold gba:text-foreground">
+          Searched {uniqueSources.length} site{uniqueSources.length > 1 ? 's' : ''}
+        </span>
+        {isExpanded ? (
+          <ChevronUp className="gba:h-3 gba:w-3 gba:text-muted-foreground gba:ml-auto" />
+        ) : (
+          <ChevronDown className="gba:h-3 gba:w-3 gba:text-muted-foreground gba:ml-auto" />
+        )}
+      </button>
+      {isExpanded && (
+        <div className="gba:mt-1.5 gba:space-y-1">
+          {uniqueSources.map((source, i) => (
+            <a
+              key={`${source.url}-${i}`}
+              href={source.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="gba:flex gba:items-center gba:gap-1.5 gba:text-[11px] gba:text-muted-foreground gba:hover:text-foreground gba:transition-colors gba:group"
+              data-testid={`${testId}-web-source-${i}`}
+            >
+              <ExternalLink className="gba:h-3 gba:w-3 gba:flex-shrink-0 gba:text-info gba:group-hover:text-primary" />
+              <span className="gba:truncate">{source.title}</span>
+              <span className="gba:text-muted-foreground/50 gba:flex-shrink-0">({getDomain(source.url)})</span>
+            </a>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
