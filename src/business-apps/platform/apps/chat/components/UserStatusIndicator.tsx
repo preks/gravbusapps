@@ -16,6 +16,7 @@ export interface UserStatusIndicatorProps {
   status?: UserStatus | string
   size?: 'sm' | 'md' | 'lg'
   showLabel?: boolean
+  showStatusMessage?: boolean
   className?: string
 }
 
@@ -113,10 +114,12 @@ export const UserStatusIndicator: React.FC<UserStatusIndicatorProps> = ({
   status,
   size = 'md',
   showLabel = false,
+  showStatusMessage = false,
   className = ''
 }) => {
   // Get status string from UserStatus object or use as string
   const statusString = typeof status === 'object' ? status.status : status
+  const statusMessage = typeof status === 'object' ? status.statusMessage : undefined
 
   // Default to offline if no status
   const config = statusString ? STATUS_STYLES[statusString as keyof typeof STATUS_STYLES] : STATUS_STYLES['offline']
@@ -136,8 +139,15 @@ export const UserStatusIndicator: React.FC<UserStatusIndicatorProps> = ({
         {renderStatusIcon(config.icon, iconSize)}
       </div>
 
-      {/* Optional Label */}
-      {showLabel && <span className="gba:text-sm gba:text-foreground">{config.label}</span>}
+      {/* Status Label and Message */}
+      {(showLabel || (showStatusMessage && statusMessage)) && (
+        <div className="gba:flex gba:flex-col gba:min-w-0">
+          {showLabel && <span className="gba:text-sm gba:text-foreground">{config.label}</span>}
+          {showStatusMessage && statusMessage && (
+            <span className="gba:text-xs gba:text-muted-foreground gba:italic gba:truncate">{statusMessage}</span>
+          )}
+        </div>
+      )}
     </div>
   )
 }

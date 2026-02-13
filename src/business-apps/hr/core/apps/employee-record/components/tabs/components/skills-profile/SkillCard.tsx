@@ -126,8 +126,7 @@ export const SkillCard: React.FC<SkillCardProps> = ({ skill, accessToken, update
             <DropdownMenuContent
               align="start"
               sideOffset={4}
-              className="gba:min-w-[13rem] gba:w-max gba:py-1"
-              style={{ maxHeight: 'none' }}
+              className="gba:min-w-[13rem] gba:w-max gba:py-1 gba:max-h-none"
             >
               {!isVerified && (
                 <DropdownMenuItem
