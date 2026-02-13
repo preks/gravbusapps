@@ -45,6 +45,12 @@ const ENTITY_URL_PATTERNS = [
   { pattern: /document-creator/, entity_name: 'document_creator' },
   { pattern: /content-portal.*view=documents/, entity_name: 'document_creator' },
 
+  // CRM documents
+  {
+    pattern: /\/platform\/crm\/customer-relations\?[^#]*view=documents[^#]*documentId=([^&]+)/,
+    entity_name: 'crm_document'
+  },
+
   // Flow/Workflow entities
   { pattern: /\/platform\/apps\/flow\/apps\/creator\?[^#]*templateId=([^&#]+)/, entity_name: 'workflow_template' },
 
@@ -65,6 +71,7 @@ const OVERVIEW_URL_PATTERNS = [
   { pattern: /\/platform\/crm\/customer-relations\?view=contacts/, entity_name: 'contact' },
   { pattern: /\/platform\/crm\/customer-relations\?view=companies/, entity_name: 'company' },
   { pattern: /\/platform\/crm\/customer-relations\?view=accounts/, entity_name: 'account' },
+  { pattern: /\/platform\/crm\/customer-relations\?view=documents/, entity_name: 'crm_document' },
 
   // IRM investment-relations overviews
   { pattern: /\/platform\/irm\/investment-relations\?view=opportunities/, entity_name: 'investment_opportunity' },
