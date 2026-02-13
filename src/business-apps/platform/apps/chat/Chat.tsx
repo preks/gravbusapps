@@ -2,7 +2,6 @@ import React, { useState, useCallback, useEffect, useRef, useMemo, startTransiti
 import { Alert, AlertDescription, Spinner, Toaster } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useChatClient } from './hooks/useChatClient'
-import { useGroupCall } from './hooks/useGroupCall'
 import { useRealtimeKitGroupCall } from './hooks/useRealtimeKitGroupCall'
 import { RealtimeKitApiClient } from './services/realtimeKitApiClient'
 import { useEveryAIChat } from './hooks/useEveryAIChat'
@@ -24,8 +23,6 @@ import { playNudgeSound, applyShakeAnimation, injectNudgeStyles } from './utils/
 import { IncomingGroupCallDialog } from './components/IncomingGroupCallDialog'
 import { PreCallSetupStateSync } from './components/PreCallSetupStateSync'
 import { RejoinCallDialog } from './components/RejoinCallDialog'
-import { GroupCallModal } from './components/GroupCallModal'
-// import { GroupCallModalRtk } from './components/GroupCallModalRtk' // Rendered by GlobalCallContainer now
 // import { initGlobalMinimizedCallRenderer } from './components/GlobalMinimizedCall'
 import type { Conversation, User, MessageEntityReference } from './types'
 import type { CallParticipant } from './services/webrtcClient'
@@ -189,11 +186,6 @@ const ChatInner: React.FC<ChatProps> = memo(
       }
       return null
     }, [accessToken, realtimeKitBaseUrl])
-
-    // Feature flag for Realtime Kit group calls
-    // Default: Use RealtimeKit (no env var needed)
-    // Set NEXT_PUBLIC_ENABLE_REALTIME_KIT_GROUP_CALLS=false to use old mesh implementation
-    const useRealtimeKitForGroupCalls = env('NEXT_PUBLIC_ENABLE_REALTIME_KIT_GROUP_CALLS') !== 'false'
 
     const {
       isConnected,
@@ -420,37 +412,7 @@ const ChatInner: React.FC<ChatProps> = memo(
       }
     }, [enrichedCurrentUser, currentUser])
 
-    // Available participants for adding to a call (from the active conversation)
-    const availableParticipantsForCall = useMemo(() => {
-      if (!activeConversation?.participants) return []
-      return activeConversation.participants
-        .filter(p => p.userId || p.user) // Include if userId exists OR user object exists
-        .map(p => {
-          // Prefer user object details, fallback to userId only
-          const user = p.user
-          return {
-            id: user?.id || p.userId,
-            odId: user?.id || p.userId,
-            odName: user
-              ? user.displayName ||
-                `${user.firstName || ''} ${user.lastName || ''}`.trim() ||
-                user.username ||
-                'Unknown'
-              : 'User',
-            avatarUrl: user?.avatarUrl
-          }
-        })
-    }, [activeConversation?.participants])
-
-    // Group Call functionality - Conditionally use Realtime Kit or Mesh topology
-    // Default: Use RealtimeKit. Set NEXT_PUBLIC_ENABLE_REALTIME_KIT_GROUP_CALLS=false to use old mesh implementation
-    const meshGroupCall = useGroupCall({
-      wsClient: wsClient || null,
-      apiClient: apiClient || null,
-      currentUser: currentUserAsParticipant,
-      accessToken: stableAccessToken
-    })
-
+    // Group call functionality - Realtime Kit (RTK) only
     const realtimeKitGroupCall = useRealtimeKitGroupCall({
       wsClient: wsClient || null,
       apiClient: realtimeKitApiClient,
@@ -464,36 +426,18 @@ const ChatInner: React.FC<ChatProps> = memo(
       conversations: conversations // Pass conversations so hook can compute callConversation
     })
 
-    // Route to appropriate implementation based on feature flag
-    const groupCall = useRealtimeKitForGroupCalls ? realtimeKitGroupCall : meshGroupCall
+    const groupCall = realtimeKitGroupCall
 
     const {
       callState: groupCallState,
       isInCall: isInGroupCall,
-      localStream: groupLocalStream,
-      remoteStreams: groupRemoteStreams,
       participants: groupParticipantsRaw,
       incomingInvite: incomingGroupCallInvite,
       initiateCall: initiateGroupCall,
       joinCall: joinGroupCall,
       acceptInvite: acceptGroupInvite,
       declineInvite: declineGroupInvite,
-      leaveCall: leaveGroupCall,
-      toggleMute: toggleGroupMute,
-      toggleVideo: toggleGroupVideo,
-      toggleScreenShare: toggleGroupScreenShare,
-      setVideoQuality: setGroupVideoQuality,
-      toggleMinimize: toggleGroupMinimize,
-      toggleBackground: toggleGroupBackground,
-      // toggleRaiseHand: Handled by GlobalCallContainer
-      // sendReaction: Handled by GlobalCallContainer
-      inviteToCall: inviteToGroupCall,
-      reconnectParticipant: reconnectGroupParticipant,
-      getConnectionDiagnostics: getGroupConnectionDiagnostics,
-      pendingInvites: groupPendingInvites,
-      activeConversationCalls // Active calls from WebSocket for detecting ongoing calls
-      // transcriptionEnabled: Handled by GlobalCallContainer
-      // toggleTranscription: Available but not used here (should be in pre-call UI)
+      activeConversationCalls
     } = groupCall
 
     // NOTE: callConversation is now computed inside the hook based on conversations and roomId
@@ -679,24 +623,9 @@ const ChatInner: React.FC<ChatProps> = memo(
             avatarUrl: user.avatarUrl
           }
 
-          // Use RTK for 1-on-1 calls if feature flag enabled
-          if (useRealtimeKitForGroupCalls) {
-            if (initiateGroupCall) {
-              // Check if conversation is linked to a calendar meeting
-              const calendarMeetingId = activeConversation.metadata?.meetingId || null
-              initiateGroupCall(
-                activeConversation.id,
-                'audio',
-                [participant], // Single participant array
-                undefined, // Don't pass participant name as conversationName for direct calls
-                calendarMeetingId, // Pass calendar meeting ID if available
-                'direct' // Mark as direct conversation for 1-on-1 naming
-              )
-            }
-          } else {
-            // RTK for direct (1:1) when flag off: still use group call with single participant
+          if (initiateGroupCall) {
             const calendarMeetingId = activeConversation.metadata?.meetingId || null
-            initiateGroupCall?.(activeConversation.id, 'audio', [participant], undefined, calendarMeetingId, 'direct')
+            initiateGroupCall(activeConversation.id, 'audio', [participant], undefined, calendarMeetingId, 'direct')
           }
         } else if (activeConversation.type === 'group') {
           // For group conversations, use group call
@@ -742,25 +671,10 @@ const ChatInner: React.FC<ChatProps> = memo(
             avatarUrl: user.avatarUrl
           }
 
-          // Use RTK for 1-on-1 calls if feature flag enabled
-          if (useRealtimeKitForGroupCalls) {
-            rtkDebug.log('[CHAT] Starting 1-on-1 video call with RTK for direct conversation')
-            if (initiateGroupCall) {
-              // Check if conversation is linked to a calendar meeting
-              const calendarMeetingId = activeConversation.metadata?.meetingId || null
-              initiateGroupCall(
-                activeConversation.id,
-                'video',
-                [participant], // Single participant array
-                undefined, // Don't pass participant name as conversationName for direct calls
-                calendarMeetingId, // Pass calendar meeting ID if available
-                'direct' // Mark as direct conversation for 1-on-1 naming
-              )
-            }
-          } else {
-            // RTK for direct (1:1) when flag off: still use group call with single participant
+          rtkDebug.log('[CHAT] Starting 1-on-1 video call with RTK for direct conversation')
+          if (initiateGroupCall) {
             const calendarMeetingId = activeConversation.metadata?.meetingId || null
-            initiateGroupCall?.(activeConversation.id, 'video', [participant], undefined, calendarMeetingId, 'direct')
+            initiateGroupCall(activeConversation.id, 'video', [participant], undefined, calendarMeetingId, 'direct')
           }
         } else if (activeConversation.type === 'group') {
           // For group conversations, use group call
@@ -2215,36 +2129,6 @@ const ChatInner: React.FC<ChatProps> = memo(
           groupParticipants={groupParticipants}
           incomingGroupCallInvite={incomingGroupCallInvite}
         />
-
-        {/* Group Call Modal - REMOVED: Now handled by GlobalCallContainer at root level */}
-        {/* RealtimeKit calls are rendered by GlobalCallContainer mounted in BusinessAppIDE.tsx */}
-        {/* This allows calls to persist across navigation without unmounting */}
-
-        {/* Mesh calls still render here conditionally for backward compatibility */}
-        {!useRealtimeKitForGroupCalls && groupCallState.status === 'connected' && (
-          <GroupCallModal
-            callState={groupCallState}
-            localStream={groupLocalStream}
-            remoteStreams={groupRemoteStreams}
-            participants={groupParticipants}
-            pendingInvites={groupPendingInvites}
-            onEndCall={leaveGroupCall}
-            onToggleMute={toggleGroupMute}
-            onToggleVideo={toggleGroupVideo}
-            onToggleScreenShare={toggleGroupScreenShare}
-            onSetVideoQuality={setGroupVideoQuality}
-            onToggleMinimize={toggleGroupMinimize}
-            onToggleBackground={toggleGroupBackground}
-            backgroundEnabled={groupCallState.backgroundEnabled}
-            prefixDataTestId={`${prefixDataTestId}-group-call`}
-            availableParticipants={availableParticipantsForCall}
-            onInviteParticipant={participant => inviteToGroupCall([participant], activeConversation?.name)}
-            onReconnectParticipant={reconnectGroupParticipant}
-            getConnectionDiagnostics={getGroupConnectionDiagnostics}
-            accessToken={accessToken}
-            currentUserId={currentUser?.id || null}
-          />
-        )}
       </div>
     )
   },
