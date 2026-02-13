@@ -174,6 +174,9 @@ export function useChatConversationHandlers({
         )
         setShowCreateGroupModal(false)
         if (conversation?.id) {
+          setActiveConversation(conversation)
+          setShowConversationList(false)
+          refreshConversations?.()
           const url = new URL(globalThis.location.href)
           url.searchParams.set('conversationId', conversation.id)
           globalThis.history.replaceState({}, '', url.toString())
@@ -182,7 +185,14 @@ export function useChatConversationHandlers({
         throw error
       }
     },
-    [createGroupConversation, setShowCreateGroupModal, conversationIdFromUrlProcessed]
+    [
+      createGroupConversation,
+      setShowCreateGroupModal,
+      setActiveConversation,
+      setShowConversationList,
+      refreshConversations,
+      conversationIdFromUrlProcessed
+    ]
   )
 
   const handleShowGroupSettings = useCallback(() => {
