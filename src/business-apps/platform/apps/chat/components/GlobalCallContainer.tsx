@@ -11,7 +11,6 @@
  */
 
 import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react'
-import { flushSync } from 'react-dom'
 import { globalCallManager } from '../services/globalCallManager'
 import { GroupCallModalRtk } from './GroupCallModalRtk'
 import { RealtimeKitProvider } from '@cloudflare/realtimekit-react'
@@ -40,11 +39,10 @@ export const GlobalCallContainer: React.FC = () => {
 
     const unsubscribe = globalCallManager.subscribe(() => {
       const data = globalCallManager.getCallData()
-      // IMPORTANT: Use flushSync to ensure state updates immediately without batching
-      // This prevents timing issues when toggling minimize/maximize rapidly
-      flushSync(() => {
+      const ownerId = globalCallManager.getUiOwnerId()
+      queueMicrotask(() => {
         setCallData({ ...data })
-        setUiOwnerId(globalCallManager.getUiOwnerId())
+        setUiOwnerId(ownerId)
       })
     }, instanceId)
 
