@@ -18,10 +18,8 @@ if (typeof window !== 'undefined') {
     const detail = (event as CustomEvent<PendingStartCallPayload>).detail
     if (detail?.userId && detail?.displayName) {
       pending = detail
-      console.log('[ChatStartCall] early capture:', detail.callType ?? 'audio')
     }
   })
-  console.log('[ChatStartCall] early listener attached')
 }
 
 export function getAndClearPendingStartCall(): PendingStartCallPayload | null {

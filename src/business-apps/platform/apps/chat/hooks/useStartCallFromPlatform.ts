@@ -79,7 +79,6 @@ export const useStartCallFromPlatform = ({
       }
 
       processingRef.current = true
-      console.log('[ChatStartCall] processStartCall started', payload.callType ?? 'audio')
 
       const { userId, displayName, avatarUrl, callType = 'audio' } = payload
 
@@ -127,12 +126,6 @@ export const useStartCallFromPlatform = ({
     const handleStartCallWithUser = async (event: Event) => {
       const customEvent = event as CustomEvent<StartCallPayload>
       const payload = customEvent.detail
-      console.log(
-        '[ChatStartCall] event received in hook, connected:',
-        isConnected,
-        'hasInitiateGroupCall:',
-        !!initiateGroupCall
-      )
 
       // If not connected yet or not ready, queue the event
       if (!isConnected || !initiateGroupCall) {
