@@ -387,12 +387,15 @@ skills-action-deactivate = Dezactivează
 skills-action-reactivate = Reactivează
 skills-action-activate = Activează
 skills-development-next-actions = Următoarele acțiuni recomandate
-skills-development-set-levels = Setează niveluri pentru { $count } competențe
-skills-development-verify = Verifică { $count } competențe
-skills-development-aging = Revizuiește { $count } competențe vechi
+skills-development-verify-certification = Considerați adăugarea certificării pentru { $count } dintre competențele dvs.
 skills-development-distribution = Distribuția competențelor
 skills-development-distribution-empty = Nicio competență de afișat
-skills-development-groups = Grupuri de competențe
+skills-development-job-profile-fit = Conform descrierii postului sunteți potrivit pentru rolul { $name }.
+skills-development-job-profile-missing-one-prefix = Rolul dvs. necesită o competență pe care nu o aveți încă: 
+skills-development-job-profile-missing-one-suffix = .
+skills-development-job-profile-missing-prefix = Rolul dvs. necesită { $count } competențe pe care nu le aveți încă. Considerați adăugarea: 
+skills-development-job-profile-below-level-prefix = Nivelul dvs. pentru 
+skills-development-job-profile-below-level-suffix = este sub nivelul tipic al rolului ({ $employeeLevel } vs { $profileLevel }).
 
 # Add Skill Form
 add-skill-form-title = Adaugă competență

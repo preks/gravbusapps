@@ -10,48 +10,83 @@ import {
   ChartTooltipContent
 } from '@newwork/nw-design-system'
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer } from 'recharts'
-import { SkillDistribution } from './skillsProfile.utils'
+import { SkillDistribution, type JobProfileGap } from './skillsProfile.utils'
 
 interface SkillsDevelopmentPanelProps {
-  setLevelsCount: number
   verifyCount: number
-  agingCount: number
   distribution: SkillDistribution[]
+  jobProfileGap: JobProfileGap | null
   t: (key: string, args?: Record<string, unknown>) => string
 }
 
 export const SkillsDevelopmentPanel: React.FC<SkillsDevelopmentPanelProps> = ({
-  setLevelsCount,
   verifyCount,
-  agingCount,
   distribution,
+  jobProfileGap,
   t
 }) => {
   const nextActionLines = useMemo(() => {
     const lines: React.ReactNode[] = []
-    if (setLevelsCount > 0) {
-      lines.push(
-        <div key="setLevels" className="gba:text-sm">
-          {t('skills-development-set-levels', { count: setLevelsCount })}
-        </div>
-      )
-    }
     if (verifyCount > 0) {
       lines.push(
         <div key="verify" className="gba:text-sm">
-          {t('skills-development-verify', { count: verifyCount })}
+          {t('skills-development-verify-certification', { count: verifyCount })}
         </div>
       )
     }
-    if (agingCount > 0) {
-      lines.push(
-        <div key="aging" className="gba:text-sm">
-          {t('skills-development-aging', { count: agingCount })}
-        </div>
-      )
+    if (jobProfileGap) {
+      const { jobProfileName, missingSkills, belowLevelSkills } = jobProfileGap
+      const hasMissing = missingSkills.length > 0
+      const hasBelowLevel = belowLevelSkills.length > 0
+      if (!hasMissing && !hasBelowLevel) {
+        lines.push(
+          <div key="job-profile-fit" className="gba:text-sm" data-testid="skills-job-profile-fit">
+            {t('skills-development-job-profile-fit', { name: jobProfileName })}
+          </div>
+        )
+      } else {
+        if (hasMissing) {
+          if (missingSkills.length === 1) {
+            lines.push(
+              <div key="job-profile-missing-one" className="gba:text-sm" data-testid="skills-job-profile-gap">
+                {t('skills-development-job-profile-missing-one-prefix')}{' '}
+                <strong className="gba:font-bold gba:text-foreground">{missingSkills[0].name}</strong>
+                {t('skills-development-job-profile-missing-one-suffix')}
+              </div>
+            )
+          } else {
+            lines.push(
+              <div key="job-profile-missing" className="gba:text-sm" data-testid="skills-job-profile-gap">
+                {t('skills-development-job-profile-missing-prefix', { count: missingSkills.length })}{' '}
+                {missingSkills.map((s, i) => (
+                  <React.Fragment key={s.id}>
+                    {i > 0 && ', '}
+                    <strong className="gba:font-bold gba:text-foreground">{s.name}</strong>
+                  </React.Fragment>
+                ))}
+                .
+              </div>
+            )
+          }
+        }
+        if (hasBelowLevel) {
+          belowLevelSkills.forEach((s, i) => {
+            lines.push(
+              <div key={`job-profile-below-${i}`} className="gba:text-sm">
+                {t('skills-development-job-profile-below-level-prefix')}{' '}
+                <strong className="gba:font-bold gba:text-foreground">{s.skillName}</strong>{' '}
+                {t('skills-development-job-profile-below-level-suffix', {
+                  employeeLevel: s.employeeLevel,
+                  profileLevel: s.profileLevel
+                })}
+              </div>
+            )
+          })
+        }
+      }
     }
     return lines
-  }, [setLevelsCount, verifyCount, agingCount, t])
+  }, [verifyCount, jobProfileGap, t])
 
   const chartColor = 'hsl(215, 25%, 55%)'
   const chartData = useMemo(

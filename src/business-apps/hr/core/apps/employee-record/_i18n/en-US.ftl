@@ -394,12 +394,15 @@ skills-action-deactivate = Deactivate
 skills-action-reactivate = Reactivate
 skills-action-activate = Activate
 skills-development-next-actions = Next Best Actions
-skills-development-set-levels = Set levels for { $count } skills
-skills-development-verify = Verify { $count } skills
-skills-development-aging = Review { $count } aging skills
+skills-development-verify-certification = Consider adding certification for { $count } of your skills.
 skills-development-distribution = Skill Distribution
 skills-development-distribution-empty = No skills to display
-skills-development-groups = Skill Groups
+skills-development-job-profile-fit = According to job description you are fit for the { $name } role.
+skills-development-job-profile-missing-one-prefix = Your role requires 1 skill you don't have yet: 
+skills-development-job-profile-missing-one-suffix = .
+skills-development-job-profile-missing-prefix = Your role requires { $count } skills you don't have yet. Consider adding: 
+skills-development-job-profile-below-level-prefix = Your level for 
+skills-development-job-profile-below-level-suffix = is below the role's typical level ({ $employeeLevel } vs { $profileLevel }).
 
 # Add Skill Form
 add-skill-form-title = Add Skill

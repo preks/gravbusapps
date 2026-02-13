@@ -387,12 +387,15 @@ skills-action-deactivate = Deaktivieren
 skills-action-reactivate = Reaktivieren
 skills-action-activate = Aktivieren
 skills-development-next-actions = Nächste beste Aktionen
-skills-development-set-levels = Level für { $count } Fähigkeiten setzen
-skills-development-verify = { $count } Fähigkeiten verifizieren
-skills-development-aging = { $count } veraltete Fähigkeiten prüfen
+skills-development-verify-certification = Erwägen Sie, für { $count } Ihrer Fähigkeiten eine Zertifizierung hinzuzufügen.
 skills-development-distribution = Skills-Verteilung
 skills-development-distribution-empty = Keine Skills anzuzeigen
-skills-development-groups = Skill-Gruppen
+skills-development-job-profile-fit = Laut Stellenbeschreibung passen Sie für die Rolle { $name }.
+skills-development-job-profile-missing-one-prefix = Ihre Rolle erfordert 1 Fähigkeit, die Sie noch nicht haben: 
+skills-development-job-profile-missing-one-suffix = .
+skills-development-job-profile-missing-prefix = Ihre Rolle erfordert { $count } Fähigkeiten, die Sie noch nicht haben. Ziehen Sie in Betracht: 
+skills-development-job-profile-below-level-prefix = Ihr Level für 
+skills-development-job-profile-below-level-suffix = liegt unter dem typischen Rollenlevel ({ $employeeLevel } vs { $profileLevel }).
 
 # Add Skill Form
 add-skill-form-title = Fähigkeit hinzufügen

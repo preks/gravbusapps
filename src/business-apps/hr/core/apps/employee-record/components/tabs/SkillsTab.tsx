@@ -25,10 +25,9 @@ import {
   SkillSortOption,
   SkillStatusFilter,
   applySkillsFiltersAndSort,
-  getAgingSkillCount,
+  getJobProfileGap,
   getSkillDistribution,
-  getSkillsSnapshotData,
-  parseSkillLevel
+  getSkillsSnapshotData
 } from './components/skills-profile/skillsProfile.utils'
 
 interface SkillsTabProps {
@@ -66,12 +65,15 @@ const SkillsTab: React.FC<SkillsTabProps> = ({ employee, accessToken }) => {
 
   const snapshot = useMemo(() => getSkillsSnapshotData(employeeSkills), [employeeSkills])
   const distribution = useMemo(() => getSkillDistribution(employeeSkills), [employeeSkills])
-  const agingCount = useMemo(() => getAgingSkillCount(employeeSkills), [employeeSkills])
-  const setLevelsCount = useMemo(
-    () => validSkills.filter(skill => parseSkillLevel(skill.level) === null).length,
-    [validSkills]
-  )
   const verifyCount = useMemo(() => validSkills.filter(skill => !skill.verificationDocumentId).length, [validSkills])
+  const jobProfileGap = useMemo(
+    () =>
+      getJobProfileGap({
+        employeeSkills,
+        jobProfile: employee?.employeePosition?.jobPosition?.jobProfile
+      }),
+    [employeeSkills, employee?.employeePosition?.jobPosition?.jobProfile]
+  )
 
   const filteredSkills = useMemo(
     () =>
@@ -212,10 +214,9 @@ const SkillsTab: React.FC<SkillsTabProps> = ({ employee, accessToken }) => {
 
         <div className="gba:lg:col-span-3 gba:lg:order-2" data-testid="skills-profile-sidebar-column">
           <SkillsDevelopmentPanel
-            setLevelsCount={setLevelsCount}
             verifyCount={verifyCount}
-            agingCount={agingCount}
             distribution={distribution}
+            jobProfileGap={jobProfileGap}
             t={t}
           />
         </div>

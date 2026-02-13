@@ -63,6 +63,16 @@ export const GET_EMPLOYEE_DATA = /*sql*/ `
         id
         name
       }
+      jobProfile {
+        name
+        jobProfileSkills {
+          skill {
+            id
+            name
+          }
+          requiredLevel
+        }
+      }
     }
     jobPositionId
     siteLocation {
@@ -554,6 +564,13 @@ interface EmployeePosition {
     jobLevel?: {
       id: string
       name: string
+    }
+    jobProfile?: {
+      name: string
+      jobProfileSkills?: Array<{
+        skill: { id: string; name: string }
+        requiredLevel?: number | null
+      }>
     }
   }
   jobPositionId: string
