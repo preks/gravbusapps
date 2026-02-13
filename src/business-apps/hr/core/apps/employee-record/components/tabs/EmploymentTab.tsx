@@ -71,9 +71,11 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken }) 
     }
   ]
 
-  // Prepare working conditions data
+  // Prepare working conditions data (aligned with Update Working Conditions modal: region + country used to filter region options)
   const getWorkingConditionsData = () => {
     const workingCondition = employee.workingCondition?.[0]
+    const primaryAddress = employee.addresses?.find(addr => addr.type === 'PRIMARY')
+    const addressCountryValue = primaryAddress?.country?.value ?? getCatalogValue(primaryAddress?.country) ?? ''
 
     return [
       {
@@ -106,7 +108,7 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken }) 
       },
       {
         label: t('employment-label-region'),
-        value: workingCondition?.region?.value || ''
+        value: addressCountryValue
       },
       {
         label: t('employment-label-vacation-entitlement-days'),

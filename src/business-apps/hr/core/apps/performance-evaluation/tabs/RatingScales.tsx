@@ -14,7 +14,7 @@ import {
   useTranslation,
   Spinner
 } from '@newwork/nw-design-system'
-import { PlusIcon } from '@phosphor-icons/react'
+import { PencilSimple, Plus, Trash } from '@phosphor-icons/react'
 import type { RatingScale } from '../types'
 import RatingScaleEditorModal, { RatingScaleValues } from '../RatingScaleEditorModal'
 import translations from '../_i18n'
@@ -73,7 +73,7 @@ export const RatingScales: React.FC<RatingScalesProps> = ({
                 <Spinner className="gba:h-5 gba:w-5" data-testid="performance-rating-scales-loading" />
               )}
               <Button variant="default" onClick={handleAdd} data-testid="performance-rating-scales-add-button">
-                <PlusIcon className="gba:mr-2" size={16} />
+                <Plus className="gba:mr-2" size={16} />
                 {t('button-add')}
               </Button>
             </div>
@@ -121,22 +121,22 @@ export const RatingScales: React.FC<RatingScalesProps> = ({
                         <div className="gba:flex gba:justify-end gba:gap-1">
                           <Button
                             variant="ghost"
-                            size="sm"
+                            size="icon"
                             onClick={() => {
                               setEditingScale(s)
                               setIsScaleModalOpen(true)
                             }}
                             aria-label="Edit Scale"
                           >
-                            {t('button-edit')}
+                            <PencilSimple />
                           </Button>
                           <Button
-                            variant="destructive"
-                            size="sm"
+                            variant="ghost"
+                            size="icon"
                             onClick={() => onDeleteScale(s)}
                             aria-label="Delete Scale"
                           >
-                            {t('button-delete')}
+                            <Trash />
                           </Button>
                         </div>
                       </TableCell>

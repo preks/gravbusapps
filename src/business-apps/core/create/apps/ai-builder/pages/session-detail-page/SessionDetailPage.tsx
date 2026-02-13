@@ -1,6 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { Badge, Button, ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@newwork/nw-design-system'
+import {
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup
+} from '@newwork/nw-design-system'
 import {
   Sparkles,
   Upload,
@@ -45,6 +55,9 @@ interface Message {
     outputTokens: number
     totalCost: number
   }
+  messageId?: string
+  createdAt?: string
+  serverCreatedAt?: string
 }
 
 interface UniqueFileSummary {
@@ -113,6 +126,12 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
   const [llmProvider] = useState<'claude' | 'openai'>('claude')
   const [uniqueFileSummary, setUniqueFileSummary] = useState<UniqueFileSummary | null>(null)
   const [showPublishDialog, setShowPublishDialog] = useState(false)
+  const [publishVersionType, setPublishVersionType] = useState<'major' | 'minor'>('minor')
+  const [publishVersionNote, setPublishVersionNote] = useState('')
+  const [showRestoreDialog, setShowRestoreDialog] = useState(false)
+  const [pendingRestoreMessage, setPendingRestoreMessage] = useState<Message | null>(null)
+  const [isRestoringMessageId, setIsRestoringMessageId] = useState<string | null>(null)
+  const [publishAfterRestore, setPublishAfterRestore] = useState(true)
   const [targetPath, setTargetPath] = useState('')
   const [detectedTargetPath, setDetectedTargetPath] = useState<string | null>(null)
   const [resourceUrl, setResourceUrl] = useState('')
@@ -133,6 +152,36 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
   const toolIdCounter = useRef(0)
   const previewSandboxRef = useRef<PreviewSandboxHandle>(null)
   const previousChangeCountRef = useRef(0)
+  const resolvedTargetPath = detectedTargetPath || targetPath
+
+  const createMessageId = (): string => {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return crypto.randomUUID()
+    }
+    return `msg-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+  }
+
+  const buildMessage = (role: MessageRole, content: string, extras?: Partial<Message>): Message => ({
+    role,
+    content,
+    messageId: createMessageId(),
+    createdAt: new Date().toISOString(),
+    ...extras
+  })
+
+  const ensureMessageIds = (history: Message[]): { messages: Message[]; updated: boolean } => {
+    let updated = false
+    const messages = history.map(message => {
+      if (message.messageId && message.createdAt) return message
+      updated = true
+      return {
+        ...message,
+        messageId: message.messageId ?? createMessageId(),
+        createdAt: message.createdAt ?? new Date().toISOString()
+      }
+    })
+    return { messages, updated }
+  }
 
   const toggleFileExplorer = () => {
     const newValue = !showFileExplorer
@@ -229,10 +278,14 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
       .loadChatHistory(repositoryId, sessionId)
       .then(history => {
         if (history?.length) {
-          setMessages(history as Message[])
-        } else {
-          setMessages([])
+          const normalized = ensureMessageIds(history as Message[])
+          if (normalized.updated) {
+            builderClient.saveChatHistory(repositoryId, sessionId, normalized.messages)
+          }
+          setMessages(normalized.messages as Message[])
+          return
         }
+        setMessages([])
       })
       .catch(error => {
         console.error('Failed to load chat history:', error)
@@ -270,22 +323,25 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
       }
       await builderClient.publishScreen({
         repoId: repositoryId,
-        sessionId
+        sessionId,
+        versionType: publishVersionType,
+        versionNote: publishVersionNote
       })
       const fullUrl = `/${targetPath}`
       setPublishSuccess(fullUrl)
       setShowPublishDialog(false)
       setPublishError(null)
+      setPublishVersionNote('')
       setMessages(prev => [
         ...prev,
-        {
-          role: 'assistant',
-          content: getTranslationFromI18nKeyAndLabel(
+        buildMessage(
+          'assistant',
+          getTranslationFromI18nKeyAndLabel(
             'lowcoder:ai_builder.publish_success_message',
             `✅ **Screen published successfully!**\n\nYou can now access your screen at:\n${fullUrl}\n\nClick the link in the success banner to open it in a new tab.`,
             { url: fullUrl }
           )
-        }
+        )
       ])
       setTimeout(() => setPublishSuccess(null), 10000)
     } catch (error) {
@@ -302,6 +358,50 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
       setInput(errorPrompt)
     } finally {
       setIsPublishing(false)
+    }
+  }
+
+  const openRestoreDialog = (message: Message) => {
+    if (!sessionId || !message.messageId || !resolvedTargetPath) return
+    setPendingRestoreMessage(message)
+    setPublishAfterRestore(true)
+    setShowRestoreDialog(true)
+  }
+
+  const confirmRestoreMessage = async () => {
+    if (!sessionId || !pendingRestoreMessage?.messageId || !resolvedTargetPath) return
+    setIsRestoringMessageId(pendingRestoreMessage.messageId)
+    try {
+      await builderClient.restoreToMessage({
+        repoId: repositoryId,
+        sessionId,
+        targetPath: resolvedTargetPath,
+        messageId: pendingRestoreMessage.messageId,
+        restoreChat: true
+      })
+      const newCount = await checkForChanges()
+      previewSandboxRef.current?.reload()
+      previousChangeCountRef.current = newCount
+      const history = await builderClient.loadChatHistory(repositoryId, sessionId)
+      if (history?.length) {
+        const normalized = ensureMessageIds(history as Message[])
+        if (normalized.updated) {
+          builderClient.saveChatHistory(repositoryId, sessionId, normalized.messages)
+        }
+        setMessages(normalized.messages as Message[])
+      } else {
+        setMessages([])
+      }
+      setShowRestoreDialog(false)
+      setPendingRestoreMessage(null)
+      if (publishAfterRestore) {
+        await handlePublish()
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to restore message'
+      alert(message)
+    } finally {
+      setIsRestoringMessageId(null)
     }
   }
 
@@ -355,7 +455,7 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
     ctx.setMessages(prev => {
       const next = [...prev]
       if (next.length === 0 || next[next.length - 1].role !== 'assistant') {
-        next.push({ role: 'assistant', content: '', thinkingLog: '', thinkingCollapsed: false })
+        next.push(buildMessage('assistant', '', { thinkingLog: '', thinkingCollapsed: false }))
       }
       const last = next[next.length - 1]
       last.thinkingLog = (last.thinkingLog || '') + (data.content as string)
@@ -375,7 +475,7 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
       return next
     })
     if (!streamState.hasCreatedInitialMessage || streamState.needsNewMessage) {
-      ctx.setMessages(prev => [...prev, { role: 'assistant', content: '' }])
+      ctx.setMessages(prev => [...prev, buildMessage('assistant', '')])
       streamState.hasCreatedInitialMessage = true
       streamState.needsNewMessage = false
       streamState.assistantMessage = ''
@@ -390,7 +490,7 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
 
   const applyToolCallEvent = (data: Record<string, unknown>, streamState: StreamState, ctx: StreamCtx): void => {
     if (!streamState.hasCreatedInitialMessage) {
-      ctx.setMessages(prev => [...prev, { role: 'assistant', content: '' }])
+      ctx.setMessages(prev => [...prev, buildMessage('assistant', '')])
       streamState.hasCreatedInitialMessage = true
       streamState.assistantMessage = ''
     }
@@ -483,7 +583,7 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!input.trim() || loading) return
-    const userMessage: Message = { role: 'user', content: input }
+    const userMessage = buildMessage('user', input)
     const userInput = input
     setMessages(prev => [...prev, userMessage])
     setInput('')
@@ -529,14 +629,14 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
       setMessages(prev => [
         ...prev,
-        {
-          role: 'assistant',
-          content: getTranslationFromI18nKeyAndLabel(
+        buildMessage(
+          'assistant',
+          getTranslationFromI18nKeyAndLabel(
             'lowcoder:ai_builder.error_message',
             `Sorry, there was an error: ${errorMessage}`,
             { error: errorMessage }
           )
-        }
+        )
       ])
     } finally {
       setLoading(false)
@@ -549,6 +649,10 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
       }, 2000)
     }
   }
+
+  const restoreMessagePreview = pendingRestoreMessage?.content ? pendingRestoreMessage.content.slice(0, 160) : ''
+  const restoreMessageTimeValue = pendingRestoreMessage?.createdAt || pendingRestoreMessage?.serverCreatedAt || ''
+  const restoreMessageTimestamp = restoreMessageTimeValue ? new Date(restoreMessageTimeValue).toLocaleString() : ''
 
   return (
     <div className="gba:flex gba:h-full gba:relative gba:overflow-hidden">
@@ -869,6 +973,8 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
                     onSendMessage={() => handleSubmit({ preventDefault: () => {} } as React.FormEvent)}
                     isProcessing={loading}
                     thinking={thinking}
+                    onRestoreMessage={openRestoreDialog}
+                    isRestoringMessageId={isRestoringMessageId}
                     userName={
                       context.userInfo
                         ? `${context.userInfo.givenName ?? ''} ${context.userInfo.familyName ?? ''}`.trim() ||
@@ -946,6 +1052,8 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
                   onSendMessage={() => handleSubmit({ preventDefault: () => {} } as React.FormEvent)}
                   isProcessing={loading}
                   thinking={thinking}
+                  onRestoreMessage={openRestoreDialog}
+                  isRestoringMessageId={isRestoringMessageId}
                   userName={
                     context.userInfo
                       ? `${context.userInfo.givenName ?? ''} ${context.userInfo.familyName ?? ''}`.trim() ||
@@ -1004,11 +1112,78 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
               resourceUrl={resourceUrl}
               publishError={publishError}
               isPublishing={isPublishing}
+              publishVersionType={publishVersionType}
+              publishVersionNote={publishVersionNote}
               onClose={() => setShowPublishDialog(false)}
               onTargetPathChange={setTargetPath}
               onResourceUrlChange={setResourceUrl}
+              onVersionTypeChange={setPublishVersionType}
+              onVersionNoteChange={setPublishVersionNote}
               onPublish={handlePublish}
             />
+          )}
+
+          {showRestoreDialog && pendingRestoreMessage && (
+            <div className="gba:fixed gba:inset-0 gba:bg-background/80 gba:backdrop-blur-sm gba:flex gba:items-center gba:justify-center gba:z-50 gba:p-4">
+              <Card className="gba:w-full gba:max-w-xl">
+                <CardHeader className="gba:border-b">
+                  <div className="gba:flex gba:items-center gba:justify-between">
+                    <CardTitle className="gba:text-lg">Restore Message</CardTitle>
+                    <button
+                      onClick={() => {
+                        setShowRestoreDialog(false)
+                        setPendingRestoreMessage(null)
+                      }}
+                      className="gba:text-muted-foreground hover:gba:text-foreground"
+                    >
+                      <X className="gba:w-4 gba:h-4" />
+                    </button>
+                  </div>
+                </CardHeader>
+                <CardContent className="gba:space-y-4">
+                  <div className="gba:text-sm gba:text-foreground gba:space-y-2">
+                    <p>
+                      You are about to restore to this chat message. Any publish you did after the restore point is
+                      still deployed.
+                    </p>
+                    {restoreMessageTimestamp && (
+                      <p className="gba:text-xs gba:text-muted-foreground">{restoreMessageTimestamp}</p>
+                    )}
+                    {restoreMessagePreview && (
+                      <div className="gba:text-xs gba:text-muted-foreground gba:bg-muted/40 gba:border gba:rounded-md gba:p-2 gba:line-clamp-3">
+                        {restoreMessagePreview}
+                      </div>
+                    )}
+                  </div>
+                  <label className="gba:flex gba:items-center gba:gap-2 gba:text-sm">
+                    <input
+                      type="checkbox"
+                      checked={publishAfterRestore}
+                      onChange={e => setPublishAfterRestore(e.target.checked)}
+                    />
+                    Publish after restore (recommended)
+                  </label>
+                  <div className="gba:flex gba:justify-end gba:gap-2 gba:pt-2 gba:border-t">
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setShowRestoreDialog(false)
+                        setPendingRestoreMessage(null)
+                      }}
+                      disabled={isRestoringMessageId === pendingRestoreMessage.messageId}
+                    >
+                      {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.cancel', 'Cancel')}
+                    </Button>
+                    <Button
+                      onClick={confirmRestoreMessage}
+                      disabled={isRestoringMessageId === pendingRestoreMessage.messageId}
+                    >
+                      {isRestoringMessageId === pendingRestoreMessage.messageId ? 'Restoring...' : 'Restore'}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           )}
 
           {selectedFile && (
