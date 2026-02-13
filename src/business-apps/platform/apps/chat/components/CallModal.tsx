@@ -354,7 +354,9 @@ export const CallModal: React.FC<CallModalProps> = memo(
                     playsInline
                     className={`gba:w-full gba:h-full ${isRemoteScreenShare ? 'gba:object-contain gba:bg-black' : 'gba:object-cover'}`}
                     data-testid={`${prefixDataTestId}-remote-video`}
-                  />
+                  >
+                    <track kind="captions" />
+                  </video>
                   {/* Expand indicator on hover */}
                   <div className="gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center gba:bg-black/0 group-hover:gba:bg-black/20 gba:transition-colors gba:pointer-events-none">
                     <div className="gba:opacity-0 group-hover:gba:opacity-100 gba:transition-opacity gba:bg-black/60 gba:rounded-full gba:p-3">
@@ -372,7 +374,11 @@ export const CallModal: React.FC<CallModalProps> = memo(
               ) : (
                 // Audio call or no video - show avatar
                 <div className="gba:w-full gba:h-full gba:flex gba:flex-col gba:items-center gba:justify-center gba:gap-4">
-                  {!isVideoCall && remoteStream && <audio ref={remoteAudioRef} autoPlay className="gba:hidden" />}
+                  {!isVideoCall && remoteStream && (
+                    <audio ref={remoteAudioRef} autoPlay className="gba:hidden">
+                      <track kind="captions" />
+                    </audio>
+                  )}
                   {remoteParticipant?.avatarUrl ? (
                     <Avatar className="gba:w-32 gba:h-32 gba:ring-4 gba:ring-white/20">
                       <AvatarImage src={remoteParticipant.avatarUrl} alt={participantName} />
@@ -406,7 +412,9 @@ export const CallModal: React.FC<CallModalProps> = memo(
                     muted
                     className="gba:w-full gba:h-full gba:object-cover gba:transform gba:scale-x-[-1]"
                     data-testid={`${prefixDataTestId}-local-video`}
-                  />
+                  >
+                    <track kind="captions" />
+                  </video>
                   <div className="gba:absolute gba:top-1 gba:right-1">
                     {localVideoMinimized ? (
                       <Maximize2 className="gba:w-3 gba:h-3 gba:text-white/70" />
@@ -612,7 +620,9 @@ export const CallModal: React.FC<CallModalProps> = memo(
                 autoPlay
                 playsInline
                 className="gba:max-w-full gba:max-h-full gba:object-contain"
-              />
+              >
+                <track kind="captions" />
+              </video>
 
               {/* Click hint */}
               <div className="gba:absolute gba:bottom-4 gba:left-1/2 gba:-translate-x-1/2 gba:text-white/60 gba:text-sm">
