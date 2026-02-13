@@ -1,7 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useCompanies } from '../../hooks'
-import { Company } from '../../types'
 import {
   TreeNode,
   TreeView,
@@ -39,7 +38,7 @@ import { env } from '@/common/env/EnvUtils'
 import { DeleteButton } from '../../../generic-components/delete-button/DeleteButton'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { extractCurrencyCode } from '@/common/utils/numberFormatter'
-import { CompanyAddress, Director } from '../../types'
+import { CompanyAddress, Director, Company } from '../../types'
 
 export interface CompaniesTabProps extends BusinessAppContextProps {
   prefixDataTestId?: string
@@ -450,7 +449,7 @@ const CompaniesTab: React.FC<CompaniesTabProps> = context => {
       Object.entries(selectedCompany.additionalProperties).forEach(([key, value]) => {
         // Only add if value is not empty/null/undefined
         if (value !== null && value !== undefined && value !== '') {
-          const displayValue = typeof value === 'object' ? JSON.stringify(value) : String(value)
+          const displayValue = typeof value === 'object' && value !== null ? JSON.stringify(value) : String(value)
           if (displayValue.trim() !== '') {
             // Format key: convert camelCase to Title Case
             const formattedKey = key

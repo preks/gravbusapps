@@ -738,17 +738,8 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
       addAdditionalPropertiesToPayload(payload, formValues, isEditMode)
       await addPictureToPayload(payload, isEditMode)
 
-      // Helper function to get string field value or empty string for edit mode
-      // Backend ignores null, so we send empty string to clear fields
-      const getStringFieldValue = (value: string | undefined | null, originalValue?: string): string | undefined => {
-        if (value) return value
-        // In edit mode, send empty string to clear the field if it was previously set
-        if (isEditMode && originalValue) return ''
-        return undefined // Don't include in payload for create mode
-      }
-
       // Optional string fields - include empty string in edit mode if field was cleared
-      const description = getStringFieldValue(trimmedData.description, companyData?.description)
+      const description = getStringFieldValue(trimmedData.description, companyData?.description, isEditMode)
       if (description !== undefined) payload.description = description
 
       // Director ID - special handling (UUID, not string)
@@ -760,20 +751,29 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
 
       const commercialRegNum = getStringFieldValue(
         trimmedData.commercial_registration_number,
-        companyData?.commercialRegistrationNumber
+        companyData?.commercialRegistrationNumber,
+        isEditMode
       )
       if (commercialRegNum !== undefined) payload.commercialRegistrationNumber = commercialRegNum
 
-      const taxIdNum = getStringFieldValue(trimmedData.tax_identification_number, companyData?.taxIdentificationNumber)
+      const taxIdNum = getStringFieldValue(
+        trimmedData.tax_identification_number,
+        companyData?.taxIdentificationNumber,
+        isEditMode
+      )
       if (taxIdNum !== undefined) payload.taxIdentificationNumber = taxIdNum
 
-      const taxNum = getStringFieldValue(trimmedData.tax_number, companyData?.taxNumber)
+      const taxNum = getStringFieldValue(trimmedData.tax_number, companyData?.taxNumber, isEditMode)
       if (taxNum !== undefined) payload.taxNumber = taxNum
 
-      const vatNum = getStringFieldValue(trimmedData.value_added_tax_number, companyData?.valueAddedTaxNumber)
+      const vatNum = getStringFieldValue(
+        trimmedData.value_added_tax_number,
+        companyData?.valueAddedTaxNumber,
+        isEditMode
+      )
       if (vatNum !== undefined) payload.valueAddedTaxNumber = vatNum
 
-      const currency = getStringFieldValue(trimmedData.currency, companyData?.currencyRef)
+      const currency = getStringFieldValue(trimmedData.currency, companyData?.currencyRef, isEditMode)
       if (currency !== undefined) payload.currencyRef = currency
 
       // Include addresses as delta (UPSERT/DELETE only)
