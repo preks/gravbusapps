@@ -204,7 +204,13 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
 
         const employeeId = userInfo?.employeeDetails?.employeeId
         if (!employeeId) {
-          showToast(t('lowcoder:create_expense_request_wizard.missing_employee_id', 'Missing employee ID'), 'error')
+          showToast(
+            getTranslationFromI18nKeyAndLabel(
+              'lowcoder:create_expense_request_wizard.missing_employee_id',
+              'Missing employee ID'
+            ),
+            'error'
+          )
           setLoading(false)
           return
         }

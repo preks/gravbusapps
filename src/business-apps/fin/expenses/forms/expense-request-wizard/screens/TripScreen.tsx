@@ -10,12 +10,17 @@ import LocationForm from '../components/LocationForm/LocationForm'
 
 import { DestinationLimit, LocationData, TripScreenProps } from '../utils/types'
 import { getMaxLimits, getMinLimits, getMinMaxLimits, validateAndSanitizeLocation } from '../utils/locationTimeUtils'
-import { getExpenseRulesDataQuery, getRequestsAbsences } from '../ExpenseRequestWizardQueries'
+import {
+  getExpenseRulesDataQuery,
+  getRequestsAbsences,
+  fetchEmployeeExpenseItemsFromPayload
+} from '../ExpenseRequestWizardQueries'
 import { getRuleAllowancePeriod } from '../ExpenseRequestWizardQueries'
 import { useExpenseRequestWizardContext } from '../context/ExpenseRequestWizardContext'
 import { showToast } from '../../../utils/notificationUtils'
 import LoadScreen from './LoadScreen'
 import { fetchEmployeeRule } from '../ExpenseRequestWizardQueries'
+import { REQUEST_STATUS } from '../constants/constants'
 import { getOverlapWarningMessage } from '../utils/dateOverlapUtils'
 import { combineDateTimeToISOString } from '../utils/locationTimeUtils'
 import {
@@ -120,24 +125,29 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
 
   const [locationsAreSynced, setLocationsAreSynced] = useState<boolean>(false)
   const lastAbsenceCheckKeyRef = useRef<string | null>(null)
+  const lastRuleCheckKeyRef = useRef<string | null>(null)
 
   const [startLocationOverlap, setStartLocationOverlap] = useState<{ message: string; isError: boolean } | null>(null)
   const [endLocationOverlap, setEndLocationOverlap] = useState<{ message: string; isError: boolean } | null>(null)
   const [employeeRuleError, setEmployeeRuleError] = useState<string | null>(null)
   const [ruleConflictError, setRuleConflictError] = useState<string | null>(null)
+  const [payloadItemsForRuleCheck, setPayloadItemsForRuleCheck] = useState<
+    Array<{ id: string; ruleId: string; code: string; title: string }>
+  >([])
+  const [isFetchingPayloadItems, setIsFetchingPayloadItems] = useState<boolean>(false)
 
-  const validateEmployeeRule = async (startDate: Date | undefined, startTime: Date | undefined) => {
-    setEmployeeRuleError(null)
-    setRuleConflictError(null)
-
+  const validateEmployeeRule = async (
+    startDate: Date | undefined,
+    startTime: Date | undefined
+  ): Promise<{ employeeRuleError: string | null; ruleConflictError: string | null }> => {
     if (!startDate) {
-      return true
+      return { employeeRuleError: null, ruleConflictError: null }
     }
 
     const employeeId = userInfo?.employeeDetails?.employeeId
 
     if (!accessToken || !employeeId) {
-      return false
+      return { employeeRuleError: null, ruleConflictError: null }
     }
 
     try {
@@ -157,38 +167,33 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
           'lowcoder:create_expense_item.missing_expense_rule_message',
           'There is no rule set for your user, please reach out to your administrator.'
         )
-        setEmployeeRuleError(errorMessage)
-        return false
+        return { employeeRuleError: errorMessage, ruleConflictError: null }
       }
 
       if (ruleDataValue) {
         setEmployeeRuleId(ruleDataValue)
-        const hasConflict = await checkRuleConflicts(ruleDataValue)
-        if (hasConflict) {
-          return false
-        }
+        const conflictError = await checkRuleConflicts(ruleDataValue)
+        return { employeeRuleError: null, ruleConflictError: conflictError }
       }
 
-      return true
+      return { employeeRuleError: null, ruleConflictError: null }
     } catch {
       const errorMessage = getTranslationFromI18nKeyAndLabel(
         'lowcoder:create_expense_item.missing_expense_rule_message',
         'There is no rule set for your user, please reach out to your administrator.'
       )
-      setEmployeeRuleError(errorMessage)
-      return false
+      return { employeeRuleError: errorMessage, ruleConflictError: null }
     }
   }
 
-  const checkRuleConflicts = async (newRuleId: string): Promise<boolean> => {
-    setRuleConflictError(null)
+  const checkRuleConflicts = async (newRuleId: string): Promise<string | null> => {
     if (!expenseRequestData) {
-      return false
+      return null
     }
 
     const requestValue = expenseRequestData.ExpenseRequestByPk
     if (!requestValue) {
-      return false
+      return null
     }
 
     if (requestValue.expensePlan) {
@@ -231,8 +236,7 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
               }
             }
           )
-          setRuleConflictError(errorMessage)
-          return true
+          return errorMessage
         } catch {
           // Fallback to using rule IDs if fetching fails
           const errorMessage = getTranslationFromI18nKeyAndLabel(
@@ -248,8 +252,7 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
               }
             }
           )
-          setRuleConflictError(errorMessage)
-          return true
+          return errorMessage
         }
       }
     }
@@ -274,8 +277,10 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
       Array.isArray(additionalData.psi_taskPayload.psi_initialParameters.expenseItems)
     ) {
       additionalData.psi_taskPayload.psi_initialParameters.expenseItems.forEach((item: any) => {
+        const itemId = item.itemId || item.id
+        if (!itemId) return
         additionalItems.push({
-          id: item.id,
+          id: itemId,
           code: item.code || '',
           title: item.title || '',
           ruleId: item.expenseRuleId || ''
@@ -283,7 +288,11 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
       })
     }
 
-    const items = mergeUniqueById(requestItems, additionalItems)
+    // Merge items from request, initial params, and fetched payload items (for rule check when payload only has IDs)
+    let items = mergeUniqueById(requestItems, additionalItems)
+    if (payloadItemsForRuleCheck.length > 0) {
+      items = mergeUniqueById(items, payloadItemsForRuleCheck)
+    }
 
     const mismatchedItem = items.find(
       (item: { id: string; code: string; title: string; ruleId: string }) => item.ruleId && item.ruleId !== newRuleId
@@ -327,8 +336,7 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
           }
         )
 
-        setRuleConflictError(errorMessage)
-        return true
+        return errorMessage
       } catch {
         // Fallback to using rule IDs if fetching fails
         const errorMessage = getTranslationFromI18nKeyAndLabel(
@@ -345,12 +353,11 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
           }
         )
 
-        setRuleConflictError(errorMessage)
-        return true
+        return errorMessage
       }
     }
 
-    return false
+    return null
   }
 
   const checkAbsencesAndRequests = async (
@@ -367,8 +374,10 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
     }
 
     if (!isEndLocation) {
-      const isRuleValid = await validateEmployeeRule(startDate, startTime)
-      if (!isRuleValid) {
+      const errors = await validateEmployeeRule(startDate, startTime)
+      setEmployeeRuleError(errors.employeeRuleError)
+      setRuleConflictError(errors.ruleConflictError)
+      if (errors.employeeRuleError || errors.ruleConflictError) {
         return
       }
     }
@@ -751,6 +760,107 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
     startLocation.departureTime,
     endLocation.departureDate,
     endLocation.departureTime
+  ])
+
+  // Run rule conflict check whenever Trip has items (from request or initial params) so error shows from start and after entering start date
+  const hasItemsFromRequest = (expenseRequestData?.ExpenseItem?.length ?? 0) > 0
+  const hasItemsFromInitialParams =
+    Array.isArray(additionalData?.psi_taskPayload?.psi_initialParameters?.expenseItems) &&
+    additionalData.psi_taskPayload.psi_initialParameters.expenseItems.length > 0
+  const hasAnyItemsToCheck = hasItemsFromRequest || hasItemsFromInitialParams
+
+  useEffect(() => {
+    const runRuleCheck = async () => {
+      if (!accessToken || !userInfo?.employeeDetails || !expenseRequestData || !hasAnyItemsToCheck) return
+      if (isFetchingPayloadItems) return
+
+      // Deduplicate: only run check when date or items change (prevent flicker loop)
+      const requestItemIds =
+        expenseRequestData?.ExpenseItem?.map((item: any) => item.id)
+          .sort()
+          .join(',') || ''
+      const payloadItemIds =
+        additionalData?.psi_taskPayload?.psi_initialParameters?.expenseItems
+          ?.map((item: any) => item.itemId || item.id)
+          .sort()
+          .join(',') || ''
+      const dateKey = startLocation.departureDate ? new Date(startLocation.departureDate).toISOString() : 'no-date'
+      const checkKey = `${dateKey}|${requestItemIds}|${payloadItemIds}`
+
+      if (lastRuleCheckKeyRef.current === checkKey) {
+        return
+      }
+
+      lastRuleCheckKeyRef.current = checkKey
+
+      const dateToUse = startLocation.departureDate ? new Date(startLocation.departureDate) : new Date()
+      const timeToUse = startLocation.departureTime ?? undefined
+
+      // If payload items don't have expenseRuleId, fetch items so we have rule IDs for the conflict check
+      if (
+        hasItemsFromInitialParams &&
+        !hasItemsFromRequest &&
+        additionalData?.psi_taskPayload?.psi_initialParameters?.expenseItems
+      ) {
+        const payloadItems = additionalData.psi_taskPayload.psi_initialParameters.expenseItems
+        const itemsWithoutRuleId = payloadItems.filter((item: any) => !item.expenseRuleId && (item.itemId || item.id))
+
+        if (itemsWithoutRuleId.length > 0) {
+          try {
+            setIsFetchingPayloadItems(true)
+            const employeeId = userInfo.employeeDetails.employeeId
+            const itemIdsToFetch = itemsWithoutRuleId.map((item: any) => item.itemId || item.id)
+
+            const itemCurrency =
+              expenseRequestData?.ExpenseRequestByPk?.currencyRef ||
+              payloadItems.find((item: any) => item.currencyId)?.currencyId ||
+              ''
+
+            const userLocale = getCurrentActiveUserLocale()
+            const variables = {
+              employeeId,
+              status: REQUEST_STATUS.CREATED,
+              activeUserLocale: userLocale,
+              idsArray: itemIdsToFetch,
+              itemCurrency
+            }
+
+            const response = await graphqlClient.request(fetchEmployeeExpenseItemsFromPayload, variables)
+            const fetchedItems = response?.ExpenseItemEmployee || []
+
+            const itemsForRuleCheck = fetchedItems.map((item: any) => ({
+              id: item.id,
+              code: item.code || '',
+              title: item.title || '',
+              ruleId: item.expenseRuleId || ''
+            }))
+
+            setPayloadItemsForRuleCheck(itemsForRuleCheck)
+          } catch {
+            // If fetch fails, run the check anyway with whatever we have
+          } finally {
+            setIsFetchingPayloadItems(false)
+          }
+        }
+      }
+
+      const errors = await validateEmployeeRule(dateToUse, timeToUse)
+      setEmployeeRuleError(errors.employeeRuleError)
+      setRuleConflictError(errors.ruleConflictError)
+    }
+
+    runRuleCheck()
+  }, [
+    accessToken,
+    userInfo?.employeeDetails,
+    expenseRequestData,
+    hasAnyItemsToCheck,
+    hasItemsFromRequest,
+    hasItemsFromInitialParams,
+    startLocation.departureDate,
+    startLocation.departureTime,
+    isFetchingPayloadItems,
+    additionalData
   ])
 
   useEffect(() => {
