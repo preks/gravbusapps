@@ -100,13 +100,19 @@ const AbsenceCharts: React.FC<ChartsSectionProps> = ({ entitlements, absenceList
                   </div>
                   <div className="gba:flex gba:justify-center gba:items-center gba:gap-2 gba:mt-2">
                     <div className="gba:flex gba:items-center gba:gap-1.5">
-                      <div className={`gba:w-3 gba:h-3 gba:rounded-full gba:bg-[${chartColors[0]}]`}></div>
+                      <div
+                        className="gba:w-3 gba:h-3 gba:rounded-full"
+                        style={{ backgroundColor: chartColors[0] }}
+                      ></div>
                       <span className="gba:text-sm">
                         {remaining} {getTranslationFromI18nKeyAndLabel('lowcoder:new_goal.remaining', 'Remaining')}
                       </span>
                     </div>
                     <div className="gba:flex gba:items-center gba:gap-1.5">
-                      <div className={`gba:w-3 gba:h-3 gba:rounded-full gba:bg-[${chartColors[1]}]`}></div>
+                      <div
+                        className="gba:w-3 gba:h-3 gba:rounded-full"
+                        style={{ backgroundColor: chartColors[1] }}
+                      ></div>
                       <span className="gba:text-sm">
                         {totalUsed}{' '}
                         {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.used_annual_leave', 'Used')} (
@@ -204,7 +210,10 @@ const AbsenceCharts: React.FC<ChartsSectionProps> = ({ entitlements, absenceList
                   <div className="gba:grid gba:grid-cols-2 gba:gap-2 gba:mt-2">
                     {data.map((entry, index) => (
                       <div key={`legend-${index}`} className="gba:flex gba:items-center gba:gap-1.5">
-                        <div className={`gba:w-3 gba:h-3 gba:rounded-full gba:bg-[${entry.color}]`}></div>
+                        <div
+                          className="gba:w-3 gba:h-3 gba:rounded-full"
+                          style={{ backgroundColor: entry.color }}
+                        ></div>
                         <span className="gba:text-sm">{entry.name}</span>
                       </div>
                     ))}
@@ -318,7 +327,10 @@ const AbsenceCharts: React.FC<ChartsSectionProps> = ({ entitlements, absenceList
                   <div className="gba:grid gba:grid-cols-2 gba:gap-2 gba:mt-2">
                     {data.map((entry, index) => (
                       <div key={`legend-${index}`} className="gba:flex gba:items-center gba:gap-1.5">
-                        <div className={`gba:w-3 gba:h-3 gba:rounded-full gba:bg-[${entry.color}]`}></div>
+                        <div
+                          className="gba:w-3 gba:h-3 gba:rounded-full"
+                          style={{ backgroundColor: entry.color }}
+                        ></div>
                         <span className="gba:text-sm">{entry.name}</span>
                       </div>
                     ))}

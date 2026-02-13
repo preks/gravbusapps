@@ -276,7 +276,7 @@ const DetailsTab: React.FC<DetailsTabProps> = ({
 
       <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-6" data-testid="details-cards">
         {/* Personal Data Card - Public info is always visible, private info requires permission */}
-        <Card variant="outlined" data-testid="details-section-personal">
+        <Card data-testid="details-section-personal">
           <CardContent className="gba:p-4">
             <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
               <h3 className="gba:text-xl gba:font-semibold">{t('details-personal-data')}</h3>
@@ -297,7 +297,7 @@ const DetailsTab: React.FC<DetailsTabProps> = ({
         </Card>
 
         {/* Address Card - Always visible but values may be masked */}
-        <Card variant="outlined" data-testid="details-section-address">
+        <Card data-testid="details-section-address">
           <CardContent className="gba:p-4">
             <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
               <h3 className="gba:text-xl gba:font-semibold">{t('details-address')}</h3>
@@ -317,7 +317,7 @@ const DetailsTab: React.FC<DetailsTabProps> = ({
         </Card>
 
         {/* Bank Account Card - Always visible but values may be masked */}
-        <Card variant="outlined" data-testid="details-section-bank">
+        <Card data-testid="details-section-bank">
           <CardContent className="gba:p-4">
             <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
               <h3 className="gba:text-xl gba:font-semibold">{t('details-bank-account')}</h3>
@@ -337,7 +337,7 @@ const DetailsTab: React.FC<DetailsTabProps> = ({
         </Card>
 
         {/* Private Communication Card - Always visible but values may be masked */}
-        <Card variant="outlined" data-testid="details-section-communication">
+        <Card data-testid="details-section-communication">
           <CardContent className="gba:p-4">
             <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
               <h3 className="gba:text-xl gba:font-semibold">{t('details-private-communication')}</h3>
@@ -359,7 +359,7 @@ const DetailsTab: React.FC<DetailsTabProps> = ({
         </Card>
 
         {/* Emergency Contact Card - Always visible but values may be masked */}
-        <Card variant="outlined" data-testid="details-section-emergency">
+        <Card data-testid="details-section-emergency">
           <CardContent className="gba:p-4">
             <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
               <h3 className="gba:text-xl gba:font-semibold">{t('details-emergency-contact')}</h3>
@@ -401,7 +401,7 @@ const DetailsTab: React.FC<DetailsTabProps> = ({
             }))
           if (items.length === 0) return null
           return (
-            <Card variant="outlined" data-testid="details-section-additional-attributes">
+            <Card data-testid="details-section-additional-attributes">
               <CardContent className="gba:p-4">
                 <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
                   <h3 className="gba:text-xl gba:font-semibold">{t('details-additional-attributes')}</h3>

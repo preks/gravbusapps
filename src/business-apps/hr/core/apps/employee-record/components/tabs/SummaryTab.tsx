@@ -219,7 +219,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
       <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:lg:grid-cols-3 gba:gap-6">
         {/* Organization Chart Section */}
         <div className="gba:lg:col-span-1 gba:xl:col-span-1">
-          <Card variant="outlined" className="gba:min-h-[420px]" data-testid="summary-section-organization-chart">
+          <Card className="gba:min-h-[420px]" data-testid="summary-section-organization-chart">
             <CardContent className="gba:p-4">
               <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2">
                 <h3 className="gba:text-xl gba:font-semibold">{t('summary-organization-chart')}</h3>
@@ -348,7 +348,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
 
         {/* Job Information Section */}
         <div className="gba:lg:col-span-1 gba:xl:col-span-1">
-          <Card variant="outlined" className="gba:min-h-[420px]" data-testid="summary-section-job-information">
+          <Card className="gba:min-h-[420px]" data-testid="summary-section-job-information">
             <CardContent className="gba:p-4">
               <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2">
                 <h3 className="gba:text-xl gba:font-semibold">{t('summary-job-information')}</h3>
@@ -456,7 +456,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
 
         {/* Availability & Schedule Section */}
         <div className="gba:lg:col-span-1 gba:xl:col-span-1">
-          <Card variant="outlined" className="gba:min-h-[420px]" data-testid="summary-section-availability">
+          <Card className="gba:min-h-[420px]" data-testid="summary-section-availability">
             <CardContent className="gba:p-4">
               <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2">
                 <h3 className="gba:text-xl gba:font-semibold">{t('summary-availability-schedule')}</h3>

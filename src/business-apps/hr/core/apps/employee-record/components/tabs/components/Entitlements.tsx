@@ -87,9 +87,9 @@ const Entitlements: React.FC<EntitlementsProps> = ({ entitlements, loading, erro
 
             {entitlement.pending > 0 && (
               <div className="gba:flex gba:justify-between gba:mt-2 gba:items-center">
-                <span className="gba:text-amber-500">{getAbsenceStatusLabel('PENDING')}</span>
+                <span className="gba:text-warning">{getAbsenceStatusLabel('PENDING')}</span>
                 <div className="gba:flex gba:items-center gba:gap-1">
-                  <span className="gba:text-amber-500 gba:font-medium">{entitlement.pending}</span>
+                  <span className="gba:text-warning gba:font-medium">{entitlement.pending}</span>
                   <span className="gba:text-xs gba:text-muted-foreground">
                     {getTranslationFromI18nKeyAndLabel('lowcoder:entitlements.status_in_approval', 'days in approval')}
                   </span>

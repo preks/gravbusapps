@@ -31,11 +31,12 @@ const getAbsenceTooltipContent = (absence: any, opts?: { showStatus?: boolean; s
   const startDate = dayjs(absence.startDate)
   const endDate = dayjs(absence.endDate)
   const duration = endDate.diff(startDate, 'day') + 1
+  const status = absence.originalStatus || absence.status
 
   return (
     <div className="gba:max-w-xs gba:p-2">
       <div className="gba:font-semibold gba:text-sm gba:mb-2 gba:flex gba:items-center gba:gap-2">
-        <div className={`gba:w-3 gba:h-3 gba:rounded-full gba:bg-[${absence.statusColor || 'var(--nw-offline)'}]`} />
+        <div className={`gba:w-3 gba:h-3 gba:rounded-full ${getAbsenceStatusBackgroundClass(status)}`} />
         {absence.type}
       </div>
       <div className="gba:space-y-1 gba:text-xs">
@@ -44,8 +45,8 @@ const getAbsenceTooltipContent = (absence: any, opts?: { showStatus?: boolean; s
             <span className="gba:font-medium">
               {getTranslationFromI18nKeyAndLabel('lowcoder:expense_request_list.expense_plan_table.status', 'Status')}:
             </span>
-            <span className={`gba:font-medium gba:text-[${absence.statusColor || 'var(--nw-offline)'}]`}>
-              {getAbsenceStatusLabel(absence.originalStatus || absence.status)}
+            <span className={`gba:font-medium ${getAbsenceStatusTextClass(status)}`}>
+              {getAbsenceStatusLabel(status)}
             </span>
           </div>
         )}

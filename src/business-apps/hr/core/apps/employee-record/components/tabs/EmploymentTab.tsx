@@ -289,7 +289,7 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken }) 
 
       <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-6" data-testid="employment-cards">
         {/* Employment Profile Card */}
-        <Card variant="outlined" data-testid="employment-section-profile">
+        <Card data-testid="employment-section-profile">
           <CardContent className="gba:p-4">
             <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2">
               <h3 className="gba:text-xl gba:font-semibold">{t('employment-profile')}</h3>
@@ -299,7 +299,7 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken }) 
         </Card>
 
         {/* Working Conditions Card */}
-        <Card variant="outlined" data-testid="employment-section-conditions">
+        <Card data-testid="employment-section-conditions">
           <CardContent className="gba:p-4">
             <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
               <h3 className="gba:text-xl gba:font-semibold">{t('employment-working-conditions')}</h3>
@@ -318,7 +318,7 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken }) 
         </Card>
 
         {/* Working Hours Card */}
-        <Card variant="outlined" data-testid="employment-section-hours">
+        <Card data-testid="employment-section-hours">
           <CardContent className="gba:p-4">
             <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
               <h3 className="gba:text-xl gba:font-semibold">{t('employment-working-hours')}</h3>
@@ -337,7 +337,7 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken }) 
         </Card>
 
         {/* Payroll Card */}
-        <Card variant="outlined" data-testid="employment-section-payroll">
+        <Card data-testid="employment-section-payroll">
           <CardContent className="gba:p-4">
             <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
               <h3 className="gba:text-xl gba:font-semibold">{t('employment-payroll')}</h3>
@@ -356,7 +356,7 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken }) 
         </Card>
 
         {/* Tax Information Card */}
-        <Card variant="outlined" data-testid="employment-section-tax">
+        <Card data-testid="employment-section-tax">
           <CardContent className="gba:p-4">
             <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2">
               <h3 className="gba:text-xl gba:font-semibold">{t('employment-tax-information')}</h3>

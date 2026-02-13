@@ -1137,7 +1137,7 @@ const DocumentsTab: React.FC<DocumentsTabProps> = ({ employee, accessToken, canE
                         <div className="gba:mt-1 gba:text-sm">
                           {currentDocument?.validTo ? (
                             <span
-                              className={`gba:px-2 gba:py-1 gba:rounded-full gba:text-xs ${currentDocument.validTo < dayjs().format('YYYY-MM-DD') ? 'gba:bg-warning-secondary gba:text-warning' : 'gba:bg-green-100 gba:text-success'}`}
+                              className={`gba:px-2 gba:py-1 gba:rounded-full gba:text-xs ${currentDocument.validTo < dayjs().format('YYYY-MM-DD') ? 'gba:bg-warning-secondary gba:text-warning' : 'gba:bg-success-secondary gba:text-success-secondary-foreground'}`}
                             >
                               {dayjs(currentDocument.validTo).format('MMM D, YYYY')}
                             </span>
