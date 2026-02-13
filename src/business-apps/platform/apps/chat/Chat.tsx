@@ -2,7 +2,6 @@ import React, { useState, useCallback, useEffect, useRef, useMemo, startTransiti
 import { Alert, AlertDescription, Spinner, Toaster } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useChatClient } from './hooks/useChatClient'
-import { useCall } from './hooks/useCall'
 import { useGroupCall } from './hooks/useGroupCall'
 import { useRealtimeKitGroupCall } from './hooks/useRealtimeKitGroupCall'
 import { RealtimeKitApiClient } from './services/realtimeKitApiClient'
@@ -22,11 +21,9 @@ import { CreateGroupModal, type DimensionContext } from './components/CreateGrou
 import { GroupSettingsModal } from './components/GroupSettingsModal'
 import { AIThinkingIndicator, AIResponseRenderer, ExpertThinkingIndicator } from './components/AIResponseRenderer'
 import { playNudgeSound, applyShakeAnimation, injectNudgeStyles } from './utils/nudgeUtils'
-import { IncomingCallDialog } from './components/IncomingCallDialog'
 import { IncomingGroupCallDialog } from './components/IncomingGroupCallDialog'
 import { PreCallSetupStateSync } from './components/PreCallSetupStateSync'
 import { RejoinCallDialog } from './components/RejoinCallDialog'
-import { CallModal } from './components/CallModal'
 import { GroupCallModal } from './components/GroupCallModal'
 // import { GroupCallModalRtk } from './components/GroupCallModalRtk' // Rendered by GlobalCallContainer now
 // import { initGlobalMinimizedCallRenderer } from './components/GlobalMinimizedCall'
@@ -445,27 +442,6 @@ const ChatInner: React.FC<ChatProps> = memo(
         })
     }, [activeConversation?.participants])
 
-    // 1:1 Call functionality
-    const {
-      callState,
-      isInCall,
-      initiateCall,
-      acceptCall,
-      rejectCall,
-      endCall,
-      toggleMute,
-      toggleVideo,
-      toggleScreenShare,
-      switchAudioDevice,
-      switchVideoDevice,
-      localStream,
-      remoteStream
-    } = useCall({
-      wsClient: wsClient || null,
-      apiClient: apiClient || null,
-      currentUser: currentUserAsParticipant
-    })
-
     // Group Call functionality - Conditionally use Realtime Kit or Mesh topology
     // Default: Use RealtimeKit. Set NEXT_PUBLIC_ENABLE_REALTIME_KIT_GROUP_CALLS=false to use old mesh implementation
     const meshGroupCall = useGroupCall({
@@ -621,8 +597,8 @@ const ChatInner: React.FC<ChatProps> = memo(
       }
     }, [testParticipantsOverride, groupParticipantsRaw.length])
 
-    // Combined in-call state
-    const isInAnyCall = isInCall || isInGroupCall
+    // Combined in-call state (RTK only; P2P removed)
+    const isInAnyCall = isInGroupCall
 
     // Reset isStartingCall when call actually connects
     useEffect(() => {
@@ -718,8 +694,9 @@ const ChatInner: React.FC<ChatProps> = memo(
               )
             }
           } else {
-            // Legacy mesh P2P
-            initiateCall(participant, 'audio', activeConversation.id)
+            // RTK for direct (1:1) when flag off: still use group call with single participant
+            const calendarMeetingId = activeConversation.metadata?.meetingId || null
+            initiateGroupCall?.(activeConversation.id, 'audio', [participant], undefined, calendarMeetingId, 'direct')
           }
         } else if (activeConversation.type === 'group') {
           // For group conversations, use group call
@@ -781,8 +758,9 @@ const ChatInner: React.FC<ChatProps> = memo(
               )
             }
           } else {
-            // Legacy mesh P2P
-            initiateCall(participant, 'video', activeConversation.id)
+            // RTK for direct (1:1) when flag off: still use group call with single participant
+            const calendarMeetingId = activeConversation.metadata?.meetingId || null
+            initiateGroupCall?.(activeConversation.id, 'video', [participant], undefined, calendarMeetingId, 'direct')
           }
         } else if (activeConversation.type === 'group') {
           // For group conversations, use group call
@@ -865,31 +843,6 @@ const ChatInner: React.FC<ChatProps> = memo(
           )
         }
       }
-    }
-
-    // Handler for adding a participant to a 1:1 call (upgrades to group call)
-    const handleUpgradeToGroupCall = (newParticipant: CallParticipant) => {
-      if (!activeConversation || !currentUserAsParticipant || !callState.remoteParticipant) return
-
-      // Build participant list: current user + current remote + new participant
-      const callParticipants: CallParticipant[] = [
-        currentUserAsParticipant,
-        callState.remoteParticipant,
-        newParticipant
-      ]
-
-      // End the current 1:1 call first
-      endCall()
-
-      // Small delay to ensure clean transition
-      setTimeout(() => {
-        // Generate a new room ID for the group call (use conversation ID or create new)
-        const roomId = activeConversation.id
-        const callType = callState.type || 'video'
-        if (initiateGroupCall) {
-          initiateGroupCall(roomId, callType, callParticipants, activeConversation.name)
-        }
-      }, 100)
     }
 
     // Initialize presence status from conversation participants' user data
@@ -2225,35 +2178,6 @@ const ChatInner: React.FC<ChatProps> = memo(
           }}
           data-testid={`${prefixDataTestId}-expert-selector`}
         />
-
-        {/* Call Components */}
-        {callState.status === 'ringing' && callState.direction === 'incoming' && (
-          <IncomingCallDialog
-            callState={callState}
-            onAccept={acceptCall}
-            onReject={rejectCall}
-            prefixDataTestId={`${prefixDataTestId}-incoming-call`}
-          />
-        )}
-
-        {callState.status !== 'idle' && !(callState.status === 'ringing' && callState.direction === 'incoming') && (
-          <CallModal
-            callState={callState}
-            localStream={localStream}
-            remoteStream={remoteStream}
-            onEndCall={endCall}
-            onToggleMute={toggleMute}
-            onToggleVideo={toggleVideo}
-            onToggleScreenShare={toggleScreenShare}
-            onMicDeviceChange={switchAudioDevice}
-            onCameraDeviceChange={switchVideoDevice}
-            prefixDataTestId={`${prefixDataTestId}-call`}
-            availableParticipants={availableParticipantsForCall}
-            onAddParticipant={handleUpgradeToGroupCall}
-            accessToken={accessToken}
-            currentUserId={currentUser?.id || null}
-          />
-        )}
 
         {/* Incoming Group Call Dialog */}
         {incomingGroupCallInvite && (
