@@ -88,7 +88,7 @@ export const AudioSettingsModal: React.FC<AudioSettingsModalProps> = ({
   const [internalSpeakerVolume, setInternalSpeakerVolume] = useState(75)
 
   // Use external volume if provided, otherwise internal
-  const speakerVolume = externalSpeakerVolume !== undefined ? externalSpeakerVolume : internalSpeakerVolume
+  const speakerVolume = externalSpeakerVolume ?? internalSpeakerVolume
   const setSpeakerVolume = onSpeakerVolumeChange || setInternalSpeakerVolume
 
   return (
@@ -123,35 +123,40 @@ export const AudioSettingsModal: React.FC<AudioSettingsModalProps> = ({
             {t('call-speaker') || 'Speaker'}
           </CollapsibleTrigger>
           <CollapsibleContent className="gba:px-4 gba:pb-4 gba:space-y-3">
-            {!canSelectAudioOutput ? (
-              <p className="gba:text-sm gba:text-muted-foreground gba:py-2">
-                {t('call-speakerNotSupported') || 'Speaker selection not supported in this browser'}
-              </p>
-            ) : audioOutputDevices.length > 0 ? (
-              <RadioGroup
-                value={selectedAudioOutputId || ''}
-                onValueChange={onAudioOutputChange}
-                className="gba:space-y-2"
-              >
-                {audioOutputDevices.map(device => (
-                  <div key={device.deviceId} className="gba:flex gba:items-center gba:gap-3 gba:py-1.5">
-                    <RadioGroupItem
-                      value={device.deviceId}
-                      id={`speaker-${device.deviceId}`}
-                      data-testid={`${prefixDataTestId}-speaker-${device.deviceId}`}
-                    />
-                    <Label htmlFor={`speaker-${device.deviceId}`} className="gba:flex-1 gba:cursor-pointer gba:text-sm">
-                      {device.label || `Speaker ${device.deviceId.substring(0, 8)}`}
-                    </Label>
-                    {selectedAudioOutputId === device.deviceId && (
-                      <CheckIcon className="gba:w-4 gba:h-4 gba:text-success" weight="bold" />
-                    )}
-                  </div>
-                ))}
-              </RadioGroup>
+            {canSelectAudioOutput ? (
+              audioOutputDevices.length > 0 ? (
+                <RadioGroup
+                  value={selectedAudioOutputId || ''}
+                  onValueChange={onAudioOutputChange}
+                  className="gba:space-y-2"
+                >
+                  {audioOutputDevices.map(device => (
+                    <div key={device.deviceId} className="gba:flex gba:items-center gba:gap-3 gba:py-1.5">
+                      <RadioGroupItem
+                        value={device.deviceId}
+                        id={`speaker-${device.deviceId}`}
+                        data-testid={`${prefixDataTestId}-speaker-${device.deviceId}`}
+                      />
+                      <Label
+                        htmlFor={`speaker-${device.deviceId}`}
+                        className="gba:flex-1 gba:cursor-pointer gba:text-sm"
+                      >
+                        {device.label || `Speaker ${device.deviceId.substring(0, 8)}`}
+                      </Label>
+                      {selectedAudioOutputId === device.deviceId && (
+                        <CheckIcon className="gba:w-4 gba:h-4 gba:text-success" weight="bold" />
+                      )}
+                    </div>
+                  ))}
+                </RadioGroup>
+              ) : (
+                <p className="gba:text-sm gba:text-muted-foreground gba:py-2">
+                  {t('call-noDevicesFound') || 'No devices found'}
+                </p>
+              )
             ) : (
               <p className="gba:text-sm gba:text-muted-foreground gba:py-2">
-                {t('call-noDevicesFound') || 'No devices found'}
+                {t('call-speakerNotSupported') || 'Speaker selection not supported in this browser'}
               </p>
             )}
 

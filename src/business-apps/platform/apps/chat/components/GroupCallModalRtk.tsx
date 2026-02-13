@@ -240,8 +240,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
   onSendReaction,
   onMicDeviceChange,
   onCameraDeviceChange,
-  onSetNoiseSuppressionEnabled,
-  onSetAutoGainControlEnabled,
+  // onSetNoiseSuppressionEnabled, onSetAutoGainControlEnabled accepted via props but not used (CallControlsBar has no UI for them)
   onInviteParticipant,
   prefixDataTestId = 'rtk-group-call',
   conversationName,
@@ -1657,7 +1656,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
     speakerVolumeRef.current = speakerVolume
     const vol = speakerVolume / 100
     remoteVideoRefs.current.forEach(el => {
-      if (el && typeof el.volume !== 'undefined') el.volume = vol
+      if (el != null && el.volume !== undefined) el.volume = vol
     })
   }, [speakerVolume])
 
@@ -3204,16 +3203,12 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
                   isVideoEnabled={effectiveLocalIsVideoEnabled}
                   isScreenSharing={effectiveLocalIsScreenSharing}
                   backgroundEnabled={callState.backgroundEnabled}
-                  rnnoiseEnabled={rnnoiseEnabled}
-                  rnnoiseMode={rnnoiseMode}
                   handRaised={hideReactionsAndHandRaise ? false : effectiveLocalHandRaised}
                   transcriptionActive={transcriptionEnabled}
                   onToggleMute={onToggleMute}
                   onToggleVideo={onToggleVideo}
                   onToggleScreenShare={onToggleScreenShare}
                   onToggleBackground={onToggleBackground}
-                  onToggleRnnoise={onToggleRnnoise}
-                  onRnnoiseModeChange={onRnnoiseModeChange}
                   onToggleRaiseHand={hideReactionsAndHandRaise ? undefined : onToggleRaiseHand}
                   onSendReaction={hideReactionsAndHandRaise ? undefined : onSendReaction}
                   onMicDeviceChange={
@@ -3231,20 +3226,6 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
                       : undefined
                   }
                   onSpeakerDeviceChange={handleSpeakerDeviceChange}
-                  onNoiseSuppressionChange={
-                    onSetNoiseSuppressionEnabled
-                      ? enabled => {
-                          void onSetNoiseSuppressionEnabled(enabled)
-                        }
-                      : undefined
-                  }
-                  onAutoGainControlChange={
-                    onSetAutoGainControlEnabled
-                      ? enabled => {
-                          void onSetAutoGainControlEnabled(enabled)
-                        }
-                      : undefined
-                  }
                   onToggleAudioSettings={handleToggleAudioSettings}
                   sharedDeviceState={{
                     audioInputDevices,

@@ -19,21 +19,21 @@ import {
   TooltipTrigger
 } from '@newwork/nw-design-system'
 import {
-  ArrowLeft,
-  DotsThreeVertical,
-  SignOut,
-  X,
-  Info,
-  Users,
-  Check,
-  Minus,
-  ProhibitInset,
-  Clock,
-  MoonStars,
-  EyeSlash,
-  PhoneCall as PhoneCallIcon,
-  PresentationChart,
-  ChatText
+  ArrowLeftIcon,
+  DotsThreeVerticalIcon,
+  SignOutIcon,
+  XIcon,
+  InfoIcon,
+  UsersIcon,
+  CheckIcon as PhosphorCheckIcon,
+  MinusIcon,
+  ProhibitInsetIcon,
+  ClockIcon,
+  MoonStarsIcon,
+  EyeSlashIcon,
+  PhoneCallIcon,
+  PresentationChartIcon,
+  ChatTextIcon
 } from '@phosphor-icons/react'
 import { UserIcon, Phone, Video, PhoneCall, UserPlus, Bell, CalendarIcon } from 'lucide-react'
 import type { Conversation, UserStatus } from '../types'
@@ -124,31 +124,31 @@ const StatusBadge: React.FC<{
   const STATUS_STYLES: Record<string, { bgColor: string; icon: React.ReactNode }> = {
     [UserPresenceStatus.AVAILABLE]: {
       bgColor: 'gba:bg-success',
-      icon: <Check size={size === 'sm' ? 8 : 10} weight="bold" className="gba:text-white" />
+      icon: <PhosphorCheckIcon size={size === 'sm' ? 8 : 10} weight="bold" className="gba:text-white" />
     },
     [UserPresenceStatus.BUSY]: {
       bgColor: 'gba:bg-destructive',
-      icon: <Minus size={size === 'sm' ? 8 : 10} weight="bold" className="gba:text-white" />
+      icon: <MinusIcon size={size === 'sm' ? 8 : 10} weight="bold" className="gba:text-white" />
     },
     [UserPresenceStatus.DO_NOT_DISTURB]: {
       bgColor: 'gba:bg-destructive',
-      icon: <ProhibitInset size={size === 'sm' ? 8 : 10} weight="bold" className="gba:text-white" />
+      icon: <ProhibitInsetIcon size={size === 'sm' ? 8 : 10} weight="bold" className="gba:text-white" />
     },
     [UserPresenceStatus.BE_RIGHT_BACK]: {
       bgColor: 'gba:bg-warning-secondary',
-      icon: <Clock size={size === 'sm' ? 8 : 10} weight="bold" className="gba:text-white" />
+      icon: <ClockIcon size={size === 'sm' ? 8 : 10} weight="bold" className="gba:text-white" />
     },
     [UserPresenceStatus.APPEAR_AWAY]: {
       bgColor: 'gba:bg-warning',
-      icon: <MoonStars size={size === 'sm' ? 8 : 10} weight="bold" className="gba:text-white" />
+      icon: <MoonStarsIcon size={size === 'sm' ? 8 : 10} weight="bold" className="gba:text-white" />
     },
     [UserPresenceStatus.APPEAR_OFFLINE]: {
       bgColor: 'gba:bg-muted-foreground',
-      icon: <EyeSlash size={size === 'sm' ? 8 : 10} weight="bold" className="gba:text-white" />
+      icon: <EyeSlashIcon size={size === 'sm' ? 8 : 10} weight="bold" className="gba:text-white" />
     },
     [SystemPresenceStatus.IN_MEETING]: {
       bgColor: 'gba:bg-info',
-      icon: <Users size={size === 'sm' ? 8 : 10} weight="bold" className="gba:text-white" />
+      icon: <UsersIcon size={size === 'sm' ? 8 : 10} weight="bold" className="gba:text-white" />
     },
     [SystemPresenceStatus.IN_CALL]: {
       bgColor: 'gba:bg-info',
@@ -156,11 +156,11 @@ const StatusBadge: React.FC<{
     },
     [SystemPresenceStatus.PRESENTING]: {
       bgColor: 'gba:bg-info',
-      icon: <PresentationChart size={size === 'sm' ? 8 : 10} weight="bold" className="gba:text-white" />
+      icon: <PresentationChartIcon size={size === 'sm' ? 8 : 10} weight="bold" className="gba:text-white" />
     },
     offline: {
       bgColor: 'gba:bg-muted-foreground',
-      icon: <EyeSlash size={size === 'sm' ? 8 : 10} weight="bold" className="gba:text-white" />
+      icon: <EyeSlashIcon size={size === 'sm' ? 8 : 10} weight="bold" className="gba:text-white" />
     }
   }
 
@@ -255,7 +255,7 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
             className="gba:h-8 gba:w-8 gba:flex-shrink-0"
             data-testid="conversation-back-button"
           >
-            <ArrowLeft className="gba:w-4 gba:h-4" />
+            <ArrowLeftIcon className="gba:w-4 gba:h-4" />
           </Button>
         )}
 
@@ -272,7 +272,7 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
             <IconAvatar
               className={avatarSize}
               label={name}
-              icon={isGroupChat ? (conversation.metadata?.type === 'meeting' ? CalendarIcon : Users) : UserIcon}
+              icon={isGroupChat ? (conversation.metadata?.type === 'meeting' ? CalendarIcon : UsersIcon) : UserIcon}
             />
           )}
           {isDirectChat && <StatusBadge status={otherUserPresence?.userStatus} size={compact ? 'sm' : 'md'} />}
@@ -290,7 +290,7 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div className="gba:flex gba:items-center gba:gap-1.5 gba:cursor-default">
-                    <ChatText size={14} weight="duotone" className="gba:text-muted-foreground gba:flex-shrink-0" />
+                    <ChatTextIcon size={14} weight="duotone" className="gba:text-muted-foreground gba:flex-shrink-0" />
                     <p className="gba:text-xs gba:text-muted-foreground gba:truncate gba:italic">
                       {otherUserPresence.userStatus.statusMessage}
                     </p>
@@ -419,7 +419,7 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
               data-testid="conversation-close-button"
               title={t('chat-closeConversation')}
             >
-              <X className="gba:w-4 gba:h-4" />
+              <XIcon className="gba:w-4 gba:h-4" />
             </Button>
           )}
 
@@ -432,7 +432,7 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
                   className="gba:h-8 gba:w-8 gba:flex-shrink-0"
                   data-testid="conversation-menu-button"
                 >
-                  <DotsThreeVertical className="gba:w-4 gba:h-4" />
+                  <DotsThreeVerticalIcon className="gba:w-4 gba:h-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
@@ -444,13 +444,13 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
                 )}
                 {isGroupChat && onGroupSettings && (
                   <DropdownMenuItem onClick={onGroupSettings} data-testid="conversation-group-settings-button">
-                    <Info className="gba:w-4 gba:h-4 gba:mr-2" />
+                    <InfoIcon className="gba:w-4 gba:h-4 gba:mr-2" />
                     {t('chat-groupSettings')}
                   </DropdownMenuItem>
                 )}
                 {onRemove && (
                   <DropdownMenuItem onClick={handleRemoveClick} data-testid="conversation-remove-button">
-                    <SignOut className="gba:w-4 gba:h-4 gba:mr-2" />
+                    <SignOutIcon className="gba:w-4 gba:h-4 gba:mr-2" />
                     {isGroupChat ? t('chat-leaveConversation') : t('chat-removeConversation')}
                   </DropdownMenuItem>
                 )}

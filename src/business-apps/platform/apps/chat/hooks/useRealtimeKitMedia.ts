@@ -163,7 +163,7 @@ export const useRealtimeKitMedia = ({
   if (!rnnoiseMiddlewareRef.current) {
     const globalData = globalCallManager.getCallData()
     if (globalData.rnnoiseMiddlewareInstance && globalData.realtimeKitMeeting === meeting) {
-      rnnoiseMiddlewareRef.current = globalData.rnnoiseMiddlewareInstance as RTKRnnoiseMiddleware
+      rnnoiseMiddlewareRef.current = globalData.rnnoiseMiddlewareInstance
     }
   }
 
@@ -343,8 +343,8 @@ export const useRealtimeKitMedia = ({
           if (!hasProcessing) {
             try {
               if (middleware && meeting.self) {
-                middleware.disable(meeting as any)
-                await middleware.enable(meeting as any)
+                middleware.disable(meeting)
+                await middleware.enable(meeting)
               }
             } catch {
               // Re-registration failed, will retry on next unmute
@@ -707,8 +707,8 @@ export const useRealtimeKitMedia = ({
         rnnoisePrimedTrackIdRef.current = trackId
 
         try {
-          middleware.disable(meeting as any)
-          await middleware.enable(meeting as any)
+          middleware.disable(meeting)
+          await middleware.enable(meeting)
         } catch {
           // Best-effort
         }
@@ -959,20 +959,16 @@ export const useRealtimeKitMedia = ({
               await meeting.self!.enableAudio()
             })
           }
-        } catch (error) {
-          throw error
+        } catch (e) {
+          throw e
         }
         return
       }
 
-      try {
-        await (meeting.self as any).setDevice({
-          kind: 'audioinput',
-          deviceId
-        })
-      } catch (error) {
-        throw error
-      }
+      await (meeting.self as any).setDevice({
+        kind: 'audioinput',
+        deviceId
+      })
     },
     [meeting, noiseSuppressionEnabled, autoGainControlEnabled]
   )
@@ -1077,23 +1073,19 @@ export const useRealtimeKitMedia = ({
           if (backgroundEnabled && virtualBackgroundRef.current) {
             // SDK should reapply background to new video track
           }
-        } catch (error) {
-          throw error
+        } catch (e) {
+          throw e
         }
         return
       }
 
-      try {
-        await (meeting.self as any).setDevice({
-          kind: 'videoinput',
-          deviceId
-        })
+      await (meeting.self as any).setDevice({
+        kind: 'videoinput',
+        deviceId
+      })
 
-        if (backgroundEnabled && virtualBackgroundRef.current) {
-          // SDK should reapply background automatically
-        }
-      } catch (error) {
-        throw error
+      if (backgroundEnabled && virtualBackgroundRef.current) {
+        // SDK should reapply background automatically
       }
     },
     [meeting, backgroundEnabled]

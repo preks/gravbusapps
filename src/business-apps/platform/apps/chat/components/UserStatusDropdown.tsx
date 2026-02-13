@@ -211,14 +211,15 @@ export const UserStatusDropdown: React.FC<UserStatusDropdownProps> = ({
   }
 
   const handleStatusMessageUpdate = async () => {
-    if (!myStatus) return
-    try {
-      const expiresAt =
-        customExpiresAt || (selectedDuration !== null ? calculateExpiresAt(selectedDuration) : undefined)
-      await setStatus(myStatus.status as UserPresenceStatus, statusMessage || undefined, expiresAt)
-      setShowStatusMessageInput(false)
-    } catch (error) {
-      console.error('Failed to update status message:', error)
+    if (myStatus) {
+      try {
+        const expiresAt =
+          customExpiresAt || (selectedDuration !== null ? calculateExpiresAt(selectedDuration) : undefined)
+        await setStatus(myStatus.status as UserPresenceStatus, statusMessage || undefined, expiresAt)
+        setShowStatusMessageInput(false)
+      } catch (error) {
+        console.error('Failed to update status message:', error)
+      }
     }
   }
 
@@ -402,7 +403,7 @@ export const UserStatusDropdown: React.FC<UserStatusDropdownProps> = ({
                         ? null
                         : preset.type === 'custom'
                           ? customExpiresAt
-                            ? Math.floor((customExpiresAt.getTime() - new Date().getTime()) / (60 * 1000))
+                            ? Math.floor((customExpiresAt.getTime() - Date.now()) / (60 * 1000))
                             : null
                           : preset.type === 'minutes'
                             ? preset.minutes
@@ -411,14 +412,14 @@ export const UserStatusDropdown: React.FC<UserStatusDropdownProps> = ({
                                   const now = new Date()
                                   const endOfDay = new Date(now)
                                   endOfDay.setHours(23, 59, 59, 999)
-                                  return Math.floor((endOfDay.getTime() - now.getTime()) / (60 * 1000))
+                                  return Math.floor((endOfDay.getTime() - Date.now()) / (60 * 1000))
                                 })()
                               : (() => {
                                   const now = new Date()
                                   const endOfWeek = new Date(now)
                                   endOfWeek.setDate(now.getDate() + (7 - now.getDay()))
                                   endOfWeek.setHours(23, 59, 59, 999)
-                                  return Math.floor((endOfWeek.getTime() - now.getTime()) / (60 * 1000))
+                                  return Math.floor((endOfWeek.getTime() - Date.now()) / (60 * 1000))
                                 })()
 
                     const isSelected =
@@ -465,7 +466,7 @@ export const UserStatusDropdown: React.FC<UserStatusDropdownProps> = ({
                       data-testid="chat-custom-time-input"
                     />
                     {/* Show error if selected time is in the past */}
-                    {customExpiresAt && customExpiresAt.getTime() <= new Date().getTime() && (
+                    {customExpiresAt && customExpiresAt.getTime() <= Date.now() && (
                       <div className="gba:text-xs gba:text-destructive" data-testid="chat-custom-time-error">
                         Please select a time in the future
                       </div>

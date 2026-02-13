@@ -187,11 +187,12 @@ export const GlobalCallContainer: React.FC = () => {
           }
 
           if (socket && !socket.connected) {
+            const s = socket
             await new Promise<void>(resolve => {
               const timeout = setTimeout(() => {
                 resolve()
               }, 600)
-              socket!.once('connect', () => {
+              s.once('connect', () => {
                 clearTimeout(timeout)
                 resolve()
               })
@@ -209,11 +210,12 @@ export const GlobalCallContainer: React.FC = () => {
           }
 
           if (socket && !socket.connected) {
+            const s = socket
             await new Promise<void>(resolve => {
               const timeout = setTimeout(() => {
                 resolve()
               }, 600)
-              socket!.once('connect', () => {
+              s.once('connect', () => {
                 clearTimeout(timeout)
                 resolve()
               })
@@ -294,7 +296,7 @@ export const GlobalCallContainer: React.FC = () => {
 
         // Extra safety: even if the hook resolves quickly, ensure the SDK meeting was actually left.
         setTimeout(async () => {
-          const roomState = (meetingForFallback as any)?.self?.roomState as string | undefined
+          const roomState = meetingForFallback?.self?.roomState
           if (roomState && roomState !== 'joined') return
           try {
             await meetingForFallback?.leave?.()
@@ -309,7 +311,7 @@ export const GlobalCallContainer: React.FC = () => {
           const after = globalCallManager.getCallData()
 
           // If the hook already finished and the SDK meeting is not joined, do nothing.
-          const roomState = (meetingForFallback as any)?.self?.roomState as string | undefined
+          const roomState = meetingForFallback?.self?.roomState
           if (leaveSettled && roomState && roomState !== 'joined') {
             return
           }

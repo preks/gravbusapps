@@ -363,7 +363,7 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = m
             <div className="gba:flex gba:flex-col gba:items-center">
               {isVideoCall ? (
                 <>
-                  <div className="gba:relative gba:w-full gba:aspect-video gba:bg-muted">
+                  <div className="gba:relative gba:w-full gba:aspect-video gba:bg-muted gba:overflow-hidden gba:rounded-lg">
                     {cameraEnabled && !isJoining ? (
                       <>
                         <video
@@ -394,109 +394,105 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = m
                             </button>
                           </div>
                         )}
-                        {/* Bottom overlay - PreCall style gradient + round buttons */}
-                        <div className="gba:absolute gba:bottom-0 gba:left-0 gba:right-0 gba:bg-gradient-to-t gba:from-black/60 gba:to-transparent gba:p-4">
-                          <div className="gba:flex gba:items-center gba:justify-between">
-                            <div className="gba:flex gba:items-center gba:gap-2">
-                              <button
-                                type="button"
-                                onClick={() => setMicEnabled(!micEnabled)}
-                                disabled={isJoining}
-                                className="gba:flex gba:items-center gba:justify-center gba:w-10 gba:h-10 gba:rounded-full gba:bg-black/40 hover:gba:bg-black/60 gba:transition-colors gba:backdrop-blur-sm disabled:gba:opacity-50 disabled:gba:cursor-not-allowed"
-                                data-testid={`${prefixDataTestId}-preview-mic-toggle`}
-                              >
-                                {micEnabled ? (
-                                  <MicrophoneIcon className="gba:w-5 gba:h-5 gba:text-white" weight="fill" />
-                                ) : (
-                                  <MicrophoneSlashIcon className="gba:w-5 gba:h-5 gba:text-white" weight="fill" />
-                                )}
-                              </button>
-                              <div className="gba:flex gba:items-stretch gba:gap-0">
-                                <button
-                                  type="button"
-                                  onClick={() => setCameraEnabled(!cameraEnabled)}
-                                  disabled={isJoining}
-                                  className="gba:flex gba:items-center gba:justify-center gba:w-10 gba:h-10 gba:rounded-l-full gba:bg-black/40 hover:gba:bg-black/60 gba:transition-colors gba:backdrop-blur-sm disabled:gba:opacity-50 disabled:gba:cursor-not-allowed"
-                                  data-testid={`${prefixDataTestId}-preview-camera-toggle`}
-                                >
-                                  {cameraEnabled ? (
-                                    <VideoCameraIcon className="gba:w-5 gba:h-5 gba:text-white" weight="fill" />
-                                  ) : (
-                                    <VideoCameraIcon
-                                      className="gba:w-5 gba:h-5 gba:text-white gba:opacity-50"
-                                      weight="fill"
-                                    />
-                                  )}
-                                </button>
-                                {cameraEnabled && videoInputDevices.length > 0 && (
-                                  <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                      <button
-                                        type="button"
-                                        className="gba:flex gba:items-center gba:justify-center gba:px-2 gba:h-10 gba:rounded-r-full gba:bg-black/40 hover:gba:bg-black/60 gba:transition-colors gba:backdrop-blur-sm gba:border-l gba:border-white/20 disabled:gba:opacity-50"
-                                        data-testid={`${prefixDataTestId}-preview-camera-dropdown`}
-                                      >
-                                        <CaretDownIcon className="gba:w-3 gba:h-3 gba:text-white" weight="bold" />
-                                      </button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent
-                                      side="top"
-                                      align="start"
-                                      className="gba:bg-background gba:border-border gba:min-w-[200px]"
-                                    >
-                                      {videoInputDevices.map(device => (
-                                        <DropdownMenuItem
-                                          key={device.deviceId}
-                                          onClick={() => setSelectedVideoInputId(device.deviceId)}
-                                          className={selectedVideoInputId === device.deviceId ? 'gba:bg-accent' : ''}
-                                        >
-                                          {device.label || `Camera ${device.deviceId.substring(0, 8)}`}
-                                        </DropdownMenuItem>
-                                      ))}
-                                    </DropdownMenuContent>
-                                  </DropdownMenu>
-                                )}
-                              </div>
-                              {cameraEnabled && (
-                                <button
-                                  type="button"
-                                  onClick={() => setBackgroundEnabled(!backgroundEnabled)}
-                                  disabled={isJoining}
-                                  className={`gba:flex gba:items-center gba:justify-center gba:w-10 gba:h-10 gba:rounded-full gba:transition-colors gba:backdrop-blur-sm ${
-                                    backgroundEnabled
-                                      ? 'gba:bg-primary/90 hover:gba:bg-primary/80'
-                                      : 'gba:bg-black/40 hover:gba:bg-black/60'
-                                  } disabled:gba:opacity-50 disabled:gba:cursor-not-allowed`}
-                                  data-testid={`${prefixDataTestId}-preview-background-toggle`}
-                                >
-                                  <MagicWandIcon className="gba:w-5 gba:h-5 gba:text-white" weight="fill" />
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        </div>
                       </>
                     ) : (
-                      <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-full gba:bg-muted">
-                        <Avatar className="gba:w-32 gba:h-32 gba:mb-4">
-                          {conversationType === 'direct' && invite.from.avatarUrl ? (
-                            <AvatarImage src={invite.from.avatarUrl} alt={callerName} />
-                          ) : conversationType !== 'direct' && userAvatarUrl ? (
-                            <AvatarImage src={userAvatarUrl} alt={userName || 'User'} />
-                          ) : null}
+                      <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-full gba:min-h-0 gba:bg-muted gba:rounded-lg gba:overflow-hidden">
+                        <Avatar className="gba:w-32 gba:h-32 gba:mb-4 gba:flex-shrink-0">
+                          {userAvatarUrl ? <AvatarImage src={userAvatarUrl} alt={userName || 'User'} /> : null}
                           <AvatarFallback className="gba:text-4xl gba:bg-muted gba:text-foreground">
-                            {conversationType === 'direct' ? (
-                              getInitials(callerName)
-                            ) : userName ? (
+                            {userName ? (
                               getInitials(userName)
                             ) : (
                               <UserIcon className="gba:w-16 gba:h-16" weight="fill" />
                             )}
                           </AvatarFallback>
                         </Avatar>
-                        <p className="gba:text-sm gba:text-muted-foreground">
+                        <p className="gba:text-sm gba:text-muted-foreground gba:flex-shrink-0">
                           {t('call-cameraOff') || 'Your camera is turned off'}
                         </p>
+                      </div>
+                    )}
+                    {/* Bottom overlay - always visible when not joining so mic/camera can be toggled */}
+                    {!isJoining && (
+                      <div className="gba:absolute gba:bottom-0 gba:left-0 gba:right-0 gba:bg-gradient-to-t gba:from-black/60 gba:to-transparent gba:p-4">
+                        <div className="gba:flex gba:items-center gba:justify-between">
+                          <div className="gba:flex gba:items-center gba:gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setMicEnabled(!micEnabled)}
+                              disabled={isJoining}
+                              className="gba:flex gba:items-center gba:justify-center gba:w-10 gba:h-10 gba:rounded-full gba:bg-black/40 hover:gba:bg-black/60 gba:transition-colors gba:backdrop-blur-sm disabled:gba:opacity-50 disabled:gba:cursor-not-allowed"
+                              data-testid={`${prefixDataTestId}-preview-mic-toggle`}
+                            >
+                              {micEnabled ? (
+                                <MicrophoneIcon className="gba:w-5 gba:h-5 gba:text-white" weight="fill" />
+                              ) : (
+                                <MicrophoneSlashIcon className="gba:w-5 gba:h-5 gba:text-white" weight="fill" />
+                              )}
+                            </button>
+                            <div className="gba:flex gba:items-stretch gba:gap-0">
+                              <button
+                                type="button"
+                                onClick={() => setCameraEnabled(!cameraEnabled)}
+                                disabled={isJoining}
+                                className="gba:flex gba:items-center gba:justify-center gba:w-10 gba:h-10 gba:rounded-l-full gba:bg-black/40 hover:gba:bg-black/60 gba:transition-colors gba:backdrop-blur-sm disabled:gba:opacity-50 disabled:gba:cursor-not-allowed"
+                                data-testid={`${prefixDataTestId}-preview-camera-toggle`}
+                              >
+                                {cameraEnabled ? (
+                                  <VideoCameraIcon className="gba:w-5 gba:h-5 gba:text-white" weight="fill" />
+                                ) : (
+                                  <VideoCameraIcon
+                                    className="gba:w-5 gba:h-5 gba:text-white gba:opacity-50"
+                                    weight="fill"
+                                  />
+                                )}
+                              </button>
+                              {cameraEnabled && videoInputDevices.length > 0 && (
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <button
+                                      type="button"
+                                      className="gba:flex gba:items-center gba:justify-center gba:px-2 gba:h-10 gba:rounded-r-full gba:bg-black/40 hover:gba:bg-black/60 gba:transition-colors gba:backdrop-blur-sm gba:border-l gba:border-white/20 disabled:gba:opacity-50"
+                                      data-testid={`${prefixDataTestId}-preview-camera-dropdown`}
+                                    >
+                                      <CaretDownIcon className="gba:w-3 gba:h-3 gba:text-white" weight="bold" />
+                                    </button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent
+                                    side="top"
+                                    align="start"
+                                    className="gba:bg-background gba:border-border gba:min-w-[200px]"
+                                  >
+                                    {videoInputDevices.map(device => (
+                                      <DropdownMenuItem
+                                        key={device.deviceId}
+                                        onClick={() => setSelectedVideoInputId(device.deviceId)}
+                                        className={selectedVideoInputId === device.deviceId ? 'gba:bg-accent' : ''}
+                                      >
+                                        {device.label || `Camera ${device.deviceId.substring(0, 8)}`}
+                                      </DropdownMenuItem>
+                                    ))}
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              )}
+                            </div>
+                            {cameraEnabled && (
+                              <button
+                                type="button"
+                                onClick={() => setBackgroundEnabled(!backgroundEnabled)}
+                                disabled={isJoining}
+                                className={`gba:flex gba:items-center gba:justify-center gba:w-10 gba:h-10 gba:rounded-full gba:transition-colors gba:backdrop-blur-sm ${
+                                  backgroundEnabled
+                                    ? 'gba:bg-primary/90 hover:gba:bg-primary/80'
+                                    : 'gba:bg-black/40 hover:gba:bg-black/60'
+                                } disabled:gba:opacity-50 disabled:gba:cursor-not-allowed`}
+                                data-testid={`${prefixDataTestId}-preview-background-toggle`}
+                              >
+                                <MagicWandIcon className="gba:w-5 gba:h-5 gba:text-white" weight="fill" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
                       </div>
                     )}
                   </div>

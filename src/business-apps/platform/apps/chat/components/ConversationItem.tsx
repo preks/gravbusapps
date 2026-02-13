@@ -11,12 +11,11 @@ import {
   DialogHeader,
   DialogTitle
 } from '@newwork/nw-design-system'
-import { ChatText } from '@phosphor-icons/react'
+import { ChatTextIcon, SignOutIcon } from '@phosphor-icons/react'
 import type { Conversation } from '../types'
 import type { UserPresence } from '../hooks/usePresence'
 import { UserIcon, UsersIcon, Sparkles, CalendarIcon } from 'lucide-react'
 import { rtkDebug } from '../utils/rtkDebug'
-import { SignOut } from '@phosphor-icons/react'
 import { UserStatusIndicator } from './UserStatusIndicator'
 
 interface ConversationItemProps {
@@ -236,7 +235,7 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
           {/* Show status message for online users in direct chats */}
           {showPresence && userStatus?.statusMessage && presenceStatus !== 'offline' ? (
             <div className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:text-muted-foreground gba:truncate gba:max-w-[180px]">
-              <ChatText size={12} weight="duotone" className="gba:flex-shrink-0" />
+              <ChatTextIcon size={12} weight="duotone" className="gba:flex-shrink-0" />
               <span className="gba:italic gba:truncate">{userStatus.statusMessage}</span>
             </div>
           ) : showPresence && otherUserPresence?.lastSeen && presenceStatus === 'offline' ? (
@@ -312,7 +311,7 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
               data-testid={`conversation-item-remove-${conversation.id}`}
               title={conversation.type === 'group' ? t('chat-leaveConversation') : t('chat-removeConversation')}
             >
-              <SignOut className="gba:w-3.5 gba:h-3.5" />
+              <SignOutIcon className="gba:w-3.5 gba:h-3.5" />
             </Button>
           )}
         </div>

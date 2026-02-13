@@ -15,7 +15,7 @@ function hashToken(token: string): number {
   // Never log tokens or this hash.
   let hash = 5381
   for (let i = 0; i < token.length; i++) {
-    hash = (hash * 33) ^ token.charCodeAt(i)
+    hash = (hash * 33) ^ (token.codePointAt(i) ?? 0)
   }
   return hash >>> 0
 }

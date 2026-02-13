@@ -16,17 +16,17 @@ import React, { useState, useEffect } from 'react'
 import {
   Microphone,
   MicrophoneSlash,
-  VideoCamera,
-  VideoCameraSlash,
+  VideoCameraIcon,
+  VideoCameraSlashIcon,
   Monitor,
   Image,
   PhoneDisconnect,
   Smiley,
   HandIcon,
-  DotsThree,
+  DotsThreeIcon,
   CaretDownIcon,
   CheckIcon,
-  SpeakerHigh
+  SpeakerHighIcon
 } from '@phosphor-icons/react'
 import {
   Popover,
@@ -57,10 +57,6 @@ export interface CallControlsBarProps {
   isScreenSharing: boolean
   /** Whether virtual background is enabled */
   backgroundEnabled: boolean
-  /** Whether RNNoise AI noise suppression is enabled */
-  rnnoiseEnabled?: boolean
-  /** Current RNNoise mode */
-  rnnoiseMode?: 'gentle' | 'moderate' | 'aggressive'
   /** Whether hand is raised */
   handRaised: boolean
   /** Whether transcription is active */
@@ -73,10 +69,6 @@ export interface CallControlsBarProps {
   onToggleScreenShare?: () => void
   /** Callback to toggle background */
   onToggleBackground?: () => void
-  /** Callback to toggle RNNoise */
-  onToggleRnnoise?: () => void
-  /** Callback to change RNNoise mode */
-  onRnnoiseModeChange?: (mode: 'gentle' | 'moderate' | 'aggressive') => void
   /** Callback to toggle raise hand */
   onToggleRaiseHand?: () => void
   /** Callback to send reaction */
@@ -89,10 +81,6 @@ export interface CallControlsBarProps {
   onCameraDeviceChange?: (deviceId: string) => void
   /** Callback when speaker device changes */
   onSpeakerDeviceChange?: (deviceId: string) => void
-  /** Callback when noise suppression setting changes */
-  onNoiseSuppressionChange?: (enabled: boolean) => void | Promise<void>
-  /** Callback when auto gain control setting changes */
-  onAutoGainControlChange?: (enabled: boolean) => void | Promise<void>
   /** Callback to toggle audio settings panel */
   onToggleAudioSettings?: () => void
   /** Shared device state from parent */
@@ -314,7 +302,7 @@ export const CallControlsBar: React.FC<CallControlsBarProps> = ({
                     </p>
                   )}
                   <div className="gba:flex gba:items-center gba:gap-3 gba:mt-3">
-                    <SpeakerHigh className="gba:w-5 gba:h-5 gba:text-muted-foreground" weight="fill" />
+                    <SpeakerHighIcon className="gba:w-5 gba:h-5 gba:text-muted-foreground" weight="fill" />
                     <Slider
                       value={[speakerVolume]}
                       onValueChange={([value]) => setSpeakerVolume(value)}
@@ -389,9 +377,12 @@ export const CallControlsBar: React.FC<CallControlsBarProps> = ({
                 title={isVideoEnabled ? t('groupCall-turnOffVideo') : t('groupCall-turnOnVideo')}
               >
                 {isVideoEnabled ? (
-                  <VideoCamera className={showDesktopLayout ? 'gba:w-5 gba:h-5' : 'gba:w-4 gba:h-4'} weight="fill" />
+                  <VideoCameraIcon
+                    className={showDesktopLayout ? 'gba:w-5 gba:h-5' : 'gba:w-4 gba:h-4'}
+                    weight="fill"
+                  />
                 ) : (
-                  <VideoCameraSlash
+                  <VideoCameraSlashIcon
                     className={showDesktopLayout ? 'gba:w-5 gba:h-5' : 'gba:w-4 gba:h-4'}
                     weight="fill"
                   />
@@ -414,7 +405,7 @@ export const CallControlsBar: React.FC<CallControlsBarProps> = ({
                 </DropdownMenuTrigger>
                 <DropdownMenuContent side="top" align="center" className="gba:w-72 gba:bg-gray-800 gba:border-gray-700">
                   <DropdownMenuLabel className="gba:flex gba:items-center gba:gap-2 gba:text-white">
-                    <VideoCamera className="gba:w-4 gba:h-4" weight="fill" />
+                    <VideoCameraIcon className="gba:w-4 gba:h-4" weight="fill" />
                     {t('call-selectCamera')}
                   </DropdownMenuLabel>
                   {videoInputDevices.length > 0 ? (
@@ -651,7 +642,7 @@ export const CallControlsBar: React.FC<CallControlsBarProps> = ({
                   aria-label="More options"
                   title="More options"
                 >
-                  <DotsThree className="gba:w-4 gba:h-4" weight="fill" />
+                  <DotsThreeIcon className="gba:w-4 gba:h-4" weight="fill" />
                 </button>
               </PopoverTrigger>
               <PopoverContent

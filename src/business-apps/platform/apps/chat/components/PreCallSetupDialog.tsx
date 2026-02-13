@@ -328,7 +328,7 @@ export const PreCallSetupDialog: React.FC<PreCallSetupDialogProps> = memo(
             {/* Video Preview Section */}
             <div className="gba:flex gba:flex-col gba:items-center">
               {isVideoCall ? (
-                <div className="gba:relative gba:w-full gba:aspect-video gba:bg-muted">
+                <div className="gba:relative gba:w-full gba:aspect-video gba:bg-muted gba:overflow-hidden gba:rounded-lg">
                   {cameraEnabled && !isStarting ? (
                     <video
                       ref={videoRef}
@@ -338,14 +338,14 @@ export const PreCallSetupDialog: React.FC<PreCallSetupDialogProps> = memo(
                       className="gba:w-full gba:h-full gba:object-cover gba:scale-x-[-1]"
                     />
                   ) : (
-                    <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-full gba:bg-muted">
-                      <Avatar className="gba:w-32 gba:h-32 gba:mb-4">
+                    <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-full gba:min-h-0 gba:bg-muted gba:rounded-lg gba:overflow-hidden">
+                      <Avatar className="gba:w-32 gba:h-32 gba:mb-4 gba:flex-shrink-0">
                         {userAvatarUrl && <AvatarImage src={userAvatarUrl} alt={userName || 'User'} />}
                         <AvatarFallback className="gba:text-4xl gba:bg-muted gba:text-foreground">
                           {userName ? getInitials(userName) : <UserIcon className="gba:w-16 gba:h-16" weight="fill" />}
                         </AvatarFallback>
                       </Avatar>
-                      <p className="gba:text-sm gba:text-muted-foreground">
+                      <p className="gba:text-sm gba:text-muted-foreground gba:flex-shrink-0">
                         {t('call-cameraOff') || 'Your camera is turned off'}
                       </p>
                     </div>
