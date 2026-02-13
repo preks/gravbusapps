@@ -4,7 +4,7 @@
 
 import React from 'react'
 import { MonitorIcon, ImageIcon, HandIcon, SmileyIcon, DotsThreeIcon } from '@phosphor-icons/react'
-import { Popover, PopoverContent, PopoverTrigger } from '@newwork/nw-design-system'
+import { Popover, PopoverContent, PopoverAnchor } from '@newwork/nw-design-system'
 import { ControlBarButton } from './ControlBarButton'
 import { ReactionsPicker } from './ReactionsPicker'
 import { MoreMenuContent } from './MoreMenuContent'
@@ -104,17 +104,17 @@ export const CallControlsCenterSection: React.FC<CallControlsCenterSectionProps>
           )}
           {onSendReaction && (
             <Popover open={reactionsOpen} onOpenChange={setReactionsOpen}>
-              <PopoverTrigger asChild>
+              <PopoverAnchor className="gba:inline-flex">
                 <ControlBarButton
                   variant="accent"
                   size="desktop"
                   icon={<SmileyIcon className={iconSizeDesktop} weight="fill" />}
-                  onClick={() => {}}
                   aria-label="Send reaction"
                   title="Send reaction"
                   data-testid={`${prefixDataTestId}-reactions-btn`}
+                  onClick={() => setReactionsOpen(!reactionsOpen)}
                 />
-              </PopoverTrigger>
+              </PopoverAnchor>
               <PopoverContent
                 className="gba:w-auto gba:p-2"
                 side="top"
@@ -168,17 +168,17 @@ export const CallControlsCenterSection: React.FC<CallControlsCenterSectionProps>
           )}
           {onSendReaction && (
             <Popover open={reactionsOpen} onOpenChange={setReactionsOpen}>
-              <PopoverTrigger asChild>
+              <PopoverAnchor className="gba:inline-flex">
                 <ControlBarButton
                   variant="accent"
                   size="mobile"
                   icon={<SmileyIcon className={iconSizeMobile} weight="fill" />}
-                  onClick={() => {}}
                   aria-label="Send reaction"
                   title="Send reaction"
                   data-testid={`${prefixDataTestId}-reactions-btn-mobile`}
+                  onClick={() => setReactionsOpen(!reactionsOpen)}
                 />
-              </PopoverTrigger>
+              </PopoverAnchor>
               <PopoverContent
                 className="gba:w-auto gba:p-2"
                 side="top"
@@ -201,17 +201,17 @@ export const CallControlsCenterSection: React.FC<CallControlsCenterSectionProps>
 
       {showMoreMenu && (
         <Popover open={moreMenuOpen} onOpenChange={setMoreMenuOpen}>
-          <PopoverTrigger asChild>
+          <PopoverAnchor className="gba:inline-flex">
             <ControlBarButton
               variant="accent"
               size="mobile"
               icon={<DotsThreeIcon className={iconSizeMobile} weight="fill" />}
-              onClick={() => {}}
               aria-label="More options"
               title="More options"
               data-testid={`${prefixDataTestId}-more-btn`}
+              onClick={() => setMoreMenuOpen(!moreMenuOpen)}
             />
-          </PopoverTrigger>
+          </PopoverAnchor>
           <PopoverContent
             className="gba:w-64 gba:p-3"
             side="top"

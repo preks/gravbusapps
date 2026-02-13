@@ -10,7 +10,8 @@ export interface ControlBarButtonProps {
   variant: ControlBarButtonVariant
   size?: 'desktop' | 'mobile'
   icon: React.ReactNode
-  onClick: () => void
+  /** Omit when used as a Radix trigger (e.g. PopoverTrigger asChild) so the trigger's onClick is used */
+  onClick?: () => void
   'aria-label': string
   title?: string
   'data-testid': string
@@ -45,7 +46,7 @@ export const ControlBarButton: React.FC<ControlBarButtonProps> = ({
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={onClick ?? undefined}
       disabled={disabled}
       className={`${padding} ${variantClasses[variant]} ${base} ${layout} ${className}`}
       aria-label={ariaLabel}

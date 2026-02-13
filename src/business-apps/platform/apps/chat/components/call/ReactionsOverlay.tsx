@@ -44,7 +44,7 @@ export const ReactionsOverlay: React.FC<ReactionsOverlayProps> = ({
         return (
           <div
             key={reaction.id}
-            className="gba:absolute gba:pointer-events-none gba:flex gba:items-center gba:justify-center gba:text-foreground"
+            className={`gba:absolute gba:pointer-events-none gba:flex gba:items-center gba:justify-center ${option?.colorClass ?? 'gba:text-foreground'}`}
             style={{
               left: '50%',
               bottom: '20%',

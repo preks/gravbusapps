@@ -9,14 +9,16 @@ export interface ReactionOption {
   id: string
   label: string
   Icon: React.ElementType
+  /** Design token text color class (e.g. gba:text-success) */
+  colorClass: string
 }
 
 export const REACTIONS: ReactionOption[] = [
-  { id: 'thumbs-up', label: 'Thumbs up', Icon: ThumbsUpIcon },
-  { id: 'heart', label: 'Heart', Icon: HeartIcon },
-  { id: 'laugh', label: 'Laugh', Icon: SmileyIcon },
-  { id: 'clap', label: 'Clap', Icon: HandsClappingIcon },
-  { id: 'party', label: 'Party', Icon: StarIcon }
+  { id: 'thumbs-up', label: 'Thumbs up', Icon: ThumbsUpIcon, colorClass: 'gba:text-success' },
+  { id: 'heart', label: 'Heart', Icon: HeartIcon, colorClass: 'gba:text-destructive' },
+  { id: 'laugh', label: 'Laugh', Icon: SmileyIcon, colorClass: 'gba:text-warning' },
+  { id: 'clap', label: 'Clap', Icon: HandsClappingIcon, colorClass: 'gba:text-primary' },
+  { id: 'party', label: 'Party', Icon: StarIcon, colorClass: 'gba:text-info' }
 ]
 
 export type ReactionsPickerLayout = 'inline' | 'grid'
@@ -43,15 +45,15 @@ export const ReactionsPicker: React.FC<ReactionsPickerProps> = ({
 
   const buttons = (
     <>
-      {REACTIONS.map(({ id, label, Icon }) => (
+      {REACTIONS.map(({ id, label, Icon, colorClass }) => (
         <button
           key={id}
           type="button"
           onClick={() => onSelect(id)}
           className={
             layout === 'inline'
-              ? 'gba:p-2 gba:rounded-lg hover:gba:bg-accent gba:transition-all gba:flex gba:items-center gba:justify-center gba:text-foreground'
-              : 'gba:aspect-square gba:p-3 gba:rounded-xl hover:gba:bg-accent gba:transition-all gba:flex gba:items-center gba:justify-center hover:gba:scale-110 active:gba:scale-95 gba:text-foreground'
+              ? `gba:p-2 gba:rounded-lg hover:gba:bg-accent gba:transition-all gba:flex gba:items-center gba:justify-center ${colorClass}`
+              : `gba:aspect-square gba:p-3 gba:rounded-xl hover:gba:bg-accent gba:transition-all gba:flex gba:items-center gba:justify-center hover:gba:scale-110 active:gba:scale-95 ${colorClass}`
           }
           title={`Send ${label}`}
           data-testid={`${prefixDataTestId}-reaction-${id}${suffix}`}
