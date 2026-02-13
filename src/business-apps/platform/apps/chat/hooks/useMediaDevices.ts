@@ -151,7 +151,7 @@ export const useMediaDevices = ({ enabled }: UseMediaDevicesOptions): UseMediaDe
             const devices = await navigator.mediaDevices.enumerateDevices()
 
             const audioInputs: MediaDeviceInfo[] = devices
-              .filter(d => d.kind === 'audioinput')
+              .filter(d => d.kind === 'audioinput' && d.deviceId !== 'default')
               .map(d => ({
                 deviceId: d.deviceId,
                 label: buildLabel('audioinput', d.label, d.deviceId),
@@ -159,7 +159,7 @@ export const useMediaDevices = ({ enabled }: UseMediaDevicesOptions): UseMediaDe
               }))
 
             const audioOutputs: MediaDeviceInfo[] = devices
-              .filter(d => d.kind === 'audiooutput')
+              .filter(d => d.kind === 'audiooutput' && d.deviceId !== 'default')
               .map(d => ({
                 deviceId: d.deviceId,
                 label: buildLabel('audiooutput', d.label, d.deviceId),
@@ -167,7 +167,7 @@ export const useMediaDevices = ({ enabled }: UseMediaDevicesOptions): UseMediaDe
               }))
 
             const videoInputs: MediaDeviceInfo[] = devices
-              .filter(d => d.kind === 'videoinput')
+              .filter(d => d.kind === 'videoinput' && d.deviceId !== 'default')
               .map(d => ({
                 deviceId: d.deviceId,
                 label: buildLabel('videoinput', d.label, d.deviceId),

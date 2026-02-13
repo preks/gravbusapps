@@ -275,6 +275,11 @@ call-backgroundWillBeApplied = Fundalul va fi aplicat în apel
 call-ended = Apel încheiat
 call-failed = Apel eșuat
 call-disconnected = Deconectat
+call-internalMicAndSpeakers = Microfon & difuzor
+call-microphone = Microfon
+call-speaker = Difuzor
+call-effectsAndAvatars = Efecte și avatare
+call-moreAudioSettings = Mai multe setări audio
 
 # Call Settings
 call-video = video

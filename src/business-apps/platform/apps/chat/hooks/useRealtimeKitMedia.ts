@@ -644,7 +644,6 @@ export const useRealtimeKitMedia = ({
         }
 
         await rnnoiseMiddlewareRef.current.initialize()
-
         await rnnoiseMiddlewareRef.current.enable(meeting)
         globalCallManager.setCall({ rnnoiseMiddlewareInstance: rnnoiseMiddlewareRef.current })
       } catch {

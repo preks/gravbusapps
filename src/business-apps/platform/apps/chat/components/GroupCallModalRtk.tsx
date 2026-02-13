@@ -29,10 +29,18 @@ import {
   ChatPanel,
   MemoizedParticipantVideoTile,
   VideoGrid,
-  HorizontalFilmstrip
+  HorizontalFilmstrip,
+  AudioSettingsModal
 } from './call'
 import { isVideoTrackScreenShare, extractTracksFromCollection } from '../utils/callUtils'
 import { globalCallManager } from '../services/globalCallManager'
+import { useMediaDevices } from '../hooks/useMediaDevices'
+
+/** Skip setSinkId on mobile to avoid breaking playback (unsupported or invalid saved device IDs). */
+function isMobileDevice(): boolean {
+  if (typeof navigator === 'undefined') return false
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+}
 
 // RealtimeKit peer type with SDK-specific properties
 interface RealtimeKitPeer extends GroupCallParticipant {
@@ -55,7 +63,7 @@ interface AvailableParticipant {
 }
 
 // Sidebar panel state type
-type SidebarView = 'closed' | 'participants' | 'chat'
+type SidebarView = 'closed' | 'participants' | 'chat' | 'audio-settings'
 
 interface GroupCallModalRtkProps {
   viewMode: 'full' | 'minimized' // NEW: Control display mode without unmounting
@@ -335,12 +343,14 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
   const localVideoRef = useRef<HTMLVideoElement>(null)
   const remoteVideoRefs = useRef<Map<string, HTMLVideoElement>>(new Map())
   const screenShareVideoRefs = useRef<Map<string, HTMLVideoElement>>(new Map())
+  const speakerVolumeRef = useRef(75)
 
   // Speaker output selection (sinkId). Updated by CallControlsBar.
   const selectedAudioOutputIdRef = useRef<string | null>(null)
 
   const applySinkIdToElement = useCallback(async (el: HTMLMediaElement | null, deviceId: string | null) => {
     if (!el || !deviceId) return
+    if (isMobileDevice()) return
     const setSinkId = (el as any).setSinkId as ((id: string) => Promise<void>) | undefined
     if (typeof setSinkId !== 'function') return
     try {
@@ -381,6 +391,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
             setLocalVideoRef(el)
           } else {
             remoteVideoRefs.current.set(peerId, el)
+            el.volume = speakerVolumeRef.current / 100
             void applySinkIdToElement(el, selectedAudioOutputIdRef.current)
             setVideoElementsVersion(v => v + 1)
           }
@@ -690,6 +701,28 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
       timestamp: number
     }>
   >([])
+  const [speakerVolume, setSpeakerVolume] = useState(75)
+
+  // Media devices for audio settings sidebar
+  const {
+    audioInputDevices,
+    audioOutputDevices,
+    selectedAudioInputId,
+    selectedAudioOutputId,
+    setSelectedAudioInputId,
+    setSelectedAudioOutputId,
+    canSelectAudioOutput,
+    refreshDevices
+  } = useMediaDevices({ enabled: true })
+
+  // Enumerate mics/speakers when call is active so device lists in settings are populated
+  const isCallActive =
+    callState.status === 'connected' || callState.status === 'joining' || callState.status === 'reconnecting'
+  useEffect(() => {
+    if (isCallActive) {
+      void refreshDevices({ requestAudio: true, requestVideo: callState.callType === 'video' })
+    }
+  }, [isCallActive, callState.callType, refreshDevices])
 
   // Show reaction animation
   const showReactionAnimation = useCallback((emoji: string, participantId: string) => {
@@ -732,6 +765,10 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
       }
       return newView
     })
+  }, [])
+
+  const handleToggleAudioSettings = useCallback(() => {
+    setSidebarView(prev => (prev === 'audio-settings' ? 'closed' : 'audio-settings'))
   }, [])
 
   // Listen for new messages when chat is closed (for unread tracking)
@@ -1615,6 +1652,15 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
     }
   }, [])
 
+  // Apply speaker volume to all remote video elements (they play remote audio)
+  useEffect(() => {
+    speakerVolumeRef.current = speakerVolume
+    const vol = speakerVolume / 100
+    remoteVideoRefs.current.forEach(el => {
+      if (el && typeof el.volume !== 'undefined') el.volume = vol
+    })
+  }, [speakerVolume])
+
   // Debug helper: Expose call controls to window for console debugging
   useEffect(() => {
     if (typeof globalThis.window !== 'undefined') {
@@ -2470,11 +2516,16 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
   )
 
   // Apply saved speaker output automatically when call UI mounts (so pre-call selection takes effect immediately).
+  // Skip on mobile so we never call setSinkId there (avoids broken playback from invalid/desktop device IDs).
   const hasAppliedInitialSinkIdRef = useRef(false)
   useEffect(() => {
     if (hasAppliedInitialSinkIdRef.current) return
     if (typeof window === 'undefined') return
     if (!callState.roomId) return
+    if (isMobileDevice()) {
+      hasAppliedInitialSinkIdRef.current = true
+      return
+    }
 
     try {
       const saved = localStorage.getItem('chat-preferred-audio-output')
@@ -3114,6 +3165,33 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
                         prefixDataTestId={`${prefixDataTestId}-chat`}
                       />
                     )}
+                    {sidebarView === 'audio-settings' && (
+                      <AudioSettingsModal
+                        audioInputDevices={audioInputDevices}
+                        audioOutputDevices={audioOutputDevices}
+                        selectedAudioInputId={selectedAudioInputId}
+                        selectedAudioOutputId={selectedAudioOutputId}
+                        onAudioInputChange={deviceId => {
+                          setSelectedAudioInputId(deviceId)
+                          if (onMicDeviceChange) {
+                            void onMicDeviceChange(deviceId)
+                          }
+                        }}
+                        onAudioOutputChange={deviceId => {
+                          setSelectedAudioOutputId(deviceId)
+                        }}
+                        speakerVolume={speakerVolume}
+                        onSpeakerVolumeChange={setSpeakerVolume}
+                        canSelectAudioOutput={canSelectAudioOutput}
+                        rnnoiseEnabled={rnnoiseEnabled}
+                        rnnoiseMode={rnnoiseMode}
+                        onToggleRnnoise={onToggleRnnoise}
+                        onRnnoiseModeChange={onRnnoiseModeChange}
+                        onClose={() => setSidebarView('closed')}
+                        prefixDataTestId={`${prefixDataTestId}-audio-settings`}
+                        t={t}
+                      />
+                    )}
                   </div>
                 )}
               </div>
@@ -3167,6 +3245,25 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
                         }
                       : undefined
                   }
+                  onToggleAudioSettings={handleToggleAudioSettings}
+                  sharedDeviceState={{
+                    audioInputDevices,
+                    audioOutputDevices,
+                    videoInputDevices: [],
+                    selectedAudioInputId,
+                    selectedAudioOutputId,
+                    selectedVideoInputId: null,
+                    setSelectedAudioInputId: id => {
+                      if (id !== null) setSelectedAudioInputId(id)
+                    },
+                    setSelectedAudioOutputId: id => {
+                      if (id !== null) setSelectedAudioOutputId(id)
+                    },
+                    setSelectedVideoInputId: () => {},
+                    canSelectAudioOutput,
+                    speakerVolume,
+                    setSpeakerVolume
+                  }}
                   onEndCall={onEndCall}
                   prefixDataTestId={prefixDataTestId}
                   t={t}

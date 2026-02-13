@@ -275,6 +275,11 @@ call-backgroundWillBeApplied = Background will be applied in call
 call-ended = Call ended
 call-failed = Call failed
 call-disconnected = Disconnected
+call-internalMicAndSpeakers = Microphone & Speaker
+call-microphone = Microphone
+call-speaker = Speaker
+call-effectsAndAvatars = Effects and avatars
+call-moreAudioSettings = More audio settings
 
 # Call Settings
 call-video = video

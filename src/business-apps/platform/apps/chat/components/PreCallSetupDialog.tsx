@@ -10,12 +10,16 @@ import {
   AvatarFallback,
   IconAvatar,
   Spinner,
+  Label,
+  Switch,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
   DropdownMenu,
-  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '@newwork/nw-design-system'
 import { rtkDebug } from '../utils/rtkDebug'
@@ -23,7 +27,6 @@ import {
   MicrophoneIcon,
   MicrophoneSlashIcon,
   VideoCameraIcon,
-  VideoCameraSlashIcon,
   PhoneIcon,
   XIcon,
   UsersThreeIcon,
@@ -31,13 +34,11 @@ import {
   UserIcon,
   VideoIcon,
   CaretDownIcon,
-  CheckIcon,
   SpeakerHighIcon
 } from '@phosphor-icons/react'
 import { useChatTranslation } from '../contexts/TranslationContext'
 import { useMediaDevices } from '../hooks/useMediaDevices'
-import { useCallPreferences } from '../hooks/useCallPreferences'
-import { DeviceTestDialog } from './DeviceTestDialog'
+import { MicLevelIndicator } from './call/MicLevelIndicator'
 
 interface PreCallSetupDialogProps {
   isOpen: boolean
@@ -95,13 +96,11 @@ export const PreCallSetupDialog: React.FC<PreCallSetupDialogProps> = memo(
     conversationType = 'group' // Default to group for backward compatibility
   }) => {
     const t = useChatTranslation()
-    const callPreferences = useCallPreferences()
     const [isStarting, setIsStarting] = useState(false)
     const [micEnabled, setMicEnabled] = useState(true)
     const [cameraEnabled, setCameraEnabled] = useState(callType === 'video')
     const [backgroundEnabled, setBackgroundEnabled] = useState(true)
     const [isLoadingPreview, setIsLoadingPreview] = useState(false)
-    const [isDeviceTestOpen, setIsDeviceTestOpen] = useState(false)
 
     const videoRef = useRef<HTMLVideoElement>(null)
     const streamTracksRef = useRef<MediaStreamTrack[]>([])
@@ -119,7 +118,6 @@ export const PreCallSetupDialog: React.FC<PreCallSetupDialogProps> = memo(
       setSelectedAudioOutputId,
       setSelectedVideoInputId,
       refreshDevices,
-      isEnumerating,
       canSelectAudioOutput
     } = useMediaDevices({ enabled: isOpen })
 
@@ -293,7 +291,7 @@ export const PreCallSetupDialog: React.FC<PreCallSetupDialogProps> = memo(
     return (
       <Dialog open={isOpen} onOpenChange={() => {}}>
         <DialogContent
-          className="gba:w-[90vw] gba:max-w-sm gba:p-0 gba:overflow-hidden gba:bg-gradient-to-b gba:from-gray-800 gba:to-gray-900 gba:border-0"
+          className="gba:w-[90vw] gba:max-w-lg gba:p-0 gba:overflow-hidden gba:bg-background gba:border-border gba:max-h-[90vh] gba:flex gba:flex-col"
           data-testid={prefixDataTestId}
           onPointerDownOutside={e => e.preventDefault()}
           onEscapeKeyDown={e => e.preventDefault()}
@@ -307,405 +305,297 @@ export const PreCallSetupDialog: React.FC<PreCallSetupDialogProps> = memo(
             {t('call-setupYourCallSettings') || 'Setup your call settings before joining'} {callTitle}
           </DialogDescription>
 
-          <div className="gba:flex gba:flex-col gba:items-center gba:py-6 gba:px-6">
-            {/* Call Type Indicator */}
-            <div className="gba:flex gba:items-center gba:gap-2 gba:text-gray-400 gba:text-sm gba:mb-4">
-              <UsersThreeIcon className="gba:w-4 gba:h-4" weight="fill" />
-              <span>
-                {isVideoCall
-                  ? t('call-startingVideoCall') || 'Starting video call'
-                  : t('call-startingAudioCall') || 'Starting audio call'}
-              </span>
+          {/* Header Section */}
+          <div className="gba:flex gba:flex-col gba:items-center gba:py-4 gba:px-6 gba:border-b gba:border-border gba:flex-shrink-0">
+            {/* Call Title and Info */}
+            <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
+              <UsersThreeIcon className="gba:w-5 gba:h-5 gba:text-muted-foreground" weight="fill" />
+              <h2 className="gba:text-lg gba:font-semibold gba:text-foreground">{callTitle}</h2>
             </div>
 
-            {/* Video Preview or User Avatar */}
-            {isVideoCall ? (
-              <>
-                {/* Video Preview - Always same size */}
-                <div className="gba:relative gba:w-full gba:max-w-xs gba:aspect-video gba:mb-4 gba:rounded-lg gba:overflow-hidden gba:bg-gray-800 gba:border gba:border-gray-600">
+            {participantCount > 0 && (
+              <p className="gba:text-sm gba:text-muted-foreground">
+                {participantCount}{' '}
+                {participantCount === 1
+                  ? t('chat-participant') || 'participant'
+                  : t('groupCall-participants') || 'participants'}
+              </p>
+            )}
+          </div>
+
+          {/* Scrollable Content */}
+          <div className="gba:overflow-y-auto gba:flex-1">
+            {/* Video Preview Section */}
+            <div className="gba:flex gba:flex-col gba:items-center">
+              {isVideoCall ? (
+                <div className="gba:relative gba:w-full gba:aspect-video gba:bg-muted">
                   {cameraEnabled && !isStarting ? (
-                    <>
-                      <video
-                        ref={videoRef}
-                        autoPlay
-                        playsInline
-                        muted
-                        className="gba:w-full gba:h-full gba:object-cover gba:scale-x-[-1]"
-                      />
-                      {isLoadingPreview && (
-                        <div className="gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center gba:bg-gray-800/70">
-                          <Spinner className="gba:w-6 gba:h-6 gba:text-white" />
-                        </div>
-                      )}
-                      {/* Status indicators overlay */}
-                      <div className="gba:absolute gba:bottom-2 gba:left-2 gba:right-2 gba:flex gba:items-center gba:justify-between">
-                        <div className="gba:flex gba:items-center gba:gap-2">
-                          {!micEnabled && (
-                            <div className="gba:flex gba:items-center gba:justify-center gba:w-7 gba:h-7 gba:rounded-full gba:bg-destructive gba:shadow-lg">
-                              <MicrophoneSlashIcon
-                                className="gba:w-4 gba:h-4 gba:text-destructive-foreground"
-                                weight="fill"
-                              />
-                            </div>
-                          )}
-                        </div>
-                        {backgroundEnabled && (
-                          <div className="gba:flex gba:items-center gba:gap-1 gba:px-2 gba:py-1 gba:rounded gba:bg-primary/90 gba:shadow-lg">
-                            <MagicWandIcon className="gba:w-3.5 gba:h-3.5 gba:text-primary-foreground" weight="fill" />
-                            <span className="gba:text-xs gba:text-primary-foreground">
-                              {t('call-backgroundWillBeApplied') || 'Background will be applied in call'}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    </>
+                    <video
+                      ref={videoRef}
+                      autoPlay
+                      playsInline
+                      muted
+                      className="gba:w-full gba:h-full gba:object-cover gba:scale-x-[-1]"
+                    />
                   ) : (
-                    <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-full gba:bg-gray-800">
-                      <Avatar className="gba:w-24 gba:h-24 gba:ring-4 gba:ring-white/10">
+                    <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-full gba:bg-muted">
+                      <Avatar className="gba:w-32 gba:h-32 gba:mb-4">
                         {userAvatarUrl && <AvatarImage src={userAvatarUrl} alt={userName || 'User'} />}
-                        <AvatarFallback className="gba:text-3xl gba:bg-gray-700 gba:text-white">
-                          {userName ? getInitials(userName) : <UserIcon className="gba:w-12 gba:h-12" weight="fill" />}
+                        <AvatarFallback className="gba:text-4xl gba:bg-muted gba:text-foreground">
+                          {userName ? getInitials(userName) : <UserIcon className="gba:w-16 gba:h-16" weight="fill" />}
                         </AvatarFallback>
                       </Avatar>
-                      {/* Status indicators overlay - mic only */}
-                      <div className="gba:absolute gba:bottom-2 gba:left-2">
-                        {!micEnabled && (
-                          <div className="gba:flex gba:items-center gba:justify-center gba:w-7 gba:h-7 gba:rounded-full gba:bg-destructive gba:shadow-lg">
-                            <MicrophoneSlashIcon
-                              className="gba:w-4 gba:h-4 gba:text-destructive-foreground"
-                              weight="fill"
-                            />
-                          </div>
+                      <p className="gba:text-sm gba:text-muted-foreground">
+                        {t('call-cameraOff') || 'Your camera is turned off'}
+                      </p>
+                    </div>
+                  )}
+
+                  {isLoadingPreview && cameraEnabled && (
+                    <div className="gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center gba:bg-muted/70">
+                      <Spinner className="gba:w-6 gba:h-6" />
+                    </div>
+                  )}
+
+                  {/* Top Right: Effects Button - Only when background is enabled */}
+                  {backgroundEnabled && (
+                    <div className="gba:absolute gba:top-4 gba:right-4">
+                      <button
+                        onClick={() => setBackgroundEnabled(!backgroundEnabled)}
+                        className="gba:flex gba:items-center gba:gap-2 gba:px-3 gba:py-2 gba:rounded gba:transition-colors gba:backdrop-blur-sm gba:bg-primary/90 gba:text-primary-foreground hover:gba:bg-primary/80"
+                        data-testid={`${prefixDataTestId}-preview-effects-toggle`}
+                      >
+                        <MagicWandIcon className="gba:w-4 gba:h-4" weight="fill" />
+                        <span className="gba:text-sm gba:font-medium">
+                          {t('call-effectsAndAvatars') || 'Effects and avatars'}
+                        </span>
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Bottom Controls Overlay - Always visible */}
+                  <div className="gba:absolute gba:bottom-0 gba:left-0 gba:right-0 gba:bg-gradient-to-t gba:from-black/60 gba:to-transparent gba:p-4">
+                    <div className="gba:flex gba:items-center gba:justify-between">
+                      {/* Left: Mic/Camera Controls */}
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <button
+                          onClick={() => setMicEnabled(!micEnabled)}
+                          className="gba:flex gba:items-center gba:justify-center gba:w-10 gba:h-10 gba:rounded-full gba:bg-black/40 hover:gba:bg-black/60 gba:transition-colors gba:backdrop-blur-sm"
+                          data-testid={`${prefixDataTestId}-preview-mic-toggle`}
+                        >
+                          {micEnabled ? (
+                            <MicrophoneIcon className="gba:w-5 gba:h-5 gba:text-white" weight="fill" />
+                          ) : (
+                            <MicrophoneSlashIcon className="gba:w-5 gba:h-5 gba:text-white" weight="fill" />
+                          )}
+                        </button>
+
+                        {/* Camera with dropdown */}
+                        <div className="gba:flex gba:items-stretch gba:gap-0">
+                          <button
+                            onClick={() => setCameraEnabled(!cameraEnabled)}
+                            className="gba:flex gba:items-center gba:justify-center gba:w-10 gba:h-10 gba:rounded-l-full gba:bg-black/40 hover:gba:bg-black/60 gba:transition-colors gba:backdrop-blur-sm"
+                            data-testid={`${prefixDataTestId}-preview-camera-toggle`}
+                          >
+                            {cameraEnabled ? (
+                              <VideoCameraIcon className="gba:w-5 gba:h-5 gba:text-white" weight="fill" />
+                            ) : (
+                              <VideoCameraIcon
+                                className="gba:w-5 gba:h-5 gba:text-white gba:opacity-50"
+                                weight="fill"
+                              />
+                            )}
+                          </button>
+                          {cameraEnabled && videoInputDevices.length > 0 && (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <button
+                                  className="gba:flex gba:items-center gba:justify-center gba:px-2 gba:h-10 gba:rounded-r-full gba:bg-black/40 hover:gba:bg-black/60 gba:transition-colors gba:backdrop-blur-sm gba:border-l gba:border-white/20"
+                                  data-testid={`${prefixDataTestId}-preview-camera-dropdown`}
+                                >
+                                  <CaretDownIcon className="gba:w-3 gba:h-3 gba:text-white" weight="bold" />
+                                </button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent
+                                side="top"
+                                align="start"
+                                className="gba:bg-background gba:border-border gba:min-w-[200px]"
+                              >
+                                {videoInputDevices.map(device => (
+                                  <DropdownMenuItem
+                                    key={device.deviceId}
+                                    onClick={() => setSelectedVideoInputId(device.deviceId)}
+                                    className={selectedVideoInputId === device.deviceId ? 'gba:bg-accent' : ''}
+                                  >
+                                    {device.label || `Camera ${device.deviceId.substring(0, 8)}`}
+                                  </DropdownMenuItem>
+                                ))}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          )}
+                        </div>
+
+                        {/* Apply Background - Only when camera is enabled */}
+                        {cameraEnabled && (
+                          <button
+                            onClick={() => setBackgroundEnabled(!backgroundEnabled)}
+                            className={`gba:flex gba:items-center gba:justify-center gba:w-10 gba:h-10 gba:rounded-full gba:transition-colors gba:backdrop-blur-sm ${
+                              backgroundEnabled
+                                ? 'gba:bg-primary/90 hover:gba:bg-primary/80'
+                                : 'gba:bg-black/40 hover:gba:bg-black/60'
+                            }`}
+                            data-testid={`${prefixDataTestId}-preview-background-toggle`}
+                          >
+                            <MagicWandIcon className="gba:w-5 gba:h-5 gba:text-white" weight="fill" />
+                          </button>
                         )}
                       </div>
                     </div>
-                  )}
-                </div>
-
-                {/* Group Name */}
-                <h2 className="gba:text-lg gba:font-semibold gba:text-white gba:mb-1">{callTitle}</h2>
-
-                {/* Participant Count */}
-                {participantCount > 0 && (
-                  <p className="gba:text-gray-400 gba:text-sm gba:mb-3">
-                    {participantCount}{' '}
-                    {participantCount === 1
-                      ? t('chat-participant') || 'participant'
-                      : t('groupCall-participants') || 'participants'}
-                  </p>
-                )}
-
-                {/* Starting status */}
-                {isStarting ? (
-                  <div className="gba:flex gba:items-center gba:gap-2 gba:mb-4">
-                    <Spinner className="gba:w-4 gba:h-4 gba:text-white" />
-                    <p className="gba:text-white gba:text-sm gba:font-medium">
-                      {t('call-connecting') || 'Connecting...'}
-                    </p>
                   </div>
-                ) : (
-                  <p className="gba:text-gray-400 gba:text-sm gba:mb-4">{t('call-readyToStart') || 'Ready to start'}</p>
-                )}
-              </>
-            ) : (
-              <>
-                {/* User Avatar for audio calls */}
-                <div className="gba:relative gba:mb-6">
+                </div>
+              ) : (
+                <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-8">
                   {userAvatarUrl ? (
-                    <Avatar className="gba:w-28 gba:h-28 gba:relative gba:z-10 gba:ring-4 gba:ring-white/20">
+                    <Avatar className="gba:w-28 gba:h-28 gba:mb-4">
                       <AvatarImage src={userAvatarUrl} alt={userName || 'User'} />
-                      <AvatarFallback className="gba:text-3xl gba:bg-gray-700 gba:text-white">
+                      <AvatarFallback className="gba:text-3xl gba:bg-muted gba:text-foreground">
                         {userName ? getInitials(userName) : '?'}
                       </AvatarFallback>
                     </Avatar>
                   ) : (
                     <IconAvatar
-                      className="gba:w-28 gba:h-28 gba:relative gba:z-10 gba:bg-gray-700"
+                      className="gba:w-28 gba:h-28 gba:mb-4 gba:bg-muted"
                       label={callTitle}
                       icon={isVideoCall ? VideoIcon : UsersThreeIcon}
                     />
                   )}
                 </div>
-
-                {/* Group Name */}
-                <h2 className="gba:text-xl gba:font-semibold gba:text-white gba:mb-1">{callTitle}</h2>
-
-                {/* Participant Count */}
-                {participantCount > 0 && (
-                  <p className="gba:text-gray-400 gba:text-sm gba:mb-2">
-                    {participantCount}{' '}
-                    {participantCount === 1
-                      ? t('chat-participant') || 'participant'
-                      : t('groupCall-participants') || 'participants'}
-                  </p>
-                )}
-
-                {/* Starting status */}
-                {isStarting ? (
-                  <div className="gba:flex gba:items-center gba:gap-2 gba:mb-6">
-                    <Spinner className="gba:w-4 gba:h-4 gba:text-white" />
-                    <p className="gba:text-white gba:text-sm gba:font-medium">
-                      {t('call-connecting') || 'Connecting...'}
-                    </p>
-                  </div>
-                ) : (
-                  <p className="gba:text-gray-400 gba:text-sm gba:mb-4">{t('call-readyToStart') || 'Ready to start'}</p>
-                )}
-              </>
-            )}
-
-            {/* Pre-call Controls - Mic, Camera, and Background toggles */}
-            <div
-              className={`gba:mb-6 gba:w-full gba:max-w-xs ${isVideoCall ? 'gba:grid gba:grid-cols-2 gba:gap-2' : 'gba:flex gba:justify-center'}`}
-            >
-              {/* Mic Split Button - Toggle + Device Selector */}
-              <div className="gba:flex gba:items-stretch gba:gap-0">
-                <button
-                  onClick={() => setMicEnabled(!micEnabled)}
-                  disabled={isStarting}
-                  className="gba:flex gba:items-center gba:justify-center gba:gap-2 gba:px-4 gba:py-2.5 gba:rounded-l-full gba:bg-gray-700/50 hover:gba:bg-gray-700 gba:transition-colors gba:border gba:border-gray-600 disabled:gba:opacity-50 disabled:gba:cursor-not-allowed"
-                  data-testid={`${prefixDataTestId}-toggle-mic`}
-                >
-                  {micEnabled ? (
-                    <MicrophoneIcon className="gba:w-4 gba:h-4 gba:text-white" weight="fill" />
-                  ) : (
-                    <MicrophoneSlashIcon className="gba:w-4 gba:h-4 gba:text-destructive" weight="fill" />
-                  )}
-                  <span className="gba:text-xs gba:text-white gba:whitespace-nowrap">
-                    {micEnabled ? t('call-micOn') || 'Mic' : t('call-micOff') || 'Mic off'}
-                  </span>
-                </button>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <button
-                      disabled={isStarting || isEnumerating}
-                      className="gba:flex gba:items-center gba:justify-center gba:px-2 gba:py-2.5 gba:rounded-r-full gba:bg-gray-700/50 hover:gba:bg-gray-700 gba:transition-colors gba:border gba:border-l-0 gba:border-gray-600 disabled:gba:opacity-50 disabled:gba:cursor-not-allowed"
-                      data-testid={`${prefixDataTestId}-mic-settings`}
-                      aria-label={t('call-audioSettings') || 'Audio Settings'}
-                    >
-                      <CaretDownIcon className="gba:w-3 gba:h-3 gba:text-white" weight="bold" />
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="gba:w-64 gba:bg-gray-800 gba:border-gray-700">
-                    <DropdownMenuLabel className="gba:flex gba:items-center gba:gap-2 gba:text-white">
-                      <MicrophoneIcon className="gba:w-4 gba:h-4" />
-                      {t('call-selectMicrophone') || 'Microphone'}
-                    </DropdownMenuLabel>
-                    <DropdownMenuSeparator className="gba:bg-gray-700" />
-                    {audioInputDevices.length > 0 ? (
-                      audioInputDevices.map(device => (
-                        <DropdownMenuItem
-                          key={device.deviceId}
-                          onClick={() => setSelectedAudioInputId(device.deviceId)}
-                          className="gba:flex gba:items-center gba:gap-2 gba:text-white hover:gba:bg-gray-700"
-                        >
-                          {selectedAudioInputId === device.deviceId && (
-                            <CheckIcon className="gba:w-4 gba:h-4 gba:text-success" weight="bold" />
-                          )}
-                          <span className={selectedAudioInputId !== device.deviceId ? 'gba:ml-6' : ''}>
-                            {device.label}
-                          </span>
-                        </DropdownMenuItem>
-                      ))
-                    ) : (
-                      <DropdownMenuItem disabled className="gba:text-gray-400">
-                        {t('call-noDevicesFound') || 'No devices found'}
-                      </DropdownMenuItem>
-                    )}
-
-                    <DropdownMenuSeparator className="gba:bg-gray-700" />
-                    <DropdownMenuLabel className="gba:flex gba:items-center gba:gap-2 gba:text-white">
-                      <SpeakerHighIcon className="gba:w-4 gba:h-4" />
-                      {t('call-selectSpeaker') || 'Select Speaker'}
-                    </DropdownMenuLabel>
-                    <DropdownMenuSeparator className="gba:bg-gray-700" />
-                    {!canSelectAudioOutput ? (
-                      <DropdownMenuItem disabled className="gba:text-gray-400">
-                        {t('call-speakerNotSupported') || 'Speaker selection not supported in this browser'}
-                      </DropdownMenuItem>
-                    ) : audioOutputDevices.length > 0 ? (
-                      audioOutputDevices.map((device, idx) => (
-                        <DropdownMenuItem
-                          key={device.deviceId}
-                          onClick={() => setSelectedAudioOutputId(device.deviceId)}
-                          className="gba:flex gba:items-center gba:gap-2 gba:text-white hover:gba:bg-gray-700"
-                          data-testid={`${prefixDataTestId}-speaker-device-${idx}`}
-                        >
-                          {selectedAudioOutputId === device.deviceId && (
-                            <CheckIcon className="gba:w-4 gba:h-4 gba:text-success" weight="bold" />
-                          )}
-                          <span className={selectedAudioOutputId !== device.deviceId ? 'gba:ml-6' : ''}>
-                            {device.label}
-                          </span>
-                        </DropdownMenuItem>
-                      ))
-                    ) : (
-                      <DropdownMenuItem disabled className="gba:text-gray-400">
-                        {t('call-noDevicesFound') || 'No devices found'}
-                      </DropdownMenuItem>
-                    )}
-
-                    <DropdownMenuCheckboxItem
-                      checked={callPreferences.noiseSuppressionEnabled}
-                      onCheckedChange={checked => callPreferences.setNoiseSuppressionEnabled(Boolean(checked))}
-                      className="gba:text-white hover:gba:bg-gray-700"
-                      data-testid={`${prefixDataTestId}-noise-suppression-toggle`}
-                    >
-                      {t('call-noiseSuppression') || 'Noise suppression'}
-                    </DropdownMenuCheckboxItem>
-
-                    <DropdownMenuCheckboxItem
-                      checked={callPreferences.autoGainControlEnabled}
-                      onCheckedChange={checked => callPreferences.setAutoGainControlEnabled(Boolean(checked))}
-                      className="gba:text-white hover:gba:bg-gray-700"
-                      data-testid={`${prefixDataTestId}-auto-gain-control-toggle`}
-                    >
-                      {t('call-autoGainControl') || 'Auto gain control'}
-                    </DropdownMenuCheckboxItem>
-
-                    <DropdownMenuSeparator className="gba:bg-gray-700" />
-                    <DropdownMenuItem
-                      onClick={() => setIsDeviceTestOpen(true)}
-                      className="gba:text-white hover:gba:bg-gray-700"
-                      data-testid={`${prefixDataTestId}-test-devices`}
-                    >
-                      {t('call-testDevices') || 'Test devices'}
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-
-              {/* Camera Split Button - Toggle + Device Selector (video calls only) */}
-              {isVideoCall && (
-                <div className="gba:flex gba:items-stretch gba:gap-0">
-                  <button
-                    onClick={() => setCameraEnabled(!cameraEnabled)}
-                    disabled={isStarting}
-                    className="gba:flex gba:items-center gba:justify-center gba:gap-2 gba:px-4 gba:py-2.5 gba:rounded-l-full gba:bg-gray-700/50 hover:gba:bg-gray-700 gba:transition-colors gba:border gba:border-gray-600 disabled:gba:opacity-50 disabled:gba:cursor-not-allowed"
-                    data-testid={`${prefixDataTestId}-toggle-camera`}
-                  >
-                    {cameraEnabled ? (
-                      <VideoCameraIcon className="gba:w-4 gba:h-4 gba:text-white" weight="fill" />
-                    ) : (
-                      <VideoCameraSlashIcon className="gba:w-4 gba:h-4 gba:text-destructive" weight="fill" />
-                    )}
-                    <span className="gba:text-xs gba:text-white gba:whitespace-nowrap">
-                      {cameraEnabled ? t('call-cameraOn') || 'Camera' : t('call-cameraOff') || 'Camera off'}
-                    </span>
-                  </button>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button
-                        disabled={isStarting || isEnumerating}
-                        className="gba:flex gba:items-center gba:justify-center gba:px-2 gba:py-2.5 gba:rounded-r-full gba:bg-gray-700/50 hover:gba:bg-gray-700 gba:transition-colors gba:border gba:border-l-0 gba:border-gray-600 disabled:gba:opacity-50 disabled:gba:cursor-not-allowed"
-                        data-testid={`${prefixDataTestId}-camera-settings`}
-                        aria-label={t('call-videoSettings') || 'Video Settings'}
-                      >
-                        <CaretDownIcon className="gba:w-3 gba:h-3 gba:text-white" weight="bold" />
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" className="gba:w-64 gba:bg-gray-800 gba:border-gray-700">
-                      <DropdownMenuLabel className="gba:flex gba:items-center gba:gap-2 gba:text-white">
-                        <VideoCameraIcon className="gba:w-4 gba:h-4" />
-                        {t('call-selectCamera') || 'Camera'}
-                      </DropdownMenuLabel>
-                      <DropdownMenuSeparator className="gba:bg-gray-700" />
-                      {videoInputDevices.length > 0 ? (
-                        videoInputDevices.map(device => (
-                          <DropdownMenuItem
-                            key={device.deviceId}
-                            onClick={() => setSelectedVideoInputId(device.deviceId)}
-                            className="gba:flex gba:items-center gba:gap-2 gba:text-white hover:gba:bg-gray-700"
-                          >
-                            {selectedVideoInputId === device.deviceId && (
-                              <CheckIcon className="gba:w-4 gba:h-4 gba:text-success" weight="bold" />
-                            )}
-                            <span className={selectedVideoInputId !== device.deviceId ? 'gba:ml-6' : ''}>
-                              {device.label}
-                            </span>
-                          </DropdownMenuItem>
-                        ))
-                      ) : (
-                        <DropdownMenuItem disabled className="gba:text-gray-400">
-                          {t('call-noDevicesFound') || 'No devices found'}
-                        </DropdownMenuItem>
-                      )}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
               )}
 
-              {/* Background Toggle - Only when camera is on, spans full width */}
-              {isVideoCall && cameraEnabled && (
-                <button
-                  onClick={() => setBackgroundEnabled(!backgroundEnabled)}
-                  disabled={isStarting}
-                  className="gba:col-span-2 gba:flex gba:items-center gba:justify-center gba:gap-2 gba:px-4 gba:py-2.5 gba:rounded-full gba:bg-gray-700/50 hover:gba:bg-gray-700 gba:transition-colors gba:border gba:border-gray-600 disabled:gba:opacity-50 disabled:gba:cursor-not-allowed"
-                  data-testid={`${prefixDataTestId}-toggle-background`}
-                >
-                  <MagicWandIcon
-                    className={`gba:w-4 gba:h-4 ${backgroundEnabled ? 'gba:text-primary' : 'gba:text-white'}`}
-                    weight="fill"
-                  />
-                  <span className="gba:text-xs gba:text-white gba:whitespace-nowrap">
-                    {backgroundEnabled
-                      ? t('call-backgroundOn') || 'Background'
-                      : t('call-backgroundOff') || 'Background off'}
-                  </span>
-                </button>
+              {isStarting && (
+                <div className="gba:flex gba:items-center gba:gap-2 gba:py-4">
+                  <Spinner className="gba:w-4 gba:h-4" />
+                  <p className="gba:text-sm gba:font-medium gba:text-foreground">
+                    {t('call-connecting') || 'Connecting...'}
+                  </p>
+                </div>
               )}
             </div>
 
-            <DeviceTestDialog
-              isOpen={isDeviceTestOpen}
-              onOpenChange={setIsDeviceTestOpen}
-              t={t}
-              audioInputDevices={audioInputDevices}
-              audioOutputDevices={audioOutputDevices}
-              selectedAudioInputId={selectedAudioInputId}
-              selectedAudioOutputId={selectedAudioOutputId}
-              setSelectedAudioInputId={setSelectedAudioInputId}
-              setSelectedAudioOutputId={setSelectedAudioOutputId}
-              canSelectAudioOutput={canSelectAudioOutput}
-              prefixDataTestId={`${prefixDataTestId}-device-test`}
-            />
-
-            {/* Action Buttons */}
-            <div className="gba:flex gba:items-center gba:justify-center gba:gap-8">
-              {/* Cancel Button */}
-              <div className="gba:flex gba:flex-col gba:items-center gba:gap-2">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={handleCancel}
-                  disabled={isStarting}
-                  className="gba:w-16 gba:h-16 gba:rounded-full gba:shadow-lg gba:border-gray-600"
-                  data-testid={`${prefixDataTestId}-cancel`}
-                >
-                  <XIcon className="gba:w-7 gba:h-7" weight="bold" />
-                </Button>
-                <span className="gba:text-xs gba:text-gray-400">{t('call-cancel') || 'Cancel'}</span>
+            {/* Device Selection - Always Visible */}
+            {/* Internal Mic and Speakers Section */}
+            <div className="gba:border-t gba:border-border">
+              <div className="gba:px-6 gba:py-3 gba:text-sm gba:font-medium">
+                {t('call-internalMicAndSpeakers') || 'Internal Mic and Speakers'}
               </div>
+              <div className="gba:px-6 gba:pb-4 gba:space-y-4">
+                {/* Microphone */}
+                <div className="gba:space-y-2">
+                  <div className="gba:flex gba:items-center gba:gap-2">
+                    <MicrophoneIcon className="gba:w-4 gba:h-4 gba:text-muted-foreground" weight="fill" />
+                    <Label className="gba:text-sm">{t('call-microphone') || 'Microphone'}</Label>
+                    <Switch
+                      checked={micEnabled}
+                      onCheckedChange={setMicEnabled}
+                      disabled={isStarting}
+                      className="gba:ml-auto"
+                      data-testid={`${prefixDataTestId}-mic-toggle`}
+                    />
+                  </div>
+                  <Select value={selectedAudioInputId || ''} onValueChange={setSelectedAudioInputId}>
+                    <SelectTrigger className="gba:w-full" data-testid={`${prefixDataTestId}-mic-select`}>
+                      <SelectValue placeholder={t('call-selectMicrophone') || 'Select microphone'} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {audioInputDevices.length > 0 ? (
+                        audioInputDevices.map(device => (
+                          <SelectItem key={device.deviceId} value={device.deviceId}>
+                            {device.label || `Microphone ${device.deviceId.substring(0, 8)}`}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value="none" disabled>
+                          {t('call-noDevicesFound') || 'No devices found'}
+                        </SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                  <MicLevelIndicator
+                    deviceId={selectedAudioInputId}
+                    prefixDataTestId={`${prefixDataTestId}-mic-level`}
+                  />
+                </div>
 
-              {/* Start Button */}
-              <div className="gba:flex gba:flex-col gba:items-center gba:gap-2">
-                <Button
-                  size="icon"
-                  onClick={handleStart}
-                  disabled={isStarting}
-                  className="gba:w-16 gba:h-16 gba:rounded-full gba:shadow-lg gba:bg-success gba:hover:bg-success/90 disabled:gba:opacity-60 disabled:gba:cursor-not-allowed"
-                  data-testid={`${prefixDataTestId}-start`}
-                >
-                  {isStarting ? (
-                    <Spinner className="gba:w-7 gba:h-7 gba:text-white" />
+                {/* Speaker */}
+                <div className="gba:space-y-2 gba:pt-2 gba:border-t gba:border-border">
+                  <div className="gba:flex gba:items-center gba:gap-2">
+                    <SpeakerHighIcon className="gba:w-4 gba:h-4 gba:text-muted-foreground" weight="fill" />
+                    <Label className="gba:text-sm">{t('call-speaker') || 'Speaker'}</Label>
+                  </div>
+                  {!canSelectAudioOutput ? (
+                    <p className="gba:text-sm gba:text-muted-foreground">
+                      {t('call-speakerNotSupported') || 'Speaker selection not supported in this browser'}
+                    </p>
                   ) : (
-                    <PhoneIcon className="gba:w-7 gba:h-7 gba:text-white" weight="fill" />
+                    <Select value={selectedAudioOutputId || ''} onValueChange={setSelectedAudioOutputId}>
+                      <SelectTrigger className="gba:w-full" data-testid={`${prefixDataTestId}-speaker-select`}>
+                        <SelectValue placeholder={t('call-selectSpeaker') || 'Select speaker'} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {audioOutputDevices.length > 0 ? (
+                          audioOutputDevices.map(device => (
+                            <SelectItem key={device.deviceId} value={device.deviceId}>
+                              {device.label || `Speaker ${device.deviceId.substring(0, 8)}`}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <SelectItem value="none" disabled>
+                            {t('call-noDevicesFound') || 'No devices found'}
+                          </SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
                   )}
-                </Button>
-                <span className="gba:text-xs gba:text-white">
-                  {isStarting ? t('call-starting') || 'Starting...' : t('call-start') || 'Start'}
-                </span>
+                </div>
               </div>
+            </div>
+          </div>
+
+          {/* Footer Action Buttons */}
+          <div className="gba:flex gba:items-center gba:justify-center gba:gap-6 gba:p-4 gba:border-t gba:border-border gba:flex-shrink-0">
+            {/* Cancel Button */}
+            <div className="gba:flex gba:flex-col gba:items-center gba:gap-1.5">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={handleCancel}
+                disabled={isStarting}
+                className="gba:w-12 gba:h-12 gba:rounded-full"
+                data-testid={`${prefixDataTestId}-cancel`}
+              >
+                <XIcon className="gba:w-5 gba:h-5" weight="bold" />
+              </Button>
+              <span className="gba:text-xs gba:text-muted-foreground">{t('call-cancel') || 'Cancel'}</span>
+            </div>
+
+            {/* Start Button */}
+            <div className="gba:flex gba:flex-col gba:items-center gba:gap-1.5">
+              <Button
+                size="icon"
+                onClick={handleStart}
+                disabled={isStarting}
+                className="gba:w-12 gba:h-12 gba:rounded-full gba:bg-success hover:gba:bg-success/90 disabled:gba:opacity-60 disabled:gba:cursor-not-allowed"
+                data-testid={`${prefixDataTestId}-start`}
+              >
+                {isStarting ? (
+                  <Spinner className="gba:w-5 gba:h-5 gba:text-white" />
+                ) : (
+                  <PhoneIcon className="gba:w-5 gba:h-5 gba:text-white" weight="fill" />
+                )}
+              </Button>
+              <span className="gba:text-xs gba:text-foreground">
+                {isStarting ? t('call-starting') || 'Starting...' : t('call-start') || 'Join now'}
+              </span>
             </div>
           </div>
         </DialogContent>

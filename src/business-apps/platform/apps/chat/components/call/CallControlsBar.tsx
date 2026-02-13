@@ -33,15 +33,18 @@ import {
   PopoverContent,
   PopoverTrigger,
   DropdownMenu,
-  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger
+  DropdownMenuTrigger,
+  RadioGroup,
+  RadioGroupItem,
+  Label,
+  Slider
 } from '@newwork/nw-design-system'
 import { useMediaDevices } from '../../hooks/useMediaDevices'
-import { useCallPreferences } from '../../hooks/useCallPreferences'
+import { MicLevelIndicator } from './MicLevelIndicator'
+import type { MediaDeviceInfo } from '../../hooks/useMediaDevices'
 
 export interface CallControlsBarProps {
   /** Call type (audio or video) */
@@ -90,6 +93,23 @@ export interface CallControlsBarProps {
   onNoiseSuppressionChange?: (enabled: boolean) => void | Promise<void>
   /** Callback when auto gain control setting changes */
   onAutoGainControlChange?: (enabled: boolean) => void | Promise<void>
+  /** Callback to toggle audio settings panel */
+  onToggleAudioSettings?: () => void
+  /** Shared device state from parent */
+  sharedDeviceState?: {
+    audioInputDevices: MediaDeviceInfo[]
+    audioOutputDevices: MediaDeviceInfo[]
+    videoInputDevices: MediaDeviceInfo[]
+    selectedAudioInputId: string | null
+    selectedAudioOutputId: string | null
+    selectedVideoInputId: string | null
+    setSelectedAudioInputId: (id: string | null) => void
+    setSelectedAudioOutputId: (id: string | null) => void
+    setSelectedVideoInputId: (id: string | null) => void
+    canSelectAudioOutput: boolean
+    speakerVolume: number
+    setSpeakerVolume: (volume: number) => void
+  }
   /** Data test ID prefix */
   prefixDataTestId?: string
   /** Translation function */
@@ -104,52 +124,63 @@ export const CallControlsBar: React.FC<CallControlsBarProps> = ({
   isVideoEnabled,
   isScreenSharing,
   backgroundEnabled,
-  rnnoiseEnabled = true,
-  rnnoiseMode = 'aggressive',
   handRaised,
   transcriptionActive,
   onToggleMute,
   onToggleVideo,
   onToggleScreenShare,
   onToggleBackground,
-  onToggleRnnoise,
-  onRnnoiseModeChange,
   onToggleRaiseHand,
   onSendReaction,
   onEndCall,
   onMicDeviceChange,
   onCameraDeviceChange,
   onSpeakerDeviceChange,
-  onNoiseSuppressionChange,
-  onAutoGainControlChange,
+  onToggleAudioSettings,
+  sharedDeviceState,
   prefixDataTestId = 'rtk-group-call',
   t = (key: string) => key
 }) => {
-  const handleRnnoiseToggle = () => {
-    onToggleRnnoise?.()
-  }
   const [reactionsOpen, setReactionsOpen] = useState(false)
   const [moreMenuOpen, setMoreMenuOpen] = useState(false)
-  const callPreferences = useCallPreferences()
+
+  // Use shared device state from parent if provided, otherwise use local hook
+  const localDeviceState = useMediaDevices({ enabled: !sharedDeviceState })
 
   const {
-    audioInputDevices,
-    audioOutputDevices,
-    videoInputDevices,
-    selectedAudioInputId,
-    selectedAudioOutputId,
-    selectedVideoInputId,
-    setSelectedAudioInputId,
-    setSelectedAudioOutputId,
-    setSelectedVideoInputId,
+    audioInputDevices: localAudioInputDevices,
+    audioOutputDevices: localAudioOutputDevices,
+    videoInputDevices: localVideoInputDevices,
+    selectedAudioInputId: localSelectedAudioInputId,
+    selectedAudioOutputId: localSelectedAudioOutputId,
+    selectedVideoInputId: localSelectedVideoInputId,
+    setSelectedAudioInputId: localSetSelectedAudioInputId,
+    setSelectedAudioOutputId: localSetSelectedAudioOutputId,
+    setSelectedVideoInputId: localSetSelectedVideoInputId,
     refreshDevices,
     isEnumerating,
-    canSelectAudioOutput
-  } = useMediaDevices({ enabled: true })
+    canSelectAudioOutput: localCanSelectAudioOutput
+  } = localDeviceState
+
+  // Use shared state if provided, otherwise local (shared lists are populated by parent's refreshDevices)
+  const audioInputDevices = sharedDeviceState?.audioInputDevices ?? localAudioInputDevices
+  const audioOutputDevices = sharedDeviceState?.audioOutputDevices ?? localAudioOutputDevices
+  const videoInputDevices = sharedDeviceState?.videoInputDevices ?? localVideoInputDevices
+  const selectedAudioInputId = sharedDeviceState?.selectedAudioInputId ?? localSelectedAudioInputId
+  const selectedAudioOutputId = sharedDeviceState?.selectedAudioOutputId ?? localSelectedAudioOutputId
+  const selectedVideoInputId = sharedDeviceState?.selectedVideoInputId ?? localSelectedVideoInputId
+  const setSelectedAudioInputId = sharedDeviceState?.setSelectedAudioInputId || localSetSelectedAudioInputId
+  const setSelectedAudioOutputId = sharedDeviceState?.setSelectedAudioOutputId || localSetSelectedAudioOutputId
+  const setSelectedVideoInputId = sharedDeviceState?.setSelectedVideoInputId || localSetSelectedVideoInputId
+  const canSelectAudioOutput = sharedDeviceState?.canSelectAudioOutput ?? localCanSelectAudioOutput
+  const speakerVolume = sharedDeviceState?.speakerVolume ?? 75
+  const setSpeakerVolume = sharedDeviceState?.setSpeakerVolume || (() => {})
 
   useEffect(() => {
-    refreshDevices({ requestAudio: true, requestVideo: callType === 'video' })
-  }, [refreshDevices, callType])
+    if (!sharedDeviceState) {
+      refreshDevices({ requestAudio: true, requestVideo: callType === 'video' })
+    }
+  }, [refreshDevices, callType, sharedDeviceState])
 
   const handleMicDeviceChange = (deviceId: string) => {
     setSelectedAudioInputId(deviceId)
@@ -168,6 +199,8 @@ export const CallControlsBar: React.FC<CallControlsBarProps> = ({
 
   // Track window size for responsive layout (matches GroupCallModalRtk pattern)
   const [windowWidth, setWindowWidth] = useState(window.innerWidth)
+  // Control mic/speaker dropdown so it closes when "More audio settings" opens the sidebar
+  const [audioDropdownOpen, setAudioDropdownOpen] = useState(false)
 
   useEffect(() => {
     const handleResize = () => {
@@ -228,7 +261,7 @@ export const CallControlsBar: React.FC<CallControlsBarProps> = ({
                 <Microphone className={showDesktopLayout ? 'gba:w-5 gba:h-5' : 'gba:w-4 gba:h-4'} weight="fill" />
               )}
             </button>
-            <DropdownMenu>
+            <DropdownMenu open={audioDropdownOpen} onOpenChange={setAudioDropdownOpen}>
               <DropdownMenuTrigger asChild>
                 <button
                   disabled={isEnumerating}
@@ -243,157 +276,100 @@ export const CallControlsBar: React.FC<CallControlsBarProps> = ({
                   <CaretDownIcon className="gba:w-3 gba:h-3" weight="bold" />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent side="top" align="center" className="gba:w-72 gba:bg-gray-800 gba:border-gray-700">
-                <DropdownMenuLabel className="gba:flex gba:items-center gba:gap-2 gba:text-white">
-                  <Microphone className="gba:w-4 gba:h-4" weight="fill" />
-                  {t('call-selectMicrophone')}
-                </DropdownMenuLabel>
-                {audioInputDevices.length > 0 ? (
-                  audioInputDevices.map(device => (
-                    <DropdownMenuItem
-                      key={device.deviceId}
-                      onClick={() => handleMicDeviceChange(device.deviceId)}
-                      className="gba:flex gba:items-center gba:gap-2 gba:text-white hover:gba:bg-gray-700"
+              <DropdownMenuContent
+                side="top"
+                align="center"
+                className="gba:w-[320px] gba:p-0 gba:bg-background gba:border-border"
+              >
+                {/* Speaker Section */}
+                <div className="gba:p-4 gba:border-b gba:border-border">
+                  <Label className="gba:text-xs gba:font-semibold gba:text-muted-foreground gba:mb-3 gba:block">
+                    {t('call-speaker') || 'Speaker'}
+                  </Label>
+                  {!canSelectAudioOutput ? (
+                    <p className="gba:text-sm gba:text-muted-foreground gba:py-2">
+                      {t('call-speakerNotSupported') || 'Speaker selection not supported'}
+                    </p>
+                  ) : audioOutputDevices.length > 0 ? (
+                    <RadioGroup
+                      value={selectedAudioOutputId || ''}
+                      onValueChange={handleSpeakerDeviceChange}
+                      className="gba:space-y-2"
                     >
-                      {selectedAudioInputId === device.deviceId && (
-                        <CheckIcon className="gba:w-4 gba:h-4 gba:text-success" weight="bold" />
-                      )}
-                      <span className={selectedAudioInputId !== device.deviceId ? 'gba:ml-6' : ''}>{device.label}</span>
-                    </DropdownMenuItem>
-                  ))
-                ) : (
-                  <DropdownMenuItem disabled className="gba:text-gray-400">
-                    {t('call-noDevicesFound')}
-                  </DropdownMenuItem>
-                )}
-
-                <DropdownMenuSeparator className="gba:bg-gray-700" />
-
-                <DropdownMenuLabel className="gba:flex gba:items-center gba:gap-2 gba:text-white">
-                  <SpeakerHigh className="gba:w-4 gba:h-4" weight="fill" />
-                  {t('call-selectSpeaker')}
-                </DropdownMenuLabel>
-                {!canSelectAudioOutput ? (
-                  <DropdownMenuItem disabled className="gba:text-gray-400">
-                    {t('call-deviceSettings')}
-                  </DropdownMenuItem>
-                ) : audioOutputDevices.length > 0 ? (
-                  audioOutputDevices.map(device => (
-                    <DropdownMenuItem
-                      key={device.deviceId}
-                      onClick={() => handleSpeakerDeviceChange(device.deviceId)}
-                      className="gba:flex gba:items-center gba:gap-2 gba:text-white hover:gba:bg-gray-700"
-                    >
-                      {selectedAudioOutputId === device.deviceId && (
-                        <CheckIcon className="gba:w-4 gba:h-4 gba:text-success" weight="bold" />
-                      )}
-                      <span className={selectedAudioOutputId !== device.deviceId ? 'gba:ml-6' : ''}>
-                        {device.label}
-                      </span>
-                    </DropdownMenuItem>
-                  ))
-                ) : (
-                  <DropdownMenuItem disabled className="gba:text-gray-400">
-                    {t('call-noDevicesFound')}
-                  </DropdownMenuItem>
-                )}
-
-                <DropdownMenuSeparator className="gba:bg-gray-700" />
-
-                {/* RNNoise AI Noise Suppression */}
-                {onToggleRnnoise && (
-                  <>
-                    <DropdownMenuCheckboxItem
-                      checked={rnnoiseEnabled}
-                      onCheckedChange={() => {
-                        handleRnnoiseToggle()
-                      }}
-                      className="gba:text-white hover:gba:bg-gray-700"
-                      data-testid={`${prefixDataTestId}-rnnoise-toggle`}
-                    >
-                      <span className="gba:flex gba:items-center gba:gap-2">
-                        <span className="gba:flex gba:items-center gba:gap-2">
-                          {t('call-aiNoiseSuppression') || 'AI Noise Suppression'}
-                          <span className="gba:text-xs gba:text-gray-400 gba:font-normal">(RNNoise)</span>
-                        </span>
-                        {rnnoiseEnabled && (
-                          <span className="gba:text-xs gba:bg-success/20 gba:text-success gba:px-2 gba:py-0.5 gba:rounded-full gba:font-semibold">
-                            ACTIVE
-                          </span>
-                        )}
-                      </span>
-                    </DropdownMenuCheckboxItem>
-
-                    {rnnoiseEnabled && onRnnoiseModeChange && (
-                      <div className="gba:px-2 gba:py-2 gba:text-xs gba:text-gray-400">
-                        <div className="gba:mb-1">{t('call-rnnoiseMode') || 'Suppression Level'}:</div>
-                        <div className="gba:flex gba:gap-1">
-                          <button
-                            onClick={() => {
-                              onRnnoiseModeChange('gentle')
-                            }}
-                            className={`gba:px-2 gba:py-1 gba:rounded gba:text-xs ${
-                              rnnoiseMode === 'gentle'
-                                ? 'gba:bg-success gba:text-success-foreground'
-                                : 'gba:bg-gray-700 gba:text-white hover:gba:bg-gray-600'
-                            }`}
+                      {audioOutputDevices.map(device => (
+                        <div key={device.deviceId} className="gba:flex gba:items-center gba:gap-3 gba:py-1.5">
+                          <RadioGroupItem value={device.deviceId} id={`speaker-quick-${device.deviceId}`} />
+                          <Label
+                            htmlFor={`speaker-quick-${device.deviceId}`}
+                            className="gba:flex-1 gba:cursor-pointer gba:text-sm"
                           >
-                            Gentle
-                          </button>
-                          <button
-                            onClick={() => {
-                              onRnnoiseModeChange('moderate')
-                            }}
-                            className={`gba:px-2 gba:py-1 gba:rounded gba:text-xs ${
-                              rnnoiseMode === 'moderate'
-                                ? 'gba:bg-success gba:text-success-foreground'
-                                : 'gba:bg-gray-700 gba:text-white hover:gba:bg-gray-600'
-                            }`}
-                          >
-                            Moderate
-                          </button>
-                          <button
-                            onClick={() => {
-                              onRnnoiseModeChange('aggressive')
-                            }}
-                            className={`gba:px-2 gba:py-1 gba:rounded gba:text-xs ${
-                              rnnoiseMode === 'aggressive'
-                                ? 'gba:bg-success gba:text-success-foreground'
-                                : 'gba:bg-gray-700 gba:text-white hover:gba:bg-gray-600'
-                            }`}
-                          >
-                            Aggressive
-                          </button>
+                            {device.label}
+                          </Label>
                         </div>
-                      </div>
-                    )}
-                  </>
-                )}
+                      ))}
+                    </RadioGroup>
+                  ) : (
+                    <p className="gba:text-sm gba:text-muted-foreground gba:py-2">
+                      {t('call-noDevicesFound') || 'No devices found'}
+                    </p>
+                  )}
+                  <div className="gba:flex gba:items-center gba:gap-3 gba:mt-3">
+                    <SpeakerHigh className="gba:w-5 gba:h-5 gba:text-muted-foreground" weight="fill" />
+                    <Slider
+                      value={[speakerVolume]}
+                      onValueChange={([value]) => setSpeakerVolume(value)}
+                      max={100}
+                      step={1}
+                      className="gba:flex-1"
+                    />
+                    <span className="gba:text-xs gba:text-muted-foreground gba:w-8 gba:text-right">
+                      {speakerVolume}%
+                    </span>
+                  </div>
+                </div>
 
-                <DropdownMenuCheckboxItem
-                  checked={callPreferences.noiseSuppressionEnabled}
-                  onCheckedChange={checked => {
-                    const next = Boolean(checked)
-                    callPreferences.setNoiseSuppressionEnabled(next)
-                    void onNoiseSuppressionChange?.(next)
+                {/* Microphone Section */}
+                <div className="gba:p-4 gba:border-b gba:border-border">
+                  <Label className="gba:text-xs gba:font-semibold gba:text-muted-foreground gba:mb-3 gba:block">
+                    {t('call-microphone') || 'Microphone'}
+                  </Label>
+                  {audioInputDevices.length > 0 ? (
+                    <RadioGroup
+                      value={selectedAudioInputId || ''}
+                      onValueChange={handleMicDeviceChange}
+                      className="gba:space-y-2"
+                    >
+                      {audioInputDevices.map(device => (
+                        <div key={device.deviceId} className="gba:flex gba:items-center gba:gap-3 gba:py-1.5">
+                          <RadioGroupItem value={device.deviceId} id={`mic-quick-${device.deviceId}`} />
+                          <Label
+                            htmlFor={`mic-quick-${device.deviceId}`}
+                            className="gba:flex-1 gba:cursor-pointer gba:text-sm"
+                          >
+                            {device.label}
+                          </Label>
+                        </div>
+                      ))}
+                    </RadioGroup>
+                  ) : (
+                    <p className="gba:text-sm gba:text-muted-foreground gba:py-2">
+                      {t('call-noDevicesFound') || 'No devices found'}
+                    </p>
+                  )}
+                  <MicLevelIndicator deviceId={selectedAudioInputId} className="gba:mt-3" />
+                </div>
+
+                {/* More Settings Link - close dropdown and open sidebar */}
+                <button
+                  onClick={() => {
+                    onToggleAudioSettings?.()
+                    setAudioDropdownOpen(false)
                   }}
-                  className="gba:text-white hover:gba:bg-gray-700"
-                  data-testid={`${prefixDataTestId}-noise-suppression-toggle`}
+                  className="gba:w-full gba:px-4 gba:py-3 gba:text-sm gba:text-left hover:gba:bg-muted/50 gba:transition-colors"
+                  data-testid={`${prefixDataTestId}-more-audio-settings`}
                 >
-                  {t('call-noiseSuppression') || 'Noise suppression'}
-                </DropdownMenuCheckboxItem>
-                <DropdownMenuCheckboxItem
-                  checked={callPreferences.autoGainControlEnabled}
-                  onCheckedChange={checked => {
-                    const next = Boolean(checked)
-                    callPreferences.setAutoGainControlEnabled(next)
-                    void onAutoGainControlChange?.(next)
-                  }}
-                  className="gba:text-white hover:gba:bg-gray-700"
-                  data-testid={`${prefixDataTestId}-auto-gain-control-toggle`}
-                >
-                  {t('call-autoGainControl') || 'Auto gain control'}
-                </DropdownMenuCheckboxItem>
+                  {t('call-moreAudioSettings') || 'More audio settings'}
+                </button>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>

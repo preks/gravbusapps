@@ -275,6 +275,11 @@ call-backgroundWillBeApplied = Hintergrund wird im Anruf angewendet
 call-ended = Anruf beendet
 call-failed = Anruf fehlgeschlagen
 call-disconnected = Getrennt
+call-internalMicAndSpeakers = Mikrofon & Lautsprecher
+call-microphone = Mikrofon
+call-speaker = Lautsprecher
+call-effectsAndAvatars = Effekte und Avatare
+call-moreAudioSettings = Weitere Audioeinstellungen
 
 # Call Settings
 call-video = Video
