@@ -8,7 +8,7 @@
  * Uses window object to ensure true persistence across module reloads.
  */
 
-import type { GroupWebRTCClient, GroupCallParticipant, VideoQuality } from './groupWebrtcClient'
+import type { GroupCallParticipant, VideoQuality } from './groupWebrtcClient'
 import type { ChatWebSocketClient } from './chatWebSocketClient'
 import type { CallParticipant, CallType } from './webrtcClient'
 import type { RTKRnnoiseMiddleware } from './rtkRnnoiseMiddleware'
@@ -27,7 +27,7 @@ export interface GlobalCallState {
   meetingId?: string | null
   sessionId?: string | null
   callType: CallType
-  callImplementation: 'mesh' | 'realtime-kit' | '1-on-1' // Track which implementation is used
+  callImplementation: 'realtime-kit'
   hostId: string | null
   isMuted: boolean
   isVideoEnabled: boolean
@@ -47,7 +47,6 @@ export interface GlobalCallState {
 }
 
 interface StoredCallData {
-  webrtcClient: GroupWebRTCClient | null
   wsClient: ChatWebSocketClient | null
   callState: GlobalCallState
   localStream: MediaStream | null
@@ -108,7 +107,7 @@ const initialCallState: GlobalCallState = {
   meetingId: null,
   sessionId: null,
   callType: 'audio',
-  callImplementation: 'mesh',
+  callImplementation: 'realtime-kit',
   hostId: null,
   isMuted: false,
   isVideoEnabled: true,
@@ -129,7 +128,6 @@ const initialCallState: GlobalCallState = {
 
 class GlobalCallManager {
   private callData: StoredCallData = {
-    webrtcClient: null,
     wsClient: null,
     callState: { ...initialCallState },
     localStream: null,
@@ -201,10 +199,7 @@ class GlobalCallManager {
 
   // Check if there's an active call that should persist
   hasActiveCall(): boolean {
-    return (
-      this.callData.callState.status !== 'idle' &&
-      (this.callData.webrtcClient !== null || this.callData.realtimeKitMeeting !== null)
-    )
+    return this.callData.callState.status !== 'idle' && this.callData.realtimeKitMeeting !== null
   }
 
   // Check if call is minimized (should persist across unmounts)
@@ -212,32 +207,7 @@ class GlobalCallManager {
     return this.callData.callState.isMinimized && this.hasActiveCall()
   }
 
-  // Store call data when minimizing
-  storeCall(data: {
-    webrtcClient: GroupWebRTCClient
-    wsClient: ChatWebSocketClient
-    callState: GlobalCallState
-    localStream: MediaStream | null
-    remoteStreams: Map<string, MediaStream>
-    participants: GroupCallParticipant[]
-    currentUser: CallParticipant | null
-    leaveCall?: () => Promise<void> // NEW: Optional leave function
-  }) {
-    this.callData = {
-      ...this.callData, // Preserve all existing properties
-      ...data, // Override with new data
-      leaveCall: data.leaveCall || this.callData.leaveCall // Handle optional leaveCall
-    }
-
-    // Start duration tracking if not already started
-    if (!this.callData.durationInterval && data.callState.status === 'connected') {
-      this.startDurationTracking()
-    }
-
-    this.notifyListeners()
-  }
-
-  // Set call data with all callbacks and context (new method for RealtimeKit)
+  // Set call data with all callbacks and context (RealtimeKit)
   setCall(data: Partial<StoredCallData>) {
     this.callData = {
       ...this.callData,
@@ -365,7 +335,6 @@ class GlobalCallManager {
     }
 
     this.callData = {
-      webrtcClient: null,
       wsClient: null,
       callState: { ...initialCallState },
       localStream: null,
@@ -377,6 +346,8 @@ class GlobalCallManager {
       rnnoiseMiddlewareInstance: null,
       activeSpeakerId: null,
       activeSpeakerHistory: [],
+      callConversation: null,
+      activeConversation: null,
       leaveCall: null,
       toggleMute: null,
       toggleVideo: null,
