@@ -46,11 +46,20 @@ export interface PresenceInfo {
   lastSeen?: string
 }
 
+export interface InitialOpenWithUserPayload {
+  userId: string
+  userName?: string
+  prefilledMessage?: string
+  metadata?: Record<string, unknown>
+}
+
 interface ChatProps extends BusinessAppContextProps {
   prefixDataTestId?: string
   onPresenceMapChange?: (presenceMap: Map<string, PresenceInfo>) => void
   onActiveCallsChange?: (activeCalls: Record<string, any>) => void
   calendarApiClient?: any | null // CalendarApiClient type
+  /** When set, open this user's conversation on mount without showing the list (e.g. from sidepanel pending open) */
+  initialOpenWithUser?: InitialOpenWithUserPayload | null
 }
 
 const ChatInner: React.FC<ChatProps> = memo(
@@ -60,12 +69,13 @@ const ChatInner: React.FC<ChatProps> = memo(
     prefixDataTestId = 'chat',
     onPresenceMapChange,
     onActiveCallsChange,
-    calendarApiClient
+    calendarApiClient,
+    initialOpenWithUser
   }) => {
     const t = useChatTranslation()
     const containerRef = useRef<HTMLDivElement>(null)
     const chatViewRef = useRef<HTMLDivElement>(null)
-    const [showConversationList, setShowConversationList] = useState(true)
+    const [showConversationList, setShowConversationList] = useState(!initialOpenWithUser)
     const [viewMode, setViewMode] = useState<ViewMode>('full')
     const [showCreateGroupModal, setShowCreateGroupModal] = useState(false)
     const [showGroupSettingsModal, setShowGroupSettingsModal] = useState(false)
@@ -350,6 +360,32 @@ const ChatInner: React.FC<ChatProps> = memo(
       isConnected,
       setShowConversationList
     })
+
+    // Open conversation on mount when opened from sidepanel (pending open) so user doesn't see list → conversation transition
+    const initialOpenProcessedRef = useRef(false)
+    useEffect(() => {
+      if (!initialOpenWithUser || !isConnected || initialOpenProcessedRef.current) return
+      initialOpenProcessedRef.current = true
+      const { userId, prefilledMessage } = initialOpenWithUser
+      createDirectConversation(userId)
+        .then(() => {
+          setShowConversationList(false)
+          if (prefilledMessage) {
+            setTimeout(() => setDraftMessage(prefilledMessage), 200)
+          }
+          try {
+            window.dispatchEvent(new CustomEvent('chat:conversation-ready'))
+            if (window.parent !== window) {
+              window.parent.postMessage({ type: 'CHAT_CONVERSATION_READY' }, '*')
+            }
+          } catch {
+            // ignore
+          }
+        })
+        .catch(() => {
+          initialOpenProcessedRef.current = false
+        })
+    }, [initialOpenWithUser, isConnected, createDirectConversation, setShowConversationList, setDraftMessage])
 
     // Register nudge callback to handle incoming nudges from OTHER users
     useEffect(() => {

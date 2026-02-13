@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { getAndClearPendingStartCall } from '../pendingStartCallFromPlatform'
 
 type CallType = 'audio' | 'video'
 
@@ -61,12 +62,24 @@ export const useStartCallFromPlatform = ({
   const pendingEventRef = useRef<StartCallPayload | null>(null)
 
   useEffect(() => {
+    const earlyPayload = getAndClearPendingStartCall()
+    if (earlyPayload) {
+      pendingEventRef.current = earlyPayload
+      console.log(
+        '[ChatStartCall] consumed early payload, will process when connected:',
+        !!initiateGroupCall,
+        'connected:',
+        isConnected
+      )
+    }
+
     const processStartCall = async (payload: StartCallPayload) => {
       if (processingRef.current || !initiateGroupCall) {
         return
       }
 
       processingRef.current = true
+      console.log('[ChatStartCall] processStartCall started', payload.callType ?? 'audio')
 
       const { userId, displayName, avatarUrl, callType = 'audio' } = payload
 
@@ -114,6 +127,12 @@ export const useStartCallFromPlatform = ({
     const handleStartCallWithUser = async (event: Event) => {
       const customEvent = event as CustomEvent<StartCallPayload>
       const payload = customEvent.detail
+      console.log(
+        '[ChatStartCall] event received in hook, connected:',
+        isConnected,
+        'hasInitiateGroupCall:',
+        !!initiateGroupCall
+      )
 
       // If not connected yet or not ready, queue the event
       if (!isConnected || !initiateGroupCall) {
