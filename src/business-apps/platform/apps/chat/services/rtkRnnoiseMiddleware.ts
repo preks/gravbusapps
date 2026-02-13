@@ -38,7 +38,7 @@ export class RTKRnnoiseMiddleware {
   private config: RnnoiseConfig = {
     enabled: true,
     logLevel: 'minimal', // minimal = no info logs; normal/verbose for debugging
-    strength: 1.0, // Maximum strength for most aggressive noise suppression
+    strength: 1, // Maximum strength for most aggressive noise suppression
     mode: 'aggressive' // Preset mode for easy UX
   }
 
@@ -46,7 +46,7 @@ export class RTKRnnoiseMiddleware {
   private static readonly MODE_STRENGTHS = {
     gentle: 0.5, // Light noise reduction, preserves more original audio
     moderate: 0.75, // Balanced noise reduction
-    aggressive: 1.0 // Maximum noise reduction
+    aggressive: 1 // Maximum noise reduction
   }
 
   // AudioWorklet modules are registered per AudioContext instance.

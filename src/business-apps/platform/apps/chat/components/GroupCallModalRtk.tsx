@@ -787,15 +787,15 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
   }, [wsClient, callConversation, sidebarView, currentUserId])
 
   // Track screen size for responsive pagination
-  const [screenWidth, setScreenWidth] = useState(window.innerWidth)
+  const [screenWidth, setScreenWidth] = useState(globalThis.window.innerWidth)
 
   useEffect(() => {
     const handleResize = () => {
-      setScreenWidth(window.innerWidth)
+      setScreenWidth(globalThis.window.innerWidth)
     }
 
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
+    globalThis.window.addEventListener('resize', handleResize)
+    return () => globalThis.window.removeEventListener('resize', handleResize)
   }, [])
 
   // Pagination config: max participants per page (responsive)
@@ -2263,7 +2263,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
 
   // Calculate responsive values based on screen size
   const [responsiveConfig, setResponsiveConfig] = useState(() => {
-    const width = window.innerWidth
+    const width = globalThis.window.innerWidth
     return {
       sidebarWidth: width < 768 ? 280 : width < 1024 ? 320 : 360,
       minTileSize: width < 768 ? 150 : width < 1024 ? 180 : 250,
@@ -2275,7 +2275,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
   // Update responsive config on window resize
   useEffect(() => {
     const handleResize = () => {
-      const width = window.innerWidth
+      const width = globalThis.window.innerWidth
       setResponsiveConfig({
         sidebarWidth: width < 768 ? 280 : width < 1024 ? 320 : 360,
         minTileSize: width < 768 ? 150 : width < 1024 ? 180 : 250,
@@ -2284,8 +2284,8 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
       })
     }
 
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
+    globalThis.window.addEventListener('resize', handleResize)
+    return () => globalThis.window.removeEventListener('resize', handleResize)
   }, [])
 
   // Calculate minimum tile size for auto-fit grid based on panel state and screen size
@@ -2516,7 +2516,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
   const hasAppliedInitialSinkIdRef = useRef(false)
   useEffect(() => {
     if (hasAppliedInitialSinkIdRef.current) return
-    if (typeof window === 'undefined') return
+    if (typeof globalThis.window === 'undefined') return
     if (!callState.roomId) return
     if (isMobileDevice()) {
       hasAppliedInitialSinkIdRef.current = true
@@ -2880,7 +2880,12 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
               className="gba:h-[85vh] gba:p-0 gba:overflow-hidden gba:flex gba:flex-col gba:gap-0"
               style={{
                 width: '90vw',
-                maxWidth: window.innerWidth >= 1280 ? '1800px' : window.innerWidth >= 1024 ? '1600px' : '90vw'
+                maxWidth:
+                  globalThis.window.innerWidth >= 1280
+                    ? '1800px'
+                    : globalThis.window.innerWidth >= 1024
+                      ? '1600px'
+                      : '90vw'
               }}
               data-testid={`${prefixDataTestId}-modal`}
               onPointerDownOutside={e => e.preventDefault()}
@@ -3052,7 +3057,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
                           className="gba:relative gba:w-full gba:h-full gba:rounded-lg gba:overflow-hidden gba:bg-muted"
                           style={{
                             aspectRatio: getOptimalAspectRatio(
-                              window.innerWidth,
+                              globalThis.window.innerWidth,
                               paginatedGridItems.items.length,
                               item.type === 'screen-share',
                               sidebarView !== 'closed'

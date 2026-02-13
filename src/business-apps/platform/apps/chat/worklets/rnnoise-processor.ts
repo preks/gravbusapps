@@ -181,7 +181,7 @@ class RnnoiseProcessor extends AudioWorkletProcessor {
     for (let i = 0; i < this.frameSize; i++) {
       // Clamp to [-1, 1] then scale to 16-bit PCM range
       const clamped = Math.max(-1, Math.min(1, frameIn[i]))
-      this.rnnoiseModule.HEAPF32[inputBufferOffset + i] = clamped * 32768.0
+      this.rnnoiseModule.HEAPF32[inputBufferOffset + i] = clamped * 32768
     }
 
     // Process frame: _rnnoise_process_frame(st, out, in_) returns VAD probability (0..1)
@@ -194,7 +194,7 @@ class RnnoiseProcessor extends AudioWorkletProcessor {
     for (let i = 0; i < this.frameSize; i++) {
       // Scale from 16-bit PCM back to float and clamp
       const pcmValue = this.rnnoiseModule.HEAPF32[outputBufferOffset + i]
-      frameIn[i] = Math.max(-1, Math.min(1, pcmValue / 32768.0))
+      frameIn[i] = Math.max(-1, Math.min(1, pcmValue / 32768))
     }
 
     // Apply wet/dry mix (strength controls how much denoised audio vs original)

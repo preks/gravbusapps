@@ -43,7 +43,7 @@ const STORAGE_KEYS = {
   videoInput: 'chat-preferred-video-input'
 } as const
 
-const isBrowser = (): boolean => typeof window !== 'undefined'
+const isBrowser = (): boolean => typeof globalThis.window !== 'undefined'
 
 const safeGetStorageItem = (key: string): string | null => {
   if (!isBrowser()) return null
@@ -127,7 +127,7 @@ export const useMediaDevices = ({ enabled }: UseMediaDevicesOptions): UseMediaDe
       try {
         // Cancel any pending retry from a previous refresh call
         if (enumerateRetryTimerRef.current) {
-          window.clearTimeout(enumerateRetryTimerRef.current)
+          globalThis.window.clearTimeout(enumerateRetryTimerRef.current)
           enumerateRetryTimerRef.current = null
         }
 
@@ -192,7 +192,7 @@ export const useMediaDevices = ({ enabled }: UseMediaDevicesOptions): UseMediaDe
             // Quirk workaround: some environments don’t expose all cameras immediately after permissions.
             // If video was requested and we only see 0–1 cameras, retry enumeration once shortly after.
             if (requestVideo && videoInputs.length <= 1) {
-              enumerateRetryTimerRef.current = window.setTimeout(() => {
+              enumerateRetryTimerRef.current = globalThis.window.setTimeout(() => {
                 if (!enabled) return
                 void runEnumerate()
               }, 650)
@@ -240,7 +240,7 @@ export const useMediaDevices = ({ enabled }: UseMediaDevicesOptions): UseMediaDe
   useEffect(() => {
     if (enabled) return
     if (enumerateRetryTimerRef.current) {
-      window.clearTimeout(enumerateRetryTimerRef.current)
+      globalThis.window.clearTimeout(enumerateRetryTimerRef.current)
       enumerateRetryTimerRef.current = null
     }
   }, [enabled])
