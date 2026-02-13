@@ -80,15 +80,15 @@ export function useChatConversationHandlers({
         const conversation = await createDirectConversation(user.id)
         setShowConversationList(false)
         if (conversation?.id) {
-          const url = new URL(window.location.href)
+          const url = new URL(globalThis.location.href)
           url.searchParams.set('conversationId', conversation.id)
-          window.history.replaceState({}, '', url.toString())
+          globalThis.history.replaceState({}, '', url.toString())
         }
       } catch {
-        // Error creating conversation
+        setErrorMessage(t('chat-failedToCreateConversation'))
       }
     },
-    [createDirectConversation, setShowConversationList, conversationIdFromUrlProcessed]
+    [createDirectConversation, setShowConversationList, conversationIdFromUrlProcessed, setErrorMessage, t]
   )
 
   const handleConversationSelect = useCallback(
@@ -97,9 +97,9 @@ export function useChatConversationHandlers({
       startTransition(() => {
         setActiveConversation(conversation)
         setShowConversationList(false)
-        const url = new URL(window.location.href)
+        const url = new URL(globalThis.location.href)
         url.searchParams.set('conversationId', conversation.id)
-        window.history.replaceState({}, '', url.toString())
+        globalThis.history.replaceState({}, '', url.toString())
         if (apiClient && (conversation.unreadCount ?? 0) > 0) {
           apiClient.markAsRead(conversation.id).catch(error => {
             console.error('[Chat] Failed to mark conversation as read:', error)
@@ -113,9 +113,9 @@ export function useChatConversationHandlers({
   const handleBack = useCallback(() => {
     setShowConversationList(true)
     setActiveConversation(null)
-    const url = new URL(window.location.href)
+    const url = new URL(globalThis.location.href)
     url.searchParams.delete('conversationId')
-    window.history.replaceState({}, '', url.toString())
+    globalThis.history.replaceState({}, '', url.toString())
   }, [setActiveConversation, setShowConversationList])
 
   const handleCloseConversation = useCallback(() => {
@@ -123,9 +123,9 @@ export function useChatConversationHandlers({
     if (viewMode !== 'full') {
       setShowConversationList(true)
     }
-    const url = new URL(window.location.href)
+    const url = new URL(globalThis.location.href)
     url.searchParams.delete('conversationId')
-    window.history.replaceState({}, '', url.toString())
+    globalThis.history.replaceState({}, '', url.toString())
   }, [setActiveConversation, viewMode, setShowConversationList])
 
   const handleRemoveConversation = useCallback(
@@ -136,9 +136,9 @@ export function useChatConversationHandlers({
         if (viewMode !== 'full') {
           setShowConversationList(true)
         }
-        const url = new URL(window.location.href)
+        const url = new URL(globalThis.location.href)
         url.searchParams.delete('conversationId')
-        window.history.replaceState({}, '', url.toString())
+        globalThis.history.replaceState({}, '', url.toString())
       } catch (error: unknown) {
         const errorMsg =
           (error as { response?: { data?: { message?: string }; message?: string }; message?: string })?.response?.data
@@ -174,9 +174,9 @@ export function useChatConversationHandlers({
         )
         setShowCreateGroupModal(false)
         if (conversation?.id) {
-          const url = new URL(window.location.href)
+          const url = new URL(globalThis.location.href)
           url.searchParams.set('conversationId', conversation.id)
-          window.history.replaceState({}, '', url.toString())
+          globalThis.history.replaceState({}, '', url.toString())
         }
       } catch (error) {
         throw error
@@ -195,7 +195,7 @@ export function useChatConversationHandlers({
   }, [setShowGroupSettingsModal, refreshConversations])
 
   const handleNudge = useCallback(() => {
-    if (!activeConversation || activeConversation.type !== 'direct' || !currentUser) return
+    if (!activeConversation || activeConversation?.type !== 'direct' || !currentUser) return
     const now = Date.now()
     const timeSinceLastNudge = now - lastNudgeTimeRef.current
     if (timeSinceLastNudge < NUDGE_COOLDOWN_MS) {

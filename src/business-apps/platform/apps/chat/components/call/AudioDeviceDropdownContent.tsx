@@ -53,8 +53,22 @@ export const AudioDeviceDropdownContent: React.FC<AudioDeviceDropdownContentProp
         <Label className="gba:text-xs gba:font-semibold gba:text-muted-foreground gba:mb-3 gba:block">
           {t('call-speaker') || 'Speaker'}
         </Label>
-        {canSelectAudioOutput ? (
-          audioOutputDevices.length > 0 ? (
+        {(() => {
+          if (!canSelectAudioOutput) {
+            return (
+              <p className="gba:text-sm gba:text-muted-foreground gba:py-2">
+                {t('call-speakerNotSupported') || 'Speaker selection not supported'}
+              </p>
+            )
+          }
+          if (audioOutputDevices.length === 0) {
+            return (
+              <p className="gba:text-sm gba:text-muted-foreground gba:py-2">
+                {t('call-noDevicesFound') || 'No devices found'}
+              </p>
+            )
+          }
+          return (
             <RadioGroup value={selectedAudioOutputId || ''} onValueChange={onSpeakerChange} className="gba:space-y-2">
               {audioOutputDevices.map(device => (
                 <div key={device.deviceId} className="gba:flex gba:items-center gba:gap-3 gba:py-1.5">
@@ -68,16 +82,8 @@ export const AudioDeviceDropdownContent: React.FC<AudioDeviceDropdownContentProp
                 </div>
               ))}
             </RadioGroup>
-          ) : (
-            <p className="gba:text-sm gba:text-muted-foreground gba:py-2">
-              {t('call-noDevicesFound') || 'No devices found'}
-            </p>
           )
-        ) : (
-          <p className="gba:text-sm gba:text-muted-foreground gba:py-2">
-            {t('call-speakerNotSupported') || 'Speaker selection not supported'}
-          </p>
-        )}
+        })()}
       </div>
 
       <div className="gba:p-4 gba:border-b gba:border-border">

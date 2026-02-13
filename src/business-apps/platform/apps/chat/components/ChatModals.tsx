@@ -94,7 +94,7 @@ export function ChatModals({
   groupCallState,
   realtimeKitGroupCall,
   groupParticipants
-}: ChatModalsProps) {
+}: Readonly<ChatModalsProps>) {
   return (
     <>
       <CreateGroupModal

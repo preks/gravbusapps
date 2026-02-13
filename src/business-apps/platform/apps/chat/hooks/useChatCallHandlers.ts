@@ -49,7 +49,7 @@ export function useChatCallHandlers({
 }: UseChatCallHandlersParams): UseChatCallHandlersReturn {
   const handleGroupCall = useCallback(
     (callType: 'audio' | 'video', isJoiningExisting: boolean = false) => {
-      if (!activeConversation || activeConversation.type !== 'group' || !currentUser) return
+      if (!activeConversation || activeConversation?.type !== 'group' || !currentUser) return
       const existingCall = activeConversationCalls.get(activeConversation.id)
       const shouldJoinExisting = isJoiningExisting || !!existingCall
       rtkDebug.log('[CHAT] handleGroupCall check:', {
@@ -170,9 +170,9 @@ export function useChatCallHandlers({
   // URL action=startCall: start call when URL has action=startCall&conversationId=...
   useEffect(() => {
     if (urlCallActionProcessed.current) return
-    const urlParams = new URLSearchParams(window.location.search)
+    const urlParams = new URLSearchParams(globalThis.location.search)
     if (urlParams.get('action') !== 'startCall' || !urlParams.get('conversationId')) return
-    if (!activeConversation || activeConversation.id !== urlParams.get('conversationId')) return
+    if (!activeConversation || activeConversation?.id !== urlParams.get('conversationId')) return
     if (!initiateGroupCall || !isConnected) return
     urlCallActionProcessed.current = true
     const callTypeParam = urlParams.get('callType') as 'audio' | 'video' | null
@@ -187,10 +187,10 @@ export function useChatCallHandlers({
     const callType = callTypeParam || 'audio'
     setTimeout(() => {
       initiateGroupCall(activeConversation.id, callType, callParticipants, activeConversation.name)
-      const url = new URL(window.location.href)
+      const url = new URL(globalThis.location.href)
       url.searchParams.delete('action')
       url.searchParams.delete('callType')
-      window.history.replaceState({}, '', url.toString())
+      globalThis.history.replaceState({}, '', url.toString())
     }, 500)
   }, [activeConversation, initiateGroupCall, isConnected, currentUser?.id, urlCallActionProcessed])
 

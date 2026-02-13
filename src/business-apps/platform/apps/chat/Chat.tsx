@@ -507,8 +507,16 @@ const ChatInner: React.FC<ChatProps> = memo(
     const { handleAudioCall, handleVideoCall } = useChatCallHandlers({
       activeConversation,
       currentUser,
-      initiateGroupCall,
-      joinGroupCall,
+      initiateGroupCall: initiateGroupCall
+        ? (convId, callType, participants, name, meetingId, convType) => {
+            void initiateGroupCall(convId, callType, participants, name, meetingId, convType)
+          }
+        : null,
+      joinGroupCall: joinGroupCall
+        ? (roomId, callType, initialParticipants) => {
+            void joinGroupCall(roomId, callType, initialParticipants)
+          }
+        : null,
       activeConversationCalls,
       isStartingCall,
       setIsStartingCall,
@@ -542,7 +550,7 @@ const ChatInner: React.FC<ChatProps> = memo(
       activeConversation,
       currentUser,
       sendNudge,
-      refreshConversations,
+      refreshConversations: refreshConversations ? () => void refreshConversations() : undefined,
       t,
       lastNudgeTimeRef,
       NUDGE_COOLDOWN_MS

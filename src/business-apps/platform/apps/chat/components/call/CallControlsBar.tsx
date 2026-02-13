@@ -7,11 +7,11 @@
 
 import React, { useState, useEffect } from 'react'
 import {
-  Microphone,
-  MicrophoneSlash,
+  MicrophoneIcon,
+  MicrophoneSlashIcon,
   VideoCameraIcon,
   VideoCameraSlashIcon,
-  PhoneDisconnect,
+  PhoneDisconnectIcon,
   CaretDownIcon
 } from '@phosphor-icons/react'
 import { DropdownMenu, DropdownMenuTrigger } from '@newwork/nw-design-system'
@@ -154,7 +154,7 @@ export const CallControlsBar: React.FC<CallControlsBarProps> = ({
         <div className={`gba:flex gba:items-center ${showDesktopLayout ? 'gba:gap-3' : 'gba:gap-2'}`}>
           {transcriptionActive && showDesktopLayout && (
             <div className="gba:flex gba:items-center gba:gap-2 gba:px-3 gba:py-1 gba:rounded-full gba:bg-destructive/10 gba:text-destructive">
-              <Microphone className="gba:w-4 gba:h-4 gba:animate-pulse" weight="fill" />
+              <MicrophoneIcon className="gba:w-4 gba:h-4 gba:animate-pulse" weight="fill" />
               <span className="gba:text-xs gba:font-semibold">{t('chat-call-recording')}</span>
             </div>
           )}
@@ -165,9 +165,9 @@ export const CallControlsBar: React.FC<CallControlsBarProps> = ({
               size={size}
               icon={
                 isMuted ? (
-                  <MicrophoneSlash className={iconSize} weight="fill" />
+                  <MicrophoneSlashIcon className={iconSize} weight="fill" />
                 ) : (
-                  <Microphone className={iconSize} weight="fill" />
+                  <MicrophoneIcon className={iconSize} weight="fill" />
                 )
               }
               onClick={onToggleMute}
@@ -281,7 +281,10 @@ export const CallControlsBar: React.FC<CallControlsBarProps> = ({
           variant="destructive"
           size={size}
           icon={
-            <PhoneDisconnect className={showDesktopLayout ? 'gba:w-4 gba:h-4' : 'gba:w-3.5 gba:h-3.5'} weight="fill" />
+            <PhoneDisconnectIcon
+              className={showDesktopLayout ? 'gba:w-4 gba:h-4' : 'gba:w-3.5 gba:h-3.5'}
+              weight="fill"
+            />
           }
           onClick={onEndCall}
           aria-label={t('groupCall-endCall')}

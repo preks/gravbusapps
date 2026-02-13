@@ -15,12 +15,16 @@ export interface UseCallControlsLayoutOptions {
 
 export function useCallControlsLayout(options: UseCallControlsLayoutOptions) {
   const { callType, onToggleBackground, onToggleRaiseHand, onSendReaction } = options
-  const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : DESKTOP_BREAKPOINT)
+  const [windowWidth, setWindowWidth] = useState(
+    typeof globalThis.window === 'undefined' ? DESKTOP_BREAKPOINT : globalThis.window.innerWidth
+  )
 
   useEffect(() => {
-    const handleResize = () => setWindowWidth(window.innerWidth)
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
+    const win = globalThis.window
+    if (!win) return
+    const handleResize = () => setWindowWidth(win.innerWidth)
+    win.addEventListener('resize', handleResize)
+    return () => win.removeEventListener('resize', handleResize)
   }, [])
 
   const showDesktopLayout = windowWidth >= DESKTOP_BREAKPOINT

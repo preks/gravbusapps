@@ -4,8 +4,7 @@
  */
 
 import { useCallback } from 'react'
-import type { MessageEntityReference } from '../types'
-import type { Conversation, User } from '../types'
+import type { Conversation, MessageEntityReference, User } from '../types'
 
 export interface ExpertInfo {
   expertId: string
@@ -147,23 +146,25 @@ export function useChatMessageHandlers({
         setIsExpertProcessing(false)
         setProcessingExpert(null)
         if (expertResult.isExpertMention && expertResult.expertResponse) {
+          const expertResp = expertResult.expertResponse
           await new Promise(resolve => setTimeout(resolve, 100))
-          await sendMessage(activeConversationId, expertResult.expertResponse!.text, {
+          await sendMessage(activeConversationId, expertResp.text, {
             isEveryExpertResponse: true,
-            expertId: expertResult.expertResponse!.expertId,
-            expertName: expertResult.expertResponse!.expertName,
-            expertColor: expertResult.expertResponse!.expertColor,
-            citations: expertResult.expertResponse!.citations,
-            confidence: expertResult.expertResponse!.confidence,
+            expertId: expertResp.expertId,
+            expertName: expertResp.expertName,
+            expertColor: expertResp.expertColor,
+            citations: expertResp.citations,
+            confidence: expertResp.confidence,
             initiatedBy: currentUser?.id
           })
-          const expertName = (expertResult.expertResponse!.expertName ?? '').toLowerCase()
+          const expertName = (expertResp.expertName ?? '').toLowerCase()
           const isDocumentReviewer = expertName.includes('document') || expertName.includes('review')
           if (isDocumentReviewer) {
             try {
-              const responseText = expertResult.expertResponse!.text
-              const jsonMatch = responseText.match(/\{[\s\S]*"annotations"[\s\S]*\}/m)
-              if (jsonMatch) {
+              const responseText = expertResp.text
+              const annotationsRegex = /\{[\s\S]*"annotations"[\s\S]*\}/m
+              const jsonMatch = annotationsRegex.exec(responseText)
+              if (jsonMatch?.[0]) {
                 const reviewData = JSON.parse(jsonMatch[0]) as { annotations?: Array<Record<string, unknown>> }
                 if (reviewData.annotations?.length) {
                   const docContext = (globalThis as unknown as { __currentDocumentContext?: { documentId: string } })

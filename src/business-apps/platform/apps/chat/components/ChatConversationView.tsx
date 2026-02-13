@@ -105,7 +105,7 @@ export function ChatConversationView({
   onDraftChange,
   onRegisterMentionReady,
   onFocusReady
-}: ChatConversationViewProps) {
+}: Readonly<ChatConversationViewProps>) {
   if (stableActiveConversation) {
     return (
       <>
@@ -174,7 +174,9 @@ export function ChatConversationView({
         {isExpertProcessing && processingExpert && (
           <div
             className="gba:px-4 gba:py-3 gba:border-t gba:border-border/30"
-            style={{ backgroundColor: `${processingExpert.color}10` || 'var(--nw-muted)' }}
+            style={{
+              backgroundColor: processingExpert.color ? `${processingExpert.color}10` : 'var(--nw-muted)'
+            }}
           >
             <div className="gba:flex gba:gap-3 gba:items-center">
               <div
@@ -206,25 +208,23 @@ export function ChatConversationView({
   }
 
   return (
-    <>
-      <div className="gba:flex-1 gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-6 gba:text-center">
-        <div className="gba:w-16 gba:h-16 gba:rounded-full gba:bg-muted gba:flex gba:items-center gba:justify-center gba:mb-4">
-          <svg
-            className="gba:w-8 gba:h-8 gba:text-muted-foreground"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={1.5}
-              d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-            />
-          </svg>
-        </div>
-        <p className="gba:text-sm gba:text-muted-foreground gba:max-w-[200px]">{t('chat-selectConversation')}</p>
+    <div className="gba:flex-1 gba:flex gba:flex-col gba:items-center gba:justify-center gba:p-6 gba:text-center">
+      <div className="gba:w-16 gba:h-16 gba:rounded-full gba:bg-muted gba:flex gba:items-center gba:justify-center gba:mb-4">
+        <svg
+          className="gba:w-8 gba:h-8 gba:text-muted-foreground"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={1.5}
+            d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+          />
+        </svg>
       </div>
-    </>
+      <p className="gba:text-sm gba:text-muted-foreground gba:max-w-[200px]">{t('chat-selectConversation')}</p>
+    </div>
   )
 }

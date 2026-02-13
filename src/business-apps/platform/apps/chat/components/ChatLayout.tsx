@@ -39,7 +39,7 @@ export function ChatLayout({
   chatViewRef,
   listSlot,
   chatViewSlot
-}: ChatLayoutProps) {
+}: Readonly<ChatLayoutProps>) {
   return (
     <div
       ref={containerRef}

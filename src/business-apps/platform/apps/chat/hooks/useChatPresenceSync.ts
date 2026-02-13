@@ -64,7 +64,7 @@ export function useChatPresenceSync({
       if (onPresenceMapChange) {
         onPresenceMapChange(simplifiedMap)
       }
-      window.dispatchEvent(
+      globalThis.dispatchEvent(
         new CustomEvent('chat:presence-broadcast', {
           detail: { presenceMap: Object.fromEntries(simplifiedMap), timestamp: Date.now() }
         })
@@ -109,7 +109,7 @@ export function useChatPresenceSync({
           presenceInitializedUsersRef.current.add(userId)
           const lastSeen = user.lastSeen ?? user.lastSeenAt
           const isOnline =
-            typeof user.isOnline === 'boolean' ? user.isOnline : (user as { isActive?: boolean }).isActive
+            typeof user.isOnline === 'boolean' ? user.isOnline : 'isActive' in user ? Boolean(user.isActive) : false
           const state = isOnline ? 'online' : 'offline'
           const lastSeenString = lastSeen instanceof Date ? lastSeen.toISOString() : (lastSeen as string | undefined)
           const userStatus = user.currentStatus
