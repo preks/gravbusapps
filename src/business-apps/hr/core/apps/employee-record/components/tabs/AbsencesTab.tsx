@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react'
 import '@newwork/nw-design-system/style'
 import dayjs from 'dayjs'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { Tabs } from 'antd'
-import { CalendarOutlined, UnorderedListOutlined, PaperClipOutlined } from '@ant-design/icons'
+import { Tabs, TabsContent, TabsList, TabsTrigger, Dialog, DialogContent } from '@newwork/nw-design-system'
+import { CalendarIcon, ListIcon, PaperclipIcon } from 'lucide-react'
 import isBetween from 'dayjs/plugin/isBetween'
 import weekday from 'dayjs/plugin/weekday'
 import weekOfYear from 'dayjs/plugin/weekOfYear'
@@ -25,7 +25,6 @@ import AbsenceCalendar from './components/AbsenceCalendar'
 import AbsenceList from './components/AbsenceList'
 import Entitlements from './components/Entitlements'
 import AbsenceCharts from './components/AbsenceCharts'
-import { Dialog, DialogContent } from '@newwork/nw-design-system'
 import { PiPlus } from 'react-icons/pi'
 import UpdateEmployeeEntitlements from '../../../../forms/update-employee-entitlements'
 import { env } from '@/common/env/EnvUtils'
@@ -286,12 +285,8 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
   const tabsItems = [
     {
       key: 'calendar',
-      label: (
-        <span className="gba:tabLabel">
-          <CalendarOutlined className="gba:tabIcon" />
-          {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.calendar', 'Calendar')}
-        </span>
-      ),
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.calendar', 'Calendar'),
+      icon: <CalendarIcon className="gba:h-4 gba:w-4" />,
       children: (
         <div className="gba:calendarContainer" data-testid="absencehub-calendar-container">
           <AbsenceCalendar
@@ -314,12 +309,8 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
     },
     {
       key: 'absence-list',
-      label: (
-        <span className="gba:tabLabel">
-          <UnorderedListOutlined className="gba:tabIcon" />
-          {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.absence_list', 'Absence List')}
-        </span>
-      ),
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.absence_list', 'Absence List'),
+      icon: <ListIcon className="gba:h-4 gba:w-4" />,
       children: (
         <div className="gba:absenceList" data-testid="absencehub-absence-list">
           <AbsenceList
@@ -336,12 +327,8 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
     },
     {
       key: 'entitlements',
-      label: (
-        <span className="gba:tabLabel">
-          <PaperClipOutlined className="gba:tabIcon" />
-          {getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.entitlements', 'Entitlements')}
-        </span>
-      ),
+      label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.entitlements', 'Entitlements'),
+      icon: <PaperclipIcon className="gba:h-4 gba:w-4" />,
       children: (
         <div className="gba:entitlements-content">
           <Entitlements entitlements={mergedEntitlements} loading={loading} error={error} />
@@ -472,14 +459,21 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
           </div>
         ) : (
           <div className="gba:tabsContainer" data-testid="absencehub-tabs-container">
-            <Tabs
-              activeKey={activeTab}
-              data-testid="absencehub-tabs"
-              items={tabsItems}
-              onChange={onTabChange}
-              className="gba:tabs"
-              type="card"
-            />
+            <Tabs value={activeTab} onValueChange={onTabChange} className="gba:w-full">
+              <TabsList className="gba:w-full gba:justify-start">
+                {tabsItems.map(item => (
+                  <TabsTrigger key={item.key} value={item.key} className="gba:gap-2">
+                    {item.icon}
+                    {item.label}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+              {tabsItems.map(item => (
+                <TabsContent key={item.key} value={item.key}>
+                  {item.children}
+                </TabsContent>
+              ))}
+            </Tabs>
           </div>
         )}
       </div>
