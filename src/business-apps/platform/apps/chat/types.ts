@@ -162,6 +162,7 @@ export interface UserStatus {
   status: CombinedPresenceStatus
   isSystemStatus: boolean
   statusMessage?: string
+  statusMessageExpiresAt?: Date | string
   isOnline: boolean
 }
 
@@ -170,6 +171,7 @@ export interface UserStatusChangeEvent {
   status: CombinedPresenceStatus
   isSystemStatus: boolean
   statusMessage?: string
+  statusMessageExpiresAt?: Date | string
   isOnline: boolean
   timestamp: Date | string
 }
