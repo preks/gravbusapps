@@ -64,19 +64,9 @@ export function DataCards<T extends Record<string, any>>({
   }
 
   return (
-    <div
-      className={mergeClasses('gba:w-full', className)}
-      style={{
-        padding: '16px' // Consistent padding as per memory
-      }}
-    >
+    <div className={mergeClasses('gba:w-full gba:p-4', className)}>
       <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: `repeat(auto-fill, minmax(${columnMinWidth}px, 1fr))`,
-          gap: `${gap}px`,
-          gridAutoRows: 'min-content' // Ensures rows adjust to content height as per memory
-        }}
+        className={`gba:grid gba:grid-cols-[repeat(auto-fill,minmax(${columnMinWidth}px,1fr))] gba:gap-[${gap}px] gba:grid-auto-rows-[min-content]`}
       >
         {data.map((item, index) => {
           // Use a unique ID from the item if available, otherwise use index as fallback

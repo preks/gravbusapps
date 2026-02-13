@@ -2,8 +2,7 @@
 
 import React from 'react'
 import dayjs from 'dayjs'
-import { Card } from '@newwork/gravity-ui-catalog'
-import { useTranslation } from '@newwork/nw-design-system'
+import { Card, CardContent, useTranslation } from '@newwork/nw-design-system'
 import { Employee } from '../../hooks/useEmployeeData'
 import { AppAction } from '@/components/app-action/AppAction'
 import translations from '../../_i18n'
@@ -290,70 +289,80 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken }) 
 
       <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-6" data-testid="employment-cards">
         {/* Employment Profile Card */}
-        <Card variant="outlined" data-testid="employment-section-profile">
-          <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2">
-            <h3 className="gba:text-xl gba:font-semibold">{t('employment-profile')}</h3>
-          </div>
-          {renderDataItems(organizationalData)}
+        <Card data-testid="employment-section-profile">
+          <CardContent className="gba:p-4">
+            <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2">
+              <h3 className="gba:text-xl gba:font-semibold">{t('employment-profile')}</h3>
+            </div>
+            {renderDataItems(organizationalData)}
+          </CardContent>
         </Card>
 
         {/* Working Conditions Card */}
-        <Card variant="outlined" data-testid="employment-section-conditions">
-          <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
-            <h3 className="gba:text-xl gba:font-semibold">{t('employment-working-conditions')}</h3>
-            <AppAction
-              variant="update-secondary"
-              data-testid="employee-working-conditions-edit-button"
-              contexts={[
-                { context: FlowContextName.updateEmployeeWorkingCondition, contextData: { employeeId: employee?.id } }
-              ]}
-              prefixDataTestId="employee-working-conditions-edit"
-              accessToken={accessToken}
-            />
-          </div>
-          {renderDataItems(workingConditionsData)}
+        <Card data-testid="employment-section-conditions">
+          <CardContent className="gba:p-4">
+            <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
+              <h3 className="gba:text-xl gba:font-semibold">{t('employment-working-conditions')}</h3>
+              <AppAction
+                variant="update-secondary"
+                data-testid="employee-working-conditions-edit-button"
+                contexts={[
+                  { context: FlowContextName.updateEmployeeWorkingCondition, contextData: { employeeId: employee?.id } }
+                ]}
+                prefixDataTestId="employee-working-conditions-edit"
+                accessToken={accessToken}
+              />
+            </div>
+            {renderDataItems(workingConditionsData)}
+          </CardContent>
         </Card>
 
         {/* Working Hours Card */}
-        <Card variant="outlined" data-testid="employment-section-hours">
-          <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
-            <h3 className="gba:text-xl gba:font-semibold">{t('employment-working-hours')}</h3>
-            <AppAction
-              variant="update-secondary"
-              data-testid="employee-working-hours-edit-button"
-              contexts={[
-                { context: FlowContextName.updateEmployeeWorkingHours, contextData: { employeeId: employee?.id } }
-              ]}
-              prefixDataTestId="employee-working-hours-edit"
-              accessToken={accessToken}
-            />
-          </div>
-          {renderDataItems(workingHoursData)}
+        <Card data-testid="employment-section-hours">
+          <CardContent className="gba:p-4">
+            <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
+              <h3 className="gba:text-xl gba:font-semibold">{t('employment-working-hours')}</h3>
+              <AppAction
+                variant="update-secondary"
+                data-testid="employee-working-hours-edit-button"
+                contexts={[
+                  { context: FlowContextName.updateEmployeeWorkingHours, contextData: { employeeId: employee?.id } }
+                ]}
+                prefixDataTestId="employee-working-hours-edit"
+                accessToken={accessToken}
+              />
+            </div>
+            {renderDataItems(workingHoursData)}
+          </CardContent>
         </Card>
 
         {/* Payroll Card */}
-        <Card variant="outlined" data-testid="employment-section-payroll">
-          <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
-            <h3 className="gba:text-xl gba:font-semibold">{t('employment-payroll')}</h3>
-            <AppAction
-              variant="update-secondary"
-              data-testid="employment-bank-account-action-button"
-              contexts={[
-                { context: FlowContextName.updateEmployeeBankAccount, contextData: { employeeId: employee?.id } }
-              ]}
-              prefixDataTestId="employment-bank-account-action"
-              accessToken={accessToken}
-            />
-          </div>
-          {renderDataItems(payrollData)}
+        <Card data-testid="employment-section-payroll">
+          <CardContent className="gba:p-4">
+            <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
+              <h3 className="gba:text-xl gba:font-semibold">{t('employment-payroll')}</h3>
+              <AppAction
+                variant="update-secondary"
+                data-testid="employment-bank-account-action-button"
+                contexts={[
+                  { context: FlowContextName.updateEmployeeBankAccount, contextData: { employeeId: employee?.id } }
+                ]}
+                prefixDataTestId="employment-bank-account-action"
+                accessToken={accessToken}
+              />
+            </div>
+            {renderDataItems(payrollData)}
+          </CardContent>
         </Card>
 
         {/* Tax Information Card */}
-        <Card variant="outlined" data-testid="employment-section-tax">
-          <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2">
-            <h3 className="gba:text-xl gba:font-semibold">{t('employment-tax-information')}</h3>
-          </div>
-          {renderDataItems(taxInformationData)}
+        <Card data-testid="employment-section-tax">
+          <CardContent className="gba:p-4">
+            <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2">
+              <h3 className="gba:text-xl gba:font-semibold">{t('employment-tax-information')}</h3>
+            </div>
+            {renderDataItems(taxInformationData)}
+          </CardContent>
         </Card>
       </div>
     </div>
