@@ -937,30 +937,26 @@ export const useRealtimeKitMedia = ({
       }
 
       if (typeof (meeting.self as any).setDevice !== 'function') {
-        try {
-          const wasAudioEnabled = getEffectiveAudioEnabled(meeting.self)
+        const wasAudioEnabled = getEffectiveAudioEnabled(meeting.self)
 
-          if (wasAudioEnabled) {
-            await globalCallManager.executeAudioOperation(async () => {
-              await meeting.self!.disableAudio()
-            })
-          }
-
-          const stream = await navigator.mediaDevices.getUserMedia({
-            audio: getAudioConstraints({
-              deviceId: { exact: deviceId }
-            })
+        if (wasAudioEnabled) {
+          await globalCallManager.executeAudioOperation(async () => {
+            await meeting.self!.disableAudio()
           })
+        }
 
-          stream.getTracks().forEach(track => track.stop())
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: getAudioConstraints({
+            deviceId: { exact: deviceId }
+          })
+        })
 
-          if (wasAudioEnabled) {
-            await globalCallManager.executeAudioOperation(async () => {
-              await meeting.self!.enableAudio()
-            })
-          }
-        } catch (e) {
-          throw e
+        stream.getTracks().forEach(track => track.stop())
+
+        if (wasAudioEnabled) {
+          await globalCallManager.executeAudioOperation(async () => {
+            await meeting.self!.enableAudio()
+          })
         }
         return
       }
@@ -1049,32 +1045,28 @@ export const useRealtimeKitMedia = ({
       }
 
       if (typeof (meeting.self as any).setDevice !== 'function') {
-        try {
-          const wasVideoEnabled = meeting.self.videoEnabled ?? false
+        const wasVideoEnabled = meeting.self.videoEnabled ?? false
 
-          if (wasVideoEnabled) {
-            await meeting.self.disableVideo()
+        if (wasVideoEnabled) {
+          await meeting.self.disableVideo()
+        }
+
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            deviceId: { exact: deviceId },
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
           }
+        })
 
-          const stream = await navigator.mediaDevices.getUserMedia({
-            video: {
-              deviceId: { exact: deviceId },
-              width: { ideal: 1280 },
-              height: { ideal: 720 }
-            }
-          })
+        stream.getTracks().forEach(track => track.stop())
 
-          stream.getTracks().forEach(track => track.stop())
+        if (wasVideoEnabled) {
+          await meeting.self.enableVideo()
+        }
 
-          if (wasVideoEnabled) {
-            await meeting.self.enableVideo()
-          }
-
-          if (backgroundEnabled && virtualBackgroundRef.current) {
-            // SDK should reapply background to new video track
-          }
-        } catch (e) {
-          throw e
+        if (backgroundEnabled && virtualBackgroundRef.current) {
+          // SDK should reapply background to new video track
         }
         return
       }
