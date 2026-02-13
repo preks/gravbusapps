@@ -3,7 +3,7 @@ import { Employee } from '../../../../hooks/useEmployeeData'
 /**
  * Status and pending approval are derived from the employee_skill fields returned
  * by GET_EMPLOYEE_DATA (useEmployeeData.ts). The GraphQL selection must request:
- * recordState, processInstanceId, verificationDocumentId, activeFrom, activeTo.
+ * recordState, processInstanceId, verificationDocumentId, validFrom, validTo.
  * Visibility (acl) is optional; when present it is shown in the UI.
  */
 export const AGING_SKILL_DAYS_THRESHOLD = 180
@@ -37,10 +37,10 @@ export const parseSkillLevel = (level: string | number | null | undefined): numb
 export const isSkillVerified = (skill: EmployeeSkillItem): boolean => Boolean(skill.verificationDocumentId)
 
 export const isSkillActive = (skill: EmployeeSkillItem, now = new Date()): boolean => {
-  if (!skill.activeTo) return true
-  const activeToDate = new Date(skill.activeTo)
-  if (Number.isNaN(activeToDate.getTime())) return true
-  return activeToDate > now
+  if (!skill.validTo) return true
+  const validToDate = new Date(skill.validTo)
+  if (Number.isNaN(validToDate.getTime())) return true
+  return validToDate > now
 }
 
 const APPROVED_RECORD_STATES = new Set(['APPROVED', 'ACTIVE', 'COMPLETED'])

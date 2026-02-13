@@ -17,15 +17,34 @@ import {
   SelectTrigger,
   SelectValue,
   Button,
-  useTranslation
+  useTranslation,
+  FileUpload,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  Combobox,
+  Input
 } from '@newwork/nw-design-system'
+import { useFileClient } from '@/common/network/files/useFileClient'
+import { env } from '@/common/env/EnvUtils'
 import translations from '@/business-apps/hr/core/apps/employee-record/_i18n'
+
+const DOCUMENT_GROUP_DEVELOPMENT = 'DocumentGroup:v1:DEVELOPMENT'
 
 interface AddSkillFormValues {
   targetEmployeeId?: string
+  /** Set by handlePreSubmit when mode is attachVerification (uploaded document id) */
+  uploadedVerificationDocumentId?: string
+  documentTypeId?: string | null
+  /** ISO date string (YYYY-MM-DD) for document validTo */
+  validTo?: string | null
 }
 
-const AddSkillContent: React.FC<BusinessAppContextProps> = () => {
+const ACCEPTED_VERIFICATION_FILE_TYPES =
+  'application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png,.PDF,.JPG,.JPEG,.PNG'
+
+const AddSkillContent: React.FC<BusinessAppContextProps> = ({ accessToken, additionalData }) => {
   const { t } = useTranslation(translations)
   const {
     data,
@@ -48,6 +67,22 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = () => {
   const [inputKey, setInputKey] = useState(0)
   const [addedNames, setAddedNames] = useState<string[]>([])
   const [addError, setAddError] = useState<string | null>(null)
+  const [verificationFileList, setVerificationFileList] = useState<any[]>([])
+  const [documentTypeIdLocal, setDocumentTypeIdLocal] = useState<string | null>(null)
+
+  const fileClient = useFileClient({ accessToken: accessToken ?? '' })
+
+  const handleDesignSystemFilesChange = useCallback((files: Array<{ file: File | { name: string }; id: string }>) => {
+    const mapped = files
+      .filter(f => f.file instanceof File)
+      .map(f => ({
+        uid: f.id,
+        name: (f.file as File).name,
+        status: 'done',
+        originFileObj: f.file as File
+      }))
+    setTimeout(() => setVerificationFileList(mapped as any[]), 0)
+  }, [])
 
   const filteredResults = useMemo(() => {
     const selectedIdSet = new Set(selectedSkills.map(s => s.id))
@@ -64,14 +99,31 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = () => {
   }, [results, selectedSkills, pendingSkills])
 
   const form = useForm<AddSkillFormValues>({
-    defaultValues: { targetEmployeeId: undefined },
+    defaultValues: {
+      targetEmployeeId: undefined,
+      documentTypeId: null,
+      validTo: ''
+    },
     mode: 'onChange',
     shouldUnregister: true
   })
 
+  const catalogs = data?.catalogs ?? { documentType: [] }
+  const developmentDocumentTypes = useMemo(
+    () =>
+      (catalogs.documentType || []).filter(
+        (t: { parentEntryId?: string | null }) => t.parentEntryId === DOCUMENT_GROUP_DEVELOPMENT
+      ),
+    [catalogs.documentType]
+  )
+  const getCatalogValue = useCallback((entry: { translations?: { value?: string }[]; value?: string }) => {
+    return entry?.translations?.[0]?.value ?? entry?.value ?? ''
+  }, [])
+
   const title = useMemo(() => {
     if (flowFormParams?.mode === 'deactivate') return t('add-skill-form-deactivate-title')
     if (flowFormParams?.mode === 'activate') return t('add-skill-form-activate-title')
+    if (flowFormParams?.mode === 'attachVerification') return t('add-skill-form-attach-verification-title')
     if (changeLevelParams) return t('add-skill-form-update-level-title')
     return t('add-skill-form-title')
   }, [flowFormParams, changeLevelParams, t])
@@ -87,18 +139,15 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = () => {
     }>
     if (changeLevelParams?.skillId) {
       const match = skills.find(s => s.skill?.id === changeLevelParams.skillId)
-      if (match) {
-        let level = 1
-        if (changeLevelParams.currentLevel != null) {
-          level = Math.max(1, Math.min(10, changeLevelParams.currentLevel))
-        } else if (match.level !== null && match.level !== undefined) {
-          const parsed = typeof match.level === 'string' ? Number.parseInt(match.level, 10) : match.level
-          level = Number.isNaN(parsed) ? 1 : Math.max(1, Math.min(10, parsed))
-        }
-        setSelectedSkills([
-          { id: match.skill?.id ?? changeLevelParams.skillId, name: match.skill?.name ?? '', isNew: false, level }
-        ])
+      let level = 1
+      if (changeLevelParams.currentLevel != null) {
+        level = Math.max(1, Math.min(10, changeLevelParams.currentLevel))
+      } else if (match?.level !== null && match?.level !== undefined) {
+        const parsed = typeof match.level === 'string' ? Number.parseInt(match.level, 10) : match.level
+        level = Number.isNaN(parsed) ? 1 : Math.max(1, Math.min(10, parsed))
       }
+      const name = match?.skill?.name ?? changeLevelParams.skillName ?? ''
+      setSelectedSkills([{ id: changeLevelParams.skillId, name, isNew: false, level }])
       return
     }
     const existing = skills.map(s => {
@@ -114,7 +163,7 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = () => {
       if (s.id) deduped[s.id] = s
     })
     setSelectedSkills(Object.values(deduped))
-  }, [employee?.skills, changeLevelParams?.skillId, changeLevelParams?.currentLevel])
+  }, [employee?.skills, changeLevelParams?.skillId, changeLevelParams?.skillName, changeLevelParams?.currentLevel])
 
   const suppressOpenRef = useRef(false)
   const searchSeqRef = useRef(0)
@@ -123,6 +172,10 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = () => {
   const blurTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   const isSubmitDisabled = useMemo(() => {
+    if (flowFormParams?.mode === 'attachVerification') {
+      if (verificationFileList.length === 0) return true
+      return !documentTypeIdLocal
+    }
     if (flowFormParams?.mode === 'deactivate' || flowFormParams?.mode === 'activate') return false
     const initialSkills = employee?.skills ?? []
     const initialSkillMap = new Map<string, number>()
@@ -153,7 +206,28 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = () => {
       return currentLevel !== undefined && currentLevel !== level
     })
     return !(skillsChanged || levelsChanged)
-  }, [employee?.skills, selectedSkills, changeLevelParams?.skillId, flowFormParams?.mode])
+  }, [
+    employee?.skills,
+    selectedSkills,
+    changeLevelParams?.skillId,
+    flowFormParams?.mode,
+    verificationFileList,
+    documentTypeIdLocal
+  ])
+
+  const skillsWithValidTo = (employee?.skills || []) as Array<{
+    skill?: { id: string }
+    validTo?: string | null
+  }>
+
+  const activeSelectedSkills = useMemo(() => {
+    return selectedSkills.filter(skill => {
+      if (skill.level === undefined) return false
+      const empSkill = skillsWithValidTo.find(s => s.skill?.id === skill.id)
+      const isDeactivated = empSkill?.validTo ? new Date(empSkill.validTo) <= new Date() : false
+      return !isDeactivated
+    })
+  }, [employee?.skills, selectedSkills])
 
   useEffect(() => {
     let isActive = true
@@ -302,6 +376,12 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = () => {
     []
   )
 
+  useEffect(() => {
+    if (verificationFileList.length > 0) return
+    setDocumentTypeIdLocal(null)
+    form.setValue('documentTypeId', null, { shouldValidate: true })
+  }, [verificationFileList.length, form])
+
   const handleUpdatePendingSkillLevel = (id: string, level: number) =>
     setPendingSkills(prev => prev.map(s => (s.id === id ? { ...s, level } : s)))
 
@@ -370,17 +450,79 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = () => {
             'lowcoder:create_expense_request.initiate_cancel_button',
             'Cancel'
           )}
+          handlePreSubmit={
+            flowFormParams?.mode === 'attachVerification' &&
+            verificationFileList.length > 0 &&
+            verificationFileList[0]?.originFileObj
+              ? async (values: AddSkillFormValues) => {
+                  let uploadedEmployeeDocumentId: string | undefined
+                  try {
+                    const file: File = verificationFileList[0].originFileObj as File
+                    const empId =
+                      ctxEmployeeId ||
+                      additionalData?.employeeId ||
+                      additionalData?.psi_taskPayload?.employeeId ||
+                      data?.employee?.id
+                    if (!file || !empId || !accessToken) return { ...values, uploadedVerificationDocumentId: undefined }
+
+                    const uploadResp = await fileClient.uploadFile(
+                      file,
+                      { accessScope: 'tenant' },
+                      {
+                        appName: 'employee-profile',
+                        folderPath: `/documents/${empId}`,
+                        mimeType: (file as any)?.type || 'application/octet-stream'
+                      },
+                      'fileContent'
+                    )
+                    const processesBase =
+                      env('NEXT_PUBLIC_PROCESSES_ENDPOINT') || 'https://newwork-dev.newwork.com/processes'
+                    const createDocUrl = `${processesBase}/employee/employeeDocuments`
+                    const validFromIso = new Date().toISOString()
+                    const validToIso = values.validTo ? new Date(values.validTo).toISOString() : null
+                    const body = {
+                      employeeDocument: {
+                        employeeId: empId,
+                        documentGroup: DOCUMENT_GROUP_DEVELOPMENT,
+                        type: values.documentTypeId || null,
+                        description: '',
+                        name: uploadResp?.fileInfo?.fileMetadata?.originalFileName,
+                        file: uploadResp?.fileInfo?.fileId,
+                        mimeType: uploadResp?.fileInfo?.fileMetadata?.mimeType,
+                        fileSize: 0,
+                        validFrom: validFromIso,
+                        validTo: validToIso
+                      }
+                    }
+                    const r = await fetch(createDocUrl, {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: accessToken ? `Bearer ${accessToken}` : ''
+                      },
+                      body: JSON.stringify(body)
+                    })
+                    const json = await r.json()
+                    uploadedEmployeeDocumentId = json?.employeeDocument?.id
+                  } catch {
+                    uploadedEmployeeDocumentId = undefined
+                  }
+                  return { ...values, uploadedVerificationDocumentId: uploadedEmployeeDocumentId }
+                }
+              : undefined
+          }
           onSubmit={async (values: AddSkillFormValues) => {
             const employeeId = ctxEmployeeId || values.targetEmployeeId
             const existingSkillsList = (employee?.skills || []) as Array<{
               skill?: { id: string }
               level?: string | number | null
-              activeTo?: string | null
+              validTo?: string | null
             }>
             let selectedIds: string[]
             const selectedLevels = new Map<string, number>()
-            let skillActiveTo: Record<string, string | null> | undefined
-            if (flowFormParams?.mode === 'deactivate' || flowFormParams?.mode === 'activate') {
+            let skillValidTo: Record<string, string | null> | undefined
+            let skillVerificationDocumentId: Record<string, string | null> | undefined
+            if (flowFormParams?.mode === 'attachVerification') {
               selectedIds = existingSkillsList.map(s => s.skill?.id).filter(Boolean) as string[]
               existingSkillsList.forEach(s => {
                 const skillId = s.skill?.id
@@ -392,7 +534,21 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = () => {
                 }
                 selectedLevels.set(skillId, level)
               })
-              skillActiveTo = {
+              const docId = values.uploadedVerificationDocumentId ?? null
+              skillVerificationDocumentId = { [flowFormParams.skillId]: docId }
+            } else if (flowFormParams?.mode === 'deactivate' || flowFormParams?.mode === 'activate') {
+              selectedIds = existingSkillsList.map(s => s.skill?.id).filter(Boolean) as string[]
+              existingSkillsList.forEach(s => {
+                const skillId = s.skill?.id
+                if (!skillId) return
+                let level = 1
+                if (s.level !== null && s.level !== undefined) {
+                  const parsed = typeof s.level === 'string' ? Number.parseInt(s.level, 10) : s.level
+                  level = Number.isNaN(parsed) ? 1 : Math.max(1, Math.min(10, parsed))
+                }
+                selectedLevels.set(skillId, level)
+              })
+              skillValidTo = {
                 [flowFormParams.skillId]:
                   flowFormParams.mode === 'deactivate' ? new Date(Date.now() - 1000).toISOString() : null
               }
@@ -419,7 +575,8 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = () => {
               selectedSkillIds: selectedIds,
               selectedSkillLevels: selectedLevels,
               existingSkills: existingSkillsList as any,
-              skillActiveTo,
+              skillValidTo,
+              skillVerificationDocumentId,
               event: 'pse_submit'
             })
           }}
@@ -428,16 +585,99 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = () => {
           <div className="gba:flex-1 gba:space-y-3">
             {flowFormParams?.mode === 'deactivate' ? (
               <p className="gba:text-muted-foreground gba:py-2" data-testid="add-skill-deactivate-message">
-                {t('add-skill-form-deactivate-message', {
-                  skillName: flowFormParams.skillName || flowFormParams.skillId
-                })}
+                {t('add-skill-form-deactivate-message-prefix')}{' '}
+                <strong className="gba:font-bold gba:text-foreground">
+                  {flowFormParams.skillName || flowFormParams.skillId}
+                </strong>{' '}
+                {t('add-skill-form-deactivate-message-suffix')}
               </p>
             ) : flowFormParams?.mode === 'activate' ? (
               <p className="gba:text-muted-foreground gba:py-2" data-testid="add-skill-activate-message">
-                {t('add-skill-form-activate-message', {
-                  skillName: flowFormParams.skillName || flowFormParams.skillId
-                })}
+                {t('add-skill-form-activate-message-prefix')}{' '}
+                <strong className="gba:font-bold gba:text-foreground">
+                  {flowFormParams.skillName || flowFormParams.skillId}
+                </strong>{' '}
+                {t('add-skill-form-activate-message-suffix')}
               </p>
+            ) : flowFormParams?.mode === 'attachVerification' ? (
+              <div className="gba:space-y-4" data-testid="add-skill-attach-verification-section">
+                <p className="gba:text-muted-foreground gba:py-2" data-testid="add-skill-attach-verification-message">
+                  {t('add-skill-form-attach-verification-message-prefix')}{' '}
+                  <strong className="gba:font-bold gba:text-foreground">
+                    {flowFormParams.skillName || flowFormParams.skillId}
+                  </strong>{' '}
+                  {t('add-skill-form-attach-verification-message-suffix')}
+                </p>
+                <FormField
+                  name="verificationFileUpload"
+                  render={() => (
+                    <FormItem>
+                      <FormLabel>{t('add-skill-form-attach-verification-upload-label')}</FormLabel>
+                      <div data-testid="flw_addSkill_attachVerification_uploadFile">
+                        <FileUpload
+                          multiple={false}
+                          maxFiles={1}
+                          accept={ACCEPTED_VERIFICATION_FILE_TYPES}
+                          layout="list"
+                          preview="icon"
+                          onFilesChange={handleDesignSystemFilesChange as any}
+                        />
+                      </div>
+                    </FormItem>
+                  )}
+                />
+                {verificationFileList.length > 0 && (
+                  <>
+                    <FormField
+                      control={form.control}
+                      name="documentTypeId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>{t('add-skill-form-document-type')}</FormLabel>
+                          <FormControl>
+                            <Combobox
+                              className="gba:w-full"
+                              options={(developmentDocumentTypes || []).map((ty: any) => ({
+                                value: String(ty.id),
+                                label: getCatalogValue(ty)
+                              }))}
+                              value={field.value || ''}
+                              onValueChange={v => {
+                                setTimeout(() => {
+                                  field.onChange(v)
+                                  setDocumentTypeIdLocal(v || null)
+                                }, 0)
+                              }}
+                              placeholder={t('add-skill-form-select-document-type')}
+                              data-testid="flw_addSkill_attachVerification_documentType"
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="validTo"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>{t('add-skill-form-valid-to')}</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="date"
+                              value={field.value || ''}
+                              onChange={e => {
+                                const val = e.target.value || ''
+                                setTimeout(() => field.onChange(val), 0)
+                              }}
+                              data-testid="flw_addSkill_attachVerification_validTo"
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                  </>
+                )}
+              </div>
             ) : !changeLevelParams ? (
               <>
                 <span
@@ -510,7 +750,9 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = () => {
                             <Select
                               value={skill.level.toString()}
                               onValueChange={value =>
-                                handleUpdatePendingSkillLevel(skill.id, Number.parseInt(value, 10))
+                                queueMicrotask(() =>
+                                  handleUpdatePendingSkillLevel(skill.id, Number.parseInt(value, 10))
+                                )
                               }
                               data-testid={`skill-level-select-${skill.id}`}
                             >
@@ -551,65 +793,65 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = () => {
                 </span>
               </>
             ) : (
-              <span
-                className="gba:block gba:text-muted-foreground gba:font-bold gba:mb-4"
-                data-testid="add-skill-change-level-label"
-              >
-                {t('add-skill-form-update-level-title')}
+              <span className="gba:block gba:text-muted-foreground gba:mb-4" data-testid="add-skill-change-level-label">
+                {t('add-skill-form-update-level-for-prefix')}{' '}
+                <strong className="gba:font-bold gba:text-foreground">
+                  {changeLevelParams?.skillName ??
+                    (changeLevelParams?.skillId
+                      ? ((employee?.skills as Array<{ skill?: { id: string; name?: string } }> | undefined)?.find(
+                          s => s.skill?.id === changeLevelParams.skillId
+                        )?.skill?.name ?? '')
+                      : '')}
+                </strong>
+                .
               </span>
             )}
 
-            {selectedSkills.length > 0 &&
+            {activeSelectedSkills.length > 0 &&
             flowFormParams?.mode !== 'deactivate' &&
-            flowFormParams?.mode !== 'activate' ? (
+            flowFormParams?.mode !== 'activate' &&
+            flowFormParams?.mode !== 'attachVerification' ? (
               <div
                 className="gba:flex gba:flex-col gba:gap-2 gba:max-h-[350px] gba:overflow-y-auto"
                 data-testid="add-skill-existing-container"
               >
-                {selectedSkills
-                  .filter(skill => skill.level !== undefined)
-                  .map(skill => {
-                    const empSkill = (
-                      employee?.skills as Array<{ skill?: { id: string }; activeTo?: string | null }> | undefined
-                    )?.find(s => s.skill?.id === skill.id)
-                    const isDeactivated = empSkill?.activeTo ? new Date(empSkill.activeTo) <= new Date() : false
-                    return (
-                      <SkillLevelRow
-                        key={skill.id}
-                        skillName={skill.name}
-                        onRemove={() => handleRemoveSkill(skill.id)}
-                        dataTestIdPrefix="add-skill-existing"
-                        removeButtonTestId={`skill-level-row-remove-${skill.id}`}
-                        rowId={skill.id}
-                        showRemove={!changeLevelParams}
-                        statusLabel={isDeactivated ? t('add-skill-form-skill-deactivated-label') : undefined}
-                        levelContent={
-                          <Select
-                            value={(skill.level || 1).toString()}
-                            onValueChange={value =>
-                              handleUpdateExistingSkillLevel(skill.id, Number.parseInt(value, 10))
-                            }
-                            data-testid={`skill-level-select-${skill.id}`}
-                          >
-                            <SelectTrigger className="gba:w-20" size="sm">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {Array.from({ length: 10 }, (_, i) => i + 1).map(level => (
-                                <SelectItem key={level} value={level.toString()}>
-                                  {level}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                {activeSelectedSkills.map(skill => (
+                  <SkillLevelRow
+                    key={skill.id}
+                    skillName={skill.name}
+                    onRemove={() => handleRemoveSkill(skill.id)}
+                    dataTestIdPrefix="add-skill-existing"
+                    removeButtonTestId={`skill-level-row-remove-${skill.id}`}
+                    rowId={skill.id}
+                    showRemove={!changeLevelParams}
+                    statusLabel={undefined}
+                    levelContent={
+                      <Select
+                        value={(skill.level || 1).toString()}
+                        onValueChange={value =>
+                          queueMicrotask(() => handleUpdateExistingSkillLevel(skill.id, Number.parseInt(value, 10)))
                         }
-                      />
-                    )
-                  })}
+                        data-testid={`skill-level-select-${skill.id}`}
+                      >
+                        <SelectTrigger className="gba:w-20" size="sm">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Array.from({ length: 10 }, (_, i) => i + 1).map(level => (
+                            <SelectItem key={level} value={level.toString()}>
+                              {level}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    }
+                  />
+                ))}
               </div>
             ) : (
               flowFormParams?.mode !== 'deactivate' &&
               flowFormParams?.mode !== 'activate' &&
+              flowFormParams?.mode !== 'attachVerification' &&
               !changeLevelParams && (
                 <div className="gba:text-sm gba:text-muted-foreground gba:py-2">
                   {t('add-skill-form-no-current-skills')}

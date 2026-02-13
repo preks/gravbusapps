@@ -216,8 +216,6 @@ const SkillsTab: React.FC<SkillsTabProps> = ({ employee, accessToken }) => {
             verifyCount={verifyCount}
             agingCount={agingCount}
             distribution={distribution}
-            groupFilter={statusFilter}
-            onGroupFilterChange={setStatusFilter}
             t={t}
           />
         </div>

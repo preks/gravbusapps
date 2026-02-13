@@ -114,8 +114,8 @@ export const GET_EMPLOYEE_DATA = /*sql*/ `
         verificationDocumentId
         additionalProperties
         synchronizedAt
-        activeFrom
-        activeTo
+        validFrom
+        validTo
         createdAt
         updatedAt
         skill {
@@ -466,8 +466,8 @@ interface EmployeeSkill {
   acl?: unknown
   additionalProperties?: unknown
   synchronizedAt: string | null
-  activeFrom?: string | null
-  activeTo?: string | null
+  validFrom?: string | null
+  validTo?: string | null
   createdAt?: string | null
   updatedAt?: string | null
   skill: {

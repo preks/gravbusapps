@@ -4,26 +4,19 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   ChartContainer,
   ChartConfig,
   ChartTooltip,
   ChartTooltipContent
 } from '@newwork/nw-design-system'
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer } from 'recharts'
-import { SkillDistribution, SkillStatusFilter } from './skillsProfile.utils'
+import { SkillDistribution } from './skillsProfile.utils'
 
 interface SkillsDevelopmentPanelProps {
   setLevelsCount: number
   verifyCount: number
   agingCount: number
   distribution: SkillDistribution[]
-  groupFilter: SkillStatusFilter
-  onGroupFilterChange: (value: SkillStatusFilter) => void
   t: (key: string, args?: Record<string, unknown>) => string
 }
 
@@ -32,8 +25,6 @@ export const SkillsDevelopmentPanel: React.FC<SkillsDevelopmentPanelProps> = ({
   verifyCount,
   agingCount,
   distribution,
-  groupFilter,
-  onGroupFilterChange,
   t
 }) => {
   const nextActionLines = useMemo(() => {
@@ -112,25 +103,6 @@ export const SkillsDevelopmentPanel: React.FC<SkillsDevelopmentPanelProps> = ({
           ) : (
             <p className="gba:text-sm gba:text-muted-foreground">{t('skills-development-distribution-empty')}</p>
           )}
-        </CardContent>
-      </Card>
-
-      <Card data-testid="skills-groups-card">
-        <CardHeader className="gba:pb-2">
-          <CardTitle className="gba:text-base">{t('skills-development-groups')}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Select value={groupFilter} onValueChange={value => onGroupFilterChange(value as SkillStatusFilter)}>
-            <SelectTrigger data-testid="skills-groups-select">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{t('skills-filter-status-all')}</SelectItem>
-              <SelectItem value="verified">{t('skills-filter-status-verified')}</SelectItem>
-              <SelectItem value="unverified">{t('skills-filter-status-unverified')}</SelectItem>
-              <SelectItem value="inactive">{t('skills-filter-status-inactive')}</SelectItem>
-            </SelectContent>
-          </Select>
         </CardContent>
       </Card>
     </div>

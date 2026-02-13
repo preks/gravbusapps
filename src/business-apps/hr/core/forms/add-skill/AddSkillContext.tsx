@@ -1,10 +1,24 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { ADD_SKILL_QUERY, SEARCH_SKILLS_QUERY, GET_SKILLS_BY_NAMES } from './AddSkillQueries'
+import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import {
+  ADD_SKILL_QUERY,
+  ADD_SKILL_DOCUMENT_CATALOGS_QUERY,
+  SEARCH_SKILLS_QUERY,
+  GET_SKILLS_BY_NAMES
+} from './AddSkillQueries'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { hybridSearchSkills } from '@/common/network/flowbot/hybridSearchSkills'
 import { env } from '@/common/env/EnvUtils'
+
+export interface CatalogEntry {
+  id: string | number
+  value?: string
+  translations?: { localeCode?: string; value?: string }[]
+  parentEntryId?: string | null
+  catalog?: { defaultLocale?: string }
+}
 
 export interface SkillRecord {
   id: string
@@ -16,8 +30,8 @@ export interface EmployeeSkillLink {
   id: string
   version: number
   level?: number | string | null
-  activeFrom?: string | null
-  activeTo?: string | null
+  validFrom?: string | null
+  validTo?: string | null
   skill: SkillRecord
 }
 
@@ -42,12 +56,17 @@ export interface DetailedEmployee {
 
 export interface AddSkillDataResponse {
   employee: DetailedEmployee
+  catalogs?: {
+    documentGroup?: CatalogEntry[]
+    documentType?: CatalogEntry[]
+  }
 }
 
 export interface ChangeLevelParams {
   mode: 'changeLevel'
   skillId: string
   employeeSkillId: string
+  skillName?: string
   currentLevel: number | null
 }
 
@@ -65,7 +84,18 @@ export interface ActivateSkillParams {
   skillName: string
 }
 
-export type FlowFormParams = ChangeLevelParams | DeactivateSkillParams | ActivateSkillParams
+export interface AttachVerificationSkillParams {
+  mode: 'attachVerification'
+  skillId: string
+  employeeSkillId: string
+  skillName: string
+}
+
+export type FlowFormParams =
+  | ChangeLevelParams
+  | DeactivateSkillParams
+  | ActivateSkillParams
+  | AttachVerificationSkillParams
 
 interface AddSkillContextValue {
   data: AddSkillDataResponse | null
@@ -127,6 +157,7 @@ export const AddSkillProvider: React.FC<ProviderProps> = ({ children, accessToke
       mode: 'changeLevel',
       skillId: String(params.skillId),
       employeeSkillId: params.employeeSkillId != null ? String(params.employeeSkillId) : '',
+      skillName: params.skillName != null ? String(params.skillName) : undefined,
       currentLevel: level
     }
   }, [additionalData?.contextData, additionalData?.psi_taskPayload?.psi_initialParameters])
@@ -150,6 +181,14 @@ export const AddSkillProvider: React.FC<ProviderProps> = ({ children, accessToke
         skillName: params.skillName != null ? String(params.skillName) : ''
       }
     }
+    if (params.mode === 'attachVerification') {
+      return {
+        mode: 'attachVerification',
+        skillId: String(params.skillId),
+        employeeSkillId: params.employeeSkillId != null ? String(params.employeeSkillId) : '',
+        skillName: params.skillName != null ? String(params.skillName) : ''
+      }
+    }
     return changeLevelParams
   }, [additionalData?.contextData, additionalData?.psi_taskPayload?.psi_initialParameters, changeLevelParams])
 
@@ -165,7 +204,16 @@ export const AddSkillProvider: React.FC<ProviderProps> = ({ children, accessToke
       type AddSkillQueryVariables = { id: string }
       const variables: AddSkillQueryVariables = { id: employeeId }
       const response = await graphqlClient.request<AddSkillDataResponse>(ADD_SKILL_QUERY, variables)
-      setData(response)
+      const activeUserLocale = getCurrentActiveUserLocale() || 'en-US'
+      const catalogsResponse = await graphqlClient.request<{
+        documentType?: CatalogEntry[]
+      }>(ADD_SKILL_DOCUMENT_CATALOGS_QUERY, { activeUserLocale })
+      setData({
+        ...response,
+        catalogs: {
+          documentType: catalogsResponse?.documentType ?? []
+        }
+      })
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : 'Unknown error'
       setError(message)
