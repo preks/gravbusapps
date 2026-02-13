@@ -5,6 +5,7 @@ news = Nachrichten
 knowledge = Wissensdatenbank
 documents = Dokumente
 questions = Fragen
+policies = Richtlinien
 
 # Greetings
 greeting-morning = Guten Morgen
@@ -19,6 +20,8 @@ news-welcome-title = Nachrichten
 news-welcome-subtitle = Bleiben Sie auf dem Laufenden
 knowledge-welcome-title = Wissensdatenbank
 knowledge-welcome-subtitle = Wissen teilen und entdecken
+policies-welcome-title = Richtlinien
+policies-welcome-subtitle = Operative Richtlinien zum Bestätigen, Operationalisieren und Nachverfolgen
 document-welcome-title = Dokumente
 document-welcome-subtitle = Wichtige Ressourcen finden
 question-welcome-title = Q&A Forum
@@ -29,6 +32,7 @@ search_articles = Artikel durchsuchen...
 search_intranet = Intranet durchsuchen...
 search_news = Nachrichten durchsuchen...
 search_knowledge = Wissensdatenbank durchsuchen...
+search_policies = Richtlinien durchsuchen...
 search_documents = Bereiche durchsuchen...
 search_questions = Fragen durchsuchen...
 
@@ -45,11 +49,26 @@ recent_articles = Aktuelle Artikel
 more_articles = Weitere Artikel
 recent_news_articles = Aktuelle Nachrichtenartikel
 recent_knowledge_articles = Aktuelle Wissensartikel
+pinned_policies = Angeheftete Richtlinien
 recently_uploaded_documents = Kürzlich hochgeladene Dokumente
 unanswered_questions = Unbeantwortete Fragen
 
+# Policy filters
+policies_filter_status = Status
+policies_filter_status_all = Alle
+policies_filter_status_active = Aktiv
+policies_filter_status_draft = Entwurf
+policies_filter_category = Domain / Kategorie
+policies_filter_owner = Owner
+policies_filter_last_updated = Zuletzt aktualisiert
+policies_filter_any = Beliebig
+policies_filter_last_updated_7d = Letzte 7 Tage
+policies_filter_last_updated_30d = Letzte 30 Tage
+policies_filter_last_updated_90d = Letzte 90 Tage
+
 # Buttons
 create_article = Artikel erstellen
+create_policy = Richtlinie erstellen
 publish_news = Nachricht veröffentlichen
 create_document = Dokument erstellen
 create_area = Bereich erstellen
@@ -61,6 +80,13 @@ no_more_articles = Keine weiteren Artikel
 no_intranet_found = Keine Intranet-Inhalte gefunden
 no_news_found = Keine Nachrichten gefunden
 no_knowledge_found = Keine Wissensbeiträge gefunden
+no_policies_found = Keine Richtlinien gefunden
+
+# Policy table columns
+policies_col_title = Titel
+policies_col_owner = Besitzer
+policies_col_status = Status
+policies_col_updated = Zuletzt aktualisiert
 no_documents_found = Keine Dokumente gefunden
 no_questions_found = Noch keine Fragen. Sei der Erste!
 

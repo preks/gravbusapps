@@ -401,7 +401,7 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
               // Exit form mode so TTS is allowed to speak the response
               voiceForm.setActiveForm(null)
               voiceForm.clearPendingFormSummary()
-              sendMessage(cleanText, [], false, false, undefined)
+              sendMessage(cleanText, [], false, false)
               voiceInput.resetTranscript()
               return
             }
@@ -415,7 +415,7 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
         }
 
         // No active form - send as regular chat message
-        sendMessage(cleanText, [], false, false, undefined)
+        sendMessage(cleanText, [], false, false)
         voiceInput.resetTranscript()
       }
     },
@@ -473,7 +473,7 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
         // Send the prompt after a short delay to ensure component is fully ready
         setTimeout(() => {
           console.log('[EveryAI] Sending initial prompt:', initialPrompt)
-          sendMessage(initialPrompt, [], false, false, undefined)
+          sendMessage(initialPrompt, [], false, false)
         }, 300)
       }
     } catch (error) {
@@ -507,16 +507,10 @@ const EveryAIInner: React.FC<EveryAIProps> = props => {
     }
   }, [checkAndSendInitialPrompt])
 
-  const handleSend = (
-    text: string,
-    files: File[],
-    isThinking: boolean,
-    isSearching: boolean,
-    mentions?: Array<{ id: string; typeKey: string; display: string; raw?: any; start?: number; end?: number }>
-  ) => {
+  const handleSend = (text: string, files: File[], isThinking: boolean, isSearching: boolean) => {
     // Keep passing files for backwards compatibility.
     // useFlowBot.sendMessage will decide whether to use /add_files or direct upload.
-    sendMessage(text, files, isThinking, isSearching, mentions)
+    sendMessage(text, files, isThinking, isSearching)
   }
 
   const isEmptyState = conversation.length === 0 && !isLoading

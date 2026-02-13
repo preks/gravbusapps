@@ -11,7 +11,7 @@ import {
   getLocalizedValue
 } from './catalogSelectUtils'
 import useCatalogDependencies from './useCatalogDependencies'
-import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { useLocale } from '@newwork/nw-design-system'
 import type { ListFilter } from '../CatalogSelect'
 
 /**
@@ -141,7 +141,7 @@ export const useCatalogSelect = (
   const { fetchCatalogEntriesByIdentifier: baseFetchCatalogEntries } = useCatalogEntries({
     accessToken: context.accessToken
   })
-  const locale = getCurrentActiveUserLocale()
+  const { locale } = useLocale()
 
   const fetchCatalogEntriesByIdentifier = useCallback(
     async (instanceId: string, params: Parameters<typeof baseFetchCatalogEntries>[1]) => {
