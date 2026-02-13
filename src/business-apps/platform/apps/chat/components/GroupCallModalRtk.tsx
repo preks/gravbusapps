@@ -339,7 +339,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
   const localVideoRef = useRef<HTMLVideoElement>(null)
   const remoteVideoRefs = useRef<Map<string, HTMLVideoElement>>(new Map())
   const screenShareVideoRefs = useRef<Map<string, HTMLVideoElement>>(new Map())
-  const speakerVolumeRef = useRef(75)
+  const speakerVolumeRef = useRef(100)
 
   // Speaker output selection (sinkId). Updated by CallControlsBar.
   const selectedAudioOutputIdRef = useRef<string | null>(null)
@@ -697,7 +697,6 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
       timestamp: number
     }>
   >([])
-  const [speakerVolume, setSpeakerVolume] = useState(75)
 
   // Media devices for audio settings sidebar
   const {
@@ -1647,15 +1646,6 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
       trackUpdateTimersRef.current.clear()
     }
   }, [])
-
-  // Apply speaker volume to all remote video elements (they play remote audio)
-  useEffect(() => {
-    speakerVolumeRef.current = speakerVolume
-    const vol = speakerVolume / 100
-    remoteVideoRefs.current.forEach(el => {
-      if (el != null && el.volume !== undefined) el.volume = vol
-    })
-  }, [speakerVolume])
 
   // Debug helper: Expose call controls to window for console debugging
   useEffect(() => {
@@ -3181,8 +3171,6 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
                         onAudioOutputChange={deviceId => {
                           setSelectedAudioOutputId(deviceId)
                         }}
-                        speakerVolume={speakerVolume}
-                        onSpeakerVolumeChange={setSpeakerVolume}
                         canSelectAudioOutput={canSelectAudioOutput}
                         rnnoiseEnabled={rnnoiseEnabled}
                         rnnoiseMode={rnnoiseMode}
@@ -3243,9 +3231,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
                       if (id !== null) setSelectedAudioOutputId(id)
                     },
                     setSelectedVideoInputId: () => {},
-                    canSelectAudioOutput,
-                    speakerVolume,
-                    setSpeakerVolume
+                    canSelectAudioOutput
                   }}
                   onEndCall={onEndCall}
                   prefixDataTestId={prefixDataTestId}

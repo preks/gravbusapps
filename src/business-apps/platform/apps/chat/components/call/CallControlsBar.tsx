@@ -25,8 +25,7 @@ import {
   HandIcon,
   DotsThreeIcon,
   CaretDownIcon,
-  CheckIcon,
-  SpeakerHighIcon
+  CheckIcon
 } from '@phosphor-icons/react'
 import {
   Popover,
@@ -39,8 +38,7 @@ import {
   DropdownMenuTrigger,
   RadioGroup,
   RadioGroupItem,
-  Label,
-  Slider
+  Label
 } from '@newwork/nw-design-system'
 import { useMediaDevices } from '../../hooks/useMediaDevices'
 import { MicLevelIndicator } from './MicLevelIndicator'
@@ -95,8 +93,6 @@ export interface CallControlsBarProps {
     setSelectedAudioOutputId: (id: string | null) => void
     setSelectedVideoInputId: (id: string | null) => void
     canSelectAudioOutput: boolean
-    speakerVolume: number
-    setSpeakerVolume: (volume: number) => void
   }
   /** Data test ID prefix */
   prefixDataTestId?: string
@@ -161,8 +157,6 @@ export const CallControlsBar: React.FC<CallControlsBarProps> = ({
   const setSelectedAudioOutputId = sharedDeviceState?.setSelectedAudioOutputId || localSetSelectedAudioOutputId
   const setSelectedVideoInputId = sharedDeviceState?.setSelectedVideoInputId || localSetSelectedVideoInputId
   const canSelectAudioOutput = sharedDeviceState?.canSelectAudioOutput ?? localCanSelectAudioOutput
-  const speakerVolume = sharedDeviceState?.speakerVolume ?? 75
-  const setSpeakerVolume = sharedDeviceState?.setSpeakerVolume || (() => {})
 
   useEffect(() => {
     if (!sharedDeviceState) {
@@ -303,19 +297,6 @@ export const CallControlsBar: React.FC<CallControlsBarProps> = ({
                       {t('call-speakerNotSupported') || 'Speaker selection not supported'}
                     </p>
                   )}
-                  <div className="gba:flex gba:items-center gba:gap-3 gba:mt-3">
-                    <SpeakerHighIcon className="gba:w-5 gba:h-5 gba:text-muted-foreground" weight="fill" />
-                    <Slider
-                      value={[speakerVolume]}
-                      onValueChange={([value]) => setSpeakerVolume(value)}
-                      max={100}
-                      step={1}
-                      className="gba:flex-1"
-                    />
-                    <span className="gba:text-xs gba:text-muted-foreground gba:w-8 gba:text-right">
-                      {speakerVolume}%
-                    </span>
-                  </div>
                 </div>
 
                 {/* Microphone Section */}

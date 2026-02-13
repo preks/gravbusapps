@@ -5,18 +5,16 @@
  * Provides device selection, volume controls, and RNNoise configuration.
  */
 
-import React, { useState } from 'react'
 import {
   RadioGroup,
   RadioGroupItem,
   Label,
   Switch,
-  Slider,
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger
 } from '@newwork/nw-design-system'
-import { CaretDownIcon, CheckIcon, SpeakerHighIcon, WarningIcon, XIcon } from '@phosphor-icons/react'
+import { CaretDownIcon, CheckIcon, WarningIcon, XIcon } from '@phosphor-icons/react'
 import { MicLevelIndicator } from './MicLevelIndicator'
 import { useChatTranslation } from '../../contexts/TranslationContext'
 import type { MediaDeviceInfo } from '../../hooks/useMediaDevices'
@@ -34,16 +32,12 @@ export interface AudioSettingsModalProps {
   selectedAudioOutputId: string | null
   /** Currently selected video input device ID */
   selectedVideoInputId?: string | null
-  /** Speaker volume (0-100) */
-  speakerVolume?: number
   /** Callback when audio input device changes */
   onAudioInputChange: (deviceId: string) => void
   /** Callback when audio output device changes */
   onAudioOutputChange: (deviceId: string) => void
   /** Callback when video input device changes */
   onVideoInputChange?: (deviceId: string) => void
-  /** Callback when speaker volume changes */
-  onSpeakerVolumeChange?: (volume: number) => void
   /** Whether RNNoise is enabled */
   rnnoiseEnabled?: boolean
   /** RNNoise mode */
@@ -69,11 +63,9 @@ export const AudioSettingsModal: React.FC<AudioSettingsModalProps> = ({
   selectedAudioInputId,
   selectedAudioOutputId,
   selectedVideoInputId,
-  speakerVolume: externalSpeakerVolume,
   onAudioInputChange,
   onAudioOutputChange,
   onVideoInputChange,
-  onSpeakerVolumeChange,
   rnnoiseEnabled = false,
   rnnoiseMode = 'aggressive',
   onToggleRnnoise,
@@ -85,11 +77,6 @@ export const AudioSettingsModal: React.FC<AudioSettingsModalProps> = ({
 }) => {
   const defaultT = useChatTranslation()
   const t = externalT || defaultT
-  const [internalSpeakerVolume, setInternalSpeakerVolume] = useState(75)
-
-  // Use external volume if provided, otherwise internal
-  const speakerVolume = externalSpeakerVolume ?? internalSpeakerVolume
-  const setSpeakerVolume = onSpeakerVolumeChange || setInternalSpeakerVolume
 
   return (
     <div className="gba:flex gba:flex-col gba:h-full gba:overflow-hidden" data-testid={prefixDataTestId}>
@@ -159,20 +146,6 @@ export const AudioSettingsModal: React.FC<AudioSettingsModalProps> = ({
                 {t('call-speakerNotSupported') || 'Speaker selection not supported in this browser'}
               </p>
             )}
-
-            {/* Volume Slider */}
-            <div className="gba:flex gba:items-center gba:gap-3 gba:pt-2">
-              <SpeakerHighIcon className="gba:w-5 gba:h-5 gba:text-muted-foreground" weight="fill" />
-              <Slider
-                value={[speakerVolume]}
-                onValueChange={([value]) => setSpeakerVolume(value)}
-                max={100}
-                step={1}
-                className="gba:flex-1"
-                data-testid={`${prefixDataTestId}-speaker-volume`}
-              />
-              <span className="gba:text-xs gba:text-muted-foreground gba:w-8 gba:text-right">{speakerVolume}%</span>
-            </div>
           </CollapsibleContent>
         </Collapsible>
 

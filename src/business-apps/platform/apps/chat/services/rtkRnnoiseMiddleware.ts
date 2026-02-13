@@ -9,11 +9,14 @@ import type { AudioMiddleware, RealtimeKitMeeting } from '@cloudflare/realtimeki
 // Using custom ?inline suffix that our plugin will handle
 import workletCode from '../worklets/rnnoise-processor.ts?inline'
 
+/** Preset modes for RNNoise strength (gentle / moderate / aggressive). */
+export type RnnoiseMode = 'gentle' | 'moderate' | 'aggressive'
+
 export interface RnnoiseConfig {
   enabled: boolean
   logLevel: 'verbose' | 'normal' | 'minimal'
   strength: number
-  mode?: 'gentle' | 'moderate' | 'aggressive' // Preset modes for easier control
+  mode?: RnnoiseMode
 }
 
 export interface RnnoiseStats {
