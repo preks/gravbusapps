@@ -123,6 +123,62 @@ export const getAgingSkillCount = (skills: EmployeeSkillItem[], thresholdDays = 
     }).length
 }
 
+/** Job profile gap: missing skills from profile and optionally skills where employee level is below profile level. */
+export interface JobProfileGap {
+  jobProfileName: string
+  missingSkills: Array<{ id: string; name: string }>
+  belowLevelSkills: Array<{ skillName: string; employeeLevel: number; profileLevel: number }>
+}
+
+export const getJobProfileGap = (args: {
+  employeeSkills: EmployeeSkillItem[]
+  jobProfile?: {
+    name: string
+    jobProfileSkills?: Array<{ skill: { id: string; name: string }; requiredLevel?: number | null }>
+  } | null
+}): JobProfileGap | null => {
+  const { employeeSkills, jobProfile } = args
+  if (!jobProfile?.name) return null
+  const profileSkills = jobProfile.jobProfileSkills ?? []
+  if (profileSkills.length === 0) return null
+
+  const employeeSkillMap = new Map<string, { level: number }>()
+  employeeSkills
+    .filter(s => !s.isDeleted)
+    .forEach(s => {
+      const level = parseSkillLevel(s.level)
+      employeeSkillMap.set(s.skill?.id ?? '', { level: level ?? 0 })
+    })
+
+  const missingSkills: Array<{ id: string; name: string }> = []
+  const belowLevelSkills: Array<{ skillName: string; employeeLevel: number; profileLevel: number }> = []
+
+  profileSkills.forEach(ps => {
+    const skillId = ps.skill?.id
+    const skillName = ps.skill?.name ?? ''
+    if (!skillId) return
+    const emp = employeeSkillMap.get(skillId)
+    if (!emp) {
+      missingSkills.push({ id: skillId, name: skillName })
+      return
+    }
+    const requiredLevel = ps.requiredLevel != null ? Number(ps.requiredLevel) : null
+    if (requiredLevel != null && emp.level < requiredLevel) {
+      belowLevelSkills.push({
+        skillName,
+        employeeLevel: emp.level,
+        profileLevel: requiredLevel
+      })
+    }
+  })
+
+  return {
+    jobProfileName: jobProfile.name,
+    missingSkills,
+    belowLevelSkills
+  }
+}
+
 export const applySkillsFiltersAndSort = (args: {
   skills: EmployeeSkillItem[]
   searchTerm: string
