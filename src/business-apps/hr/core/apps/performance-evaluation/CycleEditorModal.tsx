@@ -53,6 +53,7 @@ const participantOptions: ParticipantType[] = ['Self', 'Peer', 'Manager']
 
 // (no-op helper previously used for stages removed)
 import translations from './_i18n'
+import { PERFORMANCE_VALIDATION } from './constants/validationConstants'
 
 /** Value option for the cycle editor (from API; id, title, recordState). */
 export interface CycleEditorValueOption {
@@ -129,7 +130,7 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
       setName('')
       setStartDate('')
       setEndDate('')
-      setFrequency('Annual')
+      setFrequency('Custom')
       setParticipantsState(defaultParticipantsState())
       setSelectedScaleId(undefined)
       setSelectedValueIds([])
@@ -182,7 +183,13 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
   // Auto-calc end date when start date or frequency changes (e.g. from useEffect or when user changes frequency).
   useEffect(() => {
     const parsed = parseStartDate(startDate)
-    if (!parsed) return
+    if (!parsed) {
+      // If no start date is selected, set frequency to Custom
+      if (frequency !== 'Custom') {
+        setFrequency('Custom')
+      }
+      return
+    }
     const computed = computeEndDateFromStart(parsed, frequency)
     if (computed) setEndDate(computed)
   }, [startDate, frequency])
@@ -241,7 +248,7 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent data-testid="performance-cycle-editor-modal">
+      <DialogContent data-testid="performance-cycle-editor-modal" onInteractOutside={e => e.preventDefault()}>
         <DialogHeader>
           <DialogTitle>{initialValues ? t('modal-edit-title') : t('modal-create-title')}</DialogTitle>
           <DialogDescription>{t('modal-description')}</DialogDescription>
@@ -256,6 +263,7 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
                 value={name}
                 onChange={e => setName(e.target.value)}
                 placeholder={t('placeholder-name')}
+                maxLength={PERFORMANCE_VALIDATION.CYCLE_NAME_MAX_LENGTH}
               />
             </div>
             <div className="gba:space-y-2">
@@ -280,7 +288,7 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
               />
             </div>
             <div className="gba:space-y-2">
-              <Label>{t('field-frequency')} *</Label>
+              <Label>{t('field-frequency')}</Label>
               <Combobox
                 value={frequency}
                 onValueChange={v => setFrequency((v as FrequencyType) || 'Annual')}
@@ -296,6 +304,10 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
                 onChange={(value: string | [string | null, string | null] | null) => {
                   const raw = typeof value === 'string' ? value : Array.isArray(value) ? (value[0] ?? '') : ''
                   setEndDate(raw)
+                  // If end date is manually changed, set frequency to Custom
+                  if (frequency !== 'Custom') {
+                    setFrequency('Custom')
+                  }
                 }}
                 outputFormat="iso"
               />
@@ -337,13 +349,14 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
                   placeholder="Select values"
                   searchPlaceholder="Type to search values..."
                   emptyText="No results"
+                  className="gba:flex-wrap"
                 />
               )
             })()}
           </div>
 
           <div className="gba:space-y-3">
-            <div className="gba:text-sm gba:text-muted-foreground">{t('label-evaluation-participants')} *</div>
+            <Label>{t('label-evaluation-participants')} *</Label>
             <div className="gba:flex gba:flex-wrap gba:gap-6">
               {participantOptions.map(p => (
                 <label key={p} className="gba:flex gba:items-center gba:gap-2">
