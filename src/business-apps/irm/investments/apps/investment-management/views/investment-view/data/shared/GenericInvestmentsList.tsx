@@ -75,7 +75,7 @@ const InvestmentRowActions: React.FC<{
     contexts={[
       {
         context: FlowContextName.investmentEntity,
-        contextData: { investmentId: investment.id }
+        contextData: { investmentId: investment.id, dealType: 'DIVESTMENT_DEAL' }
       }
     ]}
     prefixDataTestId={`${dataTestIdPrefix}-update`}
