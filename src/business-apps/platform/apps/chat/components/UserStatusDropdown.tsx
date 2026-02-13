@@ -211,15 +211,28 @@ export const UserStatusDropdown: React.FC<UserStatusDropdownProps> = ({
   }
 
   const handleStatusMessageUpdate = async () => {
-    if (myStatus) {
-      try {
-        const expiresAt =
-          customExpiresAt || (selectedDuration === null ? undefined : calculateExpiresAt(selectedDuration))
-        await setStatus(myStatus.status as UserPresenceStatus, statusMessage || undefined, expiresAt)
-        setShowStatusMessageInput(false)
-      } catch (error) {
-        console.error('Failed to update status message:', error)
-      }
+    try {
+      const status = (myStatus?.status as UserPresenceStatus) ?? UserPresenceStatus.AVAILABLE
+      const expiresAt =
+        customExpiresAt || (selectedDuration === null ? undefined : calculateExpiresAt(selectedDuration))
+      await setStatus(status, statusMessage.trim() || undefined, expiresAt)
+      setShowStatusMessageInput(false)
+    } catch (error) {
+      console.error('Failed to update status message:', error)
+    }
+  }
+
+  const handleClearStatusMessage = async () => {
+    if (!myStatus) return
+    try {
+      await setStatus(myStatus.status as UserPresenceStatus, undefined, undefined)
+      setStatusMessage('')
+      setSelectedDuration(null)
+      setCustomExpiresAt(null)
+      setShowCustomTimePicker(false)
+      setShowStatusMessageInput(false)
+    } catch (error) {
+      console.error('Failed to clear status message:', error)
     }
   }
 
@@ -475,9 +488,31 @@ export const UserStatusDropdown: React.FC<UserStatusDropdownProps> = ({
                 )}
               </div>
 
-              {/* Action Buttons */}
-              <div className="gba:flex gba:gap-2 gba:pt-1">
+              {/* Clear status (tertiary action: link above main actions per UX best practice) */}
+              {myStatus?.statusMessage ? (
+                <div className="gba:pt-1">
+                  <Button
+                    type="button"
+                    variant="link"
+                    size="sm"
+                    onClick={e => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      handleClearStatusMessage()
+                    }}
+                    disabled={isLoading}
+                    className="gba:h-auto gba:px-0 gba:py-1 gba:text-xs gba:text-muted-foreground gba:hover:text-destructive"
+                    data-testid="chat-clear-status-message"
+                  >
+                    Clear status
+                  </Button>
+                </div>
+              ) : null}
+
+              {/* Action buttons: Cancel left, Save right (primary action rightmost) */}
+              <div className="gba:flex gba:gap-2 gba:pt-2 gba:justify-end">
                 <Button
+                  type="button"
                   variant="ghost"
                   size="sm"
                   onClick={e => {
@@ -489,11 +524,12 @@ export const UserStatusDropdown: React.FC<UserStatusDropdownProps> = ({
                     setCustomExpiresAt(null)
                     setShowCustomTimePicker(false)
                   }}
-                  className="gba:flex-1 gba:h-8"
+                  className="gba:h-8"
                 >
                   Cancel
                 </Button>
                 <Button
+                  type="button"
                   variant="default"
                   size="sm"
                   onClick={e => {
@@ -502,7 +538,7 @@ export const UserStatusDropdown: React.FC<UserStatusDropdownProps> = ({
                     handleStatusMessageUpdate()
                   }}
                   disabled={isLoading || !isExpirationValid}
-                  className="gba:flex-1 gba:h-8"
+                  className="gba:h-8"
                   data-testid="chat-save-status-message"
                 >
                   Save
@@ -514,8 +550,8 @@ export const UserStatusDropdown: React.FC<UserStatusDropdownProps> = ({
           <>
             {/* STATUS SELECTION VIEW - Default view */}
 
-            {/* Set Status Message Button - Prominent at top */}
-            <div className="gba:px-2 gba:pt-2 gba:pb-1">
+            {/* Set / Edit status message and Clear status */}
+            <div className="gba:px-2 gba:pt-2 gba:pb-1 gba:space-y-1.5">
               <Button
                 variant="outline"
                 size="sm"
@@ -532,6 +568,25 @@ export const UserStatusDropdown: React.FC<UserStatusDropdownProps> = ({
               >
                 {myStatus?.statusMessage ? 'Edit status message' : 'Set status message'}
               </Button>
+              {myStatus?.statusMessage ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onSelect={e => {
+                    e.preventDefault()
+                  }}
+                  onClick={e => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    handleClearStatusMessage()
+                  }}
+                  disabled={isLoading}
+                  className="gba:w-full gba:h-9 gba:justify-start gba:text-sm gba:text-muted-foreground"
+                  data-testid="chat-clear-status-message-from-menu"
+                >
+                  Clear status
+                </Button>
+              ) : null}
             </div>
 
             <DropdownMenuSeparator />
