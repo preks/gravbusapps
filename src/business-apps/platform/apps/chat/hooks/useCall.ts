@@ -71,12 +71,17 @@ export interface UseCallReturn {
   hasIncomingCall: boolean
   // Actions
   initiateCall: (participant: CallParticipant, type: CallType, conversationId?: string) => Promise<void>
-  acceptCall: () => Promise<void>
+  acceptCall: (preferences?: {
+    audioInputDeviceId?: string | null
+    videoInputDeviceId?: string | null
+  }) => Promise<void>
   rejectCall: () => void
   endCall: () => void
   toggleMute: () => void
   toggleVideo: () => void
   toggleScreenShare: () => Promise<void>
+  switchAudioDevice: (deviceId: string) => Promise<void>
+  switchVideoDevice: (deviceId: string) => Promise<void>
   // Streams
   localStream: MediaStream | null
   remoteStream: MediaStream | null
@@ -384,45 +389,51 @@ export const useCall = ({
   )
 
   // Accept incoming call
-  const acceptCall = useCallback(async () => {
-    if (!wsClient || !currentUser || !pendingSignalRef.current) {
-      console.error('[useCall] ❌ Cannot accept call: missing requirements')
-      return
-    }
+  const acceptCall = useCallback(
+    async (preferences?: { audioInputDeviceId?: string | null; videoInputDeviceId?: string | null }) => {
+      if (!wsClient || !currentUser || !pendingSignalRef.current) {
+        console.error('[useCall] ❌ Cannot accept call: missing requirements')
+        return
+      }
 
-    const signal = pendingSignalRef.current
-    clearRingTimeout()
+      const signal = pendingSignalRef.current
+      clearRingTimeout()
 
-    try {
-      updateCallState({ status: 'connecting' })
+      try {
+        updateCallState({ status: 'connecting' })
 
-      // Initialize WebRTC (fetches ICE servers from backend)
-      const webrtc = await initializeWebRTC()
+        // Initialize WebRTC (fetches ICE servers from backend)
+        const webrtc = await initializeWebRTC()
 
-      // Get local media stream
-      await webrtc.initializeLocalStream(signal.callType)
+        // Get local media stream
+        await webrtc.initializeLocalStream(signal.callType, {
+          audioDeviceId: preferences?.audioInputDeviceId,
+          videoDeviceId: preferences?.videoInputDeviceId
+        })
 
-      // Create peer connection
-      webrtc.createPeerConnection()
+        // Create peer connection
+        webrtc.createPeerConnection()
 
-      // Send accept signal
-      wsClient.acceptCall({
-        callId: signal.callId,
-        callType: signal.callType,
-        from: currentUser,
-        to: signal.from
-      })
+        // Send accept signal
+        wsClient.acceptCall({
+          callId: signal.callId,
+          callType: signal.callType,
+          from: currentUser,
+          to: signal.from
+        })
 
-      onCallStarted?.(signal.callId, signal.from)
-    } catch (error) {
-      console.error('[useCall] ❌ Failed to accept call:', error)
-      updateCallState({
-        status: 'failed',
-        error: error instanceof Error ? error.message : 'Failed to accept call'
-      })
-      cleanupCall(false)
-    }
-  }, [wsClient, currentUser, updateCallState, initializeWebRTC, clearRingTimeout, cleanupCall, onCallStarted])
+        onCallStarted?.(signal.callId, signal.from)
+      } catch (error) {
+        console.error('[useCall] ❌ Failed to accept call:', error)
+        updateCallState({
+          status: 'failed',
+          error: error instanceof Error ? error.message : 'Failed to accept call'
+        })
+        cleanupCall(false)
+      }
+    },
+    [wsClient, currentUser, updateCallState, initializeWebRTC, clearRingTimeout, cleanupCall, onCallStarted]
+  )
 
   // Reject incoming call
   const rejectCall = useCallback(() => {
@@ -477,6 +488,24 @@ export const useCall = ({
       updateCallState({ isVideoOff })
     }
   }, [updateCallState])
+
+  const switchAudioDevice = useCallback(async (deviceId: string) => {
+    if (!webrtcRef.current) return
+    try {
+      await webrtcRef.current.switchAudioInputDevice(deviceId)
+    } catch (error) {
+      console.error('[useCall] ❌ Failed to switch audio device:', error)
+    }
+  }, [])
+
+  const switchVideoDevice = useCallback(async (deviceId: string) => {
+    if (!webrtcRef.current) return
+    try {
+      await webrtcRef.current.switchVideoInputDevice(deviceId)
+    } catch (error) {
+      console.error('[useCall] ❌ Failed to switch video device:', error)
+    }
+  }, [])
 
   // Toggle screen share
   const toggleScreenShare = useCallback(async () => {
@@ -740,6 +769,8 @@ export const useCall = ({
     toggleMute,
     toggleVideo,
     toggleScreenShare,
+    switchAudioDevice,
+    switchVideoDevice,
     localStream: callState.localStream,
     remoteStream: callState.remoteStream
   }
