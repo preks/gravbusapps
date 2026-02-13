@@ -617,13 +617,7 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
   }, [accessToken, state.sessionId, state.conversation.length])
 
   const sendMessage = useCallback(
-    async (
-      userInputText: string,
-      files: File[],
-      isThinking: boolean = false,
-      isSearching: boolean = false,
-      mentions?: Array<{ id: string; typeKey: string; display: string; raw?: any; start?: number; end?: number }>
-    ) => {
+    async (userInputText: string, files: File[], isThinking: boolean = false, isSearching: boolean = false) => {
       if (!userInputText.trim() && files.length === 0) return
       if (inFlightRef.current) return
 
@@ -642,16 +636,7 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
         }
 
         const fileMetas: FileMeta[] = files.map(f => ({ id: uuidv4(), name: f.name, size: f.size, type: f.type }))
-        const normalizedMentions = (mentions || []).map(m => ({
-          id: m.id,
-          type: m.typeKey,
-          display: m.display,
-          offsets:
-            typeof m.start === 'number' && typeof m.end === 'number' ? { start: m.start, end: m.end } : undefined,
-          data: m.raw
-        }))
-
-        pushTurn({ side: 'user', text: displayMessage, files: fileMetas, mentions: normalizedMentions })
+        pushTurn({ side: 'user', text: displayMessage, files: fileMetas })
 
         pushTurn({ side: 'agent', outputs: [{ type: 'loading' }] })
 
@@ -675,18 +660,6 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
 
         const currentPagePayload = await buildCurrentPageContextPayload()
         form.append('current_page_context', JSON.stringify(currentPagePayload))
-
-        if (mentions && mentions.length > 0) {
-          const enriched = mentions.map(m => ({
-            id: m.id,
-            type: m.typeKey,
-            display: m.display,
-            data: m.raw,
-            offsets:
-              typeof m.start === 'number' && typeof m.end === 'number' ? { start: m.start, end: m.end } : undefined
-          }))
-          form.append('mentions', JSON.stringify(enriched))
-        }
 
         files.forEach(file => form.append('files', file))
 
@@ -1076,7 +1049,7 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
       await new Promise(resolve => setTimeout(resolve, 0))
 
       // Add new message (resend)
-      await sendMessage(newText, [], false, false, undefined)
+      await sendMessage(newText, [], false, false)
     },
     [state.conversation.length, sendMessage]
   )
