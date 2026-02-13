@@ -2,8 +2,7 @@
 
 import React from 'react'
 import dayjs from 'dayjs'
-import { Card } from '@newwork/gravity-ui-catalog'
-import { useTranslation } from '@newwork/nw-design-system'
+import { Card, CardContent, useTranslation } from '@newwork/nw-design-system'
 import { Employee } from '../../hooks/useEmployeeData'
 import { formatPhoneNumberWithCountryCode, getTranslatedValue } from '../../utils/formatters'
 import useEmployeePermissions, { SECTION_KEYS } from '../../hooks/useEmployeePermissions'
@@ -277,104 +276,118 @@ const DetailsTab: React.FC<DetailsTabProps> = ({
 
       <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-6" data-testid="details-cards">
         {/* Personal Data Card - Public info is always visible, private info requires permission */}
-        <Card variant="outlined" data-testid="details-section-personal">
-          <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
-            <h3 className="gba:text-xl gba:font-semibold">{t('details-personal-data')}</h3>
-            <AppAction
-              variant="update-secondary"
-              data-testid="personal-data-action-button"
-              contexts={[
-                { context: FlowContextName.updateEmployeePersonalData, contextData: { employeeId: employee?.id } }
-              ]}
-              prefixDataTestId="personal-data-action"
-              accessToken={accessToken}
-              autoExecute={true}
-            />
-          </div>
-          {/* Personal data with masking already applied in the data definition */}
-          {renderDataItems(personalData)}
+        <Card data-testid="details-section-personal">
+          <CardContent className="gba:p-4">
+            <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
+              <h3 className="gba:text-xl gba:font-semibold">{t('details-personal-data')}</h3>
+              <AppAction
+                variant="update-secondary"
+                data-testid="personal-data-action-button"
+                contexts={[
+                  { context: FlowContextName.updateEmployeePersonalData, contextData: { employeeId: employee?.id } }
+                ]}
+                prefixDataTestId="personal-data-action"
+                accessToken={accessToken}
+                autoExecute={true}
+              />
+            </div>
+            {/* Personal data with masking already applied in the data definition */}
+            {renderDataItems(personalData)}
+          </CardContent>
         </Card>
 
         {/* Address Card - Always visible but values may be masked */}
-        <Card variant="outlined" data-testid="details-section-address">
-          <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
-            <h3 className="gba:text-xl gba:font-semibold">{t('details-address')}</h3>
-            <AppAction
-              variant="update-secondary"
-              data-testid="employee-address-action-button"
-              contexts={[{ context: FlowContextName.updateEmployeeAddress, contextData: { employeeId: employee?.id } }]}
-              prefixDataTestId="employee-address-action"
-              accessToken={accessToken}
-              autoExecute={true}
-            />
-          </div>
-          {renderDataItems(addressData.map(item => ({ ...item, sectionKey: SECTION_KEYS.details.addressPublic })))}
+        <Card data-testid="details-section-address">
+          <CardContent className="gba:p-4">
+            <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
+              <h3 className="gba:text-xl gba:font-semibold">{t('details-address')}</h3>
+              <AppAction
+                variant="update-secondary"
+                data-testid="employee-address-action-button"
+                contexts={[
+                  { context: FlowContextName.updateEmployeeAddress, contextData: { employeeId: employee?.id } }
+                ]}
+                prefixDataTestId="employee-address-action"
+                accessToken={accessToken}
+                autoExecute={true}
+              />
+            </div>
+            {renderDataItems(addressData.map(item => ({ ...item, sectionKey: SECTION_KEYS.details.addressPublic })))}
+          </CardContent>
         </Card>
 
         {/* Bank Account Card - Always visible but values may be masked */}
-        <Card variant="outlined" data-testid="details-section-bank">
-          <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
-            <h3 className="gba:text-xl gba:font-semibold">{t('details-bank-account')}</h3>
-            <AppAction
-              variant="update-secondary"
-              data-testid="bank-account-action-button"
-              contexts={[
-                { context: FlowContextName.updateEmployeeBankAccount, contextData: { employeeId: employee?.id } }
-              ]}
-              prefixDataTestId="bank-account-action"
-              accessToken={accessToken}
-              autoExecute={true}
-            />
-          </div>
-          {renderDataItems(bankAccountData.map(item => ({ ...item, sectionKey: SECTION_KEYS.details.bankAccount })))}
+        <Card data-testid="details-section-bank">
+          <CardContent className="gba:p-4">
+            <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
+              <h3 className="gba:text-xl gba:font-semibold">{t('details-bank-account')}</h3>
+              <AppAction
+                variant="update-secondary"
+                data-testid="bank-account-action-button"
+                contexts={[
+                  { context: FlowContextName.updateEmployeeBankAccount, contextData: { employeeId: employee?.id } }
+                ]}
+                prefixDataTestId="bank-account-action"
+                accessToken={accessToken}
+                autoExecute={true}
+              />
+            </div>
+            {renderDataItems(bankAccountData.map(item => ({ ...item, sectionKey: SECTION_KEYS.details.bankAccount })))}
+          </CardContent>
         </Card>
 
         {/* Private Communication Card - Always visible but values may be masked */}
-        <Card variant="outlined" data-testid="details-section-communication">
-          <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
-            <h3 className="gba:text-xl gba:font-semibold">{t('details-private-communication')}</h3>
-            <AppAction
-              variant="update-secondary"
-              data-testid="private-communication-action-button"
-              contexts={[
-                { context: FlowContextName.updateEmployeeCommunication, contextData: { employeeId: employee?.id } }
-              ]}
-              prefixDataTestId="private-communication-action"
-              accessToken={accessToken}
-              autoExecute={true}
-            />
-          </div>
-          {renderDataItems(
-            privateCommunicationData.map(item => ({ ...item, sectionKey: SECTION_KEYS.details.contactInfoPrivate }))
-          )}
+        <Card data-testid="details-section-communication">
+          <CardContent className="gba:p-4">
+            <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
+              <h3 className="gba:text-xl gba:font-semibold">{t('details-private-communication')}</h3>
+              <AppAction
+                variant="update-secondary"
+                data-testid="private-communication-action-button"
+                contexts={[
+                  { context: FlowContextName.updateEmployeeCommunication, contextData: { employeeId: employee?.id } }
+                ]}
+                prefixDataTestId="private-communication-action"
+                accessToken={accessToken}
+                autoExecute={true}
+              />
+            </div>
+            {renderDataItems(
+              privateCommunicationData.map(item => ({ ...item, sectionKey: SECTION_KEYS.details.contactInfoPrivate }))
+            )}
+          </CardContent>
         </Card>
 
         {/* Emergency Contact Card - Always visible but values may be masked */}
-        <Card variant="outlined" data-testid="details-section-emergency">
-          <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
-            <h3 className="gba:text-xl gba:font-semibold">{t('details-emergency-contact')}</h3>
-            <AppAction
-              variant="update-secondary"
-              data-testid="emergency-contact-action-button"
-              contexts={[
-                { context: FlowContextName.updateEmployeeRelationship, contextData: { employeeId: employee?.id } }
-              ]}
-              prefixDataTestId="emergency-contact-action"
-              accessToken={accessToken}
-              autoExecute={true}
-            />
-          </div>
-          <div className="gba:flex gba:flex-col gba:gap-2">
-            {emergencyContactData && emergencyContactData.length > 0 ? (
-              emergencyContactData.map((items, idx) => (
-                <div key={`emergency-contact-${idx}`}>
-                  {renderDataItems(items.map(item => ({ ...item, sectionKey: SECTION_KEYS.details.relationships })))}
+        <Card data-testid="details-section-emergency">
+          <CardContent className="gba:p-4">
+            <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
+              <h3 className="gba:text-xl gba:font-semibold">{t('details-emergency-contact')}</h3>
+              <AppAction
+                variant="update-secondary"
+                data-testid="emergency-contact-action-button"
+                contexts={[
+                  { context: FlowContextName.updateEmployeeRelationship, contextData: { employeeId: employee?.id } }
+                ]}
+                prefixDataTestId="emergency-contact-action"
+                accessToken={accessToken}
+                autoExecute={true}
+              />
+            </div>
+            <div className="gba:flex gba:flex-col gba:gap-2">
+              {emergencyContactData && emergencyContactData.length > 0 ? (
+                emergencyContactData.map(items => (
+                  <div key={`emergency-contact-${items.map(item => `${item.label}-${item.value}`).join('|')}`}>
+                    {renderDataItems(items.map(item => ({ ...item, sectionKey: SECTION_KEYS.details.relationships })))}
+                  </div>
+                ))
+              ) : (
+                <div className="gba:text-muted-foreground gba:text-sm gba:py-4">
+                  {t('details-no-emergency-contact')}
                 </div>
-              ))
-            ) : (
-              <div className="gba:text-muted-foreground gba:text-sm gba:py-4">{t('details-no-emergency-contact')}</div>
-            )}
-          </div>
+              )}
+            </div>
+          </CardContent>
         </Card>
 
         {/* Additional Attributes - moved from Summary tab */}
@@ -388,21 +401,26 @@ const DetailsTab: React.FC<DetailsTabProps> = ({
             }))
           if (items.length === 0) return null
           return (
-            <Card variant="outlined" data-testid="details-section-additional-attributes">
-              <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
-                <h3 className="gba:text-xl gba:font-semibold">{t('details-additional-attributes')}</h3>
-                <AppAction
-                  variant="update-secondary"
-                  data-testid="additional-attributes-action-button"
-                  contexts={[
-                    { context: FlowContextName.employeeAdditionalProperties, contextData: { employeeId: employee?.id } }
-                  ]}
-                  prefixDataTestId="additional-attributes-action"
-                  accessToken={accessToken}
-                  autoExecute={true}
-                />
-              </div>
-              {renderDataItems(items)}
+            <Card data-testid="details-section-additional-attributes">
+              <CardContent className="gba:p-4">
+                <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
+                  <h3 className="gba:text-xl gba:font-semibold">{t('details-additional-attributes')}</h3>
+                  <AppAction
+                    variant="update-secondary"
+                    data-testid="additional-attributes-action-button"
+                    contexts={[
+                      {
+                        context: FlowContextName.employeeAdditionalProperties,
+                        contextData: { employeeId: employee?.id }
+                      }
+                    ]}
+                    prefixDataTestId="additional-attributes-action"
+                    accessToken={accessToken}
+                    autoExecute={true}
+                  />
+                </div>
+                {renderDataItems(items)}
+              </CardContent>
             </Card>
           )
         })()}

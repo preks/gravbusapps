@@ -344,15 +344,26 @@ const InvestmentForm: React.FC<InvestmentFormProps> = ({ accessToken, userInfo, 
   const handleSubmit = useCallback(
     async (formData: InvestmentFormValues) => {
       try {
-        const investment = sanitizeInvestment(formData, getPathByType)
-        const payload = buildInvestmentPayload(investment)
+        const sanitizedInvestment = sanitizeInvestment(formData, getPathByType)
+        const investmentForPayload =
+          isUpdate && fetchedInvestment
+            ? {
+                ...sanitizedInvestment,
+                // Preserve hidden planned/actual exit lifecycle fields during generic updates.
+                planedExit: sanitizedInvestment.planedExit ?? fetchedInvestment.planedExit,
+                plannedExitDate: sanitizedInvestment.plannedExitDate ?? fetchedInvestment.plannedExitDate,
+                exitDate: sanitizedInvestment.exitDate ?? fetchedInvestment.exitDate
+              }
+            : sanitizedInvestment
+
+        const payload = buildInvestmentPayload(investmentForPayload)
         return payload
       } catch (error) {
         console.error('Error building payload:', error)
         throw error
       }
     },
-    [getPathByType]
+    [getPathByType, isUpdate, fetchedInvestment]
   )
 
   // Handle form cancellation
@@ -363,11 +374,12 @@ const InvestmentForm: React.FC<InvestmentFormProps> = ({ accessToken, userInfo, 
   // Handle going back to group selection (only for create mode)
   const handleBack = useCallback(() => {
     if (!isUpdate) {
-      form.setValue('investment.investmentTypeId', undefined as any)
+      const setValueUnsafe = form.setValue as (name: string, value: unknown) => void
+      setValueUnsafe('investment.investmentTypeId', undefined)
       setBaseTypeId(null)
-      form.setValue('equityInvestment', undefined as any)
-      form.setValue('realEstateInvestment', undefined as any)
-      form.setValue('liquidFundInvestment', undefined as any)
+      setValueUnsafe('equityInvestment', undefined)
+      setValueUnsafe('realEstateInvestment', undefined)
+      setValueUnsafe('liquidFundInvestment', undefined)
       setCurrentStep('select')
       setSkipAutoDetection(true)
     }

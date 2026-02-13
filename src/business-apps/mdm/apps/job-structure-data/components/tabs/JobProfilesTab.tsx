@@ -440,6 +440,20 @@ const JobProfilesTab: React.FC<JobProfilesTabProps> = context => {
       }
     ]
 
+    // Add Required Skills and Levels section if skills exist
+    const profileSkills = selectedProfile.jobProfileSkills || []
+    if (profileSkills.length > 0) {
+      items.push({
+        icon: <InfoIcon />,
+        title: 'Required Skills and Levels',
+        verticalTable: true,
+        items: profileSkills.map(skillItem => ({
+          label: skillItem.skill?.name || 'Unknown Skill',
+          value: skillItem.requiredLevel ? `Level ${skillItem.requiredLevel}` : 'Level not specified'
+        }))
+      })
+    }
+
     return items
   }, [selectedProfile])
 

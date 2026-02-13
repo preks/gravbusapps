@@ -10,6 +10,7 @@ import { useEveryAIChat } from './hooks/useEveryAIChat'
 import { useChatExperts } from './hooks/useChatExperts'
 import { useOpenChatFromPlatform } from './hooks/useOpenChatFromPlatform'
 import { useStartCallFromPlatform } from './hooks/useStartCallFromPlatform'
+import { useEmployeeAvatars } from './hooks/useEmployeeAvatars'
 import { ConversationList } from './components/ConversationList'
 import { ExpertSelectorPanel } from './components/ExpertSelectorPanel.tsx'
 import { ActiveExpertsBar } from './components/ActiveExpertsBar.tsx'
@@ -266,6 +267,41 @@ const ChatInner: React.FC<ChatProps> = memo(
       }
     }, [presenceMap, presenceVersion, onPresenceMapChange])
 
+    // Fetch and enrich current user's avatar from Employee table if missing
+    const { fetchAvatars } = useEmployeeAvatars(accessToken)
+    const [enrichedCurrentUser, setEnrichedCurrentUser] = useState<User | null>(null)
+
+    useEffect(() => {
+      const enrichCurrentUserAvatar = async () => {
+        if (!currentUser) {
+          setEnrichedCurrentUser(null)
+          return
+        }
+
+        // If avatar already exists, use current user as-is
+        if (currentUser.avatarUrl) {
+          setEnrichedCurrentUser(currentUser)
+          return
+        }
+
+        // Fetch avatar from Employee table
+        try {
+          const avatarMap = await fetchAvatars([currentUser.id])
+          const avatarUrl = avatarMap.get(currentUser.id)
+
+          setEnrichedCurrentUser({
+            ...currentUser,
+            avatarUrl: avatarUrl || undefined
+          })
+        } catch (error) {
+          console.error('[Chat] Failed to fetch current user avatar:', error)
+          setEnrichedCurrentUser(currentUser)
+        }
+      }
+
+      enrichCurrentUserAvatar()
+    }, [currentUser, fetchAvatars])
+
     // Notify parent of active calls changes
     useEffect(() => {
       if (onActiveCallsChange && chatClient.activeCalls) {
@@ -371,19 +407,21 @@ const ChatInner: React.FC<ChatProps> = memo(
     }, [isConnected])
 
     // Convert current user to CallParticipant format
+    // Use enrichedCurrentUser (with avatar from Employee table) if available
     const currentUserAsParticipant: CallParticipant | null = useMemo(() => {
-      if (!currentUser) return null
+      const userToUse = enrichedCurrentUser || currentUser
+      if (!userToUse) return null
       return {
-        id: currentUser.id,
-        odId: currentUser.id,
+        id: userToUse.id,
+        odId: userToUse.id,
         odName:
-          currentUser.displayName ||
-          `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim() ||
-          currentUser.username ||
+          userToUse.displayName ||
+          `${userToUse.firstName || ''} ${userToUse.lastName || ''}`.trim() ||
+          userToUse.username ||
           'Unknown',
-        avatarUrl: currentUser.avatarUrl
+        avatarUrl: userToUse.avatarUrl
       }
-    }, [currentUser])
+    }, [enrichedCurrentUser, currentUser])
 
     // Available participants for adding to a call (from the active conversation)
     const availableParticipantsForCall = useMemo(() => {
@@ -418,6 +456,8 @@ const ChatInner: React.FC<ChatProps> = memo(
       toggleMute,
       toggleVideo,
       toggleScreenShare,
+      switchAudioDevice,
+      switchVideoDevice,
       localStream,
       remoteStream
     } = useCall({
@@ -440,10 +480,12 @@ const ChatInner: React.FC<ChatProps> = memo(
       apiClient: realtimeKitApiClient,
       chatApiClient: apiClient, // Pass ChatApiClient for in-call chat functionality
       calendarApiClient: calendarApiClient, // Pass CalendarApiClient for AI transcription settings
-      activeConversation: activeConversation, // Pass active conversation for participant avatars in in-call chat
+      callConversation: null, // Computed in hook's effect using conversationsRef
+      activeConversation: activeConversation, // Pass active conversation for in-call chat
       currentUser: currentUserAsParticipant,
       accessToken: stableAccessToken,
-      translate: t
+      translate: t,
+      conversations: conversations // Pass conversations so hook can compute callConversation
     })
 
     // Route to appropriate implementation based on feature flag
@@ -477,6 +519,9 @@ const ChatInner: React.FC<ChatProps> = memo(
       // transcriptionEnabled: Handled by GlobalCallContainer
       // toggleTranscription: Available but not used here (should be in pre-call UI)
     } = groupCall
+
+    // NOTE: callConversation is now computed inside the hook based on conversations and roomId
+    // The hook syncs it to globalCallManager automatically
 
     // Listen for platform messages to start calls with specific users (via Cloudflare RealtimeKit)
     useStartCallFromPlatform({
@@ -1803,18 +1848,20 @@ const ChatInner: React.FC<ChatProps> = memo(
         // Don't close modal immediately - let it show "Joining..." state
         // It will be closed when the call actually starts (via useEffect watching groupCallState)
 
-        // For BOTH direct and group calls, we need to JOIN the existing call
-        // Check if there's an active call in activeConversationCalls
-        const existingCall = activeConversationCalls.get(stableActiveConversation.id)
-
-        if (!existingCall?.roomId) {
-          rtkDebug.error('[CHAT] Cannot rejoin - no active call found in activeConversationCalls!')
+        // For BOTH direct and group calls, we need to JOIN the existing call.
+        // IMPORTANT: Do NOT rely on activeConversationCalls here.
+        // Late joiners/offline users may have conversation.activeCall but RTK's activeConversationCalls map may not yet be populated.
+        const meetingId = rejoinModalState.roomId || stableActiveConversation.activeCall?.roomId
+        if (!meetingId) {
+          rtkDebug.error('[CHAT] Cannot rejoin - missing meetingId (activeCall.roomId)', {
+            conversationId: stableActiveConversation.id
+          })
           return
         }
 
         rtkDebug.log('[CHAT] Rejoining existing call:', {
           conversationType: stableActiveConversation.type,
-          roomId: existingCall.roomId,
+          roomId: meetingId,
           callType: rejoinModalState.callType,
           preferences
         })
@@ -1824,13 +1871,13 @@ const ChatInner: React.FC<ChatProps> = memo(
         // Pass the user's preferences as the third parameter (instead of initialParticipants)
         if (joinGroupCall) {
           joinGroupCall(
-            existingCall.roomId, // roomId/meetingId
+            meetingId, // roomId/meetingId
             rejoinModalState.callType, // callType
             preferences // preferences object (will be detected by wrapper)
           )
         }
       },
-      [rejoinModalState, stableActiveConversation, activeConversationCalls, joinGroupCall]
+      [rejoinModalState, stableActiveConversation, joinGroupCall]
     )
 
     // Close rejoin modal when call actually starts
@@ -2198,6 +2245,8 @@ const ChatInner: React.FC<ChatProps> = memo(
             onToggleMute={toggleMute}
             onToggleVideo={toggleVideo}
             onToggleScreenShare={toggleScreenShare}
+            onMicDeviceChange={switchAudioDevice}
+            onCameraDeviceChange={switchVideoDevice}
             prefixDataTestId={`${prefixDataTestId}-call`}
             availableParticipants={availableParticipantsForCall}
             onAddParticipant={handleUpgradeToGroupCall}

@@ -72,7 +72,6 @@ export const useRealtimeKitScreenShare = ({
         setIsScreenSharing(false)
         setScreenShareTrack(null)
         onScreenShareStateChange?.(false)
-        rtkDebug.log('[RTK] ✅ Screen share stopped via SDK')
         return false
       } else {
         // Start screen sharing
@@ -155,18 +154,6 @@ export const useRealtimeKitScreenShare = ({
               }
             }
           }
-        }
-
-        const screenShareEnabled = meeting.self?.screenShareEnabled
-
-        rtkDebug.log('[RTK] ✅ Screen share started via SDK', {
-          screenShareEnabled,
-          screenShareTracksCount: screenShareTracks.length,
-          screenShareTrackIds: screenShareTracks.map((t: MediaStreamTrack) => t.id)
-        })
-
-        if (screenShareTracks.length === 0) {
-          rtkDebug.warn('[RTK] ⚠️ Screen share enabled but no tracks available yet - may need more time')
         }
 
         // Store the first video track (screen share is typically video only)

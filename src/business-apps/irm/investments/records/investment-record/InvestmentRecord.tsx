@@ -270,7 +270,7 @@ const InvestmentRecord: React.FC<InvestmentRecordProps> = props => {
         contexts={[
           {
             context: getInvestmentFlowContext(investmentType),
-            contextData: { investmentId }
+            contextData: { investmentId, dealType: 'DIVESTMENT_DEAL' }
           }
         ]}
         shareContext={{
