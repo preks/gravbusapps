@@ -34,7 +34,6 @@ import { useChatTranslation } from '../contexts/TranslationContext'
 import { rtkDebug } from '../utils/rtkDebug'
 import { useMediaDevices } from '../hooks/useMediaDevices'
 import { useCallPreferences } from '../hooks/useCallPreferences'
-import { DeviceTestDialog } from './DeviceTestDialog'
 
 // Helper to get user initials from name
 const getInitials = (name: string): string => {
@@ -82,7 +81,6 @@ export const RejoinCallDialog: React.FC<RejoinCallDialogProps> = memo(
     const [cameraEnabled, setCameraEnabled] = useState(callType === 'video')
     const [backgroundEnabled, setBackgroundEnabled] = useState(true)
     const [isLoadingPreview, setIsLoadingPreview] = useState(false)
-    const [isDeviceTestOpen, setIsDeviceTestOpen] = useState(false)
 
     const videoRef = useRef<HTMLVideoElement>(null)
     const streamTracksRef = useRef<MediaStreamTrack[]>([])
@@ -469,15 +467,6 @@ export const RejoinCallDialog: React.FC<RejoinCallDialogProps> = memo(
                     >
                       {t('call-autoGainControl') || 'Auto gain control'}
                     </DropdownMenuCheckboxItem>
-
-                    <DropdownMenuSeparator className="gba:bg-gray-700" />
-                    <DropdownMenuItem
-                      onClick={() => setIsDeviceTestOpen(true)}
-                      className="gba:text-white hover:gba:bg-gray-700"
-                      data-testid={`${prefixDataTestId}-test-devices`}
-                    >
-                      {t('call-testDevices') || 'Test devices'}
-                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
@@ -562,20 +551,6 @@ export const RejoinCallDialog: React.FC<RejoinCallDialogProps> = memo(
                 </button>
               )}
             </div>
-
-            <DeviceTestDialog
-              isOpen={isDeviceTestOpen}
-              onOpenChange={setIsDeviceTestOpen}
-              t={t}
-              audioInputDevices={audioInputDevices}
-              audioOutputDevices={audioOutputDevices}
-              selectedAudioInputId={selectedAudioInputId}
-              selectedAudioOutputId={selectedAudioOutputId}
-              setSelectedAudioInputId={setSelectedAudioInputId}
-              setSelectedAudioOutputId={setSelectedAudioOutputId}
-              canSelectAudioOutput={canSelectAudioOutput}
-              prefixDataTestId={`${prefixDataTestId}-device-test`}
-            />
 
             {/* Action Buttons */}
             <div className="gba:flex gba:items-center gba:justify-center gba:gap-8">
