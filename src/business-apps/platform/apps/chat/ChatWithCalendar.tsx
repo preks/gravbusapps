@@ -295,56 +295,54 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
         <div
           className={`gba:flex gba:bg-card ${isCompactMode ? 'gba:justify-start gba:px-2 gba:py-1' : 'gba:justify-start gba:px-6 gba:py-2'}`}
         >
-          <div className={isCompactMode ? 'gba:scale-95 gba:origin-left' : ''}>
-            <TabSwitchList>
-              {!isCompactMode && (
-                <TabSwitchTrigger
-                  value="dashboard"
-                  startIcon={<LayoutDashboard className="gba:h-4 gba:w-4" />}
-                  data-testid={`${prefixDataTestId}-dashboard-tab`}
-                >
-                  Dashboard
-                </TabSwitchTrigger>
-              )}
-              {isInSidepanel && (
-                <TabSwitchTrigger
-                  value="everyai"
-                  startIcon={<Sparkles className="gba:h-4 gba:w-4" />}
-                  data-testid={`${prefixDataTestId}-everyai-tab`}
-                >
-                  {t('chat-tab-everyai')}
-                </TabSwitchTrigger>
-              )}
+          <TabSwitchList className="gba:overflow-x-auto gba:scrollbar-hide">
+            {!isCompactMode && (
               <TabSwitchTrigger
-                value="chat"
-                startIcon={<MessageSquare className="gba:h-4 gba:w-4" />}
-                data-testid={`${prefixDataTestId}-chat-tab`}
+                value="dashboard"
+                startIcon={<LayoutDashboard className="gba:h-4 gba:w-4" />}
+                data-testid={`${prefixDataTestId}-dashboard-tab`}
               >
-                {t('chat-tab-chat')}
+                Dashboard
               </TabSwitchTrigger>
+            )}
+            {isInSidepanel && (
               <TabSwitchTrigger
-                value="calendar"
-                startIcon={<CalendarIcon className="gba:h-4 gba:w-4" />}
-                data-testid={`${prefixDataTestId}-calendar-tab`}
+                value="everyai"
+                startIcon={<Sparkles className="gba:h-4 gba:w-4" />}
+                data-testid={`${prefixDataTestId}-everyai-tab`}
               >
-                {t('chat-tab-calendar')}
+                {t('chat-tab-everyai')}
               </TabSwitchTrigger>
-              <TabSwitchTrigger
-                value="reminders"
-                startIcon={<Bell className="gba:h-4 gba:w-4" />}
-                endAdornment={
-                  overdueRemindersCount > 0 ? (
-                    <TabSwitchBadge variant="destructive" size="sm">
-                      {overdueRemindersCount}
-                    </TabSwitchBadge>
-                  ) : undefined
-                }
-                data-testid={`${prefixDataTestId}-reminders-tab`}
-              >
-                {t('chat-tab-reminders')}
-              </TabSwitchTrigger>
-            </TabSwitchList>
-          </div>
+            )}
+            <TabSwitchTrigger
+              value="chat"
+              startIcon={<MessageSquare className="gba:h-4 gba:w-4" />}
+              data-testid={`${prefixDataTestId}-chat-tab`}
+            >
+              {t('chat-tab-chat')}
+            </TabSwitchTrigger>
+            <TabSwitchTrigger
+              value="calendar"
+              startIcon={<CalendarIcon className="gba:h-4 gba:w-4" />}
+              data-testid={`${prefixDataTestId}-calendar-tab`}
+            >
+              {t('chat-tab-calendar')}
+            </TabSwitchTrigger>
+            <TabSwitchTrigger
+              value="reminders"
+              startIcon={<Bell className="gba:h-4 gba:w-4" />}
+              endAdornment={
+                overdueRemindersCount > 0 ? (
+                  <TabSwitchBadge variant="destructive" size="sm">
+                    {overdueRemindersCount}
+                  </TabSwitchBadge>
+                ) : undefined
+              }
+              data-testid={`${prefixDataTestId}-reminders-tab`}
+            >
+              {t('chat-tab-reminders')}
+            </TabSwitchTrigger>
+          </TabSwitchList>
         </div>
 
         {/* Use forceMount to keep all tabs mounted for call persistence */}
