@@ -532,11 +532,7 @@ export const PreCallSetupDialog: React.FC<PreCallSetupDialogProps> = memo(
                     <SpeakerHighIcon className="gba:w-4 gba:h-4 gba:text-muted-foreground" weight="fill" />
                     <Label className="gba:text-sm">{t('call-speaker') || 'Speaker'}</Label>
                   </div>
-                  {!canSelectAudioOutput ? (
-                    <p className="gba:text-sm gba:text-muted-foreground">
-                      {t('call-speakerNotSupported') || 'Speaker selection not supported in this browser'}
-                    </p>
-                  ) : (
+                  {canSelectAudioOutput ? (
                     <Select value={selectedAudioOutputId || ''} onValueChange={setSelectedAudioOutputId}>
                       <SelectTrigger className="gba:w-full" data-testid={`${prefixDataTestId}-speaker-select`}>
                         <SelectValue placeholder={t('call-selectSpeaker') || 'Select speaker'} />
@@ -555,6 +551,10 @@ export const PreCallSetupDialog: React.FC<PreCallSetupDialogProps> = memo(
                         )}
                       </SelectContent>
                     </Select>
+                  ) : (
+                    <p className="gba:text-sm gba:text-muted-foreground">
+                      {t('call-speakerNotSupported') || 'Speaker selection not supported in this browser'}
+                    </p>
                   )}
                 </div>
               </div>

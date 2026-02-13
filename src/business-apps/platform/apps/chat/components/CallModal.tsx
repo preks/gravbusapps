@@ -480,7 +480,7 @@ export const CallModal: React.FC<CallModalProps> = memo(
                           {selectedAudioInputId === device.deviceId && (
                             <Check className="gba:w-4 gba:h-4 gba:text-success" />
                           )}
-                          <span className={selectedAudioInputId !== device.deviceId ? 'gba:ml-6' : ''}>
+                          <span className={selectedAudioInputId === device.deviceId ? '' : 'gba:ml-6'}>
                             {device.label}
                           </span>
                         </DropdownMenuItem>
@@ -494,28 +494,30 @@ export const CallModal: React.FC<CallModalProps> = memo(
                     <DropdownMenuSeparator className="gba:bg-gray-700" />
                     <DropdownMenuLabel className="gba:text-white">{t('call-selectSpeaker')}</DropdownMenuLabel>
                     <DropdownMenuSeparator className="gba:bg-gray-700" />
-                    {!canSelectAudioOutput ? (
-                      <DropdownMenuItem disabled className="gba:text-gray-400">
-                        {t('call-deviceSettings')}
-                      </DropdownMenuItem>
-                    ) : audioOutputDevices.length > 0 ? (
-                      audioOutputDevices.map(device => (
-                        <DropdownMenuItem
-                          key={device.deviceId}
-                          onClick={() => handleSpeakerDeviceChange(device.deviceId)}
-                          className="gba:flex gba:items-center gba:gap-2 gba:text-white hover:gba:bg-gray-700"
-                        >
-                          {selectedAudioOutputId === device.deviceId && (
-                            <Check className="gba:w-4 gba:h-4 gba:text-success" />
-                          )}
-                          <span className={selectedAudioOutputId !== device.deviceId ? 'gba:ml-6' : ''}>
-                            {device.label}
-                          </span>
+                    {canSelectAudioOutput ? (
+                      audioOutputDevices.length > 0 ? (
+                        audioOutputDevices.map(device => (
+                          <DropdownMenuItem
+                            key={device.deviceId}
+                            onClick={() => handleSpeakerDeviceChange(device.deviceId)}
+                            className="gba:flex gba:items-center gba:gap-2 gba:text-white hover:gba:bg-gray-700"
+                          >
+                            {selectedAudioOutputId === device.deviceId && (
+                              <Check className="gba:w-4 gba:h-4 gba:text-success" />
+                            )}
+                            <span className={selectedAudioOutputId === device.deviceId ? '' : 'gba:ml-6'}>
+                              {device.label}
+                            </span>
+                          </DropdownMenuItem>
+                        ))
+                      ) : (
+                        <DropdownMenuItem disabled className="gba:text-gray-400">
+                          {t('call-noDevicesFound')}
                         </DropdownMenuItem>
-                      ))
+                      )
                     ) : (
                       <DropdownMenuItem disabled className="gba:text-gray-400">
-                        {t('call-noDevicesFound')}
+                        {t('call-deviceSettings')}
                       </DropdownMenuItem>
                     )}
 
@@ -544,7 +546,7 @@ export const CallModal: React.FC<CallModalProps> = memo(
                               {selectedVideoInputId === device.deviceId && (
                                 <Check className="gba:w-4 gba:h-4 gba:text-success" />
                               )}
-                              <span className={selectedVideoInputId !== device.deviceId ? 'gba:ml-6' : ''}>
+                              <span className={selectedVideoInputId === device.deviceId ? '' : 'gba:ml-6'}>
                                 {device.label}
                               </span>
                             </DropdownMenuItem>

@@ -407,7 +407,7 @@ export const RejoinCallDialog: React.FC<RejoinCallDialogProps> = memo(
                           {selectedAudioInputId === device.deviceId && (
                             <CheckIcon className="gba:w-4 gba:h-4 gba:text-success" weight="bold" />
                           )}
-                          <span className={selectedAudioInputId !== device.deviceId ? 'gba:ml-6' : ''}>
+                          <span className={selectedAudioInputId === device.deviceId ? '' : 'gba:ml-6'}>
                             {device.label}
                           </span>
                         </DropdownMenuItem>
@@ -424,29 +424,31 @@ export const RejoinCallDialog: React.FC<RejoinCallDialogProps> = memo(
                       {t('call-selectSpeaker') || 'Select Speaker'}
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator className="gba:bg-gray-700" />
-                    {!canSelectAudioOutput ? (
-                      <DropdownMenuItem disabled className="gba:text-gray-400">
-                        {t('call-speakerNotSupported') || 'Speaker selection not supported in this browser'}
-                      </DropdownMenuItem>
-                    ) : audioOutputDevices.length > 0 ? (
-                      audioOutputDevices.map((device, idx) => (
-                        <DropdownMenuItem
-                          key={device.deviceId}
-                          onClick={() => setSelectedAudioOutputId(device.deviceId)}
-                          className="gba:flex gba:items-center gba:gap-2 gba:text-white hover:gba:bg-gray-700"
-                          data-testid={`${prefixDataTestId}-speaker-device-${idx}`}
-                        >
-                          {selectedAudioOutputId === device.deviceId && (
-                            <CheckIcon className="gba:w-4 gba:h-4 gba:text-success" weight="bold" />
-                          )}
-                          <span className={selectedAudioOutputId !== device.deviceId ? 'gba:ml-6' : ''}>
-                            {device.label}
-                          </span>
+                    {canSelectAudioOutput ? (
+                      audioOutputDevices.length > 0 ? (
+                        audioOutputDevices.map((device, idx) => (
+                          <DropdownMenuItem
+                            key={device.deviceId}
+                            onClick={() => setSelectedAudioOutputId(device.deviceId)}
+                            className="gba:flex gba:items-center gba:gap-2 gba:text-white hover:gba:bg-gray-700"
+                            data-testid={`${prefixDataTestId}-speaker-device-${idx}`}
+                          >
+                            {selectedAudioOutputId === device.deviceId && (
+                              <CheckIcon className="gba:w-4 gba:h-4 gba:text-success" weight="bold" />
+                            )}
+                            <span className={selectedAudioOutputId === device.deviceId ? '' : 'gba:ml-6'}>
+                              {device.label}
+                            </span>
+                          </DropdownMenuItem>
+                        ))
+                      ) : (
+                        <DropdownMenuItem disabled className="gba:text-gray-400">
+                          {t('call-noDevicesFound') || 'No devices found'}
                         </DropdownMenuItem>
-                      ))
+                      )
                     ) : (
                       <DropdownMenuItem disabled className="gba:text-gray-400">
-                        {t('call-noDevicesFound') || 'No devices found'}
+                        {t('call-speakerNotSupported') || 'Speaker selection not supported in this browser'}
                       </DropdownMenuItem>
                     )}
 
@@ -516,7 +518,7 @@ export const RejoinCallDialog: React.FC<RejoinCallDialogProps> = memo(
                             {selectedVideoInputId === device.deviceId && (
                               <CheckIcon className="gba:w-4 gba:h-4 gba:text-success" weight="bold" />
                             )}
-                            <span className={selectedVideoInputId !== device.deviceId ? 'gba:ml-6' : ''}>
+                            <span className={selectedVideoInputId === device.deviceId ? '' : 'gba:ml-6'}>
                               {device.label}
                             </span>
                           </DropdownMenuItem>

@@ -274,31 +274,33 @@ export const CallControlsBar: React.FC<CallControlsBarProps> = ({
                   <Label className="gba:text-xs gba:font-semibold gba:text-muted-foreground gba:mb-3 gba:block">
                     {t('call-speaker') || 'Speaker'}
                   </Label>
-                  {!canSelectAudioOutput ? (
-                    <p className="gba:text-sm gba:text-muted-foreground gba:py-2">
-                      {t('call-speakerNotSupported') || 'Speaker selection not supported'}
-                    </p>
-                  ) : audioOutputDevices.length > 0 ? (
-                    <RadioGroup
-                      value={selectedAudioOutputId || ''}
-                      onValueChange={handleSpeakerDeviceChange}
-                      className="gba:space-y-2"
-                    >
-                      {audioOutputDevices.map(device => (
-                        <div key={device.deviceId} className="gba:flex gba:items-center gba:gap-3 gba:py-1.5">
-                          <RadioGroupItem value={device.deviceId} id={`speaker-quick-${device.deviceId}`} />
-                          <Label
-                            htmlFor={`speaker-quick-${device.deviceId}`}
-                            className="gba:flex-1 gba:cursor-pointer gba:text-sm"
-                          >
-                            {device.label}
-                          </Label>
-                        </div>
-                      ))}
-                    </RadioGroup>
+                  {canSelectAudioOutput ? (
+                    audioOutputDevices.length > 0 ? (
+                      <RadioGroup
+                        value={selectedAudioOutputId || ''}
+                        onValueChange={handleSpeakerDeviceChange}
+                        className="gba:space-y-2"
+                      >
+                        {audioOutputDevices.map(device => (
+                          <div key={device.deviceId} className="gba:flex gba:items-center gba:gap-3 gba:py-1.5">
+                            <RadioGroupItem value={device.deviceId} id={`speaker-quick-${device.deviceId}`} />
+                            <Label
+                              htmlFor={`speaker-quick-${device.deviceId}`}
+                              className="gba:flex-1 gba:cursor-pointer gba:text-sm"
+                            >
+                              {device.label}
+                            </Label>
+                          </div>
+                        ))}
+                      </RadioGroup>
+                    ) : (
+                      <p className="gba:text-sm gba:text-muted-foreground gba:py-2">
+                        {t('call-noDevicesFound') || 'No devices found'}
+                      </p>
+                    )
                   ) : (
                     <p className="gba:text-sm gba:text-muted-foreground gba:py-2">
-                      {t('call-noDevicesFound') || 'No devices found'}
+                      {t('call-speakerNotSupported') || 'Speaker selection not supported'}
                     </p>
                   )}
                   <div className="gba:flex gba:items-center gba:gap-3 gba:mt-3">
@@ -368,9 +370,9 @@ export const CallControlsBar: React.FC<CallControlsBarProps> = ({
               <button
                 onClick={onToggleVideo}
                 className={`${showDesktopLayout ? 'gba:p-3' : 'gba:p-2.5'} gba:rounded-l-full gba:transition-all ${
-                  !isVideoEnabled
-                    ? 'gba:bg-destructive gba:text-destructive-foreground hover:gba:bg-destructive/90'
-                    : 'gba:bg-accent gba:text-accent-foreground hover:gba:bg-accent/90'
+                  isVideoEnabled
+                    ? 'gba:bg-accent gba:text-accent-foreground hover:gba:bg-accent/90'
+                    : 'gba:bg-destructive gba:text-destructive-foreground hover:gba:bg-destructive/90'
                 }`}
                 data-testid={`${prefixDataTestId}-video-btn`}
                 aria-label={isVideoEnabled ? t('groupCall-turnOffVideo') : t('groupCall-turnOnVideo')}
@@ -393,9 +395,9 @@ export const CallControlsBar: React.FC<CallControlsBarProps> = ({
                   <button
                     disabled={isEnumerating}
                     className={`${showDesktopLayout ? 'gba:px-2 gba:py-3' : 'gba:px-1.5 gba:py-2.5'} gba:rounded-r-full gba:transition-all ${
-                      !isVideoEnabled
-                        ? 'gba:bg-destructive gba:text-destructive-foreground hover:gba:bg-destructive/90'
-                        : 'gba:bg-accent gba:text-accent-foreground hover:gba:bg-accent/90'
+                      isVideoEnabled
+                        ? 'gba:bg-accent gba:text-accent-foreground hover:gba:bg-accent/90'
+                        : 'gba:bg-destructive gba:text-destructive-foreground hover:gba:bg-destructive/90'
                     } gba:border-l gba:border-white/20 disabled:gba:opacity-50 disabled:gba:cursor-not-allowed`}
                     data-testid={`${prefixDataTestId}-camera-settings`}
                     aria-label={t('call-videoSettings')}
@@ -418,7 +420,7 @@ export const CallControlsBar: React.FC<CallControlsBarProps> = ({
                         {selectedVideoInputId === device.deviceId && (
                           <CheckIcon className="gba:w-4 gba:h-4 gba:text-success" weight="bold" />
                         )}
-                        <span className={selectedVideoInputId !== device.deviceId ? 'gba:ml-6' : ''}>
+                        <span className={selectedVideoInputId === device.deviceId ? '' : 'gba:ml-6'}>
                           {device.label}
                         </span>
                       </DropdownMenuItem>

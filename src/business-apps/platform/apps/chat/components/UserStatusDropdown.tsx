@@ -202,7 +202,7 @@ export const UserStatusDropdown: React.FC<UserStatusDropdownProps> = ({
   const handleStatusSelect = async (status: UserPresenceStatus) => {
     try {
       const expiresAt =
-        customExpiresAt || (selectedDuration !== null ? calculateExpiresAt(selectedDuration) : undefined)
+        customExpiresAt || (selectedDuration === null ? undefined : calculateExpiresAt(selectedDuration))
       await setStatus(status, statusMessage || undefined, expiresAt)
       onStatusChange?.(status)
     } catch (error) {
@@ -214,7 +214,7 @@ export const UserStatusDropdown: React.FC<UserStatusDropdownProps> = ({
     if (myStatus) {
       try {
         const expiresAt =
-          customExpiresAt || (selectedDuration !== null ? calculateExpiresAt(selectedDuration) : undefined)
+          customExpiresAt || (selectedDuration === null ? undefined : calculateExpiresAt(selectedDuration))
         await setStatus(myStatus.status as UserPresenceStatus, statusMessage || undefined, expiresAt)
         setShowStatusMessageInput(false)
       } catch (error) {

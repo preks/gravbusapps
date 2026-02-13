@@ -602,11 +602,7 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = m
                     <SpeakerHighIcon className="gba:w-4 gba:h-4 gba:text-muted-foreground" weight="fill" />
                     <Label className="gba:text-sm">{t('call-speaker') || 'Speaker'}</Label>
                   </div>
-                  {!canSelectAudioOutput ? (
-                    <p className="gba:text-sm gba:text-muted-foreground">
-                      {t('call-speakerNotSupported') || 'Speaker selection not supported in this browser'}
-                    </p>
-                  ) : (
+                  {canSelectAudioOutput ? (
                     <Select
                       value={selectedAudioOutputId || ''}
                       onValueChange={id => setSelectedAudioOutputId(id)}
@@ -629,6 +625,10 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = m
                         )}
                       </SelectContent>
                     </Select>
+                  ) : (
+                    <p className="gba:text-sm gba:text-muted-foreground">
+                      {t('call-speakerNotSupported') || 'Speaker selection not supported in this browser'}
+                    </p>
                   )}
                 </div>
 

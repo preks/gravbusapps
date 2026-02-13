@@ -87,8 +87,6 @@ interface GroupCallModalRtkProps {
   onSendReaction?: (emoji: string) => void
   onMicDeviceChange?: (deviceId: string) => Promise<void>
   onCameraDeviceChange?: (deviceId: string) => Promise<void>
-  onSetNoiseSuppressionEnabled?: (enabled: boolean) => Promise<void> | void
-  onSetAutoGainControlEnabled?: (enabled: boolean) => Promise<void> | void
   backgroundEnabled?: boolean
   rnnoiseEnabled?: boolean
   rnnoiseMode?: 'gentle' | 'moderate' | 'aggressive'
@@ -240,7 +238,6 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
   onSendReaction,
   onMicDeviceChange,
   onCameraDeviceChange,
-  // onSetNoiseSuppressionEnabled, onSetAutoGainControlEnabled accepted via props but not used (CallControlsBar has no UI for them)
   onInviteParticipant,
   prefixDataTestId = 'rtk-group-call',
   conversationName,
@@ -438,7 +435,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
   // CRITICAL: Derive local media state from SDK (source of truth), falling back to callState.
   // callState can be stale after navigation because it comes from globalCallManager.
   const effectiveLocalIsMuted =
-    meeting?.self?.audioEnabled !== undefined ? !meeting.self.audioEnabled : callState.isMuted
+    meeting?.self?.audioEnabled !== undefined ? meeting.self.audioEnabled === false : callState.isMuted
   const effectiveLocalIsVideoEnabled =
     meeting?.self?.videoEnabled !== undefined ? meeting.self.videoEnabled : callState.isVideoEnabled
 

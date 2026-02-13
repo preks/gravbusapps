@@ -358,7 +358,7 @@ export const GlobalCallContainer: React.FC = () => {
     const latest = globalCallManager.getCallData()
     const sdkSelf = latest.realtimeKitMeeting?.self
     const sdkAudioEnabled = sdkSelf?.audioEnabled ?? undefined
-    const beforeMuted = sdkAudioEnabled !== undefined ? !sdkAudioEnabled : latest.callState.isMuted
+    const beforeMuted = sdkAudioEnabled !== undefined ? sdkAudioEnabled === false : latest.callState.isMuted
 
     if (latest.toggleMute) {
       latest.toggleMute()
@@ -368,7 +368,9 @@ export const GlobalCallContainer: React.FC = () => {
         const afterSelf = afterData.realtimeKitMeeting?.self
         const afterSdkAudioEnabled = afterSelf?.audioEnabled ?? undefined
         const afterMuted =
-          afterSdkAudioEnabled !== undefined ? !afterSdkAudioEnabled : globalCallManager.getCallData().callState.isMuted
+          afterSdkAudioEnabled !== undefined
+            ? afterSdkAudioEnabled === false
+            : globalCallManager.getCallData().callState.isMuted
 
         if (afterMuted !== beforeMuted) {
           // Keep UI in sync even if the callback worked but callState didn't update.
@@ -384,7 +386,7 @@ export const GlobalCallContainer: React.FC = () => {
             globalCallManager.updateCallState({ isMuted: true })
             return
           }
-          if (!currentEnabled && afterSelf?.enableAudio) {
+          if (currentEnabled === false && afterSelf?.enableAudio) {
             await globalCallManager.executeAudioOperation(async () => {
               await afterSelf!.enableAudio()
             })
@@ -413,7 +415,7 @@ export const GlobalCallContainer: React.FC = () => {
           globalCallManager.updateCallState({ isMuted: true })
           return
         }
-        if (!currentEnabled && sdkSelf?.enableAudio) {
+        if (currentEnabled === false && sdkSelf?.enableAudio) {
           await globalCallManager.executeAudioOperation(async () => {
             await sdkSelf!.enableAudio()
           })
@@ -461,7 +463,7 @@ export const GlobalCallContainer: React.FC = () => {
             globalCallManager.updateCallState({ isVideoEnabled: false })
             return
           }
-          if (!currentEnabled && afterSelf?.enableVideo) {
+          if (currentEnabled === false && afterSelf?.enableVideo) {
             await afterSelf.enableVideo()
             globalCallManager.updateCallState({ isVideoEnabled: true })
             return
@@ -486,7 +488,7 @@ export const GlobalCallContainer: React.FC = () => {
           globalCallManager.updateCallState({ isVideoEnabled: false })
           return
         }
-        if (!currentEnabled && sdkSelf?.enableVideo) {
+        if (currentEnabled === false && sdkSelf?.enableVideo) {
           await sdkSelf.enableVideo()
           globalCallManager.updateCallState({ isVideoEnabled: true })
           return
@@ -780,8 +782,6 @@ export const GlobalCallContainer: React.FC = () => {
           onSetVideoQuality={callData.setVideoQuality || (() => {})}
           onMicDeviceChange={callData.switchAudioDevice || undefined}
           onCameraDeviceChange={callData.switchVideoDevice || undefined}
-          onSetNoiseSuppressionEnabled={callData.setNoiseSuppressionEnabled || undefined}
-          onSetAutoGainControlEnabled={callData.setAutoGainControlEnabled || undefined}
           apiClient={callData.apiClient}
           wsClient={callData.wsClient}
           accessToken={callData.accessToken || undefined}

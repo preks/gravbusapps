@@ -260,7 +260,7 @@ export const IncomingCallDialog: React.FC<IncomingCallDialogProps> = memo(
                           {selectedAudioInputId === device.deviceId && (
                             <CheckIcon className="gba:w-4 gba:h-4 gba:text-success" weight="bold" />
                           )}
-                          <span className={selectedAudioInputId !== device.deviceId ? 'gba:ml-6' : ''}>
+                          <span className={selectedAudioInputId === device.deviceId ? '' : 'gba:ml-6'}>
                             {device.label}
                           </span>
                         </DropdownMenuItem>
@@ -316,7 +316,7 @@ export const IncomingCallDialog: React.FC<IncomingCallDialogProps> = memo(
                             {selectedVideoInputId === device.deviceId && (
                               <CheckIcon className="gba:w-4 gba:h-4 gba:text-success" weight="bold" />
                             )}
-                            <span className={selectedVideoInputId !== device.deviceId ? 'gba:ml-6' : ''}>
+                            <span className={selectedVideoInputId === device.deviceId ? '' : 'gba:ml-6'}>
                               {device.label}
                             </span>
                           </DropdownMenuItem>
