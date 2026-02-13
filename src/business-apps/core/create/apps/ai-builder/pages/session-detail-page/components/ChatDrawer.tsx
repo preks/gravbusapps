@@ -1,8 +1,34 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { Button, Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
-import { Bot, Sparkles, Loader2, Copy, Check, ChevronDown, ChevronRight, Upload, Brain } from 'lucide-react'
+import {
+  Button,
+  Avatar,
+  AvatarImage,
+  AvatarFallback,
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+  TooltipProvider
+} from '@newwork/nw-design-system'
+import {
+  Bot,
+  Sparkles,
+  Loader2,
+  Copy,
+  Check,
+  ChevronDown,
+  ChevronRight,
+  Upload,
+  Brain,
+  PanelLeft,
+  PanelLeftClose,
+  FileCode,
+  Plus,
+  FileEdit,
+  Trash2
+} from 'lucide-react'
 import { MarkdownRenderer } from './MarkdownRenderer'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { UniqueFileSummary } from '../../../types/session'
 
 interface ToolCall {
   tool: string
@@ -47,6 +73,14 @@ interface ChatDrawerProps {
   emptyDescription?: string
   className?: string
   style?: React.CSSProperties
+  showFileExplorer?: boolean
+  onToggleFileExplorer?: () => void
+  usage?: {
+    totalInputTokens: number
+    totalOutputTokens: number
+    totalCost: number
+  }
+  uniqueFileSummary?: UniqueFileSummary | null
 }
 
 export const ChatDrawer: React.FC<ChatDrawerProps> = ({
@@ -70,9 +104,14 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
   emptyTitle,
   emptyDescription,
   className,
-  style
+  style,
+  showFileExplorer,
+  onToggleFileExplorer,
+  usage,
+  uniqueFileSummary
 }) => {
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null)
+  const [filesExpanded, setFilesExpanded] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
@@ -166,14 +205,48 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
       style={style}
     >
       {/* Header */}
-      <div className="gba:flex-shrink-0 gba:px-6 gba:py-3 gba:border-b gba:border-border gba:flex gba:items-center gba:gap-3">
-        <div className="gba:w-8 gba:h-8 gba:rounded-full gba:bg-gradient-to-br gba:from-purple-500 gba:to-blue-500 gba:flex gba:items-center gba:justify-center">
-          <Bot className="gba:w-5 gba:h-5 gba:text-white" />
+      <div className="gba:flex-shrink-0 gba:px-6 gba:py-3 gba:border-b gba:border-border gba:flex gba:items-center gba:justify-between gba:gap-3">
+        <div className="gba:flex gba:items-center gba:gap-3">
+          {onToggleFileExplorer && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="gba:w-8 gba:h-8 gba:cursor-pointer gba:group" onClick={onToggleFileExplorer}>
+                    {/* Show avatar by default */}
+                    <div className="gba:w-8 gba:h-8 gba:rounded-full gba:bg-gradient-to-br gba:from-purple-500 gba:to-blue-500 gba:flex gba:items-center gba:justify-center gba:group-hover:hidden">
+                      <Bot className="gba:w-5 gba:h-5 gba:text-white" />
+                    </div>
+                    {/* Show button on hover */}
+                    <div className="gba:hidden gba:group-hover:flex gba:w-8 gba:h-8 gba:items-center gba:justify-center gba:rounded-md gba:bg-muted hover:gba:bg-muted/80 gba:transition-colors">
+                      {showFileExplorer ? (
+                        <PanelLeftClose className="gba:w-4 gba:h-4 gba:text-foreground" />
+                      ) : (
+                        <PanelLeft className="gba:w-4 gba:h-4 gba:text-foreground" />
+                      )}
+                    </div>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {showFileExplorer
+                    ? getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.hide_file_explorer', 'Hide file explorer')
+                    : getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.show_file_explorer', 'Show file explorer')}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+          <div>
+            <h3 className="gba:text-sm gba:font-semibold">AI Assistant</h3>
+            <p className="gba:text-xs gba:text-muted-foreground">{isProcessing ? 'Thinking...' : 'Ready to help'}</p>
+          </div>
         </div>
-        <div>
-          <h3 className="gba:text-sm gba:font-semibold">AI Assistant</h3>
-          <p className="gba:text-xs gba:text-muted-foreground">{isProcessing ? 'Thinking...' : 'Ready to help'}</p>
-        </div>
+
+        {usage && usage.totalCost > 0 && (
+          <div className="gba:text-xs gba:text-muted-foreground gba:flex gba:items-center gba:gap-1">
+            <span>{(usage.totalInputTokens / 1000).toFixed(1)}K</span>
+            <span className="gba:text-muted-foreground/50">/</span>
+            <span className="gba:font-medium gba:text-success">${usage.totalCost.toFixed(4)}</span>
+          </div>
+        )}
       </div>
 
       {/* Messages Area */}
@@ -315,57 +388,128 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
       </div>
 
       {/* Input Area */}
-      <div className="gba:flex-shrink-0 gba:border-t gba:border-border gba:p-4 gba:bg-background">
-        <div className="gba:flex gba:gap-2 gba:items-end">
-          {onAttachFile && (
-            <Button type="button" variant="ghost" size="icon" onClick={onAttachFile} disabled={isProcessing}>
-              <Upload className="gba:w-4 gba:h-4" />
-            </Button>
-          )}
-          <div className="gba:flex-1 gba:relative">
-            <textarea
-              ref={textareaRef}
-              value={input}
-              onChange={e => onInputChange(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder={inputPlaceholder ?? 'Describe what you want to build...'}
-              disabled={isProcessing}
-              className="gba:w-full gba:px-4 gba:py-3 gba:pr-12 gba:border gba:border-border gba:rounded-lg gba:bg-background gba:text-sm gba:resize-none focus:gba:outline-none focus:gba:ring-2 focus:gba:ring-primary focus:gba:border-transparent disabled:gba:opacity-50 disabled:gba:cursor-not-allowed"
-              rows={3}
-              data-testid="ai-builder-input"
-            />
-          </div>
-          <Button
-            onClick={onSendMessage}
-            disabled={isProcessing || !input.trim()}
-            size="icon"
-            className="gba:shrink-0"
-            data-testid="ai-builder-send-button"
-            title={isProcessing ? (buildingLabel ?? undefined) : (sendButtonLabel ?? undefined)}
-          >
-            {isProcessing ? (
-              <Loader2 className="gba:w-4 gba:h-4 gba:animate-spin" />
-            ) : (
-              <Sparkles className="gba:w-4 gba:h-4" />
+      <div className="gba:flex-shrink-0 gba:border-t gba:border-border gba:bg-background">
+        {/* File Changes Banner */}
+        {uniqueFileSummary && uniqueFileSummary.totalUniqueFiles > 0 && (
+          <div className="gba:border-b gba:border-border gba:bg-muted/30">
+            {/* Summary Header - Clickable */}
+            <button
+              onClick={() => setFilesExpanded(!filesExpanded)}
+              className="gba:w-full gba:px-4 gba:py-2 gba:flex gba:items-center gba:gap-2 gba:text-xs hover:gba:bg-muted/50 gba:transition-colors"
+            >
+              {filesExpanded ? (
+                <ChevronDown className="gba:w-3.5 gba:h-3.5 gba:text-muted-foreground gba:flex-shrink-0" />
+              ) : (
+                <ChevronRight className="gba:w-3.5 gba:h-3.5 gba:text-muted-foreground gba:flex-shrink-0" />
+              )}
+              <FileCode className="gba:w-3.5 gba:h-3.5 gba:text-primary gba:flex-shrink-0" />
+              <span className="gba:text-muted-foreground">
+                {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.files_changed', 'Files changed')}{' '}
+                {uniqueFileSummary.totalUniqueFiles}
+              </span>
+              <div className="gba:flex gba:flex-wrap gba:gap-1.5">
+                {uniqueFileSummary.createCount > 0 && (
+                  <span className="gba:inline-flex gba:items-center gba:gap-1 gba:px-1.5 gba:py-0.5 gba:rounded gba:bg-green-500/10 gba:text-green-600 dark:gba:text-green-400">
+                    <Plus className="gba:w-3 gba:h-3" />
+                    {uniqueFileSummary.createCount}
+                  </span>
+                )}
+                {uniqueFileSummary.modifyCount > 0 && (
+                  <span className="gba:inline-flex gba:items-center gba:gap-1 gba:px-1.5 gba:py-0.5 gba:rounded gba:bg-blue-500/10 gba:text-blue-600 dark:gba:text-blue-400">
+                    <FileEdit className="gba:w-3 gba:h-3" />
+                    {uniqueFileSummary.modifyCount}
+                  </span>
+                )}
+                {uniqueFileSummary.deleteCount > 0 && (
+                  <span className="gba:inline-flex gba:items-center gba:gap-1 gba:px-1.5 gba:py-0.5 gba:rounded gba:bg-red-500/10 gba:text-red-600 dark:gba:text-red-400">
+                    <Trash2 className="gba:w-3 gba:h-3" />
+                    {uniqueFileSummary.deleteCount}
+                  </span>
+                )}
+              </div>
+            </button>
+
+            {/* Expanded File List */}
+            {filesExpanded && (
+              <div className="gba:px-4 gba:pb-2 gba:max-h-48 gba:overflow-y-auto">
+                <div className="gba:space-y-1">
+                  {uniqueFileSummary.files.map((file, idx) => (
+                    <div
+                      key={idx}
+                      className="gba:flex gba:items-center gba:gap-2 gba:text-xs gba:py-1 gba:px-2 gba:rounded gba:bg-muted/50"
+                    >
+                      {file.type === 'create' && (
+                        <Plus className="gba:w-3 gba:h-3 gba:text-green-600 dark:gba:text-green-400 gba:flex-shrink-0" />
+                      )}
+                      {file.type === 'modify' && (
+                        <FileEdit className="gba:w-3 gba:h-3 gba:text-blue-600 dark:gba:text-blue-400 gba:flex-shrink-0" />
+                      )}
+                      {file.type === 'delete' && (
+                        <Trash2 className="gba:w-3 gba:h-3 gba:text-red-600 dark:gba:text-red-400 gba:flex-shrink-0" />
+                      )}
+                      <span className="gba:text-muted-foreground gba:truncate" title={file.path}>
+                        {file.path}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
-          </Button>
-        </div>
-        {analyzingRequestText && isProcessing && (
-          <div className="gba:text-center gba:text-sm gba:text-muted-foreground gba:flex gba:items-center gba:justify-center gba:gap-2 gba:mt-2">
-            <Loader2 className="gba:w-4 gba:h-4 gba:animate-spin" />
-            <span>{analyzingRequestText}</span>
           </div>
         )}
-        {tipText && !isProcessing && input.trim() && (
-          <p className="gba:text-xs gba:text-muted-foreground gba:text-center gba:mt-2">{tipText}</p>
-        )}
-        {onClearChat && messages.length > 0 && (
-          <div className="gba:mt-2 gba:flex gba:justify-end">
-            <Button variant="ghost" size="sm" onClick={onClearChat} className="gba:text-xs gba:text-muted-foreground">
-              Clear chat
+
+        <div className="gba:p-4">
+          <div className="gba:flex gba:gap-2 gba:items-end">
+            {onAttachFile && (
+              <Button type="button" variant="ghost" size="icon" onClick={onAttachFile} disabled={isProcessing}>
+                <Upload className="gba:w-4 gba:h-4" />
+              </Button>
+            )}
+            <div className="gba:flex-1 gba:relative">
+              <textarea
+                ref={textareaRef}
+                value={input}
+                onChange={e => onInputChange(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder={inputPlaceholder ?? 'Describe what you want to build...'}
+                disabled={isProcessing}
+                className="gba:w-full gba:px-4 gba:py-3 gba:pr-12 gba:border gba:border-border gba:rounded-lg gba:bg-background gba:text-sm gba:resize-none focus:gba:outline-none focus:gba:ring-2 focus:gba:ring-primary focus:gba:border-transparent disabled:gba:opacity-50 disabled:gba:cursor-not-allowed"
+                rows={3}
+                data-testid="ai-builder-input"
+              />
+            </div>
+            <Button
+              onClick={onSendMessage}
+              disabled={isProcessing || !input.trim()}
+              size="icon"
+              className="gba:shrink-0"
+              data-testid="ai-builder-send-button"
+              title={isProcessing ? (buildingLabel ?? undefined) : (sendButtonLabel ?? undefined)}
+            >
+              {isProcessing ? (
+                <Loader2 className="gba:w-4 gba:h-4 gba:animate-spin" />
+              ) : (
+                <Sparkles className="gba:w-4 gba:h-4" />
+              )}
             </Button>
           </div>
-        )}
+          {analyzingRequestText && isProcessing && (
+            <div className="gba:text-center gba:text-sm gba:text-muted-foreground gba:flex gba:items-center gba:justify-center gba:gap-2 gba:mt-2">
+              <Loader2 className="gba:w-4 gba:h-4 gba:animate-spin" />
+              <span>{analyzingRequestText}</span>
+            </div>
+          )}
+          {tipText && !isProcessing && input.trim() && (
+            <p className="gba:text-xs gba:text-muted-foreground gba:text-center gba:mt-2">{tipText}</p>
+          )}
+          {onClearChat && messages.length > 0 && (
+            <div className="gba:mt-2 gba:flex gba:justify-end">
+              <Button variant="ghost" size="sm" onClick={onClearChat} className="gba:text-xs gba:text-muted-foreground">
+                Clear chat
+              </Button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )

@@ -7,7 +7,7 @@
  * - Professional, tool-focused design (not chatbot-style)
  */
 
-import React from 'react'
+import React, { useEffect } from 'react'
 import { useOrchestratorClient } from '../hooks/useOrchestratorClient'
 import { useBuildProgress } from '../hooks/useBuildProgress'
 import { useOrchestratorState } from '../hooks/useOrchestratorState'
@@ -20,6 +20,8 @@ export interface OrchestratorViewConversationalProps {
   accessToken: string
   userInfo?: any
   initialPrompt?: string
+  /** When set, load this plan on mount and show review (for deep link / bookmark) */
+  initialJobId?: string
   onBack?: () => void
   onComplete?: (success: boolean) => void
   'data-testid'?: string
@@ -29,6 +31,7 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
   accessToken,
   userInfo,
   initialPrompt = '',
+  initialJobId,
   onBack,
   onComplete,
   'data-testid': testId = 'orchestrator-conversational'
@@ -40,6 +43,17 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
   const orchestratorClient = useOrchestratorClient({
     accessToken
   })
+
+  // Load plan from URL (jobId) when opening an existing plan
+  useEffect(() => {
+    if (!initialJobId || !accessToken) return
+    orchestratorClient
+      .refreshPlan(initialJobId)
+      .then(() => {
+        state.setViewState('review')
+      })
+      .catch(() => {})
+  }, [initialJobId, accessToken])
 
   // Build progress
   const buildProgress = useBuildProgress({
@@ -58,6 +72,13 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
       state.setViewState('error')
       if (state.buildStartTime) {
         state.setBuildDuration(Date.now() - state.buildStartTime)
+      }
+    },
+    onBuildComplete: event => {
+      const meta = event.metadata as { sessionId?: string; repoId?: string } | undefined
+      orchestratorClient.setSessionFromBuild(meta?.sessionId, meta?.repoId)
+      if (event.jobId) {
+        orchestratorClient.refreshPlan(event.jobId).catch(() => {})
       }
     },
     onComponentUpdate: orchestratorClient.updateComponentProperties
@@ -177,8 +198,6 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
             partialComponents={orchestratorClient.currentPlan?.components}
             jobId={orchestratorClient.currentPlan?.jobId}
             buildDuration={state.buildDuration}
-            accessToken={accessToken}
-            userInfo={userInfo}
             onReset={handlers.handleReset}
             onRetry={handlers.handleRetry}
             onModifyPlan={() => state.setViewState('review')}

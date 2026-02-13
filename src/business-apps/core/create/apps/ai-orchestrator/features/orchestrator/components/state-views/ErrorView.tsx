@@ -9,8 +9,6 @@ export interface ErrorViewProps {
   partialComponents?: ComponentSpec[]
   jobId?: string
   buildDuration?: number
-  accessToken?: string
-  userInfo?: any
   onReset: () => void
   onRetry?: () => void
   onModifyPlan: () => void
@@ -21,8 +19,6 @@ export const ErrorView: React.FC<ErrorViewProps> = ({
   partialComponents = [],
   jobId,
   buildDuration = 0,
-  accessToken,
-  userInfo,
   onReset,
   onRetry,
   onModifyPlan
@@ -43,8 +39,6 @@ export const ErrorView: React.FC<ErrorViewProps> = ({
         jobId={jobId}
         buildDuration={buildDuration}
         errorMessage={error}
-        accessToken={accessToken}
-        userInfo={userInfo}
         onReset={onReset}
         onRetry={onRetry}
         onModifyPlan={onModifyPlan}

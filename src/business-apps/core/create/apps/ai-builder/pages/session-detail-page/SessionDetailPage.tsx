@@ -1,30 +1,19 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { Badge, Button, ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@newwork/nw-design-system'
-import {
-  Sparkles,
-  Upload,
-  Download,
-  CheckCircle,
-  CheckCircle2,
-  X,
-  PanelLeft,
-  PanelLeftClose,
-  ArrowLeft
-} from 'lucide-react'
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import screenDiscoveryConfig from '../../../../../../../../scripts/screen-discovery.config.json'
 import { SYSTEM_PROMPT } from '../../config/systemPrompt'
 import { FileExplorer } from './components/FileExplorer'
 import { FilePreview } from './components/FilePreview'
-import { IndexingProgress } from '../../components/IndexingProgress'
 import { ChatDrawer } from './components/ChatDrawer'
 import { PublishDialog } from './components/PublishDialog'
 import { PreviewSandbox, type PreviewSandboxHandle } from '@/common/components/ai-builder/sandbox'
 import { useBuilderClient } from '@/common/network/ai/builder/useBuilderClient'
 import { useDebounce } from '@/common/hooks/useDebounce'
-import { sanitizeFilename, getSafeHref } from '../../utils/helpers'
+import { sanitizeFilename } from '../../utils/helpers'
 import { SessionMetadata } from '../../types/session'
+import { SessionDetailHero } from './components/SessionDetailHero'
 
 type MessageRole = 'user' | 'assistant'
 
@@ -146,12 +135,6 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
     return 'modify'
   }
 
-  const getFileTypeDotClass = (type: 'create' | 'modify' | 'delete'): string => {
-    if (type === 'create') return 'gba:bg-success'
-    if (type === 'delete') return 'gba:bg-destructive'
-    return 'gba:bg-warning'
-  }
-
   const checkForChanges = async (): Promise<number> => {
     if (!sessionId) return 0
     const currentSession = sessions.find(s => s.sessionId === sessionId)
@@ -204,6 +187,31 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
     } catch (error) {
       console.error('Failed to get changes:', error)
       return 0
+    }
+  }
+
+  const handleDownloadPatch = async (): Promise<void> => {
+    if (!sessionId) return
+    try {
+      const blob = await builderClient.downloadPatch(repositoryId, sessionId)
+      const safeSessionId = sanitizeFilename(sessionId)
+      const safeFilename = `ai-builder-${safeSessionId}.patch`
+      const blobUrl = URL.createObjectURL(blob)
+      try {
+        const link = Object.assign(document.createElement('a'), {
+          href: blobUrl,
+          download: safeFilename
+        })
+        link.click()
+      } finally {
+        URL.revokeObjectURL(blobUrl)
+      }
+    } catch (error) {
+      alert(
+        error instanceof Error
+          ? error.message
+          : getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.download_patch_failed', 'Failed to download patch')
+      )
     }
   }
 
@@ -551,394 +559,33 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
   }
 
   return (
-    <div className="gba:flex gba:h-full gba:relative gba:overflow-hidden">
-      <div className="gba:absolute gba:inset-0 gba:bg-gradient-to-br gba:from-primary/5 gba:via-background gba:to-accent/5">
-        <div
-          className="gba:absolute gba:inset-0 gba:opacity-30"
-          style={{
-            backgroundImage: `
-            radial-gradient(circle at 20% 50%, hsl(var(--primary) / 0.15) 0%, transparent 50%),
-            radial-gradient(circle at 80% 80%, hsl(var(--accent) / 0.15) 0%, transparent 50%),
-            radial-gradient(circle at 40% 20%, hsl(var(--primary) / 0.1) 0%, transparent 50%)
-          `
-          }}
-        />
-        <div
-          className="gba:absolute gba:inset-0 gba:opacity-[0.02]"
-          style={{
-            backgroundImage: `linear-gradient(hsl(var(--primary)) 1px, transparent 1px),
-                           linear-gradient(90deg, hsl(var(--primary)) 1px, transparent 1px)`,
-            backgroundSize: '50px 50px'
-          }}
-        />
-      </div>
+    <div className="gba:flex gba:flex-col gba:h-full gba:bg-background">
+      <SessionDetailHero sessionId={sessionId} onBackToSessions={backToSessionList} />
 
-      <div className="gba:relative gba:z-10 gba:flex gba:w-full gba:h-full">
+      <div className="gba:flex gba:flex-1 gba:min-h-0 gba:overflow-hidden">
         {fileExplorerEnabled && showFileExplorer && sessionId && (
-          <div className="gba:w-[320px] gba:border-r gba:border-border gba:flex-shrink-0 gba:bg-card/80 gba:backdrop-blur-sm">
-            <FileExplorer repoId={repositoryId} sessionId={sessionId} onFileClick={path => setSelectedFile(path)} />
+          <div className="gba:w-[480px] gba:border-r gba:border-border gba:flex-shrink-0 gba:bg-muted/30 gba:overflow-hidden">
+            <FileExplorer
+              repoId={repositoryId}
+              sessionId={sessionId}
+              onFileClick={path => setSelectedFile(path)}
+              onDownloadPatch={handleDownloadPatch}
+              uniqueFileSummary={uniqueFileSummary}
+            />
           </div>
         )}
 
-        <div className="gba:flex gba:flex-col gba:flex-1 gba:min-w-0">
-          {publishSuccess && (
-            <div className="gba:bg-success-secondary gba:border-b gba:border-success">
-              <div className="gba:container gba:mx-auto gba:px-6 gba:py-3">
-                <div className="gba:flex gba:items-center gba:justify-between">
-                  <div className="gba:flex gba:items-center gba:gap-3">
-                    <CheckCircle className="gba:w-5 gba:h-5 gba:text-success" />
-                    <div>
-                      <p className="gba:text-sm gba:font-medium gba:text-success-secondary-foreground">
-                        {getTranslationFromI18nKeyAndLabel(
-                          'lowcoder:ai_builder.publish_success',
-                          'Screen published successfully!'
-                        )}
-                      </p>
-                      <a
-                        href={getSafeHref(publishSuccess)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="gba:text-xs gba:text-success hover:gba:underline gba:flex gba:items-center gba:gap-1"
-                      >
-                        {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.open_screen', 'Open screen')}:{' '}
-                        {publishSuccess}
-                        <svg className="gba:w-3 gba:h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-                          />
-                        </svg>
-                      </a>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setPublishSuccess(null)}
-                    className="gba:text-success-secondary-foreground hover:gba:opacity-80"
-                  >
-                    <X className="gba:w-4 gba:h-4" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div className="gba:border-b gba:border-border/50 gba:bg-card/60 gba:backdrop-blur-md gba:shadow-sm">
-            <div className="gba:container gba:mx-auto gba:px-6 gba:py-4">
-              <div className="gba:flex gba:items-center gba:justify-between">
-                <div className="gba:flex gba:items-center gba:gap-3">
-                  <div className="gba:w-10 gba:h-10 gba:rounded-lg gba:bg-gradient-to-br gba:from-primary gba:to-accent gba:flex gba:items-center gba:justify-center gba:shadow-lg">
-                    <Sparkles className="gba:w-5 gba:h-5 gba:text-primary-foreground" />
-                  </div>
-                  <div>
-                    <div className="gba:flex gba:items-center gba:gap-2">
-                      <h1 className="gba:text-xl gba:font-bold gba:bg-gradient-to-r gba:from-primary gba:to-accent gba:bg-clip-text gba:text-transparent">
-                        {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.title', 'NEWWORK AI Builder')}
-                      </h1>
-                      <Badge variant="aiGenerated" className="gba:text-[10px] gba:px-1.5 gba:py-0">
-                        {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.beta_badge', 'BETA')}
-                      </Badge>
-                    </div>
-                    <p className="gba:text-xs gba:text-muted-foreground">
-                      {getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:ai_builder.subtitle',
-                        'Build screens with natural language • Powered by Claude 4.5 Sonnet'
-                      )}
-                      {sessionId && (
-                        <span className="gba:ml-2 gba:px-2 gba:py-0.5 gba:bg-primary/10 gba:rounded gba:font-mono gba:text-[10px] gba:text-primary">
-                          {sessionId.split('-').pop()}
-                        </span>
-                      )}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="gba:flex gba:items-center gba:gap-3">
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={backToSessionList}
-                    className="gba:gap-2"
-                    title={getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:ai_builder.back_to_sessions_title',
-                      'Back to session list'
-                    )}
-                    data-testid="back-to-sessions-button"
-                  >
-                    <ArrowLeft className="gba:w-4 gba:h-4" />
-                    <span className="gba:hidden md:gba:inline">
-                      {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.sessions_button', 'Sessions')}
-                    </span>
-                  </Button>
-
-                  {fileExplorerEnabled && sessionId && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={toggleFileExplorer}
-                      className="gba:gap-2"
-                      title={
-                        showFileExplorer
-                          ? getTranslationFromI18nKeyAndLabel(
-                              'lowcoder:ai_builder.hide_file_explorer',
-                              'Hide file explorer'
-                            )
-                          : getTranslationFromI18nKeyAndLabel(
-                              'lowcoder:ai_builder.show_file_explorer',
-                              'Show file explorer'
-                            )
-                      }
-                      data-testid="file-explorer-toggle-button"
-                    >
-                      {showFileExplorer ? (
-                        <PanelLeftClose className="gba:w-4 gba:h-4" />
-                      ) : (
-                        <PanelLeft className="gba:w-4 gba:h-4" />
-                      )}
-                      <span className="gba:hidden md:gba:inline">
-                        {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.files_button', 'Files')}
-                      </span>
-                    </Button>
-                  )}
-
-                  {usage.totalCost > 0 && (
-                    <div className="gba:text-xs gba:text-muted-foreground">
-                      <span>{(usage.totalInputTokens / 1000).toFixed(1)}K in / </span>
-                      <span>{(usage.totalOutputTokens / 1000).toFixed(1)}K out • </span>
-                      <span className="gba:font-semibold gba:text-success">${usage.totalCost.toFixed(4)}</span>
-                    </div>
-                  )}
-
-                  <Button size="sm" variant="outline" onClick={checkForChanges} className="gba:gap-2">
-                    <Download className="gba:w-4 gba:h-4" />
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.refresh_files', 'Refresh Files')}
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <IndexingProgress />
-
-          {uniqueFileSummary && uniqueFileSummary.totalUniqueFiles > 0 && (
-            <div className="gba:bg-gradient-to-r gba:from-primary/10 gba:via-accent/5 gba:to-primary/10 gba:backdrop-blur-md gba:border-b gba:border-primary/20">
-              <div className="gba:container gba:mx-auto gba:px-6 gba:py-4">
-                <div className="gba:flex gba:items-start gba:justify-between gba:gap-4">
-                  <div className="gba:flex gba:items-start gba:gap-4 gba:flex-1">
-                    <div className="gba:flex gba:items-center gba:gap-3">
-                      <div className="gba:relative gba:flex gba:items-center gba:justify-center">
-                        <div className="gba:w-8 gba:h-8 gba:rounded-full gba:bg-primary/10 gba:flex gba:items-center gba:justify-center">
-                          <CheckCircle2 className="gba:w-4 gba:h-4 gba:text-primary" />
-                        </div>
-                        <div className="gba:absolute gba:w-8 gba:h-8 gba:rounded-full gba:bg-primary/20 gba:animate-ping" />
-                      </div>
-                      <div className="gba:space-y-1">
-                        <div className="gba:flex gba:items-center gba:gap-2">
-                          <h3 className="gba:font-semibold gba:text-foreground gba:text-sm">
-                            {getTranslationFromI18nKeyAndLabel(
-                              'lowcoder:ai_builder.ready_to_publish',
-                              'Ready to Publish'
-                            )}
-                          </h3>
-                          <span className="gba:px-2 gba:py-0.5 gba:rounded-full gba:bg-primary/10 gba:text-primary gba:text-xs gba:font-medium">
-                            {uniqueFileSummary?.totalUniqueFiles}{' '}
-                            {(uniqueFileSummary?.totalUniqueFiles ?? 0) === 1
-                              ? getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.file_singular', 'file')
-                              : getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.file_plural', 'files')}
-                          </span>
-                        </div>
-                        <div className="gba:flex gba:items-center gba:gap-3 gba:text-xs gba:text-muted-foreground">
-                          {(uniqueFileSummary?.created ?? 0) > 0 && (
-                            <span className="gba:flex gba:items-center gba:gap-1">
-                              <span className="gba:w-1.5 gba:h-1.5 gba:rounded-full gba:bg-success" />
-                              {uniqueFileSummary?.created}{' '}
-                              {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.created', 'created')}
-                            </span>
-                          )}
-                          {(uniqueFileSummary?.modified ?? 0) > 0 && (
-                            <span className="gba:flex gba:items-center gba:gap-1">
-                              <span className="gba:w-1.5 gba:h-1.5 gba:rounded-full gba:bg-warning" />
-                              {uniqueFileSummary?.modified}{' '}
-                              {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.modified', 'modified')}
-                            </span>
-                          )}
-                          {(uniqueFileSummary?.deleted ?? 0) > 0 && (
-                            <span className="gba:flex gba:items-center gba:gap-1">
-                              <span className="gba:w-1.5 gba:h-1.5 gba:rounded-full gba:bg-destructive" />
-                              {uniqueFileSummary?.deleted}{' '}
-                              {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.deleted', 'deleted')}
-                            </span>
-                          )}
-                        </div>
-                        <details className="gba:mt-2 gba:text-xs">
-                          <summary className="gba:cursor-pointer gba:text-muted-foreground hover:gba:text-foreground gba:transition-colors">
-                            {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.view_files', 'View files')}
-                          </summary>
-                          <div className="gba:mt-2 gba:space-y-1 gba:pl-4 gba:max-h-40 gba:overflow-y-auto gba:pr-2">
-                            {uniqueFileSummary?.files.map(file => (
-                              <div
-                                key={file.path}
-                                className="gba:flex gba:items-center gba:gap-2 gba:text-xs gba:py-0.5"
-                              >
-                                <span
-                                  className={`gba:w-1 gba:h-1 gba:rounded-full gba:flex-shrink-0 ${getFileTypeDotClass(file.type)}`}
-                                />
-                                <span
-                                  className="gba:font-mono gba:text-muted-foreground gba:truncate"
-                                  title={file.path}
-                                >
-                                  {file.path}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        </details>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="gba:flex gba:gap-2 gba:flex-shrink-0">
-                    <Button
-                      size="sm"
-                      variant="default"
-                      onClick={() => {
-                        setPublishError(null)
-                        setShowPublishDialog(true)
-                      }}
-                      className="gba:gap-2 gba:shadow-sm"
-                    >
-                      <Upload className="gba:w-4 gba:h-4" />
-                      {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.publish_button', 'Publish')}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={async () => {
-                        try {
-                          const blob = await builderClient.downloadPatch(repositoryId, sessionId)
-                          const safeSessionId = sanitizeFilename(sessionId)
-                          const safeFilename = `ai-builder-${safeSessionId}.patch`
-                          const blobUrl = URL.createObjectURL(blob)
-                          try {
-                            const link = Object.assign(document.createElement('a'), {
-                              href: blobUrl,
-                              download: safeFilename
-                            })
-                            link.click()
-                          } finally {
-                            URL.revokeObjectURL(blobUrl)
-                          }
-                        } catch (error) {
-                          alert(
-                            error instanceof Error
-                              ? error.message
-                              : getTranslationFromI18nKeyAndLabel(
-                                  'lowcoder:ai_builder.download_patch_failed',
-                                  'Failed to download patch'
-                                )
-                          )
-                        }
-                      }}
-                      className="gba:gap-2"
-                    >
-                      <Download className="gba:w-4 gba:h-4" />
-                      {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.patch_button', 'Patch')}
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div className="gba:flex-1 gba:flex gba:min-h-0 gba:overflow-hidden">
-            {sessionId &&
-            repositoryId &&
-            ((uniqueFileSummary?.totalUniqueFiles ?? 0) > 0 ||
-              (sessions.find(s => s.sessionId === sessionId)?.fileCount ?? 0) > 0) ? (
-              <ResizablePanelGroup direction="horizontal" className="gba:flex-1 gba:min-h-0 gba:w-full">
-                <ResizablePanel
-                  defaultSize={25}
-                  minSize={25}
-                  className="gba:flex gba:flex-col gba:min-h-0 gba:rounded-none"
-                >
-                  <ChatDrawer
-                    messages={messages}
-                    input={input}
-                    onInputChange={v => setInput(v)}
-                    onSendMessage={() => handleSubmit({ preventDefault: () => {} } as React.FormEvent)}
-                    isProcessing={loading}
-                    thinking={thinking}
-                    userName={
-                      context.userInfo
-                        ? `${context.userInfo.givenName ?? ''} ${context.userInfo.familyName ?? ''}`.trim() ||
-                          getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.you', 'You')
-                        : getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.you', 'You')
-                    }
-                    userAvatar={userPictureThumbnail ? `data:image/jpeg;base64,${userPictureThumbnail}` : undefined}
-                    onToggleThinking={idx =>
-                      setMessages(prev => {
-                        const next = [...prev]
-                        next[idx].thinkingCollapsed = !next[idx].thinkingCollapsed
-                        return next
-                      })
-                    }
-                    examplePrompts={[
-                      getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:ai_builder.example_prompt_1',
-                        'Create a lead list screen'
-                      ),
-                      getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:ai_builder.example_prompt_2',
-                        'Build a customer dashboard'
-                      ),
-                      getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:ai_builder.example_prompt_3',
-                        'Generate a contact form'
-                      )
-                    ]}
-                    inputPlaceholder={getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:ai_builder.input_placeholder',
-                      'Describe the screen you want to build... (Press Enter to send, Shift+Enter for new line)'
-                    )}
-                    analyzingRequestText={getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:ai_builder.analyzing_request',
-                      'AI is analyzing your request and exploring the codebase...'
-                    )}
-                    tipText={getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:ai_builder.tip_message',
-                      'Tip: Be specific! Example: "Build a lead list screen with search, table, and pagination"'
-                    )}
-                    emptyTitle={getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:ai_builder.welcome_title',
-                      'Build Screens with AI'
-                    )}
-                    emptyDescription={getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:ai_builder.welcome_description',
-                      "Describe what you want to build and I'll create it following NEWWORK patterns"
-                    )}
-                    className="gba:flex-1 gba:min-h-0"
-                  />
-                </ResizablePanel>
-                <ResizableHandle withHandle className="gba:bg-border" />
-                <ResizablePanel
-                  defaultSize={75}
-                  minSize={25}
-                  className="gba:flex gba:flex-col gba:min-h-0 gba:rounded-none"
-                >
-                  <div className="gba:flex-1 gba:min-h-0 gba:relative gba:bg-card gba:overflow-hidden">
-                    <PreviewSandbox
-                      ref={previewSandboxRef}
-                      repoId={repositoryId}
-                      sessionId={sessionId}
-                      accessToken={context.accessToken}
-                      userInfo={context.userInfo}
-                    />
-                  </div>
-                </ResizablePanel>
-              </ResizablePanelGroup>
-            ) : (
-              <main className="gba:flex-1 gba:flex gba:flex-col gba:min-h-0 gba:rounded-none">
+        <div className="gba:flex-1 gba:flex gba:min-h-0 gba:overflow-hidden">
+          {sessionId &&
+          repositoryId &&
+          ((uniqueFileSummary?.totalUniqueFiles ?? 0) > 0 ||
+            (sessions.find(s => s.sessionId === sessionId)?.fileCount ?? 0) > 0) ? (
+            <ResizablePanelGroup direction="horizontal" className="gba:flex-1 gba:min-h-0 gba:w-full">
+              <ResizablePanel
+                defaultSize={25}
+                minSize={25}
+                className="gba:flex gba:flex-col gba:min-h-0 gba:rounded-none"
+              >
                 <ChatDrawer
                   messages={messages}
                   input={input}
@@ -991,36 +638,125 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
                     'lowcoder:ai_builder.welcome_description',
                     "Describe what you want to build and I'll create it following NEWWORK patterns"
                   )}
+                  showFileExplorer={showFileExplorer}
+                  onToggleFileExplorer={toggleFileExplorer}
+                  usage={usage}
+                  uniqueFileSummary={uniqueFileSummary}
                   className="gba:flex-1 gba:min-h-0"
                 />
-              </main>
-            )}
-          </div>
-          {showPublishDialog && (
-            <PublishDialog
-              uniqueFileSummary={uniqueFileSummary}
-              detectedTargetPath={detectedTargetPath}
-              targetPath={targetPath}
-              resourceUrl={resourceUrl}
-              publishError={publishError}
-              isPublishing={isPublishing}
-              onClose={() => setShowPublishDialog(false)}
-              onTargetPathChange={setTargetPath}
-              onResourceUrlChange={setResourceUrl}
-              onPublish={handlePublish}
-            />
-          )}
-
-          {selectedFile && (
-            <FilePreview
-              filePath={selectedFile}
-              repoId={repositoryId}
-              sessionId={sessionId}
-              onClose={() => setSelectedFile(null)}
-            />
+              </ResizablePanel>
+              <ResizableHandle withHandle className="gba:bg-border" />
+              <ResizablePanel
+                defaultSize={75}
+                minSize={25}
+                className="gba:flex gba:flex-col gba:min-h-0 gba:rounded-none"
+              >
+                <PreviewSandbox
+                  ref={previewSandboxRef}
+                  repoId={repositoryId}
+                  sessionId={sessionId}
+                  accessToken={context.accessToken}
+                  userInfo={context.userInfo}
+                  uniqueFileSummary={uniqueFileSummary}
+                  onPublish={() => {
+                    setPublishError(null)
+                    setShowPublishDialog(true)
+                  }}
+                  onDownloadPatch={handleDownloadPatch}
+                  onRefresh={checkForChanges}
+                  publishSuccess={publishSuccess}
+                  onDismissPublishSuccess={() => setPublishSuccess(null)}
+                />
+              </ResizablePanel>
+            </ResizablePanelGroup>
+          ) : (
+            <main className="gba:flex-1 gba:flex gba:flex-col gba:min-h-0 gba:rounded-none">
+              <ChatDrawer
+                messages={messages}
+                input={input}
+                onInputChange={v => setInput(v)}
+                onSendMessage={() => handleSubmit({ preventDefault: () => {} } as React.FormEvent)}
+                isProcessing={loading}
+                thinking={thinking}
+                userName={
+                  context.userInfo
+                    ? `${context.userInfo.givenName ?? ''} ${context.userInfo.familyName ?? ''}`.trim() ||
+                      getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.you', 'You')
+                    : getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.you', 'You')
+                }
+                userAvatar={userPictureThumbnail ? `data:image/jpeg;base64,${userPictureThumbnail}` : undefined}
+                onToggleThinking={idx =>
+                  setMessages(prev => {
+                    const next = [...prev]
+                    next[idx].thinkingCollapsed = !next[idx].thinkingCollapsed
+                    return next
+                  })
+                }
+                examplePrompts={[
+                  getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:ai_builder.example_prompt_1',
+                    'Create a lead list screen'
+                  ),
+                  getTranslationFromI18nKeyAndLabel(
+                    'lowcoder:ai_builder.example_prompt_2',
+                    'Build a customer dashboard'
+                  ),
+                  getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.example_prompt_3', 'Generate a contact form')
+                ]}
+                inputPlaceholder={getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:ai_builder.input_placeholder',
+                  'Describe the screen you want to build... (Press Enter to send, Shift+Enter for new line)'
+                )}
+                analyzingRequestText={getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:ai_builder.analyzing_request',
+                  'AI is analyzing your request and exploring the codebase...'
+                )}
+                tipText={getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:ai_builder.tip_message',
+                  'Tip: Be specific! Example: "Build a lead list screen with search, table, and pagination"'
+                )}
+                emptyTitle={getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:ai_builder.welcome_title',
+                  'Build Screens with AI'
+                )}
+                emptyDescription={getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:ai_builder.welcome_description',
+                  "Describe what you want to build and I'll create it following NEWWORK patterns"
+                )}
+                showFileExplorer={showFileExplorer}
+                onToggleFileExplorer={toggleFileExplorer}
+                usage={usage}
+                uniqueFileSummary={uniqueFileSummary}
+                className="gba:flex-1 gba:min-h-0"
+              />
+            </main>
           )}
         </div>
       </div>
+
+      {showPublishDialog && (
+        <PublishDialog
+          uniqueFileSummary={uniqueFileSummary}
+          detectedTargetPath={detectedTargetPath}
+          targetPath={targetPath}
+          resourceUrl={resourceUrl}
+          publishError={publishError}
+          isPublishing={isPublishing}
+          onClose={() => setShowPublishDialog(false)}
+          onTargetPathChange={setTargetPath}
+          onResourceUrlChange={setResourceUrl}
+          onPublish={handlePublish}
+        />
+      )}
+
+      {selectedFile && (
+        <FilePreview
+          filePath={selectedFile}
+          repoId={repositoryId}
+          sessionId={sessionId}
+          onClose={() => setSelectedFile(null)}
+        />
+      )}
     </div>
   )
 }

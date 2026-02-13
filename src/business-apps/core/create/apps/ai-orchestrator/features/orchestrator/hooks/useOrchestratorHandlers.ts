@@ -122,9 +122,13 @@ export const useOrchestratorHandlers = ({
       state.loggedPhasesRef.current.clear()
       state.lastCompletedCountRef.current = 0
 
-      await buildProgress.startBuild(skipComponents)
+      await buildProgress.startBuild(
+        skipComponents,
+        orchestratorClient.lastSessionId ?? undefined,
+        orchestratorClient.lastRepoId ?? undefined
+      )
     },
-    [buildProgress.startBuild, state]
+    [buildProgress.startBuild, orchestratorClient.lastSessionId, orchestratorClient.lastRepoId, state]
   )
 
   // Handle retry - Re-execute the same build plan
@@ -150,9 +154,13 @@ export const useOrchestratorHandlers = ({
     state.loggedPhasesRef.current.clear()
     state.lastCompletedCountRef.current = 0
 
-    // Re-execute the build with the same plan
-    await buildProgress.startBuild()
-  }, [buildProgress, state])
+    // Re-execute the build with the same plan; pass stored session for execute-again
+    await buildProgress.startBuild(
+      undefined,
+      orchestratorClient.lastSessionId ?? undefined,
+      orchestratorClient.lastRepoId ?? undefined
+    )
+  }, [buildProgress, orchestratorClient.lastSessionId, orchestratorClient.lastRepoId, state])
 
   // Handle cancel
   const handleCancel = useCallback(() => {

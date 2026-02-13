@@ -16,8 +16,10 @@ import type {
   RefinePlanRequest,
   BuildPlan,
   BuildJobStatus,
-  BuildProgressEvent
-} from '@/business-apps/core/create/apps/create-workspace/features/orchestrator/types'
+  BuildProgressEvent,
+  ListPlansParams,
+  ListPlansResponse
+} from '@/business-apps/core/create/apps/ai-orchestrator/features/orchestrator/types'
 
 /** Normalize SSE event from API (may send snake_case) to camelCase */
 function normalizeProgressEvent(raw: Record<string, unknown>): BuildProgressEvent {
@@ -240,6 +242,39 @@ export class OrchestratorClient {
     }
 
     return response.json() as Promise<BuildJobStatus>
+  }
+
+  /**
+   * List orchestration plans with optional paging and sort.
+   */
+  async listPlans(params?: ListPlansParams): Promise<ListPlansResponse> {
+    const searchParams = new URLSearchParams()
+    if (params?.limit != null) searchParams.set('limit', String(params.limit))
+    if (params?.offset != null) searchParams.set('offset', String(params.offset))
+    if (params?.sort != null) searchParams.set('sort', params.sort)
+    const query = searchParams.toString()
+    const url = query ? `${this.baseUrl}/orchestration/plans?${query}` : `${this.baseUrl}/orchestration/plans`
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${this.accessToken}`
+      }
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      const errorMessage = parseErrorResponse(errorData, `Failed to list plans: ${response.statusText}`)
+      throw new Error(errorMessage)
+    }
+
+    const json = (await response.json()) as ListPlansResponse
+    // Normalize snake_case from API if present
+    const rawPaging = json.paging as unknown as Record<string, unknown>
+    if (json.paging && rawPaging && 'total_records' in rawPaging) {
+      const p = json.paging as ListPlansResponse['paging'] & { total_records?: number }
+      json.paging = { limit: p.limit, offset: p.offset, totalRecords: p.totalRecords ?? p.total_records ?? 0 }
+    }
+    return json
   }
 
   /**

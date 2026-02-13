@@ -22,7 +22,17 @@ export type {
 export type { BuildStatus, BuildPhase, ClarifyingQuestion, BuildAnalysis, UserSummary, BuildPlan } from './build'
 
 // API contract types
-export type { AnalyzeRequest, AnalyzeResponse, ExecuteRequest, UpdatePlanRequest, RefinePlanRequest } from './api'
+export type {
+  AnalyzeRequest,
+  AnalyzeResponse,
+  ExecuteRequest,
+  UpdatePlanRequest,
+  RefinePlanRequest,
+  ListPlansParams,
+  ListPlansResponse,
+  ListPlansPaging,
+  ListPlansLinks
+} from './api'
 
 // Progress tracking types
 export type { ProgressEventType, BuildProgressEvent, BuildJobStatus } from './progress'

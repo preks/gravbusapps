@@ -29,6 +29,10 @@ export interface UseOrchestratorClientResult {
   isRefining: boolean
   refineError: string | null
   refinementSummary: string | null
+  /** Shared session ID from last build (for preview and execute-again) */
+  lastSessionId: string | null
+  /** Shared repo ID from last build (for preview and execute-again) */
+  lastRepoId: string | null
 
   // Methods
   analyze: (prompt: string, context?: Record<string, unknown>) => Promise<AnalyzeResponse>
@@ -36,9 +40,13 @@ export interface UseOrchestratorClientResult {
   refinePlan: (jobId: string, feedback: string) => Promise<AnalyzeResponse>
   updatePlan: (jobId: string, request: UpdatePlanRequest) => Promise<BuildPlan>
   getJobStatus: (jobId: string) => Promise<BuildJobStatus>
+  /** Refetch plan from backend after build so UI uses persisted components with metadata */
+  refreshPlan: (jobId: string) => Promise<void>
   cancelBuild: (jobId: string) => Promise<void>
   clearPlan: () => void
   clearRefinementSummary: () => void
+  /** Store session from build_complete event so refine/execute-again can send it */
+  setSessionFromBuild: (sessionId: string | undefined, repoId: string | undefined) => void
   updateComponentProperties: (
     componentId: string,
     updates: Partial<{
@@ -48,6 +56,7 @@ export interface UseOrchestratorClientResult {
       publishedFileCount: number
       errorMessage: string
       createdId: string
+      metadata: Record<string, unknown>
     }>
   ) => void
   client: OrchestratorClient
@@ -65,6 +74,8 @@ export function useOrchestratorClient({ accessToken }: UseOrchestratorClientOpti
   const [isRefining, setIsRefining] = useState(false)
   const [refineError, setRefineError] = useState<string | null>(null)
   const [refinementSummary, setRefinementSummary] = useState<string | null>(null)
+  const [lastSessionId, setLastSessionId] = useState<string | null>(null)
+  const [lastRepoId, setLastRepoId] = useState<string | null>(null)
 
   // Create memoized client
   const client = useMemo(() => new OrchestratorClient(accessToken), [accessToken])
@@ -199,6 +210,21 @@ export function useOrchestratorClient({ accessToken }: UseOrchestratorClientOpti
   )
 
   /**
+   * Refetch plan from backend after build so UI uses persisted components with metadata
+   */
+  const refreshPlan = useCallback(
+    async (jobId: string): Promise<void> => {
+      try {
+        const plan = await client.getPlan(jobId)
+        setCurrentPlan(plan)
+      } catch {
+        // Ignore; in-memory plan from events remains
+      }
+    },
+    [client]
+  )
+
+  /**
    * Cancel a build job
    */
   const cancelBuild = useCallback(
@@ -212,7 +238,7 @@ export function useOrchestratorClient({ accessToken }: UseOrchestratorClientOpti
   )
 
   /**
-   * Clear the current plan
+   * Clear the current plan and stored session (so a new flow does not send stale session)
    */
   const clearPlan = useCallback(() => {
     setCurrentPlan(null)
@@ -221,6 +247,16 @@ export function useOrchestratorClient({ accessToken }: UseOrchestratorClientOpti
     setRefinementSummary(null)
     setLastPrompt('')
     setLastContext(undefined)
+    setLastSessionId(null)
+    setLastRepoId(null)
+  }, [])
+
+  /**
+   * Store shared session from build_complete event for preview and execute-again
+   */
+  const setSessionFromBuild = useCallback((sessionId: string | undefined, repoId: string | undefined) => {
+    setLastSessionId(sessionId ?? null)
+    setLastRepoId(repoId ?? null)
   }, [])
 
   /**
@@ -243,6 +279,7 @@ export function useOrchestratorClient({ accessToken }: UseOrchestratorClientOpti
         publishedFileCount: number
         errorMessage: string
         createdId: string
+        metadata: Record<string, unknown>
       }>
     ) => {
       setCurrentPlan(prevPlan => {
@@ -273,14 +310,18 @@ export function useOrchestratorClient({ accessToken }: UseOrchestratorClientOpti
     isRefining,
     refineError,
     refinementSummary,
+    lastSessionId,
+    lastRepoId,
     analyze,
     reanalyze,
     refinePlan,
     updatePlan,
     getJobStatus,
+    refreshPlan,
     cancelBuild,
     clearPlan,
     clearRefinementSummary,
+    setSessionFromBuild,
     updateComponentProperties,
     client
   }

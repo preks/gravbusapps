@@ -224,8 +224,8 @@ export const SuccessState: React.FC<SuccessStateProps> = ({
                               </a>
                             </div>
                           )}
-                          {/* Published files count */}
-                          {component.publishedFileCount !== undefined && (
+                          {/* Published files count (only when orchestration published; publish is now from preview) */}
+                          {component.publishedFileCount != null && component.publishedFileCount > 0 && (
                             <div className="gba:text-xs gba:text-muted-foreground">
                               Published {component.publishedFileCount} files
                             </div>

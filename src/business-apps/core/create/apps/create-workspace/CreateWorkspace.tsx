@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react'
+import React, { useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { Monitor, Workflow, Bot, Code2, Database, LayoutTemplate, Sparkles } from 'lucide-react'
@@ -13,13 +13,10 @@ import {
   ConnectionsVisualization,
   ToolCardProps
 } from './features/landing'
-import { OrchestratorViewConversational } from './features/orchestrator/views'
 
 export interface NewworkCreateProps extends BusinessAppContextProps {
   'data-testid'?: string
 }
-
-type ViewMode = 'landing' | 'orchestrator'
 
 /**
  * NEWWORK CREATE - Premium landing page for the creation suite
@@ -34,16 +31,11 @@ type ViewMode = 'landing' | 'orchestrator'
  *
  * Also includes AI Orchestrator for unified component building.
  */
-export const NewworkCreate: React.FC<NewworkCreateProps> = ({
-  accessToken,
-  'data-testid': testId = 'create-workspace'
-}) => {
+const AI_ORCHESTRATOR_URL = '/platform/create/ai-orchestrator'
+
+export const NewworkCreate: React.FC<NewworkCreateProps> = ({ 'data-testid': testId = 'create-workspace' }) => {
   // Feature flag for AI features
   const isDevEnabled = useFeature<boolean>(Feature.Dev.Enabled.Key)
-
-  // View mode state - landing page or orchestrator
-  const [viewMode, setViewMode] = useState<ViewMode>('landing')
-  const [orchestratorPrompt, setOrchestratorPrompt] = useState('')
 
   // Tool definitions
   const tools: Array<Omit<ToolCardProps, 'data-testid'> & { id: string }> = [
@@ -112,23 +104,11 @@ export const NewworkCreate: React.FC<NewworkCreateProps> = ({
     }
   ]
 
-  // Handle AI quick start submission - now launches orchestrator
+  // Handle AI quick start submission - open AI Orchestrator app with prompt
   const handleAIQuickStart = useCallback((prompt: string) => {
-    // Launch the AI Orchestrator with the prompt
-    setOrchestratorPrompt(prompt)
-    setViewMode('orchestrator')
-  }, [])
-
-  // Handle orchestrator back button
-  const handleOrchestratorBack = useCallback(() => {
-    setViewMode('landing')
-    setOrchestratorPrompt('')
-  }, [])
-
-  // Handle orchestrator completion
-  const handleOrchestratorComplete = useCallback((success: boolean) => {
-    console.log('Orchestrator completed:', success ? 'success' : 'with errors')
-    // Could show a toast or notification here
+    const params = new URLSearchParams({ plan: 'new' })
+    if (prompt.trim()) params.set('prompt', prompt.trim())
+    navigateTo(buildPlatformUrl(`${AI_ORCHESTRATOR_URL}?${params.toString()}`))
   }, [])
 
   // Handle tool card click
@@ -136,20 +116,11 @@ export const NewworkCreate: React.FC<NewworkCreateProps> = ({
     navigateTo(href)
   }, [])
 
-  // Render Orchestrator View
-  if (viewMode === 'orchestrator') {
-    return (
-      <OrchestratorViewConversational
-        accessToken={accessToken}
-        initialPrompt={orchestratorPrompt}
-        onBack={handleOrchestratorBack}
-        onComplete={handleOrchestratorComplete}
-        data-testid={`${testId}-orchestrator-view`}
-      />
-    )
-  }
+  // Open AI Orchestrator app (standalone)
+  const handleOpenOrchestrator = useCallback(() => {
+    navigateTo(buildPlatformUrl(`${AI_ORCHESTRATOR_URL}?plan=new`))
+  }, [])
 
-  // Render Landing Page
   return (
     <div className="gba:min-h-screen gba:bg-background gba:relative" data-testid={testId}>
       {/* Neural Network Background - Subtle AI atmosphere */}
@@ -174,7 +145,7 @@ export const NewworkCreate: React.FC<NewworkCreateProps> = ({
           <div className="gba:flex gba:justify-center gba:py-4">
             <Button
               variant="outline"
-              onClick={() => setViewMode('orchestrator')}
+              onClick={handleOpenOrchestrator}
               className="gba:flex gba:items-center gba:gap-2"
               disabled={!isDevEnabled}
               data-testid={`${testId}-orchestrator-button`}

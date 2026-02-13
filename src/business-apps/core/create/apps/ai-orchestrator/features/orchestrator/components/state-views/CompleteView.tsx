@@ -13,14 +13,7 @@ export interface CompleteViewProps {
   onReset: () => void
 }
 
-export const CompleteView: React.FC<CompleteViewProps> = ({
-  components,
-  jobId,
-  buildDuration,
-  accessToken,
-  userInfo,
-  onReset
-}) => {
+export const CompleteView: React.FC<CompleteViewProps> = ({ components, jobId, buildDuration, onReset }) => {
   return (
     <Canvas
       title="Build Results"
@@ -31,15 +24,7 @@ export const CompleteView: React.FC<CompleteViewProps> = ({
         </Button>
       }
     >
-      <BuildResultsView
-        success
-        components={components}
-        jobId={jobId}
-        buildDuration={buildDuration}
-        accessToken={accessToken}
-        userInfo={userInfo}
-        onReset={onReset}
-      />
+      <BuildResultsView success components={components} jobId={jobId} buildDuration={buildDuration} onReset={onReset} />
     </Canvas>
   )
 }

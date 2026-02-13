@@ -22,6 +22,8 @@ export interface UseBuildProgressOptions {
   plan: BuildPlan | null
   onComplete?: (success: boolean) => void
   onError?: (error: string) => void
+  /** Called when build_complete SSE event is received; use event.metadata.sessionId/repoId for execute-again */
+  onBuildComplete?: (event: BuildProgressEvent) => void
   onComponentUpdate?: (
     componentId: string,
     updates: Partial<{
@@ -50,7 +52,7 @@ export interface UseBuildProgressResult {
   phaseMessage: string | null // Current phase status message
 
   // Methods
-  startBuild: (skipComponents?: string[]) => Promise<void>
+  startBuild: (skipComponents?: string[], sessionId?: string, repoId?: string) => Promise<void>
   cancelBuild: () => void
   resetProgress: () => void
 }
@@ -162,6 +164,7 @@ export function useBuildProgress({
   plan,
   onComplete,
   onError,
+  onBuildComplete,
   onComponentUpdate
 }: UseBuildProgressOptions): UseBuildProgressResult {
   const [isBuilding, setIsBuilding] = useState(false)
@@ -175,12 +178,16 @@ export function useBuildProgress({
 
   const abortControllerRef = useRef<AbortController | null>(null)
   const onComponentUpdateRef = useRef(onComponentUpdate)
+  const onBuildCompleteRef = useRef(onBuildComplete)
   const currentJobIdRef = useRef<string | null>(null)
 
-  // Keep ref in sync with prop
+  // Keep refs in sync with props
   useEffect(() => {
     onComponentUpdateRef.current = onComponentUpdate
   }, [onComponentUpdate])
+  useEffect(() => {
+    onBuildCompleteRef.current = onBuildComplete
+  }, [onBuildComplete])
 
   // Internal reset helper
   const resetState = useCallback(() => {
@@ -268,6 +275,7 @@ export function useBuildProgress({
           setPhaseMessage(event.message)
           const success = event.status === 'completed'
           onComplete?.(success)
+          onBuildCompleteRef.current?.(event)
         }
       }
 
@@ -408,9 +416,10 @@ export function useBuildProgress({
 
   /**
    * Start the build execution
+   * First run: omit sessionId/repoId. Refine/execute-again: pass stored sessionId/repoId.
    */
   const startBuild = useCallback(
-    async (skipComponents: string[] = []) => {
+    async (skipComponents?: string[], sessionId?: string, repoId?: string) => {
       if (!plan) {
         onError?.('No build plan available')
         return
@@ -422,8 +431,10 @@ export function useBuildProgress({
 
       const request: ExecuteRequest = {
         jobId: plan.jobId,
-        skipComponents: skipComponents
+        skipComponents: skipComponents ?? []
       }
+      if (sessionId !== undefined && sessionId !== '') request.sessionId = sessionId
+      if (repoId !== undefined && repoId !== '') request.repoId = repoId
 
       try {
         await client.executeWithProgress(

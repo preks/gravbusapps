@@ -29,12 +29,10 @@ import {
   Workflow,
   Database,
   Eye,
-  PartyPopper,
-  Play
+  PartyPopper
 } from 'lucide-react'
 import { Card, CardContent, Button, Badge, cn } from '@newwork/nw-design-system'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
-import { ScreenPreviewModal } from '../preview'
 import type { ComponentSpec, ComponentType } from '../../types'
 
 // ─── Types ──────────────────────────────────────────────────────────────────────
@@ -50,10 +48,6 @@ export interface BuildResultsViewProps {
   buildDuration: number
   /** Global error message (if build failed) */
   errorMessage?: string
-  /** Access token for authenticated requests */
-  accessToken?: string
-  /** User info for component loading */
-  userInfo?: any
   /** Callbacks */
   onReset: () => void
   onRetry?: () => void
@@ -184,9 +178,7 @@ const ComponentCard: React.FC<{
   component: ComponentSpec
   jobId?: string
   showError?: boolean
-  onPreview?: (component: ComponentSpec) => void
-  hasAccessToken?: boolean
-}> = ({ component, jobId, showError = false, onPreview, hasAccessToken = false }) => {
+}> = ({ component, showError = false }) => {
   const [errorExpanded, setErrorExpanded] = useState(false)
   const typeMeta = COMPONENT_TYPE_META[component.type] || DEFAULT_COMPONENT_TYPE_META
   const statusMeta = STATUS_META[component.status] || STATUS_META.completed
@@ -195,23 +187,6 @@ const ComponentCard: React.FC<{
 
   const isClickable = component.status === 'completed' || component.status === 'reused'
   const hasError = component.status === 'error' && component.errorMessage
-
-  // Check if preview is available
-  // Preview available if:
-  // 1. It's a screen component (completed successfully OR failed but may have partial code)
-  // 2. AND either: has azureUrl (live preview) OR has identifiers for code viewer (jobId, createdId, or metadata)
-  // 3. AND accessToken is available (required for ScreenPreviewModal)
-  const hasPreviewData = !!(
-    component.azureUrl ||
-    component.createdId ||
-    jobId ||
-    (component.metadata?.sessionId && component.metadata?.repoId)
-  )
-
-  const typeCheck = component.type === 'screen'
-  const statusCheckVar = component.status === 'completed' || component.status === 'error'
-  const onPreviewCheck = !!onPreview
-  const canPreview = typeCheck && statusCheckVar && hasPreviewData && onPreviewCheck && hasAccessToken
 
   const borderClass =
     component.status === 'error'
@@ -344,20 +319,6 @@ const ComponentCard: React.FC<{
 
           {/* Action buttons */}
           <div className="gba:flex gba:gap-2 gba:shrink-0">
-            {canPreview && (
-              <Button
-                size="sm"
-                variant="ghost"
-                className="gba:transition-opacity"
-                onClick={e => {
-                  e.stopPropagation()
-                  onPreview?.(component)
-                }}
-                title="Preview Screen"
-              >
-                <Play className="gba:w-4 gba:h-4" />
-              </Button>
-            )}
             {isClickable && (
               <Button
                 size="sm"
@@ -391,19 +352,7 @@ const ComponentSection: React.FC<{
   jobId?: string
   showErrors?: boolean
   defaultOpen?: boolean
-  onPreview?: (component: ComponentSpec) => void
-  hasAccessToken?: boolean
-}> = ({
-  title,
-  icon: Icon,
-  iconClass,
-  components,
-  jobId,
-  showErrors = false,
-  defaultOpen = true,
-  onPreview,
-  hasAccessToken = false
-}) => {
+}> = ({ title, icon: Icon, iconClass, components, jobId, showErrors = false, defaultOpen = true }) => {
   const [open, setOpen] = useState(defaultOpen)
   if (components.length === 0) return null
 
@@ -427,14 +376,7 @@ const ComponentSection: React.FC<{
       {open && (
         <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 gba:gap-3">
           {components.map(c => (
-            <ComponentCard
-              key={c.id}
-              component={c}
-              jobId={jobId}
-              showError={showErrors}
-              onPreview={onPreview}
-              hasAccessToken={hasAccessToken}
-            />
+            <ComponentCard key={c.id} component={c} jobId={jobId} showError={showErrors} />
           ))}
         </div>
       )}
@@ -450,15 +392,12 @@ export const BuildResultsView: React.FC<BuildResultsViewProps> = ({
   jobId,
   buildDuration,
   errorMessage,
-  accessToken,
-  userInfo,
   onReset,
   onRetry,
   onModifyPlan,
   className
 }) => {
   const { completed, failed, reused, skipped } = groupComponents(components)
-  const [previewComponent, setPreviewComponent] = useState<ComponentSpec | null>(null)
 
   // Debug logging (development only)
   if (process.env.NODE_ENV !== 'production') {
@@ -557,8 +496,6 @@ export const BuildResultsView: React.FC<BuildResultsViewProps> = ({
         jobId={jobId}
         showErrors
         defaultOpen
-        onPreview={setPreviewComponent}
-        hasAccessToken={!!accessToken}
       />
 
       {/* ── Completed Components ─────────────────────────────────────── */}
@@ -569,8 +506,6 @@ export const BuildResultsView: React.FC<BuildResultsViewProps> = ({
         components={completed}
         jobId={jobId}
         defaultOpen
-        onPreview={setPreviewComponent}
-        hasAccessToken={!!accessToken}
       />
 
       {/* ── Reused Components ────────────────────────────────────────── */}
@@ -581,8 +516,6 @@ export const BuildResultsView: React.FC<BuildResultsViewProps> = ({
         components={reused}
         jobId={jobId}
         defaultOpen={failed.length === 0}
-        onPreview={setPreviewComponent}
-        hasAccessToken={!!accessToken}
       />
 
       {/* ── Skipped Components ───────────────────────────────────────── */}
@@ -593,21 +526,7 @@ export const BuildResultsView: React.FC<BuildResultsViewProps> = ({
         components={skipped}
         jobId={jobId}
         defaultOpen={false}
-        onPreview={setPreviewComponent}
-        hasAccessToken={!!accessToken}
       />
-
-      {/* ── Preview Modal ────────────────────────────────────────────── */}
-      {accessToken && (
-        <ScreenPreviewModal
-          component={previewComponent}
-          jobId={jobId}
-          accessToken={accessToken}
-          userInfo={userInfo}
-          open={!!previewComponent}
-          onClose={() => setPreviewComponent(null)}
-        />
-      )}
 
       {/* ── Actions ──────────────────────────────────────────────────── */}
       <div className="gba:flex gba:items-center gba:justify-center gba:gap-3 gba:pt-2 gba:pb-4 gba:flex-wrap">
