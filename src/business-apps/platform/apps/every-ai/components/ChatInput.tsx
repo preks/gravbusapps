@@ -881,7 +881,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                     onInput={handleContentEditableInput}
                     onKeyDown={handleKeyDown}
                     data-placeholder={placeholder}
-                    className={`gba:flex-1 gba:min-w-0 gba:min-h-10 gba:max-h-32 gba:overflow-y-auto gba:bg-transparent gba:border-none gba:px-1 gba:py-2 gba:text-base gba:leading-relaxed focus-visible:gba:outline-none ${darkMode ? 'gba:text-white before:gba:text-white/50' : 'gba:text-foreground before:gba:text-muted-foreground'} ${!value ? 'before:content-[attr(data-placeholder)] before:pointer-events-none' : ''}`}
+                    className={`gba:flex-1 gba:min-w-0 gba:min-h-10 gba:max-h-32 gba:overflow-y-auto gba:!bg-transparent focus-visible:gba:!bg-transparent gba:border-none gba:px-1 gba:py-2 gba:text-base gba:leading-relaxed focus-visible:gba:outline-none ${darkMode ? 'gba:text-white before:gba:text-white/50' : 'gba:text-foreground before:gba:text-muted-foreground'} ${!value ? 'before:content-[attr(data-placeholder)] before:pointer-events-none' : ''}`}
                     role="textbox"
                     aria-multiline="true"
                     data-testid="chat-input-contenteditable"
@@ -892,7 +892,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                     value={value}
                     onChange={e => handleValueChange(e.target.value)}
                     placeholder={placeholder}
-                    className={`gba:flex-1 gba:min-w-0 gba:min-h-10 gba:max-h-32 gba:resize-none gba:bg-transparent gba:border-none gba:px-1 gba:py-2 gba:text-base gba:leading-relaxed focus-visible:gba:ring-0 ${darkMode ? 'gba:text-white gba:placeholder-white/50' : 'gba:text-foreground'}`}
+                    className={`gba:flex-1 gba:min-w-0 gba:min-h-10 gba:max-h-32 gba:resize-none gba:!bg-transparent focus-visible:gba:!bg-transparent gba:border-none gba:px-1 gba:py-2 gba:text-base gba:leading-relaxed focus-visible:gba:ring-0 ${darkMode ? 'gba:text-white gba:placeholder-white/50' : 'gba:text-foreground'}`}
                     onKeyDown={handleKeyDown}
                     disabled={disabled}
                   />
