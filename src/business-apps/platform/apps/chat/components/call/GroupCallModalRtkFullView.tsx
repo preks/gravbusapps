@@ -74,6 +74,8 @@ export function GroupCallModalRtkFullView({ props: p, state }: GroupCallModalRtk
           data-testid={`${prefixDataTestId}-modal`}
           onPointerDownOutside={e => e.preventDefault()}
           onEscapeKeyDown={e => e.preventDefault()}
+          onOpenAutoFocus={e => e.preventDefault()}
+          onCloseAutoFocus={e => e.preventDefault()}
         >
           <style>{`
           [data-testid="${prefixDataTestId}-modal"] > button[data-radix-collection-item] {

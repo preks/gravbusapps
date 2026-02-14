@@ -88,3 +88,14 @@ export function getOptimalAspectRatio(
 
 /** Stable empty function for missing callbacks. */
 export const NOOP = () => {}
+
+/** Build a MediaStream from a RealtimeKit peer's audio/video tracks. */
+export function buildStreamFromPeer(
+  peer: { audioTrack?: MediaStreamTrack; videoTrack?: MediaStreamTrack } | null
+): MediaStream | null {
+  if (!peer) return null
+  const stream = new MediaStream()
+  if (peer.audioTrack) stream.addTrack(peer.audioTrack)
+  if (peer.videoTrack) stream.addTrack(peer.videoTrack)
+  return stream.getTracks().length > 0 ? stream : null
+}
