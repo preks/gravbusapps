@@ -1,5 +1,7 @@
 import { Loader2, FileText } from 'lucide-react'
 import { MarkdownWithChipsRenderer } from '@/common/components/markdown/MarkdownWithChipsRenderer'
+import { InlineEditableMarkdownBlock } from '../editing/InlineEditableMarkdownBlock'
+import { InlineEditableTitle } from '../editing/InlineEditableTitle'
 import type { DocumentContent } from '../../types/nexus.types'
 
 interface DocumentRendererProps {
@@ -7,6 +9,8 @@ interface DocumentRendererProps {
   isStreaming?: boolean
   streamContent?: string
   accessToken: string
+  editable?: boolean
+  onContentChange?: (updates: Partial<DocumentContent>) => void
   testId?: string
 }
 
@@ -15,9 +19,12 @@ export const DocumentRenderer = ({
   isStreaming = false,
   streamContent,
   accessToken,
+  editable = false,
+  onContentChange,
   testId = 'nexus-doc-renderer'
 }: DocumentRendererProps) => {
   const markdown = isStreaming && streamContent ? streamContent : content.markdown
+  const canEdit = editable && !isStreaming
 
   return (
     <div className="gba:max-w-3xl gba:mx-auto gba:px-8 gba:py-10" data-testid={testId}>
@@ -27,13 +34,32 @@ export const DocumentRenderer = ({
           <>
             {content.title && (
               <header className="gba:mb-8 gba:pb-6 gba:border-b gba:border-border">
-                <h1 className="gba:text-2xl gba:font-bold gba:text-foreground gba:tracking-tight gba:leading-tight">
-                  {content.title}
-                </h1>
+                {canEdit ? (
+                  <InlineEditableTitle
+                    value={content.title}
+                    onChange={title => onContentChange?.({ title })}
+                    as="h1"
+                    className="gba:text-2xl gba:font-bold gba:text-foreground gba:tracking-tight gba:leading-tight"
+                    testId={`${testId}-title`}
+                  />
+                ) : (
+                  <h1 className="gba:text-2xl gba:font-bold gba:text-foreground gba:tracking-tight gba:leading-tight">
+                    {content.title}
+                  </h1>
+                )}
               </header>
             )}
             <article className="gba:prose-sm gba:leading-relaxed">
-              <MarkdownWithChipsRenderer content={markdown} accessToken={accessToken} variant="default" />
+              {canEdit ? (
+                <InlineEditableMarkdownBlock
+                  value={content.markdown}
+                  onChange={md => onContentChange?.({ markdown: md })}
+                  accessToken={accessToken}
+                  testId={`${testId}-body`}
+                />
+              ) : (
+                <MarkdownWithChipsRenderer content={markdown} accessToken={accessToken} variant="default" />
+              )}
             </article>
           </>
         ) : (

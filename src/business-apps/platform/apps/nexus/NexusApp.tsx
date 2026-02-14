@@ -4,6 +4,7 @@ import { useNexusSocket } from './hooks/useNexusSocket'
 import { useNexusSessions } from './hooks/useNexusSessions'
 import { useArtifact } from './hooks/useArtifact'
 import { useSpaces } from '@/business-apps/platform/apps/spaces/hooks/useSpaces'
+import { useUserAvatar } from './hooks/useUserAvatar'
 import { NexusLayout } from './components/layout/NexusLayout'
 import { NexusSidebar } from './components/layout/NexusSidebar'
 import { NexusChat } from './components/chat/NexusChat'
@@ -26,6 +27,7 @@ export const NexusApp: React.FC<NexusAppProps> = ({ accessToken, userInfo }) => 
   const [prefillText, setPrefillText] = useState<string | null>(null)
   const [dataAccessEnabled, setDataAccessEnabled] = useState(false)
   const [webSearchEnabled, setWebSearchEnabled] = useState(false)
+  const [deepResearchEnabled, setDeepResearchEnabled] = useState(false)
   const [llmProvider, setLlmProvider] = useState<string | undefined>(() => {
     try {
       return window.localStorage.getItem('nexus-llm-provider') || undefined
@@ -58,11 +60,14 @@ export const NexusApp: React.FC<NexusAppProps> = ({ accessToken, userInfo }) => 
     artifactStreamContent,
     thinkingStatus,
     thinkingSources,
+    messageWebSources,
     createSession,
     joinSession,
     sendMessage,
     toggleDataAccess,
-    toggleWebSearch
+    toggleWebSearch,
+    toggleDeepResearch,
+    setActiveArtifact
   } = useNexusSocket({
     userId: currentUserId,
     accessToken: accessToken || ''
@@ -74,13 +79,16 @@ export const NexusApp: React.FC<NexusAppProps> = ({ accessToken, userInfo }) => 
     deleteSession: deleteSessionApi
   } = useNexusSessions({ accessToken: accessToken || '' })
 
-  const { saveArtifact } = useArtifact({ accessToken: accessToken || '' })
+  const { saveArtifact, updateArtifact } = useArtifact({ accessToken: accessToken || '' })
 
   const { spaces: rawSpaces } = useSpaces(accessToken, {
     includeMembers: false,
     includeContent: false
   })
   const spaces = rawSpaces.map(s => ({ id: s.id, name: s.name }))
+
+  // Fetch current user's avatar
+  const userAvatarUrl = useUserAvatar(userInfo?.employeeDetails?.employeeId, accessToken || '')
 
   // Sync dataAccessEnabled and webSearchEnabled from session whenever currentSession changes
   useEffect(() => {
@@ -89,6 +97,9 @@ export const NexusApp: React.FC<NexusAppProps> = ({ accessToken, userInfo }) => 
     }
     if (currentSession?.contextConfig?.webSearchEnabled != null) {
       setWebSearchEnabled(currentSession.contextConfig.webSearchEnabled)
+    }
+    if (currentSession?.contextConfig?.deepResearchEnabled != null) {
+      setDeepResearchEnabled(currentSession.contextConfig.deepResearchEnabled)
     }
   }, [currentSession])
 
@@ -109,10 +120,20 @@ export const NexusApp: React.FC<NexusAppProps> = ({ accessToken, userInfo }) => 
         spaceId: spaceId || undefined,
         llmProvider,
         dataAccessEnabled,
-        webSearchEnabled
+        webSearchEnabled,
+        deepResearchEnabled
       })
     }
-  }, [currentSession, sendMessage, scope, spaceId, llmProvider, dataAccessEnabled, webSearchEnabled])
+  }, [
+    currentSession,
+    sendMessage,
+    scope,
+    spaceId,
+    llmProvider,
+    dataAccessEnabled,
+    webSearchEnabled,
+    deepResearchEnabled
+  ])
 
   // Create session on first message if none exists
   const handleSend = useCallback(
@@ -127,10 +148,21 @@ export const NexusApp: React.FC<NexusAppProps> = ({ accessToken, userInfo }) => 
         spaceId: spaceId || undefined,
         llmProvider,
         dataAccessEnabled,
-        webSearchEnabled
+        webSearchEnabled,
+        deepResearchEnabled
       })
     },
-    [currentSession, createSession, sendMessage, scope, spaceId, llmProvider, dataAccessEnabled, webSearchEnabled]
+    [
+      currentSession,
+      createSession,
+      sendMessage,
+      scope,
+      spaceId,
+      llmProvider,
+      dataAccessEnabled,
+      webSearchEnabled,
+      deepResearchEnabled
+    ]
   )
 
   const handleNewSession = useCallback(() => {
@@ -148,6 +180,7 @@ export const NexusApp: React.FC<NexusAppProps> = ({ accessToken, userInfo }) => 
         setSpaceId(session.spaceId || null)
         setDataAccessEnabled(session.contextConfig?.dataAccessEnabled ?? false)
         setWebSearchEnabled(session.contextConfig?.webSearchEnabled ?? false)
+        setDeepResearchEnabled(session.contextConfig?.deepResearchEnabled ?? false)
       }
     },
     [joinSession, sessions]
@@ -175,6 +208,14 @@ export const NexusApp: React.FC<NexusAppProps> = ({ accessToken, userInfo }) => 
       toggleWebSearch(enabled)
     },
     [toggleWebSearch]
+  )
+
+  const handleDeepResearchToggle = useCallback(
+    (enabled: boolean) => {
+      setDeepResearchEnabled(enabled)
+      toggleDeepResearch(enabled)
+    },
+    [toggleDeepResearch]
   )
 
   // Open chat panel (no text)
@@ -233,8 +274,10 @@ export const NexusApp: React.FC<NexusAppProps> = ({ accessToken, userInfo }) => 
             streamingContent={streamingContent}
             thinkingStatus={thinkingStatus}
             thinkingSources={thinkingSources}
+            messageWebSources={messageWebSources}
             isConnected={isConnected}
             userName={userName}
+            userAvatarUrl={userAvatarUrl}
             accessToken={accessToken}
             scope={scope}
             spaceId={spaceId}
@@ -244,11 +287,13 @@ export const NexusApp: React.FC<NexusAppProps> = ({ accessToken, userInfo }) => 
             llmProvider={llmProvider}
             dataAccessEnabled={dataAccessEnabled}
             webSearchEnabled={webSearchEnabled}
+            deepResearchEnabled={deepResearchEnabled}
             prefillText={prefillText}
             onPrefillComplete={handlePrefillComplete}
             onLlmProviderChange={setLlmProvider}
             onDataAccessToggle={handleDataAccessToggle}
             onWebSearchToggle={handleWebSearchToggle}
+            onDeepResearchToggle={handleDeepResearchToggle}
             onSend={handleSend}
             onScopeChange={setScope}
             onSpaceChange={setSpaceId}
@@ -269,6 +314,8 @@ export const NexusApp: React.FC<NexusAppProps> = ({ accessToken, userInfo }) => 
             onOpenChat={handleOpenChat}
             onSuggestionClick={handleSuggestionClick}
             onSaveArtifact={handleSaveArtifact}
+            onUpdateArtifact={updateArtifact}
+            onSetActiveArtifact={setActiveArtifact}
           />
         }
       />

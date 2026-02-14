@@ -232,17 +232,6 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
     localStorage.setItem('slides-hub-sidebar-collapsed', String(isSidebarCollapsed))
   }, [isSidebarCollapsed])
 
-  // Store access token for API service
-  useEffect(() => {
-    if (accessToken) {
-      try {
-        localStorage.setItem('business-app-ide-access-token', accessToken)
-      } catch {
-        // ignore
-      }
-    }
-  }, [accessToken])
-
   /** Create new blank slide */
   const handleCreateNew = useCallback(async () => {
     const created = await createSlide({ title: 'Untitled Slide' })

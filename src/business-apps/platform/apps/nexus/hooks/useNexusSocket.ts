@@ -51,6 +51,9 @@ export const useNexusSocket = ({ userId, accessToken }: UseNexusSocketProps) => 
   const [thinkingStatus, setThinkingStatus] = useState<string | null>(null)
   const [thinkingSources, setThinkingSources] = useState<Array<{ title: string; url: string }>>([])
 
+  // Persisted web sources per assistant message (survives streaming → complete transition)
+  const [messageWebSources, setMessageWebSources] = useState<Record<string, Array<{ title: string; url: string }>>>({})
+
   const streamingContentRef = useRef('')
   const artifactStreamRef = useRef('')
   const pendingUserMessageRef = useRef<{
@@ -127,9 +130,9 @@ export const useNexusSocket = ({ userId, accessToken }: UseNexusSocketProps) => 
     newSocket.on('token', ({ token }: { token: string }) => {
       streamingContentRef.current += token
       setStreamingContent(streamingContentRef.current)
-      // Clear thinking status once actual content starts arriving
-      // Keep thinkingSources visible — they persist until response completes
-      setThinkingStatus(null)
+      // Don't clear thinking status here — deep research sends an initial
+      // token and then continues sending status updates for minutes.
+      // Status is cleared by the 'complete' event or overwritten by 'status' events.
     })
 
     newSocket.on('status', ({ status }: { status: string }) => {
@@ -137,16 +140,21 @@ export const useNexusSocket = ({ userId, accessToken }: UseNexusSocketProps) => 
     })
 
     newSocket.on('web-sources', ({ sources }: { sources: Array<{ title: string; url: string }> }) => {
-      setThinkingSources(sources)
+      // Accumulate sources progressively — each event may carry one or more new sources.
+      // Deduplicate by URL so repeated emissions don't create duplicates.
+      setThinkingSources(prev => {
+        const existingUrls = new Set(prev.map(s => s.url))
+        const newSources = sources.filter(s => !existingUrls.has(s.url))
+        return newSources.length > 0 ? [...prev, ...newSources] : prev
+      })
     })
 
     newSocket.on('artifact-start', (data: ArtifactStartEvent) => {
       setArtifactStreaming(true)
       artifactStreamRef.current = ''
       setArtifactStreamContent('')
-      // Clear thinking status once artifact generation actually begins
-      // Keep thinkingSources visible — they persist until response completes
-      setThinkingStatus(null)
+      // Don't clear thinking status — deep research sends artifact-start early
+      // and then continues researching for minutes with status updates.
 
       setActiveArtifact(prev => {
         // If we already have an artifact (refinement case), keep its content visible
@@ -218,20 +226,29 @@ export const useNexusSocket = ({ userId, accessToken }: UseNexusSocketProps) => 
     newSocket.on('complete', (data: NexusCompleteEvent) => {
       setIsStreaming(false)
       setThinkingStatus(null)
-      setThinkingSources([])
+      // Persist web sources for this assistant message before clearing
+      setThinkingSources(prev => {
+        if (prev.length > 0) {
+          setMessageWebSources(map => ({ ...map, [data.assistantMessage.id]: prev }))
+        }
+        return []
+      })
       streamingContentRef.current = ''
       setStreamingContent('')
 
+      // Capture tempId before setMessages — the ref may be null by the time
+      // React processes the state update callback (batched rendering).
+      const tempId = pendingUserMessageRef.current?.tempId
+      pendingUserMessageRef.current = null
+
       setMessages(prev => {
-        const filtered = prev.filter(m => m.id !== pendingUserMessageRef.current?.tempId)
+        const filtered = prev.filter(m => m.id !== tempId)
         return [...filtered, data.userMessage, data.assistantMessage]
       })
 
       if (data.artifact) {
         setActiveArtifact(data.artifact)
       }
-
-      pendingUserMessageRef.current = null
     })
 
     newSocket.on('session-created', ({ session }: { session: NexusSession }) => {
@@ -262,6 +279,7 @@ export const useNexusSocket = ({ userId, accessToken }: UseNexusSocketProps) => 
     (opts?: { scope?: 'all' | 'space' | 'none'; spaceId?: string; title?: string; llmProvider?: string }) => {
       if (!socket) return
       setMessages([])
+      setMessageWebSources({})
       setActiveArtifact(null)
       setArtifactStreamContent('')
       socket.emit('create-session', opts || {})
@@ -273,6 +291,7 @@ export const useNexusSocket = ({ userId, accessToken }: UseNexusSocketProps) => 
     async (sessionId: string) => {
       if (!socket) return
       setMessages([])
+      setMessageWebSources({})
       setActiveArtifact(null)
       setArtifactStreamContent('')
 
@@ -319,6 +338,17 @@ export const useNexusSocket = ({ userId, accessToken }: UseNexusSocketProps) => 
     [socket, currentSession]
   )
 
+  const toggleDeepResearch = useCallback(
+    (enabled: boolean) => {
+      if (!socket || !currentSession) return
+      socket.emit('toggle-deep-research', {
+        sessionId: currentSession.id,
+        enabled
+      })
+    },
+    [socket, currentSession]
+  )
+
   const sendMessage = useCallback(
     (
       message: string,
@@ -328,6 +358,7 @@ export const useNexusSocket = ({ userId, accessToken }: UseNexusSocketProps) => 
         llmProvider?: string
         dataAccessEnabled?: boolean
         webSearchEnabled?: boolean
+        deepResearchEnabled?: boolean
       }
     ) => {
       if (!socket || !currentSession) return
@@ -335,6 +366,8 @@ export const useNexusSocket = ({ userId, accessToken }: UseNexusSocketProps) => 
       setIsStreaming(true)
       streamingContentRef.current = ''
       setStreamingContent('')
+      setThinkingStatus(null)
+      setThinkingSources([])
       setError(null)
 
       // Optimistic user message
@@ -372,6 +405,7 @@ export const useNexusSocket = ({ userId, accessToken }: UseNexusSocketProps) => 
     streamingContent,
     thinkingStatus,
     thinkingSources,
+    messageWebSources,
     error,
     activeArtifact,
     artifactStreaming,
@@ -382,6 +416,7 @@ export const useNexusSocket = ({ userId, accessToken }: UseNexusSocketProps) => 
     sendMessage,
     toggleDataAccess,
     toggleWebSearch,
+    toggleDeepResearch,
     setCurrentSession,
     setActiveArtifact
   }

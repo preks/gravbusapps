@@ -27,6 +27,21 @@ export const NexusChatInput = ({
   const [value, setValue] = useState('')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const typingRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const getTextareaElement = useCallback(() => {
+    const el = textareaRef.current
+    if (!el) return null
+    return el instanceof HTMLTextAreaElement ? el : ((el as HTMLElement).querySelector?.('textarea') ?? null)
+  }, [])
+
+  const syncTextareaHeight = useCallback(() => {
+    const textarea = getTextareaElement()
+    if (!textarea) return
+    // Keep single-line size as baseline, then grow only when content requires it.
+    textarea.style.height = '36px'
+    if (textarea.scrollHeight > 36) {
+      textarea.style.height = `${Math.min(textarea.scrollHeight, 160)}px`
+    }
+  }, [getTextareaElement])
 
   // Typing animation when prefillText changes
   useEffect(() => {
@@ -67,10 +82,11 @@ export const NexusChatInput = ({
     setValue('')
 
     // Reset textarea height
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto'
+    const textarea = getTextareaElement()
+    if (textarea) {
+      textarea.style.height = '36px'
     }
-  }, [value, disabled, onSend])
+  }, [value, disabled, onSend, getTextareaElement])
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -92,12 +108,38 @@ export const NexusChatInput = ({
 
   const handleInput = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setValue(e.target.value)
-
-    // Auto-resize
-    const textarea = e.target
-    textarea.style.height = 'auto'
-    textarea.style.height = `${Math.min(textarea.scrollHeight, 160)}px`
   }, [])
+
+  // Auto-resize textarea when value changes (after layout so scrollHeight is correct)
+  useEffect(() => {
+    syncTextareaHeight()
+  }, [value, syncTextareaHeight])
+
+  // Some internal Textarea behaviors run after mount/open; enforce compact baseline again.
+  useEffect(() => {
+    const rafId = requestAnimationFrame(syncTextareaHeight)
+    const timeoutId = setTimeout(syncTextareaHeight, 120)
+    return () => {
+      cancelAnimationFrame(rafId)
+      clearTimeout(timeoutId)
+    }
+  }, [syncTextareaHeight])
+
+  // When the panel opens, container width animates from 0 → N.
+  // Re-sync on resize so the Textarea doesn't jump to a tall default until typing.
+  useEffect(() => {
+    const textarea = getTextareaElement()
+    const target = textarea?.parentElement ?? textarea
+    if (!target) return
+
+    if (typeof ResizeObserver === 'undefined') return
+
+    const observer = new ResizeObserver(() => {
+      syncTextareaHeight()
+    })
+    observer.observe(target)
+    return () => observer.disconnect()
+  }, [getTextareaElement, syncTextareaHeight])
 
   return (
     <div className="gba:px-3 gba:pb-3 gba:pt-2" data-testid={testId}>
@@ -111,7 +153,7 @@ export const NexusChatInput = ({
             onKeyDown={handleKeyDown}
             placeholder={placeholder}
             disabled={disabled}
-            className="gba:min-h-[36px] gba:max-h-[160px] gba:resize-none gba:w-full gba:border-0 gba:bg-transparent gba:text-sm gba:placeholder:text-muted-foreground/60 gba:p-0"
+            className="gba:h-9 gba:min-h-9 gba:max-h-[160px] gba:resize-none gba:overflow-y-auto gba:w-full gba:border-0 gba:bg-transparent gba:text-sm gba:placeholder:text-muted-foreground/60 gba:px-3 gba:py-2 gba:focus-visible:ring-0 gba:focus-visible:ring-offset-0 gba:block"
             rows={1}
             data-testid={`${testId}-textarea`}
           />

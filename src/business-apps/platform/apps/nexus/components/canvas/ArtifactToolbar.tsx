@@ -1,5 +1,5 @@
 import { Button, Badge } from '@newwork/nw-design-system'
-import { Save, Copy, FileText, BarChart3, Presentation, Loader2 } from 'lucide-react'
+import { Save, Copy, FileText, BarChart3, Presentation, Loader2, Check, CloudUpload } from 'lucide-react'
 import type { NexusArtifact, ArtifactType } from '../../types/nexus.types'
 
 interface ArtifactToolbarProps {
@@ -7,6 +7,9 @@ interface ArtifactToolbarProps {
   onSave: (targetType: 'document' | 'slides') => void
   onCopy: () => void
   isSaving?: boolean
+  saveSuccess?: boolean
+  isAutoSaving?: boolean
+  hasSavedDocument?: boolean
   testId?: string
 }
 
@@ -27,9 +30,41 @@ export const ArtifactToolbar = ({
   onSave,
   onCopy,
   isSaving = false,
+  saveSuccess = false,
+  isAutoSaving = false,
+  hasSavedDocument = false,
   testId = 'nexus-artifact-toolbar'
 }: ArtifactToolbarProps) => {
   const Icon = typeIcons[artifact.type]
+  const isComplete = artifact.status === 'complete'
+
+  // Determine save button label and icon
+  const getSaveButtonContent = () => {
+    if (isSaving) {
+      return (
+        <>
+          <Loader2 className="gba:h-3.5 gba:w-3.5 gba:animate-spin" />
+          <span className="gba:text-xs gba:font-medium">Saving...</span>
+        </>
+      )
+    }
+    if (saveSuccess) {
+      return (
+        <>
+          <Check className="gba:h-3.5 gba:w-3.5" />
+          <span className="gba:text-xs gba:font-medium">Saved</span>
+        </>
+      )
+    }
+    return (
+      <>
+        <Save className="gba:h-3.5 gba:w-3.5" />
+        <span className="gba:text-xs gba:font-medium">
+          {hasSavedDocument ? 'Update' : 'Save to'} {artifact.type === 'slides' ? 'Slides' : 'Documents'}
+        </span>
+      </>
+    )
+  }
 
   return (
     <div
@@ -42,10 +77,7 @@ export const ArtifactToolbar = ({
           <Icon className="gba:h-3.5 gba:w-3.5 gba:text-primary" />
         </div>
         <span className="gba:text-sm gba:font-semibold gba:truncate gba:text-foreground">{artifact.title}</span>
-        <Badge
-          variant={artifact.status === 'complete' ? 'secondary' : 'outline'}
-          className="gba:text-[10px] gba:flex-shrink-0"
-        >
+        <Badge variant={isComplete ? 'secondary' : 'outline'} className="gba:text-[10px] gba:flex-shrink-0">
           {artifact.status === 'generating' ? (
             <span className="gba:flex gba:items-center gba:gap-1">
               <Loader2 className="gba:h-3 gba:w-3 gba:animate-spin" />
@@ -55,10 +87,29 @@ export const ArtifactToolbar = ({
             typeLabels[artifact.type]
           )}
         </Badge>
+
+        {/* Persistent "Saved" badge when a document has been created */}
+        {hasSavedDocument && isComplete && (
+          <Badge variant="success" className="gba:text-[10px] gba:flex-shrink-0" data-testid={`${testId}-saved-badge`}>
+            <Check className="gba:h-2.5 gba:w-2.5 gba:mr-0.5" />
+            Saved
+          </Badge>
+        )}
+
+        {/* Autosave indicator */}
+        {isAutoSaving && (
+          <span
+            className="gba:flex gba:items-center gba:gap-1 gba:text-[10px] gba:text-muted-foreground gba:flex-shrink-0"
+            data-testid={`${testId}-autosave`}
+          >
+            <CloudUpload className="gba:h-3 gba:w-3 gba:animate-pulse" />
+            Saving...
+          </span>
+        )}
       </div>
 
       {/* Actions */}
-      {artifact.status === 'complete' && (
+      {isComplete && (
         <div className="gba:flex gba:items-center gba:gap-1.5">
           <Button
             variant="ghost"
@@ -73,19 +124,14 @@ export const ArtifactToolbar = ({
 
           <Button
             size="sm"
-            className="gba:h-8 gba:gap-1.5 gba:rounded-lg"
+            className={`gba:h-8 gba:gap-1.5 gba:rounded-lg gba:transition-all gba:duration-300 ${
+              saveSuccess ? 'gba:bg-success gba:text-success-foreground gba:hover:bg-success' : ''
+            }`}
             onClick={() => onSave(artifact.type === 'slides' ? 'slides' : 'document')}
             disabled={isSaving}
             data-testid={`${testId}-save`}
           >
-            {isSaving ? (
-              <Loader2 className="gba:h-3.5 gba:w-3.5 gba:animate-spin" />
-            ) : (
-              <Save className="gba:h-3.5 gba:w-3.5" />
-            )}
-            <span className="gba:text-xs gba:font-medium">
-              Save to {artifact.type === 'slides' ? 'Slides' : 'Documents'}
-            </span>
+            {getSaveButtonContent()}
           </Button>
         </div>
       )}

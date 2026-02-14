@@ -1,5 +1,5 @@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@newwork/nw-design-system'
-import { Globe, FolderOpen, Sparkles } from 'lucide-react'
+import { FileSearch, FileX, FolderOpen } from 'lucide-react'
 
 interface Space {
   id: string
@@ -34,9 +34,9 @@ export const NexusScopeSelector = ({
   }
 
   const getIcon = () => {
-    if (scope === 'none') return <Sparkles className="gba:h-3 gba:w-3" />
-    if (scope === 'space') return <FolderOpen className="gba:h-3 gba:w-3" />
-    return <Globe className="gba:h-3 gba:w-3" />
+    if (scope === 'none') return <FileX className="gba:h-3.5 gba:w-3.5" />
+    if (scope === 'space') return <FolderOpen className="gba:h-3.5 gba:w-3.5" />
+    return <FileSearch className="gba:h-3.5 gba:w-3.5" />
   }
 
   const handleSelect = (value: string) => {
@@ -56,20 +56,20 @@ export const NexusScopeSelector = ({
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
-          className="gba:flex gba:items-center gba:gap-1.5 gba:h-7 gba:px-2.5 gba:rounded-full gba:text-[11px] gba:font-semibold gba:transition-all gba:duration-200 gba:cursor-pointer gba:outline-none gba:bg-muted gba:text-muted-foreground gba:hover:bg-accent"
+          className="gba:flex gba:items-center gba:justify-center gba:h-7 gba:w-7 gba:rounded-full gba:text-[11px] gba:font-semibold gba:transition-all gba:duration-200 gba:cursor-pointer gba:outline-none gba:bg-muted gba:text-muted-foreground gba:hover:bg-accent"
           data-testid={`${testId}-trigger`}
+          title={getLabel()}
         >
           {getIcon()}
-          {getLabel()}
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start">
         <DropdownMenuItem onClick={() => handleSelect('none')} data-testid={`${testId}-none`}>
-          <Sparkles className="gba:h-3.5 gba:w-3.5 gba:mr-2 gba:text-primary" />
+          <FileX className="gba:h-3.5 gba:w-3.5 gba:mr-2 gba:text-muted-foreground" />
           None {scope === 'none' ? '(active)' : ''}
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => handleSelect('all')} data-testid={`${testId}-all`}>
-          <Globe className="gba:h-3.5 gba:w-3.5 gba:mr-2 gba:text-muted-foreground" />
+          <FileSearch className="gba:h-3.5 gba:w-3.5 gba:mr-2 gba:text-muted-foreground" />
           All my content {scope === 'all' ? '(active)' : ''}
         </DropdownMenuItem>
         {spaces.map(space => (

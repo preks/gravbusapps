@@ -87,42 +87,12 @@ const debugLog = (...args: unknown[]) => {
   }
 }
 
-// Get auth token - check multiple storage locations
-const getAuthToken = (): string | null => {
-  try {
-    // First check the IDE's storage key (Business App IDE)
-    const ideToken = localStorage.getItem('business-app-ide-access-token')
-    if (ideToken) return ideToken
-
-    // Check keycloak token format
-    const authData = localStorage.getItem('keycloak-token')
-    if (authData) {
-      try {
-        const parsed = JSON.parse(authData)
-        return parsed.token || parsed.access_token || null
-      } catch {
-        return authData
-      }
-    }
-
-    // Check session storage
-    const sessionToken = sessionStorage.getItem('auth_token')
-    if (sessionToken) return sessionToken
-
-    // Check window global
-    if (typeof window !== 'undefined' && (window as unknown as { authToken?: string }).authToken) {
-      return (window as unknown as { authToken: string }).authToken
-    }
-
-    return null
-  } catch {
-    return null
-  }
-}
+/** In-memory access token – set once by the hub/hook, read on every request. */
+let currentAccessToken: string | null = null
 
 // API request helper
 async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  const token = getAuthToken()
+  const token = currentAccessToken
   const apiUrl = getOrInitApiUrl()
 
   // Debug-only request logging
@@ -265,6 +235,11 @@ function buildNoteTree(notes: Note[], depth = 0): NoteTreeNode[] {
  * Note API Service
  */
 export const NoteApiService = {
+  /** Store the access token in memory for all subsequent API requests. */
+  setAccessToken(token: string | null) {
+    currentAccessToken = token
+  },
+
   // ============ Notes CRUD ============
 
   /**

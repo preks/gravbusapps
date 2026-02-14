@@ -1,9 +1,13 @@
-import { Card, CardContent, Separator } from '@newwork/nw-design-system'
-import { Loader2, Lightbulb, TrendingUp, BarChart3, Calendar, FileText, Sparkles } from 'lucide-react'
+import { Separator } from '@newwork/nw-design-system'
+import { Loader2, TrendingUp, BarChart3, Calendar, Sparkles } from 'lucide-react'
 import { MarkdownWithChipsRenderer } from '@/common/components/markdown/MarkdownWithChipsRenderer'
+import { InlineEditableMarkdownBlock } from '../editing/InlineEditableMarkdownBlock'
+import { InlineEditableTitle } from '../editing/InlineEditableTitle'
 import { AnalysisKpiCard } from './AnalysisKpiCard'
 import { AnalysisChart } from './AnalysisChart'
 import { AnalysisTable } from './AnalysisTable'
+import { InsightGrid } from './AnalysisInsightGrid'
+import { AnalysisSectionRenderer } from './AnalysisSectionRenderer'
 import type { AnalysisContent, AnalysisSection } from '../../types/nexus.types'
 
 interface AnalysisRendererProps {
@@ -11,123 +15,10 @@ interface AnalysisRendererProps {
   title?: string
   isStreaming?: boolean
   accessToken?: string
+  editable?: boolean
+  onTitleChange?: (title: string) => void
+  onContentChange?: (updates: Partial<AnalysisContent>) => void
   testId?: string
-}
-
-const SectionRenderer = ({
-  section,
-  index,
-  accessToken,
-  testId
-}: {
-  section: AnalysisSection
-  index: number
-  accessToken: string
-  testId: string
-}) => {
-  if (section.type === 'narrative' && section.content) {
-    return (
-      <section data-testid={`${testId}-section-${index}`} className="gba:space-y-3">
-        {section.title && (
-          <div className="gba:flex gba:items-center gba:gap-2">
-            <div className="gba:h-6 gba:w-6 gba:rounded-md gba:bg-primary/10 gba:flex gba:items-center gba:justify-center gba:flex-shrink-0">
-              <FileText className="gba:h-3 gba:w-3 gba:text-primary" />
-            </div>
-            <h3 className="gba:text-base gba:font-semibold gba:text-foreground">{section.title}</h3>
-          </div>
-        )}
-        <div className="gba:max-w-4xl gba:prose-sm gba:pl-8">
-          <MarkdownWithChipsRenderer content={section.content} accessToken={accessToken} variant="default" />
-        </div>
-      </section>
-    )
-  }
-
-  if (section.type === 'chart' && section.chart) {
-    return (
-      <section data-testid={`${testId}-section-${index}`}>
-        <AnalysisChart chart={section.chart} testId={`${testId}-section-chart-${index}`} />
-      </section>
-    )
-  }
-
-  if (section.type === 'table' && section.table) {
-    return (
-      <section data-testid={`${testId}-section-${index}`}>
-        <AnalysisTable table={section.table} testId={`${testId}-section-table-${index}`} />
-      </section>
-    )
-  }
-
-  return null
-}
-
-/**
- * Determine grid columns based on insight count:
- * 1 → single centered card at 50% width
- * divisible by 3 → 3 columns
- * everything else → 2 columns
- */
-const getInsightGridClasses = (count: number): string => {
-  if (count === 1) return 'gba:grid-cols-1 gba:max-w-[50%] gba:mx-auto'
-  if (count % 3 === 0) return 'gba:grid-cols-1 gba:md:grid-cols-3'
-  return 'gba:grid-cols-1 gba:md:grid-cols-2'
-}
-
-/**
- * Extract a short title from insight text:
- * 1. First **bold phrase** found in the text
- * 2. Otherwise, first sentence (truncated to 60 chars)
- */
-const extractInsightTitle = (text: string): string => {
-  const boldMatch = text.match(/\*\*([^*]+)\*\*/)
-  if (boldMatch) return boldMatch[1].slice(0, 60)
-  const sentenceEnd = text.search(/[.!?]/)
-  if (sentenceEnd > 0 && sentenceEnd <= 80) return text.slice(0, sentenceEnd)
-  return text.slice(0, 60) + (text.length > 60 ? '…' : '')
-}
-
-const insightIcons = [Lightbulb, TrendingUp, BarChart3, Calendar, Lightbulb, TrendingUp]
-
-const InsightGrid = ({
-  insights,
-  accessToken,
-  testId
-}: {
-  insights: string[]
-  accessToken: string
-  testId: string
-}) => {
-  const gridClasses = getInsightGridClasses(insights.length)
-
-  return (
-    <div className={`gba:grid gba:gap-4 ${gridClasses}`}>
-      {insights.map((insight, i) => {
-        const IconComponent = insightIcons[i % insightIcons.length]
-        return (
-          <Card
-            key={i}
-            className="gba:bg-card-decorative gba:border-0 gba:overflow-hidden"
-            data-testid={`${testId}-insight-${i}`}
-          >
-            <CardContent className="gba:p-5 gba:space-y-3">
-              <div className="gba:flex gba:items-center gba:gap-2.5">
-                <div className="gba:flex gba:items-center gba:justify-center gba:w-8 gba:h-8 gba:rounded-lg gba:bg-white/15 gba:flex-shrink-0">
-                  <IconComponent className="gba:h-4 gba:w-4 gba:text-white" />
-                </div>
-                <span className="gba:text-sm gba:font-bold gba:text-white gba:leading-snug">
-                  {extractInsightTitle(insight)}
-                </span>
-              </div>
-              <div className="gba:text-[13px] gba:leading-relaxed gba:[&_p]:text-white/90 gba:[&_strong]:text-white gba:[&_li]:text-white/90 gba:[&_em]:text-white/80 gba:[&_a]:text-white gba:[&_a]:underline gba:[&_code]:text-white/80 gba:[&_h1]:text-white gba:[&_h2]:text-white gba:[&_h3]:text-white gba:[&_blockquote]:text-white/80">
-                <MarkdownWithChipsRenderer content={insight} accessToken={accessToken} variant="default" />
-              </div>
-            </CardContent>
-          </Card>
-        )
-      })}
-    </div>
-  )
 }
 
 export const AnalysisRenderer = ({
@@ -135,14 +26,17 @@ export const AnalysisRenderer = ({
   title,
   isStreaming = false,
   accessToken = '',
+  editable = false,
+  onTitleChange,
+  onContentChange,
   testId = 'nexus-analysis'
 }: AnalysisRendererProps) => {
   const hasSections = content.sections && content.sections.length > 0
   const hasLegacyContent = content.charts?.length > 0 || content.tables?.length > 0
   const hasContent =
     content.summary || content.kpis?.length > 0 || content.insights?.length > 0 || hasSections || hasLegacyContent
+  const canEdit = editable && !isStreaming
 
-  // Compact waiting state while first content arrives
   if (!hasContent && isStreaming) {
     return (
       <div
@@ -158,11 +52,22 @@ export const AnalysisRenderer = ({
     )
   }
 
-  const reportDate = new Date().toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  })
+  const reportDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+
+  const handleInsightChange = (index: number, value: string) => {
+    if (!content.insights) return
+    const updated = [...content.insights]
+    updated[index] = value
+    onContentChange?.({ insights: updated })
+  }
+
+  const handleSectionChange = (sectionIndex: number, field: 'title' | 'content', value: string) => {
+    if (!content.sections) return
+    const updated = content.sections.map((s: AnalysisSection, i: number) =>
+      i === sectionIndex ? { ...s, [field]: value } : s
+    )
+    onContentChange?.({ sections: updated })
+  }
 
   return (
     <div className="gba:max-w-5xl gba:mx-auto gba:px-8 gba:py-10 gba:space-y-8" data-testid={testId}>
@@ -173,9 +78,19 @@ export const AnalysisRenderer = ({
             <BarChart3 className="gba:h-3.5 gba:w-3.5" />
             <span className="gba:text-[11px] gba:font-semibold gba:uppercase gba:tracking-widest">Analysis Report</span>
           </div>
-          <h1 className="gba:text-2xl gba:font-bold gba:text-foreground gba:tracking-tight gba:max-w-3xl gba:mx-auto gba:leading-tight">
-            {title}
-          </h1>
+          {canEdit ? (
+            <InlineEditableTitle
+              value={title}
+              onChange={val => onTitleChange?.(val)}
+              as="h1"
+              className="gba:text-2xl gba:font-bold gba:text-foreground gba:tracking-tight gba:max-w-3xl gba:mx-auto gba:leading-tight gba:text-center"
+              testId={`${testId}-title`}
+            />
+          ) : (
+            <h1 className="gba:text-2xl gba:font-bold gba:text-foreground gba:tracking-tight gba:max-w-3xl gba:mx-auto gba:leading-tight">
+              {title}
+            </h1>
+          )}
           <div className="gba:flex gba:items-center gba:justify-center gba:gap-1.5 gba:text-muted-foreground">
             <Calendar className="gba:h-3 gba:w-3" />
             <span className="gba:text-[11px]">{reportDate}</span>
@@ -189,13 +104,22 @@ export const AnalysisRenderer = ({
         <section data-testid={`${testId}-summary`}>
           <div className="gba:max-w-4xl gba:mx-auto gba:bg-card gba:border gba:border-border gba:rounded-2xl gba:px-8 gba:py-6 gba:ring-1 gba:ring-border/30">
             <div className="gba:prose-sm gba:leading-relaxed">
-              <MarkdownWithChipsRenderer content={content.summary} accessToken={accessToken} variant="default" />
+              {canEdit ? (
+                <InlineEditableMarkdownBlock
+                  value={content.summary}
+                  onChange={val => onContentChange?.({ summary: val })}
+                  accessToken={accessToken}
+                  testId={`${testId}-summary-edit`}
+                />
+              ) : (
+                <MarkdownWithChipsRenderer content={content.summary} accessToken={accessToken} variant="default" />
+              )}
             </div>
           </div>
         </section>
       )}
 
-      {/* Key Insights — decorative cards */}
+      {/* Key Insights */}
       {content.insights && content.insights.length > 0 && (
         <section data-testid={`${testId}-insights`}>
           <div className="gba:flex gba:items-center gba:gap-2 gba:mb-5">
@@ -204,7 +128,13 @@ export const AnalysisRenderer = ({
             </div>
             <h3 className="gba:text-sm gba:font-bold gba:text-foreground">Key Insights</h3>
           </div>
-          <InsightGrid insights={content.insights} accessToken={accessToken} testId={testId} />
+          <InsightGrid
+            insights={content.insights}
+            accessToken={accessToken}
+            editable={canEdit}
+            onInsightChange={handleInsightChange}
+            testId={testId}
+          />
         </section>
       )}
 
@@ -226,13 +156,21 @@ export const AnalysisRenderer = ({
 
       <Separator />
 
-      {/* Dynamic Sections (mixed narrative + charts + tables) */}
+      {/* Dynamic Sections */}
       {hasSections &&
         content.sections!.map((section, i) => (
-          <SectionRenderer key={i} section={section} index={i} accessToken={accessToken} testId={testId} />
+          <AnalysisSectionRenderer
+            key={i}
+            section={section}
+            index={i}
+            accessToken={accessToken}
+            editable={canEdit}
+            onSectionChange={(field, value) => handleSectionChange(i, field, value)}
+            testId={testId}
+          />
         ))}
 
-      {/* Legacy fallback: top-level charts and tables */}
+      {/* Legacy fallback */}
       {!hasSections && hasLegacyContent && (
         <>
           {content.charts && content.charts.length > 0 && (

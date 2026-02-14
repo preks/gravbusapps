@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useCallback } from 'react'
 import {
   Button,
   DropdownMenu,
@@ -6,7 +6,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger
 } from '@newwork/nw-design-system'
-import { History, Plus, Sparkles, Zap, Brain, Database, MessageSquare, Search } from 'lucide-react'
+import { History, Plus, Sparkles, Zap, Brain, Database, MessageSquare, Globe, FlaskConical } from 'lucide-react'
 import { NexusChatMessage } from './NexusChatMessage'
 import { NexusChatInput } from './NexusChatInput'
 import { NexusScopeSelector } from './NexusScopeSelector'
@@ -23,8 +23,10 @@ interface NexusChatProps {
   streamingContent: string
   thinkingStatus?: string | null
   thinkingSources?: Array<{ title: string; url: string }>
+  messageWebSources?: Record<string, Array<{ title: string; url: string }>>
   isConnected: boolean
   userName?: string
+  userAvatarUrl?: string
   accessToken: string
   scope: 'all' | 'space' | 'none'
   spaceId: string | null
@@ -34,11 +36,13 @@ interface NexusChatProps {
   llmProvider?: string
   dataAccessEnabled: boolean
   webSearchEnabled: boolean
+  deepResearchEnabled: boolean
   prefillText?: string | null
   onPrefillComplete?: () => void
   onLlmProviderChange: (provider?: string) => void
   onDataAccessToggle: (enabled: boolean) => void
   onWebSearchToggle: (enabled: boolean) => void
+  onDeepResearchToggle: (enabled: boolean) => void
   onSend: (message: string) => void
   onScopeChange: (scope: 'all' | 'space' | 'none') => void
   onSpaceChange: (spaceId: string | null) => void
@@ -53,8 +57,10 @@ export const NexusChat = ({
   streamingContent,
   thinkingStatus,
   thinkingSources,
+  messageWebSources,
   isConnected,
   userName,
+  userAvatarUrl,
   accessToken,
   scope,
   spaceId,
@@ -64,11 +70,13 @@ export const NexusChat = ({
   llmProvider,
   dataAccessEnabled,
   webSearchEnabled,
+  deepResearchEnabled,
   prefillText,
   onPrefillComplete,
   onLlmProviderChange,
   onDataAccessToggle,
   onWebSearchToggle,
+  onDeepResearchToggle,
   onSend,
   onScopeChange,
   onSpaceChange,
@@ -77,11 +85,33 @@ export const NexusChat = ({
   testId = 'nexus-chat'
 }: NexusChatProps) => {
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const userScrolledUpRef = useRef(false)
 
-  // Auto-scroll on new messages
+  // Track whether the user has scrolled away from the bottom
+  const handleScroll = useCallback(() => {
+    const el = scrollContainerRef.current
+    if (!el) return
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight
+    userScrolledUpRef.current = distanceFromBottom > 80
+  }, [])
+
+  // Auto-scroll only when user is near bottom (ChatGPT behaviour)
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    if (!userScrolledUpRef.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }
   }, [messages, streamingContent])
+
+  // Always scroll to bottom when a new message is sent (messages array grows)
+  const prevMessageCountRef = useRef(messages.length)
+  useEffect(() => {
+    if (messages.length > prevMessageCountRef.current) {
+      userScrolledUpRef.current = false
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }
+    prevMessageCountRef.current = messages.length
+  }, [messages.length])
 
   return (
     <div className="gba:flex gba:flex-col gba:h-full" data-testid={testId}>
@@ -113,7 +143,12 @@ export const NexusChat = ({
       </div>
 
       {/* Messages */}
-      <div className="gba:flex-1 gba:overflow-y-auto gba:px-4 gba:py-4" data-testid={`${testId}-messages`}>
+      <div
+        ref={scrollContainerRef}
+        onScroll={handleScroll}
+        className="gba:flex-1 gba:overflow-y-auto gba:px-4 gba:py-4"
+        data-testid={`${testId}-messages`}
+      >
         {messages.length === 0 && !isStreaming && (
           <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-full gba:text-center gba:space-y-5">
             <div className="gba:relative">
@@ -138,10 +173,12 @@ export const NexusChat = ({
             key={message.id}
             message={message}
             userName={userName}
+            userAvatarUrl={userAvatarUrl}
             accessToken={accessToken}
             artifactType={
               message.artifactId && activeArtifact?.id === message.artifactId ? activeArtifact.type : undefined
             }
+            thinkingSources={messageWebSources?.[message.id]}
           />
         ))}
 
@@ -174,28 +211,23 @@ export const NexusChat = ({
         onPrefillComplete={onPrefillComplete}
         toolbar={
           <>
-            {/* Content Scope pill */}
-            <NexusScopeSelector
-              scope={scope}
-              spaceId={spaceId}
-              spaces={spaces}
-              onScopeChange={onScopeChange}
-              onSpaceChange={onSpaceChange}
-            />
-
-            {/* LLM Provider pill */}
+            {/* LLM Provider pill — first */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
-                  className={`gba:flex gba:items-center gba:gap-1.5 gba:h-7 gba:px-2.5 gba:rounded-full gba:text-[11px] gba:font-semibold gba:transition-all gba:duration-200 gba:cursor-pointer gba:outline-none ${
+                  className={`gba:flex gba:items-center gba:justify-center gba:h-7 gba:w-7 gba:rounded-full gba:text-[11px] gba:font-semibold gba:transition-all gba:duration-200 gba:cursor-pointer gba:outline-none ${
                     llmProvider === 'groq'
                       ? 'gba:bg-warning-secondary gba:text-warning-secondary-foreground'
-                      : 'gba:bg-info-secondary gba:text-info-secondary-foreground'
+                      : 'gba:bg-info-secondary gba:text-info-secondary-foreground gba:hover:opacity-90'
                   }`}
                   data-testid={`${testId}-llm-toggle`}
+                  title={llmProvider === 'groq' ? 'Fast mode' : 'Smart mode'}
                 >
-                  {llmProvider === 'groq' ? <Zap className="gba:h-3 gba:w-3" /> : <Brain className="gba:h-3 gba:w-3" />}
-                  {llmProvider === 'groq' ? 'Fast' : 'Smart'}
+                  {llmProvider === 'groq' ? (
+                    <Zap className="gba:h-3.5 gba:w-3.5" />
+                  ) : (
+                    <Brain className="gba:h-3.5 gba:w-3.5" />
+                  )}
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start">
@@ -213,32 +245,58 @@ export const NexusChat = ({
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {/* Data Access pill */}
+            {/* Content Scope pill */}
+            <NexusScopeSelector
+              scope={scope}
+              spaceId={spaceId}
+              spaces={spaces}
+              onScopeChange={onScopeChange}
+              onSpaceChange={onSpaceChange}
+            />
+
+            {/* Data Access pill — icon only when off, icon + label when on */}
             <button
-              className={`gba:flex gba:items-center gba:gap-1.5 gba:h-7 gba:px-2.5 gba:rounded-full gba:text-[11px] gba:font-semibold gba:transition-all gba:duration-200 gba:cursor-pointer gba:outline-none ${
+              className={`gba:flex gba:items-center gba:justify-center gba:gap-1.5 gba:h-7 gba:rounded-full gba:text-[11px] gba:font-semibold gba:transition-all gba:duration-200 gba:cursor-pointer gba:outline-none ${
                 dataAccessEnabled
-                  ? 'gba:bg-success-secondary gba:text-success-secondary-foreground'
-                  : 'gba:bg-muted gba:text-muted-foreground gba:hover:bg-accent'
+                  ? 'gba:px-2.5 gba:bg-success-secondary gba:text-success-secondary-foreground'
+                  : 'gba:w-7 gba:bg-muted gba:text-muted-foreground gba:hover:bg-accent'
               }`}
               onClick={() => onDataAccessToggle(!dataAccessEnabled)}
               data-testid={`${testId}-data-access-toggle`}
+              title="Data access"
             >
-              <Database className="gba:h-3 gba:w-3" />
-              Data
+              <Database className="gba:h-3.5 gba:w-3.5 gba:flex-shrink-0" />
+              {dataAccessEnabled && <span>Data</span>}
             </button>
 
-            {/* Web Search pill */}
+            {/* Web Search pill — icon only when off, icon + label when on */}
             <button
-              className={`gba:flex gba:items-center gba:gap-1.5 gba:h-7 gba:px-2.5 gba:rounded-full gba:text-[11px] gba:font-semibold gba:transition-all gba:duration-200 gba:cursor-pointer gba:outline-none ${
+              className={`gba:flex gba:items-center gba:justify-center gba:gap-1.5 gba:h-7 gba:rounded-full gba:text-[11px] gba:font-semibold gba:transition-all gba:duration-200 gba:cursor-pointer gba:outline-none ${
                 webSearchEnabled
-                  ? 'gba:bg-info-secondary gba:text-info-secondary-foreground'
-                  : 'gba:bg-muted gba:text-muted-foreground gba:hover:bg-accent'
+                  ? 'gba:px-2.5 gba:bg-info-secondary gba:text-info-secondary-foreground'
+                  : 'gba:w-7 gba:bg-muted gba:text-muted-foreground gba:hover:bg-accent'
               }`}
               onClick={() => onWebSearchToggle(!webSearchEnabled)}
               data-testid={`${testId}-web-search-toggle`}
+              title="Web search"
             >
-              <Search className="gba:h-3 gba:w-3" />
-              Web
+              <Globe className="gba:h-3.5 gba:w-3.5 gba:flex-shrink-0" />
+              {webSearchEnabled && <span>Web</span>}
+            </button>
+
+            {/* Deep Research pill — icon only when off, icon + label when on */}
+            <button
+              className={`gba:flex gba:items-center gba:justify-center gba:gap-1.5 gba:h-7 gba:rounded-full gba:text-[11px] gba:font-semibold gba:transition-all gba:duration-200 gba:cursor-pointer gba:outline-none ${
+                deepResearchEnabled
+                  ? 'gba:px-2.5 gba:bg-primary gba:text-primary-foreground'
+                  : 'gba:w-7 gba:bg-muted gba:text-muted-foreground gba:hover:bg-accent'
+              }`}
+              onClick={() => onDeepResearchToggle(!deepResearchEnabled)}
+              data-testid={`${testId}-deep-research-toggle`}
+              title="Deep Research"
+            >
+              <FlaskConical className="gba:h-3.5 gba:w-3.5 gba:flex-shrink-0" />
+              {deepResearchEnabled && <span>Deep Research</span>}
             </button>
           </>
         }

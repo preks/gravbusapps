@@ -108,6 +108,7 @@ export interface NexusSession {
   contextConfig?: {
     dataAccessEnabled?: boolean
     webSearchEnabled?: boolean
+    deepResearchEnabled?: boolean
   }
   createdAt: string
   updatedAt: string
@@ -124,11 +125,17 @@ export interface NexusMessage {
 }
 
 export interface NexusSource {
-  contentType: 'document' | 'note' | 'spreadsheet'
+  contentType: 'document' | 'note' | 'spreadsheet' | 'web'
   contentId: string
   title: string
   chunkText: string
   similarity: number
+  /** URL for web sources */
+  url?: string
+  /** Origin of the source: internal doc/note/sheet, web, or system data */
+  origin?: 'internal' | 'web' | 'system'
+  /** Citation number [n] used in deep research reports */
+  sourceNo?: number
 }
 
 // ── Socket Event Types ─────────────────────────────────────────

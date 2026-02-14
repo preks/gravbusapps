@@ -1,11 +1,14 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { toast } from '@newwork/nw-design-system'
 import { EmptyCanvas } from './EmptyCanvas'
 import { ArtifactToolbar } from './ArtifactToolbar'
 import { DocumentRenderer } from '../renderers/DocumentRenderer'
 import { AnalysisRenderer } from '../renderers/AnalysisRenderer'
 import { SlidesRenderer } from '../renderers/SlidesRenderer'
+import type { SaveResult } from '../../hooks/useArtifact'
 import type { NexusArtifact, DocumentContent, AnalysisContent, SlidesContent } from '../../types/nexus.types'
+
+const AUTOSAVE_DELAY_MS = 800
 
 interface ArtifactCanvasProps {
   artifact: NexusArtifact | null
@@ -14,10 +17,12 @@ interface ArtifactCanvasProps {
   accessToken: string
   onOpenChat: () => void
   onSuggestionClick: (prompt: string) => void
-  onSaveArtifact: (
+  onSaveArtifact: (artifactId: string, targetType: 'document' | 'slides') => Promise<SaveResult>
+  onUpdateArtifact: (
     artifactId: string,
-    targetType: 'document' | 'slides'
-  ) => Promise<{ success: boolean; message: string }>
+    updates: { title?: string; content?: Record<string, unknown> }
+  ) => Promise<NexusArtifact | null>
+  onSetActiveArtifact: React.Dispatch<React.SetStateAction<NexusArtifact | null>>
   testId?: string
 }
 
@@ -29,26 +34,147 @@ export const ArtifactCanvas = ({
   onOpenChat,
   onSuggestionClick,
   onSaveArtifact,
+  onUpdateArtifact,
+  onSetActiveArtifact,
   testId = 'nexus-canvas'
 }: ArtifactCanvasProps) => {
   const [isSaving, setIsSaving] = useState(false)
+  const [saveSuccess, setSaveSuccess] = useState(false)
+  const [isAutoSaving, setIsAutoSaving] = useState(false)
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Tracks the in-flight autosave promise so handleSave can await it
+  const autoSavePromiseRef = useRef<Promise<unknown> | null>(null)
 
+  // Ref that always holds the very latest artifact, updated synchronously
+  // in every edit handler so handleSave never reads stale state.
+  const latestArtifactRef = useRef<NexusArtifact | null>(artifact)
+
+  // Keep the ref in sync with the prop (covers external updates like streaming)
+  useEffect(() => {
+    latestArtifactRef.current = artifact
+  }, [artifact])
+
+  // Clear save success indicator after 3 seconds
+  useEffect(() => {
+    if (!saveSuccess) return
+    const timer = setTimeout(() => setSaveSuccess(false), 3000)
+    return () => clearTimeout(timer)
+  }, [saveSuccess])
+
+  // Clean up autosave timer on unmount
+  useEffect(() => {
+    return () => {
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
+    }
+  }, [])
+
+  const savedDocumentId = (artifact?.metadata as Record<string, unknown>)?.savedDocumentId as string | undefined
+
+  // Debounced autosave to backend
+  const scheduleAutoSave = useCallback(
+    (updatedArtifact: NexusArtifact) => {
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
+      autoSaveTimerRef.current = setTimeout(() => {
+        setIsAutoSaving(true)
+        const promise = onUpdateArtifact(updatedArtifact.id, {
+          title: updatedArtifact.title,
+          content: updatedArtifact.content as unknown as Record<string, unknown>
+        }).finally(() => {
+          autoSavePromiseRef.current = null
+          setIsAutoSaving(false)
+        })
+        autoSavePromiseRef.current = promise
+      }, AUTOSAVE_DELAY_MS)
+    },
+    [onUpdateArtifact]
+  )
+
+  // Handle content edits from document renderer
+  const handleDocumentContentChange = useCallback(
+    (updates: Partial<DocumentContent>) => {
+      if (!artifact) return
+      const newContent = { ...(artifact.content as DocumentContent), ...updates }
+      const updated = { ...artifact, content: newContent }
+      latestArtifactRef.current = updated
+      onSetActiveArtifact(updated)
+      scheduleAutoSave(updated)
+    },
+    [artifact, onSetActiveArtifact, scheduleAutoSave]
+  )
+
+  // Handle title edits from analysis renderer
+  const handleAnalysisTitleChange = useCallback(
+    (title: string) => {
+      if (!artifact) return
+      const updated = { ...artifact, title }
+      latestArtifactRef.current = updated
+      onSetActiveArtifact(updated)
+      scheduleAutoSave(updated)
+    },
+    [artifact, onSetActiveArtifact, scheduleAutoSave]
+  )
+
+  // Handle content edits from analysis renderer
+  const handleAnalysisContentChange = useCallback(
+    (updates: Partial<AnalysisContent>) => {
+      if (!artifact) return
+      const newContent = { ...(artifact.content as AnalysisContent), ...updates }
+      const updated = { ...artifact, content: newContent }
+      latestArtifactRef.current = updated
+      onSetActiveArtifact(updated)
+      scheduleAutoSave(updated)
+    },
+    [artifact, onSetActiveArtifact, scheduleAutoSave]
+  )
+
+  // Save uses latestArtifactRef so it always has the freshest content,
+  // even if blur → onChange → setState hasn't committed yet.
   const handleSave = useCallback(
     async (targetType: 'document' | 'slides') => {
-      if (!artifact) return
+      const currentArtifact = latestArtifactRef.current
+      if (!currentArtifact) return
       setIsSaving(true)
+      setSaveSuccess(false)
       try {
-        const result = await onSaveArtifact(artifact.id, targetType)
+        // Cancel any pending debounced autosave timer
+        if (autoSaveTimerRef.current) {
+          clearTimeout(autoSaveTimerRef.current)
+          autoSaveTimerRef.current = null
+        }
+        // Wait for any in-flight autosave PATCH to finish before we flush+save,
+        // so we don't have two concurrent writes racing against each other.
+        if (autoSavePromiseRef.current) {
+          await autoSavePromiseRef.current
+        }
+        // Now flush the very latest content to the backend
+        await onUpdateArtifact(currentArtifact.id, {
+          title: currentArtifact.title,
+          content: currentArtifact.content as unknown as Record<string, unknown>
+        })
+
+        const result = await onSaveArtifact(currentArtifact.id, targetType)
         if (result.success) {
-          toast({ title: 'Saved successfully', description: result.message })
+          setSaveSuccess(true)
+          const verb = result.action === 'updated' ? 'Updated' : 'Saved'
+          toast.success(`${verb} successfully — ${result.message}`)
+          // Update local artifact metadata with savedDocumentId
+          if (result.savedId) {
+            onSetActiveArtifact(prev => {
+              const updated = prev
+                ? { ...prev, metadata: { ...(prev.metadata || {}), savedDocumentId: result.savedId } }
+                : prev
+              latestArtifactRef.current = updated
+              return updated
+            })
+          }
         } else {
-          toast({ title: 'Save failed', description: result.message, variant: 'destructive' })
+          toast.error(`Save failed — ${result.message}`)
         }
       } finally {
         setIsSaving(false)
       }
     },
-    [artifact, onSaveArtifact]
+    [onSaveArtifact, onUpdateArtifact, onSetActiveArtifact]
   )
 
   const handleCopy = useCallback(() => {
@@ -64,17 +190,26 @@ export const ArtifactCanvas = ({
     }
 
     navigator.clipboard.writeText(text)
-    toast({ title: 'Copied to clipboard' })
+    toast.success('Copied to clipboard')
   }, [artifact])
 
-  // Empty state
   if (!artifact) {
     return <EmptyCanvas onOpenChat={onOpenChat} onSuggestionClick={onSuggestionClick} />
   }
 
+  const isComplete = artifact.status === 'complete'
+
   return (
     <div className="gba:flex gba:flex-col gba:h-full" data-testid={testId}>
-      <ArtifactToolbar artifact={artifact} onSave={handleSave} onCopy={handleCopy} isSaving={isSaving} />
+      <ArtifactToolbar
+        artifact={artifact}
+        onSave={handleSave}
+        onCopy={handleCopy}
+        isSaving={isSaving}
+        saveSuccess={saveSuccess}
+        isAutoSaving={isAutoSaving}
+        hasSavedDocument={!!savedDocumentId}
+      />
 
       <div className="gba:flex-1 gba:overflow-y-auto">
         {artifact.type === 'document' && (
@@ -83,6 +218,8 @@ export const ArtifactCanvas = ({
             isStreaming={artifactStreaming}
             streamContent={artifactStreamContent}
             accessToken={accessToken}
+            editable={isComplete}
+            onContentChange={handleDocumentContentChange}
           />
         )}
 
@@ -92,6 +229,9 @@ export const ArtifactCanvas = ({
             title={artifact.title}
             isStreaming={artifactStreaming}
             accessToken={accessToken}
+            editable={isComplete}
+            onTitleChange={handleAnalysisTitleChange}
+            onContentChange={handleAnalysisContentChange}
           />
         )}
 
