@@ -1114,6 +1114,31 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           margin: 0 0 10pt 0;
         }
 
+        /* Lists (Tailwind preflight resets list-style to none) */
+        .paged-document-editor .ProseMirror ol {
+          list-style: decimal;
+          list-style-position: outside;
+          padding-left: 24pt;
+          margin: 0 0 12pt 0;
+        }
+
+        .paged-document-editor .ProseMirror ul {
+          list-style: disc;
+          list-style-position: outside;
+          padding-left: 24pt;
+          margin: 0 0 12pt 0;
+        }
+
+        .paged-document-editor .ProseMirror li {
+          margin: 0 0 6pt 0;
+        }
+
+        /* TipTap often wraps list-item text in <p>. Keep it inline so markers align nicely. */
+        .paged-document-editor .ProseMirror li > p {
+          display: inline;
+          margin: 0;
+        }
+
         .paged-document-editor .ProseMirror h1 {
           font-size: 24pt;
           font-weight: 700;
@@ -1192,23 +1217,45 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           border-radius: 4pt;
         }
 
+        /* Tables: print-first (no horizontal scrolling) */
+        .paged-document-editor .ProseMirror .tableWrapper {
+          width: 100%;
+          max-width: 100%;
+          overflow: hidden;
+          margin: 16pt 0;
+          border: 1pt solid #d0d0d0;
+          border-radius: 4pt;
+          background: #fff;
+        }
+
         .paged-document-editor .ProseMirror table {
           border-collapse: collapse;
           width: 100%;
-          margin: 16pt 0;
+          max-width: 100%;
+          table-layout: fixed;
+          margin: 0;
         }
 
         .paged-document-editor .ProseMirror td,
         .paged-document-editor .ProseMirror th {
           border: 1pt solid #333;
-          padding: 8pt 12pt;
+          padding: 4pt 6pt;
           text-align: left;
           vertical-align: top;
+          font-size: 10.5pt;
+          line-height: 1.3;
+          overflow-wrap: anywhere;
+          word-break: break-word;
         }
 
         .paged-document-editor .ProseMirror th {
           background: #f5f5f5;
           font-weight: bold;
+        }
+
+        /* Let header rows behave nicely in print/page flows */
+        .paged-document-editor .ProseMirror thead {
+          display: table-header-group;
         }
 
         .paged-document-editor .ProseMirror hr {
