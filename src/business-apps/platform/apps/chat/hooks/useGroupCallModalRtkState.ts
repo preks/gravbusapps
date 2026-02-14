@@ -28,8 +28,7 @@ export function useGroupCallModalRtkState(props: GroupCallModalRtkProps) {
     onEndCall,
     onToggleMute,
     onToggleVideo,
-    onToggleRaiseHand,
-    onSendReaction,
+
     currentUserId,
     currentUser,
     callConversation: callConversationProp,
@@ -112,13 +111,6 @@ export function useGroupCallModalRtkState(props: GroupCallModalRtkProps) {
 
   const t = useChatTranslation()
 
-  rtkDebug.log('[RTK Modal] Remote peers count:', stableRemotePeers?.length || 0)
-  rtkDebug.log('[RTK Modal] Button props:', {
-    hasRaiseHandHandler: !!onToggleRaiseHand,
-    hasReactionHandler: !!onSendReaction,
-    handRaised: callState.handRaised
-  })
-
   const { handleMuteParticipant, handleMuteAll } = useGroupCallModalMuteHandlers(
     props,
     meeting,
@@ -130,23 +122,14 @@ export function useGroupCallModalRtkState(props: GroupCallModalRtkProps) {
   useEffect(() => {
     if (typeof globalThis.window !== 'undefined') {
       ;(globalThis as any).rtkLeaveCall = () => {
-        rtkDebug.log('[RTK Debug] Leaving call via console command')
         onEndCall()
       }
       ;(globalThis as any).rtkToggleMute = () => {
-        rtkDebug.log('[RTK Debug] Toggling mute via console command')
         onToggleMute()
       }
       ;(globalThis as any).rtkToggleVideo = () => {
-        rtkDebug.log('[RTK Debug] Toggling video via console command')
         onToggleVideo()
       }
-
-      rtkDebug.log('[RTK Debug] Console helpers registered:', {
-        rtkLeaveCall: '() => Leave call',
-        rtkToggleMute: '() => Toggle mute',
-        rtkToggleVideo: '() => Toggle video'
-      })
     }
 
     return () => {
@@ -177,22 +160,6 @@ export function useGroupCallModalRtkState(props: GroupCallModalRtkProps) {
       const screenShareTrack = getScreenShareTrack(peer)
       const hasScreenShareEnabled = peer.screenShareEnabled === true
       const extractedTracks = extractTracksFromCollection(peer.screenShareTracks)
-
-      rtkDebug.log(`[RTK Modal] Checking peer ${peer.name || peer.id} for screen share:`, {
-        peerId: peer.id,
-        hasScreenShareTrack: !!screenShareTrack,
-        screenShareEnabled: hasScreenShareEnabled,
-        screenShareTracks: peer.screenShareTracks,
-        extractedTracksCount: extractedTracks.length,
-        extractedTracks: extractedTracks.map(t => ({
-          id: t.id,
-          label: t.label,
-          kind: t.kind,
-          readyState: t.readyState
-        })),
-        videoTrackLabel: peer.videoTrack?.label,
-        videoTrackIsScreenShare: peer.videoTrack && isVideoTrackScreenShare(peer.videoTrack)
-      })
 
       if (screenShareTrack) {
         // CRITICAL: Only include tracks that are still live (not ended/stopped)
@@ -231,14 +198,6 @@ export function useGroupCallModalRtkState(props: GroupCallModalRtkProps) {
       }
     })
 
-    // Add local screen share if active (SDK truth)
-    rtkDebug.log('[RTK Modal] 🔍 Local screen share check:', {
-      isScreenSharing: effectiveLocalIsScreenSharing,
-      hasTrack: !!localScreenShareTrack,
-      trackReadyState: localScreenShareTrack?.readyState,
-      trackId: localScreenShareTrack?.id
-    })
-
     if (effectiveLocalIsScreenSharing && localScreenShareTrack) {
       // CRITICAL: Only include tracks that are still live (not ended/stopped)
       if (localScreenShareTrack.readyState === 'live') {
@@ -254,11 +213,6 @@ export function useGroupCallModalRtkState(props: GroupCallModalRtkProps) {
             peer: null
           })
           seenPeerIds.add(localPeerId) // CRITICAL: Add the actual peerId, not 'local'
-          rtkDebug.log('[RTK Modal] 🖥️ Added local screen share to allScreenShares:', {
-            peerId: localPeerId,
-            peerName: participants[0]?.odName || 'You',
-            trackId: localScreenShareTrack.id
-          })
         }
       } else {
         rtkDebug.warn(
@@ -266,15 +220,6 @@ export function useGroupCallModalRtkState(props: GroupCallModalRtkProps) {
         )
       }
     }
-
-    rtkDebug.log(
-      `[RTK Modal] Found ${shares.length} screen shares:`,
-      shares.map(s => ({
-        peerId: s.peerId,
-        peerName: s.peerName,
-        trackId: s.trackId
-      }))
-    )
 
     return shares
   }, [stableRemotePeers, effectiveLocalIsScreenSharing, localScreenShareTrack, participants])
@@ -312,14 +257,6 @@ export function useGroupCallModalRtkState(props: GroupCallModalRtkProps) {
           // Map by userId (the stable user ID in our system)
           avatarUrlMap.set(cp.userId, cp.user.avatarUrl)
           avatarUrlMap.set(cp.user.id, cp.user.avatarUrl)
-          rtkDebug.log('[RTK Modal] 🖼️ Avatar from CALL conversation:', {
-            conversationId: conversationForAvatars.id,
-            conversationName: conversationForAvatars.name,
-            isCallConversation: conversationForAvatars === callConversationProp,
-            userId: cp.userId,
-            userName: cp.user.displayName || cp.user.username,
-            avatarUrl: cp.user.avatarUrl
-          })
         }
       })
     }
@@ -330,14 +267,6 @@ export function useGroupCallModalRtkState(props: GroupCallModalRtkProps) {
         avatarUrlMap.set(p.id, p.avatarUrl)
         avatarUrlMap.set(p.odId, p.avatarUrl)
       }
-    })
-
-    rtkDebug.log('[RTK Modal] 🖼️ Avatar map built for call conversation:', {
-      callConversationId: callConversationProp?.id,
-      activeConversationId: activeConversation?.id,
-      usedConversationId: conversationForAvatars?.id,
-      totalMappings: avatarUrlMap.size,
-      keys: Array.from(avatarUrlMap.keys())
     })
 
     const items: Array<{
@@ -377,12 +306,6 @@ export function useGroupCallModalRtkState(props: GroupCallModalRtkProps) {
           isFocusedScreenShare: true
         })
         seenIds.add(itemId)
-        rtkDebug.log('[RTK Modal] 🖥️ [1] Added focused screen share to grid:', {
-          itemId,
-          peerId: focusedScreenShare.peerId,
-          peerName: focusedScreenShare.peerName,
-          trackId: focusedScreenShare.screenShareTrack.id
-        })
       }
     }
 
@@ -440,47 +363,16 @@ export function useGroupCallModalRtkState(props: GroupCallModalRtkProps) {
       } as const
       items.push(localParticipantItem)
       seenIds.add(localParticipantId)
-      rtkDebug.log('[RTK Modal] 👤 Added local participant to items:', {
-        id: localParticipantItem.id,
-        type: localParticipantItem.type,
-        peerId: localParticipantItem.peerId,
-        isLocal: localParticipantItem.isLocal,
-        hasVideo: localHasVideo,
-        hasAudio: !!localAudioTrack,
-        avatarUrl: localAvatarUrl,
-        localUserId,
-        localCustomParticipantId,
-        fromMap_userId: avatarUrlMap.get(localUserId || ''),
-        fromMap_customId: avatarUrlMap.get(localCustomParticipantId || ''),
-        fromMap_peerId: avatarUrlMap.get(localPeerId),
-        fromParticipants: participants[0]?.avatarUrl,
-        fromSelf: meeting?.self?.picture
-      })
     }
 
-    // Add ALL non-focused screen shares (from allScreenShares array)
-    // CRITICAL: Skip the focused one - it's already added above!
-    allScreenShares.forEach((share, index) => {
-      rtkDebug.log(`[RTK Modal] 🔍 Processing allScreenShares[${index}]:`, {
-        peerId: share.peerId,
-        peerName: share.peerName,
-        trackId: share.trackId,
-        isFocused: focusedScreenShare?.peerId === share.peerId,
-        focusedPeerId: focusedScreenShare?.peerId
-      })
-
+    // Add non-focused screen shares to grid
+    allScreenShares.forEach(share => {
       // Skip if this is the focused screen share (already added above)
       if (share.peerId === focusedScreenShare?.peerId) {
-        rtkDebug.log('[RTK Modal] ⏭️ Skipping focused screen share (already added):', share.peerId)
         return
       }
 
       const shareId = `screen-share-${share.peerId}`
-      rtkDebug.log('[RTK Modal] 🔍 Checking if shareId exists in seenIds:', {
-        shareId,
-        hasInSeenIds: seenIds.has(shareId),
-        seenIdsArray: Array.from(seenIds)
-      })
       if (seenIds.has(shareId)) {
         rtkDebug.warn('[RTK Modal] ⚠️ Skipping duplicate screen share:', shareId)
       } else {
@@ -495,12 +387,6 @@ export function useGroupCallModalRtkState(props: GroupCallModalRtkProps) {
           isVideoEnabled: true
         })
         seenIds.add(shareId)
-        rtkDebug.log('[RTK Modal] 🖥️ [2] Added non-focused screen share to grid:', {
-          shareId,
-          peerId: share.peerId,
-          peerName: share.peerName,
-          trackId: share.trackId
-        })
       }
     })
 
@@ -521,17 +407,6 @@ export function useGroupCallModalRtkState(props: GroupCallModalRtkProps) {
           avatarUrlMap.get(peer.id) ||
           peer.picture
 
-        rtkDebug.log('[RTK Modal] 👥 Adding remote participant:', {
-          peerId: peer.id,
-          userId: peer.userId,
-          customParticipantId: peer.customParticipantId,
-          peerName: peer.name,
-          avatarUrl,
-          fromMap_userId: avatarUrlMap.get(peer.userId),
-          fromMap_customId: avatarUrlMap.get(peer.customParticipantId),
-          fromMap_peerId: avatarUrlMap.get(peer.id),
-          peer_picture: peer.picture
-        })
         items.push({
           id: participantId,
           type: hasVideo ? 'video' : 'avatar',
@@ -553,22 +428,10 @@ export function useGroupCallModalRtkState(props: GroupCallModalRtkProps) {
       }
     })
 
-    rtkDebug.log(`[RTK Modal] 📋 Raw items before sorting:`, {
-      totalItems: items.length,
-      itemIds: items.map(i => i.id),
-      duplicateIds: items.map(i => i.id).filter((id, index, arr) => arr.indexOf(id) !== index)
-    })
-
     // Sort items: Active speaker first (after focused screen share), then by history
     const focusedScreenShareCount = focusedScreenShare ? 1 : 0
     // CRITICAL: Find local participant, NOT screen share (screen share is also isLocal=true)
     const localItem = items.find(i => i.isLocal && i.type !== 'screen-share')
-
-    rtkDebug.log('[RTK Modal] 🔍 Looking for local participant in items:', {
-      totalItems: items.length,
-      itemsWithIsLocal: items.filter(i => i.isLocal).map(i => ({ id: i.id, type: i.type, isLocal: i.isLocal })),
-      foundLocalItem: localItem ? { id: localItem.id, type: localItem.type } : null
-    })
 
     const activeSpeakerItems = items
       .slice(focusedScreenShareCount)
@@ -597,16 +460,6 @@ export function useGroupCallModalRtkState(props: GroupCallModalRtkProps) {
           !activeSpeakerHistory?.includes(item.peerId)
       )
     const screenShareItems = items.slice(focusedScreenShareCount).filter(i => i.type === 'screen-share')
-
-    rtkDebug.log('[RTK Modal] 📊 Sorting groups:', {
-      focusedScreenShareCount,
-      focusedItems: items.slice(0, focusedScreenShareCount).map(i => ({ id: i.id, type: i.type })),
-      localItem: localItem ? { id: localItem.id, type: localItem.type } : null,
-      activeSpeakerItems: activeSpeakerItems.map(i => ({ id: i.id, type: i.type })),
-      historyItems: historyItems.map(i => ({ id: i.id, type: i.type })),
-      otherItems: otherItems.map(i => ({ id: i.id, type: i.type })),
-      screenShareItems: screenShareItems.map(i => ({ id: i.id, type: i.type }))
-    })
 
     // Reconstruct: focused screen share (if any) + local + active speaker + history + others + screen shares
     const sortedItems = [
@@ -694,7 +547,6 @@ export function useGroupCallModalRtkState(props: GroupCallModalRtkProps) {
     callbackPeerIds.forEach(peerId => {
       if (!currentPeerIds.has(peerId)) {
         videoRefCallbacksRef.current.delete(peerId)
-        rtkDebug.log(`[RTK Modal] 🧹 Cleaned up video ref callback for departed peer: ${peerId}`)
       }
     })
   }, [gridItems])
@@ -705,15 +557,6 @@ export function useGroupCallModalRtkState(props: GroupCallModalRtkProps) {
     const startIndex = currentPage * PARTICIPANTS_PER_PAGE
     const endIndex = startIndex + PARTICIPANTS_PER_PAGE
     const pageItems = gridItems.slice(startIndex, endIndex)
-
-    rtkDebug.log('[RTK Modal] Pagination:', {
-      totalItems: gridItems.length,
-      totalPages,
-      currentPage,
-      startIndex,
-      endIndex,
-      pageItems: pageItems.length
-    })
 
     return {
       items: pageItems,
