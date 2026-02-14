@@ -7,6 +7,7 @@ import { AnalysisRenderer } from '../renderers/AnalysisRenderer'
 import { SlidesRenderer } from '../renderers/SlidesRenderer'
 import type { SaveResult } from '../../hooks/useArtifact'
 import type { NexusArtifact, DocumentContent, AnalysisContent, SlidesContent } from '../../types/nexus.types'
+import { normalizeNexusMarkdown } from '../../utils/normalizeNexusMarkdown'
 
 const AUTOSAVE_DELAY_MS = 800
 
@@ -146,13 +147,26 @@ export const ArtifactCanvas = ({
         if (autoSavePromiseRef.current) {
           await autoSavePromiseRef.current
         }
+        // Normalize markdown right before persisting/saving (fixes "flattened" tables).
+        let artifactToFlush = currentArtifact
+        if (currentArtifact.type === 'document') {
+          const doc = currentArtifact.content as DocumentContent
+          const normalized = normalizeNexusMarkdown(doc.markdown || '')
+          if (normalized && normalized !== (doc.markdown || '')) {
+            const normalizedContent = { ...doc, markdown: normalized }
+            artifactToFlush = { ...currentArtifact, content: normalizedContent }
+            latestArtifactRef.current = artifactToFlush
+            onSetActiveArtifact(prev => (prev?.id === currentArtifact.id ? artifactToFlush : prev))
+          }
+        }
+
         // Now flush the very latest content to the backend
-        await onUpdateArtifact(currentArtifact.id, {
+        await onUpdateArtifact(artifactToFlush.id, {
           title: currentArtifact.title,
-          content: currentArtifact.content as unknown as Record<string, unknown>
+          content: artifactToFlush.content as unknown as Record<string, unknown>
         })
 
-        const result = await onSaveArtifact(currentArtifact.id, targetType)
+        const result = await onSaveArtifact(artifactToFlush.id, targetType)
         if (result.success) {
           setSaveSuccess(true)
           const verb = result.action === 'updated' ? 'Updated' : 'Saved'

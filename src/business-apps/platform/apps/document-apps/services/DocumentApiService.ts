@@ -1224,6 +1224,37 @@ export const DocumentApiService = {
       console.error('Failed to update status:', error)
       return null
     }
+  },
+
+  /**
+   * AI Edit - Apply AI-powered edits to a document (whole document or selection)
+   */
+  async aiEdit(
+    documentId: string,
+    payload: {
+      instruction: string
+      llmProvider?: 'openai' | 'groq'
+      documentHtml: string
+      documentPlainText: string
+      mode: 'selection' | 'document'
+      title?: string
+      selection?: {
+        start?: number
+        end?: number
+        selectedPlainText?: string
+        selectionHtml?: string
+      }
+    }
+  ): Promise<{
+    mode: 'selection' | 'document'
+    updatedHtml?: string
+    replacementHtml?: string
+    changeSummary: string
+  }> {
+    return apiRequest(`/documents/${documentId}/ai/edit`, {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    })
   }
 }
 

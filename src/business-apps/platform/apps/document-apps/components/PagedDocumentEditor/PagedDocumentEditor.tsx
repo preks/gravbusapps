@@ -37,13 +37,13 @@ import {
   Separator,
   Avatar,
   AvatarImage,
-  AvatarFallback
+  AvatarFallback,
+  AiButton
 } from '@newwork/nw-design-system'
 import {
   ArrowLeft,
   Save,
   FileText,
-  Download,
   Clock,
   CheckCircle,
   Printer,
@@ -59,7 +59,8 @@ import {
   Lock,
   Unlock,
   MessageSquare,
-  Upload
+  Upload,
+  Wand2
 } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { Document, DocumentApprovalRequest } from '../../types'
@@ -84,6 +85,7 @@ import { PublishDialog } from '../../../shared/components/PublishDialog'
 import { CommentPanel } from '../../../shared/components/CommentPanel'
 import { InlineCommentPopover } from '../../../shared/components/InlineCommentPopover'
 import { InlineComment as InlineCommentExtension } from '../../../shared/extensions/InlineCommentExtension'
+import { AiEditPanel } from '../AiEditPanel'
 import * as Y from 'yjs'
 import { Awareness } from 'y-protocols/awareness'
 
@@ -374,7 +376,9 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     const [showVersionHistory, setShowVersionHistory] = useState(false)
     const [showCheckpointDialog, setShowCheckpointDialog] = useState(false)
     const [showPublishDialog, setShowPublishDialog] = useState(false)
-    const [showComments, setShowComments] = useState(false)
+    // Right sidebar: only one can be open at a time (comments vs AI editor)
+    type RightSidebar = 'closed' | 'comments' | 'ai'
+    const [rightSidebar, setRightSidebar] = useState<RightSidebar>('closed')
     const [showInlineCommentPopover, setShowInlineCommentPopover] = useState(false)
     const [inlineCommentPosition, setInlineCommentPosition] = useState<{ top: number; left: number } | null>(null)
     const [pendingSelection, setPendingSelection] = useState<{ from: number; to: number; text: string } | null>(null)
@@ -570,7 +574,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           PageBreak,
           InlineCommentExtension.configure({
             onCommentClick: commentId => {
-              setShowComments(true)
+              setRightSidebar('comments')
               setTimeout(() => {
                 const commentElement = globalThis.document.querySelector(`[data-testid="comment-thread-${commentId}"]`)
                 commentElement?.scrollIntoView({ behavior: 'smooth', block: 'center' })
@@ -808,10 +812,26 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       return `Saved at ${date.toLocaleTimeString()}`
     }
 
+    // Measure header + toolbar height for sidebar alignment
+    const headerToolbarRef = useRef<HTMLDivElement>(null)
+    const [measuredHeaderHeight, setMeasuredHeaderHeight] = useState(0)
+
+    useEffect(() => {
+      if (!headerToolbarRef.current) return
+      const measure = () => {
+        const rect = headerToolbarRef.current?.getBoundingClientRect()
+        if (rect) setMeasuredHeaderHeight(rect.bottom)
+      }
+      measure()
+      const observer = new ResizeObserver(measure)
+      observer.observe(headerToolbarRef.current)
+      return () => observer.disconnect()
+    }, [])
+
     return (
       <div className="gba:flex gba:flex-col gba:h-full gba:bg-background" data-testid={testId}>
         {/* Header */}
-        <div className="gba:border-b gba:bg-card gba:shadow-sm">
+        <div ref={headerToolbarRef} className="gba:border-b gba:bg-card gba:shadow-sm">
           <div className="gba:px-4 gba:py-3">
             <div className="gba:flex gba:items-center gba:justify-between">
               {/* Left side - Back button and title */}
@@ -944,9 +964,9 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
 
                     {/* Comments button */}
                     <Button
-                      variant={showComments ? 'default' : 'ghost'}
+                      variant={rightSidebar === 'comments' ? 'default' : 'ghost'}
                       size="sm"
-                      onClick={() => setShowComments(!showComments)}
+                      onClick={() => setRightSidebar(prev => (prev === 'comments' ? 'closed' : 'comments'))}
                       title="Comments (Right-click on text to add inline comment)"
                       data-testid="comments-button"
                       className="gba:h-8"
@@ -974,7 +994,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
 
                 <Separator orientation="vertical" className="gba:h-6" />
 
-                {/* Document Actions Menu */}
+                {/* Document Actions Menu (includes Export) */}
                 {document?.id && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -1024,34 +1044,36 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
                           </DropdownMenuItem>
                         </>
                       )}
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={handleExportWord} disabled={isExporting}>
+                        <FileDown className="gba:w-4 gba:h-4 gba:mr-2" />
+                        Export as Word (.docx)
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={handleExportPDF} disabled={isExporting}>
+                        <FileDown className="gba:w-4 gba:h-4 gba:mr-2" />
+                        Export as PDF
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={handlePrint}>
+                        <Printer className="gba:w-4 gba:h-4 gba:mr-2" />
+                        Print
+                      </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 )}
 
-                {/* Export dropdown */}
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" disabled={isExporting}>
-                      <Download className="gba:w-4 gba:h-4 gba:mr-2" />
-                      Export
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={handleExportWord}>
-                      <FileDown className="gba:w-4 gba:h-4 gba:mr-2" />
-                      Export as Word (.docx)
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={handleExportPDF}>
-                      <FileDown className="gba:w-4 gba:h-4 gba:mr-2" />
-                      Export as PDF
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={handlePrint}>
-                      <Printer className="gba:w-4 gba:h-4 gba:mr-2" />
-                      Print
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                {/* AI Editor button (same style as notes Transform) */}
+                {document?.id && (
+                  <AiButton
+                    size="sm"
+                    showIcon
+                    icon={<Wand2 className="gba:w-4 gba:h-4" />}
+                    iconPosition="before"
+                    onClick={() => setRightSidebar(prev => (prev === 'ai' ? 'closed' : 'ai'))}
+                    data-testid="ai-edit-button"
+                  >
+                    AI Edit
+                  </AiButton>
+                )}
               </div>
             </div>
           </div>
@@ -1311,6 +1333,14 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           background: #b4d5fe;
         }
 
+        /* AI selection highlight (persistent decoration while AI panel is open) */
+        .paged-document-editor .ProseMirror .ai-selection-highlight {
+          background: rgba(139, 180, 254, 0.35);
+          border-bottom: 2px solid rgba(99, 140, 230, 0.6);
+          border-radius: 2px;
+          transition: background 0.2s ease;
+        }
+
         /* Table resize handles */
         .paged-document-editor .ProseMirror .selectedCell:after {
           z-index: 2;
@@ -1410,7 +1440,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           />
         )}
 
-        {document?.id && showComments && (
+        {document?.id && rightSidebar === 'comments' && (
           <CommentPanel
             comments={comments.comments}
             unresolvedCount={comments.unresolvedCount}
@@ -1420,7 +1450,6 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
                 type: parentId ? 'document' : 'document',
                 content,
                 parentId,
-                // Pass current user info to avoid fetching on every comment
                 createdByName: currentUserName || undefined,
                 createdByAvatar: currentUserAvatar || undefined
               })
@@ -1430,12 +1459,12 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
             }}
             onResolveComment={comments.resolveComment}
             onDeleteComment={comments.deleteComment}
-            onClose={() => setShowComments(false)}
+            onClose={() => setRightSidebar('closed')}
             currentUserId={currentUserId || undefined}
             currentUserName={currentUserName || undefined}
             currentUserAvatar={currentUserAvatar || undefined}
             accessToken={accessToken}
-            headerHeight={120}
+            headerHeight={measuredHeaderHeight || 120}
             onUnhighlight={commentId => {
               if (!editor) return
               const selection = findInlineCommentSelection(editor, commentId)
@@ -1450,6 +1479,18 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
               scrollInlineCommentDomIntoView(commentId)
             }}
             data-testid="document-comment-panel"
+          />
+        )}
+
+        {document?.id && rightSidebar === 'ai' && (
+          <AiEditPanel
+            editor={editor}
+            documentId={document.id}
+            documentTitle={title}
+            onClose={() => setRightSidebar('closed')}
+            currentUserId={currentUserId || undefined}
+            headerHeight={measuredHeaderHeight || 120}
+            data-testid="document-ai-edit-panel"
           />
         )}
 
