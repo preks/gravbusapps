@@ -26,6 +26,7 @@ export interface AddContentDialogProps {
   onOpenChange: (open: boolean) => void
   onAddContent: (items: { type: 'document' | 'note' | 'spreadsheet'; id: string }[]) => Promise<void>
   spaceId: string
+  accessToken?: string
   'data-testid'?: string
 }
 
@@ -43,6 +44,7 @@ export const AddContentDialog: React.FC<AddContentDialogProps> = ({
   onOpenChange,
   onAddContent,
   spaceId,
+  accessToken,
   'data-testid': testId = 'add-content-dialog'
 }) => {
   const [activeTab, setActiveTab] = useState<ContentTab>('documents')
@@ -50,7 +52,10 @@ export const AddContentDialog: React.FC<AddContentDialogProps> = ({
   const [selectedItems, setSelectedItems] = useState<Map<string, { type: ContentType; id: string }>>(new Map())
   const [isAdding, setIsAdding] = useState(false)
 
-  const { documents, notes, spreadsheets, isLoading, error, search, refresh } = useAvailableContent(spaceId)
+  const { documents, notes, spreadsheets, isLoading, error, search, refresh } = useAvailableContent(
+    accessToken,
+    spaceId
+  )
 
   // Get items for active tab
   const activeItems = useMemo(() => {

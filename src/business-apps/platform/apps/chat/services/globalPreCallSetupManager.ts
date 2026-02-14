@@ -10,6 +10,14 @@
 
 import type { CallType } from './webrtcClient'
 
+export interface PreCallMediaPreferences {
+  micEnabled: boolean
+  cameraEnabled: boolean
+  backgroundEnabled: boolean
+  audioInputDeviceId?: string | null
+  videoInputDeviceId?: string | null
+}
+
 const isDebugEnabled = (): boolean => {
   if (typeof globalThis.window === 'undefined') return false
   try {
@@ -46,7 +54,7 @@ export interface PreCallSetupState {
 
 interface StoredPreCallSetupData {
   state: PreCallSetupState
-  onStart: ((preferences: { micEnabled: boolean; cameraEnabled: boolean; backgroundEnabled: boolean }) => void) | null
+  onStart: ((preferences: PreCallMediaPreferences) => void) | null
   onCancel: (() => void) | null
 }
 
@@ -102,12 +110,7 @@ class GlobalPreCallSetupManager {
   /**
    * Set callbacks
    */
-  setCallbacks(
-    onStart:
-      | ((preferences: { micEnabled: boolean; cameraEnabled: boolean; backgroundEnabled: boolean }) => void)
-      | null,
-    onCancel: (() => void) | null
-  ): void {
+  setCallbacks(onStart: ((preferences: PreCallMediaPreferences) => void) | null, onCancel: (() => void) | null): void {
     this.data.onStart = onStart
     this.data.onCancel = onCancel
     debug('Callbacks updated:', { hasOnStart: !!onStart, hasOnCancel: !!onCancel })
@@ -290,9 +293,7 @@ class GlobalPreCallSetupManager {
    */
   setCallbacksFrom(
     instanceId: string,
-    onStart:
-      | ((preferences: { micEnabled: boolean; cameraEnabled: boolean; backgroundEnabled: boolean }) => void)
-      | null,
+    onStart: ((preferences: PreCallMediaPreferences) => void) | null,
     onCancel: (() => void) | null
   ): void {
     if (this.sourceOwnerId !== null && this.sourceOwnerId !== instanceId) {

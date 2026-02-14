@@ -9,8 +9,18 @@ import { Employee, EmployeeAbsenceEntitlement } from '../../hooks/useEmployeeDat
 // Extend dayjs with plugins
 dayjs.extend(isSameOrAfter)
 dayjs.extend(isSameOrBefore)
-import { Card, Avatar } from '@newwork/gravity-ui-catalog'
-import { useTranslation } from '@newwork/nw-design-system'
+import {
+  Card,
+  CardContent,
+  Avatar,
+  AvatarImage,
+  AvatarFallback,
+  useTranslation,
+  Button,
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent
+} from '@newwork/nw-design-system'
 import {
   PiBriefcase,
   PiStack,
@@ -30,7 +40,6 @@ import translations from '../../_i18n'
 import { AppAction } from '@/components/app-action/AppAction'
 import { AppActionMenu } from '@/components/app-action-menu'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { Button, Tooltip } from 'antd'
 import JobDetailsDrawer from './JobDetailsDrawer'
 import JobFamilyDrawerContent, { getJobFamilyIcon, getJobFamilyTitle } from './drawer-content/JobFamilyDrawerContent'
 import JobFunctionDrawerContent, {
@@ -210,155 +219,140 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
       <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:lg:grid-cols-3 gba:gap-6">
         {/* Organization Chart Section */}
         <div className="gba:lg:col-span-1 gba:xl:col-span-1">
-          <Card variant="outlined" className="gba:min-h-[420px]" data-testid="summary-section-organization-chart">
-            <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2">
-              <h3 className="gba:text-xl gba:font-semibold">{t('summary-organization-chart')}</h3>
-            </div>
-            <div className="gba:p-4 gba:overflow-hidden gba:flex gba:flex-col gba:justify-center gba:items-center">
-              <div
-                className="gba:flex gba:flex-col gba:items-center"
-                style={{
-                  maxHeight: '650px',
-                  overflowY: 'auto',
-                  overflowX: 'hidden',
-                  padding: '0.5rem'
-                }}
-              >
-                {/* Supervisor */}
-                {employee.employeePosition?.supervisor && employee.employeePosition?.supervisor.id !== employee.id && (
-                  <div className="gba:flex gba:flex-col gba:items-center">
-                    <a
-                      className="gba:cursor-pointer gba:transition-transform gba:hover:scale-105 gba:flex gba:flex-col gba:items-center"
-                      href="#"
-                      onClick={e => {
-                        e.preventDefault()
-                        if (
-                          employee.employeePosition?.supervisor?.id &&
-                          employee.employeePosition.supervisor.id !== employee.id
-                        ) {
-                          navigateTo(
-                            buildPlatformUrl('/platform/employee-record', {
-                              employeeId: employee.employeePosition.supervisor.id
-                            })
-                          )
-                        }
-                      }}
-                      data-testid="supervisor-link"
-                    >
-                      <Avatar
-                        src={
-                          employee.employeePosition.supervisor.pictureThumbnail
-                            ? `data:image/gif;base64,${employee.employeePosition.supervisor.pictureThumbnail}`
-                            : undefined
-                        }
-                        initials={`${employee.employeePosition.supervisor.firstName?.[0] || ''}${employee.employeePosition.supervisor.lastName?.[0] || ''}`}
-                        alt={`${employee.employeePosition.supervisor.firstName} ${employee.employeePosition.supervisor.lastName}`}
-                        // @ts-expect-error - Type issue in gravity-ui-catalog for contentType
-                        contentType={employee.employeePosition.supervisor.pictureThumbnail ? 'image' : 'initials'}
-                        // @ts-expect-error - Type issue in gravity-ui-catalog for size
-                        size="xl"
-                        // @ts-expect-error - Type issue in gravity-ui-catalog for shape
-                        shape="circle"
-                        // @ts-expect-error - Type issue in gravity-ui-catalog for appearance
-                        appearance="gradient"
-                      />
-                      <div className="gba:mt-2 gba:text-center">
-                        <div className="gba:font-medium gba:text-sm gba:text-info gba:hover:underline">
-                          {employee.employeePosition.supervisor.displayName}
-                        </div>
-                        <div className="gba:text-xs gba:text-muted-foreground">
-                          {employee.employeePosition?.supervisor?.employeePosition?.jobPosition?.name ?? ''}
-                        </div>
+          <Card className="gba:min-h-[420px]" data-testid="summary-section-organization-chart">
+            <CardContent className="gba:p-4">
+              <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2">
+                <h3 className="gba:text-xl gba:font-semibold">{t('summary-organization-chart')}</h3>
+              </div>
+              <div className="gba:overflow-hidden gba:flex gba:flex-col gba:justify-center gba:items-center">
+                <div className="gba:flex gba:flex-col gba:items-center gba:max-h-[650px] gba:overflow-y-auto gba:overflow-x-hidden gba:p-2">
+                  {/* Supervisor */}
+                  {employee.employeePosition?.supervisor &&
+                    employee.employeePosition?.supervisor.id !== employee.id && (
+                      <div className="gba:flex gba:flex-col gba:items-center">
+                        <a
+                          className="gba:cursor-pointer gba:transition-transform gba:hover:scale-105 gba:flex gba:flex-col gba:items-center"
+                          href="#"
+                          onClick={e => {
+                            e.preventDefault()
+                            if (
+                              employee.employeePosition?.supervisor?.id &&
+                              employee.employeePosition.supervisor.id !== employee.id
+                            ) {
+                              navigateTo(
+                                buildPlatformUrl('/platform/employee-record', {
+                                  employeeId: employee.employeePosition.supervisor.id
+                                })
+                              )
+                            }
+                          }}
+                          data-testid="supervisor-link"
+                        >
+                          <Avatar className="gba:h-12 gba:w-12">
+                            {employee.employeePosition.supervisor.pictureThumbnail && (
+                              <AvatarImage
+                                src={`data:image/gif;base64,${employee.employeePosition.supervisor.pictureThumbnail}`}
+                                alt={`${employee.employeePosition.supervisor.firstName} ${employee.employeePosition.supervisor.lastName}`}
+                              />
+                            )}
+                            <AvatarFallback>
+                              {`${employee.employeePosition.supervisor.firstName?.[0] || ''}${employee.employeePosition.supervisor.lastName?.[0] || ''}`}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="gba:mt-2 gba:text-center">
+                            <div className="gba:font-medium gba:text-sm gba:text-info gba:hover:underline">
+                              {employee.employeePosition.supervisor.displayName}
+                            </div>
+                            <div className="gba:text-xs gba:text-muted-foreground">
+                              {employee.employeePosition?.supervisor?.employeePosition?.jobPosition?.name ?? ''}
+                            </div>
+                          </div>
+                        </a>
+                        <div className="gba:w-px gba:h-6 gba:bg-border gba:mx-auto gba:my-1"></div>
                       </div>
-                    </a>
-                    <div className="gba:w-px gba:h-6 gba:bg-border gba:mx-auto gba:my-1"></div>
+                    )}
+
+                  {/* Current Employee */}
+                  <div className="gba:flex gba:flex-col gba:items-center">
+                    <div className="gba:ring-2 gba:ring-primary gba:rounded-full gba:p-1">
+                      <Avatar className="gba:h-12 gba:w-12">
+                        {employee.pictureThumbnail && (
+                          <AvatarImage
+                            src={`data:image/gif;base64,${employee.pictureThumbnail}`}
+                            alt={`${employee.firstName} ${employee.lastName}`}
+                          />
+                        )}
+                        <AvatarFallback>
+                          {`${employee.firstName?.[0] || ''}${employee.lastName?.[0] || ''}`}
+                        </AvatarFallback>
+                      </Avatar>
+                    </div>
+                    <div className="gba:mt-2 gba:text-center">
+                      <div className="gba:font-medium gba:text-sm">{employee.displayName}</div>
+                      <div className="gba:text-xs gba:text-muted-foreground">
+                        {employee.employeePosition?.jobPosition?.name || ''}
+                      </div>
+                    </div>
+                    {subordinates.length > 0 && (
+                      <div className="gba:w-px gba:h-6 gba:bg-border gba:mx-auto gba:my-1"></div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Subordinates */}
+                {subordinates.length > 0 && (
+                  <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-4 gba:w-full">
+                    {subordinates.map(member => (
+                      <div key={member.id} className="gba:flex gba:justify-center gba:mb-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigateTo(
+                              buildPlatformUrl('/platform/employee-record', {
+                                employeeId: member.id
+                              })
+                            )
+                          }}
+                          className="gba:cursor-pointer gba:hover:opacity-90 gba:flex gba:flex-col gba:items-center gba:bg-transparent gba:border-none gba:p-0"
+                          title={t('summary-view-profile', { name: member.displayName })}
+                          data-testid={`team-member-link-${member.id}`}
+                        >
+                          <Avatar className="gba:h-12 gba:w-12">
+                            {member.profilePicture && (
+                              <AvatarImage
+                                src={`data:image/gif;base64,${member.profilePicture}`}
+                                alt={`${member.firstName} ${member.lastName}`}
+                              />
+                            )}
+                            <AvatarFallback>
+                              {`${member.firstName?.[0] || ''}${member.lastName?.[0] || ''}`}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="gba:mt-2 gba:text-center gba:w-full">
+                            <div className="gba:font-medium gba:text-sm gba:text-info gba:hover:underline">
+                              {member.displayName}
+                            </div>
+                            <div className="gba:text-xs gba:text-muted-foreground gba:truncate gba:w-full gba:text-center gba:px-1">
+                              {member.position}
+                            </div>
+                          </div>
+                        </button>
+                      </div>
+                    ))}
                   </div>
                 )}
-
-                {/* Current Employee */}
-                <div className="gba:flex gba:flex-col gba:items-center">
-                  <div className="gba:ring-2 gba:ring-blue-400 gba:rounded-full gba:p-1">
-                    <Avatar
-                      src={employee.pictureThumbnail ? `data:image/gif;base64,${employee.pictureThumbnail}` : undefined}
-                      initials={`${employee.firstName?.[0] || ''}${employee.lastName?.[0] || ''}`}
-                      alt={`${employee.firstName} ${employee.lastName}`}
-                      // @ts-expect-error - Type issue in gravity-ui-catalog for contentType
-                      contentType={employee.pictureThumbnail ? 'image' : 'initials'}
-                      // @ts-expect-error - Type issue in gravity-ui-catalog for size
-                      size="xl"
-                      // @ts-expect-error - Type issue in gravity-ui-catalog for shape
-                      shape="circle"
-                      // @ts-expect-error - Type issue in gravity-ui-catalog for appearance
-                      appearance="gradient"
-                    />
-                  </div>
-                  <div className="gba:mt-2 gba:text-center">
-                    <div className="gba:font-medium gba:text-sm">{employee.displayName}</div>
-                    <div className="gba:text-xs gba:text-muted-foreground">
-                      {employee.employeePosition?.jobPosition?.name || ''}
-                    </div>
-                  </div>
-                  {subordinates.length > 0 && (
-                    <div className="gba:w-px gba:h-6 gba:bg-border gba:mx-auto gba:my-1"></div>
-                  )}
-                </div>
               </div>
-
-              {/* Subordinates */}
-              {subordinates.length > 0 && (
-                <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-4 gba:w-full">
-                  {subordinates.map(member => (
-                    <div key={member.id} className="gba:flex gba:justify-center gba:mb-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          navigateTo(
-                            buildPlatformUrl('/platform/employee-record', {
-                              employeeId: member.id
-                            })
-                          )
-                        }}
-                        className="gba:cursor-pointer gba:hover:opacity-90 gba:flex gba:flex-col gba:items-center gba:bg-transparent gba:border-none gba:p-0"
-                        title={t('summary-view-profile', { name: member.displayName })}
-                        data-testid={`team-member-link-${member.id}`}
-                      >
-                        <Avatar
-                          src={member.profilePicture ? `data:image/gif;base64,${member.profilePicture}` : undefined}
-                          initials={`${member.firstName?.[0] || ''}${member.lastName?.[0] || ''}`}
-                          alt={`${member.firstName} ${member.lastName}`}
-                          // @ts-expect-error - Type issue in gravity-ui-catalog for contentType
-                          contentType={member.profilePicture ? 'image' : 'initials'}
-                          // @ts-expect-error - Type issue in gravity-ui-catalog for size
-                          size="xl"
-                          // @ts-expect-error - Type issue in gravity-ui-catalog for shape
-                          shape="circle"
-                          // @ts-expect-error - Type issue in gravity-ui-catalog for appearance
-                          appearance="gradient"
-                        />
-                        <div className="gba:mt-2 gba:text-center gba:w-full">
-                          <div className="gba:font-medium gba:text-sm gba:text-info gba:hover:underline">
-                            {member.displayName}
-                          </div>
-                          <div className="gba:text-xs gba:text-muted-foreground gba:truncate gba:w-full gba:text-center gba:px-1">
-                            {member.position}
-                          </div>
-                        </div>
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+            </CardContent>
           </Card>
         </div>
 
         {/* Job Information Section */}
         <div className="gba:lg:col-span-1 gba:xl:col-span-1">
-          <Card variant="outlined" style={{ minHeight: '420px' }} data-testid="summary-section-job-information">
-            <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2">
-              <h3 className="gba:text-xl gba:font-semibold">{t('summary-job-information')}</h3>
-            </div>
-            <div className="gba:p-4">
+          <Card className="gba:min-h-[420px]" data-testid="summary-section-job-information">
+            <CardContent className="gba:p-4">
+              <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2">
+                <h3 className="gba:text-xl gba:font-semibold">{t('summary-job-information')}</h3>
+              </div>
               <div className="gba:space-y-4">
                 <div className="gba:flex gba:items-center">
                   <PiBriefcase className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mr-3" />
@@ -384,7 +378,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                             getJobFamilyIcon()
                           )
                         }
-                        className="gba:text-sm gba:!text-blue-600 gba:hover:underline gba:text-left gba:w-full"
+                        className="gba:text-sm gba:text-primary gba:hover:underline gba:text-left gba:w-full"
                         data-testid="job-family-button"
                       >
                         {/* Display job family from updated data structure, fallback to organizationalUnit name */}
@@ -413,7 +407,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                             getJobFunctionIcon()
                           )
                         }
-                        className="gba:text-sm gba:!text-blue-600 gba:hover:underline gba:text-left gba:w-full"
+                        className="gba:text-sm gba:text-primary gba:hover:underline gba:text-left gba:w-full"
                         data-testid="job-function-button"
                       >
                         {employee.employeePosition?.jobPosition?.jobFunction?.name || t('employee-record-not-assigned')}
@@ -436,7 +430,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                             getJobLevelIcon()
                           )
                         }
-                        className="gba:text-sm gba:!text-blue-600 gba:hover:underline gba:text-left gba:w-full"
+                        className="gba:text-sm gba:text-primary gba:hover:underline gba:text-left gba:w-full"
                         data-testid="job-level-button"
                       >
                         {employee.employeePosition?.jobPosition?.jobLevel?.name || t('employee-record-not-assigned')}
@@ -456,17 +450,17 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                   </div>
                 )}
               </div>
-            </div>
+            </CardContent>
           </Card>
         </div>
 
         {/* Availability & Schedule Section */}
         <div className="gba:lg:col-span-1 gba:xl:col-span-1">
-          <Card variant="outlined" style={{ minHeight: '420px' }} data-testid="summary-section-availability">
-            <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2">
-              <h3 className="gba:text-xl gba:font-semibold">{t('summary-availability-schedule')}</h3>
-            </div>
-            <div className="gba:p-4">
+          <Card className="gba:min-h-[420px]" data-testid="summary-section-availability">
+            <CardContent className="gba:p-4">
+              <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2">
+                <h3 className="gba:text-xl gba:font-semibold">{t('summary-availability-schedule')}</h3>
+              </div>
               <div className="gba:space-y-4">
                 {/* Status display */}
                 <div className="gba:flex gba:items-center">
@@ -552,37 +546,41 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                           </div>
                         </div>
                         <div className="gba:flex gba:gap-2 gba:w-full gba:flex-wrap">
-                          <Tooltip title={t('summary-clock-in')}>
-                            <Button
-                              type="default"
-                              size="small"
-                              className="gba:hover:bg-gray-100 gba:flex-1"
-                              data-testid="clock-in-button"
-                              onClick={() => {
-                                // Clock in action logic would go here
-                                console.log('Clock in clicked')
-                              }}
-                            >
-                              <span data-testid="clock-in-button-text">
-                                <PiSignIn className="gba:h-3 gba:w-3" />
-                              </span>
-                            </Button>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="gba:hover:bg-muted gba:flex-1"
+                                data-testid="clock-in-button"
+                                onClick={() => {
+                                  // Clock in action logic would go here
+                                }}
+                              >
+                                <span data-testid="clock-in-button-text">
+                                  <PiSignIn className="gba:h-3 gba:w-3" />
+                                </span>
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>{t('summary-clock-in')}</TooltipContent>
                           </Tooltip>
-                          <Tooltip title={t('summary-clock-out')}>
-                            <Button
-                              type="default"
-                              size="small"
-                              className="gba:hover:bg-gray-100 gba:flex-1"
-                              data-testid="clock-out-button"
-                              onClick={() => {
-                                // Clock out action logic would go here
-                                console.log('Clock out clicked')
-                              }}
-                            >
-                              <span data-testid="clock-out-button-text">
-                                <PiSignOut className="gba:h-3 gba:w-3" />
-                              </span>
-                            </Button>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="gba:hover:bg-muted gba:flex-1"
+                                data-testid="clock-out-button"
+                                onClick={() => {
+                                  // Clock out action logic would go here
+                                }}
+                              >
+                                <span data-testid="clock-out-button-text">
+                                  <PiSignOut className="gba:h-3 gba:w-3" />
+                                </span>
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>{t('summary-clock-out')}</TooltipContent>
                           </Tooltip>
                           <AppActionMenu
                             data-testid="request-absence-button"
@@ -624,7 +622,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                         {t('summary-next-planned-absence')}
                       </div>
                     </div>
-                    <div className="gba:bg-gray-50 gba:p-3 gba:rounded gba:border gba:border-border">
+                    <div className="gba:bg-muted gba:p-3 gba:rounded gba:border gba:border-border">
                       <div className="gba:flex gba:justify-between gba:items-center">
                         <div>
                           <p className="gba:text-sm gba:font-medium" data-testid="absence-type">
@@ -642,9 +640,12 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                         </div>
                         <div
                           className={cn('gba:text-xs gba:px-2 gba:py-1 gba:rounded', {
-                            'gba:bg-green-100 gba:text-green-800': firstUpcomingValidAbsence.status === 'APPROVED',
-                            'gba:bg-red-100 gba:text-red-800': firstUpcomingValidAbsence.status === 'REJECTED',
-                            'gba:bg-yellow-100 gba:text-yellow-800': firstUpcomingValidAbsence.status === 'PENDING'
+                            'gba:bg-success-secondary gba:text-success-secondary-foreground':
+                              firstUpcomingValidAbsence.status === 'APPROVED',
+                            'gba:bg-destructive-secondary gba:text-destructive-secondary-foreground':
+                              firstUpcomingValidAbsence.status === 'REJECTED',
+                            'gba:bg-warning-secondary gba:text-warning-secondary-foreground':
+                              firstUpcomingValidAbsence.status === 'PENDING'
                           })}
                           data-testid="absence-status"
                         >
@@ -664,7 +665,7 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                   </div>
                 )}
               </div>
-            </div>
+            </CardContent>
           </Card>
         </div>
 

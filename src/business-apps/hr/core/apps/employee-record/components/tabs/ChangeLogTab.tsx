@@ -5,7 +5,16 @@ import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/wi
 import ChangeLogFilters from './components/change-tab/ChangeLogFilters'
 import { getFieldCategories } from './components/change-tab/constants'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { TimelineLayout, Sheet, SheetContent, SheetHeader, SheetTitle } from '@newwork/nw-design-system'
+import {
+  TimelineLayout,
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  Spinner,
+  Button,
+  Alert
+} from '@newwork/nw-design-system'
 import { PencilIcon } from '@phosphor-icons/react'
 
 // Types for Change Log
@@ -280,21 +289,20 @@ export const ChangeLogTab: React.FC<ChangeLogTabProps> = ({ employeeId, employee
   if (loading) {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:h-64">
-        <div className="gba:w-8 gba:h-8 gba:border-2 gba:border-gray-200 gba:border-t-blue-500 gba:rounded-full gba:animate-spin"></div>
+        <Spinner size="lg" />
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="gba:text-center gba:p-8">
-        <p className="gba:text-red-600">{error}</p>
-        <button
-          onClick={fetchChangeLogData}
-          className="gba:mt-4 gba:px-4 gba:py-2 gba:bg-blue-500 gba:text-white gba:border-none gba:rounded gba:cursor-pointer gba:hover:bg-blue-600"
-        >
+      <div className="gba:p-6 gba:space-y-4">
+        <Alert variant="destructive">
+          <p>{error}</p>
+        </Alert>
+        <Button onClick={fetchChangeLogData} variant="secondary" size="sm" data-testid="changelog-retry-button">
           {getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.actions.retry', 'Retry')}
-        </button>
+        </Button>
       </div>
     )
   }
@@ -304,10 +312,10 @@ export const ChangeLogTab: React.FC<ChangeLogTabProps> = ({ employeeId, employee
       {/* Header */}
       <div className="gba:flex gba:justify-between gba:items-center">
         <div>
-          <h2 className="gba:text-2xl gba:font-bold gba:text-gray-900 gba:m-0">
+          <h2 className="gba:text-2xl gba:font-bold gba:text-foreground gba:m-0">
             {getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.title', 'Change Log')}
           </h2>
-          <p className="gba:text-gray-600 gba:mt-1">
+          <p className="gba:text-muted-foreground gba:mt-1">
             {getTranslationFromI18nKeyAndLabel(
               'lowcoder:changelog_tab.subtitle',
               "Track all changes to {employeeName}'s profile",
@@ -318,12 +326,14 @@ export const ChangeLogTab: React.FC<ChangeLogTabProps> = ({ employeeId, employee
           </p>
         </div>
         {(userRole === 'admin' || userRole === 'hr_manager') && (
-          <button
+          <Button
+            variant="outline"
             onClick={handleExport}
-            className="gba:px-4 gba:py-2 gba:border gba:border-gray-300 gba:rounded-md gba:bg-white gba:cursor-pointer gba:flex gba:items-center gba:gap-2 gba:hover:bg-gray-50"
+            className="gba:flex gba:items-center gba:gap-2"
+            data-testid="changelog-export-button"
           >
             {getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.actions.export', 'Export')}
-          </button>
+          </Button>
         )}
       </div>
 

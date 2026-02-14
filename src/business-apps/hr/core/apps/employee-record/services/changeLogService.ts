@@ -88,8 +88,6 @@ export class ChangeLogService {
 
       const results = await Promise.all(requests)
 
-      console.log('results', results)
-
       // Flatten tasks from different possible response shapes
       const allTasks: any[] = results.flatMap((r: any) =>
         Array.isArray(r?.processingStates) && r.processingStates.length > 0

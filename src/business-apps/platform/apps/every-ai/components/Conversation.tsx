@@ -16,6 +16,8 @@ interface ConversationProps {
 
 // Build text with mentions converted to markdown links
 function buildTextWithMentions(text: string, mentions?: UserTurn['mentions']): string {
+  const hasMarkdownEntityLinks = /\[[^\]]+\]\([a-zA-Z0-9_]+:\/\/[^)]+\)/.test(text)
+  if (hasMarkdownEntityLinks) return text
   if (!mentions || mentions.length === 0) return text
   const withOffsets = mentions.filter(
     m => m.offsets && typeof m.offsets.start === 'number' && typeof m.offsets.end === 'number'
@@ -27,11 +29,8 @@ function buildTextWithMentions(text: string, mentions?: UserTurn['mentions']): s
     const end = m.offsets!.end
     const before = result.slice(0, start)
     const after = result.slice(end)
-    if (m.type === 'employees') {
-      result = `${before}[@${m.display}](employee://${m.id})${after}`
-    } else {
-      result = `${before}${m.display}${after}`
-    }
+    const protocol = (m.type || '').toLowerCase() === 'employees' ? 'employee' : m.type
+    result = `${before}[${m.display}](${protocol}://${m.id})${after}`
   }
   return result
 }

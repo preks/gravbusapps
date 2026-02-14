@@ -7,10 +7,14 @@
 declare module '@cloudflare/realtimekit-react' {
   import { ReactNode } from 'react'
 
+  // Audio middleware function type - returns an AudioNode to be inserted into audio processing chain
+  export type AudioMiddleware = (audioContext: AudioContext) => Promise<AudioNode> | AudioNode
+
   // Video middleware function type
   export type VideoMiddleware = (canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D) => void
 
   export interface RealtimeKitMeeting {
+    id?: string
     self?: {
       id?: string
       userId?: string
@@ -32,6 +36,8 @@ declare module '@cloudflare/realtimekit-react' {
       enableScreenShare: () => Promise<void>
       disableScreenShare: () => Promise<void>
       setName: (name: string) => Promise<void>
+      addAudioMiddleware?: (middleware: AudioMiddleware) => void
+      removeAudioMiddleware?: (middleware?: AudioMiddleware) => void
       addVideoMiddleware?: (middleware: VideoMiddleware) => void
       removeVideoMiddleware?: (middleware?: VideoMiddleware) => void
       setVideoMiddlewareGlobalConfig?: (config: { disablePerFrameCanvasRendering?: boolean }) => Promise<void>

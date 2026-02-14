@@ -166,7 +166,10 @@ export const useCalendar = ({ accessToken, apiUrl, externalEvents = [] }: UseCal
       return evtStart < rangeEnd && evtEnd > rangeStart
     })
 
-    return [...internalEvents, ...filteredExternal].sort((a, b) => a.start.getTime() - b.start.getTime())
+    // Filter out cancelled/deleted meetings and sort by start time
+    return [...internalEvents, ...filteredExternal]
+      .filter(event => event.status !== 'cancelled')
+      .sort((a, b) => a.start.getTime() - b.start.getTime())
   }, [internalEvents, externalEvents, dateRange])
 
   // Load pending invitations

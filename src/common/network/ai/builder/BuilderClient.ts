@@ -86,6 +86,9 @@ export interface ChatMessage {
   content: string
   toolCalls?: ToolCall[]
   thinkingLog?: string
+  messageId?: string
+  createdAt?: string
+  serverCreatedAt?: string
 }
 
 export interface AutoInitConfig {
@@ -140,6 +143,8 @@ export interface IndexingStatus {
 export interface PublishRequest {
   repoId: string
   sessionId: string
+  versionType?: 'major' | 'minor'
+  versionNote?: string
 }
 
 export interface PublishResponse {
@@ -332,6 +337,36 @@ export class BuilderClient {
       return response.ok
     } catch {
       return false
+    }
+  }
+
+  /**
+   * Restore session files and chat to a specific message
+   */
+  async restoreToMessage(params: {
+    repoId: string
+    sessionId: string
+    targetPath: string
+    messageId: string
+    restoreChat?: boolean
+  }): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/versions/restore/message`, {
+      method: 'POST',
+      headers: this.getHeaders(true),
+      body: JSON.stringify({
+        repoId: params.repoId,
+        sessionId: params.sessionId,
+        targetPath: params.targetPath,
+        messageId: params.messageId,
+        applyToCache: true,
+        restoreChat: params.restoreChat !== false
+      })
+    })
+
+    const data = await response.json()
+
+    if (!response.ok) {
+      throw new Error(data.error || data.message || 'Failed to restore message')
     }
   }
 
@@ -685,6 +720,8 @@ export class BuilderClient {
         id: string
       }>
       thinkingLog?: string
+      messageId?: string
+      createdAt?: string
     }> = [],
     useAgenticMode: boolean = true,
     buildEnabled: boolean = true,

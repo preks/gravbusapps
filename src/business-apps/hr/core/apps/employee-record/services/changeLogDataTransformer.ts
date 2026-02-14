@@ -160,7 +160,6 @@ export class ChangeLogDataTransformer {
 
     // Transform working hours (array of snapshots)
     if (Array.isArray(employee.workingHours) && employee.workingHours.length > 0) {
-      console.log(employee.workingHours, 'employee.workingHours')
       employee.workingHours.forEach((wh: any, index: number) => {
         const timestamp =
           wh?.updatedAt ||

@@ -191,6 +191,9 @@
     --color-ai-foreground: var(--nw-ai-foreground);
     --color-ai-secondary: var(--nw-ai-secondary);
     --color-ai-secondary-foreground: var(--nw-ai-secondary-foreground);
+    /* AI Gradient Colors - for gradient backgrounds (matches design system) */
+    --color-ai-from: #dc2626; /* Red-600 - gradient start */
+    --color-ai-to: #f97316; /* Orange-500 - gradient end */
   }
 }
 

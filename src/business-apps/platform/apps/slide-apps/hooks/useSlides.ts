@@ -40,6 +40,11 @@ export function useSlides(accessToken: string | undefined): UseSlidesResult {
     error: null
   })
 
+  // Keep the API service's in-memory token in sync with the prop
+  useEffect(() => {
+    SlidesApiService.setAccessToken(accessToken || null)
+  }, [accessToken])
+
   const refreshSlides = useCallback(async () => {
     if (!accessToken) {
       setState(prev => ({ ...prev, isLoading: false, error: 'Not authenticated' }))
