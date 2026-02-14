@@ -3,6 +3,7 @@ import { MarkdownWithChipsRenderer } from '@/common/components/markdown/Markdown
 import { InlineEditableMarkdownBlock } from '../editing/InlineEditableMarkdownBlock'
 import { InlineEditableTitle } from '../editing/InlineEditableTitle'
 import type { DocumentContent } from '../../types/nexus.types'
+import { normalizeNexusMarkdown } from '../../utils/normalizeNexusMarkdown'
 
 interface DocumentRendererProps {
   content: DocumentContent
@@ -24,6 +25,8 @@ export const DocumentRenderer = ({
   testId = 'nexus-doc-renderer'
 }: DocumentRendererProps) => {
   const markdown = isStreaming && streamContent ? streamContent : content.markdown
+  const normalizedMarkdown = normalizeNexusMarkdown(markdown || '')
+  const normalizedValue = normalizeNexusMarkdown(content.markdown || '')
   const canEdit = editable && !isStreaming
 
   return (
@@ -52,13 +55,13 @@ export const DocumentRenderer = ({
             <article className="gba:prose-sm gba:leading-relaxed">
               {canEdit ? (
                 <InlineEditableMarkdownBlock
-                  value={content.markdown}
+                  value={normalizedValue}
                   onChange={md => onContentChange?.({ markdown: md })}
                   accessToken={accessToken}
                   testId={`${testId}-body`}
                 />
               ) : (
-                <MarkdownWithChipsRenderer content={markdown} accessToken={accessToken} variant="default" />
+                <MarkdownWithChipsRenderer content={normalizedMarkdown} accessToken={accessToken} variant="default" />
               )}
             </article>
           </>
