@@ -1,13 +1,12 @@
 /**
  * SpaceCard - Space preview card
  *
- * Clean, minimal card design following NEWWORK design system
- * No borders, no shadows, flat design
+ * Decorative card style from nw-design-system. Used in Every Office spaces slider.
  */
 
 import React from 'react'
-import { Badge } from '@newwork/nw-design-system'
-import { Users, Globe, Lock } from 'lucide-react'
+import { Card, CardContent } from '@newwork/nw-design-system'
+import { Users, Globe, Lock, ArrowRight, FolderOpen } from 'lucide-react'
 import type { Space } from '../types/space.types'
 
 export interface SpaceCardProps {
@@ -26,80 +25,71 @@ export const SpaceCard: React.FC<SpaceCardProps> = ({
   const contentCounts = space.settings?.contentCounts || { documents: 0, spreadsheets: 0, notes: 0, total: 0 }
   const memberCount = space.members?.length || 0
 
-  // Get first letter for monogram
-  const monogram = space.name.charAt(0).toUpperCase()
-
   return (
-    <div
+    <Card
       onClick={onClick}
-      className="gba:group gba:cursor-pointer gba:rounded-lg gba:bg-card gba:overflow-hidden gba:transition-colors hover:gba:bg-accent/50"
+      className="gba:group gba:relative gba:flex gba:h-full gba:w-full gba:flex-col gba:overflow-hidden gba:bg-card-decorative gba:border-0 gba:cursor-pointer gba:transition-all gba:duration-300 gba:hover:scale-[1.02]"
       data-testid={testId}
     >
-      {/* Header with monogram */}
-      {/* eslint-disable newwork-local/no-hardcoded-colors */}
-      <div
-        className="gba:relative gba:h-24 gba:flex gba:items-center gba:justify-center"
-        style={{
-          backgroundColor: '#001271',
-          backgroundImage: `
-            radial-gradient(ellipse at top right,
-              rgba(0, 118, 208, 0.6) 0%,
-              rgba(0, 39, 135, 0.4) 50%,
-              transparent 100%
-            )`
-        }}
-      >
-        {/* eslint-enable newwork-local/no-hardcoded-colors */}
-        {/* Monogram */}
-        <span className="gba:text-4xl gba:font-semibold gba:text-white/30">{monogram}</span>
+      <CardContent className="gba:relative gba:flex gba:flex-1 gba:flex-col gba:justify-between gba:p-5">
+        {/* Header: icon + title + badge */}
+        <div className="gba:mb-4">
+          <div className="gba:flex gba:items-start gba:justify-between gba:gap-3">
+            <div className="gba:h-11 gba:w-11 gba:rounded-xl gba:bg-decorative-foreground/15 gba:flex gba:items-center gba:justify-center gba:flex-shrink-0 gba:group-hover:gba:bg-decorative-foreground/20 gba:transition-colors">
+              <FolderOpen className="gba:h-5 gba:w-5 gba:text-decorative-foreground" />
+            </div>
+            <span className="gba:inline-flex gba:items-center gba:gap-1 gba:px-2 gba:py-0.5 gba:h-5 gba:rounded-full gba:bg-desk-badge-golden gba:text-desk-badge-golden-foreground gba:text-[11px] gba:font-medium gba:flex-shrink-0">
+              {space.isPublic ? (
+                <>
+                  <Globe className="gba:w-3 gba:h-3" />
+                  Public
+                </>
+              ) : (
+                <>
+                  <Lock className="gba:w-3 gba:h-3" />
+                  Private
+                </>
+              )}
+            </span>
+          </div>
 
-        {/* Visibility Badge */}
-        <div className="gba:absolute gba:top-3 gba:right-3">
-          <Badge variant="secondary" className="gba:bg-white/10 gba:text-white/80 gba:border-white/20 gba:gap-1">
-            {space.isPublic ? (
+          <h3 className="gba:mt-3 gba:text-base gba:font-semibold gba:text-decorative-foreground gba:line-clamp-2 group-hover:gba:text-decorative-foreground/90 gba:transition-colors">
+            {space.name}
+          </h3>
+          {space.description && (
+            <p className="gba:mt-1 gba:text-sm gba:text-decorative-foreground/70 gba:line-clamp-2">
+              {space.description}
+            </p>
+          )}
+        </div>
+
+        {/* Stats + Open */}
+        <div className="gba:flex gba:items-center gba:justify-between gba:pt-3 gba:border-t gba:border-decorative-foreground/10">
+          <div className="gba:flex gba:items-center gba:gap-3 gba:text-sm gba:text-decorative-foreground/70">
+            <div className="gba:flex gba:items-center gba:gap-1.5">
+              <Users className="gba:w-4 gba:h-4" />
+              <span>{memberCount}</span>
+            </div>
+            <span className="gba:text-decorative-foreground/30">|</span>
+            <span>
+              {contentCounts.total} item{contentCounts.total !== 1 ? 's' : ''}
+            </span>
+            {isOwner && (
               <>
-                <Globe className="gba:w-3 gba:h-3" />
-                Public
-              </>
-            ) : (
-              <>
-                <Lock className="gba:w-3 gba:h-3" />
-                Private
+                <span className="gba:text-decorative-foreground/30">|</span>
+                <span className="gba:inline-flex gba:items-center gba:rounded gba:bg-decorative-foreground/15 gba:px-2 gba:py-0.5 gba:text-[11px] gba:font-medium gba:text-decorative-foreground/90">
+                  Owner
+                </span>
               </>
             )}
-          </Badge>
-        </div>
-      </div>
-
-      {/* Content */}
-      <div className="gba:p-4">
-        {/* Title & Description */}
-        <div className="gba:mb-3">
-          <h3 className="gba:text-base gba:font-medium gba:text-foreground gba:mb-1 gba:line-clamp-1">{space.name}</h3>
-          {space.description && (
-            <p className="gba:text-sm gba:text-muted-foreground gba:line-clamp-2">{space.description}</p>
-          )}
-        </div>
-
-        {/* Stats Row */}
-        <div className="gba:flex gba:items-center gba:gap-4 gba:text-sm gba:text-muted-foreground">
-          <div className="gba:flex gba:items-center gba:gap-1.5">
-            <Users className="gba:w-4 gba:h-4" />
-            <span>{memberCount}</span>
           </div>
-          <span className="gba:text-border">|</span>
-          <span>
-            {contentCounts.total} item{contentCounts.total !== 1 ? 's' : ''}
-          </span>
-          {isOwner && (
-            <>
-              <span className="gba:text-border">|</span>
-              <span>Owner</span>
-            </>
-          )}
+          <div className="gba:flex gba:items-center gba:gap-1 gba:text-sm gba:font-medium gba:text-decorative-foreground group-hover:gba:text-decorative-foreground/90 gba:transition-colors">
+            <span>Open</span>
+            <ArrowRight className="gba:h-4 gba:w-4 gba:transition-transform group-hover:gba:translate-x-1" />
+          </div>
         </div>
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   )
 }
 

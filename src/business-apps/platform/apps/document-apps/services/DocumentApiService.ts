@@ -751,6 +751,8 @@ export const DocumentApiService = {
         content: JSON.stringify(v.contentSnapshot || {}),
         createdAt: v.createdAt as string,
         createdBy: v.changedBy as string,
+        createdByName: (v as Record<string, unknown>).changedByName as string | undefined,
+        createdByAvatar: (v as Record<string, unknown>).changedByAvatar as string | undefined,
         changeDescription: v.changeSummary as string | undefined,
         isCheckpoint: !v.isAutoSave,
         isAutoSave: v.isAutoSave as boolean,
