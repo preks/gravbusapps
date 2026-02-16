@@ -156,6 +156,7 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
     error: string | null
   }>({ active: false, lines: [], error: null })
   const [previewReady, setPreviewReady] = useState(false)
+  const messagesRef = useRef<Message[]>([])
 
   const builderClient = useBuilderClient(context.accessToken)
   const toolIdCounter = useRef(0)
@@ -163,6 +164,8 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
   const previousChangeCountRef = useRef(0)
   const publishProgressRef = useRef<string[]>([])
   const restoreProgressRef = useRef<string[]>([])
+  const screenBuildUsedRef = useRef(false)
+  const screenBuildSucceededRef = useRef(false)
   const resolvedTargetPath = detectedTargetPath || targetPath
 
   const createMessageId = (): string => {
@@ -192,6 +195,26 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
       }
     })
     return { messages, updated }
+  }
+
+  useEffect(() => {
+    messagesRef.current = messages
+  }, [messages])
+
+  const hasSuccessfulScreenBuildInMessages = (items: Message[]): boolean => {
+    for (let i = items.length - 1; i >= 0; i -= 1) {
+      const message = items[i]
+      if (!message.toolCalls || message.toolCalls.length === 0) continue
+      for (let j = message.toolCalls.length - 1; j >= 0; j -= 1) {
+        const call = message.toolCalls[j]
+        if (call.tool !== 'screen_build') continue
+        const resultText = call.result ?? ''
+        if (resultText.includes('"success": true') || resultText.includes('"success":true')) {
+          return true
+        }
+      }
+    }
+    return false
   }
 
   const readSseStream = async <T,>(stream: ReadableStream, onEvent: (event: T) => void): Promise<void> => {
@@ -659,6 +682,8 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
     setThinking: (v: boolean) => void
     setThinkingContent: (v: React.SetStateAction<string>) => void
     toolIdCounter: React.MutableRefObject<number>
+    markScreenBuildUsed: () => void
+    markScreenBuildSucceeded: () => void
   }
   type StreamState = { assistantMessage: string; needsNewMessage: boolean; hasCreatedInitialMessage: boolean }
 
@@ -730,6 +755,9 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
   }
 
   const applyToolCallEvent = (data: Record<string, unknown>, streamState: StreamState, ctx: StreamCtx): void => {
+    if (data.toolName === 'screen_build') {
+      ctx.markScreenBuildUsed()
+    }
     if (!streamState.hasCreatedInitialMessage) {
       ctx.setMessages(prev => [...prev, buildMessage('assistant', '')])
       streamState.hasCreatedInitialMessage = true
@@ -757,6 +785,22 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
   }
 
   const applyToolResultEvent = (data: Record<string, unknown>, ctx: StreamCtx): void => {
+    const resultContent =
+      typeof data.content === 'string'
+        ? data.content
+        : data.toolResult && typeof data.toolResult === 'object'
+          ? JSON.stringify(data.toolResult)
+          : ''
+
+    if (data.toolName === 'screen_build') {
+      const toolResult =
+        data.toolResult && typeof data.toolResult === 'object' ? (data.toolResult as Record<string, unknown>) : null
+      const successFromResult = toolResult?.success === true
+      const successFromContent = resultContent.includes('"success": true') || resultContent.includes('"success":true')
+      if (successFromResult || successFromContent) {
+        ctx.markScreenBuildSucceeded()
+      }
+    }
     ctx.setMessages(prev => {
       const newMessages = [...prev]
       const lastMsg = newMessages[newMessages.length - 1]
@@ -765,7 +809,7 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
       if (runningTools.length === 0) return newMessages
       const tool = runningTools[runningTools.length - 1]
       tool.status = 'complete'
-      tool.result = data.content as string
+      tool.result = resultContent
       return newMessages
     })
   }
@@ -826,6 +870,8 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
     if (!input.trim() || loading) return
     const userMessage = buildMessage('user', input)
     const userInput = input
+    screenBuildUsedRef.current = false
+    screenBuildSucceededRef.current = false
     setMessages(prev => [...prev, userMessage])
     setInput('')
     setLoading(true)
@@ -862,7 +908,13 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
         setUsage,
         setThinking,
         setThinkingContent,
-        toolIdCounter
+        toolIdCounter,
+        markScreenBuildUsed: () => {
+          screenBuildUsedRef.current = true
+        },
+        markScreenBuildSucceeded: () => {
+          screenBuildSucceededRef.current = true
+        }
       }
       await runStreamToEnd(reader, streamState, ctx)
     } catch (error) {
@@ -884,9 +936,17 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
       setTimeout(async () => {
         const newCount = await checkForChanges()
         if (newCount > previousChangeCountRef.current) {
-          await refreshPreview()
+          const succeededFromMessages = hasSuccessfulScreenBuildInMessages(messagesRef.current)
+          if ((screenBuildUsedRef.current && screenBuildSucceededRef.current) || succeededFromMessages) {
+            setPreviewReady(true)
+            previewSandboxRef.current?.reload()
+          } else {
+            await refreshPreview()
+          }
         }
         previousChangeCountRef.current = newCount
+        screenBuildUsedRef.current = false
+        screenBuildSucceededRef.current = false
       }, 2000)
     }
   }
