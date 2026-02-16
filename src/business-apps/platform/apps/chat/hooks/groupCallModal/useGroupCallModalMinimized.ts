@@ -3,7 +3,6 @@
  */
 
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react'
-import { rtkDebug } from '../../utils/rtkDebug'
 import { buildStreamFromPeer } from '../../utils/groupCallModalUtils'
 import type { GroupCallModalRtkProps, RealtimeKitPeer } from '../../components/call/groupCallModalTypes'
 
@@ -60,12 +59,6 @@ export function useGroupCallModalMinimized({
           cp.user?.id === peer.customParticipantId
       )
       if (conversationParticipant?.user?.avatarUrl) {
-        rtkDebug.log('[RTK Modal] 🖼️ Enriched peer with avatar:', {
-          peerId: peer.id,
-          userId: peer.userId,
-          customParticipantId: peer.customParticipantId,
-          avatarUrl: conversationParticipant.user.avatarUrl
-        })
         return { ...peer, avatarUrl: conversationParticipant.user.avatarUrl }
       }
       return peer
@@ -92,7 +85,6 @@ export function useGroupCallModalMinimized({
 
   useEffect(() => {
     if (!callStateIsMinimized) {
-      rtkDebug.log('[Minimized] Cleaning up audio elements, count:', pipAudioRefs.current.size)
       pipAudioRefs.current.forEach(audio => {
         audio.pause()
         audio.srcObject = null
@@ -105,18 +97,9 @@ export function useGroupCallModalMinimized({
     if (prevAudioTrackIdsRef.current === remoteAudioTrackIds) return
     prevAudioTrackIdsRef.current = remoteAudioTrackIds
 
-    rtkDebug.log('[Minimized] Setting up audio for remote peers:', {
-      remotePeersCount: stableRemotePeers.length,
-      remotePeerIds: stableRemotePeers.map(p => p.id),
-      existingAudioCount: pipAudioRefs.current.size
-    })
-
     stableRemotePeers.forEach(peer => {
       const rtkPeer = peer as RealtimeKitPeer
-      if (peer.id === meeting?.self?.id) {
-        rtkDebug.log('[Minimized] Skipping audio for local participant:', peer.id)
-        return
-      }
+      if (peer.id === meeting?.self?.id) return
 
       const peerName = rtkPeer.name || rtkPeer.odName
       const stream = buildStreamFromPeer(rtkPeer)
@@ -127,27 +110,19 @@ export function useGroupCallModalMinimized({
           const oldTrackId = oldStream?.getAudioTracks()[0]?.id
           const newTrackId = stream.getAudioTracks()[0]?.id
           if (oldTrackId !== newTrackId) {
-            rtkDebug.log('[Minimized] Updating audio stream for peer:', peerName, { oldTrackId, newTrackId })
             existingAudio.srcObject = stream
             void applySinkIdToElement(existingAudio, selectedAudioOutputIdRef.current)
             existingAudio.play().catch(err => console.error('[Minimized] Audio play error for', peerName, ':', err))
           }
         } else {
-          rtkDebug.log('[Minimized] Creating audio element for peer:', peerName, {
-            hasAudioTracks: stream.getAudioTracks().length
-          })
           const audio = document.createElement('audio')
           audio.autoplay = true
           audio.srcObject = stream
           void applySinkIdToElement(audio, selectedAudioOutputIdRef.current)
-          audio
-            .play()
-            .then(() => rtkDebug.log('[Minimized] Audio playing for:', peerName))
-            .catch(err => console.error('[Minimized] Audio play error for', peerName, ':', err))
+          audio.play().catch(err => console.error('[Minimized] Audio play error for', peerName, ':', err))
           pipAudioRefs.current.set(peer.id, audio)
         }
       } else if (pipAudioRefs.current.has(peer.id)) {
-        rtkDebug.log('[Minimized] Removing audio for peer (no tracks):', peerName)
         const audio = pipAudioRefs.current.get(peer.id)!
         audio.pause()
         audio.srcObject = null
@@ -158,7 +133,6 @@ export function useGroupCallModalMinimized({
     const currentPeerIds = new Set(stableRemotePeers.map(p => p.id))
     pipAudioRefs.current.forEach((audio, peerId) => {
       if (!currentPeerIds.has(peerId)) {
-        rtkDebug.log('[Minimized] Removing audio for peer (left call):', peerId)
         audio.pause()
         audio.srcObject = null
         pipAudioRefs.current.delete(peerId)

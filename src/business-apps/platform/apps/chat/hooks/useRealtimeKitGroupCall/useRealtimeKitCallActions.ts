@@ -44,7 +44,6 @@ export interface UseRealtimeKitCallActionsOptions {
   callPreferences: any
   setActiveCallInStorage: typeof setActiveCallInStorage
   clearActiveCallFromStorage: typeof clearActiveCallFromStorage
-  rtkDebug: { log: (...args: any[]) => void; warn: (...args: any[]) => void; error: (...args: any[]) => void }
 }
 
 /**
@@ -53,7 +52,7 @@ export interface UseRealtimeKitCallActionsOptions {
  *
  * Needs: options, full callState (refs, setters, activeConversationCalls), meeting result
  * (initMeeting, media, joinMeetingWithTimeout, participantsHook, combinedCallState, websocket,
- * diagnostics, getResolved*), callPreferences, setActiveCallInStorage, clearActiveCallFromStorage, rtkDebug.
+ * diagnostics, getResolved*), callPreferences, setActiveCallInStorage, clearActiveCallFromStorage.
  *
  * Does: Creates leaveCallRef and toggleMinimizeRef; implements startDurationTimer, stopDurationTimer,
  * initiateCall, confirmStartCall, startCall, internalJoinCall, joinCall, acceptInvite, cancelSetup,
@@ -84,8 +83,7 @@ export function useRealtimeKitCallActions(params: UseRealtimeKitCallActionsOptio
     diagnostics,
     callPreferences,
     setActiveCallInStorage: setActiveCallInStorageParam,
-    clearActiveCallFromStorage,
-    rtkDebug
+    clearActiveCallFromStorage
   } = params
   const options = groupCallOptions
   const { wsClient, apiClient, currentUser } = options
@@ -170,7 +168,6 @@ export function useRealtimeKitCallActions(params: UseRealtimeKitCallActionsOptio
           startDurationTimer,
           setCallState,
           joinMeetingWithTimeout,
-          rtkDebug,
           currentUser: currentUser!
         },
         preferences
@@ -190,8 +187,7 @@ export function useRealtimeKitCallActions(params: UseRealtimeKitCallActionsOptio
       refs,
       setCallState,
       joinMeetingWithTimeout,
-      media,
-      rtkDebug
+      media
     ]
   )
 
@@ -243,8 +239,7 @@ export function useRealtimeKitCallActions(params: UseRealtimeKitCallActionsOptio
           getActiveConversationCalls: () => activeConversationCalls,
           currentUser: currentUser!,
           joinMeetingWithTimeout,
-          setActiveCallInStorage: setActiveCallInStorageParam,
-          rtkDebug
+          setActiveCallInStorage: setActiveCallInStorageParam
         },
         { roomId, callType, meetingId, conversationName, initialPreferences, conversationType }
       )
@@ -263,8 +258,7 @@ export function useRealtimeKitCallActions(params: UseRealtimeKitCallActionsOptio
       joinMeetingWithTimeout,
       media,
       options,
-      setActiveCallInStorageParam,
-      rtkDebug
+      setActiveCallInStorageParam
     ]
   )
 
@@ -273,10 +267,9 @@ export function useRealtimeKitCallActions(params: UseRealtimeKitCallActionsOptio
       buildJoinCallWrapper({
         internalJoinCall,
         getActiveConversationCalls: () => activeConversationCalls,
-        getConversations: () => options.conversations,
-        rtkDebug
+        getConversations: () => options.conversations
       }),
-    [internalJoinCall, activeConversationCalls, options, rtkDebug]
+    [internalJoinCall, activeConversationCalls, options]
   )
 
   const acceptInvite = useCallback(
@@ -288,14 +281,6 @@ export function useRealtimeKitCallActions(params: UseRealtimeKitCallActionsOptio
       })
       if (!latestInvite) return
       const invite: GroupCallInvite = latestInvite
-      rtkDebug.log('[RTK] Accepting invite with preferences:', {
-        conversationId: invite.conversationId,
-        meetingId: invite.roomId,
-        callType: invite.callType,
-        conversationName: invite.conversationName,
-        from: invite.from.odName,
-        preferences: initialPreferences
-      })
       refs.calendarMeetingIdRef.current = null
       setActiveConversationCalls(prev => {
         const newMap = new Map(prev)
@@ -319,11 +304,10 @@ export function useRealtimeKitCallActions(params: UseRealtimeKitCallActionsOptio
       )
       setIncomingInvite(null)
     },
-    [internalJoinCall, setIncomingInvite, setActiveConversationCalls, refs, rtkDebug]
+    [internalJoinCall, setIncomingInvite, setActiveConversationCalls, refs]
   )
 
   const cancelSetup = useCallback(() => {
-    rtkDebug.log('[RTK] 🚫 Canceling call setup')
     refs.isCancelledRef.current = true
     setCallState((prev: any) => ({
       ...prev,
@@ -338,21 +322,15 @@ export function useRealtimeKitCallActions(params: UseRealtimeKitCallActionsOptio
     refs.pendingCallParticipantsRef.current = []
     setTimeout(() => {
       refs.isCancelledRef.current = false
-      rtkDebug.log('[RTK] ✅ Reset cancellation flag - ready for new call')
     }, 100)
-  }, [refs, setCallState, rtkDebug])
+  }, [refs, setCallState])
 
   const declineInvite = useCallback(() => {
     if (!incomingInvite) return
-    rtkDebug.log('[RTK] 🚫 Declining invite:', {
-      meetingId: incomingInvite.roomId,
-      conversationId: incomingInvite.conversationId
-    })
     try {
       media.stopAllTracks()
-      rtkDebug.log('[RTK] ✅ Media tracks stopped when declining invite')
-    } catch (err) {
-      rtkDebug.error('[RTK] ⚠️ Failed to stop media tracks when declining:', err)
+    } catch {
+      // Best-effort
     }
     refs.startTimeRef.current = null
     if (currentUser && wsClient?.getSocket()) {
@@ -361,10 +339,9 @@ export function useRealtimeKitCallActions(params: UseRealtimeKitCallActionsOptio
         meetingId: incomingInvite.roomId,
         participantId: currentUser.id
       })
-      rtkDebug.log('[RTK] 📤 Emitted rtk-group-call:declined event')
     }
     setIncomingInvite(null)
-  }, [incomingInvite, currentUser, wsClient, media, refs, setIncomingInvite, rtkDebug])
+  }, [incomingInvite, currentUser, wsClient, media, refs, setIncomingInvite])
 
   const leaveCall = useCallback(async () => {
     await runLeaveCall({
@@ -379,7 +356,6 @@ export function useRealtimeKitCallActions(params: UseRealtimeKitCallActionsOptio
       callPreferences,
       clearInviteDedupeFor,
       media,
-      rtkDebug,
       accessToken: options.accessToken ?? undefined
     })
   }, [
@@ -393,14 +369,13 @@ export function useRealtimeKitCallActions(params: UseRealtimeKitCallActionsOptio
     clearInviteDedupeFor,
     media,
     options,
-    clearActiveCallFromStorage,
-    rtkDebug
+    clearActiveCallFromStorage
   ])
 
   leaveCallRef.current = leaveCall
 
   const toggleMinimize = useCallback(() => {
-    setCallState(prev => {
+    setCallState((prev: any) => {
       const nextIsMinimized = !prev.isMinimized
       nextMinimizedForGlobalRef.current = nextIsMinimized
       return { ...prev, isMinimized: nextIsMinimized, hasBeenMinimized: true }
@@ -416,7 +391,7 @@ export function useRealtimeKitCallActions(params: UseRealtimeKitCallActionsOptio
   toggleMinimizeRef.current = toggleMinimize
 
   const toggleTranscription = useCallback(() => {
-    setCallState(prev => ({ ...prev, transcriptionEnabled: !prev.transcriptionEnabled }))
+    setCallState((prev: any) => ({ ...prev, transcriptionEnabled: !prev.transcriptionEnabled }))
   }, [setCallState])
 
   const stableToggleMute = useCallback(() => media.toggleMute(), [media.toggleMute])

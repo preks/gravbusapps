@@ -13,7 +13,7 @@ import type { RealtimeKitCallRefs } from './contextTypes'
  * Needs: callState, meeting, refs, leaveCallRef, toggleMinimizeRef, participantsHookRef,
  * websocketRef, media, screenShare, participantsHook, websocket, activeSpeaker, callPreferences,
  * options (conversations, accessToken, etc.), currentUser, chatApiClient, wsClient, activeConversation,
- * callConversation, rtkDebug.
+ * callConversation.
  *
  * Does: (1) When callState.status !== 'idle', calls globalCallManager.updateCallbacks with
  * ref-based callbacks. (2) When connected and meeting.self.roomState === 'joined', calls
@@ -41,7 +41,6 @@ export function useRealtimeKitGlobalCallManager(params: {
   wsClient: any
   activeConversation: any
   callConversation: any
-  rtkDebug: { log: (...args: any[]) => void }
 }): void {
   const {
     callState,
@@ -62,8 +61,7 @@ export function useRealtimeKitGlobalCallManager(params: {
     chatApiClient,
     wsClient,
     activeConversation,
-    callConversation,
-    rtkDebug
+    callConversation
   } = params
 
   useEffect(() => {
@@ -93,15 +91,12 @@ export function useRealtimeKitGlobalCallManager(params: {
         await refs.mediaRef.current?.setAutoGainControlEnabled(enabled)
       }
     })
-    rtkDebug.log('[RTK] ✅ Updated callbacks in globalCallManager after remount')
-  }, [callState.status, leaveCallRef, toggleMinimizeRef, refs, callPreferences, rtkDebug])
+  }, [callState.status, leaveCallRef, toggleMinimizeRef, refs, callPreferences])
 
   useEffect(() => {
     if (callState.status !== 'connected' || !meeting || meeting.self?.roomState !== 'joined') {
       return
     }
-
-    rtkDebug.log('[RTK] Storing call data in globalCallManager for persistent UI')
 
     const remoteStreamsMap = new Map<string, MediaStream>()
     participantsHook.remoteStreams.forEach((stream: MediaStream, peerId: string) => {
@@ -160,11 +155,6 @@ export function useRealtimeKitGlobalCallManager(params: {
       },
       toggleRaiseHand: () => {
         const currentHandRaised = websocketRef.current?.handRaised ?? false
-        rtkDebug.log('[RTK GlobalCallManager] toggleRaiseHand callback invoked:', {
-          currentHandRaised,
-          hasWebsocketRef: !!websocketRef.current,
-          websocketHandRaised: websocketRef.current?.handRaised
-        })
         websocketRef.current?.toggleRaiseHand(currentHandRaised)
       },
       sendReaction: (reaction: string) => {
@@ -200,13 +190,6 @@ export function useRealtimeKitGlobalCallManager(params: {
         const roomId = callState.roomId
         if (!roomId || !options.conversations) return callConversation || activeConversation || null
         const foundConversation = options.conversations.find((c: any) => c.id === roomId)
-        rtkDebug.log('[RTK Hook] 🔍 Computing callConversation for globalCallManager:', {
-          roomId,
-          foundConversationId: foundConversation?.id,
-          foundConversationName: foundConversation?.name,
-          participantCount: foundConversation?.participants?.length,
-          fallbackToActive: !foundConversation && !!activeConversation
-        })
         return foundConversation || activeConversation || null
       })(),
       pendingInvites: participantsHook.pendingInvites,
@@ -244,7 +227,6 @@ export function useRealtimeKitGlobalCallManager(params: {
     callPreferences,
     chatApiClient,
     wsClient,
-    callConversation,
-    rtkDebug
+    callConversation
   ])
 }

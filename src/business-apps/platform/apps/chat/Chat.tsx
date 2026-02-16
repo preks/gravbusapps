@@ -26,7 +26,6 @@ import type { User } from './types'
 import type { CallParticipant } from './services/webrtcClient'
 import type { GroupCallParticipant } from './services/groupWebrtcClient'
 import { TranslationProvider, useChatTranslation } from './contexts/TranslationContext'
-import { rtkDebug } from './utils/rtkDebug'
 import { seedTestParticipants, TestParticipantPresets } from './utils/seedTestParticipants'
 
 // Presence info type for sharing with other components
@@ -382,82 +381,41 @@ const ChatInner: React.FC<ChatProps> = memo(
         ;(window as any).TestParticipantPresets = TestParticipantPresets
         ;(window as any).seedTestParticipants = seedTestParticipants
         ;(window as any).setTestParticipants = (countOrPreset: number | string) => {
-          rtkDebug.log('[TEST] setTestParticipants called with:', countOrPreset)
           try {
             let participants: GroupCallParticipant[]
             if (typeof countOrPreset === 'number') {
               participants = seedTestParticipants(countOrPreset)
-              rtkDebug.log(
-                `✅ Test participants set to ${countOrPreset}, generated ${participants.length} participants`
-              )
             } else if (
               typeof countOrPreset === 'string' &&
               TestParticipantPresets[countOrPreset as keyof typeof TestParticipantPresets]
             ) {
               const preset = TestParticipantPresets[countOrPreset as keyof typeof TestParticipantPresets]
               participants = preset()
-              rtkDebug.log(
-                `✅ Test participants set to preset: ${countOrPreset}, generated ${participants.length} participants`
-              )
             } else {
               console.error(
                 `❌ Invalid preset: ${countOrPreset}. Available: two, four, six, nine, twelve, mixed, allMuted, allVideoOff`
               )
               return
             }
-            // Use ref to ensure we have the latest setter
             setTestParticipantsOverrideRef.current(participants)
-            rtkDebug.log(
-              '[TEST] State updated, participants:',
-              participants.map(p => p.odName)
-            )
           } catch (error) {
             console.error('[TEST] Error setting test participants:', error)
           }
         }
         ;(window as any).clearTestParticipants = () => {
-          rtkDebug.log('[TEST] Clearing test participants')
           setTestParticipantsOverrideRef.current(null)
-          rtkDebug.log('✅ Test participants cleared, using real participants')
         }
         ;(window as any).getTestParticipants = () => {
-          rtkDebug.log('[TEST] Current test participants override:', testParticipantsOverride)
-          rtkDebug.log('[TEST] Current real participants count:', groupParticipantsRaw.length)
           return testParticipantsOverride
         }
         ;(window as any).testParticipantsDebug = () => {
-          rtkDebug.log('🔍 Test Participants Debug Info:')
-          rtkDebug.log('  - Function exists:', typeof (window as any).setTestParticipants === 'function')
-          rtkDebug.log('  - Current override:', testParticipantsOverride)
-          rtkDebug.log('  - Current override count:', testParticipantsOverride?.length || 0)
-          rtkDebug.log('  - Real participants count:', groupParticipantsRaw.length)
-          rtkDebug.log('  - Is in call:', groupCallState.status !== 'idle')
-          rtkDebug.log('  - Call status:', groupCallState.status)
+          // Test participant debug helper (no logging per plan)
         }
-        rtkDebug.log('🎮 Test participant utilities available:')
-        rtkDebug.log('  - window.setTestParticipants(5)')
-        rtkDebug.log('  - window.setTestParticipants("nine")')
-        rtkDebug.log('  - window.clearTestParticipants()')
-        rtkDebug.log('  - window.getTestParticipants()')
-        rtkDebug.log('  - window.testParticipantsDebug()')
       }
     }, [])
 
     // Use test participants if override is set, otherwise use real participants
     const groupParticipants = testParticipantsOverride || groupParticipantsRaw
-
-    // Debug log when participants change
-    useEffect(() => {
-      if (testParticipantsOverride) {
-        rtkDebug.log(
-          '[TEST] ✅ Using test participants:',
-          testParticipantsOverride.length,
-          testParticipantsOverride.map(p => p.odName)
-        )
-      } else {
-        rtkDebug.log('[TEST] Using real participants:', groupParticipantsRaw.length)
-      }
-    }, [testParticipantsOverride, groupParticipantsRaw.length])
 
     // Combined in-call state (RTK only; P2P removed)
     const isInAnyCall = isInGroupCall

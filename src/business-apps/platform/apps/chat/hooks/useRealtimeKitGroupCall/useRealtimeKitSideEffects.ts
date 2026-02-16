@@ -17,7 +17,7 @@ const ACTIVE_CALL_KEY = 'newwork_active_call'
  *
  * Needs: callState, setCallState, meeting, media, participantsHook, wsClient, currentUser,
  * refs, activeConversationCalls, setIncomingInvite, incomingInvite, stopDurationTimer,
- * combinedCallState, leaveCall, diagnostics, isInCall, rtkDebug.
+ * combinedCallState, leaveCall, diagnostics, isInCall.
  *
  * Does: Syncs media state into callState; on meeting join sets status to 'connected'; optional
  * log on session start; periodic call quality metrics; transcript-ready socket listener + toast;
@@ -44,7 +44,6 @@ export function useRealtimeKitSideEffects(params: {
   leaveCall: () => void
   diagnostics: { logSimulcastInfo: () => void }
   isInCall: boolean
-  rtkDebug: { log: (...args: any[]) => void; error: (...args: any[]) => void }
 }): void {
   const {
     callState,
@@ -62,8 +61,7 @@ export function useRealtimeKitSideEffects(params: {
     combinedCallState,
     leaveCall,
     diagnostics,
-    isInCall,
-    rtkDebug
+    isInCall
   } = params
 
   useEffect(() => {
@@ -89,10 +87,9 @@ export function useRealtimeKitSideEffects(params: {
   useEffect(() => {
     if (!meeting || callState.status !== 'joining') return
     if (meeting.self?.id) {
-      rtkDebug.log('[RTK] Meeting joined successfully')
       setCallState((prev: any) => ({ ...prev, status: 'connected' }))
     }
-  }, [meeting, callState.status, setCallState, rtkDebug])
+  }, [meeting, callState.status, setCallState])
 
   useEffect(() => {
     if (callState.status !== 'connected') return
@@ -132,21 +129,15 @@ export function useRealtimeKitSideEffects(params: {
     const socket = transcriptSocket
     if (!socket) return
     const handleTranscriptReady = (data: { noteId: string; meetingId: string; meetingTitle: string }) => {
-      rtkDebug.log('[RTK] 📝 Transcript ready:', data)
       toast.success('Meeting Transcript Ready', {
         description: `${data.meetingTitle} - Transcript has been saved and shared with all participants`,
         duration: 1000000
       })
-      rtkDebug.log('[RTK] 📝 View transcript at:', `/note-apps?noteId=${data.noteId}`)
     }
-    rtkDebug.log('[RTK] 🎧 Registering transcript-ready listener', {
-      socketId: socket.id ?? 'pending',
-      connected: socket.connected
-    })
     socket.off('transcript-ready')
     socket.on('transcript-ready', handleTranscriptReady)
     return () => socket.off('transcript-ready', handleTranscriptReady)
-  }, [transcriptSocket, rtkDebug])
+  }, [transcriptSocket])
 
   useEffect(() => {
     if (callState.status !== 'connected' || !currentUser || !callState.roomId) return
@@ -166,15 +157,12 @@ export function useRealtimeKitSideEffects(params: {
         try {
           const data = JSON.parse(event.newValue)
           if (data.userId === currentUser.id && Date.now() - data.timestamp < 5000) {
-            rtkDebug.log('[RTK] User joined call in another tab, dismissing incoming invite')
             try {
               media.stopAllTracks()
-              rtkDebug.log('[RTK] ✅ Media tracks stopped when dismissing invite (other tab joined)')
-            } catch (err) {
-              rtkDebug.error('[RTK] ⚠️ Failed to stop media tracks when dismissing invite:', err)
+            } catch {
+              // Best-effort
             }
             refs.startTimeRef.current = null
-            rtkDebug.log('[RTK] ⏱️ Cleared start time when dismissing invite (other tab joined)')
             setIncomingInvite(null)
           }
         } catch {
@@ -184,7 +172,7 @@ export function useRealtimeKitSideEffects(params: {
     }
     window.addEventListener('storage', handleStorageChange)
     return () => window.removeEventListener('storage', handleStorageChange)
-  }, [incomingInvite, currentUser, media, refs, setIncomingInvite, rtkDebug])
+  }, [incomingInvite, currentUser, media, refs, setIncomingInvite])
 
   useEffect(() => {
     if (!callState.roomId || !isInCall) return
@@ -192,19 +180,12 @@ export function useRealtimeKitSideEffects(params: {
       if ((conversationId === callState.roomId || callInfo.roomId === callState.roomId) && callInfo.startedAt) {
         const globalStartTime = new Date(callInfo.startedAt).getTime()
         if (!refs.startTimeRef.current || globalStartTime < refs.startTimeRef.current) {
-          rtkDebug.log('[RTK] ⏱️ 🔄 Syncing timer from activeConversationCalls:', {
-            conversationId,
-            roomId: callState.roomId,
-            backendRoomId: callInfo.roomId,
-            previousStartTime: refs.startTimeRef.current,
-            globalStartTime
-          })
           refs.startTimeRef.current = globalStartTime
         }
         break
       }
     }
-  }, [callState.roomId, isInCall, activeConversationCalls, refs, rtkDebug])
+  }, [callState.roomId, isInCall, activeConversationCalls, refs])
 
   useEffect(() => {
     return () => {
@@ -220,7 +201,6 @@ export function useRealtimeKitSideEffects(params: {
       ;(globalThis as any).rtkToggleVideo = media.toggleVideo
       ;(globalThis as any).rtkCallState = combinedCallState
       ;(globalThis as any).rtkLogSimulcastInfo = diagnostics.logSimulcastInfo
-      rtkDebug.log('[RTK] 🔧 Debug functions exposed to console')
     }
     return () => {
       if (typeof globalThis.window !== 'undefined') {
@@ -231,5 +211,5 @@ export function useRealtimeKitSideEffects(params: {
         delete (globalThis as any).rtkLogSimulcastInfo
       }
     }
-  }, [leaveCall, media.toggleMute, media.toggleVideo, combinedCallState, diagnostics.logSimulcastInfo, rtkDebug])
+  }, [leaveCall, media.toggleMute, media.toggleVideo, combinedCallState, diagnostics.logSimulcastInfo])
 }

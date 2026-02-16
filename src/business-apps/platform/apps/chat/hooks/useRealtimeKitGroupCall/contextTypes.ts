@@ -58,7 +58,6 @@ export interface ConfirmStartCallContext {
   startDurationTimer: () => void
   setCallState: Dispatch<SetStateAction<any>>
   joinMeetingWithTimeout: (meeting: any, timeoutMs: number, context?: any) => Promise<void>
-  rtkDebug: { log: (...args: any[]) => void; warn: (...args: any[]) => void; error: (...args: any[]) => void }
   currentUser: any
 }
 
@@ -77,7 +76,6 @@ export interface JoinCallContext {
   currentUser: any
   joinMeetingWithTimeout: (meeting: any, timeoutMs: number, context?: any) => Promise<void>
   setActiveCallInStorage: (userId: string, roomId: string) => void
-  rtkDebug: { log: (...args: any[]) => void; warn: (...args: any[]) => void; error: (...args: any[]) => void }
 }
 
 export interface LeaveCallContext {
@@ -92,6 +90,5 @@ export interface LeaveCallContext {
   callPreferences: any
   clearInviteDedupeFor: (meetingId?: string | null, conversationId?: string | null) => void
   media: { stopAllTracks: () => void; rnnoiseStats?: any }
-  rtkDebug: { log: (...args: any[]) => void; warn: (...args: any[]) => void; error: (...args: any[]) => void }
   accessToken?: string | null
 }

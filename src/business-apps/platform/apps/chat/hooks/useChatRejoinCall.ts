@@ -4,7 +4,6 @@
  */
 
 import { useState, useCallback, useMemo, useEffect } from 'react'
-import { rtkDebug } from '../utils/rtkDebug'
 import type { Conversation } from '../types'
 import type { ActiveCallInfo } from '../components/ConversationHeader'
 
@@ -117,7 +116,6 @@ export function useChatRejoinCall({
 
   const handleJoinActiveCall = useCallback(() => {
     if (!activeCallInfo || !stableActiveConversation) return
-    rtkDebug.log('[CHAT] handleJoinActiveCall - showing rejoin modal:', activeCallInfo)
     setRejoinModalState({
       roomId: activeCallInfo.roomId,
       callType: activeCallInfo.callType,
@@ -129,19 +127,11 @@ export function useChatRejoinCall({
   const handleRejoinWithPreferences = useCallback(
     (preferences: { micEnabled: boolean; cameraEnabled: boolean; backgroundEnabled: boolean }) => {
       if (!rejoinModalState || !stableActiveConversation) return
-      rtkDebug.log('[CHAT] Rejoining call with preferences:', preferences, rejoinModalState)
       const activeCall = (stableActiveConversation as Conversation & { activeCall?: { roomId: string } }).activeCall
       const meetingId = rejoinModalState.roomId || activeCall?.roomId
       if (!meetingId) {
-        rtkDebug.error('[CHAT] Cannot rejoin - missing meetingId', { conversationId: stableActiveConversation.id })
         return
       }
-      rtkDebug.log('[CHAT] Rejoining existing call:', {
-        conversationType: stableActiveConversation.type,
-        roomId: meetingId,
-        callType: rejoinModalState.callType,
-        preferences
-      })
       joinGroupCall?.(meetingId, rejoinModalState.callType, preferences)
     },
     [rejoinModalState, stableActiveConversation, joinGroupCall]
@@ -149,13 +139,11 @@ export function useChatRejoinCall({
 
   useEffect(() => {
     if (rejoinModalState && groupCallState.status !== 'idle') {
-      rtkDebug.log('[CHAT] Call started, closing rejoin modal')
       setRejoinModalState(null)
     }
   }, [rejoinModalState, groupCallState.status])
 
   const handleRejoinCancel = useCallback(() => {
-    rtkDebug.log('[CHAT] Rejoin cancelled')
     setRejoinModalState(null)
   }, [])
 

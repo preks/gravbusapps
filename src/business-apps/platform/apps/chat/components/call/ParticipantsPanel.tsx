@@ -41,7 +41,6 @@ import {
 } from '@newwork/nw-design-system'
 import { useRealtimeKitSelector } from '@cloudflare/realtimekit-react'
 import { getInitials } from '../../utils/callUtils'
-import { rtkDebug } from '../../utils/rtkDebug'
 import type { PendingInvite } from '../../services/callTypes'
 
 export interface AvailableParticipant {
@@ -153,16 +152,6 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
   // Handler for inviting a participant with loading state - supports multiple simultaneous invites
   const handleInviteClick = async (participant: CallParticipant) => {
     if (!onInviteParticipant || invitingParticipantIds.has(participant.odId)) return
-
-    // [DEBUG] Log participant data being sent to backend AND current stored data
-    rtkDebug.log('[ParticipantsPanel] 📤 Inviting participant:', {
-      id: participant.id,
-      odId: participant.odId,
-      odName: participant.odName,
-      fullParticipant: participant,
-      allSeenParticipantsKeys: Array.from(allSeenParticipantsRef.current.keys()),
-      allSeenParticipantsValues: Array.from(allSeenParticipantsRef.current.values())
-    })
 
     // Add to inviting set
     setInvitingParticipantIds(prev => new Set([...prev, participant.odId]))
@@ -343,23 +332,6 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
       })
     }
 
-    rtkDebug.log('[ParticipantsPanel] 🔍 Matching SDK participants to conversation participants:', {
-      activeParticipantsCount: activeParticipants.length,
-      availableParticipantsCount: availableParticipants.length,
-      conversationParticipantsCount: conversationParticipants.length,
-      activeParticipants: activeParticipants.map((p: any) => ({
-        userId: p.userId,
-        customParticipantId: p.customParticipantId,
-        id: p.id,
-        name: p.name
-      })),
-      conversationParticipants: conversationParticipants.map((p: any) => ({
-        id: p.id,
-        odId: p.odId,
-        odName: p.odName
-      }))
-    })
-
     activeParticipants.forEach((sdkParticipant: any) => {
       // CRITICAL FIX: Match SDK participant to conversation participant to get the REAL user ID
       // The SDK uses internal IDs which don't match our database user IDs
@@ -370,23 +342,6 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
           cp.id === sdkParticipant.userId ||
           cp.odName?.toLowerCase() === sdkParticipant.name?.toLowerCase()
       )
-
-      rtkDebug.log('[ParticipantsPanel] 🔎 Matching result for participant:', {
-        sdkParticipant: {
-          userId: sdkParticipant.userId,
-          customParticipantId: sdkParticipant.customParticipantId,
-          id: sdkParticipant.id,
-          name: sdkParticipant.name
-        },
-        conversationParticipant: conversationParticipant
-          ? {
-              id: conversationParticipant.id,
-              odId: conversationParticipant.odId,
-              odName: conversationParticipant.odName
-            }
-          : null,
-        foundMatch: !!conversationParticipant
-      })
 
       // Use the conversation participant's ID if found, otherwise fall back to SDK IDs
       // CRITICAL: customParticipantId is the REAL user ID set by us, userId is SDK's internal ID
@@ -410,31 +365,10 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
           const sdkIds = [sdkParticipant.userId, sdkParticipant.customParticipantId, sdkParticipant.id]
           sdkIds.forEach(sdkId => {
             if (sdkId && sdkId !== realUserId && allSeenParticipantsRef.current.has(sdkId)) {
-              rtkDebug.log('[ParticipantsPanel] 🧹 Cleaning up old SDK ID:', {
-                sdkId,
-                realUserId,
-                participantName: conversationParticipant.odName
-              })
               allSeenParticipantsRef.current.delete(sdkId)
             }
           })
         }
-
-        const isNewEntry = !allSeenParticipantsRef.current.has(realUserId)
-
-        // [DEBUG] Log when adding/updating seen participants
-        rtkDebug.log(
-          isNewEntry
-            ? '[ParticipantsPanel] 👀 Adding to allSeenParticipants:'
-            : '[ParticipantsPanel] 🔄 Updating allSeenParticipants:',
-          {
-            key: realUserId,
-            participantData,
-            rawSdkParticipant: sdkParticipant,
-            matchedConversationParticipant: conversationParticipant,
-            isNewEntry
-          }
-        )
 
         allSeenParticipantsRef.current.set(realUserId, participantData)
       }
@@ -614,19 +548,6 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
     p => p.status === 'invited' || p.status === 'declined' || p.status === 'not-answered' || p.status === 'left'
   )
   const filteredAvailableParticipants = filteredAllParticipants.filter(p => p.status === 'available')
-
-  // [DEBUG] Log participant lists for debugging
-  rtkDebug.log('[ParticipantsPanel] 📊 Participant lists:', {
-    allSeenCount: allSeenParticipantsRef.current.size,
-    allSeenKeys: Array.from(allSeenParticipantsRef.current.keys()),
-    allSeenValues: Array.from(allSeenParticipantsRef.current.values()),
-    previouslySeenEntriesCount: previouslySeenEntries.length,
-    previouslySeenEntries,
-    activeCount: filteredActiveParticipants.length,
-    invitedCount: filteredInvitedParticipants.length,
-    availableCount: filteredAvailableParticipants.length,
-    allParticipantsCount: allParticipantsWithStatus.length
-  })
 
   if (!isOpen) return null
 

@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import type { ChatWebSocketClient } from '../services/chatWebSocketClient'
 import type { UserStatus, UserStatusChangeEvent } from '../types'
-import { rtkDebug } from '../utils/rtkDebug'
 
 interface UsePresenceOptions {
   wsClient: ChatWebSocketClient | null
@@ -85,8 +84,6 @@ export function usePresence(options: UsePresenceOptions) {
       }
 
       presenceCache.set(userId, presenceData)
-      rtkDebug.log(`[usePresence] ✅ Updated presence cache for user ${userId}:`, presenceData)
-      rtkDebug.log(`[usePresence] Cache size:`, presenceCache.size)
 
       setPresenceVersion(v => v + 1)
 
@@ -170,7 +167,6 @@ export function usePresence(options: UsePresenceOptions) {
           anyData.timestamp instanceof Date ? anyData.timestamp.toISOString() : (anyData.timestamp as string)
 
         updatePresence(anyData.userId, state, timestampString, undefined)
-        rtkDebug.log('[usePresence] ✅ Updated presence cache (OLD FORMAT) for user:', anyData.userId, 'state:', state)
       }
     }
 
@@ -181,15 +177,10 @@ export function usePresence(options: UsePresenceOptions) {
     const requestInitialStatuses = () => {
       if (!currentUserId) return
 
-      rtkDebug.log('[usePresence] 🔌 Socket connected, requesting initial statuses...')
       wsClient
         .requestAllStatuses()
-        .then(response => {
-          rtkDebug.log('[usePresence] ✅ Successfully requested initial status for', response.userCount, 'users')
-        })
-        .catch(error => {
-          rtkDebug.error('[usePresence] ❌ Failed to request initial statuses:', error)
-        })
+        .then(() => {})
+        .catch(() => {})
     }
 
     // Check if socket is already connected
@@ -200,7 +191,6 @@ export function usePresence(options: UsePresenceOptions) {
       // Socket not connected yet, wait for connect event
       const socket = wsClient.getSocket()
       if (socket) {
-        rtkDebug.log('[usePresence] ⏳ Socket not connected yet, waiting for connect event...')
         socket.on('connect', requestInitialStatuses)
       }
     }

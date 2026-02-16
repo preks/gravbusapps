@@ -21,7 +21,6 @@ export interface UseRealtimeKitInviteListenersParams {
   participantsHook: {
     handleDeclinedInvite: (participantId: string, status?: 'declined' | 'not-answered') => void
   }
-  rtkDebug: { log: (...args: any[]) => void; warn: (...args: any[]) => void; error: (...args: any[]) => void }
 }
 
 export function useRealtimeKitInviteListeners(params: UseRealtimeKitInviteListenersParams): void {
@@ -35,8 +34,7 @@ export function useRealtimeKitInviteListeners(params: UseRealtimeKitInviteListen
     clearInviteDedupeFor,
     leaveCallRef,
     media,
-    participantsHook,
-    rtkDebug: rtk
+    participantsHook
   } = params
 
   useEffect(() => {
@@ -51,7 +49,6 @@ export function useRealtimeKitInviteListeners(params: UseRealtimeKitInviteListen
         ((globalThis as any).__RTK_SEEN_INVITES__ as Record<string, number> | undefined) || {}
       const globalLast = globalSeen[inviteKey]
       if (globalLast && now - globalLast < 5000) {
-        rtk.warn('[RTK] ⚠️ Ignoring duplicate invite event (global)', { inviteKey, ageMs: now - globalLast })
         return
       }
       globalSeen[inviteKey] = now
@@ -59,7 +56,6 @@ export function useRealtimeKitInviteListeners(params: UseRealtimeKitInviteListen
 
       const lastSeen = refs.recentlySeenInviteKeysRef.current.get(inviteKey)
       if (lastSeen && now - lastSeen < 5000) {
-        rtk.warn('[RTK] ⚠️ Ignoring duplicate invite event', { inviteKey, ageMs: now - lastSeen })
         return
       }
       refs.recentlySeenInviteKeysRef.current.set(inviteKey, now)
@@ -69,75 +65,33 @@ export function useRealtimeKitInviteListeners(params: UseRealtimeKitInviteListen
         }
       }
 
-      rtk.log('[RTK] 📨 Received call invite:', {
-        meetingId: data.meetingId,
-        conversationId: data.conversationId,
-        from: data.from,
-        currentStatus: refs.callStatusRef.current,
-        meetingIdRef: refs.meetingIdRef.current,
-        callStateRoomIdRef: refs.callStateRoomIdRef.current,
-        wasIdleRef: refs.wasIdleRef.current
-      })
-
       const isInActiveCall = refs.callStatusRef.current !== 'idle' && refs.meetingIdRef.current === data.meetingId
       if (isInActiveCall) {
-        rtk.log('[RTK] ❌ Ignoring invite - already in this call', {
-          currentMeetingId: refs.meetingIdRef.current,
-          inviteMeetingId: data.meetingId,
-          callStatus: refs.callStatusRef.current
-        })
         return
       }
 
       const isInAnyActiveCall = refs.callStatusRef.current !== 'idle' && refs.callStateRoomIdRef.current
       if (isInAnyActiveCall) {
-        rtk.log('[RTK] ❌ Ignoring invite - already in another call', {
-          currentRoomId: refs.callStateRoomIdRef.current,
-          callStatus: refs.callStatusRef.current
-        })
         return
       }
 
       const isFromSelf = data.from?.id === currentUser?.id || data.from?.odId === currentUser?.odId
       if (isFromSelf) {
-        rtk.log('[RTK] ❌ Ignoring invite - from self', {
-          fromId: data.from?.id,
-          fromOdId: data.from?.odId,
-          currentUserId: currentUser?.id,
-          currentUserOdId: currentUser?.odId
-        })
         return
       }
 
       if (currentUser && isInCallInAnotherTab(currentUser.id)) {
-        rtk.log('[RTK] ❌ Ignoring invite - user is in call in another tab')
         return
       }
 
       if (!refs.wasIdleRef.current && refs.callStatusRef.current !== 'idle') {
-        rtk.log('[RTK] ❌ Ignoring invite - not in idle state', {
-          wasIdleRef: refs.wasIdleRef.current,
-          callStatus: refs.callStatusRef.current
-        })
         return
       }
-
-      rtk.log('[RTK] ✅ Accepting invite - call is idle', {
-        meetingId: data.meetingId,
-        conversationId: data.conversationId,
-        callStatus: refs.callStatusRef.current,
-        wasIdleRef: refs.wasIdleRef.current
-      })
 
       setIncomingInvite(prev => {
         if (prev && prev.roomId === data.meetingId && prev.conversationId === data.conversationId) {
           return prev
         }
-        rtk.log('[RTK] 📥 Setting incoming invite:', {
-          hasPrevious: !!prev,
-          conversationId: data.conversationId,
-          meetingId: data.meetingId
-        })
         return {
           roomId: data.meetingId,
           callType: data.callType,
@@ -150,17 +104,8 @@ export function useRealtimeKitInviteListeners(params: UseRealtimeKitInviteListen
     }
 
     const handleCallEnded = (data: { meetingId: string; conversationId: string }) => {
-      rtk.log('[RTK] Call ended by host', data)
       refs.lastStartEmitRef.current = null
       clearInviteDedupeFor(data.meetingId, data.conversationId)
-
-      rtk.log('[RTK] Current incomingInvite state:', {
-        hasInvite: !!refs.incomingInviteRef.current,
-        inviteRoomId: refs.incomingInviteRef.current?.roomId,
-        inviteConversationId: refs.incomingInviteRef.current?.conversationId,
-        eventMeetingId: data.meetingId,
-        eventConversationId: data.conversationId
-      })
 
       if (refs.meetingIdRef.current === data.meetingId) {
         leaveCallRef.current?.()
@@ -171,39 +116,28 @@ export function useRealtimeKitInviteListeners(params: UseRealtimeKitInviteListen
         (refs.incomingInviteRef.current.roomId === data.meetingId ||
           refs.incomingInviteRef.current.conversationId === data.conversationId)
       ) {
-        rtk.log('[RTK] 📵 Dismissing incoming invite - call ended')
         try {
           media.stopAllTracks()
-          rtk.log('[RTK] ✅ Media tracks stopped when dismissing expired invite')
-        } catch (err) {
-          rtk.error('[RTK] ⚠️ Failed to stop media tracks when dismissing invite:', err)
+        } catch {
+          // Best-effort
         }
         refs.startTimeRef.current = null
-        rtk.log('[RTK] ⏱️ Cleared start time when dismissing invite (call ended)')
         setIncomingInvite(null)
-      } else if (refs.incomingInviteRef.current) {
-        rtk.log("[RTK] ⚠️ Have incoming invite but IDs don't match - NOT dismissing")
-      } else {
-        rtk.log('[RTK] ℹ️ No incoming invite to dismiss')
       }
     }
 
     const handleCallCancelled = (data: { meetingId: string; conversationId: string; hostId: string }) => {
-      rtk.log('[RTK] Call cancelled by host', data)
       if (
         refs.incomingInviteRef.current &&
         (refs.incomingInviteRef.current.roomId === data.meetingId ||
           refs.incomingInviteRef.current.conversationId === data.conversationId)
       ) {
-        rtk.log('[RTK] 📵 Dismissing incoming invite - call cancelled by host')
         try {
           media.stopAllTracks()
-          rtk.log('[RTK] ✅ Media tracks stopped when dismissing cancelled invite')
-        } catch (err) {
-          rtk.error('[RTK] ⚠️ Failed to stop media tracks when dismissing invite:', err)
+        } catch {
+          // Best-effort
         }
         refs.startTimeRef.current = null
-        rtk.log('[RTK] ⏱️ Cleared start time when dismissing invite (call cancelled)')
         setIncomingInvite(null)
       }
     }
@@ -217,16 +151,6 @@ export function useRealtimeKitInviteListeners(params: UseRealtimeKitInviteListen
       startedAt?: Date | string
       conversationName?: string
     }) => {
-      rtk.log('[RTK] 📞 Conversation call started/updated:', {
-        conversationId: data.conversationId,
-        roomId: data.roomId,
-        callType: data.callType,
-        participantCount: data.participantIds.length,
-        startedAt: data.startedAt,
-        currentStartTimeRef: refs.startTimeRef.current,
-        isInCall: refs.isInCallRef.current
-      })
-
       setActiveConversationCalls(prev => {
         const newMap = new Map(prev)
         newMap.set(data.conversationId, {
@@ -258,60 +182,21 @@ export function useRealtimeKitInviteListeners(params: UseRealtimeKitInviteListen
           !refs.isInCallRef.current)
       ) {
         const globalStartTime = new Date(data.startedAt).getTime()
-        rtk.log('[RTK] 📥 Received conversation:call-started event', {
-          roomId: data.roomId,
-          conversationId: data.conversationId,
-          startedAt: data.startedAt,
-          globalStartTime,
-          currentRoomId: refs.callStateRoomIdRef.current,
-          currentMeetingId: refs.meetingIdRef.current,
-          currentStartTime: refs.startTimeRef.current,
-          isInCall: refs.isInCallRef.current,
-          matchesCurrentCall:
-            data.roomId === refs.callStateRoomIdRef.current ||
-            data.roomId === refs.meetingIdRef.current ||
-            data.conversationId === refs.callStateRoomIdRef.current
-        })
-
         const shouldUpdate =
           !refs.isInCallRef.current || !refs.startTimeRef.current || globalStartTime < refs.startTimeRef.current
 
         if (shouldUpdate) {
-          const previousTime = refs.startTimeRef.current
           refs.startTimeRef.current = globalStartTime
           setCallState(prev => ({
             ...prev,
             callStartTime: globalStartTime,
             startTime: globalStartTime
           }))
-          rtk.log('[RTK] ⏱️ Synced to backend start time:', {
-            previousStartTime: previousTime,
-            newStartTime: globalStartTime,
-            diff: previousTime ? (previousTime - globalStartTime) / 1000 : 0,
-            reason: !previousTime ? 'first-sync' : 'catching-up-to-earlier-time'
-          })
-        } else {
-          rtk.log('[RTK] ⏱️ Keeping current start time (backend time is same or later):', {
-            currentStartTime: refs.startTimeRef.current,
-            backendStartTime: globalStartTime,
-            diff: refs.startTimeRef.current ? (refs.startTimeRef.current - globalStartTime) / 1000 : 0,
-            reason: 'already-have-earlier-or-equal-time'
-          })
         }
-      } else {
-        rtk.log('[RTK] ⏱️ ⏭️ Skipping timer sync - not for current call or no startedAt:', {
-          hasStartedAt: !!data.startedAt,
-          eventRoomId: data.roomId,
-          eventConversationId: data.conversationId,
-          currentRoomId: refs.callStateRoomIdRef.current,
-          currentMeetingId: refs.meetingIdRef.current,
-          isInCall: refs.isInCallRef.current
-        })
       }
     }
 
     const handleConversationCallEnded = (data: { conversationId: string; roomId: string }) => {
-      rtk.log('[RTK] 📴 Conversation call ended:', data)
       refs.lastStartEmitRef.current = null
       clearInviteDedupeFor(data.roomId, data.conversationId)
 
@@ -359,7 +244,6 @@ export function useRealtimeKitInviteListeners(params: UseRealtimeKitInviteListen
     }
 
     const handleDeclined = (data: { conversationId: string; meetingId: string; participantId: string }) => {
-      rtk.log('[RTK] 📵 Participant declined invite:', data)
       participantsHook.handleDeclinedInvite(data.participantId, 'declined')
     }
 
@@ -369,26 +253,17 @@ export function useRealtimeKitInviteListeners(params: UseRealtimeKitInviteListen
       participantId: string
       participantName: string
     }) => {
-      rtk.log('[RTK] ⏱️ Participant did not answer invite:', data)
       participantsHook.handleDeclinedInvite(data.participantId, 'not-answered')
       if (currentUser && data.participantId === currentUser.id) {
-        rtk.log('[RTK] ⏱️ Current user did not answer - dismissing invite')
         try {
           media.stopAllTracks()
-          rtk.log('[RTK] ✅ Media tracks stopped when dismissing timed-out invite')
-        } catch (err) {
-          rtk.error('[RTK] ⚠️ Failed to stop media tracks when dismissing timed-out invite:', err)
+        } catch {
+          // Best-effort
         }
         refs.startTimeRef.current = null
-        rtk.log('[RTK] ⏱️ Cleared start time when dismissing invite (timeout)')
         setIncomingInvite(null)
       }
     }
-
-    rtk.log('[RTK] 🎧 Registering WebSocket listeners', {
-      socketId: socket.id ?? 'pending',
-      connected: socket.connected
-    })
 
     socket.off('rtk-group-call:invite')
     socket.off('rtk-group-call:ended')

@@ -17,19 +17,16 @@ export async function runLeaveCall(ctx: LeaveCallContext): Promise<void> {
     callPreferences,
     clearInviteDedupeFor,
     media,
-    rtkDebug,
     accessToken
   } = ctx
 
   const roomId = refs.callStateRoomIdRef.current
   const meetingId = refs.meetingIdRef.current
   const callStartTime = refs.callStartTimeRef.current
-  const currentStatus = refs.callStatusRef.current
 
   if (!roomId) return
 
   if (refs.isLeavingRef.current) {
-    rtkDebug.warn('[RTK] ⚠️ leaveCall already in progress, ignoring duplicate call')
     return
   }
 
@@ -44,47 +41,16 @@ export async function runLeaveCall(ctx: LeaveCallContext): Promise<void> {
 
     const meetingForLeave = stableMeeting || globalCallManager.getCallData().realtimeKitMeeting
 
-    rtkDebug.log('[RTK] 🚪 Leaving call...', {
-      roomId,
-      meetingId,
-      hasMeeting: !!meetingForLeave,
-      status: currentStatus,
-      wasCancelled: refs.isCancelledRef.current
-    })
-
     const duration = callStartTime ? Date.now() - callStartTime : 0
-    const rnnoiseStats = refs.mediaRef.current?.rnnoiseStats
-
-    rtkDebug.log('[RTK Session] Call ended', {
-      sessionId: sessionIdForEmit,
-      meetingId,
-      duration: (duration / 1000).toFixed(2) + 's',
-      rnnoiseStats: rnnoiseStats
-        ? {
-            framesProcessed: rnnoiseStats.framesProcessed,
-            totalProcessingTime: rnnoiseStats.totalProcessingTime.toFixed(2) + 's',
-            averageLatency: rnnoiseStats.averageLatency.toFixed(2) + 'ms'
-          }
-        : null,
-      timestamp: new Date().toISOString()
-    })
 
     const isEarlyCancellation = !stableMeeting && !refs.isCancelledRef.current
 
     if (isEarlyCancellation) {
       if (refs.abortControllerRef.current) {
         refs.abortControllerRef.current.abort()
-        rtkDebug.log('[RTK] 🚫 Aborted in-flight call creation')
       }
 
       refs.isCancelledRef.current = true
-
-      rtkDebug.log('[RTK] 🚫 Detected early cancellation during setup', {
-        roomId,
-        meetingId: meetingId || 'not-yet-created',
-        hasMeeting: !!stableMeeting,
-        status: currentStatus
-      })
 
       if (meetingId) {
         const user = refs.currentUserRef.current
@@ -95,24 +61,14 @@ export async function runLeaveCall(ctx: LeaveCallContext): Promise<void> {
             meetingId: meetingId,
             hostId: user.id
           })
-          rtkDebug.log('[RTK] 📤 Emitted rtk-group-call:cancelled event', {
-            conversationId: roomId,
-            meetingId: meetingId
-          })
         }
-      } else {
-        rtkDebug.log('[RTK] ⏭️ Skipping cancellation event - meeting not created yet, no invites sent')
       }
     }
 
     try {
       media.stopAllTracks()
-      rtkDebug.log('[RTK] ✅ All media tracks stopped', {
-        phase: currentStatus,
-        hadMeeting: !!stableMeeting
-      })
-    } catch (err) {
-      rtkDebug.error('[RTK] ⚠️ Failed to stop media tracks during cleanup:', err)
+    } catch {
+      // Best-effort cleanup
     }
 
     stopDurationTimer()
@@ -121,18 +77,16 @@ export async function runLeaveCall(ctx: LeaveCallContext): Promise<void> {
     if (refs.isScreenSharingRef.current && meetingForLeave?.self) {
       try {
         await meetingForLeave.self.disableScreenShare()
-        rtkDebug.log('[RTK] ✅ Screen share stopped during cleanup')
-      } catch (err) {
-        rtkDebug.error('[RTK] ⚠️ Failed to stop screen share during cleanup:', err)
+      } catch {
+        // Best-effort cleanup
       }
     }
 
     if (meetingForLeave) {
       try {
         await meetingForLeave.leave()
-        rtkDebug.log('[RTK] ✅ SDK meeting.leave() completed')
-      } catch (err) {
-        rtkDebug.error('[RTK] ❌ SDK meeting.leave() error:', err)
+      } catch {
+        // Best-effort cleanup
       }
     }
 
@@ -176,8 +130,8 @@ export async function runLeaveCall(ctx: LeaveCallContext): Promise<void> {
               })
             })
           }
-        } catch (err) {
-          rtkDebug.warn('[RTK] ⚠️ Failed to re-establish socket for leave event', err)
+        } catch {
+          // Best-effort
         }
       }
     }
@@ -198,8 +152,6 @@ export async function runLeaveCall(ctx: LeaveCallContext): Promise<void> {
       } else {
         socket.emit('rtk-group-call:left', payload)
       }
-    } else {
-      rtkDebug.warn('[RTK] ⚠️ Skipping leave event - missing user or socket')
     }
 
     refs.startTimeRef.current = null
@@ -226,17 +178,11 @@ export async function runLeaveCall(ctx: LeaveCallContext): Promise<void> {
     }))
 
     globalCallManager.clearCall()
-    rtkDebug.log('[RTK] 🧹 Cleared globalCallManager on leave')
 
     if (roomId) {
       setActiveConversationCalls(prev => {
         const newMap = new Map(prev)
         newMap.delete(roomId)
-        rtkDebug.log('[RTK] 🧹 Cleared activeConversationCalls entry on leave:', {
-          conversationId: roomId,
-          hadEntry: prev.has(roomId),
-          remainingEntries: newMap.size
-        })
         return newMap
       })
     }
@@ -251,8 +197,7 @@ export async function runLeaveCall(ctx: LeaveCallContext): Promise<void> {
       refs.isCancelledRef.current = false
     }, 100)
   } catch (error) {
-    console.error('[useRealtimeKitGroupCall] ❌ Error leaving call:', error)
-    rtkDebug.error('[RTK] Error leaving call:', error)
+    console.error('[useRealtimeKitGroupCall] Error leaving call:', error)
     refs.isLeavingRef.current = false
   }
 }

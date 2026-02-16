@@ -10,7 +10,6 @@ import { RealtimeKitApiClient } from '../services/realtimeKitApiClient'
 import type { CallParticipant } from '../services/webrtcClient'
 import type { UseGroupCallReturn } from '../services/callTypes'
 import { useCallPreferences } from './useCallPreferences'
-import { rtkDebug } from '../utils/rtkDebug'
 import { setActiveCallInStorage, clearActiveCallFromStorage } from '../utils/activeCallStorage'
 import { useRealtimeKitCallState } from './useRealtimeKitGroupCall/useRealtimeKitCallState'
 import { useRealtimeKitInviteListeners } from './useRealtimeKitGroupCall/useRealtimeKitInviteListeners'
@@ -101,8 +100,7 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
     diagnostics,
     callPreferences,
     setActiveCallInStorage,
-    clearActiveCallFromStorage,
-    rtkDebug
+    clearActiveCallFromStorage
   })
 
   const isInCall = callState.status !== 'idle' && callState.status !== 'ended'
@@ -127,8 +125,7 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
     chatApiClient,
     wsClient,
     activeConversation,
-    callConversation,
-    rtkDebug
+    callConversation
   })
 
   const inviteSocket = wsClient?.getSocket()
@@ -142,8 +139,7 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
     clearInviteDedupeFor,
     leaveCallRef: actionsResult.leaveCallRef,
     media,
-    participantsHook,
-    rtkDebug
+    participantsHook
   })
 
   useRealtimeKitSideEffects({
@@ -162,8 +158,7 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
     combinedCallState,
     leaveCall: actionsResult.leaveCall,
     diagnostics,
-    isInCall,
-    rtkDebug
+    isInCall
   })
 
   return useMemo(

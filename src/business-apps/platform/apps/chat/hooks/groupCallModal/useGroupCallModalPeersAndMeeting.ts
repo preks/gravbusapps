@@ -4,7 +4,6 @@
 
 import { useMemo } from 'react'
 import { useRealtimeKitSelector } from '@cloudflare/realtimekit-react'
-import { rtkDebug } from '../../utils/rtkDebug'
 import { globalCallManager } from '../../services/globalCallManager'
 import { isVideoTrackScreenShare, extractTracksFromCollection } from '../../utils/callUtils'
 import type { GroupCallModalRtkProps } from '../../components/call/groupCallModalTypes'
@@ -49,23 +48,7 @@ export function useGroupCallModalPeersAndMeeting(props: GroupCallModalRtkProps) 
           seenStableIds.add(stableId)
           return true
         }
-        rtkDebug.log(`[RTK Modal] ⚠️ Duplicate participant filtered in selector:`, {
-          peerId: peer.id,
-          stableId,
-          peerName: peer.name
-        })
         return false
-      })
-
-      dedupedPeers.forEach((peer: any) => {
-        if (peer.screenShareEnabled) {
-          rtkDebug.log(`[RTK Modal] Remote peer ${peer.name || peer.id} screen share ACTIVE:`, {
-            screenShareEnabled: peer.screenShareEnabled,
-            screenShareTracks: peer.screenShareTracks,
-            screenShareTracksType: typeof peer.screenShareTracks,
-            videoTrackLabel: peer.videoTrack?.label
-          })
-        }
       })
 
       return dedupedPeers
@@ -79,38 +62,10 @@ export function useGroupCallModalPeersAndMeeting(props: GroupCallModalRtkProps) 
 
     const screenShareTracks = extractTracksFromCollection(m.self.screenShareTracks)
     if (screenShareTracks.length > 0) {
-      rtkDebug.log('[RTK Modal] 📺 Local screen share tracks found:', {
-        count: screenShareTracks.length,
-        trackIds: screenShareTracks.map(t => t.id),
-        trackLabels: screenShareTracks.map(t => t.label),
-        trackKinds: screenShareTracks.map(t => t.kind),
-        rawType: typeof m.self.screenShareTracks,
-        rawIsArray: Array.isArray(m.self.screenShareTracks),
-        rawIsMap: m.self.screenShareTracks instanceof Map,
-        rawIsSet: m.self.screenShareTracks instanceof Set,
-        rawKeys: m.self.screenShareTracks ? Object.keys(m.self.screenShareTracks) : []
-      })
-
       const videoTrack = screenShareTracks.find(t => t.kind === 'video' && t.readyState === 'live')
-      if (videoTrack) {
-        rtkDebug.log('[RTK Modal] ✅ Found live VIDEO track for screen share:', {
-          trackId: videoTrack.id,
-          trackLabel: videoTrack.label,
-          trackKind: videoTrack.kind,
-          readyState: videoTrack.readyState
-        })
-        return videoTrack
-      }
-
+      if (videoTrack) return videoTrack
       const firstLiveTrack = screenShareTracks.find(t => t.readyState === 'live')
-      if (firstLiveTrack) {
-        rtkDebug.warn('[RTK Modal] ⚠️ No live video track found in screenShareTracks, using first live track:', {
-          firstTrack: firstLiveTrack.kind,
-          readyState: firstLiveTrack.readyState
-        })
-        return firstLiveTrack
-      }
-      rtkDebug.warn('[RTK Modal] ⚠️ All local screen share tracks have ended')
+      if (firstLiveTrack) return firstLiveTrack
     }
 
     if (m.self.videoTrack && isVideoTrackScreenShare(m.self.videoTrack) && m.self.videoTrack.readyState === 'live') {
@@ -136,10 +91,6 @@ export function useGroupCallModalPeersAndMeeting(props: GroupCallModalRtkProps) 
     const isRoomJoined = meeting?.self?.roomJoined
 
     if (!isConnected || !isRoomJoined) {
-      rtkDebug.log('[RTK Modal] 🚫 Not showing participants - call not active', {
-        callStatus: callState.status,
-        isRoomJoined
-      })
       return []
     }
 
@@ -156,12 +107,6 @@ export function useGroupCallModalPeersAndMeeting(props: GroupCallModalRtkProps) 
         if (localCustomId && (p.customParticipantId === localCustomId || p.id === localCustomId)) return false
         if (currentUserId && (p.id === currentUserId || p.userId === currentUserId)) return false
         return true
-      })
-
-      rtkDebug.log('[RTK Modal] 🧪 TEST MODE: Using test participants', {
-        testParticipantsCount: testRemotePeers.length,
-        sdkPeersCount: remotePeers.length,
-        totalParticipantsProp: participants.length
       })
 
       return testRemotePeers

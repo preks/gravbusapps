@@ -9,7 +9,6 @@ import type {
   SetUserStatusPayload
 } from '../types'
 import type { CallSignal, CallType, CallParticipant } from './webrtcClient'
-import { rtkDebug } from '../utils/rtkDebug'
 
 // Client version for tracking
 const CLIENT_VERSION = '2'
@@ -349,9 +348,7 @@ export class ChatWebSocketClient {
         return
       }
 
-      rtkDebug.log('[ChatWebSocket] 📤 Sending user:set_status:', payload)
       this.socket.emit('user:set_status', payload, (response: any) => {
-        rtkDebug.log('[ChatWebSocket] ✅ Received response from user:set_status:', response)
         if (response?.success) {
           resolve(response)
         } else {
@@ -404,9 +401,7 @@ export class ChatWebSocketClient {
         return
       }
 
-      rtkDebug.log('[ChatWebSocket] 📤 Requesting all user statuses')
       this.socket.emit('user:request_all_statuses', (response: { success: boolean; userCount: number }) => {
-        rtkDebug.log('[ChatWebSocket] ✅ Received response from user:request_all_statuses:', response)
         resolve(response)
       })
     })

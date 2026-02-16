@@ -33,11 +33,10 @@ export interface BuildJoinCallWrapperParams {
   internalJoinCall: InternalJoinCall
   getActiveConversationCalls: () => Map<string, ActiveConversationCall>
   getConversations: () => any[] | null | undefined
-  rtkDebug: { log: (...args: any[]) => void; warn: (...args: any[]) => void }
 }
 
 export function buildJoinCallWrapper(params: BuildJoinCallWrapperParams): PublicJoinCall {
-  const { internalJoinCall, getActiveConversationCalls, getConversations, rtkDebug } = params
+  const { internalJoinCall, getActiveConversationCalls, getConversations } = params
 
   return async (
     roomIdOrMeetingId: string,
@@ -75,22 +74,10 @@ export function buildJoinCallWrapper(params: BuildJoinCallWrapperParams): Public
           resolvedConversationId = convId
           resolvedMeetingId = roomIdOrMeetingId
           resolvedConversationName = call.conversationName
-          rtkDebug.log('[RTK] joinCall wrapper: Resolved meetingId to conversationId', {
-            input: roomIdOrMeetingId,
-            conversationId: convId,
-            meetingId: call.roomId,
-            conversationName: call.conversationName
-          })
         } else if (convId === roomIdOrMeetingId) {
           resolvedConversationId = convId
           resolvedMeetingId = call.roomId
           resolvedConversationName = call.conversationName
-          rtkDebug.log('[RTK] joinCall wrapper: Resolved conversationId to meetingId', {
-            input: roomIdOrMeetingId,
-            conversationId: convId,
-            meetingId: call.roomId,
-            conversationName: call.conversationName
-          })
         }
       })
 
@@ -100,12 +87,6 @@ export function buildJoinCallWrapper(params: BuildJoinCallWrapperParams): Public
           resolvedConversationId = byMeetingId.id
           resolvedMeetingId = roomIdOrMeetingId
           resolvedConversationName = byMeetingId.name
-          rtkDebug.log('[RTK] joinCall wrapper: Resolved meetingId via options.conversations activeCall', {
-            input: roomIdOrMeetingId,
-            conversationId: resolvedConversationId,
-            meetingId: resolvedMeetingId,
-            conversationName: resolvedConversationName
-          })
         }
       }
 
@@ -116,40 +97,16 @@ export function buildJoinCallWrapper(params: BuildJoinCallWrapperParams): Public
           resolvedConversationId = byConversationId.id
           resolvedMeetingId = meetingIdFromConversation
           resolvedConversationName = byConversationId.name
-          rtkDebug.log('[RTK] joinCall wrapper: Resolved conversationId via options.conversations activeCall', {
-            input: roomIdOrMeetingId,
-            conversationId: resolvedConversationId,
-            meetingId: resolvedMeetingId,
-            conversationName: resolvedConversationName
-          })
         }
       }
 
       if (!resolvedMeetingId) {
-        rtkDebug.warn(
-          '[RTK] joinCall wrapper: Could not resolve meetingId from activeConversationCalls, using input as conversationId',
-          {
-            input: roomIdOrMeetingId,
-            activeConversationCallsSize: getActiveConversationCalls().size,
-            activeConversationCallsKeys: Array.from(getActiveConversationCalls().keys())
-          }
-        )
         resolvedConversationId = roomIdOrMeetingId
         resolvedMeetingId = undefined
       }
 
-      rtkDebug.log('[RTK] joinCall wrapper: Final resolved IDs', {
-        input: roomIdOrMeetingId,
-        conversationId: resolvedConversationId,
-        meetingId: resolvedMeetingId || 'undefined',
-        conversationName: resolvedConversationName,
-        callType,
-        preferences
-      })
-
       await internalJoinCall(resolvedConversationId, callType, resolvedMeetingId, resolvedConversationName, preferences)
     } else {
-      rtkDebug.warn('[RTK] joinCall called with initialParticipants - this is not supported. Use startCall instead.')
       throw new Error('joinCall with initialParticipants not supported - use startCall')
     }
   }

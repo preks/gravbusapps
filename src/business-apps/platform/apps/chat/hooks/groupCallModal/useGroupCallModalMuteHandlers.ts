@@ -4,7 +4,6 @@
 
 import { useCallback } from 'react'
 import { toast } from '@newwork/nw-design-system'
-import { rtkDebug } from '../../utils/rtkDebug'
 import type { GroupCallModalRtkProps } from '../../components/call/groupCallModalTypes'
 
 export function useGroupCallModalMuteHandlers(
@@ -32,14 +31,6 @@ export function useGroupCallModalMuteHandlers(
       const targetUserId = targetPeer?.customParticipantId || participantId
 
       try {
-        rtkDebug.log('[MUTE] Sending mute request via WebSocket:', {
-          participantRtkId: participantId,
-          targetUserId,
-          targetParticipantName: participantName,
-          requestedBy: currentParticipant.id,
-          requestedByName: currentParticipant.odName
-        })
-
         socket.emit('group-call:request-mute', {
           targetParticipantId: targetUserId,
           targetParticipantName: participantName,
@@ -75,14 +66,6 @@ export function useGroupCallModalMuteHandlers(
     const participantCount = stableRemotePeers.length
 
     try {
-      rtkDebug.log('[MUTE ALL] Sending mute-all request via backend:', {
-        conversationId: callState.roomId,
-        totalParticipantCount: stableRemotePeers.length + 1,
-        remoteParticipantCount: participantCount,
-        requestedBy: currentParticipant.id,
-        requestedByName: currentParticipant.odName
-      })
-
       socket.emit('group-call:request-mute-all', {
         conversationId: callState.roomId,
         requestedBy: currentParticipant.id,

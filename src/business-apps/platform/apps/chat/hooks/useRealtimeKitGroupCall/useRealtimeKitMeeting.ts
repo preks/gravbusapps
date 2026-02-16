@@ -12,7 +12,6 @@ import { useRealtimeKitParticipants } from '../useRealtimeKitParticipants'
 import { useRealtimeKitDiagnostics } from '../useRealtimeKitDiagnostics'
 import { useRealtimeKitActiveSpeaker } from '../useRealtimeKitActiveSpeaker'
 import { globalCallManager } from '../../services/globalCallManager'
-import { rtkDebug } from '../../utils/rtkDebug'
 import type { GroupCallUIState } from '../../services/callTypes'
 import type { RealtimeKitCallRefs } from './contextTypes'
 
@@ -50,7 +49,8 @@ export function useRealtimeKitMeeting(params: {
   const participantsHookRef = useRef<any>(null)
   const websocketRef = useRef<any>(null)
 
-  const joinMeetingWithTimeout = useCallback(async (initializedMeeting: any, timeoutMs: number, context?: any) => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- third arg passed by callers for context, not used in implementation
+  const joinMeetingWithTimeout = useCallback(async (initializedMeeting: any, timeoutMs: number, _context?: any) => {
     return await new Promise<void>((resolve, reject) => {
       let finished = false
       const timeoutId = setTimeout(() => {
@@ -71,9 +71,6 @@ export function useRealtimeKitMeeting(params: {
           finished = true
           clearTimeout(timeoutId)
           reject(err)
-        })
-        .catch((err: any) => {
-          rtkDebug.error('[RTK] Unexpected error in joinMeetingWithTimeout:', err, context)
         })
     })
   }, [])
@@ -101,12 +98,12 @@ export function useRealtimeKitMeeting(params: {
     }
   }, [])
 
-  const handleScreenShareStateChange = useCallback((isSharing: boolean) => {
-    rtkDebug.log('[RTK] Screen share state changed:', isSharing)
+  const handleScreenShareStateChange = useCallback(() => {
+    // No-op; screen share state is handled by SDK/UI
   }, [])
 
-  const handleReactionReceived = useCallback((reaction: any) => {
-    rtkDebug.log('[RTK] Reaction received:', reaction)
+  const handleReactionReceived = useCallback(() => {
+    // No-op; reactions are handled by SDK/UI
   }, [])
 
   const [meeting, initMeeting] = useRealtimeKitClient()

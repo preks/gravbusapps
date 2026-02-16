@@ -3,7 +3,6 @@
  */
 
 import { useEffect } from 'react'
-import { rtkDebug } from '../../utils/rtkDebug'
 
 type GridItem = {
   id: string
@@ -46,57 +45,30 @@ export function useGroupCallModalTrackAttachment({
       gridItems.forEach(item => {
         if (item.type === 'screen-share' && item.screenShareTrack) {
           const videoEl = screenShareVideoRefs.current.get(item.peerId)
-          if (!videoEl) {
-            rtkDebug.warn(`[RTK Modal] ⚠️ No video element found for screen share ${item.peerId}`)
-            return
-          }
+          if (!videoEl) return
           const track = item.screenShareTrack
-          if (track.readyState === 'ended') {
-            rtkDebug.warn(`[RTK Modal] Screen share track ${track.id} has ended`)
-            return
-          }
+          if (track.readyState === 'ended') return
           const stream = new MediaStream()
           stream.addTrack(track)
           const currentStream = videoEl.srcObject as MediaStream
           const currentTrack = currentStream?.getVideoTracks()[0]
           if (currentStream && currentTrack?.id === track.id && track.readyState === 'live') {
-            rtkDebug.log(`[RTK Modal] Screen share track already attached and live for ${item.peerId}`)
             return
           }
-          if (!currentStream) {
-            rtkDebug.log(`[RTK Modal] 📺 No current stream - re-attaching after Dialog remount`)
-          }
-          rtkDebug.log(`[RTK Modal] 📺 Attaching screen share track:`, {
-            peerId: item.peerId,
-            peerName: item.peerName,
-            trackId: track.id,
-            trackLabel: track.label,
-            trackReadyState: track.readyState
-          })
           videoEl.srcObject = null
           setTimeout(() => {
             if (track.readyState === 'ended') {
-              rtkDebug.error(`[RTK Modal] Track ended before attachment for ${item.peerId}`)
               return
             }
             videoEl.srcObject = stream
             videoEl.muted = true
             const playPromise = videoEl.play()
             if (playPromise !== undefined) {
-              playPromise
-                .then(() => {
-                  rtkDebug.log(`[RTK Modal] ✅ Screen share playing for ${item.peerId}`, {
-                    videoWidth: videoEl.videoWidth,
-                    videoHeight: videoEl.videoHeight,
-                    currentTime: videoEl.currentTime
-                  })
-                })
-                .catch(err => {
-                  rtkDebug.warn(`[RTK Modal] ⚠️ Could not auto-play screen share ${item.peerId}:`, err)
-                  setTimeout(() => {
-                    videoEl.play().catch(e => rtkDebug.error('[RTK Modal] Retry play failed:', e))
-                  }, 100)
-                })
+              playPromise.catch(() => {
+                setTimeout(() => {
+                  videoEl.play().catch(() => {})
+                }, 100)
+              })
             }
           }, 100)
         }
@@ -112,12 +84,7 @@ export function useGroupCallModalTrackAttachment({
       gridItems.forEach(item => {
         if (item.type === 'video' && item.videoTrack) {
           const videoEl = item.isLocal ? localVideoRef.current : remoteVideoRefs.current.get(item.peerId)
-          if (!videoEl) {
-            if (!isMinimized) {
-              rtkDebug.warn(`[RTK Modal] ⚠️ No video element found for ${item.isLocal ? 'local' : item.peerId}`)
-            }
-            return
-          }
+          if (!videoEl) return
           const isTestParticipant =
             item.peerId?.startsWith('test-participant-') ||
             item.videoTrack?.id?.startsWith('mock-') ||
@@ -132,17 +99,12 @@ export function useGroupCallModalTrackAttachment({
           const currentStream = videoEl.srcObject as MediaStream
           const currentVideoTrack = currentStream?.getVideoTracks()[0]
           if (currentStream && currentVideoTrack?.id === item.videoTrack.id) return
-          if (!currentStream) {
-            rtkDebug.log(
-              `[RTK Modal] 📹 Re-attaching video after Dialog remount for ${item.isLocal ? 'local' : item.peerId}`
-            )
-          }
           videoEl.srcObject = null
           setTimeout(() => {
             videoEl.srcObject = stream
             videoEl.muted = item.isLocal
             void applySinkIdToElement(videoEl, selectedAudioOutputIdRef.current)
-            videoEl.play().catch(err => rtkDebug.warn(`[RTK Modal] Could not auto-play video ${item.peerId}:`, err))
+            videoEl.play().catch(() => {})
           }, 10)
         }
       })
