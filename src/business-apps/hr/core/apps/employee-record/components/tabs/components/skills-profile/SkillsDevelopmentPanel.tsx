@@ -9,6 +9,7 @@ import {
   ChartTooltip,
   ChartTooltipContent
 } from '@newwork/nw-design-system'
+import { SparkleIcon } from '@phosphor-icons/react'
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer } from 'recharts'
 import { SkillDistribution, type JobProfileGap } from './skillsProfile.utils'
 
@@ -113,9 +114,27 @@ export const SkillsDevelopmentPanel: React.FC<SkillsDevelopmentPanelProps> = ({
       {nextActionLines.length > 0 && (
         <Card data-testid="skills-next-actions-card">
           <CardHeader className="gba:pb-2">
-            <CardTitle className="gba:text-base">{t('skills-development-next-actions')}</CardTitle>
+            <CardTitle className="gba:text-base gba:flex gba:items-center gba:gap-2">
+              <SparkleIcon className="gba:w-5 gba:h-5 gba:text-primary" />
+              {t('skills-development-next-actions')}
+            </CardTitle>
           </CardHeader>
-          <CardContent className="gba:space-y-3">{nextActionLines}</CardContent>
+          <CardContent>
+            <ul className="gba:space-y-0 gba:list-none gba:pl-0 gba:m-0" data-testid="skills-next-actions-list">
+              {nextActionLines.map((line, index) => (
+                <li
+                  key={index}
+                  className="gba:flex gba:gap-2 gba:items-start gba:py-2 gba:border-b gba:border-border gba:last:border-b-0 gba:first:pt-0"
+                >
+                  <span
+                    className="gba:flex-shrink-0 gba:w-1.5 gba:h-1.5 gba:rounded-full gba:bg-primary gba:mt-1.5"
+                    aria-hidden
+                  />
+                  <div className="gba:min-w-0 gba:flex-1">{line}</div>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
         </Card>
       )}
 
