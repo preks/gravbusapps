@@ -41,9 +41,10 @@ import {
   FormLabel,
   FormControl,
   FormMessage,
-  DateInput
+  DateInput,
+  Textarea
 } from '@newwork/nw-design-system'
-import { DeleteConfirmationDialog } from '../shared'
+import { DeleteConfirmationDialog, AdditionalPropertiesDisplay } from '../shared'
 import {
   PiPlus,
   PiPencil,
@@ -147,6 +148,7 @@ interface AllowanceCodeFormData {
   activeFrom: string
   activeTo?: string
   version?: number
+  additionalProperties?: Record<string, unknown>
 }
 
 const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken, activeFrom, activeTo }) => {
@@ -158,6 +160,7 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
   const [isModalVisible, setIsModalVisible] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [editingItem, setEditingItem] = useState<AllowanceCode | null>(null)
+  const [additionalPropertiesJson, setAdditionalPropertiesJson] = useState<string>('')
 
   // formatDateForInput is imported from shared utils
 
@@ -488,6 +491,7 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
       activeFrom: entryActiveFrom,
       activeTo: entryActiveTo
     })
+    setAdditionalPropertiesJson('')
     // Keep the travel region set filter - don't reset it between adds
     setIsModalVisible(true)
   }
@@ -521,8 +525,12 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
         activeFrom:
           formatDateForInput(record.activeFrom) || formatDateForInput(activeFrom) || dayjs().format('YYYY-MM-DD'),
         activeTo: formatDateForInput(record.activeTo),
-        version: record.version
+        version: record.version,
+        additionalProperties: record.additionalProperties
       })
+      setAdditionalPropertiesJson(
+        record.additionalProperties ? JSON.stringify(record.additionalProperties, null, 2) : ''
+      )
 
       // If editing the only code, set the filter based on its region rule (editable)
       if (allowanceCodes.length === 1 && record.firstAllowanceRegionRuleId) {
@@ -636,6 +644,87 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
     [ruleId, graphqlClient]
   )
 
+  const parseAdditionalPropertiesJson = (): { isValid: true; value?: Record<string, unknown> } | { isValid: false } => {
+    if (!additionalPropertiesJson.trim()) {
+      return { isValid: true, value: undefined }
+    }
+
+    try {
+      return { isValid: true, value: JSON.parse(additionalPropertiesJson) as Record<string, unknown> }
+    } catch {
+      toast.error('Invalid JSON in Additional Info field')
+      return { isValid: false }
+    }
+  }
+
+  const hasValidAmountPercentage = (formValues: AllowanceCodeFormData): boolean => {
+    const amountPercentageError = validateAmountAndPercentage(
+      formValues.amount,
+      formValues.firstAllowanceRegionRulePercent
+    )
+
+    if (!amountPercentageError) {
+      return true
+    }
+
+    form.setError('amount', { type: 'manual', message: amountPercentageError })
+    form.setError('firstAllowanceRegionRulePercent', { type: 'manual', message: amountPercentageError })
+    return false
+  }
+
+  const hasValidDates = (formValues: AllowanceCodeFormData): boolean => {
+    const dateErrors = validateAllowanceCodeDates(formValues.activeFrom, formValues.activeTo, activeFrom, activeTo)
+
+    if (dateErrors.length === 0) {
+      return true
+    }
+
+    dateErrors.forEach(err => {
+      form.setError(err.field, { type: 'manual', message: err.message })
+    })
+    return false
+  }
+
+  const hasUniqueCodeForPeriod = async (formValues: AllowanceCodeFormData): Promise<boolean> => {
+    const uniquenessCheck = await checkCodeUniqueness(
+      formValues.code,
+      formValues.activeFrom,
+      formValues.activeTo,
+      editingItem?.id
+    )
+
+    if (!uniquenessCheck.isDuplicate) {
+      return true
+    }
+
+    if (uniquenessCheck.existingName) {
+      form.setValue('name', uniquenessCheck.existingName)
+    }
+    form.setError('code', {
+      type: 'manual',
+      message: getCodeUniquenessErrorMessage(uniquenessCheck.existingName)
+    })
+    return false
+  }
+
+  const buildSaveData = (
+    formValues: AllowanceCodeFormData,
+    additionalProperties?: Record<string, unknown>
+  ): AllowanceCodeSaveData => {
+    if (!editingItem) {
+      return transformAllowanceCodeForCreate({ ...formValues, additionalProperties }, ruleId)
+    }
+
+    const formValuesWithAdditional = {
+      ...formValues,
+      additionalProperties
+    }
+
+    return isRestrictedEdit
+      ? transformAllowanceCodeForRestrictedUpdate(formValuesWithAdditional, editingItem, ruleId)
+      : transformAllowanceCodeForUnrestrictedUpdate(formValuesWithAdditional, editingItem, ruleId)
+  }
+
   const handleSave = async () => {
     try {
       setIsSaving(true)
@@ -644,63 +733,24 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
       form.clearErrors(['activeFrom', 'activeTo', 'amount', 'firstAllowanceRegionRulePercent', 'code'])
 
       const formValues = form.getValues()
-
-      // Validate mutual exclusivity: Amount and Percentage
-      const amountPercentageError = validateAmountAndPercentage(
-        formValues.amount,
-        formValues.firstAllowanceRegionRulePercent
-      )
-
-      if (amountPercentageError) {
-        form.setError('amount', { type: 'manual', message: amountPercentageError })
-        form.setError('firstAllowanceRegionRulePercent', { type: 'manual', message: amountPercentageError })
-        setIsSaving(false)
+      const parsedAdditionalProperties = parseAdditionalPropertiesJson()
+      if (!parsedAdditionalProperties.isValid) {
         return
       }
 
-      // Date validation
-      const dateErrors = validateAllowanceCodeDates(formValues.activeFrom, formValues.activeTo, activeFrom, activeTo)
-
-      if (dateErrors.length > 0) {
-        dateErrors.forEach(err => {
-          form.setError(err.field, { type: 'manual', message: err.message })
-        })
-        setIsSaving(false)
+      if (!hasValidAmountPercentage(formValues)) {
         return
       }
 
-      // Check code uniqueness within overlapping validity periods
-      const uniquenessCheck = await checkCodeUniqueness(
-        formValues.code,
-        formValues.activeFrom,
-        formValues.activeTo,
-        editingItem?.id
-      )
-
-      if (uniquenessCheck.isDuplicate) {
-        if (uniquenessCheck.existingName) {
-          form.setValue('name', uniquenessCheck.existingName)
-        }
-        form.setError('code', {
-          type: 'manual',
-          message: getCodeUniquenessErrorMessage(uniquenessCheck.existingName)
-        })
-        setIsSaving(false)
+      if (!hasValidDates(formValues)) {
         return
       }
 
-      // Build saveData based on edit mode
-      const isUpdate = !!editingItem
-      let saveData: AllowanceCodeSaveData
-
-      if (isUpdate) {
-        saveData = isRestrictedEdit
-          ? transformAllowanceCodeForRestrictedUpdate(formValues, editingItem, ruleId)
-          : transformAllowanceCodeForUnrestrictedUpdate(formValues, editingItem, ruleId)
-      } else {
-        saveData = transformAllowanceCodeForCreate(formValues, ruleId)
+      if (!(await hasUniqueCodeForPeriod(formValues))) {
+        return
       }
 
+      const saveData = buildSaveData(formValues, parsedAdditionalProperties.value)
       await expenseSettingsClient.saveExpenseRuleAllowanceCode(saveData)
       toast.success(`Allowance code ${editingItem ? 'updated' : 'created'} successfully`)
       setIsModalVisible(false)
@@ -870,6 +920,9 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
                         EXPENSE GROUP
                         {sorting.renderSortIcon('expenseGroup')}
                       </div>
+                    </TableHead>
+                    <TableHead className="gba:w-[160px]" data-testid="allowance-codes-table-header-additional-info">
+                      ADDITIONAL INFO
                     </TableHead>
                     <TableHead
                       className="gba:w-[120px] gba:cursor-pointer gba:select-none gba:hover:bg-accent"
@@ -1065,6 +1118,13 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
                         </Badge>
                       </TableCell>
 
+                      <TableCell
+                        data-testid={`allowance-code-additional-info-cell-${record.id}`}
+                        className="gba:text-center"
+                      >
+                        <AdditionalPropertiesDisplay additionalProperties={record.additionalProperties} />
+                      </TableCell>
+
                       {/* Valid From Column */}
                       <TableCell data-testid={`allowance-code-valid-from-cell-${record.id}`}>
                         <div className="gba:flex gba:items-center gba:gap-1">
@@ -1140,7 +1200,8 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
               >
                 <PiWarning className="gba:h-4 gba:w-4 gba:text-warning" />
                 <AlertDescription>
-                  This allowance code is used in expense items. Only &quot;Valid To&quot; can be edited.
+                  This allowance code is used in expense items. Only &quot;Valid To&quot; and &quot;Additional
+                  Info&quot; can be edited.
                 </AlertDescription>
               </Alert>
             )}
@@ -1602,6 +1663,22 @@ const AllowanceCodeTab: React.FC<AllowanceCodeTabProps> = ({ ruleId, accessToken
                     </FormItem>
                   )}
                 />
+
+                <FormItem data-testid="allowance-code-additional-field">
+                  <FormLabel data-testid="allowance-code-additional-label">Additional Info (JSON)</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      value={additionalPropertiesJson}
+                      onChange={e => setAdditionalPropertiesJson(e.target.value)}
+                      placeholder='{"postingDetails": {"text": "", "account": "", "accountDetail": ""}}'
+                      className="gba:font-mono gba:text-sm gba:min-h-[100px]"
+                      data-testid="allowance-code-additional-textarea"
+                    />
+                  </FormControl>
+                  <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">
+                    Enter valid JSON for posting details and other additional data
+                  </p>
+                </FormItem>
               </div>
             </Form>
           </div>

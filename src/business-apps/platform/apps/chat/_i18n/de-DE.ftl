@@ -32,6 +32,7 @@ chat-authenticationFailed = Authentifizierung fehlgeschlagen. Bitte melden Sie s
 chat-connectionError = Verbindung zum Chat-Dienst fehlgeschlagen. Bitte überprüfen Sie Ihre Internetverbindung.
 chat-cannotLeaveAsLastOwner = Sie sind der einzige Besitzer dieser Gruppe. Bitte übertragen Sie die Eigentümerschaft an ein anderes Mitglied oder löschen Sie die Gruppe in den Gruppeneinstellungen.
 chat-failedToLeave = Verlassen der Unterhaltung fehlgeschlagen. Bitte versuchen Sie es erneut.
+chat-failedToCreateConversation = Unterhaltung konnte nicht erstellt werden. Bitte versuchen Sie es erneut.
 chat-nudgeCooldown = Bitte warten Sie {$seconds} Sekunden, bevor Sie einen weiteren Anstoß senden.
 
 # Messages

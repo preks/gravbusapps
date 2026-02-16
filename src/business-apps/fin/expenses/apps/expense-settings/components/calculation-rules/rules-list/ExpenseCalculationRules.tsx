@@ -3,7 +3,8 @@ import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { DataContainer } from '@/components/layout/dataContainer/DataContainer'
 import { DataFilterGroup } from '@/components/data-filter/DataFilter'
 import { DataControllerProps } from '@/components/dataController/DataController'
-import { formatDate, getCatalogValue, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getCatalogValue, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { formatDate as formatDateSafe } from '../../../utils/dateUtils'
 import { env } from '@/common/env/EnvUtils'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import {
@@ -494,14 +495,14 @@ const ExpenseCalculationRules: React.FC<ExpenseCalculationRulesProps> = ({ onRul
                                 )}
                             </TableCell>
                             <TableCell className="gba:py-3 gba:px-6" data-testid={`${PREFIX}-cell-from-${index}`}>
-                              {formatDate(row.activeFrom || '', 'date.long') ||
+                              {formatDateSafe(row.activeFrom) ||
                                 getTranslationFromI18nKeyAndLabel(
                                   'lowcoder:advance_payment_table.not_available',
                                   'N/A'
                                 )}
                             </TableCell>
                             <TableCell className="gba:py-3 gba:px-6" data-testid={`${PREFIX}-cell-to-${index}`}>
-                              {formatDate(row.activeTo || '', 'date.long') ||
+                              {formatDateSafe(row.activeTo) ||
                                 getTranslationFromI18nKeyAndLabel(
                                   'lowcoder:advance_payment_table.not_available',
                                   'N/A'

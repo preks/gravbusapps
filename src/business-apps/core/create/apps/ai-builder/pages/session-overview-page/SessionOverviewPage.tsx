@@ -9,8 +9,8 @@ export interface SessionOverviewPageProps {
   repositoryId: string
   configMessage: string | null
   sessions: SessionMetadata[]
-  onSelectSession: (sessionId: string) => void
-  onCreateSession: () => void
+  onSelectSession: (sessionId: string) => void | Promise<void>
+  onCreateSession: () => void | Promise<void>
   onDeleteSession: (sessionId: string) => Promise<void>
 }
 
@@ -23,6 +23,8 @@ export const SessionOverviewPage: React.FC<SessionOverviewPageProps> = ({
   onDeleteSession
 }) => {
   const [showAdminSettings, setShowAdminSettings] = useState(false)
+  const [isOpeningSession, setIsOpeningSession] = useState(false)
+  const [openingSessionId, setOpeningSessionId] = useState<string | null>(null)
 
   if (showAdminSettings) {
     return <AdminSettings onClose={() => setShowAdminSettings(false)} />
@@ -30,7 +32,32 @@ export const SessionOverviewPage: React.FC<SessionOverviewPageProps> = ({
 
   const disabled = !repositoryId
   const handleOpenSettings = () => setShowAdminSettings(true)
-  const handleCreateSession = disabled ? handleOpenSettings : onCreateSession
+  const handleCreateSession = async () => {
+    if (disabled) {
+      handleOpenSettings()
+      return
+    }
+    if (isOpeningSession) return
+    setIsOpeningSession(true)
+    setOpeningSessionId(null)
+    try {
+      await onCreateSession()
+    } finally {
+      setIsOpeningSession(false)
+    }
+  }
+
+  const handleSelectSession = async (sessionId: string) => {
+    if (isOpeningSession) return
+    setIsOpeningSession(true)
+    setOpeningSessionId(sessionId)
+    try {
+      await onSelectSession(sessionId)
+    } finally {
+      setIsOpeningSession(false)
+      setOpeningSessionId(null)
+    }
+  }
 
   return (
     <div className="gba:flex gba:flex-col gba:h-full">
@@ -53,11 +80,13 @@ export const SessionOverviewPage: React.FC<SessionOverviewPageProps> = ({
       <div className="gba:flex-1">
         <SessionList
           sessions={sessions}
-          onSelectSession={onSelectSession}
+          onSelectSession={handleSelectSession}
           onCreateSession={handleCreateSession}
           onDeleteSession={onDeleteSession}
           onOpenSettings={handleOpenSettings}
           disabled={disabled}
+          isOpeningSession={isOpeningSession}
+          openingSessionId={openingSessionId}
         />
       </div>
     </div>

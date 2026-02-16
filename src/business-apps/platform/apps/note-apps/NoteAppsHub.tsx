@@ -195,18 +195,6 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
   // Get current user ID
   const currentUserId = userInfo?.id || userInfo?.employeeDetails?.employeeId || ''
 
-  // Store access token for NoteApiService to use (iPad Safari doesn't have it in localStorage)
-  useEffect(() => {
-    if (accessToken) {
-      try {
-        localStorage.setItem('business-app-ide-access-token', accessToken)
-        console.log('[NoteAppsHub] Stored access token in localStorage, length:', accessToken.length)
-      } catch (e) {
-        console.warn('[NoteAppsHub] Failed to store access token in localStorage:', e)
-      }
-    }
-  }, [accessToken])
-
   // Hooks
   const {
     notes,

@@ -6,6 +6,7 @@
  */
 
 import React from 'react'
+import { Reaction } from './ReactionsOverlay'
 import { MemoizedParticipantVideoTile } from './ParticipantVideoTile'
 
 export interface FilmstripParticipant {
@@ -36,7 +37,7 @@ export interface HorizontalFilmstripProps {
   /** Active speaker peer ID for highlighting */
   activeSpeakerId?: string | null
   /** Active reactions to display */
-  reactions?: Array<{ participantId: string; emoji: string; timestamp: number }>
+  reactions?: Reaction[]
   /** Translation function */
   t: (key: string) => string
   /** Data test ID prefix */

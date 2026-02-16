@@ -8,8 +8,7 @@
 import { useEffect, useState } from 'react'
 import { globalPreCallSetupManager } from '../services/globalPreCallSetupManager'
 import { globalCallManager } from '../services/globalCallManager'
-import type { GroupCallUIState } from '../hooks/useGroupCall'
-import type { UseGroupCallReturn } from '../hooks/useGroupCall'
+import type { GroupCallUIState, UseGroupCallReturn } from '../services/callTypes'
 import type { CallParticipant } from '../services/webrtcClient'
 import type { Conversation } from '../types'
 
