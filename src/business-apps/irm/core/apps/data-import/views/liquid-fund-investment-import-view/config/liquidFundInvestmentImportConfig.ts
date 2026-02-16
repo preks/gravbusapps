@@ -108,17 +108,5 @@ export const liquidFundInvestmentTargetFields: TargetFieldDefinition[] = [
 export const liquidFundInvestmentImportConfig: ImportConfig = {
   entityType: 'liquid-fund-investment',
   domain: 'investment',
-  aiAgentName: 'LiquidFundInvestmentImportAnalyzer',
-  targetFields: liquidFundInvestmentTargetFields,
-  requiredCatalogs: [
-    'InvestmentGroup',
-    'InvestmentType',
-    'InvestmentPhase',
-    'InvestmentStatus',
-    'InvestmentStakeType',
-    'InvestmentRiskLevel',
-    'Currency',
-    'InvestmentLiquidFundType',
-    'InterestPaymentFrequency'
-  ]
+  targetFields: liquidFundInvestmentTargetFields
 }

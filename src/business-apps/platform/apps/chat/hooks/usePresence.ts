@@ -176,9 +176,12 @@ export function usePresence(options: UsePresenceOptions) {
 
     const unsubStatusChange = wsClient.onUserStatusChange(handleUserStatusChange)
 
-    // Request initial status for all online users AFTER listener is ready
-    // This catches any users who connected before our listener was set up
-    if (currentUserId) {
+    // Request initial status for all online users AFTER socket is connected
+    // This prevents "Socket not connected" errors
+    const requestInitialStatuses = () => {
+      if (!currentUserId) return
+
+      rtkDebug.log('[usePresence] 🔌 Socket connected, requesting initial statuses...')
       wsClient
         .requestAllStatuses()
         .then(response => {
@@ -189,9 +192,26 @@ export function usePresence(options: UsePresenceOptions) {
         })
     }
 
+    // Check if socket is already connected
+    if (wsClient.isConnected()) {
+      // Socket already connected, request immediately
+      requestInitialStatuses()
+    } else {
+      // Socket not connected yet, wait for connect event
+      const socket = wsClient.getSocket()
+      if (socket) {
+        rtkDebug.log('[usePresence] ⏳ Socket not connected yet, waiting for connect event...')
+        socket.on('connect', requestInitialStatuses)
+      }
+    }
+
     return () => {
       unsubStatusChange()
-      // Cleanup: remove the listener
+      // Cleanup: remove the connect listener
+      const socket = wsClient.getSocket()
+      if (socket) {
+        socket.off('connect', requestInitialStatuses)
+      }
       if (process.env.NODE_ENV === 'development') {
         // Unsubscribed from presence updates
       }

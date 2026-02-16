@@ -31,7 +31,6 @@ export interface MappingReviewStepProps {
   agentResponse: ImportAnalyzerResponse
   mappings: FieldMapping[]
   targetFieldsConfig: TargetFieldDefinition[]
-  parsedDataCount: number
   entityType?: string
   isLoading: boolean
   onUpdateMapping: (index: number, field: 'targetField' | 'transformationType', value: string) => void
@@ -46,7 +45,6 @@ export const MappingReviewStep: React.FC<MappingReviewStepProps> = ({
   agentResponse,
   mappings,
   targetFieldsConfig,
-  parsedDataCount,
   entityType = 'records',
   isLoading,
   onUpdateMapping,
@@ -78,7 +76,7 @@ export const MappingReviewStep: React.FC<MappingReviewStepProps> = ({
       <Card>
         <CardHeader>
           <div className="gba:flex gba:justify-between gba:items-center">
-            <CardTitle>{t('step-title')}</CardTitle>
+            <CardTitle>{t('mapping-review-step-title')}</CardTitle>
             <Button variant="outline" size="sm" onClick={onReset} data-testid={`${testId}-reset-button`}>
               {t('start-over-button')}
             </Button>
@@ -191,7 +189,9 @@ export const MappingReviewStep: React.FC<MappingReviewStepProps> = ({
               ) : (
                 <>
                   <CheckCircleIcon className="gba:w-4 gba:h-4 gba:mr-2" weight="fill" />
-                  {t('convert-button', { count: parsedDataCount, entityType })}
+                  {agentResponse.totalRowsRead
+                    ? t('convert-button', { count: agentResponse.totalRowsRead, entityType })
+                    : t('convert-button-no-count', { entityType })}
                 </>
               )}
             </Button>

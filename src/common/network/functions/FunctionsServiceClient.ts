@@ -38,10 +38,12 @@ export class FunctionsServiceClient {
   private accessToken?: string
 
   constructor(accessToken?: string) {
-    const functionsServiceUrl = env('NEXT_PUBLIC_BASE_URL') + '/functions'
-    if (!functionsServiceUrl) {
-      throw new Error('NEXT_PUBLIC_FUNCTIONS_SERVICE_URL environment variable is required')
+    const explicitFunctionsUrl = env('NEXT_PUBLIC_FUNCTIONS_SERVICE_URL')
+    const baseUrl = env('NEXT_PUBLIC_BASE_URL') || ''
+    if (!explicitFunctionsUrl && !baseUrl) {
+      throw new Error('NEXT_PUBLIC_FUNCTIONS_SERVICE_URL or NEXT_PUBLIC_BASE_URL is required')
     }
+    const functionsServiceUrl = explicitFunctionsUrl ?? `${baseUrl.replace(/\/+$/, '')}/functions`
     const trimmed = functionsServiceUrl.endsWith('/') ? functionsServiceUrl.slice(0, -1) : functionsServiceUrl
     this.baseUrl = trimmed + '/api/v1'
     this.accessToken = accessToken

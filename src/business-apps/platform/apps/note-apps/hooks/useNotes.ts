@@ -61,7 +61,12 @@ export interface UseNotesReturn {
 }
 
 export function useNotes(options: UseNotesOptions = {}): UseNotesReturn {
-  const { initialQuery, autoLoad = true } = options
+  const { accessToken, initialQuery, autoLoad = true } = options
+
+  // Keep the API service's in-memory token in sync with the prop
+  useEffect(() => {
+    NoteApiService.setAccessToken(accessToken || null)
+  }, [accessToken])
 
   // State
   const [notes, setNotes] = useState<NoteSummary[]>([])

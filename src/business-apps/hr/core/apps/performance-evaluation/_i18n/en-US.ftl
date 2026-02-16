@@ -95,6 +95,20 @@ values-modal-title-add = Add Value
 values-modal-title-edit = Edit Value
 values-modal-description = Define a company value and its description.
 
+# Start cycle confirm modal
+start-confirm-title = Start Performance Evaluation
+start-confirm-description-with-cycle = Are you sure you want to start the performance evaluation for "{ $name }"? This will initiate the evaluation flow.
+start-confirm-description-generic = Are you sure you want to start this performance evaluation?
+start-confirm-run-for-label = Run evaluation for
+start-confirm-run-for-self = Myself
+start-confirm-run-for-team = Team
+start-confirm-select-teams = Select Teams *
+start-confirm-placeholder-loading = Loading teams...
+start-confirm-placeholder-teams = Select teams to start evaluation for
+start-confirm-search-teams = Search teams...
+start-confirm-empty-teams = No teams found
+start-confirm-button = Start Evaluation
+
 # Errors
 values-error-cannot-deactivate-active-cycle = Cannot deactivate value while it is used in an active cycle.
 cycles-error-no-rating-scales = At least one rating scale is required to create a cycle.

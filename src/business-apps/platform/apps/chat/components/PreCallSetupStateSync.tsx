@@ -8,8 +8,7 @@
 import { useEffect, useState } from 'react'
 import { globalPreCallSetupManager } from '../services/globalPreCallSetupManager'
 import { globalCallManager } from '../services/globalCallManager'
-import type { GroupCallUIState } from '../hooks/useGroupCall'
-import type { UseGroupCallReturn } from '../hooks/useGroupCall'
+import type { GroupCallUIState, UseGroupCallReturn } from '../services/callTypes'
 import type { CallParticipant } from '../services/webrtcClient'
 import type { Conversation } from '../types'
 
@@ -84,27 +83,13 @@ export const PreCallSetupStateSync: React.FC<PreCallSetupStateSyncProps> = ({
         }
       )
 
-      // Determine user name based on conversation type (EXACT ORIGINAL LOGIC)
-      const userName =
-        activeConversation?.type === 'direct'
-          ? // For direct calls, show the OTHER participant's name
-            activeConversation.participants?.find(
-              (p: any) => p.userId !== currentUser?.id && p.user?.id !== currentUser?.id
-            )?.user?.displayName ||
-            activeConversation.participants?.find(
-              (p: any) => p.userId !== currentUser?.id && p.user?.id !== currentUser?.id
-            )?.user?.username ||
-            'Unknown'
-          : currentUserAsParticipant?.odName // For group calls, show your name
+      // FIXED: Always show the CURRENT USER's name and avatar in pre-call setup
+      // The pre-call setup is for the person STARTING the call to configure their settings
+      // The conversation name/title will show who they're calling
+      const userName = currentUserAsParticipant?.odName
 
-      // Determine user avatar based on conversation type (EXACT ORIGINAL LOGIC)
-      const userAvatarUrl =
-        activeConversation?.type === 'direct'
-          ? // For direct calls, show the OTHER participant's avatar
-            activeConversation.participants?.find(
-              (p: any) => p.userId !== currentUser?.id && p.user?.id !== currentUser?.id
-            )?.user?.avatarUrl
-          : currentUserAsParticipant?.avatarUrl // For group calls, show your avatar
+      // FIXED: Always show the CURRENT USER's avatar
+      const userAvatarUrl = currentUserAsParticipant?.avatarUrl
 
       // Update global state (EXACT ORIGINAL LOGIC)
       globalPreCallSetupManager.setStateFrom(instanceId, {

@@ -150,8 +150,8 @@ const CustomFieldsTab: React.FC<CustomFieldsTabProps> = ({ ruleId, accessToken, 
       source: 'Expense',
       infoValue: '',
       mandatory: false,
-      activeFrom: formatDateForInput(activeFrom) || dayjs().format('YYYY-MM-DD'),
-      activeTo: formatDateForInput(activeTo) || '9999-12-31'
+      activeFrom: dayjs().format('YYYY-MM-DD'), // Default to today's date
+      activeTo: '9999-12-31' // Default to far future
     }
   })
 

@@ -126,22 +126,6 @@
   color: #001f4c;
 }
 
-/* Every Office (Desk) app card icons – clearly blue glass */
-.desk-app-card-icon-glass {
-  position: relative;
-  background: linear-gradient(
-    145deg,
-    rgba(200, 220, 255, 0.7) 0%,
-    rgba(0, 60, 120, 0.25) 50%,
-    rgba(0, 31, 76, 0.4) 100%
-  );
-  border: 1px solid rgba(0, 60, 120, 0.4);
-  backdrop-filter: blur(8px);
-}
-.desk-app-card-icon-glass svg {
-  color: #002d5c;
-}
-
 @import './business-apps/hr/absences/apps/personal-absences/styles/absenceHub.css' layer(legacy-unlayered-override);
 @import './business-apps/hr/absences/apps/personal-absences/styles/absenceListCard.css' layer(legacy-unlayered-override);
 @import './business-apps/hr/absences/apps/personal-absences/styles/entitlementCard.css' layer(legacy-unlayered-override);
@@ -181,6 +165,10 @@
 
     /* EveryAI hero background (deep navy) */
     --nw-ai-hero-background: rgb(15, 23, 42);
+
+    /* Desk shared badge – golden */
+    --desk-badge-golden: #b99960;
+    --desk-badge-golden-foreground: #ffffff;
   }
 }
 
@@ -191,6 +179,12 @@
     --color-ai-foreground: var(--nw-ai-foreground);
     --color-ai-secondary: var(--nw-ai-secondary);
     --color-ai-secondary-foreground: var(--nw-ai-secondary-foreground);
+    /* AI Gradient Colors - for gradient backgrounds (matches design system) */
+    --color-ai-from: #dc2626; /* Red-600 - gradient start */
+    --color-ai-to: #f97316; /* Orange-500 - gradient end */
+    /* Desk shared badge */
+    --color-desk-badge-golden: var(--desk-badge-golden);
+    --color-desk-badge-golden-foreground: var(--desk-badge-golden-foreground);
   }
 }
 

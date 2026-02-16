@@ -1,7 +1,5 @@
 import React, { useMemo } from 'react'
-import { Card } from '@newwork/gravity-ui-catalog'
-import { useTranslation } from '@newwork/nw-design-system'
-import { Empty, Progress } from 'antd'
+import { Card, CardContent, EmptyState, Progress, useTranslation } from '@newwork/nw-design-system'
 import { Employee } from '../../hooks/useEmployeeData'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
@@ -9,6 +7,15 @@ import { UserInfoProps } from '../../../../../../../common/BusinessAppContext'
 import translations from '../../_i18n'
 import { PiStar, PiCheckCircle } from 'react-icons/pi'
 import { calculateSkillStats, getLevelInfo, getSkillCategory, getTimeSince } from '../../utils/utils'
+
+const LEVEL_TOKEN_CLASSES: Record<number, { bg: string; text: string }> = {
+  0: { bg: 'gba:bg-muted', text: 'gba:text-muted-foreground' },
+  1: { bg: 'gba:bg-destructive', text: 'gba:text-destructive' },
+  2: { bg: 'gba:bg-warning', text: 'gba:text-warning' },
+  3: { bg: 'gba:bg-warning', text: 'gba:text-warning' },
+  4: { bg: 'gba:bg-info', text: 'gba:text-info' },
+  5: { bg: 'gba:bg-success', text: 'gba:text-success' }
+}
 
 interface SkillsTabOldProps {
   employee: Employee
@@ -62,33 +69,37 @@ const SkillsTabOld: React.FC<SkillsTabOldProps> = ({ employee, accessToken }) =>
       </div>
 
       {validSkills.length === 0 ? (
-        <Empty description={t('skills-empty')} data-testid="skills-empty" />
+        <EmptyState title={t('skills-empty')} data-testid="skills-empty" />
       ) : (
         <>
           {/* Skills Statistics */}
           <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-4 gba:mb-8" data-testid="skills-stats">
             <Card>
-              <div className="gba:flex gba:items-center gba:justify-between">
-                <div>
-                  <div className="gba:text-2xl gba:font-bold">{skillStats.total}</div>
-                  <div className="gba:text-sm gba:text-muted-foreground">{t('skills-total')}</div>
+              <CardContent className="gba:p-4">
+                <div className="gba:flex gba:items-center gba:justify-between">
+                  <div>
+                    <div className="gba:text-2xl gba:font-bold">{skillStats.total}</div>
+                    <div className="gba:text-sm gba:text-muted-foreground">{t('skills-total')}</div>
+                  </div>
+                  <PiStar className="gba:h-8 gba:w-8" />
                 </div>
-                <PiStar className="gba:h-8 gba:w-8" />
-              </div>
+              </CardContent>
             </Card>
 
             <Card>
-              <div className="gba:flex gba:items-center gba:justify-between">
-                <div>
-                  <div className="gba:text-lg gba:font-bold">
-                    {skillStats.highestSkills.length > 0
-                      ? skillStats.highestSkills.map((skill: any) => skill.skill.name).join(', ')
-                      : t('skills-none')}
+              <CardContent className="gba:p-4">
+                <div className="gba:flex gba:items-center gba:justify-between">
+                  <div>
+                    <div className="gba:text-lg gba:font-bold">
+                      {skillStats.highestSkills.length > 0
+                        ? skillStats.highestSkills.map((skill: any) => skill.skill.name).join(', ')
+                        : t('skills-none')}
+                    </div>
+                    <div className="gba:text-sm gba:text-muted-foreground">{t('skills-highest')}</div>
                   </div>
-                  <div className="gba:text-sm gba:text-muted-foreground">{t('skills-highest')}</div>
+                  <PiCheckCircle className="gba:h-8 gba:w-8 gba:text-primary" />
                 </div>
-                <PiCheckCircle className="gba:h-8 gba:w-8" style={{ color: 'var(--nw-color-purple-500)' }} />
-              </div>
+              </CardContent>
             </Card>
           </div>
 
@@ -113,36 +124,33 @@ const SkillsTabOld: React.FC<SkillsTabOldProps> = ({ employee, accessToken }) =>
                   <div className="gba:relative">
                     {/* Skill Level Progress Bar */}
                     <div
-                      className="gba:absolute gba:top-0 gba:left-0 gba:right-0 gba:h-1"
-                      style={{ backgroundColor: levelInfo.color }}
+                      className={`gba:absolute gba:top-0 gba:left-0 gba:right-0 gba:h-1 ${LEVEL_TOKEN_CLASSES[hasLevel ? Number(skillItem.level) : 0]?.bg ?? 'gba:bg-muted'}`}
                     />
 
-                    <div className="gba:p-6">
+                    <CardContent className="gba:p-6">
                       {/* Header */}
                       <div className="gba:flex gba:justify-between gba:items-start gba:mb-4">
                         <div className="gba:flex-1">
-                          <h4 className="gba:font-bold gba:text-xl gba:mb-1" style={{ color: levelInfo.color }}>
+                          <h4
+                            className={`gba:font-bold gba:text-xl gba:mb-1 ${LEVEL_TOKEN_CLASSES[hasLevel ? Number(skillItem.level) : 0]?.text ?? 'gba:text-muted-foreground'}`}
+                          >
                             {skillItem.skill.name}
                           </h4>
                         </div>
                         <div className="gba:flex gba:flex-col gba:items-end">
-                          <div className="gba:font-bold gba:text-xl" style={{ color: levelInfo.color }}>
+                          <div
+                            className={`gba:font-bold gba:text-xl ${LEVEL_TOKEN_CLASSES[hasLevel ? Number(skillItem.level) : 0]?.text ?? 'gba:text-muted-foreground'}`}
+                          >
                             {hasLevel ? skillItem.level : t('skills-na')}
                           </div>
-                          <div className="gba:text-xs gba:text-gray-500">{t('skills-level')}</div>
+                          <div className="gba:text-xs gba:text-muted-foreground">{t('skills-level')}</div>
                         </div>
                       </div>
 
                       {/* Progress Bar - Only show if skill has a level */}
                       {hasLevel && (
                         <div className="gba:mb-4">
-                          <Progress
-                            percent={(Number(skillItem.level) / 5) * 100}
-                            showInfo={false}
-                            strokeColor={levelInfo.color}
-                            trailColor="var(--color-gray-200)"
-                            strokeWidth={8}
-                          />
+                          <Progress value={(Number(skillItem.level) / 5) * 100} className="gba:h-2" />
                         </div>
                       )}
 
@@ -152,31 +160,25 @@ const SkillsTabOld: React.FC<SkillsTabOldProps> = ({ employee, accessToken }) =>
                       </div>
 
                       {/* Additional Information */}
-                      <div className="gba:space-y-2 gba:border-t gba:border-gray-100 gba:pt-4">
+                      <div className="gba:space-y-2 gba:border-t gba:border-border gba:pt-4">
                         <div className="gba:flex gba:justify-between gba:items-center">
-                          <span className="gba:text-xs gba:text-gray-500">{t('skills-category')}</span>
-                          <span className="gba:text-xs gba:font-medium" style={{ color: 'var(--nw-color-gray-700)' }}>
-                            {category}
-                          </span>
+                          <span className="gba:text-xs gba:text-muted-foreground">{t('skills-category')}</span>
+                          <span className="gba:text-xs gba:font-medium gba:text-foreground">{category}</span>
                         </div>
 
                         <div className="gba:flex gba:justify-between gba:items-center">
-                          <span className="gba:text-xs gba:text-gray-500">{t('skills-added')}</span>
-                          <span className="gba:text-xs gba:font-medium" style={{ color: 'var(--nw-color-gray-700)' }}>
-                            {timeSinceCreated}
-                          </span>
+                          <span className="gba:text-xs gba:text-muted-foreground">{t('skills-added')}</span>
+                          <span className="gba:text-xs gba:font-medium gba:text-foreground">{timeSinceCreated}</span>
                         </div>
 
                         {skillItem.skill.updatedAt && skillItem.skill.updatedAt !== skillItem.skill.createdAt && (
                           <div className="gba:flex gba:justify-between gba:items-center">
-                            <span className="gba:text-xs gba:text-gray-500">{t('skills-updated')}</span>
-                            <span className="gba:text-xs gba:font-medium" style={{ color: 'var(--nw-color-gray-700)' }}>
-                              {timeSinceUpdated}
-                            </span>
+                            <span className="gba:text-xs gba:text-muted-foreground">{t('skills-updated')}</span>
+                            <span className="gba:text-xs gba:font-medium gba:text-foreground">{timeSinceUpdated}</span>
                           </div>
                         )}
                       </div>
-                    </div>
+                    </CardContent>
                   </div>
                 </Card>
               )

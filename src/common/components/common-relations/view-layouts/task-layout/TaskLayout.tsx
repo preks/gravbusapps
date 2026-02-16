@@ -379,7 +379,10 @@ function ConfigTaskLayout<TTask extends Task = Task, TQueryVariables = any>(
         data-testid={`${dataTestId}-detail-sheet`}
         businessAppContext={context}
         accessToken={accessToken}
+        assignedUserId={selectedTask?.taskAssignees?.[0]?.assignedUserId}
+        currentUserId={userInfo?.id}
         flowContext={config.rowActionsContextArray?.[0]}
+        onTaskCompleted={() => loadTasks(false)}
       />
     </div>
   )

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useCallback } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
 export interface EmployeeByUserIdData {
@@ -92,7 +92,7 @@ export const GET_EMPLOYEE_BY_USER_ID = (userId: string): string => {
 /**
  * Custom hook for fetching a single employee by userId
  */
-export const useEmployeeByUserId = ({ accessToken, userId }: UseEmployeeByUserIdProps): UseEmployeeByUserIdReturn => {
+export const useEmployeeByUserId = ({ accessToken }: UseEmployeeByUserIdProps): UseEmployeeByUserIdReturn => {
   const [employee, setEmployee] = useState<EmployeeByUserIdData | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -118,7 +118,7 @@ export const useEmployeeByUserId = ({ accessToken, userId }: UseEmployeeByUserId
           setError('Employee not found')
         }
       } catch (err) {
-        console.error('Error fetching employee by userId:', err)
+        console.error('[useEmployeeByUserId] Error fetching employee by userId:', err)
         setError(err instanceof Error ? err.message : 'Failed to fetch employee')
         setEmployee(null)
       } finally {
@@ -127,12 +127,6 @@ export const useEmployeeByUserId = ({ accessToken, userId }: UseEmployeeByUserId
     },
     [accessToken, graphqlClient]
   )
-
-  useEffect(() => {
-    if (userId) {
-      fetchEmployeeByUserId(userId)
-    }
-  }, [userId, fetchEmployeeByUserId])
 
   return {
     employee,
