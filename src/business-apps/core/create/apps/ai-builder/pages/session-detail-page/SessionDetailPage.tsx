@@ -279,6 +279,22 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
     return 'gba:bg-warning'
   }
 
+  const normalizeNonEmpty = (value?: string | null): string | null => {
+    return value?.trim() ?? null
+  }
+
+  const toPreviewAppName = (pathValue?: string | null): string | null => {
+    const normalizedPath = normalizeNonEmpty(pathValue)
+    if (!normalizedPath) return null
+    const lastSegment = normalizedPath.split('/').filter(Boolean).pop()
+    if (!lastSegment) return null
+    return lastSegment
+      .split(/[-_\s]+/)
+      .filter(Boolean)
+      .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+      .join('')
+  }
+
   const checkForChanges = async (): Promise<number> => {
     if (!sessionId) return 0
     const currentSession = sessions.find(s => s.sessionId === sessionId)
@@ -386,10 +402,22 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
   useEffect(() => {
     const currentSession = sessions.find(s => s.sessionId === sessionId)
     if (!currentSession) return
+    setTargetPath(prev => normalizeNonEmpty(prev) ?? normalizeNonEmpty(currentSession.targetPath) ?? '')
+    setResourceUrl(prev => normalizeNonEmpty(prev) ?? normalizeNonEmpty(currentSession.resourceUrl) ?? '')
+  }, [sessionId, sessions])
+
+  useEffect(() => {
+    const currentSession = sessions.find(s => s.sessionId === sessionId)
+    if (!currentSession) return
+    const nextTargetPath =
+      normalizeNonEmpty(detectedTargetPath) ??
+      normalizeNonEmpty(targetPath) ??
+      normalizeNonEmpty(currentSession.targetPath)
+    const nextResourceUrl = normalizeNonEmpty(resourceUrl) ?? normalizeNonEmpty(currentSession.resourceUrl)
     const updatedSession: SessionMetadata = {
       ...currentSession,
-      targetPath: detectedTargetPath ?? targetPath ?? currentSession.targetPath ?? null,
-      resourceUrl: resourceUrl || currentSession.resourceUrl,
+      targetPath: nextTargetPath,
+      resourceUrl: nextResourceUrl,
       lastModified: new Date().toISOString(),
       fileCount: uniqueFileSummary?.totalUniqueFiles ?? currentSession.fileCount
     }
@@ -427,6 +455,9 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
       builderClient.saveChatHistory(repositoryId, sessionId, persistableMessages)
     }
   }, [debouncedMessages, sessionId, repositoryId])
+
+  const currentSession = sessions.find(s => s.sessionId === sessionId)
+  const previewAppName = toPreviewAppName(detectedTargetPath || targetPath || currentSession?.targetPath || null)
 
   const handlePublish = async () => {
     if (!targetPath || !resourceUrl) {
@@ -1267,6 +1298,7 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
                       ref={previewSandboxRef}
                       repoId={repositoryId}
                       sessionId={sessionId}
+                      previewAppName={previewAppName}
                       accessToken={context.accessToken}
                       userInfo={context.userInfo}
                       buildStatus={previewBuildStatus}
