@@ -10,7 +10,7 @@ import {
   CardHeader,
   CardTitle
 } from '@newwork/nw-design-system'
-import { Plus, Clock, FileCode, Search, Trash2, Folder, Settings } from 'lucide-react'
+import { Plus, Clock, FileCode, Search, Trash2, Folder, Settings, Loader2 } from 'lucide-react'
 import { DebouncedInput } from '@/components/debounced-input'
 import { SessionMetadata } from '../../../types/session'
 import { IndexingProgress } from '../../../components/IndexingProgress'
@@ -18,11 +18,13 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface SessionListProps {
   sessions: SessionMetadata[]
-  onSelectSession: (sessionId: string) => void
-  onCreateSession: () => void
+  onSelectSession: (sessionId: string) => void | Promise<void>
+  onCreateSession: () => void | Promise<void>
   onDeleteSession: (sessionId: string) => void
   onOpenSettings?: () => void
   disabled?: boolean
+  isOpeningSession?: boolean
+  openingSessionId?: string | null
 }
 
 export const SessionList: React.FC<SessionListProps> = ({
@@ -31,7 +33,9 @@ export const SessionList: React.FC<SessionListProps> = ({
   onCreateSession,
   onDeleteSession,
   onOpenSettings,
-  disabled = false
+  disabled = false,
+  isOpeningSession = false,
+  openingSessionId = null
 }) => {
   const [searchTerm, setSearchTerm] = useState('')
   const [filteredSessions, setFilteredSessions] = useState(sessions)
@@ -146,6 +150,20 @@ export const SessionList: React.FC<SessionListProps> = ({
       />
 
       <div className="gba:max-w-6xl gba:mx-auto gba:space-y-6 gba:relative">
+        {isOpeningSession && (
+          <div className="gba:fixed gba:inset-0 gba:z-50 gba:flex gba:items-center gba:justify-center gba:bg-background/70 gba:backdrop-blur-sm">
+            <div className="gba:flex gba:items-center gba:gap-3">
+              <Loader2 className="gba:w-4 gba:h-4 gba:animate-spin" />
+              <span className="gba:text-sm">
+                {getTranslationFromI18nKeyAndLabel(
+                  'lowcoder:ai_builder.sessions.opening_session',
+                  'Opening session...'
+                )}
+              </span>
+            </div>
+          </div>
+        )}
+
         {/* Indexing Progress Banner */}
         <IndexingProgress />
 
@@ -169,6 +187,7 @@ export const SessionList: React.FC<SessionListProps> = ({
                 variant="outline"
                 size="lg"
                 className="gba:gap-2 gba:shadow-sm"
+                disabled={isOpeningSession}
                 title={getTranslationFromI18nKeyAndLabel(
                   'lowcoder:ai_builder.sessions.repository_settings',
                   'Repository Settings'
@@ -184,7 +203,7 @@ export const SessionList: React.FC<SessionListProps> = ({
               onClick={onCreateSession}
               size="lg"
               className="gba:gap-2 gba:shadow-lg"
-              disabled={disabled}
+              disabled={disabled || isOpeningSession}
               title={
                 disabled
                   ? getTranslationFromI18nKeyAndLabel(
@@ -231,7 +250,7 @@ export const SessionList: React.FC<SessionListProps> = ({
                 <p className="gba:text-sm gba:text-muted-foreground gba:mt-1">{getEmptyStateDescription()}</p>
               </div>
               {!searchTerm && !disabled && (
-                <AiButton onClick={onCreateSession} className="gba:gap-2">
+                <AiButton onClick={onCreateSession} className="gba:gap-2" disabled={isOpeningSession}>
                   <Plus className="gba:w-4 gba:h-4" />
                   {getTranslationFromI18nKeyAndLabel(
                     'lowcoder:ai_builder.sessions.create_first',
@@ -253,7 +272,11 @@ export const SessionList: React.FC<SessionListProps> = ({
               <Card
                 key={session.sessionId}
                 className="gba:group gba:cursor-pointer gba:transition-all hover:gba:shadow-lg hover:gba:border-primary/50"
-                onClick={() => onSelectSession(session.sessionId)}
+                onClick={() => {
+                  if (!isOpeningSession) {
+                    void onSelectSession(session.sessionId)
+                  }
+                }}
                 data-testid={`session-card-${session.sessionId}`}
               >
                 <CardHeader>
@@ -279,6 +302,7 @@ export const SessionList: React.FC<SessionListProps> = ({
                       type="button"
                       onClick={e => {
                         e.stopPropagation()
+                        if (isOpeningSession) return
                         if (
                           confirm(
                             getTranslationFromI18nKeyAndLabel(
@@ -291,6 +315,7 @@ export const SessionList: React.FC<SessionListProps> = ({
                         }
                       }}
                       className="gba:shrink-0 gba:text-muted-foreground hover:gba:text-destructive gba:p-1.5 gba:rounded gba:transition-colors"
+                      disabled={isOpeningSession}
                       title={getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.sessions.delete', 'Delete session')}
                       data-testid={`delete-session-${session.sessionId}`}
                     >
@@ -332,8 +357,19 @@ export const SessionList: React.FC<SessionListProps> = ({
                   {/* Metadata */}
                   <div className="gba:flex gba:items-center gba:justify-between gba:pt-2 gba:border-t gba:border-border">
                     <div className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:text-muted-foreground">
-                      <Clock className="gba:w-3 gba:h-3" />
-                      <span>{formatDate(session.lastModified)}</span>
+                      {isOpeningSession && openingSessionId === session.sessionId ? (
+                        <>
+                          <Loader2 className="gba:w-3 gba:h-3 gba:animate-spin" />
+                          <span>
+                            {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.sessions.opening', 'Opening...')}
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <Clock className="gba:w-3 gba:h-3" />
+                          <span>{formatDate(session.lastModified)}</span>
+                        </>
+                      )}
                     </div>
                     {session.fileCount > 0 && (
                       <div className="gba:text-xs gba:font-medium gba:text-primary">
