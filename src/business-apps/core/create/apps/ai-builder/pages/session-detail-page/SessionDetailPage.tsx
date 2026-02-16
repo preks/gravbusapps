@@ -153,6 +153,7 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
     lines: string[]
     error: string | null
   }>({ active: false, lines: [], error: null })
+  const [previewReady, setPreviewReady] = useState(false)
 
   const builderClient = useBuilderClient(context.accessToken)
   const toolIdCounter = useRef(0)
@@ -329,6 +330,9 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
       await readSseStream<{ type?: string; message?: string; result?: { cacheHit?: boolean } }>(stream, event => {
         if (event?.type === 'done') {
           setPreviewBuildStatus(prev => ({ ...prev, active: false }))
+          if (!previewReady) {
+            setPreviewReady(true)
+          }
           previewSandboxRef.current?.reload()
           return
         }
@@ -375,6 +379,7 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
 
   useEffect(() => {
     checkForChanges()
+    refreshPreview()
     builderClient
       .loadChatHistory(repositoryId, sessionId)
       .then(history => {
@@ -1194,6 +1199,7 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
                       accessToken={context.accessToken}
                       userInfo={context.userInfo}
                       buildStatus={previewBuildStatus}
+                      allowLoad={previewReady}
                     />
                   </div>
                 </ResizablePanel>

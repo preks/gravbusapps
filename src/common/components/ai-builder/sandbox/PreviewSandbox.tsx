@@ -15,6 +15,7 @@ interface PreviewSandboxProps {
     lines: string[]
     error: string | null
   }
+  allowLoad?: boolean
 }
 
 export interface PreviewSandboxHandle {
@@ -22,7 +23,7 @@ export interface PreviewSandboxHandle {
 }
 
 export const PreviewSandbox = forwardRef<PreviewSandboxHandle, PreviewSandboxProps>(function PreviewSandbox(
-  { repoId, sessionId, accessToken, userInfo, onReady, onError, buildStatus },
+  { repoId, sessionId, accessToken, userInfo, onReady, onError, buildStatus, allowLoad = true },
   ref
 ) {
   const [loading, setLoading] = useState(true)
@@ -59,6 +60,10 @@ export const PreviewSandbox = forwardRef<PreviewSandboxHandle, PreviewSandboxPro
     setIframeLoaded(false)
 
     const loadPreview = async () => {
+      if (!allowLoad) {
+        setLoading(false)
+        return
+      }
       if (!repoId || !sessionId) {
         setError('Missing repoId or sessionId')
         setLoading(false)
@@ -96,7 +101,7 @@ export const PreviewSandbox = forwardRef<PreviewSandboxHandle, PreviewSandboxPro
     return () => {
       mounted = false
     }
-  }, [repoId, sessionId, accessToken])
+  }, [repoId, sessionId, accessToken, allowLoad])
 
   const handleIframeLoad = () => {
     setIframeLoaded(true)
@@ -147,7 +152,7 @@ export const PreviewSandbox = forwardRef<PreviewSandboxHandle, PreviewSandboxPro
     }
   }
 
-  if (loading) {
+  if (loading && !buildStatus?.active) {
     return (
       <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-full gba:text-muted-foreground gba:gap-3">
         <Loader2 className="gba:w-8 gba:h-8 gba:animate-spin gba:text-primary" />
@@ -166,7 +171,7 @@ export const PreviewSandbox = forwardRef<PreviewSandboxHandle, PreviewSandboxPro
     )
   }
 
-  if (!previewUrl) {
+  if (!previewUrl && !buildStatus?.active) {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:h-full gba:text-muted-foreground">
         <p className="gba:text-sm">No preview available</p>
@@ -176,16 +181,18 @@ export const PreviewSandbox = forwardRef<PreviewSandboxHandle, PreviewSandboxPro
 
   return (
     <div className="gba:w-full gba:h-full gba:relative">
-      <iframe
-        ref={iframeRef}
-        src={previewUrl}
-        className="gba:w-full gba:h-full gba:border-0"
-        sandbox="allow-scripts allow-same-origin allow-forms"
-        title="Preview Sandbox"
-        onLoad={handleIframeLoad}
-        onError={handleIframeError}
-      />
-      {!iframeLoaded && (
+      {previewUrl && (
+        <iframe
+          ref={iframeRef}
+          src={previewUrl}
+          className="gba:w-full gba:h-full gba:border-0"
+          sandbox="allow-scripts allow-same-origin allow-forms"
+          title="Preview Sandbox"
+          onLoad={handleIframeLoad}
+          onError={handleIframeError}
+        />
+      )}
+      {!iframeLoaded && previewUrl && !buildStatus?.active && (
         <div className="gba:absolute gba:inset-0 gba:flex gba:flex-col gba:items-center gba:justify-center gba:bg-background/80 gba:text-muted-foreground gba:gap-3">
           <Loader2 className="gba:w-8 gba:h-8 gba:animate-spin gba:text-primary" />
           <p className="gba:text-sm">Loading preview...</p>
