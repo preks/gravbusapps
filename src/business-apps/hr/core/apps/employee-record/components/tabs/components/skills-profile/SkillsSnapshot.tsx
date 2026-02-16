@@ -1,5 +1,5 @@
 import React from 'react'
-import { Badge, Card, CardContent, CardHeader, CardTitle, Progress } from '@newwork/nw-design-system'
+import { Badge, Card, CardContent, CardDescription, CardHeader, CardTitle, Progress } from '@newwork/nw-design-system'
 import { EmployeeSkillItem, SkillSnapshotData, parseSkillLevel } from './skillsProfile.utils'
 
 interface SkillsSnapshotProps {
@@ -38,6 +38,7 @@ export const SkillsSnapshot: React.FC<SkillsSnapshotProps> = ({ snapshot, t }) =
       <Card data-testid="skills-snapshot-strength-card">
         <CardHeader className="gba:pb-2">
           <CardTitle className="gba:text-base">{t('skills-snapshot-strength-title')}</CardTitle>
+          <CardDescription>{t('skills-snapshot-strength-description')}</CardDescription>
         </CardHeader>
         <CardContent className="gba:space-y-3">
           <div className="gba:flex gba:items-end gba:gap-2">
@@ -58,6 +59,7 @@ export const SkillsSnapshot: React.FC<SkillsSnapshotProps> = ({ snapshot, t }) =
       <Card data-testid="skills-snapshot-top-card">
         <CardHeader className="gba:pb-2">
           <CardTitle className="gba:text-base">{t('skills-snapshot-top-title')}</CardTitle>
+          <CardDescription>{t('skills-snapshot-top-description')}</CardDescription>
         </CardHeader>
         <CardContent>
           <TopSkillsContent topSkills={snapshot.topSkills} t={t} />
@@ -67,6 +69,7 @@ export const SkillsSnapshot: React.FC<SkillsSnapshotProps> = ({ snapshot, t }) =
       <Card data-testid="skills-snapshot-coverage-card">
         <CardHeader className="gba:pb-2">
           <CardTitle className="gba:text-base">{t('skills-snapshot-coverage-title')}</CardTitle>
+          <CardDescription>{t('skills-snapshot-coverage-description')}</CardDescription>
         </CardHeader>
         <CardContent className="gba:space-y-3">
           <div className="gba:flex gba:items-center gba:justify-between">

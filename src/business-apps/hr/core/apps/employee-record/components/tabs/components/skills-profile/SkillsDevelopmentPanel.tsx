@@ -2,6 +2,7 @@ import React, { useMemo } from 'react'
 import {
   Card,
   CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
   ChartContainer,
@@ -137,6 +138,7 @@ export const SkillsDevelopmentPanel: React.FC<SkillsDevelopmentPanelProps> = ({
               <SparkleIcon className="gba:w-5 gba:h-5 gba:text-primary" />
               {t('skills-development-next-actions')}
             </CardTitle>
+            <CardDescription>{t('skills-development-next-actions-description')}</CardDescription>
           </CardHeader>
           <CardContent>
             <ul className="gba:space-y-0 gba:list-none gba:pl-0 gba:m-0" data-testid="skills-next-actions-list">
@@ -160,6 +162,7 @@ export const SkillsDevelopmentPanel: React.FC<SkillsDevelopmentPanelProps> = ({
       <Card data-testid="skills-distribution-card">
         <CardHeader className="gba:pb-2">
           <CardTitle className="gba:text-base">{t('skills-development-distribution')}</CardTitle>
+          <CardDescription>{t('skills-development-distribution-description')}</CardDescription>
         </CardHeader>
         <CardContent>
           {hasDistribution ? (
