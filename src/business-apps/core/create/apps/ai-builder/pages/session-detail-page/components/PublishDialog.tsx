@@ -31,9 +31,13 @@ export interface PublishDialogProps {
   resourceUrl: string
   publishError: string | null
   isPublishing: boolean
+  publishVersionType: 'major' | 'minor'
+  publishVersionNote: string
   onClose: () => void
   onTargetPathChange: (value: string) => void
   onResourceUrlChange: (value: string) => void
+  onVersionTypeChange: (value: 'major' | 'minor') => void
+  onVersionNoteChange: (value: string) => void
   onPublish: () => void
 }
 
@@ -44,9 +48,13 @@ export const PublishDialog: React.FC<PublishDialogProps> = ({
   resourceUrl,
   publishError,
   isPublishing,
+  publishVersionType,
+  publishVersionNote,
   onClose,
   onTargetPathChange,
   onResourceUrlChange,
+  onVersionTypeChange,
+  onVersionNoteChange,
   onPublish
 }) => {
   const getFileTypeDotClass = (type: 'create' | 'modify' | 'delete'): string => {
@@ -210,6 +218,25 @@ export const PublishDialog: React.FC<PublishDialogProps> = ({
               </div>
             </>
           )}
+
+          <div className="gba:space-y-2">
+            <Label>Versioning</Label>
+            <div className="gba:flex gba:items-center gba:gap-3 gba:text-xs gba:text-muted-foreground">
+              <label className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={publishVersionType === 'major'}
+                  onChange={e => onVersionTypeChange(e.target.checked ? 'major' : 'minor')}
+                />
+                <span className="gba:text-sm gba:text-foreground">Major snapshot</span>
+              </label>
+            </div>
+            <Input
+              value={publishVersionNote}
+              onChange={e => onVersionNoteChange(e.target.value)}
+              placeholder="Version note (optional)"
+            />
+          </div>
 
           <Alert>
             <AlertCircle className="gba:w-4 gba:h-4" />

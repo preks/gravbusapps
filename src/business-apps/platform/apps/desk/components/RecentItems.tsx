@@ -1,17 +1,8 @@
 import React from 'react'
-import { Card, CardContent, Badge, Button, Spinner } from '@newwork/nw-design-system'
-import {
-  FileText,
-  FileSpreadsheet,
-  StickyNote,
-  Presentation,
-  Clock,
-  ArrowRight,
-  Inbox,
-  Search,
-  FileType
-} from 'lucide-react'
+import { Card, CardContent, Button, Spinner } from '@newwork/nw-design-system'
+import { FileText, FileSpreadsheet, StickyNote, Presentation, ArrowRight, Inbox, FileType } from 'lucide-react'
 import type { ContentItem } from '../hooks/useDeskData'
+import { DESK_TYPE_COLOR_MAP } from '../constants/deskColors'
 
 interface RecentItemsProps {
   items: ContentItem[]
@@ -25,35 +16,11 @@ interface RecentItemsProps {
 }
 
 const typeConfig = {
-  document: {
-    icon: FileText,
-    color: 'gba:text-sky-600',
-    bg: 'gba:bg-sky-500/10',
-    borderHover: 'hover:gba:border-sky-500/30',
-    label: 'Document'
-  },
-  spreadsheet: {
-    icon: FileSpreadsheet,
-    color: 'gba:text-teal-600',
-    bg: 'gba:bg-teal-500/10',
-    borderHover: 'hover:gba:border-teal-500/30',
-    label: 'Spreadsheet'
-  },
-  note: {
-    icon: StickyNote,
-    color: 'gba:text-amber-600',
-    bg: 'gba:bg-amber-500/10',
-    borderHover: 'hover:gba:border-amber-500/30',
-    label: 'Note'
-  },
-  slide: {
-    icon: Presentation,
-    color: 'gba:text-info',
-    bg: 'gba:bg-info/10',
-    borderHover: 'hover:gba:border-info/30',
-    label: 'Presentation'
-  }
-}
+  document: { icon: FileText, label: 'Document' },
+  spreadsheet: { icon: FileSpreadsheet, label: 'Spreadsheet' },
+  note: { icon: StickyNote, label: 'Note' },
+  slide: { icon: Presentation, label: 'Presentation' }
+} as const
 
 /**
  * Format relative time
@@ -122,13 +89,7 @@ export const RecentItems: React.FC<RecentItemsProps> = ({
         {/* Section header */}
         <div className="gba:flex gba:items-center gba:justify-between gba:mb-6">
           <div>
-            <div className="gba:inline-flex gba:items-center gba:gap-2 gba:text-muted-foreground gba:mb-2">
-              {isSearchMode ? <Search className="gba:h-4 gba:w-4" /> : <Clock className="gba:h-4 gba:w-4" />}
-              <span className="gba:text-sm gba:font-medium gba:uppercase gba:tracking-wider">
-                {isSearchMode ? 'Search Results' : 'Recent'}
-              </span>
-            </div>
-            <h2 className="gba:text-xl gba:font-semibold gba:text-foreground">
+            <h2 className="desk-section-title gba:text-2xl gba:sm:text-3xl gba:font-semibold gba:mb-2">
               {isSearchMode ? (
                 <>
                   Results for <span className="gba:text-primary">"{searchQuery}"</span>
@@ -139,9 +100,9 @@ export const RecentItems: React.FC<RecentItemsProps> = ({
             </h2>
           </div>
           {isSearchMode && items.length > 0 && (
-            <Badge variant="secondary" className="gba:text-sm">
+            <span className="gba:inline-flex gba:items-center gba:px-2 gba:py-0.5 gba:rounded-full gba:bg-desk-badge-golden gba:text-desk-badge-golden-foreground gba:text-sm gba:font-medium">
               {items.length} {items.length === 1 ? 'result' : 'results'}
-            </Badge>
+            </span>
           )}
         </div>
 
@@ -185,59 +146,61 @@ export const RecentItems: React.FC<RecentItemsProps> = ({
             </CardContent>
           </Card>
         ) : (
-          <div className="gba:grid gba:grid-cols-1 gba:sm:grid-cols-2 gba:lg:grid-cols-3 gba:gap-4">
+          <div className="gba:flex gba:flex-col gba:gap-0 gba:rounded-lg gba:border gba:border-border gba:bg-background gba:overflow-hidden">
             {items.map((item, index) => {
               const config = typeConfig[item.type]
               const isPdfDoc = item.type === 'document' && item.isPdf
               const Icon = isPdfDoc ? FileType : config.icon
-              const iconColor = isPdfDoc ? 'gba:text-red-600' : config.color
-              const iconBg = isPdfDoc ? 'gba:bg-red-500/10' : config.bg
+              const typeColor = isPdfDoc ? undefined : DESK_TYPE_COLOR_MAP[item.type]
 
               return (
-                <Card
+                <button
                   key={`${item.type}-${item.id}`}
-                  className={`gba:group gba:cursor-pointer gba:transition-all gba:duration-200 ${config.borderHover} hover:gba:shadow-md`}
+                  type="button"
+                  className="gba:group gba:w-full gba:flex gba:items-center gba:gap-3 gba:px-4 gba:py-2.5 gba:text-left gba:transition-colors gba:duration-150 hover:gba:bg-muted/50 gba:border-b gba:border-border last:gba:border-b-0 hover:gba:border-muted-foreground/20"
                   onClick={() => onItemClick(item)}
-                  style={{ animation: `fadeInUp 0.3s ease-out ${0.05 * index}s both` }}
+                  style={{ animation: `fadeInUp 0.3s ease-out ${0.03 * index}s both` }}
                   data-testid={`${testId}-item-${item.id}`}
                 >
-                  <CardContent className="gba:p-4">
-                    <div className="gba:flex gba:items-start gba:gap-3">
-                      {/* Icon */}
-                      <div
-                        className={`gba:w-10 gba:h-10 gba:rounded-lg ${iconBg} gba:flex gba:items-center gba:justify-center gba:flex-shrink-0`}
-                      >
-                        <Icon className={`gba:w-5 gba:h-5 ${iconColor}`} />
-                      </div>
+                  <div
+                    className={`gba:w-8 gba:h-8 gba:rounded-md gba:flex gba:items-center gba:justify-center gba:flex-shrink-0 ${isPdfDoc ? 'gba:bg-destructive/10' : ''}`}
+                    style={
+                      isPdfDoc
+                        ? undefined
+                        : {
+                            backgroundColor: `color-mix(in srgb, ${typeColor} 12%, transparent)`
+                          }
+                    }
+                  >
+                    <Icon
+                      className={`gba:w-4 gba:h-4 ${isPdfDoc ? 'gba:text-destructive' : ''}`}
+                      style={isPdfDoc ? undefined : { color: typeColor }}
+                    />
+                  </div>
 
-                      {/* Content */}
-                      <div className="gba:flex-1 gba:min-w-0">
-                        <div className="gba:flex gba:items-start gba:justify-between gba:gap-2">
-                          <h4 className="gba:font-medium gba:text-card-foreground gba:truncate gba:leading-tight">
-                            <HighlightedText text={item.title || 'Untitled'} query={searchQuery} />
-                          </h4>
-                          <ArrowRight className="gba:w-4 gba:h-4 gba:text-muted-foreground gba:opacity-0 group-hover:gba:opacity-100 gba:transition-opacity gba:flex-shrink-0" />
-                        </div>
-
-                        <div className="gba:flex gba:items-center gba:gap-2 gba:mt-1.5">
-                          <span className="gba:text-xs gba:text-muted-foreground">{config.label}</span>
-                          <span className="gba:text-muted-foreground">·</span>
-                          <span className="gba:text-xs gba:text-muted-foreground">
-                            {formatRelativeTime(item.updatedAt)}
+                  <div className="gba:flex-1 gba:min-w-0">
+                    <h4 className="gba:font-medium gba:text-foreground gba:truncate gba:text-sm gba:leading-tight">
+                      <HighlightedText text={item.title || 'Untitled'} query={searchQuery} />
+                    </h4>
+                    <div className="gba:flex gba:items-center gba:gap-1.5 gba:mt-0.5">
+                      <span className="gba:text-[11px] gba:text-muted-foreground">{config.label}</span>
+                      <span className="gba:text-muted-foreground/60">·</span>
+                      <span className="gba:text-[11px] gba:text-muted-foreground">
+                        {formatRelativeTime(item.updatedAt)}
+                      </span>
+                      {item.isShared && (
+                        <>
+                          <span className="gba:text-muted-foreground/60">·</span>
+                          <span className="gba:inline-flex gba:items-center gba:px-1.5 gba:py-0 gba:rounded-full gba:bg-desk-badge-golden gba:text-desk-badge-golden-foreground gba:text-[10px] gba:font-medium">
+                            Shared
                           </span>
-                          {item.isShared && (
-                            <>
-                              <span className="gba:text-muted-foreground">·</span>
-                              <Badge variant="secondary" className="gba:text-[10px] gba:px-1.5 gba:py-0">
-                                Shared
-                              </Badge>
-                            </>
-                          )}
-                        </div>
-                      </div>
+                        </>
+                      )}
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+
+                  <ArrowRight className="gba:w-4 gba:h-4 gba:text-muted-foreground gba:opacity-0 group-hover:gba:opacity-100 gba:transition-opacity gba:flex-shrink-0" />
+                </button>
               )
             })}
           </div>

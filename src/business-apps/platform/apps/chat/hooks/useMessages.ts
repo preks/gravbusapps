@@ -68,6 +68,9 @@ export function useMessages({
       setCurrentPage(1)
       setHasMore(false)
       setError(null)
+      // Invalidate message cache so next time we open this conversation we refetch from API
+      cache.invalidateMessages(prev)
+      lastLoadedConversationRef.current = undefined
     }
 
     // Update ref AFTER clearing to prevent duplicate clears

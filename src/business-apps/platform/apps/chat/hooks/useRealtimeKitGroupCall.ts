@@ -13,7 +13,12 @@ import { toast } from '@newwork/nw-design-system'
 import type { ChatWebSocketClient } from '../services/chatWebSocketClient'
 import { RealtimeKitApiClient } from '../services/realtimeKitApiClient'
 import type { CallParticipant, CallType } from '../services/webrtcClient'
-import type { GroupCallUIState, GroupCallInvite, ActiveConversationCall, UseGroupCallReturn } from './useGroupCall'
+import type {
+  GroupCallUIState,
+  GroupCallInvite,
+  ActiveConversationCall,
+  UseGroupCallReturn
+} from '../services/callTypes'
 import { SIMULCAST_ENCODINGS } from '../services/realtimeKitSimulcast'
 import { useCallPreferences } from './useCallPreferences'
 import { useRealtimeKitDiagnostics } from './useRealtimeKitDiagnostics'

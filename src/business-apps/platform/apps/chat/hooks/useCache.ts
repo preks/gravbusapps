@@ -103,6 +103,14 @@ export function useCache() {
   }, [])
 
   /**
+   * Invalidate message cache for a conversation (so next open refetches from API).
+   */
+  const invalidateMessages = useCallback((conversationId: string) => {
+    if (!conversationId) return
+    messagesCacheRef.current.delete(conversationId)
+  }, [])
+
+  /**
    * Invalidate conversation cache
    */
   const invalidateConversation = useCallback((conversationId: string) => {
@@ -216,6 +224,7 @@ export function useCache() {
     updateCachedMessage,
     addMessageToCache,
     removeMessageFromCache,
+    invalidateMessages,
 
     // Conversation cache
     getCachedConversation,

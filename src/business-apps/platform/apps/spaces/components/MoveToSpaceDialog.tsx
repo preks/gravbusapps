@@ -23,6 +23,7 @@ export interface MoveToSpaceDialogProps {
   onMove: (spaceId: string) => Promise<void>
   contentType: 'document' | 'note' | 'spreadsheet'
   contentName?: string
+  accessToken?: string
   'data-testid'?: string
 }
 
@@ -32,6 +33,7 @@ export const MoveToSpaceDialog: React.FC<MoveToSpaceDialogProps> = ({
   onMove,
   contentType,
   contentName,
+  accessToken,
   'data-testid': testId = 'move-to-space-dialog'
 }) => {
   const [searchQuery, setSearchQuery] = useState('')
@@ -39,7 +41,7 @@ export const MoveToSpaceDialog: React.FC<MoveToSpaceDialogProps> = ({
   const [isMoving, setIsMoving] = useState(false)
 
   // Fetch user's spaces (owned + member of)
-  const { spaces, isLoading, error } = useSpaces({ includeMembers: false })
+  const { spaces, isLoading, error } = useSpaces(accessToken, { includeMembers: false })
 
   // Filter spaces by search query
   const filteredSpaces = searchQuery.trim()

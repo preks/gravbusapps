@@ -13,7 +13,7 @@ import { useRealtimeKitSelector } from '@cloudflare/realtimekit-react'
 import { Dialog, DialogContent, DialogTitle, DialogDescription, toast } from '@newwork/nw-design-system'
 import { Monitor, Maximize2 } from 'lucide-react'
 import type { GroupCallParticipant, VideoQuality } from '../services/groupWebrtcClient'
-import type { GroupCallUIState, PendingInvite } from '../hooks/useGroupCall'
+import type { GroupCallUIState, PendingInvite } from '../services/callTypes'
 import type { CallParticipant } from '../services/webrtcClient'
 import type { ChatWebSocketClient } from '../services/chatWebSocketClient'
 import type { ChatApiClient } from '../services/chatApiClient'
@@ -702,10 +702,13 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
   const {
     audioInputDevices,
     audioOutputDevices,
+    videoInputDevices,
     selectedAudioInputId,
     selectedAudioOutputId,
+    selectedVideoInputId,
     setSelectedAudioInputId,
     setSelectedAudioOutputId,
+    setSelectedVideoInputId,
     canSelectAudioOutput,
     refreshDevices
   } = useMediaDevices({ enabled: true })
@@ -3220,17 +3223,19 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
                   sharedDeviceState={{
                     audioInputDevices,
                     audioOutputDevices,
-                    videoInputDevices: [],
+                    videoInputDevices,
                     selectedAudioInputId,
                     selectedAudioOutputId,
-                    selectedVideoInputId: null,
+                    selectedVideoInputId,
                     setSelectedAudioInputId: id => {
                       if (id !== null) setSelectedAudioInputId(id)
                     },
                     setSelectedAudioOutputId: id => {
                       if (id !== null) setSelectedAudioOutputId(id)
                     },
-                    setSelectedVideoInputId: () => {},
+                    setSelectedVideoInputId: id => {
+                      if (id !== null) setSelectedVideoInputId(id)
+                    },
                     canSelectAudioOutput
                   }}
                   onEndCall={onEndCall}

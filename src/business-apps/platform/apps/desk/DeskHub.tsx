@@ -30,7 +30,15 @@ import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 
 // Components
-import { ContentBackground, HeroSection, AppCard, QuickActions, ActivityVisualization, RecentItems } from './components'
+import {
+  ContentBackground,
+  HeroSection,
+  AppCard,
+  QuickActions,
+  NexusTeaser,
+  ActivityVisualization,
+  RecentItems
+} from './components'
 import { DocumentChat } from './components/chat/DocumentChat'
 
 // Hooks
@@ -218,6 +226,9 @@ export const DeskHub: React.FC<DeskHubProps> = ({ accessToken, userInfo, 'data-t
           data-testid={`${testId}-quick-actions`}
         />
 
+        {/* Nexus Teaser */}
+        <NexusTeaser data-testid={`${testId}-nexus-teaser`} />
+
         {/* Spaces Section */}
         {spaces.length > 0 && (
           <section
@@ -249,11 +260,11 @@ export const DeskHub: React.FC<DeskHubProps> = ({ accessToken, userInfo, 'data-t
                 className="gba:w-full gba:overflow-hidden"
                 data-testid={`${testId}-spaces-carousel`}
               >
-                <CarouselContent className="gba:-ml-2 gba:md:-ml-4">
+                <CarouselContent className="gba:-ml-2 gba:md:-ml-4 gba:items-stretch">
                   {spaces.map((space, index) => (
                     <CarouselItem
                       key={space.id}
-                      className="gba:pl-2 gba:md:pl-4 gba:basis-full gba:sm:basis-[85%] gba:md:basis-1/2 gba:lg:basis-1/3"
+                      className="gba:pl-2 gba:md:pl-4 gba:!min-w-[280px] gba:!flex-[0_0_280px] gba:flex"
                       style={{ animation: `fadeInUp 0.4s ease-out ${index * 0.05}s both` }}
                     >
                       <SpaceCard

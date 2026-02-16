@@ -32,6 +32,7 @@ chat-authenticationFailed = Autentificarea a eșuat. Vă rugăm să vă autentif
 chat-connectionError = Conectarea la serviciul de chat a eșuat. Vă rugăm să verificați conexiunea la internet.
 chat-cannotLeaveAsLastOwner = Sunteți singurul proprietar al acestui grup. Vă rugăm să transferați proprietatea către un alt membru sau să ștergeți grupul din Setări Grup.
 chat-failedToLeave = Nu s-a putut părăsi conversația. Vă rugăm să încercați din nou.
+chat-failedToCreateConversation = Nu s-a putut crea conversația. Vă rugăm să încercați din nou.
 chat-nudgeCooldown = Vă rugăm să așteptați {$seconds} secunde înainte de a trimite un alt atenționare.
 
 # Messages

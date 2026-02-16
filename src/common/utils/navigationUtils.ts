@@ -100,6 +100,7 @@ const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   '/platform/apps/note-apps': 'platform/apps/note-apps',
   '/platform/apps/spreadsheet-apps': 'platform/apps/spreadsheet-apps',
   '/platform/slides': 'platform/apps/slide-apps',
+  '/platform/nexus': 'platform/apps/nexus',
 
   // Email
   '/platform/apps/email-apps': 'platform/apps/email-apps',
