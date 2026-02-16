@@ -2,7 +2,6 @@
 
 import React, { useCallback } from 'react'
 import dayjs from 'dayjs'
-import { Button, Avatar, Alert } from '@newwork/gravity-ui-catalog'
 import { useOpenChat } from '@/modules/chat-sidebar/utils/hooks/useOpenChat'
 import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
@@ -21,7 +20,15 @@ import {
 } from 'react-icons/pi'
 import { useEmployeeDetailsData } from './hooks/useEmployeeDetailsData'
 import { getCatalogValue, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
-import { useTranslation } from '@newwork/nw-design-system'
+import {
+  useTranslation,
+  Button,
+  Avatar,
+  AvatarImage,
+  AvatarFallback,
+  Alert,
+  AlertDescription
+} from '@newwork/nw-design-system'
 import employeeDetailsTranslations from './_i18n'
 import { MatrixUnitEmployee, EmployeeCapability, EmployeeSkill } from './types'
 
@@ -222,17 +229,14 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
   if (!propEmployeeData && error && !isLoading) {
     return (
       <div className="gba:bg-white gba:h-full gba:p-6">
-        <Alert
-          message={t('employee-details-error-loading')}
-          description={error}
-          type="error"
-          showIcon
-          action={
-            <Button size="small" onClick={refetch}>
+        <Alert variant="destructive">
+          <AlertDescription className="gba:flex gba:items-center gba:justify-between gba:gap-3">
+            <span>{`${t('employee-details-error-loading')}: ${String(error)}`}</span>
+            <Button size="sm" variant="outline" onClick={refetch}>
               {t('employee-details-retry')}
             </Button>
-          }
-        />
+          </AlertDescription>
+        </Alert>
       </div>
     )
   }
@@ -280,24 +284,17 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
 
         <div className="gba:space-y-6">
           <div className="gba:flex gba:flex-col gba:items-center gba:mb-4 gba:animate-fade-in">
-            <Avatar
-              src={employeeData.pictureThumbnail ? `data:image/gif;base64,${employeeData.pictureThumbnail}` : undefined}
-              initials={
-                employeeData.pictureThumbnail
-                  ? undefined
-                  : `${employeeData.firstName?.[0] || ''}${employeeData.lastName?.[0] || ''}`.toUpperCase()
-              }
-              // @ts-expect-error - Type issue in gravity-ui-catalog for contentType
-              contentType={employeeData.pictureThumbnail ? 'image' : 'initials'}
-              alt={`${employeeData.firstName} ${employeeData.lastName}`}
-              // @ts-expect-error - There is a type definition issue in gravity-ui-catalog@7.8.5 where AvatarSize is not correctly exported.
-              size="xl"
-              // @ts-expect-error - There is a type definition issue in gravity-ui-catalog@7.8.5 where AvatarSize is not correctly exported.
-              shape="circle"
-              // @ts-expect-error - There is a type definition issue in gravity-ui-catalog@7.8.5 where AvatarSize is not correctly exported.
-              appearance="gradient"
-              style={{ width: '100px', height: '100px', fontSize: '3rem' }}
-            />
+            <Avatar size="xl" className="gba:h-24 gba:w-24 gba:text-3xl">
+              <AvatarImage
+                src={
+                  employeeData.pictureThumbnail ? `data:image/gif;base64,${employeeData.pictureThumbnail}` : undefined
+                }
+                alt={`${employeeData.firstName} ${employeeData.lastName}`}
+              />
+              <AvatarFallback>
+                {`${employeeData.firstName?.[0] || ''}${employeeData.lastName?.[0] || ''}`.toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
             <a
               href={`/platform/employee-record?employeeId=${employeeData.id}`}
               className="gba:flex gba:items-center gba:justify-center gba:w-full"
@@ -321,29 +318,32 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
                 variant="secondary"
                 size="lg"
                 onClick={handleChat}
-                icon={<ChatIcon />}
                 className="gba:rounded-3xl gba:aspect-square gba:p-2"
                 data-testid="employee-details-chat-button"
                 disabled={!hasWorkEmail}
-              />
+              >
+                <ChatIcon />
+              </Button>
               <Button
                 variant="secondary"
                 size="lg"
                 onClick={handleVideoCall}
-                icon={<VideoCallIcon />}
                 className="gba:rounded-3xl gba:aspect-square gba:p-2"
                 data-testid="employee-details-video-button"
                 disabled={!hasWorkEmail}
-              />
+              >
+                <VideoCallIcon />
+              </Button>
               <Button
                 variant="secondary"
                 size="lg"
                 onClick={handleCall}
-                icon={<CallIcon />}
                 className="gba:rounded-3xl gba:aspect-square gba:p-2"
                 data-testid="employee-details-audio-button"
                 disabled={!hasWorkEmail}
-              />
+              >
+                <CallIcon />
+              </Button>
             </div>
           </div>
 

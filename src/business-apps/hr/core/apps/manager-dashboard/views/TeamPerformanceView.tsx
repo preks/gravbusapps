@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import dayjs from 'dayjs'
 import { Button, Badge, Spinner, Card, Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
 import { ChevronLeft } from 'lucide-react'
@@ -16,6 +16,7 @@ export interface TeamPerformanceViewProps {
   goalsBehindTarget: number
   loadingTeamPerformance: boolean
   filterGoalsBehindOnly?: boolean
+  initialStatusFilter?: GoalStatusFilter
   onNavigateBack: () => void
   onNavigateToEmployee: (employeeId: string) => void
 }
@@ -35,10 +36,15 @@ export const TeamPerformanceView: React.FC<TeamPerformanceViewProps> = ({
   goalsBehindTarget,
   loadingTeamPerformance,
   filterGoalsBehindOnly = false,
+  initialStatusFilter = 'ALL',
   onNavigateBack,
   onNavigateToEmployee
 }) => {
-  const [statusFilter, setStatusFilter] = useState<GoalStatusFilter>('ALL')
+  const [statusFilter, setStatusFilter] = useState<GoalStatusFilter>(initialStatusFilter)
+
+  useEffect(() => {
+    setStatusFilter(initialStatusFilter)
+  }, [initialStatusFilter])
 
   // Filter individual goals within each member card
   const getDisplayedGoals = (member: TeamMemberPerformance) => {

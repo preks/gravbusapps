@@ -12,6 +12,7 @@ interface PerformanceGrowthSectionProps {
   averageProgress: number
   loading: boolean
   onNavigateToTeamPerformance: () => void
+  onNavigateToAtRiskGoals: () => void
 }
 
 export const PerformanceGrowthSection: React.FC<PerformanceGrowthSectionProps> = ({
@@ -21,7 +22,8 @@ export const PerformanceGrowthSection: React.FC<PerformanceGrowthSectionProps> =
   totalGoals,
   averageProgress,
   loading,
-  onNavigateToTeamPerformance
+  onNavigateToTeamPerformance,
+  onNavigateToAtRiskGoals
 }) => {
   if (loading) {
     return (
@@ -79,17 +81,7 @@ export const PerformanceGrowthSection: React.FC<PerformanceGrowthSectionProps> =
 
             {/* Progress indicator (Secondary) */}
             <div className="gba:border-t gba:pt-2">
-              <Progress
-                value={averageProgress}
-                className="gba:h-1.5 gba:mb-1"
-                indicatorClassName={
-                  averageProgress >= 70
-                    ? 'gba:bg-success'
-                    : averageProgress >= 40
-                      ? 'gba:bg-warning'
-                      : 'gba:bg-destructive'
-                }
-              />
+              <Progress value={averageProgress} className="gba:h-1.5 gba:mb-1" />
               <p className="gba:text-xs gba:text-muted-foreground gba:text-center">
                 {averageProgress}% avg. progress · {totalGoals} total goals
               </p>
@@ -97,7 +89,7 @@ export const PerformanceGrowthSection: React.FC<PerformanceGrowthSectionProps> =
 
             {/* Action Button */}
             {(atRisk > 0 || behind > 0) && (
-              <Button onClick={onNavigateToTeamPerformance} variant="outline" size="sm" className="gba:w-full gba:h-8">
+              <Button onClick={onNavigateToAtRiskGoals} variant="outline" size="sm" className="gba:w-full gba:h-8">
                 <Target size={14} className="gba:mr-1.5" />
                 Review at-risk goals
               </Button>

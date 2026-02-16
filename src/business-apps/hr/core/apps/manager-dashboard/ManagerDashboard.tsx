@@ -2,13 +2,16 @@
 
 'use client'
 
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useMemo } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useManagerWorkboardVM } from './hooks/useManagerWorkboardVM'
 import { NotClockedInView } from './views/NotClockedInView'
 import { FilteredTeammatesView } from './views/FilteredTeammatesView'
 import { TeamPerformanceView } from './views/TeamPerformanceView'
 import { TeamInsightsView } from './views/TeamInsightsView'
+import { OpenPositionsView } from './views/OpenPositionsView'
+import { BirthdaysView } from './views/BirthdaysView'
+import { AnniversariesView } from './views/AnniversariesView'
 import { TeammatesView } from './views/TeammatesView'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { Avatar, AvatarImage, AvatarFallback, Toaster, Sheet, SheetContent } from '@newwork/nw-design-system'
@@ -42,28 +45,53 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
     accessToken
   })
 
+  const allocationByEmployeeId = useMemo(
+    () => new Map(vm.directReportsWithAllocation.map(item => [item.id, item.allocationPercent])),
+    [vm.directReportsWithAllocation]
+  )
+
   // Handler for opening assign project dialog
   const handleAssignProject = useCallback(
     (employeeId: string) => {
-      const employee = vm.unallocatedEmployeesWithAllocation.find(e => e.id === employeeId)
+      const employee = vm.directReports.find(report => report.id === employeeId)
       if (employee) {
         setAssignProjectEmployee({
-          id: employee.id,
-          name: employee.name,
-          currentAllocation: employee.allocationPercent || 0
+          id: employeeId,
+          name: `${employee.firstName} ${employee.lastName}`,
+          avatar: employee.pictureThumbnail,
+          currentAllocation: allocationByEmployeeId.get(employeeId) ?? 0
         })
         setIsAssignProjectOpen(true)
       }
     },
-    [vm.unallocatedEmployeesWithAllocation]
+    [vm.directReports, allocationByEmployeeId]
   )
 
   const handleAssignProjectSuccess = useCallback(() => {
-    // The ViewModel hooks will automatically refetch data
-    // Close dialog is handled by the dialog component
-  }, [])
+    // Refresh immediately and once again after short delay
+    // to account for backend write propagation.
+    void vm.actions.refreshManagerDashboardData()
+    globalThis.setTimeout(() => {
+      void vm.actions.refreshManagerDashboardData()
+    }, 1200)
+  }, [vm.actions])
+
+  const assignProjectDialog = (
+    <AssignProjectDialog
+      employee={assignProjectEmployee}
+      open={isAssignProjectOpen}
+      onOpenChange={setIsAssignProjectOpen}
+      onSuccess={handleAssignProjectSuccess}
+      accessToken={accessToken || ''}
+    />
+  )
 
   // NO BUSINESS LOGIC HERE. Data + actions come from useManagerWorkboardVM.
+  const directReportsForWorkboard = useMemo(
+    () => vm.teamMembers.direct.map(report => ({ ...report, status: report.status || 'Available' })),
+    [vm.teamMembers.direct]
+  )
+
   const mainContent = (
     <div
       className="gba:px-4 md:gba:px-6 gba:h-full gba:flex gba:flex-col gba:items-center gba:overflow-auto"
@@ -192,7 +220,7 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
 
             {/* Your Team */}
             <TeamAvatarsSection
-              directReports={vm.teamMembers.direct}
+              directReports={directReportsForWorkboard}
               unallocatedIds={vm.teamMembers.unallocatedIds}
               loading={vm.teamMembers.loading.directReports}
               onNavigateToTeammates={vm.actions.navigateToTeammates}
@@ -236,11 +264,12 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
                   averageProgress={vm.performanceGrowth.averageProgress}
                   loading={vm.performanceGrowth.loading}
                   onNavigateToTeamPerformance={vm.actions.navigateToTeamPerformance}
+                  onNavigateToAtRiskGoals={vm.actions.navigateToGoalsAtRisk}
                 />
                 <OpenPositionsSection
                   openPositions={vm.workCapacity.openPositions}
-                  loading={vm.workCapacity.loading.openPositions}
-                  onNavigateToInsights={vm.actions.navigateToInsights}
+                  loading={vm.workCapacity.loading.positions}
+                  onNavigateToOpenPositions={vm.actions.navigateToOpenPositions}
                 />
               </div>
 
@@ -266,13 +295,7 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
       </div>
 
       {/* Assign Project Dialog */}
-      <AssignProjectDialog
-        employee={assignProjectEmployee}
-        open={isAssignProjectOpen}
-        onOpenChange={setIsAssignProjectOpen}
-        onSuccess={handleAssignProjectSuccess}
-        accessToken={accessToken || ''}
-      />
+      {assignProjectDialog}
 
       <Toaster position="bottom-right" richColors />
     </div>
@@ -304,17 +327,24 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
   }
 
   if (vm.currentView === 'filtered-teammates') {
+    const FilteredTeammatesViewCompat = FilteredTeammatesView as React.ComponentType<any>
+
     return (
-      <FilteredTeammatesView
-        directReports={vm.directReports}
-        unallocatedEmployeeIds={vm.unallocatedEmployeeIds}
-        filterAbsentOnly={vm.filterAbsentOnly}
-        filterUnallocatedOnly={vm.filterUnallocatedOnly}
-        loadingDirectReports={vm.loadingDirectReports}
-        directReportsError={vm.directReportsError}
-        onNavigateBack={vm.handleNavigateBackToDashboard}
-        onNavigateToEmployee={vm.handleNavigateToEmployee}
-      />
+      <>
+        <FilteredTeammatesViewCompat
+          directReports={vm.directReports}
+          unallocatedEmployeeIds={vm.unallocatedEmployeeIds}
+          employeeAllocations={vm.directReportsWithAllocation}
+          filterAbsentOnly={vm.filterAbsentOnly}
+          filterUnallocatedOnly={vm.filterUnallocatedOnly}
+          loadingDirectReports={vm.loadingDirectReports}
+          directReportsError={vm.directReportsError}
+          onNavigateBack={vm.handleNavigateBackToDashboard}
+          onNavigateToEmployee={vm.handleNavigateToEmployee}
+          onAssignProject={handleAssignProject}
+        />
+        {assignProjectDialog}
+      </>
     )
   }
 
@@ -329,6 +359,7 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
         goalsBehindTarget={vm.goalsBehindTarget}
         loadingTeamPerformance={vm.loadingTeamPerformance}
         filterGoalsBehindOnly={vm.filterGoalsBehindOnly}
+        initialStatusFilter={vm.initialPerformanceStatusFilter}
         onNavigateBack={vm.handleNavigateBackToDashboard}
         onNavigateToEmployee={vm.handleNavigateToEmployee}
       />
@@ -342,8 +373,10 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
         availableEmployeeIds={vm.availableEmployeeIds}
         notClockedInCount={vm.notClockedInCount}
         loadingAttendance={vm.loadingAttendance}
+        nudgeLoading={false}
         onNavigateBack={vm.handleNavigateBackToDashboard}
         onNavigateToEmployee={vm.handleNavigateToEmployee}
+        onNudgeNotClockedIn={() => {}}
       />
     )
   }
@@ -367,11 +400,47 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
     )
   }
 
+  if (vm.currentView === 'birthdays') {
+    return (
+      <BirthdaysView
+        upcomingBirthdays={vm.upcomingBirthdays}
+        loadingBirthdays={vm.loadingBirthdays}
+        accessToken={accessToken || ''}
+        onNavigateBack={vm.handleNavigateBackToDashboard}
+        onNavigateToEmployee={vm.handleNavigateToEmployee}
+      />
+    )
+  }
+
+  if (vm.currentView === 'anniversaries') {
+    return (
+      <AnniversariesView
+        upcomingAnniversaries={vm.upcomingAnniversaries}
+        loadingAnniversaries={vm.loadingAnniversaries}
+        accessToken={accessToken || ''}
+        onNavigateBack={vm.handleNavigateBackToDashboard}
+        onNavigateToEmployee={vm.handleNavigateToEmployee}
+      />
+    )
+  }
+
+  if (vm.currentView === 'open-positions') {
+    return (
+      <OpenPositionsView
+        openPositions={vm.openPositions}
+        fullPositions={vm.fullPositions}
+        loadingOpenPositions={vm.loadingOpenPositions}
+        accessToken={accessToken || ''}
+        onNavigateBack={vm.handleNavigateBackToDashboard}
+      />
+    )
+  }
+
   return (
     <>
       <div className="gba:flex gba:flex-col gba:h-full">{mainContent}</div>
 
-      <Sheet open={vm.isPositionSheetOpen} onOpenChange={vm.setIsPositionSheetOpen} title="">
+      <Sheet open={vm.isPositionSheetOpen} onOpenChange={vm.setIsPositionSheetOpen}>
         <SheetContent className="gba:w-full sm:gba:max-w-xl gba:flex gba:flex-col gba:p-0">
           <div className="gba:h-10 gba:flex-shrink-0" />
           <div className="gba:flex-1 gba:overflow-y-auto">
@@ -386,7 +455,11 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
       <MemberQuickPanel
         isOpen={vm.isMemberPanelOpen}
         onClose={vm.handleCloseMemberPanel}
-        member={vm.selectedMemberId ? vm.directReports.find(r => r.id === vm.selectedMemberId) || null : null}
+        member={
+          vm.selectedMemberId
+            ? directReportsForWorkboard.find(report => report.id === vm.selectedMemberId) || null
+            : null
+        }
         allocationPercent={vm.averageAllocationPercentage}
         teamPerformance={vm.teamPerformance}
         lastFeedbackDate={vm.daysSinceLastFeedback ? `${vm.daysSinceLastFeedback} days ago` : null}

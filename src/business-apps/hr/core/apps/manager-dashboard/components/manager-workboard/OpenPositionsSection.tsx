@@ -12,13 +12,13 @@ interface JobPosition {
 interface OpenPositionsSectionProps {
   openPositions: JobPosition[]
   loading: boolean
-  onNavigateToInsights: (tab: 'open-positions') => void
+  onNavigateToOpenPositions: () => void
 }
 
 export const OpenPositionsSection: React.FC<OpenPositionsSectionProps> = ({
   openPositions,
   loading,
-  onNavigateToInsights
+  onNavigateToOpenPositions
 }) => {
   if (loading) {
     return (
@@ -51,7 +51,7 @@ export const OpenPositionsSection: React.FC<OpenPositionsSectionProps> = ({
 
         {/* Action Button */}
         <Button
-          onClick={() => onNavigateToInsights('open-positions')}
+          onClick={onNavigateToOpenPositions}
           variant="outline"
           size="sm"
           className="gba:w-full gba:h-8"

@@ -68,7 +68,7 @@ export const AssignProjectDialog: React.FC<AssignProjectDialogProps> = ({
 
   const graphqlClient = useGraphqlClient(accessToken)
   const restClientOrgchart = useRestClient(env('NEXT_PUBLIC_ORGCHART_API_URL') + '/orgchart/api/v1')
-  const restClientEmployees = useRestClient(env('NEXT_PUBLIC_BASE_URL') + '/employees/api/v1')
+  const restClientEmployeeProcess = useRestClient(env('NEXT_PUBLIC_BASE_URL') + '/processes/employee')
   const structureId = getCurrentActiveStructureId()
 
   // Fetch projects and employee data when dialog opens
@@ -264,27 +264,24 @@ export const AssignProjectDialog: React.FC<AssignProjectDialogProps> = ({
         }
       })
 
-      // Step 2: Update employee working hours - only if we have existing working hours data
-      if (workingHoursData) {
-        const newTotalAllocation = currentAllocation + allocationValue
-
-        const workingHoursPayload = {
-          changeMode: 'INSERT',
-          employeeWorkingHours: {
-            employeeId: employee.id,
-            totalAllocationPercent: newTotalAllocation,
-            id: workingHoursData.id,
-            version: workingHoursData.version
-          }
+      // Step 2: Always update employee working hours in process endpoint
+      const newTotalAllocation = currentAllocation + allocationValue
+      const workingHoursPayload = {
+        changeMode: 'INSERT',
+        employeeWorkingHours: {
+          employeeId: employee.id,
+          totalAllocationPercent: newTotalAllocation,
+          id: workingHoursData?.id || employee.id,
+          version: workingHoursData?.version ?? 0
         }
-
-        await restClientEmployees.post('/updateEmployeeWorkingHours', workingHoursPayload, {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            'Content-Type': 'application/json'
-          }
-        })
       }
+
+      await restClientEmployeeProcess.post('/updateEmployeeWorkingHours', workingHoursPayload, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      })
 
       toast.success(`Successfully allocated ${employee.name} to ${selectedProject.name}`)
       onSuccess()
@@ -306,7 +303,7 @@ export const AssignProjectDialog: React.FC<AssignProjectDialogProps> = ({
     workingHoursData,
     existingAssignments,
     restClientOrgchart,
-    restClientEmployees,
+    restClientEmployeeProcess,
     onSuccess,
     onOpenChange
   ])
