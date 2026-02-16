@@ -47,14 +47,6 @@ export const useAddSkillFormController = ({
   const blurTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const nextNewIdRef = useRef(1)
 
-  const title = useMemo(() => {
-    if (flowFormParams?.mode === 'deactivate') return t('add-skill-form-deactivate-title')
-    if (flowFormParams?.mode === 'activate') return t('add-skill-form-activate-title')
-    if (flowFormParams?.mode === 'attachVerification') return t('add-skill-form-attach-verification-title')
-    if (changeLevelParams) return t('add-skill-form-update-level-title')
-    return t('add-skill-form-title')
-  }, [flowFormParams, changeLevelParams, t])
-
   const normalizedDefaults: AddSkillFormValues = useMemo(() => ({ targetEmployeeId: employee?.id }), [employee?.id])
 
   const filteredResults = useMemo(() => {
@@ -356,7 +348,6 @@ export const useAddSkillFormController = ({
   }, [])
 
   return {
-    title,
     normalizedDefaults,
     existingSkillsList,
     filteredResults,
