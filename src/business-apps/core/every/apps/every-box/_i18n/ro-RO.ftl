@@ -197,6 +197,7 @@ task-details-add-comment = Adaugă comentariu
 task-details-optional = (Opțional)
 task-details-comment-placeholder = Introduceți comentariul...
 task-details-blink-info = Aceasta este o sarcină Blink rapidă. O puteți finaliza direct de aici.
+task-details-blink-instruction-hint = Deschideți linkul de mai jos pentru a accesa copia dvs. alocată, completați-o și reveniți aici pentru a trimite.
 task-details-unknown = Necunoscut
 task-details-untitled = Sarcină fără titlu
 task-details-claim-coming = Funcția de preluare va fi disponibilă în curând

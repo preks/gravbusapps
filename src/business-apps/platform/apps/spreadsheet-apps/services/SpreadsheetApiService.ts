@@ -295,7 +295,8 @@ export const SpreadsheetApiService = {
         permission: mapPermission(app.permission as string | undefined),
         isShared: app.isShared as boolean | undefined,
         isOwner: !app.isShared,
-        sharedBy: app.sharedBy as string | undefined
+        sharedBy: app.sharedBy as string | undefined,
+        settings: app.settings as Record<string, unknown> | undefined
       }
     })
   },

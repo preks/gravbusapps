@@ -47,7 +47,8 @@ import {
   RefreshCw,
   FileSpreadsheet,
   Users,
-  ClipboardCheck
+  ClipboardCheck,
+  FileDown
 } from 'lucide-react'
 import type {
   SpreadsheetAutomation,
@@ -93,6 +94,8 @@ function getAutomationTypeIcon(type: AutomationType) {
       return FileSpreadsheet
     case 'bulk_collection':
       return Users
+    case 'excel_collection':
+      return FileDown
     case 'sheet_approval':
     case 'line_approval':
       return ClipboardCheck
@@ -107,7 +110,8 @@ function getAutomationTypeIcon(type: AutomationType) {
 function getAutomationTypeLabel(type: AutomationType): string {
   const labels: Record<AutomationType, string> = {
     row_workflow: 'Row Workflow',
-    bulk_collection: 'Bulk Collection',
+    bulk_collection: 'Data Collection (Form)',
+    excel_collection: 'Data Collection (Template)',
     sheet_approval: 'Sheet Approval',
     line_approval: 'Line Approval'
   }

@@ -431,6 +431,8 @@ export interface AppSettings {
   primaryColor?: string
   allowPublicAccess: boolean
   requireAuthentication: boolean
+  /** Set when app is a copy created for Excel Collection; enables Submit button for recipient */
+  excel_collection_copy?: boolean
 }
 
 // ============================================================================
@@ -457,6 +459,8 @@ export interface SpreadsheetAppViewerProps {
     updates: Record<string, unknown>
   ) => Promise<Record<string, unknown> | null>
   onAppUpdate?: (app: SpreadsheetApp) => void
+  /** Trigger full app reload (e.g. after creating a new sheet). Optional newSheetId to switch to. */
+  onAppRefreshNeeded?: (appId: string, newSheetId?: string) => Promise<void>
   onSheetUpdate?: (
     appId: string,
     sheetId: string,
@@ -614,6 +618,8 @@ export interface SpreadsheetAppSummary {
   permission?: 'owner' | 'view' | 'edit' | 'comment' | 'admin'
   sharedBy?: string
   sharedByName?: string
+  /** App settings (e.g. excel_collection_copy for Excel Collection copies to hide from list) */
+  settings?: Record<string, unknown>
 }
 
 /**

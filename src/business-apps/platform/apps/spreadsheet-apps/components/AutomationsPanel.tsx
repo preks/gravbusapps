@@ -10,6 +10,7 @@ import { Button } from '@newwork/nw-design-system'
 import { Zap, X } from 'lucide-react'
 import { AutomationsHub } from './automations/AutomationsHub'
 import { AutomationWizard } from './automations/AutomationWizard'
+import { AutomationToolbarActions } from './automations/AutomationToolbarActions'
 import type { SpreadsheetAutomation, SpreadsheetColumn } from '../types'
 
 export interface AutomationsPanelProps {
@@ -35,6 +36,9 @@ export interface AutomationsPanelProps {
   onDuplicateAutomation: (id: string) => Promise<unknown>
   onRunAutomation: (id: string, rows?: Array<{ id: string; cells: Record<string, unknown> }>) => Promise<unknown>
   onRefreshWorkflowStatuses: () => void
+  showSummarizeButton?: boolean
+  onSummarizeClick?: () => void
+  isSummarizing?: boolean
   'data-testid'?: string
 }
 
@@ -58,6 +62,9 @@ export const AutomationsPanel: React.FC<AutomationsPanelProps> = memo(function A
   onDuplicateAutomation,
   onRunAutomation,
   onRefreshWorkflowStatuses,
+  showSummarizeButton = false,
+  onSummarizeClick,
+  isSummarizing = false,
   'data-testid': testId = 'automations-panel'
 }) {
   const [isWizardOpen, setIsWizardOpen] = React.useState(false)
@@ -102,6 +109,35 @@ export const AutomationsPanel: React.FC<AutomationsPanelProps> = memo(function A
             </div>
             {/* Content */}
             <div className="gba:flex-1 gba:overflow-auto gba:p-5">
+              {(showSummarizeButton || automations.length > 0) && (
+                <div className="gba:mb-4">
+                  <AutomationToolbarActions
+                    automations={automations}
+                    workflowLinks={workflowLinks as any}
+                    selectedRowIds={[]}
+                    onOpenHub={() => {}}
+                    onCreateAutomation={() => {
+                      setEditingAutomation(null)
+                      setIsWizardOpen(true)
+                    }}
+                    onRunAutomation={async id => {
+                      const rows = sheetData.map(row => ({
+                        id: String(row._id || row.id || ''),
+                        cells: row
+                      }))
+                      await onRunAutomation(id, rows)
+                    }}
+                    onRefreshStatuses={onRefreshWorkflowStatuses}
+                    isExecuting={false}
+                    showSummarizeButton={showSummarizeButton}
+                    onSummarizeClick={onSummarizeClick}
+                    isSummarizing={isSummarizing}
+                    data-testid={`${testId}-toolbar`}
+                  />
+                </div>
+              )}
+
+              {/* AI Summary - persistent in panel so it stays when dialog is closed */}
               <AutomationsHub
                 automations={automations}
                 executionHistory={executionHistory}

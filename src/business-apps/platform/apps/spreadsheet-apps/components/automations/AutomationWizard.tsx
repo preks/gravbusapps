@@ -46,7 +46,9 @@ import {
   User,
   UserCheck,
   Building,
-  X
+  X,
+  FileDown,
+  MessageSquare
 } from 'lucide-react'
 import { TrackingColumnsConfig, getDefaultTrackingColumns } from './TrackingColumnsConfig'
 import type {
@@ -62,12 +64,13 @@ import type {
 import type { SpreadsheetColumn } from '../../types/spreadsheet'
 import { UserSelect } from '@/components/user-select'
 import MultiEmployeeSelect from '@/components/multi-employee-select/MultiEmployeeSelect'
+import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
 
 function getTriggerStepDescription(automationType: AutomationType): string {
   if (automationType === 'sheet_approval') {
     return 'Sheet approval is triggered manually when you submit the spreadsheet for review.'
   }
-  if (automationType === 'bulk_collection') {
+  if (automationType === 'bulk_collection' || automationType === 'excel_collection') {
     return 'Choose when to send out collection requests to participants.'
   }
   return 'Choose when this automation should run.'
@@ -96,9 +99,27 @@ export interface AutomationWizardProps {
   'data-testid'?: string
 }
 
-type WizardStep = 'type' | 'trigger' | 'workflow' | 'mapping' | 'review'
+type WizardStep = 'type' | 'trigger' | 'workflow' | 'mapping' | 'review' | 'setup' | 'configure'
 
-const WIZARD_STEPS: WizardStep[] = ['type', 'trigger', 'workflow', 'mapping', 'review']
+const STANDARD_WIZARD_STEPS: WizardStep[] = ['type', 'trigger', 'workflow', 'mapping', 'review']
+const BULK_COLLECTION_WIZARD_STEPS: WizardStep[] = ['type', 'setup', 'configure', 'review']
+const EXCEL_COLLECTION_WIZARD_STEPS: WizardStep[] = ['type', 'setup', 'configure', 'review']
+
+/**
+ * Get wizard steps based on automation type. Step count matches the flow:
+ * - Nothing selected: 5 steps (default)
+ * - Bulk collection / Excel collection: 4 steps (type -> setup -> configure -> review)
+ * - Other types: 5 steps (type -> trigger -> workflow -> mapping -> review)
+ */
+function getWizardStepsForType(type: AutomationType | null): WizardStep[] {
+  if (type === 'bulk_collection') {
+    return BULK_COLLECTION_WIZARD_STEPS
+  }
+  if (type === 'excel_collection') {
+    return EXCEL_COLLECTION_WIZARD_STEPS
+  }
+  return STANDARD_WIZARD_STEPS
+}
 
 /** Local wizard state for step assignment configuration */
 interface WizardStepAssignment {
@@ -118,7 +139,23 @@ interface AutomationTypeOption {
   useCases: string[]
 }
 
-const AUTOMATION_TYPES: AutomationTypeOption[] = [
+/** Unified "Data Collection" - user picks Form or Template in sub-step; maps to bulk_collection or excel_collection */
+const DATA_COLLECTION_CATEGORY = 'data_collection' as const
+
+interface DataCollectionOption {
+  category: typeof DATA_COLLECTION_CATEGORY
+  title: string
+  description: string
+  icon: React.FC<{ className?: string }>
+  useCases: string[]
+}
+
+const COLLECTION_DELIVERY_OPTIONS: { type: 'bulk_collection' | 'excel_collection'; title: string; description: string; icon: React.FC<{ className?: string }> }[] = [
+  { type: 'bulk_collection', title: 'Form', description: 'Send a form with custom fields. Recipients fill and submit; responses appear as rows.', icon: Users },
+  { type: 'excel_collection', title: 'Spreadsheet template', description: 'Send a copy of a spreadsheet template. Recipients fill their copy and submit.', icon: FileDown }
+]
+
+const AUTOMATION_TYPES: (AutomationTypeOption | DataCollectionOption)[] = [
   {
     type: 'row_workflow',
     title: 'Row Workflow',
@@ -127,11 +164,11 @@ const AUTOMATION_TYPES: AutomationTypeOption[] = [
     useCases: ['Purchase approvals', 'Invoice processing', 'Onboarding tasks']
   },
   {
-    type: 'bulk_collection',
-    title: 'Bulk Collection',
-    description: 'Send workflows to multiple users and collect responses into this spreadsheet.',
+    category: DATA_COLLECTION_CATEGORY,
+    title: 'Data Collection',
+    description: 'Send a form or spreadsheet template to multiple users. Collect responses into this sheet.',
     icon: Users,
-    useCases: ['Employee surveys', 'Performance reviews', 'Status updates']
+    useCases: ['Surveys', 'Status reports', 'Data gathering', 'Team updates']
   },
   {
     type: 'sheet_approval',
@@ -194,7 +231,8 @@ const getAvailableTriggersForType = (type: AutomationType | null): AutomationTri
       return ['manual', 'onRowAdd', 'onFieldChange', 'scheduled']
 
     case 'bulk_collection':
-      // Bulk collection is about sending forms to users - only manual or scheduled makes sense
+    case 'excel_collection':
+      // Bulk/Excel collection is about sending to users - only manual or scheduled makes sense
       return ['manual', 'scheduled']
 
     case 'sheet_approval':
@@ -219,6 +257,8 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
   onSave,
   existingAutomation,
   columns,
+  spreadsheetId,
+  sheetId,
   accessToken,
   onColumnLabelsUpdate,
   'data-testid': testId = 'automation-wizard'
@@ -234,6 +274,7 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [automationType, setAutomationType] = useState<AutomationType | null>(null)
+  const [showCollectionDeliveryChoice, setShowCollectionDeliveryChoice] = useState(false)
   const [trigger, setTrigger] = useState<AutomationTrigger>('manual')
   const [watchColumns, setWatchColumns] = useState<string[]>([])
   const [columnMappings, setColumnMappings] = useState<ColumnWorkflowMapping[]>([])
@@ -265,6 +306,16 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
 
   // Tracking columns for bulk collection (auto-generated metadata columns)
   const [trackingColumns, setTrackingColumns] = useState<string[]>(() => getDefaultTrackingColumns())
+
+  // Excel collection: selected template spreadsheet (the one to duplicate and send to team)
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null)
+
+  // Message from manager to recipients (bulk_collection and excel_collection)
+  const [collectionMessage, setCollectionMessage] = useState<string>('')
+  const [availableTemplates, setAvailableTemplates] = useState<
+    Array<{ id: string; name: string }>
+  >([])
+  const [isLoadingTemplates, setIsLoadingTemplates] = useState(false)
 
   // Helper to add a form field from a column
   const addFormFieldFromColumn = (col: SpreadsheetColumn) => {
@@ -333,10 +384,24 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
         if (existingAutomation.collectionConfig.recipientType) {
           setApprovalSteps([{ stepId: 'collect', assignee: existingAutomation.collectionConfig.recipientType }])
         }
+
+        // Load template for excel_collection
+        if (existingAutomation.type === 'excel_collection' && existingAutomation.collectionConfig.templateSpreadsheetId) {
+          setSelectedTemplateId(existingAutomation.collectionConfig.templateSpreadsheetId)
+        }
+
+        // Load message
+        if (existingAutomation.collectionConfig.message) {
+          setCollectionMessage(existingAutomation.collectionConfig.message)
+        }
       }
 
-      // When editing, skip to the workflow step since type/trigger are already set
-      setCurrentStep('workflow')
+      // When editing, skip to the appropriate step based on type
+      if (existingAutomation.type === 'bulk_collection' || existingAutomation.type === 'excel_collection') {
+        setCurrentStep('configure')
+      } else {
+        setCurrentStep('workflow')
+      }
     }
   }, [existingAutomation])
 
@@ -359,12 +424,57 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
         setFormFields([])
         setTrackingColumns(getDefaultTrackingColumns())
         setSelectedRecipients([])
+        setSelectedTemplateId(null)
+        setAvailableTemplates([])
+        setCollectionMessage('')
+        setShowCollectionDeliveryChoice(false)
       }
     }
   }, [isOpen, existingAutomation])
 
-  // Current step index
-  const currentStepIndex = WIZARD_STEPS.indexOf(currentStep)
+  // Fetch available spreadsheet templates when configuring excel_collection
+  useEffect(() => {
+    if (!isOpen || automationType !== 'excel_collection' || currentStep !== 'configure') return
+    if (!accessToken) return
+
+    let cancelled = false
+    setIsLoadingTemplates(true)
+    const docBase = getDocumentServiceApiUrl().replace(/\/+$/, '')
+
+    fetch(`${docBase}/spreadsheets?limit=100`, {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    })
+      .then(res => (res.ok ? res.json() : Promise.reject(new Error('Failed to fetch'))))
+      .then((data: { items?: Array<{ id: string; name: string }> }) => {
+        if (cancelled) return
+        const items = data.items || []
+        setAvailableTemplates(
+          items.map(a => ({
+            id: a.id,
+            name: a.id === spreadsheetId ? `${a.name || 'Untitled'} (this sheet)` : a.name || 'Untitled'
+          }))
+        )
+      })
+      .catch(() => {
+        if (!cancelled) setAvailableTemplates([])
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoadingTemplates(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [isOpen, automationType, currentStep, accessToken, spreadsheetId])
+
+  // Wizard steps depend on automation type (bulk: 4 steps, others: 5 steps)
+  const wizardSteps = useMemo(
+    () => getWizardStepsForType(automationType),
+    [automationType]
+  )
+
+  // Current step index (relative to current wizard flow)
+  const currentStepIndex = wizardSteps.indexOf(currentStep)
 
   // Helper: Get placeholder name based on automation type
   const getPlaceholderName = (): string => {
@@ -373,6 +483,8 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
         return 'e.g., Process Customer Requests'
       case 'bulk_collection':
         return 'e.g., Q4 Employee Survey'
+      case 'excel_collection':
+        return 'e.g., Q4 Status Report'
       case 'sheet_approval':
         return 'e.g., Budget Approval'
       case 'line_approval':
@@ -389,6 +501,8 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
         return 'Process each row through review and completion tasks...'
       case 'bulk_collection':
         return 'Collect responses from team members into this spreadsheet...'
+      case 'excel_collection':
+        return 'Send a copy of this spreadsheet to your team. They fill it and submit.'
       case 'sheet_approval':
         return 'Submit the entire sheet for manager approval...'
       case 'line_approval':
@@ -409,6 +523,13 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
         }
         break
 
+      case 'setup':
+        // Bulk collection setup: name + trigger
+        if (!name.trim()) {
+          errors.push('Please enter an automation name')
+        }
+        break
+
       case 'trigger':
         if (trigger === 'onFieldChange' && watchColumns.length === 0) {
           errors.push('Please select at least one column to watch')
@@ -424,6 +545,24 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
         }
         break
 
+      case 'configure':
+        // Bulk collection configure: recipients + at least one form field
+        // Excel collection configure: template + recipients
+        const hasRecipients =
+          approvalSteps[0]?.assignee === 'specific'
+            ? selectedRecipients.length > 0
+            : !!approvalSteps[0]?.assignee
+        if (!hasRecipients) {
+          errors.push('Please select who should receive this')
+        }
+        if (automationType === 'excel_collection' && !selectedTemplateId) {
+          errors.push('Please select a template spreadsheet')
+        }
+        if (automationType === 'bulk_collection' && formFields.length === 0) {
+          errors.push('Please add at least one form field to collect')
+        }
+        break
+
       case 'mapping':
         // Mapping is optional
         break
@@ -432,22 +571,50 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
         // Final validation before save
         if (!name.trim()) errors.push('Automation name is required')
         if (!automationType) errors.push('Automation type is required')
+        if (automationType === 'bulk_collection') {
+          const hasRecipients =
+            approvalSteps[0]?.assignee === 'specific'
+              ? selectedRecipients.length > 0
+              : !!approvalSteps[0]?.assignee
+          if (!hasRecipients) errors.push('Please select who should receive this form')
+          if (formFields.length === 0) errors.push('Please add at least one form field')
+        }
+        if (automationType === 'excel_collection') {
+          if (!selectedTemplateId) errors.push('Please select a template spreadsheet')
+          const hasRecipients =
+            approvalSteps[0]?.assignee === 'specific'
+              ? selectedRecipients.length > 0
+              : !!approvalSteps[0]?.assignee
+          if (!hasRecipients) errors.push('Please select who should receive this')
+        }
         break
     }
 
     setValidationErrors(errors)
     return errors.length === 0
-  }, [currentStep, automationType, trigger, watchColumns, name, workflowSteps, approvalSteps])
+  }, [currentStep, automationType, trigger, watchColumns, name, workflowSteps, approvalSteps, selectedRecipients, formFields, selectedTemplateId])
 
   // Navigation
   const canGoNext = useMemo(() => {
     switch (currentStep) {
       case 'type':
         return !!automationType
+      case 'setup':
+        return name.trim().length > 0
       case 'trigger':
         return trigger !== 'onFieldChange' || watchColumns.length > 0
       case 'workflow':
         return name.trim().length > 0
+      case 'configure': {
+        const hasRecipients =
+          approvalSteps[0]?.assignee === 'specific'
+            ? selectedRecipients.length > 0
+            : !!approvalSteps[0]?.assignee
+        if (automationType === 'excel_collection') {
+          return !!selectedTemplateId && hasRecipients
+        }
+        return hasRecipients && formFields.length > 0
+      }
       case 'mapping':
         return true
       case 'review':
@@ -455,24 +622,24 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
       default:
         return false
     }
-  }, [currentStep, automationType, trigger, watchColumns, name])
+  }, [currentStep, automationType, trigger, watchColumns, name, approvalSteps, selectedRecipients, formFields, selectedTemplateId])
 
   const handleNext = useCallback(() => {
     if (!validateCurrentStep()) return
 
     const nextIndex = currentStepIndex + 1
-    if (nextIndex < WIZARD_STEPS.length) {
-      setCurrentStep(WIZARD_STEPS[nextIndex])
+    if (nextIndex < wizardSteps.length) {
+      setCurrentStep(wizardSteps[nextIndex])
     }
-  }, [currentStepIndex, validateCurrentStep])
+  }, [currentStepIndex, wizardSteps, validateCurrentStep])
 
   const handleBack = useCallback(() => {
     const prevIndex = currentStepIndex - 1
     if (prevIndex >= 0) {
-      setCurrentStep(WIZARD_STEPS[prevIndex])
+      setCurrentStep(wizardSteps[prevIndex])
       setValidationErrors([])
     }
-  }, [currentStepIndex])
+  }, [currentStepIndex, wizardSteps])
 
   // Add column mapping
   const addColumnMapping = useCallback(() => {
@@ -525,14 +692,15 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
             }
           : undefined
 
-      // Build collection config for bulk_collection type
+      // Build collection config for bulk_collection and excel_collection types
       const recipientType = approvalSteps[0]?.assignee as 'team' | 'department' | 'specific' | undefined
       const collectionConfig =
         automationType === 'bulk_collection'
           ? {
               recipientType: recipientType || 'specific',
               recipients: selectedRecipients.map(r => r.userId || r.id),
-              trackingColumns, // Include selected tracking columns
+              trackingColumns,
+              message: collectionMessage.trim() || undefined,
               formFields: formFields.map(f => ({
                 id: f.id,
                 label: f.label,
@@ -548,10 +716,21 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
               })),
               deduplication: 'append' as const
             }
-          : undefined
+          : automationType === 'excel_collection'
+            ? {
+                recipientType: recipientType || 'specific',
+                recipients: selectedRecipients.map(r => r.userId || r.id),
+                trackingColumns,
+                templateSpreadsheetId: selectedTemplateId || undefined,
+                message: collectionMessage.trim() || undefined,
+                rowIdentifier: 'assignee' as const,
+                fieldMappings: [] as ResultMapping[],
+                deduplication: 'append' as const
+              }
+            : undefined
 
       // For bulk_collection, build columnMappings from formFields so response formData maps to sheet columns
-      // Table renders with col.name so we need columnId (form key) -> columnName for correct cell keys
+      // For excel_collection, no form fields - use empty or default
       const effectiveColumnMappings =
         automationType === 'bulk_collection' && formFields.length > 0
           ? formFields.map(f => {
@@ -563,7 +742,9 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
                 direction: 'fromWorkflow' as const
               }
             })
-          : columnMappings
+          : automationType === 'excel_collection'
+            ? []
+            : columnMappings
 
       const automation: Omit<SpreadsheetAutomation, 'id' | 'createdAt' | 'updatedAt' | 'runCount'> = {
         name,
@@ -622,6 +803,7 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
     approvalSteps,
     selectedRecipients,
     formFields,
+    trackingColumns,
     onColumnLabelsUpdate,
     validateCurrentStep,
     onSave,
@@ -643,12 +825,22 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
     setWatchColumns(prev => (checked ? [...prev, columnId] : prev.filter(id => id !== columnId)))
   }, [])
 
-  // Auto-select trigger when only one trigger option is available on the trigger step.
+  // When on type step with bulk/excel already chosen, show Form/Template sub-choice (e.g. after Back from setup)
   useEffect(() => {
-    if (currentStep !== 'trigger') return
+    if (
+      currentStep === 'type' &&
+      (automationType === 'bulk_collection' || automationType === 'excel_collection')
+    ) {
+      setShowCollectionDeliveryChoice(true)
+    }
+  }, [currentStep, automationType])
+
+  // Auto-select trigger when only one trigger option is available (trigger or setup step).
+  useEffect(() => {
+    if (currentStep !== 'trigger' && currentStep !== 'setup') return
     if (trigger) return
 
-    const availableTriggers = getAvailableTriggersForType(automationType)
+    const availableTriggers = getAvailableTriggersForType(automationType ?? 'bulk_collection')
     const filteredOptions = TRIGGER_OPTIONS.filter(opt => availableTriggers.includes(opt.trigger))
     if (filteredOptions.length === 1) {
       setTrigger(filteredOptions[0].trigger)
@@ -659,21 +851,85 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
   const renderStepContent = () => {
     switch (currentStep) {
       case 'type':
+        // Sub-step: Form vs Template when user selected Data Collection
+        if (showCollectionDeliveryChoice) {
+          return (
+            <div className="gba:space-y-4">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="gba:mb-2 gba:-ml-1"
+                onClick={() => setShowCollectionDeliveryChoice(false)}
+              >
+                <ChevronLeft className="gba:w-4 gba:h-4 gba:mr-1" />
+                Back
+              </Button>
+              <p className="gba:text-muted-foreground">
+                What do you want to send to recipients?
+              </p>
+              <div className="gba:grid gba:grid-cols-2 gba:gap-4">
+                {COLLECTION_DELIVERY_OPTIONS.map(opt => {
+                  const Icon = opt.icon
+                  const isSelected = automationType === opt.type
+                  return (
+                    <Card
+                      key={opt.type}
+                      className={`gba:cursor-pointer gba:transition-all ${
+                        isSelected ? 'gba:border-primary gba:ring-2 gba:ring-primary/20' : 'gba:hover:border-primary/50'
+                      }`}
+                      onClick={() => {
+                        setAutomationType(opt.type)
+                        setShowCollectionDeliveryChoice(false)
+                        setCurrentStep('setup')
+                      }}
+                    >
+                      <CardContent className="gba:p-4">
+                        <div className="gba:flex gba:items-start gba:gap-3">
+                          <div
+                            className={`gba:w-10 gba:h-10 gba:rounded-lg gba:flex gba:items-center gba:justify-center ${
+                              isSelected ? 'gba:bg-primary gba:text-primary-foreground' : 'gba:bg-muted'
+                            }`}
+                          >
+                            <Icon className="gba:w-5 gba:h-5" />
+                          </div>
+                          <div className="gba:flex-1">
+                            <h3 className="gba:font-semibold gba:text-foreground">{opt.title}</h3>
+                            <p className="gba:text-sm gba:text-muted-foreground gba:mt-1">{opt.description}</p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )
+                })}
+              </div>
+            </div>
+          )
+        }
+
         return (
           <div className="gba:space-y-4">
             <p className="gba:text-muted-foreground">Choose how this automation will process your spreadsheet data.</p>
             <div className="gba:grid gba:grid-cols-2 gba:gap-4">
               {AUTOMATION_TYPES.map(option => {
                 const Icon = option.icon
-                const isSelected = automationType === option.type
+                const isDataCollection = 'category' in option && option.category === DATA_COLLECTION_CATEGORY
+                const isSelected = isDataCollection
+                  ? (automationType === 'bulk_collection' || automationType === 'excel_collection')
+                  : automationType === (option as AutomationTypeOption).type
 
                 return (
                   <Card
-                    key={option.type}
+                    key={isDataCollection ? 'data_collection' : (option as AutomationTypeOption).type}
                     className={`gba:cursor-pointer gba:transition-all ${
                       isSelected ? 'gba:border-primary gba:ring-2 gba:ring-primary/20' : 'gba:hover:border-primary/50'
                     }`}
-                    onClick={() => handleSelectAutomationType(option.type)}
+                    onClick={() => {
+                      if (isDataCollection) {
+                        setShowCollectionDeliveryChoice(true)
+                      } else {
+                        handleSelectAutomationType((option as AutomationTypeOption).type)
+                      }
+                    }}
                   >
                     <CardContent className="gba:p-4">
                       <div className="gba:flex gba:items-start gba:gap-3">
@@ -703,6 +959,81 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
             </div>
           </div>
         )
+
+      case 'setup':
+        // Bulk / Excel collection setup: Name + Trigger
+        {
+          const collectionType = automationType === 'excel_collection' ? 'excel_collection' : 'bulk_collection'
+          const availableTriggers = getAvailableTriggersForType(collectionType)
+          const filteredOptions = TRIGGER_OPTIONS.filter(opt => availableTriggers.includes(opt.trigger))
+          const isExcelCollection = automationType === 'excel_collection'
+
+          return (
+            <div className="gba:space-y-6">
+              <div className="gba:flex gba:items-center gba:gap-2 gba:p-3 gba:bg-primary/5 gba:rounded-lg gba:border gba:border-primary/20">
+                {isExcelCollection ? (
+                  <FileDown className="gba:w-5 gba:h-5 gba:text-primary" />
+                ) : (
+                  <Users className="gba:w-5 gba:h-5 gba:text-primary" />
+                )}
+                <span className="gba:font-medium">Data Collection</span>
+                <Badge variant="secondary">
+                  {isExcelCollection ? 'Spreadsheet template — send copy, they fill and submit' : 'Form — collect responses from multiple users'}
+                </Badge>
+              </div>
+
+              <div>
+                <Label htmlFor="bulk-automation-name">Automation Name *</Label>
+                <Input
+                  id="bulk-automation-name"
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  placeholder={getPlaceholderName()}
+                  className="gba:mt-1"
+                />
+              </div>
+
+              <div>
+                <Label className="gba:mb-2 gba:block">When to send</Label>
+                <p className="gba:text-sm gba:text-muted-foreground gba:mb-3">
+                  Choose when to send out collection requests to participants.
+                </p>
+                <div className="gba:space-y-2">
+                  {filteredOptions.map(option => {
+                    const Icon = option.icon
+                    const isSelected = trigger === option.trigger
+
+                    return (
+                      <Card
+                        key={option.trigger}
+                        className={`gba:cursor-pointer gba:transition-all ${
+                          isSelected ? 'gba:border-primary gba:ring-2 gba:ring-primary/20' : 'gba:hover:border-primary/50'
+                        }`}
+                        onClick={() => setTrigger(option.trigger)}
+                      >
+                        <CardContent className="gba:p-4">
+                          <div className="gba:flex gba:items-center gba:gap-3">
+                            <div
+                              className={`gba:w-10 gba:h-10 gba:rounded-lg gba:flex gba:items-center gba:justify-center ${
+                                isSelected ? 'gba:bg-primary gba:text-primary-foreground' : 'gba:bg-muted'
+                              }`}
+                            >
+                              <Icon className="gba:w-5 gba:h-5" />
+                            </div>
+                            <div>
+                              <h3 className="gba:font-semibold gba:text-foreground">{option.title}</h3>
+                              <p className="gba:text-sm gba:text-muted-foreground">{option.description}</p>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+          )
+        }
 
       case 'trigger': {
         const availableTriggers = getAvailableTriggersForType(automationType)
@@ -1197,205 +1528,206 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
                   </div>
                 </div>
               )}
+            </div>
+          </div>
+        )
 
-              {automationType === 'bulk_collection' && (
-                <div className="gba:space-y-6">
-                  {/* Section 1: Recipients */}
-                  <div className="gba:space-y-3">
-                    <div className="gba:flex gba:items-center gba:gap-2">
-                      <div className="gba:w-6 gba:h-6 gba:rounded-full gba:bg-primary gba:text-primary-foreground gba:flex gba:items-center gba:justify-center gba:text-xs gba:font-bold">
-                        1
-                      </div>
-                      <Label className="gba:text-sm gba:font-semibold">Who should receive this form?</Label>
-                    </div>
-
-                    <div className="gba:grid gba:grid-cols-3 gba:gap-2">
-                      {[
-                        { value: 'team', icon: Users, label: 'My Team', desc: 'Direct reports' },
-                        { value: 'department', icon: Building, label: 'Department', desc: 'All members' },
-                        { value: 'specific', icon: User, label: 'Specific People', desc: 'Choose who' }
-                      ].map(opt => (
-                        <button
-                          key={opt.value}
-                          type="button"
-                          onClick={() => {
-                            const newSteps = [...approvalSteps]
-                            if (!newSteps[0]) newSteps[0] = { stepId: 'collect', assignee: opt.value }
-                            else newSteps[0].assignee = opt.value
-                            setApprovalSteps(newSteps)
-                          }}
-                          className={`gba:p-3 gba:rounded-lg gba:border gba:text-left gba:transition-all ${
-                            approvalSteps[0]?.assignee === opt.value
-                              ? 'gba:border-primary gba:bg-primary/5 gba:ring-2 gba:ring-primary/20'
-                              : 'gba:border-border hover:gba:border-primary/50'
-                          }`}
-                        >
-                          <opt.icon className="gba:w-5 gba:h-5 gba:mb-1 gba:text-muted-foreground" />
-                          <div className="gba:font-medium gba:text-sm">{opt.label}</div>
-                          <div className="gba:text-xs gba:text-muted-foreground">{opt.desc}</div>
-                        </button>
-                      ))}
-                    </div>
-
-                    {approvalSteps[0]?.assignee === 'specific' && (
-                      <Card>
-                        <CardContent className="gba:p-4">
-                          <MultiEmployeeSelect
-                            accessToken={accessToken}
-                            value={selectedRecipients.map(r => r.id)}
-                            onValueChange={ids => setSelectedRecipients(prev => prev.filter(r => ids.includes(r.id)))}
-                            onEmployeesChange={employees => {
-                              setSelectedRecipients(
-                                employees.map(emp => ({
-                                  id: emp.id,
-                                  userId: emp.userId,
-                                  name: emp.displayName || 'Unknown',
-                                  email: undefined
-                                }))
-                              )
-                            }}
-                            placeholder="Search employees to add..."
-                            data-testid="bulk-collection-employee-select"
-                          />
-                        </CardContent>
-                      </Card>
-                    )}
+      case 'configure':
+        // Bulk collection: Recipients + Form Fields + Tracking
+        // Excel collection: Template + Recipients + Tracking (no form fields)
+        const isExcelConfigure = automationType === 'excel_collection'
+        return (
+          <div className="gba:space-y-6">
+            {/* Section 0 (excel only): Template picker */}
+            {isExcelConfigure && (
+              <div className="gba:space-y-3">
+                <div className="gba:flex gba:items-center gba:gap-2">
+                  <div className="gba:w-6 gba:h-6 gba:rounded-full gba:bg-primary gba:text-primary-foreground gba:flex gba:items-center gba:justify-center gba:text-xs gba:font-bold">
+                    1
                   </div>
+                  <Label className="gba:text-sm gba:font-semibold">Which spreadsheet should we send to your team?</Label>
+                </div>
+                <p className="gba:text-sm gba:text-muted-foreground gba:ml-8">
+                  This sheet will receive submission status. Each recipient gets a copy of the template you choose.
+                </p>
+                {isLoadingTemplates ? (
+                  <div className="gba:ml-8 gba:flex gba:items-center gba:gap-2 gba:text-muted-foreground">
+                    <Spinner size="sm" />
+                    <span className="gba:text-sm">Loading your spreadsheets...</span>
+                  </div>
+                ) : (
+                  <Select
+                    value={selectedTemplateId || ''}
+                    onValueChange={v => setSelectedTemplateId(v || null)}
+                  >
+                    <SelectTrigger className="gba:ml-8 gba:max-w-md">
+                      <SelectValue placeholder="Select a spreadsheet template..." />
+                    </SelectTrigger>
+                    <SelectContent style={{ zIndex: 1000003 }}>
+                      {availableTemplates.map(t => (
+                        <SelectItem key={t.id} value={t.id}>
+                          {t.name}
+                        </SelectItem>
+                      ))}
+                      {availableTemplates.length === 0 && !isLoadingTemplates && (
+                        <SelectItem value="__none__" disabled>
+                          No other spreadsheets found
+                        </SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+            )}
 
-                  {/* Section 2: Form Builder */}
-                  <div className="gba:space-y-3">
-                    <div className="gba:flex gba:items-center gba:justify-between">
-                      <div className="gba:flex gba:items-center gba:gap-2">
-                        <div className="gba:w-6 gba:h-6 gba:rounded-full gba:bg-primary gba:text-primary-foreground gba:flex gba:items-center gba:justify-center gba:text-xs gba:font-bold">
-                          2
-                        </div>
-                        <Label className="gba:text-sm gba:font-semibold">What data do you want to collect?</Label>
-                      </div>
-                      <span className="gba:text-xs gba:text-muted-foreground">
-                        {formFields.length} field{formFields.length !== 1 ? 's' : ''}
-                      </span>
+            {/* Section 1 (excel) / 1 (bulk): Recipients */}
+            <div className="gba:space-y-3">
+              <div className="gba:flex gba:items-center gba:gap-2">
+                <div className="gba:w-6 gba:h-6 gba:rounded-full gba:bg-primary gba:text-primary-foreground gba:flex gba:items-center gba:justify-center gba:text-xs gba:font-bold">
+                  {isExcelConfigure ? 2 : 1}
+                </div>
+                <Label className="gba:text-sm gba:font-semibold">
+                  {isExcelConfigure ? 'Who should receive this spreadsheet copy?' : 'Who should receive this form?'}
+                </Label>
+              </div>
+
+              <div className="gba:grid gba:grid-cols-3 gba:gap-2">
+                {[
+                  { value: 'team', icon: Users, label: 'My Team', desc: 'Direct reports' },
+                  { value: 'department', icon: Building, label: 'Department', desc: 'All members' },
+                  { value: 'specific', icon: User, label: 'Specific People', desc: 'Choose who' }
+                ].map(opt => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => {
+                      const newSteps = [...approvalSteps]
+                      if (!newSteps[0]) newSteps[0] = { stepId: 'collect', assignee: opt.value }
+                      else newSteps[0].assignee = opt.value
+                      setApprovalSteps(newSteps)
+                    }}
+                    className={`gba:p-3 gba:rounded-lg gba:border gba:text-left gba:transition-all ${
+                      approvalSteps[0]?.assignee === opt.value
+                        ? 'gba:border-primary gba:bg-primary/5 gba:ring-2 gba:ring-primary/20'
+                        : 'gba:border-border hover:gba:border-primary/50'
+                    }`}
+                  >
+                    <opt.icon className="gba:w-5 gba:h-5 gba:mb-1 gba:text-muted-foreground" />
+                    <div className="gba:font-medium gba:text-sm">{opt.label}</div>
+                    <div className="gba:text-xs gba:text-muted-foreground">{opt.desc}</div>
+                  </button>
+                ))}
+              </div>
+
+              {approvalSteps[0]?.assignee === 'specific' && (
+                <Card>
+                  <CardContent className="gba:p-4">
+                    <MultiEmployeeSelect
+                      accessToken={accessToken}
+                      value={selectedRecipients.map(r => r.id)}
+                      onValueChange={ids => setSelectedRecipients(prev => prev.filter(r => ids.includes(r.id)))}
+                      onEmployeesChange={employees => {
+                        setSelectedRecipients(
+                          employees.map(emp => ({
+                            id: emp.id,
+                            userId: emp.userId,
+                            name: emp.displayName || 'Unknown',
+                            email: undefined
+                          }))
+                        )
+                      }}
+                      placeholder="Search employees to add..."
+                      data-testid="bulk-collection-employee-select"
+                    />
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+
+            {/* Section 2: Message (optional) */}
+            <div className="gba:space-y-3">
+              <div className="gba:flex gba:items-center gba:gap-2">
+                <div className="gba:w-6 gba:h-6 gba:rounded-full gba:bg-primary gba:text-primary-foreground gba:flex gba:items-center gba:justify-center gba:text-xs gba:font-bold">
+                  {isExcelConfigure ? 3 : 2}
+                </div>
+                <MessageSquare className="gba:w-4 gba:h-4 gba:text-muted-foreground" />
+                <Label className="gba:text-sm gba:font-semibold">Message to recipients (optional)</Label>
+              </div>
+              <p className="gba:text-sm gba:text-muted-foreground gba:ml-8">
+                {isExcelConfigure
+                  ? 'Add a personal note that will appear when recipients open their copy.'
+                  : 'Add a note that will appear in the task sent to recipients.'}
+              </p>
+              <div className="gba:ml-8 gba:max-w-lg">
+                <Textarea
+                  value={collectionMessage}
+                  onChange={e => setCollectionMessage(e.target.value)}
+                  placeholder={
+                    isExcelConfigure
+                      ? 'e.g. Please fill this out by Friday. Thanks!'
+                      : 'e.g. Please complete this form at your earliest convenience.'
+                  }
+                  rows={3}
+                  className="gba:resize-none"
+                  data-testid="collection-message-input"
+                />
+              </div>
+            </div>
+
+            {/* Section 3: Form Builder (bulk_collection only) */}
+            {!isExcelConfigure && (
+            <div className="gba:space-y-3">
+              <div className="gba:flex gba:items-center gba:justify-between">
+                <div className="gba:flex gba:items-center gba:gap-2">
+                  <div className="gba:w-6 gba:h-6 gba:rounded-full gba:bg-primary gba:text-primary-foreground gba:flex gba:items-center gba:justify-center gba:text-xs gba:font-bold">
+                    3
+                  </div>
+                  <Label className="gba:text-sm gba:font-semibold">What data do you want to collect?</Label>
+                </div>
+                <span className="gba:text-xs gba:text-muted-foreground">
+                  {formFields.length} field{formFields.length !== 1 ? 's' : ''}
+                </span>
+              </div>
+
+              <p className="gba:text-sm gba:text-muted-foreground gba:ml-8">
+                Each field becomes a question in the form. Responses will be added as new rows.
+              </p>
+
+              {/* Quick-add from columns - always visible so users can add multiple fields */}
+              <Card className={formFields.length === 0 ? 'gba:border-dashed' : ''}>
+                <CardContent className="gba:p-4">
+                  <div className="gba:text-center gba:space-y-3">
+                    <FileSpreadsheet className="gba:w-8 gba:h-8 gba:mx-auto gba:text-muted-foreground" />
+                    <div>
+                      <p className="gba:font-medium">
+                        {formFields.length === 0 ? 'Start from your columns' : 'Add more fields'}
+                      </p>
+                      <p className="gba:text-sm gba:text-muted-foreground">
+                        {formFields.length === 0
+                          ? 'Select which columns you want people to fill in'
+                          : 'Click to add another column as a form field'}
+                      </p>
                     </div>
-
-                    <p className="gba:text-sm gba:text-muted-foreground gba:ml-8">
-                      Each field becomes a question in the form. Responses will be added as new rows.
-                    </p>
-
-                    {/* Quick add from columns */}
-                    {formFields.length === 0 && (
-                      <Card className="gba:border-dashed">
-                        <CardContent className="gba:p-4">
-                          <div className="gba:text-center gba:space-y-3">
-                            <FileSpreadsheet className="gba:w-8 gba:h-8 gba:mx-auto gba:text-muted-foreground" />
-                            <div>
-                              <p className="gba:font-medium">Start from your columns</p>
-                              <p className="gba:text-sm gba:text-muted-foreground">
-                                Select which columns you want people to fill in
-                              </p>
-                            </div>
-                            <div className="gba:flex gba:flex-wrap gba:gap-2 gba:justify-center gba:pt-2">
-                              {columns.slice(0, 5).map(col => (
-                                <Button
-                                  key={col.id}
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => addFormFieldFromColumn(col)}
-                                  disabled={formFields.some(f => f.targetColumn === col.id)}
-                                >
-                                  <Plus className="gba:w-3 gba:h-3 gba:mr-1" />
-                                  {col.label}
-                                </Button>
-                              ))}
-                              {columns.length > 5 && (
-                                <span className="gba:text-xs gba:text-muted-foreground gba:self-center">
-                                  +{columns.length - 5} more
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    )}
-
-                    {/* Form fields list */}
-                    {formFields.length > 0 && (
-                      <div className="gba:space-y-2">
-                        {formFields.map((field, index) => (
-                          <Card key={field.id}>
-                            <CardContent className="gba:p-3">
-                              <div className="gba:flex gba:items-start gba:gap-3">
-                                <div className="gba:flex-shrink-0 gba:w-6 gba:h-6 gba:rounded gba:bg-muted gba:flex gba:items-center gba:justify-center gba:text-xs gba:text-muted-foreground gba:font-medium">
-                                  {index + 1}
-                                </div>
-                                <div className="gba:flex-1 gba:grid gba:grid-cols-3 gba:gap-3">
-                                  <div>
-                                    <Label className="gba:text-xs gba:text-muted-foreground">Question Label</Label>
-                                    <Input
-                                      value={field.label}
-                                      onChange={e => updateFormField(field.id, { label: e.target.value })}
-                                      placeholder="e.g., Project Status"
-                                      className="gba:mt-1 gba:h-8"
-                                    />
-                                  </div>
-                                  <div>
-                                    <Label className="gba:text-xs gba:text-muted-foreground">Field Type</Label>
-                                    <Select
-                                      value={field.type}
-                                      onValueChange={v => updateFormField(field.id, { type: v as typeof field.type })}
-                                    >
-                                      <SelectTrigger className="gba:mt-1 gba:h-8">
-                                        <SelectValue />
-                                      </SelectTrigger>
-                                      <SelectContent style={{ zIndex: 1000003 }}>
-                                        <SelectItem value="text">Short Text</SelectItem>
-                                        <SelectItem value="textarea">Long Text</SelectItem>
-                                        <SelectItem value="number">Number</SelectItem>
-                                        <SelectItem value="date">Date</SelectItem>
-                                        <SelectItem value="select">Dropdown</SelectItem>
-                                      </SelectContent>
-                                    </Select>
-                                  </div>
-                                  <div>
-                                    <Label className="gba:text-xs gba:text-muted-foreground">Save to Column</Label>
-                                    <Select
-                                      value={field.targetColumn}
-                                      onValueChange={v => updateFormField(field.id, { targetColumn: v })}
-                                    >
-                                      <SelectTrigger className="gba:mt-1 gba:h-8">
-                                        <SelectValue placeholder="Select column" />
-                                      </SelectTrigger>
-                                      <SelectContent style={{ zIndex: 1000003 }}>
-                                        {columns.map(col => (
-                                          <SelectItem key={col.id} value={col.id}>
-                                            {col.label}
-                                          </SelectItem>
-                                        ))}
-                                        <SelectItem value="__new__">+ Create new column</SelectItem>
-                                      </SelectContent>
-                                    </Select>
-                                  </div>
-                                </div>
-                                <div className="gba:flex gba:items-center gba:gap-2">
-                                  <Checkbox
-                                    checked={field.required}
-                                    onCheckedChange={checked => updateFormField(field.id, { required: !!checked })}
-                                  />
-                                  <span className="gba:text-xs gba:text-muted-foreground">Required</span>
-                                  <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    className="gba:h-6 gba:w-6 gba:text-muted-foreground hover:gba:text-destructive"
-                                    onClick={() => removeFormField(field.id)}
-                                  >
-                                    <X className="gba:w-4 gba:h-4" />
-                                  </Button>
-                                </div>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        ))}
-
-                        {/* Add more fields */}
-                        <div className="gba:flex gba:gap-2 gba:pt-2">
+                    <div className="gba:flex gba:flex-wrap gba:gap-2 gba:justify-center gba:pt-2">
+                      {columns.slice(0, 5).map(col => {
+                        const isAlreadyAdded = formFields.some(f => f.targetColumn === col.id)
+                        return (
+                          <Button
+                            key={col.id}
+                            size="sm"
+                            variant="outline"
+                            onClick={() => !isAlreadyAdded && addFormFieldFromColumn(col)}
+                            disabled={isAlreadyAdded}
+                          >
+                            <Plus className="gba:w-3 gba:h-3 gba:mr-1" />
+                            {col.label}
+                          </Button>
+                        )
+                      })}
+                      {columns.length > 5 && (() => {
+                        const moreColumns = columns.slice(5).filter(c => !formFields.some(f => f.targetColumn === c.id))
+                        if (moreColumns.length === 0) return null
+                        return (
                           <Select
                             value=""
                             onValueChange={colId => {
@@ -1403,123 +1735,175 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
                               if (col) addFormFieldFromColumn(col)
                             }}
                           >
-                            <SelectTrigger className="gba:w-48">
-                              <SelectValue placeholder="Add from column..." />
+                            <SelectTrigger className="gba:w-auto gba:min-w-[120px]">
+                              <SelectValue placeholder={`+${moreColumns.length} more`} />
                             </SelectTrigger>
                             <SelectContent style={{ zIndex: 1000003 }}>
-                              {columns
-                                .filter(c => !formFields.some(f => f.targetColumn === c.id))
-                                .map(col => (
-                                  <SelectItem key={col.id} value={col.id}>
-                                    {col.label}
-                                  </SelectItem>
-                                ))}
+                              {moreColumns.map(col => (
+                                <SelectItem key={col.id} value={col.id}>
+                                  + {col.label}
+                                </SelectItem>
+                              ))}
                             </SelectContent>
                           </Select>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() =>
-                              setFormFields(prev => [
-                                ...prev,
-                                {
-                                  id: `field_${Date.now()}`,
-                                  label: 'New Field',
-                                  type: 'text',
-                                  required: false,
-                                  targetColumn: '__new__'
-                                }
-                              ])
-                            }
-                          >
-                            <Plus className="gba:w-4 gba:h-4 gba:mr-1" />
-                            Custom Field
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Section 3: EveryBox Preview */}
-                  <div className="gba:space-y-3">
-                    <div className="gba:flex gba:items-center gba:gap-2">
-                      <div className="gba:w-6 gba:h-6 gba:rounded-full gba:bg-primary gba:text-primary-foreground gba:flex gba:items-center gba:justify-center gba:text-xs gba:font-bold">
-                        3
-                      </div>
-                      <Label className="gba:text-sm gba:font-semibold">Preview: What recipients will see</Label>
+                        )
+                      })()}
                     </div>
+                  </div>
+                </CardContent>
+              </Card>
 
-                    <Card className="gba:bg-muted/30">
-                      <CardContent className="gba:p-4">
-                        <div className="gba:space-y-4">
-                          {/* Mock EveryBox task header */}
-                          <div className="gba:flex gba:items-center gba:gap-3 gba:pb-3 gba:border-b">
-                            <div className="gba:w-10 gba:h-10 gba:rounded-lg gba:bg-success/20 gba:flex gba:items-center gba:justify-center">
-                              <FileSpreadsheet className="gba:w-5 gba:h-5 gba:text-success" />
+              {formFields.length > 0 && (
+                <div className="gba:space-y-2">
+                  {formFields.map((field, index) => (
+                    <Card key={field.id}>
+                      <CardContent className="gba:p-3">
+                        <div className="gba:flex gba:items-start gba:gap-3">
+                          <div className="gba:flex-shrink-0 gba:w-6 gba:h-6 gba:rounded gba:bg-muted gba:flex gba:items-center gba:justify-center gba:text-xs gba:text-muted-foreground gba:font-medium">
+                            {index + 1}
+                          </div>
+                          <div className="gba:flex-1 gba:grid gba:grid-cols-3 gba:gap-3">
+                            <div>
+                              <Label className="gba:text-xs gba:text-muted-foreground">Question Label</Label>
+                              <Input
+                                value={field.label}
+                                onChange={e => updateFormField(field.id, { label: e.target.value })}
+                                placeholder="e.g., Project Status"
+                                className="gba:mt-1 gba:h-8"
+                              />
                             </div>
                             <div>
-                              <div className="gba:font-medium">{name || 'Form Request'}</div>
-                              <div className="gba:text-xs gba:text-muted-foreground">
-                                Task in EveryBox • Due in 7 days
-                              </div>
+                              <Label className="gba:text-xs gba:text-muted-foreground">Field Type</Label>
+                              <Select
+                                value={field.type}
+                                onValueChange={v => updateFormField(field.id, { type: v as typeof field.type })}
+                              >
+                                <SelectTrigger className="gba:mt-1 gba:h-8">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent style={{ zIndex: 1000003 }}>
+                                  <SelectItem value="text">Short Text</SelectItem>
+                                  <SelectItem value="textarea">Long Text</SelectItem>
+                                  <SelectItem value="number">Number</SelectItem>
+                                  <SelectItem value="date">Date</SelectItem>
+                                  <SelectItem value="select">Dropdown</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div>
+                              <Label className="gba:text-xs gba:text-muted-foreground">Save to Column</Label>
+                              <Select
+                                value={field.targetColumn}
+                                onValueChange={v => updateFormField(field.id, { targetColumn: v })}
+                              >
+                                <SelectTrigger className="gba:mt-1 gba:h-8">
+                                  <SelectValue placeholder="Select column" />
+                                </SelectTrigger>
+                                <SelectContent style={{ zIndex: 1000003 }}>
+                                  {columns.map(col => (
+                                    <SelectItem key={col.id} value={col.id}>
+                                      {col.label}
+                                    </SelectItem>
+                                  ))}
+                                  <SelectItem value="__new__">+ Create new column</SelectItem>
+                                </SelectContent>
+                              </Select>
                             </div>
                           </div>
-
-                          {/* Mock form fields */}
-                          {formFields.length > 0 ? (
-                            <div className="gba:space-y-3">
-                              {formFields.slice(0, 3).map(field => (
-                                <div key={field.id}>
-                                  <Label className="gba:text-xs gba:text-muted-foreground">
-                                    {field.label} {field.required && <span className="gba:text-destructive">*</span>}
-                                  </Label>
-                                  <div className="gba:mt-1 gba:h-8 gba:rounded gba:border gba:border-dashed gba:border-border gba:bg-background/50"></div>
-                                </div>
-                              ))}
-                              {formFields.length > 3 && (
-                                <p className="gba:text-xs gba:text-muted-foreground gba:text-center">
-                                  +{formFields.length - 3} more fields...
-                                </p>
-                              )}
-                            </div>
-                          ) : (
-                            <div className="gba:text-center gba:py-4 gba:text-sm gba:text-muted-foreground">
-                              Add fields above to see preview
-                            </div>
-                          )}
-
-                          {/* Mock submit button */}
-                          <div className="gba:flex gba:justify-end gba:pt-2">
-                            <div className="gba:px-4 gba:py-2 gba:rounded gba:bg-primary/20 gba:text-primary gba:text-sm gba:font-medium">
-                              Submit Response
-                            </div>
+                          <div className="gba:flex gba:items-center gba:gap-2">
+                            <Checkbox
+                              checked={field.required}
+                              onCheckedChange={checked => updateFormField(field.id, { required: !!checked })}
+                            />
+                            <span className="gba:text-xs gba:text-muted-foreground">Required</span>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="gba:h-6 gba:w-6 gba:text-muted-foreground hover:gba:text-destructive"
+                              onClick={() => removeFormField(field.id)}
+                            >
+                              <X className="gba:w-4 gba:h-4" />
+                            </Button>
                           </div>
                         </div>
                       </CardContent>
                     </Card>
-                  </div>
+                  ))}
 
-                  {/* Section 4: Tracking Columns Configuration */}
-                  <div className="gba:space-y-3">
-                    <div className="gba:flex gba:items-center gba:gap-2">
-                      <div className="gba:w-6 gba:h-6 gba:rounded-full gba:bg-primary gba:text-primary-foreground gba:flex gba:items-center gba:justify-center gba:text-xs gba:font-bold">
-                        4
-                      </div>
-                      <Label className="gba:text-sm gba:font-semibold">Tracking Columns</Label>
-                    </div>
-                    <p className="gba:text-sm gba:text-muted-foreground gba:ml-8">
-                      Choose which auto-generated columns to include for tracking workflow progress.
-                    </p>
-                    <div className="gba:ml-8">
-                      <TrackingColumnsConfig
-                        selectedColumns={trackingColumns}
-                        onSelectionChange={setTrackingColumns}
-                        data-testid="bulk-collection-tracking-columns"
-                      />
-                    </div>
+                  <div className="gba:flex gba:gap-2 gba:pt-2">
+                    <Select
+                      value=""
+                      onValueChange={colId => {
+                        const col = columns.find(c => c.id === colId)
+                        if (col) addFormFieldFromColumn(col)
+                      }}
+                    >
+                      <SelectTrigger className="gba:w-48">
+                        <SelectValue placeholder="Add from column..." />
+                      </SelectTrigger>
+                      <SelectContent style={{ zIndex: 1000003 }}>
+                        {columns
+                          .filter(c => !formFields.some(f => f.targetColumn === c.id))
+                          .map(col => (
+                            <SelectItem key={col.id} value={col.id}>
+                              {col.label}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        setFormFields(prev => [
+                          ...prev,
+                          {
+                            id: `field_${Date.now()}`,
+                            label: 'New Field',
+                            type: 'text',
+                            required: false,
+                            targetColumn: '__new__'
+                          }
+                        ])
+                      }
+                    >
+                      <Plus className="gba:w-4 gba:h-4 gba:mr-1" />
+                      Custom Field
+                    </Button>
                   </div>
                 </div>
               )}
+            </div>
+            )}
+
+            {/* Note (bulk only: form task; excel: spreadsheet copy) */}
+            <div className="gba:flex gba:items-center gba:gap-2 gba:p-3 gba:bg-muted/30 gba:rounded-lg">
+              <Info className="gba:w-4 gba:h-4 gba:text-muted-foreground gba:flex-shrink-0" />
+              <p className="gba:text-sm gba:text-muted-foreground">
+                {isExcelConfigure
+                  ? 'Recipients will receive a copy of your spreadsheet. They fill it in-app and submit when done.'
+                  : 'Recipients will receive a form task in EveryBox with the fields above.'}
+              </p>
+            </div>
+
+            {/* Section 4: Tracking Columns */}
+            <div className="gba:space-y-3">
+              <div className="gba:flex gba:items-center gba:gap-2">
+                <div className="gba:w-6 gba:h-6 gba:rounded-full gba:bg-primary gba:text-primary-foreground gba:flex gba:items-center gba:justify-center gba:text-xs gba:font-bold">
+                  4
+                </div>
+                <Label className="gba:text-sm gba:font-semibold">Tracking Columns</Label>
+              </div>
+              <p className="gba:text-sm gba:text-muted-foreground gba:ml-8">
+                Choose which auto-generated columns to include for tracking workflow progress.
+              </p>
+              <div className="gba:ml-8">
+                <TrackingColumnsConfig
+                  selectedColumns={trackingColumns}
+                  onSelectionChange={setTrackingColumns}
+                  data-testid="bulk-collection-tracking-columns"
+                />
+              </div>
             </div>
           </div>
         )
@@ -1784,14 +2168,64 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
                     <Label className="gba:text-xs gba:text-muted-foreground">Trigger</Label>
                     <p className="gba:font-medium">{TRIGGER_OPTIONS.find(t => t.trigger === trigger)?.title}</p>
                   </div>
-                  <div>
-                    <Label className="gba:text-xs gba:text-muted-foreground">Workflow Steps</Label>
-                    <p className="gba:font-medium">{workflowSteps.length} steps</p>
-                  </div>
-                  <div>
-                    <Label className="gba:text-xs gba:text-muted-foreground">Column Mappings</Label>
-                    <p className="gba:font-medium">{columnMappings.length} mappings</p>
-                  </div>
+                  {automationType === 'bulk_collection' ? (
+                    <>
+                      <div>
+                        <Label className="gba:text-xs gba:text-muted-foreground">Recipients</Label>
+                        <p className="gba:font-medium">
+                          {approvalSteps[0]?.assignee === 'specific'
+                            ? `${selectedRecipients.length} people selected`
+                            : approvalSteps[0]?.assignee === 'team'
+                              ? 'My Team'
+                              : approvalSteps[0]?.assignee === 'department'
+                                ? 'Department'
+                                : '—'}
+                        </p>
+                      </div>
+                      <div>
+                        <Label className="gba:text-xs gba:text-muted-foreground">Form Fields</Label>
+                        <p className="gba:font-medium">{formFields.length} fields</p>
+                      </div>
+                    </>
+                  ) : automationType === 'excel_collection' ? (
+                    <>
+                      <div>
+                        <Label className="gba:text-xs gba:text-muted-foreground">Recipients</Label>
+                        <p className="gba:font-medium">
+                          {approvalSteps[0]?.assignee === 'specific'
+                            ? `${selectedRecipients.length} people selected`
+                            : approvalSteps[0]?.assignee === 'team'
+                              ? 'My Team'
+                              : approvalSteps[0]?.assignee === 'department'
+                                ? 'Department'
+                                : '—'}
+                        </p>
+                      </div>
+                      <div>
+                        <Label className="gba:text-xs gba:text-muted-foreground">Template</Label>
+                        <p className="gba:font-medium">
+                          {selectedTemplateId
+                            ? availableTemplates.find(t => t.id === selectedTemplateId)?.name || 'Selected spreadsheet'
+                            : '—'}
+                        </p>
+                      </div>
+                      <div>
+                        <Label className="gba:text-xs gba:text-muted-foreground">Tracking Columns</Label>
+                        <p className="gba:font-medium">{trackingColumns.length} columns</p>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div>
+                        <Label className="gba:text-xs gba:text-muted-foreground">Workflow Steps</Label>
+                        <p className="gba:font-medium">{workflowSteps.length} steps</p>
+                      </div>
+                      <div>
+                        <Label className="gba:text-xs gba:text-muted-foreground">Column Mappings</Label>
+                        <p className="gba:font-medium">{columnMappings.length} mappings</p>
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 {trigger === 'onFieldChange' && watchColumns.length > 0 && (
@@ -1869,7 +2303,7 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
         <div className="gba:flex-1 gba:overflow-y-auto gba:p-6">
           {/* Step Indicators */}
           <div className="gba:flex gba:items-center gba:justify-center gba:gap-2 gba:py-4 gba:border-b gba:mb-6">
-            {WIZARD_STEPS.map((step, index) => {
+            {wizardSteps.map((step, index) => {
               const isActive = index === currentStepIndex
               const isCompleted = index < currentStepIndex
 
@@ -1886,7 +2320,7 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
                   >
                     {isCompleted ? <Check className="gba:w-4 gba:h-4" /> : index + 1}
                   </div>
-                  {index < WIZARD_STEPS.length - 1 && (
+                  {index < wizardSteps.length - 1 && (
                     <div className={`gba:w-12 gba:h-0.5 ${isCompleted ? 'gba:bg-success' : 'gba:bg-muted'}`} />
                   )}
                 </React.Fragment>
@@ -1896,7 +2330,13 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
 
           {/* Step Title */}
           <div className="gba:text-center gba:mb-4">
-            <h3 className="gba:text-lg gba:font-semibold gba:capitalize">{currentStep.replace('_', ' ')}</h3>
+            <h3 className="gba:text-lg gba:font-semibold">
+              {currentStep === 'setup'
+                ? 'Setup'
+                : currentStep === 'configure'
+                  ? 'Configure Collection'
+                  : currentStep.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+            </h3>
           </div>
 
           {/* Validation Errors */}

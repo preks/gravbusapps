@@ -131,6 +131,15 @@ const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
 export const EVERY_OFFICE_PLATFORM_PATH = '/platform/every-office'
 
 /**
+ * Get app path from pathname when using path-based URLs (e.g. flow task links).
+ * Used by BusinessAppIDE to load the correct app when URL has path but no ?app= param.
+ */
+export const getAppPathFromPathname = (pathname: string): string | null => {
+  const normalized = pathname.replace(/\/+$/, '') || '/'
+  return PLATFORM_URL_TO_APP_MAPPING[normalized] ?? null
+}
+
+/**
  * Checks if a URL is a platform URL that should be mapped to app query parameters
  */
 const isPlatformUrl = (url: string): boolean => {

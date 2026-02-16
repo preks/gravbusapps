@@ -283,7 +283,12 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     setSelectedAppId,
     setCurrentView,
     activeSection,
-    setActiveSection
+    setActiveSection,
+    onLoadFailed: appId => {
+      toast.error(
+        'This spreadsheet could not be found or you don\'t have access. It may have been deleted or the link may be invalid.'
+      )
+    }
   })
 
   // Update URL whenever activeSection changes (when user clicks sidebar)
@@ -790,6 +795,31 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
             : undefined
         }
         onAppUpdate={canEdit ? updatedApp => updateApp(updatedApp.id, updatedApp) : undefined}
+        onAppRefreshNeeded={
+          canEdit
+            ? async (appId: string, newSheetId?: string) => {
+                const maxAttempts = 5
+                const retryDelayMs = 400
+
+                for (let attempt = 0; attempt < maxAttempts; attempt++) {
+                  const refreshed = await loadApp(appId)
+
+                  // If no target sheet is provided, a single successful refresh is enough.
+                  if (!newSheetId) return
+
+                  const targetSheet = refreshed?.sheets?.find(s => s.id === newSheetId)
+                  if (targetSheet && (targetSheet.data?.length ?? 0) > 0) {
+                    return
+                  }
+
+                  // Wait briefly and retry to handle eventual consistency after row creation.
+                  if (attempt < maxAttempts - 1) {
+                    await new Promise(resolve => setTimeout(resolve, retryDelayMs))
+                  }
+                }
+              }
+            : undefined
+        }
         onSheetUpdate={canEdit ? updateSheet : undefined}
         onRowAdd={canEdit ? addRow : undefined}
         onRowUpdate={canEdit ? updateRow : undefined}

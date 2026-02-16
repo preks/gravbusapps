@@ -42,6 +42,8 @@ function getColumnTypeForTracking(columnId: string): SpreadsheetColumn['type'] {
       return 'email'
     case 'recipient_avatar':
       return 'image'
+    case 'copy_link':
+      return 'url'
     default:
       return 'text'
   }
@@ -104,14 +106,17 @@ export function buildSentRowTrackingValues(
 
 /**
  * Build tracking column values for a "Completed" row (after response)
+ * @param copyAppId - For Excel Collection: app ID of the completed copy (enables "View Response" link)
  */
 export function buildCompletedRowTrackingValues(
   selectedColumnIds: string[],
   recipientInfo: RecipientInfo,
   sentAt: string,
-  respondedAt: string
+  respondedAt: string,
+  copyAppId?: string
 ): Record<string, unknown> {
   const values: Record<string, unknown> = {}
+  const origin = typeof window !== 'undefined' ? window.location.origin : ''
 
   selectedColumnIds.forEach(colId => {
     const def = TRACKING_COLUMNS.find(c => c.id === colId)
@@ -142,6 +147,11 @@ export function buildCompletedRowTrackingValues(
         break
       case 'workflow_status':
         values[def.name] = 'Completed'
+        break
+      case 'copy_link':
+        if (copyAppId) {
+          values[def.name] = `${origin}/platform/apps/spreadsheet-apps?appId=${encodeURIComponent(copyAppId)}&view=viewer`
+        }
         break
     }
   })

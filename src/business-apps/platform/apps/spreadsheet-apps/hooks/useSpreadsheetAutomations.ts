@@ -26,12 +26,19 @@ import { fetchRecipientsData } from '../utils/fetchRecipientData'
 /**
  * Ensure essential recipient tracking columns are always present.
  * We rely on these for avatar/email display and user expectations.
+ * For excel_collection, also ensure copy_link for "View Response" column.
  */
-function ensureRecipientTrackingColumns(selected: string[]): string[] {
+function ensureRecipientTrackingColumns(
+  selected: string[],
+  automationType?: 'bulk_collection' | 'excel_collection'
+): string[] {
   const ensured = new Set(selected)
   ensured.add('recipient_avatar')
   ensured.add('recipient_name')
   ensured.add('recipient_email')
+  if (automationType === 'excel_collection') {
+    ensured.add('copy_link')
+  }
   return Array.from(ensured)
 }
 
@@ -114,6 +121,11 @@ export interface UseSpreadsheetAutomationsResult {
   stopPolling: () => void
   /** Fetch bulk collection responses and add as rows */
   fetchBulkCollectionResponses: () => Promise<void>
+
+  /** Complete the Excel Collection task for the current user (when viewing a collection copy) */
+  completeExcelCollectionTask: (copyAppId: string) => Promise<{ success: boolean; error?: string }>
+  /** Check if user has an open Excel Collection task for this app (fallback when settings lack the flag) */
+  hasExcelCollectionTaskForApp: (copyAppId: string) => Promise<boolean>
 
   // Utilities
   /** Get automation by ID */
@@ -357,9 +369,9 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
         const startTime = Date.now()
 
         // Check if we have data to process based on automation type
-        // - bulk_collection: requires RECIPIENTS (not rows) - can run on empty sheets
+        // - bulk_collection / excel_collection: requires RECIPIENTS (not rows) - can run on empty sheets
         // - other types: require ROWS to process
-        const isBulkCollection = automation.type === 'bulk_collection'
+        const isBulkCollection = automation.type === 'bulk_collection' || automation.type === 'excel_collection'
         const hasRecipients =
           (automation.collectionConfig?.recipients?.length ?? 0) > 0 ||
           automation.collectionConfig?.recipientType === 'team' ||
@@ -429,14 +441,15 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
             return updated
           })
 
-          // For bulk collection: immediately create rows showing "Sent" status
-          if (automation.type === 'bulk_collection') {
+          // For bulk_collection and excel_collection: create rows showing "Sent" status when automation starts.
+          if (automation.type === 'bulk_collection' || automation.type === 'excel_collection') {
             if (!onAddRowsRef.current) {
               console.error('[useSpreadsheetAutomations] ERROR: onAddRowsRef.current is not set!')
             } else {
               const statusColumn = automation.workflowConfig.statusColumn
               const trackingColumns = ensureRecipientTrackingColumns(
-                automation.collectionConfig?.trackingColumns || getDefaultTrackingColumns()
+                automation.collectionConfig?.trackingColumns || getDefaultTrackingColumns(),
+                automation.type === 'excel_collection' ? 'excel_collection' : 'bulk_collection'
               )
 
               // Build a lookup from columnId to columnName for proper data mapping
@@ -684,24 +697,49 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
       return
     }
 
-    // Get all bulk collection automations
-    const bulkCollectionAutomations = automations.filter(a => a.type === 'bulk_collection' && a.isEnabled)
+    // Get all bulk/excel collection automations
+    const bulkCollectionAutomations = automations.filter(
+      a => (a.type === 'bulk_collection' || a.type === 'excel_collection') && a.isEnabled
+    )
     if (bulkCollectionAutomations.length === 0) {
       return
     }
 
     for (const automation of bulkCollectionAutomations) {
       try {
+        console.log('[useSpreadsheetAutomations][trace] fetchBulkCollectionResponses:start', {
+          spreadsheetId,
+          sheetId,
+          automationId: automation.id,
+          automationType: automation.type
+        })
         const responses = await service.fetchBulkCollectionResponses({
           spreadsheetId,
           sheetId,
-          automationId: automation.id
+          automationId: automation.id,
+          automationType: automation.type === 'excel_collection' ? 'excel_collection' : 'bulk_collection'
         })
 
-        // Filter out already processed responses
+        // Filter out already processed responses.
+        // IMPORTANT:
+        // For excel_collection we intentionally DO NOT suppress by in-memory processed set,
+        // because row persistence can race/fail and we must keep retrying on every poll
+        // until the report sheet is actually updated.
+        const shouldDedupeByMemory = automation.type !== 'excel_collection'
         const newResponses = responses.filter(
-          r => r.status === 'COMPLETED' && !processedWorkflowIdsRef.current.has(r.workflowId)
+          r =>
+            r.status === 'COMPLETED' &&
+            (!shouldDedupeByMemory || !processedWorkflowIdsRef.current.has(r.workflowId))
         )
+
+        console.log('[useSpreadsheetAutomations][trace] fetchBulkCollectionResponses:received', {
+          automationId: automation.id,
+          shouldDedupeByMemory,
+          totalResponses: responses.length,
+          completedUnprocessed: newResponses.length,
+          responseWorkflowIds: responses.map(r => r.workflowId),
+          newWorkflowIds: newResponses.map(r => r.workflowId)
+        })
 
         if (newResponses.length === 0) continue
 
@@ -714,7 +752,8 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
 
         // Build updates for existing rows (rows that have _workflow_id matching these responses)
         const trackingColumns = ensureRecipientTrackingColumns(
-          automation.collectionConfig?.trackingColumns || getDefaultTrackingColumns()
+          automation.collectionConfig?.trackingColumns || getDefaultTrackingColumns(),
+          automation.type === 'excel_collection' ? 'excel_collection' : 'bulk_collection'
         )
         const statusColumn = automation.workflowConfig.statusColumn
 
@@ -727,6 +766,7 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
           const displayEmail = response.responderEmail ?? recipientData?.email
 
           // Build tracking column update values (include avatar for recipient_avatar column)
+          const copyAppId = response.formData?.copyAppId as string | undefined
           const trackingValues = buildCompletedRowTrackingValues(
             trackingColumns,
             {
@@ -736,7 +776,8 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
               avatar: recipientData?.avatar
             },
             new Date().toISOString(), // sentAt - will be overridden if _sent_at exists in row
-            response.submittedAt
+            response.submittedAt,
+            copyAppId
           )
 
           // Build a lookup from columnId to columnName for proper data mapping
@@ -810,21 +851,46 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
           }
         })
 
-        // Mark as processed
-        newResponses.forEach(r => processedWorkflowIdsRef.current.add(r.workflowId))
+        console.log('[useSpreadsheetAutomations][trace] rowUpdates:built', {
+          automationId: automation.id,
+          rowUpdatesCount: rowUpdates.length,
+          rowUpdates: rowUpdates.map(u => ({
+            workflowId: u.workflowId,
+            recipientId: u.recipientId,
+            cellKeys: Object.keys(u.cells)
+          }))
+        })
+
+        // Mark as processed only for non-excel collection automations.
+        if (shouldDedupeByMemory) {
+          newResponses.forEach(r => processedWorkflowIdsRef.current.add(r.workflowId))
+        }
 
         // Update existing rows via callback if available, otherwise add as new rows
         if (rowUpdates.length > 0) {
           if (onUpdateRowsRef.current) {
+            console.log('[useSpreadsheetAutomations][trace] dispatch:onUpdateRows', {
+              automationId: automation.id,
+              updatesCount: rowUpdates.length
+            })
             onUpdateRowsRef.current(rowUpdates)
           } else if (onAddRowsRef.current) {
             // Fallback: add as new rows if no update callback
+            console.log('[useSpreadsheetAutomations][trace] dispatch:onAddRows:fallback', {
+              automationId: automation.id,
+              updatesCount: rowUpdates.length
+            })
             onAddRowsRef.current(
               rowUpdates.map(u => ({
                 cells: u.cells,
                 metadata: { workflowId: u.workflowId, recipientId: u.recipientId }
               }))
             )
+          } else {
+            console.warn('[useSpreadsheetAutomations][trace] no row callbacks available', {
+              automationId: automation.id,
+              updatesCount: rowUpdates.length
+            })
           }
         }
       } catch (err) {
@@ -839,8 +905,10 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
       return
     }
 
-    // Check if there are any bulk collection automations
-    const hasBulkCollectionAutomations = automations.some(a => a.type === 'bulk_collection' && a.isEnabled)
+    // Check if there are any bulk/excel collection automations
+    const hasBulkCollectionAutomations = automations.some(
+      a => (a.type === 'bulk_collection' || a.type === 'excel_collection') && a.isEnabled
+    )
 
     if (!hasBulkCollectionAutomations) {
       return
@@ -883,6 +951,27 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
     setError(null)
   }, [])
 
+  // Complete Excel Collection task (when viewing a collection copy)
+  const completeExcelCollectionTask = useCallback(
+    async (copyAppId: string): Promise<{ success: boolean; error?: string }> => {
+      const service = automationServiceRef.current
+      if (!service) {
+        return { success: false, error: 'Service not available' }
+      }
+      return service.findAndCompleteExcelCollectionTask(copyAppId, currentUserId)
+    },
+    [currentUserId]
+  )
+
+  const hasExcelCollectionTaskForApp = useCallback(
+    async (copyAppId: string): Promise<boolean> => {
+      const service = automationServiceRef.current
+      if (!service || !currentUserId) return false
+      return service.hasExcelCollectionTaskForApp(copyAppId, currentUserId)
+    },
+    [currentUserId]
+  )
+
   return {
     // State
     automations,
@@ -911,6 +1000,8 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
 
     // Bulk Collection
     fetchBulkCollectionResponses,
+    completeExcelCollectionTask,
+    hasExcelCollectionTaskForApp,
 
     // Utilities
     getAutomationById,

@@ -131,7 +131,8 @@ function renderValueByColumnType(value: unknown, column: SpreadsheetColumn): Rea
           {String(value)}
         </a>
       )
-    case 'url':
+    case 'url': {
+      const linkText = column.name === '_copy_link' ? (column.label || 'View Response') : String(value)
       return (
         <a
           href={String(value)}
@@ -139,9 +140,10 @@ function renderValueByColumnType(value: unknown, column: SpreadsheetColumn): Rea
           rel="noopener noreferrer"
           className="gba:text-primary gba:hover:underline"
         >
-          {String(value)}
+          {linkText}
         </a>
       )
+    }
     default: {
       const stringValue = String(value)
       return renderMarkdownOrUrlValue(stringValue) || stringValue

@@ -60,6 +60,7 @@ import {
   STORAGE_KEY_ADDITIONAL_DATA,
   STORAGE_KEY_SIDEBAR_COLLAPSED
 } from './common/constants/ideStorageKeys'
+import { getAppPathFromPathname } from '@/common/utils/navigationUtils'
 
 // Get available modules without eagerly loading them
 const modulePatterns = import.meta.glob('./business-apps/**/index.ts', {
@@ -289,9 +290,16 @@ export function BusinessAppIDE(props: Readonly<BusinessAppIDEProps>) {
   }
 
   const urlParams = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '')
+  const pathname = typeof window !== 'undefined' ? window.location.pathname : ''
 
   // Check for different parameter types (app, form, popup, window)
-  const appFromUrl = urlParams.get('app') || urlParams.get('form') || urlParams.get('popup') || urlParams.get('window')
+  // Also check pathname for path-based URLs (e.g. flow task links: /platform/apps/spreadsheet-apps?appId=...)
+  const appFromUrl =
+    urlParams.get('app') ||
+    urlParams.get('form') ||
+    urlParams.get('popup') ||
+    urlParams.get('window') ||
+    getAppPathFromPathname(pathname)
 
   const [selectedApp, setSelectedApp] = useState<BusinessAppInfo | null>(
     // First try to find by full path (new format), then fallback to name (legacy format)

@@ -8,6 +8,7 @@
 import React, { useState, useCallback, useMemo } from 'react'
 import {
   Button,
+  AiButton,
   Badge,
   DropdownMenu,
   DropdownMenuContent,
@@ -31,9 +32,11 @@ import {
   FileSpreadsheet,
   Users,
   ClipboardCheck,
+  FileDown,
   CheckCircle,
   Clock,
-  AlertTriangle
+  AlertTriangle,
+  Sparkles
 } from 'lucide-react'
 import type { SpreadsheetAutomation, WorkflowRowLink, AutomationType } from '../../types/automation'
 
@@ -54,6 +57,12 @@ export interface AutomationToolbarActionsProps {
   onRefreshStatuses?: () => void
   /** Whether automation execution is in progress */
   isExecuting?: boolean
+  /** Show Summarize with AI button (excel_collection with completed rows) */
+  showSummarizeButton?: boolean
+  /** Callback when Summarize with AI is clicked */
+  onSummarizeClick?: () => void
+  /** Whether summarization is in progress */
+  isSummarizing?: boolean
   /** Data test ID */
   'data-testid'?: string
 }
@@ -67,6 +76,8 @@ function getAutomationTypeIcon(type: AutomationType) {
       return FileSpreadsheet
     case 'bulk_collection':
       return Users
+    case 'excel_collection':
+      return FileDown
     case 'sheet_approval':
     case 'line_approval':
       return ClipboardCheck
@@ -87,6 +98,9 @@ export const AutomationToolbarActions: React.FC<AutomationToolbarActionsProps> =
   onRunAutomation,
   onRefreshStatuses,
   isExecuting = false,
+  showSummarizeButton = false,
+  onSummarizeClick,
+  isSummarizing = false,
   'data-testid': testId = 'automation-toolbar-actions'
 }) => {
   const [runningAutomationId, setRunningAutomationId] = useState<string | null>(null)
@@ -141,6 +155,36 @@ export const AutomationToolbarActions: React.FC<AutomationToolbarActionsProps> =
 
   return (
     <div className="gba:flex gba:items-center gba:gap-2" data-testid={testId}>
+      {/* Summarize with AI (excel_collection with completed rows) */}
+      {showSummarizeButton && (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <AiButton
+                size="sm"
+                showIcon
+                icon={
+                  isSummarizing ? (
+                    <Spinner className="gba:w-4 gba:h-4" />
+                  ) : (
+                    <Sparkles className="gba:w-4 gba:h-4" />
+                  )
+                }
+                iconPosition="before"
+                onClick={onSummarizeClick}
+                disabled={isSummarizing || isExecuting}
+                data-testid={`${testId}-summarize-button`}
+              >
+                Summarize with AI
+              </AiButton>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Generate AI summary of completed Excel Collection submissions</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      )}
+
       {/* Quick Run Button (for single manual automation) */}
       {manualAutomations.length === 1 && (
         <TooltipProvider>

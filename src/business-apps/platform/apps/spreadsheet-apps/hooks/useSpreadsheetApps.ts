@@ -381,7 +381,21 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
           // Only update if row has a valid UUID ID (was created via API)
           // Otherwise add as new row (for locally-created rows with non-UUID IDs)
           if (rowId && isValidUUID(rowId)) {
-            await SpreadsheetApiService.updateRow(appId, sheetId, rowId, row)
+            try {
+              await SpreadsheetApiService.updateRow(appId, sheetId, rowId, row)
+            } catch (updateErr) {
+              // Some local rows carry UUID-like temp IDs that are not persisted in backend.
+              // Fall back to addRow so bulk updates can self-heal instead of looping on 404.
+              console.warn('[useSpreadsheetApps] updateRow failed in updateSheetData, falling back to addRow', {
+                appId,
+                sheetId,
+                rowId,
+                error: updateErr instanceof Error ? updateErr.message : String(updateErr)
+              })
+              const rowWithoutId = { ...row }
+              delete (rowWithoutId as Record<string, unknown>)._id
+              await SpreadsheetApiService.addRow(appId, sheetId, rowWithoutId)
+            }
           } else {
             // Remove the local non-UUID _id before adding via API
             const rowWithoutId = { ...row }

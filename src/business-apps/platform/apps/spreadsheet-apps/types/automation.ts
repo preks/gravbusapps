@@ -32,6 +32,7 @@ export type AutomationTrigger =
 export type AutomationType =
   | 'row_workflow' // One workflow per row
   | 'bulk_collection' // Collect data into spreadsheet
+  | 'excel_collection' // Send template copy to team, collect via in-app submit
   | 'sheet_approval' // Approve entire sheet
   | 'line_approval' // Approve individual rows
 
@@ -322,6 +323,10 @@ export interface BulkCollectionConfig {
     required?: boolean
     options?: string[]
   }>
+  /** Template spreadsheet app ID (for excel_collection: the app to duplicate for each recipient) */
+  templateSpreadsheetId?: string
+  /** Optional message from the manager to include in the task/notification sent to recipients */
+  message?: string
 }
 
 // ============================================================================
@@ -354,7 +359,7 @@ export interface SpreadsheetAutomation {
   /** Sheet approval specific config (when type = 'sheet_approval' | 'line_approval') */
   approvalConfig?: SheetApprovalConfig
 
-  /** Bulk collection specific config (when type = 'bulk_collection') */
+  /** Bulk collection / Excel collection config (when type = 'bulk_collection' | 'excel_collection') */
   collectionConfig?: BulkCollectionConfig
 
   /** Last execution timestamp */

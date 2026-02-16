@@ -13,6 +13,8 @@ export interface UseSpreadsheetAppsHubUrlStateParams {
   setCurrentView: (view: HubView) => void
   activeSection: SidebarSection
   setActiveSection: (section: SidebarSection) => void
+  /** Called when loading app from URL fails (app not found or access denied) */
+  onLoadFailed?: (appId: string) => void
 }
 
 export interface UseSpreadsheetAppsHubUrlStateReturn {
@@ -46,7 +48,8 @@ export function useSpreadsheetAppsHubUrlState(
     setSelectedAppId,
     setCurrentView,
     activeSection,
-    setActiveSection
+    setActiveSection,
+    onLoadFailed
   } = params
 
   const loadAttemptedRef = useRef<string | null>(null)
@@ -100,11 +103,14 @@ export function useSpreadsheetAppsHubUrlState(
 
     loadAttemptedRef.current = appId
     loadAppById(appId, filePath ? decodeURIComponent(filePath) : undefined).then(app => {
-      if (!app) return
+      if (!app) {
+        onLoadFailed?.(appId)
+        return
+      }
       setSelectedAppId(appId)
       setCurrentView(view === 'editor' ? 'editor' : 'viewer')
     })
-  }, [currentAppId, isLoadingApps, loadAppById, setCurrentView, setSelectedAppId])
+  }, [currentAppId, isLoadingApps, loadAppById, setCurrentView, setSelectedAppId, onLoadFailed])
 
   // Track if we came from desk.
   useEffect(() => {
@@ -173,7 +179,10 @@ export function useSpreadsheetAppsHubUrlState(
 
       if (state?.appId) {
         loadAppById(state.appId).then(app => {
-          if (!app) return
+          if (!app) {
+            onLoadFailed?.(state.appId)
+            return
+          }
           setSelectedAppId(state.appId!)
           setCurrentView(state.view || 'viewer')
         })
@@ -186,7 +195,7 @@ export function useSpreadsheetAppsHubUrlState(
 
     window.addEventListener('popstate', handlePopState)
     return () => window.removeEventListener('popstate', handlePopState)
-  }, [currentView, loadAppById, setCurrentView, setSelectedAppId, setActiveSection])
+  }, [currentView, loadAppById, setCurrentView, setSelectedAppId, setActiveSection, onLoadFailed])
 
   return { updateUrl, resetLoadAttempt }
 }

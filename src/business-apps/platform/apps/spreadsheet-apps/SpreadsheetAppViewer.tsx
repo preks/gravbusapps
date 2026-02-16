@@ -6,6 +6,7 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { toast } from 'sonner'
 
 import type { SpreadsheetAppViewerProps, SpreadsheetColumn, SpreadsheetSheet } from './types'
 import { columnToFormField } from './types'
@@ -18,6 +19,8 @@ import { useEntityDataSource } from './hooks/useEntityDataSource'
 import { useSpreadsheetAutomations } from './hooks/useSpreadsheetAutomations'
 import { useSpreadsheetBulkRows } from './hooks/useSpreadsheetBulkRows'
 import { useSpreadsheetColumns } from './hooks/useSpreadsheetColumns'
+import { useExcelCollectionSummary } from './hooks/useExcelCollectionSummary'
+import { extractCopyAppIdsFromRows } from './utils/collectionSummaryUtils'
 
 import { useVersioning } from '../shared/hooks/useVersioning'
 import { useComments } from '../shared/hooks/useComments'
@@ -27,6 +30,7 @@ import { emitDocumentActivity, emitDocumentActivityEnd } from '../spaces/hooks/u
 
 import { TableView, FormView, DashboardView, KanbanView } from './views'
 import { AutomationsPanel } from './components/AutomationsPanel'
+import { CollectionSummaryDialog } from './components/automations/CollectionSummaryDialog'
 import { EntityDataStatusBar } from './components/EntityDataStatusBar'
 import { SpreadsheetDialogsSection } from './components/SpreadsheetDialogsSection'
 import { SpreadsheetHeader } from './components/SpreadsheetHeader'
@@ -40,6 +44,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   onRowAdd,
   onRowUpdate,
   onAppUpdate,
+  onAppRefreshNeeded,
   onSheetUpdate,
   onBack,
   onEdit,
@@ -170,7 +175,216 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     pollInterval: 10000
   })
 
+  const [hasTaskForCollectionCopy, setHasTaskForCollectionCopy] = useState(false)
+  const fromCollectionLink =
+    typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('excel_collection') === '1'
+  const isCollectionCopy = Boolean(
+    app.settings?.excel_collection_copy || hasTaskForCollectionCopy || fromCollectionLink
+  )
+
+  useEffect(() => {
+    if (app.settings?.excel_collection_copy || !userId || !app.id || !automations.hasExcelCollectionTaskForApp) return
+    const check = () => void automations.hasExcelCollectionTaskForApp(app.id).then(has => {
+      if (has) setHasTaskForCollectionCopy(true)
+    })
+    check()
+    const t = setTimeout(check, 1500) // Retry in case flow engine wasn't ready
+    return () => clearTimeout(t)
+  }, [app.id, app.settings?.excel_collection_copy, userId, automations.hasExcelCollectionTaskForApp])
+
+  const handleSubmitCollection = useCallback(async () => {
+    if (!userId || !automations.completeExcelCollectionTask) return
+    const result = await automations.completeExcelCollectionTask(app.id)
+    if (result.success) {
+      toast.success('Submitted successfully. Your task is now complete.')
+      if (onBack) onBack()
+    } else {
+      toast.error(result.error || 'Failed to submit')
+    }
+  }, [app.id, userId, automations.completeExcelCollectionTask, onBack])
+
   const [isAutomationsOpen, setIsAutomationsOpen] = useState(false)
+  const [showCollectionSummaryDialog, setShowCollectionSummaryDialog] = useState(false)
+
+  const collectionSummary = useExcelCollectionSummary({
+    accessToken,
+    sheetData,
+    columns: activeSheet.columns,
+  })
+
+  const hasExcelCollectionWithEligibleRows = useMemo(() => {
+    const hasExcelCollection = automations.automations.some(a => a.type === 'excel_collection')
+    return hasExcelCollection && collectionSummary.hasEligibleRows
+  }, [automations.automations, collectionSummary.hasEligibleRows])
+
+  const handleSummarizeClick = useCallback(async () => {
+    setShowCollectionSummaryDialog(true)
+    const result = await collectionSummary.summarize()
+    if (!result.success) {
+      toast.error(result.error)
+    }
+  }, [collectionSummary])
+
+  const handleAddSummaryToSheet = useCallback(async () => {
+    if (!collectionSummary.summary) return
+    const { executiveSummary, perRecipient } = collectionSummary.summary
+    console.log('[AddSummary][trace] start', {
+      appId: app.id,
+      activeSheetId,
+      executiveSummaryLength: executiveSummary?.length ?? 0,
+      perRecipientCount: perRecipient.length
+    })
+    const copyInfos = extractCopyAppIdsFromRows(sheetData, activeSheet.columns)
+    const summaryByRecipient = new Map(perRecipient.map(p => [p.recipientName, p.summary]))
+
+    if (perRecipient.length > 0) {
+      const aiSummaryCol = activeSheet.columns.find(c => c.name === '_ai_summary')
+      if (!aiSummaryCol) {
+        const newCol: SpreadsheetColumn = {
+          id: '_ai_summary',
+          name: '_ai_summary',
+          label: 'AI Summary',
+          type: 'text',
+          isVisible: true,
+          isEditable: false,
+          isRequired: false,
+          isUnique: false,
+          order: activeSheet.columns.length,
+          width: 200,
+        }
+        const updatedColumns = [...activeSheet.columns, newCol]
+        await SpreadsheetApiService.updateSheet(app.id, activeSheetId, { columns: updatedColumns })
+        if (onSheetUpdate) {
+          await onSheetUpdate(app.id, activeSheetId, { columns: updatedColumns })
+        } else if (onAppUpdate) {
+          const updatedSheets = app.sheets.map(sheet =>
+            sheet.id === activeSheetId ? { ...sheet, columns: updatedColumns } : sheet
+          )
+          onAppUpdate({ ...app, sheets: updatedSheets })
+        }
+      }
+
+      const nextSheetData = [...sheetData]
+      for (const { recipientName, rowIndex } of copyInfos) {
+        const summary = summaryByRecipient.get(recipientName)
+        if (!summary) continue
+        const row = sheetData[rowIndex]
+        if (!row) continue
+        const rowId = String(row._rowUuid ?? row._id ?? row.id ?? '')
+        if (!rowId) continue
+        try {
+          if (onRowUpdate) {
+            await onRowUpdate(app.id, activeSheetId, rowId, { _ai_summary: summary })
+          } else {
+            await SpreadsheetApiService.updateRow(app.id, activeSheetId, rowId, { _ai_summary: summary })
+          }
+          console.log('[AddSummary][trace] recipientSummaryPersisted', {
+            rowId,
+            recipientName,
+            summaryLength: summary.length
+          })
+        } catch (err) {
+          console.error('[AddSummary] Failed to update row:', rowId, err)
+        }
+        const r = nextSheetData[rowIndex]
+        if (r) nextSheetData[rowIndex] = { ...r, _ai_summary: summary }
+      }
+      localSheetDataRef.current = nextSheetData
+      setLocalSheetData(nextSheetData)
+      onDataChange?.(activeSheetId, nextSheetData)
+    }
+
+    // Add executive summary as a dedicated row in the SAME sheet (1 row for executive summary)
+    if (executiveSummary) {
+      try {
+        let columns = activeSheet.columns
+        const execSummaryCol = columns.find(c => c.name === '_ai_summary')
+        if (!execSummaryCol) {
+          const newCol: SpreadsheetColumn = {
+            id: '_ai_summary',
+            name: '_ai_summary',
+            label: 'AI Summary',
+            type: 'text',
+            isVisible: true,
+            isEditable: false,
+            isRequired: false,
+            isUnique: false,
+            order: columns.length,
+            width: 200,
+          }
+          columns = [...columns, newCol]
+          await SpreadsheetApiService.updateSheet(app.id, activeSheetId, { columns })
+          if (onSheetUpdate) await onSheetUpdate(app.id, activeSheetId, { columns })
+          else if (onAppUpdate) {
+            const updatedSheets = app.sheets.map(sheet =>
+              sheet.id === activeSheetId ? { ...sheet, columns } : sheet
+            )
+            onAppUpdate({ ...app, sheets: updatedSheets })
+          }
+        }
+
+        const execSummaryColName = '_ai_summary'
+        const existingExecSummaryRow = sheetData.find(
+          (r): r is Record<string, unknown> => r._is_executive_summary === true
+        )
+
+        const execSummaryPayload: Record<string, unknown> = {
+          [execSummaryColName]: executiveSummary,
+          _recipient_name: 'Executive Summary',
+          _is_executive_summary: true,
+        }
+
+        if (existingExecSummaryRow) {
+          const rowId = String(existingExecSummaryRow._rowUuid ?? existingExecSummaryRow._id ?? existingExecSummaryRow.id ?? '')
+          if (rowId && !rowId.startsWith('tmp_')) {
+            await SpreadsheetApiService.updateRow(app.id, activeSheetId, rowId, execSummaryPayload)
+          }
+          const idx = sheetData.findIndex(r => (r as Record<string, unknown>)._is_executive_summary === true)
+          if (idx >= 0) {
+            const next = [...sheetData]
+            next[idx] = { ...next[idx], ...execSummaryPayload }
+            localSheetDataRef.current = next
+            setLocalSheetData(next)
+            onDataChange?.(activeSheetId, next)
+          }
+        } else {
+          const added = await SpreadsheetApiService.addRow(app.id, activeSheetId, execSummaryPayload)
+          const newRow: Record<string, unknown> = {
+            ...execSummaryPayload,
+            _id: (added as Record<string, unknown>)?._id ?? (added as Record<string, unknown>)?.id,
+            _rowUuid: (added as Record<string, unknown>)?._rowUuid,
+          }
+          const next = [newRow, ...sheetData]
+          localSheetDataRef.current = next
+          setLocalSheetData(next)
+          onDataChange?.(activeSheetId, next)
+        }
+
+        toast.success(
+          perRecipient.length > 0
+            ? `AI Summary added: ${perRecipient.length} summaries + executive summary row`
+            : 'Executive summary row added'
+        )
+      } catch (err) {
+        console.error('[AddSummary] Failed to add executive summary row:', err)
+        toast.error('Failed to add executive summary row')
+      }
+    }
+  }, [
+    collectionSummary.summary,
+    sheetData,
+    activeSheet.columns,
+    activeSheetId,
+    app,
+    localSheetDataRef,
+    onSheetUpdate,
+    onAppUpdate,
+    onAppRefreshNeeded,
+    onRowUpdate,
+    onDataChange,
+    setLocalSheetData,
+    setActiveSheetId,
+  ])
   const [remoteUpdateKey, setRemoteUpdateKey] = useState(0)
   const [receivedOperation, setReceivedOperation] = useState<{
     operation: any
@@ -666,6 +880,11 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         onOpenAutomations={() => setIsAutomationsOpen(true)}
         onEdit={onEdit}
         onExportToExcel={handleExportToExcel}
+        isCollectionCopy={isCollectionCopy}
+        onSubmitCollection={isCollectionCopy ? handleSubmitCollection : undefined}
+        showSummarizeButton={hasExcelCollectionWithEligibleRows}
+        onSummarizeClick={handleSummarizeClick}
+        isSummarizing={collectionSummary.isSummarizing}
         onRename={
           onAppUpdate
             ? newName => {
@@ -677,6 +896,16 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
             : undefined
         }
         testId={testId}
+      />
+
+      <CollectionSummaryDialog
+        open={showCollectionSummaryDialog}
+        onOpenChange={setShowCollectionSummaryDialog}
+        summary={collectionSummary.summary}
+        isSummarizing={collectionSummary.isSummarizing}
+        error={collectionSummary.error}
+        onAddToSheet={handleAddSummaryToSheet}
+        data-testid={`${testId}-collection-summary-dialog`}
       />
 
       {entityEnabled && (
@@ -804,8 +1033,12 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         onDuplicateAutomation={automations.duplicateAutomation}
         onRunAutomation={(id, rows) => automations.runAutomation(id, rows)}
         onRefreshWorkflowStatuses={() => void automations.refreshWorkflowStatuses()}
+        showSummarizeButton={hasExcelCollectionWithEligibleRows}
+        onSummarizeClick={handleSummarizeClick}
+        isSummarizing={collectionSummary.isSummarizing}
         data-testid={`${testId}-automations-panel`}
       />
+
     </div>
   )
 }

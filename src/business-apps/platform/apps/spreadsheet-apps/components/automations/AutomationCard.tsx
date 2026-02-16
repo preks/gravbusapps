@@ -22,6 +22,7 @@ import {
   FileSpreadsheet,
   Users,
   ClipboardCheck,
+  FileDown,
   MoreVertical,
   Play,
   Pencil,
@@ -55,6 +56,8 @@ function getAutomationTypeIcon(type: AutomationType) {
       return FileSpreadsheet
     case 'bulk_collection':
       return Users
+    case 'excel_collection':
+      return FileDown
     case 'sheet_approval':
     case 'line_approval':
       return ClipboardCheck
@@ -70,6 +73,7 @@ function getAutomationTypeLabel(type: AutomationType): string {
   const labels: Record<AutomationType, string> = {
     row_workflow: 'Row Workflow',
     bulk_collection: 'Bulk Collection',
+    excel_collection: 'Excel Collection',
     sheet_approval: 'Sheet Approval',
     line_approval: 'Line Approval'
   }

@@ -379,6 +379,45 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
     const cursorTrackingRef = useRef(cursorTracking)
     cursorTrackingRef.current = cursorTracking
 
+    // Handle click on View Response / copy_link cells - open URL (FortuneSheet doesn't render links clickable)
+    const handleContainerClick = useCallback(
+      (e: React.MouseEvent) => {
+        // Only handle left clicks, and only if click originated from within the grid (not toolbar, etc.)
+        if (e.button !== 0) return
+        const workbook = workbookRef.current
+        if (!workbook || !data.length || !columns.length) return
+
+        // Defer to next tick so FortuneSheet has updated selection
+        requestAnimationFrame(() => {
+          try {
+            const sel = (workbook as any).getSelection?.()
+            if (!sel || !Array.isArray(sel) || sel.length === 0) return
+            const item = sel[0]
+            const row = item?.row?.[0]
+            const col = item?.column?.[0]
+            if (typeof row !== 'number' || typeof col !== 'number') return
+            if (row < HEADER_ROW_OFFSET) return // Header row
+
+            const dataRowIndex = row - HEADER_ROW_OFFSET
+            const column = columns[col]
+            if (!column || column.name !== '_copy_link') return
+
+            const rowData = data[dataRowIndex]
+            if (!rowData) return
+            const url = rowData[column.name]
+            if (typeof url !== 'string' || !url.trim()) return
+            const href = url.startsWith('/') ? `${typeof window !== 'undefined' ? window.location.origin : ''}${url}` : url
+            if (href.startsWith('http://') || href.startsWith('https://')) {
+              window.open(href, '_blank', 'noopener,noreferrer')
+            }
+          } catch {
+            // getSelection can throw; ignore
+          }
+        })
+      },
+      [data, columns]
+    )
+
     // Use FortuneSheet native selection hook (avoids calling Workbook.getSelection() which can crash when ctx is undefined)
     const workbookHooks = useMemo(() => {
       return {
@@ -474,6 +513,53 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
       presenceUsersRef.current = nextUsers
     }, [participants, columns, data, sheet.id, collaborationEnabled])
 
+    /** Apply text wrap + auto-expand to cells after paste/edit */
+    const applyTextWrapAndExpand = useCallback(
+      (cells: Array<{ row: number; col: number; text: string }>) => {
+        const workbook = workbookRef.current
+        if (!workbook || cells.length === 0) return
+
+        const sheetId = sheet.id
+        const options = { id: sheetId }
+
+        // Approximate px per character for monospace-ish fonts
+        const PX_PER_CHAR = 8
+        const DEFAULT_ROW_HEIGHT = 25
+        const MIN_COL_WIDTH = 80
+        const MAX_COL_WIDTH = 400
+        const CHARS_PER_LINE = 25
+
+        const rowHeights: Record<string, number> = {}
+        const colWidths: Record<string, number> = {}
+        cells.forEach(({ row, col, text }) => {
+          try {
+            workbook.setCellFormat(row, col, 'tb', 2, options)
+            const len = text.length
+            const lineBreaks = (text.match(/\n/g) || []).length
+            const lines = Math.max(1, lineBreaks + Math.ceil(len / CHARS_PER_LINE))
+            const longestLine = Math.max(...text.split('\n').map(l => l.length), len)
+            const rowHeight = Math.max(DEFAULT_ROW_HEIGHT, Math.min(200, DEFAULT_ROW_HEIGHT * lines))
+            const colWidth = Math.max(MIN_COL_WIDTH, Math.min(MAX_COL_WIDTH, longestLine * PX_PER_CHAR))
+            rowHeights[String(row)] = Math.max(rowHeights[String(row)] ?? 0, rowHeight)
+            colWidths[String(col)] = Math.max(colWidths[String(col)] ?? 0, colWidth)
+          } catch {
+            // FortuneSheet may throw if sheet not ready
+          }
+        })
+        try {
+          if (Object.keys(rowHeights).length > 0) {
+            workbook.setRowHeight(rowHeights, options, true)
+          }
+          if (Object.keys(colWidths).length > 0) {
+            workbook.setColumnWidth(colWidths, options, true)
+          }
+        } catch {
+          // Workbook may not be ready
+        }
+      },
+      [sheet.id]
+    )
+
     /**
      * Handle FortuneSheet onOp event
      */
@@ -487,6 +573,8 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
         if (!ops || ops.length === 0) {
           return
         }
+
+        const cellsToWrap: Array<{ row: number; col: number; text: string }> = []
 
         // Process each operation
         ops.forEach(op => {
@@ -566,6 +654,19 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
                 cellValue = (cellValue as { v: unknown }).v
               } else if (isCellObject) {
                 cellValue = ''
+              }
+            }
+
+            // Default: text wrap + auto-expand for pasted/edited text
+            if ((op.op === 'replace' || op.op === 'add') && cellValue != null) {
+              const text =
+                typeof cellValue === 'string'
+                  ? cellValue
+                  : cellValue && typeof cellValue === 'object' && 'm' in (cellValue as object)
+                    ? String((cellValue as { m: unknown }).m ?? '')
+                    : String(cellValue)
+              if (text && text.length > 0) {
+                cellsToWrap.push({ row: fortuneSheetRowIndex, col: colIndex, text })
               }
             }
 
@@ -743,6 +844,11 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
           }
         })
 
+        // Apply text wrap + auto-expand to pasted/edited cells
+        if (cellsToWrap.length > 0) {
+          setTimeout(() => applyTextWrapAndExpand(cellsToWrap), 0)
+        }
+
         // Capture filter state changes for persistence across refreshes.
         // FortuneSheet manages filter/sort internally — we read the current
         // state from the workbook after processing ops that may have changed it.
@@ -770,6 +876,7 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
         }
       },
       [
+        applyTextWrapAndExpand,
         collaborationEnabled,
         collaboration,
         context,
@@ -799,7 +906,7 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
 
     return (
       <div className="gba:absolute gba:inset-0 gba:w-full gba:h-full gba:overflow-hidden">
-        <div className="fortunesheet-container">
+        <div className="fortunesheet-container" onClick={handleContainerClick}>
           <Workbook
             ref={ref => {
               workbookRef.current = ref

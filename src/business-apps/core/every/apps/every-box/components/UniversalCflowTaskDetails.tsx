@@ -788,68 +788,97 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
             </Card>
           )}
 
+          {/* Task instruction message - above links, dark and prominent */}
+          {(task.message || task.description) && (
+            <div className="gba:space-y-3">
+              {(task.tags?.app === 'scheduled_task' ? (
+                <MarkdownRenderer content={task.message || task.description || ''} accessToken={accessToken} />
+              ) : (
+                <p className="gba:text-base gba:leading-relaxed gba:font-medium gba:text-foreground">
+                  {task.message || task.description}
+                </p>
+              ))}
+              {/* Blue hint explaining what to do */}
+              {!isCompleted && (otherLinks.length > 0 || documentLinks.length > 0) && (
+                <div className="gba:flex gba:items-start gba:gap-3 gba:rounded-lg gba:border gba:border-primary/30 gba:bg-info-secondary gba:p-4">
+                  <Info className="gba:h-5 gba:w-5 gba:text-primary gba:flex-shrink-0 gba:mt-0.5" />
+                  <p className="gba:text-sm gba:leading-relaxed gba:text-info-secondary-foreground">
+                    {t('task-details-blink-instruction-hint', {
+                      defaultValue: 'Open the link below to access your assigned copy, complete it, and return here to submit.'
+                    })}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Entity Reference (if linked to an entity) */}
           {entityType && entityId && entityName && (
-            <div className="gba:border gba:rounded-lg gba:p-4 gba:bg-muted/30">
-              <div className="gba:text-xs gba:text-muted-foreground gba:mb-2 gba:font-medium">
-                {t('task-details-related-to')}
-              </div>
-              <a
-                href={entityDisplayUrl || '#'}
-                onClick={e => {
-                  e.preventDefault()
-                  if (entityDisplayUrl) {
-                    navigateTo(entityDisplayUrl)
-                  }
-                }}
-                className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer gba:p-2 gba:-mx-2 gba:rounded-md hover:gba:bg-accent gba:transition-colors gba:no-underline"
-                data-testid="task-entity-reference-link"
-              >
-                <LinkIcon className="gba:h-4 gba:w-4 gba:text-primary" />
-                <Badge variant="outline" className="gba:text-xs">
-                  {entityType}
-                </Badge>
-                <span className="gba:font-medium gba:text-sm gba:text-primary hover:gba:underline">{entityName}</span>
-                <ExternalLink className="gba:h-3 gba:w-3 gba:text-muted-foreground gba:ml-auto" />
-              </a>
-            </div>
+            <Card variant="outlined" className="gba:border-primary/20 gba:bg-muted/20">
+              <CardContent className="gba:pt-4">
+                <div className="gba:text-xs gba:text-muted-foreground gba:mb-2 gba:font-medium">
+                  {t('task-details-related-to')}
+                </div>
+                <a
+                  href={entityDisplayUrl || '#'}
+                  onClick={e => {
+                    e.preventDefault()
+                    if (entityDisplayUrl) {
+                      navigateTo(entityDisplayUrl)
+                    }
+                  }}
+                  className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer gba:p-2 gba:-mx-2 gba:rounded-md hover:gba:bg-accent gba:transition-colors gba:no-underline"
+                  data-testid="task-entity-reference-link"
+                >
+                  <LinkIcon className="gba:h-4 gba:w-4 gba:text-primary" />
+                  <Badge variant="outline" className="gba:text-xs">
+                    {entityType}
+                  </Badge>
+                  <span className="gba:font-medium gba:text-sm gba:text-primary hover:gba:underline">{entityName}</span>
+                  <ExternalLink className="gba:h-3 gba:w-3 gba:text-muted-foreground gba:ml-auto" />
+                </a>
+              </CardContent>
+            </Card>
           )}
 
           {/* Document Attachments (if any) */}
           {documentLinks.length > 0 && (
-            <div className="gba:border gba:rounded-lg gba:p-4 gba:bg-muted/30">
-              <div className="gba:text-xs gba:text-muted-foreground gba:mb-3 gba:font-medium">
-                {t('task-details-attachments', { count: documentLinks.length })}
-              </div>
-              <div className="gba:space-y-2">
-                {documentLinks.map(link => (
-                  <a
-                    key={link.url || link.name}
-                    href={link.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="gba:flex gba:items-center gba:gap-3 gba:p-2 gba:-mx-2 gba:rounded-md hover:gba:bg-accent gba:transition-colors gba:no-underline gba:group"
-                    data-testid={`task-document-link-${link.name}`}
-                  >
-                    <FileText className="gba:h-4 gba:w-4 gba:text-blue-500 gba:shrink-0" />
+            <Card variant="outlined" className="gba:border-primary/20 gba:bg-muted/30">
+              <CardContent className="gba:pt-4">
+                <div className="gba:text-xs gba:text-primary gba:mb-3 gba:font-semibold">
+                  {t('task-details-attachments', { count: documentLinks.length })}
+                </div>
+                <div className="gba:space-y-2">
+                  {documentLinks.map(link => (
+                    <a
+                      key={link.url || link.name}
+                      href={link.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="gba:flex gba:items-center gba:gap-3 gba:p-2 gba:-mx-2 gba:rounded-md hover:gba:bg-accent gba:transition-colors gba:no-underline gba:group"
+                      data-testid={`task-document-link-${link.name}`}
+                    >
+                      <FileText className="gba:h-4 gba:w-4 gba:text-primary gba:shrink-0" />
                     <span className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate gba:flex-1 group-hover:gba:underline">
                       {link.name}
                     </span>
                     <Download className="gba:h-3 gba:w-3 gba:text-muted-foreground gba:shrink-0" />
                   </a>
                 ))}
-              </div>
-            </div>
+                </div>
+              </CardContent>
+            </Card>
           )}
 
-          {/* Other Links (internal:*, external:*, etc.) */}
+          {/* Other Links (internal:*, external:*, etc.) - "Open your copy" */}
           {otherLinks.length > 0 && (
-            <div className="gba:border gba:rounded-lg gba:p-4 gba:bg-muted/30">
-              <div className="gba:text-xs gba:text-muted-foreground gba:mb-3 gba:font-medium">
-                {t('task-details-related-links', { defaultValue: 'Related Links' })}
-              </div>
-              <div className="gba:space-y-2">
-                {otherLinks.map(link => (
+            <Card variant="outlined" className="gba:border-primary/30 gba:bg-primary/5">
+              <CardContent className="gba:pt-4">
+                <div className="gba:text-xs gba:text-primary gba:mb-3 gba:font-semibold">
+                  {t('task-details-related-links', { defaultValue: 'Related Links' })}
+                </div>
+                <div className="gba:space-y-2">
+                  {otherLinks.map(link => (
                   <a
                     key={link.url || link.name}
                     href={link.url}
@@ -869,22 +898,44 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
                     <span className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate gba:flex-1 group-hover:gba:underline">
                       {link.name}
                     </span>
-                    <ExternalLink className="gba:h-3 gba:w-3 gba:text-muted-foreground gba:shrink-0" />
+                    <ExternalLink className="gba:h-3 gba:w-3 gba:text-primary gba:shrink-0" />
                   </a>
                 ))}
-              </div>
-            </div>
+                </div>
+              </CardContent>
+            </Card>
           )}
 
-          {/* Brief description if available - use markdown for scheduled tasks */}
-          {(task.message || task.description) &&
-            (task.tags?.app === 'scheduled_task' ? (
-              <MarkdownRenderer content={task.message || task.description || ''} accessToken={accessToken} />
-            ) : (
-              <p className="gba:text-base gba:leading-relaxed gba:text-muted-foreground">
-                {task.message || task.description}
-              </p>
-            ))}
+          {/* Add Comment (Optional) */}
+          {!isCompleted && (
+            <Card variant="outlined" className="gba:border-muted gba:bg-muted/20">
+              <CardContent className="gba:pt-4 gba:space-y-3">
+                <div className="gba:flex gba:items-center gba:gap-3">
+                  <MessageSquare className="gba:h-4 gba:w-4 gba:text-primary" />
+                  <span className="gba:text-sm gba:font-medium gba:text-foreground">
+                    {t('task-details-add-comment')} {t('task-details-optional')}
+                  </span>
+                  <Switch
+                    checked={showComment}
+                    onCheckedChange={checked => {
+                      setShowComment(checked)
+                      if (!checked) setComment('')
+                    }}
+                    data-testid="blink-task-show-comment"
+                  />
+                </div>
+                {showComment && (
+                  <Textarea
+                    placeholder={t('task-details-comment-placeholder', { defaultValue: 'Enter your comment...' })}
+                    value={comment}
+                    onChange={e => setComment(e.target.value)}
+                    rows={3}
+                    className="gba:resize-none"
+                  />
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           {/* Info Alert for Blink tasks - only show when not completed */}
           {!isCompleted && (

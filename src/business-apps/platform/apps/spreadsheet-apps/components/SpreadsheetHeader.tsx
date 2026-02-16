@@ -6,8 +6,8 @@
  */
 
 import React, { memo, useState, useEffect, useCallback } from 'react'
-import { Button, Badge, Input } from '@newwork/nw-design-system'
-import { ChevronRight, Eye, Home, FileSpreadsheet, MessageSquare, Lock } from 'lucide-react'
+import { Button, AiButton, Badge, Input, Spinner } from '@newwork/nw-design-system'
+import { ChevronRight, Eye, Home, FileSpreadsheet, MessageSquare, Lock, Send, Sparkles } from 'lucide-react'
 import { getIconByName } from '../utils/appIcons'
 import { StatusIndicators } from './StatusIndicators'
 import { SpreadsheetActionsMenu } from './SpreadsheetActionsMenu'
@@ -67,6 +67,15 @@ export interface SpreadsheetHeaderProps {
   onRename?: (newName: string) => void
   onExportToExcel?: () => void
 
+  /** Excel Collection: Show Submit button when viewing a collection copy */
+  isCollectionCopy?: boolean
+  onSubmitCollection?: () => Promise<void>
+
+  /** Excel Collection: Show Summarize with AI when manager view has completed submissions */
+  showSummarizeButton?: boolean
+  onSummarizeClick?: () => void
+  isSummarizing?: boolean
+
   testId: string
 }
 
@@ -95,8 +104,23 @@ export const SpreadsheetHeader: React.FC<SpreadsheetHeaderProps> = memo(function
   onEdit,
   onRename,
   onExportToExcel,
+  isCollectionCopy,
+  onSubmitCollection,
+  showSummarizeButton = false,
+  onSummarizeClick,
+  isSummarizing = false,
   testId
 }) {
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const handleSubmitCollection = useCallback(async () => {
+    if (!onSubmitCollection) return
+    setIsSubmitting(true)
+    try {
+      await onSubmitCollection()
+    } finally {
+      setIsSubmitting(false)
+    }
+  }, [onSubmitCollection])
   const [localName, setLocalName] = useState(app.name)
   useEffect(() => {
     setLocalName(app.name)
@@ -237,6 +261,40 @@ export const SpreadsheetHeader: React.FC<SpreadsheetHeaderProps> = memo(function
               {/* Status badge */}
               <StatusBadge status={publishingStatus || 'draft'} />
             </div>
+          )}
+
+          {/* Excel Collection Submit (recipient view) */}
+          {isCollectionCopy && onSubmitCollection && (
+            <Button
+              size="sm"
+              onClick={handleSubmitCollection}
+              disabled={isSubmitting}
+              data-testid="spreadsheet-submit-collection"
+            >
+              <Send className="gba:w-4 gba:h-4 gba:mr-2" />
+              {isSubmitting ? 'Submitting…' : 'Submit'}
+            </Button>
+          )}
+
+          {/* Summarize with AI (manager view - response sheet with completed submissions) */}
+          {showSummarizeButton && !isCollectionCopy && (
+            <AiButton
+              size="sm"
+              showIcon
+              icon={
+                isSummarizing ? (
+                  <Spinner className="gba:w-4 gba:h-4" />
+                ) : (
+                  <Sparkles className="gba:w-4 gba:h-4" />
+                )
+              }
+              iconPosition="before"
+              onClick={onSummarizeClick}
+              disabled={isSummarizing}
+              data-testid="spreadsheet-summarize-ai"
+            >
+              Summarize with AI
+            </AiButton>
           )}
 
           <div className="gba:h-6 gba:w-px gba:bg-border/50" />

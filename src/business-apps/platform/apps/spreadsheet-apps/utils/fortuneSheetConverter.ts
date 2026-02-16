@@ -244,7 +244,7 @@ export function convertToFortuneSheet(
 
       let cell: FortuneSheetCell
       if (isFortuneSheetCellValue(value)) {
-        cell = value
+        cell = { ...value, tb: value.tb ?? 2 }
         celldata.push({
           r: rowIndex + HEADER_ROW_OFFSET,
           c: colIndex,
@@ -254,7 +254,8 @@ export function convertToFortuneSheet(
         // Formula cell - FortuneSheet will evaluate it
         cell = {
           f: column.formula.startsWith('=') ? column.formula : `=${column.formula}`,
-          ct: getFortuneSheetCellType(column.type)
+          ct: getFortuneSheetCellType(column.type),
+          tb: 2
         }
         celldata.push({
           r: rowIndex + HEADER_ROW_OFFSET,
@@ -262,6 +263,29 @@ export function convertToFortuneSheet(
           v: cell
         })
       } else if (value !== null && value !== undefined && value !== '') {
+        // URL columns: use HYPERLINK formula so FortuneSheet renders as clickable link
+        const isUrlColumn = column.type === 'url' || column.name === '_copy_link'
+        if (isUrlColumn) {
+          const url = String(value).trim()
+          if (url && (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('/'))) {
+            const linkText = column.name === '_copy_link' ? 'View Response' : url
+            // Store as plain value with display text - FortuneSheet HYPERLINK doesn't render clickable.
+            // We rely on FortuneSheetGrid's click handler to open the URL.
+            cell = {
+              v: url,
+              m: linkText,
+              ct: { t: 's' },
+              tb: 2
+            }
+            celldata.push({
+              r: rowIndex + HEADER_ROW_OFFSET,
+              c: colIndex,
+              v: cell
+            })
+            return
+          }
+        }
+
         // Regular value cell - for image type, use empty m so URL isn't shown (avatar drawn via images array)
         const isDateOnly = column.type === 'date'
         const isDateTime = column.type === 'datetime'
@@ -286,7 +310,8 @@ export function convertToFortuneSheet(
         cell = {
           v: value as any,
           m: displayValue,
-          ct: getFortuneSheetCellType(column.type)
+          ct: getFortuneSheetCellType(column.type),
+          tb: 2 // Text wrap by default - expand cell to show full content
         }
         // Badge-like styling for workflow status and columns named/labeled as status
         const isStatusCol =

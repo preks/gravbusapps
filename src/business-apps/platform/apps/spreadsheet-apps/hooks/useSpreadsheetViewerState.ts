@@ -69,16 +69,28 @@ export function useSpreadsheetViewerState({
     localSheetDataRef.current = localSheetData
   }, [localSheetData])
 
-  // Track previous sheet ID to detect actual sheet changes
+  // Track previous sheet ID and sheet ids to detect changes
   const prevSheetIdRef = useRef(activeSheetId)
+  const prevSheetIdsRef = useRef<string[]>(app.sheets.map(s => s.id))
 
-  // Sync from app.sheets when sheet ID changes (user switches sheets)
+  // Sync from app.sheets when:
+  // 1. User switches sheets (activeSheetId changes)
+  // 2. A new sheet was added to the app (e.g. AI Summary after loadApp)
+  // Avoid syncing on every app.sheets change so we don't overwrite in-flight automation
+  // row updates (e.g. completed task writing to report sheet) before they're persisted.
   useEffect(() => {
-    if (prevSheetIdRef.current !== activeSheetId) {
-      const sheet = app.sheets.find(s => s.id === activeSheetId)
+    const currentSheetIds = app.sheets.map(s => s.id)
+    const sheet = app.sheets.find(s => s.id === activeSheetId)
+    const activeSheetChanged = prevSheetIdRef.current !== activeSheetId
+    const newSheetAdded =
+      currentSheetIds.length > prevSheetIdsRef.current.length ||
+      currentSheetIds.some(id => !prevSheetIdsRef.current.includes(id))
+
+    if (activeSheetChanged || newSheetAdded) {
       setLocalSheetData(sortByRowOrder(sheet?.data || [], sheet))
       prevSheetIdRef.current = activeSheetId
     }
+    prevSheetIdsRef.current = currentSheetIds
   }, [activeSheetId, app.sheets])
 
   // Get active sheet

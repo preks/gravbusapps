@@ -17,7 +17,7 @@ import {
   Button,
   Badge
 } from '@newwork/nw-design-system'
-import { User, Clock, CheckCircle, Mail, Calendar, Activity, X, Image } from 'lucide-react'
+import { User, Clock, CheckCircle, Mail, Calendar, Activity, X, Image, ExternalLink } from 'lucide-react'
 
 /**
  * Available tracking column definitions
@@ -96,6 +96,15 @@ export const TRACKING_COLUMNS: TrackingColumnDefinition[] = [
     label: 'Workflow Status',
     description: 'Current status of the workflow (Sent, Completed, etc.)',
     icon: Activity,
+    defaultEnabled: true,
+    category: 'status'
+  },
+  {
+    id: 'copy_link',
+    name: '_copy_link',
+    label: 'View Response',
+    description: 'Link to open the completed sheet (Excel Collection)',
+    icon: ExternalLink,
     defaultEnabled: true,
     category: 'status'
   }

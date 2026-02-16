@@ -203,6 +203,7 @@ task-details-add-comment = Add Comment
 task-details-optional = (Optional)
 task-details-comment-placeholder = Enter your comment...
 task-details-blink-info = This is a quick Blink task. You can complete it directly from here.
+task-details-blink-instruction-hint = Open the link below to access your assigned copy, complete it, and return here to submit.
 task-details-unknown = Unknown
 task-details-untitled = Untitled Task
 task-details-claim-coming = Claim functionality coming soon

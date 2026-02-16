@@ -1,58 +1,57 @@
 import { env } from '@/common/env/EnvUtils'
 
-const DEFAULT_FLOW_ENGINE_BASE_PATH = '/flow-engine'
-
 const normalizeUrl = (value: string): string => value.trim().replace(/\/+$/, '')
+
+const isLocalUrl = (url: string): boolean =>
+  url.includes('localhost') || url.includes('127.0.0.1')
+
+/**
+ * Get the develop (remote) flow engine base URL.
+ * Flow engine is always called from develop - never localhost.
+ */
+const getDevelopFlowEngineBaseUrl = (): string | null => {
+  const baseUrl = env('NEXT_PUBLIC_BASE_URL')
+  if (baseUrl?.trim() && !isLocalUrl(baseUrl)) {
+    return `${normalizeUrl(baseUrl)}/flow-engine`
+  }
+  return null
+}
 
 /**
  * Returns the configured Flow Engine base URL (non-API).
- *
- * If `NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL` points to an API gateway URL (e.g. ends with `/api/v1`
- * and does not contain `/flow-engine`), we cannot reliably derive a non-API base URL from it.
- * In that case we keep returning the default `/flow-engine` base path.
+ * Flow engine is always from develop - ignores localhost config.
  */
 export const getFlowEngineBaseUrl = (): string => {
   const custom = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL')
-  if (custom?.trim()) {
+  if (custom?.trim() && !isLocalUrl(custom)) {
     const normalized = normalizeUrl(custom)
-
-    // If the configured URL contains a flow-engine base, we can safely strip the API suffix.
-    // Examples:
-    // - https://host/flow-engine/api          -> https://host/flow-engine
-    // - https://host/flow-engine/api/v1       -> https://host/flow-engine
-    // - https://host/flow-engine             -> https://host/flow-engine
     if (normalized.includes('/flow-engine')) {
       const idx = normalized.indexOf('/flow-engine')
       return normalized.slice(0, idx + '/flow-engine'.length)
     }
-
-    // Otherwise (e.g. https://host/api/v1) we can't infer a non-API flow-engine base URL.
-    return DEFAULT_FLOW_ENGINE_BASE_PATH
   }
 
-  return DEFAULT_FLOW_ENGINE_BASE_PATH
+  const develop = getDevelopFlowEngineBaseUrl()
+  if (develop) return develop
+
+  return '/flow-engine'
 }
 
 /**
  * Returns the Flow Engine API base URL.
- *
- * - If `NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL` is configured:
- *   - If it already contains `/api` (e.g. `/api`, `/api/v1`, `/flow-engine/api/v1`), it's treated as the API base URL.
- *   - Otherwise we append `/api` for backward-compatibility with values like `https://host/flow-engine`.
- * - Otherwise we default to same-origin relative `/flow-engine/api`.
+ * Flow engine is always from develop - ignores localhost config.
  */
 export const getFlowEngineApiBaseUrl = (): string => {
   const custom = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL')
-  if (custom?.trim()) {
+  if (custom?.trim() && !isLocalUrl(custom)) {
     const normalized = normalizeUrl(custom)
-
-    // If callers configured an API URL (most common), don't add another `/api`.
     if (normalized.includes('/api/')) return normalized
     if (normalized.endsWith('/api')) return normalized
-
-    // Backward compatibility: callers configured a base URL without `/api`
     return `${normalized}/api`
   }
 
-  return `${DEFAULT_FLOW_ENGINE_BASE_PATH}/api`
+  const developBase = getDevelopFlowEngineBaseUrl()
+  if (developBase) return `${developBase}/api`
+
+  return '/flow-engine/api'
 }

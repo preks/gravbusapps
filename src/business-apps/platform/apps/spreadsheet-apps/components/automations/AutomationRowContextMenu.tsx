@@ -24,7 +24,8 @@ import {
   RefreshCw,
   FileSpreadsheet,
   Users,
-  ClipboardCheck
+  ClipboardCheck,
+  FileDown
 } from 'lucide-react'
 import type { SpreadsheetAutomation, WorkflowRowLink, AutomationType } from '../../types/automation'
 import { getWorkflowStatusLabel, isTerminalStatus } from '../../types/automation'
@@ -63,6 +64,8 @@ function getAutomationTypeIcon(type: AutomationType) {
       return FileSpreadsheet
     case 'bulk_collection':
       return Users
+    case 'excel_collection':
+      return FileDown
     case 'sheet_approval':
     case 'line_approval':
       return ClipboardCheck
