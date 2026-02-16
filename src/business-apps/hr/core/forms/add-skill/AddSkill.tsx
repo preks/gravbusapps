@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
-import { useTranslation } from '@newwork/nw-design-system'
+import { Spinner, useTranslation } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -64,6 +64,28 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = ({ accessToken, addit
     form
   })
 
+  const formTitle =
+    flowFormParams?.mode === 'deactivate'
+      ? t('add-skill-form-deactivate-title')
+      : flowFormParams?.mode === 'activate'
+        ? t('add-skill-form-activate-title')
+        : flowFormParams?.mode === 'attachVerification'
+          ? t('add-skill-form-attach-verification-title')
+          : changeLevelParams
+            ? t('add-skill-form-update-level-title')
+            : t('add-skill-form-title')
+
+  if (contextLoading) {
+    return (
+      <div
+        className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-full gba:min-h-[320px] gba:items-center gba:justify-center"
+        data-testid="add-skill-loading"
+      >
+        <Spinner />
+      </div>
+    )
+  }
+
   if (!contextLoading && contextError) {
     return (
       <div
@@ -83,7 +105,7 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = ({ accessToken, addit
       data-testid="flw_addSkills_addSkillsContainer"
     >
       <FormHeader
-        title={controller.title}
+        title={formTitle}
         flowIconUrl={flowIconUrl}
         employee={
           employee
