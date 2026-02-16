@@ -79,6 +79,19 @@ export const ProgressTilesGrid: React.FC<ProgressTilesGridProps> = ({
   phaseMessage,
   'data-testid': testId = 'progress-tiles-grid'
 }) => {
+  // Derive display counts from tile states (not the premature completedCount counter).
+  // During the publish phase, tiles that are still being generated show as 'building',
+  // so they won't count as "built" until generation is actually done.
+  const displayBuiltCount = Object.values(tiles).reduce((count, tile) => {
+    if (tile.status === 'completed') {
+      return count + tile.items.filter((i: any) => i.status === 'completed').length
+    }
+    return count
+  }, 0)
+  const displayReusedCount = Object.values(tiles).reduce((count, tile) => {
+    return count + tile.items.filter((i: any) => i.status === 'reused').length
+  }, 0)
+
   const overallStatus = getOverallStatus(isBuilding, completedCount, failedCount, reusedCount, totalCount)
   const phaseInfo = getPhaseInfo(currentPhase ?? null)
 
@@ -109,11 +122,11 @@ export const ProgressTilesGrid: React.FC<ProgressTilesGridProps> = ({
               </div>
 
               <p className="gba:text-sm gba:text-muted-foreground">
-                {completedCount} built
-                {reusedCount > 0 && (
+                {displayBuiltCount} built
+                {displayReusedCount > 0 && (
                   <span className="gba:inline-flex gba:items-center gba:gap-1 gba:ml-1">
                     <Recycle className="gba:w-3 gba:h-3 gba:text-muted-foreground" />
-                    {reusedCount} reused
+                    {displayReusedCount} reused
                   </span>
                 )}
                 {failedCount > 0 && `, ${failedCount} failed`}
@@ -135,11 +148,20 @@ export const ProgressTilesGrid: React.FC<ProgressTilesGridProps> = ({
         <Progress value={overallProgress} className="gba:h-2 [&>div]:gba:bg-foreground" />
       </div>
 
-      {/* Tiles Grid */}
+      {/* Tiles Grid - sorted: active first, completed/reused next, pending/skipped last */}
       <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 lg:gba:grid-cols-3 gba:gap-4">
-        {tileOrder.map(type => (
-          <BuildTile key={type} tile={tiles[type]} data-testid={`${testId}-tile-${type}`} />
-        ))}
+        {[...tileOrder]
+          .sort((a, b) => {
+            const priority = (status: string) => {
+              if (['building', 'discovering', 'wiring', 'analyzing'].includes(status)) return 0
+              if (['completed', 'reused', 'error'].includes(status)) return 1
+              return 2 // pending, skipped
+            }
+            return priority(tiles[a].status) - priority(tiles[b].status)
+          })
+          .map(type => (
+            <BuildTile key={type} tile={tiles[type]} data-testid={`${testId}-tile-${type}`} />
+          ))}
       </div>
     </div>
   )

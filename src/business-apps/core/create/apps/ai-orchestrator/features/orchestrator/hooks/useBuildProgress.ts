@@ -5,7 +5,7 @@
  * based on incoming progress events.
  */
 
-import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
+import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
 import { OrchestratorClient } from '@/common/network/ai/orchestrator/OrchestratorClient'
 import type {
   BuildPlan,
@@ -195,6 +195,7 @@ export function useBuildProgress({
     setCompletedCount(0)
     setFailedCount(0)
     setReusedCount(0)
+    setOverallProgress(0)
     setBuildError(null)
     setCurrentPhase(null)
     setPhaseMessage(null)
@@ -211,25 +212,11 @@ export function useBuildProgress({
 
   const totalCount = plan?.components.length || 0
 
-  // Calculate overall progress including in-progress work
-  const overallProgress = useMemo(() => {
-    if (totalCount === 0) return 0
-
-    // Count fully completed/failed/reused components (100% each)
-    const fullyDoneCount = completedCount + failedCount + reusedCount
-
-    // Count in-progress components (give them 30% credit for being started)
-    const inProgressCount = Object.values(tiles).reduce((count, tile) => {
-      const inProgress = tile.items.filter(
-        (item: any) => item.status === 'building' || item.status === 'pending'
-      ).length
-      return count + inProgress
-    }, 0)
-
-    const inProgressCredit = inProgressCount * 0.3
-
-    return Math.round(((fullyDoneCount + inProgressCredit) / totalCount) * 100)
-  }, [totalCount, completedCount, failedCount, reusedCount, tiles])
+  // Event-driven progress — bumped monotonically by SSE event handlers.
+  // This avoids the problem of completedCount hitting 100% prematurely
+  // (component_completed fires during the fast building phase, well before
+  // actual screen generation in the publish phase).
+  const [overallProgress, setOverallProgress] = useState(0)
 
   /**
    * Handle phase-level events
@@ -240,39 +227,76 @@ export function useBuildProgress({
         discovery_started: () => {
           setCurrentPhase('discovery')
           setPhaseMessage(event.message)
+          setOverallProgress(p => Math.max(p, 5))
         },
-        discovery_complete: () => setPhaseMessage(event.message),
+        discovery_complete: () => {
+          setPhaseMessage(event.message)
+          setOverallProgress(p => Math.max(p, 10))
+        },
         build_started: () => {
           setCurrentPhase('building')
           setPhaseMessage(event.message)
+          setOverallProgress(p => Math.max(p, 12))
         },
+        // Wiring + Publish happen after the fast building phase but BEFORE
+        // the actual screen generation. Keep the timeline at 'building' so users
+        // see building as the long active phase (which it is from their perspective).
         wiring_started: () => {
-          setCurrentPhase('wiring')
-          setPhaseMessage(event.message)
+          setPhaseMessage('Connecting components...')
+          setOverallProgress(p => Math.max(p, 18))
         },
         wiring_progress: () => setPhaseMessage(event.message),
-        wiring_completed: () => setPhaseMessage(event.message),
-        // Publish phase events (deployment)
-        publish_started: () => {
-          setCurrentPhase('wiring') // Keep showing wiring phase during publish
+        wiring_completed: () => {
           setPhaseMessage(event.message)
+          setOverallProgress(p => Math.max(p, 22))
         },
-        publish_progress: () => setPhaseMessage(event.message),
-        publish_completed: () => setPhaseMessage(event.message),
+        publish_started: () => {
+          setPhaseMessage('Preparing screen generation...')
+          setOverallProgress(p => Math.max(p, 25))
+        },
+        publish_progress: () => {
+          setPhaseMessage(event.message)
+          setOverallProgress(p => Math.max(p, 30))
+        },
+        publish_completed: () => {
+          // Only now advance past building → wiring is auto-marked complete
+          setCurrentPhase('wiring')
+          setPhaseMessage(event.message)
+          setOverallProgress(p => Math.max(p, 92))
+        },
         publish_error: () => setPhaseMessage(event.message),
         publish_skipped: () => setPhaseMessage(event.message),
-        // AI Builder streaming events
-        ai_builder_started: () => setPhaseMessage(event.message),
-        ai_builder_response: () => setPhaseMessage(event.content || event.message),
-        ai_builder_tool_call: () => setPhaseMessage(event.message),
-        ai_builder_tool_result: () => setPhaseMessage(event.message),
-        ai_builder_done: () => setPhaseMessage(event.message),
+        // AI Builder streaming events — show stable descriptive messages
+        // (raw token-level content would flash too fast to read)
+        ai_builder_started: () => {
+          setPhaseMessage(`Generating code for ${event.componentName || 'screen'}...`)
+          setOverallProgress(p => Math.max(p, 35))
+        },
+        ai_builder_response: () => {
+          // Don't update phaseMessage on every token — keep the stable message
+        },
+        ai_builder_tool_call: () => {
+          setPhaseMessage(`Writing files for ${event.componentName || 'screen'}...`)
+          setOverallProgress(p => Math.min(p + 5, 78))
+        },
+        ai_builder_tool_result: () => {
+          setPhaseMessage(`Files written for ${event.componentName || 'screen'}`)
+          setOverallProgress(p => Math.min(p + 5, 83))
+        },
+        ai_builder_done: () => {
+          setPhaseMessage(`Code generation complete for ${event.componentName || 'screen'}`)
+          setOverallProgress(p => Math.max(p, 88))
+        },
         ai_builder_error: () => setPhaseMessage(event.message),
-        screen_generation_complete: () => setPhaseMessage(event.message),
+        screen_generation_complete: () => {
+          setPhaseMessage(event.message)
+          setOverallProgress(p => Math.max(p, 90))
+        },
         build_complete: () => {
           setCurrentPhase('complete')
           setIsBuilding(false)
           setPhaseMessage(event.message)
+          setOverallProgress(100)
           const success = event.status === 'completed'
           onComplete?.(success)
           onBuildCompleteRef.current?.(event)
@@ -370,7 +394,10 @@ export function useBuildProgress({
             }
           },
           component_progress: (t, e) => {
-            t.currentOperation = e.message
+            // Only update currentOperation with meaningful messages (not single-token AI stream chunks)
+            if (e.message && e.message.length > 10) {
+              t.currentOperation = e.message
+            }
             if (e.progressPercent !== undefined) t.progressPercent = e.progressPercent
           },
           publish_progress: (t, e) => {
@@ -404,14 +431,61 @@ export function useBuildProgress({
    */
   const handleProgressEvent = useCallback(
     (event: BuildProgressEvent) => {
-      // Try to handle as phase event first
+      // Handle as phase event first
       const isPhaseEvent = handlePhaseEvent(event)
+
+      // For publish/AI builder events that also carry component info,
+      // forward to component handler so the tile shows current operation.
+      // Use stable descriptive messages — never raw streaming tokens.
+      if (isPhaseEvent && event.componentType) {
+        const tileMessages: Record<string, string | null> = {
+          publish_started: `Generating ${event.componentName || 'screen'}...`,
+          publish_progress: `Building ${event.componentName || 'screen'}...`,
+          ai_builder_started: `Generating code for ${event.componentName || 'screen'}...`,
+          ai_builder_tool_call: `Writing files for ${event.componentName || 'screen'}...`,
+          ai_builder_tool_result: `Files written for ${event.componentName || 'screen'}`,
+          ai_builder_done: `Code generation complete`,
+          ai_builder_error: event.message || 'Error during generation',
+          publish_completed: `Published ${event.componentName || 'screen'}`,
+          screen_generation_complete: `Screen generated`
+        }
+        const tileMessage = tileMessages[event.eventType]
+        if (tileMessage !== undefined) {
+          dispatchTiles({
+            type: 'UPDATE_TILE',
+            componentType: event.componentType,
+            updater: (tile: any) => {
+              // Reset tile to 'building' during any active publish/generation work
+              const activeBuildEvents = [
+                'publish_started',
+                'publish_progress',
+                'ai_builder_started',
+                'ai_builder_tool_call',
+                'ai_builder_tool_result'
+              ]
+              if (activeBuildEvents.includes(event.eventType)) {
+                tile.status = 'building'
+              }
+              // Mark tile completed when publish finishes
+              if (event.eventType === 'publish_completed' || event.eventType === 'screen_generation_complete') {
+                tile.status = 'completed'
+              }
+              if (tileMessage) {
+                tile.currentOperation = tileMessage
+              }
+            }
+          })
+        }
+        // Skip ai_builder_response entirely — it's token-level noise
+        return
+      }
+
       if (isPhaseEvent) return
 
-      // Otherwise handle as component event
+      // Handle as component event
       handleComponentEvent(event)
     },
-    [handlePhaseEvent, handleComponentEvent]
+    [handlePhaseEvent, handleComponentEvent, dispatchTiles]
   )
 
   /**

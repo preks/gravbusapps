@@ -46,8 +46,9 @@ export const ScreenPreview: React.FC<ScreenPreviewProps> = ({ component, accessT
   return (
     <div className="gba:h-full gba:min-h-[600px] gba:flex gba:flex-col">
       <PreviewSandbox
-        repoId={component.metadata.repoId}
-        sessionId={component.metadata.sessionId}
+        repoId={component.metadata!.repoId!}
+        sessionId={component.metadata!.sessionId!}
+        previewAppName={component.screenSpec?.name || component.name.replace(/\s+/g, '')}
         accessToken={accessToken}
         userInfo={userInfo}
       />
