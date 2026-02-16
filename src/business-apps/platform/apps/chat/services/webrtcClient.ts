@@ -3,6 +3,8 @@
  * Handles peer connection, media streams, and call signaling
  */
 
+import { getAudioConstraints } from '../config/audioConstraints'
+
 export type CallType = 'audio' | 'video'
 export type CallStatus = 'idle' | 'initiating' | 'ringing' | 'connecting' | 'connected' | 'ended' | 'failed'
 export type CallDirection = 'outgoing' | 'incoming'
@@ -114,17 +116,46 @@ export class WebRTCClient {
   /**
    * Initialize local media stream
    */
-  async initializeLocalStream(type: CallType): Promise<MediaStream> {
+  async initializeLocalStream(
+    type: CallType,
+    options?: {
+      audioDeviceId?: string | null
+      videoDeviceId?: string | null
+      noiseSuppressionEnabled?: boolean
+      autoGainControlEnabled?: boolean
+    }
+  ): Promise<MediaStream> {
     try {
+      const resolvedNoiseSuppressionEnabled = (() => {
+        if (options?.noiseSuppressionEnabled !== undefined) return options.noiseSuppressionEnabled
+        try {
+          const saved = localStorage.getItem('chat_call_noise_suppression_enabled')
+          return saved === null ? true : saved === 'true'
+        } catch {
+          return true
+        }
+      })()
+
+      const resolvedAutoGainControlEnabled = (() => {
+        if (options?.autoGainControlEnabled !== undefined) return options.autoGainControlEnabled
+        try {
+          const saved = localStorage.getItem('chat_call_auto_gain_control_enabled')
+          return saved === null ? false : saved === 'true'
+        } catch {
+          return false
+        }
+      })()
+
       const constraints: MediaStreamConstraints = {
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true
-        },
+        audio: getAudioConstraints({
+          ...(options?.audioDeviceId ? { deviceId: { exact: options.audioDeviceId } } : {}),
+          noiseSuppression: resolvedNoiseSuppressionEnabled,
+          autoGainControl: resolvedAutoGainControlEnabled
+        }),
         video:
           type === 'video'
             ? {
+                ...(options?.videoDeviceId ? { deviceId: { exact: options.videoDeviceId } } : {}),
                 width: { ideal: 1280 },
                 height: { ideal: 720 },
                 facingMode: 'user'
@@ -141,6 +172,120 @@ export class WebRTCClient {
       this.emit('error', { type: 'media', message: 'Failed to access camera/microphone', error })
       throw error
     }
+  }
+
+  /**
+   * Switch active microphone device during an ongoing call.
+   * Replaces the outbound audio sender track and updates localStream.
+   */
+  async switchAudioInputDevice(deviceId: string): Promise<void> {
+    if (!this.localStream) {
+      throw new Error('Local stream not initialized')
+    }
+
+    const resolvedNoiseSuppressionEnabled = (() => {
+      try {
+        const saved = localStorage.getItem('chat_call_noise_suppression_enabled')
+        return saved === null ? true : saved === 'true'
+      } catch {
+        return true
+      }
+    })()
+
+    const resolvedAutoGainControlEnabled = (() => {
+      try {
+        const saved = localStorage.getItem('chat_call_auto_gain_control_enabled')
+        return saved === null ? false : saved === 'true'
+      } catch {
+        return false
+      }
+    })()
+
+    const newStream = await navigator.mediaDevices.getUserMedia({
+      audio: getAudioConstraints({
+        deviceId: { exact: deviceId },
+        noiseSuppression: resolvedNoiseSuppressionEnabled,
+        autoGainControl: resolvedAutoGainControlEnabled
+      }),
+      video: false
+    })
+
+    const newTrack = newStream.getAudioTracks()[0]
+    if (!newTrack) {
+      newStream.getTracks().forEach(t => t.stop())
+      throw new Error('No audio track from selected device')
+    }
+
+    const oldTrack = this.localStream.getAudioTracks()[0]
+    if (oldTrack) {
+      try {
+        this.localStream.removeTrack(oldTrack)
+      } catch {
+        // ignore
+      }
+      try {
+        oldTrack.stop()
+      } catch {
+        // ignore
+      }
+    }
+
+    this.localStream.addTrack(newTrack)
+
+    const sender = this.peerConnection?.getSenders().find(s => s.track?.kind === 'audio')
+    if (sender) {
+      await sender.replaceTrack(newTrack)
+    }
+
+    this.emit('localStreamReady', this.localStream)
+  }
+
+  /**
+   * Switch active camera device during an ongoing call.
+   * Replaces the outbound video sender track and updates localStream.
+   */
+  async switchVideoInputDevice(deviceId: string): Promise<void> {
+    if (!this.localStream) {
+      throw new Error('Local stream not initialized')
+    }
+
+    const newStream = await navigator.mediaDevices.getUserMedia({
+      audio: false,
+      video: {
+        deviceId: { exact: deviceId },
+        width: { ideal: 1280 },
+        height: { ideal: 720 }
+      }
+    })
+
+    const newTrack = newStream.getVideoTracks()[0]
+    if (!newTrack) {
+      newStream.getTracks().forEach(t => t.stop())
+      throw new Error('No video track from selected device')
+    }
+
+    const oldTrack = this.localStream.getVideoTracks()[0]
+    if (oldTrack) {
+      try {
+        this.localStream.removeTrack(oldTrack)
+      } catch {
+        // ignore
+      }
+      try {
+        oldTrack.stop()
+      } catch {
+        // ignore
+      }
+    }
+
+    this.localStream.addTrack(newTrack)
+
+    const sender = this.peerConnection?.getSenders().find(s => s.track?.kind === 'video')
+    if (sender) {
+      await sender.replaceTrack(newTrack)
+    }
+
+    this.emit('localStreamReady', this.localStream)
   }
 
   /**

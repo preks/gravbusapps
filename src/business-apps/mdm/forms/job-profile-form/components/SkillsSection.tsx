@@ -27,7 +27,12 @@ const SkillsSection: React.FC<SkillsSectionProps> = ({ dataTestId, accessToken }
     { value: '2', label: '2' },
     { value: '3', label: '3' },
     { value: '4', label: '4' },
-    { value: '5', label: '5' }
+    { value: '5', label: '5' },
+    { value: '6', label: '6' },
+    { value: '7', label: '7' },
+    { value: '8', label: '8' },
+    { value: '9', label: '9' },
+    { value: '10', label: '10' }
   ]
   const form = useFormContext()
   const graphqlClient = useGraphQLClient(accessToken)
@@ -186,7 +191,7 @@ const SkillsSection: React.FC<SkillsSectionProps> = ({ dataTestId, accessToken }
   return (
     <div className="gba:space-y-4">
       <div className="gba:flex gba:items-center gba:justify-between">
-        <label className="gba:text-sm gba:font-medium gba:text-foreground">Skills</label>
+        <label className="gba:text-sm gba:font-medium gba:text-foreground">Required Skills and Levels</label>
       </div>
 
       {/* Search Input */}

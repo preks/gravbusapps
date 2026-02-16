@@ -10,7 +10,7 @@
  * - Empty state
  */
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { Users, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Button } from '@newwork/nw-design-system'
 
@@ -41,6 +41,8 @@ export interface VideoGridProps {
   mode?: 'auto-fit' | 'fixed-grid'
   /** Minimum tile size for auto-fit mode (in pixels) */
   minTileSize?: number
+  /** Maximum tile size for auto-fit mode (in pixels) */
+  maxTileSize?: number
   /** Grid layout configuration (only used in fixed-grid mode) */
   gridLayout?: GridLayout
 }
@@ -55,14 +57,28 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
   t = (key: string) => key,
   mode = 'auto-fit',
   minTileSize = 250,
+  maxTileSize = 500,
   gridLayout
 }) => {
   // Track window size for responsive grid
   const [, setWindowWidth] = useState(window.innerWidth)
 
+  // Container ref for width tracking
+  const gridContainerRef = useRef<HTMLDivElement>(null)
+  const [availableWidth, setAvailableWidth] = useState(0)
+
   useEffect(() => {
     const handleResize = () => {
       setWindowWidth(window.innerWidth)
+      // Update available width
+      if (gridContainerRef.current) {
+        setAvailableWidth(gridContainerRef.current.offsetWidth)
+      }
+    }
+
+    // Initial width calculation
+    if (gridContainerRef.current) {
+      setAvailableWidth(gridContainerRef.current.offsetWidth)
     }
 
     window.addEventListener('resize', handleResize)
@@ -120,47 +136,50 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
     // Tablet screens (768px - 1023px)
     if (screenWidth < 1024) {
       if (itemCount <= 1) return 1
-      if (itemCount <= 2) return 2
+      if (itemCount <= 2) return 1
       if (itemCount <= 4) return 2
-      if (itemCount <= 6) return 2 // 2×3 for better aspect ratio
+      if (itemCount <= 6) return 3 // 2×3 for better aspect ratio
       if (itemCount <= 9) return 3
       return 3 // Max 3 columns on tablet
     }
 
     // Desktop screens (>= 1024px)
-    if (itemCount <= 1) return 1
-    if (itemCount <= 2) return 2
-    if (itemCount <= 4) return 2
-    if (itemCount <= 6) return 2 // 2×3 for better aspect ratio instead of 3×2
-    if (itemCount <= 9) return 3 // 3×3 for 7-9 participants
-    if (itemCount <= 12) return 3 // 3×4 for 10-12 participants
-    if (itemCount <= 16) return 4
-    if (itemCount <= 25) return 5
-    // For larger counts, use square root rounded up, but cap at 6 columns max
-    return Math.min(Math.ceil(Math.sqrt(itemCount)), 6)
-  }
-
-  // Calculate optimal row height based on screen size
-  const calculateRowHeight = (): string => {
-    const screenWidth = window.innerWidth
-
-    // On mobile, make tiles taller to fill vertical space better
-    if (screenWidth < 768) {
-      // For 2 columns, calculate height to fill available space
-      // Account for gap and padding
-      return `minmax(${minTileSize * 0.8}px, 1fr)`
+    // Calculate base columns based on participant count
+    let baseColumns
+    if (itemCount <= 1) baseColumns = 1
+    else if (itemCount <= 2) baseColumns = 1
+    else if (itemCount <= 4) baseColumns = 2
+    else if (itemCount <= 6) baseColumns = 3
+    else if (itemCount <= 9) baseColumns = 3
+    else if (itemCount <= 12) baseColumns = 3
+    else if (itemCount <= 16) baseColumns = 4
+    else if (itemCount <= 25) baseColumns = 5
+    else {
+      // For larger counts, use square root rounded up, but cap at 6 columns max
+      baseColumns = Math.min(Math.ceil(Math.sqrt(itemCount)), 6)
     }
 
-    // On larger screens, maintain aspect ratio
-    return 'minmax(200px, 1fr)'
+    // Apply max width constraint only if we have measured width and it would help
+    // Don't reduce columns below base for small participant counts (1-4)
+    if (availableWidth > 0 && maxTileSize < 9999 && itemCount > 4) {
+      const gap = 12 // gba:gap-3 is 12px
+      const maxColumnsByWidth = Math.floor((availableWidth + gap) / (maxTileSize + gap))
+
+      // Only apply constraint if it wouldn't reduce columns too much
+      if (maxColumnsByWidth >= 2) {
+        return Math.max(2, Math.min(baseColumns, maxColumnsByWidth))
+      }
+    }
+
+    return baseColumns
   }
 
   // Determine grid style based on mode
   const gridStyle =
     mode === 'auto-fit'
       ? {
-          gridTemplateColumns: `repeat(${calculateOptimalColumns(gridItems.length)}, minmax(${minTileSize}px, 1fr))`,
-          gridAutoRows: calculateRowHeight()
+          gridTemplateColumns: `repeat(${calculateOptimalColumns(gridItems.length)}, minmax(${minTileSize}px, ${maxTileSize}px))`,
+          gridAutoRows: 'auto' // Let aspect-ratio control height
         }
       : {
           gridTemplateColumns: `repeat(${gridLayout?.cols || 1}, 1fr)`,
@@ -188,7 +207,8 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
 
         {/* Grid Container */}
         <div
-          className="gba:w-full gba:h-full gba:grid gba:gap-3 gba:content-start gba:overflow-hidden"
+          ref={gridContainerRef}
+          className="gba:w-full gba:h-full gba:grid gba:gap-3 gba:content-start gba:overflow-hidden gba:justify-center"
           style={gridStyle}
           data-testid={`${prefixDataTestId}-video-grid`}
         >

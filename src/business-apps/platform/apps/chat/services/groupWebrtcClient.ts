@@ -9,6 +9,7 @@
  */
 
 import type { CallParticipant, CallType } from './webrtcClient'
+import { getAudioConstraints } from '../config/audioConstraints'
 
 export type VideoQuality = 'high' | 'medium' | 'low'
 
@@ -255,11 +256,7 @@ export class GroupWebRTCClient {
     const settings = VIDEO_QUALITY_PRESETS[quality]
 
     const constraints: MediaStreamConstraints = {
-      audio: {
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true
-      },
+      audio: getAudioConstraints(),
       video:
         callType === 'video'
           ? {

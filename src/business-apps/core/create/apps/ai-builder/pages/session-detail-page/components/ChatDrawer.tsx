@@ -24,7 +24,8 @@ import {
   FileCode,
   Plus,
   FileEdit,
-  Trash2
+  Trash2,
+  MoreVertical
 } from 'lucide-react'
 import { MarkdownRenderer } from './MarkdownRenderer'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -44,6 +45,9 @@ interface Message {
   toolCalls?: ToolCall[]
   thinkingLog?: string
   thinkingCollapsed?: boolean
+  messageId?: string
+  createdAt?: string
+  serverCreatedAt?: string
   cost?: {
     inputTokens: number
     outputTokens: number
@@ -63,6 +67,8 @@ interface ChatDrawerProps {
   onClearChat?: () => void
   onAttachFile?: () => void
   onToggleThinking?: (messageIndex: number) => void
+  onRestoreMessage?: (message: Message) => void
+  isRestoringMessageId?: string | null
   examplePrompts?: string[]
   inputPlaceholder?: string
   analyzingRequestText?: string
@@ -95,6 +101,8 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
   onClearChat,
   onAttachFile,
   onToggleThinking,
+  onRestoreMessage,
+  isRestoringMessageId,
   examplePrompts,
   inputPlaceholder,
   analyzingRequestText,
@@ -283,13 +291,11 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
               </div>
             )}
 
-            {messages.map((message, idx) => (
+            {messages.map((message, idx) => {
+              const canRestore = !!onRestoreMessage && message.role === 'assistant' && !!message.messageId
+              return (
               <div
-                key={
-                  message.role === 'user'
-                    ? `user-${idx}-${message.content.length}`
-                    : `assistant-${idx}-${message.toolCalls?.[0]?.id ?? message.content.length}`
-                }
+                key={message.messageId ?? `${message.role}-${idx}-${message.content.length}`}
                 className={`gba:flex gba:gap-3 ${message.role === 'user' ? 'gba:justify-end' : 'gba:justify-start'}`}
               >
                 {message.role === 'assistant' && (
@@ -299,6 +305,20 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
                 )}
 
                 <div className="gba:max-w-[85%]">
+                  {canRestore && (
+                    <div className="gba:flex gba:justify-end gba:mb-1">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => onRestoreMessage?.(message)}
+                        disabled={isRestoringMessageId === message.messageId}
+                        className="gba:h-7 gba:px-2 gba:text-xs gba:gap-1"
+                      >
+                        <MoreVertical className="gba:w-3 gba:h-3" />
+                        Restore
+                      </Button>
+                    </div>
+                  )}
                   {message.role === 'user' ? (
                     <div className="gba:bg-primary gba:text-primary-foreground gba:rounded-2xl gba:px-4 gba:py-3 gba:shadow-sm">
                       <p className="gba:text-sm gba:leading-relaxed">{message.content}</p>
@@ -381,7 +401,8 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
                   </Avatar>
                 )}
               </div>
-            ))}
+            )
+            })}
             <div ref={messagesEndRef} />
           </>
         )}

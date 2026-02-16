@@ -16,7 +16,7 @@ import {
   toast,
   Spinner
 } from '@newwork/nw-design-system'
-import { Plus, Warning as WarningIcon } from '@phosphor-icons/react'
+import { PencilSimple, Plus, Trash, Warning as WarningIcon } from '@phosphor-icons/react'
 import type { PerformanceCycle, ValueItemStored } from '../types'
 import ValuesEditorModal, { ValueEditorValues } from '../ValuesEditorModal'
 import translations from '../_i18n'
@@ -30,6 +30,11 @@ export interface CompanyValuesProps {
   onDeleteValue: (id: string) => void
   onActivateValue: (id: string) => void
   onDeactivateValue: (id: string) => void
+}
+
+const truncateText = (text: string, maxLength: number = 64): string => {
+  if (!text || text.length <= maxLength) return text
+  return text.slice(0, maxLength) + '...'
 }
 
 export const CompanyValues: React.FC<CompanyValuesProps> = ({
@@ -133,7 +138,7 @@ export const CompanyValues: React.FC<CompanyValuesProps> = ({
                     <TableRow key={v.id}>
                       <TableCell>{i + 1}</TableCell>
                       <TableCell className="gba:font-medium">{v.title}</TableCell>
-                      <TableCell>{v.description}</TableCell>
+                      <TableCell title={v.description}>{truncateText(v.description, 64)}</TableCell>
                       <TableCell>
                         <Badge variant={v.recordState?.toLowerCase() === 'active' ? 'success' : 'secondary'}>
                           {v.recordState?.toLowerCase() === 'active' ? 'Active' : 'Inactive'}
@@ -143,14 +148,23 @@ export const CompanyValues: React.FC<CompanyValuesProps> = ({
                         <div className="gba:flex gba:justify-end gba:gap-1">
                           <Button
                             variant="ghost"
-                            size="sm"
+                            size="icon"
                             onClick={() => {
                               setEditingValue(v)
                               setIsValuesModalOpen(true)
                             }}
                             aria-label="Edit Value"
                           >
-                            {t('button-edit')}
+                            <PencilSimple />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => onDeleteValue(v.id)}
+                            data-testid={`value-delete-${v.id}`}
+                            aria-label="Delete Value"
+                          >
+                            <Trash />
                           </Button>
                           {v.recordState?.toLowerCase() === 'active' ? (
                             <Button
@@ -171,14 +185,6 @@ export const CompanyValues: React.FC<CompanyValuesProps> = ({
                               {t('button-activate')}
                             </Button>
                           )}
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={() => onDeleteValue(v.id)}
-                            data-testid={`value-delete-${v.id}`}
-                          >
-                            {t('button-delete')}
-                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>

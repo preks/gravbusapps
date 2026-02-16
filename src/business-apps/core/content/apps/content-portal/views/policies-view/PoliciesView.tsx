@@ -84,17 +84,22 @@ const PoliciesView: React.FC<PoliciesViewProps> = ({ accessToken, hideBanner = f
     [offset, searchQuery]
   )
 
+  const contentEntriesOptions = useMemo(
+    () => ({
+      fields: POLICY_VIEW_FIELDS,
+      relationLimit: 20,
+      relationOffset: 0
+    }),
+    []
+  )
+
   const {
     entries: fetchedEntries,
     totalCount,
     isLoading,
     error,
     refetch
-  } = useContentEntries(queryParams, accessToken, {
-    fields: POLICY_VIEW_FIELDS,
-    relationLimit: 20,
-    relationOffset: 0
-  })
+  } = useContentEntries(queryParams, accessToken, contentEntriesOptions)
 
   // Accumulate entries for infinite scroll (same pattern as other views)
   const queryKey = useMemo(() => `${searchQuery}`, [searchQuery])

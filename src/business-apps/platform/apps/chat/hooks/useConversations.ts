@@ -6,7 +6,7 @@ import { useEmployeeAvatarsCache } from './useEmployeeAvatarsCache'
 import { rtkDebug } from '../utils/rtkDebug'
 
 interface UseConversationsOptions {
-  apiClient: ChatApiClient
+  apiClient: ChatApiClient | null | undefined
   accessToken: string
   enabled?: boolean
 }

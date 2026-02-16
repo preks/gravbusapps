@@ -18,7 +18,7 @@ const formatGroupName = (groupName: string): string => {
   if (groupName === 'LiquidFund' || groupName === 'LiquidFunds') {
     return 'Liquid Fund'
   }
-  return groupName.replaceAll(/([A-Z])/g, ' $1').trim()
+  return groupName.replace(/([A-Z])/g, ' $1').trim()
 }
 
 // Helper function to get owner display name
@@ -174,7 +174,7 @@ const createRowActions =
       contexts={[
         {
           context: FlowContextName.investmentEntity,
-          contextData: { investmentId: row.original.id }
+          contextData: { investmentId: row.original.id, dealType: 'DIVESTMENT_DEAL' }
         }
       ]}
       prefixDataTestId="all-investment-update"
