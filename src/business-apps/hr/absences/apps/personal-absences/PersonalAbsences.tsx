@@ -30,6 +30,7 @@ import { useEmployeeData } from '@/business-apps/hr/core/apps/employee-record/ho
 import { AbsenceList } from './components/absence-list-table'
 import { useAbsenceTypeCatalog } from './hooks/useAbsenceTypeCatalog'
 import { useEntitlementSnapshot } from './hooks/useEntitlementSnapshot'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 
 const statusToColor = (status?: string): string => {
   switch ((status || '').toLowerCase()) {
@@ -67,6 +68,7 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
   const [pageSize] = useState(10)
   const [absenceGroups, setAbsenceGroups] = useState<any[]>([])
   const [loadingAbsenceGroups, setLoadingAbsenceGroups] = useState(false)
+  const [refreshTick, setRefreshTick] = useState(0)
 
   const { accessToken, userInfo } = props
   const employeeId = userInfo?.employeeDetails?.employeeId
@@ -77,17 +79,26 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
   // Catalog mapping for labels/colors
   const { mapType } = useAbsenceTypeCatalog(accessToken)
   // Snapshot entitlements (enriched via mapper)
-  const { entitlements: snapshotEntitlements, stats: snapshotStats } = useEntitlementSnapshot(
-    accessToken,
-    employeeId || '',
-    mapType
-  )
+  const {
+    entitlements: snapshotEntitlements,
+    stats: snapshotStats,
+    refetch: refetchSnapshot
+  } = useEntitlementSnapshot(accessToken, employeeId || '', mapType)
 
   const {
     loading: employeeLoading,
     employee,
-    absenceEntitlements
-  } = useEmployeeData(accessToken, structureId, employeeId || '')
+    absenceEntitlements,
+    refetch: refetchEmployeeData
+  } = useEmployeeData(accessToken || '', structureId, employeeId || '')
+
+  useProcessCompletion({
+    onSuccess: () => {
+      if (refetchSnapshot) refetchSnapshot()
+      if (refetchEmployeeData) refetchEmployeeData()
+      setRefreshTick(t => t + 1)
+    }
+  })
 
   useEffect(() => {
     const fetchAbsenceGroups = async () => {
@@ -162,7 +173,7 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
       })
       .catch(() => setError('Failed to load absence data.'))
       .finally(() => setLoading(false))
-  }, [employeeId, accessToken])
+  }, [employeeId, accessToken, refreshTick])
 
   // Reflect snapshot entitlements/stats into component state while preserving visuals (icons/colors)
   useEffect(() => {

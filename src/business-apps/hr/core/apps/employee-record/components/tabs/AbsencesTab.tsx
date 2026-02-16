@@ -32,6 +32,7 @@ import { useRestClient } from '@/common/network/rest/useRestClient'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { GET_ENTITLEMENTS_SNAPSHOT_FOR_YEAR } from '@/business-apps/hr/absences/apps/personal-absences/queries/graphql'
 import { fetchHolidayDates } from './utils/fetchHolidayDates'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 
 const AbsencesTab: React.FC<AbsencesTabProps> = ({
   employee,
@@ -65,6 +66,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
   const [snapshotByType, setSnapshotByType] = useState<
     Record<string, { total: number; usedApproved: number; usedPending: number; remaining: number }>
   >({})
+  const [refreshTick, setRefreshTick] = useState(0)
 
   const startDateFormatted = selectedStartDate?.format('YYYY-MM-DD') ?? ''
   const endDateFormatted = selectedEndDate?.format('YYYY-MM-DD') ?? ''
@@ -79,6 +81,14 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
     accessToken,
     employeeAbsenceEntitlement
   )
+
+  // Refresh tab data and snapshot when a related process completes successfully
+  useProcessCompletion({
+    onSuccess: () => {
+      refetch?.()
+      setRefreshTick(t => t + 1)
+    }
+  })
 
   useEffect(() => {
     const checkLocale = () => {
@@ -166,7 +176,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
     }
 
     fetchAnnualLeaveSnapshot()
-  }, [graphqlClient, employee?.id, currentDate])
+  }, [graphqlClient, employee?.id, currentDate, refreshTick])
 
   useEffect(() => {
     const fetchUserGroups = async () => {
