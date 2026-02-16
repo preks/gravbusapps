@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from 'react'
 import {
-  Button,
   Card,
   CardContent,
   EmptyState,
@@ -26,10 +25,9 @@ import {
   SkillSortOption,
   SkillStatusFilter,
   applySkillsFiltersAndSort,
-  getAgingSkillCount,
+  getJobProfileGap,
   getSkillDistribution,
-  getSkillsSnapshotData,
-  parseSkillLevel
+  getSkillsSnapshotData
 } from './components/skills-profile/skillsProfile.utils'
 
 interface SkillsTabProps {
@@ -67,12 +65,15 @@ const SkillsTab: React.FC<SkillsTabProps> = ({ employee, accessToken }) => {
 
   const snapshot = useMemo(() => getSkillsSnapshotData(employeeSkills), [employeeSkills])
   const distribution = useMemo(() => getSkillDistribution(employeeSkills), [employeeSkills])
-  const agingCount = useMemo(() => getAgingSkillCount(employeeSkills), [employeeSkills])
-  const setLevelsCount = useMemo(
-    () => validSkills.filter(skill => parseSkillLevel(skill.level) === null).length,
-    [validSkills]
-  )
   const verifyCount = useMemo(() => validSkills.filter(skill => !skill.verificationDocumentId).length, [validSkills])
+  const jobProfileGap = useMemo(
+    () =>
+      getJobProfileGap({
+        employeeSkills,
+        jobProfile: employee?.employeePosition?.jobPosition?.jobProfile
+      }),
+    [employeeSkills, employee?.employeePosition?.jobPosition?.jobProfile]
+  )
 
   const filteredSkills = useMemo(
     () =>
@@ -115,14 +116,6 @@ const SkillsTab: React.FC<SkillsTabProps> = ({ employee, accessToken }) => {
           >
             {t('skills-profile-add-skill')}
           </AppAction>
-          <Button
-            variant="outline"
-            data-testid="employee-skills-request-review-button"
-            onClick={e => e.preventDefault()}
-            type="button"
-          >
-            {t('skills-profile-request-review')}
-          </Button>
         </div>
       </div>
 
@@ -221,12 +214,9 @@ const SkillsTab: React.FC<SkillsTabProps> = ({ employee, accessToken }) => {
 
         <div className="gba:lg:col-span-3 gba:lg:order-2" data-testid="skills-profile-sidebar-column">
           <SkillsDevelopmentPanel
-            setLevelsCount={setLevelsCount}
             verifyCount={verifyCount}
-            agingCount={agingCount}
             distribution={distribution}
-            groupFilter={statusFilter}
-            onGroupFilterChange={setStatusFilter}
+            jobProfileGap={jobProfileGap}
             t={t}
           />
         </div>
