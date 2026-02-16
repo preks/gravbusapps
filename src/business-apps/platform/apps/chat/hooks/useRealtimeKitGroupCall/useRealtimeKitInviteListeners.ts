@@ -254,7 +254,7 @@ export function useRealtimeKitInviteListeners(params: UseRealtimeKitInviteListen
       participantName: string
     }) => {
       participantsHook.handleDeclinedInvite(data.participantId, 'not-answered')
-      if (currentUser && data.participantId === currentUser.id) {
+      if (data.participantId === currentUser?.id) {
         try {
           media.stopAllTracks()
         } catch {

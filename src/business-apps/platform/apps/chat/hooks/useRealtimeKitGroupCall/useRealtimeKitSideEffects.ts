@@ -170,8 +170,8 @@ export function useRealtimeKitSideEffects(params: {
         }
       }
     }
-    window.addEventListener('storage', handleStorageChange)
-    return () => window.removeEventListener('storage', handleStorageChange)
+    globalThis.addEventListener('storage', handleStorageChange)
+    return () => globalThis.removeEventListener('storage', handleStorageChange)
   }, [incomingInvite, currentUser, media, refs, setIncomingInvite])
 
   useEffect(() => {
@@ -195,7 +195,7 @@ export function useRealtimeKitSideEffects(params: {
   }, [stopDurationTimer, refs])
 
   useEffect(() => {
-    if (typeof globalThis.window !== 'undefined' && process.env.NODE_ENV === 'development') {
+    if (globalThis.window !== undefined && process.env.NODE_ENV === 'development') {
       ;(globalThis as any).rtkLeaveCall = leaveCall
       ;(globalThis as any).rtkToggleMute = media.toggleMute
       ;(globalThis as any).rtkToggleVideo = media.toggleVideo
@@ -203,7 +203,7 @@ export function useRealtimeKitSideEffects(params: {
       ;(globalThis as any).rtkLogSimulcastInfo = diagnostics.logSimulcastInfo
     }
     return () => {
-      if (typeof globalThis.window !== 'undefined') {
+      if (globalThis.window !== undefined) {
         delete (globalThis as any).rtkLeaveCall
         delete (globalThis as any).rtkToggleMute
         delete (globalThis as any).rtkToggleVideo

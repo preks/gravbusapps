@@ -84,9 +84,12 @@ export async function runJoinCall(ctx: JoinCallContext, params: RunJoinCallParam
       throw new Error('Failed to initialize meeting')
     }
 
-    if (initialPreferences?.audioInputDeviceId && typeof (initializedMeeting.self as any).setDevice === 'function') {
+    const self = initializedMeeting.self as
+      | { setDevice?: (opts: { kind: string; deviceId: string }) => Promise<void> }
+      | undefined
+    if (initialPreferences?.audioInputDeviceId && typeof self?.setDevice === 'function') {
       try {
-        await (initializedMeeting.self as any).setDevice({
+        await self.setDevice({
           kind: 'audioinput',
           deviceId: initialPreferences.audioInputDeviceId
         })
@@ -95,9 +98,9 @@ export async function runJoinCall(ctx: JoinCallContext, params: RunJoinCallParam
       }
     }
 
-    if (initialPreferences?.videoInputDeviceId && typeof (initializedMeeting.self as any).setDevice === 'function') {
+    if (initialPreferences?.videoInputDeviceId && typeof self?.setDevice === 'function') {
       try {
-        await (initializedMeeting.self as any).setDevice({
+        await self.setDevice({
           kind: 'videoinput',
           deviceId: initialPreferences.videoInputDeviceId
         })

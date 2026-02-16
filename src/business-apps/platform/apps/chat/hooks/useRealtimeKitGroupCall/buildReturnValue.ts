@@ -46,7 +46,7 @@ export function buildReturnValue(params: {
     calendarMeetingId?: string | null,
     conversationType?: any
   ) => void
-  confirmStartCall: (preferences: any) => Promise<void>
+  confirmStartCall: (preferences: any) => void
   cancelSetup: () => void
   startCall: (
     conversationId: string,
@@ -54,9 +54,9 @@ export function buildReturnValue(params: {
     participants: any[],
     conversationName?: string,
     calendarMeetingId?: string | null
-  ) => Promise<void>
-  joinCall: (roomId: string, callType: any, initialParticipantsOrPreferences?: any) => Promise<void>
-  acceptInvite: (initialPreferences?: any) => Promise<void>
+  ) => void
+  joinCall: (roomId: string, callType: any, initialParticipantsOrPreferences?: any) => void
+  acceptInvite: (initialPreferences?: any) => void
   declineInvite: () => void
   leaveCall: () => void
   stableToggleMute: () => boolean

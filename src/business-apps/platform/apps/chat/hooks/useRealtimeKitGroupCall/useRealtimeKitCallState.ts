@@ -3,8 +3,7 @@
  */
 
 import { useState, useRef, useEffect, type Dispatch, type SetStateAction, type MutableRefObject } from 'react'
-import type { CallParticipant } from '../../services/webrtcClient'
-import type { CallType } from '../../services/webrtcClient'
+import type { CallParticipant, CallType } from '../../services/webrtcClient'
 import type { GroupCallUIState, GroupCallInvite, ActiveConversationCall } from '../../services/callTypes'
 import { globalCallManager } from '../../services/globalCallManager'
 import type { RealtimeKitCallRefs } from './contextTypes'
@@ -157,7 +156,7 @@ export function useRealtimeKitCallState(): UseRealtimeKitCallStateReturn {
     const inviteKey = `${meetingId}:${conversationId}`
     recentlySeenInviteKeysRef.current.delete(inviteKey)
     const globalSeen = (globalThis as any).__RTK_SEEN_INVITES__ as Record<string, number> | undefined
-    if (globalSeen && globalSeen[inviteKey]) {
+    if (globalSeen?.[inviteKey]) {
       delete globalSeen[inviteKey]
       ;(globalThis as any).__RTK_SEEN_INVITES__ = globalSeen
     }

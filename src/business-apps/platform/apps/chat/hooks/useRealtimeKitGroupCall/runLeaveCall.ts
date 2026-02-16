@@ -4,6 +4,18 @@
 
 import type { LeaveCallContext } from './contextTypes'
 
+interface SocketWithConnect {
+  connect?: () => void
+  connected?: boolean
+  once?: (event: string, fn: () => void) => void
+  emit?: (event: string, ...args: unknown[]) => void
+}
+
+interface SocketWithTimeout {
+  timeout: (ms: number) => { emit: (event: string, ...args: unknown[]) => void }
+  emit: (event: string, ...args: unknown[]) => void
+}
+
 export async function runLeaveCall(ctx: LeaveCallContext): Promise<void> {
   const {
     refs,
@@ -96,9 +108,10 @@ export async function runLeaveCall(ctx: LeaveCallContext): Promise<void> {
     const sessionId = sessionIdForEmit
     const isMeeting = isMeetingForEmit
 
-    if (socket && !socket.connected && typeof (socket as any).connect === 'function') {
+    const socketWithConnect = socket as SocketWithConnect | undefined
+    if (socket && !socket.connected && typeof socketWithConnect?.connect === 'function') {
       try {
-        ;(socket as any).connect()
+        socketWithConnect.connect()
       } catch {
         // Best-effort
       }
@@ -107,7 +120,7 @@ export async function runLeaveCall(ctx: LeaveCallContext): Promise<void> {
     if (socket && !socket.connected) {
       await new Promise<void>(resolve => {
         const timeout = setTimeout(() => resolve(), 1500)
-        socket!.once('connect', () => {
+        socket.once('connect', () => {
           clearTimeout(timeout)
           resolve()
         })
@@ -124,7 +137,7 @@ export async function runLeaveCall(ctx: LeaveCallContext): Promise<void> {
           if (socket && !socket.connected) {
             await new Promise<void>(resolve => {
               const timeout = setTimeout(() => resolve(), 1500)
-              socket!.once('connect', () => {
+              socket.once('connect', () => {
                 clearTimeout(timeout)
                 resolve()
               })
@@ -145,9 +158,10 @@ export async function runLeaveCall(ctx: LeaveCallContext): Promise<void> {
         participantId: user.id
       }
 
-      if (typeof (socket as any).timeout === 'function') {
+      const socketWithTimeout = socket as SocketWithTimeout
+      if (typeof socketWithTimeout.timeout === 'function') {
         await new Promise<void>(resolve => {
-          ;(socket as any).timeout(1000).emit('rtk-group-call:left', payload, () => resolve())
+          socketWithTimeout.timeout(1000).emit('rtk-group-call:left', payload, () => resolve())
         })
       } else {
         socket.emit('rtk-group-call:left', payload)

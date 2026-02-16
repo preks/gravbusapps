@@ -142,9 +142,12 @@ export async function runConfirmStartCall(
       return
     }
 
-    if (preferences.audioInputDeviceId && typeof (initializedMeeting.self as any).setDevice === 'function') {
+    const self = initializedMeeting.self as
+      | { setDevice?: (opts: { kind: string; deviceId: string }) => Promise<void> }
+      | undefined
+    if (preferences.audioInputDeviceId && typeof self?.setDevice === 'function') {
       try {
-        await (initializedMeeting.self as any).setDevice({
+        await self.setDevice({
           kind: 'audioinput',
           deviceId: preferences.audioInputDeviceId
         })
@@ -153,9 +156,9 @@ export async function runConfirmStartCall(
       }
     }
 
-    if (preferences.videoInputDeviceId && typeof (initializedMeeting.self as any).setDevice === 'function') {
+    if (preferences.videoInputDeviceId && typeof self?.setDevice === 'function') {
       try {
-        await (initializedMeeting.self as any).setDevice({
+        await self.setDevice({
           kind: 'videoinput',
           deviceId: preferences.videoInputDeviceId
         })
@@ -267,7 +270,7 @@ export async function runConfirmStartCall(
         .sort()
         .join(',')}`
       const last = refs.lastStartEmitRef.current
-      if (!last || last.key !== startKey || Date.now() - last.ts >= 3000) {
+      if (last?.key !== startKey || (last != null && Date.now() - last.ts >= 3000)) {
         refs.lastStartEmitRef.current = { key: startKey, ts: Date.now() }
         wsClient.getSocket()?.emit('rtk-group-call:start', {
           conversationId,

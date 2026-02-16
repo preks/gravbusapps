@@ -177,11 +177,19 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
         activeConversationCalls,
         callState,
         initiateCall: actionsResult.initiateCall,
-        confirmStartCall: actionsResult.confirmStartCall,
+        confirmStartCall: prefs => {
+          void actionsResult.confirmStartCall(prefs)
+        },
         cancelSetup: actionsResult.cancelSetup,
-        startCall: actionsResult.startCall,
-        joinCall: actionsResult.joinCall,
-        acceptInvite: actionsResult.acceptInvite,
+        startCall: (...args) => {
+          void actionsResult.startCall(...args)
+        },
+        joinCall: (...args) => {
+          void actionsResult.joinCall(...args)
+        },
+        acceptInvite: () => {
+          void actionsResult.acceptInvite()
+        },
         declineInvite: actionsResult.declineInvite,
         leaveCall: actionsResult.leaveCall,
         stableToggleMute: actionsResult.stableToggleMute,
