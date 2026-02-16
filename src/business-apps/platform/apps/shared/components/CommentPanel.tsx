@@ -71,9 +71,10 @@ export const CommentPanel: React.FC<CommentPanelProps> = ({
 
   return (
     <div
-      className="gba:fixed gba:right-0 gba:bottom-0 gba:w-96 gba:bg-background gba:border-l gba:border-border/50 gba:flex gba:flex-col"
+      className="gba:fixed gba:right-0 gba:bottom-0 gba:bg-background gba:border-l gba:border-border/50 gba:flex gba:flex-col"
       style={{
         top: `${headerHeight}px`,
+        width: 480,
         zIndex: 50,
         boxShadow: '-4px 0 24px rgba(0, 0, 0, 0.08)'
       }}

@@ -406,10 +406,12 @@ export interface UseEntityMentionsOptions {
     expertName: string
     specialty: string
   }>
+  /** Controls how selected mentions are inserted into text */
+  insertionMode?: 'at_mention' | 'markdown_link'
 }
 
 export function useEntityMentions(accessToken: string, options: UseEntityMentionsOptions = {}) {
-  const { activeExperts = [] } = options
+  const { activeExperts = [], insertionMode = 'at_mention' } = options
   const graphqlClient = useGraphQLClient(accessToken)
   const [entities, setEntities] = useState<EntityReference[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -791,7 +793,8 @@ export function useEntityMentions(accessToken: string, options: UseEntityMention
 
       const before = currentText.slice(0, mentionState.startIndex)
       const after = currentText.slice(mentionState.caretPosition)
-      const displayText = `@${entity.name}`
+      const displayText =
+        insertionMode === 'markdown_link' ? `[${entity.name}](${entity.type}://${entity.id})` : `@${entity.name}`
       const newText = `${before}${displayText} ${after}`
       const newCaretPosition = before.length + displayText.length + 1
 
@@ -816,7 +819,7 @@ export function useEntityMentions(accessToken: string, options: UseEntityMention
 
       return { newText, newCaretPosition, entityRef }
     },
-    [mentionState]
+    [mentionState, insertionMode]
   )
 
   // Clear all mention state

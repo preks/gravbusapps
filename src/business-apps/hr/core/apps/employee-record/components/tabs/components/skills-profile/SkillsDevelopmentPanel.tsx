@@ -89,7 +89,7 @@ export const SkillsDevelopmentPanel: React.FC<SkillsDevelopmentPanelProps> = ({
     return lines
   }, [verifyCount, jobProfileGap, t])
 
-  const chartColor = 'hsl(215, 25%, 55%)'
+  const chartColor = 'var(--nw-chart-2)'
   const chartData = useMemo(
     () =>
       distribution.map(item => ({

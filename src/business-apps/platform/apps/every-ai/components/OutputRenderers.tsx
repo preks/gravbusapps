@@ -24,6 +24,10 @@ import { MarkdownWithChipsRenderer, UnifiedTableRenderer } from '@/common/compon
 import NavigationDisplay from './displays/NavigationDisplay'
 import { ReminderDisplay } from './displays/ReminderDisplay'
 import { RemoteFormDisplay } from './displays/RemoteFormDisplay'
+import { CrmFunnelDisplay } from './displays/crm-funnel'
+import { AssetSummaryDisplay } from './displays/asset-summary'
+import { TeamAvailabilityDisplay } from './displays/team-availability'
+import { FlowbotCalendarDisplay } from './displays/calendar/FlowbotCalendarDisplay'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 interface FlowProposalBoundaryProps {
@@ -658,32 +662,7 @@ export const ScatterGraphDisplay: React.FC<{ data: ScatterGraphData }> = ({ data
 
 // Calendar Display
 export const CalendarDisplay: React.FC<{ data: CalendarViewData }> = ({ data }) => {
-  return (
-    <Card data-testid="calendar-display">
-      {data.title && (
-        <CardHeader>
-          <CardTitle className="gba:text-base">{data.title}</CardTitle>
-          {data.description && <p className="gba:text-sm gba:text-muted-foreground">{data.description}</p>}
-        </CardHeader>
-      )}
-      <CardContent>
-        <div className="gba:space-y-2">
-          <p className="gba:text-sm gba:text-muted-foreground">
-            View: {data.view} | Start: {data.startDate}
-          </p>
-          <div className="gba:space-y-1">
-            {data.events.map(event => (
-              <div key={event.id} className="gba:p-2 gba:bg-muted gba:rounded gba:text-sm">
-                <p className="gba:font-medium">{event.label || event.id}</p>
-                <p className="gba:text-xs gba:text-muted-foreground">{event.date}</p>
-                {event.tooltip && <p className="gba:text-xs">{event.tooltip}</p>}
-              </div>
-            ))}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  )
+  return <FlowbotCalendarDisplay data={data} />
 }
 
 // Premium File Display with prominent download button
@@ -782,6 +761,12 @@ function renderDisplayData(item: DisplayData, idx: number, accessToken: string) 
       return <ScatterGraphDisplay key={idx} data={item} />
     case 'calendar':
       return <CalendarDisplay key={idx} data={item} />
+    case 'crmFunnel':
+      return <CrmFunnelDisplay key={idx} data={item} />
+    case 'assetSummary':
+      return <AssetSummaryDisplay key={idx} data={item} />
+    case 'teamAvailability':
+      return <TeamAvailabilityDisplay key={idx} data={item} />
     case 'navigation':
       return <NavigationDisplay key={idx} data={item} />
     case 'entity':

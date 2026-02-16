@@ -10,6 +10,6 @@ export interface Entitlement {
   pending?: number
   available?: number
   year?: number
-  icon?: React.ReactNode
+  icon?: React.ElementType | React.ReactNode
   checkEntitlement?: boolean // Optional flag for entitlement display logic
 }

@@ -8,7 +8,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import type { GroupCallParticipant } from '../services/groupWebrtcClient'
 import type { CallParticipant, CallType } from '../services/webrtcClient'
-import type { PendingInvite } from './useGroupCall'
+import type { PendingInvite } from '../services/callTypes'
 import { rtkDebug } from '../utils/rtkDebug'
 
 export interface UseRealtimeKitParticipantsOptions {

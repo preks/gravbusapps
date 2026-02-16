@@ -6,10 +6,7 @@
  */
 
 import { useState, useEffect, useMemo } from 'react'
-import { useDocumentApps } from '../../document-apps/hooks/useDocumentApps'
-import { useSpreadsheetApps } from '../../spreadsheet-apps/hooks/useSpreadsheetApps'
-import { useNotes } from '../../note-apps/hooks/useNotes'
-import { useSlides } from '../../slide-apps/hooks/useSlides'
+import { DeskApiService } from '../services/DeskApiService'
 
 /** Unified content item type */
 export interface ContentItem {
@@ -87,106 +84,102 @@ function getDayName(date: Date): string {
  * Fetches and combines data from all content creation apps.
  */
 export function useDeskData(accessToken: string | undefined, userId: string): UseDeskDataReturn {
-  const [isInitialized, setIsInitialized] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const [, setError] = useState<string | null>(null)
+  const [recentItems, setRecentItems] = useState<ContentItem[]>([])
+  const [stats, setStats] = useState<DeskStats>({
+    documents: { total: 0, shared: 0 },
+    spreadsheets: { total: 0, shared: 0 },
+    notes: { total: 0, shared: 0 },
+    slides: { total: 0, shared: 0 },
+    totalItems: 0
+  })
 
-  // Fetch data from each app
-  const { documents: rawDocuments, isLoading: isLoadingDocuments } = useDocumentApps(accessToken, userId)
+  // This hook previously used userId for ownership logic. Keep the signature stable.
+  void userId
 
-  const { apps: rawSpreadsheets, isLoading: isLoadingSpreadsheets } = useSpreadsheetApps(accessToken, userId)
-
-  const { notes: rawNotes, isLoading: isLoadingNotes } = useNotes({ accessToken, userId })
-
-  const { slides: rawSlides, isLoading: isLoadingSlides } = useSlides(accessToken, userId)
-
-  // Mark as initialized after first load
   useEffect(() => {
-    if (!isLoadingDocuments && !isLoadingSpreadsheets && !isLoadingNotes && !isLoadingSlides && !isInitialized) {
-      setIsInitialized(true)
+    let cancelled = false
+
+    const load = async () => {
+      if (!accessToken) {
+        if (!cancelled) {
+          setIsLoading(false)
+          setError('Not authenticated')
+          setRecentItems([])
+        }
+        return
+      }
+
+      try {
+        if (!cancelled) {
+          setIsLoading(true)
+          setError(null)
+        }
+
+        const overview = await DeskApiService.getOverview(accessToken, { limit: 20 })
+
+        if (cancelled) return
+
+        setStats({
+          documents: overview.counts.documents,
+          spreadsheets: overview.counts.spreadsheets,
+          notes: overview.counts.notes,
+          slides: overview.counts.slides,
+          totalItems: overview.counts.totalItems
+        })
+
+        setRecentItems(
+          overview.recentItems.map(item => ({
+            id: item.id,
+            type: item.type,
+            title:
+              item.title ??
+              (item.type === 'document'
+                ? 'Untitled Document'
+                : item.type === 'spreadsheet'
+                  ? 'Untitled Spreadsheet'
+                  : item.type === 'note'
+                    ? 'Untitled Note'
+                    : 'Untitled presentation'),
+            updatedAt: item.updatedAt,
+            createdAt: item.createdAt,
+            isShared: item.isShared,
+            isOwner: item.isOwner,
+            isPdf: item.isPdf
+          }))
+        )
+      } catch (e) {
+        const message = e instanceof Error ? e.message : 'Failed to load desk data'
+        if (!cancelled) {
+          console.error('[useDeskData] Failed to load overview:', message)
+          setError(message)
+          setRecentItems([])
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false)
+        }
+      }
     }
-  }, [isLoadingDocuments, isLoadingSpreadsheets, isLoadingNotes, isLoadingSlides, isInitialized])
 
-  // Transform documents to ContentItem format
-  const documents: ContentItem[] = useMemo(() => {
-    return rawDocuments.map(doc => ({
-      id: doc.id,
-      type: 'document' as const,
-      title: doc.title || 'Untitled Document',
-      updatedAt: doc.updatedAt,
-      createdAt: doc.createdAt,
-      isShared: doc.isShared,
-      isOwner: doc.isOwner,
-      isPdf: doc.isPdf
-    }))
-  }, [rawDocuments])
+    load()
 
-  // Transform spreadsheets to ContentItem format
-  const spreadsheets: ContentItem[] = useMemo(() => {
-    return rawSpreadsheets.map(app => ({
-      id: app.id,
-      type: 'spreadsheet' as const,
-      title: app.name || 'Untitled Spreadsheet',
-      updatedAt: app.updatedAt,
-      createdAt: app.createdAt,
-      isShared: app.isShared,
-      isOwner: app.isOwner
-    }))
-  }, [rawSpreadsheets])
+    return () => {
+      cancelled = true
+    }
+  }, [accessToken])
 
-  // Transform notes to ContentItem format
-  const notes: ContentItem[] = useMemo(() => {
-    return rawNotes.map(note => ({
-      id: note.id,
-      type: 'note' as const,
-      title: note.title || 'Untitled Note',
-      updatedAt: note.updatedAt,
-      createdAt: note.createdAt,
-      isShared: note.isShared,
-      isOwner: note.ownerId === userId
-    }))
-  }, [rawNotes, userId])
-
-  // Transform slides to ContentItem format
-  const slides: ContentItem[] = useMemo(() => {
-    return rawSlides.map(slide => ({
-      id: slide.id,
-      type: 'slide' as const,
-      title: slide.title || 'Untitled presentation',
-      updatedAt: slide.updatedAt,
-      createdAt: slide.createdAt,
-      isShared: slide.isShared,
-      isOwner: slide.createdBy === userId || slide.permission === 'owner' || slide.permission === 'admin'
-    }))
-  }, [rawSlides, userId])
+  // For legacy compatibility, expose per-type lists as subsets of the recent items.
+  const documents = useMemo(() => recentItems.filter(i => i.type === 'document'), [recentItems])
+  const spreadsheets = useMemo(() => recentItems.filter(i => i.type === 'spreadsheet'), [recentItems])
+  const notes = useMemo(() => recentItems.filter(i => i.type === 'note'), [recentItems])
+  const slides = useMemo(() => recentItems.filter(i => i.type === 'slide'), [recentItems])
 
   // Combine and sort recent items
-  const recentItems: ContentItem[] = useMemo(() => {
-    const allItems = [...documents, ...spreadsheets, ...notes, ...slides]
-    return allItems.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()).slice(0, 10)
-  }, [documents, spreadsheets, notes, slides])
-
-  // Calculate stats
-  const stats: DeskStats = useMemo(
-    () => ({
-      documents: {
-        total: documents.length,
-        shared: documents.filter(d => d.isShared && !d.isOwner).length
-      },
-      spreadsheets: {
-        total: spreadsheets.length,
-        shared: spreadsheets.filter(s => s.isShared && !s.isOwner).length
-      },
-      notes: {
-        total: notes.length,
-        shared: notes.filter(n => n.isShared && !n.isOwner).length
-      },
-      slides: {
-        total: slides.length,
-        shared: slides.filter(s => s.isShared && !s.isOwner).length
-      },
-      totalItems: documents.length + spreadsheets.length + notes.length + slides.length
-    }),
-    [documents, spreadsheets, notes, slides]
-  )
+  const recentItemsSorted: ContentItem[] = useMemo(() => {
+    return [...recentItems].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+  }, [recentItems])
 
   // Generate activity data for the last 7 days
   const activityData: ActivityDataPoint[] = useMemo(() => {
@@ -199,25 +192,33 @@ export function useDeskData(accessToken: string | undefined, userId: string): Us
       const dayStart = new Date(date.setHours(0, 0, 0, 0))
       const dayEnd = new Date(date.setHours(23, 59, 59, 999))
 
-      const docsCount = documents.filter(d => {
-        const updated = new Date(d.updatedAt)
-        return updated >= dayStart && updated <= dayEnd
-      }).length
+      const docsCount = recentItemsSorted
+        .filter(d => d.type === 'document')
+        .filter(d => {
+          const updated = new Date(d.updatedAt)
+          return updated >= dayStart && updated <= dayEnd
+        }).length
 
-      const sheetsCount = spreadsheets.filter(s => {
-        const updated = new Date(s.updatedAt)
-        return updated >= dayStart && updated <= dayEnd
-      }).length
+      const sheetsCount = recentItemsSorted
+        .filter(s => s.type === 'spreadsheet')
+        .filter(s => {
+          const updated = new Date(s.updatedAt)
+          return updated >= dayStart && updated <= dayEnd
+        }).length
 
-      const notesCount = notes.filter(n => {
-        const updated = new Date(n.updatedAt)
-        return updated >= dayStart && updated <= dayEnd
-      }).length
+      const notesCount = recentItemsSorted
+        .filter(n => n.type === 'note')
+        .filter(n => {
+          const updated = new Date(n.updatedAt)
+          return updated >= dayStart && updated <= dayEnd
+        }).length
 
-      const slidesCount = slides.filter(s => {
-        const updated = new Date(s.updatedAt)
-        return updated >= dayStart && updated <= dayEnd
-      }).length
+      const slidesCount = recentItemsSorted
+        .filter(s => s.type === 'slide')
+        .filter(s => {
+          const updated = new Date(s.updatedAt)
+          return updated >= dayStart && updated <= dayEnd
+        }).length
 
       last7Days.push({
         day: getDayName(dayStart),
@@ -229,17 +230,14 @@ export function useDeskData(accessToken: string | undefined, userId: string): Us
     }
 
     return last7Days
-  }, [documents, spreadsheets, notes, slides])
-
-  // Combined loading state
-  const isLoading = !isInitialized && (isLoadingDocuments || isLoadingSpreadsheets || isLoadingNotes || isLoadingSlides)
+  }, [recentItemsSorted])
 
   return {
     documents,
     spreadsheets,
     notes,
     slides,
-    recentItems,
+    recentItems: recentItemsSorted.slice(0, 20),
     isLoading,
     stats,
     activityData

@@ -13,7 +13,7 @@ import { useRealtimeKitSelector } from '@cloudflare/realtimekit-react'
 import { Dialog, DialogContent, DialogTitle, DialogDescription, toast } from '@newwork/nw-design-system'
 import { Monitor, Maximize2 } from 'lucide-react'
 import type { GroupCallParticipant, VideoQuality } from '../services/groupWebrtcClient'
-import type { GroupCallUIState, PendingInvite } from '../hooks/useGroupCall'
+import type { GroupCallUIState, PendingInvite } from '../services/callTypes'
 import type { CallParticipant } from '../services/webrtcClient'
 import type { ChatWebSocketClient } from '../services/chatWebSocketClient'
 import type { ChatApiClient } from '../services/chatApiClient'
@@ -29,9 +29,18 @@ import {
   ChatPanel,
   MemoizedParticipantVideoTile,
   VideoGrid,
-  HorizontalFilmstrip
+  HorizontalFilmstrip,
+  AudioSettingsModal
 } from './call'
 import { isVideoTrackScreenShare, extractTracksFromCollection } from '../utils/callUtils'
+import { globalCallManager } from '../services/globalCallManager'
+import { useMediaDevices } from '../hooks/useMediaDevices'
+
+/** Skip setSinkId on mobile to avoid breaking playback (unsupported or invalid saved device IDs). */
+function isMobileDevice(): boolean {
+  if (typeof navigator === 'undefined') return false
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+}
 
 // RealtimeKit peer type with SDK-specific properties
 interface RealtimeKitPeer extends GroupCallParticipant {
@@ -54,7 +63,7 @@ interface AvailableParticipant {
 }
 
 // Sidebar panel state type
-type SidebarView = 'closed' | 'participants' | 'chat'
+type SidebarView = 'closed' | 'participants' | 'chat' | 'audio-settings'
 
 interface GroupCallModalRtkProps {
   viewMode: 'full' | 'minimized' // NEW: Control display mode without unmounting
@@ -72,9 +81,15 @@ interface GroupCallModalRtkProps {
   onSetVideoQuality?: (quality: VideoQuality) => void
   onToggleMinimize?: () => void
   onToggleBackground?: () => void
+  onToggleRnnoise?: () => void
+  onRnnoiseModeChange?: (mode: 'gentle' | 'moderate' | 'aggressive') => void
   onToggleRaiseHand?: () => void
   onSendReaction?: (emoji: string) => void
+  onMicDeviceChange?: (deviceId: string) => Promise<void>
+  onCameraDeviceChange?: (deviceId: string) => Promise<void>
   backgroundEnabled?: boolean
+  rnnoiseEnabled?: boolean
+  rnnoiseMode?: 'gentle' | 'moderate' | 'aggressive'
   prefixDataTestId?: string
   availableParticipants?: AvailableParticipant[]
   onInviteParticipant?: (participant: CallParticipant) => void
@@ -87,7 +102,8 @@ interface GroupCallModalRtkProps {
   wsClient?: ChatWebSocketClient | null
   transcriptionEnabled?: boolean
   apiClient?: ChatApiClient
-  activeConversation?: any // For looking up avatar URLs from conversation participants
+  callConversation?: any // Conversation where call was initiated (for participant avatars)
+  activeConversation?: any // Currently active conversation (for in-call chat)
   activeExperts?: any[] // Every AI experts for mentions in chat
   hideReactionsAndHandRaise?: boolean // Hide reactions and hand-raising UI (for 1-on-1 calls)
 }
@@ -159,6 +175,43 @@ const getScreenShareTrack = (peer: any): MediaStreamTrack | null => {
   return null
 }
 
+// Helper to calculate optimal aspect ratio based on screen width, participant count, and sidebar state
+const getOptimalAspectRatio = (
+  screenWidth: number,
+  participantCount: number,
+  isScreenShare: boolean,
+  hasSidebar: boolean
+): string => {
+  // Screen shares always use 16:9
+  if (isScreenShare) {
+    return '16/9'
+  }
+
+  // Mobile screens (< 768px): Use 4:3 for better vertical space usage
+  if (screenWidth < 768) {
+    return '4/3'
+  }
+
+  // Tablet screens (768px - 1023px)
+  if (screenWidth < 1024) {
+    // With sidebar or many participants, use 4:3
+    if (hasSidebar || participantCount > 4) {
+      return '4/3'
+    }
+    // Without sidebar and few participants, use 16:9
+    return '16/9'
+  }
+
+  // Desktop screens (>= 1024px)
+  // With sidebar open, use more square-ish ratios
+  if (hasSidebar) {
+    return participantCount <= 2 ? '4/3' : '16/9'
+  }
+
+  // Without sidebar: use 16:9 for natural video appearance
+  return '16/9'
+}
+
 // Stable empty function for missing callbacks
 const NOOP = () => {}
 
@@ -179,17 +232,24 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
   onToggleScreenShare,
   onToggleMinimize,
   onToggleBackground,
+  onToggleRnnoise,
+  onRnnoiseModeChange,
   onToggleRaiseHand,
   onSendReaction,
+  onMicDeviceChange,
+  onCameraDeviceChange,
   onInviteParticipant,
   prefixDataTestId = 'rtk-group-call',
   conversationName,
+  rnnoiseEnabled,
+  rnnoiseMode = 'aggressive',
   wsClient,
   transcriptionEnabled,
   apiClient,
   accessToken,
   currentUserId,
   currentUser,
+  callConversation: callConversationProp,
   activeConversation,
   activeExperts,
   hideReactionsAndHandRaise = false
@@ -279,6 +339,23 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
   const localVideoRef = useRef<HTMLVideoElement>(null)
   const remoteVideoRefs = useRef<Map<string, HTMLVideoElement>>(new Map())
   const screenShareVideoRefs = useRef<Map<string, HTMLVideoElement>>(new Map())
+  const speakerVolumeRef = useRef(100)
+
+  // Speaker output selection (sinkId). Updated by CallControlsBar.
+  const selectedAudioOutputIdRef = useRef<string | null>(null)
+
+  const applySinkIdToElement = useCallback(async (el: HTMLMediaElement | null, deviceId: string | null) => {
+    if (!el || !deviceId) return
+    if (isMobileDevice()) return
+    const setSinkId = (el as any).setSinkId as ((id: string) => Promise<void>) | undefined
+    if (typeof setSinkId !== 'function') return
+    try {
+      await setSinkId.call(el, deviceId)
+    } catch (err) {
+      // Best-effort only (browser support / secure context / user gesture constraints).
+      console.debug('[RTK Modal] Failed to set sinkId', err)
+    }
+  }, [])
 
   // Track when video elements are created/destroyed to trigger stream attachment effect
   // This avoids adding callState.isMinimized to effect deps which causes re-render loops
@@ -310,6 +387,8 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
             setLocalVideoRef(el)
           } else {
             remoteVideoRefs.current.set(peerId, el)
+            el.volume = speakerVolumeRef.current / 100
+            void applySinkIdToElement(el, selectedAudioOutputIdRef.current)
             setVideoElementsVersion(v => v + 1)
           }
         } else {
@@ -349,6 +428,199 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
     p => p.id === currentUserId || p.id === meeting?.self?.customParticipantId
   )
 
+  // RealtimeKit meetingId (Socket.IO group-call room) is not part of GroupCallUIState typing,
+  // but it is present in global call state for RTK calls.
+  const globalMeetingId = ((globalCallManager.getCallData().callState as any)?.meetingId as string | null) || null
+
+  // CRITICAL: Derive local media state from SDK (source of truth), falling back to callState.
+  // callState can be stale after navigation because it comes from globalCallManager.
+  const effectiveLocalIsMuted =
+    meeting?.self?.audioEnabled !== undefined ? meeting.self.audioEnabled === false : callState.isMuted
+  const effectiveLocalIsVideoEnabled =
+    meeting?.self?.videoEnabled !== undefined ? meeting.self.videoEnabled : callState.isVideoEnabled
+
+  // ==================== Raise hand (Socket.IO truth) ====================
+  // Seed from callState so we don't "lose" remote hands/order when the first WS event we receive is local-only.
+  const [wsLocalHandRaised, setWsLocalHandRaised] = useState<boolean>(() => callState.handRaised)
+  const [wsRemoteHandsRaised, setWsRemoteHandsRaised] = useState<Record<string, boolean>>(
+    () => callState.remoteHandsRaised || {}
+  )
+  const [wsHandRaisedOrder, setWsHandRaisedOrder] = useState<Record<string, { order: number; timestamp: number }>>(
+    () => callState.handRaisedOrder || {}
+  )
+
+  // Keep WS-derived state aligned with global callState updates (optimistic updates + other writers).
+  useEffect(() => {
+    setWsLocalHandRaised(callState.handRaised)
+  }, [callState.handRaised])
+
+  useEffect(() => {
+    setWsRemoteHandsRaised(callState.remoteHandsRaised || {})
+  }, [callState.remoteHandsRaised])
+
+  useEffect(() => {
+    setWsHandRaisedOrder(callState.handRaisedOrder || {})
+  }, [callState.handRaisedOrder])
+
+  useEffect(() => {
+    const meetingId = globalMeetingId
+    const localUserId = currentUserId
+
+    if (!wsClient || !meetingId || !localUserId) return
+
+    // Best-effort: ensure socket exists after navigation
+    let socket = wsClient.getSocket()
+    if (!socket && accessToken) {
+      try {
+        wsClient.connect(accessToken)
+        socket = wsClient.getSocket()
+      } catch {
+        // Best-effort only
+      }
+    }
+    if (!socket) return
+
+    const resolveIds = (participantId: string, isLocal: boolean) => {
+      let participantPeerId: string | undefined
+      let participantUserId: string | undefined
+      let participantCustomId: string | undefined = participantId
+
+      if (isLocal) {
+        participantPeerId = meeting?.self?.id
+        participantUserId = meeting?.self?.userId
+        participantCustomId = meeting?.self?.customParticipantId || participantId
+      } else if (meeting?.participants?.joined) {
+        const joined = Array.from(meeting.participants.joined.values())
+        const matchingPeer: any = joined.find(
+          (p: any) => p.customParticipantId === participantId || p.userId === participantId || p.id === participantId
+        )
+        if (matchingPeer) {
+          participantPeerId = matchingPeer.id
+          participantUserId = matchingPeer.userId
+          participantCustomId = matchingPeer.customParticipantId
+        }
+      }
+
+      return { participantPeerId, participantUserId, participantCustomId }
+    }
+
+    const handleHandUpdate = (data: {
+      roomId?: string
+      participantId: string
+      handRaised: boolean
+      timestamp?: number
+    }) => {
+      if (data.roomId && data.roomId !== meetingId) return
+
+      const isLocal = data.participantId === localUserId
+      const { participantPeerId, participantUserId, participantCustomId } = resolveIds(data.participantId, isLocal)
+      const timestamp = data.timestamp || Date.now()
+
+      if (isLocal) {
+        setWsLocalHandRaised(data.handRaised)
+        globalCallManager.updateCallState({ handRaised: data.handRaised })
+      } else {
+        setWsRemoteHandsRaised(prev => {
+          const updated = { ...prev }
+          if (participantPeerId) updated[participantPeerId] = data.handRaised
+          if (participantUserId) updated[participantUserId] = data.handRaised
+          if (participantCustomId) updated[participantCustomId] = data.handRaised
+          globalCallManager.updateCallState({ remoteHandsRaised: updated })
+          return updated
+        })
+      }
+
+      setWsHandRaisedOrder(prev => {
+        const updated = { ...prev }
+
+        // Remove existing entries for this participant (all possible keys)
+        if (participantPeerId) delete updated[participantPeerId]
+        if (participantUserId) delete updated[participantUserId]
+        if (participantCustomId) delete updated[participantCustomId]
+
+        if (data.handRaised) {
+          // Assign new timestamp/order (local ordering)
+          const allTimestamps = new Set<number>()
+          Object.values(updated).forEach(entry => allTimestamps.add(entry.timestamp))
+          const order = allTimestamps.size + 1
+          const orderData = { order, timestamp }
+          if (participantPeerId) updated[participantPeerId] = orderData
+          if (participantUserId) updated[participantUserId] = orderData
+          if (participantCustomId) updated[participantCustomId] = orderData
+        } else {
+          // Recalculate orders based on unique timestamps
+          const uniqueTimestamps = Array.from(new Set(Object.values(updated).map(e => e.timestamp))).sort(
+            (a, b) => a - b
+          )
+          uniqueTimestamps.forEach((ts, idx) => {
+            const newOrder = idx + 1
+            Object.keys(updated).forEach(key => {
+              if (updated[key].timestamp === ts) updated[key] = { ...updated[key], order: newOrder }
+            })
+          })
+        }
+
+        globalCallManager.updateCallState({ handRaisedOrder: updated })
+        return updated
+      })
+    }
+
+    const handleSyncParticipantStates = (data: {
+      roomId: string
+      participantStates: Array<{ participantId: string; handRaised: boolean }>
+    }) => {
+      if (data.roomId !== meetingId) return
+
+      const baseTimestamp = Date.now()
+      const nextRemote: Record<string, boolean> = {}
+      const nextOrder: Record<string, { order: number; timestamp: number }> = {}
+      let nextLocal: boolean | null = null
+
+      data.participantStates.forEach((state, index) => {
+        const isLocal = state.participantId === localUserId
+        if (isLocal) nextLocal = state.handRaised
+
+        const { participantPeerId, participantUserId, participantCustomId } = resolveIds(state.participantId, isLocal)
+
+        if (!isLocal) {
+          if (participantPeerId) nextRemote[participantPeerId] = state.handRaised
+          if (participantUserId) nextRemote[participantUserId] = state.handRaised
+          if (participantCustomId) nextRemote[participantCustomId] = state.handRaised
+        }
+
+        if (state.handRaised) {
+          const orderData = { order: index + 1, timestamp: baseTimestamp + index }
+          if (participantPeerId) nextOrder[participantPeerId] = orderData
+          if (participantUserId) nextOrder[participantUserId] = orderData
+          if (participantCustomId) nextOrder[participantCustomId] = orderData
+        }
+      })
+
+      const resolvedLocal = nextLocal ?? callState.handRaised
+      setWsLocalHandRaised(resolvedLocal)
+      setWsRemoteHandsRaised(nextRemote)
+      setWsHandRaisedOrder(nextOrder)
+
+      globalCallManager.updateCallState({
+        handRaised: resolvedLocal,
+        remoteHandsRaised: nextRemote,
+        handRaisedOrder: nextOrder
+      })
+    }
+
+    socket.on('group-call:hand-update', handleHandUpdate)
+    socket.on('group-call:sync-participant-states', handleSyncParticipantStates)
+
+    return () => {
+      socket.off('group-call:hand-update', handleHandUpdate)
+      socket.off('group-call:sync-participant-states', handleSyncParticipantStates)
+    }
+  }, [wsClient, accessToken, globalMeetingId, currentUserId, meeting])
+
+  const effectiveLocalHandRaised = wsLocalHandRaised
+  const effectiveRemoteHandsRaised = wsRemoteHandsRaised
+  const effectiveHandRaisedOrder = wsHandRaisedOrder
+
   // Helper to check if a participant has their hand raised
   // NOTE: We check BOTH userId (SDK) and customParticipantId (our DB) because:
   // - WebSocket events use customParticipantId (from our user database)
@@ -371,11 +643,11 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
 
     // Check if it's the local user
     if (participantUserId === meeting?.self?.userId || isLocalUser(peerId)) {
-      return callState.handRaised
+      return effectiveLocalHandRaised
     }
 
     // Check remote participants - try ALL three IDs (same pattern as reactions)
-    const remoteHands = callState.remoteHandsRaised || {}
+    const remoteHands = effectiveRemoteHandsRaised || {}
     const isRaisedByPeerId = peerId ? remoteHands[peerId] === true : false
     const isRaisedByUserId = participantUserId ? remoteHands[participantUserId] === true : false
     const isRaisedByCustomId = participantCustomId ? remoteHands[participantCustomId] === true : false
@@ -394,7 +666,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
   ): number | undefined => {
     if (!peerId && !participantUserId && !participantCustomId) return undefined
 
-    const handRaisedOrder = callState.handRaisedOrder || {}
+    const handRaisedOrder = effectiveHandRaisedOrder || {}
 
     // Try all three IDs (same pattern as reactions)
     let foundOrder: number | undefined
@@ -425,6 +697,30 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
       timestamp: number
     }>
   >([])
+
+  // Media devices for audio settings sidebar
+  const {
+    audioInputDevices,
+    audioOutputDevices,
+    videoInputDevices,
+    selectedAudioInputId,
+    selectedAudioOutputId,
+    selectedVideoInputId,
+    setSelectedAudioInputId,
+    setSelectedAudioOutputId,
+    setSelectedVideoInputId,
+    canSelectAudioOutput,
+    refreshDevices
+  } = useMediaDevices({ enabled: true })
+
+  // Enumerate mics/speakers when call is active so device lists in settings are populated
+  const isCallActive =
+    callState.status === 'connected' || callState.status === 'joining' || callState.status === 'reconnecting'
+  useEffect(() => {
+    if (isCallActive) {
+      void refreshDevices({ requestAudio: true, requestVideo: callState.callType === 'video' })
+    }
+  }, [isCallActive, callState.callType, refreshDevices])
 
   // Show reaction animation
   const showReactionAnimation = useCallback((emoji: string, participantId: string) => {
@@ -469,6 +765,10 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
     })
   }, [])
 
+  const handleToggleAudioSettings = useCallback(() => {
+    setSidebarView(prev => (prev === 'audio-settings' ? 'closed' : 'audio-settings'))
+  }, [])
+
   // Listen for new messages when chat is closed (for unread tracking)
   useEffect(() => {
     if (!wsClient || !callConversation || sidebarView === 'chat') return
@@ -489,15 +789,15 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
   }, [wsClient, callConversation, sidebarView, currentUserId])
 
   // Track screen size for responsive pagination
-  const [screenWidth, setScreenWidth] = useState(window.innerWidth)
+  const [screenWidth, setScreenWidth] = useState(globalThis.window.innerWidth)
 
   useEffect(() => {
     const handleResize = () => {
-      setScreenWidth(window.innerWidth)
+      setScreenWidth(globalThis.window.innerWidth)
     }
 
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
+    globalThis.window.addEventListener('resize', handleResize)
+    return () => globalThis.window.removeEventListener('resize', handleResize)
   }, [])
 
   // Pagination config: max participants per page (responsive)
@@ -628,6 +928,11 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
     return null
   })
 
+  // Derive local screen sharing state from SDK (source of truth), falling back to callState.
+  const effectiveLocalIsScreenSharing =
+    meeting?.self?.screenShareEnabled === true ||
+    (localScreenShareTrack?.readyState === 'live' && !!localScreenShareTrack)
+
   // CRITICAL: Stabilize remotePeers array to prevent unnecessary re-renders and video destruction
   // useRealtimeKitSelector returns a new array reference on every render, even if peers haven't changed
   // Create a fingerprint to detect actual peer data changes
@@ -711,7 +1016,16 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
       hasSocket: !!wsClient?.getSocket()
     })
 
-    const socket = wsClient?.getSocket()
+    // Best-effort: socket might be missing after navigation; try reconnect using accessToken.
+    let socket = wsClient?.getSocket()
+    if (!socket && wsClient && accessToken) {
+      try {
+        wsClient.connect(accessToken)
+        socket = wsClient.getSocket()
+      } catch {
+        // Best-effort only
+      }
+    }
     if (!socket) {
       rtkDebug.warn('[RTK Modal] ⚠️ No socket available for reactions')
       return
@@ -729,7 +1043,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
       socket.off('group-call:reaction-received', handleReaction)
       rtkDebug.log('[RTK Modal] WebSocket listener removed for reactions')
     }
-  }, [wsClient, showReactionAnimation, stableRemotePeers, meeting])
+  }, [wsClient, accessToken, showReactionAnimation, stableRemotePeers, meeting])
 
   // Handler to mute a participant via WebSocket (auto-mute on target side)
   const handleMuteParticipant = useCallback(
@@ -867,7 +1181,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
       hasVideoElement: !!videoElement,
       hasVideoTrack: !!localVideoTrack,
       hasAudioTrack: !!localAudioTrack,
-      isVideoEnabled: callState.isVideoEnabled,
+      isVideoEnabled: effectiveLocalIsVideoEnabled,
       hasLocalStream: !!localStream,
       isInitialized: localVideoInitializedRef.current,
       videoTrackChanged: localVideoTrackIdRef.current !== currentVideoTrackId,
@@ -913,7 +1227,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
           // Update video track if changed
           if (videoTrackChanged) {
             stream.getVideoTracks().forEach(track => stream.removeTrack(track))
-            if (localVideoTrack && callState.isVideoEnabled) {
+            if (localVideoTrack && effectiveLocalIsVideoEnabled) {
               stream.addTrack(localVideoTrack)
             }
             localVideoTrackIdRef.current = currentVideoTrackId
@@ -931,7 +1245,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
           }
 
           rtkDebug.log('[RTK Modal] ✅ Local tracks updated dynamically', {
-            hasVideo: !!localVideoTrack && callState.isVideoEnabled,
+            hasVideo: !!localVideoTrack && effectiveLocalIsVideoEnabled,
             hasAudio: !!localAudioTrack,
             streamVideoTracks: stream.getVideoTracks().length,
             streamAudioTracks: stream.getAudioTracks().length
@@ -941,7 +1255,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
 
           // Fallback to full replacement
           const newStream = new MediaStream()
-          if (localVideoTrack && callState.isVideoEnabled) newStream.addTrack(localVideoTrack)
+          if (localVideoTrack && effectiveLocalIsVideoEnabled) newStream.addTrack(localVideoTrack)
           if (localAudioTrack) newStream.addTrack(localAudioTrack)
 
           videoElement.srcObject = newStream
@@ -950,7 +1264,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
         }
       }
     }
-  }, [meeting?.self?.videoTrack, meeting?.self?.audioTrack, callState.isVideoEnabled, videoElementsVersion])
+  }, [meeting?.self?.videoTrack, meeting?.self?.audioTrack, effectiveLocalIsVideoEnabled, videoElementsVersion])
 
   // Track which peers have had streams attached to avoid flickering
   const attachedPeersRef = useRef<Set<string>>(new Set())
@@ -1441,15 +1755,15 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
       }
     })
 
-    // Add local screen share if active
+    // Add local screen share if active (SDK truth)
     rtkDebug.log('[RTK Modal] 🔍 Local screen share check:', {
-      isScreenSharing: callState.isScreenSharing,
+      isScreenSharing: effectiveLocalIsScreenSharing,
       hasTrack: !!localScreenShareTrack,
       trackReadyState: localScreenShareTrack?.readyState,
       trackId: localScreenShareTrack?.id
     })
 
-    if (callState.isScreenSharing && localScreenShareTrack) {
+    if (effectiveLocalIsScreenSharing && localScreenShareTrack) {
       // CRITICAL: Only include tracks that are still live (not ended/stopped)
       if (localScreenShareTrack.readyState === 'live') {
         const localPeerId = meeting?.self?.id || 'local' // Use actual peer ID
@@ -1487,7 +1801,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
     )
 
     return shares
-  }, [stableRemotePeers, callState.isScreenSharing, localScreenShareTrack, participants])
+  }, [stableRemotePeers, effectiveLocalIsScreenSharing, localScreenShareTrack, participants])
 
   // Get focused screen share (user-selected or first one)
   const focusedScreenShare = useMemo(() => {
@@ -1508,17 +1822,24 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
 
   // Build unified grid items: participants + screen shares
   const gridItems = useMemo(() => {
-    // Create mapping from userId to avatarUrl from conversation participants
+    // FIXED: Create mapping from userId to avatarUrl from CALL conversation participants
+    // NOT from activeConversation (which changes as user navigates)
     const avatarUrlMap = new Map<string, string>()
 
-    // First, try to get avatar URLs from activeConversation.participants
-    if (activeConversation?.participants) {
-      activeConversation.participants.forEach((cp: any) => {
+    // Use callConversationProp (where the call was initiated) for participant avatars
+    // This ensures avatars remain correct even when user navigates to other conversations
+    const conversationForAvatars = callConversationProp || activeConversation
+
+    if (conversationForAvatars?.participants) {
+      conversationForAvatars.participants.forEach((cp: any) => {
         if (cp.user?.avatarUrl) {
           // Map by userId (the stable user ID in our system)
           avatarUrlMap.set(cp.userId, cp.user.avatarUrl)
           avatarUrlMap.set(cp.user.id, cp.user.avatarUrl)
-          rtkDebug.log('[RTK Modal] 🖼️ Avatar from conversation:', {
+          rtkDebug.log('[RTK Modal] 🖼️ Avatar from CALL conversation:', {
+            conversationId: conversationForAvatars.id,
+            conversationName: conversationForAvatars.name,
+            isCallConversation: conversationForAvatars === callConversationProp,
             userId: cp.userId,
             userName: cp.user.displayName || cp.user.username,
             avatarUrl: cp.user.avatarUrl
@@ -1535,7 +1856,10 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
       }
     })
 
-    rtkDebug.log('[RTK Modal] 🖼️ Avatar map built:', {
+    rtkDebug.log('[RTK Modal] 🖼️ Avatar map built for call conversation:', {
+      callConversationId: callConversationProp?.id,
+      activeConversationId: activeConversation?.id,
+      usedConversationId: conversationForAvatars?.id,
       totalMappings: avatarUrlMap.size,
       keys: Array.from(avatarUrlMap.keys())
     })
@@ -1572,7 +1896,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
           peerName: focusedScreenShare.peerName,
           screenShareTrack: focusedScreenShare.screenShareTrack,
           isLocal: isLocalUser(focusedScreenShare.peerId),
-          isMuted: isLocalUser(focusedScreenShare.peerId) ? callState.isMuted : false,
+          isMuted: isLocalUser(focusedScreenShare.peerId) ? effectiveLocalIsMuted : false,
           isVideoEnabled: true,
           isFocusedScreenShare: true
         })
@@ -1592,7 +1916,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
     const localVideoTrack =
       meeting?.self?.videoTrack && !isVideoTrackScreenShare(meeting.self.videoTrack) ? meeting.self.videoTrack : null
     const localAudioTrack = meeting?.self?.audioTrack
-    const localHasVideo = callState.isVideoEnabled && !!localVideoTrack
+    const localHasVideo = effectiveLocalIsVideoEnabled && !!localVideoTrack
 
     // Always add local participant - screen share is a separate item
     const localParticipantId = 'local-participant'
@@ -1632,8 +1956,8 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
         hasVideoTrack: localHasVideo, // For rendering decision
         hasAudioTrack: !!localAudioTrack, // Audio needs video element too!
         isLocal: true,
-        isMuted: callState.isMuted,
-        isVideoEnabled: callState.isVideoEnabled,
+        isMuted: effectiveLocalIsMuted,
+        isVideoEnabled: effectiveLocalIsVideoEnabled,
         // Don't highlight yourself as active speaker (industry standard UX)
         // You already know you're speaking - more useful to see who ELSE is speaking
         isActiveSpeaker: false // Could make this: activeSpeakerId === 'local' to show self-highlight
@@ -1691,7 +2015,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
           peerName: share.peerName,
           screenShareTrack: share.screenShareTrack,
           isLocal: isLocalUser(share.peerId),
-          isMuted: isLocalUser(share.peerId) ? callState.isMuted : false,
+          isMuted: isLocalUser(share.peerId) ? effectiveLocalIsMuted : false,
           isVideoEnabled: true
         })
         seenIds.add(shareId)
@@ -1873,11 +2197,16 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
     participants,
     meeting?.self?.videoTrack?.id, // Only depend on track ID, not entire object
     meeting?.self?.audioTrack?.id, // Only depend on track ID, not entire object
+    meeting?.self?.videoEnabled, // SDK local video state (source of truth)
+    meeting?.self?.audioEnabled, // SDK local audio state (source of truth)
+    meeting?.self?.screenShareEnabled, // SDK local screen share state (source of truth)
+    localScreenShareTrack?.id, // local screen share track identity
     meeting?.self?.userId, // For hand-raised checks
     meeting?.self?.customParticipantId, // For reactions
     activeSpeakerId,
     activeSpeakerHistory,
-    activeConversation?.participants, // For avatar URLs
+    callConversationProp?.participants, // For avatar URLs from call conversation
+    activeConversation?.participants, // Fallback for avatar URLs
     currentUserId // For local avatar lookup
   ])
 
@@ -1927,27 +2256,29 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
 
   // Calculate responsive values based on screen size
   const [responsiveConfig, setResponsiveConfig] = useState(() => {
-    const width = window.innerWidth
+    const width = globalThis.window.innerWidth
     return {
       sidebarWidth: width < 768 ? 280 : width < 1024 ? 320 : 360,
       minTileSize: width < 768 ? 150 : width < 1024 ? 180 : 250,
-      minTileSizeWithSidebar: width < 768 ? 120 : width < 1024 ? 150 : 200
+      minTileSizeWithSidebar: width < 768 ? 120 : width < 1024 ? 150 : 200,
+      maxTileSize: width < 768 ? 9999 : width < 1024 ? 450 : width < 1440 ? 600 : width < 1920 ? 700 : 800
     }
   })
 
   // Update responsive config on window resize
   useEffect(() => {
     const handleResize = () => {
-      const width = window.innerWidth
+      const width = globalThis.window.innerWidth
       setResponsiveConfig({
         sidebarWidth: width < 768 ? 280 : width < 1024 ? 320 : 360,
         minTileSize: width < 768 ? 150 : width < 1024 ? 180 : 250,
-        minTileSizeWithSidebar: width < 768 ? 120 : width < 1024 ? 150 : 200
+        minTileSizeWithSidebar: width < 768 ? 120 : width < 1024 ? 150 : 200,
+        maxTileSize: width < 768 ? 9999 : width < 1024 ? 450 : width < 1440 ? 600 : width < 1920 ? 700 : 800
       })
     }
 
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
+    globalThis.window.addEventListener('resize', handleResize)
+    return () => globalThis.window.removeEventListener('resize', handleResize)
   }, [])
 
   // Calculate minimum tile size for auto-fit grid based on panel state and screen size
@@ -2136,6 +2467,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
           setTimeout(() => {
             videoEl.srcObject = stream
             videoEl.muted = item.isLocal
+            void applySinkIdToElement(videoEl, selectedAudioOutputIdRef.current)
             videoEl.play().catch(err => rtkDebug.warn(`[RTK Modal] Could not auto-play video ${item.peerId}:`, err))
           }, 10)
         }
@@ -2155,6 +2487,52 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
 
   // Minimized view refs - for audio management in PiP-style window
   const pipAudioRefs = useRef<Map<string, HTMLAudioElement>>(new Map())
+
+  const handleSpeakerDeviceChange = useCallback(
+    (deviceId: string) => {
+      selectedAudioOutputIdRef.current = deviceId
+
+      // Apply to all currently mounted remote media elements
+      remoteVideoRefs.current.forEach(videoEl => {
+        void applySinkIdToElement(videoEl, deviceId)
+      })
+      pipAudioRefs.current.forEach(audioEl => {
+        void applySinkIdToElement(audioEl, deviceId)
+      })
+      void applySinkIdToElement(expandedScreenShareVideoRef.current, deviceId)
+    },
+    [applySinkIdToElement]
+  )
+
+  // Apply saved speaker output automatically when call UI mounts (so pre-call selection takes effect immediately).
+  // Skip on mobile so we never call setSinkId there (avoids broken playback from invalid/desktop device IDs).
+  const hasAppliedInitialSinkIdRef = useRef(false)
+  useEffect(() => {
+    if (hasAppliedInitialSinkIdRef.current) return
+    if (typeof globalThis.window === 'undefined') return
+    if (!callState.roomId) return
+    if (isMobileDevice()) {
+      hasAppliedInitialSinkIdRef.current = true
+      return
+    }
+
+    try {
+      const saved = localStorage.getItem('chat-preferred-audio-output')
+      if (saved) {
+        handleSpeakerDeviceChange(saved)
+      }
+    } catch {
+      // ignore
+    } finally {
+      hasAppliedInitialSinkIdRef.current = true
+    }
+  }, [callState.roomId, handleSpeakerDeviceChange])
+
+  // Reset when call ends so the next call can apply again.
+  useEffect(() => {
+    if (callState.roomId) return
+    hasAppliedInitialSinkIdRef.current = false
+  }, [callState.roomId])
 
   // Set expanded video stream - simplified to match old implementation
   useEffect(() => {
@@ -2316,6 +2694,13 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
     // Create or update audio elements for each remote peer
     stableRemotePeers.forEach(peer => {
       const rtkPeer = peer as RealtimeKitPeer
+
+      // CRITICAL: Skip local participant to prevent echo/hearing yourself
+      if (peer.id === meeting?.self?.id) {
+        rtkDebug.log('[Minimized] Skipping audio for local participant:', peer.id)
+        return
+      }
+
       const peerName = rtkPeer.name || rtkPeer.odName
       const stream = buildStreamFromPeer(rtkPeer)
       if (stream && stream.getAudioTracks().length > 0) {
@@ -2334,6 +2719,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
           const audio = document.createElement('audio')
           audio.autoplay = true
           audio.srcObject = stream
+          void applySinkIdToElement(audio, selectedAudioOutputIdRef.current)
           audio
             .play()
             .then(() => rtkDebug.log('[Minimized] Audio playing for:', peerName))
@@ -2351,6 +2737,7 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
               newTrackId
             })
             existingAudio.srcObject = stream
+            void applySinkIdToElement(existingAudio, selectedAudioOutputIdRef.current)
             existingAudio.play().catch(err => console.error('[Minimized] Audio play error for', peerName, ':', err))
           }
         }
@@ -2454,8 +2841,8 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
           remotePeerCount={stableRemotePeers.length}
           callStartTime={callState.startTime}
           callType={callState.callType}
-          isMuted={callState.isMuted}
-          isVideoEnabled={callState.isVideoEnabled}
+          isMuted={effectiveLocalIsMuted}
+          isVideoEnabled={effectiveLocalIsVideoEnabled}
           isHandRaised={hideReactionsAndHandRaise ? false : isFirstPeerHandRaised}
           handRaisedOrderNumber={hideReactionsAndHandRaise ? undefined : firstPeerHandRaisedOrderNumber}
           isRemotePeerMuted={isFirstPeerMuted}
@@ -2481,14 +2868,21 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
     <>
       {createPortal(
         <div key="full-call-dialog" data-view-mode="full">
-          <Dialog open={isOpen} onOpenChange={() => {}}>
+          <Dialog modal={false} open={isOpen} onOpenChange={() => {}}>
             <DialogContent
               className="gba:h-[85vh] gba:p-0 gba:overflow-hidden gba:flex gba:flex-col gba:gap-0"
               style={{
                 width: '90vw',
-                maxWidth: window.innerWidth >= 1280 ? '1800px' : window.innerWidth >= 1024 ? '1600px' : '90vw'
+                maxWidth:
+                  globalThis.window.innerWidth >= 1280
+                    ? '1800px'
+                    : globalThis.window.innerWidth >= 1024
+                      ? '1600px'
+                      : '90vw'
               }}
               data-testid={`${prefixDataTestId}-modal`}
+              onPointerDownOutside={e => e.preventDefault()}
+              onEscapeKeyDown={e => e.preventDefault()}
             >
               <style>{`
               [data-testid="${prefixDataTestId}-modal"] > button[data-radix-collection-item] {
@@ -2649,12 +3043,18 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
                     <VideoGrid
                       mode="auto-fit"
                       minTileSize={minTileSize}
+                      maxTileSize={responsiveConfig.maxTileSize}
                       gridItems={paginatedGridItems.items.map(item => (
                         <div
                           key={item.id}
                           className="gba:relative gba:w-full gba:h-full gba:rounded-lg gba:overflow-hidden gba:bg-muted"
                           style={{
-                            aspectRatio: window.innerWidth < 768 ? '4/3' : '16/9'
+                            aspectRatio: getOptimalAspectRatio(
+                              globalThis.window.innerWidth,
+                              paginatedGridItems.items.length,
+                              item.type === 'screen-share',
+                              sidebarView !== 'closed'
+                            )
                           }}
                           data-testid={`${prefixDataTestId}-grid-item-${item.id}`}
                         >
@@ -2737,11 +3137,11 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
                         onMuteAll={handleMuteAll}
                         activeSpeakerId={activeSpeakerId}
                         activeSpeakerHistory={activeSpeakerHistory}
-                        remoteHandsRaised={hideReactionsAndHandRaise ? {} : callState.remoteHandsRaised}
-                        handRaisedOrder={hideReactionsAndHandRaise ? {} : callState.handRaisedOrder}
-                        localHandRaised={hideReactionsAndHandRaise ? false : callState.handRaised}
+                        remoteHandsRaised={hideReactionsAndHandRaise ? {} : effectiveRemoteHandsRaised}
+                        handRaisedOrder={hideReactionsAndHandRaise ? {} : effectiveHandRaisedOrder}
+                        localHandRaised={hideReactionsAndHandRaise ? false : effectiveLocalHandRaised}
                         localUserId={meeting?.self?.userId}
-                        activeConversation={activeConversation}
+                        activeConversation={callConversationProp || activeConversation}
                         t={t}
                       />
                     )}
@@ -2759,6 +3159,31 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
                         prefixDataTestId={`${prefixDataTestId}-chat`}
                       />
                     )}
+                    {sidebarView === 'audio-settings' && (
+                      <AudioSettingsModal
+                        audioInputDevices={audioInputDevices}
+                        audioOutputDevices={audioOutputDevices}
+                        selectedAudioInputId={selectedAudioInputId}
+                        selectedAudioOutputId={selectedAudioOutputId}
+                        onAudioInputChange={deviceId => {
+                          setSelectedAudioInputId(deviceId)
+                          if (onMicDeviceChange) {
+                            void onMicDeviceChange(deviceId)
+                          }
+                        }}
+                        onAudioOutputChange={deviceId => {
+                          setSelectedAudioOutputId(deviceId)
+                        }}
+                        canSelectAudioOutput={canSelectAudioOutput}
+                        rnnoiseEnabled={rnnoiseEnabled}
+                        rnnoiseMode={rnnoiseMode}
+                        onToggleRnnoise={onToggleRnnoise}
+                        onRnnoiseModeChange={onRnnoiseModeChange}
+                        onClose={() => setSidebarView('closed')}
+                        prefixDataTestId={`${prefixDataTestId}-audio-settings`}
+                        t={t}
+                      />
+                    )}
                   </div>
                 )}
               </div>
@@ -2767,11 +3192,11 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
               <div className="gba:bg-background gba:border-t gba:flex-shrink-0">
                 <CallControlsBar
                   callType={callState.callType}
-                  isMuted={callState.isMuted}
-                  isVideoEnabled={callState.isVideoEnabled}
-                  isScreenSharing={callState.isScreenSharing}
+                  isMuted={effectiveLocalIsMuted}
+                  isVideoEnabled={effectiveLocalIsVideoEnabled}
+                  isScreenSharing={effectiveLocalIsScreenSharing}
                   backgroundEnabled={callState.backgroundEnabled}
-                  handRaised={hideReactionsAndHandRaise ? false : callState.handRaised}
+                  handRaised={hideReactionsAndHandRaise ? false : effectiveLocalHandRaised}
                   transcriptionActive={transcriptionEnabled}
                   onToggleMute={onToggleMute}
                   onToggleVideo={onToggleVideo}
@@ -2779,6 +3204,40 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = ({
                   onToggleBackground={onToggleBackground}
                   onToggleRaiseHand={hideReactionsAndHandRaise ? undefined : onToggleRaiseHand}
                   onSendReaction={hideReactionsAndHandRaise ? undefined : onSendReaction}
+                  onMicDeviceChange={
+                    onMicDeviceChange
+                      ? deviceId => {
+                          void onMicDeviceChange(deviceId)
+                        }
+                      : undefined
+                  }
+                  onCameraDeviceChange={
+                    onCameraDeviceChange
+                      ? deviceId => {
+                          void onCameraDeviceChange(deviceId)
+                        }
+                      : undefined
+                  }
+                  onSpeakerDeviceChange={handleSpeakerDeviceChange}
+                  onToggleAudioSettings={handleToggleAudioSettings}
+                  sharedDeviceState={{
+                    audioInputDevices,
+                    audioOutputDevices,
+                    videoInputDevices,
+                    selectedAudioInputId,
+                    selectedAudioOutputId,
+                    selectedVideoInputId,
+                    setSelectedAudioInputId: id => {
+                      if (id !== null) setSelectedAudioInputId(id)
+                    },
+                    setSelectedAudioOutputId: id => {
+                      if (id !== null) setSelectedAudioOutputId(id)
+                    },
+                    setSelectedVideoInputId: id => {
+                      if (id !== null) setSelectedVideoInputId(id)
+                    },
+                    canSelectAudioOutput
+                  }}
                   onEndCall={onEndCall}
                   prefixDataTestId={prefixDataTestId}
                   t={t}
@@ -2824,9 +3283,11 @@ export const GroupCallModalRtk = React.memo(GroupCallModalRtkComponent, (prevPro
   if (prevProps.onSetVideoQuality !== nextProps.onSetVideoQuality) changedProps.push('onSetVideoQuality')
   if (prevProps.onToggleMinimize !== nextProps.onToggleMinimize) changedProps.push('onToggleMinimize')
   if (prevProps.onToggleBackground !== nextProps.onToggleBackground) changedProps.push('onToggleBackground')
+  if (prevProps.onToggleRnnoise !== nextProps.onToggleRnnoise) changedProps.push('onToggleRnnoise')
   if (prevProps.onToggleRaiseHand !== nextProps.onToggleRaiseHand) changedProps.push('onToggleRaiseHand')
   if (prevProps.onSendReaction !== nextProps.onSendReaction) changedProps.push('onSendReaction')
   if (prevProps.backgroundEnabled !== nextProps.backgroundEnabled) changedProps.push('backgroundEnabled')
+  if (prevProps.rnnoiseEnabled !== nextProps.rnnoiseEnabled) changedProps.push('rnnoiseEnabled')
   if (prevProps.prefixDataTestId !== nextProps.prefixDataTestId) changedProps.push('prefixDataTestId')
   if (prevProps.availableParticipants !== nextProps.availableParticipants) changedProps.push('availableParticipants')
   if (prevProps.onInviteParticipant !== nextProps.onInviteParticipant) changedProps.push('onInviteParticipant')
