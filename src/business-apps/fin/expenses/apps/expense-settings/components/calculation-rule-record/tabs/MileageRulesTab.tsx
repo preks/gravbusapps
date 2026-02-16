@@ -32,10 +32,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
   DropdownMenuSeparator,
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
   Form,
   FormField,
   FormItem,
@@ -45,18 +41,8 @@ import {
   DateInput,
   Textarea
 } from '@newwork/nw-design-system'
-import { DeleteConfirmationDialog } from '../shared'
-import {
-  PiPlus,
-  PiCalendar,
-  PiCar,
-  PiPercent,
-  PiDotsThreeVertical,
-  PiPencil,
-  PiTrash,
-  PiInfo,
-  PiWarning
-} from 'react-icons/pi'
+import { DeleteConfirmationDialog, AdditionalPropertiesDisplay } from '../shared'
+import { PiPlus, PiCalendar, PiCar, PiPercent, PiDotsThreeVertical, PiPencil, PiTrash, PiWarning } from 'react-icons/pi'
 import { toast } from 'sonner'
 import dayjs from 'dayjs'
 import weekday from 'dayjs/plugin/weekday'
@@ -651,8 +637,7 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
 
   const measurementUnitOptions = [
     { value: 'MeasurementUnit:v1:km', label: 'Kilometers (km)' },
-    { value: 'MeasurementUnit:v1:mile', label: 'Miles (mile)' },
-    { value: 'MeasurementUnit:v1:hour', label: 'Hours (hr)' }
+    { value: 'MeasurementUnit:v1:mile', label: 'Miles (mile)' }
   ]
 
   const formatReimbursable = (reimbursable: boolean): React.ReactNode => {
@@ -676,35 +661,6 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
     // Fallback: Extract the actual tax code from the reference
     const parts = taxCodeRef.split(':')
     return parts.length >= 3 ? parts[2] : taxCodeRef
-  }
-
-  const renderAdditionalProperties = (additionalProperties?: Record<string, any>) => {
-    if (!additionalProperties || Object.keys(additionalProperties).length === 0) {
-      return <span className="gba:text-muted-foreground">None</span>
-    }
-
-    const propertyCount = Object.keys(additionalProperties).length
-
-    return (
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div className="gba:flex gba:items-center gba:gap-1 gba:cursor-help">
-              <Badge variant="secondary">{propertyCount}</Badge>
-              <Button variant="ghost" size="icon" className="gba:h-6 gba:w-6 gba:text-info">
-                <PiInfo className="gba:h-4 gba:w-4" />
-              </Button>
-            </div>
-          </TooltipTrigger>
-          <TooltipContent side="left" className="gba:max-w-md gba:p-3 gba:bg-popover gba:text-popover-foreground">
-            <div className="gba:font-medium gba:mb-2">Additional Properties:</div>
-            <pre className="gba:text-xs gba:bg-background gba:text-foreground gba:p-2 gba:rounded gba:overflow-auto gba:max-h-64 gba:whitespace-pre-wrap gba:border">
-              {JSON.stringify(additionalProperties, null, 2)}
-            </pre>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-    )
   }
 
   if (isLoading) {
@@ -995,7 +951,7 @@ const MileageRulesTab: React.FC<MileageRulesTabProps> = ({ ruleId, accessToken, 
                     </TableCell>
 
                     <TableCell data-testid={`mileage-rule-properties-cell-${record.id}`} className="gba:text-center">
-                      {renderAdditionalProperties(record.additionalProperties)}
+                      <AdditionalPropertiesDisplay additionalProperties={record.additionalProperties} />
                     </TableCell>
                   </TableRow>
                 ))

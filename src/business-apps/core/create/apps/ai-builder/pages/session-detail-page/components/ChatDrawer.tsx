@@ -1,6 +1,17 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { Button, Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
-import { Bot, Sparkles, Loader2, Copy, Check, ChevronDown, ChevronRight, Upload, Brain, MoreVertical } from 'lucide-react'
+import {
+  Bot,
+  Sparkles,
+  Loader2,
+  Copy,
+  Check,
+  ChevronDown,
+  ChevronRight,
+  Upload,
+  Brain,
+  MoreVertical
+} from 'lucide-react'
 import { MarkdownRenderer } from './MarkdownRenderer'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
@@ -21,6 +32,7 @@ interface Message {
   messageId?: string
   createdAt?: string
   serverCreatedAt?: string
+  localOnly?: boolean
   cost?: {
     inputTokens: number
     outputTokens: number
@@ -218,116 +230,117 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
             )}
 
             {messages.map((message, idx) => {
-              const canRestore = !!onRestoreMessage && message.role === 'assistant' && !!message.messageId
+              const canRestore =
+                !!onRestoreMessage && message.role === 'assistant' && !!message.messageId && !message.localOnly
               return (
-              <div
-                key={message.messageId ?? `${message.role}-${idx}-${message.content.length}`}
-                className={`gba:flex gba:gap-3 ${message.role === 'user' ? 'gba:justify-end' : 'gba:justify-start'}`}
-              >
-                {message.role === 'assistant' && (
-                  <div className="gba:w-8 gba:h-8 gba:rounded-lg gba:bg-primary gba:flex gba:items-center gba:justify-center gba:flex-shrink-0">
-                    <Bot className="gba:w-4 gba:h-4 gba:text-primary-foreground" />
-                  </div>
-                )}
-
-                <div className="gba:max-w-[85%]">
-                  {canRestore && (
-                    <div className="gba:flex gba:justify-end gba:mb-1">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => onRestoreMessage?.(message)}
-                        disabled={isRestoringMessageId === message.messageId}
-                        className="gba:h-7 gba:px-2 gba:text-xs gba:gap-1"
-                      >
-                        <MoreVertical className="gba:w-3 gba:h-3" />
-                        Restore
-                      </Button>
+                <div
+                  key={message.messageId ?? `${message.role}-${idx}-${message.content.length}`}
+                  className={`gba:flex gba:gap-3 ${message.role === 'user' ? 'gba:justify-end' : 'gba:justify-start'}`}
+                >
+                  {message.role === 'assistant' && (
+                    <div className="gba:w-8 gba:h-8 gba:rounded-lg gba:bg-primary gba:flex gba:items-center gba:justify-center gba:flex-shrink-0">
+                      <Bot className="gba:w-4 gba:h-4 gba:text-primary-foreground" />
                     </div>
                   )}
-                  {message.role === 'user' ? (
-                    <div className="gba:bg-primary gba:text-primary-foreground gba:rounded-2xl gba:px-4 gba:py-3 gba:shadow-sm">
-                      <p className="gba:text-sm gba:leading-relaxed">{message.content}</p>
-                    </div>
-                  ) : (
-                    <div className="gba:space-y-3 gba:bg-muted/30 gba:rounded-2xl gba:px-4 gba:py-3 gba:border gba:border-border/50">
-                      {/* Only show thinking block if there's meaningful content (>50 chars) */}
-                      {message.thinkingLog && message.thinkingLog.trim().length > 50 && (
-                        <div className="gba:border gba:border-muted-foreground/20 gba:rounded-lg gba:overflow-hidden">
-                          <button
-                            className="gba:w-full gba:flex gba:items-center gba:gap-2 gba:px-3 gba:py-2 gba:bg-muted/50 gba:text-xs gba:text-muted-foreground hover:gba:bg-muted gba:transition-colors"
-                            onClick={() => onToggleThinking?.(idx)}
-                          >
-                            {message.thinkingCollapsed ? (
-                              <ChevronRight className="gba:w-3 gba:h-3" />
-                            ) : (
-                              <ChevronDown className="gba:w-3 gba:h-3" />
-                            )}
-                            <Brain className="gba:w-3 gba:h-3" />
-                            <span className="gba:font-medium">
-                              {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.thinking_label', 'Thinking')}
-                            </span>
-                            <span className="gba:text-muted-foreground/60">
-                              ({Math.ceil(message.thinkingLog.length / 100)}{' '}
-                              {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.steps', 'steps')})
-                            </span>
-                          </button>
-                          {!message.thinkingCollapsed && message.thinkingLog.trim() && (
-                            <div className="gba:px-3 gba:py-2 gba:bg-muted/30 gba:text-xs gba:text-muted-foreground gba:whitespace-pre-wrap gba:max-h-64 gba:overflow-y-auto gba:border-t gba:border-muted-foreground/10">
-                              {message.thinkingLog}
-                            </div>
-                          )}
-                        </div>
-                      )}
 
-                      <div className="gba:bg-card gba:border gba:rounded-lg gba:px-3 gba:py-2">
-                        {message.cost && (
-                          <div className="gba:flex gba:items-center gba:justify-between gba:mb-2 gba:pb-2 gba:border-b">
-                            <span className="gba:text-xs gba:font-medium gba:text-primary">
-                              {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.ai_response', 'AI Response')}
-                            </span>
-                            <span className="gba:text-xs gba:text-muted-foreground">
-                              ${message.cost.totalCost.toFixed(4)} ({message.cost.inputTokens.toLocaleString()}in /{' '}
-                              {message.cost.outputTokens.toLocaleString()}out)
-                            </span>
+                  <div className="gba:max-w-[85%]">
+                    {canRestore && (
+                      <div className="gba:flex gba:justify-end gba:mb-1">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => onRestoreMessage?.(message)}
+                          disabled={isRestoringMessageId === message.messageId}
+                          className="gba:h-7 gba:px-2 gba:text-xs gba:gap-1"
+                        >
+                          <MoreVertical className="gba:w-3 gba:h-3" />
+                          Restore
+                        </Button>
+                      </div>
+                    )}
+                    {message.role === 'user' ? (
+                      <div className="gba:bg-primary gba:text-primary-foreground gba:rounded-2xl gba:px-4 gba:py-3 gba:shadow-sm">
+                        <p className="gba:text-sm gba:leading-relaxed">{message.content}</p>
+                      </div>
+                    ) : (
+                      <div className="gba:space-y-3 gba:bg-muted/30 gba:rounded-2xl gba:px-4 gba:py-3 gba:border gba:border-border/50">
+                        {/* Only show thinking block if there's meaningful content (>50 chars) */}
+                        {message.thinkingLog && message.thinkingLog.trim().length > 50 && (
+                          <div className="gba:border gba:border-muted-foreground/20 gba:rounded-lg gba:overflow-hidden">
+                            <button
+                              className="gba:w-full gba:flex gba:items-center gba:gap-2 gba:px-3 gba:py-2 gba:bg-muted/50 gba:text-xs gba:text-muted-foreground hover:gba:bg-muted gba:transition-colors"
+                              onClick={() => onToggleThinking?.(idx)}
+                            >
+                              {message.thinkingCollapsed ? (
+                                <ChevronRight className="gba:w-3 gba:h-3" />
+                              ) : (
+                                <ChevronDown className="gba:w-3 gba:h-3" />
+                              )}
+                              <Brain className="gba:w-3 gba:h-3" />
+                              <span className="gba:font-medium">
+                                {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.thinking_label', 'Thinking')}
+                              </span>
+                              <span className="gba:text-muted-foreground/60">
+                                ({Math.ceil(message.thinkingLog.length / 100)}{' '}
+                                {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.steps', 'steps')})
+                              </span>
+                            </button>
+                            {!message.thinkingCollapsed && message.thinkingLog.trim() && (
+                              <div className="gba:px-3 gba:py-2 gba:bg-muted/30 gba:text-xs gba:text-muted-foreground gba:whitespace-pre-wrap gba:max-h-64 gba:overflow-y-auto gba:border-t gba:border-muted-foreground/10">
+                                {message.thinkingLog}
+                              </div>
+                            )}
                           </div>
                         )}
-                        {renderMarkdown(message.content)}
+
+                        <div className="gba:bg-card gba:border gba:rounded-lg gba:px-3 gba:py-2">
+                          {message.cost && (
+                            <div className="gba:flex gba:items-center gba:justify-between gba:mb-2 gba:pb-2 gba:border-b">
+                              <span className="gba:text-xs gba:font-medium gba:text-primary">
+                                {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.ai_response', 'AI Response')}
+                              </span>
+                              <span className="gba:text-xs gba:text-muted-foreground">
+                                ${message.cost.totalCost.toFixed(4)} ({message.cost.inputTokens.toLocaleString()}in /{' '}
+                                {message.cost.outputTokens.toLocaleString()}out)
+                              </span>
+                            </div>
+                          )}
+                          {renderMarkdown(message.content)}
+                        </div>
+
+                        {message.toolCalls && message.toolCalls.length > 0 && renderToolCalls(message.toolCalls)}
+
+                        <button
+                          onClick={() => handleCopyMessage(message.content, `${idx}`)}
+                          className="gba:mt-2 gba:flex gba:items-center gba:gap-1 gba:text-xs gba:text-muted-foreground hover:gba:text-foreground gba:transition-colors"
+                        >
+                          {copiedMessageId === `${idx}` ? (
+                            <>
+                              <Check className="gba:w-3 gba:h-3" />
+                              <span>Copied</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="gba:w-3 gba:h-3" />
+                              <span>Copy</span>
+                            </>
+                          )}
+                        </button>
                       </div>
+                    )}
+                  </div>
 
-                      {message.toolCalls && message.toolCalls.length > 0 && renderToolCalls(message.toolCalls)}
-
-                      <button
-                        onClick={() => handleCopyMessage(message.content, `${idx}`)}
-                        className="gba:mt-2 gba:flex gba:items-center gba:gap-1 gba:text-xs gba:text-muted-foreground hover:gba:text-foreground gba:transition-colors"
-                      >
-                        {copiedMessageId === `${idx}` ? (
-                          <>
-                            <Check className="gba:w-3 gba:h-3" />
-                            <span>Copied</span>
-                          </>
-                        ) : (
-                          <>
-                            <Copy className="gba:w-3 gba:h-3" />
-                            <span>Copy</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
+                  {message.role === 'user' && (
+                    <Avatar className="gba:w-8 gba:h-8 gba:shrink-0">
+                      {userAvatar ? (
+                        <AvatarImage src={userAvatar} alt={userName} />
+                      ) : (
+                        <AvatarFallback>{userName.slice(0, 2).toUpperCase()}</AvatarFallback>
+                      )}
+                    </Avatar>
                   )}
                 </div>
-
-                {message.role === 'user' && (
-                  <Avatar className="gba:w-8 gba:h-8 gba:shrink-0">
-                    {userAvatar ? (
-                      <AvatarImage src={userAvatar} alt={userName} />
-                    ) : (
-                      <AvatarFallback>{userName.slice(0, 2).toUpperCase()}</AvatarFallback>
-                    )}
-                  </Avatar>
-                )}
-              </div>
-            )
+              )
             })}
             <div ref={messagesEndRef} />
           </>
