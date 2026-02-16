@@ -48,6 +48,7 @@ export interface AvailableParticipant {
   id: string
   odId: string
   odName: string
+  avatarUrl?: string
 }
 
 export interface CallParticipant {
