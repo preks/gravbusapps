@@ -37,7 +37,7 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({
     try {
       const data = await builderClient.executeTool(
         'get_repository_explorer',
-        { path: '.', max_depth: 15 },
+        { path: '.', max_depth: 15, sessionOnly: true },
         repoId,
         sessionId
       )

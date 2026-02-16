@@ -35,7 +35,7 @@ import {
   CaretDownIcon,
   SpeakerHighIcon
 } from '@phosphor-icons/react'
-import type { GroupCallInvite } from '../hooks/useGroupCall'
+import type { GroupCallInvite } from '../services/callTypes'
 import { useChatTranslation } from '../contexts/TranslationContext'
 import { useMediaDevices } from '../hooks/useMediaDevices'
 import { MicLevelIndicator } from './call/MicLevelIndicator'

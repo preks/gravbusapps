@@ -580,6 +580,70 @@ export class BuilderClient {
   }
 
   /**
+   * Publish generated content to the platform with SSE progress.
+   */
+  async publishScreenStream(request: PublishRequest): Promise<ReadableStream> {
+    const response = await fetch(`${this.baseUrl}/publish/stream`, {
+      method: 'POST',
+      headers: this.getHeaders(true),
+      body: JSON.stringify(request)
+    })
+
+    if (!response.ok) {
+      let errorDetails = 'Failed to publish'
+      try {
+        const errorData = await response.json()
+        errorDetails = errorData.error || errorData.message || errorData.details || errorDetails
+      } catch {
+        try {
+          errorDetails = await response.text()
+        } catch {
+          errorDetails = `HTTP ${response.status}: ${response.statusText}`
+        }
+      }
+      throw new Error(errorDetails)
+    }
+
+    if (!response.body) {
+      throw new Error('Publish stream not available')
+    }
+
+    return response.body
+  }
+
+  /**
+   * Build preview bundle with SSE progress.
+   */
+  async buildPreviewStream(params: { sessionId: string; bundle?: boolean }): Promise<ReadableStream> {
+    const response = await fetch(`${this.baseUrl}/previews/build/stream`, {
+      method: 'POST',
+      headers: this.getHeaders(true),
+      body: JSON.stringify(params)
+    })
+
+    if (!response.ok) {
+      let errorDetails = 'Failed to build preview'
+      try {
+        const errorData = await response.json()
+        errorDetails = errorData.error || errorData.message || errorData.details || errorDetails
+      } catch {
+        try {
+          errorDetails = await response.text()
+        } catch {
+          errorDetails = `HTTP ${response.status}: ${response.statusText}`
+        }
+      }
+      throw new Error(errorDetails)
+    }
+
+    if (!response.body) {
+      throw new Error('Preview stream not available')
+    }
+
+    return response.body
+  }
+
+  /**
    * Validate target path format
    */
   validateTargetPath(path: string): {
@@ -855,8 +919,16 @@ export class BuilderClient {
   /**
    * Get preview file URL. Endpoint: /previews/{sessionId}/{fileName}
    */
-  getPreviewFileUrl(sessionId: string, fileName: string): string {
-    return `${this.baseUrl}/previews/${encodeURIComponent(sessionId)}/${encodeURIComponent(fileName)}`
+  getPreviewFileUrl(sessionId: string, fileName: string, query?: Record<string, string | number | boolean>): string {
+    const base = `${this.baseUrl}/previews/${encodeURIComponent(sessionId)}/${encodeURIComponent(fileName)}`
+    if (!query || Object.keys(query).length === 0) {
+      return base
+    }
+    const searchParams = new URLSearchParams()
+    for (const [key, value] of Object.entries(query)) {
+      searchParams.set(key, String(value))
+    }
+    return `${base}?${searchParams.toString()}`
   }
 
   /**

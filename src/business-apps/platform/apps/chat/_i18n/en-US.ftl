@@ -32,6 +32,7 @@ chat-authenticationFailed = Authentication failed. Please log in again.
 chat-connectionError = Failed to connect to the chat service. Please check your internet connection.
 chat-cannotLeaveAsLastOwner = You are the only owner of this group. Please transfer ownership to another member or delete the group from Group Settings.
 chat-failedToLeave = Failed to leave the conversation. Please try again.
+chat-failedToCreateConversation = Failed to create the conversation. Please try again.
 chat-nudgeCooldown = Please wait {$seconds} seconds before sending another nudge.
 
 # Messages

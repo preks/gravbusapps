@@ -1,4 +1,4 @@
-import React, { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import { useBuilderClient } from '@/common/network/ai/builder/useBuilderClient'
 import { getRuntimeEnvsForIframe } from '@/common/env/EnvUtils'
 import { Loader2, AlertCircle, Upload, Download, CheckCircle, X } from 'lucide-react'
@@ -20,6 +20,7 @@ interface UniqueFileSummary {
 interface PreviewSandboxProps {
   repoId: string
   sessionId: string
+  previewAppName?: string | null
   accessToken?: string
   userInfo?: any
   onReady?: () => void
@@ -30,6 +31,12 @@ interface PreviewSandboxProps {
   onRefresh?: () => void
   publishSuccess?: string | null
   onDismissPublishSuccess?: () => void
+  buildStatus?: {
+    active: boolean
+    lines: string[]
+    error: string | null
+  }
+  allowLoad?: boolean
 }
 
 export interface PreviewSandboxHandle {
@@ -40,6 +47,7 @@ export const PreviewSandbox = forwardRef<PreviewSandboxHandle, PreviewSandboxPro
   {
     repoId,
     sessionId,
+    previewAppName,
     accessToken,
     userInfo,
     onReady,
@@ -48,7 +56,9 @@ export const PreviewSandbox = forwardRef<PreviewSandboxHandle, PreviewSandboxPro
     onPublish,
     onRefresh,
     publishSuccess,
-    onDismissPublishSuccess
+    onDismissPublishSuccess,
+    buildStatus,
+    allowLoad = true
   },
   ref
 ) {
@@ -58,27 +68,28 @@ export const PreviewSandbox = forwardRef<PreviewSandboxHandle, PreviewSandboxPro
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [bundleVersion, setBundleVersion] = useState<string | null>(null)
   const iframeRef = useRef<HTMLIFrameElement>(null)
-  const previewUrlRef = useRef<string | null>(null)
   const builderClient = useBuilderClient(accessToken ?? '')
 
-  previewUrlRef.current = previewUrl
+  const createPreviewUrl = (cacheBust: string) => {
+    const query: Record<string, string> = { v: cacheBust }
+    const app = previewAppName?.trim()
+    if (app) {
+      query.app = app
+    }
+    return builderClient.getPreviewFileUrl(sessionId, 'index.html', query)
+  }
 
   useImperativeHandle(
     ref,
     () => ({
       reload() {
-        const iframe = iframeRef.current
-        if (!iframe) return
         setIframeLoaded(false)
-        try {
-          iframe.contentWindow?.location.reload()
-        } catch {
-          const url = previewUrlRef.current
-          if (url) iframe.src = url
-        }
+        const cacheBust = Date.now().toString()
+        setBundleVersion(cacheBust)
+        setPreviewUrl(createPreviewUrl(cacheBust))
       }
     }),
-    []
+    [builderClient, sessionId, previewAppName]
   )
 
   useEffect(() => {
@@ -86,6 +97,10 @@ export const PreviewSandbox = forwardRef<PreviewSandboxHandle, PreviewSandboxPro
     setIframeLoaded(false)
 
     const loadPreview = async () => {
+      if (!allowLoad) {
+        setLoading(false)
+        return
+      }
       if (!repoId || !sessionId) {
         setError('Missing repoId or sessionId')
         setLoading(false)
@@ -98,9 +113,10 @@ export const PreviewSandbox = forwardRef<PreviewSandboxHandle, PreviewSandboxPro
 
         if (!mounted) return
 
-        const indexUrl = builderClient.getPreviewFileUrl(sessionId, 'index.html')
+        const cacheBust = Date.now().toString()
+        const indexUrl = createPreviewUrl(cacheBust)
         setPreviewUrl(indexUrl)
-        setBundleVersion(sessionId)
+        setBundleVersion(cacheBust)
       } catch (err) {
         if (!mounted) return
 
@@ -123,7 +139,7 @@ export const PreviewSandbox = forwardRef<PreviewSandboxHandle, PreviewSandboxPro
     return () => {
       mounted = false
     }
-  }, [repoId, sessionId, accessToken])
+  }, [repoId, sessionId, accessToken, allowLoad, previewAppName])
 
   const handleIframeLoad = () => {
     setIframeLoaded(true)
@@ -174,7 +190,7 @@ export const PreviewSandbox = forwardRef<PreviewSandboxHandle, PreviewSandboxPro
     }
   }
 
-  if (loading) {
+  if (loading && !buildStatus?.active) {
     return (
       <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-full gba:text-muted-foreground gba:gap-3">
         <Loader2 className="gba:w-8 gba:h-8 gba:animate-spin gba:text-primary" />
@@ -193,7 +209,7 @@ export const PreviewSandbox = forwardRef<PreviewSandboxHandle, PreviewSandboxPro
     )
   }
 
-  if (!previewUrl) {
+  if (!previewUrl && !buildStatus?.active) {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:h-full gba:text-muted-foreground">
         <p className="gba:text-sm">No preview available</p>
@@ -268,19 +284,47 @@ export const PreviewSandbox = forwardRef<PreviewSandboxHandle, PreviewSandboxPro
 
       {/* Preview Content */}
       <div className="gba:flex-1 gba:relative">
-        <iframe
-          ref={iframeRef}
-          src={previewUrl}
-          className="gba:w-full gba:h-full gba:border-0"
-          sandbox="allow-scripts allow-same-origin allow-forms"
-          title="Preview Sandbox"
-          onLoad={handleIframeLoad}
-          onError={handleIframeError}
-        />
-        {!iframeLoaded && (
+        {previewUrl && (
+          <iframe
+            ref={iframeRef}
+            src={previewUrl}
+            className="gba:w-full gba:h-full gba:border-0"
+            sandbox="allow-scripts allow-same-origin allow-forms"
+            title="Preview Sandbox"
+            onLoad={handleIframeLoad}
+            onError={handleIframeError}
+          />
+        )}
+        {!iframeLoaded && previewUrl && !buildStatus?.active && (
           <div className="gba:absolute gba:inset-0 gba:flex gba:flex-col gba:items-center gba:justify-center gba:bg-background/80 gba:text-muted-foreground gba:gap-3">
             <Loader2 className="gba:w-8 gba:h-8 gba:animate-spin gba:text-primary" />
             <p className="gba:text-sm">Loading preview...</p>
+          </div>
+        )}
+        {buildStatus?.active && (
+          <div className="gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center gba:pointer-events-none">
+            <div className="gba:bg-background/90 gba:border gba:border-border gba:rounded-lg gba:shadow-sm gba:px-4 gba:py-3 gba:max-w-sm gba:text-sm gba:text-foreground">
+              <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
+                <Loader2 className="gba:w-4 gba:h-4 gba:animate-spin gba:text-primary" />
+                <span className="gba:font-medium">Preview build in progress</span>
+              </div>
+              <div className="gba:text-xs gba:text-muted-foreground gba:space-y-1">
+                {buildStatus.lines.map((line, index) => (
+                  <p key={`${line}-${index}`}>{line}</p>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+        {!buildStatus?.active && buildStatus?.error && (
+          <div className="gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center gba:pointer-events-none">
+            <div className="gba:bg-destructive/10 gba:border gba:border-destructive/30 gba:rounded-lg gba:px-4 gba:py-3 gba:max-w-sm gba:text-xs gba:text-destructive">
+              <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+                <AlertCircle className="gba:w-4 gba:h-4" />
+                <span className="gba:font-semibold">Preview build failed</span>
+              </div>
+              <p>{buildStatus.error}</p>
+            </div>
           </div>
         )}
       </div>

@@ -61,38 +61,10 @@ export function setSpreadsheetApiAuthTokenProvider(provider: (() => string | nul
   externalAuthTokenProvider = provider
 }
 
-// Get auth token - check multiple storage locations
+// Get auth token from the in-memory provider
 const getAuthToken = (): string | null => {
   try {
-    // Prefer external token provider (e.g., BusinessAppContext accessToken)
-    const externalToken = externalAuthTokenProvider?.()
-    if (externalToken) return externalToken
-
-    // First check the IDE's storage key (Business App IDE)
-    const ideToken = localStorage.getItem('business-app-ide-access-token')
-    if (ideToken) return ideToken
-
-    // Check keycloak token format
-    const authData = localStorage.getItem('keycloak-token')
-    if (authData) {
-      try {
-        const parsed = JSON.parse(authData)
-        return parsed.token || parsed.access_token || null
-      } catch {
-        return authData // Return as-is if not JSON
-      }
-    }
-
-    // Check session storage
-    const sessionToken = sessionStorage.getItem('auth_token')
-    if (sessionToken) return sessionToken
-
-    // Check window global
-    if (typeof window !== 'undefined' && (window as unknown as { authToken?: string }).authToken) {
-      return (window as unknown as { authToken: string }).authToken
-    }
-
-    return null
+    return externalAuthTokenProvider?.() || null
   } catch {
     return null
   }
