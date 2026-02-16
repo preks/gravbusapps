@@ -9,7 +9,7 @@ import type { GroupCallModalRtkProps } from '../../components/call/groupCallModa
 
 export function useGroupCallModalCallConversation(props: GroupCallModalRtkProps) {
   const { callState, conversationName, participants, activeConversation } = props
-  const [instanceId] = useState(() => `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`)
+  const [instanceId] = useState(() => `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`)
 
   useEffect(() => {
     return () => {
@@ -31,7 +31,7 @@ export function useGroupCallModalCallConversation(props: GroupCallModalRtkProps)
 
     const chatConversationId = callState.calendarMeetingId || callState.roomId
 
-    if (!callConversationRef.current || callConversationRef.current.id !== chatConversationId) {
+    if (callConversationRef.current?.id !== chatConversationId) {
       rtkDebug.log('[RTK Modal] Creating call conversation for chat:', {
         roomId: callState.roomId,
         calendarMeetingId: callState.calendarMeetingId,

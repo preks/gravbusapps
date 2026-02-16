@@ -35,25 +35,26 @@ export function useGroupCallModalPeersAndMeeting(props: GroupCallModalRtkProps) 
       const localCustomId = m.self?.customParticipantId
 
       const peers = joined.filter((p: any) => {
-        if (p.id === localId) return false
-        if (localUserId && p.userId === localUserId) return false
-        if (localCustomId && p.customParticipantId === localCustomId) return false
-        return true
+        return (
+          p.id !== localId &&
+          (!localUserId || p.userId !== localUserId) &&
+          (!localCustomId || p.customParticipantId !== localCustomId)
+        )
       }) as GroupCallParticipant[]
 
       const seenStableIds = new Set<string>()
       const dedupedPeers = peers.filter((peer: any) => {
         const stableId = peer.customParticipantId || peer.userId || peer.id
-        if (seenStableIds.has(stableId)) {
-          rtkDebug.log(`[RTK Modal] ⚠️ Duplicate participant filtered in selector:`, {
-            peerId: peer.id,
-            stableId,
-            peerName: peer.name
-          })
-          return false
+        if (!seenStableIds.has(stableId)) {
+          seenStableIds.add(stableId)
+          return true
         }
-        seenStableIds.add(stableId)
-        return true
+        rtkDebug.log(`[RTK Modal] ⚠️ Duplicate participant filtered in selector:`, {
+          peerId: peer.id,
+          stableId,
+          peerName: peer.name
+        })
+        return false
       })
 
       dedupedPeers.forEach((peer: any) => {
@@ -74,7 +75,7 @@ export function useGroupCallModalPeersAndMeeting(props: GroupCallModalRtkProps) 
   })
 
   const localScreenShareTrack = useRealtimeKitSelector((m: any) => {
-    if (!m?.self || !m?.self?.roomJoined) return null
+    if (!m?.self?.roomJoined) return null
 
     const screenShareTracks = extractTracksFromCollection(m.self.screenShareTracks)
     if (screenShareTracks.length > 0) {

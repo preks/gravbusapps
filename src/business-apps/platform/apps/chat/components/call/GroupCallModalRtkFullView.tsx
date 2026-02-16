@@ -61,6 +61,12 @@ export function GroupCallModalRtkFullView({ props: p, state }: GroupCallModalRtk
     hideReactionsAndHandRaise = false
   } = p
 
+  const width = globalThis.window.innerWidth
+  let dialogMaxWidth: string
+  if (width >= 1280) dialogMaxWidth = '1800px'
+  else if (width >= 1024) dialogMaxWidth = '1600px'
+  else dialogMaxWidth = '90vw'
+
   return createPortal(
     <div key="full-call-dialog" data-view-mode="full">
       <Dialog modal={false} open={state.isOpen} onOpenChange={() => {}}>
@@ -68,8 +74,7 @@ export function GroupCallModalRtkFullView({ props: p, state }: GroupCallModalRtk
           className="gba:h-[85vh] gba:p-0 gba:overflow-hidden gba:flex gba:flex-col gba:gap-0"
           style={{
             width: '90vw',
-            maxWidth:
-              globalThis.window.innerWidth >= 1280 ? '1800px' : globalThis.window.innerWidth >= 1024 ? '1600px' : '90vw'
+            maxWidth: dialogMaxWidth
           }}
           data-testid={`${prefixDataTestId}-modal`}
           onPointerDownOutside={e => e.preventDefault()}
@@ -120,7 +125,7 @@ export function GroupCallModalRtkFullView({ props: p, state }: GroupCallModalRtk
             className="gba:flex-1 gba:grid gba:min-h-0 gba:overflow-hidden gba:bg-muted/30"
             style={{
               gridTemplateColumns:
-                state.sidebarView !== 'closed' ? `1fr ${state.responsiveConfig.sidebarWidth}px` : '1fr'
+                state.sidebarView === 'closed' ? '1fr' : `1fr ${state.responsiveConfig.sidebarWidth}px`
             }}
           >
             {/* Video Area */}
@@ -130,8 +135,8 @@ export function GroupCallModalRtkFullView({ props: p, state }: GroupCallModalRtk
                   <div className="gba:flex-[3] gba:min-h-0 gba:rounded-lg gba:overflow-hidden gba:bg-black gba:relative">
                     <video
                       ref={el => {
-                        if (el) {
-                          state.screenShareVideoRefs.current.set(state.focusedScreenShare!.peerId, el)
+                        if (el && state.focusedScreenShare) {
+                          state.screenShareVideoRefs.current.set(state.focusedScreenShare.peerId, el)
                         }
                       }}
                       autoPlay

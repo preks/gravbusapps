@@ -37,7 +37,7 @@ export function useGroupCallModalTrackAttachment(
             rtkDebug.warn(`[RTK Modal] ⚠️ No video element found for screen share ${item.peerId}`)
             return
           }
-          const track = item.screenShareTrack!
+          const track = item.screenShareTrack
           if (track.readyState === 'ended') {
             rtkDebug.warn(`[RTK Modal] Screen share track ${track.id} has ended`)
             return

@@ -111,7 +111,17 @@ export function useGroupCallModalMinimized(
       const stream = buildStreamFromPeer(rtkPeer)
       if (stream && stream.getAudioTracks().length > 0) {
         const existingAudio = pipAudioRefs.current.get(peer.id)
-        if (!existingAudio) {
+        if (existingAudio) {
+          const oldStream = existingAudio.srcObject as MediaStream
+          const oldTrackId = oldStream?.getAudioTracks()[0]?.id
+          const newTrackId = stream.getAudioTracks()[0]?.id
+          if (oldTrackId !== newTrackId) {
+            rtkDebug.log('[Minimized] Updating audio stream for peer:', peerName, { oldTrackId, newTrackId })
+            existingAudio.srcObject = stream
+            void applySinkIdToElement(existingAudio, selectedAudioOutputIdRef.current)
+            existingAudio.play().catch(err => console.error('[Minimized] Audio play error for', peerName, ':', err))
+          }
+        } else {
           rtkDebug.log('[Minimized] Creating audio element for peer:', peerName, {
             hasAudioTracks: stream.getAudioTracks().length
           })
@@ -124,16 +134,6 @@ export function useGroupCallModalMinimized(
             .then(() => rtkDebug.log('[Minimized] Audio playing for:', peerName))
             .catch(err => console.error('[Minimized] Audio play error for', peerName, ':', err))
           pipAudioRefs.current.set(peer.id, audio)
-        } else {
-          const oldStream = existingAudio.srcObject as MediaStream
-          const oldTrackId = oldStream?.getAudioTracks()[0]?.id
-          const newTrackId = stream.getAudioTracks()[0]?.id
-          if (oldTrackId !== newTrackId) {
-            rtkDebug.log('[Minimized] Updating audio stream for peer:', peerName, { oldTrackId, newTrackId })
-            existingAudio.srcObject = stream
-            void applySinkIdToElement(existingAudio, selectedAudioOutputIdRef.current)
-            existingAudio.play().catch(err => console.error('[Minimized] Audio play error for', peerName, ':', err))
-          }
         }
       } else if (pipAudioRefs.current.has(peer.id)) {
         rtkDebug.log('[Minimized] Removing audio for peer (no tracks):', peerName)
@@ -162,7 +162,7 @@ export function useGroupCallModalMinimized(
         if (portalContainer) {
           setTimeout(() => {
             const container = document.getElementById('rtk-group-call-minimized-portal')
-            if (container && container.childElementCount === 0) {
+            if (container?.childElementCount === 0) {
               container.remove()
             }
           }, 100)

@@ -120,7 +120,7 @@ export function useGroupCallModalRtkState(props: GroupCallModalRtkProps) {
 
   // Debug helper: Expose call controls to window for console debugging
   useEffect(() => {
-    if (typeof globalThis.window !== 'undefined') {
+    if (globalThis.window !== undefined) {
       ;(globalThis as any).rtkLeaveCall = () => {
         onEndCall()
       }
@@ -134,7 +134,7 @@ export function useGroupCallModalRtkState(props: GroupCallModalRtkProps) {
 
     return () => {
       // Clean up on unmount
-      if (typeof globalThis.window !== 'undefined') {
+      if (globalThis.window !== undefined) {
         delete (globalThis as any).rtkLeaveCall
         delete (globalThis as any).rtkToggleMute
         delete (globalThis as any).rtkToggleVideo
@@ -574,26 +574,46 @@ export function useGroupCallModalRtkState(props: GroupCallModalRtkProps) {
   }, [gridItems.length, currentPage, PARTICIPANTS_PER_PAGE])
 
   // Calculate responsive values based on screen size
-  const [responsiveConfig, setResponsiveConfig] = useState(() => {
-    const width = globalThis.window.innerWidth
-    return {
-      sidebarWidth: width < 768 ? 280 : width < 1024 ? 320 : 360,
-      minTileSize: width < 768 ? 150 : width < 1024 ? 180 : 250,
-      minTileSizeWithSidebar: width < 768 ? 120 : width < 1024 ? 150 : 200,
-      maxTileSize: width < 768 ? 9999 : width < 1024 ? 450 : width < 1440 ? 600 : width < 1920 ? 700 : 800
+  function getResponsiveConfig(width: number) {
+    let sidebarWidth: number
+    let minTileSize: number
+    let minTileSizeWithSidebar: number
+    let maxTileSize: number
+    if (width < 768) {
+      sidebarWidth = 280
+      minTileSize = 150
+      minTileSizeWithSidebar = 120
+      maxTileSize = 9999
+    } else if (width < 1024) {
+      sidebarWidth = 320
+      minTileSize = 180
+      minTileSizeWithSidebar = 150
+      maxTileSize = 450
+    } else if (width < 1440) {
+      sidebarWidth = 360
+      minTileSize = 250
+      minTileSizeWithSidebar = 200
+      maxTileSize = 600
+    } else if (width < 1920) {
+      sidebarWidth = 360
+      minTileSize = 250
+      minTileSizeWithSidebar = 200
+      maxTileSize = 700
+    } else {
+      sidebarWidth = 360
+      minTileSize = 250
+      minTileSizeWithSidebar = 200
+      maxTileSize = 800
     }
-  })
+    return { sidebarWidth, minTileSize, minTileSizeWithSidebar, maxTileSize }
+  }
+
+  const [responsiveConfig, setResponsiveConfig] = useState(() => getResponsiveConfig(globalThis.window.innerWidth))
 
   // Update responsive config on window resize
   useEffect(() => {
     const handleResize = () => {
-      const width = globalThis.window.innerWidth
-      setResponsiveConfig({
-        sidebarWidth: width < 768 ? 280 : width < 1024 ? 320 : 360,
-        minTileSize: width < 768 ? 150 : width < 1024 ? 180 : 250,
-        minTileSizeWithSidebar: width < 768 ? 120 : width < 1024 ? 150 : 200,
-        maxTileSize: width < 768 ? 9999 : width < 1024 ? 450 : width < 1440 ? 600 : width < 1920 ? 700 : 800
-      })
+      setResponsiveConfig(getResponsiveConfig(globalThis.window.innerWidth))
     }
 
     globalThis.window.addEventListener('resize', handleResize)
@@ -602,7 +622,7 @@ export function useGroupCallModalRtkState(props: GroupCallModalRtkProps) {
 
   // Calculate minimum tile size for auto-fit grid based on panel state and screen size
   const minTileSize = useMemo(() => {
-    return sidebarView !== 'closed' ? responsiveConfig.minTileSizeWithSidebar : responsiveConfig.minTileSize
+    return sidebarView === 'closed' ? responsiveConfig.minTileSize : responsiveConfig.minTileSizeWithSidebar
   }, [sidebarView, responsiveConfig])
 
   // Create stable track IDs for dependency tracking

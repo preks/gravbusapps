@@ -39,7 +39,7 @@ export function useGroupCallModalSpeakerAndExpanded(
   const hasAppliedInitialSinkIdRef = useRef(false)
   useEffect(() => {
     if (hasAppliedInitialSinkIdRef.current) return
-    if (typeof globalThis.window === 'undefined') return
+    if (globalThis.window === undefined) return
     if (!callState.roomId) return
     if (isMobileDevice()) {
       hasAppliedInitialSinkIdRef.current = true
