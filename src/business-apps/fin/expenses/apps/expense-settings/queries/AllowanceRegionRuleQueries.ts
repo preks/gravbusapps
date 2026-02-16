@@ -18,6 +18,7 @@ export interface AllowanceRegionRuleDetail {
     id: string
     code: string
     value: string
+    parentEntryId?: string
     objectValue?: {
       destination_country_ref?: string
     }
