@@ -154,7 +154,7 @@ export function useCases(accessToken: string): UseCasesResult {
       try {
         const res = await client.get<GetCaseByIdResponse>(`/cases/${caseId}`, { headers })
         const data = res?.data
-        if (!data || !data.caseId) return null
+        if (!data?.caseId) return null
         const s = data.state
         return {
           caseId: data.caseId,

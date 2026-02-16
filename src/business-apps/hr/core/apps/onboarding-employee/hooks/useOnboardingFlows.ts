@@ -39,7 +39,7 @@ function normalizeFlowsResponse(raw: unknown): OnboardingFlowItem[] {
 
 export type FlowStatusFilter = 'active' | 'completed'
 
-const ACTIVE_STATUSES = ['RUNNING', 'IN_PROGRESS', 'SCHEDULED', 'PAUSED']
+const ACTIVE_STATUSES = new Set<string>(['RUNNING', 'IN_PROGRESS', 'SCHEDULED', 'PAUSED'])
 const COMPLETED_STATUS = 'COMPLETED'
 
 export interface UseOnboardingFlowsResult {
@@ -87,7 +87,7 @@ export function useOnboardingFlows(accessToken: string, userId: string | undefin
 
   const flows = useMemo(() => {
     if (statusFilter === 'active') {
-      return allFlows.filter(f => ACTIVE_STATUSES.includes(f.status))
+      return allFlows.filter(f => ACTIVE_STATUSES.has(f.status))
     }
     return allFlows.filter(f => f.status === COMPLETED_STATUS)
   }, [allFlows, statusFilter])
