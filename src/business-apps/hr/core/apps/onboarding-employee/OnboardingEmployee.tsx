@@ -6,6 +6,7 @@ import { MODULE_COLORS } from '@/common/constants/ui'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import { OnboardingCasesView } from './views/onboarding-cases-view/OnboardingCasesView'
 import { OnboardingCaseDetailView } from './views/onboarding-case-detail-view/OnboardingCaseDetailView'
+import { OnboardingTicketsView } from './views/onboarding-tickets-view/OnboardingTicketsView'
 import onboardingI18n from './_i18n'
 
 const moduleColor = MODULE_COLORS.HR
@@ -117,7 +118,7 @@ export const OnboardingEmployee: React.FC<BusinessAppContextProps> = context => 
       case 'cases':
         return <OnboardingCasesView {...context} onNavigateToCase={onNavigateToCase} />
       case 'tickets':
-        return <div>Tickets</div>
+        return <OnboardingTicketsView {...context} />
       case 'flows':
         return <div>Flows</div>
       default:
