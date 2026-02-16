@@ -98,6 +98,12 @@ export interface AutoInitConfig {
   name: string
   branch: string
   enabled: boolean
+  autoInitOnStartup: boolean
+  supportsPublish: boolean
+  publishBasePath: string | null
+  publishAssetsPath: string | null
+  publishAzureEnabled: boolean
+  blockedBranches: string[]
   repoId: string | null
   indexStatus: string | null
   createdAt: string
@@ -106,18 +112,25 @@ export interface AutoInitConfig {
 
 export interface CreateAutoInitConfigRequest {
   url: string
-  owner: string
-  name: string
   branch: string
+  autoInitOnStartup?: boolean
+  blockedBranches?: string[]
   enabled?: boolean
+  supportsPublish?: boolean
+  publishBasePath?: string
+  publishAssetsPath?: string
+  publishAzureEnabled?: boolean
 }
 
 export interface UpdateAutoInitConfigRequest {
-  url?: string
-  owner?: string
-  name?: string
   branch?: string
+  autoInitOnStartup?: boolean
+  blockedBranches?: string[]
   enabled?: boolean
+  supportsPublish?: boolean
+  publishBasePath?: string
+  publishAssetsPath?: string
+  publishAzureEnabled?: boolean
 }
 
 export interface IndexProgress {
