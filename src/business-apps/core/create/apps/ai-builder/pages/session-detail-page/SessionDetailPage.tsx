@@ -58,6 +58,7 @@ interface Message {
   messageId?: string
   createdAt?: string
   serverCreatedAt?: string
+  localOnly?: boolean
 }
 
 interface UniqueFileSummary {
@@ -147,11 +148,18 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
   })
   const [isPublishing, setIsPublishing] = useState(false)
   const [publishSuccess, setPublishSuccess] = useState<string | null>(null)
+  const [previewBuildStatus, setPreviewBuildStatus] = useState<{
+    active: boolean
+    lines: string[]
+    error: string | null
+  }>({ active: false, lines: [], error: null })
+  const [previewReady, setPreviewReady] = useState(false)
 
   const builderClient = useBuilderClient(context.accessToken)
   const toolIdCounter = useRef(0)
   const previewSandboxRef = useRef<PreviewSandboxHandle>(null)
   const previousChangeCountRef = useRef(0)
+  const publishProgressRef = useRef<string[]>([])
   const resolvedTargetPath = detectedTargetPath || targetPath
 
   const createMessageId = (): string => {
@@ -181,6 +189,54 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
       }
     })
     return { messages, updated }
+  }
+
+  const readSseStream = async <T,>(stream: ReadableStream, onEvent: (event: T) => void): Promise<void> => {
+    const reader = stream.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+
+    while (true) {
+      const { value, done } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() ?? ''
+
+      for (const line of lines) {
+        const trimmed = line.trim()
+        if (!trimmed.startsWith('data:')) continue
+        const payload = trimmed.slice(5).trim()
+        if (!payload || payload === '[DONE]') continue
+        try {
+          onEvent(JSON.parse(payload))
+        } catch {
+          console.warn('Failed to parse SSE payload', payload)
+        }
+      }
+    }
+  }
+
+  const formatPublishProgress = (lines: string[]): string => {
+    if (lines.length === 0) {
+      return 'Publish in progress...'
+    }
+    return `Publish in progress...\n${lines.map(line => `- ${line}`).join('\n')}`
+  }
+
+  const updatePublishTempMessage = (messageId: string, line: string) => {
+    publishProgressRef.current = [...publishProgressRef.current, line].slice(-6)
+    const nextContent = formatPublishProgress(publishProgressRef.current)
+    setMessages(prev =>
+      prev.map(message => (message.messageId === messageId ? { ...message, content: nextContent } : message))
+    )
+  }
+
+  const replaceTempMessage = (messageId: string, nextMessage: Message) => {
+    setMessages(prev => {
+      const remaining = prev.filter(message => message.messageId !== messageId)
+      return [...remaining, nextMessage]
+    })
   }
 
   const toggleFileExplorer = () => {
@@ -256,6 +312,55 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
     }
   }
 
+  const refreshPreview = async (options?: { force?: boolean }) => {
+    if (!sessionId) return
+    if (previewBuildStatus.active) return
+
+    setPreviewBuildStatus({
+      active: true,
+      lines: ['Starting preview build...'],
+      error: null
+    })
+
+    try {
+      const stream = await builderClient.buildPreviewStream({
+        sessionId,
+        bundle: options?.force
+      })
+      await readSseStream<{ type?: string; message?: string; result?: { cacheHit?: boolean } }>(stream, event => {
+        if (event?.type === 'done') {
+          setPreviewBuildStatus(prev => ({ ...prev, active: false }))
+          if (!previewReady) {
+            setPreviewReady(true)
+          }
+          previewSandboxRef.current?.reload()
+          return
+        }
+        if (event?.type === 'error') {
+          setPreviewBuildStatus(prev => ({
+            ...prev,
+            active: false,
+            error: event.message || 'Preview build failed'
+          }))
+          return
+        }
+        const line = event?.message || event?.type || 'Working...'
+        setPreviewBuildStatus(prev => ({
+          ...prev,
+          active: true,
+          lines: [...prev.lines, line].slice(-6),
+          error: null
+        }))
+      })
+    } catch (error) {
+      setPreviewBuildStatus({
+        active: false,
+        lines: [],
+        error: error instanceof Error ? error.message : 'Preview build failed'
+      })
+    }
+  }
+
   useEffect(() => {
     const currentSession = sessions.find(s => s.sessionId === sessionId)
     if (!currentSession) return
@@ -274,6 +379,7 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
 
   useEffect(() => {
     checkForChanges()
+    refreshPreview()
     builderClient
       .loadChatHistory(repositoryId, sessionId)
       .then(history => {
@@ -294,8 +400,9 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
   }, [sessionId])
 
   useEffect(() => {
-    if (sessionId && debouncedMessages.length > 0) {
-      builderClient.saveChatHistory(repositoryId, sessionId, debouncedMessages)
+    const persistableMessages = debouncedMessages.filter(message => !message.localOnly)
+    if (sessionId && persistableMessages.length > 0) {
+      builderClient.saveChatHistory(repositoryId, sessionId, persistableMessages)
     }
   }, [debouncedMessages, sessionId, repositoryId])
 
@@ -311,6 +418,19 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
     }
     setIsPublishing(true)
     setPublishError(null)
+    setPublishSuccess(null)
+    setShowPublishDialog(false)
+    publishProgressRef.current = []
+
+    const tempMessageId = createMessageId()
+    setMessages(prev => [
+      ...prev,
+      buildMessage('assistant', formatPublishProgress([]), {
+        messageId: tempMessageId,
+        localOnly: true
+      })
+    ])
+
     try {
       const currentSession = sessions.find(s => s.sessionId === sessionId)
       if (currentSession) {
@@ -321,33 +441,72 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
           lastModified: new Date().toISOString()
         })
       }
-      await builderClient.publishScreen({
+
+      const stream = await builderClient.publishScreenStream({
         repoId: repositoryId,
         sessionId,
         versionType: publishVersionType,
         versionNote: publishVersionNote
       })
-      const fullUrl = `/${targetPath}`
-      setPublishSuccess(fullUrl)
-      setShowPublishDialog(false)
-      setPublishError(null)
-      setPublishVersionNote('')
-      setMessages(prev => [
-        ...prev,
-        buildMessage(
-          'assistant',
-          getTranslationFromI18nKeyAndLabel(
-            'lowcoder:ai_builder.publish_success_message',
-            `✅ **Screen published successfully!**\n\nYou can now access your screen at:\n${fullUrl}\n\nClick the link in the success banner to open it in a new tab.`,
-            { url: fullUrl }
+
+      let completed = false
+      await readSseStream<{
+        type?: string
+        message?: string
+        result?: { targetPath?: string; resourceUrl?: string; azureUrl?: string; message?: string }
+      }>(stream, event => {
+        if (!event) return
+        if (event.type === 'done') {
+          completed = true
+          const result = event.result
+          const publishedPath = result?.targetPath || targetPath
+          const fullUrl = `/${publishedPath}`
+          setPublishSuccess(fullUrl)
+          setPublishError(null)
+          setPublishVersionNote('')
+          replaceTempMessage(
+            tempMessageId,
+            buildMessage(
+              'assistant',
+              getTranslationFromI18nKeyAndLabel(
+                'lowcoder:ai_builder.publish_success_message',
+                `✅ **Screen published successfully!**\n\nYou can now access your screen at:\n${fullUrl}\n\nClick the link in the success banner to open it in a new tab.`,
+                { url: fullUrl }
+              )
+            )
           )
-        )
-      ])
-      setTimeout(() => setPublishSuccess(null), 10000)
+          setTimeout(() => setPublishSuccess(null), 10000)
+          return
+        }
+        if (event.type === 'error') {
+          const errorMessage = event.message || 'Publish failed'
+          setPublishError(errorMessage)
+          setMessages(prev =>
+            prev.map(message =>
+              message.messageId === tempMessageId
+                ? { ...message, content: `Publish failed:\n${errorMessage}` }
+                : message
+            )
+          )
+          return
+        }
+        const line = event.message || event.type || 'Working...'
+        updatePublishTempMessage(tempMessageId, line)
+      })
+
+      if (!completed) {
+        const errorMessage = 'Publish completed without a final status.'
+        setPublishError(errorMessage)
+      }
     } catch (error) {
       console.error('Publish failed:', error)
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
       setPublishError(errorMessage)
+      setMessages(prev =>
+        prev.map(message =>
+          message.messageId === tempMessageId ? { ...message, content: `Publish failed:\n${errorMessage}` } : message
+        )
+      )
       const errorPrompt = `The screen publishing failed with the following error:
 
 \`\`\`
@@ -380,7 +539,7 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
         restoreChat: true
       })
       const newCount = await checkForChanges()
-      previewSandboxRef.current?.reload()
+      await refreshPreview()
       previousChangeCountRef.current = newCount
       const history = await builderClient.loadChatHistory(repositoryId, sessionId)
       if (history?.length) {
@@ -643,7 +802,7 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
       setTimeout(async () => {
         const newCount = await checkForChanges()
         if (newCount > previousChangeCountRef.current) {
-          previewSandboxRef.current?.reload()
+          await refreshPreview()
         }
         previousChangeCountRef.current = newCount
       }, 2000)
@@ -1039,6 +1198,8 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
                       sessionId={sessionId}
                       accessToken={context.accessToken}
                       userInfo={context.userInfo}
+                      buildStatus={previewBuildStatus}
+                      allowLoad={previewReady}
                     />
                   </div>
                 </ResizablePanel>
