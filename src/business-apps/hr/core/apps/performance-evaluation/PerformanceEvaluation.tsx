@@ -225,11 +225,21 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
     setStartingCycleId(cycleId)
   }
 
-  const handleConfirmStartCycle = () => {
+  const handleConfirmStartCycle = (options: { runFor: 'self' | 'team'; teamIds: string[] }) => {
     if (!startingCycleId) return
 
     const cycle = cycles.find(c => c.id === startingCycleId)
     if (!cycle) return
+
+    const { runFor, teamIds: selectedTeamIds } = options
+
+    if (runFor === 'team' && selectedTeamIds.length === 0) {
+      toast.error('Please select at least one team to start the evaluation', {
+        position: 'bottom-right',
+        className: 'gba:text-base'
+      })
+      return
+    }
 
     try {
       // Convert dates to ISO 8601 format with timestamp
@@ -248,10 +258,13 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
           targetCompletionDate: toISOString(cycle.endDate),
           actualCompletionDate: toISOString(cycle.endDate),
           employee: platformContext.employeeId,
-          performanceCycle: cycle.id
+          performanceCycle: cycle.id,
+          organizationalUnitIds: selectedTeamIds
         },
         managerUserId: managerUserId || '',
-        employeeUserId: currentEmployeeUserId || ''
+        employeeUserId: currentEmployeeUserId || '',
+        selectedTeams: selectedTeamIds,
+        runFor
       }
 
       // Start the Kogito process
@@ -261,7 +274,12 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
         payload
       })
 
-      toast.success(t('cycle-started', { name: cycle.name }) ?? `Starting evaluation for: ${cycle.name}`)
+      const message =
+        runFor === 'self'
+          ? (t('cycle-started', { name: cycle.name }) ?? `Starting evaluation for: ${cycle.name} (yourself)`)
+          : (t('cycle-started', { name: cycle.name }) ??
+            `Starting evaluation for: ${cycle.name} (${selectedTeamIds.length} team${selectedTeamIds.length > 1 ? 's' : ''})`)
+      toast.success(message)
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to start performance evaluation'
       toast.error(message, { position: 'bottom-right', className: 'gba:text-base' })
@@ -441,6 +459,7 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
       <StartCycleConfirmDialog
         open={startingCycleId !== null}
         cycle={cycles.find(c => c.id === startingCycleId) || null}
+        accessToken={accessToken}
         onConfirm={handleConfirmStartCycle}
         onCancel={() => setStartingCycleId(null)}
       />
