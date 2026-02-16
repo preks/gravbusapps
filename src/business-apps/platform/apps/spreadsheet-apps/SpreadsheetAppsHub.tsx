@@ -63,7 +63,8 @@ import {
   RefreshCw,
   ChevronLeft,
   PanelLeftClose,
-  PanelLeft
+  PanelLeft,
+  Zap
 } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo } from '@/common/utils/navigationUtils'
@@ -77,6 +78,7 @@ import { SpreadsheetAppViewer } from './SpreadsheetAppViewer'
 import { SpreadsheetAppEditor } from './SpreadsheetAppEditor'
 import { ShareAppDialog } from './components/ShareAppDialog'
 import { ManageSharesDialog } from './components/ManageSharesDialog'
+import { SpreadsheetAutomationsSection } from './components/automations/SpreadsheetAutomationsSection'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
 // Hooks
@@ -284,9 +286,9 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     setCurrentView,
     activeSection,
     setActiveSection,
-    onLoadFailed: appId => {
+    onLoadFailed: () => {
       toast.error(
-        'This spreadsheet could not be found or you don\'t have access. It may have been deleted or the link may be invalid.'
+        "This spreadsheet could not be found or you don't have access. It may have been deleted or the link may be invalid."
       )
     }
   })
@@ -872,6 +874,8 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
         return 'Favorites'
       case 'recent':
         return 'Recent'
+      case 'automations':
+        return 'Automations'
       case 'trash':
         return 'Trash'
       default:
@@ -1081,6 +1085,23 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                 </TooltipTrigger>
                 {isSidebarCollapsed && <TooltipContent side="right">Recent</TooltipContent>}
               </Tooltip>
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={() => setActiveSection('automations')}
+                    className={`gba:w-full gba:flex gba:items-center gba:px-3 gba:py-2 gba:rounded-lg gba:text-sm gba:transition-colors ${isSidebarCollapsed ? 'gba:justify-center' : 'gba:gap-3'} ${
+                      activeSection === 'automations'
+                        ? 'gba:bg-primary/10 gba:text-primary gba:font-medium'
+                        : 'gba:text-muted-foreground hover:gba:bg-muted/50 hover:gba:text-foreground'
+                    }`}
+                  >
+                    <Zap className="gba:w-4 gba:h-4" />
+                    {!isSidebarCollapsed && 'Automations'}
+                  </button>
+                </TooltipTrigger>
+                {isSidebarCollapsed && <TooltipContent side="right">Automations</TooltipContent>}
+              </Tooltip>
             </TooltipProvider>
           </div>
 
@@ -1189,8 +1210,13 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
           </div>
         )}
 
+        {/* Automations View */}
+        {currentView === 'list' && activeSection === 'automations' && (
+          <SpreadsheetAutomationsSection context={context} data-testid={`${testId}-automations-section`} />
+        )}
+
         {/* List View */}
-        {currentView === 'list' && (
+        {currentView === 'list' && activeSection !== 'automations' && (
           <>
             {/* Header / Toolbar */}
             <header className="gba:border-b gba:bg-card gba:flex-shrink-0">

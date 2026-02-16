@@ -365,66 +365,65 @@ export class SpreadsheetAutomationService {
           accessToken
         })
 
-      case 'excel_collection':
+      case 'excel_collection': {
         // Excel collection: duplicate template for each recipient, share, create flow task with link
-        {
-          const templateId = automation.collectionConfig?.templateSpreadsheetId
-          if (!templateId) {
-            return {
-              success: false,
-              error: 'No template spreadsheet configured for Excel Collection. Please edit the automation.',
-              workflows: [],
-              executedAt: new Date().toISOString(),
-              totalRows: 0
-            }
+        const templateId = automation.collectionConfig?.templateSpreadsheetId
+        if (!templateId) {
+          return {
+            success: false,
+            error: 'No template spreadsheet configured for Excel Collection. Please edit the automation.',
+            workflows: [],
+            executedAt: new Date().toISOString(),
+            totalRows: 0
           }
-
-          let excelRecipients = recipients || automation.collectionConfig?.recipients || []
-          const excelRecipientType = automation.collectionConfig?.recipientType || 'specific'
-
-          if ((excelRecipientType === 'team' || excelRecipientType === 'department') && excelRecipients.length === 0) {
-            try {
-              excelRecipients = await this.resolveRecipientsByType(excelRecipientType, initiatorId)
-            } catch (error) {
-              console.error('[SpreadsheetAutomationService] Failed to resolve excel collection recipients:', error)
-              return {
-                success: false,
-                error: `Failed to resolve ${excelRecipientType} members. Please try again or select specific people.`,
-                workflows: [],
-                executedAt: new Date().toISOString(),
-                totalRows: 0
-              }
-            }
-          }
-
-          if (excelRecipientType === 'specific' && excelRecipients.length > 0) {
-            try {
-              const resolved = await this.resolveEmployeeIdsToUserIds(excelRecipients)
-              if (resolved.length > 0) excelRecipients = resolved
-            } catch (error) {
-              console.warn('[SpreadsheetAutomationService] Could not resolve some excel recipients to user IDs:', error)
-            }
-          }
-
-          if (excelRecipients.length === 0) {
-            return {
-              success: false,
-              error: 'No recipients configured for Excel Collection. Please edit the automation.',
-              workflows: [],
-              executedAt: new Date().toISOString(),
-              totalRows: 0
-            }
-          }
-
-          return this.executeExcelCollection({
-            automation,
-            recipients: excelRecipients,
-            spreadsheetId,
-            sheetId,
-            initiatorId,
-            accessToken
-          })
         }
+
+        let excelRecipients = recipients || automation.collectionConfig?.recipients || []
+        const excelRecipientType = automation.collectionConfig?.recipientType || 'specific'
+
+        if ((excelRecipientType === 'team' || excelRecipientType === 'department') && excelRecipients.length === 0) {
+          try {
+            excelRecipients = await this.resolveRecipientsByType(excelRecipientType, initiatorId)
+          } catch (error) {
+            console.error('[SpreadsheetAutomationService] Failed to resolve excel collection recipients:', error)
+            return {
+              success: false,
+              error: `Failed to resolve ${excelRecipientType} members. Please try again or select specific people.`,
+              workflows: [],
+              executedAt: new Date().toISOString(),
+              totalRows: 0
+            }
+          }
+        }
+
+        if (excelRecipientType === 'specific' && excelRecipients.length > 0) {
+          try {
+            const resolved = await this.resolveEmployeeIdsToUserIds(excelRecipients)
+            if (resolved.length > 0) excelRecipients = resolved
+          } catch (error) {
+            console.warn('[SpreadsheetAutomationService] Could not resolve some excel recipients to user IDs:', error)
+          }
+        }
+
+        if (excelRecipients.length === 0) {
+          return {
+            success: false,
+            error: 'No recipients configured for Excel Collection. Please edit the automation.',
+            workflows: [],
+            executedAt: new Date().toISOString(),
+            totalRows: 0
+          }
+        }
+
+        return this.executeExcelCollection({
+          automation,
+          recipients: excelRecipients,
+          spreadsheetId,
+          sheetId,
+          initiatorId,
+          accessToken
+        })
+      }
 
       case 'sheet_approval':
         // Sheet approval creates ONE workflow for the entire sheet
@@ -525,192 +524,109 @@ export class SpreadsheetAutomationService {
   }
 
   /**
-   * Execute excel collection - duplicate template per recipient, share, create flow task with link to copy
+   * Execute excel collection - calls BE endpoint which handles duplication and workflow creation
+   * The BE now handles:
+   * - Creating an AutomationRun record to track this execution
+   * - Duplicating the template spreadsheet for each recipient (with parentAppId and automationRunId)
+   * - Creating workflow tasks with richer content for each recipient
    */
   async executeExcelCollection(params: ExecuteExcelCollectionParams): Promise<AutomationExecutionResult> {
-    const { automation, recipients, spreadsheetId, sheetId, initiatorId, accessToken } = params
-    const bulkGroupId = `excel_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
+    const { automation, recipients, spreadsheetId, initiatorId } = params
     const executedAt = new Date().toISOString()
-    const templateId = automation.collectionConfig?.templateSpreadsheetId!
-
-    const workflows: Array<{ rowId: string; workflowId: string; status: WorkflowStatus }> = []
-    const failedRecipients: string[] = []
 
     const docBase = getDocumentServiceApiUrl().replace(/\/+$/, '')
 
-    const duplicateSpreadsheet = async (
-      templateAppId: string,
-      token: string,
-      ownerId: string
-    ): Promise<{ id: string } | null> => {
-      try {
-        const url = `${docBase}/spreadsheets/${templateAppId}/duplicate`
-        const res = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ excel_collection_copy: true, ownerId })
+    console.log('[SpreadsheetAutomationService] Executing excel collection via BE endpoint:', {
+      automationId: automation.id,
+      recipientCount: recipients.length,
+      templateId: automation.collectionConfig?.templateSpreadsheetId
+    })
+
+    try {
+      // Call the new BE endpoint that handles all duplication and workflow creation
+      const response = await fetch(`${docBase}/automations/${automation.id}/run`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${this.accessToken}`
+        },
+        body: JSON.stringify({
+          recipients,
+          spreadsheetAppId: spreadsheetId,
+          initiatorId,
+          message: automation.collectionConfig?.message
         })
-        if (!res.ok) {
-          const err = await res.text()
-          console.error('[SpreadsheetAutomationService] Duplicate failed:', res.status, url, err)
-          return null
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        let errorMessage: string
+        try {
+          const errorData = JSON.parse(errorText)
+          errorMessage = errorData.message || errorData.error || `HTTP ${response.status}: ${response.statusText}`
+        } catch {
+          errorMessage = `HTTP ${response.status}: ${errorText || response.statusText}`
         }
-        const data = (await res.json()) as Record<string, unknown>
-        // Support multiple response shapes: { id }, { data: { id } }, { data: { app: { id } } }
-        const inner = data.data as Record<string, unknown> | undefined
-        const appObj = inner?.app as Record<string, unknown> | undefined
-        const id = (
-          data.id ??
-          inner?.id ??
-          appObj?.id
-        ) as string | undefined
-        if (!id || typeof id !== 'string') {
-          console.error('[SpreadsheetAutomationService] Duplicate response missing id:', data)
-          return null
-        }
-        // Sanity check: copy ID must differ from template ID
-        if (id === templateAppId) {
-          console.error('[SpreadsheetAutomationService] Duplicate returned template ID instead of copy ID')
-          return null
-        }
-        const debugEnabled =
-          typeof window !== 'undefined' &&
-          typeof window.localStorage !== 'undefined' &&
-          window.localStorage.getItem('debug:spreadsheet-apps') === '1'
-        if (debugEnabled) {
-          console.debug('[SpreadsheetAutomationService] Duplicate response (id only):', { id })
-        }
-        console.log('[SpreadsheetAutomationService] Duplicated template to copy:', {
-          templateId: templateAppId,
-          copyId: id,
-          linkAppId: id
+        console.error('[SpreadsheetAutomationService] BE excel collection run failed:', {
+          status: response.status,
+          errorMessage
         })
-        return { id }
-      } catch (e) {
-        console.error('[SpreadsheetAutomationService] Duplicate error:', e)
-        return null
-      }
-    }
-
-    const shareSpreadsheet = async (
-      appId: string,
-      userId: string,
-      permission: string,
-      token: string
-    ): Promise<boolean> => {
-      try {
-        const res = await fetch(`${docBase}/sharing`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({
-            entityType: 'spreadsheet_app',
-            entityId: appId,
-            recipients: [{ userId, permission }]
-          })
-        })
-        return res.ok
-      } catch (e) {
-        console.error('[SpreadsheetAutomationService] Share error:', e)
-        return false
-      }
-    }
-
-    const CONCURRENCY_LIMIT = 3
-    const chunks = this.chunkArray(recipients, CONCURRENCY_LIMIT)
-
-    for (const chunk of chunks) {
-      const results = await Promise.all(
-        chunk.map(async recipientId => {
-          try {
-            // Copy is owned by recipient so it appears in their files, not manager's
-            const copy = await duplicateSpreadsheet(templateId, accessToken, recipientId)
-            if (!copy) {
-              return { recipientId, workflowId: null }
-            }
-
-            // Share with recipient as fallback (redundant when ownerId matches, but ensures access if ID formats differ)
-            const shared = await shareSpreadsheet(copy.id, recipientId, 'edit', accessToken)
-            if (!shared) {
-              console.warn(
-                `[SpreadsheetAutomationService] Failed to share copy with ${recipientId} - recipient is owner, but share failed`
-              )
-            }
-
-            const template = this.generateExcelCollectionTemplate(automation, recipientId, copy.id)
-            const tags = this.buildWorkflowTags({
-              spreadsheetId,
-              sheetId,
-              rowId: `recipient_${recipientId}`,
-              automationId: automation.id,
-              automationType: automation.type,
-              bulkGroupId,
-              recipientId
-            })
-            template.tags = { ...template.tags, ...tags }
-
-            const res = await fetch(getExecuteDynamicUrl(), {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${this.accessToken}`
-              },
-              body: JSON.stringify({
-                templateDefinition: template,
-                initiatorId,
-                stepAssignments: {
-                  step_0: {
-                    assignment: {
-                      assignmentMode: 'ASSIGN',
-                      targets: { users: [recipientId] },
-                      allowReassignment: true
-                    }
-                  }
-                }
-              })
-            })
-
-            if (!res.ok) {
-              const err = await res.text()
-              console.error('[SpreadsheetAutomationService] Excel collection workflow failed:', res.status, err)
-              return { recipientId, workflowId: null }
-            }
-
-            const result = (await res.json()) as { data?: { workflowId?: string }; workflowId?: string }
-            const workflowId = result.data?.workflowId || result.workflowId
-
-            return { recipientId, workflowId }
-          } catch (e) {
-            console.error('[SpreadsheetAutomationService] Excel collection error for', recipientId, e)
-            return { recipientId, workflowId: null }
-          }
-        })
-      )
-
-      for (const r of results) {
-        if (r.workflowId) {
-          workflows.push({
-            rowId: `recipient_${r.recipientId}`,
-            workflowId: r.workflowId,
-            status: 'RUNNING'
-          })
-        } else {
-          failedRecipients.push(r.recipientId)
+        return {
+          success: false,
+          error: errorMessage,
+          workflows: [],
+          executedAt,
+          totalRows: recipients.length
         }
       }
-    }
 
-    return {
-      success: failedRecipients.length === 0,
-      error: failedRecipients.length > 0 ? `Failed to send to ${failedRecipients.length} recipients` : undefined,
-      workflows,
-      executedAt,
-      totalRows: recipients.length,
-      failedRows: failedRecipients.length > 0 ? failedRecipients : undefined
+      const result = await response.json()
+      const runData = result.data || result
+
+      console.log('[SpreadsheetAutomationService] Excel collection run started:', {
+        runId: runData.runId,
+        recipientCount: runData.recipientCount,
+        successCount: runData.successCount,
+        failedCount: runData.failedCount
+      })
+
+      // Transform BE response to match AutomationExecutionResult format
+      const workflows: Array<{ rowId: string; workflowId: string; status: WorkflowStatus }> = (
+        runData.results || []
+      ).map((r: { recipientId: string; workflowId?: string; success: boolean }) => ({
+        rowId: `recipient_${r.recipientId}`,
+        workflowId: r.workflowId || '',
+        status: r.success ? 'RUNNING' : ('FAILED' as WorkflowStatus)
+      }))
+
+      const failedRows = (runData.results || [])
+        .filter((r: { success: boolean }) => !r.success)
+        .map((r: { recipientId: string }) => r.recipientId)
+
+      return {
+        success: failedRows.length === 0,
+        error: failedRows.length > 0 ? `Failed to send to ${failedRows.length} recipients` : undefined,
+        workflows,
+        executedAt,
+        totalRows: recipients.length,
+        failedRows: failedRows.length > 0 ? failedRows : undefined
+      }
+    } catch (error) {
+      console.error('[SpreadsheetAutomationService] Excel collection execution error:', error)
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to execute excel collection',
+        workflows: [],
+        executedAt,
+        totalRows: recipients.length
+      }
     }
   }
 
   /**
    * Generate template for excel collection - task with link to spreadsheet copy
+   * @deprecated This is now handled by the BE in POST /automations/:id/run.
+   * Kept for potential fallback scenarios or legacy support.
    */
   private generateExcelCollectionTemplate(
     automation: SpreadsheetAutomation,
@@ -730,8 +646,7 @@ export class SpreadsheetAutomationService {
           type: 'TASK',
           title: 'Complete your spreadsheet',
           message:
-            automation.collectionConfig?.message?.trim() ||
-            'Open your copy, fill it in, and click Submit when done.',
+            automation.collectionConfig?.message?.trim() || 'Open your copy, fill it in, and click Submit when done.',
           links: [{ name: 'Open your copy', url: copyUrl, type: 'spreadsheet' }],
           assignment: {
             targets: { users: [recipientId] },
@@ -2094,7 +2009,10 @@ export class SpreadsheetAutomationService {
       })
       if (!tasksRes.ok) return false
 
-      const tasksData = (await tasksRes.json()) as { tasks?: Array<Record<string, unknown>>; data?: { tasks?: Array<Record<string, unknown>> } }
+      const tasksData = (await tasksRes.json()) as {
+        tasks?: Array<Record<string, unknown>>
+        data?: { tasks?: Array<Record<string, unknown>> }
+      }
       const tasks = tasksData.tasks || tasksData.data?.tasks || []
       if (!Array.isArray(tasks)) return false
 
@@ -2119,10 +2037,7 @@ export class SpreadsheetAutomationService {
       if (!matchingFlow) return false
 
       const flowId =
-        (matchingFlow.id as string) ||
-        (matchingFlow.workflowId as string) ||
-        (matchingFlow.flowId as string) ||
-        ''
+        (matchingFlow.id as string) || (matchingFlow.workflowId as string) || (matchingFlow.flowId as string) || ''
       const task = tasks.find(
         (t: Record<string, unknown>) =>
           t.flowId === flowId ||
@@ -2140,7 +2055,10 @@ export class SpreadsheetAutomationService {
    * Find and complete the Excel Collection task for the current user viewing their copy.
    * Looks up the open task by copyAppId (stored in flow tags) and completes it.
    */
-  async findAndCompleteExcelCollectionTask(copyAppId: string, userId: string): Promise<{ success: boolean; error?: string }> {
+  async findAndCompleteExcelCollectionTask(
+    copyAppId: string,
+    userId: string
+  ): Promise<{ success: boolean; error?: string }> {
     try {
       // 1. Fetch user's assigned/open tasks
       const tasksRes = await fetch(`${this.apiBaseUrl}/tasks/user/${userId}`, {
@@ -2153,7 +2071,10 @@ export class SpreadsheetAutomationService {
         return { success: false, error: 'Failed to load your task' }
       }
 
-      const tasksData = (await tasksRes.json()) as { tasks?: Array<Record<string, unknown>>; data?: { tasks?: Array<Record<string, unknown>> } }
+      const tasksData = (await tasksRes.json()) as {
+        tasks?: Array<Record<string, unknown>>
+        data?: { tasks?: Array<Record<string, unknown>> }
+      }
       const tasks = tasksData.tasks || tasksData.data?.tasks || []
       if (!Array.isArray(tasks)) {
         return { success: false, error: 'No tasks found' }

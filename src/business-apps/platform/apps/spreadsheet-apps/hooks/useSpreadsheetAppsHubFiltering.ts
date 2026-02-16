@@ -1,7 +1,14 @@
 import { useMemo } from 'react'
 import type { SpreadsheetAppSummary } from '../types'
 
-export type SpreadsheetHubSidebarSection = 'home' | 'my-files' | 'shared' | 'favorites' | 'recent' | 'trash'
+export type SpreadsheetHubSidebarSection =
+  | 'home'
+  | 'my-files'
+  | 'shared'
+  | 'favorites'
+  | 'recent'
+  | 'automations'
+  | 'trash'
 export type SpreadsheetHubSortBy = 'name' | 'modified' | 'created'
 export type SpreadsheetHubSortOrder = 'asc' | 'desc'
 
@@ -19,20 +26,8 @@ export interface UseSpreadsheetAppsHubFilteringReturn {
   filteredApps: SpreadsheetAppSummary[]
 }
 
-/** Excel Collection copies: hidden from manager who sent them; recipient sees their copy */
-function shouldExcludeExcelCollectionCopy(
-  app: SpreadsheetAppSummary,
-  currentUserId: string
-): boolean {
-  const settings = app.settings as Record<string, unknown> | undefined
-  const isCopy = settings?.excel_collection_copy === true
-  if (!isCopy) return false
-  const initiatorId = settings?.excel_collection_initiator_id as string | undefined
-  if (initiatorId === currentUserId) return true // hide from manager (new data)
-  if (initiatorId) return false // recipient (initiatorId is manager); show
-  const isOwner = app.isOwner ?? app.createdBy === currentUserId
-  return isOwner // old data: hide when manager (owner), show when recipient (shared)
-}
+// Note: Excel Collection copies are now filtered at the BE level (parent_app_id IS NULL)
+// No client-side filtering needed for collection copies
 
 function filterBySection(params: {
   apps: SpreadsheetAppSummary[]
@@ -42,27 +37,20 @@ function filterBySection(params: {
 }): SpreadsheetAppSummary[] {
   const { apps, activeSection, currentUserId, favorites } = params
 
-  const excludeSentExcelCollectionCopies = (list: SpreadsheetAppSummary[]) =>
-    list.filter(app => !shouldExcludeExcelCollectionCopy(app, currentUserId))
-
   switch (activeSection) {
     case 'my-files':
-      return excludeSentExcelCollectionCopies(
-        apps.filter(app => app.isOwner ?? app.createdBy === currentUserId)
-      )
+      return apps.filter(app => app.isOwner ?? app.createdBy === currentUserId)
     case 'shared':
       return apps.filter(app => app.isShared && !(app.isOwner ?? app.createdBy === currentUserId))
     case 'favorites':
-      return excludeSentExcelCollectionCopies(apps.filter(app => favorites.has(app.id)))
+      return apps.filter(app => favorites.has(app.id))
     case 'recent':
-      return excludeSentExcelCollectionCopies(
-        [...apps].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()).slice(0, 10)
-      )
+      return [...apps].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()).slice(0, 10)
     case 'trash':
       return apps
     case 'home':
     default:
-      return excludeSentExcelCollectionCopies(apps)
+      return apps
   }
 }
 
