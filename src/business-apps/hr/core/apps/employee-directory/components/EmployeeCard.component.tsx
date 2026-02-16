@@ -1,5 +1,4 @@
 import React, { useCallback } from 'react'
-import { useOpenChat } from '@/modules/chat-sidebar/utils/hooks/useOpenChat'
 import {
   PiChatBold,
   PiPhoneBold,
@@ -10,6 +9,7 @@ import {
 } from 'react-icons/pi'
 import { Avatar, AvatarImage, AvatarFallback, Button } from '@newwork/nw-design-system'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { postToPlatform } from '@/common/utils/postToPlatform'
 
 /**
  * Employee type definition for the card.
@@ -41,25 +41,42 @@ export function EmployeeCard({ employee, isSelected = false }: Readonly<{ employ
 
   const avatarSrcValue = employee.profilePicture ? `data:image/gif;base64,${employee.profilePicture}` : undefined
   const profileUrl = buildPlatformUrl('/platform/employee-record', { employeeId: employee.id })
-  const { openChatWithUser, openAudioConferenceWithUser, openVideoConferenceWithUser } = useOpenChat()
+  const displayName = `${employee.firstName ?? ''} ${employee.lastName ?? ''}`.trim()
+  const avatarUrl = employee.profilePicture ? `data:image/gif;base64,${employee.profilePicture}` : undefined
 
   const handleChat = useCallback(() => {
-    if (employee.userId) {
-      openChatWithUser(employee.userId)
-    }
-  }, [employee.userId, openChatWithUser])
+    if (!employee.userId) return
+    postToPlatform({
+      type: 'OPEN_CHAT_WITH_USER',
+      payload: { userId: employee.userId, userName: displayName || employee.userId }
+    })
+  }, [employee.userId, displayName])
 
   const handleCall = useCallback(() => {
-    if (employee.userId) {
-      openAudioConferenceWithUser(employee.userId)
-    }
-  }, [employee.userId, openAudioConferenceWithUser])
+    if (!employee.userId) return
+    postToPlatform({
+      type: 'START_CALL_WITH_USER',
+      payload: {
+        userId: employee.userId,
+        displayName: displayName || employee.userId,
+        avatarUrl,
+        callType: 'audio'
+      }
+    })
+  }, [employee.userId, displayName, avatarUrl])
 
   const handleVideoCall = useCallback(() => {
-    if (employee.userId) {
-      openVideoConferenceWithUser(employee.userId)
-    }
-  }, [employee.userId, openVideoConferenceWithUser])
+    if (!employee.userId) return
+    postToPlatform({
+      type: 'START_CALL_WITH_USER',
+      payload: {
+        userId: employee.userId,
+        displayName: displayName || employee.userId,
+        avatarUrl,
+        callType: 'video'
+      }
+    })
+  }, [employee.userId, displayName, avatarUrl])
 
   const handleProfile = useCallback(() => {
     navigateTo(profileUrl)
@@ -119,7 +136,7 @@ export function EmployeeCard({ employee, isSelected = false }: Readonly<{ employ
         onCall={handleCall}
         onVideoCall={handleVideoCall}
         onProfile={handleProfile}
-        hasEmail={!!employee.workEmail}
+        hasUserId={!!employee.userId}
       />
     </div>
   )
@@ -130,7 +147,7 @@ interface ActionsOverlayProps {
   onCall?: () => void
   onVideoCall?: () => void
   onProfile?: () => void
-  hasEmail?: boolean
+  hasUserId?: boolean
 }
 
 export const EmployeeCardActionsOverlay: React.FC<Readonly<ActionsOverlayProps>> = ({
@@ -138,7 +155,7 @@ export const EmployeeCardActionsOverlay: React.FC<Readonly<ActionsOverlayProps>>
   onCall,
   onVideoCall,
   onProfile,
-  hasEmail = false
+  hasUserId = false
 }) => (
   <div className="gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center gba:bg-foreground/30 gba:backdrop-blur-sm gba:opacity-0 gba:group-hover:opacity-100 gba:group-hover:pointer-events-auto gba:transition-all gba:duration-300 gba:z-0">
     <div className="gba:flex gba:gap-2">
@@ -146,9 +163,10 @@ export const EmployeeCardActionsOverlay: React.FC<Readonly<ActionsOverlayProps>>
         variant="ghost"
         size="icon"
         onClick={onChat}
-        disabled={!hasEmail}
+        disabled={!hasUserId}
         aria-label="Chat"
         className="gba:rounded-full gba:bg-card/80 gba:shadow-md gba:h-12 gba:w-12"
+        data-testid="employee-directory-card-chat"
       >
         <PiChatBold size={24} />
       </Button>
@@ -156,9 +174,10 @@ export const EmployeeCardActionsOverlay: React.FC<Readonly<ActionsOverlayProps>>
         variant="ghost"
         size="icon"
         onClick={onCall}
-        disabled={!hasEmail}
+        disabled={!hasUserId}
         aria-label="Call"
         className="gba:rounded-full gba:bg-card/80 gba:shadow-md gba:h-12 gba:w-12"
+        data-testid="employee-directory-card-audio-call"
       >
         <PiPhoneBold size={24} />
       </Button>
@@ -166,9 +185,10 @@ export const EmployeeCardActionsOverlay: React.FC<Readonly<ActionsOverlayProps>>
         variant="ghost"
         size="icon"
         onClick={onVideoCall}
-        disabled={!hasEmail}
+        disabled={!hasUserId}
         aria-label="Video Call"
         className="gba:rounded-full gba:bg-card/80 gba:shadow-md gba:h-12 gba:w-12"
+        data-testid="employee-directory-card-video-call"
       >
         <PiVideoCameraBold size={24} />
       </Button>
