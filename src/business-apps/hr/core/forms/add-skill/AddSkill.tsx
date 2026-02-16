@@ -21,6 +21,18 @@ const clampLevel = (level: string | number | null | undefined) => {
   return Number.isNaN(parsed) ? 1 : Math.max(1, Math.min(10, parsed))
 }
 
+const getFormTitle = (
+  t: (key: string, args?: Record<string, unknown>) => string,
+  flowFormParams: { mode?: string } | null | undefined,
+  changeLevelParams: unknown
+) => {
+  if (flowFormParams?.mode === 'deactivate') return t('add-skill-form-deactivate-title')
+  if (flowFormParams?.mode === 'activate') return t('add-skill-form-activate-title')
+  if (flowFormParams?.mode === 'attachVerification') return t('add-skill-form-attach-verification-title')
+  if (changeLevelParams) return t('skills-action-update-level')
+  return t('add-skill-form-title')
+}
+
 const AddSkillContent: React.FC<BusinessAppContextProps> = ({ accessToken, additionalData }) => {
   const { t } = useTranslation(translations)
   const {
@@ -64,16 +76,7 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = ({ accessToken, addit
     form
   })
 
-  const formTitle =
-    flowFormParams?.mode === 'deactivate'
-      ? t('add-skill-form-deactivate-title')
-      : flowFormParams?.mode === 'activate'
-        ? t('add-skill-form-activate-title')
-        : flowFormParams?.mode === 'attachVerification'
-          ? t('add-skill-form-attach-verification-title')
-          : changeLevelParams
-            ? t('add-skill-form-update-level-title')
-            : t('add-skill-form-title')
+  const formTitle = getFormTitle(t, flowFormParams, changeLevelParams)
 
   if (contextLoading) {
     return (
