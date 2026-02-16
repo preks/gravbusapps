@@ -173,7 +173,39 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
   const isCompactMode = isInSidepanel || isNarrowViewport
 
   const effectiveDefaultTab = isCompactMode ? 'everyai' : defaultTab
-  const [activeTab, setActiveTab] = useState<TabValue>(effectiveDefaultTab)
+
+  const [chatInitState] = useState<{
+    tab: TabValue
+    pending: { userId: string; userName?: string; prefilledMessage?: string; metadata?: Record<string, unknown> } | null
+  }>(() => {
+    try {
+      if (typeof window === 'undefined') return { tab: effectiveDefaultTab, pending: null }
+      const raw = sessionStorage.getItem('chatPendingOpenWithUser')
+      if (raw) {
+        sessionStorage.removeItem('chatPendingOpenWithUser')
+        const pending = JSON.parse(raw) as {
+          userId: string
+          userName?: string
+          prefilledMessage?: string
+          metadata?: Record<string, unknown>
+        }
+        return { tab: 'chat', pending }
+      }
+    } catch {
+      // ignore
+    }
+    return { tab: effectiveDefaultTab, pending: null }
+  })
+  const [activeTab, setActiveTab] = useState<TabValue>(chatInitState.tab)
+  const pendingOpenWithUser = chatInitState.pending
+
+  useEffect(() => {
+    if (pendingOpenWithUser) {
+      const url = new URL(window.location.href)
+      url.searchParams.set('view', 'chat')
+      window.history.replaceState({}, '', url.toString())
+    }
+  }, [pendingOpenWithUser])
 
   const openFullscreen = useCallback(() => {
     // Preserve the current tab when going fullscreen
@@ -183,6 +215,7 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
 
   // Handle URL parameter for initial tab
   useEffect(() => {
+    if (pendingOpenWithUser) return
     const urlParams = new URLSearchParams(window.location.search)
     const viewParam = urlParams.get('view')
 
@@ -203,7 +236,7 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
     } else if (viewParam === 'reminders') {
       setActiveTab('reminders')
     }
-  }, [isCompactMode, isInSidepanel])
+  }, [isCompactMode, isInSidepanel, pendingOpenWithUser])
 
   // In fullscreen, EveryAI tab is not available; ensure we never stay on it
   useEffect(() => {
@@ -421,6 +454,7 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
             prefixDataTestId={`${prefixDataTestId}-chat`}
             onPresenceMapChange={setPresenceMap}
             onActiveCallsChange={setActiveCalls}
+            initialOpenWithUser={pendingOpenWithUser}
             {...props}
           />
         </TabSwitchContent>

@@ -28,6 +28,7 @@ import {
 } from '@phosphor-icons/react'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
+import { postToPlatform } from '@/common/utils/postToPlatform'
 import { useEmployeeWorkCommunications } from './hooks/useEmployeeWorkCommunications'
 import SummaryTab from './components/tabs/SummaryTab'
 import AbsencesTab from './components/tabs/AbsencesTab'
@@ -252,56 +253,38 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
     employeeId: employeeIdToShow || ''
   })
 
-  // Communication handlers - Open internal chat
   const handleChat = useCallback(() => {
     if (!employee?.userId) return
-
     const userName = getEmployeeFullName(employee)
-
-    globalThis.postMessage(
-      {
-        type: 'OPEN_CHAT_WITH_USER',
-        payload: {
-          userId: employee.userId,
-          userName
-        }
-      },
-      globalThis.location.origin
-    )
+    postToPlatform({ type: 'OPEN_CHAT_WITH_USER', payload: { userId: employee.userId, userName } })
   }, [employee])
 
   const handleAudioCall = useCallback(() => {
     if (!employee?.userId) return
-
-    const userName = getEmployeeFullName(employee)
-
-    globalThis.postMessage(
-      {
-        type: 'OPEN_CHAT_WITH_USER',
-        payload: {
-          userId: employee.userId,
-          userName
-        }
-      },
-      globalThis.location.origin
-    )
+    const displayName = getEmployeeFullName(employee)
+    postToPlatform({
+      type: 'START_CALL_WITH_USER',
+      payload: {
+        userId: employee.userId,
+        displayName,
+        avatarUrl: employee.pictureThumbnail,
+        callType: 'audio'
+      }
+    })
   }, [employee])
 
   const handleVideoCall = useCallback(() => {
     if (!employee?.userId) return
-
-    const userName = getEmployeeFullName(employee)
-
-    globalThis.postMessage(
-      {
-        type: 'OPEN_CHAT_WITH_USER',
-        payload: {
-          userId: employee.userId,
-          userName
-        }
-      },
-      globalThis.location.origin
-    )
+    const displayName = getEmployeeFullName(employee)
+    postToPlatform({
+      type: 'START_CALL_WITH_USER',
+      payload: {
+        userId: employee.userId,
+        displayName,
+        avatarUrl: employee.pictureThumbnail,
+        callType: 'video'
+      }
+    })
   }, [employee])
 
   const renderContent = () => {
