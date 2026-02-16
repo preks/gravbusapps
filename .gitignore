@@ -46,8 +46,3 @@ __pycache__
 coverage/
 .jest-cache/
 
-# Playwright auth state (contains tokens)
-e2e/.auth/
-playwright-report/
-test-results/
-
