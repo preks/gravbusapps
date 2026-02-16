@@ -155,6 +155,7 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
     lines: string[]
     error: string | null
   }>({ active: false, lines: [], error: null })
+  const [fileExplorerRefreshKey, setFileExplorerRefreshKey] = useState(0)
   const [previewReady, setPreviewReady] = useState(false)
   const messagesRef = useRef<Message[]>([])
 
@@ -166,6 +167,7 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
   const restoreProgressRef = useRef<string[]>([])
   const screenBuildUsedRef = useRef(false)
   const screenBuildSucceededRef = useRef(false)
+  const filesChangedInRunRef = useRef(false)
   const resolvedTargetPath = detectedTargetPath || targetPath
 
   const createMessageId = (): string => {
@@ -290,6 +292,10 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
     localStorage.setItem('ai-builder-show-file-explorer', String(newValue))
   }
 
+  const refreshFileExplorer = () => {
+    setFileExplorerRefreshKey(prev => prev + 1)
+  }
+
   const getNormalizedChangeType = (type: string): 'create' | 'modify' | 'delete' => {
     if (type === 'create') return 'create'
     if (type === 'delete') return 'delete'
@@ -390,7 +396,12 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
       })
       await readSseStream<{ type?: string; message?: string; result?: { cacheHit?: boolean } }>(stream, event => {
         if (event?.type === 'done') {
-          setPreviewBuildStatus(prev => ({ ...prev, active: false }))
+          setPreviewBuildStatus(prev => ({
+            ...prev,
+            active: true,
+            lines: [...prev.lines, 'Reloading preview...'].slice(-6),
+            error: null
+          }))
           if (!previewReady) {
             setPreviewReady(true)
           }
@@ -684,6 +695,14 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
     toolIdCounter: React.MutableRefObject<number>
     markScreenBuildUsed: () => void
     markScreenBuildSucceeded: () => void
+    setPreviewBuildStatus: React.Dispatch<
+      React.SetStateAction<{
+        active: boolean
+        lines: string[]
+        error: string | null
+      }>
+    >
+    markFilesChanged: () => void
   }
   type StreamState = { assistantMessage: string; needsNewMessage: boolean; hasCreatedInitialMessage: boolean }
 
@@ -757,6 +776,11 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
   const applyToolCallEvent = (data: Record<string, unknown>, streamState: StreamState, ctx: StreamCtx): void => {
     if (data.toolName === 'screen_build') {
       ctx.markScreenBuildUsed()
+      ctx.setPreviewBuildStatus({
+        active: true,
+        lines: ['Waiting for build to start...'],
+        error: null
+      })
     }
     if (!streamState.hasCreatedInitialMessage) {
       ctx.setMessages(prev => [...prev, buildMessage('assistant', '')])
@@ -795,10 +819,53 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
     if (data.toolName === 'screen_build') {
       const toolResult =
         data.toolResult && typeof data.toolResult === 'object' ? (data.toolResult as Record<string, unknown>) : null
+      const statusLines =
+        Array.isArray(toolResult?.lines) && toolResult?.lines.length > 0
+          ? (toolResult.lines.filter(line => typeof line === 'string') as string[])
+          : []
+      const resultMessage = typeof toolResult?.message === 'string' ? toolResult.message : null
       const successFromResult = toolResult?.success === true
       const successFromContent = resultContent.includes('"success": true') || resultContent.includes('"success":true')
       if (successFromResult || successFromContent) {
         ctx.markScreenBuildSucceeded()
+        ctx.setPreviewBuildStatus(prev => ({
+          ...prev,
+          active: true,
+          lines: [
+            ...(statusLines.length > 0 ? statusLines : prev.lines),
+            ...(resultMessage ? [resultMessage] : []),
+            'Waiting to reload preview...'
+          ].slice(-6),
+          error: null
+        }))
+      } else {
+        const failedMessage =
+          (data.toolResult &&
+            typeof data.toolResult === 'object' &&
+            'error' in (data.toolResult as Record<string, unknown>) &&
+            typeof (data.toolResult as Record<string, unknown>).error === 'string' &&
+            ((data.toolResult as Record<string, unknown>).error as string)) ||
+          'Preview build failed'
+        ctx.setPreviewBuildStatus(prev => ({
+          ...prev,
+          active: false,
+          lines: [
+            ...(statusLines.length > 0 ? statusLines : prev.lines),
+            ...(resultMessage ? [resultMessage] : ['Preview build failed'])
+          ].slice(-6),
+          error: failedMessage as string
+        }))
+      }
+    }
+    if (data.toolName === 'write_file' || data.toolName === 'delete_file') {
+      const toolResult =
+        data.toolResult && typeof data.toolResult === 'object' ? (data.toolResult as Record<string, unknown>) : null
+      if (
+        toolResult?.success === true ||
+        resultContent.includes('"success": true') ||
+        resultContent.includes('"success":true')
+      ) {
+        ctx.markFilesChanged()
       }
     }
     ctx.setMessages(prev => {
@@ -872,6 +939,7 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
     const userInput = input
     screenBuildUsedRef.current = false
     screenBuildSucceededRef.current = false
+    filesChangedInRunRef.current = false
     setMessages(prev => [...prev, userMessage])
     setInput('')
     setLoading(true)
@@ -914,6 +982,10 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
         },
         markScreenBuildSucceeded: () => {
           screenBuildSucceededRef.current = true
+        },
+        setPreviewBuildStatus,
+        markFilesChanged: () => {
+          filesChangedInRunRef.current = true
         }
       }
       await runStreamToEnd(reader, streamState, ctx)
@@ -935,18 +1007,37 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
       setLoading(false)
       setTimeout(async () => {
         const newCount = await checkForChanges()
-        if (newCount > previousChangeCountRef.current) {
+        if (filesChangedInRunRef.current || newCount > previousChangeCountRef.current) {
+          refreshFileExplorer()
+        }
+        const hasNewChanges = newCount > previousChangeCountRef.current
+        if (hasNewChanges) {
           const succeededFromMessages = hasSuccessfulScreenBuildInMessages(messagesRef.current)
           if ((screenBuildUsedRef.current && screenBuildSucceededRef.current) || succeededFromMessages) {
+            setPreviewBuildStatus(prev => ({
+              ...prev,
+              active: true,
+              lines: [...prev.lines, 'Reloading preview...'].slice(-6),
+              error: null
+            }))
             setPreviewReady(true)
             previewSandboxRef.current?.reload()
           } else {
             await refreshPreview()
           }
+        } else if (screenBuildUsedRef.current && screenBuildSucceededRef.current) {
+          // screen_build succeeded but no new diff count; close overlay cleanly
+          setPreviewBuildStatus(prev => ({
+            ...prev,
+            active: false,
+            lines: [...prev.lines, 'Preview already up to date'].slice(-6),
+            error: null
+          }))
         }
         previousChangeCountRef.current = newCount
         screenBuildUsedRef.current = false
         screenBuildSucceededRef.current = false
+        filesChangedInRunRef.current = false
       }, 2000)
     }
   }
@@ -981,7 +1072,12 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
       <div className="gba:relative gba:z-10 gba:flex gba:w-full gba:h-full">
         {fileExplorerEnabled && showFileExplorer && sessionId && (
           <div className="gba:w-[320px] gba:border-r gba:border-border gba:flex-shrink-0 gba:bg-card/80 gba:backdrop-blur-sm">
-            <FileExplorer repoId={repositoryId} sessionId={sessionId} onFileClick={path => setSelectedFile(path)} />
+            <FileExplorer
+              key={`${sessionId}-${fileExplorerRefreshKey}`}
+              repoId={repositoryId}
+              sessionId={sessionId}
+              onFileClick={path => setSelectedFile(path)}
+            />
           </div>
         )}
 
@@ -1363,6 +1459,16 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
                       userInfo={context.userInfo}
                       buildStatus={previewBuildStatus}
                       allowLoad={previewReady}
+                      onReady={() => {
+                        setPreviewBuildStatus(prev => ({ ...prev, active: false }))
+                      }}
+                      onError={error => {
+                        setPreviewBuildStatus(prev => ({
+                          ...prev,
+                          active: false,
+                          error: error.message || 'Preview failed to load'
+                        }))
+                      }}
                     />
                   </div>
                 </ResizablePanel>
