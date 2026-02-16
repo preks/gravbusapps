@@ -86,7 +86,9 @@ export const useAddSkillFormController = ({
     if (changeLevelParams?.skillId) {
       const match = existingSkillsList.find(s => s.skill?.id === changeLevelParams.skillId)
       const level =
-        changeLevelParams.currentLevel != null ? clampLevel(changeLevelParams.currentLevel) : clampLevel(match?.level)
+        typeof changeLevelParams.currentLevel === 'number'
+          ? clampLevel(changeLevelParams.currentLevel)
+          : clampLevel(match?.level)
       const name = match?.skill?.name ?? changeLevelParams.skillName ?? ''
       setSelectedSkills([{ id: changeLevelParams.skillId, name, isNew: false, level }])
       return
