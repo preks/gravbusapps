@@ -642,10 +642,10 @@ export function useGroupCallModalRtkState(props: GroupCallModalRtkProps) {
       .join('|')
   }, [gridItems])
 
-  useGroupCallModalTrackAttachment(
+  useGroupCallModalTrackAttachment({
     gridItems,
     currentPage,
-    callState.isMinimized,
+    isMinimized: callState.isMinimized,
     screenShareTrackIds,
     videoTrackIds,
     localVideoRef,
@@ -653,7 +653,7 @@ export function useGroupCallModalRtkState(props: GroupCallModalRtkProps) {
     screenShareVideoRefs,
     applySinkIdToElement,
     selectedAudioOutputIdRef
-  )
+  })
 
   const { handleSpeakerDeviceChange, expandedScreenShareVideoRef, pipAudioRefs } = useGroupCallModalSpeakerAndExpanded(
     props,
@@ -665,16 +665,16 @@ export function useGroupCallModalRtkState(props: GroupCallModalRtkProps) {
     gridItems
   )
 
-  const { firstRemotePeer, buildStreamFromPeer } = useGroupCallModalMinimized(
+  const { firstRemotePeer, buildStreamFromPeer } = useGroupCallModalMinimized({
     props,
     stableRemotePeers,
     meeting,
     activeConversation,
-    callState.isMinimized,
+    callStateIsMinimized: callState.isMinimized,
     pipAudioRefs,
     applySinkIdToElement,
     selectedAudioOutputIdRef
-  )
+  })
 
   const isOpen =
     callState.status === 'connected' || callState.status === 'joining' || callState.status === 'reconnecting'

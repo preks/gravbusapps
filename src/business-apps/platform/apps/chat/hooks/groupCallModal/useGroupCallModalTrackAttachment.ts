@@ -16,18 +16,31 @@ type GridItem = {
   isLocal: boolean
 }
 
-export function useGroupCallModalTrackAttachment(
-  gridItems: GridItem[],
-  currentPage: number,
-  isMinimized: boolean,
-  screenShareTrackIds: string,
-  videoTrackIds: string,
-  localVideoRef: React.RefObject<HTMLVideoElement | null>,
-  remoteVideoRefs: React.MutableRefObject<Map<string, HTMLVideoElement>>,
-  screenShareVideoRefs: React.MutableRefObject<Map<string, HTMLVideoElement>>,
-  applySinkIdToElement: (el: HTMLMediaElement | null, deviceId: string | null) => Promise<void>,
+export interface UseGroupCallModalTrackAttachmentParams {
+  gridItems: GridItem[]
+  currentPage: number
+  isMinimized: boolean
+  screenShareTrackIds: string
+  videoTrackIds: string
+  localVideoRef: React.RefObject<HTMLVideoElement | null>
+  remoteVideoRefs: React.MutableRefObject<Map<string, HTMLVideoElement>>
+  screenShareVideoRefs: React.MutableRefObject<Map<string, HTMLVideoElement>>
+  applySinkIdToElement: (el: HTMLMediaElement | null, deviceId: string | null) => Promise<void>
   selectedAudioOutputIdRef: React.MutableRefObject<string | null>
-) {
+}
+
+export function useGroupCallModalTrackAttachment({
+  gridItems,
+  currentPage,
+  isMinimized,
+  screenShareTrackIds,
+  videoTrackIds,
+  localVideoRef,
+  remoteVideoRefs,
+  screenShareVideoRefs,
+  applySinkIdToElement,
+  selectedAudioOutputIdRef
+}: UseGroupCallModalTrackAttachmentParams) {
   useEffect(() => {
     const attachVideos = () => {
       gridItems.forEach(item => {

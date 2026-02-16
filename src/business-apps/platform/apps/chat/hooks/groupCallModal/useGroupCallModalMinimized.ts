@@ -7,16 +7,27 @@ import { rtkDebug } from '../../utils/rtkDebug'
 import { buildStreamFromPeer } from '../../utils/groupCallModalUtils'
 import type { GroupCallModalRtkProps, RealtimeKitPeer } from '../../components/call/groupCallModalTypes'
 
-export function useGroupCallModalMinimized(
-  props: Pick<GroupCallModalRtkProps, 'viewMode'> & { activeSpeakerId?: string | null },
-  stableRemotePeers: any[],
-  meeting: any,
-  activeConversation: any,
-  callStateIsMinimized: boolean,
-  pipAudioRefs: React.MutableRefObject<Map<string, HTMLAudioElement>>,
-  applySinkIdToElement: (el: HTMLMediaElement | null, deviceId: string | null) => Promise<void>,
+export interface UseGroupCallModalMinimizedParams {
+  props: Pick<GroupCallModalRtkProps, 'viewMode'> & { activeSpeakerId?: string | null }
+  stableRemotePeers: any[]
+  meeting: any
+  activeConversation: any
+  callStateIsMinimized: boolean
+  pipAudioRefs: React.MutableRefObject<Map<string, HTMLAudioElement>>
+  applySinkIdToElement: (el: HTMLMediaElement | null, deviceId: string | null) => Promise<void>
   selectedAudioOutputIdRef: React.MutableRefObject<string | null>
-) {
+}
+
+export function useGroupCallModalMinimized({
+  props,
+  stableRemotePeers,
+  meeting,
+  activeConversation,
+  callStateIsMinimized,
+  pipAudioRefs,
+  applySinkIdToElement,
+  selectedAudioOutputIdRef
+}: UseGroupCallModalMinimizedParams) {
   const { viewMode, activeSpeakerId } = props
 
   const [debouncedActiveSpeaker, setDebouncedActiveSpeaker] = useState<string | null>(null)
