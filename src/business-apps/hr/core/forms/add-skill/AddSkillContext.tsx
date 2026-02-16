@@ -145,7 +145,7 @@ export const AddSkillProvider: React.FC<ProviderProps> = ({ children, accessToke
 
   const changeLevelParams: ChangeLevelParams | null = useMemo(() => {
     const params = additionalData?.contextData ?? additionalData?.psi_taskPayload?.psi_initialParameters ?? undefined
-    if (params == null || params.mode !== 'changeLevel' || params.skillId == null) return null
+    if (params?.mode !== 'changeLevel' || params?.skillId == null) return null
     const rawLevel = params.currentLevel
     let currentLevel: number | null = null
     if (rawLevel != null) {
@@ -156,14 +156,14 @@ export const AddSkillProvider: React.FC<ProviderProps> = ({ children, accessToke
       mode: 'changeLevel',
       skillId: String(params.skillId),
       employeeSkillId: String(params?.employeeSkillId ?? ''),
-      skillName: params?.skillName != null ? String(params.skillName) : undefined,
+      skillName: params?.skillName === null || params?.skillName === undefined ? undefined : String(params.skillName),
       currentLevel
     }
   }, [additionalData?.contextData, additionalData?.psi_taskPayload?.psi_initialParameters])
 
   const flowFormParams: FlowFormParams | null = useMemo(() => {
     const params = additionalData?.contextData ?? additionalData?.psi_taskPayload?.psi_initialParameters ?? undefined
-    if (params == null || params.skillId == null) return changeLevelParams
+    if (params?.skillId == null) return changeLevelParams
     const base = {
       skillId: String(params.skillId),
       employeeSkillId: String(params?.employeeSkillId ?? ''),

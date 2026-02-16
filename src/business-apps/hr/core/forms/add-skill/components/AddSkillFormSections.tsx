@@ -176,7 +176,7 @@ export const AddSkillFormSections: React.FC<AddSkillFormSectionsProps> = ({
                     accept={acceptedVerificationFileTypes}
                     layout="list"
                     preview="icon"
-                    onFilesChange={handleDesignSystemFilesChange as any}
+                    onChange={handleDesignSystemFilesChange as any}
                   />
                 </div>
               </FormItem>

@@ -154,7 +154,8 @@ export const useAddSkillFormController = ({
         if (skill.level === undefined) return false
         const empSkill = existingSkillsList.find(s => s.skill?.id === skill.id)
         const isDeactivated = empSkill?.validTo ? new Date(empSkill.validTo) <= new Date() : false
-        return !isDeactivated
+        if (isDeactivated) return false
+        return true
       }),
     [existingSkillsList, selectedSkills]
   )

@@ -160,7 +160,8 @@ export const getJobProfileGap = (args: {
       const emp = employeeSkillMap.get(skillId)
       if (emp != null) {
         const requiredLevel = ps.requiredLevel != null ? Number(ps.requiredLevel) : null
-        if (requiredLevel != null && emp.level < requiredLevel) {
+        if (requiredLevel == null) return
+        if (emp.level < requiredLevel) {
           belowLevelSkills.push({
             skillName,
             employeeLevel: emp.level,
