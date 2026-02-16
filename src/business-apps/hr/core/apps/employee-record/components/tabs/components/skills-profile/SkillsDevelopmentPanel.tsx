@@ -134,7 +134,7 @@ export const SkillsDevelopmentPanel: React.FC<SkillsDevelopmentPanelProps> = ({
       {nextActionItems.length > 0 && (
         <Card data-testid="skills-next-actions-card">
           <CardHeader className="gba:pb-2">
-            <CardTitle className="gba:text-base gba:flex gba:items-center gba:gap-2">
+            <CardTitle className="gba:flex gba:items-center gba:gap-2">
               <SparkleIcon className="gba:w-5 gba:h-5 gba:text-primary" />
               {t('skills-development-next-actions')}
             </CardTitle>
@@ -161,7 +161,7 @@ export const SkillsDevelopmentPanel: React.FC<SkillsDevelopmentPanelProps> = ({
 
       <Card data-testid="skills-distribution-card">
         <CardHeader className="gba:pb-2">
-          <CardTitle className="gba:text-base">{t('skills-development-distribution')}</CardTitle>
+          <CardTitle>{t('skills-development-distribution')}</CardTitle>
           <CardDescription>{t('skills-development-distribution-description')}</CardDescription>
         </CardHeader>
         <CardContent>

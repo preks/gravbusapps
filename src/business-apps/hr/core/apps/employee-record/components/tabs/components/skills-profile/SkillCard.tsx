@@ -68,7 +68,7 @@ export const SkillCard: React.FC<SkillCardProps> = ({ skill, accessToken, update
 
           <div className="gba:space-y-2 gba:min-h-[1.75rem]">
             {hasLevel ? (
-              <Progress value={Math.min(100, Math.round((parsedLevel / 10) * 100))} className="gba:h-2" />
+              <Progress value={Math.min(100, Math.round((parsedLevel / 10) * 100))} />
             ) : (
               <div className="gba:text-xs gba:text-muted-foreground">{t('skills-level-empty-microcopy')}</div>
             )}
