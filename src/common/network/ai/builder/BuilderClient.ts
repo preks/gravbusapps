@@ -919,8 +919,16 @@ export class BuilderClient {
   /**
    * Get preview file URL. Endpoint: /previews/{sessionId}/{fileName}
    */
-  getPreviewFileUrl(sessionId: string, fileName: string): string {
-    return `${this.baseUrl}/previews/${encodeURIComponent(sessionId)}/${encodeURIComponent(fileName)}`
+  getPreviewFileUrl(sessionId: string, fileName: string, query?: Record<string, string | number | boolean>): string {
+    const base = `${this.baseUrl}/previews/${encodeURIComponent(sessionId)}/${encodeURIComponent(fileName)}`
+    if (!query || Object.keys(query).length === 0) {
+      return base
+    }
+    const searchParams = new URLSearchParams()
+    for (const [key, value] of Object.entries(query)) {
+      searchParams.set(key, String(value))
+    }
+    return `${base}?${searchParams.toString()}`
   }
 
   /**

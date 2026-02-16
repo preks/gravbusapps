@@ -6,6 +6,7 @@ import { Loader2, AlertCircle } from 'lucide-react'
 interface PreviewSandboxProps {
   repoId: string
   sessionId: string
+  previewAppName?: string | null
   accessToken?: string
   userInfo?: any
   onReady?: () => void
@@ -23,7 +24,7 @@ export interface PreviewSandboxHandle {
 }
 
 export const PreviewSandbox = forwardRef<PreviewSandboxHandle, PreviewSandboxProps>(function PreviewSandbox(
-  { repoId, sessionId, accessToken, userInfo, onReady, onError, buildStatus, allowLoad = true },
+  { repoId, sessionId, previewAppName, accessToken, userInfo, onReady, onError, buildStatus, allowLoad = true },
   ref
 ) {
   const [loading, setLoading] = useState(true)
@@ -32,27 +33,28 @@ export const PreviewSandbox = forwardRef<PreviewSandboxHandle, PreviewSandboxPro
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [bundleVersion, setBundleVersion] = useState<string | null>(null)
   const iframeRef = useRef<HTMLIFrameElement>(null)
-  const previewUrlRef = useRef<string | null>(null)
   const builderClient = useBuilderClient(accessToken ?? '')
 
-  previewUrlRef.current = previewUrl
+  const createPreviewUrl = (cacheBust: string) => {
+    const query: Record<string, string> = { v: cacheBust }
+    const app = previewAppName?.trim()
+    if (app) {
+      query.app = app
+    }
+    return builderClient.getPreviewFileUrl(sessionId, 'index.html', query)
+  }
 
   useImperativeHandle(
     ref,
     () => ({
       reload() {
-        const iframe = iframeRef.current
-        if (!iframe) return
         setIframeLoaded(false)
-        try {
-          iframe.contentWindow?.location.reload()
-        } catch {
-          const url = previewUrlRef.current
-          if (url) iframe.src = url
-        }
+        const cacheBust = Date.now().toString()
+        setBundleVersion(cacheBust)
+        setPreviewUrl(createPreviewUrl(cacheBust))
       }
     }),
-    []
+    [builderClient, sessionId, previewAppName]
   )
 
   useEffect(() => {
@@ -76,9 +78,10 @@ export const PreviewSandbox = forwardRef<PreviewSandboxHandle, PreviewSandboxPro
 
         if (!mounted) return
 
-        const indexUrl = builderClient.getPreviewFileUrl(sessionId, 'index.html')
+        const cacheBust = Date.now().toString()
+        const indexUrl = createPreviewUrl(cacheBust)
         setPreviewUrl(indexUrl)
-        setBundleVersion(sessionId)
+        setBundleVersion(cacheBust)
       } catch (err) {
         if (!mounted) return
 
@@ -101,7 +104,7 @@ export const PreviewSandbox = forwardRef<PreviewSandboxHandle, PreviewSandboxPro
     return () => {
       mounted = false
     }
-  }, [repoId, sessionId, accessToken, allowLoad])
+  }, [repoId, sessionId, accessToken, allowLoad, previewAppName])
 
   const handleIframeLoad = () => {
     setIframeLoaded(true)
