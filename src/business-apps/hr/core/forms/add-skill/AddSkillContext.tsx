@@ -145,57 +145,40 @@ export const AddSkillProvider: React.FC<ProviderProps> = ({ children, accessToke
 
   const changeLevelParams: ChangeLevelParams | null = useMemo(() => {
     const params = additionalData?.contextData ?? additionalData?.psi_taskPayload?.psi_initialParameters ?? undefined
-    if (!params || params.mode !== 'changeLevel' || !params.skillId) return null
-    const currentLevel =
-      params.currentLevel != null
-        ? typeof params.currentLevel === 'number'
-          ? params.currentLevel
-          : Number.parseInt(String(params.currentLevel), 10)
-        : null
-    const level = Number.isNaN(currentLevel as number) ? null : (currentLevel as number)
+    if (params == null || params.mode !== 'changeLevel' || params.skillId == null) return null
+    const rawLevel = params.currentLevel
+    let currentLevel: number | null = null
+    if (rawLevel != null) {
+      currentLevel = typeof rawLevel === 'number' ? rawLevel : Number.parseInt(String(rawLevel), 10)
+      if (Number.isNaN(currentLevel)) currentLevel = null
+    }
     return {
       mode: 'changeLevel',
       skillId: String(params.skillId),
-      employeeSkillId: params.employeeSkillId != null ? String(params.employeeSkillId) : '',
-      skillName: params.skillName != null ? String(params.skillName) : undefined,
-      currentLevel: level
+      employeeSkillId: String(params?.employeeSkillId ?? ''),
+      skillName: params?.skillName != null ? String(params.skillName) : undefined,
+      currentLevel
     }
   }, [additionalData?.contextData, additionalData?.psi_taskPayload?.psi_initialParameters])
 
   const flowFormParams: FlowFormParams | null = useMemo(() => {
     const params = additionalData?.contextData ?? additionalData?.psi_taskPayload?.psi_initialParameters ?? undefined
-    if (!params || !params.skillId) return changeLevelParams
-    if (params.mode === 'deactivate') {
-      return {
-        mode: 'deactivate',
-        skillId: String(params.skillId),
-        employeeSkillId: params.employeeSkillId != null ? String(params.employeeSkillId) : '',
-        skillName: params.skillName != null ? String(params.skillName) : ''
-      }
+    if (params == null || params.skillId == null) return changeLevelParams
+    const base = {
+      skillId: String(params.skillId),
+      employeeSkillId: String(params?.employeeSkillId ?? ''),
+      skillName: String(params?.skillName ?? '')
     }
-    if (params.mode === 'activate') {
-      return {
-        mode: 'activate',
-        skillId: String(params.skillId),
-        employeeSkillId: params.employeeSkillId != null ? String(params.employeeSkillId) : '',
-        skillName: params.skillName != null ? String(params.skillName) : ''
-      }
-    }
-    if (params.mode === 'attachVerification') {
-      return {
-        mode: 'attachVerification',
-        skillId: String(params.skillId),
-        employeeSkillId: params.employeeSkillId != null ? String(params.employeeSkillId) : '',
-        skillName: params.skillName != null ? String(params.skillName) : ''
-      }
-    }
+    if (params.mode === 'deactivate') return { mode: 'deactivate', ...base }
+    if (params.mode === 'activate') return { mode: 'activate', ...base }
+    if (params.mode === 'attachVerification') return { mode: 'attachVerification', ...base }
     return changeLevelParams
   }, [additionalData?.contextData, additionalData?.psi_taskPayload?.psi_initialParameters, changeLevelParams])
 
   const fetchData = useCallback(async () => {
-    if (!accessToken || !employeeId) {
+    if (employeeId == null || accessToken == null) {
       setIsLoading(false)
-      setError(!employeeId ? 'Missing employeeId' : 'Missing accessToken')
+      setError(employeeId == null ? 'Missing employeeId' : 'Missing accessToken')
       return
     }
     setIsLoading(true)
@@ -232,7 +215,11 @@ export const AddSkillProvider: React.FC<ProviderProps> = ({ children, accessToke
       if (!trimmed || trimmed.length < 2) return []
       try {
         const matches = await hybridSearchSkills(trimmed, accessToken ?? '', 20)
-        return matches.map(m => ({ id: m.id, name: m.name, version: m.version }))
+        // Only show skills with score >= 70% (score is 0–1 from flowbot)
+        const minScore = 0.7
+        return matches
+          .filter(m => (m.score ?? 0) >= minScore)
+          .map(m => ({ id: m.id, name: m.name, version: m.version }))
       } catch {
         const pattern = `%${trimmed}%`
         type SearchSkillsVariables = { search: string }

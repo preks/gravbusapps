@@ -94,12 +94,14 @@ export const useAddSkillFormController = ({
 
     const deduped: Record<string, SelectedSkill> = {}
     existingSkillsList.forEach(s => {
-      if (!s.skill?.id) return
-      deduped[s.skill.id] = {
-        id: s.skill.id,
-        name: s.skill?.name || '',
-        isNew: false,
-        level: clampLevel(s.level)
+      const skillId = s.skill?.id
+      if (skillId != null) {
+        deduped[skillId] = {
+          id: skillId,
+          name: s.skill?.name ?? '',
+          isNew: false,
+          level: clampLevel(s.level)
+        }
       }
     })
     setSelectedSkills(Object.values(deduped))

@@ -156,19 +156,20 @@ export const getJobProfileGap = (args: {
   profileSkills.forEach(ps => {
     const skillId = ps.skill?.id
     const skillName = ps.skill?.name ?? ''
-    if (!skillId) return
-    const emp = employeeSkillMap.get(skillId)
-    if (!emp) {
-      missingSkills.push({ id: skillId, name: skillName })
-      return
-    }
-    const requiredLevel = ps.requiredLevel != null ? Number(ps.requiredLevel) : null
-    if (requiredLevel != null && emp.level < requiredLevel) {
-      belowLevelSkills.push({
-        skillName,
-        employeeLevel: emp.level,
-        profileLevel: requiredLevel
-      })
+    if (skillId != null) {
+      const emp = employeeSkillMap.get(skillId)
+      if (emp != null) {
+        const requiredLevel = ps.requiredLevel != null ? Number(ps.requiredLevel) : null
+        if (requiredLevel != null && emp.level < requiredLevel) {
+          belowLevelSkills.push({
+            skillName,
+            employeeLevel: emp.level,
+            profileLevel: requiredLevel
+          })
+        }
+      } else {
+        missingSkills.push({ id: skillId, name: skillName })
+      }
     }
   })
 

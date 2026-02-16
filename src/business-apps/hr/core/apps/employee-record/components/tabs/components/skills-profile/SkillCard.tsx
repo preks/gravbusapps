@@ -50,11 +50,11 @@ export const SkillCard: React.FC<SkillCardProps> = ({ skill, accessToken, update
 
   return (
     <Card
-      className={`gba:h-full gba:overflow-visible ${!isActive ? 'gba:bg-muted/50' : ''}`}
+      className={`gba:h-full gba:overflow-visible ${isActive ? '' : 'gba:bg-muted/50'}`}
       data-testid={`skills-profile-card-${skill.skill.id}`}
     >
       <CardContent className="gba:p-4 gba:space-y-4 gba:overflow-visible">
-        <div className={!isActive ? 'gba:opacity-60' : ''}>
+        <div className={isActive ? '' : 'gba:opacity-60'}>
           <div className="gba:flex gba:items-start gba:justify-between gba:gap-3">
             <div className="gba:min-w-0 gba:flex-1">
               <h4 className="gba:text-base gba:font-semibold gba:truncate">{skill.skill.name}</h4>
