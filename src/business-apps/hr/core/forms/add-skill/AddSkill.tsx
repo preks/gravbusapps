@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
-import { useTranslation } from '@newwork/nw-design-system'
+import { Spinner, useTranslation } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -19,6 +19,18 @@ const clampLevel = (level: string | number | null | undefined) => {
   if (level === null || level === undefined) return 1
   const parsed = typeof level === 'string' ? Number.parseInt(level, 10) : level
   return Number.isNaN(parsed) ? 1 : Math.max(1, Math.min(10, parsed))
+}
+
+const getFormTitle = (
+  t: (key: string, args?: Record<string, unknown>) => string,
+  flowFormParams: { mode?: string } | null | undefined,
+  changeLevelParams: unknown
+) => {
+  if (flowFormParams?.mode === 'deactivate') return t('add-skill-form-deactivate-title')
+  if (flowFormParams?.mode === 'activate') return t('add-skill-form-activate-title')
+  if (flowFormParams?.mode === 'attachVerification') return t('add-skill-form-attach-verification-title')
+  if (changeLevelParams) return t('skills-action-update-level')
+  return t('add-skill-form-title')
 }
 
 const AddSkillContent: React.FC<BusinessAppContextProps> = ({ accessToken, additionalData }) => {
@@ -64,6 +76,19 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = ({ accessToken, addit
     form
   })
 
+  const formTitle = getFormTitle(t, flowFormParams, changeLevelParams)
+
+  if (contextLoading) {
+    return (
+      <div
+        className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-full gba:min-h-[320px] gba:items-center gba:justify-center"
+        data-testid="add-skill-loading"
+      >
+        <Spinner />
+      </div>
+    )
+  }
+
   if (!contextLoading && contextError) {
     return (
       <div
@@ -83,7 +108,7 @@ const AddSkillContent: React.FC<BusinessAppContextProps> = ({ accessToken, addit
       data-testid="flw_addSkills_addSkillsContainer"
     >
       <FormHeader
-        title={controller.title}
+        title={formTitle}
         flowIconUrl={flowIconUrl}
         employee={
           employee

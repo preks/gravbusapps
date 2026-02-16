@@ -190,7 +190,7 @@ export const AddSkillFormSections: React.FC<AddSkillFormSectionsProps> = ({
                 name="documentTypeId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t('add-skill-form-document-type')}</FormLabel>
+                    <FormLabel>{t('add-skill-form-document-type')} *</FormLabel>
                     <FormControl>
                       <Combobox
                         className="gba:w-full"
@@ -254,6 +254,31 @@ export const AddSkillFormSections: React.FC<AddSkillFormSectionsProps> = ({
           {t('add-skill-form-update-level-for-prefix')}{' '}
           <strong className="gba:font-bold gba:text-foreground">{skillName}</strong> {'.'}
         </span>
+        {activeSelectedSkills.length > 0 && (
+          <div
+            className="gba:flex gba:flex-col gba:gap-2 gba:max-h-[350px] gba:overflow-y-auto"
+            data-testid="add-skill-change-level-container"
+          >
+            {activeSelectedSkills.map(skill => (
+              <SkillLevelRow
+                key={skill.id}
+                skillName={skill.name}
+                onRemove={() => handleRemoveSkill(skill.id)}
+                dataTestIdPrefix="add-skill-change-level"
+                removeButtonTestId={`skill-level-row-remove-${skill.id}`}
+                rowId={skill.id}
+                showRemove={false}
+                levelContent={
+                  <LevelSelect
+                    value={skill.level ?? 1}
+                    onChange={level => handleUpdateExistingSkillLevel(skill.id, level)}
+                    dataTestId={`skill-level-select-${skill.id}`}
+                  />
+                }
+              />
+            ))}
+          </div>
+        )}
       </div>
     )
   }
