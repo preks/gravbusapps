@@ -17,6 +17,7 @@ import {
   Download,
   CheckCircle,
   CheckCircle2,
+  AlertCircle,
   X,
   PanelLeft,
   PanelLeftClose,
@@ -148,6 +149,7 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
   })
   const [isPublishing, setIsPublishing] = useState(false)
   const [publishSuccess, setPublishSuccess] = useState<string | null>(null)
+  const [restoreError, setRestoreError] = useState<string | null>(null)
   const [previewBuildStatus, setPreviewBuildStatus] = useState<{
     active: boolean
     lines: string[]
@@ -160,6 +162,7 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
   const previewSandboxRef = useRef<PreviewSandboxHandle>(null)
   const previousChangeCountRef = useRef(0)
   const publishProgressRef = useRef<string[]>([])
+  const restoreProgressRef = useRef<string[]>([])
   const resolvedTargetPath = detectedTargetPath || targetPath
 
   const createMessageId = (): string => {
@@ -232,11 +235,30 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
     )
   }
 
+  const formatRestoreProgress = (lines: string[]): string => {
+    if (lines.length === 0) {
+      return 'Restore in progress...'
+    }
+    return `Restore in progress...\n${lines.map(line => `- ${line}`).join('\n')}`
+  }
+
+  const updateRestoreTempMessage = (messageId: string, line: string) => {
+    restoreProgressRef.current = [...restoreProgressRef.current, line].slice(-6)
+    const nextContent = formatRestoreProgress(restoreProgressRef.current)
+    setMessages(prev =>
+      prev.map(message => (message.messageId === messageId ? { ...message, content: nextContent } : message))
+    )
+  }
+
   const replaceTempMessage = (messageId: string, nextMessage: Message) => {
     setMessages(prev => {
       const remaining = prev.filter(message => message.messageId !== messageId)
       return [...remaining, nextMessage]
     })
+  }
+
+  const removeTempMessage = (messageId: string) => {
+    setMessages(prev => prev.filter(message => message.messageId !== messageId))
   }
 
   const toggleFileExplorer = () => {
@@ -529,36 +551,65 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
 
   const confirmRestoreMessage = async () => {
     if (!sessionId || !pendingRestoreMessage?.messageId || !resolvedTargetPath) return
-    setIsRestoringMessageId(pendingRestoreMessage.messageId)
+    const restoreTarget = pendingRestoreMessage
+    const restoreMessageId = restoreTarget.messageId
+    if (!restoreMessageId) return
+    setShowRestoreDialog(false)
+    setPendingRestoreMessage(null)
+    setRestoreError(null)
+    setIsRestoringMessageId(restoreMessageId)
+    restoreProgressRef.current = []
+    const tempMessageId = createMessageId()
+    setMessages(prev => [
+      ...prev,
+      buildMessage('assistant', formatRestoreProgress([]), {
+        messageId: tempMessageId,
+        localOnly: true
+      })
+    ])
     try {
+      updateRestoreTempMessage(tempMessageId, 'Restoring files and chat')
       await builderClient.restoreToMessage({
         repoId: repositoryId,
         sessionId,
         targetPath: resolvedTargetPath,
-        messageId: pendingRestoreMessage.messageId,
+        messageId: restoreMessageId,
         restoreChat: true
       })
+      updateRestoreTempMessage(tempMessageId, 'Checking for changes')
       const newCount = await checkForChanges()
-      await refreshPreview()
-      previousChangeCountRef.current = newCount
+      updateRestoreTempMessage(tempMessageId, 'Reloading chat history')
       const history = await builderClient.loadChatHistory(repositoryId, sessionId)
       if (history?.length) {
         const normalized = ensureMessageIds(history as Message[])
         if (normalized.updated) {
           builderClient.saveChatHistory(repositoryId, sessionId, normalized.messages)
         }
-        setMessages(normalized.messages as Message[])
+        setMessages([
+          ...(normalized.messages as Message[]),
+          buildMessage('assistant', formatRestoreProgress(restoreProgressRef.current), {
+            messageId: tempMessageId,
+            localOnly: true
+          })
+        ])
       } else {
-        setMessages([])
+        setMessages([
+          buildMessage('assistant', formatRestoreProgress(restoreProgressRef.current), {
+            messageId: tempMessageId,
+            localOnly: true
+          })
+        ])
       }
-      setShowRestoreDialog(false)
-      setPendingRestoreMessage(null)
+      previousChangeCountRef.current = newCount
+      removeTempMessage(tempMessageId)
       if (publishAfterRestore) {
         await handlePublish()
       }
+      await refreshPreview()
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to restore message'
-      alert(message)
+      removeTempMessage(tempMessageId)
+      setRestoreError(message)
     } finally {
       setIsRestoringMessageId(null)
     }
@@ -844,6 +895,26 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
         )}
 
         <div className="gba:flex gba:flex-col gba:flex-1 gba:min-w-0">
+          {restoreError && (
+            <div className="gba:bg-destructive/10 gba:border-b gba:border-destructive/30">
+              <div className="gba:container gba:mx-auto gba:px-6 gba:py-3">
+                <div className="gba:flex gba:items-center gba:justify-between">
+                  <div className="gba:flex gba:items-center gba:gap-3">
+                    <AlertCircle className="gba:w-5 gba:h-5 gba:text-destructive" />
+                    <div>
+                      <p className="gba:text-sm gba:font-medium gba:text-destructive">
+                        {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.restore_failed', 'Restore failed')}
+                      </p>
+                      <p className="gba:text-xs gba:text-destructive/90">{restoreError}</p>
+                    </div>
+                  </div>
+                  <button onClick={() => setRestoreError(null)} className="gba:text-destructive hover:gba:opacity-80">
+                    <X className="gba:w-4 gba:h-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
           {publishSuccess && (
             <div className="gba:bg-success-secondary gba:border-b gba:border-success">
               <div className="gba:container gba:mx-auto gba:px-6 gba:py-3">
