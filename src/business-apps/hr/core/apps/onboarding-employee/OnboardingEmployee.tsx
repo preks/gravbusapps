@@ -1,8 +1,11 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { PageLayout, useTranslation } from '@newwork/nw-design-system'
 import { ClipboardTextIcon, TicketIcon, GitBranchIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { MODULE_COLORS } from '@/common/constants/ui'
+import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
+import { OnboardingCasesView } from './views/onboarding-cases-view/OnboardingCasesView'
+import { OnboardingCaseDetailView } from './views/onboarding-case-detail-view/OnboardingCaseDetailView'
 import onboardingI18n from './_i18n'
 
 const moduleColor = MODULE_COLORS.HR
@@ -32,16 +35,16 @@ const VIEW_OPTIONS = [
 ]
 
 function getCaseIdFromUrl(): string | null {
-  if (typeof globalThis.window === 'undefined') return null
-  return new URLSearchParams(globalThis.window.location.search).get('caseId')
+  if (typeof window === 'undefined') return null
+  return new URLSearchParams(window.location.search).get('caseId')
 }
 
-export const OnboardingEmployee: React.FC<BusinessAppContextProps> = () => {
+export const OnboardingEmployee: React.FC<BusinessAppContextProps> = context => {
   const { t } = useTranslation(onboardingI18n)
   const [caseId, setCaseId] = useState<string | null>(getCaseIdFromUrl)
 
   const getInitialView = () => {
-    const urlParams = new URLSearchParams(globalThis.window.location.search)
+    const urlParams = new URLSearchParams(window.location.search)
     const viewFromUrl = urlParams.get('view')
     if (viewFromUrl && VIEW_OPTIONS.some(opt => opt.key === viewFromUrl)) {
       return viewFromUrl
@@ -52,14 +55,14 @@ export const OnboardingEmployee: React.FC<BusinessAppContextProps> = () => {
   const [activeTab, setActiveTab] = useState<string>(getInitialView())
 
   const updateUrl = (view: string, overrides?: { caseId?: string | null }) => {
-    const urlParams = new URLSearchParams(globalThis.window.location.search)
+    const urlParams = new URLSearchParams(window.location.search)
     urlParams.set('view', view)
     if (overrides?.caseId !== undefined) {
       if (overrides.caseId) urlParams.set('caseId', overrides.caseId)
       else urlParams.delete('caseId')
     }
-    const newUrl = `${globalThis.window.location.pathname}?${urlParams.toString()}`
-    globalThis.window.history.replaceState({}, '', newUrl)
+    const newUrl = `${window.location.pathname}?${urlParams.toString()}`
+    window.history.replaceState({}, '', newUrl)
   }
 
   const handleTabChange = (key: string) => {
@@ -68,8 +71,13 @@ export const OnboardingEmployee: React.FC<BusinessAppContextProps> = () => {
     updateUrl(key)
   }
 
+  const handleBackFromCase = () => {
+    setCaseId(null)
+    navigateTo(buildPlatformUrl('/platform/onboarding-employee', { view: 'cases' }))
+  }
+
   useEffect(() => {
-    const urlParams = new URLSearchParams(globalThis.window.location.search)
+    const urlParams = new URLSearchParams(window.location.search)
     if (!urlParams.has('view')) {
       updateUrl(activeTab)
     }
@@ -85,16 +93,21 @@ export const OnboardingEmployee: React.FC<BusinessAppContextProps> = () => {
       setActiveTab(getInitialView())
       setCaseId(getCaseIdFromUrl())
     }
-    globalThis.window.addEventListener('popstate', handlePopState)
-    return () => globalThis.window.removeEventListener('popstate', handlePopState)
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
   }, [])
 
   const activeTabInfo = VIEW_OPTIONS.find(opt => opt.key === activeTab) ?? VIEW_OPTIONS[0]
 
+  const onNavigateToCase = useCallback((id: string) => {
+    setCaseId(id)
+    navigateTo(buildPlatformUrl('/platform/onboarding-employee', { view: 'cases', caseId: id }))
+  }, [])
+
   if (caseId) {
     return (
       <div data-testid="onboarding-employee-app">
-        <div>Case Detail</div>
+        <OnboardingCaseDetailView caseId={caseId} onBack={handleBackFromCase} accessToken={context.accessToken} />
       </div>
     )
   }
@@ -102,7 +115,7 @@ export const OnboardingEmployee: React.FC<BusinessAppContextProps> = () => {
   const renderContent = () => {
     switch (activeTab) {
       case 'cases':
-        return <div>Cases</div>
+        return <OnboardingCasesView {...context} onNavigateToCase={onNavigateToCase} />
       case 'tickets':
         return <div>Tickets</div>
       case 'flows':
