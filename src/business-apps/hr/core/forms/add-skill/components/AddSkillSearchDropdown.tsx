@@ -63,7 +63,13 @@ export const AddSkillSearchDropdown = forwardRef<HTMLDivElement, AddSkillSearchD
                   }
                 )}
               </div>
-              <Button size="sm" type="button" onClick={onAddNew} data-testid="flw_addSkills_addNewSkillButton">
+              <Button
+                variant="secondary"
+                size="sm"
+                type="button"
+                onClick={onAddNew}
+                data-testid="flw_addSkills_addNewSkillButton"
+              >
                 {getTranslationFromI18nKeyAndLabel(
                   'lowcoder:employee_profile.details_layout.add_skill_form.add_skill_button_text',
                   'Add Skill'

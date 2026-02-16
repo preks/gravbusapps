@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react'
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useFormContext, useFieldArray } from 'react-hook-form'
 import { FormField, FormItem, FormControl, FormMessage, Combobox, Button, FileUpload } from '@newwork/nw-design-system'
 import { SkillLevelRow } from '@/business-apps/hr/core/forms/add-skill/components/SkillLevelRow'
@@ -6,6 +6,7 @@ import { DebouncedInput } from '@/components/debounced-input'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { SEARCH_SKILLS_QUERY, GET_SKILLS_BY_NAMES } from '@/business-apps/hr/core/forms/add-skill/AddSkillQueries'
 import { useRestClient } from '@/common/network/rest/useRestClient'
+import { hybridSearchSkills } from '@/common/network/flowbot/hybridSearchSkills'
 import { env } from '@/common/env/EnvUtils'
 
 interface SkillsSectionProps {
@@ -61,6 +62,28 @@ const SkillsSection: React.FC<SkillsSectionProps> = ({ dataTestId, accessToken }
     return (searchResults || []).filter(skill => !selectedSkillIds.has(skill.id))
   }, [searchResults, selectedSkillIds])
 
+  const loadSearchResults = useCallback(
+    async (term: string): Promise<Array<{ id: string; name: string }>> => {
+      try {
+        const matches = await hybridSearchSkills(term, accessToken ?? '', 20)
+        return matches.map(m => ({ id: m.id, name: m.name }))
+      } catch {
+        try {
+          const pattern = `%${term}%`
+          const result = await graphqlClient.request<{ skill: Array<{ id: string; name: string; version: number }> }>(
+            SEARCH_SKILLS_QUERY,
+            { search: pattern, limit: 50 }
+          )
+          return result?.skill ?? []
+        } catch (error) {
+          console.error('Error searching skills:', error)
+          return []
+        }
+      }
+    },
+    [accessToken, graphqlClient]
+  )
+
   // Search skills when search term changes
   useEffect(() => {
     let isActive = true
@@ -74,7 +97,7 @@ const SkillsSection: React.FC<SkillsSectionProps> = ({ dataTestId, accessToken }
         return
       }
       const term = searchTerm.trim()
-      if (!term) {
+      if (!term || term.length < 2) {
         if (isActive) setSearchResults([])
         if (isActive) setIsDropdownOpen(false)
         return
@@ -82,22 +105,10 @@ const SkillsSection: React.FC<SkillsSectionProps> = ({ dataTestId, accessToken }
       setIsSearching(true)
       const mySeq = ++searchSeqRef.current
       try {
-        // Search skills from GraphQL API
-        const pattern = `%${term}%`
-        const result = await graphqlClient.request<{ skill: Array<{ id: string; name: string; version: number }> }>(
-          SEARCH_SKILLS_QUERY,
-          { search: pattern, limit: 50 }
-        )
-
+        const matches = await loadSearchResults(term)
         if (!isActive || mySeq !== searchSeqRef.current) return
-        setSearchResults(result?.skill || [])
+        setSearchResults(matches)
         setIsDropdownOpen(true)
-      } catch (error) {
-        console.error('Error searching skills:', error)
-        if (isActive && mySeq === searchSeqRef.current) {
-          setSearchResults([])
-          setIsDropdownOpen(false)
-        }
       } finally {
         if (isActive && mySeq === searchSeqRef.current) setIsSearching(false)
       }
@@ -106,7 +117,7 @@ const SkillsSection: React.FC<SkillsSectionProps> = ({ dataTestId, accessToken }
     return () => {
       isActive = false
     }
-  }, [searchTerm, graphqlClient])
+  }, [searchTerm, loadSearchResults])
 
   const handleSelectSkill = (skill: { id: string; name: string }) => {
     append({

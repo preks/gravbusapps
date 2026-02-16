@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react'
-import { PageLayout, useTranslation, toast } from '@newwork/nw-design-system'
+import { PageLayout, useTranslation, toast, Spinner } from '@newwork/nw-design-system'
 import { ListChecks } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { MODULE_COLORS } from '@/common/constants/ui'
 import { useFeature } from '@/common/hooks/useFeature'
 import { Feature } from '@/common/types/constants/FeatureHub'
+import { useScopePermissionCheck } from '@/common/hooks/useScopePermissionCheck'
 import { startProcess, getPlatformContext } from '@/common/utils/start-process'
 import { usePerformanceCycles } from './hooks/usePerformanceCycles'
 import { useRatingScales } from './hooks/useRatingScales'
@@ -68,6 +69,12 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
   const { saveRatingScale } = useInsertRatingScale(accessToken)
   const { savePerformanceCycle, updateCycleActive, deletePerformanceCycle } = useSavePerformanceCycle(accessToken)
   const { saveCompanyValue, deleteCompanyValue, updateCompanyValueRecordState } = useSaveCompanyValue(accessToken)
+
+  const hrBackoffice = useScopePermissionCheck(
+    '/platform/employee-record',
+    'employee-record-hr-backoffice',
+    accessToken
+  )
 
   // Fetch manager's userId and current employee's userId for process payload
   const platformContext = getPlatformContext()
@@ -397,6 +404,18 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
   }
 
   if (!devFeatureFlag) {
+    return null
+  }
+
+  if (hrBackoffice.loading) {
+    return (
+      <div className="gba:flex gba:justify-center gba:items-center gba:min-h-screen">
+        <Spinner size="lg" data-testid="performance-evaluation-loading" />
+      </div>
+    )
+  }
+
+  if (!hrBackoffice.hasPermission) {
     return null
   }
 
