@@ -59,11 +59,11 @@ function RequesterOrAssigneeCell({
   userId,
   displayNames,
   employeeInfo
-}: {
+}: Readonly<{
   userId: string | undefined
   displayNames: Map<string, string> | undefined
   employeeInfo: Map<string, EmployeeDisplayInfo> | undefined
-}) {
+}>) {
   if (!userId) return <span className="gba:text-muted-foreground">–</span>
   const info = employeeInfo?.get(userId)
   if (info) {

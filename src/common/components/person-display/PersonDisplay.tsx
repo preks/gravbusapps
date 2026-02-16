@@ -33,14 +33,14 @@ export const PersonDisplay: React.FC<PersonDisplayProps> = ({
   const avatarSrc =
     pictureThumbnail && !pictureThumbnail.startsWith('{') ? `data:image/jpeg;base64,${pictureThumbnail}` : undefined
   const initials =
-    name !== '–'
-      ? name
+    name === '–'
+      ? '–'
+      : name
           .split(' ')
           .map(n => n[0])
           .join('')
           .toUpperCase()
           .slice(0, 2)
-      : '–'
 
   const content = (
     <div className={`gba:flex gba:items-center gba:gap-2 ${className}`.trim()}>
@@ -53,11 +53,11 @@ export const PersonDisplay: React.FC<PersonDisplayProps> = ({
           <AvatarImage src={avatarSrc} alt={name} />
           <AvatarFallback>{initials}</AvatarFallback>
         </Avatar>
-      ) : name !== '–' ? (
+      ) : name === '–' ? null : (
         <div className="gba:w-8 gba:h-8 gba:rounded-full gba:bg-muted gba:flex gba:items-center gba:justify-center gba:text-xs gba:font-medium">
           {initials}
         </div>
-      ) : null}
+      )}
       <span className={`gba:font-semibold gba:text-sm ${isClickable ? 'gba:hover:underline' : ''}`.trim()}>
         {name === '–' ? <span className="gba:text-muted-foreground">–</span> : name}
       </span>

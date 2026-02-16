@@ -45,10 +45,14 @@ export const OnboardingTicketsView: React.FC<OnboardingTicketsViewProps> = ({ ac
     enabled: tickets.length > 0
   })
 
+  const onActionSuccess = useCallback(() => {
+    void refetch()
+  }, [refetch])
+
   const { claim, isPerforming } = useOnboardingTaskActions({
     accessToken,
     userId: userInfo?.id,
-    onSuccess: refetch
+    onSuccess: onActionSuccess
   })
 
   const handleClaim = useCallback(

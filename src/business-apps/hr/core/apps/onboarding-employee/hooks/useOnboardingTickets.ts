@@ -4,7 +4,7 @@ import type { StepInstance } from '@/business-apps/ser/types'
 import type { StepStatus } from '@/business-apps/ser/packages/services-plus-core/src'
 import { FLOW_ENGINE_API_BASE, ONBOARDING_APP_TAG } from '../constants'
 
-const VALID_STEP_STATUSES: StepStatus[] = [
+const VALID_STEP_STATUSES = new Set<StepStatus>([
   'SCHEDULED',
   'OPEN',
   'IN_PROGRESS',
@@ -21,11 +21,11 @@ const VALID_STEP_STATUSES: StepStatus[] = [
   'TIMED_OUT',
   'CANCELED',
   'UNKNOWN'
-]
+])
 
 function mapTaskStatus(status: string | undefined): StepStatus {
   const upper = status?.toUpperCase() as StepStatus
-  return VALID_STEP_STATUSES.includes(upper) ? upper : 'SCHEDULED'
+  return VALID_STEP_STATUSES.has(upper) ? upper : 'SCHEDULED'
 }
 
 /** Form field from flow-engine task (e.g. SELECT for entity) */
