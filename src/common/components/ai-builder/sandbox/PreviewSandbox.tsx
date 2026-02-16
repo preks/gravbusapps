@@ -8,9 +8,9 @@ import { getSafeHref } from '@/business-apps/core/create/apps/ai-builder/utils/h
 
 interface UniqueFileSummary {
   totalUniqueFiles: number
-  created: number
-  modified: number
-  deleted: number
+  createCount: number
+  modifyCount: number
+  deleteCount: number
   files: Array<{
     path: string
     type: 'create' | 'modify' | 'delete'

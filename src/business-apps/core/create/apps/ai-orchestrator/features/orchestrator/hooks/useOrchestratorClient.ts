@@ -40,8 +40,8 @@ export interface UseOrchestratorClientResult {
   refinePlan: (jobId: string, feedback: string) => Promise<AnalyzeResponse>
   updatePlan: (jobId: string, request: UpdatePlanRequest) => Promise<BuildPlan>
   getJobStatus: (jobId: string) => Promise<BuildJobStatus>
-  /** Refetch plan from backend after build so UI uses persisted components with metadata */
-  refreshPlan: (jobId: string) => Promise<void>
+  /** Refetch plan from backend after build so UI uses persisted components with metadata. Returns loaded plan or null. */
+  refreshPlan: (jobId: string) => Promise<BuildPlan | null>
   cancelBuild: (jobId: string) => Promise<void>
   clearPlan: () => void
   clearRefinementSummary: () => void
@@ -210,15 +210,18 @@ export function useOrchestratorClient({ accessToken }: UseOrchestratorClientOpti
   )
 
   /**
-   * Refetch plan from backend after build so UI uses persisted components with metadata
+   * Refetch plan from backend after build so UI uses persisted components with metadata.
+   * Returns the loaded plan so callers can decide view state (e.g. show complete when already built).
    */
   const refreshPlan = useCallback(
-    async (jobId: string): Promise<void> => {
+    async (jobId: string): Promise<BuildPlan | null> => {
       try {
         const plan = await client.getPlan(jobId)
         setCurrentPlan(plan)
+        return plan
       } catch {
         // Ignore; in-memory plan from events remains
+        return null
       }
     },
     [client]

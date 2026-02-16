@@ -49,8 +49,19 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
     if (!initialJobId || !accessToken) return
     orchestratorClient
       .refreshPlan(initialJobId)
-      .then(() => {
-        state.setViewState('review')
+      .then(plan => {
+        if (!plan) return
+        const alreadyBuilt =
+          plan.status === 'completed' || plan.components.some(c => c.status === 'completed' || c.status === 'reused')
+        if (alreadyBuilt) {
+          const firstWithSession = plan.components.find(c => c.metadata?.sessionId && c.metadata?.repoId)
+          const sessionId = firstWithSession?.metadata?.sessionId as string | undefined
+          const repoId = firstWithSession?.metadata?.repoId as string | undefined
+          if (sessionId || repoId) {
+            orchestratorClient.setSessionFromBuild(sessionId, repoId)
+          }
+        }
+        state.setViewState(alreadyBuilt ? 'complete' : 'review')
       })
       .catch(() => {})
   }, [initialJobId, accessToken])
