@@ -274,7 +274,7 @@ export const SessionList: React.FC<SessionListProps> = ({
                 className="gba:group gba:cursor-pointer gba:transition-all hover:gba:shadow-lg hover:gba:border-primary/50"
                 onClick={() => {
                   if (!isOpeningSession) {
-                    void onSelectSession(session.sessionId)
+                    onSelectSession(session.sessionId)
                   }
                 }}
                 data-testid={`session-card-${session.sessionId}`}

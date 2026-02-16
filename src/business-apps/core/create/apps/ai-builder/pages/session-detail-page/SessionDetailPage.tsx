@@ -280,8 +280,7 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
   }
 
   const normalizeNonEmpty = (value?: string | null): string | null => {
-    const trimmed = value?.trim()
-    return trimmed ? trimmed : null
+    return value?.trim() ?? null
   }
 
   const toPreviewAppName = (pathValue?: string | null): string | null => {
