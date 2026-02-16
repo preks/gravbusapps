@@ -11,13 +11,15 @@ import {
   Label,
   Combobox,
   RadioGroup,
-  RadioGroupItem
+  RadioGroupItem,
+  useTranslation
 } from '@newwork/nw-design-system'
 import type { PerformanceCycle } from '../types'
 import {
   useOrganizationalUnits,
   type OrganizationalUnit
 } from '@/business-apps/hr/core/apps/performance-evaluation/hooks/useOrganizationalUnits'
+import translations from '../_i18n'
 
 export type RunForOption = 'self' | 'team'
 
@@ -41,6 +43,7 @@ export const StartCycleConfirmDialog: React.FC<StartCycleConfirmDialogProps> = (
   onConfirm,
   onCancel
 }) => {
+  const { t } = useTranslation(translations)
   const [runFor, setRunFor] = useState<RunForOption>('self')
   const [selectedTeamIds, setSelectedTeamIds] = useState<string[]>([])
   const { organizationalUnits, loading, error } = useOrganizationalUnits(accessToken, open && runFor === 'team')
@@ -63,17 +66,17 @@ export const StartCycleConfirmDialog: React.FC<StartCycleConfirmDialogProps> = (
     <AlertDialog open={open} onOpenChange={open => !open && onCancel()}>
       <AlertDialogContent data-testid="performance-evaluation-start-confirm">
         <AlertDialogHeader>
-          <AlertDialogTitle>Start Performance Evaluation</AlertDialogTitle>
+          <AlertDialogTitle>{t('start-confirm-title')}</AlertDialogTitle>
           <AlertDialogDescription>
             {cycle
-              ? `Are you sure you want to start the performance evaluation for "${cycle.name}"? This will initiate the evaluation flow.`
-              : 'Are you sure you want to start this performance evaluation?'}
+              ? t('start-confirm-description-with-cycle', { name: cycle.name })
+              : t('start-confirm-description-generic')}
           </AlertDialogDescription>
         </AlertDialogHeader>
 
         <div className="gba:space-y-4 gba:py-4">
           <div className="gba:space-y-3">
-            <Label>Run evaluation for</Label>
+            <Label>{t('start-confirm-run-for-label')}</Label>
             <RadioGroup
               value={runFor}
               onValueChange={(v: string) => setRunFor(v as RunForOption)}
@@ -82,18 +85,18 @@ export const StartCycleConfirmDialog: React.FC<StartCycleConfirmDialogProps> = (
             >
               <label className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer">
                 <RadioGroupItem value="self" id="run-for-self" />
-                <span>Myself</span>
+                <span>{t('start-confirm-run-for-self')}</span>
               </label>
               <label className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer">
                 <RadioGroupItem value="team" id="run-for-team" />
-                <span>Team</span>
+                <span>{t('start-confirm-run-for-team')}</span>
               </label>
             </RadioGroup>
           </div>
 
           {runFor === 'team' && (
             <div className="gba:space-y-2">
-              <Label>Select Teams *</Label>
+              <Label>{t('start-confirm-select-teams')}</Label>
               <div className="gba:w-full gba:max-w-full">
                 <Combobox
                   mode="multiple"
@@ -107,10 +110,14 @@ export const StartCycleConfirmDialog: React.FC<StartCycleConfirmDialogProps> = (
                     value: unit.id
                   }))}
                   placeholder={
-                    loading ? 'Loading teams...' : error ? error.message : 'Select teams to start evaluation for'
+                    loading
+                      ? t('start-confirm-placeholder-loading')
+                      : error
+                        ? error.message
+                        : t('start-confirm-placeholder-teams')
                   }
-                  searchPlaceholder="Search teams..."
-                  emptyText="No teams found"
+                  searchPlaceholder={t('start-confirm-search-teams')}
+                  emptyText={t('start-confirm-empty-teams')}
                   disabled={loading || Boolean(error)}
                   className="gba:w-full gba:max-w-full gba:h-auto gba:[&_button]:gba:max-w-full gba:[&_button]:gba:min-w-0 gba:[&_button]:gba:overflow-hidden gba:[&_button_span]:gba:truncate gba:[&_button]:gba:h-auto gba:[&_button>div]:gba:flex-wrap gba:[&_button>div]:gba:gap-2"
                 />
@@ -125,13 +132,13 @@ export const StartCycleConfirmDialog: React.FC<StartCycleConfirmDialogProps> = (
         </div>
 
         <AlertDialogFooter>
-          <AlertDialogCancel data-testid="performance-evaluation-start-cancel">Cancel</AlertDialogCancel>
+          <AlertDialogCancel data-testid="performance-evaluation-start-cancel">{t('button-cancel')}</AlertDialogCancel>
           <AlertDialogAction
             onClick={handleConfirm}
             data-testid="performance-evaluation-start-confirm-button"
             disabled={isConfirmDisabled}
           >
-            Start Evaluation
+            {t('start-confirm-button')}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

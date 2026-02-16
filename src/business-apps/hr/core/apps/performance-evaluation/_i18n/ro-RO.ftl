@@ -96,6 +96,20 @@ values-modal-title-add = Adaugă valoare
 values-modal-title-edit = Editează valoarea
 values-modal-description = Definește o valoare a companiei și descrierea ei.
 
+# Modal confirmare start ciclu
+start-confirm-title = Pornește evaluarea performanței
+start-confirm-description-with-cycle = Sigur doriți să porniți evaluarea performanței pentru „{ $name }”? Aceasta va iniția fluxul de evaluare.
+start-confirm-description-generic = Sigur doriți să porniți această evaluare a performanței?
+start-confirm-run-for-label = Rulează evaluarea pentru
+start-confirm-run-for-self = Mine
+start-confirm-run-for-team = Echipă
+start-confirm-select-teams = Selectează echipe *
+start-confirm-placeholder-loading = Se încarcă echipele...
+start-confirm-placeholder-teams = Selectează echipele pentru care pornești evaluarea
+start-confirm-search-teams = Caută echipe...
+start-confirm-empty-teams = Nu s-au găsit echipe
+start-confirm-button = Pornește evaluarea
+
 # Erori
 values-error-cannot-deactivate-active-cycle = Valoarea nu poate fi dezactivată cât timp este folosită într-un ciclu activ.
 cycles-error-no-rating-scales = Este necesară cel puțin o scală de evaluare pentru a crea un ciclu.
