@@ -137,14 +137,7 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
             endDate: absence.endDate,
             duration: absence.workingDays ? `${absence.workingDays} ${absence.workingDays === 1 ? 'day' : 'days'}` : '',
             description: absence.description || '',
-            icon: (
-              <Paperclip
-                className="gba:w-4 gba:h-4"
-                style={{
-                  color: absence.type?.objectValue?.color ? `#${absence.type.objectValue.color}` : 'var(--nw-chart-4)'
-                }}
-              />
-            ),
+            icon: Paperclip,
             typeColor: absence.type?.objectValue?.color ? absence.type.objectValue.color : 'blue',
             statusColor: statusToColor(absence.status),
             requestDate: absence.createdAt
@@ -157,7 +150,7 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
             .map((a: any, idx: number) => ({
               id: a.id || idx,
               type: a.type ? getCatalogValue(a.type) || '' : '',
-              icon: <Paperclip className="gba:w-4 gba:h-4" style={{ color: 'var(--nw-chart-4)' }} />,
+              icon: Paperclip,
               dates: `${dayjs(a.startDate).format('MM/DD/YYYY')} - ${dayjs(a.endDate).format('MM/DD/YYYY')}`,
               description: a.description,
               timeUntil: timeUntil(a.startDate),
@@ -182,7 +175,7 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
           total: ent.total,
           pending: ent.pending,
           available: ent.available,
-          icon: <Paperclip className="gba:w-4 gba:h-4" style={{ color: ent.color || 'var(--nw-chart-4)' }} />,
+          icon: Paperclip,
           checkEntitlement: undefined
         }))
       )
@@ -191,7 +184,7 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
       setStats(
         snapshotStats.map(s => ({
           ...s,
-          icon: <Paperclip className="gba:w-4 gba:h-4" style={{ color: s.color || 'var(--nw-chart-4)' }} />
+          icon: Paperclip
         })) as any
       )
     }
@@ -293,17 +286,17 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
   const viewOptions = [
     {
       key: 'calendar',
-      icon: <Calendar className="gba:w-4 gba:h-4" />,
+      icon: <Calendar className="w-5 h-5" />,
       label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.calendar', 'Calendar')
     },
     {
       key: 'absence-list',
-      icon: <List className="gba:w-4 gba:h-4" />,
+      icon: <List className="w-5 h-5" />,
       label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.absence_list', 'Absence List')
     },
     {
       key: 'entitlements',
-      icon: <Paperclip className="gba:w-4 gba:h-4" />,
+      icon: <Paperclip className="w-5 h-5" />,
       label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.entitlements', 'Entitlements')
     }
   ]

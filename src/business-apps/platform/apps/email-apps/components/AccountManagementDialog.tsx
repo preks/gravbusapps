@@ -1,6 +1,6 @@
 /**
  * AccountManagementDialog - Manage connected email accounts.
- * View account status, reconnect, or delete accounts.
+ * View account status, reconnect, delete, and toggle calendar sync.
  */
 
 import React, { useState } from 'react'
@@ -13,6 +13,7 @@ import {
   DialogDescription,
   Button,
   Badge,
+  Switch,
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -22,11 +23,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle
 } from '@newwork/nw-design-system'
-import { Mail, RefreshCw, Trash2, CheckCircle, XCircle, AlertCircle, Plus } from 'lucide-react'
+import { Mail, RefreshCw, Trash2, Plus, Calendar, MessageSquare } from 'lucide-react'
 import { MicrosoftOAuthService } from '../services/MicrosoftOAuthService'
 import { GoogleOAuthService } from '../services/GoogleOAuthService'
 import { EmailApiService } from '../services/EmailApiService'
 import { EmailProviderSettingsApi } from '../services/EmailProviderSettingsApi'
+import { SignatureEditor } from './SignatureEditor'
+import { AccountStatusBadge } from './AccountStatusBadge'
+import { formatRelativeTime } from '../utils/emailDisplayUtils'
 import type { EmailAccount } from '../types'
 
 interface AccountManagementDialogProps {
@@ -35,6 +39,9 @@ interface AccountManagementDialogProps {
   accounts: EmailAccount[]
   onAccountsChanged: () => void
   onAddAccount: () => void
+  onOpenAdminSettings?: () => void
+  threadViewEnabled?: boolean
+  onToggleThreadView?: () => void
   'data-testid'?: string
 }
 
@@ -44,10 +51,17 @@ export const AccountManagementDialog: React.FC<AccountManagementDialogProps> = (
   accounts,
   onAccountsChanged,
   onAddAccount,
+  onOpenAdminSettings,
+  threadViewEnabled = false,
+  onToggleThreadView,
   'data-testid': testId = 'account-management'
 }) => {
   const [deletingAccountId, setDeletingAccountId] = useState<string | null>(null)
   const [reconnectingAccountId, setReconnectingAccountId] = useState<string | null>(null)
+
+  const handleToggleThreadView = () => {
+    onToggleThreadView?.()
+  }
 
   const handleReconnect = async (account: EmailAccount) => {
     if (account.provider !== 'microsoft' && account.provider !== 'google') {
@@ -57,31 +71,27 @@ export const AccountManagementDialog: React.FC<AccountManagementDialogProps> = (
 
     setReconnectingAccountId(account.id)
     try {
-      // Fetch tenant settings for OAuth config
       const tenantSettings = await EmailProviderSettingsApi.getPublicSettings()
       const providerKey = account.provider === 'microsoft' ? 'microsoft' : 'google'
       const providerConfig = tenantSettings.find(s => s.provider === providerKey)
 
       if (account.provider === 'microsoft') {
-        const config = MicrosoftOAuthService.buildConfig(providerConfig?.publicConfig)
-        const authResult = await MicrosoftOAuthService.startAuth(config)
-        await EmailProviderSettingsApi.exchangeMicrosoftCode({
-          code: authResult.code,
-          codeVerifier: authResult.codeVerifier,
-          redirectUri: authResult.redirectUri
-        })
+        if (!providerConfig?.isEnabled) {
+          toast.error('Microsoft provider is not enabled. Please ask your admin to enable it in provider settings.')
+          return
+        }
+        const config = MicrosoftOAuthService.buildConfig(providerConfig.publicConfig)
+        // Redirect flow — callback page completes the code exchange.
+        return await MicrosoftOAuthService.startAuth(config)
       } else {
-        const config = GoogleOAuthService.buildConfig(providerConfig?.publicConfig)
-        const authResult = await GoogleOAuthService.startAuth(config)
-        await EmailProviderSettingsApi.exchangeGoogleCode({
-          code: authResult.code,
-          codeVerifier: authResult.codeVerifier,
-          redirectUri: authResult.redirectUri
-        })
+        if (!providerConfig?.isEnabled) {
+          toast.error('Google provider is not enabled. Please ask your admin to enable it in provider settings.')
+          return
+        }
+        const config = GoogleOAuthService.buildConfig(providerConfig.publicConfig)
+        // Redirect flow — callback page completes the code exchange.
+        return await GoogleOAuthService.startAuth(config)
       }
-
-      toast.success('Account reconnected successfully!')
-      onAccountsChanged()
     } catch (err) {
       console.error('[AccountManagement] Reconnect error:', err)
       toast.error(err instanceof Error ? err.message : 'Failed to reconnect account')
@@ -102,55 +112,19 @@ export const AccountManagementDialog: React.FC<AccountManagementDialogProps> = (
     }
   }
 
-  const getStatusBadge = (status: EmailAccount['status']) => {
-    switch (status) {
-      case 'active':
-        return (
-          <Badge variant="success" className="gba:gap-1">
-            <CheckCircle className="gba:w-3 gba:h-3" />
-            Active
-          </Badge>
-        )
-      case 'disconnected':
-        return (
-          <Badge variant="destructive" className="gba:gap-1">
-            <XCircle className="gba:w-3 gba:h-3" />
-            Disconnected
-          </Badge>
-        )
-      case 'error':
-        return (
-          <Badge variant="warning" className="gba:gap-1">
-            <AlertCircle className="gba:w-3 gba:h-3" />
-            Error
-          </Badge>
-        )
-      case 'syncing':
-        return (
-          <Badge variant="info" className="gba:gap-1">
-            <RefreshCw className="gba:w-3 gba:h-3 gba:animate-spin" />
-            Syncing
-          </Badge>
-        )
-      default:
-        return null
-    }
+  const handleToggleCalendar = (account: EmailAccount) => {
+    const key = `email-calendar-sync-${account.id}`
+    const current = localStorage.getItem(key) !== 'false'
+    localStorage.setItem(key, String(!current))
+    toast.success(`Calendar sync ${!current ? 'enabled' : 'disabled'} for ${account.displayName}`)
+    onAccountsChanged()
   }
 
-  const formatLastSync = (lastSyncAt?: Date | null) => {
-    if (!lastSyncAt) return 'Never synced'
-    const date = new Date(lastSyncAt)
-    const now = new Date()
-    const diffMs = now.getTime() - date.getTime()
-    const diffMins = Math.floor(diffMs / 60000)
-
-    if (diffMins < 1) return 'Just now'
-    if (diffMins < 60) return `${diffMins}m ago`
-    const diffHours = Math.floor(diffMins / 60)
-    if (diffHours < 24) return `${diffHours}h ago`
-    const diffDays = Math.floor(diffHours / 24)
-    return `${diffDays}d ago`
+  const isCalendarEnabled = (accountId: string): boolean => {
+    return localStorage.getItem(`email-calendar-sync-${accountId}`) !== 'false'
   }
+
+  const supportsCalendar = (provider: string) => provider === 'microsoft' || provider === 'google'
 
   return (
     <>
@@ -163,6 +137,20 @@ export const AccountManagementDialog: React.FC<AccountManagementDialogProps> = (
             </DialogDescription>
           </DialogHeader>
 
+          {/* Global settings */}
+          <div className="gba:flex gba:items-center gba:justify-between gba:py-3 gba:px-4 gba:rounded-lg gba:border gba:bg-card">
+            <div className="gba:flex gba:items-center gba:gap-2">
+              <MessageSquare className="gba:w-4 gba:h-4 gba:text-info" />
+              <span className="gba:text-sm gba:text-foreground">Conversation view</span>
+              <span className="gba:text-xs gba:text-muted-foreground">Group email replies into threads</span>
+            </div>
+            <Switch
+              checked={threadViewEnabled}
+              onCheckedChange={handleToggleThreadView}
+              data-testid={`${testId}-thread-toggle`}
+            />
+          </div>
+
           <div className="gba:space-y-3 gba:py-4">
             {accounts.length === 0 ? (
               <div className="gba:text-center gba:py-8">
@@ -173,86 +161,128 @@ export const AccountManagementDialog: React.FC<AccountManagementDialogProps> = (
               accounts.map(account => (
                 <div
                   key={account.id}
-                  className="gba:flex gba:items-center gba:gap-4 gba:p-4 gba:rounded-lg gba:border gba:bg-card"
+                  className="gba:p-4 gba:rounded-lg gba:border gba:bg-card"
                   data-testid={`${testId}-account-${account.id}`}
                 >
-                  {/* Icon */}
-                  <div className="gba:w-12 gba:h-12 gba:rounded-lg gba:bg-primary/10 gba:flex gba:items-center gba:justify-center gba:flex-shrink-0">
-                    <Mail className="gba:w-5 gba:h-5 gba:text-primary" />
-                  </div>
+                  <div className="gba:flex gba:items-center gba:gap-4">
+                    {/* Icon */}
+                    <div className="gba:w-12 gba:h-12 gba:rounded-lg gba:bg-primary/10 gba:flex gba:items-center gba:justify-center gba:flex-shrink-0">
+                      <Mail className="gba:w-5 gba:h-5 gba:text-primary" />
+                    </div>
 
-                  {/* Info */}
-                  <div className="gba:flex-1 gba:min-w-0">
-                    <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
-                      <p className="gba:font-medium gba:text-foreground gba:truncate">{account.displayName}</p>
-                      {account.isDefault && (
-                        <Badge variant="secondary" className="gba:text-xs">
-                          Default
-                        </Badge>
-                      )}
-                    </div>
-                    <p className="gba:text-sm gba:text-muted-foreground gba:truncate gba:mb-2">
-                      {account.emailAddress}
-                    </p>
-                    <div className="gba:flex gba:items-center gba:gap-3">
-                      {getStatusBadge(account.status)}
-                      <span className="gba:text-xs gba:text-muted-foreground">
-                        {formatLastSync(account.lastSyncAt)}
-                      </span>
-                    </div>
-                    {account.lastSyncError && (
-                      <p className="gba:text-xs gba:text-destructive gba:mt-2 gba:line-clamp-2">
-                        {account.lastSyncError}
+                    {/* Info */}
+                    <div className="gba:flex-1 gba:min-w-0">
+                      <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+                        <p className="gba:font-medium gba:text-foreground gba:truncate">{account.displayName}</p>
+                        {account.isDefault && (
+                          <Badge variant="secondary" className="gba:text-xs">
+                            Default
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="gba:text-sm gba:text-muted-foreground gba:truncate gba:mb-2">
+                        {account.emailAddress}
                       </p>
-                    )}
+                      <div className="gba:flex gba:items-center gba:gap-3">
+                        <AccountStatusBadge status={account.status} />
+                        <span className="gba:text-xs gba:text-muted-foreground">
+                          {formatRelativeTime(account.lastSyncAt)}
+                        </span>
+                      </div>
+                      {account.lastSyncError && (
+                        <p className="gba:text-xs gba:text-destructive gba:mt-2 gba:line-clamp-2">
+                          {account.lastSyncError}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Actions */}
+                    <div className="gba:flex gba:gap-2 gba:flex-shrink-0">
+                      {(account.status === 'disconnected' || account.status === 'error') &&
+                        (account.provider === 'microsoft' || account.provider === 'google') && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleReconnect(account)}
+                            disabled={reconnectingAccountId === account.id}
+                            data-testid={`${testId}-reconnect-${account.id}`}
+                          >
+                            <RefreshCw
+                              className={`gba:w-4 gba:h-4 gba:mr-2 ${reconnectingAccountId === account.id ? 'gba:animate-spin' : ''}`}
+                            />
+                            Reconnect
+                          </Button>
+                        )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setDeletingAccountId(account.id)}
+                        data-testid={`${testId}-delete-${account.id}`}
+                      >
+                        <Trash2 className="gba:w-4 gba:h-4 gba:mr-2" />
+                        Delete
+                      </Button>
+                    </div>
                   </div>
 
-                  {/* Actions */}
-                  <div className="gba:flex gba:gap-2 gba:flex-shrink-0">
-                    {(account.status === 'disconnected' || account.status === 'error') &&
-                      (account.provider === 'microsoft' || account.provider === 'google') && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleReconnect(account)}
-                          disabled={reconnectingAccountId === account.id}
-                          data-testid={`${testId}-reconnect-${account.id}`}
-                        >
-                          <RefreshCw
-                            className={`gba:w-4 gba:h-4 gba:mr-2 ${reconnectingAccountId === account.id ? 'gba:animate-spin' : ''}`}
-                          />
-                          Reconnect
-                        </Button>
-                      )}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setDeletingAccountId(account.id)}
-                      data-testid={`${testId}-delete-${account.id}`}
-                    >
-                      <Trash2 className="gba:w-4 gba:h-4 gba:mr-2" />
-                      Delete
-                    </Button>
+                  {/* Calendar sync toggle for Microsoft/Google */}
+                  {supportsCalendar(account.provider) && account.status === 'active' && (
+                    <div className="gba:flex gba:items-center gba:justify-between gba:mt-3 gba:pt-3 gba:border-t">
+                      <div className="gba:flex gba:items-center gba:gap-2">
+                        <Calendar className="gba:w-4 gba:h-4 gba:text-info" />
+                        <span className="gba:text-sm gba:text-foreground">Calendar sync</span>
+                        <span className="gba:text-xs gba:text-muted-foreground">
+                          Show calendar events in everyone calendar
+                        </span>
+                      </div>
+                      <Switch
+                        checked={isCalendarEnabled(account.id)}
+                        onCheckedChange={() => handleToggleCalendar(account)}
+                        data-testid={`${testId}-calendar-${account.id}`}
+                      />
+                    </div>
+                  )}
+
+                  {/* Signature editor */}
+                  <div className="gba:mt-3 gba:pt-3 gba:border-t">
+                    <SignatureEditor
+                      accountId={account.id}
+                      currentSignature={account.signature || ''}
+                      onSaved={() => onAccountsChanged()}
+                      data-testid={`${testId}-signature-${account.id}`}
+                    />
                   </div>
                 </div>
               ))
             )}
           </div>
 
-          {/* Add Account Button */}
-          <div className="gba:border-t gba:pt-4">
+          {/* Bottom actions */}
+          <div className="gba:border-t gba:pt-4 gba:flex gba:gap-2">
             <Button
               variant="outline"
               onClick={() => {
                 onOpenChange(false)
                 onAddAccount()
               }}
-              className="gba:w-full"
+              className="gba:flex-1"
               data-testid={`${testId}-add-account`}
             >
               <Plus className="gba:w-4 gba:h-4 gba:mr-2" />
               Add another account
             </Button>
+            {onOpenAdminSettings && (
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  onOpenChange(false)
+                  onOpenAdminSettings()
+                }}
+                data-testid={`${testId}-admin-settings`}
+              >
+                Admin settings
+              </Button>
+            )}
           </div>
         </DialogContent>
       </Dialog>
@@ -271,7 +301,7 @@ export const AccountManagementDialog: React.FC<AccountManagementDialogProps> = (
             <AlertDialogCancel data-testid={`${testId}-delete-cancel`}>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => deletingAccountId && handleDelete(deletingAccountId)}
-              className="gba:bg-destructive gba:text-destructive-foreground gba:hover:bg-destructive/90"
+              className="gba:bg-destructive gba:text-destructive-foreground hover:gba:bg-destructive/90"
               data-testid={`${testId}-delete-confirm-button`}
             >
               Delete account

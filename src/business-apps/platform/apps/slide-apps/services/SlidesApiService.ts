@@ -11,32 +11,11 @@ import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/u
 
 const API_URL = getDocumentServiceApiUrl()
 
-const getAuthToken = (): string | null => {
-  try {
-    const ideToken = localStorage.getItem('business-app-ide-access-token')
-    if (ideToken) return ideToken
-    const authData = localStorage.getItem('keycloak-token')
-    if (authData) {
-      try {
-        const parsed = JSON.parse(authData)
-        return parsed.token || parsed.access_token || null
-      } catch {
-        return authData
-      }
-    }
-    const sessionToken = sessionStorage.getItem('auth_token')
-    if (sessionToken) return sessionToken
-    if (typeof window !== 'undefined' && (window as unknown as { authToken?: string }).authToken) {
-      return (window as unknown as { authToken: string }).authToken
-    }
-    return null
-  } catch {
-    return null
-  }
-}
+/** In-memory access token – set once by the hub/hook, read on every request. */
+let currentAccessToken: string | null = null
 
 async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  const token = getAuthToken()
+  const token = currentAccessToken
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -84,6 +63,11 @@ function mapApiSlideToSlide(api: Record<string, unknown>): Slide {
 }
 
 export const SlidesApiService = {
+  /** Store the access token in memory for all subsequent API requests. */
+  setAccessToken(token: string | null) {
+    currentAccessToken = token
+  },
+
   async listSlides(options?: {
     search?: string
     page?: number

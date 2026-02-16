@@ -22,6 +22,8 @@ export interface EmailAccount {
   lastSyncAt?: string
   lastSyncError?: string
   createdAt: string
+  /** Whether calendar sync is enabled for this account */
+  calendarSyncEnabled?: boolean
 }
 
 /** Well-known folder types */
@@ -59,6 +61,8 @@ export interface EmailMessageSummary {
   folderId: string
   messageId?: string
   threadId?: string
+  /** Number of messages in the thread (populated by backend) */
+  threadMessageCount?: number
   subject: string
   fromAddress: EmailAddress
   toAddresses: EmailAddress[]
@@ -72,6 +76,15 @@ export interface EmailMessageSummary {
   crmEntityType?: string
   crmEntityId?: string
   attachments?: EmailAttachment[]
+}
+
+/** AI-generated thread summary from Groq */
+export interface ThreadSummaryResult {
+  threadId: string
+  summary: string
+  messageCount: number
+  participants: string[]
+  keyPoints: string[]
 }
 
 /** Full email message (for reader view) */
@@ -123,6 +136,15 @@ export interface CreateEmailAccountRequest {
   isDefault?: boolean
 }
 
+/** Attachment to send with an email (base64-encoded) */
+export interface SendAttachment {
+  filename: string
+  contentType: string
+  content: string // base64
+  size?: number
+  isInline?: boolean
+}
+
 /** Send email request */
 export interface SendEmailRequest {
   accountId: string
@@ -137,7 +159,52 @@ export interface SendEmailRequest {
   isDraft?: boolean
   crmEntityType?: string
   crmEntityId?: string
+  attachments?: SendAttachment[]
 }
 
 /** Compose mode types */
 export type ComposeMode = 'new' | 'reply' | 'reply-all' | 'forward'
+
+// ========== Directory / Contact types ==========
+
+/** A contact entry from the company directory or recent recipients */
+export interface EmailContact {
+  id: string
+  name: string
+  email: string
+  avatarUrl?: string
+  source: 'directory' | 'recent' | 'manual'
+}
+
+// ========== External Calendar Event types ==========
+
+/** External calendar event from a provider (Microsoft/Google) */
+export interface ExternalCalendarEvent {
+  id: string
+  externalId: string
+  accountId: string
+  provider: 'microsoft' | 'google'
+  title: string
+  description?: string
+  start: string
+  end: string
+  allDay: boolean
+  location?: string
+  meetingLink?: string
+  status: 'confirmed' | 'tentative' | 'cancelled'
+  responseStatus?: 'accepted' | 'declined' | 'tentative' | 'needsAction'
+  isOrganizer: boolean
+  organizer?: {
+    name?: string
+    email: string
+  }
+  attendees?: Array<{
+    name?: string
+    email: string
+    status: 'accepted' | 'declined' | 'tentative' | 'needsAction'
+    isOptional?: boolean
+  }>
+  recurrence?: string
+  externalLink?: string
+  color?: string
+}

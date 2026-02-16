@@ -7,6 +7,7 @@ interface TravelRegion {
   id: string
   code: string
   value: string
+  parentEntryId?: string
   objectValue?: {
     destination_country_ref?: string
   }
@@ -96,19 +97,24 @@ export const useMatrixDataLoaders = ({ accessToken, travelRegionSetId }: UseMatr
     try {
       const result = await fetchRulesQuery({ travelRegionSetId })
 
-      // Extract all unique travel regions that have details
+      // Extract all unique travel regions that have details AND belong to this travel set
       const regionsWithDetailsMap = new Map<string, TravelRegion>()
       result.AllowanceRegionRule.forEach((rule: any) => {
         rule.allowanceRegionRuleDetail?.forEach((detail: any) => {
           if (detail.travelRegion && detail.travelRegion.id) {
             const regionId = detail.travelRegion.id
-            if (!regionsWithDetailsMap.has(regionId)) {
-              regionsWithDetailsMap.set(regionId, {
-                id: detail.travelRegion.id,
-                code: detail.travelRegion.code,
-                value: detail.travelRegion.value,
-                objectValue: detail.travelRegion.objectValue
-              })
+            const regionParentId = detail.travelRegion.parentEntryId
+
+            // CRITICAL FIX: Only include regions that belong to the current travel set
+            if (regionParentId === travelRegionSetId) {
+              if (!regionsWithDetailsMap.has(regionId)) {
+                regionsWithDetailsMap.set(regionId, {
+                  id: detail.travelRegion.id,
+                  code: detail.travelRegion.code,
+                  value: detail.travelRegion.value,
+                  objectValue: detail.travelRegion.objectValue
+                })
+              }
             }
           }
         })

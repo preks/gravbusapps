@@ -157,7 +157,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     return full || userInfo?.userName || currentUserId || 'User'
   }, [currentUserId, userInfo])
 
-  const graphqlClient = useGraphQLClient(accessToken || localStorage.getItem('business-app-ide-access-token') || '')
+  const graphqlClient = useGraphQLClient(accessToken || '')
   const [currentUserAvatar, setCurrentUserAvatar] = useState<string | undefined>(undefined)
 
   // Prepare initial data from slide prop (used for bootstrap initializer / pre-sync rendering).
@@ -192,7 +192,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     applyContentJsonSnapshot
   } = useSlideCollaboration({
     slideId,
-    accessToken: accessToken || localStorage.getItem('business-app-ide-access-token') || '',
+    accessToken: accessToken || '',
     currentUserId,
     currentUserName,
     currentUserAvatar,
@@ -212,8 +212,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
 
   useEffect(() => {
     const fetchParticipantAvatars = async () => {
-      const token = accessToken || localStorage.getItem('business-app-ide-access-token') || ''
-      if (!token || participants.length === 0) return
+      if (!accessToken || participants.length === 0) return
 
       const userIds = participants.map(p => p.userId).filter(Boolean)
       if (userIds.length === 0) return
@@ -257,8 +256,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
 
   // Fetch current user's avatar from Employee table
   useEffect(() => {
-    const token = accessToken || localStorage.getItem('business-app-ide-access-token') || ''
-    if (!token || !currentUserId) return
+    if (!accessToken || !currentUserId) return
 
     const fetchAvatar = async () => {
       try {
@@ -863,7 +861,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
               {/* AI Generate - positioned at far right like Transform in NoteEditor */}
               <GeneratePresentationButton
                 onGenerate={handleGeneratedSlides}
-                accessToken={accessToken || localStorage.getItem('business-app-ide-access-token') || ''}
+                accessToken={accessToken || ''}
                 disabled={!isSynced}
                 data-testid={`${testId}-generate-button`}
               />

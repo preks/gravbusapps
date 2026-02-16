@@ -49,6 +49,7 @@ export interface PublicProviderConfig {
 export interface AdminProviderConfig extends PublicProviderConfig {
   id: string
   hasClientSecret: boolean
+  grantedScopes?: string | null
   updatedAt: string
 }
 

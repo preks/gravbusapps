@@ -35,19 +35,9 @@
 import React from 'react'
 import { TrendUpIcon, HouseIcon } from '@phosphor-icons/react'
 import type { Icon } from '@phosphor-icons/react'
-
-// Lazy load specialized components to avoid circular dependencies
-const EquityOverviewContent = React.lazy(() =>
-  import('../components/group-specific/EquityOverviewContent').then(m => ({ default: m.EquityOverviewContent }))
-)
-const RealEstateOverviewContent = React.lazy(() =>
-  import('../components/group-specific/RealEstateOverviewContent').then(m => ({
-    default: m.RealEstateOverviewContent
-  }))
-)
-const EquityAnalyticsTab = React.lazy(() =>
-  import('../components/group-specific/EquityAnalyticsTab').then(m => ({ default: m.default }))
-)
+import { EquityOverviewContent } from '../components/group-specific/EquityOverviewContent'
+import { RealEstateOverviewContent } from '../components/group-specific/RealEstateOverviewContent'
+import EquityAnalyticsTab from '../components/group-specific/EquityAnalyticsTab'
 
 /**
  * Configuration interface for investment record group-specific behavior

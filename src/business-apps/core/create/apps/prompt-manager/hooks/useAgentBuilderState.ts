@@ -34,11 +34,25 @@ export interface UseAgentBuilderStateResult {
   isValid: boolean
 }
 
+export interface AgentBuilderInitialState {
+  name?: string
+  description?: string
+  agentType?: AgentType
+  specialty?: string
+  responseStyle?: ResponseStyle
+  citationMode?: CitationMode
+  expertColor?: string
+  isPublic?: boolean
+  tags?: string[]
+  knowledgeSources?: KnowledgeSource[]
+}
+
 export const useAgentBuilderState = (
   context: BusinessAppContextProps,
   mode: 'create' | 'edit',
   promptId?: string | null,
-  onNameLoaded?: (name: string) => void
+  onNameLoaded?: (name: string) => void,
+  initialState?: AgentBuilderInitialState
 ): UseAgentBuilderStateResult => {
   const client = usePromptManagerClient(context.accessToken)
 
@@ -69,6 +83,7 @@ export const useAgentBuilderState = (
   const [responseType, setResponseType] = useState<'text' | 'json'>('text')
   const [responseSchema, setResponseSchema] = useState('')
   const [knowledgeSources, setKnowledgeSources] = useState<KnowledgeSource[]>([])
+  const [didApplyInitial, setDidApplyInitial] = useState(false)
 
   // Catalogs
   const [workspaces, setWorkspaces] = useState<WorkspaceODM[]>([])
@@ -103,6 +118,31 @@ export const useAgentBuilderState = (
       mounted = false
     }
   }, [])
+
+  // Apply initial state for create mode (once)
+  useEffect(() => {
+    if (mode !== 'create' || didApplyInitial) return
+    if (!initialState) return
+
+    if (initialState.name) setName(prev => (prev.trim() ? prev : initialState.name || ''))
+    if (initialState.description) setDescription(prev => (prev.trim() ? prev : initialState.description || ''))
+    if (initialState.agentType) setAgentType(prev => (prev === 'flow' ? initialState.agentType || 'flow' : prev))
+    if (initialState.specialty) setSpecialty(prev => (prev.trim() ? prev : initialState.specialty || ''))
+    if (initialState.responseStyle)
+      setResponseStyle(prev => (prev === 'conversational' ? initialState.responseStyle || 'conversational' : prev))
+    if (initialState.citationMode)
+      setCitationMode(prev => (prev === 'when_needed' ? initialState.citationMode || 'when_needed' : prev))
+    if (initialState.expertColor)
+      setExpertColor(prev => (prev === '#1890ff' ? initialState.expertColor || '#1890ff' : prev))
+    if (typeof initialState.isPublic === 'boolean') setIsPublic(initialState.isPublic)
+    if (initialState.tags && initialState.tags.length > 0)
+      setTags(prev => (prev.length > 0 ? prev : initialState.tags || []))
+    if (initialState.knowledgeSources && initialState.knowledgeSources.length > 0) {
+      setKnowledgeSources(prev => (prev.length > 0 ? prev : initialState.knowledgeSources || []))
+    }
+
+    setDidApplyInitial(true)
+  }, [mode, didApplyInitial, initialState])
 
   // Load models when service changes
   useEffect(() => {

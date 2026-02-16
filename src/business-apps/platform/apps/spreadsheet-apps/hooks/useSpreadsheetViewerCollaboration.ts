@@ -96,8 +96,7 @@ export function useSpreadsheetViewerCollaboration({
   })
 
   // GraphQL client for avatar fetching
-  const authToken = accessToken || localStorage.getItem('business-app-ide-access-token') || ''
-  const graphqlClient = useGraphQLClient(authToken)
+  const graphqlClient = useGraphQLClient(accessToken)
 
   // Enriched participants for header presence
   const [headerParticipants, setHeaderParticipants] = useState<DocumentParticipant[]>([])
@@ -109,14 +108,13 @@ export function useSpreadsheetViewerCollaboration({
   useEffect(() => {
     const fetchCurrentUserInfo = async () => {
       try {
-        const token = localStorage.getItem('business-app-ide-access-token')
-        if (token) {
-          const payload = JSON.parse(atob(token.split('.')[1]))
+        if (accessToken) {
+          const payload = JSON.parse(atob(accessToken.split('.')[1]))
           currentUserIdRef.current = payload.sub || payload.userId
           setCurrentUserName(payload.name || payload.preferred_username || 'User')
 
           // Fetch avatar
-          if (authToken && payload.sub) {
+          if (payload.sub) {
             const query = `
               query GetCurrentUserAvatar($userId: String!) {
                 Employee(where: { userId: { _eq: $userId } }) {
@@ -142,12 +140,12 @@ export function useSpreadsheetViewerCollaboration({
     }
 
     fetchCurrentUserInfo()
-  }, [authToken, graphqlClient])
+  }, [accessToken, graphqlClient])
 
   // Fetch avatars for header presence
   useEffect(() => {
     async function fetchAvatars() {
-      if (!rawParticipants.length || !authToken) {
+      if (!rawParticipants.length || !accessToken) {
         setHeaderParticipants(prev => (areParticipantsEquivalent(prev, rawParticipants) ? prev : rawParticipants))
         return
       }
@@ -195,12 +193,12 @@ export function useSpreadsheetViewerCollaboration({
     }
 
     fetchAvatars()
-  }, [rawParticipants, authToken, graphqlClient])
+  }, [rawParticipants, accessToken, graphqlClient])
 
   // Fetch avatars for cell cursor indicators (more robust resolution)
   useEffect(() => {
     async function fetchCursorAvatars() {
-      if (!rawParticipants.length || !authToken) {
+      if (!rawParticipants.length || !accessToken) {
         setCursorParticipants(prev => (areParticipantsEquivalent(prev, rawParticipants) ? prev : rawParticipants))
         return
       }
@@ -276,7 +274,7 @@ export function useSpreadsheetViewerCollaboration({
     }
 
     fetchCursorAvatars()
-  }, [rawParticipants, authToken, graphqlClient])
+  }, [rawParticipants, accessToken, graphqlClient])
 
   return {
     headerParticipants,

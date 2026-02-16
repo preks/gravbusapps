@@ -1,14 +1,15 @@
 /**
  * EmailAppsHub - Main entry point for the Email client.
  * Outlook-inspired 3-panel layout: sidebar | email list | email reader.
- * Supports composing, reading, folder navigation, and account management.
+ * Supports composing with auto-suggest, reading, folder navigation,
+ * account management, calendar sync, and admin provider settings.
  */
 
 import React, { useState, useCallback, useEffect } from 'react'
 import { toast } from 'sonner'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo } from '@/common/utils/navigationUtils'
-import { useEmailAccounts, useEmailFolders, useEmails } from './hooks'
+import { useEmailAccounts, useEmailFolders, useEmails, useEmailDirectory } from './hooks'
 import { EmailApiService } from './services/EmailApiService'
 import {
   EmailSidebar,
@@ -30,10 +31,25 @@ import type { EmailMessage, ComposeMode } from './types'
 
     const code = searchParams.get('code') || hashParams?.get('code')
     const state = searchParams.get('state') || hashParams?.get('state')
+    const error = searchParams.get('error') || hashParams?.get('error')
+    const errorDescription = searchParams.get('error_description') || hashParams?.get('error_description')
+    const errorCodes = searchParams.get('error_codes') || hashParams?.get('error_codes')
+    const correlationId = searchParams.get('correlation_id') || hashParams?.get('correlation_id')
+    const traceId = searchParams.get('trace_id') || hashParams?.get('trace_id')
+    const timestamp = searchParams.get('timestamp') || hashParams?.get('timestamp')
 
     if (code && state) {
       sessionStorage.setItem('ms_oauth_code', code)
       sessionStorage.setItem('ms_oauth_callback_state', state)
+    }
+
+    if (error) {
+      sessionStorage.setItem('ms_oauth_error', error)
+      if (errorDescription) sessionStorage.setItem('ms_oauth_error_description', errorDescription)
+      if (errorCodes) sessionStorage.setItem('ms_oauth_error_codes', errorCodes)
+      if (correlationId) sessionStorage.setItem('ms_oauth_correlation_id', correlationId)
+      if (traceId) sessionStorage.setItem('ms_oauth_trace_id', traceId)
+      if (timestamp) sessionStorage.setItem('ms_oauth_timestamp', timestamp)
     }
   } catch {
     // Silently ignore
@@ -46,33 +62,37 @@ export interface EmailAppsHubProps extends BusinessAppContextProps {
 
 export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
   accessToken,
+  userInfo,
   'data-testid': testId = 'email-apps-hub'
 }) => {
   // Check if this is an OAuth callback redirect
   const [isOAuthCallback, setIsOAuthCallback] = useState(() => {
-    // Must have a PKCE verifier in sessionStorage (proves an OAuth flow is in progress)
     const hasVerifier = !!(
       sessionStorage.getItem('ms_oauth_verifier') || sessionStorage.getItem('google_oauth_verifier')
     )
     if (!hasVerifier) return false
 
-    // Check for code in URL query params
     const queryParams = new URLSearchParams(window.location.search)
     let hasCode = queryParams.has('code') && queryParams.has('state')
+    let hasError = queryParams.has('error')
 
-    // Check hash fragment
     if (!hasCode && window.location.hash) {
       const hashParams = new URLSearchParams(window.location.hash.substring(1))
       hasCode = hashParams.has('code') && hashParams.has('state')
+      hasError = hasError || hashParams.has('error')
     }
 
-    // Check sessionStorage (captured by IIFE before platform might strip params)
     if (!hasCode) {
       const savedCode = sessionStorage.getItem('ms_oauth_code')
       hasCode = !!savedCode
     }
 
-    return hasCode
+    if (!hasError) {
+      const savedError = sessionStorage.getItem('ms_oauth_error')
+      hasError = !!savedError
+    }
+
+    return hasCode || hasError
   })
 
   // UI state
@@ -84,9 +104,17 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
     }
   })
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null)
+  const [starredOnly, setStarredOnly] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [isAccountDialogOpen, setIsAccountDialogOpen] = useState(false)
   const [isManageDialogOpen, setIsManageDialogOpen] = useState(false)
+  const [threadViewEnabled, setThreadViewEnabled] = useState(() => {
+    try {
+      return localStorage.getItem('email-thread-view-enabled') === 'true'
+    } catch {
+      return false
+    }
+  })
 
   // Compose state
   const [isComposing, setIsComposing] = useState(false)
@@ -108,18 +136,27 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
     messages,
     selectedMessage,
     isLoading: isLoadingMessages,
+    isLoadingMore,
+    hasMore,
+    total,
     selectMessage,
     clearSelection,
     toggleStar,
     deleteMessage,
     moveToFolder,
+    loadMore,
     refreshMessages
   } = useEmails({
     accessToken,
     folderId: selectedFolderId || undefined,
     accountId: defaultAccount?.id,
-    search: searchQuery || undefined
+    search: searchQuery || undefined,
+    starredOnly,
+    threadView: threadViewEnabled
   })
+
+  // Directory hook for auto-suggest (org directory + provider contacts)
+  const { searchContacts, addRecentRecipients } = useEmailDirectory(accessToken, accounts)
 
   // Set access token on API service
   useEffect(() => {
@@ -137,8 +174,7 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
 
   const handleOAuthError = useCallback((error: string) => {
     toast.error(`Sign-in failed: ${error}`)
-    window.history.replaceState({}, '', '/platform/mail')
-    setIsOAuthCallback(false)
+    // Keep the OAuth callback view visible so users can copy diagnostics.
   }, [])
 
   // Handlers
@@ -151,11 +187,19 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
   const handleSelectFolder = useCallback(
     (folderId: string) => {
       setSelectedFolderId(folderId)
+      setStarredOnly(false)
       clearSelection()
       setSearchQuery('')
     },
     [clearSelection]
   )
+
+  const handleSelectStarred = useCallback(() => {
+    setStarredOnly(true)
+    setSelectedFolderId(null)
+    clearSelection()
+    setSearchQuery('')
+  }, [clearSelection])
 
   const handleSync = useCallback(async () => {
     if (!defaultAccount) return
@@ -184,12 +228,38 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
     navigateTo('/platform/every-office')
   }, [])
 
+  const handleRecipientsUsed = useCallback(
+    (recipients: Array<{ name?: string; email: string }>) => {
+      addRecentRecipients(recipients)
+    },
+    [addRecentRecipients]
+  )
+
   // Auto-select inbox when folders load
   useEffect(() => {
     if (inboxFolder && !selectedFolderId) {
       setSelectedFolderId(inboxFolder.id)
     }
   }, [inboxFolder, selectedFolderId])
+
+  // Deep-link: auto-open message from ?messageId=<uuid> parameter
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search)
+      const deepLinkMessageId = params.get('messageId')
+      if (deepLinkMessageId && accessToken) {
+        selectMessage(deepLinkMessageId)
+        // Clean up URL param after opening
+        params.delete('messageId')
+        const cleanUrl = params.toString()
+          ? `${window.location.pathname}?${params.toString()}`
+          : window.location.pathname
+        window.history.replaceState({}, '', cleanUrl)
+      }
+    } catch {
+      // Silently ignore URL parsing errors
+    }
+  }, [accessToken, selectMessage])
 
   // Persist sidebar state
   useEffect(() => {
@@ -209,7 +279,7 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
     )
   }
 
-  const currentFolderName = folders.find(f => f.id === selectedFolderId)?.name || 'Inbox'
+  const currentFolderName = starredOnly ? 'Starred' : folders.find(f => f.id === selectedFolderId)?.name || 'Inbox'
 
   // Empty state: no accounts
   if (!isLoadingAccounts && accounts.length === 0) {
@@ -233,6 +303,8 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
         folders={folders}
         selectedFolderId={selectedFolderId}
         onSelectFolder={handleSelectFolder}
+        isStarredView={starredOnly}
+        onSelectStarred={handleSelectStarred}
         onCompose={() => handleCompose('new')}
         onSync={handleSync}
         onSettings={() => setIsManageDialogOpen(true)}
@@ -248,10 +320,15 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
         messages={messages}
         selectedMessageId={selectedMessage?.id || null}
         isLoading={isLoadingMessages}
+        isLoadingMore={isLoadingMore}
+        hasMore={hasMore}
+        total={total}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         onSelectMessage={selectMessage}
         onToggleStar={toggleStar}
+        onRefresh={refreshMessages}
+        onLoadMore={loadMore}
         folderName={currentFolderName}
       />
 
@@ -262,9 +339,22 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
         onDelete={deleteMessage}
         onToggleStar={toggleStar}
         onArchive={handleArchive}
+        accessToken={accessToken}
+        activeAccount={defaultAccount}
+        employeeId={userInfo?.employeeDetails?.employeeId}
+        threadEnabled={threadViewEnabled}
+        onToggleThreadView={() => {
+          setThreadViewEnabled(prev => {
+            const next = !prev
+            try {
+              localStorage.setItem('email-thread-view-enabled', String(next))
+            } catch {}
+            return next
+          })
+        }}
       />
 
-      {/* Composer */}
+      {/* Composer with auto-suggest */}
       <EmailComposer
         isOpen={isComposing}
         onClose={() => setIsComposing(false)}
@@ -273,6 +363,8 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
         accounts={accounts}
         defaultAccountId={defaultAccount?.id}
         onSent={refreshMessages}
+        searchContacts={searchContacts}
+        onRecipientsUsed={handleRecipientsUsed}
       />
 
       {/* Account management dialog */}
@@ -281,10 +373,21 @@ export const EmailAppsHub: React.FC<EmailAppsHubProps> = ({
         onOpenChange={setIsManageDialogOpen}
         accounts={accounts}
         onAccountsChanged={refreshAccounts}
+        threadViewEnabled={threadViewEnabled}
+        onToggleThreadView={() => {
+          setThreadViewEnabled(prev => {
+            const next = !prev
+            try {
+              localStorage.setItem('email-thread-view-enabled', String(next))
+            } catch {}
+            return next
+          })
+        }}
         onAddAccount={() => {
           setIsManageDialogOpen(false)
           setIsAccountDialogOpen(true)
         }}
+        onOpenAdminSettings={() => navigateTo('/platform/mail/settings')}
       />
 
       {/* Account setup dialog */}

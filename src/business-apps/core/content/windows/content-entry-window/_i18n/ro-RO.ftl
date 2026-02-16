@@ -40,6 +40,14 @@ document-area-name-placeholder = de ex., Documente HR, Contracte Juridice, Polit
 document-area-description-placeholder = Descrieți ce fel de documente vor fi stocate în această zonă...
 document-area-description-hint = Ajută pe alții să înțeleagă scopul acestei zone de documente
 
+# Policy-specific fields
+policy-title-placeholder = Introduceți titlul politicii...
+policy-preview-placeholder = Rezumat scurt al politicii...
+policy-content-placeholder = Scrieți conținutul politicii aici...
+policy-validity-period = Perioada de Valabilitate a Politicii
+policy-valid-from = Valabil De La
+policy-valid-to = Valabil Până La
+
 # Validations
 title-required = Titlul este obligatoriu
 preview-required = Textul de previzualizare este obligatoriu
@@ -48,4 +56,5 @@ group-required = Grupul de conținut este obligatoriu
 type-required = Tipul de conținut este obligatoriu
 start-date-required = Data de început este obligatorie
 end-date-required = Data de sfârșit este obligatorie
+version-required = Versiunea este obligatorie pentru actualizări
 

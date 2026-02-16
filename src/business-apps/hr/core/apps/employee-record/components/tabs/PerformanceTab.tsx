@@ -3,8 +3,15 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import dayjs from 'dayjs'
 import { Employee, EmployeePerformanceGoal } from '../../hooks/useEmployeeData'
-import { Card, CardHeader, CardTitle, CardContent, useTranslation } from '@newwork/nw-design-system'
-import { Empty, Spin } from 'antd'
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  EmptyState,
+  Spinner,
+  useTranslation
+} from '@newwork/nw-design-system'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { employeePerformanceQuery } from '../../queries/performanceQueries'
 import { AppAction } from '@/components/app-action/AppAction'
@@ -106,7 +113,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
 
   // Map status to display values and styles
   const getStatusInfo: (_status: string) => { label: string; color: string } = (status: string) => {
-    return statusMap[status] || { label: status, color: 'gba:bg-gray-100 gba:text-gray-800' }
+    return statusMap[status] || { label: status, color: 'gba:bg-muted gba:text-muted-foreground' }
   }
 
   // Sort performance goals according to the specified rules
@@ -164,7 +171,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
   if (loading) {
     return (
       <div className="gba:flex gba:justify-center gba:items-center gba:h-40" data-testid="performance-loading">
-        <Spin size="large" />
+        <Spinner size="lg" />
       </div>
     )
   }
@@ -172,7 +179,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
   // Handle error state
   if (error) {
     return (
-      <div className="gba:text-center gba:text-red-600 gba:py-8" data-testid="performance-error">
+      <div className="gba:text-center gba:text-destructive gba:py-8" data-testid="performance-error">
         <p>{error}</p>
       </div>
     )
@@ -186,7 +193,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
           <div className="gba:font-bold gba:text-2xl" data-testid="performance-goals-title">
             {t('performance-title')}
           </div>
-          <div className="gba:text-gray-500 gba:text-lg" data-testid="performance-goals-description">
+          <div className="gba:text-muted-foreground gba:text-lg" data-testid="performance-goals-description">
             {t('performance-description')}
           </div>
         </div>
@@ -212,7 +219,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
       <div className="gba:grid gba:grid-cols-1 gba:gap-6 gba:py-4">
         <section className="gba:flex gba:flex-col gba:gap-4">
           {!sortedPerformanceGoals?.length ? (
-            <Empty description={t('performance-empty')} className="gba:py-10" data-testid="empty-goals-state" />
+            <EmptyState title={t('performance-empty')} className="gba:py-10" data-testid="empty-goals-state" />
           ) : (
             <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-3">
               {sortedPerformanceGoals.map(goal => {
@@ -239,13 +246,13 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
                     </CardHeader>
                     <CardContent>
                       <div className="gba:mb-4">
-                        <div className="gba:w-full gba:bg-gray-200 gba:rounded-full gba:h-2.5">
+                        <div className="gba:w-full gba:bg-muted gba:rounded-full gba:h-2.5">
                           <div
-                            className="gba:bg-blue-600 gba:h-2.5 gba:rounded-full"
+                            className="gba:bg-primary gba:h-2.5 gba:rounded-full"
                             style={{ width: `${goal.progressPercent}%` }}
                           ></div>
                         </div>
-                        <div className="gba:flex gba:justify-between gba:mt-1 gba:text-sm gba:text-gray-600">
+                        <div className="gba:flex gba:justify-between gba:mt-1 gba:text-sm gba:text-muted-foreground">
                           <span>{t('performance-progress')}</span>
                           <span>{goal.progressPercent}%</span>
                         </div>
@@ -253,15 +260,17 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
 
                       <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-4 gba:text-sm">
                         <div>
-                          <span className="gba:block gba:text-gray-500">{t('performance-start-date')}</span>
+                          <span className="gba:block gba:text-muted-foreground">{t('performance-start-date')}</span>
                           <span>{dayjs(goal.startDate).format('MMM D, YYYY')}</span>
                         </div>
                         <div>
-                          <span className="gba:block gba:text-gray-500">{t('performance-due-date')}</span>
+                          <span className="gba:block gba:text-muted-foreground">{t('performance-due-date')}</span>
                           <span>{dayjs(goal.dueDate).format('MMM D, YYYY')}</span>
                         </div>
                         <div>
-                          <span className="gba:block gba:text-gray-500">{t('performance-completion-date')}</span>
+                          <span className="gba:block gba:text-muted-foreground">
+                            {t('performance-completion-date')}
+                          </span>
                           <span>{goal.completionDate ? dayjs(goal.completionDate).format('MMM D, YYYY') : '-'}</span>
                         </div>
                       </div>

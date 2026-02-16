@@ -299,25 +299,25 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
       {/* Header Toolbar */}
       <div className="gba:border-b gba:bg-card">
         <div className="gba:px-4 gba:py-3">
-          <div className="gba:flex gba:items-center gba:justify-between">
+          <div className="gba:flex gba:items-center gba:justify-between gba:gap-4">
             {/* Left side - Back button and title */}
-            <div className="gba:flex gba:items-center gba:gap-4">
-              <Button variant="ghost" size="icon" onClick={onBack} title="Back to documents">
+            <div className="gba:flex gba:items-center gba:gap-4 gba:min-w-0 gba:flex-1">
+              <Button variant="ghost" size="icon" onClick={onBack} title="Back to documents" className="gba:shrink-0">
                 <ArrowLeft className="gba:w-5 gba:h-5" />
               </Button>
 
-              <div className="gba:flex gba:items-center gba:gap-3">
-                <div className="gba:w-10 gba:h-10 gba:rounded-lg gba:bg-primary/10 gba:flex gba:items-center gba:justify-center">
+              <div className="gba:flex gba:items-center gba:gap-3 gba:min-w-0 gba:flex-1">
+                <div className="gba:w-10 gba:h-10 gba:shrink-0 gba:rounded-lg gba:bg-primary/10 gba:flex gba:items-center gba:justify-center">
                   <FileText className="gba:w-5 gba:h-5 gba:text-primary" />
                 </div>
-                <div className="gba:flex gba:flex-col">
+                <div className="gba:flex gba:flex-col gba:min-w-0 gba:flex-1">
                   <Input
                     ref={titleInputRef}
                     value={title}
                     onChange={handleTitleChange}
                     placeholder="Document Title"
                     disabled={isReadOnly}
-                    className="gba:text-lg gba:font-semibold gba:border-0 gba:p-0 gba:h-auto gba:bg-transparent focus-visible:gba:ring-0 focus-visible:gba:ring-offset-0"
+                    className="gba:text-lg gba:font-semibold gba:border-0 gba:p-0 gba:h-auto gba:min-w-0 gba:w-full gba:bg-transparent focus-visible:gba:ring-0 focus-visible:gba:ring-offset-0"
                   />
                   <div className="gba:flex gba:items-center gba:gap-2 gba:text-xs gba:text-muted-foreground">
                     <span>{wordCount.toLocaleString()} words</span>

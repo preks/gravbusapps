@@ -8,6 +8,7 @@ import { getAbsenceStatusLabel, getAbsenceStatusColor } from '../../../../../../
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { GET_ABSENCES_FOR_CALENDAR } from '../../../../queries/AbsenceQueries'
 import { getAbsenceTypeName, getAbsenceStatusDisplay } from '../../../../utils'
+import { useAbsenceTypeCatalog } from '../../../../../personal-absences/hooks/useAbsenceTypeCatalog'
 
 interface AbsenceTimelineItem extends TimelineItem {
   name: string
@@ -25,6 +26,7 @@ const CalendarList: React.FC<BusinessAppContextProps> = props => {
   const [error, setError] = useState<string | null>(null)
 
   const graphqlClient = useGraphQLClient(accessToken)
+  const { mapType } = useAbsenceTypeCatalog(accessToken)
 
   const loadCalendarData = async () => {
     if (!supervisorId) {
@@ -36,7 +38,7 @@ const CalendarList: React.FC<BusinessAppContextProps> = props => {
     setError(null)
 
     try {
-      const query = GET_ABSENCES_FOR_CALENDAR(supervisorId)
+      const query = GET_ABSENCES_FOR_CALENDAR()
       const result = await graphqlClient.request<{
         Employee: any[]
         EmployeeAbsence: any[]
@@ -104,6 +106,11 @@ const CalendarList: React.FC<BusinessAppContextProps> = props => {
       const statusDisplay = getAbsenceStatusDisplay(absence.status)
       const translatedAbsenceType = getAbsenceTypeName(absence.type, userLocale)
 
+      // Get color from absence type catalog (like personal calendar)
+      const typeCode = absence.type?.value || absence.type
+      const catalogType = mapType(typeCode)
+      const eventColor = catalogType?.color || getAbsenceStatusColor(absence.status)
+
       const event: TimelineEvent = {
         id: uniqueEventId,
         itemId: absence.employee.id,
@@ -112,6 +119,7 @@ const CalendarList: React.FC<BusinessAppContextProps> = props => {
         endDate: absence.endDate,
         status: statusDisplay.label,
         type: statusDisplay.type,
+        color: eventColor,
         note: `${translatedAbsenceType} - ${statusDisplay.label}`
       }
 
@@ -195,7 +203,94 @@ const CalendarList: React.FC<BusinessAppContextProps> = props => {
     }
   ]
 
-  return <div>{renderDataBody()}</div>
+  return (
+    <div className="team-absence-calendar-overrides">
+      <style>
+        {`
+          /* Green pills (approved) */
+          .team-absence-calendar-overrides .guic-bg-green-500 {
+            background-color: #ffffff !important;
+            border: 1px solid #73d9be !important;
+          }
+          .team-absence-calendar-overrides .guic-bg-green-500 .guic-text-white {
+            color: #73d9be !important;
+          }
+
+          /* Yellow/Orange pills (pending/warning) */
+          .team-absence-calendar-overrides .guic-bg-yellow-500,
+          .team-absence-calendar-overrides .guic-bg-orange-500 {
+            background-color: #ffffff !important;
+            border: 1px solid #F5A400 !important;
+          }
+          .team-absence-calendar-overrides .guic-bg-yellow-500 .guic-text-white,
+          .team-absence-calendar-overrides .guic-bg-orange-500 .guic-text-white {
+            color: #F5A400 !important;
+          }
+
+          /* Custom vacation color */
+          .team-absence-calendar-overrides .guic-bg-\\[\\#F5A400\\] {
+            background-color: #ffffff !important;
+            border: 1px solid #F5A400 !important;
+          }
+          .team-absence-calendar-overrides .guic-bg-\\[\\#F5A400\\] .guic-text-white {
+            color: #F5A400 !important;
+          }
+
+          /* Red pills (rejected/sick) */
+          .team-absence-calendar-overrides .guic-bg-red-500,
+          .team-absence-calendar-overrides .guic-bg-\\[\\#ef4444\\],
+          .team-absence-calendar-overrides .guic-bg-\\[\\#DB4315\\] {
+            background-color: #ffffff !important;
+            border: 1px solid #DB4315 !important;
+          }
+          .team-absence-calendar-overrides .guic-bg-red-500 .guic-text-white,
+          .team-absence-calendar-overrides .guic-bg-\\[\\#ef4444\\] .guic-text-white,
+          .team-absence-calendar-overrides .guic-bg-\\[\\#DB4315\\] .guic-text-white {
+            color: #DB4315 !important;
+          }
+
+          /* Blue pills (personal/home office) */
+          .team-absence-calendar-overrides .guic-bg-blue-500,
+          .team-absence-calendar-overrides .guic-bg-\\[\\#648ECA\\] {
+            background-color: #ffffff !important;
+            border: 1px solid #648ECA !important;
+          }
+          .team-absence-calendar-overrides .guic-bg-blue-500 .guic-text-white,
+          .team-absence-calendar-overrides .guic-bg-\\[\\#648ECA\\] .guic-text-white {
+            color: #648ECA !important;
+          }
+
+          /* Purple pills (holiday) */
+          .team-absence-calendar-overrides .guic-bg-purple-500 {
+            background-color: #ffffff !important;
+            border: 1px solid #a855f7 !important;
+          }
+          .team-absence-calendar-overrides .guic-bg-purple-500 .guic-text-white {
+            color: #a855f7 !important;
+          }
+
+          /* Light green pills (special leave) */
+          .team-absence-calendar-overrides .guic-bg-\\[\\#B9E163\\] {
+            background-color: #ffffff !important;
+            border: 1px solid #B9E163 !important;
+          }
+          .team-absence-calendar-overrides .guic-bg-\\[\\#B9E163\\] .guic-text-white {
+            color: #B9E163 !important;
+          }
+
+          /* Gray pills (cancelled/default) */
+          .team-absence-calendar-overrides .guic-bg-gray-500 {
+            background-color: #ffffff !important;
+            border: 1px solid #9ca3af !important;
+          }
+          .team-absence-calendar-overrides .guic-bg-gray-500 .guic-text-white {
+            color: #9ca3af !important;
+          }
+        `}
+      </style>
+      {renderDataBody()}
+    </div>
+  )
 }
 
 export default CalendarList

@@ -12,6 +12,14 @@ interface ExpenseRequestDetailsSectionProps {
     project?: { name?: string }
     currency?: { code?: string }
     requestType?: { code?: string }
+    employee?: { id?: string }
+    expenseRequestComment?: Array<{
+      id?: string
+      comment?: string
+      commentDate?: string
+      commentType?: string
+      authorEmployee?: { id?: string }
+    }>
   }
   requestCreatedAt?: string | null
   isLoadingRequestDate?: boolean
@@ -26,6 +34,25 @@ const ExpenseRequestDetailsSection: React.FC<ExpenseRequestDetailsSectionProps> 
   prefixDataTestId = 'approve-expense-request-v2',
   t
 }) => {
+  const descriptionText = String(expenseRequest.description || '').trim()
+
+  const standardComments = (expenseRequest.expenseRequestComment || []).filter(c => {
+    if (String(c?.commentType || '').trim() !== 'STANDARD_COMMENT') return false
+    return Boolean(String(c?.comment || '').trim())
+  })
+
+  const requesterEmployeeId = String(expenseRequest.employee?.id || '').trim()
+  const requesterStandardComment =
+    (requesterEmployeeId
+      ? standardComments.find(c => String(c?.authorEmployee?.id || '').trim() === requesterEmployeeId)
+      : undefined) || standardComments[0]
+
+  const standardCommentText = String(requesterStandardComment?.comment || '').trim()
+  const employeeCommentText = standardCommentText || descriptionText
+
+  const shouldShowEmployeeComment = Boolean(employeeCommentText)
+  const shouldShowDescription = Boolean(descriptionText) && descriptionText !== employeeCommentText
+
   // Format request type for display
   const formatRequestType = (requestTypeCode?: string) => {
     if (!requestTypeCode) return '-'
@@ -72,7 +99,7 @@ const ExpenseRequestDetailsSection: React.FC<ExpenseRequestDetailsSectionProps> 
           </div>
         )}
 
-        {(expenseRequest.title || expenseRequest.description) && <Separator />}
+        {(expenseRequest.title || shouldShowEmployeeComment || shouldShowDescription) && <Separator />}
 
         {/* Title */}
         {expenseRequest.title && (
@@ -82,14 +109,33 @@ const ExpenseRequestDetailsSection: React.FC<ExpenseRequestDetailsSectionProps> 
           </div>
         )}
 
-        {/* Comment/Description */}
-        {expenseRequest.description && (
+        {/* Employee comment (STANDARD_COMMENT or description fallback) */}
+        {shouldShowEmployeeComment && (
           <>
             {expenseRequest.title && <Separator />}
             <div>
+              <Label className="gba:text-sm gba:text-muted-foreground">{t('label-employee-comment')}</Label>
+              <p
+                className="gba:text-sm gba:text-muted-foreground gba:whitespace-pre-wrap"
+                data-testid={`${prefixDataTestId}-employee-comment`}
+              >
+                {employeeCommentText}
+              </p>
+            </div>
+          </>
+        )}
+
+        {/* Request description (fallback / additional info) */}
+        {shouldShowDescription && (
+          <>
+            {(expenseRequest.title || shouldShowEmployeeComment) && <Separator />}
+            <div>
               <Label className="gba:text-sm gba:text-muted-foreground">{t('label-comment')}</Label>
-              <p className="gba:text-sm gba:text-muted-foreground gba:whitespace-pre-wrap">
-                {expenseRequest.description}
+              <p
+                className="gba:text-sm gba:text-muted-foreground gba:whitespace-pre-wrap"
+                data-testid={`${prefixDataTestId}-request-description`}
+              >
+                {descriptionText}
               </p>
             </div>
           </>

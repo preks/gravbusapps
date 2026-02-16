@@ -7,9 +7,27 @@
  * and the callback page sends the code to the backend for server-side exchange.
  */
 
-const FALLBACK_CLIENT_ID = '861b3af1-129e-4674-9f0e-4fb4a3091fc0'
-const DEFAULT_AUTHORITY = 'organizations'
-const DEFAULT_SCOPES = 'openid profile email offline_access Mail.Read Mail.Send'
+function normalize(value?: string): string | undefined {
+  const trimmed = value?.trim()
+  return trimmed ? trimmed : undefined
+}
+
+const MICROSOFT_OIDC_SCOPES = new Set(['openid', 'profile', 'email', 'offline_access'])
+
+function normalizeMicrosoftScopes(scopes: string): string {
+  // Prevent ambiguous scope resolution between Microsoft Graph and Exchange Online.
+  // If a scope is not a standard OIDC scope and not already resource-qualified,
+  // treat it as a Microsoft Graph delegated scope.
+  return scopes
+    .split(/\s+/)
+    .filter(Boolean)
+    .map(scope => {
+      if (scope.includes('://')) return scope
+      if (MICROSOFT_OIDC_SCOPES.has(scope)) return scope
+      return `https://graph.microsoft.com/${scope}`
+    })
+    .join(' ')
+}
 
 /** Generate a random string for PKCE */
 function generateRandomString(length: number): string {
@@ -46,13 +64,33 @@ export interface MicrosoftAuthResult {
 
 export const MicrosoftOAuthService = {
   /**
-   * Builds the OAuth config from tenant settings (if provided) or falls back to defaults.
+   * Builds the OAuth config from tenant settings.
    */
   buildConfig(tenantConfig?: { clientId?: string; authority?: string; scopes?: string }): MicrosoftOAuthConfig {
+    const clientId = normalize(tenantConfig?.clientId)
+    const authority = normalize(tenantConfig?.authority)
+    const scopes = normalize(tenantConfig?.scopes)
+
+    if (!clientId) {
+      throw new Error(
+        'Microsoft OAuth client ID is not configured. Please ask your admin to configure the Microsoft provider.'
+      )
+    }
+    if (!authority) {
+      throw new Error(
+        'Microsoft OAuth authority (tenant) is not configured. Please ask your admin to configure the Microsoft provider.'
+      )
+    }
+    if (!scopes) {
+      throw new Error(
+        'Microsoft OAuth scopes are not configured. Please ask your admin to configure the Microsoft provider.'
+      )
+    }
+
     return {
-      clientId: tenantConfig?.clientId || FALLBACK_CLIENT_ID,
-      authority: tenantConfig?.authority || DEFAULT_AUTHORITY,
-      scopes: tenantConfig?.scopes || DEFAULT_SCOPES
+      clientId,
+      authority,
+      scopes
     }
   },
 
@@ -69,6 +107,14 @@ export const MicrosoftOAuthService = {
     // Store PKCE verifier and state for the callback page
     sessionStorage.setItem('ms_oauth_verifier', verifier)
     sessionStorage.setItem('ms_oauth_state', state)
+    sessionStorage.setItem(
+      'ms_oauth_debug',
+      JSON.stringify({
+        clientId: config.clientId,
+        authority: config.authority,
+        scopes: normalizeMicrosoftScopes(config.scopes)
+      })
+    )
 
     const authorityUrl = `https://login.microsoftonline.com/${config.authority}`
 
@@ -76,7 +122,7 @@ export const MicrosoftOAuthService = {
       client_id: config.clientId,
       response_type: 'code',
       redirect_uri: redirectUri,
-      scope: config.scopes,
+      scope: normalizeMicrosoftScopes(config.scopes),
       response_mode: 'fragment',
       state,
       code_challenge: challenge,

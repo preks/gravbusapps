@@ -3,7 +3,7 @@
  * Used inside the admin settings screen for Microsoft and Google providers.
  */
 
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useMemo } from 'react'
 import { toast } from 'sonner'
 import {
   Card,
@@ -17,11 +17,12 @@ import {
   Label,
   Badge
 } from '@newwork/nw-design-system'
-import { Globe, Mail, Save, Eye, EyeOff, Loader2, Check } from 'lucide-react'
+import { Globe, Mail, Save, Eye, EyeOff, Loader2, Check, ExternalLink, Copy } from 'lucide-react'
 import type {
   AdminProviderConfig,
   UpsertProviderSettingsRequest
 } from '../../email-apps/services/EmailProviderSettingsApi'
+import { PermissionToggles } from './ScopesEditor'
 
 interface ProviderSettingsCardProps {
   provider: 'microsoft' | 'google'
@@ -58,6 +59,34 @@ export const ProviderSettingsCard: React.FC<ProviderSettingsCardProps> = ({
   const [showSecret, setShowSecret] = useState(false)
   const [isEnabled, setIsEnabled] = useState(existingSettings?.isEnabled ?? true)
   const [isSaving, setIsSaving] = useState(false)
+
+  // Admin consent URL for Microsoft (helps when users see "Need admin approval")
+  const adminConsentUrl = useMemo(() => {
+    if (!isMicrosoft) return null
+    const cid = clientId.trim()
+    const auth = authority.trim()
+    const rawScopes = scopes.trim()
+    if (!cid || !auth || !rawScopes) return null
+
+    const OIDC = new Set(['openid', 'profile', 'email', 'offline_access'])
+    const normalizedScopes = rawScopes
+      .split(/\s+/)
+      .filter(Boolean)
+      .map(s => {
+        if (s.includes('://')) return s
+        if (OIDC.has(s)) return s
+        return `https://graph.microsoft.com/${s}`
+      })
+      .join(' ')
+
+    const params = new URLSearchParams({
+      client_id: cid,
+      redirect_uri: redirectUri,
+      scope: normalizedScopes,
+      state: 'nw-email-admin-consent'
+    })
+    return `https://login.microsoftonline.com/${auth}/v2.0/adminconsent?${params.toString()}`
+  }, [isMicrosoft, clientId, authority, scopes, redirectUri])
 
   const handleSave = useCallback(async () => {
     if (!clientId.trim()) {
@@ -188,20 +217,14 @@ export const ProviderSettingsCard: React.FC<ProviderSettingsCardProps> = ({
           </p>
         </div>
 
-        {/* Scopes */}
-        <div className="gba:space-y-2">
-          <Label htmlFor={`${testId}-scopes`}>OAuth Scopes</Label>
-          <Input
-            id={`${testId}-scopes`}
-            value={scopes}
-            onChange={e => setScopes(e.target.value)}
-            placeholder="Space-separated scopes"
-            data-testid={`${testId}-scopes`}
-          />
-          <p className="gba:text-xs gba:text-muted-foreground">
-            Default scopes are pre-filled. Only change if you know what you are doing.
-          </p>
-        </div>
+        {/* Permissions */}
+        <PermissionToggles
+          provider={provider}
+          scopes={scopes}
+          onChange={setScopes}
+          grantedScopes={existingSettings?.grantedScopes}
+          testId={testId}
+        />
 
         {/* Redirect URI (read-only display) */}
         <div className="gba:space-y-2">
@@ -210,6 +233,44 @@ export const ProviderSettingsCard: React.FC<ProviderSettingsCardProps> = ({
             {redirectUri}
           </div>
         </div>
+
+        {/* Admin consent URL (Microsoft only) */}
+        {isMicrosoft && adminConsentUrl && (
+          <div className="gba:space-y-2">
+            <Label>Admin Consent URL</Label>
+            <div className="gba:flex gba:gap-2">
+              <Input value={adminConsentUrl} readOnly data-testid={`${testId}-admin-consent-url`} />
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => window.open(adminConsentUrl, '_blank', 'noopener,noreferrer')}
+                data-testid={`${testId}-admin-consent-open`}
+              >
+                <ExternalLink className="gba:w-4 gba:h-4" />
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(adminConsentUrl)
+                    toast.success('Copied to clipboard')
+                  } catch {
+                    // URL is visible for manual copy
+                  }
+                }}
+                data-testid={`${testId}-admin-consent-copy`}
+              >
+                <Copy className="gba:w-4 gba:h-4" />
+              </Button>
+            </div>
+            <p className="gba:text-xs gba:text-muted-foreground">
+              If users see &quot;Need admin approval&quot;, open this link to grant consent for the configured scopes.
+            </p>
+          </div>
+        )}
 
         {/* Enable/Disable toggle */}
         <div className="gba:flex gba:items-center gba:gap-3">

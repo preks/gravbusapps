@@ -42,7 +42,7 @@ import {
 import { useRealtimeKitSelector } from '@cloudflare/realtimekit-react'
 import { getInitials } from '../../utils/callUtils'
 import { rtkDebug } from '../../utils/rtkDebug'
-import type { PendingInvite } from '../../hooks/useGroupCall'
+import type { PendingInvite } from '../../services/callTypes'
 
 export interface AvailableParticipant {
   id: string

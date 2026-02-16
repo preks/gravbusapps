@@ -57,6 +57,9 @@ export interface DocumentSectionProps extends BusinessAppContextProps {
   onSearchChange?: (searchTerm: string) => void
 
   // Custom menu actions configuration
+  /**
+   * @deprecated Use updateActionProps and deleteActionProps instead
+   */
   customActions?: Array<{
     key: string
     label: string
@@ -93,6 +96,16 @@ export interface DocumentSectionProps extends BusinessAppContextProps {
   downloadActionProps?: {
     contextsArray: FlowContextName[]
     externalContextData: Record<string, any>
+    prefixDataTestId: string
+  }
+  updateActionProps?: {
+    contextsArray: FlowContextName[]
+    buildExternalContextData: (document: DocumentItem) => Record<string, any>
+    prefixDataTestId: string
+  }
+  deleteActionProps?: {
+    contextsArray: FlowContextName[]
+    buildExternalContextData: (document: DocumentItem) => Record<string, any>
     prefixDataTestId: string
   }
   'data-testid'?: string
@@ -136,6 +149,7 @@ export interface AppActionData {
     label?: React.ReactNode
     icon?: React.ReactNode
   }>
+  handleDeferredFetch?: () => void
 }
 
 // API Configuration interface

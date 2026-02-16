@@ -24,6 +24,8 @@ interface UseCalendarOptions {
   accessToken: string
   apiUrl: string
   wsUrl?: string
+  /** External calendar events to merge with internal events */
+  externalEvents?: CalendarEvent[]
 }
 
 interface UseCalendarReturn {
@@ -64,11 +66,11 @@ interface UseCalendarReturn {
   viewTitle: string
 }
 
-export const useCalendar = ({ accessToken, apiUrl }: UseCalendarOptions): UseCalendarReturn => {
+export const useCalendar = ({ accessToken, apiUrl, externalEvents = [] }: UseCalendarOptions): UseCalendarReturn => {
   const { locale } = useLocale()
   const [currentDate, setCurrentDate] = useState<Date>(new Date())
   const [view, setView] = useState<CalendarView>('day')
-  const [events, setEvents] = useState<CalendarEvent[]>([])
+  const [internalEvents, setInternalEvents] = useState<CalendarEvent[]>([])
   const [pendingInvitations, setPendingInvitations] = useState<Meeting[]>([])
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -129,7 +131,7 @@ export const useCalendar = ({ accessToken, apiUrl }: UseCalendarOptions): UseCal
     }
   }, [currentDate, view, dateRange, locale])
 
-  // Load events for current date range
+  // Load internal events for current date range
   const loadEvents = useCallback(async () => {
     if (!apiClient) return
 
@@ -138,7 +140,14 @@ export const useCalendar = ({ accessToken, apiUrl }: UseCalendarOptions): UseCal
 
     try {
       const loadedEvents = await apiClient.getCalendarEvents(dateRange.start, dateRange.end)
-      setEvents(loadedEvents)
+
+      // Mark internal events with source
+      setInternalEvents(
+        loadedEvents.map(evt => ({
+          ...evt,
+          source: 'internal' as const
+        }))
+      )
     } catch (err) {
       console.error('Error loading calendar events:', err)
       setError('Failed to load calendar events')
@@ -146,6 +155,22 @@ export const useCalendar = ({ accessToken, apiUrl }: UseCalendarOptions): UseCal
       setIsLoading(false)
     }
   }, [apiClient, dateRange])
+
+  // Merge internal + external events (does not re-fetch when external events change)
+  const events = useMemo(() => {
+    const rangeStart = dateRange.start.getTime()
+    const rangeEnd = dateRange.end.getTime()
+    const filteredExternal = externalEvents.filter(evt => {
+      const evtStart = evt.start.getTime()
+      const evtEnd = evt.end.getTime()
+      return evtStart < rangeEnd && evtEnd > rangeStart
+    })
+
+    // Filter out cancelled/deleted meetings and sort by start time
+    return [...internalEvents, ...filteredExternal]
+      .filter(event => event.status !== 'cancelled')
+      .sort((a, b) => a.start.getTime() - b.start.getTime())
+  }, [internalEvents, externalEvents, dateRange])
 
   // Load pending invitations
   const loadInvitations = useCallback(async () => {

@@ -12,6 +12,7 @@ import {
   useTranslation
 } from '@newwork/nw-design-system'
 import translations from './_i18n'
+import { PERFORMANCE_VALIDATION } from './constants/validationConstants'
 
 export interface RatingScaleValues {
   id?: string
@@ -53,7 +54,9 @@ export const RatingScaleEditorModal: React.FC<RatingScaleEditorModalProps> = ({
   const [name, setName] = useState(initialValues?.name || '')
   const defaultCount = initialValues?.values?.length ? Math.min(Math.max(initialValues.values.length, 2), 10) : 5
   const [count, setCount] = useState<number>(defaultCount)
-  const [displayMode, setDisplayMode] = useState<DisplayMode>(initialValues ? 'custom' : 'value')
+  const [displayMode, setDisplayMode] = useState<DisplayMode>(
+    initialValues?.displayMode ?? (initialValues?.values?.length ? inferDisplayMode(initialValues.values) : 'value')
+  )
   const [customLabels, setCustomLabels] = useState<string[]>(
     initialValues?.values?.length
       ? [...initialValues.values]
@@ -152,6 +155,7 @@ export const RatingScaleEditorModal: React.FC<RatingScaleEditorModalProps> = ({
               value={name}
               onChange={e => setName(e.target.value)}
               placeholder={t('scale-placeholder-name')}
+              maxLength={PERFORMANCE_VALIDATION.SCALE_NAME_MAX_LENGTH}
             />
           </div>
 
@@ -188,6 +192,7 @@ export const RatingScaleEditorModal: React.FC<RatingScaleEditorModalProps> = ({
                         })
                       }}
                       placeholder={`${t('scale-custom-label-placeholder-prefix')} ${i + 1}`}
+                      maxLength={PERFORMANCE_VALIDATION.SCALE_VALUE_MAX_LENGTH}
                     />
                   </div>
                 ))}

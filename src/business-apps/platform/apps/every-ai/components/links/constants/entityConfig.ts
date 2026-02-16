@@ -314,7 +314,7 @@ export const ENTITY_CONFIG: Record<string, EntityChipConfig> = {
   // Service entities
   // -------------------------------------------------------------------------
   service_ticket: {
-    urlTemplate: '/platform/sales-demo/service-launcher?view=myRequests&requestId={id}',
+    urlTemplate: `${SERVICE_DESK_URL}?taskId={id}`,
     icon: createSvgIcon(
       'M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4v-3a2 2 0 00-2-2H5z'
     )
@@ -444,7 +444,7 @@ export const ENTITY_CONFIG: Record<string, EntityChipConfig> = {
     icon: DEFAULT_ICON
   },
   asset: {
-    urlTemplate: `${ORG_DATA_URL}?tab=site-locations&entityId={id}`,
+    urlTemplate: '/platform/assets?assetId={id}',
     icon: DEFAULT_ICON
   },
 
@@ -522,5 +522,17 @@ export const ENTITY_CONFIG: Record<string, EntityChipConfig> = {
   meetings: {
     urlTemplate: '/platform/chat?view=calendar&meetingId={id}',
     icon: createSvgIcon('M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z')
+  },
+
+  // -------------------------------------------------------------------------
+  // Notes and documents
+  // -------------------------------------------------------------------------
+  note: {
+    urlTemplate: '/platform/notes?noteId={id}&view=editor',
+    icon: DEFAULT_ICON
+  },
+  document: {
+    urlTemplate: '/platform/documents?docId={id}&view=editor',
+    icon: DEFAULT_ICON
   }
 }

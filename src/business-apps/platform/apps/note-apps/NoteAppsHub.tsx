@@ -70,6 +70,8 @@ import type { PaperStyle, StrokeData } from './components/handwriting'
 // Hooks
 import { useNotes } from './hooks/useNotes'
 import { useNoteAppsHubUrlState } from './hooks/useNoteAppsHubUrlState'
+import { useHubPagination } from '../shared/hooks/useHubPagination'
+import { HubPaginationFooter } from '../shared/components/HubPaginationFooter'
 
 // GraphQL
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
@@ -192,18 +194,6 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
 
   // Get current user ID
   const currentUserId = userInfo?.id || userInfo?.employeeDetails?.employeeId || ''
-
-  // Store access token for NoteApiService to use (iPad Safari doesn't have it in localStorage)
-  useEffect(() => {
-    if (accessToken) {
-      try {
-        localStorage.setItem('business-app-ide-access-token', accessToken)
-        console.log('[NoteAppsHub] Stored access token in localStorage, length:', accessToken.length)
-      } catch (e) {
-        console.warn('[NoteAppsHub] Failed to store access token in localStorage:', e)
-      }
-    }
-  }, [accessToken])
 
   // Hooks
   const {
@@ -387,6 +377,15 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
 
     return baseNotes
   }, [myNotes, sharedNotes, pinnedNotes, archivedNotes, recentNotes, activeSection, searchQuery, sortBy, sortOrder])
+
+  const {
+    paginatedItems: paginatedNotes,
+    currentPage,
+    totalPages,
+    totalItems,
+    goToPage,
+    pageSize
+  } = useHubPagination({ items: filteredNotes, pageSize: 20 })
 
   /**
    * Create new note
@@ -1256,7 +1255,7 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
                 <div className="gba:flex gba:items-center gba:px-4 gba:py-2 gba:text-xs gba:font-medium gba:text-muted-foreground">
                   <div className="gba:w-8 gba:flex-shrink-0">
                     <Checkbox
-                      checked={selectedNotes.size === filteredNotes.length && filteredNotes.length > 0}
+                      checked={selectedNotes.size === paginatedNotes.length && paginatedNotes.length > 0}
                       onCheckedChange={selectAllNotes}
                     />
                   </div>
@@ -1298,7 +1297,7 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
 
               {/* Table Body */}
               <div className="gba:divide-y gba:divide-border">
-                {filteredNotes.map(note => {
+                {paginatedNotes.map(note => {
                   const isOwner = note.ownerId === currentUserId || note.permission === 'owner'
                   const isSelected = selectedNotes.has(note.id)
                   const isFavorite = favorites.has(note.id)
@@ -1487,7 +1486,7 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
           {/* Grid View */}
           {!isLoadingNotes && filteredNotes.length > 0 && viewLayout === 'grid' && (
             <div className="gba:p-6 gba:grid gba:grid-cols-2 gba:md:grid-cols-3 gba:lg:grid-cols-4 gba:xl:grid-cols-5 gba:gap-4">
-              {filteredNotes.map(note => {
+              {paginatedNotes.map(note => {
                 const isOwner = note.ownerId === currentUserId || note.permission === 'owner'
                 const isSelected = selectedNotes.has(note.id)
                 const isFavorite = favorites.has(note.id)
@@ -1564,6 +1563,18 @@ export const NoteAppsHub: React.FC<NoteAppsHubProps> = ({
             </div>
           )}
         </div>
+
+        {/* Pagination */}
+        {!isLoadingNotes && filteredNotes.length > 0 && (
+          <HubPaginationFooter
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={totalItems}
+            pageSize={pageSize}
+            onPageChange={goToPage}
+            data-testid={`${testId}-pagination`}
+          />
+        )}
       </main>
 
       {/* Share Dialog */}

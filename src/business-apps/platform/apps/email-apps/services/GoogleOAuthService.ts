@@ -7,7 +7,10 @@
  * and the callback page sends the code to the backend for server-side exchange.
  */
 
-const DEFAULT_SCOPES = 'openid email profile https://mail.google.com/'
+function normalize(value?: string): string | undefined {
+  const trimmed = value?.trim()
+  return trimmed ? trimmed : undefined
+}
 
 /** Generate a random string for PKCE */
 function generateRandomString(length: number): string {
@@ -46,12 +49,18 @@ export const GoogleOAuthService = {
    * Builds the OAuth config from tenant settings.
    */
   buildConfig(tenantConfig?: { clientId?: string; scopes?: string }): GoogleOAuthConfig {
-    if (!tenantConfig?.clientId) {
+    const clientId = normalize(tenantConfig?.clientId)
+    const scopes = normalize(tenantConfig?.scopes)
+
+    if (!clientId) {
       throw new Error('Google OAuth client ID is not configured')
     }
+    if (!scopes) {
+      throw new Error('Google OAuth scopes are not configured')
+    }
     return {
-      clientId: tenantConfig.clientId,
-      scopes: tenantConfig.scopes || DEFAULT_SCOPES
+      clientId,
+      scopes
     }
   },
 

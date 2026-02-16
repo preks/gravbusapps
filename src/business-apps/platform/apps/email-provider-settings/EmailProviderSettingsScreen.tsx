@@ -1,10 +1,9 @@
 /**
  * EmailProviderSettingsScreen - Admin-only screen for configuring email provider
- * OAuth credentials per tenant. Admins configure Microsoft and Google here;
- * regular users never see this screen.
+ * OAuth credentials per tenant. Providers are displayed in separate tabs.
  */
 
-import React from 'react'
+import React, { useState } from 'react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { Button } from '@newwork/nw-design-system'
 import { ChevronLeft, Loader2, AlertTriangle, Mail } from 'lucide-react'
@@ -17,6 +16,14 @@ export interface EmailProviderSettingsScreenProps extends BusinessAppContextProp
   'data-testid'?: string
 }
 
+type ProviderTab = 'microsoft' | 'google' | 'imap_smtp'
+
+const TABS: { key: ProviderTab; label: string }[] = [
+  { key: 'microsoft', label: 'Microsoft 365' },
+  { key: 'google', label: 'Google / Gmail' },
+  { key: 'imap_smtp', label: 'IMAP / SMTP' }
+]
+
 const REDIRECT_URI = typeof window !== 'undefined' ? `${window.location.origin}/platform/mail/oauth/callback` : ''
 
 export const EmailProviderSettingsScreen: React.FC<EmailProviderSettingsScreenProps> = ({
@@ -24,10 +31,9 @@ export const EmailProviderSettingsScreen: React.FC<EmailProviderSettingsScreenPr
   'data-testid': testId = 'email-provider-settings'
 }) => {
   const { settings, isLoading, error, saveSettings } = useProviderSettings(accessToken)
+  const [activeTab, setActiveTab] = useState<ProviderTab>('microsoft')
 
-  const microsoftSettings = settings.find(s => s.provider === 'microsoft')
-  const googleSettings = settings.find(s => s.provider === 'google')
-  const imapSettings = settings.find(s => s.provider === 'imap_smtp')
+  const activeSettings = settings.find(s => s.provider === activeTab)
 
   return (
     <div className="gba:flex gba:flex-col gba:h-full gba:bg-background" data-testid={testId}>
@@ -57,6 +63,33 @@ export const EmailProviderSettingsScreen: React.FC<EmailProviderSettingsScreenPr
         </div>
       </div>
 
+      {/* Provider tabs */}
+      <div className="gba:border-b gba:bg-card gba:px-6">
+        <div className="gba:flex gba:gap-1">
+          {TABS.map(tab => {
+            const isActive = activeTab === tab.key
+            const providerSettings = settings.find(s => s.provider === tab.key)
+            return (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className={`gba:px-4 gba:py-2.5 gba:text-sm gba:font-medium gba:border-b-2 gba:transition-colors ${
+                  isActive
+                    ? 'gba:border-primary gba:text-primary'
+                    : 'gba:border-transparent gba:text-muted-foreground hover:gba:text-foreground hover:gba:border-muted-foreground/30'
+                }`}
+                data-testid={`${testId}-tab-${tab.key}`}
+              >
+                {tab.label}
+                {providerSettings?.isEnabled && (
+                  <span className="gba:ml-2 gba:w-2 gba:h-2 gba:rounded-full gba:bg-success gba:inline-block" />
+                )}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
       {/* Content */}
       <div className="gba:flex-1 gba:overflow-y-auto gba:p-6">
         <div className="gba:max-w-3xl gba:mx-auto gba:space-y-6">
@@ -73,56 +106,78 @@ export const EmailProviderSettingsScreen: React.FC<EmailProviderSettingsScreenPr
             </div>
           )}
 
-          {!isLoading && (
-            <>
-              {/* Microsoft settings card */}
-              <ProviderSettingsCard
-                provider="microsoft"
-                existingSettings={microsoftSettings}
-                onSave={saveSettings}
-                redirectUri={REDIRECT_URI}
-                data-testid={`${testId}-microsoft`}
-              />
-
-              {/* Google settings card */}
-              <ProviderSettingsCard
-                provider="google"
-                existingSettings={googleSettings}
-                onSave={saveSettings}
-                redirectUri={REDIRECT_URI}
-                data-testid={`${testId}-google`}
-              />
-
-              {/* IMAP/SMTP settings card */}
-              <ImapSmtpSettingsCard
-                existingSettings={imapSettings}
-                onSave={saveSettings}
-                data-testid={`${testId}-imap-smtp`}
-              />
-
-              {/* Help section */}
-              <div className="gba:p-4 gba:rounded-lg gba:bg-info-secondary gba:text-info-secondary-foreground">
-                <h3 className="gba:font-medium gba:mb-2">Setup Guide</h3>
-                <ul className="gba:text-sm gba:space-y-1 gba:list-disc gba:list-inside">
-                  <li>
-                    <strong>Microsoft:</strong> Register a Web application (not SPA) in Azure Portal for reliable
-                    background sync. Add the redirect URI shown above.
-                  </li>
-                  <li>
-                    <strong>Google:</strong> Create OAuth credentials in Google Cloud Console. Enable the Gmail API. Add
-                    the redirect URI shown above.
-                  </li>
-                  <li>
-                    <strong>IMAP/SMTP:</strong> No external setup needed. Enable it to let users connect any email
-                    account manually. Optionally pre-fill default server details.
-                  </li>
-                  <li>After saving, users can connect their accounts from the Mail app.</li>
-                </ul>
-              </div>
-            </>
+          {!isLoading && activeTab !== 'imap_smtp' && (
+            <ProviderSettingsCard
+              provider={activeTab}
+              existingSettings={activeSettings}
+              onSave={saveSettings}
+              redirectUri={REDIRECT_URI}
+              data-testid={`${testId}-${activeTab}`}
+            />
           )}
+
+          {!isLoading && activeTab === 'imap_smtp' && (
+            <ImapSmtpSettingsCard
+              existingSettings={activeSettings}
+              onSave={saveSettings}
+              data-testid={`${testId}-imap-smtp`}
+            />
+          )}
+
+          {/* Setup guide */}
+          {!isLoading && <SetupGuide activeTab={activeTab} />}
         </div>
       </div>
+    </div>
+  )
+}
+
+/** Contextual setup guide shown below the active provider tab */
+function SetupGuide({ activeTab }: { activeTab: ProviderTab }) {
+  const guides: Record<ProviderTab, { title: string; steps: string[] }> = {
+    microsoft: {
+      title: 'Microsoft Setup Guide',
+      steps: [
+        'Go to Azure Portal > App Registrations > New registration.',
+        'Choose "Web" as the platform type (not SPA) for reliable background sync.',
+        'Add the redirect URI shown above in Authentication > Web.',
+        'Create a Client Secret under Certificates & secrets.',
+        'Enable the required permissions and grant admin consent if needed.',
+        'After saving here, users can connect their Microsoft accounts from the Mail app.'
+      ]
+    },
+    google: {
+      title: 'Google Setup Guide',
+      steps: [
+        'Go to Google Cloud Console > APIs & Services > Credentials.',
+        'Create an OAuth 2.0 Client ID (Web application type).',
+        'Add the redirect URI shown above under Authorized redirect URIs.',
+        'Enable the Gmail API in APIs & Services > Library.',
+        'Configure the OAuth consent screen with required scopes.',
+        'After saving here, users can connect their Google accounts from the Mail app.'
+      ]
+    },
+    imap_smtp: {
+      title: 'IMAP / SMTP Setup',
+      steps: [
+        'No external app registration needed.',
+        'Enable this provider to let users connect any email account manually.',
+        'Optionally pre-fill default server details so users only need their credentials.',
+        'Users will enter their email, password, and server details (if not pre-filled).'
+      ]
+    }
+  }
+
+  const guide = guides[activeTab]
+
+  return (
+    <div className="gba:p-4 gba:rounded-lg gba:bg-info-secondary gba:text-info-secondary-foreground">
+      <h3 className="gba:font-medium gba:mb-2">{guide.title}</h3>
+      <ol className="gba:text-sm gba:space-y-1 gba:list-decimal gba:list-inside">
+        {guide.steps.map((step, i) => (
+          <li key={i}>{step}</li>
+        ))}
+      </ol>
     </div>
   )
 }

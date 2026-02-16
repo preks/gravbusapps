@@ -71,6 +71,8 @@ import {
   type SlideHubSortOrder
 } from './hooks'
 import { SlideEditor, ShareSlideDialog, ManageSharesDialog, PowerPointUploader } from './components'
+import { useHubPagination } from '../shared/hooks/useHubPagination'
+import { HubPaginationFooter } from '../shared/components/HubPaginationFooter'
 import type { SlideSummary } from './types'
 import type { ParsedPowerPointDocument } from './hooks/usePowerPointParser'
 
@@ -198,6 +200,15 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
     sortOrder
   })
 
+  const {
+    paginatedItems: paginatedSlides,
+    currentPage,
+    totalPages,
+    totalItems,
+    goToPage,
+    pageSize
+  } = useHubPagination({ items: filteredSlides, pageSize: 20 })
+
   const { updateUrl, resetLoadAttempt } = useSlidesHubUrlState({
     currentView,
     currentSlideId: selectedSlideId,
@@ -220,17 +231,6 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
   useEffect(() => {
     localStorage.setItem('slides-hub-sidebar-collapsed', String(isSidebarCollapsed))
   }, [isSidebarCollapsed])
-
-  // Store access token for API service
-  useEffect(() => {
-    if (accessToken) {
-      try {
-        localStorage.setItem('business-app-ide-access-token', accessToken)
-      } catch {
-        // ignore
-      }
-    }
-  }, [accessToken])
 
   /** Create new blank slide */
   const handleCreateNew = useCallback(async () => {
@@ -860,7 +860,7 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
                 <div className="gba:flex gba:items-center gba:px-4 gba:py-2 gba:text-xs gba:font-medium gba:text-muted-foreground">
                   <div className="gba:w-8 gba:flex-shrink-0">
                     <Checkbox
-                      checked={selectedSlides.size === filteredSlides.length && filteredSlides.length > 0}
+                      checked={selectedSlides.size === paginatedSlides.length && paginatedSlides.length > 0}
                       onCheckedChange={selectAllSlides}
                     />
                   </div>
@@ -899,7 +899,7 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
 
               {/* Table Body */}
               <div className="gba:divide-y gba:divide-border">
-                {filteredSlides.map(slide => {
+                {paginatedSlides.map(slide => {
                   const isOwner = slide.isOwner || slide.permission === 'owner' || slide.createdBy === currentUserId
                   const isSelected = selectedSlides.has(slide.id)
                   const isFavorite = favorites.has(slide.id)
@@ -1080,7 +1080,7 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
           {/* Grid View */}
           {!isLoading && filteredSlides.length > 0 && viewLayout === 'grid' && (
             <div className="gba:p-6 gba:grid gba:grid-cols-2 gba:md:grid-cols-3 gba:lg:grid-cols-4 gba:xl:grid-cols-5 gba:gap-4">
-              {filteredSlides.map(slide => {
+              {paginatedSlides.map(slide => {
                 const isOwner = slide.isOwner || slide.permission === 'owner' || slide.createdBy === currentUserId
                 const isSelected = selectedSlides.has(slide.id)
                 const isFavorite = favorites.has(slide.id)
@@ -1144,6 +1144,18 @@ export const SlidesAppsHub: React.FC<SlidesAppsHubProps> = ({
             </div>
           )}
         </div>
+
+        {/* Pagination */}
+        {!isLoading && filteredSlides.length > 0 && (
+          <HubPaginationFooter
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={totalItems}
+            pageSize={pageSize}
+            onPageChange={goToPage}
+            data-testid={`${testId}-pagination`}
+          />
+        )}
       </main>
 
       {/* Share Slide Dialog */}

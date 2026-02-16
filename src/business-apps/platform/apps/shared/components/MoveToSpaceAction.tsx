@@ -30,25 +30,6 @@ interface Space {
   isPublic: boolean
 }
 
-const getAuthToken = (): string | null => {
-  try {
-    const ideToken = localStorage.getItem('business-app-ide-access-token')
-    if (ideToken) return ideToken
-    const authData = localStorage.getItem('keycloak-token')
-    if (authData) {
-      try {
-        const parsed = JSON.parse(authData)
-        return parsed.token || parsed.access_token || null
-      } catch {
-        return null
-      }
-    }
-    return null
-  } catch {
-    return null
-  }
-}
-
 // Color schemes for space display
 const colorSchemes: Record<string, { bg: string; text: string }> = {
   blue: { bg: 'gba:bg-sky-500/20', text: 'gba:text-sky-600' },
@@ -91,6 +72,7 @@ export interface MoveToSpaceDialogProps {
   contentType: 'document' | 'note' | 'spreadsheet'
   contentId: string
   contentName?: string
+  accessToken?: string
   onMoved?: () => void
   'data-testid'?: string
 }
@@ -101,6 +83,7 @@ export const MoveToSpaceDialog: React.FC<MoveToSpaceDialogProps> = ({
   contentType,
   contentId,
   contentName,
+  accessToken,
   onMoved,
   'data-testid': testId = 'move-to-space-dialog'
 }) => {
@@ -113,8 +96,7 @@ export const MoveToSpaceDialog: React.FC<MoveToSpaceDialogProps> = ({
 
   // Fetch spaces when dialog opens
   const fetchSpaces = useCallback(async () => {
-    const token = getAuthToken()
-    if (!token) {
+    if (!accessToken) {
       setError('Not authenticated')
       return
     }
@@ -123,7 +105,7 @@ export const MoveToSpaceDialog: React.FC<MoveToSpaceDialogProps> = ({
       setIsLoading(true)
       setError(null)
       const response = await fetch(`${API_URL}/spaces`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${accessToken}` }
       })
 
       if (!response.ok) {
@@ -137,7 +119,7 @@ export const MoveToSpaceDialog: React.FC<MoveToSpaceDialogProps> = ({
     } finally {
       setIsLoading(false)
     }
-  }, [])
+  }, [accessToken])
 
   // Fetch spaces when dialog opens
   useEffect(() => {
@@ -153,8 +135,7 @@ export const MoveToSpaceDialog: React.FC<MoveToSpaceDialogProps> = ({
   const moveToSpace = useCallback(async () => {
     if (!selectedSpaceId) return
 
-    const token = getAuthToken()
-    if (!token) {
+    if (!accessToken) {
       toast.error('Not authenticated')
       return
     }
@@ -167,7 +148,7 @@ export const MoveToSpaceDialog: React.FC<MoveToSpaceDialogProps> = ({
       const response = await fetch(`${API_URL}/spaces/${selectedSpaceId}/content`, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${accessToken}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
@@ -188,7 +169,7 @@ export const MoveToSpaceDialog: React.FC<MoveToSpaceDialogProps> = ({
     } finally {
       setIsMoving(false)
     }
-  }, [selectedSpaceId, contentType, contentId, onOpenChange, onMoved])
+  }, [selectedSpaceId, accessToken, contentType, contentId, onOpenChange, onMoved])
 
   // Filter spaces by search
   const filteredSpaces = searchQuery.trim()
