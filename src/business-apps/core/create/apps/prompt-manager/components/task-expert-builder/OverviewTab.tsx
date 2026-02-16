@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import {
   Input,
   Label,
@@ -7,12 +7,13 @@ import {
   SelectValue,
   SelectContent,
   SelectItem,
+  Button,
   Card,
   CardHeader,
   CardTitle,
   CardContent
 } from '@newwork/nw-design-system'
-import { Bot, Sparkles, Workflow } from 'lucide-react'
+import { Bot, Sparkles, Workflow, Plus } from 'lucide-react'
 import type { TabProps } from './types'
 import type { AgentType } from '@/common/network/ai/prompt-manager/PromptManagerClient'
 
@@ -35,6 +36,24 @@ const AGENT_TYPE_INFO: Record<AgentType, { label: string; description: string; i
 }
 
 export const OverviewTab: React.FC<TabProps> = ({ state, actions, catalogs, mode }) => {
+  const [showNewWs, setShowNewWs] = useState(false)
+  const [newWsName, setNewWsName] = useState('')
+  const [creatingWs, setCreatingWs] = useState(false)
+
+  const handleCreateWorkspace = async () => {
+    if (!newWsName.trim() || !catalogs.createWorkspace) return
+    setCreatingWs(true)
+    try {
+      await catalogs.createWorkspace(newWsName.trim())
+      setNewWsName('')
+      setShowNewWs(false)
+    } catch {
+      console.error('Failed to create workspace')
+    } finally {
+      setCreatingWs(false)
+    }
+  }
+
   return (
     <div className="gba:space-y-6" data-testid="agent-builder-overview-tab">
       {/* Agent Type - First selection */}
@@ -92,25 +111,68 @@ export const OverviewTab: React.FC<TabProps> = ({ state, actions, catalogs, mode
               <Label>
                 Workspace <span className="gba:text-destructive">*</span>
               </Label>
-              <Select
-                value={state.workspaceId}
-                onValueChange={actions.setWorkspaceId}
-                disabled={mode === 'edit'}
-                data-testid="agent-builder-workspace"
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select workspace" />
-                </SelectTrigger>
-                <SelectContent>
-                  {catalogs.workspaces
-                    .filter(ws => !!ws._id)
-                    .map(ws => (
-                      <SelectItem key={ws._id} value={ws._id as string}>
-                        {ws.name}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
+              {showNewWs ? (
+                <div className="gba:flex gba:gap-2">
+                  <Input
+                    value={newWsName}
+                    onChange={e => setNewWsName(e.target.value)}
+                    placeholder="Workspace name..."
+                    onKeyDown={e => e.key === 'Enter' && handleCreateWorkspace()}
+                    disabled={creatingWs}
+                    data-testid="agent-builder-workspace-new-input"
+                  />
+                  <Button
+                    size="sm"
+                    onClick={handleCreateWorkspace}
+                    disabled={!newWsName.trim() || creatingWs}
+                    data-testid="agent-builder-workspace-create-btn"
+                  >
+                    {creatingWs ? '...' : 'Create'}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      setShowNewWs(false)
+                      setNewWsName('')
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              ) : (
+                <div className="gba:flex gba:gap-2">
+                  <Select
+                    value={state.workspaceId}
+                    onValueChange={actions.setWorkspaceId}
+                    disabled={mode === 'edit'}
+                    data-testid="agent-builder-workspace"
+                  >
+                    <SelectTrigger className="gba:flex-1">
+                      <SelectValue placeholder="Select workspace" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {catalogs.workspaces
+                        .filter(ws => !!ws._id)
+                        .map(ws => (
+                          <SelectItem key={ws._id} value={ws._id as string}>
+                            {ws.name}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                  {mode !== 'edit' && catalogs.createWorkspace && (
+                    <Button
+                      size="icon"
+                      variant="outline"
+                      onClick={() => setShowNewWs(true)}
+                      data-testid="agent-builder-workspace-new"
+                    >
+                      <Plus className="gba:w-4 gba:h-4" />
+                    </Button>
+                  )}
+                </div>
+              )}
             </div>
           </div>
           <div className="gba:space-y-2">
@@ -172,6 +234,66 @@ export const OverviewTab: React.FC<TabProps> = ({ state, actions, catalogs, mode
                 />
                 <span className="gba:text-sm">Make this expert publicly available</span>
               </label>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Agent Card (Mesh metadata) - for EveryAI agents */}
+      {state.agentType === 'everyai' && (
+        <Card className="gba:!bg-background">
+          <CardHeader>
+            <CardTitle>Agent Card (Mesh)</CardTitle>
+          </CardHeader>
+          <CardContent className="gba:space-y-4">
+            <p className="gba:text-sm gba:text-muted-foreground">
+              Configure mesh metadata so other agents can discover and connect to this expert.
+            </p>
+            <div className="gba:grid gba:grid-cols-2 gba:gap-4">
+              <div className="gba:space-y-2">
+                <Label>Division</Label>
+                <Input
+                  value={state.agentCardDivision ?? ''}
+                  onChange={e => actions.setAgentCardDivision(e.target.value)}
+                  placeholder="e.g., Mobility / Plant A"
+                  data-testid="agent-builder-card-division"
+                />
+              </div>
+              <div className="gba:space-y-2">
+                <Label>Access Policy</Label>
+                <Select
+                  value={state.agentCardAccessPolicy ?? 'public'}
+                  onValueChange={actions.setAgentCardAccessPolicy}
+                  data-testid="agent-builder-card-access-policy"
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select policy" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="public">Public</SelectItem>
+                    <SelectItem value="division_only">Division Only</SelectItem>
+                    <SelectItem value="steering_only">Steering Only</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="gba:space-y-2">
+              <Label>Data Domains (comma-separated)</Label>
+              <Input
+                value={state.agentCardDataDomains ?? ''}
+                onChange={e => actions.setAgentCardDataDomains(e.target.value)}
+                placeholder="e.g., production_throughput, quality_metrics"
+                data-testid="agent-builder-card-data-domains"
+              />
+            </div>
+            <div className="gba:space-y-2">
+              <Label>Capabilities (comma-separated)</Label>
+              <Input
+                value={state.agentCardCapabilities ?? ''}
+                onChange={e => actions.setAgentCardCapabilities(e.target.value)}
+                placeholder="e.g., Production KPIs, Quality Analysis"
+                data-testid="agent-builder-card-capabilities"
+              />
             </div>
           </CardContent>
         </Card>

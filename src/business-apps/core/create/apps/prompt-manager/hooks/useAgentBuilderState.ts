@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import type {
@@ -83,6 +83,10 @@ export const useAgentBuilderState = (
   const [responseType, setResponseType] = useState<'text' | 'json'>('text')
   const [responseSchema, setResponseSchema] = useState('')
   const [knowledgeSources, setKnowledgeSources] = useState<KnowledgeSource[]>([])
+  const [agentCardDivision, setAgentCardDivision] = useState('')
+  const [agentCardDataDomains, setAgentCardDataDomains] = useState('')
+  const [agentCardCapabilities, setAgentCardCapabilities] = useState('')
+  const [agentCardAccessPolicy, setAgentCardAccessPolicy] = useState('public')
   const [didApplyInitial, setDidApplyInitial] = useState(false)
 
   // Catalogs
@@ -191,6 +195,14 @@ export const useAgentBuilderState = (
           setTags(loadedPrompt.tags || [])
           setToolPolicies((loadedPrompt.toolPolicies || {}) as ToolPolicies)
 
+          // Load Agent Card fields
+          if (loadedPrompt.agent_card) {
+            setAgentCardDivision(loadedPrompt.agent_card.division || '')
+            setAgentCardDataDomains((loadedPrompt.agent_card.data_domains || []).join(', '))
+            setAgentCardCapabilities((loadedPrompt.agent_card.capabilities || []).join(', '))
+            setAgentCardAccessPolicy(loadedPrompt.agent_card.access_policy || 'public')
+          }
+
           if (loadedPrompt.response_schema) {
             setResponseType('json')
             setResponseSchema(JSON.stringify(loadedPrompt.response_schema, null, 2))
@@ -243,6 +255,10 @@ export const useAgentBuilderState = (
     selectedToolIds,
     selectedToolVersion,
     toolPolicies,
+    agentCardDivision,
+    agentCardDataDomains,
+    agentCardCapabilities,
+    agentCardAccessPolicy,
     serviceId,
     modelId,
     temperature,
@@ -267,6 +283,10 @@ export const useAgentBuilderState = (
     setSelectedToolIds,
     setSelectedToolVersion,
     setToolPolicies,
+    setAgentCardDivision,
+    setAgentCardDataDomains,
+    setAgentCardCapabilities,
+    setAgentCardAccessPolicy,
     setServiceId,
     setModelId,
     setTemperature,
@@ -275,6 +295,16 @@ export const useAgentBuilderState = (
     setKnowledgeSources
   }
 
+  const createWorkspace = useCallback(
+    async (wsName: string) => {
+      const created = await client.createWorkspace({ name: wsName, default: false })
+      setWorkspaces(prev => [...prev, created])
+      setWorkspaceId(String(created._id))
+      return created
+    },
+    [client]
+  )
+
   const catalogs = {
     workspaces,
     services,
@@ -282,7 +312,8 @@ export const useAgentBuilderState = (
     capabilities,
     capabilitiesLoading,
     capabilitiesError,
-    reloadCapabilities
+    reloadCapabilities,
+    createWorkspace
   }
 
   return { state, actions, catalogs, prompt, isLoadingPrompt, error, setError, isValid }

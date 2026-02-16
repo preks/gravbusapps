@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from 'react'
 import { Button, Tabs, TabsList, TabsTrigger, TabsContent, Spinner } from '@newwork/nw-design-system'
-import { LayoutDashboard, Save, Sparkles } from 'lucide-react'
+import { LayoutDashboard, Network, Save, Sparkles } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import { useAgentBuilderState, type AgentBuilderInitialState } from '../../hooks/useAgentBuilderState'
@@ -50,8 +50,10 @@ export const TaskExpertBuilder: React.FC<TaskExpertBuilderProps> = props => {
         modelSettings.response_format = { type: 'json_object' }
       }
 
+      let savedPromptId: string | undefined
+
       if (mode === 'create') {
-        await client.createPrompt({
+        const created = await client.createPrompt({
           name: state.name,
           description: state.description,
           type: 'completion',
@@ -72,6 +74,7 @@ export const TaskExpertBuilder: React.FC<TaskExpertBuilderProps> = props => {
           isPublic: state.agentType === 'everyai' ? state.isPublic : undefined,
           tags: state.agentType === 'everyai' && state.tags.length > 0 ? state.tags : undefined
         })
+        savedPromptId = created._id
       } else if (prompt?._id) {
         await client.putPrompt(prompt._id, {
           description: state.description,
@@ -93,7 +96,36 @@ export const TaskExpertBuilder: React.FC<TaskExpertBuilderProps> = props => {
           isPublic: state.agentType === 'everyai' ? state.isPublic : undefined,
           tags: state.agentType === 'everyai' && state.tags.length > 0 ? state.tags : undefined
         })
+        savedPromptId = prompt._id
       }
+
+      // Save Agent Card metadata via the mesh API (best-effort)
+      if (savedPromptId && state.agentType === 'everyai') {
+        const hasCardData = state.agentCardDivision || state.agentCardDataDomains || state.agentCardCapabilities
+        if (hasCardData) {
+          try {
+            await client.patch(`/api/v1/agents/registry/${savedPromptId}/card`, {
+              division: state.agentCardDivision || undefined,
+              data_domains: state.agentCardDataDomains
+                ? state.agentCardDataDomains
+                    .split(',')
+                    .map(s => s.trim())
+                    .filter(Boolean)
+                : undefined,
+              capabilities: state.agentCardCapabilities
+                ? state.agentCardCapabilities
+                    .split(',')
+                    .map(s => s.trim())
+                    .filter(Boolean)
+                : undefined,
+              access_policy: state.agentCardAccessPolicy || undefined
+            })
+          } catch {
+            // Agent card save is best-effort; prompt was saved successfully
+          }
+        }
+      }
+
       onSaved()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to save')
@@ -134,6 +166,24 @@ export const TaskExpertBuilder: React.FC<TaskExpertBuilderProps> = props => {
           <Save className="gba:w-4 gba:h-4 gba:mr-1" />
           {isSaving ? 'Saving...' : 'Save'}
         </Button>
+        {state.agentType === 'everyai' && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={async () => {
+              await onSave()
+              if (typeof window !== 'undefined') {
+                const meshUrl = '/platform/apps/agent-mesh'
+                window.dispatchEvent(new CustomEvent('navigate', { detail: { url: meshUrl } }))
+              }
+            }}
+            disabled={!isValid || isSaving}
+            data-testid="agent-builder-save-open-mesh"
+          >
+            <Network className="gba:w-4 gba:h-4 gba:mr-1" />
+            Save & Open Mesh
+          </Button>
+        )}
       </div>
 
       {error && (

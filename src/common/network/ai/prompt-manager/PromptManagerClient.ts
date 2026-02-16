@@ -46,6 +46,15 @@ export interface KnowledgeSource {
   createdAt: string
 }
 
+export interface PromptAgentCard {
+  division?: string
+  data_domains?: string[]
+  capabilities?: string[]
+  access_policy?: string
+  allowed_callers?: string[]
+  version?: string
+}
+
 export interface PromptODM {
   _id?: string
   name: string
@@ -73,6 +82,8 @@ export interface PromptODM {
   is_public?: boolean
   created_by?: string
   tags?: string[]
+  // Agent Mesh fields
+  agent_card?: PromptAgentCard | null
 }
 
 export interface PromptPage {
