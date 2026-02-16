@@ -36,6 +36,7 @@ export const InlineEditableMarkdownBlock = ({
   const editableRef = useRef<HTMLDivElement>(null)
   const rendererRef = useRef<HTMLDivElement>(null)
   const isFocusedRef = useRef(false)
+  const isDirtyRef = useRef(false)
   const valueRef = useRef(value)
 
   // Sync rendered HTML → editable container whenever value changes and
@@ -49,16 +50,34 @@ export const InlineEditableMarkdownBlock = ({
 
   const handleFocus = useCallback(() => {
     isFocusedRef.current = true
+    isDirtyRef.current = false
+  }, [])
+
+  const handleInput = useCallback(() => {
+    isDirtyRef.current = true
   }, [])
 
   const handleBlur = useCallback(() => {
     isFocusedRef.current = false
-    if (!editableRef.current) return
+    if (!editableRef.current || !rendererRef.current) return
+
+    // If the user didn’t actually edit anything, snap back to the canonical
+    // renderer HTML. This avoids focus/blur causing DOM normalization that
+    // changes list layout (e.g. marker on its own line).
+    if (!isDirtyRef.current) {
+      editableRef.current.innerHTML = rendererRef.current.innerHTML
+      return
+    }
+
     const md = htmlToMarkdown(editableRef.current)
     if (md !== valueRef.current) {
       valueRef.current = md
       onChange(md)
+      return
     }
+
+    // Dirty-but-no-markdown-change: restore canonical HTML to keep layout stable.
+    editableRef.current.innerHTML = rendererRef.current.innerHTML
   }, [onChange])
 
   if (!value && disabled) {
@@ -81,6 +100,7 @@ export const InlineEditableMarkdownBlock = ({
         ref={editableRef}
         contentEditable={!disabled}
         onFocus={handleFocus}
+        onInput={handleInput}
         onBlur={handleBlur}
         className={`gba:outline-none gba:cursor-text gba:rounded-lg gba:transition-all gba:duration-200 gba:hover:bg-accent/5 gba:focus:bg-accent/5 gba:focus:ring-1 gba:focus:ring-primary/20 gba:-mx-3 gba:-my-1 gba:px-3 gba:py-1 ${className}`}
         data-testid={testId}

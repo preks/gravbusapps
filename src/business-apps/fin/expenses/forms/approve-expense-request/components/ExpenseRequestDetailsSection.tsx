@@ -48,9 +48,10 @@ const ExpenseRequestDetailsSection: React.FC<ExpenseRequestDetailsSectionProps> 
       : undefined) || standardComments[0]
 
   const standardCommentText = String(requesterStandardComment?.comment || '').trim()
+  const employeeCommentText = standardCommentText || descriptionText
 
-  const shouldShowStandardComment = Boolean(standardCommentText)
-  const shouldShowDescription = Boolean(descriptionText) && descriptionText !== standardCommentText
+  const shouldShowEmployeeComment = Boolean(employeeCommentText)
+  const shouldShowDescription = Boolean(descriptionText) && descriptionText !== employeeCommentText
 
   // Format request type for display
   const formatRequestType = (requestTypeCode?: string) => {
@@ -98,7 +99,7 @@ const ExpenseRequestDetailsSection: React.FC<ExpenseRequestDetailsSectionProps> 
           </div>
         )}
 
-        {(expenseRequest.title || shouldShowStandardComment || shouldShowDescription) && <Separator />}
+        {(expenseRequest.title || shouldShowEmployeeComment || shouldShowDescription) && <Separator />}
 
         {/* Title */}
         {expenseRequest.title && (
@@ -108,17 +109,17 @@ const ExpenseRequestDetailsSection: React.FC<ExpenseRequestDetailsSectionProps> 
           </div>
         )}
 
-        {/* Employee comment (STANDARD_COMMENT) */}
-        {shouldShowStandardComment && (
+        {/* Employee comment (STANDARD_COMMENT or description fallback) */}
+        {shouldShowEmployeeComment && (
           <>
             {expenseRequest.title && <Separator />}
             <div>
               <Label className="gba:text-sm gba:text-muted-foreground">{t('label-employee-comment')}</Label>
               <p
-                className="gba:text-sm gba:text-muted-foreground gba:whitespace-pre-wrap"
+                className="gba:text-sm gba:font-medium gba:whitespace-pre-wrap"
                 data-testid={`${prefixDataTestId}-employee-comment`}
               >
-                {standardCommentText}
+                {employeeCommentText}
               </p>
             </div>
           </>
@@ -127,11 +128,11 @@ const ExpenseRequestDetailsSection: React.FC<ExpenseRequestDetailsSectionProps> 
         {/* Request description (fallback / additional info) */}
         {shouldShowDescription && (
           <>
-            {(expenseRequest.title || shouldShowStandardComment) && <Separator />}
+            {(expenseRequest.title || shouldShowEmployeeComment) && <Separator />}
             <div>
               <Label className="gba:text-sm gba:text-muted-foreground">{t('label-comment')}</Label>
               <p
-                className="gba:text-sm gba:text-muted-foreground gba:whitespace-pre-wrap"
+                className="gba:text-sm gba:font-medium gba:whitespace-pre-wrap"
                 data-testid={`${prefixDataTestId}-request-description`}
               >
                 {descriptionText}

@@ -135,6 +135,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content: raw
       const trimmedLine = line.trim()
       const nextLine = lines[i + 1]?.trim()
       const isEmptyLine = trimmedLine === ''
+      const isListLine = trimmedLine.startsWith('- ') || trimmedLine.startsWith('* ') || /^\d+\.\s/.test(trimmedLine)
       const nextIsListItem = nextLine?.startsWith('- ') || nextLine?.startsWith('* ') || /^\d+\.\s/.test(nextLine ?? '')
 
       if (isEmptyLine && nextIsListItem) return null
@@ -142,7 +143,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content: raw
       return (
         <React.Fragment key={`line-${i}-${line.length}`}>
           {renderFormattingLine(line)}
-          {i < lines.length - 1 && !isEmptyLine && <br />}
+          {i < lines.length - 1 && !isEmptyLine && !isListLine && <br />}
         </React.Fragment>
       )
     })

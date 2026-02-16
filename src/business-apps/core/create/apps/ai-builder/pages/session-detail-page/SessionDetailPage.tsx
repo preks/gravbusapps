@@ -17,6 +17,7 @@ import {
   Download,
   CheckCircle,
   CheckCircle2,
+  AlertCircle,
   X,
   PanelLeft,
   PanelLeftClose,
@@ -58,6 +59,7 @@ interface Message {
   messageId?: string
   createdAt?: string
   serverCreatedAt?: string
+  localOnly?: boolean
 }
 
 interface UniqueFileSummary {
@@ -147,11 +149,23 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
   })
   const [isPublishing, setIsPublishing] = useState(false)
   const [publishSuccess, setPublishSuccess] = useState<string | null>(null)
+  const [restoreError, setRestoreError] = useState<string | null>(null)
+  const [previewBuildStatus, setPreviewBuildStatus] = useState<{
+    active: boolean
+    lines: string[]
+    error: string | null
+  }>({ active: false, lines: [], error: null })
+  const [previewReady, setPreviewReady] = useState(false)
+  const messagesRef = useRef<Message[]>([])
 
   const builderClient = useBuilderClient(context.accessToken)
   const toolIdCounter = useRef(0)
   const previewSandboxRef = useRef<PreviewSandboxHandle>(null)
   const previousChangeCountRef = useRef(0)
+  const publishProgressRef = useRef<string[]>([])
+  const restoreProgressRef = useRef<string[]>([])
+  const screenBuildUsedRef = useRef(false)
+  const screenBuildSucceededRef = useRef(false)
   const resolvedTargetPath = detectedTargetPath || targetPath
 
   const createMessageId = (): string => {
@@ -183,6 +197,93 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
     return { messages, updated }
   }
 
+  useEffect(() => {
+    messagesRef.current = messages
+  }, [messages])
+
+  const hasSuccessfulScreenBuildInMessages = (items: Message[]): boolean => {
+    for (let i = items.length - 1; i >= 0; i -= 1) {
+      const message = items[i]
+      if (!message.toolCalls || message.toolCalls.length === 0) continue
+      for (let j = message.toolCalls.length - 1; j >= 0; j -= 1) {
+        const call = message.toolCalls[j]
+        if (call.tool !== 'screen_build') continue
+        const resultText = call.result ?? ''
+        if (resultText.includes('"success": true') || resultText.includes('"success":true')) {
+          return true
+        }
+      }
+    }
+    return false
+  }
+
+  const readSseStream = async <T,>(stream: ReadableStream, onEvent: (event: T) => void): Promise<void> => {
+    const reader = stream.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+
+    while (true) {
+      const { value, done } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() ?? ''
+
+      for (const line of lines) {
+        const trimmed = line.trim()
+        if (!trimmed.startsWith('data:')) continue
+        const payload = trimmed.slice(5).trim()
+        if (!payload || payload === '[DONE]') continue
+        try {
+          onEvent(JSON.parse(payload))
+        } catch {
+          console.warn('Failed to parse SSE payload', payload)
+        }
+      }
+    }
+  }
+
+  const formatPublishProgress = (lines: string[]): string => {
+    if (lines.length === 0) {
+      return 'Publish in progress...'
+    }
+    return `Publish in progress...\n${lines.map(line => `- ${line}`).join('\n')}`
+  }
+
+  const updatePublishTempMessage = (messageId: string, line: string) => {
+    publishProgressRef.current = [...publishProgressRef.current, line].slice(-6)
+    const nextContent = formatPublishProgress(publishProgressRef.current)
+    setMessages(prev =>
+      prev.map(message => (message.messageId === messageId ? { ...message, content: nextContent } : message))
+    )
+  }
+
+  const formatRestoreProgress = (lines: string[]): string => {
+    if (lines.length === 0) {
+      return 'Restore in progress...'
+    }
+    return `Restore in progress...\n${lines.map(line => `- ${line}`).join('\n')}`
+  }
+
+  const updateRestoreTempMessage = (messageId: string, line: string) => {
+    restoreProgressRef.current = [...restoreProgressRef.current, line].slice(-6)
+    const nextContent = formatRestoreProgress(restoreProgressRef.current)
+    setMessages(prev =>
+      prev.map(message => (message.messageId === messageId ? { ...message, content: nextContent } : message))
+    )
+  }
+
+  const replaceTempMessage = (messageId: string, nextMessage: Message) => {
+    setMessages(prev => {
+      const remaining = prev.filter(message => message.messageId !== messageId)
+      return [...remaining, nextMessage]
+    })
+  }
+
+  const removeTempMessage = (messageId: string) => {
+    setMessages(prev => prev.filter(message => message.messageId !== messageId))
+  }
+
   const toggleFileExplorer = () => {
     const newValue = !showFileExplorer
     setShowFileExplorer(newValue)
@@ -199,6 +300,22 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
     if (type === 'create') return 'gba:bg-success'
     if (type === 'delete') return 'gba:bg-destructive'
     return 'gba:bg-warning'
+  }
+
+  const normalizeNonEmpty = (value?: string | null): string | null => {
+    return value?.trim() ?? null
+  }
+
+  const toPreviewAppName = (pathValue?: string | null): string | null => {
+    const normalizedPath = normalizeNonEmpty(pathValue)
+    if (!normalizedPath) return null
+    const lastSegment = normalizedPath.split('/').filter(Boolean).pop()
+    if (!lastSegment) return null
+    return lastSegment
+      .split(/[-_\s]+/)
+      .filter(Boolean)
+      .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+      .join('')
   }
 
   const checkForChanges = async (): Promise<number> => {
@@ -256,13 +373,74 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
     }
   }
 
+  const refreshPreview = async (options?: { force?: boolean }) => {
+    if (!sessionId) return
+    if (previewBuildStatus.active) return
+
+    setPreviewBuildStatus({
+      active: true,
+      lines: ['Starting preview build...'],
+      error: null
+    })
+
+    try {
+      const stream = await builderClient.buildPreviewStream({
+        sessionId,
+        bundle: options?.force
+      })
+      await readSseStream<{ type?: string; message?: string; result?: { cacheHit?: boolean } }>(stream, event => {
+        if (event?.type === 'done') {
+          setPreviewBuildStatus(prev => ({ ...prev, active: false }))
+          if (!previewReady) {
+            setPreviewReady(true)
+          }
+          previewSandboxRef.current?.reload()
+          return
+        }
+        if (event?.type === 'error') {
+          setPreviewBuildStatus(prev => ({
+            ...prev,
+            active: false,
+            error: event.message || 'Preview build failed'
+          }))
+          return
+        }
+        const line = event?.message || event?.type || 'Working...'
+        setPreviewBuildStatus(prev => ({
+          ...prev,
+          active: true,
+          lines: [...prev.lines, line].slice(-6),
+          error: null
+        }))
+      })
+    } catch (error) {
+      setPreviewBuildStatus({
+        active: false,
+        lines: [],
+        error: error instanceof Error ? error.message : 'Preview build failed'
+      })
+    }
+  }
+
   useEffect(() => {
     const currentSession = sessions.find(s => s.sessionId === sessionId)
     if (!currentSession) return
+    setTargetPath(prev => normalizeNonEmpty(prev) ?? normalizeNonEmpty(currentSession.targetPath) ?? '')
+    setResourceUrl(prev => normalizeNonEmpty(prev) ?? normalizeNonEmpty(currentSession.resourceUrl) ?? '')
+  }, [sessionId, sessions])
+
+  useEffect(() => {
+    const currentSession = sessions.find(s => s.sessionId === sessionId)
+    if (!currentSession) return
+    const nextTargetPath =
+      normalizeNonEmpty(detectedTargetPath) ??
+      normalizeNonEmpty(targetPath) ??
+      normalizeNonEmpty(currentSession.targetPath)
+    const nextResourceUrl = normalizeNonEmpty(resourceUrl) ?? normalizeNonEmpty(currentSession.resourceUrl)
     const updatedSession: SessionMetadata = {
       ...currentSession,
-      targetPath: detectedTargetPath ?? targetPath ?? currentSession.targetPath ?? null,
-      resourceUrl: resourceUrl || currentSession.resourceUrl,
+      targetPath: nextTargetPath,
+      resourceUrl: nextResourceUrl,
       lastModified: new Date().toISOString(),
       fileCount: uniqueFileSummary?.totalUniqueFiles ?? currentSession.fileCount
     }
@@ -274,6 +452,7 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
 
   useEffect(() => {
     checkForChanges()
+    refreshPreview()
     builderClient
       .loadChatHistory(repositoryId, sessionId)
       .then(history => {
@@ -294,10 +473,14 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
   }, [sessionId])
 
   useEffect(() => {
-    if (sessionId && debouncedMessages.length > 0) {
-      builderClient.saveChatHistory(repositoryId, sessionId, debouncedMessages)
+    const persistableMessages = debouncedMessages.filter(message => !message.localOnly)
+    if (sessionId && persistableMessages.length > 0) {
+      builderClient.saveChatHistory(repositoryId, sessionId, persistableMessages)
     }
   }, [debouncedMessages, sessionId, repositoryId])
+
+  const currentSession = sessions.find(s => s.sessionId === sessionId)
+  const previewAppName = toPreviewAppName(detectedTargetPath || targetPath || currentSession?.targetPath || null)
 
   const handlePublish = async () => {
     if (!targetPath || !resourceUrl) {
@@ -311,6 +494,19 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
     }
     setIsPublishing(true)
     setPublishError(null)
+    setPublishSuccess(null)
+    setShowPublishDialog(false)
+    publishProgressRef.current = []
+
+    const tempMessageId = createMessageId()
+    setMessages(prev => [
+      ...prev,
+      buildMessage('assistant', formatPublishProgress([]), {
+        messageId: tempMessageId,
+        localOnly: true
+      })
+    ])
+
     try {
       const currentSession = sessions.find(s => s.sessionId === sessionId)
       if (currentSession) {
@@ -321,33 +517,72 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
           lastModified: new Date().toISOString()
         })
       }
-      await builderClient.publishScreen({
+
+      const stream = await builderClient.publishScreenStream({
         repoId: repositoryId,
         sessionId,
         versionType: publishVersionType,
         versionNote: publishVersionNote
       })
-      const fullUrl = `/${targetPath}`
-      setPublishSuccess(fullUrl)
-      setShowPublishDialog(false)
-      setPublishError(null)
-      setPublishVersionNote('')
-      setMessages(prev => [
-        ...prev,
-        buildMessage(
-          'assistant',
-          getTranslationFromI18nKeyAndLabel(
-            'lowcoder:ai_builder.publish_success_message',
-            `✅ **Screen published successfully!**\n\nYou can now access your screen at:\n${fullUrl}\n\nClick the link in the success banner to open it in a new tab.`,
-            { url: fullUrl }
+
+      let completed = false
+      await readSseStream<{
+        type?: string
+        message?: string
+        result?: { targetPath?: string; resourceUrl?: string; azureUrl?: string; message?: string }
+      }>(stream, event => {
+        if (!event) return
+        if (event.type === 'done') {
+          completed = true
+          const result = event.result
+          const publishedPath = result?.targetPath || targetPath
+          const fullUrl = `/${publishedPath}`
+          setPublishSuccess(fullUrl)
+          setPublishError(null)
+          setPublishVersionNote('')
+          replaceTempMessage(
+            tempMessageId,
+            buildMessage(
+              'assistant',
+              getTranslationFromI18nKeyAndLabel(
+                'lowcoder:ai_builder.publish_success_message',
+                `✅ **Screen published successfully!**\n\nYou can now access your screen at:\n${fullUrl}\n\nClick the link in the success banner to open it in a new tab.`,
+                { url: fullUrl }
+              )
+            )
           )
-        )
-      ])
-      setTimeout(() => setPublishSuccess(null), 10000)
+          setTimeout(() => setPublishSuccess(null), 10000)
+          return
+        }
+        if (event.type === 'error') {
+          const errorMessage = event.message || 'Publish failed'
+          setPublishError(errorMessage)
+          setMessages(prev =>
+            prev.map(message =>
+              message.messageId === tempMessageId
+                ? { ...message, content: `Publish failed:\n${errorMessage}` }
+                : message
+            )
+          )
+          return
+        }
+        const line = event.message || event.type || 'Working...'
+        updatePublishTempMessage(tempMessageId, line)
+      })
+
+      if (!completed) {
+        const errorMessage = 'Publish completed without a final status.'
+        setPublishError(errorMessage)
+      }
     } catch (error) {
       console.error('Publish failed:', error)
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
       setPublishError(errorMessage)
+      setMessages(prev =>
+        prev.map(message =>
+          message.messageId === tempMessageId ? { ...message, content: `Publish failed:\n${errorMessage}` } : message
+        )
+      )
       const errorPrompt = `The screen publishing failed with the following error:
 
 \`\`\`
@@ -370,36 +605,65 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
 
   const confirmRestoreMessage = async () => {
     if (!sessionId || !pendingRestoreMessage?.messageId || !resolvedTargetPath) return
-    setIsRestoringMessageId(pendingRestoreMessage.messageId)
+    const restoreTarget = pendingRestoreMessage
+    const restoreMessageId = restoreTarget.messageId
+    if (!restoreMessageId) return
+    setShowRestoreDialog(false)
+    setPendingRestoreMessage(null)
+    setRestoreError(null)
+    setIsRestoringMessageId(restoreMessageId)
+    restoreProgressRef.current = []
+    const tempMessageId = createMessageId()
+    setMessages(prev => [
+      ...prev,
+      buildMessage('assistant', formatRestoreProgress([]), {
+        messageId: tempMessageId,
+        localOnly: true
+      })
+    ])
     try {
+      updateRestoreTempMessage(tempMessageId, 'Restoring files and chat')
       await builderClient.restoreToMessage({
         repoId: repositoryId,
         sessionId,
         targetPath: resolvedTargetPath,
-        messageId: pendingRestoreMessage.messageId,
+        messageId: restoreMessageId,
         restoreChat: true
       })
+      updateRestoreTempMessage(tempMessageId, 'Checking for changes')
       const newCount = await checkForChanges()
-      previewSandboxRef.current?.reload()
-      previousChangeCountRef.current = newCount
+      updateRestoreTempMessage(tempMessageId, 'Reloading chat history')
       const history = await builderClient.loadChatHistory(repositoryId, sessionId)
       if (history?.length) {
         const normalized = ensureMessageIds(history as Message[])
         if (normalized.updated) {
           builderClient.saveChatHistory(repositoryId, sessionId, normalized.messages)
         }
-        setMessages(normalized.messages as Message[])
+        setMessages([
+          ...(normalized.messages as Message[]),
+          buildMessage('assistant', formatRestoreProgress(restoreProgressRef.current), {
+            messageId: tempMessageId,
+            localOnly: true
+          })
+        ])
       } else {
-        setMessages([])
+        setMessages([
+          buildMessage('assistant', formatRestoreProgress(restoreProgressRef.current), {
+            messageId: tempMessageId,
+            localOnly: true
+          })
+        ])
       }
-      setShowRestoreDialog(false)
-      setPendingRestoreMessage(null)
+      previousChangeCountRef.current = newCount
+      removeTempMessage(tempMessageId)
       if (publishAfterRestore) {
         await handlePublish()
       }
+      await refreshPreview()
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to restore message'
-      alert(message)
+      removeTempMessage(tempMessageId)
+      setRestoreError(message)
     } finally {
       setIsRestoringMessageId(null)
     }
@@ -418,6 +682,8 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
     setThinking: (v: boolean) => void
     setThinkingContent: (v: React.SetStateAction<string>) => void
     toolIdCounter: React.MutableRefObject<number>
+    markScreenBuildUsed: () => void
+    markScreenBuildSucceeded: () => void
   }
   type StreamState = { assistantMessage: string; needsNewMessage: boolean; hasCreatedInitialMessage: boolean }
 
@@ -489,6 +755,9 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
   }
 
   const applyToolCallEvent = (data: Record<string, unknown>, streamState: StreamState, ctx: StreamCtx): void => {
+    if (data.toolName === 'screen_build') {
+      ctx.markScreenBuildUsed()
+    }
     if (!streamState.hasCreatedInitialMessage) {
       ctx.setMessages(prev => [...prev, buildMessage('assistant', '')])
       streamState.hasCreatedInitialMessage = true
@@ -516,6 +785,22 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
   }
 
   const applyToolResultEvent = (data: Record<string, unknown>, ctx: StreamCtx): void => {
+    const resultContent =
+      typeof data.content === 'string'
+        ? data.content
+        : data.toolResult && typeof data.toolResult === 'object'
+          ? JSON.stringify(data.toolResult)
+          : ''
+
+    if (data.toolName === 'screen_build') {
+      const toolResult =
+        data.toolResult && typeof data.toolResult === 'object' ? (data.toolResult as Record<string, unknown>) : null
+      const successFromResult = toolResult?.success === true
+      const successFromContent = resultContent.includes('"success": true') || resultContent.includes('"success":true')
+      if (successFromResult || successFromContent) {
+        ctx.markScreenBuildSucceeded()
+      }
+    }
     ctx.setMessages(prev => {
       const newMessages = [...prev]
       const lastMsg = newMessages[newMessages.length - 1]
@@ -524,7 +809,7 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
       if (runningTools.length === 0) return newMessages
       const tool = runningTools[runningTools.length - 1]
       tool.status = 'complete'
-      tool.result = data.content as string
+      tool.result = resultContent
       return newMessages
     })
   }
@@ -585,6 +870,8 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
     if (!input.trim() || loading) return
     const userMessage = buildMessage('user', input)
     const userInput = input
+    screenBuildUsedRef.current = false
+    screenBuildSucceededRef.current = false
     setMessages(prev => [...prev, userMessage])
     setInput('')
     setLoading(true)
@@ -621,7 +908,13 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
         setUsage,
         setThinking,
         setThinkingContent,
-        toolIdCounter
+        toolIdCounter,
+        markScreenBuildUsed: () => {
+          screenBuildUsedRef.current = true
+        },
+        markScreenBuildSucceeded: () => {
+          screenBuildSucceededRef.current = true
+        }
       }
       await runStreamToEnd(reader, streamState, ctx)
     } catch (error) {
@@ -643,9 +936,17 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
       setTimeout(async () => {
         const newCount = await checkForChanges()
         if (newCount > previousChangeCountRef.current) {
-          previewSandboxRef.current?.reload()
+          const succeededFromMessages = hasSuccessfulScreenBuildInMessages(messagesRef.current)
+          if ((screenBuildUsedRef.current && screenBuildSucceededRef.current) || succeededFromMessages) {
+            setPreviewReady(true)
+            previewSandboxRef.current?.reload()
+          } else {
+            await refreshPreview()
+          }
         }
         previousChangeCountRef.current = newCount
+        screenBuildUsedRef.current = false
+        screenBuildSucceededRef.current = false
       }, 2000)
     }
   }
@@ -685,6 +986,26 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
         )}
 
         <div className="gba:flex gba:flex-col gba:flex-1 gba:min-w-0">
+          {restoreError && (
+            <div className="gba:bg-destructive/10 gba:border-b gba:border-destructive/30">
+              <div className="gba:container gba:mx-auto gba:px-6 gba:py-3">
+                <div className="gba:flex gba:items-center gba:justify-between">
+                  <div className="gba:flex gba:items-center gba:gap-3">
+                    <AlertCircle className="gba:w-5 gba:h-5 gba:text-destructive" />
+                    <div>
+                      <p className="gba:text-sm gba:font-medium gba:text-destructive">
+                        {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.restore_failed', 'Restore failed')}
+                      </p>
+                      <p className="gba:text-xs gba:text-destructive/90">{restoreError}</p>
+                    </div>
+                  </div>
+                  <button onClick={() => setRestoreError(null)} className="gba:text-destructive hover:gba:opacity-80">
+                    <X className="gba:w-4 gba:h-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
           {publishSuccess && (
             <div className="gba:bg-success-secondary gba:border-b gba:border-success">
               <div className="gba:container gba:mx-auto gba:px-6 gba:py-3">
@@ -1037,8 +1358,11 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
                       ref={previewSandboxRef}
                       repoId={repositoryId}
                       sessionId={sessionId}
+                      previewAppName={previewAppName}
                       accessToken={context.accessToken}
                       userInfo={context.userInfo}
+                      buildStatus={previewBuildStatus}
+                      allowLoad={previewReady}
                     />
                   </div>
                 </ResizablePanel>

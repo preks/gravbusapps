@@ -1,5 +1,5 @@
 import { Button, Badge } from '@newwork/nw-design-system'
-import { Save, Copy, FileText, BarChart3, Presentation, Loader2, Check, CloudUpload } from 'lucide-react'
+import { Save, Copy, FileText, BarChart3, Presentation, Loader2, Check } from 'lucide-react'
 import type { NexusArtifact, ArtifactType } from '../../types/nexus.types'
 
 interface ArtifactToolbarProps {
@@ -31,12 +31,12 @@ export const ArtifactToolbar = ({
   onCopy,
   isSaving = false,
   saveSuccess = false,
-  isAutoSaving = false,
   hasSavedDocument = false,
   testId = 'nexus-artifact-toolbar'
 }: ArtifactToolbarProps) => {
   const Icon = typeIcons[artifact.type]
   const isComplete = artifact.status === 'complete'
+  const savedInLabel = artifact.type === 'slides' ? 'In Slides' : 'In Documents'
 
   // Determine save button label and icon
   const getSaveButtonContent = () => {
@@ -52,7 +52,7 @@ export const ArtifactToolbar = ({
       return (
         <>
           <Check className="gba:h-3.5 gba:w-3.5" />
-          <span className="gba:text-xs gba:font-medium">Saved</span>
+          <span className="gba:text-xs gba:font-medium">{hasSavedDocument ? 'Updated' : 'Saved'}</span>
         </>
       )
     }
@@ -88,24 +88,19 @@ export const ArtifactToolbar = ({
           )}
         </Badge>
 
-        {/* Persistent "Saved" badge when a document has been created */}
+        {/* Indicates the artifact has been saved to Hub at least once (not the same as autosave) */}
         {hasSavedDocument && isComplete && (
-          <Badge variant="success" className="gba:text-[10px] gba:flex-shrink-0" data-testid={`${testId}-saved-badge`}>
-            <Check className="gba:h-2.5 gba:w-2.5 gba:mr-0.5" />
-            Saved
+          <Badge
+            variant="secondary"
+            className="gba:text-[10px] gba:flex-shrink-0"
+            data-testid={`${testId}-saved-badge`}
+          >
+            <FileText className="gba:h-2.5 gba:w-2.5 gba:mr-0.5" />
+            {savedInLabel}
           </Badge>
         )}
 
-        {/* Autosave indicator */}
-        {isAutoSaving && (
-          <span
-            className="gba:flex gba:items-center gba:gap-1 gba:text-[10px] gba:text-muted-foreground gba:flex-shrink-0"
-            data-testid={`${testId}-autosave`}
-          >
-            <CloudUpload className="gba:h-3 gba:w-3 gba:animate-pulse" />
-            Saving...
-          </span>
-        )}
+        {/* Autosave is intentionally silent to avoid implying Hub save */}
       </div>
 
       {/* Actions */}
