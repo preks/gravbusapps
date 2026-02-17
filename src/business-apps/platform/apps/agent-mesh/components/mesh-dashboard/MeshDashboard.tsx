@@ -9,6 +9,7 @@ import {
   type Connection as RFConnection
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
+import './mesh-edges.css'
 import dagre from 'dagre'
 import { Button } from '@newwork/nw-design-system'
 import { Edit, Eye, Plus, LayoutGrid, Trash2 } from 'lucide-react'
@@ -421,11 +422,8 @@ export const MeshDashboard: React.FC<MeshDashboardProps> = ({ accessToken, onNav
             fitView
             fitViewOptions={{ padding: 0.3 }}
             connectOnClick={false}
-            // ReactFlow renders each edge in its own <svg> without explicit width/height.
-            // If CSS differs in published builds, those SVGs can fall back to 300x150 and clip paths,
-            // which looks like “edges don’t know node positions” (only random segments are visible).
-            // Force edge SVGs to fill the renderer and keep overflow visible.
-            className="gba:w-full gba:h-full gba:[&_[class~='react-flow__viewport']]:overflow-visible gba:[&_[class~='react-flow__edges']_svg]:w-full gba:[&_[class~='react-flow__edges']_svg]:h-full gba:[&_[class~='react-flow__edges']_svg]:left-0 gba:[&_[class~='react-flow__edges']_svg]:top-0 gba:[&_[class~='react-flow__edges']_svg]:overflow-visible"
+            onlyRenderVisibleElements={false}
+            className="gba:w-full gba:h-full"
           >
             <Background />
             <Controls />
