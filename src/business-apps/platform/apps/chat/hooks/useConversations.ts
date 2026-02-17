@@ -3,7 +3,6 @@ import type { Conversation, Message, ConversationParticipant } from '../types'
 import { ChatApiClient } from '../services/chatApiClient'
 import { useUserManagementClient } from './useUserManagementClient'
 import { useEmployeeAvatarsCache } from './useEmployeeAvatarsCache'
-import { rtkDebug } from '../utils/rtkDebug'
 
 interface UseConversationsOptions {
   apiClient: ChatApiClient | null | undefined
@@ -186,22 +185,6 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
         const conversationsData = response.data || (response as any).conversations || []
         const total = response.total || 0
 
-        // Log backend response for debugging sorting issues
-        if (process.env.NODE_ENV === 'development') {
-          rtkDebug.debug(
-            '[useConversations] Backend returned conversations:',
-            conversationsData.slice(0, 3).map((c: any) => ({
-              id: c.id?.substring(0, 8),
-              hasLastMessage: !!c.lastMessage,
-              lastMessageCreatedAt: c.lastMessage?.createdAt,
-              lastReadAt: c.lastReadAt,
-              unreadCount: c.unreadCount,
-              updatedAt: c.updatedAt,
-              createdAt: c.createdAt
-            }))
-          )
-        }
-
         // Check if there are more conversations to load
         setHasMore(conversationsData.length === LIMIT && conversationsData.length < total)
 
@@ -211,18 +194,6 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
         const enrichedConversations = !hasLoadedOnce
           ? enrichConversationsWithAvatarsOnly(conversationsData)
           : await enrichConversations(conversationsData)
-
-        // Debug: Log after enrichment to verify data preservation
-        if (process.env.NODE_ENV === 'development') {
-          rtkDebug.debug(
-            '[useConversations] After enrichment:',
-            enrichedConversations.slice(0, 3).map((c: any) => ({
-              id: c.id?.substring(0, 8),
-              lastReadAt: c.lastReadAt,
-              unreadCount: c.unreadCount
-            }))
-          )
-        }
 
         // Sort by most recent activity
         // Priority: lastMessage.createdAt > lastMessageAt > updatedAt > createdAt

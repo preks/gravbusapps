@@ -4,7 +4,6 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useMediaDevices } from '../useMediaDevices'
-import { rtkDebug } from '../../utils/rtkDebug'
 import type { GroupCallModalRtkProps, SidebarView } from '../../components/call/groupCallModalTypes'
 
 export function useGroupCallModalSidebarAndReactions(
@@ -49,11 +48,9 @@ export function useGroupCallModalSidebarAndReactions(
 
   const showReactionAnimation = useCallback((emoji: string, participantId: string) => {
     const reactionId = `${participantId}-${Date.now()}`
-    rtkDebug.log('[RTK Modal] 🎨 showReactionAnimation called', { emoji, participantId, reactionId })
     setActiveReactions(prev => [...prev, { id: reactionId, emoji, participantId, timestamp: Date.now() }])
     setTimeout(() => {
       setActiveReactions(prev => prev.filter(r => r.id !== reactionId))
-      rtkDebug.log('[RTK Modal] 🧹 Removed reaction after 3s', { reactionId })
     }, 3000)
   }, [])
 
@@ -98,11 +95,6 @@ export function useGroupCallModalSidebarAndReactions(
   }, [screenWidth])
 
   useEffect(() => {
-    rtkDebug.log('[RTK Modal] Reactions useEffect triggered', {
-      hasWsClient: !!wsClient,
-      hasSocket: !!wsClient?.getSocket()
-    })
-
     let socket = wsClient?.getSocket()
     if (!socket && wsClient && accessToken) {
       try {
@@ -112,22 +104,15 @@ export function useGroupCallModalSidebarAndReactions(
         // Best-effort only
       }
     }
-    if (!socket) {
-      rtkDebug.warn('[RTK Modal] ⚠️ No socket available for reactions')
-      return
-    }
+    if (!socket) return
 
     const handleReaction = (data: { participantId: string; participantName: string; emoji: string }) => {
-      rtkDebug.log('[RTK Modal] 😊 Reaction received via WebSocket:', data)
       showReactionAnimation(data.emoji, data.participantId)
     }
 
     socket.on('group-call:reaction-received', handleReaction)
-    rtkDebug.log('[RTK Modal] ✅ WebSocket listener attached for reactions')
-
     return () => {
       socket.off('group-call:reaction-received', handleReaction)
-      rtkDebug.log('[RTK Modal] WebSocket listener removed for reactions')
     }
   }, [wsClient, accessToken, showReactionAnimation, stableRemotePeers, meeting])
 

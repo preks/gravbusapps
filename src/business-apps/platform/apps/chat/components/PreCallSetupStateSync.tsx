@@ -50,11 +50,18 @@ export const PreCallSetupStateSync: React.FC<PreCallSetupStateSyncProps> = ({
         ? globalCallData.callState.isMinimized
         : groupCallState.isMinimized
     const hasIncomingInvite = !!incomingGroupCallInvite
+    // CallDialog (GroupCallModalRtk) only renders when globalCallManager has realtimeKitMeeting.
+    // Keep PreCallSetup visible until then so there is no frame with neither UI.
+    const isCallUiReady = !!globalCallData.realtimeKitMeeting
 
-    // Show ONLY during setup/joining for outbound calls. Avoid using "connected but not joined" here:
-    // during teardown/unmount `meeting` can be undefined while status is still 'connected', which can
-    // incorrectly re-open the dialog after ending a call.
-    const shouldShow = isOutboundHost && (isSetup || isJoining) && !isMinimized && !hasIncomingInvite
+    // Show during setup/joining, or when connected but call UI not yet ready (avoids blank frame).
+    // Avoid "connected but not joined" for teardown: meeting can be undefined while status is
+    // still 'connected', which could incorrectly re-open the dialog after ending a call.
+    const shouldShow =
+      isOutboundHost &&
+      (isSetup || isJoining || (groupCallState.status === 'connected' && !isCallUiReady)) &&
+      !isMinimized &&
+      !hasIncomingInvite
 
     const currentSourceOwner = globalPreCallSetupManager.getSourceOwnerId()
     const isSourceOwner = currentSourceOwner === instanceId
@@ -119,8 +126,10 @@ export const PreCallSetupStateSync: React.FC<PreCallSetupStateSyncProps> = ({
     instanceId,
     groupCallState.status,
     groupCallState.callType,
+    groupCallState.hostId,
     groupCallState.hasBeenMinimized,
     groupCallState.isMinimized,
+    realtimeKitGroupCall.meeting,
     realtimeKitGroupCall.meeting?.self?.roomState,
     realtimeKitGroupCall.confirmStartCall,
     realtimeKitGroupCall.cancelSetup,

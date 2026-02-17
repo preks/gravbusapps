@@ -15,7 +15,6 @@ import { MemoizedParticipantVideoTile } from './ParticipantVideoTile'
 import { VideoGrid } from './VideoGrid'
 import { HorizontalFilmstrip } from './HorizontalFilmstrip'
 import { AudioSettingsModal } from './AudioSettingsModal'
-import { rtkDebug } from '../../utils/rtkDebug'
 import { getOptimalAspectRatio } from '../../utils/groupCallModalUtils'
 import type { GroupCallModalRtkProps } from './groupCallModalTypes'
 import type { GroupCallModalRtkState } from '../../hooks/useGroupCallModalRtkState'
@@ -217,7 +216,6 @@ export function GroupCallModalRtkFullView({ props: p, state }: GroupCallModalRtk
                         }
                       }}
                       onScreenShareClick={(peerId: string) => {
-                        rtkDebug.log(`[RTK Modal] 🎯 Focusing screen share from filmstrip: ${peerId}`)
                         state.setFocusedScreenShareId(peerId)
                       }}
                       activeSpeakerId={activeSpeakerId}
@@ -275,12 +273,10 @@ export function GroupCallModalRtkFullView({ props: p, state }: GroupCallModalRtk
                         isMinimized={callState.isMinimized}
                         onScreenShareClick={() => {
                           if (item.screenShareTrack) {
-                            rtkDebug.log(`[RTK Modal] 🎯 Focusing screen share via click for ${item.peerId}`)
                             state.setFocusedScreenShareId(item.peerId)
                           }
                         }}
                         onScreenShareFocus={() => {
-                          rtkDebug.log(`[RTK Modal] 🎯 Focus button clicked for ${item.peerId}`)
                           state.setFocusedScreenShareId(item.peerId)
                         }}
                         videoRef={state.getVideoRefCallback(item.peerId, item.peerName, item.isLocal)}

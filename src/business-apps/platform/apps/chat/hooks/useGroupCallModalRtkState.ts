@@ -4,9 +4,8 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import { useChatTranslation } from '../contexts/TranslationContext'
-import { rtkDebug } from '../utils/rtkDebug'
 import { getScreenShareTrack } from '../utils/groupCallModalUtils'
-import { isVideoTrackScreenShare, extractTracksFromCollection } from '../utils/callUtils'
+import { isVideoTrackScreenShare } from '../utils/callUtils'
 import type { GroupCallModalRtkProps } from '../components/call/groupCallModalTypes'
 import { useGroupCallModalCallConversation } from './groupCallModal/useGroupCallModalCallConversation'
 import { useGroupCallModalPeersAndMeeting } from './groupCallModal/useGroupCallModalPeersAndMeeting'
@@ -159,16 +158,12 @@ export function useGroupCallModalRtkState(props: GroupCallModalRtkProps) {
       // Check multiple ways to detect screen share
       const screenShareTrack = getScreenShareTrack(peer)
       const hasScreenShareEnabled = peer.screenShareEnabled === true
-      const extractedTracks = extractTracksFromCollection(peer.screenShareTracks)
 
       if (screenShareTrack) {
         // CRITICAL: Only include tracks that are still live (not ended/stopped)
         if (screenShareTrack.readyState !== 'live') {
-          rtkDebug.warn(
-            `[RTK Modal] ⚠️ Screen share track for peer ${peer.id} is not live (state: ${screenShareTrack.readyState}) - skipping`
-          )
         } else if (seenPeerIds.has(peer.id)) {
-          rtkDebug.warn(`[RTK Modal] ⚠️ Duplicate screen share for peer ${peer.id} - skipping`)
+          // Duplicate - skip
         } else {
           shares.push({
             peerId: peer.id,
@@ -181,20 +176,6 @@ export function useGroupCallModalRtkState(props: GroupCallModalRtkProps) {
         }
       } else if (hasScreenShareEnabled) {
         // Screen share is enabled but track not found yet - might be initializing
-        rtkDebug.warn(`[RTK Modal] Peer ${peer.name || peer.id} has screenShareEnabled=true but no track found`, {
-          peerId: peer.id,
-          screenShareEnabled: peer.screenShareEnabled,
-          extractedTracksCount: extractedTracks.length,
-          extractedTracksDetails: extractedTracks.map(t => ({
-            id: t.id,
-            kind: t.kind,
-            readyState: t.readyState,
-            label: t.label
-          })),
-          hasVideoTrack: !!peer.videoTrack,
-          videoTrackIsScreenShare: peer.videoTrack && isVideoTrackScreenShare(peer.videoTrack),
-          videoTrackReadyState: peer.videoTrack?.readyState
-        })
       }
     })
 
@@ -203,7 +184,6 @@ export function useGroupCallModalRtkState(props: GroupCallModalRtkProps) {
       if (localScreenShareTrack.readyState === 'live') {
         const localPeerId = meeting?.self?.id || 'local' // Use actual peer ID
         if (seenPeerIds.has(localPeerId)) {
-          rtkDebug.warn(`[RTK Modal] ⚠️ Duplicate screen share for local peer - skipping`)
         } else {
           shares.push({
             peerId: localPeerId,
@@ -215,9 +195,6 @@ export function useGroupCallModalRtkState(props: GroupCallModalRtkProps) {
           seenPeerIds.add(localPeerId) // CRITICAL: Add the actual peerId, not 'local'
         }
       } else {
-        rtkDebug.warn(
-          `[RTK Modal] ⚠️ Local screen share track is not live (state: ${localScreenShareTrack.readyState}) - skipping`
-        )
       }
     }
 
@@ -374,7 +351,6 @@ export function useGroupCallModalRtkState(props: GroupCallModalRtkProps) {
 
       const shareId = `screen-share-${share.peerId}`
       if (seenIds.has(shareId)) {
-        rtkDebug.warn('[RTK Modal] ⚠️ Skipping duplicate screen share:', shareId)
       } else {
         items.push({
           id: shareId,
@@ -398,7 +374,6 @@ export function useGroupCallModalRtkState(props: GroupCallModalRtkProps) {
 
       const participantId = `participant-${peer.id}`
       if (seenIds.has(participantId)) {
-        rtkDebug.warn('[RTK Modal] ⚠️ Skipping duplicate participant:', participantId)
       } else {
         // Try to match avatar by userId or customParticipantId
         const avatarUrl =
@@ -470,47 +445,6 @@ export function useGroupCallModalRtkState(props: GroupCallModalRtkProps) {
       ...otherItems,
       ...screenShareItems
     ]
-
-    rtkDebug.log(`[RTK Modal] Grid items built:`, {
-      totalItems: sortedItems.length,
-      screenShares: sortedItems.filter(i => i.type === 'screen-share').length,
-      screenShareItems: sortedItems
-        .filter(i => i.type === 'screen-share')
-        .map(i => ({
-          id: i.id,
-          peerId: i.peerId,
-          peerName: i.peerName,
-          isFocused: i.isFocusedScreenShare,
-          isLocal: i.isLocal
-        })),
-      focusedScreenShare: focusedScreenShare?.peerId,
-      allScreenSharesCount: allScreenShares.length,
-      allScreenSharesPeerIds: allScreenShares.map(s => s.peerId),
-      activeSpeakerId,
-      activeSpeakerCount: activeSpeakerItems.length,
-      handRaisedDeps: {
-        localHandRaised: callState.handRaised,
-        remoteHandsRaisedKeys: Object.keys(callState.remoteHandsRaised || {}),
-        remoteHandsRaisedValues: callState.remoteHandsRaised,
-        handRaisedOrderKeys: Object.keys(callState.handRaisedOrder || {}),
-        handRaisedOrderValues: callState.handRaisedOrder
-      },
-      items: sortedItems.map(i => ({
-        id: i.id,
-        type: i.type,
-        peerId: i.peerId,
-        userId: i.userId, // SDK userId
-        customParticipantId: i.customParticipantId, // Our DB user ID
-        peerName: i.peerName,
-        isFocused: i.isFocusedScreenShare,
-        isActiveSpeaker: i.isActiveSpeaker,
-        isLocal: i.isLocal
-      })),
-      duplicateCheck: {
-        allIds: sortedItems.map(i => i.id),
-        duplicates: sortedItems.map(i => i.id).filter((id, index, arr) => arr.indexOf(id) !== index)
-      }
-    })
 
     return sortedItems
   }, [

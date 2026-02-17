@@ -80,11 +80,8 @@ export const GlobalCallContainer: React.FC = () => {
   }, [instanceId])
 
   const isEligibleRealtimeKitCall = useMemo(() => {
-    return (
-      callData.callState.status !== 'idle' &&
-      !!callData.realtimeKitMeeting &&
-      callData.callState.callImplementation === 'realtime-kit'
-    )
+    const activeStatus = callData.callState.status === 'connected' || callData.callState.status === 'joining'
+    return activeStatus && !!callData.realtimeKitMeeting && callData.callState.callImplementation === 'realtime-kit'
   }, [callData.callState.callImplementation, callData.callState.status, callData.realtimeKitMeeting])
 
   // Claim/release UI ownership based on whether this instance can render the RTK call UI.
@@ -274,10 +271,14 @@ export const GlobalCallContainer: React.FC = () => {
       if (latest.leaveCall) {
         let leaveSettled = false
         try {
-          // IMPORTANT: When navigating away, the chat module may be unmounted and its WebSocket torn down.
-          // Emit "left" best-effort from the persistent container BEFORE calling into hook cleanup.
+          // Emit "left" and leave SDK from container first so end-call works even if hook is missing or fails.
           await emitLeftBestEffort()
-
+          try {
+            await meetingForFallback?.leave?.()
+          } catch (err) {
+            console.error('[GlobalCallContainer] handleEndCall: Container leave failed', err)
+          }
+          // Hook for state cleanup (best-effort).
           const maybePromise = latest.leaveCall()
           if (maybePromise && typeof (maybePromise as any).finally === 'function') {
             ;(maybePromise as Promise<unknown>).finally(() => {

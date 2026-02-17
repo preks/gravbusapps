@@ -15,7 +15,6 @@ import { ChatTextIcon, SignOutIcon } from '@phosphor-icons/react'
 import type { Conversation } from '../types'
 import type { UserPresence } from '../hooks/usePresence'
 import { UserIcon, UsersIcon, Sparkles, CalendarIcon } from 'lucide-react'
-import { rtkDebug } from '../utils/rtkDebug'
 import { UserStatusIndicator } from './UserStatusIndicator'
 
 interface ConversationItemProps {
@@ -243,11 +242,6 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
               {(() => {
                 try {
                   const lastSeenDate = new Date(otherUserPresence.lastSeen)
-                  rtkDebug.log('[ConversationItem] 📅 Calculating last seen:', {
-                    lastSeenString: otherUserPresence.lastSeen,
-                    lastSeenDate,
-                    isValidDate: !isNaN(lastSeenDate.getTime())
-                  })
 
                   // Check if date is valid
                   if (isNaN(lastSeenDate.getTime())) {
@@ -257,13 +251,6 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
 
                   const now = new Date()
                   const diffMs = now.getTime() - lastSeenDate.getTime()
-
-                  rtkDebug.log('[ConversationItem] ⏱️ Time difference:', {
-                    now: now.toISOString(),
-                    lastSeen: lastSeenDate.toISOString(),
-                    diffMs,
-                    diffMinutes: Math.floor(diffMs / (1000 * 60))
-                  })
 
                   // Check for negative or invalid differences
                   if (diffMs < 0 || isNaN(diffMs)) {
@@ -286,7 +273,6 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
                     lastSeenText = t('chat-lastSeenLongAgo')
                   }
 
-                  rtkDebug.log('[ConversationItem] ✅ Last seen text generated:', lastSeenText)
                   return lastSeenText
                 } catch (error) {
                   console.error('[ConversationItem] ❌ Error calculating last seen time:', error)

@@ -3,9 +3,7 @@
  */
 
 import { useRef, useEffect } from 'react'
-import { rtkDebug } from '../../utils/rtkDebug'
-import { getScreenShareTrack } from '../../utils/groupCallModalUtils'
-import { isVideoTrackScreenShare, extractTracksFromCollection } from '../../utils/callUtils'
+import { isVideoTrackScreenShare } from '../../utils/callUtils'
 import type { GroupCallModalRtkProps } from '../../components/call/groupCallModalTypes'
 
 export function useGroupCallModalStreamAttachment(
@@ -30,9 +28,6 @@ export function useGroupCallModalStreamAttachment(
     const wasMinimized = wasMinimizedRef.current
     const isMinimizedNow = callState.isMinimized
     if (wasMinimized && !isMinimizedNow) {
-      rtkDebug.log('[RTK Modal] 🔄 Resetting local video initialization (returning from minimized)', {
-        wasInitialized: localVideoInitializedRef.current
-      })
       localVideoInitializedRef.current = false
       localVideoTrackIdRef.current = null
       localAudioTrackIdRef.current = null
@@ -50,16 +45,6 @@ export function useGroupCallModalStreamAttachment(
     const currentVideoTrackId = localVideoTrack?.id || null
     const currentAudioTrackId = localAudioTrack?.id || null
 
-    rtkDebug.log('[RTK Modal] 🔄 Local video stream attachment effect running', {
-      hasVideoElement: !!videoElement,
-      hasVideoTrack: !!localVideoTrack,
-      hasAudioTrack: !!localAudioTrack,
-      isVideoEnabled: effectiveLocalIsVideoEnabled,
-      isInitialized: localVideoInitializedRef.current,
-      videoTrackChanged: localVideoTrackIdRef.current !== currentVideoTrackId,
-      audioTrackChanged: localAudioTrackIdRef.current !== currentAudioTrackId
-    })
-
     if (!localVideoInitializedRef.current && (localVideoTrack || localAudioTrack)) {
       const stream = new MediaStream()
       if (localVideoTrack) stream.addTrack(localVideoTrack)
@@ -68,10 +53,6 @@ export function useGroupCallModalStreamAttachment(
       localVideoInitializedRef.current = true
       localVideoTrackIdRef.current = currentVideoTrackId
       localAudioTrackIdRef.current = currentAudioTrackId
-      rtkDebug.log('[RTK Modal] ✅ Local video stream initially attached', {
-        hasVideo: !!localVideoTrack,
-        hasAudio: !!localAudioTrack
-      })
       return
     }
 
@@ -81,35 +62,18 @@ export function useGroupCallModalStreamAttachment(
       const audioTrackChanged = localAudioTrackIdRef.current !== currentAudioTrackId
 
       if (videoTrackChanged || audioTrackChanged) {
-        rtkDebug.log('[RTK Modal] 🔄 Local track changed', {
-          videoChanged: videoTrackChanged,
-          audioChanged: audioTrackChanged,
-          oldVideoId: localVideoTrackIdRef.current,
-          newVideoId: currentVideoTrackId,
-          oldAudioId: localAudioTrackIdRef.current,
-          newAudioId: currentAudioTrackId
-        })
         try {
           if (videoTrackChanged) {
             stream.getVideoTracks().forEach(track => stream.removeTrack(track))
             if (localVideoTrack && effectiveLocalIsVideoEnabled) stream.addTrack(localVideoTrack)
             localVideoTrackIdRef.current = currentVideoTrackId
-            rtkDebug.log('[RTK Modal] 📹 Updated local video track')
           }
           if (audioTrackChanged) {
             stream.getAudioTracks().forEach(track => stream.removeTrack(track))
             if (localAudioTrack) stream.addTrack(localAudioTrack)
             localAudioTrackIdRef.current = currentAudioTrackId
-            rtkDebug.log('[RTK Modal] 🔊 Updated local audio track')
           }
-          rtkDebug.log('[RTK Modal] ✅ Local tracks updated dynamically', {
-            hasVideo: !!localVideoTrack && effectiveLocalIsVideoEnabled,
-            hasAudio: !!localAudioTrack,
-            streamVideoTracks: stream.getVideoTracks().length,
-            streamAudioTracks: stream.getAudioTracks().length
-          })
-        } catch (error) {
-          rtkDebug.warn('[RTK Modal] ⚠️ Local track update failed, falling back to full replacement:', error)
+        } catch {
           const newStream = new MediaStream()
           if (localVideoTrack && effectiveLocalIsVideoEnabled) newStream.addTrack(localVideoTrack)
           if (localAudioTrack) newStream.addTrack(localAudioTrack)
@@ -123,48 +87,16 @@ export function useGroupCallModalStreamAttachment(
 
   useEffect(() => {
     if (callState.isMinimized) {
-      rtkDebug.log('[RTK Modal] Minimized - clearing attached peers tracking for fresh attachment on maximize', {
-        previouslyAttachedCount: attachedPeersRef.current.size,
-        attachedPeerIds: Array.from(attachedPeersRef.current)
-      })
       attachedPeersRef.current.clear()
-    } else {
-      rtkDebug.log('[RTK Modal] Maximized - attached peers will be tracked as streams attach', {
-        currentlyAttachedCount: attachedPeersRef.current.size
-      })
     }
   }, [callState.isMinimized])
 
   useEffect(() => {
     if (!stableRemotePeers) return
 
-    rtkDebug.log('[RTK Modal] 🔄 Stream attachment effect running', {
-      remotePeersCount: stableRemotePeers.length,
-      isMinimized: callState.isMinimized,
-      attachedPeersCount: attachedPeersRef.current.size,
-      videoRefsCount: remoteVideoRefs.current.size,
-      remotePeerIds: stableRemotePeers.map((p: any) => p.id),
-      attachedPeerIds: Array.from(attachedPeersRef.current),
-      videoRefPeerIds: Array.from(remoteVideoRefs.current.keys())
-    })
-
     stableRemotePeers.forEach((peer: any) => {
       const videoElement = remoteVideoRefs.current.get(peer.id)
       const isAttached = attachedPeersRef.current.has(peer.id)
-      const primaryScreenShareTrack = getScreenShareTrack(peer)
-      const hasScreenShare = !!primaryScreenShareTrack
-      const extractedScreenShareTracks = extractTracksFromCollection(peer.screenShareTracks)
-      rtkDebug.log(`[RTK Modal] Checking peer ${peer.name || peer.id}:`, {
-        hasVideoElement: !!videoElement,
-        hasVideoTrack: !!peer.videoTrack,
-        hasAudioTrack: !!peer.audioTrack,
-        hasScreenShare,
-        extractedScreenShareTracksCount: extractedScreenShareTracks.length,
-        isAttached,
-        videoTrackId: peer.videoTrack?.id,
-        audioTrackId: peer.audioTrack?.id
-      })
-
       const cameraVideoTrack = peer.videoTrack && !isVideoTrackScreenShare(peer.videoTrack) ? peer.videoTrack : null
       const isTestParticipant =
         peer.id?.startsWith('test-participant-') ||
@@ -172,44 +104,16 @@ export function useGroupCallModalStreamAttachment(
         peer.audioTrack?.id?.startsWith('mock-')
 
       if (videoElement && (cameraVideoTrack || peer.audioTrack) && !isAttached) {
-        rtkDebug.log(`[RTK Modal] 🔗 Attaching stream for peer ${peer.name || peer.id} (initial)`, {
-          peerId: peer.id,
-          hasVideoElement: true,
-          hasCameraTrack: !!cameraVideoTrack,
-          hasAudioTrack: !!peer.audioTrack,
-          wasAttached: isAttached,
-          isMinimized: callState.isMinimized,
-          isTestParticipant
-        })
-
         if (isTestParticipant) {
           videoElement.srcObject = null
           attachedPeersRef.current.add(peer.id)
-          rtkDebug.log(
-            `[RTK Modal] ✅ Test participant marked as attached (avatar-only) for peer ${peer.name || peer.id}`,
-            { hasVideo: !!cameraVideoTrack, hasAudio: !!peer.audioTrack }
-          )
         } else {
           const stream = new MediaStream()
           if (cameraVideoTrack) stream.addTrack(cameraVideoTrack)
           if (peer.audioTrack) stream.addTrack(peer.audioTrack)
           videoElement.srcObject = stream
           attachedPeersRef.current.add(peer.id)
-          rtkDebug.log(`[RTK Modal] ✅ Stream attached successfully for peer ${peer.name || peer.id}`, {
-            hasVideo: !!cameraVideoTrack,
-            hasAudio: !!peer.audioTrack,
-            videoTrackIsScreenShare: isVideoTrackScreenShare(peer.videoTrack),
-            streamTrackCount: stream.getTracks().length
-          })
         }
-      } else if (!videoElement) {
-        rtkDebug.log(`[RTK Modal] ⏭️ Skipping peer ${peer.name || peer.id} - no video element yet`, {
-          peerId: peer.id,
-          isAttached,
-          hasTracks: !!(cameraVideoTrack || peer.audioTrack)
-        })
-      } else if (isAttached) {
-        rtkDebug.log(`[RTK Modal] ⏭️ Skipping peer ${peer.name || peer.id} - already attached`, { peerId: peer.id })
       }
 
       if (videoElement && isAttached) {
@@ -226,19 +130,7 @@ export function useGroupCallModalStreamAttachment(
           peer.audioTrack?.id?.startsWith('mock-')
 
         if (videoTrackChanged || audioTrackChanged) {
-          rtkDebug.log(`[RTK Modal] 🔄 Track changed for peer ${peer.name || peer.id}`, {
-            videoChanged: videoTrackChanged,
-            audioChanged: audioTrackChanged,
-            oldVideoId: currentVideoTrack?.id,
-            newVideoId: cameraVideoTrackForUpdate?.id,
-            oldAudioId: currentAudioTrack?.id,
-            newAudioId: peer.audioTrack?.id,
-            videoTrackIsScreenShare: isVideoTrackScreenShare(peer.videoTrack),
-            isTestParticipant: isTestParticipantUpdate
-          })
-
           if (isTestParticipantUpdate) {
-            rtkDebug.log(`[RTK Modal] ⏭️ Skipping track update for test participant ${peer.name || peer.id}`)
             return
           }
 
@@ -251,35 +143,14 @@ export function useGroupCallModalStreamAttachment(
               if (audioTrackChanged) {
                 stream.getAudioTracks().forEach(track => stream.removeTrack(track))
                 if (peer.audioTrack) stream.addTrack(peer.audioTrack)
-                rtkDebug.log(`[RTK Modal] 🔊 Updated audio track for peer ${peer.name || peer.id}`, {
-                  hasAudio: !!peer.audioTrack,
-                  audioTrackId: peer.audioTrack?.id
-                })
               }
               if (videoTrackChanged) {
                 stream.getVideoTracks().forEach(track => stream.removeTrack(track))
                 if (cameraVideoTrackForUpdate) stream.addTrack(cameraVideoTrackForUpdate)
-                rtkDebug.log(`[RTK Modal] 📹 Updated video track for peer ${peer.name || peer.id}`, {
-                  hasVideo: !!cameraVideoTrackForUpdate,
-                  videoTrackId: cameraVideoTrackForUpdate?.id
-                })
               }
               videoElement.muted = false
-              videoElement.play().catch(err => {
-                rtkDebug.warn(`[RTK Modal] Could not auto-play peer ${peer.name || peer.id}:`, err)
-              })
-              rtkDebug.log(`[RTK Modal] ✅ Updated tracks for peer ${peer.name || peer.id}`, {
-                hasVideo: !!cameraVideoTrackForUpdate,
-                hasAudio: !!peer.audioTrack,
-                videoElementMuted: videoElement.muted,
-                streamAudioTracks: stream.getAudioTracks().length,
-                streamVideoTracks: stream.getVideoTracks().length
-              })
-            } catch (error) {
-              rtkDebug.warn(
-                `[RTK Modal] ⚠️ Track update failed for peer ${peer.name || peer.id}, falling back to full replacement:`,
-                error
-              )
+              videoElement.play().catch(() => {})
+            } catch {
               const newStream = new MediaStream()
               if (cameraVideoTrackForUpdate) newStream.addTrack(cameraVideoTrackForUpdate)
               if (peer.audioTrack) newStream.addTrack(peer.audioTrack)
@@ -287,9 +158,7 @@ export function useGroupCallModalStreamAttachment(
               setTimeout(() => {
                 videoElement.srcObject = newStream
                 videoElement.muted = false
-                videoElement.play().catch(err => {
-                  rtkDebug.warn(`[RTK Modal] Could not auto-play peer ${peer.name || peer.id}:`, err)
-                })
+                videoElement.play().catch(() => {})
               }, 10)
             }
             trackUpdateTimersRef.current.delete(peer.id)
@@ -297,38 +166,12 @@ export function useGroupCallModalStreamAttachment(
           trackUpdateTimersRef.current.set(peer.id, timer)
         }
       }
-
-      if (hasScreenShare && primaryScreenShareTrack) {
-        rtkDebug.log(`[RTK Modal] 📺 Screen share detected for peer ${peer.name || peer.id}:`, {
-          trackId: primaryScreenShareTrack.id,
-          trackLabel: primaryScreenShareTrack.label,
-          trackEnabled: primaryScreenShareTrack.enabled,
-          trackKind: primaryScreenShareTrack.kind,
-          screenShareEnabled: peer.screenShareEnabled,
-          extractedTracksCount: extractTracksFromCollection(peer.screenShareTracks).length
-        })
-      } else if (peer.screenShareEnabled && !hasScreenShare) {
-        const extractedTracks = extractTracksFromCollection(peer.screenShareTracks)
-        rtkDebug.warn(`[RTK Modal] ⚠️ Screen share enabled for peer ${peer.name || peer.id} but no track found:`, {
-          screenShareEnabled: peer.screenShareEnabled,
-          extractedTracksCount: extractedTracks.length,
-          videoTrack: peer.videoTrack
-            ? {
-                id: peer.videoTrack.id,
-                label: peer.videoTrack.label,
-                kind: peer.videoTrack.kind,
-                isScreenShare: isVideoTrackScreenShare(peer.videoTrack)
-              }
-            : null
-        })
-      }
     })
 
     const currentPeerIds = new Set(stableRemotePeers.map((p: any) => p.id))
     attachedPeersRef.current.forEach(peerId => {
       if (!currentPeerIds.has(peerId)) {
         attachedPeersRef.current.delete(peerId)
-        rtkDebug.log(`[RTK Modal] Removed peer ${peerId} from attached set`)
         const timer = trackUpdateTimersRef.current.get(peerId)
         if (timer) {
           clearTimeout(timer)

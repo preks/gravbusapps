@@ -1,20 +1,19 @@
 /**
  * All chat modals and overlays: CreateGroup, GroupSettings, ExpertSelector,
- * IncomingGroupCall, RejoinCall, PreCallSetupStateSync.
+ * IncomingGroupCall (invite + rejoin), PreCallSetupStateSync.
  */
 
 import { CreateGroupModal } from './CreateGroupModal'
 import { GroupSettingsModal } from './GroupSettingsModal'
 import { ExpertSelectorPanel } from './ExpertSelectorPanel.tsx'
 import { IncomingGroupCallDialog } from './IncomingGroupCallDialog'
-import { RejoinCallDialog } from './RejoinCallDialog'
 import { PreCallSetupStateSync } from './PreCallSetupStateSync'
 import type { ChatApiClient } from '../services/chatApiClient'
-import type { Conversation } from '../types'
+import { ConversationType, type Conversation } from '../types'
 import type { ExpertInfo } from '../hooks/useChatMessageHandlers'
 import type { RejoinModalState } from '../hooks/useChatRejoinCall'
 import type { CallParticipant } from '../services/webrtcClient'
-import type { GroupCallUIState, UseGroupCallReturn } from '../services/callTypes'
+import type { GroupCallUIState, GroupCallInvite, UseGroupCallReturn } from '../services/callTypes'
 
 export interface ChatModalsProps {
   prefixDataTestId: string
@@ -125,27 +124,60 @@ export function ChatModals({
         onAddExpert={expert => onAddExpert(expert, sendMessageVoid)}
         data-testid={`${prefixDataTestId}-expert-selector`}
       />
-      {incomingGroupCallInvite && (
+      {(incomingGroupCallInvite || rejoinModalState) && (
         <IncomingGroupCallDialog
-          invite={incomingGroupCallInvite as never}
+          invite={
+            (incomingGroupCallInvite as GroupCallInvite) ??
+            (() => {
+              let convType: 'meeting' | 'direct' | 'group' = 'group'
+              if (activeConversation?.metadata?.type === 'meeting') {
+                convType = 'meeting'
+              } else if (activeConversation?.type === ConversationType.DIRECT) {
+                convType = 'direct'
+              }
+              const meetingName = rejoinModalState!.conversationName ?? activeConversation?.name
+              const startedBy = rejoinModalState!.startedBy
+              let defaultOdName: string
+              if (convType === 'direct') {
+                defaultOdName = 'Call'
+              } else if (convType === 'meeting') {
+                defaultOdName = 'Meeting'
+              } else {
+                defaultOdName = 'Group call'
+              }
+              return {
+                roomId: rejoinModalState!.roomId,
+                callType: rejoinModalState!.callType,
+                from: startedBy
+                  ? { id: startedBy.id, odId: startedBy.odId, odName: startedBy.odName, avatarUrl: startedBy.avatarUrl }
+                  : {
+                      id: 'rejoin',
+                      odId: 'rejoin',
+                      odName: meetingName ?? defaultOdName
+                    },
+                conversationName: meetingName,
+                conversationId: activeConversation?.id ?? rejoinModalState!.roomId,
+                conversationType: convType
+              } as GroupCallInvite
+            })()
+          }
           userName={currentUserAsParticipant?.odName}
           userAvatarUrl={currentUserAsParticipant?.avatarUrl}
-          onAccept={onAcceptGroupInvite}
-          onDecline={onDeclineGroupInvite}
+          onAccept={
+            incomingGroupCallInvite
+              ? (onAcceptGroupInvite as (preferences: {
+                  micEnabled: boolean
+                  cameraEnabled: boolean
+                  backgroundEnabled: boolean
+                  audioInputDeviceId?: string | null
+                  videoInputDeviceId?: string | null
+                }) => void)
+              : onRejoinWithPreferences
+          }
+          onDecline={incomingGroupCallInvite ? onDeclineGroupInvite : onRejoinCancel}
           prefixDataTestId={`${prefixDataTestId}-incoming-group-call`}
         />
       )}
-      <RejoinCallDialog
-        isOpen={!!rejoinModalState}
-        callType={rejoinModalState?.callType || 'video'}
-        conversationName={rejoinModalState?.conversationName}
-        participantCount={rejoinModalState?.participantCount}
-        userName={currentUserAsParticipant?.odName}
-        userAvatarUrl={currentUserAsParticipant?.avatarUrl}
-        onJoin={onRejoinWithPreferences}
-        onCancel={onRejoinCancel}
-        prefixDataTestId={`${prefixDataTestId}-rejoin-call`}
-      />
       <PreCallSetupStateSync
         groupCallState={groupCallState}
         realtimeKitGroupCall={realtimeKitGroupCall}
