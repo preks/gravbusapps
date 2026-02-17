@@ -94,11 +94,6 @@ export async function runConfirmStartCall(
 
     const sessionId = sessionResponse.data.sessionId
     const meetingId = sessionResponse.data.meetingId
-    console.log('[SESSION_ID] runConfirmStartCall: session from start-call API', {
-      meetingId,
-      sessionId,
-      calendarMeetingId: calendarMeetingId ?? null
-    })
     const authToken = sessionResponse.data.hostAuthToken
     const generatedMeetingName = sessionResponse.data.meetingName
 
@@ -297,11 +292,6 @@ export async function runConfirmStartCall(
 
     if (wsClient?.getSocket()) {
       const sessionIdToEmit = sessionId
-      console.log('[SESSION_ID] runConfirmStartCall: emitting rtk-group-call:joined', {
-        meetingId,
-        sessionId: sessionIdToEmit,
-        isMeeting: !!calendarMeetingId
-      })
       wsClient.getSocket()?.emit('rtk-group-call:joined', {
         conversationId,
         meetingId,

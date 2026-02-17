@@ -169,8 +169,6 @@ export class CalendarApiClient {
     const response = await this.client.post<{ meeting: Meeting; sessionId: string | null }>(
       `/meetings/${meetingId}/resolve-session`
     )
-    const { sessionId } = response.data
-    console.log('[SESSION_ID] resolveAndLinkSession', { meetingId, sessionIdFromApi: sessionId })
     return response.data
   }
 }

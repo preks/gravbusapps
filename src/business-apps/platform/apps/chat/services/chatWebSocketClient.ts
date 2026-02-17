@@ -233,6 +233,10 @@ export class ChatWebSocketClient {
     this.socket?.on('conversation_created', handler)
   }
 
+  onParticipantRemoved(handler: (data: { conversationId: string }) => void) {
+    this.socket?.on('participant_removed', handler)
+  }
+
   onConversationRead(handler: (data: { conversationId: string; userId: string; readAt: string }) => void) {
     this.socket?.on('conversation:read', handler)
   }

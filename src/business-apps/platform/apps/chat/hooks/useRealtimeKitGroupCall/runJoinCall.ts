@@ -213,12 +213,6 @@ export async function runJoinCall(ctx: JoinCallContext, params: RunJoinCallParam
 
     const isMeeting = !!refs.calendarMeetingIdRef.current || conversationType === 'meeting'
     if (wsClient?.getSocket()) {
-      console.log('[SESSION_ID] runJoinCall: emitting rtk-group-call:joined', {
-        meetingId: finalMeetingId,
-        roomId,
-        sessionId: sessionIdToEmit,
-        isMeeting
-      })
       wsClient.getSocket()?.emit('rtk-group-call:joined', {
         conversationId: roomId,
         meetingId: finalMeetingId,
