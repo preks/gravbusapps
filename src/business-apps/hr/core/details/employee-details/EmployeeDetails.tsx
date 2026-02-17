@@ -45,6 +45,92 @@ interface ProfileInfoItemProps {
   onClick?: () => void
 }
 
+const extractWorkEmail = (communications: any[] | null | undefined): string | undefined => {
+  if (!communications || !Array.isArray(communications)) {
+    return undefined
+  }
+
+  const emailComm = communications.find((c: any) => {
+    if (!c.value || c.value.trim() === '') return false
+    const channelValue = c.channel?.value?.toLowerCase() || ''
+    return channelValue.includes('email')
+  })
+
+  return emailComm?.value?.trim() || undefined
+}
+
+const getBusinessEmail = (employeeData: any) => extractWorkEmail(employeeData?.communication) || ''
+
+const getBusinessPhone = (employeeData: any) => {
+  const phone = employeeData?.communication?.find(
+    (c: any) => (c?.channel?.code === 'Mobile' || c?.channel?.code === 'Phone') && !c?.isDeleted && c?.value
+  )?.value
+  return phone || employeeData?.additionalProperties?.phone || ''
+}
+
+const formatPhoneNumber = (phone: string) => {
+  if (!phone) return ''
+  return phone.replace(/(\d{3})(\d{3})(\d{4})/, '$1-$2-$3')
+}
+
+const calculateTimeSince = (employeeData: any, t: (key: string) => string) => {
+  const hireDate = employeeData?.workingCondition?.[0]?.hireDate
+  if (!hireDate) return ''
+
+  const hire = dayjs(hireDate)
+  const now = dayjs()
+
+  const years = now.diff(hire, 'year')
+  const months = now.diff(hire, 'month') % 12
+  let result = ''
+
+  if (years > 0) {
+    result += `${years} ${years === 1 ? t('employee-details-year') : t('employee-details-years')}`
+  }
+
+  if (months > 0 || years === 0) {
+    if (years > 0) result += ' '
+    result += `${months} ${months === 1 ? t('employee-details-month') : t('employee-details-months')}`
+  }
+
+  return result
+}
+
+const formatDateLocalized = (isoDate: string) => {
+  const locale = getCurrentActiveUserLocale?.() || 'en-US'
+  try {
+    return new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric', year: 'numeric' }).format(
+      new Date(isoDate)
+    )
+  } catch {
+    return dayjs(isoDate).format('MMM D, YYYY')
+  }
+}
+
+const getManagerName = (employeeData: any, t: (key: string) => string) => {
+  const supervisor = employeeData?.employeePosition?.supervisor
+  if (!supervisor || supervisor.id === employeeData?.id) return t('employee-details-no-manager')
+
+  return (
+    supervisor.displayName ||
+    `${supervisor.firstName} ${supervisor.lastName}`.trim() ||
+    t('employee-details-not-assigned')
+  )
+}
+
+const getManagerClickHandler = (employeeData: any): (() => void) | undefined => {
+  const supervisorId = employeeData?.employeePosition?.supervisor?.id
+  if (!supervisorId || supervisorId === employeeData?.id) {
+    return undefined
+  }
+
+  return () => {
+    const url = new URL(globalThis.location.href)
+    url.searchParams.set('employeeId', supervisorId)
+    globalThis.history.pushState({}, '', url.toString())
+  }
+}
+
 const ProfileInfoItem: React.FC<ProfileInfoItemProps> = ({ icon, label, value, linkTo, onClick }) => {
   return (
     <div className="gba:flex gba:items-center gba:gap-2 gba:mb-3">
@@ -125,6 +211,10 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
   const displayName =
     employeeData?.displayName || `${employeeData?.firstName ?? ''} ${employeeData?.lastName ?? ''}`.trim() || ''
   const userId = employeeData?.additionalProperties?.userId
+  const businessEmail = getBusinessEmail(employeeData)
+  const businessPhone = getBusinessPhone(employeeData)
+  const managerName = getManagerName(employeeData, t)
+  const managerClickHandler = getManagerClickHandler(employeeData)
 
   const handleChat = useCallback(() => {
     if (!userId) return
@@ -163,86 +253,6 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
       }
     })
   }, [userId, displayName, employeeData?.pictureThumbnail])
-
-  // Helper functions
-  const getManagerName = () => {
-    const supervisor = employeeData?.employeePosition?.supervisor
-    if (!supervisor || supervisor.id === employeeData?.id) return t('employee-details-no-manager')
-    return (
-      supervisor.displayName ||
-      `${supervisor.firstName} ${supervisor.lastName}`.trim() ||
-      t('employee-details-not-assigned')
-    )
-  }
-
-  const extractWorkEmail = (communications: any[] | null | undefined): string | undefined => {
-    if (!communications || !Array.isArray(communications)) {
-      return undefined
-    }
-
-    const emailComm = communications.find((c: any) => {
-      if (!c.value || c.value.trim() === '') return false
-      const channelValue = c.channel?.value?.toLowerCase() || ''
-      return channelValue.includes('email')
-    })
-
-    return emailComm?.value?.trim() || undefined
-  }
-
-  const getBusinessEmail = () => {
-    // Use the same extraction logic as in EmployeeCard
-    const email = extractWorkEmail(employeeData?.communication)
-    return email || ''
-  }
-
-  const getBusinessPhone = () => {
-    const phone = employeeData?.communication?.find(
-      (c: any) => (c?.channel?.code === 'Mobile' || c?.channel?.code === 'Phone') && !c?.isDeleted && c?.value
-    )?.value
-    return phone || employeeData?.additionalProperties?.phone || ''
-  }
-
-  const formatPhoneNumber = (phone: string) => {
-    if (!phone) return ''
-    // Simple phone number formatting
-    return phone.replace(/(\d{3})(\d{3})(\d{4})/, '$1-$2-$3')
-  }
-
-  const calculateTimeSince = () => {
-    const hireDate = employeeData?.workingCondition?.[0]?.hireDate
-    if (!hireDate) return ''
-
-    const hire = dayjs(hireDate)
-    const now = dayjs()
-
-    const years = now.diff(hire, 'year')
-    const months = now.diff(hire, 'month') % 12
-
-    let result = ''
-
-    if (years > 0) {
-      result += `${years} ${years === 1 ? t('employee-details-year') : t('employee-details-years')}`
-    }
-
-    if (months > 0 || years === 0) {
-      if (years > 0) result += ' '
-      result += `${months} ${months === 1 ? t('employee-details-month') : t('employee-details-months')}`
-    }
-
-    return result
-  }
-
-  const formatDateLocalized = (isoDate: string) => {
-    const locale = getCurrentActiveUserLocale?.() || 'en-US'
-    try {
-      return new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric', year: 'numeric' }).format(
-        new Date(isoDate)
-      )
-    } catch {
-      // Fallback to dayjs if Intl fails for any reason
-      return dayjs(isoDate).format('MMM D, YYYY')
-    }
-  }
 
   // Error state (only when there's an actual error and not loading)
   if (!propEmployeeData && error && !isLoading) {
@@ -373,13 +383,13 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
                 {t('employee-details-contact-information')}
               </h4>
               <div className="gba:space-y-2">
-                {getBusinessEmail() ? (
+                {businessEmail ? (
                   <a
-                    href={`mailto:${getBusinessEmail()}`}
+                    href={`mailto:${businessEmail}`}
                     className="gba:inline-flex gba:items-center gba:text-info gba:hover:text-info-secondary-foreground gba:transition-colors gba:text-sm"
                   >
                     <PiEnvelopeSimple className="gba:mr-2 gba:h-4 gba:w-4" />
-                    {getBusinessEmail()}
+                    {businessEmail}
                   </a>
                 ) : (
                   <div className="gba:inline-flex gba:items-center gba:text-muted-foreground gba:text-sm">
@@ -388,13 +398,13 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
                   </div>
                 )}
 
-                {getBusinessPhone() ? (
+                {businessPhone ? (
                   <a
-                    href={`tel:${getBusinessPhone()}`}
+                    href={`tel:${businessPhone}`}
                     className="gba:inline-flex gba:items-center gba:text-info gba:hover:text-info-secondary-foreground gba:transition-colors gba:text-sm"
                   >
                     <PiPhone className="gba:mr-2 gba:h-4 gba:w-4" />
-                    {formatPhoneNumber(getBusinessPhone())}
+                    {formatPhoneNumber(businessPhone)}
                   </a>
                 ) : (
                   <div className="gba:inline-flex gba:items-center gba:text-muted-foreground gba:text-sm">
@@ -426,17 +436,8 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
               <ProfileInfoItem
                 icon={<PiUser className="gba:h-4 gba:w-4" />}
                 label={t('employee-details-manager')}
-                value={getManagerName()}
-                onClick={
-                  employeeData.employeePosition?.supervisor?.id &&
-                  employeeData.employeePosition.supervisor.id !== employeeData.id
-                    ? () => {
-                        const url = new URL(window.location.href)
-                        url.searchParams.set('employeeId', employeeData.employeePosition?.supervisor?.id || '')
-                        window.history.pushState({}, '', url.toString())
-                      }
-                    : undefined
-                }
+                value={managerName}
+                onClick={managerClickHandler}
               />
 
               {/* Job Position */}
@@ -464,7 +465,7 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
                 label={t('employee-details-hire-date')}
                 value={
                   employeeData.workingCondition?.[0]?.hireDate
-                    ? `${formatDateLocalized(employeeData.workingCondition[0].hireDate)} - ${calculateTimeSince()}`
+                    ? `${formatDateLocalized(employeeData.workingCondition[0].hireDate)} - ${calculateTimeSince(employeeData, t)}`
                     : t('employee-details-not-available')
                 }
               />

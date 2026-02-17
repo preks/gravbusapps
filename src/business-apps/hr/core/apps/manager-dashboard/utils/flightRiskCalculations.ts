@@ -259,6 +259,116 @@ interface SalaryChangeRecord {
   changePercent?: number | null
 }
 
+const getTenureBasedCompensationRisk = (tenureMonths: number): number => {
+  if (tenureMonths > 24) return 65
+  if (tenureMonths > 18) return 50
+  if (tenureMonths > 12) return 35
+  return 20
+}
+
+const getMonthsSinceRaiseRisk = (monthsSinceRaise: number): number => {
+  if (monthsSinceRaise > 24) return 40
+  if (monthsSinceRaise > 18) return 25
+  if (monthsSinceRaise > 12) return 10
+  return 0
+}
+
+const getRaisePercentRisk = (raisePercent: number, monthsSinceRaise: number): number => {
+  if (raisePercent < 3 && monthsSinceRaise < 18) {
+    return 15
+  }
+  return 0
+}
+
+const getSalaryRatioRisk = (currentSalary?: number, teamMedianSalary?: number): number => {
+  if (!currentSalary || !teamMedianSalary || teamMedianSalary <= 0) {
+    return 0
+  }
+
+  const salaryRatio = currentSalary / teamMedianSalary
+  if (salaryRatio < 0.85) return 20
+  if (salaryRatio < 0.95) return 10
+  return 0
+}
+
+const getCompensationRaiseRisk = (tenureMonths: number, salaryHistory: SalaryChangeRecord[]): number => {
+  const raises = salaryHistory.filter(s => s.previousAmount != null && s.newAmount > s.previousAmount)
+
+  if (raises.length === 0) {
+    if (tenureMonths > 12) {
+      return 35
+    }
+    return 0
+  }
+
+  const lastRaise = raises[0]
+  const monthsSinceRaise = monthsSinceDate(lastRaise.effectiveDate)
+  const prevAmount = lastRaise.previousAmount as number
+  const raisePercent = lastRaise.changePercent ?? ((lastRaise.newAmount - prevAmount) / prevAmount) * 100
+
+  return getMonthsSinceRaiseRisk(monthsSinceRaise) + getRaisePercentRisk(raisePercent, monthsSinceRaise)
+}
+
+const buildCompensationDescriptionFromRaise = (lastRaise: SalaryChangeRecord): string => {
+  const monthsSinceRaise = monthsSinceDate(lastRaise.effectiveDate)
+  const prevAmount = lastRaise.previousAmount as number
+  const raisePercent = lastRaise.changePercent ?? ((lastRaise.newAmount - prevAmount) / prevAmount) * 100
+
+  if (monthsSinceRaise > 24) {
+    return `No raise in ${Math.floor(monthsSinceRaise / 12)} years`
+  }
+  if (monthsSinceRaise > 18) {
+    return `Last raise ${monthsSinceRaise} months ago`
+  }
+  if (raisePercent < 3) {
+    return `Last raise was ${raisePercent.toFixed(1)}% (below inflation)`
+  }
+  return `Last raise ${monthsSinceRaise} months ago (+${raisePercent.toFixed(1)}%)`
+}
+
+const getInterventionDefinition = (
+  category: SignalCategory
+): Omit<FlightRiskIntervention, 'id' | 'priority' | 'suggestedBy'> => {
+  switch (category) {
+    case 'compensation':
+      return {
+        type: 'compensation',
+        title: 'Review Compensation',
+        description: 'Consider a salary review or discuss career growth and total rewards'
+      }
+    case 'engagement':
+      return {
+        type: 'engagement',
+        title: 'Increase Engagement',
+        description: 'Schedule regular 1:1 meetings and provide feedback more frequently'
+      }
+    case 'wellness':
+      return {
+        type: 'wellness',
+        title: 'Check Wellbeing',
+        description: 'Discuss workload, work-life balance, and potential burnout signs'
+      }
+    case 'performance':
+      return {
+        type: 'career',
+        title: 'Performance Support',
+        description: 'Provide coaching, adjust goals if needed, or offer training resources'
+      }
+    case 'tenure':
+      return {
+        type: 'career',
+        title: 'Career Development Discussion',
+        description: 'Discuss career path, growth opportunities, and long-term goals'
+      }
+    case 'sentiment':
+      return {
+        type: 'engagement',
+        title: 'Open Dialogue',
+        description: 'Have a candid conversation about job satisfaction and concerns'
+      }
+  }
+}
+
 /**
  * Calculate compensation risk score with real salary data
  * Uses salary history to determine raise frequency and percentage
@@ -269,57 +379,13 @@ export const calculateCompensationRiskScore = (
   currentSalary?: number,
   teamMedianSalary?: number
 ): number => {
-  // If no salary data available, fall back to tenure-based estimate
   if (!salaryHistory || salaryHistory.length === 0) {
-    if (tenureMonths > 24) return 65
-    if (tenureMonths > 18) return 50
-    if (tenureMonths > 12) return 35
-    return 20
+    return getTenureBasedCompensationRisk(tenureMonths)
   }
 
-  let riskScore = 0
-
-  // Find the most recent raise (where newAmount > previousAmount and previousAmount exists)
-  const raises = salaryHistory.filter(s => s.previousAmount != null && s.newAmount > s.previousAmount)
-
-  if (raises.length > 0) {
-    const lastRaise = raises[0]
-    const monthsSinceRaise = monthsSinceDate(lastRaise.effectiveDate)
-    // We know previousAmount is not null here due to filter
-    const prevAmount = lastRaise.previousAmount as number
-    const raisePercent = lastRaise.changePercent ?? ((lastRaise.newAmount - prevAmount) / prevAmount) * 100
-
-    // Time since last raise scoring
-    if (monthsSinceRaise > 24) {
-      riskScore += 40 // No raise in 24+ months
-    } else if (monthsSinceRaise > 18) {
-      riskScore += 25 // No raise in 18-24 months
-    } else if (monthsSinceRaise > 12) {
-      riskScore += 10 // No raise in 12-18 months
-    }
-
-    // Raise percentage scoring (if last raise was small)
-    if (raisePercent < 3 && monthsSinceRaise < 18) {
-      riskScore += 15 // Last raise was below inflation
-    }
-  } else {
-    // No raises found in history
-    if (tenureMonths > 12) {
-      riskScore += 35 // Been here over a year with no recorded raise
-    }
-  }
-
-  // Salary vs team median comparison
-  if (currentSalary && teamMedianSalary && teamMedianSalary > 0) {
-    const salaryRatio = currentSalary / teamMedianSalary
-    if (salaryRatio < 0.85) {
-      riskScore += 20 // Significantly below team median (>15% below)
-    } else if (salaryRatio < 0.95) {
-      riskScore += 10 // Below team median (5-15% below)
-    }
-  }
-
-  // Cap at 100
+  const raiseRisk = getCompensationRaiseRisk(tenureMonths, salaryHistory)
+  const salaryRatioRisk = getSalaryRatioRisk(currentSalary, teamMedianSalary)
+  const riskScore = raiseRisk + salaryRatioRisk
   return Math.min(100, Math.max(0, riskScore))
 }
 
@@ -341,22 +407,7 @@ export const getCompensationRiskDescription = (
   const raises = salaryHistory.filter(s => s.previousAmount != null && s.newAmount > s.previousAmount)
 
   if (raises.length > 0) {
-    const lastRaise = raises[0]
-    const monthsSinceRaise = monthsSinceDate(lastRaise.effectiveDate)
-    // We know previousAmount is not null here due to filter
-    const prevAmount = lastRaise.previousAmount as number
-    const raisePercent = lastRaise.changePercent ?? ((lastRaise.newAmount - prevAmount) / prevAmount) * 100
-
-    if (monthsSinceRaise > 24) {
-      return `No raise in ${Math.floor(monthsSinceRaise / 12)} years`
-    }
-    if (monthsSinceRaise > 18) {
-      return `Last raise ${monthsSinceRaise} months ago`
-    }
-    if (raisePercent < 3) {
-      return `Last raise was ${raisePercent.toFixed(1)}% (below inflation)`
-    }
-    return `Last raise ${monthsSinceRaise} months ago (+${raisePercent.toFixed(1)}%)`
+    return buildCompensationDescriptionFromRaise(raises[0])
   }
 
   // Check if below median
@@ -449,84 +500,22 @@ export const calculateConfidenceLevel = (dataCompleteness: number, tenureMonths:
  * Generate intervention recommendations based on top risk factors
  */
 export const generateInterventions = (signals: FlightRiskSignal[]): FlightRiskIntervention[] => {
-  const interventions: FlightRiskIntervention[] = []
-
   const topRisks = [...signals]
     .sort((a, b) => b.normalizedScore - a.normalizedScore)
     .slice(0, 3)
-    .filter(s => s.normalizedScore >= 50) // Only suggest for meaningful risks
+    .filter(s => s.normalizedScore >= 50)
 
-  for (const risk of topRisks) {
-    switch (risk.category) {
-      case 'compensation':
-        interventions.push({
-          id: `intervention-comp-${risk.id}`,
-          type: 'compensation',
-          priority: risk.normalizedScore > 70 ? 'high' : 'medium',
-          title: 'Review Compensation',
-          description: 'Consider a salary review or discuss career growth and total rewards',
-          suggestedBy: 'algorithm'
-        })
-        break
+  return topRisks.map(risk => {
+    const definition = getInterventionDefinition(risk.category)
+    const categoryPrefix = risk.category.slice(0, 4)
 
-      case 'engagement':
-        interventions.push({
-          id: `intervention-eng-${risk.id}`,
-          type: 'engagement',
-          priority: risk.normalizedScore > 70 ? 'high' : 'medium',
-          title: 'Increase Engagement',
-          description: 'Schedule regular 1:1 meetings and provide feedback more frequently',
-          suggestedBy: 'algorithm'
-        })
-        break
-
-      case 'wellness':
-        interventions.push({
-          id: `intervention-well-${risk.id}`,
-          type: 'wellness',
-          priority: risk.normalizedScore > 70 ? 'high' : 'medium',
-          title: 'Check Wellbeing',
-          description: 'Discuss workload, work-life balance, and potential burnout signs',
-          suggestedBy: 'algorithm'
-        })
-        break
-
-      case 'performance':
-        interventions.push({
-          id: `intervention-perf-${risk.id}`,
-          type: 'career',
-          priority: risk.normalizedScore > 70 ? 'high' : 'medium',
-          title: 'Performance Support',
-          description: 'Provide coaching, adjust goals if needed, or offer training resources',
-          suggestedBy: 'algorithm'
-        })
-        break
-
-      case 'tenure':
-        interventions.push({
-          id: `intervention-ten-${risk.id}`,
-          type: 'career',
-          priority: risk.normalizedScore > 70 ? 'high' : 'medium',
-          title: 'Career Development Discussion',
-          description: 'Discuss career path, growth opportunities, and long-term goals',
-          suggestedBy: 'algorithm'
-        })
-        break
-
-      case 'sentiment':
-        interventions.push({
-          id: `intervention-sent-${risk.id}`,
-          type: 'engagement',
-          priority: risk.normalizedScore > 70 ? 'high' : 'medium',
-          title: 'Open Dialogue',
-          description: 'Have a candid conversation about job satisfaction and concerns',
-          suggestedBy: 'algorithm'
-        })
-        break
+    return {
+      id: `intervention-${categoryPrefix}-${risk.id}`,
+      priority: risk.normalizedScore > 70 ? 'high' : 'medium',
+      suggestedBy: 'algorithm',
+      ...definition
     }
-  }
-
-  return interventions
+  })
 }
 
 /**

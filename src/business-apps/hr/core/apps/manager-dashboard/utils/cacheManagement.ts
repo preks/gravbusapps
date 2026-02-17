@@ -15,11 +15,14 @@ const CACHE_TTL = {
   LAST_FETCH: 5 * 60 * 1000 // 5 minutes
 } as const
 
+const hasSessionStorage = (): boolean =>
+  typeof globalThis !== 'undefined' && typeof globalThis.sessionStorage !== 'undefined'
+
 /**
  * Get all cache keys with a specific prefix
  */
 const getKeysWithPrefix = (prefix: string): string[] => {
-  if (typeof window === 'undefined' || !window.sessionStorage) return []
+  if (!hasSessionStorage()) return []
 
   const keys: string[] = []
   try {
@@ -39,7 +42,7 @@ const getKeysWithPrefix = (prefix: string): string[] => {
  * Clear all flight risk related cache
  */
 export const clearAllFlightRiskCache = (): void => {
-  if (typeof window === 'undefined' || !window.sessionStorage) return
+  if (!hasSessionStorage()) return
 
   try {
     const allKeys = [
@@ -59,7 +62,7 @@ export const clearAllFlightRiskCache = (): void => {
  * Clear expired cache entries based on TTL
  */
 export const clearExpiredFlightRiskCache = (): void => {
-  if (typeof window === 'undefined' || !window.sessionStorage) return
+  if (!hasSessionStorage()) return
 
   try {
     const now = Date.now()
@@ -101,7 +104,7 @@ export const clearExpiredFlightRiskCache = (): void => {
     try {
       const lastFetch = sessionStorage.getItem(CACHE_KEYS.LAST_FETCH)
       if (lastFetch) {
-        const timestamp = parseInt(lastFetch, 10)
+        const timestamp = Number.parseInt(lastFetch, 10)
         if (now - timestamp > CACHE_TTL.LAST_FETCH) {
           sessionStorage.removeItem(CACHE_KEYS.LAST_FETCH)
         }
@@ -122,7 +125,7 @@ export const getFlightRiskCacheStats = (): {
   riskScoresCount: number
   totalSize: number
 } => {
-  if (typeof window === 'undefined' || !window.sessionStorage) {
+  if (!hasSessionStorage()) {
     return { sentimentCount: 0, riskScoresCount: 0, totalSize: 0 }
   }
 
@@ -162,7 +165,7 @@ export const initFlightRiskCache = (): void => {
   clearExpiredFlightRiskCache()
 
   // Set up periodic cleanup (every 5 minutes)
-  if (typeof window !== 'undefined') {
+  if (typeof globalThis !== 'undefined') {
     const cleanupInterval = setInterval(
       () => {
         clearExpiredFlightRiskCache()
@@ -171,7 +174,7 @@ export const initFlightRiskCache = (): void => {
     )
 
     // Clean up interval on page unload
-    window.addEventListener('beforeunload', () => {
+    globalThis.addEventListener('beforeunload', () => {
       clearInterval(cleanupInterval)
     })
   }

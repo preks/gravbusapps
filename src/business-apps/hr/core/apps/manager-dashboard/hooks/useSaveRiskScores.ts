@@ -41,7 +41,7 @@ const shouldSaveScores = (): boolean => {
     const lastSave = sessionStorage.getItem(LAST_SAVE_KEY)
     if (!lastSave) return true
 
-    const lastSaveTime = parseInt(lastSave, 10)
+    const lastSaveTime = Number.parseInt(lastSave, 10)
     const now = Date.now()
 
     return now - lastSaveTime > MIN_SAVE_INTERVAL_MS
