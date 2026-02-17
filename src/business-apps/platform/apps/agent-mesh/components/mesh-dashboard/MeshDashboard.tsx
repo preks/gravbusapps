@@ -9,7 +9,6 @@ import {
   type Connection as RFConnection
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import './mesh-edges.css'
 import dagre from 'dagre'
 import { Button } from '@newwork/nw-design-system'
 import { Edit, Eye, Plus, LayoutGrid, Trash2 } from 'lucide-react'
@@ -71,11 +70,10 @@ export const MeshDashboard: React.FC<MeshDashboardProps> = ({ accessToken, onNav
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null)
   const [connectSource, setConnectSource] = useState<string | null>(null)
+  const reactFlowWrapperRef = useRef<HTMLDivElement>(null)
 
   // Resolve design-system token colours from the DOM so we can use them as
-  // literal stroke values on SVG edges.  This avoids any dependency on CSS
-  // class resolution, CSS-variable names, or `currentColor` inheritance inside
-  // the ReactFlow SVG tree – which differs between local and deployed bundles.
+  // literal stroke values on SVG edges.
   const [edgeColors, setEdgeColors] = useState({ active: '#22c55e', inactive: '#71717a' })
   useLayoutEffect(() => {
     const probe = document.createElement('div')
@@ -96,6 +94,68 @@ export const MeshDashboard: React.FC<MeshDashboardProps> = ({ accessToken, onNav
       inactive: inactive || '#71717a'
     })
   }, [])
+
+  // NUCLEAR FIX: ReactFlow renders each edge inside its own <svg> element with
+  // NO width/height attributes. It relies on CSS `overflow: visible` to let
+  // paths render beyond the default 300x150 SVG viewport. In the deployed
+  // platform, something (CSS reset, ancestor overflow:hidden, micro-frontend
+  // container) prevents overflow:visible from working on SVG elements. CSS
+  // overrides (including !important) have failed repeatedly.
+  //
+  // This hook uses direct DOM manipulation + MutationObserver to force every
+  // edge <svg> to cover the full ReactFlow container. This cannot be defeated
+  // by CSS specificity or platform CSS resets.
+  useEffect(() => {
+    const wrapper = reactFlowWrapperRef.current
+    if (!wrapper) return
+
+    const fixEdgeSvgs = () => {
+      const edgesContainer = wrapper.querySelector('.react-flow__edges') as HTMLElement | null
+      if (edgesContainer) {
+        edgesContainer.style.setProperty('position', 'absolute', 'important')
+        edgesContainer.style.setProperty('top', '0', 'important')
+        edgesContainer.style.setProperty('left', '0', 'important')
+        edgesContainer.style.setProperty('width', '100%', 'important')
+        edgesContainer.style.setProperty('height', '100%', 'important')
+        edgesContainer.style.setProperty('overflow', 'visible', 'important')
+        edgesContainer.style.setProperty('pointer-events', 'none', 'important')
+      }
+
+      const svgs = wrapper.querySelectorAll('.react-flow__edges svg')
+      svgs.forEach(svg => {
+        const el = svg as SVGSVGElement
+        el.setAttribute('width', '100%')
+        el.setAttribute('height', '100%')
+        el.style.setProperty('position', 'absolute', 'important')
+        el.style.setProperty('top', '0', 'important')
+        el.style.setProperty('left', '0', 'important')
+        el.style.setProperty('width', '100%', 'important')
+        el.style.setProperty('height', '100%', 'important')
+        el.style.setProperty('overflow', 'visible', 'important')
+        el.style.setProperty('pointer-events', 'none', 'important')
+      })
+
+      // Also ensure viewport and renderer don't clip
+      const viewport = wrapper.querySelector('.react-flow__viewport') as HTMLElement | null
+      if (viewport) viewport.style.setProperty('overflow', 'visible', 'important')
+      const renderer = wrapper.querySelector('.react-flow__renderer') as HTMLElement | null
+      if (renderer) renderer.style.setProperty('overflow', 'visible', 'important')
+    }
+
+    // Run immediately
+    fixEdgeSvgs()
+    // Run again after a short delay to catch late renders
+    const timer = setTimeout(fixEdgeSvgs, 500)
+
+    // Watch for any DOM changes (React re-renders, new edges added)
+    const observer = new MutationObserver(fixEdgeSvgs)
+    observer.observe(wrapper, { childList: true, subtree: true })
+
+    return () => {
+      clearTimeout(timer)
+      observer.disconnect()
+    }
+  }, [edges])
 
   const loadData = useCallback(async () => {
     try {
@@ -405,7 +465,7 @@ export const MeshDashboard: React.FC<MeshDashboardProps> = ({ accessToken, onNav
       </div>
 
       <div className="gba:flex gba:flex-1 gba:overflow-hidden">
-        <div className="gba:flex-1 gba:relative gba:min-h-0">
+        <div ref={reactFlowWrapperRef} className="gba:flex-1 gba:relative gba:min-h-0">
           <ReactFlow
             nodes={nodes}
             edges={edges}
