@@ -50,56 +50,42 @@ export const useProcessCompletion = ({ onSuccess, onFailure }: UseProcessComplet
     onFailureRef.current = onFailure
   }, [onFailure])
 
-  // Register event listener once per component lifecycle
-  useEffect(() => {
-    const handleProcessCompletion = (event: Event) => {
-      // Some environments might dispatch without a detail payload or on parent/top windows
-      const customEvent = event as CustomEvent<{ resolution?: 'success' | 'failure' } | undefined>
-      const resolution = customEvent?.detail?.resolution
-
-      if (resolution === 'failure') {
-        if (onFailureRef.current) onFailureRef.current()
-        return
-      }
-
-      // Default to success when resolution is missing or not explicitly failure
-      if (onSuccessRef.current) onSuccessRef.current()
-    }
-
-    const eventName = 'com.newwork.process.processCompletion'
-
-    // Always listen on current window
-    window.addEventListener(eventName, handleProcessCompletion)
-
-    // Also try to listen on parent/top if accessible (events may be dispatched there)
-    const extraTargets: Array<Window | null | undefined> = []
+  // Helpers kept outside of nested blocks to avoid deep nesting
+  const getProcessEventTargets = (): Window[] => {
+    const targets: Window[] = []
+    const win = (globalThis as any).window as Window | undefined
+    if (!win) return targets
+    targets.push(win)
+    // Try to include parent/top if accessible
     try {
-      if (typeof window !== 'undefined') {
-        if (window.parent && window.parent !== window) extraTargets.push(window.parent)
-        if (window.top && window.top !== window && window.top !== window.parent) extraTargets.push(window.top)
-      }
+      const parent = win.parent && win.parent !== win ? win.parent : undefined
+      const top = win.top && win.top !== win && win.top !== parent ? win.top : undefined
+      if (parent) targets.push(parent)
+      if (top) targets.push(top)
     } catch {
       // Ignore cross-origin access errors
     }
+    return targets
+  }
 
-    extraTargets.forEach(t => {
-      try {
-        t?.addEventListener?.(eventName, handleProcessCompletion as EventListener)
-      } catch {
-        // ignore if not allowed
+  // Register event listener once per component lifecycle
+  useEffect(() => {
+    const handleProcessCompletion = (event: Event) => {
+      const customEvent = event as CustomEvent<{ resolution?: 'success' | 'failure' } | undefined>
+      const resolution = customEvent?.detail?.resolution
+      if (resolution === 'failure') {
+        onFailureRef.current?.()
+        return
       }
-    })
+      onSuccessRef.current?.()
+    }
 
-    // Cleanup event listeners on component unmount
+    const eventName = 'com.newwork.process.processCompletion'
+    const targets = getProcessEventTargets()
+    targets.forEach(t => t.addEventListener(eventName, handleProcessCompletion))
+
     return () => {
-      window.removeEventListener(eventName, handleProcessCompletion)
-      extraTargets.forEach(t => {
-        try {
-          t?.removeEventListener?.(eventName, handleProcessCompletion as EventListener)
-        } catch {
-          // ignore
-        }
-      })
+      targets.forEach(t => t.removeEventListener(eventName, handleProcessCompletion))
     }
   }, []) // Empty dependency array - listener registered once per component lifecycle
 }

@@ -242,35 +242,28 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
       'process-completion'
     ]
 
-    // Listen on current window
-    eventNames.forEach(name => window.addEventListener(name, handler))
-
-    // Try to listen on parent/top windows as events may be dispatched there
-    const extraTargets: Array<Window | null | undefined> = []
-    try {
-      if (typeof window !== 'undefined') {
-        if (window.parent && window.parent !== window) extraTargets.push(window.parent)
-        if (window.top && window.top !== window && window.top !== window.parent) extraTargets.push(window.top)
-      }
-    } catch {
-      // ignore cross-origin access errors
-    }
-    extraTargets.forEach(t => {
+    // Resolve targets using globalThis.window to satisfy static analysis
+    const targets: Window[] = []
+    const win = (globalThis as any).window as Window | undefined
+    if (win) {
+      targets.push(win)
       try {
-        eventNames.forEach(name => t?.addEventListener?.(name, handler as EventListener))
+        const parent = win.parent && win.parent !== win ? win.parent : undefined
+        const top = win.top && win.top !== win && win.top !== parent ? win.top : undefined
+        if (parent) targets.push(parent)
+        if (top) targets.push(top)
       } catch {
-        // ignore
+        // ignore cross-origin access errors
       }
+    }
+
+    targets.forEach(t => {
+      eventNames.forEach(name => t.addEventListener(name, handler as EventListener))
     })
 
     return () => {
-      eventNames.forEach(name => window.removeEventListener(name, handler))
-      extraTargets.forEach(t => {
-        try {
-          eventNames.forEach(name => t?.removeEventListener?.(name, handler as EventListener))
-        } catch {
-          // ignore
-        }
+      targets.forEach(t => {
+        eventNames.forEach(name => t.removeEventListener(name, handler as EventListener))
       })
     }
   }, [refetch])
