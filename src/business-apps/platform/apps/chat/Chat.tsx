@@ -599,6 +599,55 @@ const ChatInner: React.FC<ChatProps> = memo(
       }
     }, [conversations, setActiveConversation, activeConversationId, apiClient, conversationsLoading])
 
+    // Handle in-app "open chat with conversation" (e.g. from calendar meeting "Open Chat" - same as dashboard)
+    useEffect(() => {
+      const handleOpenWithConversation = async (event: Event) => {
+        const customEvent = event as CustomEvent<{ conversationId: string }>
+        const conversationIdParam = customEvent.detail?.conversationId
+        if (!conversationIdParam) return
+
+        const conversation = conversations.find(c => c.id === conversationIdParam)
+        if (conversation) {
+          setActiveConversation(conversation)
+          setShowConversationList(false)
+          try {
+            window.dispatchEvent(new CustomEvent('chat:conversation-ready'))
+            if (window.parent !== window) {
+              window.parent.postMessage({ type: 'CHAT_CONVERSATION_READY' }, '*')
+            }
+          } catch {
+            // ignore
+          }
+          return
+        }
+
+        if (apiClient) {
+          try {
+            const fetchedConversation = await apiClient.getConversationById(conversationIdParam)
+            if (fetchedConversation) {
+              setActiveConversation(fetchedConversation)
+              setShowConversationList(false)
+              try {
+                window.dispatchEvent(new CustomEvent('chat:conversation-ready'))
+                if (window.parent !== window) {
+                  window.parent.postMessage({ type: 'CHAT_CONVERSATION_READY' }, '*')
+                }
+              } catch {
+                // ignore
+              }
+            }
+          } catch {
+            // ignore
+          }
+        }
+      }
+
+      window.addEventListener('chat:open-with-conversation', handleOpenWithConversation)
+      return () => {
+        window.removeEventListener('chat:open-with-conversation', handleOpenWithConversation)
+      }
+    }, [conversations, setActiveConversation, setShowConversationList, apiClient])
+
     // Handle URL parameters for context and AI agent conversations (only once)
     useEffect(() => {
       // Only process URL params once when user is connected

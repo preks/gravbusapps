@@ -206,7 +206,14 @@ export function useRealtimeKitCallActions(params: UseRealtimeKitCallActionsOptio
       conversationName?: string,
       calendarMeetingId?: string | null
     ) => {
-      initiateCall(conversationId, callType, participants, conversationName, calendarMeetingId)
+      // Derive conversationType from call context: only "meeting" when this is a scheduled calendar meeting.
+      // Group and direct calls must not be labeled as meeting.
+      const conversationType: 'direct' | 'group' | 'meeting' = calendarMeetingId
+        ? 'meeting'
+        : participants.length === 2
+          ? 'direct'
+          : 'group'
+      initiateCall(conversationId, callType, participants, conversationName, calendarMeetingId, conversationType)
       await confirmStartCall({
         micEnabled: true,
         cameraEnabled: callType === 'video',

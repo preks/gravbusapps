@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react'
 import { Alert, AlertDescription, Spinner } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { env } from '@/common/env/EnvUtils'
+import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 import { useCalendar } from './hooks/useCalendar'
 import { useEmployeeAvatarsCache } from '../hooks/useEmployeeAvatarsCache'
 import { CalendarHeader, DayView, WeekView, MonthView, CreateMeetingModal, MeetingDetailModal } from './components'
@@ -12,13 +13,16 @@ interface CalendarProps extends BusinessAppContextProps {
   activeCalls?: Record<string, any> // Active calls passed from Chat
   /** External calendar events from email providers to merge in */
   externalCalendarEvents?: CalendarEvent[]
+  /** When provided, opens chat in-app (same as dashboard). When omitted, navigates to chat URL. */
+  onOpenChat?: (conversationId: string) => void
 }
 
 const CalendarInner: React.FC<CalendarProps> = ({
   accessToken,
   prefixDataTestId = 'calendar',
   activeCalls = {},
-  externalCalendarEvents = []
+  externalCalendarEvents = [],
+  onOpenChat
 }) => {
   // Build API URL for calendar API
   let baseUrl = env('NEXT_PUBLIC_BASE_URL') || ''
@@ -401,14 +405,20 @@ const CalendarInner: React.FC<CalendarProps> = ({
     )
   }, [])
 
-  // Handle opening chat for conversation - navigate to chat with conversation ID
+  // Handle opening chat for conversation - same pattern as dashboard (in-app) or URL navigation.
+  // Use conversationId when present; otherwise meeting id so chat can resolve (e.g. getConversationById or by meeting).
   const handleOpenChat = useCallback(() => {
-    if (!enrichedSelectedEvent?.conversationId) return
-    // Navigate to chat with the conversation ID
-    const chatUrl = `/platform/apps/chat?conversationId=${enrichedSelectedEvent.conversationId}`
-    window.location.href = chatUrl
+    const id = enrichedSelectedEvent?.conversationId || enrichedSelectedEvent?.id
+    if (!id) return
+    if (onOpenChat) {
+      onOpenChat(id)
+      setIsDetailModalOpen(false)
+      return
+    }
+    const url = buildPlatformUrl('/platform/chat', { conversationId: id })
+    navigateTo(url)
     setIsDetailModalOpen(false)
-  }, [enrichedSelectedEvent])
+  }, [enrichedSelectedEvent, onOpenChat])
 
   // Handle create button click
   const handleCreateButtonClick = useCallback(() => {
@@ -565,7 +575,7 @@ const CalendarInner: React.FC<CalendarProps> = ({
         onEdit={enrichedSelectedEvent?.isOrganizer ? handleEditMeeting : undefined}
         onDelete={enrichedSelectedEvent?.isOrganizer ? handleDeleteMeeting : undefined}
         onStartCall={enrichedSelectedEvent?.meetingLink ? handleStartCall : undefined}
-        onOpenChat={enrichedSelectedEvent?.conversationId ? handleOpenChat : undefined}
+        onOpenChat={onOpenChat ? handleOpenChat : undefined}
         activeConversationCalls={activeConversationCalls}
       />
     </div>
