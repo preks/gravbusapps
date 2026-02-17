@@ -429,15 +429,24 @@ export const useRealtimeKitParticipants = ({
   }, [meeting, callStatus, updateParticipantList])
 
   /**
-   * Handle declined invite by updating the status
-   * This allows the UI to show appropriate status text
+   * Handle declined invite by updating the status.
+   * Lookup uses participantId (backend may send odId or internal id); we key by odId so we try
+   * direct key first, then find by invite.id or invite.odId for compatibility.
    */
   const handleDeclinedInvite = useCallback(
     (participantId: string, status: 'declined' | 'not-answered' = 'declined') => {
       setPendingInvites(prev => {
         const newMap = new Map(prev)
-        const invite = newMap.get(participantId)
-        if (invite) {
+        let invite = newMap.get(participantId)
+        if (!invite) {
+          for (const [key, inv] of newMap) {
+            if (inv.id === participantId || inv.odId === participantId) {
+              invite = inv
+              newMap.set(key, { ...inv, status })
+              break
+            }
+          }
+        } else {
           newMap.set(participantId, { ...invite, status })
         }
         return newMap

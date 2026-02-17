@@ -9,7 +9,7 @@ import { ExpertSelectorPanel } from './ExpertSelectorPanel.tsx'
 import { IncomingGroupCallDialog } from './IncomingGroupCallDialog'
 import { PreCallSetupStateSync } from './PreCallSetupStateSync'
 import type { ChatApiClient } from '../services/chatApiClient'
-import type { Conversation } from '../types'
+import { ConversationType, type Conversation } from '../types'
 import type { ExpertInfo } from '../hooks/useChatMessageHandlers'
 import type { RejoinModalState } from '../hooks/useChatRejoinCall'
 import type { CallParticipant } from '../services/webrtcClient'
@@ -128,18 +128,32 @@ export function ChatModals({
         <IncomingGroupCallDialog
           invite={
             (incomingGroupCallInvite as GroupCallInvite) ??
-            ({
-              roomId: rejoinModalState!.roomId,
-              callType: rejoinModalState!.callType,
-              from: {
-                id: 'rejoin',
-                odId: 'rejoin',
-                odName: rejoinModalState!.conversationName ?? 'Group call'
-              },
-              conversationName: rejoinModalState!.conversationName,
-              conversationId: activeConversation?.id ?? rejoinModalState!.roomId,
-              conversationType: 'group'
-            } as GroupCallInvite)
+            (() => {
+              const convType =
+                activeConversation?.metadata?.type === 'meeting'
+                  ? ('meeting' as const)
+                  : activeConversation?.type === ConversationType.DIRECT
+                    ? ('direct' as const)
+                    : ('group' as const)
+              const meetingName = rejoinModalState!.conversationName ?? activeConversation?.name
+              const startedBy = rejoinModalState!.startedBy
+              return {
+                roomId: rejoinModalState!.roomId,
+                callType: rejoinModalState!.callType,
+                from: startedBy
+                  ? { id: startedBy.id, odId: startedBy.odId, odName: startedBy.odName, avatarUrl: startedBy.avatarUrl }
+                  : {
+                      id: 'rejoin',
+                      odId: 'rejoin',
+                      odName:
+                        meetingName ??
+                        (convType === 'direct' ? 'Call' : convType === 'meeting' ? 'Meeting' : 'Group call')
+                    },
+                conversationName: meetingName,
+                conversationId: activeConversation?.id ?? rejoinModalState!.roomId,
+                conversationType: convType
+              } as GroupCallInvite
+            })()
           }
           userName={currentUserAsParticipant?.odName}
           userAvatarUrl={currentUserAsParticipant?.avatarUrl}

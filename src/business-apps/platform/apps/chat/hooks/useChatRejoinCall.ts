@@ -4,7 +4,7 @@
  */
 
 import { useState, useCallback, useMemo, useEffect } from 'react'
-import type { Conversation } from '../types'
+import type { ActiveCall, Conversation } from '../types'
 import type { ActiveCallInfo } from '../components/ConversationHeader'
 
 export type RejoinModalState = {
@@ -12,6 +12,7 @@ export type RejoinModalState = {
   callType: 'audio' | 'video'
   conversationName?: string
   participantCount?: number
+  startedBy?: { id: string; odId: string; odName: string; avatarUrl?: string }
 } | null
 
 export interface PresenceDataLike {
@@ -22,7 +23,16 @@ export interface PresenceDataLike {
 
 export interface UseChatRejoinCallParams {
   stableActiveConversation: Conversation | null
-  activeConversationCalls: Map<string, { roomId: string; callType: 'audio' | 'video'; participantIds: string[] }>
+  activeConversationCalls: Map<
+    string,
+    {
+      roomId: string
+      callType: 'audio' | 'video'
+      participantIds: string[]
+      conversationName?: string
+      startedBy?: string
+    }
+  >
   groupCallState: { status: string; roomId?: string | null; callType?: 'audio' | 'video' }
   groupParticipants: Array<{ odName: string }>
   joinGroupCall:
@@ -116,13 +126,18 @@ export function useChatRejoinCall({
 
   const handleJoinActiveCall = useCallback(() => {
     if (!activeCallInfo || !stableActiveConversation) return
+    const callFromMap = activeConversationCalls.get(stableActiveConversation.id)
+    const conversationActiveCall = (stableActiveConversation as Conversation & { activeCall?: ActiveCall }).activeCall
+    const conversationNameFromCall = callFromMap?.conversationName
+    const startedByFromConversation = conversationActiveCall?.startedBy
     setRejoinModalState({
       roomId: activeCallInfo.roomId,
       callType: activeCallInfo.callType,
-      conversationName: stableActiveConversation.name,
-      participantCount: activeCallInfo.participantCount
+      conversationName: conversationNameFromCall ?? stableActiveConversation.name,
+      participantCount: activeCallInfo.participantCount,
+      startedBy: startedByFromConversation
     })
-  }, [activeCallInfo, stableActiveConversation])
+  }, [activeCallInfo, stableActiveConversation, activeConversationCalls])
 
   const handleRejoinWithPreferences = useCallback(
     (preferences: { micEnabled: boolean; cameraEnabled: boolean; backgroundEnabled: boolean }) => {

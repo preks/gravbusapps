@@ -251,17 +251,56 @@ export function useRealtimeKitInviteListeners(params: UseRealtimeKitInviteListen
       })
     }
 
-    const handleDeclined = (data: { conversationId: string; meetingId: string; participantId: string }) => {
-      participantsHook.handleDeclinedInvite(data.participantId, 'declined')
+    const resetCallerToIdle = (meetingId: string, conversationId: string) => {
+      const isOurCall =
+        refs.meetingIdRef.current === meetingId ||
+        refs.callStateRoomIdRef.current === meetingId ||
+        refs.callStateRoomIdRef.current === conversationId ||
+        refs.conversationIdRef.current === conversationId
+      const isCaller = isOurCall && (refs.callStatusRef.current === 'setup' || refs.callStatusRef.current === 'joining')
+      if (!isCaller) return
+      try {
+        media.stopAllTracks()
+      } catch {
+        // Best-effort
+      }
+      refs.startTimeRef.current = null
+      refs.callStateRoomIdRef.current = null
+      refs.conversationIdRef.current = null
+      refs.meetingIdRef.current = null
+      refs.lastStartEmitRef.current = null
+      clearInviteDedupeFor(meetingId, conversationId)
+      setCallState(prev => ({
+        ...prev,
+        status: 'idle',
+        roomId: null,
+        callType: 'audio',
+        conversationName: undefined
+      }))
+    }
+
+    const handleDeclined = (data: {
+      conversationId: string
+      meetingId: string
+      participantId: string
+      participantOdId?: string
+    }) => {
+      const lookupId = data.participantOdId ?? data.participantId
+      participantsHook.handleDeclinedInvite(lookupId, 'declined')
+      if (data.participantId !== currentUser?.id) {
+        resetCallerToIdle(data.meetingId, data.conversationId)
+      }
     }
 
     const handleNotAnswered = (data: {
       conversationId: string
       meetingId: string
       participantId: string
+      participantOdId?: string
       participantName: string
     }) => {
-      participantsHook.handleDeclinedInvite(data.participantId, 'not-answered')
+      const lookupId = data.participantOdId ?? data.participantId
+      participantsHook.handleDeclinedInvite(lookupId, 'not-answered')
       if (data.participantId === currentUser?.id) {
         try {
           media.stopAllTracks()
@@ -270,6 +309,8 @@ export function useRealtimeKitInviteListeners(params: UseRealtimeKitInviteListen
         }
         refs.startTimeRef.current = null
         setIncomingInvite(null)
+      } else {
+        resetCallerToIdle(data.meetingId, data.conversationId)
       }
     }
 
