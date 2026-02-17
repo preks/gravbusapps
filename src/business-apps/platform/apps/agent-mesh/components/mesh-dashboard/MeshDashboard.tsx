@@ -99,7 +99,8 @@ export const MeshDashboard: React.FC<MeshDashboardProps> = ({ accessToken, onNav
   const loadData = useCallback(async () => {
     try {
       const results = await Promise.allSettled([
-        api.getAgentRegistry(),
+        // In some environments the registry list is scoped; explicitly request mesh agents.
+        api.getAgentRegistry({ agentType: 'everyai' }),
         api.getConnections(),
         api.getExecutions({ limit: 50 }),
         api.getExecutionAnalytics({ days: 1 }),
@@ -144,7 +145,36 @@ export const MeshDashboard: React.FC<MeshDashboardProps> = ({ accessToken, onNav
       meshIds.add(c.callee_id)
     })
     Object.keys(savedPositionsRef.current).forEach(id => meshIds.add(id))
-    return agents.filter(a => meshIds.has(a.id))
+    const byId = new Map(agents.map(a => [a.id, a]))
+    const nameById = new Map<string, string>()
+    connections.forEach(c => {
+      if (c.caller_id && c.caller_name) nameById.set(c.caller_id, c.caller_name)
+      if (c.callee_id && c.callee_name) nameById.set(c.callee_id, c.callee_name)
+    })
+
+    // Important: ReactFlow won't render an edge unless both source+target nodes exist.
+    // If the registry response is scoped/missing some IDs, create placeholders so edges still render.
+    return Array.from(meshIds).map(id => {
+      const found = byId.get(id)
+      if (found) return found
+      return {
+        id,
+        name: nameById.get(id) ?? id,
+        description: '',
+        agent_type: null,
+        specialty: null,
+        avatar: null,
+        color: null,
+        is_public: null,
+        tags: [],
+        agent_card: null,
+        tools_count: 0,
+        knowledge_sources_count: 0,
+        outgoing_connections: [],
+        incoming_connections: [],
+        created_at: null
+      }
+    })
   }, [agents, connections])
 
   // Remove an agent from the mesh (delete connections + remove from layout)
@@ -391,7 +421,10 @@ export const MeshDashboard: React.FC<MeshDashboardProps> = ({ accessToken, onNav
             fitView
             fitViewOptions={{ padding: 0.3 }}
             connectOnClick={false}
-            className="gba:w-full gba:h-full gba:[&_.react-flow__edges]:overflow-visible gba:[&_.react-flow__viewport]:overflow-visible"
+            // In some published builds, ReactFlow base CSS is loaded late or differs, which can
+            // cause the edges SVG to keep its intrinsic size (clipping paths) while nodes still
+            // render via transforms. Force the edges SVG to fill the renderer and avoid clipping.
+            className="gba:w-full gba:h-full gba:[&_.react-flow__renderer]:w-full gba:[&_.react-flow__renderer]:h-full gba:[&_.react-flow__renderer]:overflow-visible gba:[&_.react-flow__viewport]:overflow-visible gba:[&_.react-flow__edges]:absolute gba:[&_.react-flow__edges]:inset-0 gba:[&_.react-flow__edges]:w-full gba:[&_.react-flow__edges]:h-full gba:[&_.react-flow__edges]:overflow-visible"
           >
             <Background />
             <Controls />
