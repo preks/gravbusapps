@@ -33,7 +33,8 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { GET_ENTITLEMENTS_SNAPSHOT_FOR_YEAR } from '@/business-apps/hr/absences/apps/personal-absences/queries/graphql'
 import { fetchHolidayDates } from './utils/fetchHolidayDates'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
-import { GET_ABSENCE_DAILY_FACTS, GET_EMPLOYEE_WEEKLY_SCHEDULE } from '../../queries/queries'
+import { GET_ABSENCE_DAILY_FACTS } from '../../queries/queries'
+import { useEmployeeWeeklySchedule } from '../../hooks/useEmployeeWeeklySchedule'
 
 const AbsencesTab: React.FC<AbsencesTabProps> = ({
   employee,
@@ -321,7 +322,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
   }, [entitlements, annualLeaveOverride, snapshotByType])
 
   const [allowWeekendPaintingInFallback, setAllowWeekendPaintingInFallback] = useState(false)
-  const [nonWorkingDates, setNonWorkingDates] = useState<Set<string> | null>(null)
+  const nonWorkingDates = useEmployeeWeeklySchedule(accessToken, employee?.id, currentDate)
 
   const tabsItems = [
     {
@@ -453,48 +454,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
     loadDailyFacts()
   }, [graphqlClient, employee?.id, currentDate])
 
-  // Fetch weekly schedule and compute non-working dates for the visible month (used only in fallback mode)
-  useEffect(() => {
-    const run = async () => {
-      try {
-        if (!graphqlClient || !employee?.id) {
-          setNonWorkingDates(null)
-          return
-        }
-        const res: any = await graphqlClient.request(GET_EMPLOYEE_WEEKLY_SCHEDULE as any, { employeeId: employee.id })
-        const wh = res?.Employee?.[0]?.workingHours?.[0]
-        if (!wh) {
-          setNonWorkingDates(null)
-          return
-        }
-        const hoursByDow: number[] = [
-          Number(wh.sundayHours ?? 0),
-          Number(wh.mondayHours ?? 0),
-          Number(wh.tuesdayHours ?? 0),
-          Number(wh.wednesdayHours ?? 0),
-          Number(wh.thursdayHours ?? 0),
-          Number(wh.fridayHours ?? 0),
-          Number(wh.saturdayHours ?? 0)
-        ]
-        const start = currentDate.startOf('month')
-        const end = currentDate.endOf('month')
-        const set = new Set<string>()
-        let d = start
-        while (d.isBefore(end) || d.isSame(end, 'day')) {
-          const dow = d.day() // 0..6 (Sun..Sat)
-          const hrs = hoursByDow[dow]
-          if (!hrs || Number.isNaN(hrs) || hrs <= 0) {
-            set.add(d.format('YYYY-MM-DD'))
-          }
-          d = d.add(1, 'day')
-        }
-        setNonWorkingDates(set)
-      } catch {
-        setNonWorkingDates(null)
-      }
-    }
-    run()
-  }, [graphqlClient, employee?.id, currentDate])
+  // Non-working dates derived from weekly schedule are now provided by useEmployeeWeeklySchedule
 
   return (
     <div className="gba:absences-tab gba:space-y-8">
