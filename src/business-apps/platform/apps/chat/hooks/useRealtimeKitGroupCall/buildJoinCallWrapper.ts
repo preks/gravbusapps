@@ -57,11 +57,14 @@ export function buildJoinCallWrapper(params: BuildJoinCallWrapperParams): Public
           backgroundEnabled?: boolean
         })
       : undefined
-    const initialParticipants: CallParticipant[] | undefined = isPreferencesObject
-      ? undefined
-      : Array.isArray(initialParticipantsOrPreferences)
-        ? initialParticipantsOrPreferences
-        : undefined
+    let initialParticipants: CallParticipant[] | undefined
+    if (isPreferencesObject) {
+      initialParticipants = undefined
+    } else if (Array.isArray(initialParticipantsOrPreferences)) {
+      initialParticipants = initialParticipantsOrPreferences
+    } else {
+      initialParticipants = undefined
+    }
 
     if (initialParticipants === undefined) {
       const activeConversationCalls = getActiveConversationCalls()

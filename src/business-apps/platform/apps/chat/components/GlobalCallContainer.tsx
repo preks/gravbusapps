@@ -271,10 +271,14 @@ export const GlobalCallContainer: React.FC = () => {
       if (latest.leaveCall) {
         let leaveSettled = false
         try {
-          // IMPORTANT: When navigating away, the chat module may be unmounted and its WebSocket torn down.
-          // Emit "left" best-effort from the persistent container BEFORE calling into hook cleanup.
+          // Emit "left" and leave SDK from container first so end-call works even if hook is missing or fails.
           await emitLeftBestEffort()
-
+          try {
+            await meetingForFallback?.leave?.()
+          } catch (err) {
+            console.error('[GlobalCallContainer] handleEndCall: Container leave failed', err)
+          }
+          // Hook for state cleanup (best-effort).
           const maybePromise = latest.leaveCall()
           if (maybePromise && typeof (maybePromise as any).finally === 'function') {
             ;(maybePromise as Promise<unknown>).finally(() => {

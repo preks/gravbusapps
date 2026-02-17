@@ -179,6 +179,7 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
         initiateCall: actionsResult.initiateCall,
         confirmStartCall: prefs => {
           void actionsResult.confirmStartCall(prefs)
+          return
         },
         cancelSetup: actionsResult.cancelSetup,
         startCall: (...args) => {
@@ -191,7 +192,9 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
           void actionsResult.acceptInvite()
         },
         declineInvite: actionsResult.declineInvite,
-        leaveCall: actionsResult.leaveCall,
+        leaveCall: () => {
+          void actionsResult.leaveCall()
+        },
         stableToggleMute: actionsResult.stableToggleMute,
         stableToggleVideo: actionsResult.stableToggleVideo,
         stableToggleBackground: actionsResult.stableToggleBackground,

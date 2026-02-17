@@ -437,17 +437,16 @@ export const useRealtimeKitParticipants = ({
     (participantId: string, status: 'declined' | 'not-answered' = 'declined') => {
       setPendingInvites(prev => {
         const newMap = new Map(prev)
-        let invite = newMap.get(participantId)
-        if (!invite) {
+        const invite = newMap.get(participantId)
+        if (invite) {
+          newMap.set(participantId, { ...invite, status })
+        } else {
           for (const [key, inv] of newMap) {
             if (inv.id === participantId || inv.odId === participantId) {
-              invite = inv
               newMap.set(key, { ...inv, status })
               break
             }
           }
-        } else {
-          newMap.set(participantId, { ...invite, status })
         }
         return newMap
       })

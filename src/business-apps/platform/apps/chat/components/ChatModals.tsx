@@ -129,14 +129,22 @@ export function ChatModals({
           invite={
             (incomingGroupCallInvite as GroupCallInvite) ??
             (() => {
-              const convType =
-                activeConversation?.metadata?.type === 'meeting'
-                  ? ('meeting' as const)
-                  : activeConversation?.type === ConversationType.DIRECT
-                    ? ('direct' as const)
-                    : ('group' as const)
+              let convType: 'meeting' | 'direct' | 'group' = 'group'
+              if (activeConversation?.metadata?.type === 'meeting') {
+                convType = 'meeting'
+              } else if (activeConversation?.type === ConversationType.DIRECT) {
+                convType = 'direct'
+              }
               const meetingName = rejoinModalState!.conversationName ?? activeConversation?.name
               const startedBy = rejoinModalState!.startedBy
+              let defaultOdName: string
+              if (convType === 'direct') {
+                defaultOdName = 'Call'
+              } else if (convType === 'meeting') {
+                defaultOdName = 'Meeting'
+              } else {
+                defaultOdName = 'Group call'
+              }
               return {
                 roomId: rejoinModalState!.roomId,
                 callType: rejoinModalState!.callType,
@@ -145,9 +153,7 @@ export function ChatModals({
                   : {
                       id: 'rejoin',
                       odId: 'rejoin',
-                      odName:
-                        meetingName ??
-                        (convType === 'direct' ? 'Call' : convType === 'meeting' ? 'Meeting' : 'Group call')
+                      odName: meetingName ?? defaultOdName
                     },
                 conversationName: meetingName,
                 conversationId: activeConversation?.id ?? rejoinModalState!.roomId,
