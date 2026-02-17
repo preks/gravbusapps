@@ -15,8 +15,8 @@ import {
   AlertDescription
 } from '@newwork/nw-design-system'
 import { useCreateMeetingMinutes } from '../hooks/useCreateMeetingMinutes'
-import { ArrowBendUpLeft } from '@phosphor-icons/react'
-import { VideoCamera } from '@phosphor-icons/react'
+import { ArrowBendUpLeft, VideoCamera } from '@phosphor-icons/react'
+import { UserPlus, UserMinus, Pencil, Users } from 'lucide-react'
 import { renderContentWithReferences } from './EntityReferenceBadge'
 import { EveryAIMessageRenderer } from './EveryAIMessageRenderer'
 import { ExpertResponseRenderer } from './ExpertResponseRenderer'
@@ -354,18 +354,30 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(
       )
     }
 
-    // System message (meeting/call start/end, etc.)
+    // System message (meeting/call start/end, participant joined/left, conversation created/renamed, etc.)
     if (message.type === 'system') {
       const messageType = message.metadata?.type
       const isMeetingMessage = messageType === 'meeting_start' || messageType === 'meeting_end'
       const isCallMessage = messageType === 'call_start' || messageType === 'call_end'
 
+      const systemIconClassName = 'gba:w-4 gba:h-4 gba:flex-shrink-0 gba:text-muted-foreground'
+      const SystemIcon =
+        isMeetingMessage || isCallMessage
+          ? () => <VideoCamera className={systemIconClassName} weight="fill" />
+          : messageType === 'participant_joined'
+            ? () => <UserPlus className={systemIconClassName} />
+            : messageType === 'participant_left'
+              ? () => <UserMinus className={systemIconClassName} />
+              : messageType === 'conversation_created'
+                ? () => <Users className={systemIconClassName} />
+                : messageType === 'conversation_renamed'
+                  ? () => <Pencil className={systemIconClassName} />
+                  : null
+
       return (
         <div className="gba:flex gba:justify-center gba:py-1.5" data-testid={`message-system-${message.id}`}>
           <div className="gba:flex gba:items-center gba:gap-2 gba:bg-muted/50 gba:px-3 gba:py-1.5 gba:rounded-full">
-            {(isMeetingMessage || isCallMessage) && (
-              <VideoCamera className="gba:w-4 gba:h-4 gba:text-muted-foreground" weight="fill" />
-            )}
+            {SystemIcon && <SystemIcon />}
             <span className="gba:text-xs gba:text-muted-foreground">{formattedTime}</span>
             <span className="gba:text-xs gba:text-foreground gba:font-medium">{message.content}</span>
           </div>
