@@ -136,13 +136,6 @@ export const AbsenceStatisticsSimple: React.FC<AbsenceStatisticsSimpleProps> = p
     }
   ]
 
-  const handleWidgetClick = (widgetKey: string) => {
-    const widget = widgets.find(w => w.key === widgetKey)
-    if (widget?.onClick) {
-      widget.onClick()
-    }
-  }
-
   return (
     <div data-testid="absence-statistics-simple-container">
       <WidgetGroup
@@ -150,7 +143,6 @@ export const AbsenceStatisticsSimple: React.FC<AbsenceStatisticsSimpleProps> = p
         isLoading={isLoading}
         error={error}
         onRetry={refetch}
-        onWidgetClick={handleWidgetClick}
         skeletonCount={4}
         emptyText={getTranslationFromI18nKeyAndLabel(
           'lowcoder:absence_management_hub_manager.no_statistics_available',
