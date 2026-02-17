@@ -655,9 +655,19 @@ const ChatInner: React.FC<ChatProps> = memo(
       const onMeetingCreated = () => {
         window.dispatchEvent(new CustomEvent('calendar:refresh'))
       }
+      const onMeetingUpdated = () => {
+        window.dispatchEvent(new CustomEvent('calendar:refresh'))
+      }
+      const onMeetingDeleted = () => {
+        window.dispatchEvent(new CustomEvent('calendar:refresh'))
+      }
       socket.on('meeting_created', onMeetingCreated)
+      socket.on('meeting_updated', onMeetingUpdated)
+      socket.on('meeting_deleted', onMeetingDeleted)
       return () => {
         socket.off('meeting_created', onMeetingCreated)
+        socket.off('meeting_updated', onMeetingUpdated)
+        socket.off('meeting_deleted', onMeetingDeleted)
       }
     }, [wsClient])
 
