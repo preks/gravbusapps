@@ -37,7 +37,21 @@ interface UseFeedbackSentimentResult {
 }
 
 const FLOWBOT_ENDPOINT_PATH = '/flowbot/api/agent/v2/chat'
-const JSON_BLOCK_REGEX = /\{[\s\S]*\}/
+
+const extractJsonObjectString = (response: string): string | null => {
+  const trimmedResponse = response.trim()
+  if (trimmedResponse.startsWith('{') && trimmedResponse.endsWith('}')) {
+    return trimmedResponse
+  }
+
+  const firstBraceIndex = response.indexOf('{')
+  const lastBraceIndex = response.lastIndexOf('}')
+  if (firstBraceIndex === -1 || lastBraceIndex === -1 || firstBraceIndex >= lastBraceIndex) {
+    return null
+  }
+
+  return response.slice(firstBraceIndex, lastBraceIndex + 1)
+}
 
 const formatFeedbackLine = (feedbackItem: RawFeedback, index: number): string => {
   const ratingSuffix = feedbackItem.rating ? ` (Rating: ${feedbackItem.rating}/5)` : ''
@@ -206,13 +220,13 @@ const parseSentimentResponse = (
   feedbackCount: number
 ): EmployeeSentimentResult | null => {
   try {
-    const jsonMatch = JSON_BLOCK_REGEX.exec(response)
-    if (!jsonMatch) {
+    const jsonPayload = extractJsonObjectString(response)
+    if (!jsonPayload) {
       console.warn('Sentiment analysis: No JSON found in response')
       return null
     }
 
-    const parsed = JSON.parse(jsonMatch[0])
+    const parsed = JSON.parse(jsonPayload)
 
     if (typeof parsed.score !== 'number' || typeof parsed.summary !== 'string') {
       console.warn('Sentiment analysis: Invalid response structure')

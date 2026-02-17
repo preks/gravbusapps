@@ -29,13 +29,21 @@ export interface BirthdaysViewProps {
   onNavigateToEmployee: (employeeId: string) => void
 }
 
-const buildBirthdayMessage = (employeeName: string) => {
+const getDeterministicVariantIndex = (seed: string, variantsCount: number): number => {
+  let hash = 0
+  for (let i = 0; i < seed.length; i += 1) {
+    hash = (hash * 31 + seed.charCodeAt(i)) >>> 0
+  }
+  return hash % variantsCount
+}
+
+const buildBirthdayMessage = (employeeName: string, seed: string) => {
   const variants = [
     `Happy Birthday, ${employeeName}! Wishing you a fantastic day filled with joy and celebration. Thank you for the positive energy you bring to the team.`,
     `Happy Birthday, ${employeeName}! Hope your day is full of great moments. Really appreciate your contribution and collaboration.`,
     `Wishing you a wonderful birthday, ${employeeName}! Thanks for everything you do for the team - enjoy your special day!`
   ]
-  return variants[Math.floor(Math.random() * variants.length)]
+  return variants[getDeterministicVariantIndex(seed, variants.length)]
 }
 
 export const BirthdaysView: React.FC<BirthdaysViewProps> = ({
@@ -64,7 +72,7 @@ export const BirthdaysView: React.FC<BirthdaysViewProps> = ({
         const conversation = await chatClient.getOrCreateDirectConversation(recipientUserId)
         await chatClient.sendMessage(
           conversation.id,
-          buildBirthdayMessage(person.firstName),
+          buildBirthdayMessage(person.firstName, `${person.id}-${person.birthDate || ''}`),
           currentUser.id,
           undefined,
           { source: 'manager-dashboard', type: 'birthday-greeting', aiCustomized: true }

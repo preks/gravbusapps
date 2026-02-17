@@ -29,13 +29,21 @@ export interface AnniversariesViewProps {
   onNavigateToEmployee: (employeeId: string) => void
 }
 
-const buildAnniversaryMessage = (employeeName: string, yearsOfService: number) => {
+const getDeterministicVariantIndex = (seed: string, variantsCount: number): number => {
+  let hash = 0
+  for (let i = 0; i < seed.length; i += 1) {
+    hash = (hash * 31 + seed.charCodeAt(i)) >>> 0
+  }
+  return hash % variantsCount
+}
+
+const buildAnniversaryMessage = (employeeName: string, yearsOfService: number, seed: string) => {
   const variants = [
     `Congratulations ${employeeName} on your ${yearsOfService}-year work anniversary! Your dedication and impact are truly appreciated.`,
     `Happy work anniversary, ${employeeName}! ${yearsOfService} years is a great milestone - thank you for your continuous contribution.`,
     `${employeeName}, congrats on your ${yearsOfService} years with the company! Appreciate your commitment and teamwork.`
   ]
-  return variants[Math.floor(Math.random() * variants.length)]
+  return variants[getDeterministicVariantIndex(seed, variants.length)]
 }
 
 export const AnniversariesView: React.FC<AnniversariesViewProps> = ({
@@ -64,7 +72,11 @@ export const AnniversariesView: React.FC<AnniversariesViewProps> = ({
         const conversation = await chatClient.getOrCreateDirectConversation(recipientUserId)
         await chatClient.sendMessage(
           conversation.id,
-          buildAnniversaryMessage(person.firstName, person.yearsOfService),
+          buildAnniversaryMessage(
+            person.firstName,
+            person.yearsOfService,
+            `${person.id}-${person.yearsOfService}-${person.hireDate || ''}`
+          ),
           currentUser.id,
           undefined,
           { source: 'manager-dashboard', type: 'anniversary-greeting', aiCustomized: true }
