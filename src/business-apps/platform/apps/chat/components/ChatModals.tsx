@@ -49,7 +49,13 @@ export interface ChatModalsProps {
   sendMessageVoid: (conversationId: string, content: string, metadata?: Record<string, unknown>) => void | Promise<void>
   incomingGroupCallInvite: unknown
   currentUserAsParticipant: CallParticipant | null
-  onAcceptGroupInvite: () => void
+  onAcceptGroupInvite: (preferences?: {
+    micEnabled: boolean
+    cameraEnabled: boolean
+    backgroundEnabled?: boolean
+    audioInputDeviceId?: string | null
+    videoInputDeviceId?: string | null
+  }) => void
   onDeclineGroupInvite: () => void
   rejoinModalState: RejoinModalState
   onRejoinWithPreferences: (preferences: {

@@ -273,7 +273,13 @@ export function useRealtimeKitCallActions(params: UseRealtimeKitCallActionsOptio
   )
 
   const acceptInvite = useCallback(
-    async (initialPreferences?: { micEnabled: boolean; cameraEnabled: boolean; backgroundEnabled: boolean }) => {
+    async (initialPreferences?: {
+      micEnabled: boolean
+      cameraEnabled: boolean
+      backgroundEnabled?: boolean
+      audioInputDeviceId?: string | null
+      videoInputDeviceId?: string | null
+    }) => {
       let latestInvite: GroupCallInvite | null = null
       setIncomingInvite(prev => {
         latestInvite = prev

@@ -357,6 +357,7 @@ participants-everyones-here = Everyone's here!
 participants-all-members-in-call = All conversation members are either in the call or have been invited.
 participants-in-call = In Call
 participants-invited = Invited
+participants-not-in-this-meeting = Not in this meeting
 participants-left-call = Left call
 participants-unknown = Unknown
 participants-you = You

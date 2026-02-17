@@ -65,12 +65,6 @@ export const useStartCallFromPlatform = ({
     const earlyPayload = getAndClearPendingStartCall()
     if (earlyPayload) {
       pendingEventRef.current = earlyPayload
-      console.log(
-        '[ChatStartCall] consumed early payload, will process when connected:',
-        !!initiateGroupCall,
-        'connected:',
-        isConnected
-      )
     }
 
     const processStartCall = async (payload: StartCallPayload) => {
