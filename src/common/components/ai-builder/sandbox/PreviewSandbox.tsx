@@ -32,6 +32,7 @@ export const PreviewSandbox = forwardRef<PreviewSandboxHandle, PreviewSandboxPro
   const [error, setError] = useState<string | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [bundleVersion, setBundleVersion] = useState<string | null>(null)
+  const [buildElapsedSec, setBuildElapsedSec] = useState(0)
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const builderClient = useBuilderClient(accessToken ?? '')
 
@@ -145,6 +146,20 @@ export const PreviewSandbox = forwardRef<PreviewSandboxHandle, PreviewSandboxPro
     return () => window.removeEventListener('message', handleMessage)
   }, [accessToken, userInfo])
 
+  useEffect(() => {
+    if (!buildStatus?.active) {
+      setBuildElapsedSec(0)
+      return
+    }
+
+    setBuildElapsedSec(0)
+    const timer = setInterval(() => {
+      setBuildElapsedSec(prev => prev + 1)
+    }, 1000)
+
+    return () => clearInterval(timer)
+  }, [buildStatus?.active])
+
   const handleIframeError = () => {
     const errorMsg = 'Failed to load preview iframe'
     console.error('[PreviewSandbox]', errorMsg)
@@ -203,13 +218,26 @@ export const PreviewSandbox = forwardRef<PreviewSandboxHandle, PreviewSandboxPro
       )}
       {buildStatus?.active && (
         <div className="gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center gba:pointer-events-none">
-          <div className="gba:bg-background/90 gba:border gba:border-border gba:rounded-lg gba:shadow-sm gba:px-4 gba:py-3 gba:max-w-sm gba:text-sm gba:text-foreground">
-            <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-              <Loader2 className="gba:w-4 gba:h-4 gba:animate-spin gba:text-primary" />
-              <span className="gba:font-medium">Preview build in progress</span>
+          <div className="gba:bg-background/90 gba:border gba:border-border gba:rounded-lg gba:shadow-sm gba:px-4 gba:py-3 gba:w-[300px] gba:min-h-[150px] gba:text-sm gba:text-foreground">
+            <div className="gba:flex gba:items-center gba:justify-between gba:mb-2">
+              <div className="gba:flex gba:items-center gba:gap-2">
+                <Loader2 className="gba:w-4 gba:h-4 gba:animate-spin gba:text-primary" />
+                <span className="gba:font-medium">Preview build in progress</span>
+              </div>
+              <span className="gba:text-[11px] gba:text-muted-foreground">{buildElapsedSec}s</span>
             </div>
-            <div className="gba:text-xs gba:text-muted-foreground gba:space-y-1">
-              {buildStatus.lines.map((line, index) => (
+            <div className="gba:text-xs gba:text-muted-foreground gba:space-y-1 gba:h-[100px] gba:overflow-hidden">
+              {(buildStatus.lines.length > 1
+                ? buildStatus.lines.slice(-5)
+                : [
+                    ...(buildStatus.lines.slice(-1) || ['Running screen_build...']),
+                    buildElapsedSec < 10
+                      ? 'Preparing preview workspace...'
+                      : buildElapsedSec < 25
+                        ? 'Checking/installing dependencies if needed...'
+                        : 'Running preview build...'
+                  ]
+              ).map((line, index) => (
                 <p key={`${line}-${index}`}>{line}</p>
               ))}
             </div>
