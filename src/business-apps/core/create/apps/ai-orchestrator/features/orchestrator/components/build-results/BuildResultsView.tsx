@@ -46,6 +46,8 @@ export interface BuildResultsViewProps {
   jobId?: string
   /** Build duration in milliseconds */
   buildDuration: number
+  /** The user's original prompt */
+  prompt?: string
   /** Global error message (if build failed) */
   errorMessage?: string
   /** Callbacks */
@@ -391,6 +393,7 @@ export const BuildResultsView: React.FC<BuildResultsViewProps> = ({
   components,
   jobId,
   buildDuration,
+  prompt,
   errorMessage,
   onReset,
   onRetry,
@@ -453,6 +456,11 @@ export const BuildResultsView: React.FC<BuildResultsViewProps> = ({
                       ? 'Build Partially Completed'
                       : 'Build Failed'}
                 </h2>
+                {prompt && (
+                  <p className="gba:text-sm gba:text-foreground/80 gba:italic gba:mb-1 gba:line-clamp-2">
+                    &ldquo;{prompt}&rdquo;
+                  </p>
+                )}
                 <p className="gba:text-sm gba:text-muted-foreground">
                   {success
                     ? `All ${components.length} component${components.length !== 1 ? 's were' : ' was'} processed in ${formatDuration(buildDuration)}.`

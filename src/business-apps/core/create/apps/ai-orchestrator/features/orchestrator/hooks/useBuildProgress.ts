@@ -50,6 +50,7 @@ export interface UseBuildProgressResult {
   totalCount: number
   currentPhase: BuildPhase | null // Current build phase
   phaseMessage: string | null // Current phase status message
+  buildDuration: number // Elapsed build time in milliseconds
 
   // Methods
   startBuild: (skipComponents?: string[], sessionId?: string, repoId?: string) => Promise<void>
@@ -176,7 +177,10 @@ export function useBuildProgress({
   const [currentPhase, setCurrentPhase] = useState<BuildPhase | null>(null)
   const [phaseMessage, setPhaseMessage] = useState<string | null>(null)
 
+  const [buildDuration, setBuildDuration] = useState(0)
+
   const abortControllerRef = useRef<AbortController | null>(null)
+  const buildStartTimeRef = useRef<number>(0)
   const onComponentUpdateRef = useRef(onComponentUpdate)
   const onBuildCompleteRef = useRef(onBuildComplete)
   const currentJobIdRef = useRef<string | null>(null)
@@ -196,6 +200,7 @@ export function useBuildProgress({
     setFailedCount(0)
     setReusedCount(0)
     setOverallProgress(0)
+    setBuildDuration(0)
     setBuildError(null)
     setCurrentPhase(null)
     setPhaseMessage(null)
@@ -297,6 +302,9 @@ export function useBuildProgress({
           setIsBuilding(false)
           setPhaseMessage(event.message)
           setOverallProgress(100)
+          if (buildStartTimeRef.current > 0) {
+            setBuildDuration(Date.now() - buildStartTimeRef.current)
+          }
           const success = event.status === 'completed'
           onComplete?.(success)
           onBuildCompleteRef.current?.(event)
@@ -501,6 +509,7 @@ export function useBuildProgress({
 
       setIsBuilding(true)
       setBuildError(null)
+      buildStartTimeRef.current = Date.now()
       abortControllerRef.current = new AbortController()
 
       const request: ExecuteRequest = {
@@ -565,6 +574,7 @@ export function useBuildProgress({
   return {
     isBuilding,
     buildError,
+    buildDuration,
     tiles,
     overallProgress,
     completedCount,

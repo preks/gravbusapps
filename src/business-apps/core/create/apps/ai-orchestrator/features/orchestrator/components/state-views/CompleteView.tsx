@@ -9,6 +9,7 @@ export interface CompleteViewProps {
   components: ComponentSpec[]
   jobId?: string
   buildDuration: number
+  prompt?: string
   accessToken?: string
   userInfo?: any
   onReset: () => void
@@ -22,6 +23,7 @@ export const CompleteView: React.FC<CompleteViewProps> = ({
   components,
   jobId,
   buildDuration,
+  prompt,
   accessToken,
   userInfo,
   onReset
@@ -46,6 +48,7 @@ export const CompleteView: React.FC<CompleteViewProps> = ({
               components={components}
               jobId={jobId}
               buildDuration={buildDuration}
+              prompt={prompt}
               onReset={onReset}
             />
           </Canvas>

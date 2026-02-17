@@ -190,7 +190,8 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
           <CompleteView
             components={orchestratorClient.currentPlan.components}
             jobId={orchestratorClient.currentPlan?.jobId}
-            buildDuration={state.buildDuration}
+            buildDuration={buildProgress.buildDuration}
+            prompt={state.userPrompt}
             accessToken={accessToken}
             userInfo={userInfo}
             onReset={handlers.handleReset}
@@ -208,7 +209,7 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
             }
             partialComponents={orchestratorClient.currentPlan?.components}
             jobId={orchestratorClient.currentPlan?.jobId}
-            buildDuration={state.buildDuration}
+            buildDuration={buildProgress.buildDuration}
             onReset={handlers.handleReset}
             onRetry={handlers.handleRetry}
             onModifyPlan={() => state.setViewState('review')}
