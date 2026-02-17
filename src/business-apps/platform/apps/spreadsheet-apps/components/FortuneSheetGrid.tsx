@@ -438,6 +438,9 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
 
     const handleContainerKeyDown = useCallback(
       (e: React.KeyboardEvent) => {
+        // Only treat keyboard events when the container itself is focused.
+        // Do not intercept typing inside FortuneSheet editors/inputs.
+        if (e.target !== e.currentTarget) return
         if (e.key !== 'Enter' && e.key !== ' ') return
         e.preventDefault()
         openSelectedCopyLink()
