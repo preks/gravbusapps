@@ -33,7 +33,7 @@ export function useEntitlementSnapshot(
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<Error | null>(null)
 
-  useEffect(() => {
+  const fetchSnapshot = async () => {
     if (!client || !employeeId) return
     setLoading(true)
     setError(null)
@@ -42,58 +42,66 @@ export function useEntitlementSnapshot(
     const yearStart = dayjs(`${year}-01-01`).format('YYYY-MM-DD')
     const yearEnd = dayjs(`${year}-12-31`).format('YYYY-MM-DD')
 
-    client
-      .request<any>(GET_ENTITLEMENTS_SNAPSHOT_FOR_YEAR, {
+    try {
+      const res = await client.request<any>(GET_ENTITLEMENTS_SNAPSHOT_FOR_YEAR, {
         employeeId,
         yearStart,
         yearEnd
       })
-      .then(res => {
-        const rows: any[] = res?.EntitlementUsageSnapshotView || res?.entitlement_usage_snapshot_view || []
-        const byType: Record<string, { total: number; usedApproved: number; usedPending: number; remaining: number }> =
-          Object.create(null)
-        rows.forEach((r: any) => {
-          const code = r?.typeRef ?? r?.type_ref
-          if (!code || code === '__proto__' || code === 'constructor' || code === 'prototype') return
-          const acc = byType[code] || { total: 0, usedApproved: 0, usedPending: 0, remaining: 0 }
-          acc.total += Number(r?.totalEntitlement ?? r?.total_entitlement) || 0
-          acc.usedApproved += Number(r?.usedApproved ?? r?.used_approved) || 0
-          acc.usedPending += Number(r?.usedPending ?? r?.used_pending) || 0
-          byType[code] = acc
-        })
-        Object.keys(byType).forEach(k => {
-          if (!Object.hasOwn(byType, k)) return
-          const v = byType[k]
-          v.remaining = Math.max(0, v.total - v.usedApproved - v.usedPending)
-        })
-
-        const mappedEntitlements: SnapshotEntitlement[] = Object.keys(byType).map(code => {
-          const v = byType[code]
-          const mapped = mapType ? mapType(code) : undefined
-          return {
-            type: mapped?.label || code,
-            color: mapped?.color,
-            used: v.usedApproved,
-            total: v.total,
-            pending: v.usedPending,
-            available: v.remaining
-          }
-        })
-        setEntitlements(mappedEntitlements)
-        const mappedStats: SnapshotStatItem[] = mappedEntitlements.map(e => ({
-          title: e.type,
-          used: e.used,
-          total: e.total,
-          progress: e.total ? Math.round((e.used / e.total) * 100) : 0,
-          color: e.color,
-          textColor: e.color,
-          daysLeft: e.available
-        }))
-        setStats(mappedStats)
+      const rows: any[] = res?.EntitlementUsageSnapshotView || res?.entitlement_usage_snapshot_view || []
+      const byType: Record<string, { total: number; usedApproved: number; usedPending: number; remaining: number }> =
+        Object.create(null)
+      rows.forEach((r: any) => {
+        const code = r?.typeRef ?? r?.type_ref
+        if (!code || code === '__proto__' || code === 'constructor' || code === 'prototype') return
+        const acc = byType[code] || { total: 0, usedApproved: 0, usedPending: 0, remaining: 0 }
+        acc.total += Number(r?.totalEntitlement ?? r?.total_entitlement) || 0
+        acc.usedApproved += Number(r?.usedApproved ?? r?.used_approved) || 0
+        acc.usedPending += Number(r?.usedPending ?? r?.used_pending) || 0
+        byType[code] = acc
       })
-      .catch(err => setError(err as Error))
-      .finally(() => setLoading(false))
+      Object.keys(byType).forEach(k => {
+        if (!Object.prototype.hasOwnProperty.call(byType, k)) return
+        const v = byType[k]
+        v.remaining = Math.max(0, v.total - v.usedApproved - v.usedPending)
+      })
+
+      const mappedEntitlements: SnapshotEntitlement[] = Object.keys(byType).map(code => {
+        const v = byType[code]
+        const mapped = mapType ? mapType(code) : undefined
+        return {
+          type: mapped?.label || code,
+          color: mapped?.color,
+          used: v.usedApproved,
+          total: v.total,
+          pending: v.usedPending,
+          available: v.remaining
+        }
+      })
+      setEntitlements(mappedEntitlements)
+      const mappedStats: SnapshotStatItem[] = mappedEntitlements.map(e => ({
+        title: e.type,
+        used: e.used,
+        total: e.total,
+        progress: e.total ? Math.round((e.used / e.total) * 100) : 0,
+        color: e.color,
+        textColor: e.color,
+        daysLeft: e.available
+      }))
+      setStats(mappedStats)
+    } catch (err) {
+      setError(err as Error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchSnapshot()
   }, [client, employeeId, mapType])
 
-  return useMemo(() => ({ entitlements, stats, loading, error }), [entitlements, stats, loading, error])
+  return useMemo(
+    () => ({ entitlements, stats, loading, error, refetch: fetchSnapshot }),
+    [entitlements, stats, loading, error]
+  )
 }

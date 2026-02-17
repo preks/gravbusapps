@@ -71,6 +71,20 @@ export const useRealtimeKitParticipants = ({
   const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(new Map())
   const [pendingInvites, setPendingInvites] = useState<Map<string, PendingInvite>>(new Map())
 
+  // Track previous participants to detect who left (store full info for cleanup and re-invite)
+  const previousParticipantsRef = useRef<
+    Map<string, { peerId: string; userId?: string; customParticipantId?: string; name?: string; picture?: string }>
+  >(new Map())
+
+  // Clear pending invites and previous-participants ref when the call ends so the next call
+  // does not show participants from the previous call (e.g. users invited via "Not in this meeting" who left)
+  useEffect(() => {
+    if (callStatus === 'ended' || callStatus === 'idle') {
+      setPendingInvites(new Map())
+      previousParticipantsRef.current.clear()
+    }
+  }, [callStatus])
+
   /**
    * Invite participants to the current call
    * Broadcasts invitation via WebSocket
@@ -187,11 +201,6 @@ export const useRealtimeKitParticipants = ({
   const reconnectParticipant = useCallback(async (_participantId: string): Promise<void> => {
     // SFU handles reconnections automatically
   }, [])
-
-  // Track previous participants to detect who left (store full info for cleanup and re-invite)
-  const previousParticipantsRef = useRef<
-    Map<string, { peerId: string; userId?: string; customParticipantId?: string; name?: string; picture?: string }>
-  >(new Map())
 
   /**
    * Update participant list from SDK

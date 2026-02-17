@@ -51,6 +51,10 @@ export async function runConfirmStartCall(
     refs.isCancelledRef.current = false
     refs.abortControllerRef.current = new AbortController()
 
+    // Apply pre-call preferences before transitioning to 'joining' so the first render
+    // with status 'joining' has correct callPreferences (useRealtimeKitMedia syncs from it)
+    callPreferences.setBackgroundEnabled(preferences.backgroundEnabled)
+
     setCallState((prev: any) => ({ ...prev, status: 'joining', roomId: conversationId }))
     refs.callStateRoomIdRef.current = conversationId
     refs.conversationIdRef.current = conversationId
@@ -103,8 +107,6 @@ export async function runConfirmStartCall(
 
     const shouldEnableAudio = preferences.micEnabled
     const shouldEnableVideo = preferences.cameraEnabled
-
-    callPreferences.setBackgroundEnabled(preferences.backgroundEnabled)
 
     if (refs.abortControllerRef.current?.signal.aborted) {
       return

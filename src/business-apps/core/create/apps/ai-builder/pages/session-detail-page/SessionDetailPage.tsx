@@ -312,6 +312,18 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
     return value?.trim() ?? null
   }
 
+  const normalizeResourceUrl = (value?: string | null): string | null => {
+    const normalized = normalizeNonEmpty(value)
+    if (!normalized) return null
+    return normalized.startsWith('/') ? normalized : `/${normalized}`
+  }
+
+  const getAutoResourceUrl = (pathValue: string): string => {
+    const segments = pathValue.split('/').filter(Boolean)
+    const screenName = segments[segments.length - 1] ?? pathValue
+    return `/platform/generated/${screenName}`
+  }
+
   const toPreviewAppName = (pathValue?: string | null): string | null => {
     const normalizedPath = normalizeNonEmpty(pathValue)
     if (!normalizedPath) return null
@@ -360,15 +372,19 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
         const screenRootPattern = new RegExp(String.raw`^src/business-apps/(.+/(?:${screenTypes})/[^/]+)/index\.ts$`)
         const indexFiles = data.summary.files.filter((f: FileChange) => screenRootPattern.test(f.path))
         if (indexFiles.length > 0) {
-          const match = screenRootPattern.exec(indexFiles[0].path)
+          const latestIndexFile = indexFiles[indexFiles.length - 1]
+          const match = screenRootPattern.exec(latestIndexFile.path)
           if (match) {
             const detectedPath = match[1]
             setDetectedTargetPath(detectedPath)
             setTargetPath(detectedPath)
-            const segments = detectedPath.split('/')
-            const screenName = segments[segments.length - 1]
-            // Auto-generate resource URL from the last segment (target path name), e.g. "/platform/generated/hello-world"
-            setResourceUrl('/platform/generated/' + screenName)
+            const autoResourceUrl = getAutoResourceUrl(detectedPath)
+            const normalizedResourceUrl = normalizeResourceUrl(resourceUrl)
+            const previousAutoResourceUrl = detectedTargetPath ? getAutoResourceUrl(detectedTargetPath) : null
+            // Auto-generate resource URL from the last segment when not set or previously auto-generated
+            if (!normalizedResourceUrl || (previousAutoResourceUrl && normalizedResourceUrl === previousAutoResourceUrl)) {
+              setResourceUrl(autoResourceUrl)
+            }
           }
         }
       }
@@ -547,18 +563,22 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
           completed = true
           const result = event.result
           const publishedPath = result?.targetPath || targetPath
-          const fullUrl = `/${publishedPath}`
+          const normalizedResourceUrl =
+            normalizeResourceUrl(result?.resourceUrl) ?? normalizeResourceUrl(resourceUrl)
+          const fallbackUrl = normalizeResourceUrl(publishedPath)
+          const fullUrl = normalizedResourceUrl || fallbackUrl || `/${publishedPath}`
           setPublishSuccess(fullUrl)
           setPublishError(null)
           setPublishVersionNote('')
+          const linkText = fullUrl
           replaceTempMessage(
             tempMessageId,
             buildMessage(
               'assistant',
               getTranslationFromI18nKeyAndLabel(
                 'lowcoder:ai_builder.publish_success_message',
-                `✅ **Screen published successfully!**\n\nYou can now access your screen at:\n${fullUrl}\n\nClick the link in the success banner to open it in a new tab.`,
-                { url: fullUrl }
+                `✅ **Screen published successfully!**\n\nOpen screen: [${linkText}](${linkText})`,
+                { url: linkText }
               )
             )
           )
