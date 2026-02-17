@@ -7,6 +7,7 @@ export const GET_EMPLOYEE_ABSENCES = `
       endDate
       startDate
       status
+      effectiveDays
       type {
         id
         value   
@@ -19,6 +20,24 @@ export const GET_EMPLOYEE_ABSENCES = `
       workingDays
       workingHours
       createdAt
+    }
+  }
+`
+
+// Daily absence facts for a date window, used to paint effective working days in the calendar
+export const GET_ABSENCE_DAILY_FACTS = `
+  query AbsenceFacts($employeeId: uuid!, $from: date!, $to: date!, $statuses: [String!]) {
+    DailyAbsenceFactView(
+      where: {
+        employeeId: { _eq: $employeeId }
+        dayDate: { _gte: $from, _lte: $to }
+        status: { _in: $statuses }
+      }
+    ) {
+      dayDate
+      dayFraction
+      status
+      typeRef
     }
   }
 `
