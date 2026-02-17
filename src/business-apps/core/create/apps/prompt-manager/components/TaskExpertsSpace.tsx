@@ -45,6 +45,7 @@ export const TaskExpertsSpace: React.FC<TaskExpertsSpaceProps> = ({
   const [meshStatus, setMeshStatus] = useState<string | null>(null)
 
   const { prompts, total, isLoading, error, reload } = useTaskExperts(context, {
+    workspaceId: 'all',
     search,
     limit: pagination.pageSize,
     offset: pagination.pageIndex * pagination.pageSize,
@@ -61,6 +62,7 @@ export const TaskExpertsSpace: React.FC<TaskExpertsSpaceProps> = ({
   useEffect(() => {
     if (refreshKey > 0) {
       reload({
+        workspaceId: 'all',
         search,
         limit: pagination.pageSize,
         offset: pagination.pageIndex * pagination.pageSize,
