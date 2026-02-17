@@ -1,7 +1,22 @@
-import React from 'react'
-import { useForm, UseFormReturn, FieldValues } from 'react-hook-form'
+import React, { useMemo } from 'react'
+import { useForm, UseFormReturn } from 'react-hook-form'
+import { z } from 'zod'
+import { zodResolver } from '@hookform/resolvers/zod'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { useTranslation, Spinner, Alert, AlertTitle, AlertDescription } from '@newwork/nw-design-system'
+import {
+  useTranslation,
+  Spinner,
+  Alert,
+  AlertTitle,
+  AlertDescription,
+  Form,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormMessage,
+  Textarea
+} from '@newwork/nw-design-system'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
 import FormHeader from '../components/FormHeader'
 import flowIconUrl from '@/assets/icons/flowSmall.svg'
@@ -9,15 +24,27 @@ import { BenefitDetailsList } from '../employee-benefit-review/components'
 import { useBenefitReviewData } from './hooks/useBenefitReviewData'
 import translations from '../_i18n'
 
+type BenefitReviewFormValues = { comments: string }
+
 export const RequestEmployeeBenefitReview: React.FC<BusinessAppContextProps> = ({
   accessToken,
   userInfo,
   additionalData
 }) => {
   const { t } = useTranslation(translations)
-  const form: UseFormReturn<FieldValues> = useForm({
-    defaultValues: {},
-    mode: 'onChange'
+  const benefitReviewFormSchema = useMemo(
+    () =>
+      z.object({
+        comments: z
+          .string()
+          .min(1, t('request-benefit-review-comments-required', { defaultValue: 'Comments are required' }))
+      }),
+    [t]
+  )
+  const form: UseFormReturn<BenefitReviewFormValues> = useForm({
+    defaultValues: { comments: '' },
+    mode: 'onChange',
+    resolver: zodResolver(benefitReviewFormSchema)
   })
 
   const { initiatorName, displayItems, benefitDetails, employee, isLoading, error } = useBenefitReviewData({
@@ -100,47 +127,71 @@ export const RequestEmployeeBenefitReview: React.FC<BusinessAppContextProps> = (
           cancelButtonText={t('request-benefit-review-reject', { defaultValue: 'Reject' })}
           submitButtonTestId="request-employee-benefit-review-confirm-button"
           cancelButtonTestId="request-employee-benefit-review-cancel-button"
-          onSubmit={async () => {
+          onSubmit={async (formData: BenefitReviewFormValues) => {
             return {
-              approval: 'approved'
+              approval: 'approved',
+              comments: formData.comments
             }
           }}
-          onCancel={async () => {
-            return {
-              approval: 'rejected'
-            }
-          }}
+          getCancelPayload={() => ({
+            approval: 'rejected',
+            comments: form.getValues().comments
+          })}
           data-testid="request-employee-benefit-review"
         >
-          {/* Benefit Details Section */}
-          <div className="gba:mb-6" data-testid="request-employee-benefit-review-details-section">
-            <h3 className="gba:text-lg gba:font-semibold gba:mb-4">
-              {t('request-benefit-review-benefit-details', { defaultValue: 'Benefit Details' })}
-            </h3>
-            <BenefitDetailsList
-              items={displayItems}
-              dataTestIdPrefix="request-employee-benefit-review"
-              translationPrefix="request-benefit-review"
-              t={t}
-            />
-          </div>
-
-          {/* Additional Information Section - Justification */}
-          {benefitDetails?.justification && (
-            <div className="gba:mb-4 gba:space-y-3" data-testid="request-employee-benefit-review-info-section">
+          <Form {...form}>
+            {/* Benefit Details Section */}
+            <div className="gba:mb-6" data-testid="request-employee-benefit-review-details-section">
               <h3 className="gba:text-lg gba:font-semibold gba:mb-4">
-                {t('request-benefit-review-additional-info', { defaultValue: 'Additional Information' })}
+                {t('request-benefit-review-benefit-details', { defaultValue: 'Benefit Details' })}
               </h3>
-
-              {/* Justification */}
-              <div data-testid="request-employee-benefit-review-justification">
-                <div className="gba:text-sm gba:text-muted-foreground gba:mb-1">
-                  {t('request-benefit-review-justification', { defaultValue: 'Justification' })}
-                </div>
-                <div className="gba:font-medium gba:whitespace-pre-wrap">{benefitDetails.justification}</div>
-              </div>
+              <BenefitDetailsList
+                items={displayItems}
+                dataTestIdPrefix="request-employee-benefit-review"
+                translationPrefix="request-benefit-review"
+                t={t}
+              />
+              <FormField
+                control={form.control}
+                name="comments"
+                render={({ field }) => (
+                  <FormItem className="gba:mt-4">
+                    <FormLabel className="gba:text-sm gba:font-normal gba:text-muted-foreground gba:mb-1">
+                      {t('request-benefit-review-comments', { defaultValue: 'Comment' })}
+                    </FormLabel>
+                    <FormControl>
+                      <Textarea
+                        {...field}
+                        placeholder={t('request-benefit-review-comments-placeholder', {
+                          defaultValue: 'Please Enter'
+                        })}
+                        className="gba:min-h-24"
+                        data-testid="request-employee-benefit-review-comments-input"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
-          )}
+
+            {/* Additional Information Section - Justification */}
+            {benefitDetails?.justification && (
+              <div className="gba:mb-4 gba:space-y-3" data-testid="request-employee-benefit-review-info-section">
+                <h3 className="gba:text-lg gba:font-semibold gba:mb-4">
+                  {t('request-benefit-review-additional-info', { defaultValue: 'Additional Information' })}
+                </h3>
+
+                {/* Justification */}
+                <div data-testid="request-employee-benefit-review-justification">
+                  <div className="gba:text-sm gba:text-muted-foreground gba:mb-1">
+                    {t('request-benefit-review-justification', { defaultValue: 'Justification' })}
+                  </div>
+                  <div className="gba:font-medium gba:whitespace-pre-wrap">{benefitDetails.justification}</div>
+                </div>
+              </div>
+            )}
+          </Form>
         </AppActionForm>
       </div>
     </div>
