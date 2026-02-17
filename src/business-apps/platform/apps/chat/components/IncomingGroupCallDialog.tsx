@@ -271,32 +271,46 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = m
       return () => clearInterval(interval)
     }, [])
 
-    // Play ringtone effect only in the ringing-leader tab (one tab per invite)
+    // Play ringtone effect only in the ringing-leader tab (one tab per invite).
+    // One AudioContext + oscillator per beep (original behavior); all cleaned up to avoid leaks.
+    const MAX_OPEN_CONTEXTS = 6
+
     useEffect(() => {
       if (!playRingtone) return
-      let audioContext: AudioContext | null = null
-      let oscillator: OscillatorNode | null = null
-      let gainNode: GainNode | null = null
+      const contexts: AudioContext[] = []
+      const pendingTimeouts: ReturnType<typeof setTimeout>[] = []
 
       const playRing = () => {
         try {
-          audioContext = new AudioContext()
-          oscillator = audioContext.createOscillator()
-          gainNode = audioContext.createGain()
-
+          while (contexts.length >= MAX_OPEN_CONTEXTS) {
+            const old = contexts.shift()
+            if (old) {
+              try {
+                old.close()
+              } catch {
+                // Already closed
+              }
+            }
+          }
+          const audioContext = new AudioContext()
+          contexts.push(audioContext)
+          const oscillator = audioContext.createOscillator()
+          const gainNode = audioContext.createGain()
           oscillator.connect(gainNode)
           gainNode.connect(audioContext.destination)
-
           oscillator.type = 'sine'
           oscillator.frequency.value = 440
-
           gainNode.gain.value = 0.1
-
           oscillator.start()
 
-          setTimeout(() => {
-            if (oscillator) oscillator.stop()
+          const id = setTimeout(() => {
+            try {
+              oscillator.stop()
+            } catch {
+              // Already stopped
+            }
           }, 200)
+          pendingTimeouts.push(id)
         } catch (e) {
           console.debug('Could not play ringtone:', e)
         }
@@ -307,16 +321,14 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = m
 
       return () => {
         clearInterval(ringInterval)
-        if (oscillator) {
+        pendingTimeouts.forEach(id => clearTimeout(id))
+        contexts.forEach(ctx => {
           try {
-            oscillator.stop()
+            ctx.close()
           } catch {
-            // Already stopped
+            // Already closed
           }
-        }
-        if (audioContext) {
-          audioContext.close()
-        }
+        })
       }
     }, [playRingtone])
 
