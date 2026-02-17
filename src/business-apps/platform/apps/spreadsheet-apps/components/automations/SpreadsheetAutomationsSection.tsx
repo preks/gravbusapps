@@ -989,6 +989,27 @@ function formatCompletionDateTime(value?: string): string | null {
   return date.toLocaleString()
 }
 
+function getRunStatusIconClass(status: AutomationRun['status']): string {
+  if (status === 'COMPLETED') return 'gba:text-success'
+  if (status === 'FAILED') return 'gba:text-destructive'
+  if (status === 'RUNNING') return 'gba:text-info gba:animate-spin'
+  return 'gba:text-muted-foreground'
+}
+
+function getRunProgressClass(status: AutomationRun['status']): string {
+  if (status === 'COMPLETED') return 'gba:bg-success'
+  if (status === 'FAILED') return 'gba:bg-destructive'
+  return 'gba:bg-primary'
+}
+
+function getSubmissionBadgeVariant(status: RunSubmission['status']): 'success' | 'info' {
+  return status === 'COMPLETED' ? 'success' : 'info'
+}
+
+function getSubmissionStatusLabel(status: RunSubmission['status']): 'Completed' | 'Sent' {
+  return status === 'COMPLETED' ? 'Completed' : 'Sent'
+}
+
 function openSafeSpreadsheetUrl(rawUrl: string): void {
   if (typeof globalThis.window === 'undefined' || !rawUrl) return
 
@@ -1150,19 +1171,7 @@ const RunDetailPanel: React.FC<RunDetailPanelProps> = ({ run, accessToken, 'data
       <CardContent className="gba:p-4">
         <div className="gba:mb-4">
           <h4 className="gba:flex gba:items-center gba:gap-2 gba:font-semibold gba:text-foreground">
-            {StatusIcon && (
-              <StatusIcon
-                className={`gba:w-5 gba:h-5 ${
-                  run.status === 'COMPLETED'
-                    ? 'gba:text-success'
-                    : run.status === 'FAILED'
-                      ? 'gba:text-destructive'
-                      : run.status === 'RUNNING'
-                        ? 'gba:text-info gba:animate-spin'
-                        : 'gba:text-muted-foreground'
-                }`}
-              />
-            )}
+            {StatusIcon && <StatusIcon className={`gba:w-5 gba:h-5 ${getRunStatusIconClass(run.status)}`} />}
             Run Details
           </h4>
           <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">
@@ -1180,13 +1189,7 @@ const RunDetailPanel: React.FC<RunDetailPanelProps> = ({ run, accessToken, 'data
           </div>
           <div className="gba:h-2 gba:bg-muted gba:rounded-full gba:overflow-hidden">
             <div
-              className={`gba:h-full gba:rounded-full ${
-                run.status === 'COMPLETED'
-                  ? 'gba:bg-success'
-                  : run.status === 'FAILED'
-                    ? 'gba:bg-destructive'
-                    : 'gba:bg-primary'
-              }`}
+              className={`gba:h-full gba:rounded-full ${getRunProgressClass(run.status)}`}
               style={{
                 width: `${run.recipientCount > 0 ? (run.completedCount / run.recipientCount) * 100 : 0}%`
               }}
@@ -1222,8 +1225,8 @@ const RunDetailPanel: React.FC<RunDetailPanelProps> = ({ run, accessToken, 'data
                       </div>
                     </div>
                     <div className="gba:flex gba:items-center gba:gap-2">
-                      <Badge variant={submission.status === 'COMPLETED' ? 'success' : 'info'}>
-                        {submission.status === 'COMPLETED' ? 'Completed' : 'Sent'}
+                      <Badge variant={getSubmissionBadgeVariant(submission.status)}>
+                        {getSubmissionStatusLabel(submission.status)}
                       </Badge>
                       {submission.status === 'COMPLETED' && (
                         <Button

@@ -77,6 +77,16 @@ export interface FortuneSheetGridHandle {
   applyRemoteCellUpdate: (rowIndex: number, colIndex: number, value: unknown) => void
 }
 
+function getBaseOrigin(): string {
+  return typeof globalThis.window !== 'undefined' ? globalThis.window.location.origin : ''
+}
+
+function openSafeHttpUrl(rawUrl: string): void {
+  if (typeof globalThis.window === 'undefined' || !rawUrl) return
+  if (!(rawUrl.startsWith('http://') || rawUrl.startsWith('https://'))) return
+  globalThis.window.open(rawUrl, '_blank', 'noopener,noreferrer')
+}
+
 /**
  * FortuneSheetGrid - Main wrapper component
  */
@@ -413,12 +423,8 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
             if (!rowData) return
             const url = rowData[column.name]
             if (typeof url !== 'string' || !url.trim()) return
-            const href = url.startsWith('/')
-              ? `${typeof window !== 'undefined' ? window.location.origin : ''}${url}`
-              : url
-            if (href.startsWith('http://') || href.startsWith('https://')) {
-              window.open(href, '_blank', 'noopener,noreferrer')
-            }
+            const href = url.startsWith('/') ? `${getBaseOrigin()}${url}` : url
+            openSafeHttpUrl(href)
           } catch {
             // getSelection can throw; ignore
           }
