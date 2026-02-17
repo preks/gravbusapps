@@ -162,14 +162,14 @@ export const NavigationTable: React.FC<NavigationTableProps> = ({
       if (edits.roles !== undefined) {
         updateData.roles = (edits.roles as string[]).map((roleId: string) => {
           const role = roleOptions.find(r => r.id === roleId)
-          return role?.name || roleId
+          return { name: role?.name || roleId }
         })
       }
 
       if (edits.features !== undefined) {
         updateData.features = (edits.features as string[]).map((featureId: string) => {
           const feature = featureOptions.find(f => f.id === featureId)
-          return feature?.name || featureId
+          return { name: feature?.name || featureId }
         })
       }
 
