@@ -7,7 +7,11 @@ import { useCallback, useMemo, useRef } from 'react'
 import type { CallParticipant, CallType } from '../../services/webrtcClient'
 import type { GroupCallInvite } from '../../services/callTypes'
 import { globalCallManager } from '../../services/globalCallManager'
-import { setActiveCallInStorage, clearActiveCallFromStorage } from '../../utils/activeCallStorage'
+import {
+  setActiveCallInStorage,
+  clearActiveCallFromStorage,
+  setDeclinedInviteInStorage
+} from '../../utils/activeCallStorage'
 import { runLeaveCall } from './runLeaveCall'
 import { runJoinCall } from './runJoinCall'
 import { runConfirmStartCall } from './runConfirmStartCall'
@@ -333,18 +337,23 @@ export function useRealtimeKitCallActions(params: UseRealtimeKitCallActionsOptio
 
   const declineInvite = useCallback(() => {
     if (!incomingInvite) return
+    const roomId = incomingInvite.roomId
+    const conversationId = incomingInvite.conversationId || incomingInvite.roomId
     try {
       media.stopAllTracks()
     } catch {
       // Best-effort
     }
     refs.startTimeRef.current = null
-    if (currentUser && wsClient?.getSocket()) {
-      wsClient.getSocket()?.emit('rtk-group-call:declined', {
-        conversationId: incomingInvite.conversationId || incomingInvite.roomId,
-        meetingId: incomingInvite.roomId,
-        participantId: currentUser.id
-      })
+    if (currentUser) {
+      setDeclinedInviteInStorage(currentUser.id, roomId, conversationId)
+      if (wsClient?.getSocket()) {
+        wsClient.getSocket()?.emit('rtk-group-call:declined', {
+          conversationId,
+          meetingId: roomId,
+          participantId: currentUser.id
+        })
+      }
     }
     setIncomingInvite(null)
   }, [incomingInvite, currentUser, wsClient, media, refs, setIncomingInvite])

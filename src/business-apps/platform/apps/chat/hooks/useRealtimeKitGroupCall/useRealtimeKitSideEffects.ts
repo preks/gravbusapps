@@ -5,11 +5,9 @@
 
 import { useEffect, type Dispatch, type SetStateAction } from 'react'
 import { toast } from '@newwork/nw-design-system'
-import { setActiveCallInStorage } from '../../utils/activeCallStorage'
+import { setActiveCallInStorage, ACTIVE_CALL_KEY, DECLINED_INVITE_KEY } from '../../utils/activeCallStorage'
 import type { RealtimeKitCallRefs } from './contextTypes'
 import type { GroupCallInvite } from '../../services/callTypes'
-
-const ACTIVE_CALL_KEY = 'newwork_active_call'
 
 /**
  * Effect-only hook. Runs media sync, join completion, quality metrics, transcript listener,
@@ -131,11 +129,38 @@ export function useRealtimeKitSideEffects(params: {
 
   useEffect(() => {
     const handleStorageChange = (event: StorageEvent) => {
-      if (event.key !== ACTIVE_CALL_KEY) return
-      if (event.newValue && incomingInvite && currentUser) {
+      if (!event.key || !incomingInvite || !currentUser) return
+
+      if (event.key === ACTIVE_CALL_KEY && event.newValue) {
         try {
           const data = JSON.parse(event.newValue)
           if (data.userId === currentUser.id && Date.now() - data.timestamp < 5000) {
+            try {
+              media.stopAllTracks()
+            } catch {
+              // Best-effort
+            }
+            refs.startTimeRef.current = null
+            setIncomingInvite(null)
+          }
+        } catch {
+          // ignore
+        }
+        return
+      }
+
+      if (event.key === DECLINED_INVITE_KEY && event.newValue) {
+        try {
+          const data = JSON.parse(event.newValue)
+          if (data.userId !== currentUser.id || Date.now() - data.timestamp > 5000) return
+          const inviteRoomId = incomingInvite.roomId
+          const inviteConversationId = incomingInvite.conversationId || incomingInvite.roomId
+          const matches =
+            data.roomId === inviteRoomId ||
+            data.conversationId === inviteRoomId ||
+            data.roomId === inviteConversationId ||
+            data.conversationId === inviteConversationId
+          if (matches) {
             try {
               media.stopAllTracks()
             } catch {

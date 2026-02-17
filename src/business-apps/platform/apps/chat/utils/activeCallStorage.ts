@@ -3,6 +3,7 @@
  */
 
 export const ACTIVE_CALL_KEY = 'chat_active_call'
+export const DECLINED_INVITE_KEY = 'chat_invite_declined'
 
 export function isInCallInAnotherTab(currentUserId: string): boolean {
   try {
@@ -34,6 +35,22 @@ export function setActiveCallInStorage(userId: string, roomId: string): void {
 export function clearActiveCallFromStorage(): void {
   try {
     localStorage.removeItem(ACTIVE_CALL_KEY)
+  } catch {
+    // Ignore storage errors
+  }
+}
+
+export function setDeclinedInviteInStorage(userId: string, roomId: string, conversationId?: string | null): void {
+  try {
+    localStorage.setItem(
+      DECLINED_INVITE_KEY,
+      JSON.stringify({
+        userId,
+        roomId,
+        conversationId: conversationId ?? undefined,
+        timestamp: Date.now()
+      })
+    )
   } catch {
     // Ignore storage errors
   }
