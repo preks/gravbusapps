@@ -40,7 +40,7 @@ interface PreviewSandboxProps {
 }
 
 export interface PreviewSandboxHandle {
-  reload: () => void
+  reload: (options?: { forceRebuild?: boolean }) => void
 }
 
 export const PreviewSandbox = forwardRef<PreviewSandboxHandle, PreviewSandboxProps>(function PreviewSandbox(
@@ -70,11 +70,14 @@ export const PreviewSandbox = forwardRef<PreviewSandboxHandle, PreviewSandboxPro
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const builderClient = useBuilderClient(accessToken ?? '')
 
-  const createPreviewUrl = (cacheBust: string) => {
+  const createPreviewUrl = (cacheBust: string, forceRebuild = false) => {
     const query: Record<string, string> = { v: cacheBust }
     const app = previewAppName?.trim()
     if (app) {
       query.app = app
+    }
+    if (forceRebuild) {
+      query.bundle = 'true'
     }
     return builderClient.getPreviewFileUrl(sessionId, 'index.html', query)
   }
@@ -82,11 +85,13 @@ export const PreviewSandbox = forwardRef<PreviewSandboxHandle, PreviewSandboxPro
   useImperativeHandle(
     ref,
     () => ({
-      reload() {
+      reload(options) {
+        const forceRebuild = options?.forceRebuild === true
         setIframeLoaded(false)
         const cacheBust = Date.now().toString()
+        const nextUrl = createPreviewUrl(cacheBust, forceRebuild)
         setBundleVersion(cacheBust)
-        setPreviewUrl(createPreviewUrl(cacheBust))
+        setPreviewUrl(nextUrl)
       }
     }),
     [builderClient, sessionId, previewAppName]
@@ -217,70 +222,75 @@ export const PreviewSandbox = forwardRef<PreviewSandboxHandle, PreviewSandboxPro
     )
   }
 
+  const showPreviewHeader = Boolean(
+    publishSuccess || onRefresh || (uniqueFileSummary && uniqueFileSummary.totalUniqueFiles > 0 && onPublish)
+  )
+
   return (
     <div className="gba:w-full gba:h-full gba:flex gba:flex-col">
-      {/* Preview Header */}
-      <div className="gba:flex-shrink-0 gba:border-b gba:border-border gba:bg-card gba:px-4 gba:py-2">
-        <div className="gba:flex gba:items-center gba:justify-between gba:gap-3">
-          <div className="gba:flex gba:items-center gba:gap-2 gba:flex-1 gba:min-w-0">
-            {publishSuccess ? (
-              <>
-                <CheckCircle className="gba:w-4 gba:h-4 gba:text-success gba:flex-shrink-0" />
-                <div className="gba:flex gba:items-center gba:gap-2 gba:flex-1 gba:min-w-0">
-                  <span className="gba:text-xs gba:font-medium gba:text-success gba:whitespace-nowrap">
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.publish_success', 'Published!')}
-                  </span>
-                  <a
-                    href={getSafeHref(publishSuccess)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="gba:text-xs gba:text-primary hover:gba:underline gba:truncate"
-                    title={publishSuccess}
-                  >
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.open_screen', 'Open screen')} →
-                  </a>
-                </div>
-                {onDismissPublishSuccess && (
-                  <button
-                    onClick={onDismissPublishSuccess}
-                    className="gba:text-muted-foreground hover:gba:text-foreground gba:flex-shrink-0"
-                  >
-                    <X className="gba:w-3 gba:h-3" />
-                  </button>
-                )}
-              </>
-            ) : (
-              <>
-                {uniqueFileSummary && uniqueFileSummary.totalUniqueFiles > 0 && onPublish && (
-                  <Button
-                    size="sm"
-                    variant="default"
-                    onClick={onPublish}
-                    className="gba:h-7 gba:px-3 gba:gap-1.5 gba:text-xs"
-                  >
-                    <Upload className="gba:w-3.5 gba:h-3.5" />
-                    {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.publish_button', 'Publish')}
-                  </Button>
-                )}
-              </>
-            )}
-          </div>
+      {showPreviewHeader && (
+        <div className="gba:shrink-0 gba:border-b gba:border-border gba:bg-card gba:px-4 gba:py-2">
+          <div className="gba:flex gba:items-center gba:justify-between gba:gap-3">
+            <div className="gba:flex gba:items-center gba:gap-2 gba:flex-1 gba:min-w-0">
+              {publishSuccess ? (
+                <>
+                  <CheckCircle className="gba:w-4 gba:h-4 gba:text-success gba:shrink-0" />
+                  <div className="gba:flex gba:items-center gba:gap-2 gba:flex-1 gba:min-w-0">
+                    <span className="gba:text-xs gba:font-medium gba:text-success gba:whitespace-nowrap">
+                      {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.publish_success', 'Published!')}
+                    </span>
+                    <a
+                      href={getSafeHref(publishSuccess)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="gba:text-xs gba:text-primary hover:gba:underline gba:truncate"
+                      title={publishSuccess}
+                    >
+                      {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.open_screen', 'Open screen')} →
+                    </a>
+                  </div>
+                  {onDismissPublishSuccess && (
+                    <button
+                      onClick={onDismissPublishSuccess}
+                      className="gba:text-muted-foreground hover:gba:text-foreground gba:shrink-0"
+                    >
+                      <X className="gba:w-3 gba:h-3" />
+                    </button>
+                  )}
+                </>
+              ) : (
+                <>
+                  {uniqueFileSummary && uniqueFileSummary.totalUniqueFiles > 0 && onPublish && (
+                    <Button
+                      size="sm"
+                      variant="default"
+                      onClick={onPublish}
+                      className="gba:h-7 gba:px-3 gba:gap-1.5 gba:text-xs"
+                    >
+                      <Upload className="gba:w-3.5 gba:h-3.5" />
+                      {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.publish_button', 'Publish')}
+                    </Button>
+                  )}
+                </>
+              )}
+            </div>
 
-          <div className="gba:flex gba:items-center gba:gap-1 gba:flex-shrink-0">
-            {onRefresh && (
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={onRefresh}
-                className="gba:h-7 gba:px-2"
-                title={getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.refresh_files', 'Refresh Files')}
-              >
-                <Download className="gba:w-3.5 gba:h-3.5" />
-              </Button>
-            )}
+            <div className="gba:flex gba:items-center gba:gap-1 gba:shrink-0">
+              {onRefresh && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={onRefresh}
+                  className="gba:h-7 gba:px-2"
+                  title={getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.refresh_files', 'Refresh Files')}
+                >
+                  <Download className="gba:w-3.5 gba:h-3.5" />
+                </Button>
+              )}
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Preview Content */}
       <div className="gba:flex-1 gba:relative">

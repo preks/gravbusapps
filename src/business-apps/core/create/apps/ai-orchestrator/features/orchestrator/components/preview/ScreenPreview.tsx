@@ -2,10 +2,10 @@
  * ScreenPreview - Live preview of generated screens using AI Builder PreviewSandbox
  */
 
-import React from 'react'
-import { Alert, AlertDescription, AlertTitle, Spinner } from '@newwork/nw-design-system'
+import React, { useEffect, useRef } from 'react'
+import { Alert, AlertDescription, AlertTitle, Spinner, cn } from '@newwork/nw-design-system'
 import { AlertCircle } from 'lucide-react'
-import { PreviewSandbox } from '@/common/components/ai-builder/sandbox/PreviewSandbox'
+import { PreviewSandbox, type PreviewSandboxHandle } from '@/common/components/ai-builder/sandbox/PreviewSandbox'
 import type { ComponentSpec } from '../../types'
 
 export interface ScreenPreviewProps {
@@ -14,9 +14,24 @@ export interface ScreenPreviewProps {
   accessToken: string
   userInfo?: any
   onClose?: () => void
+  refreshToken?: number
+  isFixWorking?: boolean
 }
 
-export const ScreenPreview: React.FC<ScreenPreviewProps> = ({ component, accessToken, userInfo }) => {
+export const ScreenPreview: React.FC<ScreenPreviewProps> = ({
+  component,
+  accessToken,
+  userInfo,
+  refreshToken,
+  isFixWorking = false
+}) => {
+  const previewRef = useRef<PreviewSandboxHandle>(null)
+
+  useEffect(() => {
+    if (!refreshToken) return
+    previewRef.current?.reload({ forceRebuild: true })
+  }, [refreshToken])
+
   // Loading state
   if (!accessToken) {
     return (
@@ -44,14 +59,24 @@ export const ScreenPreview: React.FC<ScreenPreviewProps> = ({ component, accessT
   }
 
   return (
-    <div className="gba:h-full gba:min-h-[600px] gba:flex gba:flex-col">
-      <PreviewSandbox
-        repoId={component.metadata!.repoId!}
-        sessionId={component.metadata!.sessionId!}
-        previewAppName={component.screenSpec?.name || component.name.replace(/\s+/g, '')}
-        accessToken={accessToken}
-        userInfo={userInfo}
-      />
+    <div className="gba:h-full gba:min-h-[600px] gba:flex gba:flex-col gba:p-3">
+      <div
+        className={cn(
+          'gba:flex-1 gba:min-h-0 gba:rounded-xl gba:border gba:bg-card/30 gba:overflow-hidden gba:transition-all gba:duration-300',
+          isFixWorking
+            ? 'gba:border-blue-400/80 dark:gba:border-blue-400/60 gba:shadow-[0_0_0_1px_rgba(96,165,250,0.5),0_0_20px_rgba(59,130,246,0.35),0_10px_28px_rgba(37,99,235,0.18)] gba:animate-pulse'
+            : 'gba:border-blue-300/70 dark:gba:border-blue-500/40 gba:shadow-[0_0_0_1px_rgba(147,197,253,0.25),0_10px_28px_rgba(37,99,235,0.12)]'
+        )}
+      >
+        <PreviewSandbox
+          ref={previewRef}
+          repoId={component.metadata!.repoId!}
+          sessionId={component.metadata!.sessionId!}
+          previewAppName={component.screenSpec?.name || component.name.replace(/\s+/g, '')}
+          accessToken={accessToken}
+          userInfo={userInfo}
+        />
+      </div>
     </div>
   )
 }
