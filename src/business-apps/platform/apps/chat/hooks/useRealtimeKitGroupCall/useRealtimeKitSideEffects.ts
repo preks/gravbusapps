@@ -6,6 +6,7 @@
 import { useEffect, type Dispatch, type SetStateAction } from 'react'
 import { toast } from '@newwork/nw-design-system'
 import { setActiveCallInStorage, ACTIVE_CALL_KEY, DECLINED_INVITE_KEY } from '../../utils/activeCallStorage'
+import { clearRingingLeader } from '../../utils/ringingLeader'
 import type { RealtimeKitCallRefs } from './contextTypes'
 import type { GroupCallInvite } from '../../services/callTypes'
 
@@ -36,6 +37,7 @@ export function useRealtimeKitSideEffects(params: {
   refs: RealtimeKitCallRefs
   activeConversationCalls: Map<string, any>
   setIncomingInvite: Dispatch<SetStateAction<GroupCallInvite | null>>
+  setRingingLeader: Dispatch<SetStateAction<boolean>>
   incomingInvite: GroupCallInvite | null
   stopDurationTimer: () => void
   combinedCallState: any
@@ -54,6 +56,7 @@ export function useRealtimeKitSideEffects(params: {
     refs,
     activeConversationCalls,
     setIncomingInvite,
+    setRingingLeader,
     incomingInvite,
     stopDurationTimer,
     combinedCallState,
@@ -141,6 +144,8 @@ export function useRealtimeKitSideEffects(params: {
               // Best-effort
             }
             refs.startTimeRef.current = null
+            clearRingingLeader(incomingInvite.roomId, incomingInvite.conversationId)
+            setRingingLeader(false)
             setIncomingInvite(null)
           }
         } catch {
@@ -167,6 +172,8 @@ export function useRealtimeKitSideEffects(params: {
               // Best-effort
             }
             refs.startTimeRef.current = null
+            clearRingingLeader(incomingInvite.roomId, incomingInvite.conversationId)
+            setRingingLeader(false)
             setIncomingInvite(null)
           }
         } catch {
@@ -176,7 +183,7 @@ export function useRealtimeKitSideEffects(params: {
     }
     globalThis.addEventListener('storage', handleStorageChange)
     return () => globalThis.removeEventListener('storage', handleStorageChange)
-  }, [incomingInvite, currentUser, media, refs, setIncomingInvite])
+  }, [incomingInvite, currentUser, media, refs, setIncomingInvite, setRingingLeader])
 
   useEffect(() => {
     if (!callState.roomId || !isInCall) return

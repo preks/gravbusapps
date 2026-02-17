@@ -12,6 +12,7 @@ import {
   clearActiveCallFromStorage,
   setDeclinedInviteInStorage
 } from '../../utils/activeCallStorage'
+import { clearRingingLeader } from '../../utils/ringingLeader'
 import { runLeaveCall } from './runLeaveCall'
 import { runJoinCall } from './runJoinCall'
 import { runConfirmStartCall } from './runConfirmStartCall'
@@ -31,6 +32,7 @@ export interface UseRealtimeKitCallActionsOptions {
   setCallState: React.Dispatch<React.SetStateAction<any>>
   incomingInvite: GroupCallInvite | null
   setIncomingInvite: React.Dispatch<React.SetStateAction<GroupCallInvite | null>>
+  setRingingLeader: React.Dispatch<React.SetStateAction<boolean>>
   activeConversationCalls: Map<string, any>
   setActiveConversationCalls: React.Dispatch<React.SetStateAction<Map<string, any>>>
   refs: RealtimeKitCallRefs
@@ -71,6 +73,7 @@ export function useRealtimeKitCallActions(params: UseRealtimeKitCallActionsOptio
     setCallState,
     incomingInvite,
     setIncomingInvite,
+    setRingingLeader,
     activeConversationCalls,
     setActiveConversationCalls,
     refs,
@@ -355,8 +358,10 @@ export function useRealtimeKitCallActions(params: UseRealtimeKitCallActionsOptio
         })
       }
     }
+    clearRingingLeader(roomId, conversationId)
+    setRingingLeader(false)
     setIncomingInvite(null)
-  }, [incomingInvite, currentUser, wsClient, media, refs, setIncomingInvite])
+  }, [incomingInvite, currentUser, wsClient, media, refs, setIncomingInvite, setRingingLeader])
 
   const leaveCall = useCallback(async () => {
     await runLeaveCall({

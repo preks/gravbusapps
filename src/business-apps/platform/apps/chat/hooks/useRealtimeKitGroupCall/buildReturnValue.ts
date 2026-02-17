@@ -36,6 +36,7 @@ export function buildReturnValue(params: {
   websocket: { sendReaction: (emoji: string) => Promise<void> }
   activeSpeaker: { activeSpeakerId: string | null; activeSpeakerHistory: string[] }
   incomingInvite: any
+  isRingingLeader: boolean
   activeConversationCalls: Map<string, any>
   callState: { conversationName?: string; transcriptionEnabled: boolean }
   initiateCall: (
@@ -78,6 +79,7 @@ export function buildReturnValue(params: {
     websocket,
     activeSpeaker,
     incomingInvite,
+    isRingingLeader,
     activeConversationCalls,
     callState,
     initiateCall,
@@ -107,6 +109,7 @@ export function buildReturnValue(params: {
     participants: participantsHook.participants,
     pendingInvites: participantsHook.pendingInvites,
     incomingInvite,
+    isRingingLeader,
     activeConversationCalls,
     currentCallConversationName: callState.conversationName,
     activeSpeakerId: activeSpeaker.activeSpeakerId,

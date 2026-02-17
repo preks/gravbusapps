@@ -41,6 +41,7 @@ import { MicLevelIndicator } from './call/MicLevelIndicator'
 
 interface IncomingGroupCallDialogProps {
   invite: GroupCallInvite
+  playRingtone?: boolean
   userName?: string
   userAvatarUrl?: string
   onAccept: (preferences: {
@@ -78,7 +79,15 @@ const PulsingRing: React.FC<{ colorClass?: string }> = ({ colorClass = 'gba:bg-p
 )
 
 export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = memo(
-  ({ invite, userName, userAvatarUrl, onAccept, onDecline, prefixDataTestId = 'incoming-group-call-dialog' }) => {
+  ({
+    invite,
+    playRingtone = false,
+    userName,
+    userAvatarUrl,
+    onAccept,
+    onDecline,
+    prefixDataTestId = 'incoming-group-call-dialog'
+  }) => {
     const t = useChatTranslation()
     const [ringCount, setRingCount] = useState(0)
     const [isJoining, setIsJoining] = useState(false)
@@ -262,8 +271,9 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = m
       return () => clearInterval(interval)
     }, [])
 
-    // Play ringtone effect
+    // Play ringtone effect only in the ringing-leader tab (one tab per invite)
     useEffect(() => {
+      if (!playRingtone) return
       let audioContext: AudioContext | null = null
       let oscillator: OscillatorNode | null = null
       let gainNode: GainNode | null = null
@@ -308,7 +318,7 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = m
           audioContext.close()
         }
       }
-    }, [])
+    }, [playRingtone])
 
     return (
       <Dialog open={true} onOpenChange={() => {}}>
@@ -652,12 +662,12 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = m
     )
   },
   (prevProps, nextProps) => {
-    // Only re-render if invite or testId changes
     return (
       prevProps.invite.roomId === nextProps.invite.roomId &&
       prevProps.invite.callType === nextProps.invite.callType &&
       prevProps.invite.from.id === nextProps.invite.from.id &&
       prevProps.invite.conversationName === nextProps.invite.conversationName &&
+      prevProps.playRingtone === nextProps.playRingtone &&
       prevProps.prefixDataTestId === nextProps.prefixDataTestId
     )
   }
