@@ -648,6 +648,19 @@ const ChatInner: React.FC<ChatProps> = memo(
       }
     }, [conversations, setActiveConversation, setShowConversationList, apiClient])
 
+    // Notify calendar to refresh when a meeting is created (so other participants see it without reload)
+    useEffect(() => {
+      const socket = wsClient?.getSocket()
+      if (!socket) return
+      const onMeetingCreated = () => {
+        window.dispatchEvent(new CustomEvent('calendar:refresh'))
+      }
+      socket.on('meeting_created', onMeetingCreated)
+      return () => {
+        socket.off('meeting_created', onMeetingCreated)
+      }
+    }, [wsClient])
+
     // Handle URL parameters for context and AI agent conversations (only once)
     useEffect(() => {
       // Only process URL params once when user is connected

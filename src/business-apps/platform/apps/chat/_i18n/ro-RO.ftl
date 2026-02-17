@@ -422,6 +422,7 @@ calendar-today = Astăzi
 calendar-viewDay = Zi
 calendar-viewWeek = Săptămână
 calendar-viewMonth = Lună
+calendar-refresh = Reîmprospătează calendarul
 
 # Calendar - CreateMeetingModal
 calendar-scheduleMeeting = Programează Întâlnire

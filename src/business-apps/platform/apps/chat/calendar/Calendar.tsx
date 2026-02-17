@@ -74,6 +74,7 @@ const CalendarInner: React.FC<CalendarProps> = ({
     cancelMeeting,
     respondToInvitation,
     refresh,
+    refreshInvitations,
     dateRange,
     viewTitle
   } = useCalendar({
@@ -211,6 +212,16 @@ const CalendarInner: React.FC<CalendarProps> = ({
       window.removeEventListener('switchToCalendar', handleSwitchEvent)
     }
   }, [events, setCurrentDate, setView, selectEvent, refresh])
+
+  // Refresh calendar when backend sends meeting_created (so user sees new meetings without reload)
+  useEffect(() => {
+    const onCalendarRefresh = () => {
+      refresh()
+      refreshInvitations()
+    }
+    window.addEventListener('calendar:refresh', onCalendarRefresh)
+    return () => window.removeEventListener('calendar:refresh', onCalendarRefresh)
+  }, [refresh, refreshInvitations])
 
   // Handle event click
   const handleEventClick = useCallback(
@@ -503,6 +514,10 @@ const CalendarInner: React.FC<CalendarProps> = ({
         onNext={goToNext}
         onToday={goToToday}
         onCreateMeeting={handleCreateButtonClick}
+        onRefresh={() => {
+          refresh()
+          refreshInvitations()
+        }}
         pendingInvitationsCount={pendingInvitations.length}
       />
 
