@@ -219,8 +219,8 @@ const CalendarInner: React.FC<CalendarProps> = ({
       refresh()
       refreshInvitations()
     }
-    window.addEventListener('calendar:refresh', onCalendarRefresh)
-    return () => window.removeEventListener('calendar:refresh', onCalendarRefresh)
+    globalThis.addEventListener('calendar:refresh', onCalendarRefresh)
+    return () => globalThis.removeEventListener('calendar:refresh', onCalendarRefresh)
   }, [refresh, refreshInvitations])
 
   // Handle event click

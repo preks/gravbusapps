@@ -473,7 +473,7 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
             onOpenChat={conversationId => {
               setActiveTab('chat')
               setTimeout(() => {
-                window.dispatchEvent(new CustomEvent('chat:open-with-conversation', { detail: { conversationId } }))
+                globalThis.dispatchEvent(new CustomEvent('chat:open-with-conversation', { detail: { conversationId } }))
               }, 100)
             }}
             {...props}

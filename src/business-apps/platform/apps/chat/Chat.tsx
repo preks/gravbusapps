@@ -611,9 +611,10 @@ const ChatInner: React.FC<ChatProps> = memo(
           setActiveConversation(conversation)
           setShowConversationList(false)
           try {
-            window.dispatchEvent(new CustomEvent('chat:conversation-ready'))
-            if (window.parent !== window) {
-              window.parent.postMessage({ type: 'CHAT_CONVERSATION_READY' }, '*')
+            globalThis.dispatchEvent(new CustomEvent('chat:conversation-ready'))
+            const g = globalThis as unknown as Window
+            if (g.parent !== g) {
+              g.parent.postMessage({ type: 'CHAT_CONVERSATION_READY' }, '*')
             }
           } catch {
             // ignore
@@ -628,9 +629,10 @@ const ChatInner: React.FC<ChatProps> = memo(
               setActiveConversation(fetchedConversation)
               setShowConversationList(false)
               try {
-                window.dispatchEvent(new CustomEvent('chat:conversation-ready'))
-                if (window.parent !== window) {
-                  window.parent.postMessage({ type: 'CHAT_CONVERSATION_READY' }, '*')
+                globalThis.dispatchEvent(new CustomEvent('chat:conversation-ready'))
+                const g = globalThis as unknown as Window
+                if (g.parent !== g) {
+                  g.parent.postMessage({ type: 'CHAT_CONVERSATION_READY' }, '*')
                 }
               } catch {
                 // ignore
@@ -642,9 +644,9 @@ const ChatInner: React.FC<ChatProps> = memo(
         }
       }
 
-      window.addEventListener('chat:open-with-conversation', handleOpenWithConversation)
+      globalThis.addEventListener('chat:open-with-conversation', handleOpenWithConversation)
       return () => {
-        window.removeEventListener('chat:open-with-conversation', handleOpenWithConversation)
+        globalThis.removeEventListener('chat:open-with-conversation', handleOpenWithConversation)
       }
     }, [conversations, setActiveConversation, setShowConversationList, apiClient])
 
@@ -653,13 +655,13 @@ const ChatInner: React.FC<ChatProps> = memo(
       const socket = wsClient?.getSocket()
       if (!socket) return
       const onMeetingCreated = () => {
-        window.dispatchEvent(new CustomEvent('calendar:refresh'))
+        globalThis.dispatchEvent(new CustomEvent('calendar:refresh'))
       }
       const onMeetingUpdated = () => {
-        window.dispatchEvent(new CustomEvent('calendar:refresh'))
+        globalThis.dispatchEvent(new CustomEvent('calendar:refresh'))
       }
       const onMeetingDeleted = () => {
-        window.dispatchEvent(new CustomEvent('calendar:refresh'))
+        globalThis.dispatchEvent(new CustomEvent('calendar:refresh'))
       }
       socket.on('meeting_created', onMeetingCreated)
       socket.on('meeting_updated', onMeetingUpdated)

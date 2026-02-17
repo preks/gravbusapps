@@ -5,7 +5,7 @@
 
 import { useCallback, useMemo, useRef } from 'react'
 import type { CallParticipant, CallType } from '../../services/webrtcClient'
-import type { GroupCallInvite } from '../../services/callTypes'
+import type { GroupCallInvite, CallConversationType } from '../../services/callTypes'
 import { globalCallManager } from '../../services/globalCallManager'
 import {
   setActiveCallInStorage,
@@ -18,6 +18,15 @@ import { runJoinCall } from './runJoinCall'
 import { runConfirmStartCall } from './runConfirmStartCall'
 import { buildJoinCallWrapper } from './buildJoinCallWrapper'
 import type { RealtimeKitCallRefs } from './contextTypes'
+
+function resolveConversationType(
+  calendarMeetingId: string | null | undefined,
+  participants: CallParticipant[]
+): CallConversationType {
+  if (calendarMeetingId) return 'meeting'
+  if (participants.length === 2) return 'direct'
+  return 'group'
+}
 
 export interface UseRealtimeKitCallActionsOptions {
   options: {
@@ -130,7 +139,7 @@ export function useRealtimeKitCallActions(params: UseRealtimeKitCallActionsOptio
       participants: CallParticipant[],
       conversationName?: string,
       calendarMeetingId?: string | null,
-      conversationType?: 'direct' | 'group' | 'meeting'
+      conversationType?: CallConversationType
     ) => {
       if (!currentUser || !apiClient) return
       refs.isCancelledRef.current = false
@@ -206,13 +215,7 @@ export function useRealtimeKitCallActions(params: UseRealtimeKitCallActionsOptio
       conversationName?: string,
       calendarMeetingId?: string | null
     ) => {
-      // Derive conversationType from call context: only "meeting" when this is a scheduled calendar meeting.
-      // Group and direct calls must not be labeled as meeting.
-      const conversationType: 'direct' | 'group' | 'meeting' = calendarMeetingId
-        ? 'meeting'
-        : participants.length === 2
-          ? 'direct'
-          : 'group'
+      const conversationType = resolveConversationType(calendarMeetingId, participants)
       initiateCall(conversationId, callType, participants, conversationName, calendarMeetingId, conversationType)
       await confirmStartCall({
         micEnabled: true,
@@ -237,7 +240,7 @@ export function useRealtimeKitCallActions(params: UseRealtimeKitCallActionsOptio
         audioInputDeviceId?: string | null
         videoInputDeviceId?: string | null
       },
-      conversationType?: 'direct' | 'group' | 'meeting'
+      conversationType?: CallConversationType
     ) => {
       await runJoinCall(
         {
