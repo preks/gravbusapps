@@ -41,6 +41,30 @@ export interface CreateCaseResponse {
   message: string
 }
 
+/** Payload for DELETE /cases/:caseId – soft delete with optional flow termination. */
+export interface DeleteCasePayload {
+  deletedBy: string
+  terminateFlows: boolean
+}
+
+/** Payload for POST /cases/:caseId/flows – add one flow (template) to a case. One flow per request. */
+export interface AddFlowToCasePayload {
+  templateId: string
+  initiator: string
+  /** Optional initial context for the flow (e.g. employeeName, department). Start with {}; extend when template requires specific keys. */
+  inputValues?: Record<string, unknown>
+  /**
+   * Required when template has steps with assignmentMode ASSIGN and targets null (runtime assignment).
+   * Map step id -> userId to assign that step to (e.g. { step_0: "user-uuid" }).
+   */
+  stepAssignments?: Record<string, string>
+}
+
+/** Response from POST /cases/:caseId/flows – returns the linked workflow id. */
+export interface AddFlowToCaseResponse {
+  workflowId?: string
+}
+
 /** Response from GET /cases – backend returns { status, data: { success, cases, total } }. */
 export interface GetCasesListData {
   success: boolean
@@ -84,6 +108,8 @@ export interface UseCasesResult {
   refetch: () => Promise<void>
   createCase: (payload: CreateCasePayload) => Promise<CreateCaseResponse>
   getCase: (caseId: string) => Promise<FlowEngineCase | null>
+  addFlowToCase: (caseId: string, payload: AddFlowToCasePayload) => Promise<AddFlowToCaseResponse>
+  deleteCase: (caseId: string, payload: DeleteCasePayload) => Promise<void>
 }
 
 export interface UseCaseResult {
@@ -177,7 +203,36 @@ export function useCases(accessToken: string): UseCasesResult {
     [client, headers]
   )
 
-  return { cases, total, loading, error, refetch, createCase, getCase }
+  const addFlowToCase = useCallback(
+    async (caseId: string, payload: AddFlowToCasePayload): Promise<AddFlowToCaseResponse> => {
+      const body: Record<string, unknown> = {
+        templateId: payload.templateId,
+        initiator: payload.initiator,
+        inputValues: payload.inputValues ?? {},
+        runtimeAssignments: {}
+      }
+      const res = await client.post<{ data?: AddFlowToCaseResponse; workflowId?: string }>(
+        `/cases/${caseId}/flows`,
+        body,
+        { headers }
+      )
+      const out = (res as any)?.data ?? res
+      return { workflowId: out?.workflowId }
+    },
+    [client, headers]
+  )
+
+  const deleteCase = useCallback(
+    async (caseId: string, payload: DeleteCasePayload): Promise<void> => {
+      await client.delete(`/cases/${caseId}`, {
+        headers,
+        body: payload
+      })
+    },
+    [client, headers]
+  )
+
+  return { cases, total, loading, error, refetch, createCase, getCase, addFlowToCase, deleteCase }
 }
 
 /** Hook to fetch a single case by id (for detail page). */

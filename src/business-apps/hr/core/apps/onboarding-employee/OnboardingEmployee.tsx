@@ -7,6 +7,7 @@ import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
 import { OnboardingCasesView } from './views/onboarding-cases-view/OnboardingCasesView'
 import { OnboardingCaseDetailView } from './views/onboarding-case-detail-view/OnboardingCaseDetailView'
 import { OnboardingTicketsView } from './views/onboarding-tickets-view/OnboardingTicketsView'
+import { OnboardingFlowsView } from './views/onboarding-flows-view/OnboardingFlowsView'
 import onboardingI18n from './_i18n'
 
 const moduleColor = MODULE_COLORS.HR
@@ -44,6 +45,13 @@ export const OnboardingEmployee: React.FC<BusinessAppContextProps> = context => 
   const { t } = useTranslation(onboardingI18n)
   const [caseId, setCaseId] = useState<string | null>(getCaseIdFromUrl)
 
+  // Force re-render after mount so i18n bundle is resolved (useTranslation registers FTL async on first paint)
+  const [, setI18nReady] = useState(false)
+  useEffect(() => {
+    const id = setTimeout(() => setI18nReady(true), 0)
+    return () => clearTimeout(id)
+  }, [])
+
   const getInitialView = () => {
     const urlParams = new URLSearchParams(globalThis.window.location.search)
     const viewFromUrl = urlParams.get('view')
@@ -62,8 +70,8 @@ export const OnboardingEmployee: React.FC<BusinessAppContextProps> = context => 
       if (overrides.caseId) urlParams.set('caseId', overrides.caseId)
       else urlParams.delete('caseId')
     }
-    const newUrl = `${globalThis.window.location.pathname}?${urlParams.toString()}`
-    globalThis.window.history.replaceState({}, '', newUrl)
+    const newUrl = `${window.location.pathname}?${urlParams.toString()}`
+    window.history.replaceState({}, '', newUrl)
   }
 
   const handleTabChange = (key: string) => {
@@ -78,7 +86,7 @@ export const OnboardingEmployee: React.FC<BusinessAppContextProps> = context => 
   }
 
   useEffect(() => {
-    const urlParams = new URLSearchParams(globalThis.window.location.search)
+    const urlParams = new URLSearchParams(window.location.search)
     if (!urlParams.has('view')) {
       updateUrl(activeTab)
     }
@@ -94,8 +102,8 @@ export const OnboardingEmployee: React.FC<BusinessAppContextProps> = context => 
       setActiveTab(getInitialView())
       setCaseId(getCaseIdFromUrl())
     }
-    globalThis.window.addEventListener('popstate', handlePopState)
-    return () => globalThis.window.removeEventListener('popstate', handlePopState)
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
   }, [])
 
   const activeTabInfo = VIEW_OPTIONS.find(opt => opt.key === activeTab) ?? VIEW_OPTIONS[0]
@@ -120,7 +128,7 @@ export const OnboardingEmployee: React.FC<BusinessAppContextProps> = context => 
       case 'tickets':
         return <OnboardingTicketsView {...context} />
       case 'flows':
-        return <div>Flows</div>
+        return <OnboardingFlowsView {...context} />
       default:
         return null
     }

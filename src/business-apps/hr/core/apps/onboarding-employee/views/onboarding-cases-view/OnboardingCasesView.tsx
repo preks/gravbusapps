@@ -10,11 +10,14 @@ import {
   TableRow,
   Badge,
   Button,
+  Icon,
   useTranslation,
   Spinner
 } from '@newwork/nw-design-system'
+import { EyeIcon, XIcon } from '@phosphor-icons/react'
 import { getStatusLabel } from './utils/statusLabels'
 import { CreateCaseForm } from '../../components/create-case-form/CreateCaseForm'
+import { ConfirmActionButton } from '../../components/confirm-action-button/ConfirmActionButton'
 import { useCases } from '../../hooks/useCases'
 import onboardingI18n from '../../_i18n'
 
@@ -30,7 +33,7 @@ export const OnboardingCasesView: React.FC<OnboardingCasesViewProps> = ({
   onNavigateToCase
 }) => {
   const { t } = useTranslation(onboardingI18n)
-  const { cases, total, loading, error, refetch } = useCases(accessToken)
+  const { cases, total, loading, error, refetch, deleteCase } = useCases(accessToken)
 
   const [search, setSearch] = useState('')
 
@@ -43,6 +46,7 @@ export const OnboardingCasesView: React.FC<OnboardingCasesViewProps> = ({
         onSuccess={refetch}
         accessToken={accessToken}
         currentEmployeeId={userInfo?.employeeDetails?.employeeId}
+        currentUserId={userInfo?.id}
       />
     ),
     [t, accessToken, userInfo, refetch]
@@ -115,7 +119,7 @@ export const OnboardingCasesView: React.FC<OnboardingCasesViewProps> = ({
                     {t('onboarding-employee-column-updated')}
                   </TableHead>
                   <TableHead className="gba:w-[100px] gba:font-semibold gba:py-3 gba:px-4 gba:text-right">
-                    {/* Actions column */}
+                    {t('onboarding-employee-column-actions')}
                   </TableHead>
                 </TableRow>
               </TableHeader>
@@ -166,14 +170,33 @@ export const OnboardingCasesView: React.FC<OnboardingCasesViewProps> = ({
                         <TableCell className="gba:py-3 gba:px-4 gba:text-sm">{formatDate(row.createdAt)}</TableCell>
                         <TableCell className="gba:py-3 gba:px-4 gba:text-sm">{formatDate(row.updatedAt)}</TableCell>
                         <TableCell className="gba:py-3 gba:px-4 gba:text-right">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            data-testid={`view-case-${row.caseId}`}
-                            onClick={() => onNavigateToCase?.(row.caseId)}
-                          >
-                            {t('onboarding-employee-action-view')}
-                          </Button>
+                          <div className="gba:flex gba:items-center gba:justify-end gba:gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              data-testid={`view-case-${row.caseId}`}
+                              onClick={() => onNavigateToCase?.(row.caseId)}
+                              aria-label={t('onboarding-employee-action-view')}
+                            >
+                              <Icon icon={EyeIcon} />
+                            </Button>
+                            <ConfirmActionButton
+                              triggerIcon={XIcon}
+                              title={t('onboarding-employee-cancel-case-dialog-title')}
+                              description={t('onboarding-employee-cancel-case-dialog-description')}
+                              confirmLabel={t('onboarding-employee-cancel-case-dialog-confirm')}
+                              cancelLabel={t('onboarding-employee-cancel-case-dialog-cancel')}
+                              onConfirm={async () => {
+                                await deleteCase(row.caseId, {
+                                  deletedBy: userInfo?.id ?? '',
+                                  terminateFlows: true
+                                })
+                                await refetch()
+                              }}
+                              ariaLabel={t('onboarding-employee-cancel-case-dialog-title')}
+                              data-testid={`cancel-case-${row.caseId}`}
+                            />
+                          </div>
                         </TableCell>
                       </TableRow>
                     )
