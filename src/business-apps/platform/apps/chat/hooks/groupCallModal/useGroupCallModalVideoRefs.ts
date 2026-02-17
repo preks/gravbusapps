@@ -4,7 +4,6 @@
 
 import { useRef, useState, useCallback } from 'react'
 import { isMobileDevice } from '../../utils/groupCallModalUtils'
-import { rtkDebug } from '../../utils/rtkDebug'
 import type { GroupCallModalRtkProps } from '../../components/call/groupCallModalTypes'
 
 export function useGroupCallModalVideoRefs(props: Pick<GroupCallModalRtkProps, 'callState'>) {
@@ -40,7 +39,7 @@ export function useGroupCallModalVideoRefs(props: Pick<GroupCallModalRtkProps, '
   const videoRefCallbacksRef = useRef<Map<string, (el: HTMLVideoElement | null) => void>>(new Map())
 
   const getVideoRefCallback = useCallback(
-    (peerId: string, peerName: string, isLocal: boolean) => {
+    (peerId: string, _peerName: string, isLocal: boolean) => {
       if (videoRefCallbacksRef.current.has(peerId)) {
         return videoRefCallbacksRef.current.get(peerId)!
       }
@@ -56,13 +55,6 @@ export function useGroupCallModalVideoRefs(props: Pick<GroupCallModalRtkProps, '
             setVideoElementsVersion(v => v + 1)
           }
         } else {
-          rtkDebug.log(`[RTK Modal] 🗑️ Video element destroyed for ${isLocal ? 'local' : 'peer'}`, {
-            peerId,
-            peerName,
-            isLocal,
-            isMinimized: callState.isMinimized,
-            timestamp: Date.now()
-          })
           if (isLocal) {
             setLocalVideoRef(null)
           } else {

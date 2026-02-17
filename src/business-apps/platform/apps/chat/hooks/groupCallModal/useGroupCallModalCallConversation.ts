@@ -3,7 +3,6 @@
  */
 
 import { useState, useRef, useEffect } from 'react'
-import { rtkDebug } from '../../utils/rtkDebug'
 import { ConversationType } from '../../types'
 import type { GroupCallModalRtkProps } from '../../components/call/groupCallModalTypes'
 
@@ -32,16 +31,6 @@ export function useGroupCallModalCallConversation(props: GroupCallModalRtkProps)
     const chatConversationId = callState.calendarMeetingId || callState.roomId
 
     if (callConversationRef.current?.id !== chatConversationId) {
-      rtkDebug.log('[RTK Modal] Creating call conversation for chat:', {
-        roomId: callState.roomId,
-        calendarMeetingId: callState.calendarMeetingId,
-        chatConversationId,
-        isCalendarMeeting: !!callState.calendarMeetingId,
-        hasActiveConversation: !!activeConversation,
-        activeConversationId: activeConversation?.id,
-        activeConversationParticipantsCount: activeConversation?.participants?.length || 0
-      })
-
       callConversationRef.current = {
         id: chatConversationId,
         name: conversationName || 'Group Call',

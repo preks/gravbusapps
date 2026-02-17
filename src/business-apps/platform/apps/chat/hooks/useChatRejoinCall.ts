@@ -4,8 +4,7 @@
  */
 
 import { useState, useCallback, useMemo, useEffect } from 'react'
-import { rtkDebug } from '../utils/rtkDebug'
-import type { Conversation } from '../types'
+import type { ActiveCall, Conversation } from '../types'
 import type { ActiveCallInfo } from '../components/ConversationHeader'
 
 export type RejoinModalState = {
@@ -13,6 +12,7 @@ export type RejoinModalState = {
   callType: 'audio' | 'video'
   conversationName?: string
   participantCount?: number
+  startedBy?: { id: string; odId: string; odName: string; avatarUrl?: string }
 } | null
 
 export interface PresenceDataLike {
@@ -23,7 +23,16 @@ export interface PresenceDataLike {
 
 export interface UseChatRejoinCallParams {
   stableActiveConversation: Conversation | null
-  activeConversationCalls: Map<string, { roomId: string; callType: 'audio' | 'video'; participantIds: string[] }>
+  activeConversationCalls: Map<
+    string,
+    {
+      roomId: string
+      callType: 'audio' | 'video'
+      participantIds: string[]
+      conversationName?: string
+      startedBy?: string
+    }
+  >
   groupCallState: { status: string; roomId?: string | null; callType?: 'audio' | 'video' }
   groupParticipants: Array<{ odName: string }>
   joinGroupCall:
@@ -117,45 +126,35 @@ export function useChatRejoinCall({
 
   const handleJoinActiveCall = useCallback(() => {
     if (!activeCallInfo || !stableActiveConversation) return
-    rtkDebug.log('[CHAT] handleJoinActiveCall - showing rejoin modal:', activeCallInfo)
+    const callFromMap = activeConversationCalls.get(stableActiveConversation.id)
+    const conversationActiveCall = (stableActiveConversation as Conversation & { activeCall?: ActiveCall }).activeCall
+    const conversationNameFromCall = callFromMap?.conversationName
+    const startedByFromConversation = conversationActiveCall?.startedBy
     setRejoinModalState({
       roomId: activeCallInfo.roomId,
       callType: activeCallInfo.callType,
-      conversationName: stableActiveConversation.name,
-      participantCount: activeCallInfo.participantCount
+      conversationName: conversationNameFromCall ?? stableActiveConversation.name,
+      participantCount: activeCallInfo.participantCount,
+      startedBy: startedByFromConversation
     })
-  }, [activeCallInfo, stableActiveConversation])
+  }, [activeCallInfo, stableActiveConversation, activeConversationCalls])
 
   const handleRejoinWithPreferences = useCallback(
     (preferences: { micEnabled: boolean; cameraEnabled: boolean; backgroundEnabled: boolean }) => {
       if (!rejoinModalState || !stableActiveConversation) return
-      rtkDebug.log('[CHAT] Rejoining call with preferences:', preferences, rejoinModalState)
-      const activeCall = (stableActiveConversation as Conversation & { activeCall?: { roomId: string } }).activeCall
-      const meetingId = rejoinModalState.roomId || activeCall?.roomId
-      if (!meetingId) {
-        rtkDebug.error('[CHAT] Cannot rejoin - missing meetingId', { conversationId: stableActiveConversation.id })
-        return
-      }
-      rtkDebug.log('[CHAT] Rejoining existing call:', {
-        conversationType: stableActiveConversation.type,
-        roomId: meetingId,
-        callType: rejoinModalState.callType,
-        preferences
-      })
-      joinGroupCall?.(meetingId, rejoinModalState.callType, preferences)
+      const conversationId = stableActiveConversation.id
+      joinGroupCall?.(conversationId, rejoinModalState.callType, preferences)
     },
     [rejoinModalState, stableActiveConversation, joinGroupCall]
   )
 
   useEffect(() => {
     if (rejoinModalState && groupCallState.status !== 'idle') {
-      rtkDebug.log('[CHAT] Call started, closing rejoin modal')
       setRejoinModalState(null)
     }
   }, [rejoinModalState, groupCallState.status])
 
   const handleRejoinCancel = useCallback(() => {
-    rtkDebug.log('[CHAT] Rejoin cancelled')
     setRejoinModalState(null)
   }, [])
 

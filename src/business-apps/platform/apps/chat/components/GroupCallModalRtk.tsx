@@ -9,7 +9,6 @@
 
 import React from 'react'
 import { createPortal } from 'react-dom'
-import { rtkDebug } from '../utils/rtkDebug'
 import { MinimizedCallView } from './call'
 import { useGroupCallModalRtkState } from '../hooks/useGroupCallModalRtkState'
 import { NOOP } from '../utils/groupCallModalUtils'
@@ -61,13 +60,6 @@ const GroupCallModalRtkComponent: React.FC<GroupCallModalRtkProps> = props => {
     const firstPeerHandRaisedOrderNumber = rtkFirstPeer
       ? state.getHandRaisedOrderNumber(rtkFirstPeer.id, rtkFirstPeer.userId, rtkFirstPeer.customParticipantId)
       : undefined
-
-    rtkDebug.log('[RTK Modal] 🎨 Rendering MinimizedCallView via portal', {
-      portalId: portalContainer.id,
-      viewMode,
-      isOpen: state.isOpen,
-      timestamp: Date.now()
-    })
 
     // Use a unique key based on call start time to force React to properly unmount/remount
     // when call restarts, preventing duplicate portals from multiple renders
@@ -163,11 +155,6 @@ export const GroupCallModalRtk = React.memo(GroupCallModalRtkComponent, (prevPro
   if (prevState.callImplementation !== nextState.callImplementation) changedStateProps.push('callImplementation')
 
   if (changedProps.length > 0 || changedStateProps.length > 0) {
-    rtkDebug.log('[RTK Modal] React.memo: Re-rendering due to changes', {
-      changedProps: changedProps.join(', '),
-      changedStateProps: changedStateProps.join(', '),
-      durationChanged: prevState.duration !== nextState.duration
-    })
     return false // Props changed, re-render
   }
 

@@ -6,7 +6,6 @@ import { useCalendar } from './hooks/useCalendar'
 import { useEmployeeAvatarsCache } from '../hooks/useEmployeeAvatarsCache'
 import { CalendarHeader, DayView, WeekView, MonthView, CreateMeetingModal, MeetingDetailModal } from './components'
 import { CalendarEvent, Meeting, CreateMeetingData, InvitationStatus } from './types'
-import { rtkDebug } from '../utils/rtkDebug'
 
 interface CalendarProps extends BusinessAppContextProps {
   prefixDataTestId?: string
@@ -370,13 +369,6 @@ const CalendarInner: React.FC<CalendarProps> = ({
         })
       }
 
-      rtkDebug.log('[Calendar] Dispatching join-meeting event with participants:', {
-        meetingId: enrichedSelectedEvent.id,
-        conversationId,
-        title: enrichedSelectedEvent.title,
-        participantCount: participants.length
-      })
-
       window.dispatchEvent(
         new CustomEvent('chat:join-meeting', {
           detail: {
@@ -397,12 +389,6 @@ const CalendarInner: React.FC<CalendarProps> = ({
   // Handle quick join from calendar event item - dispatch event for Chat to handle
   const handleQuickJoinCall = useCallback((event: CalendarEvent) => {
     const conversationId = event.conversationId || event.id
-
-    rtkDebug.log('[Calendar] Quick join - dispatching join-meeting event:', {
-      eventId: event.id,
-      conversationId,
-      title: event.title
-    })
 
     window.dispatchEvent(
       new CustomEvent('chat:join-meeting', {

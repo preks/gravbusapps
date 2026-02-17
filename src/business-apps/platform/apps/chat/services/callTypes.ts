@@ -86,7 +86,7 @@ export interface UseGroupCallReturn {
     backgroundEnabled: boolean
     audioInputDeviceId?: string | null
     videoInputDeviceId?: string | null
-  }) => Promise<void>
+  }) => void
   cancelSetup?: () => void
   startCall: (
     roomId: string,
@@ -94,7 +94,7 @@ export interface UseGroupCallReturn {
     participants: CallParticipant[],
     conversationName?: string,
     calendarMeetingId?: string | null
-  ) => Promise<void>
+  ) => void
   joinCall: (
     roomId: string,
     callType: CallType,
@@ -107,8 +107,8 @@ export interface UseGroupCallReturn {
           audioInputDeviceId?: string | null
           videoInputDeviceId?: string | null
         }
-  ) => Promise<void>
-  acceptInvite: () => Promise<void>
+  ) => void
+  acceptInvite: () => void
   declineInvite: () => void
   leaveCall: () => void
   toggleMute: () => boolean

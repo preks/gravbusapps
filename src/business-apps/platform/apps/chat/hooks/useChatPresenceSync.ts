@@ -4,7 +4,6 @@
  */
 
 import { useEffect, useRef } from 'react'
-import { rtkDebug } from '../utils/rtkDebug'
 
 export interface PresenceInfoSimple {
   state: 'online' | 'offline'
@@ -121,7 +120,6 @@ export function useChatPresenceSync({
               }
             : undefined
           updatePresence(userId, { state, lastSeen: lastSeenString, userStatus })
-          rtkDebug.log('[Chat] Initialized presence from API for user:', userId, { state, userStatus })
         })
       })
     } catch (error) {

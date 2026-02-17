@@ -4,7 +4,6 @@
 
 import { SelfieSegmentation, Results } from '@mediapipe/selfie_segmentation'
 import backgroundPoster from '../assets/background-poster.jpg'
-import { rtkDebug } from '../utils/rtkDebug'
 
 export interface RTKVideoMiddlewareOptions {
   backgroundImageUrl?: string
@@ -28,8 +27,6 @@ export class RTKVideoMiddleware {
   async initialize(): Promise<void> {
     if (this.isInitialized) return
 
-    rtkDebug.log('[RTK Middleware] 🎨 Initializing video effects...')
-
     // Load background image (use NewWork preset by default)
     await this.loadBackgroundImage(this.options.backgroundImageUrl || backgroundPoster)
 
@@ -50,7 +47,6 @@ export class RTKVideoMiddleware {
     await this.selfieSegmentation.initialize()
     this.isInitialized = true
     this.isProcessing = true
-    rtkDebug.log('[RTK Middleware] ✅ Video effects initialized')
   }
 
   private async loadBackgroundImage(url: string): Promise<void> {
@@ -59,7 +55,6 @@ export class RTKVideoMiddleware {
       img.crossOrigin = 'anonymous'
       img.onload = () => {
         this.backgroundImage = img
-        rtkDebug.log('[RTK Middleware] 🖼️ Background image loaded')
         resolve()
       }
       img.onerror = err => {
@@ -75,29 +70,10 @@ export class RTKVideoMiddleware {
    * This is the core integration point with RealtimeKit
    */
   getMiddleware() {
-    let frameCount = 0
     return (canvas: HTMLCanvasElement, ctx?: CanvasRenderingContext2D) => {
-      frameCount++
-
       // Check if canvas has valid dimensions
       if (!canvas.width || !canvas.height || canvas.width === 0 || canvas.height === 0) {
-        if (frameCount <= 3) {
-          rtkDebug.log(`[RTK Middleware] ⏳ Frame ${frameCount} - waiting for canvas dimensions:`, {
-            width: canvas.width,
-            height: canvas.height
-          })
-        }
         return // Skip until canvas is ready
-      }
-
-      // Log first few valid frames
-      if (frameCount <= 3) {
-        rtkDebug.log(`[RTK Middleware] 🎬 Frame ${frameCount} received:`, {
-          canvasSize: `${canvas.width}x${canvas.height}`,
-          hasCtx: !!ctx,
-          isProcessing: this.isProcessing,
-          isInitialized: this.isInitialized
-        })
       }
 
       if (!this.isProcessing || !this.isInitialized) {
@@ -117,11 +93,6 @@ export class RTKVideoMiddleware {
         return
       }
       this.lastProcessTime = now
-
-      // Log every 30th frame to show processing is happening
-      if (frameCount % 30 === 0) {
-        rtkDebug.log(`[RTK Middleware] 🎨 Processing frame ${frameCount}`)
-      }
 
       try {
         // Extract ImageData from canvas to send to MediaPipe
@@ -207,12 +178,10 @@ export class RTKVideoMiddleware {
 
   pause(): void {
     this.isProcessing = false
-    rtkDebug.log('[RTK Middleware] ⏸️ Video effects paused')
   }
 
   resume(): void {
     this.isProcessing = true
-    rtkDebug.log('[RTK Middleware] ▶️ Video effects resumed')
   }
 
   destroy(): void {
@@ -226,6 +195,5 @@ export class RTKVideoMiddleware {
 
     this.backgroundImage = null
     this.latestMask = null
-    rtkDebug.log('[RTK Middleware] 🗑️ Video effects destroyed')
   }
 }
