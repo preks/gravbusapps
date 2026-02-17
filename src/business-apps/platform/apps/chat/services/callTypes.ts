@@ -45,6 +45,7 @@ export interface ActiveConversationCall {
   startedBy: string
   startedAt?: Date | string
   conversationName?: string
+  conversationType?: 'direct' | 'group' | 'meeting'
 }
 
 export type InviteStatus = 'pending' | 'declined' | 'not-answered' | 'left' | 'invited'

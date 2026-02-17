@@ -79,16 +79,19 @@ export function buildJoinCallWrapper(params: BuildJoinCallWrapperParams): Public
       let resolvedMeetingId: string | undefined = undefined
       let resolvedConversationName: string | undefined = undefined
       let resolvedSessionId: string | undefined = undefined
+      let resolvedConversationType: 'direct' | 'group' | 'meeting' | undefined = undefined
 
       activeConversationCalls.forEach((call, convId) => {
         if (call.roomId === roomIdOrMeetingId) {
           resolvedConversationId = convId
           resolvedMeetingId = roomIdOrMeetingId
           resolvedConversationName = call.conversationName
+          resolvedConversationType = call.conversationType
         } else if (convId === roomIdOrMeetingId) {
           resolvedConversationId = convId
           resolvedMeetingId = call.roomId
           resolvedConversationName = call.conversationName
+          resolvedConversationType = call.conversationType
         }
       })
 
@@ -98,6 +101,7 @@ export function buildJoinCallWrapper(params: BuildJoinCallWrapperParams): Public
           resolvedConversationId = byMeetingId.id
           resolvedMeetingId = roomIdOrMeetingId
           resolvedConversationName = byMeetingId.name
+          resolvedConversationType = byMeetingId.activeCall?.conversationType
         }
       }
 
@@ -108,6 +112,7 @@ export function buildJoinCallWrapper(params: BuildJoinCallWrapperParams): Public
           resolvedConversationId = byConversationId.id
           resolvedMeetingId = meetingIdFromConversation
           resolvedConversationName = byConversationId.name
+          resolvedConversationType = byConversationId.activeCall?.conversationType
         }
       }
 
@@ -142,7 +147,8 @@ export function buildJoinCallWrapper(params: BuildJoinCallWrapperParams): Public
         resolvedMeetingId,
         resolvedConversationName,
         resolvedSessionId,
-        preferences
+        preferences,
+        resolvedConversationType
       )
     } else {
       throw new Error('joinCall with initialParticipants not supported - use startCall')

@@ -320,7 +320,8 @@ export function useRealtimeKitCallActions(params: UseRealtimeKitCallActionsOptio
           callType: invite.callType,
           participantIds: [],
           startedBy: invite.from.id,
-          conversationName: invite.conversationName
+          conversationName: invite.conversationName,
+          conversationType: invite.conversationType
         })
         return newMap
       })
