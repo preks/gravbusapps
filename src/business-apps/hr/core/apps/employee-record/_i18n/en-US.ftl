@@ -697,3 +697,7 @@ service-requests-status-open = Open
 service-requests-status-in-progress = In Progress
 service-requests-status-completed = Completed
 service-requests-status-canceled = Canceled
+
+# Change Personal Data - Pending state
+change-personal-data-pending-message = A personal data change request is already pending approval. Please wait for approval first.
+change-personal-data-pending-ok = OK

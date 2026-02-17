@@ -690,3 +690,7 @@ service-requests-status-open = Offen
 service-requests-status-in-progress = In Bearbeitung
 service-requests-status-completed = Abgeschlossen
 service-requests-status-canceled = Abgebrochen
+
+# Change Personal Data - Pending state
+change-personal-data-pending-message = Eine Änderung der persönlichen Daten wartet bereits auf Genehmigung. Bitte warten Sie die Freigabe ab.
+change-personal-data-pending-ok = OK

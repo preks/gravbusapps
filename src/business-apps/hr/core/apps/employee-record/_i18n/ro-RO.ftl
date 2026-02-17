@@ -690,3 +690,7 @@ service-requests-status-open = Deschis
 service-requests-status-in-progress = În progres
 service-requests-status-completed = Finalizat
 service-requests-status-canceled = Anulat
+
+# Change Personal Data - Pending state
+change-personal-data-pending-message = O cerere de modificare a datelor personale este deja în așteptarea aprobării. Vă rugăm așteptați aprobarea.
+change-personal-data-pending-ok = OK
