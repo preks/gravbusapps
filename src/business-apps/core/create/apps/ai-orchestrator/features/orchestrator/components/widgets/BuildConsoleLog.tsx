@@ -42,7 +42,7 @@ export const BuildConsoleLog: React.FC<BuildConsoleLogProps> = ({
   logs,
   currentOperation,
   isBuilding,
-  maxHeight = '400px',
+  maxHeight = '320px',
   className,
   'data-testid': testId = 'build-console-log'
 }) => {
@@ -57,7 +57,7 @@ export const BuildConsoleLog: React.FC<BuildConsoleLogProps> = ({
 
   return (
     <Card className={cn('gba:font-mono', className)} data-testid={testId}>
-      <CardHeader className="gba:py-3 gba:border-b gba:border-border">
+      <CardHeader className="gba:py-2.5 gba:border-b gba:border-border">
         <CardTitle className="gba:text-sm gba:font-medium gba:flex gba:items-center gba:gap-2">
           <span className="gba:flex gba:h-2 gba:w-2">
             <span
@@ -79,7 +79,7 @@ export const BuildConsoleLog: React.FC<BuildConsoleLogProps> = ({
           className="gba:overflow-y-auto gba:bg-muted/30 gba:scrollbar-thin"
           style={{ maxHeight }}
         >
-          <div className="gba:p-4 gba:space-y-1">
+          <div className="gba:p-3 gba:space-y-1">
             {logs.length === 0 && (
               <div className="gba:text-sm gba:text-muted-foreground gba:italic">Waiting for build to start...</div>
             )}

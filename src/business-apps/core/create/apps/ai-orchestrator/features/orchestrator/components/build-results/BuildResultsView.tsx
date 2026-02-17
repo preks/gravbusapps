@@ -202,18 +202,18 @@ const ComponentCard: React.FC<{
   return (
     <Card
       className={cn(
-        'gba:group gba:transition-all gba:duration-200',
-        isClickable && 'gba:cursor-pointer hover:gba:shadow-md',
+        'gba:group gba:transition-all gba:duration-200 gba:border gba:bg-card/70',
+        isClickable && 'gba:cursor-pointer hover:gba:shadow-sm',
         borderClass
       )}
       onClick={isClickable ? () => handleOpenComponent(component) : undefined}
     >
-      <CardContent className="gba:p-4">
-        <div className="gba:flex gba:items-start gba:gap-3">
+      <CardContent className="gba:px-2.5 gba:py-2">
+        <div className="gba:flex gba:items-start gba:gap-2">
           {/* Type icon */}
           <div
             className={cn(
-              'gba:p-2.5 gba:rounded-xl gba:shrink-0',
+              'gba:p-1.5 gba:rounded-md gba:shrink-0',
               component.status === 'error'
                 ? 'gba:bg-destructive/10'
                 : component.status === 'reused'
@@ -222,21 +222,24 @@ const ComponentCard: React.FC<{
             )}
           >
             <TypeIcon
-              className={cn('gba:w-5 gba:h-5', component.status === 'error' ? 'gba:text-destructive' : typeMeta.color)}
+              className={cn(
+                'gba:w-3.5 gba:h-3.5',
+                component.status === 'error' ? 'gba:text-destructive' : typeMeta.color
+              )}
             />
           </div>
 
           {/* Content */}
           <div className="gba:flex-1 gba:min-w-0">
             {/* Header row */}
-            <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1 gba:flex-wrap">
-              <h4 className="gba:font-medium gba:text-foreground gba:truncate">{component.name}</h4>
-              <Badge variant="secondary" className="gba:text-[11px] gba:px-1.5 gba:py-0 gba:shrink-0">
+            <div className="gba:flex gba:items-center gba:gap-1.5 gba:mb-0.5 gba:flex-wrap">
+              <h4 className="gba:font-medium gba:text-sm gba:text-foreground gba:truncate">{component.name}</h4>
+              <Badge variant="secondary" className="gba:text-[10px] gba:px-1 gba:py-0 gba:shrink-0">
                 {typeMeta.label}
               </Badge>
               <Badge
                 variant="secondary"
-                className={cn('gba:text-[11px] gba:px-1.5 gba:py-0 gba:shrink-0', statusMeta.badgeClass)}
+                className={cn('gba:text-[10px] gba:px-1 gba:py-0 gba:shrink-0', statusMeta.badgeClass)}
               >
                 <StatusIcon className="gba:w-3 gba:h-3 gba:mr-1" />
                 {statusMeta.label}
@@ -244,46 +247,48 @@ const ComponentCard: React.FC<{
             </div>
 
             {/* Description */}
-            <p className="gba:text-sm gba:text-muted-foreground gba:line-clamp-2 gba:mb-2">
+            <p className="gba:text-[11px] gba:text-muted-foreground gba:line-clamp-1 gba:mb-0.5">
               {component.userFriendlyDescription || component.description}
             </p>
 
             {/* Metadata row */}
-            <div className="gba:space-y-1">
+            <div className="gba:flex gba:items-center gba:gap-1.5 gba:flex-wrap">
               {/* Resource URL for screens */}
               {component.resourceUrl && (
                 <div className="gba:flex gba:items-center gba:gap-1.5">
                   <ExternalLink className="gba:w-3 gba:h-3 gba:text-emerald-600" />
-                  <code className="gba:text-xs gba:text-emerald-600 gba:font-mono">{component.resourceUrl}</code>
+                  <code className="gba:text-[10px] gba:text-emerald-600 gba:font-mono gba:max-w-[220px] gba:truncate">
+                    {component.resourceUrl}
+                  </code>
                 </div>
               )}
 
               {/* Azure CDN */}
               {component.azureUrl && (
-                <div className="gba:flex gba:items-center gba:gap-1.5 gba:text-xs gba:text-muted-foreground">
+                <div className="gba:flex gba:items-center gba:gap-1 gba:text-[10px] gba:text-muted-foreground">
                   <span>CDN:</span>
                   <a
                     href={component.azureUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="gba:text-blue-500 hover:gba:underline gba:font-mono gba:truncate"
+                    className="gba:text-blue-500 hover:gba:underline gba:font-mono gba:max-w-[150px] gba:truncate"
                     onClick={e => e.stopPropagation()}
                   >
-                    {component.azureUrl.length > 50 ? `${component.azureUrl.slice(0, 50)}...` : component.azureUrl}
+                    {component.azureUrl.length > 28 ? `${component.azureUrl.slice(0, 28)}...` : component.azureUrl}
                   </a>
                 </div>
               )}
 
               {/* Published file count */}
               {component.publishedFileCount != null && component.publishedFileCount > 0 && (
-                <div className="gba:text-xs gba:text-muted-foreground">
+                <div className="gba:text-[10px] gba:text-muted-foreground">
                   Published {component.publishedFileCount} file{component.publishedFileCount !== 1 ? 's' : ''}
                 </div>
               )}
 
               {/* Component ID */}
               {(component.createdId || component.existingId) && (
-                <code className="gba:text-[11px] gba:text-muted-foreground/70 gba:font-mono">
+                <code className="gba:text-[10px] gba:text-muted-foreground/70 gba:font-mono">
                   ID: {(component.createdId || component.existingId)?.slice(0, 20)}
                   {(component.createdId || component.existingId || '').length > 20 ? '...' : ''}
                 </code>
@@ -292,14 +297,14 @@ const ComponentCard: React.FC<{
 
             {/* Error details (collapsible) */}
             {hasError && showError && (
-              <div className="gba:mt-3">
+              <div className="gba:mt-1">
                 <button
                   type="button"
                   onClick={e => {
                     e.stopPropagation()
                     setErrorExpanded(!errorExpanded)
                   }}
-                  className="gba:flex gba:items-center gba:gap-1.5 gba:text-xs gba:text-destructive hover:gba:underline"
+                  className="gba:flex gba:items-center gba:gap-1 gba:text-[10px] gba:text-destructive hover:gba:underline"
                 >
                   {errorExpanded ? (
                     <ChevronUp className="gba:w-3 gba:h-3" />
@@ -309,8 +314,8 @@ const ComponentCard: React.FC<{
                   {errorExpanded ? 'Hide error details' : 'Show error details'}
                 </button>
                 {errorExpanded && (
-                  <div className="gba:mt-2 gba:p-3 gba:bg-destructive/5 gba:border gba:border-destructive/20 gba:rounded-lg">
-                    <p className="gba:text-xs gba:text-muted-foreground gba:font-mono gba:break-all gba:whitespace-pre-wrap">
+                  <div className="gba:mt-1 gba:p-1.5 gba:bg-destructive/5 gba:border gba:border-destructive/20 gba:rounded-md">
+                    <p className="gba:text-[10px] gba:text-muted-foreground gba:font-mono gba:break-all gba:whitespace-pre-wrap">
                       {component.errorMessage}
                     </p>
                   </div>
@@ -325,16 +330,16 @@ const ComponentCard: React.FC<{
               <Button
                 size="sm"
                 variant="ghost"
-                className="gba:opacity-0 group-hover:gba:opacity-100 gba:transition-opacity"
+                className="gba:opacity-70 group-hover:gba:opacity-100 gba:transition-opacity gba:h-6 gba:w-6 gba:p-0"
                 onClick={e => {
                   e.stopPropagation()
                   handleOpenComponent(component)
                 }}
               >
                 {component.status === 'reused' ? (
-                  <Eye className="gba:w-4 gba:h-4" />
+                  <Eye className="gba:w-3.5 gba:h-3.5" />
                 ) : (
-                  <ExternalLink className="gba:w-4 gba:h-4" />
+                  <ExternalLink className="gba:w-3.5 gba:h-3.5" />
                 )}
               </Button>
             )}
@@ -359,14 +364,17 @@ const ComponentSection: React.FC<{
   if (components.length === 0) return null
 
   return (
-    <div>
+    <div className="gba:relative gba:pl-4">
+      <div className="gba:absolute gba:left-[7px] gba:top-8 gba:bottom-0 gba:w-px gba:bg-border/70" />
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="gba:flex gba:items-center gba:gap-2 gba:mb-3 gba:w-full gba:text-left"
+        className="gba:flex gba:items-center gba:gap-2 gba:mb-2 gba:w-full gba:text-left"
       >
-        <Icon className={cn('gba:w-5 gba:h-5', iconClass)} />
-        <h3 className="gba:text-base gba:font-semibold gba:text-foreground">
+        <span className="gba:w-3 gba:h-3 gba:rounded-full gba:bg-muted gba:flex gba:items-center gba:justify-center">
+          <Icon className={cn('gba:w-3 gba:h-3', iconClass)} />
+        </span>
+        <h3 className="gba:text-sm gba:font-semibold gba:text-foreground">
           {title} ({components.length})
         </h3>
         {open ? (
@@ -376,7 +384,7 @@ const ComponentSection: React.FC<{
         )}
       </button>
       {open && (
-        <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 gba:gap-3">
+        <div className="gba:space-y-1.5">
           {components.map(c => (
             <ComponentCard key={c.id} component={c} jobId={jobId} showError={showErrors} />
           ))}
@@ -419,37 +427,27 @@ export const BuildResultsView: React.FC<BuildResultsViewProps> = ({
   }
 
   return (
-    <div className={cn('gba:space-y-6 gba:animate-in gba:fade-in gba:duration-500', className)}>
+    <div className={cn('gba:space-y-4 gba:animate-in gba:fade-in gba:duration-500', className)}>
       {/* ── Summary Card ────────────────────────────────────────────────── */}
       <Card className={cn('gba:overflow-hidden', success ? 'gba:border-emerald-300/60' : 'gba:border-destructive/40')}>
         <CardContent className="gba:p-0">
-          {/* Top accent bar */}
-          <div
-            className={cn(
-              'gba:h-1',
-              success
-                ? 'gba:bg-linear-to-r gba:from-emerald-400 gba:to-emerald-600'
-                : 'gba:bg-linear-to-r gba:from-red-400 gba:to-orange-500'
-            )}
-          />
-
-          <div className="gba:p-6">
+          <div className="gba:p-4">
             {/* Header */}
-            <div className="gba:flex gba:items-start gba:gap-4 gba:mb-5">
+            <div className="gba:flex gba:items-start gba:gap-3 gba:mb-3">
               <div
                 className={cn(
-                  'gba:p-3 gba:rounded-2xl',
+                  'gba:p-2.5 gba:rounded-xl',
                   success ? 'gba:bg-emerald-100 dark:gba:bg-emerald-900/30' : 'gba:bg-red-100 dark:gba:bg-red-900/30'
                 )}
               >
                 {success ? (
-                  <PartyPopper className="gba:w-7 gba:h-7 gba:text-emerald-600 dark:gba:text-emerald-400" />
+                  <PartyPopper className="gba:w-5 gba:h-5 gba:text-emerald-600 dark:gba:text-emerald-400" />
                 ) : (
-                  <AlertTriangle className="gba:w-7 gba:h-7 gba:text-destructive" />
+                  <AlertTriangle className="gba:w-5 gba:h-5 gba:text-destructive" />
                 )}
               </div>
               <div className="gba:flex-1">
-                <h2 className="gba:text-xl gba:font-bold gba:text-foreground gba:mb-1">
+                <h2 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-0.5">
                   {success
                     ? 'Build Completed Successfully'
                     : failed.length > 0 && completed.length > 0
@@ -457,11 +455,11 @@ export const BuildResultsView: React.FC<BuildResultsViewProps> = ({
                       : 'Build Failed'}
                 </h2>
                 {prompt && (
-                  <p className="gba:text-sm gba:text-foreground/80 gba:italic gba:mb-1 gba:line-clamp-2">
+                  <p className="gba:text-xs gba:text-foreground/80 gba:italic gba:mb-1 gba:line-clamp-1">
                     &ldquo;{prompt}&rdquo;
                   </p>
                 )}
-                <p className="gba:text-sm gba:text-muted-foreground">
+                <p className="gba:text-xs gba:text-muted-foreground">
                   {success
                     ? `All ${components.length} component${components.length !== 1 ? 's were' : ' was'} processed in ${formatDuration(buildDuration)}.`
                     : errorMessage ||
@@ -471,7 +469,7 @@ export const BuildResultsView: React.FC<BuildResultsViewProps> = ({
             </div>
 
             {/* Stats bar */}
-            <div className="gba:flex gba:items-center gba:gap-6 gba:flex-wrap gba:pt-4 gba:border-t gba:border-border">
+            <div className="gba:flex gba:items-center gba:gap-5 gba:flex-wrap gba:pt-3 gba:border-t gba:border-border">
               <StatPill icon={Clock} value={formatDuration(buildDuration)} label="Duration" />
               {completed.length > 0 && (
                 <StatPill
@@ -537,20 +535,20 @@ export const BuildResultsView: React.FC<BuildResultsViewProps> = ({
       />
 
       {/* ── Actions ──────────────────────────────────────────────────── */}
-      <div className="gba:flex gba:items-center gba:justify-center gba:gap-3 gba:pt-2 gba:pb-4 gba:flex-wrap">
+      <div className="gba:flex gba:items-center gba:justify-center gba:gap-2 gba:pt-1 gba:pb-2 gba:flex-wrap">
         {!success && onRetry && (
-          <Button size="lg" onClick={onRetry} className="gba:min-w-[160px]">
+          <Button size="sm" onClick={onRetry} className="gba:min-w-[140px]">
             <RotateCcw className="gba:w-4 gba:h-4 gba:mr-2" />
             Retry Build
           </Button>
         )}
         {!success && onModifyPlan && (
-          <Button variant="outline" size="lg" onClick={onModifyPlan}>
+          <Button variant="outline" size="sm" onClick={onModifyPlan}>
             <Edit className="gba:w-4 gba:h-4 gba:mr-2" />
             Modify Plan
           </Button>
         )}
-        <Button variant={success ? 'default' : 'outline'} size="lg" onClick={onReset} className="gba:min-w-[200px]">
+        <Button variant={success ? 'default' : 'outline'} size="sm" onClick={onReset} className="gba:min-w-[170px]">
           <Plus className="gba:w-4 gba:h-4 gba:mr-2" />
           Build Something {success ? 'Else' : 'New'}
         </Button>

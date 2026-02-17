@@ -9,8 +9,8 @@
  * - Expandable details
  */
 
-import React, { useState } from 'react'
-import { Card, Badge, Button, cn } from '@newwork/nw-design-system'
+import React from 'react'
+import { Card, Badge, Progress, cn } from '@newwork/nw-design-system'
 import {
   Monitor,
   Bot,
@@ -21,15 +21,12 @@ import {
   XCircle,
   Loader2,
   Clock,
-  ChevronDown,
-  ChevronUp,
   MinusCircle,
   Recycle,
   Search,
   Link2,
   type LucideIcon
 } from 'lucide-react'
-import { CircularProgress } from '../widgets/CircularProgress'
 import type { ComponentTileInfo, BuildStatus } from '../../types'
 
 export interface BuildTileProps {
@@ -72,8 +69,6 @@ const statusConfig: Record<
  * BuildTile component for displaying build progress
  */
 export const BuildTile: React.FC<BuildTileProps> = ({ tile, 'data-testid': testId }) => {
-  // Auto-collapse when skipped or pending
-  const [isExpanded, setIsExpanded] = useState(tile.status !== 'skipped' && tile.status !== 'pending')
   const Icon = iconMap[tile.icon] || Monitor
   const status = statusConfig[tile.status]
   const StatusIcon = status.icon
@@ -92,133 +87,55 @@ export const BuildTile: React.FC<BuildTileProps> = ({ tile, 'data-testid': testI
   return (
     <Card
       className={cn(
-        'gba:relative gba:overflow-hidden gba:transition-all gba:duration-300',
+        'gba:relative gba:overflow-hidden gba:transition-all gba:duration-300 gba:h-full gba:min-h-[108px] gba:border-border/80',
         (tile.status === 'discovering' || tile.status === 'building' || tile.status === 'wiring') &&
-          'gba:ring-1 gba:ring-foreground/20',
-        tile.status === 'skipped' && 'gba:opacity-50',
-        isCompact && 'gba:py-2'
+          'gba:ring-1 gba:ring-blue-400/35',
+        tile.status === 'skipped' && 'gba:opacity-65'
       )}
       data-testid={testId}
     >
-      {/* Progress bar overlay - Monochrome */}
-      {tile.status === 'building' && progressPercent > 0 && (
-        <div
-          className="gba:absolute gba:top-0 gba:left-0 gba:h-1 gba:bg-foreground gba:transition-all gba:duration-300"
-          style={{ width: `${progressPercent}%` }}
-        />
-      )}
-
-      <div className={cn('gba:p-4', isCompact && 'gba:py-2')}>
-        {/* Header - Compact for skipped/pending */}
-        <div className={cn('gba:flex gba:items-start gba:justify-between', !isCompact && 'gba:mb-3')}>
-          <div className="gba:flex gba:items-center gba:gap-3">
-            {/* Show icon only if not compact, or show circular progress */}
-            {!isCompact && (
-              <>
-                {(tile.status === 'building' || tile.status === 'wiring') && totalItems > 0 ? (
-                  <CircularProgress value={progressPercent} size="sm" showPercentage={false} color="primary" />
-                ) : (
-                  <div className="gba:p-2 gba:rounded-lg gba:bg-muted">
-                    <Icon className="gba:w-4 gba:h-4 gba:text-foreground" />
-                  </div>
-                )}
-              </>
-            )}
-            <div>
-              <h3 className={cn('gba:font-medium gba:text-foreground', isCompact ? 'gba:text-sm' : 'gba:text-base')}>
-                {tile.title}
-              </h3>
-              {!isCompact && <p className="gba:text-sm gba:text-muted-foreground">{tile.description}</p>}
+      <div className="gba:p-2.5 gba:h-full gba:flex gba:flex-col gba:gap-1.5">
+        <div className="gba:flex gba:items-start gba:justify-between gba:gap-2">
+          <div className="gba:flex gba:items-center gba:gap-2 gba:min-w-0">
+            <div className="gba:p-1.5 gba:rounded-md gba:bg-muted">
+              <Icon className="gba:w-3.5 gba:h-3.5 gba:text-foreground" />
             </div>
+            <h3 className="gba:font-medium gba:text-xs gba:text-foreground gba:truncate">{tile.title}</h3>
           </div>
 
           <Badge
             variant="secondary"
-            className="gba:flex gba:items-center gba:gap-1 gba:shrink-0 gba:bg-transparent gba:text-muted-foreground gba:border-0"
+            className="gba:flex gba:items-center gba:gap-1 gba:shrink-0 gba:bg-transparent gba:text-muted-foreground gba:border-0 gba:text-[10px] gba:px-0"
           >
             <StatusIcon className={cn('gba:w-3 gba:h-3', status.animate && 'gba:animate-spin')} />
             {status.label}
           </Badge>
         </div>
 
-        {/* Current operation - Hide when compact */}
-        {tile.currentOperation && !isCompact && (
-          <div className="gba:mb-3 gba:p-2 gba:bg-muted gba:rounded-md">
-            <p className="gba:text-sm gba:text-foreground gba:flex gba:items-center gba:gap-2">
-              <Loader2 className="gba:w-3 gba:h-3 gba:animate-spin gba:text-foreground" />
-              {tile.currentOperation}
-            </p>
-          </div>
-        )}
+        <p className="gba:text-[10px] gba:text-muted-foreground gba:line-clamp-1">{tile.description}</p>
 
-        {/* Item count - Hide when compact */}
-        {hasItems && !isCompact && (
-          <div className="gba:flex gba:items-center gba:justify-between">
-            <span className="gba:text-xs gba:text-muted-foreground">
-              {completedItems} of {totalItems} items
-              {reusedItems > 0 && ` • ${reusedItems} reused`}
-            </span>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setIsExpanded(!isExpanded)}
-              className="gba:h-6 gba:px-2 gba:text-xs"
-            >
-              {isExpanded ? (
-                <>
-                  <ChevronUp className="gba:w-3 gba:h-3 gba:mr-1" />
-                  Hide
-                </>
-              ) : (
-                <>
-                  <ChevronDown className="gba:w-3 gba:h-3 gba:mr-1" />
-                  Show
-                </>
-              )}
-            </Button>
-          </div>
-        )}
+        <div className="gba:space-y-1.5">
+          {hasItems && (
+            <>
+              <Progress value={progressPercent} className="gba:h-1.5 [&>div]:gba:bg-foreground" />
+              <p className="gba:text-[10px] gba:text-muted-foreground">
+                {completedItems}/{totalItems} done
+                {reusedItems > 0 ? ` • ${reusedItems} reused` : ''}
+              </p>
+            </>
+          )}
 
-        {/* Skipped message */}
-        {tile.status === 'skipped' && (
-          <span className="gba:text-xs gba:text-muted-foreground gba:italic gba:ml-1">Not needed for this build</span>
-        )}
+          {tile.currentOperation && !isCompact && (
+            <div className="gba:flex gba:items-center gba:gap-1.5 gba:text-[10px] gba:text-muted-foreground gba:line-clamp-1">
+              <Loader2 className="gba:w-3 gba:h-3 gba:animate-spin gba:shrink-0" />
+              <span className="gba:truncate">{tile.currentOperation}</span>
+            </div>
+          )}
 
-        {/* Expanded details - Monochrome */}
-        {isExpanded && hasItems && (
-          <div className="gba:mt-3 gba:pt-3 gba:border-t gba:border-border">
-            <ul className="gba:space-y-2">
-              {tile.items.map(item => (
-                <li key={item.id} className="gba:flex gba:items-center gba:justify-between gba:text-sm">
-                  <span className="gba:text-foreground">{item.name}</span>
-                  <div className="gba:flex gba:items-center gba:gap-2">
-                    {item.status === 'completed' && <CheckCircle2 className="gba:w-3 gba:h-3 gba:text-foreground" />}
-                    {item.status === 'reused' && (
-                      <span className="gba:flex gba:items-center gba:gap-1 gba:text-muted-foreground">
-                        <Recycle className="gba:w-3 gba:h-3" />
-                        <span className="gba:text-xs">reused</span>
-                      </span>
-                    )}
-                    {item.status === 'error' && (
-                      <span className="gba:text-foreground gba:text-xs" title={item.error}>
-                        <XCircle className="gba:w-3 gba:h-3" />
-                      </span>
-                    )}
-                    {item.status === 'building' && (
-                      <Loader2 className="gba:w-3 gba:h-3 gba:text-foreground gba:animate-spin" />
-                    )}
-                    {item.status === 'pending' && <Clock className="gba:w-3 gba:h-3 gba:text-muted-foreground" />}
-                    {item.createdId && (
-                      <span className="gba:text-xs gba:text-muted-foreground gba:font-mono">
-                        {item.createdId.slice(0, 8)}...
-                      </span>
-                    )}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+          {tile.status === 'skipped' && (
+            <span className="gba:text-[10px] gba:text-muted-foreground gba:italic">Not needed for this build</span>
+          )}
+        </div>
       </div>
     </Card>
   )

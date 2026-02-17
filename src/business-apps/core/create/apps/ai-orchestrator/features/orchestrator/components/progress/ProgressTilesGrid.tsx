@@ -23,6 +23,7 @@ export interface ProgressTilesGridProps {
   isBuilding: boolean
   currentPhase?: BuildPhase | null
   phaseMessage?: string | null
+  showHeader?: boolean
   'data-testid'?: string
 }
 
@@ -77,6 +78,7 @@ export const ProgressTilesGrid: React.FC<ProgressTilesGridProps> = ({
   isBuilding,
   currentPhase,
   phaseMessage,
+  showHeader = true,
   'data-testid': testId = 'progress-tiles-grid'
 }) => {
   // Derive display counts from tile states (not the premature completedCount counter).
@@ -96,60 +98,61 @@ export const ProgressTilesGrid: React.FC<ProgressTilesGridProps> = ({
   const phaseInfo = getPhaseInfo(currentPhase ?? null)
 
   return (
-    <div className="gba:space-y-6" data-testid={testId}>
+    <div className="gba:space-y-4" data-testid={testId}>
       {/* Overall Progress Header - Monochrome */}
-      <div className="gba:space-y-3">
-        <div className="gba:flex gba:items-center gba:justify-between">
-          <div className="gba:flex gba:items-center gba:gap-3">
-            <div>
-              <div className="gba:flex gba:items-center gba:gap-2">
-                <h3 className="gba:font-semibold gba:text-foreground">
-                  {overallStatus === 'building' && 'Building your components...'}
-                  {overallStatus === 'completed' && 'Build complete'}
-                  {overallStatus === 'error' && 'Build completed with errors'}
-                  {overallStatus === 'pending' && 'Ready to build'}
-                </h3>
+      {showHeader && (
+        <div className="gba:space-y-2.5">
+          <div className="gba:flex gba:items-center gba:justify-between">
+            <div className="gba:flex gba:items-center gba:gap-3">
+              <div>
+                <div className="gba:flex gba:items-center gba:gap-2">
+                  <h3 className="gba:font-semibold gba:text-sm gba:text-foreground">
+                    {overallStatus === 'building' && 'Building your components...'}
+                    {overallStatus === 'completed' && 'Build complete'}
+                    {overallStatus === 'error' && 'Build completed with errors'}
+                    {overallStatus === 'pending' && 'Ready to build'}
+                  </h3>
 
-                {/* Phase badge - Monochrome */}
-                {currentPhase && isBuilding && (
-                  <Badge variant="secondary" className="gba:bg-muted gba:text-foreground gba:border-border">
-                    <span className="gba:flex gba:items-center gba:gap-1.5">
-                      {phaseInfo.icon}
-                      {phaseInfo.label}
+                  {/* Phase badge - Monochrome */}
+                  {currentPhase && isBuilding && (
+                    <Badge variant="secondary" className="gba:bg-muted gba:text-foreground gba:border-border">
+                      <span className="gba:flex gba:items-center gba:gap-1.5">
+                        {phaseInfo.icon}
+                        {phaseInfo.label}
+                      </span>
+                    </Badge>
+                  )}
+                </div>
+
+                <p className="gba:text-xs gba:text-muted-foreground">
+                  {displayBuiltCount} built
+                  {displayReusedCount > 0 && (
+                    <span className="gba:inline-flex gba:items-center gba:gap-1 gba:ml-1">
+                      <Recycle className="gba:w-3 gba:h-3 gba:text-muted-foreground" />
+                      {displayReusedCount} reused
                     </span>
-                  </Badge>
+                  )}
+                  {failedCount > 0 && `, ${failedCount} failed`}
+                  {' of '}
+                  {totalCount} components
+                </p>
+
+                {/* Phase message */}
+                {phaseMessage && isBuilding && (
+                  <p className="gba:text-xs gba:text-muted-foreground gba:italic gba:mt-0.5">{phaseMessage}</p>
                 )}
               </div>
-
-              <p className="gba:text-sm gba:text-muted-foreground">
-                {displayBuiltCount} built
-                {displayReusedCount > 0 && (
-                  <span className="gba:inline-flex gba:items-center gba:gap-1 gba:ml-1">
-                    <Recycle className="gba:w-3 gba:h-3 gba:text-muted-foreground" />
-                    {displayReusedCount} reused
-                  </span>
-                )}
-                {failedCount > 0 && `, ${failedCount} failed`}
-                {' of '}
-                {totalCount} components
-              </p>
-
-              {/* Phase message */}
-              {phaseMessage && isBuilding && (
-                <p className="gba:text-xs gba:text-muted-foreground gba:italic gba:mt-1">{phaseMessage}</p>
-              )}
             </div>
+            <span className="gba:text-xl gba:font-bold gba:text-foreground">{overallProgress}%</span>
           </div>
 
-          <span className="gba:text-2xl gba:font-bold gba:text-foreground">{overallProgress}%</span>
+          {/* Progress bar - Monochrome */}
+          <Progress value={overallProgress} className="gba:h-2 [&>div]:gba:bg-foreground" />
         </div>
-
-        {/* Progress bar - Monochrome */}
-        <Progress value={overallProgress} className="gba:h-2 [&>div]:gba:bg-foreground" />
-      </div>
+      )}
 
       {/* Tiles Grid - sorted: active first, completed/reused next, pending/skipped last */}
-      <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 lg:gba:grid-cols-3 gba:gap-4">
+      <div className="gba:grid gba:grid-cols-3 gba:gap-2.5">
         {[...tileOrder]
           .sort((a, b) => {
             const priority = (status: string) => {
