@@ -36,23 +36,142 @@ interface UseFeedbackSentimentResult {
   clearResults: () => void
 }
 
+const FLOWBOT_ENDPOINT_PATH = '/flowbot/api/agent/v2/chat'
+const JSON_BLOCK_REGEX = /\{[\s\S]*\}/
+
+const formatFeedbackLine = (feedbackItem: RawFeedback, index: number): string => {
+  const ratingSuffix = feedbackItem.rating ? ` (Rating: ${feedbackItem.rating}/5)` : ''
+  return `${index + 1}. "${feedbackItem.feedback}"${ratingSuffix}`
+}
+
+const getRecentFeedback = (feedback: RawFeedback[]): RawFeedback[] => {
+  const sixMonthsAgo = new Date()
+  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
+  return feedback.filter(item => new Date(item.feedbackDate) >= sixMonthsAgo).slice(0, 10)
+}
+
+const getRecentFeedbackCount = (feedback: RawFeedback[]): number => {
+  const sixMonthsInMs = 6 * 30 * 24 * 60 * 60 * 1000
+  const threshold = Date.now() - sixMonthsInMs
+  return feedback.filter(item => new Date(item.feedbackDate).getTime() >= threshold).length
+}
+
+const getFlowBotBaseUrl = (): string => globalThis.location.origin
+
+const createFlowBotFormData = (prompt: string): FormData => {
+  const form = new FormData()
+  form.append('session_id', '')
+  form.append('user_input_text', prompt)
+  form.append('llm_model', 'gpt-4.1')
+  form.append('use_web_search_tool', 'false')
+  form.append(
+    'current_page_context',
+    JSON.stringify({
+      type: 'overview' as const,
+      entity_name: 'employee_feedback',
+      url: globalThis.location.href
+    })
+  )
+  return form
+}
+
+const extractTextFromSseFrame = (frame: string): string => {
+  const lines = frame.split('\n')
+  let eventType = ''
+  let data = ''
+
+  for (const line of lines) {
+    if (line.startsWith('event: ')) {
+      eventType = line.slice(7)
+      continue
+    }
+
+    if (line.startsWith('data: ')) {
+      data = line.slice(6)
+    }
+  }
+
+  if (eventType !== 'output-item' || !data) {
+    return ''
+  }
+
+  try {
+    const parsed = JSON.parse(data)
+    if (parsed.type !== 'answer' || !parsed.displayData) {
+      return ''
+    }
+
+    let extractedText = ''
+    for (const displayItem of parsed.displayData) {
+      if (displayItem.type === 'textBlock' && displayItem.text) {
+        extractedText += displayItem.text
+      }
+    }
+    return extractedText
+  } catch {
+    return ''
+  }
+}
+
+const readFlowBotResponseText = async (response: Response): Promise<string> => {
+  if (!response.body) {
+    throw new Error('No response body')
+  }
+
+  const reader = response.body.pipeThrough(new TextDecoderStream()).getReader()
+  let accumulatedResponse = ''
+  let framesBuffer = ''
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) {
+        break
+      }
+
+      framesBuffer += value
+      const completeFrames = framesBuffer.split('\n\n')
+      framesBuffer = completeFrames.pop() || ''
+
+      for (const frame of completeFrames) {
+        accumulatedResponse += extractTextFromSseFrame(frame)
+      }
+    }
+  } finally {
+    reader.releaseLock()
+  }
+
+  return accumulatedResponse
+}
+
+const requestSentimentAnalysis = async (accessToken: string, prompt: string): Promise<string> => {
+  const response = await fetch(`${getFlowBotBaseUrl()}${FLOWBOT_ENDPOINT_PATH}`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      Accept: 'text/event-stream'
+    },
+    body: createFlowBotFormData(prompt)
+  })
+
+  if (!response.ok) {
+    throw new Error(`API returned ${response.status}`)
+  }
+
+  return readFlowBotResponseText(response)
+}
+
 /**
  * Build the prompt for sentiment analysis
  */
 const buildSentimentPrompt = (feedback: RawFeedback[]): string => {
-  // Get last 6 months of feedback
-  const sixMonthsAgo = new Date()
-  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
-
-  const recentFeedback = feedback.filter(f => new Date(f.feedbackDate) >= sixMonthsAgo).slice(0, 10) // Limit to 10 most recent to avoid token limits
+  const recentFeedback = getRecentFeedback(feedback)
 
   if (recentFeedback.length === 0) {
     return ''
   }
 
-  const feedbackText = recentFeedback
-    .map((f, i) => `${i + 1}. "${f.feedback}"${f.rating ? ` (Rating: ${f.rating}/5)` : ''}`)
-    .join('\n')
+  const feedbackText = recentFeedback.map(formatFeedbackLine).join('\n')
 
   return `You are a sentiment analysis system that ONLY outputs JSON.
 
@@ -87,8 +206,7 @@ const parseSentimentResponse = (
   feedbackCount: number
 ): EmployeeSentimentResult | null => {
   try {
-    // Try to extract JSON from the response
-    const jsonMatch = response.match(/\{[\s\S]*\}/)
+    const jsonMatch = JSON_BLOCK_REGEX.exec(response)
     if (!jsonMatch) {
       console.warn('Sentiment analysis: No JSON found in response')
       return null
@@ -153,90 +271,9 @@ export const useFeedbackSentiment = ({ accessToken }: UseFeedbackSentimentProps)
       }
 
       try {
-        const form = new FormData()
-        form.append('session_id', '')
-        form.append('user_input_text', prompt)
-        form.append('llm_model', 'gpt-4.1')
-        form.append('use_web_search_tool', 'false')
+        const accumulatedResponse = await requestSentimentAnalysis(accessToken, prompt)
 
-        // Use proper page context format (similar to useFlowBot.ts)
-        const pageContext = {
-          type: 'overview' as const,
-          entity_name: 'employee_feedback',
-          url: window.location.href
-        }
-        form.append('current_page_context', JSON.stringify(pageContext))
-
-        // Use full URL path like in useFlowBot
-        const baseUrl = window.location.origin
-        const response = await fetch(`${baseUrl}/flowbot/api/agent/v2/chat`, {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            Accept: 'text/event-stream'
-          },
-          body: form
-        })
-
-        if (!response.ok) {
-          throw new Error(`API returned ${response.status}`)
-        }
-
-        if (!response.body) {
-          throw new Error('No response body')
-        }
-
-        const reader = response.body.pipeThrough(new TextDecoderStream()).getReader()
-        let accumulatedResponse = ''
-        let frames = ''
-
-        try {
-          while (true) {
-            const { done, value } = await reader.read()
-            if (done) break
-
-            frames += value
-            const frameList = frames.split('\n\n')
-            frames = frameList.pop() || ''
-
-            for (const frame of frameList) {
-              const lines = frame.split('\n')
-              let eventType = ''
-              let data = ''
-
-              for (const line of lines) {
-                if (line.startsWith('event: ')) {
-                  eventType = line.slice(7)
-                } else if (line.startsWith('data: ')) {
-                  data = line.slice(6)
-                }
-              }
-
-              if (eventType === 'output-item' && data) {
-                try {
-                  const parsed = JSON.parse(data)
-                  if (parsed.type === 'answer' && parsed.displayData) {
-                    for (const displayItem of parsed.displayData) {
-                      if (displayItem.type === 'textBlock' && displayItem.text) {
-                        accumulatedResponse += displayItem.text
-                      }
-                    }
-                  }
-                } catch {
-                  // Ignore parse errors for individual frames
-                }
-              }
-            }
-          }
-        } finally {
-          reader.releaseLock()
-        }
-
-        const result = parseSentimentResponse(
-          accumulatedResponse,
-          employeeId,
-          feedback.filter(f => new Date(f.feedbackDate) >= new Date(Date.now() - 6 * 30 * 24 * 60 * 60 * 1000)).length
-        )
+        const result = parseSentimentResponse(accumulatedResponse, employeeId, getRecentFeedbackCount(feedback))
 
         if (result) {
           cacheRef.current.set(cacheKey, result)

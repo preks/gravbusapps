@@ -28,6 +28,8 @@ interface TeamAvatarsSectionProps {
   onMemberClick: (memberId: string) => void
 }
 
+const AVATAR_SKELETON_KEYS = Array.from({ length: 16 }, (_, index) => `avatar-skeleton-${index + 1}`)
+
 /**
  * Get status indicator colors based on employee status
  * OOO (Out of Office) statuses: On Leave, Sick Leave
@@ -77,8 +79,8 @@ export const TeamAvatarsSection: React.FC<TeamAvatarsSectionProps> = ({
         </CardHeader>
         <CardContent>
           <div className="gba:animate-pulse gba:flex gba:flex-wrap gba:gap-2">
-            {[...Array(16)].map((_, i) => (
-              <div key={i} className="gba:h-10 gba:w-10 gba:bg-muted gba:rounded-full" />
+            {AVATAR_SKELETON_KEYS.map(skeletonKey => (
+              <div key={skeletonKey} className="gba:h-10 gba:w-10 gba:bg-muted gba:rounded-full" />
             ))}
           </div>
         </CardContent>

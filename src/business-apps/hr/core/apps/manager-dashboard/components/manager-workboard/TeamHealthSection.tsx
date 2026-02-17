@@ -84,15 +84,37 @@ export const TeamHealthSection: React.FC<TeamHealthSectionProps> = ({
     }
   }
 
+  const getOverallRiskLevel = (riskSummary: FlightRiskSummary | null): 'low' | 'medium' | 'high' => {
+    if (!riskSummary || riskSummary.totalEmployees <= 0) {
+      return 'low'
+    }
+
+    const computedHighRiskTotal = (riskSummary.highRiskCount || 0) + (riskSummary.criticalCount || 0)
+    if (computedHighRiskTotal > 2) {
+      return 'high'
+    }
+
+    if ((riskSummary.mediumRiskCount || 0) > 5) {
+      return 'medium'
+    }
+
+    return 'low'
+  }
+
+  const getOverallRiskLabel = (risk: 'low' | 'medium' | 'high') => {
+    if (risk === 'high') {
+      return 'High Risk'
+    }
+
+    if (risk === 'medium') {
+      return 'Medium Risk'
+    }
+
+    return 'Low Risk'
+  }
+
   const highRiskTotal = (summary?.highRiskCount || 0) + (summary?.criticalCount || 0)
-  const overallRisk =
-    summary && summary.totalEmployees > 0
-      ? highRiskTotal > 2
-        ? 'high'
-        : (summary.mediumRiskCount || 0) > 5
-          ? 'medium'
-          : 'low'
-      : 'low'
+  const overallRisk = getOverallRiskLevel(summary)
 
   // Extract all risk factors from all employees with their scores
   const allRiskFactors = new Map<string, number>()
@@ -142,9 +164,7 @@ export const TeamHealthSection: React.FC<TeamHealthSectionProps> = ({
         <CardHeader className="gba:flex-none gba:pb-3">
           <div className="gba:flex gba:items-center gba:justify-between">
             <CardTitle className="gba:text-lg gba:font-semibold">Team Health</CardTitle>
-            <Badge variant={getRiskBadgeVariant(overallRisk)}>
-              {overallRisk === 'high' ? 'High Risk' : overallRisk === 'medium' ? 'Medium Risk' : 'Low Risk'}
-            </Badge>
+            <Badge variant={getRiskBadgeVariant(overallRisk)}>{getOverallRiskLabel(overallRisk)}</Badge>
           </div>
           <div className="gba:flex gba:items-center gba:justify-between">
             <p className="gba:text-sm gba:text-muted-foreground">Retention risk monitoring</p>
@@ -202,8 +222,8 @@ export const TeamHealthSection: React.FC<TeamHealthSectionProps> = ({
               <div>
                 <p className="gba:text-xs gba:font-medium gba:mb-1.5 gba:text-success">Key Drivers:</p>
                 <div className="gba:space-y-1">
-                  {keyDrivers.map((driver, idx) => (
-                    <div key={idx} className="gba:flex gba:items-center gba:gap-1.5 gba:text-xs">
+                  {keyDrivers.map(driver => (
+                    <div key={driver} className="gba:flex gba:items-center gba:gap-1.5 gba:text-xs">
                       <TrendingUp className="gba:text-success gba:flex-shrink-0" size={12} />
                       <span className="gba:text-muted-foreground gba:truncate">{driver}</span>
                     </div>
@@ -217,8 +237,8 @@ export const TeamHealthSection: React.FC<TeamHealthSectionProps> = ({
               <div>
                 <p className="gba:text-xs gba:font-medium gba:mb-1.5 gba:text-destructive">Top Risk Factors:</p>
                 <div className="gba:space-y-1">
-                  {topRiskFactors.map((factor, idx) => (
-                    <div key={idx} className="gba:flex gba:items-center gba:gap-1.5 gba:text-xs">
+                  {topRiskFactors.map(factor => (
+                    <div key={factor} className="gba:flex gba:items-center gba:gap-1.5 gba:text-xs">
                       <AlertTriangle className="gba:text-destructive gba:flex-shrink-0" size={12} />
                       <span className="gba:text-muted-foreground gba:truncate">{factor}</span>
                     </div>

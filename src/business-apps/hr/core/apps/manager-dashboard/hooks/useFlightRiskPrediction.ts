@@ -73,19 +73,57 @@ interface EmployeeTrendInfo {
   historicalScores: { overallScore: number; calculatedAt: string }[]
 }
 
+interface BuildSignalsInput {
+  employeeId: string
+  tenureMonths: number
+  performanceGoals: RawPerformanceGoal[]
+  feedbackReceived: RawFeedback[]
+  feedbackFromManager: RawFeedback[]
+  absences: RawAbsence[]
+  salaryInfo?: EmployeeSalaryInfo
+  sentimentInfo?: EmployeeSentimentInfo
+}
+
+const buildSentimentSignalMetadata = (
+  sentimentInfo: EmployeeSentimentInfo | undefined,
+  feedbackCount: number
+): { name: string; rawValue: 'ai-analyzed' | 'ratings' | null; dataSource: string } => {
+  if (sentimentInfo?.isAIAnalyzed) {
+    return {
+      name: 'Sentiment (AI)',
+      rawValue: 'ai-analyzed',
+      dataSource: 'FlowBot AI'
+    }
+  }
+
+  if (feedbackCount > 0) {
+    return {
+      name: 'Feedback Sentiment',
+      rawValue: 'ratings',
+      dataSource: 'EmployeeFeedback.rating'
+    }
+  }
+
+  return {
+    name: 'Feedback Sentiment',
+    rawValue: null,
+    dataSource: 'EmployeeFeedback.rating'
+  }
+}
+
 /**
  * Build flight risk signals for an employee
  */
-const buildSignals = (
-  employeeId: string,
-  tenureMonths: number,
-  performanceGoals: RawPerformanceGoal[],
-  feedbackReceived: RawFeedback[],
-  feedbackFromManager: RawFeedback[],
-  absences: RawAbsence[],
-  salaryInfo?: EmployeeSalaryInfo,
-  sentimentInfo?: EmployeeSentimentInfo
-): FlightRiskSignal[] => {
+const buildSignals = ({
+  employeeId,
+  tenureMonths,
+  performanceGoals,
+  feedbackReceived,
+  feedbackFromManager,
+  absences,
+  salaryInfo,
+  sentimentInfo
+}: BuildSignalsInput): FlightRiskSignal[] => {
   const signals: FlightRiskSignal[] = []
 
   // Tenure Signal
@@ -151,15 +189,16 @@ const buildSignals = (
     sentimentInfo?.summary,
     sentimentInfo?.isAIAnalyzed
   )
+  const sentimentSignalMetadata = buildSentimentSignalMetadata(sentimentInfo, employeeFeedbackReceived.length)
   signals.push({
     id: `${employeeId}-sentiment`,
-    name: sentimentInfo?.isAIAnalyzed ? 'Sentiment (AI)' : 'Feedback Sentiment',
+    name: sentimentSignalMetadata.name,
     category: 'sentiment',
-    rawValue: sentimentInfo?.isAIAnalyzed ? 'ai-analyzed' : employeeFeedbackReceived.length > 0 ? 'ratings' : null,
+    rawValue: sentimentSignalMetadata.rawValue,
     normalizedScore: sentimentScore,
     weight: SIGNAL_WEIGHTS.sentiment,
     description: sentimentDescription,
-    dataSource: sentimentInfo?.isAIAnalyzed ? 'FlowBot AI' : 'EmployeeFeedback.rating'
+    dataSource: sentimentSignalMetadata.dataSource
   })
 
   // Compensation Signal - now with real salary data from EmployeeSalary table
@@ -346,16 +385,16 @@ const processFlightRiskData = (
     const trendInfo = trendDataMap.get(emp.id)
 
     // Build all signals for this employee
-    const signals = buildSignals(
-      emp.id,
+    const signals = buildSignals({
+      employeeId: emp.id,
       tenureMonths,
       performanceGoals,
       feedbackReceived,
-      managerFeedback,
+      feedbackFromManager: managerFeedback,
       absences,
       salaryInfo,
       sentimentInfo
-    )
+    })
 
     // Calculate overall score
     const overallRiskScore = calculateOverallRiskScore(signals)

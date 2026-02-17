@@ -231,7 +231,8 @@ export const AssignProjectDialog: React.FC<AssignProjectDialogProps> = ({
     }
 
     const selectedProject = projects.find(p => p.id === selectedProjectId)
-    if (!selectedProject || !selectedProject.matrixUnitId) {
+    const selectedProjectMatrixUnitId = selectedProject?.matrixUnitId
+    if (!selectedProjectMatrixUnitId) {
       toast.error('Selected project does not have a team')
       return
     }
@@ -253,7 +254,7 @@ export const AssignProjectDialog: React.FC<AssignProjectDialogProps> = ({
       const assignPayload = {
         employeeId: employee.id,
         structureId: structureId,
-        matrixUnitId: selectedProject.matrixUnitId,
+        matrixUnitId: selectedProjectMatrixUnitId,
         percentage: allocationValue
       }
 

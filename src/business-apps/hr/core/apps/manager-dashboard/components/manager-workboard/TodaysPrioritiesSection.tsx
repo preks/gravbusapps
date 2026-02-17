@@ -494,14 +494,13 @@ export const TodaysPrioritiesSection: React.FC<TodaysPrioritiesSectionProps> = (
             </p>
           </SheetHeader>
 
-          <div className="gba:space-y-2" role="list" aria-label="Unallocated employees">
+          <ul className="gba:space-y-2" aria-label="Unallocated employees">
             {unallocatedEmployees.map(employee => {
               const availablePercent = 100 - (employee.allocationPercent || 0)
               return (
-                <div
+                <li
                   key={employee.id}
                   className="gba:flex gba:items-center gba:justify-between gba:p-3 gba:border gba:rounded-lg hover:gba:bg-muted/50"
-                  role="listitem"
                 >
                   <div className="gba:flex gba:flex-col gba:gap-1 gba:flex-1">
                     <span className="gba:text-sm gba:font-medium">{employee.name}</span>
@@ -522,16 +521,16 @@ export const TodaysPrioritiesSection: React.FC<TodaysPrioritiesSectionProps> = (
                       Allocate
                     </Button>
                   )}
-                </div>
+                </li>
               )
             })}
 
             {unallocatedEmployees.length === 0 && (
-              <div className="gba:text-center gba:py-8 gba:text-muted-foreground">
+              <li className="gba:text-center gba:py-8 gba:text-muted-foreground">
                 <p>No unallocated employees</p>
-              </div>
+              </li>
             )}
-          </div>
+          </ul>
         </SheetContent>
       </Sheet>
 
