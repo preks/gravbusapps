@@ -177,7 +177,8 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
 
   const [hasTaskForCollectionCopy, setHasTaskForCollectionCopy] = useState(false)
   const fromCollectionLink =
-    typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('excel_collection') === '1'
+    globalThis.window !== undefined &&
+    new URLSearchParams(globalThis.window.location.search).get('excel_collection') === '1'
   const isCollectionCopy = Boolean(
     app.settings?.excel_collection_copy || hasTaskForCollectionCopy || fromCollectionLink
   )
@@ -194,12 +195,12 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         if (!isUnmounted && has) setHasTaskForCollectionCopy(true)
       })
     runCheck()
-    const retryTimer = window.setTimeout(() => {
+    const retryTimer = globalThis.window.setTimeout(() => {
       runCheck()
     }, 1500) // Retry in case flow engine wasn't ready
     return () => {
       isUnmounted = true
-      window.clearTimeout(retryTimer)
+      globalThis.window.clearTimeout(retryTimer)
     }
   }, [app.id, app.settings?.excel_collection_copy, userId, automations.hasExcelCollectionTaskForApp])
 
@@ -424,7 +425,8 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
 
     const activityType = isEditing ? 'editing' : 'viewing'
     const docTitle = app.name || 'Untitled Spreadsheet'
-    const urlSpaceId = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('spaceId') : null
+    const urlSpaceId =
+      globalThis.window !== undefined ? new URLSearchParams(globalThis.window.location.search).get('spaceId') : null
 
     // Emit activity when starting
     emitDocumentActivity({
@@ -601,7 +603,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       SpreadsheetApiService.flushRowUpdates(app.id, activeSheetId, updates)
     }
 
-    window.addEventListener('beforeunload', flushPendingOnUnload)
+    globalThis.window.addEventListener('beforeunload', flushPendingOnUnload)
     // Also handle visibilitychange for mobile / tab switching
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {
@@ -611,7 +613,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     document.addEventListener('visibilitychange', handleVisibilityChange)
 
     return () => {
-      window.removeEventListener('beforeunload', flushPendingOnUnload)
+      globalThis.window.removeEventListener('beforeunload', flushPendingOnUnload)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
   }, [app.id, activeSheetId])

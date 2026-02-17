@@ -395,42 +395,54 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
     const cursorTrackingRef = useRef(cursorTracking)
     cursorTrackingRef.current = cursorTracking
 
+    const openSelectedCopyLink = useCallback(() => {
+      const workbook = workbookRef.current
+      if (!workbook || !data.length || !columns.length) return
+
+      // Defer to next tick so FortuneSheet has updated selection.
+      requestAnimationFrame(() => {
+        try {
+          const sel = (workbook as any).getSelection?.()
+          if (!sel || !Array.isArray(sel) || sel.length === 0) return
+          const item = sel[0]
+          const row = item?.row?.[0]
+          const col = item?.column?.[0]
+          if (typeof row !== 'number' || typeof col !== 'number') return
+          if (row < HEADER_ROW_OFFSET) return
+
+          const dataRowIndex = row - HEADER_ROW_OFFSET
+          const column = columns[col]
+          if (!column || column.name !== '_copy_link') return
+
+          const rowData = data[dataRowIndex]
+          if (!rowData) return
+          const url = rowData[column.name]
+          if (typeof url !== 'string' || !url.trim()) return
+          const href = url.startsWith('/') ? `${getBaseOrigin()}${url}` : url
+          openSafeHttpUrl(href)
+        } catch {
+          // getSelection can throw; ignore
+        }
+      })
+    }, [columns, data])
+
     // Handle pointer release on View Response / copy_link cells - open URL
-    // (FortuneSheet doesn't render links clickable)
+    // (FortuneSheet doesn't render links clickable).
     const handleContainerMouseUp = useCallback(
       (e: React.MouseEvent) => {
-        // Only handle primary-button release from within the grid (not toolbar, etc.)
         if (e.button !== 0) return
-        const workbook = workbookRef.current
-        if (!workbook || !data.length || !columns.length) return
-
-        // Defer to next tick so FortuneSheet has updated selection
-        requestAnimationFrame(() => {
-          try {
-            const sel = (workbook as any).getSelection?.()
-            if (!sel || !Array.isArray(sel) || sel.length === 0) return
-            const item = sel[0]
-            const row = item?.row?.[0]
-            const col = item?.column?.[0]
-            if (typeof row !== 'number' || typeof col !== 'number') return
-            if (row < HEADER_ROW_OFFSET) return // Header row
-
-            const dataRowIndex = row - HEADER_ROW_OFFSET
-            const column = columns[col]
-            if (!column || column.name !== '_copy_link') return
-
-            const rowData = data[dataRowIndex]
-            if (!rowData) return
-            const url = rowData[column.name]
-            if (typeof url !== 'string' || !url.trim()) return
-            const href = url.startsWith('/') ? `${getBaseOrigin()}${url}` : url
-            openSafeHttpUrl(href)
-          } catch {
-            // getSelection can throw; ignore
-          }
-        })
+        openSelectedCopyLink()
       },
-      [data, columns]
+      [openSelectedCopyLink]
+    )
+
+    const handleContainerKeyDown = useCallback(
+      (e: React.KeyboardEvent) => {
+        if (e.key !== 'Enter' && e.key !== ' ') return
+        e.preventDefault()
+        openSelectedCopyLink()
+      },
+      [openSelectedCopyLink]
     )
 
     // Use FortuneSheet native selection hook (avoids calling Workbook.getSelection() which can crash when ctx is undefined)
@@ -921,7 +933,14 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
 
     return (
       <div className="gba:absolute gba:inset-0 gba:w-full gba:h-full gba:overflow-hidden">
-        <div className="fortunesheet-container" onMouseUp={handleContainerMouseUp}>
+        <div
+          className="fortunesheet-container"
+          onMouseUp={handleContainerMouseUp}
+          onKeyDown={handleContainerKeyDown}
+          role="button"
+          tabIndex={0}
+          aria-label="Spreadsheet grid"
+        >
           <Workbook
             ref={ref => {
               workbookRef.current = ref

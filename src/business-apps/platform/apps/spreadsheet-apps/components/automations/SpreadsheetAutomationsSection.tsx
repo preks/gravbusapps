@@ -1011,7 +1011,7 @@ function getSubmissionStatusLabel(status: RunSubmission['status']): 'Completed' 
 }
 
 function openSafeSpreadsheetUrl(rawUrl: string): void {
-  if (typeof globalThis.window === 'undefined' || !rawUrl) return
+  if (globalThis.window === undefined || !rawUrl) return
 
   try {
     const currentOrigin = globalThis.window.location.origin
@@ -1141,7 +1141,7 @@ const RunDetailPanel: React.FC<RunDetailPanelProps> = ({ run, accessToken, 'data
 
         const data = await response.json()
         const rawSubmissions = extractArray<Record<string, unknown>>(data)
-        const baseOrigin = typeof globalThis.window !== 'undefined' ? globalThis.window.location.origin : ''
+        const baseOrigin = globalThis.window !== undefined ? globalThis.window.location.origin : ''
         const enrichedSubmissions = await Promise.all(
           rawSubmissions.map(item => enrichRunSubmission(item, graphqlClient, baseOrigin))
         )
