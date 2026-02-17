@@ -69,12 +69,18 @@ export const SteeringChat = ({
 
   useEffect(() => {
     let mounted = true
-    meshClient
-      .getAgentRegistry({ agentType: 'everyai' })
-      .then(data => {
+    Promise.allSettled([meshClient.getAgentRegistry({ agentType: 'everyai' }), meshClient.getMeshLayout()])
+      .then(([registryRes, layoutRes]) => {
         if (!mounted) return
-        setAgents(data)
-        if (data.length > 0 && !selectedAgentId) setSelectedAgentId(data[0].id)
+        const allAgents = registryRes.status === 'fulfilled' ? registryRes.value : []
+        const meshIds = new Set(
+          layoutRes.status === 'fulfilled' && layoutRes.value?.positions
+            ? layoutRes.value.positions.map((p: { agent_id: string }) => p.agent_id)
+            : []
+        )
+        const meshAgents = meshIds.size > 0 ? allAgents.filter(a => meshIds.has(a.id)) : allAgents
+        setAgents(meshAgents)
+        if (meshAgents.length > 0 && !selectedAgentId) setSelectedAgentId(meshAgents[0].id)
       })
       .catch(() => {})
       .finally(() => {

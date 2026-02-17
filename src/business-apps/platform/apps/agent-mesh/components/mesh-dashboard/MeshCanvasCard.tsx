@@ -1,5 +1,5 @@
 import { useRef } from 'react'
-import { ReactFlow, Background, Controls, MiniMap, type Connection as RFConnection } from '@xyflow/react'
+import { ReactFlow, Controls, MiniMap, type Connection as RFConnection } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import { AgentNode } from './AgentNode'
 import { useMeshEdgeSvgFix } from '../../hooks/useMeshEdgeSvgFix'
@@ -56,12 +56,12 @@ export const MeshCanvasCard: React.FC<MeshCanvasCardProps> = ({
         onPaneClick={onPaneClick}
         nodeTypes={nodeTypes}
         fitView
-        fitViewOptions={{ padding: 0.3 }}
+        fitViewOptions={{ padding: 0.5, maxZoom: 1 }}
         connectOnClick={false}
         onlyRenderVisibleElements={false}
+        proOptions={{ hideAttribution: true }}
         className="gba:w-full gba:h-full"
       >
-        <Background color="var(--color-border-default)" gap={16} size={1} />
         <Controls
           showZoom={true}
           showFitView={true}
