@@ -1,7 +1,9 @@
 import React, { useCallback, useState, useEffect, useMemo } from 'react'
-import { Button, DataDisplay, DataTable, useTranslation } from '@newwork/nw-design-system'
+import { DataDisplay, DataTable, useTranslation } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import type { SortingState } from '@tanstack/react-table'
 import { useTaskExperts } from '../hooks/useTaskExperts'
+import { useAgentMeshClient } from '@/business-apps/platform/apps/agent-mesh/hooks/useAgentMeshClient'
 import { TaskExpertTestPanel } from './TaskExpertTestPanel'
 import { createTaskExpertColumns } from '../config/taskExpertColumns'
 import type { PromptODM } from '@/common/network/ai/prompt-manager/PromptManagerClient'
@@ -11,30 +13,43 @@ type TaskExpertRow = PromptODM & { id: string }
 
 interface TaskExpertsSpaceProps extends BusinessAppContextProps {
   translations: { enUS: string; deDE: string; roRO: string }
-  onCreateTaskExpert: () => void
   onViewPrompt: (id: string, name: string) => void
   onEditPrompt: (id: string, name: string) => void
   refreshKey: number
 }
 
+const buildSortParam = (sorting: SortingState): string | null => {
+  if (!sorting || sorting.length === 0) return null
+
+  // We only support server-side sorting on the Prompt Manager fields that are mapped.
+  const allowed = new Set(['name', 'agentType', 'createdAt', 'version'])
+
+  const parts = sorting.filter(s => allowed.has(s.id)).map(s => `${s.desc ? '-' : '+'}${s.id}`)
+
+  return parts.length ? parts.join(',') : null
+}
+
 export const TaskExpertsSpace: React.FC<TaskExpertsSpaceProps> = ({
   translations,
-  onCreateTaskExpert,
   onViewPrompt,
   onEditPrompt,
   refreshKey,
   ...context
 }) => {
   const { t } = useTranslation(translations)
+  const meshApi = useAgentMeshClient(context.accessToken)
   const [search, setSearch] = useState<string>('')
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 20 })
   const [testingPromptId, setTestingPromptId] = useState<string | null>(null)
+  const [sorting, setSorting] = useState<SortingState>([{ id: 'createdAt', desc: true }])
+  const [meshStatus, setMeshStatus] = useState<string | null>(null)
 
   const { prompts, total, isLoading, error, reload } = useTaskExperts(context, {
     search,
     limit: pagination.pageSize,
     offset: pagination.pageIndex * pagination.pageSize,
-    returnTotalRecords: true
+    returnTotalRecords: true,
+    sort: buildSortParam(sorting)
   })
 
   // Transform prompts to add id property (DataTable requires id, not _id)
@@ -49,27 +64,52 @@ export const TaskExpertsSpace: React.FC<TaskExpertsSpaceProps> = ({
         search,
         limit: pagination.pageSize,
         offset: pagination.pageIndex * pagination.pageSize,
-        returnTotalRecords: true
+        returnTotalRecords: true,
+        sort: buildSortParam(sorting)
       })
     }
-  }, [refreshKey])
+  }, [refreshKey, reload, search, pagination.pageIndex, pagination.pageSize, sorting])
 
   const onSearchChange = useCallback((value: string) => {
     setSearch(value)
     setPagination(prev => ({ ...prev, pageIndex: 0 }))
   }, [])
 
-  const handlePaginationChange = useCallback(
-    (newPagination: { pageIndex: number; pageSize: number }) => {
-      setPagination(newPagination)
-      reload({
-        search,
-        limit: newPagination.pageSize,
-        offset: newPagination.pageIndex * newPagination.pageSize,
-        returnTotalRecords: true
-      })
+  const handlePaginationChange = useCallback((newPagination: { pageIndex: number; pageSize: number }) => {
+    setPagination(newPagination)
+  }, [])
+
+  const handleSortingChange = useCallback((nextSorting: SortingState) => {
+    setSorting(nextSorting)
+    setPagination(prev => ({ ...prev, pageIndex: 0 }))
+  }, [])
+
+  const handleAddToMesh = useCallback(
+    async (agentId: string) => {
+      try {
+        const layout = await meshApi.getMeshLayout()
+        const existing = layout?.positions || []
+        if (existing.some(p => p.agent_id === agentId)) {
+          setMeshStatus(t('already-in-mesh'))
+        } else {
+          await meshApi.saveMeshLayout([...existing, { agent_id: agentId, x: 0, y: 0 }])
+          setMeshStatus(t('added-to-mesh'))
+        }
+        setTimeout(() => setMeshStatus(null), 3000)
+      } catch {
+        console.error('Failed to add agent to mesh')
+      }
     },
-    [reload, search]
+    [meshApi, t]
+  )
+
+  const handleRowClick = useCallback(
+    (row: TaskExpertRow) => {
+      const id = row?._id || ''
+      if (!id) return
+      onViewPrompt(id, row?.name || '')
+    },
+    [onViewPrompt]
   )
 
   return (
@@ -83,11 +123,6 @@ export const TaskExpertsSpace: React.FC<TaskExpertsSpaceProps> = ({
           }
         ]}
         currentSection="experts"
-        primaryAction={
-          <Button variant="default" onClick={onCreateTaskExpert} data-testid="prompt-manager-create-button">
-            {t('new-task-expert')}
-          </Button>
-        }
         searchValue={search}
         searchPlaceholder={t('search-placeholder')}
         onSearchChange={onSearchChange}
@@ -98,23 +133,40 @@ export const TaskExpertsSpace: React.FC<TaskExpertsSpaceProps> = ({
           columns={columns}
           loading={isLoading}
           error={error}
-          onRowClick={(row: TaskExpertRow) => onViewPrompt(row._id || '', row.name || '')}
           actions={[
             { label: t('view'), onClick: (row: TaskExpertRow) => onViewPrompt(row._id || '', row.name || '') },
             { label: t('edit'), onClick: (row: TaskExpertRow) => onEditPrompt(row._id || '', row.name || '') },
-            { label: t('test'), onClick: (row: TaskExpertRow) => setTestingPromptId(row._id || '') }
+            { label: t('test'), onClick: (row: TaskExpertRow) => setTestingPromptId(row._id || '') },
+            {
+              label: t('add-to-mesh'),
+              onClick: (row: TaskExpertRow) => handleAddToMesh(row._id || ''),
+              hidden: (row: TaskExpertRow) => row.agentType !== 'everyai'
+            }
           ]}
           tableLayout="fixed"
           enableColumnPinning={true}
+          enableSorting
+          sorting={sorting}
+          onSortingChange={handleSortingChange}
           enablePagination
           pagination={pagination}
           onPaginationChange={handlePaginationChange}
           totalCount={total}
           rowsPerPageOptions={[10, 20, 50, 100]}
           emptyMessage={t('empty-message')}
+          onRowClick={handleRowClick}
           data-testid="prompt-manager-table"
         />
       </DataDisplay>
+
+      {meshStatus && (
+        <div
+          className="gba:fixed gba:bottom-4 gba:right-4 gba:z-50 gba:bg-card gba:border gba:border-border gba:rounded-lg gba:px-4 gba:py-3 gba:text-sm gba:text-foreground gba:shadow-lg"
+          data-testid="mesh-status-toast"
+        >
+          {meshStatus}
+        </div>
+      )}
 
       <TaskExpertTestPanel
         {...context}

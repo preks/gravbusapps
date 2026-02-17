@@ -9,9 +9,10 @@ import {
   TabsTrigger,
   useTranslation
 } from '@newwork/nw-design-system'
-import { Settings } from 'lucide-react'
+import { ArrowLeft, Network, Settings } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
+import { useAgentMeshClient } from '@/business-apps/platform/apps/agent-mesh/hooks/useAgentMeshClient'
 import type { PromptODM } from '@/common/network/ai/prompt-manager/PromptManagerClient'
 import translations from '../_i18n'
 import ExpertDashboardTab from './monitoring/ExpertDashboardTab'
@@ -27,12 +28,20 @@ export interface TaskExpertViewProps extends BusinessAppContextProps {
 
 type ViewTab = 'dashboard' | 'test' | 'monitoring'
 
-export const TaskExpertView: React.FC<TaskExpertViewProps> = ({ promptId, onEdit, onNameLoaded, ...context }) => {
+export const TaskExpertView: React.FC<TaskExpertViewProps> = ({
+  promptId,
+  onBack,
+  onEdit,
+  onNameLoaded,
+  ...context
+}) => {
   const { t } = useTranslation(translations)
   const client = usePromptManagerClient(context.accessToken)
+  const meshApi = useAgentMeshClient(context.accessToken)
   const [prompt, setPrompt] = useState<PromptODM | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<ViewTab>('dashboard')
+  const [meshStatus, setMeshStatus] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -55,6 +64,22 @@ export const TaskExpertView: React.FC<TaskExpertViewProps> = ({ promptId, onEdit
     }
   }, [client, promptId, onNameLoaded])
 
+  const handleAddToMesh = async () => {
+    try {
+      const layout = await meshApi.getMeshLayout()
+      const existing = layout?.positions || []
+      if (existing.some(p => p.agent_id === promptId)) {
+        setMeshStatus(t('already-in-mesh'))
+      } else {
+        await meshApi.saveMeshLayout([...existing, { agent_id: promptId, x: 0, y: 0 }])
+        setMeshStatus(t('added-to-mesh'))
+      }
+      setTimeout(() => setMeshStatus(null), 3000)
+    } catch {
+      console.error('Failed to add agent to mesh')
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="gba:flex gba:items-center gba:justify-center gba:py-12" data-testid="expert-view-loading">
@@ -68,13 +93,30 @@ export const TaskExpertView: React.FC<TaskExpertViewProps> = ({ promptId, onEdit
       {/* Header */}
       <div className="gba:flex gba:flex-wrap gba:items-center gba:justify-between gba:gap-3">
         <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-3">
-          <h2 className="gba:text-lg gba:font-semibold">{prompt?.name || promptId}</h2>
+          <Button variant="outline" size="sm" onClick={onBack} data-testid="expert-view-back" type="button">
+            <ArrowLeft className="gba:w-4 gba:h-4 gba:mr-1" />
+            {t('back-to-list')}
+          </Button>
           {prompt?.agentType && <Badge variant="secondary">{prompt.agentType}</Badge>}
         </div>
-        <Button variant="default" size="sm" onClick={onEdit} data-testid="expert-view-edit-button">
-          <Settings className="gba:w-4 gba:h-4 gba:mr-1" />
-          {t('view-edit-button')}
-        </Button>
+        <div className="gba:flex gba:items-center gba:gap-2">
+          {prompt?.agentType === 'everyai' && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleAddToMesh}
+              data-testid="expert-view-add-to-mesh"
+              type="button"
+            >
+              <Network className="gba:w-4 gba:h-4 gba:mr-1" />
+              {t('add-to-mesh')}
+            </Button>
+          )}
+          <Button variant="default" size="sm" onClick={onEdit} data-testid="expert-view-edit-button">
+            <Settings className="gba:w-4 gba:h-4 gba:mr-1" />
+            {t('view-edit-button')}
+          </Button>
+        </div>
       </div>
 
       {prompt?.description && <p className="gba:text-sm gba:text-muted-foreground">{prompt.description}</p>}
@@ -105,6 +147,15 @@ export const TaskExpertView: React.FC<TaskExpertViewProps> = ({ promptId, onEdit
           <ExpertMonitoringTab {...context} promptId={promptId} />
         </TabsContent>
       </Tabs>
+
+      {meshStatus && (
+        <div
+          className="gba:fixed gba:bottom-4 gba:right-4 gba:z-50 gba:bg-card gba:border gba:border-border gba:rounded-lg gba:px-4 gba:py-3 gba:text-sm gba:text-foreground gba:shadow-lg"
+          data-testid="mesh-status-toast"
+        >
+          {meshStatus}
+        </div>
+      )}
     </div>
   )
 }

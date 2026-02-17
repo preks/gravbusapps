@@ -1,31 +1,53 @@
 # Task Expert Studio Translations (Romanian)
 
 # Page Header
-page-title = AI Task Expert Studio
+page-title = Studio experti AI pentru sarcini
 page-description = Creati experti AI pentru sarcini din prompturi si testati integrarile.
 
 # Section
-section-label = AI Task Experts
+section-label = Experti AI pentru sarcini
 
 # Actions
 new-task-expert = AI Task Expert nou
 view = Vizualizare
 edit = Editare
 test = Testare
+add-to-mesh = Adauga in Mesh
+added-to-mesh = Adaugat in Mesh
+already-in-mesh = Deja in Mesh
 
 # Tabs
-tab-task-experts = AI Task Experts
+tab-task-experts = Experti AI pentru sarcini
 tab-tools = Setări
 tab-monitoring = Monitoring
 tab-dashboard = Dashboard
 
 # Search
-search-placeholder = Cautare AI task experts...
+search-placeholder = Cautati experti AI pentru sarcini...
+
+# Navigation / Common actions
+back = Inapoi
+back-to-list = Inapoi la lista
+save = Salveaza
+saving = Se salveaza...
+save-failed = Salvarea a esuat
+ai-assist = Asistent AI
+
+# Builder tabs
+builder-tab-general = General
+builder-tab-behavior = Comportament
+builder-tab-knowledge = Cunostinte
+builder-tab-tools = Tools
+builder-tab-advanced = Avansat
 
 # Table Columns
 column-name = Nume
-column-agent-type = Tip agent
+column-agent-type = Tip
+column-model = Model
 column-tools = Tools
+column-knowledge-sources = Surse de cunostinte
+column-created-at = Ultima actualizare
+column-created-by = Proprietar
 column-specialty = Specialitate
 column-version = Versiune
 
@@ -33,6 +55,7 @@ column-version = Versiune
 agent-type-everyai = EveryAI
 agent-type-general = General
 agent-type-flow = FLOW
+agent-type-decision = Decizie
 
 # Badges
 badge-public = Public
