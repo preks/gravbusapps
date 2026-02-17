@@ -141,7 +141,7 @@ export const RatingScaleEditorModal: React.FC<RatingScaleEditorModalProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent data-testid="rating-scale-editor-modal">
+      <DialogContent data-testid="rating-scale-editor-modal" onInteractOutside={e => e.preventDefault()}>
         <DialogHeader>
           <DialogTitle>{initialValues ? t('scale-title-edit') : t('scale-title-add')}</DialogTitle>
           <DialogDescription>{t('scale-description')}</DialogDescription>
