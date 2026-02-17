@@ -103,27 +103,6 @@ export function useRealtimeKitSideEffects(params: {
     participantsHook.participants
   ])
 
-  useEffect(() => {
-    if (callState.status !== 'connected') return
-    const logInterval = setInterval(() => {
-      const stats = media.rnnoiseStats
-      const callDuration = Date.now() - (callState.callStartTime ?? Date.now())
-      console.log('[RTK Session] Call quality metrics', {
-        duration: (callDuration / 1000).toFixed(0) + 's',
-        rnnoiseEnabled: media.rnnoiseEnabled,
-        rnnoiseStats: stats
-          ? {
-              framesProcessed: stats.framesProcessed,
-              averageLatency: stats.averageLatency.toFixed(2) + 'ms',
-              isActive: stats.isActive
-            }
-          : null,
-        participants: participantsHook.participants.length
-      })
-    }, 30000)
-    return () => clearInterval(logInterval)
-  }, [callState.status, callState.callStartTime, media, participantsHook.participants])
-
   const transcriptSocket = wsClient?.getSocket()
   useEffect(() => {
     const socket = transcriptSocket
