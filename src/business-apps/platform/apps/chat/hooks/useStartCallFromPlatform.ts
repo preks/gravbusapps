@@ -160,7 +160,8 @@ export const useStartCallFromPlatform = ({
       window.dispatchEvent(new CustomEvent('chat:group-call-started', { detail: { conversationId } }))
     }
 
-    // Handle joining a calendar meeting from the dashboard (Upcoming Meetings section)
+    // Handle joining a calendar meeting (from Calendar or Upcoming Meetings).
+    // Must use only event.detail — never URL or current tab — so join is correct when user is on another tab.
     const handleJoinMeeting = (event: Event) => {
       const customEvent = event as CustomEvent<JoinMeetingPayload>
       const { meetingId, conversationId, title, participants } = customEvent.detail

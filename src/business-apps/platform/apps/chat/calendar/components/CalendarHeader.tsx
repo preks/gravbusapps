@@ -8,7 +8,7 @@ import {
   SelectValue,
   useTranslation
 } from '@newwork/nw-design-system'
-import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, RefreshCw } from 'lucide-react'
 import type { CalendarView } from '../types'
 import translations from '../../_i18n'
 
@@ -20,6 +20,7 @@ interface CalendarHeaderProps {
   onNext: () => void
   onToday: () => void
   onCreateMeeting: () => void
+  onRefresh?: () => void
   pendingInvitationsCount: number
 }
 
@@ -31,6 +32,7 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
   onNext,
   onToday,
   onCreateMeeting,
+  onRefresh,
   pendingInvitationsCount
 }) => {
   const { t } = useTranslation(translations)
@@ -105,6 +107,20 @@ export const CalendarHeader: React.FC<CalendarHeaderProps> = ({
             </SelectItem>
           </SelectContent>
         </Select>
+
+        {/* Refresh button - reload events for current time frame */}
+        {onRefresh && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onRefresh}
+            className="gba:h-6 gba:w-6 gba:flex-shrink-0"
+            data-testid="calendar-refresh-button"
+            title={t('calendar-refresh')}
+          >
+            <RefreshCw className="gba:h-3.5 gba:w-3.5" />
+          </Button>
+        )}
 
         {/* Create meeting button - always icon only to save space */}
         <Button
