@@ -16,6 +16,7 @@ import {
 import { EmployeeSelect } from '@/components/employee-select'
 import { useEmployeeSearch } from '@/common/data/employee/useEmployeeSearch'
 import { useCases } from '../../hooks/useCases'
+import { useOnboardingTemplates } from '../../hooks/useOnboardingTemplates'
 import { APP_TAGS } from '../../constants'
 import onboardingI18n from '../../_i18n'
 
@@ -62,6 +63,7 @@ export interface CreateCaseFormProps {
   accessToken: string
   /** Current user's employee id – sent as initiator. From context: userInfo?.employeeDetails?.employeeId */
   currentEmployeeId?: string
+  currentUserId?: string
 }
 
 export const CreateCaseForm: React.FC<CreateCaseFormProps> = ({
@@ -70,7 +72,8 @@ export const CreateCaseForm: React.FC<CreateCaseFormProps> = ({
   setOpen,
   onSuccess,
   accessToken,
-  currentEmployeeId
+  currentEmployeeId,
+  currentUserId
 }) => {
   const { t } = useTranslation(onboardingI18n)
   const [assignTo, setAssignTo] = useState<string | null>(null)
@@ -85,19 +88,30 @@ export const CreateCaseForm: React.FC<CreateCaseFormProps> = ({
   })
 
   const { employees, search, hasMore, loadMore, loading: searchLoading } = useEmployeeSearch(accessToken)
-  const { createCase } = useCases(accessToken)
+  const { createCase, addFlowToCase } = useCases(accessToken)
+  const { templates } = useOnboardingTemplates({ accessToken, enabled: true })
 
   const handleSubmit = useCallback(
     async (data: CreateCaseFormValues) => {
-      await createCase({
-        initiator: currentEmployeeId || 'system',
+      const initiator = currentEmployeeId || 'system'
+      const res = await createCase({
+        initiator,
         tags: { ...APP_TAGS },
         title: data.title.trim(),
         assignment: assignTo != null && assignTo !== '' ? { assignmentMode: 'ASSIGN', assignTo } : undefined
       })
+      const templateToAdd = templates.find(t => t.id === 'flow_step1hiringconfirmation')
+      if (templateToAdd) {
+        await addFlowToCase(res.caseId, {
+          templateId: templateToAdd.id,
+          initiator: currentUserId || initiator,
+          inputValues: {},
+          stepAssignments: undefined
+        })
+      }
       onSuccess?.()
     },
-    [createCase, currentEmployeeId, assignTo, onSuccess]
+    [createCase, addFlowToCase, templates, currentEmployeeId, currentUserId, assignTo, onSuccess]
   )
 
   return (

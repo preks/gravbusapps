@@ -43,7 +43,13 @@ onboarding-employee-column-created = Creat
 onboarding-employee-column-updated = Actualizat
 onboarding-employee-search-placeholder = Caută cazuri...
 onboarding-employee-empty-message = Nu s-au găsit cazuri de onboarding
+onboarding-employee-column-actions = Acțiuni
 onboarding-employee-action-view = Vezi detalii
+onboarding-employee-cancel-case-dialog-item-title = caz
+onboarding-employee-cancel-case-dialog-title = Anulare caz
+onboarding-employee-cancel-case-dialog-description = Sigur vrei să anulezi acest caz de onboarding? Acțiunea nu poate fi revocată.
+onboarding-employee-cancel-case-dialog-confirm = Anulează cazul
+onboarding-employee-cancel-case-dialog-cancel = Păstrează
 
 # Create Case form
 create-case-modal-title = Creează caz onboarding
