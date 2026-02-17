@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react'
+import React, { createContext, useContext, useState, useCallback, useEffect, useMemo } from 'react'
 import { useEmployeeTerminationData, EmployeeTerminationData } from '../hooks/useEmployeeTerminationData'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import dayjs, { Dayjs } from 'dayjs'
@@ -15,6 +15,7 @@ export interface EmployeeTerminationContextState {
   employee: EmployeeTerminationData | null
   loading: boolean
   error: string | null
+  hasJobPosition: boolean
 }
 
 const EmployeeTerminationContext = createContext<EmployeeTerminationContextState | undefined>(undefined)
@@ -66,15 +67,21 @@ export const EmployeeTerminationProvider: React.FC<{
     setFormValuesState(prev => ({ ...prev, ...values }))
   }, [])
 
+  // Check if employee has a job position
+  const hasJobPosition = Boolean(employee?.employeePosition?.jobPosition?.name)
+
   // Initialize form from employee data: exitDate -> terminationDate, activeTo -> terminateJobPosition
   useEffect(() => {
     if (!employee) return
     const exitDate = employee.employeePosition?.exitDate
     const activeTo = employee.employeePosition?.activeTo ?? employee.employeePosition?.jobPosition?.activeTo
+    const employeeHasJobPosition = Boolean(employee.employeePosition?.jobPosition?.name)
+
     setFormValuesState(prev => ({
       ...prev,
       terminationDate: exitDate ? dayjs(exitDate) : prev.terminationDate,
-      terminateJobPosition: activeTo != null ? true : prev.terminateJobPosition
+      // Only allow terminateJobPosition if employee actually has a job position
+      terminateJobPosition: employeeHasJobPosition && activeTo != null
     }))
   }, [employee])
 
@@ -82,17 +89,17 @@ export const EmployeeTerminationProvider: React.FC<{
   const combinedError = employeeError
   const combinedLoading = employeeLoading
 
-  return (
-    <EmployeeTerminationContext.Provider
-      value={{
-        formValues: formValuesState,
-        setFormValues,
-        employee,
-        loading: combinedLoading,
-        error: combinedError
-      }}
-    >
-      {children}
-    </EmployeeTerminationContext.Provider>
+  const contextValue = useMemo(
+    () => ({
+      formValues: formValuesState,
+      setFormValues,
+      employee,
+      loading: combinedLoading,
+      error: combinedError,
+      hasJobPosition
+    }),
+    [formValuesState, setFormValues, employee, combinedLoading, combinedError, hasJobPosition]
   )
+
+  return <EmployeeTerminationContext.Provider value={contextValue}>{children}</EmployeeTerminationContext.Provider>
 }

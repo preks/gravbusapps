@@ -428,7 +428,7 @@ if (globalThis.__APP_BUILD_INFO__) {
       : [])
   ]
 
-  // Virtual module for wrapping components
+  // Virtual module plugin for wrapping components
   const virtualModulePlugin = {
     name: 'virtual-module-plugin',
     resolveId(id) {
@@ -577,6 +577,63 @@ import { wrapWithBlinkProvider } from './common/wrapWithBlinkProvider';
       }
 
       return null
+    }
+  }
+
+  // Plugin to compile and inline AudioWorklet as JavaScript string
+  const inlineWorkletPlugin = {
+    name: 'inline-worklet',
+
+    async resolveId(id: string) {
+      // Intercept ?inline imports
+      if (id.includes('rnnoise-processor.ts?inline')) {
+        return id // Mark for processing
+      }
+      return null
+    },
+
+    async load(id: string) {
+      if (!id.includes('rnnoise-processor.ts?inline')) {
+        return null
+      }
+
+      console.log('[inline-worklet] Compiling and inlining worklet:', id)
+
+      const filePath = id.split('?')[0]
+
+      // Use esbuild to compile and bundle the worklet into a single JavaScript string
+      const esbuild = await import('esbuild')
+
+      try {
+        const result = await esbuild.build({
+          entryPoints: [filePath],
+          bundle: true,
+          format: 'iife',
+          platform: 'browser',
+          target: 'es2020',
+          write: false,
+          minify: false,
+          logLevel: 'warning',
+          // Bundle all dependencies including @jitsi/rnnoise-wasm
+          external: []
+        })
+
+        const compiledCode = result.outputFiles[0].text
+
+        console.log('[inline-worklet] ✅ Worklet compiled and bundled:', {
+          originalPath: filePath,
+          compiledSize: `${(compiledCode.length / 1024).toFixed(2)} KB`
+        })
+
+        // Export the compiled JavaScript as a string
+        return {
+          code: `export default ${JSON.stringify(compiledCode)}`,
+          map: null
+        }
+      } catch (error) {
+        console.error('[inline-worklet] ❌ Failed to compile worklet:', error)
+        throw error
+      }
     }
   }
 
@@ -926,6 +983,8 @@ export default wrapWithUiCatalog(wrapWithLocalizationProvider(wrapWithBlinkProvi
       tailwindCSS(),
       // Virtual module plugin for the wrapped entries
       virtualModulePlugin,
+      // Inline AudioWorklet plugin - compiles and embeds worklet as string
+      inlineWorkletPlugin,
       prependBuildInfoBannerPlugin, // Use the updated banner plugin
       wrapInIIFEPlugin,
       // Publish screen endpoint for IDE (only in dev mode)

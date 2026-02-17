@@ -17,7 +17,6 @@ import { Monitor, ArrowsOutSimple, MagnifyingGlassPlus, MicrophoneSlashIcon, Han
 import { Avatar, AvatarFallback, AvatarImage } from '@newwork/nw-design-system'
 import { getInitials } from '../../utils/callUtils'
 import { ReactionsOverlay, Reaction } from './ReactionsOverlay'
-import { rtkDebug } from '../../utils/rtkDebug'
 
 export interface ParticipantVideoTileProps {
   /** Unique peer ID */
@@ -114,20 +113,6 @@ export const ParticipantVideoTile: React.FC<ParticipantVideoTileProps> = ({
     r => r.participantId === peerId || r.participantId === userId || r.participantId === customParticipantId
   )
 
-  // Log reaction filtering for debugging
-  if (reactions.length > 0) {
-    rtkDebug.log(`[RTK VideoTile] 🎨 Reaction filtering for ${peerName}:`, {
-      peerName,
-      peerId,
-      userId,
-      customParticipantId,
-      totalReactions: reactions.length,
-      filteredReactions: participantReactions.length,
-      allReactions: reactions.map(r => ({ id: r.id, emoji: r.emoji, participantId: r.participantId })),
-      matches: participantReactions.map(r => ({ id: r.id, emoji: r.emoji }))
-    })
-  }
-
   // Screen Share Tile
   if (screenShareTrack) {
     return (
@@ -143,30 +128,9 @@ export const ParticipantVideoTile: React.FC<ParticipantVideoTileProps> = ({
           title={isFocusedScreenShare ? 'Click to expand fullscreen' : 'Click to focus this screen share'}
           data-testid={`${prefixDataTestId}-screenshare-${peerId}`}
           onClick={onScreenShareClick}
-          onLoadedMetadata={e => {
-            const video = e.target as HTMLVideoElement
-            rtkDebug.log(`[RTK VideoTile] 📺 Screen share metadata loaded for ${peerName}:`, {
-              videoWidth: video.videoWidth,
-              videoHeight: video.videoHeight,
-              readyState: video.readyState
-            })
-          }}
-          onLoadedData={e => {
-            const video = e.target as HTMLVideoElement
-            rtkDebug.log(`[RTK VideoTile] 📺 Screen share data loaded for ${peerName}:`, {
-              videoWidth: video.videoWidth,
-              videoHeight: video.videoHeight,
-              currentTime: video.currentTime
-            })
-          }}
-          onError={e => {
-            const video = e.target as HTMLVideoElement
-            rtkDebug.error(`[RTK VideoTile] ❌ Screen share video error for ${peerName}:`, {
-              error: video.error,
-              readyState: video.readyState,
-              networkState: video.networkState
-            })
-          }}
+          onLoadedMetadata={() => {}}
+          onLoadedData={() => {}}
+          onError={() => {}}
         />
 
         {/* Screen share label */}
@@ -224,33 +188,9 @@ export const ParticipantVideoTile: React.FC<ParticipantVideoTileProps> = ({
         muted={isLocal}
         className={hasVideoTrack ? 'gba:w-full gba:h-full gba:object-cover' : 'gba:hidden'}
         data-testid={`${prefixDataTestId}-video-${peerId}`}
-        onLoadedMetadata={e => {
-          const video = e.target as HTMLVideoElement
-          rtkDebug.log(`[RTK VideoTile] 📹 Video metadata loaded for ${peerName}:`, {
-            videoWidth: video.videoWidth,
-            videoHeight: video.videoHeight,
-            readyState: video.readyState,
-            isLocal
-          })
-        }}
-        onLoadedData={e => {
-          const video = e.target as HTMLVideoElement
-          rtkDebug.log(`[RTK VideoTile] 📹 Video data loaded for ${peerName}:`, {
-            videoWidth: video.videoWidth,
-            videoHeight: video.videoHeight,
-            currentTime: video.currentTime,
-            isLocal
-          })
-        }}
-        onError={e => {
-          const video = e.target as HTMLVideoElement
-          rtkDebug.error(`[RTK VideoTile] ❌ Video error for ${peerName}:`, {
-            error: video.error,
-            readyState: video.readyState,
-            networkState: video.networkState,
-            isLocal
-          })
-        }}
+        onLoadedMetadata={() => {}}
+        onLoadedData={() => {}}
+        onError={() => {}}
       />
 
       {/* Avatar (shown when no video) */}

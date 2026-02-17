@@ -87,7 +87,7 @@ export interface ConversationParticipant {
 export interface Message {
   id: string
   conversationId: string
-  senderId: string
+  senderId: string | null // System messages have no sender
   type: MessageType
   content: string
   metadata?: Record<string, any>
@@ -162,6 +162,7 @@ export interface UserStatus {
   status: CombinedPresenceStatus
   isSystemStatus: boolean
   statusMessage?: string
+  statusMessageExpiresAt?: Date | string
   isOnline: boolean
 }
 
@@ -170,6 +171,7 @@ export interface UserStatusChangeEvent {
   status: CombinedPresenceStatus
   isSystemStatus: boolean
   statusMessage?: string
+  statusMessageExpiresAt?: Date | string
   isOnline: boolean
   timestamp: Date | string
 }

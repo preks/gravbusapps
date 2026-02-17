@@ -53,12 +53,21 @@ const participantOptions: ParticipantType[] = ['Self', 'Peer', 'Manager']
 
 // (no-op helper previously used for stages removed)
 import translations from './_i18n'
+import { PERFORMANCE_VALIDATION } from './constants/validationConstants'
 
-/** Value option for the cycle editor (from API; id, title, active). */
+/** Value option for the cycle editor (from API; id, title, recordState). */
 export interface CycleEditorValueOption {
   id: string
   title: string
+  recordState: string
   active?: boolean
+}
+
+/** Rating scale option for the cycle editor (from API; id, name, values). */
+export interface CycleEditorRatingScaleOption {
+  id: string
+  name: string
+  values: string[]
 }
 
 interface CycleEditorModalProps {
@@ -68,6 +77,8 @@ interface CycleEditorModalProps {
   initialValues?: CycleEditorValues
   /** Values for the Valori dropdown (from DB). When provided, localStorage is not used. */
   availableValues?: CycleEditorValueOption[]
+  /** Rating scales from the database (not localStorage). */
+  availableRatingScales?: CycleEditorRatingScaleOption[]
 }
 
 function defaultParticipantsState(initialValues?: CycleEditorValues): Record<ParticipantType, boolean> {
@@ -83,7 +94,8 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
   onOpenChange,
   onSave,
   initialValues,
-  availableValues: availableValuesProp = []
+  availableValues: availableValuesProp = [],
+  availableRatingScales: availableRatingScalesProp = []
 }) => {
   const { t } = useTranslation(translations)
   const [name, setName] = useState(initialValues?.name || '')
@@ -95,11 +107,9 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
   )
   const initialStages: EvaluationStage[] = initialValues?.stages ?? []
 
-  // Rating scales (managed in Rating Scales tab)
-  const RATING_SCALES_STORAGE_KEY = 'hr.performance.ratingScales.v1'
-  type RatingScale = { id: string; name: string; values: string[] }
-  const [availableScales, setAvailableScales] = useState<RatingScale[]>([])
+  // Rating scales: from prop (real data from DB via parent)
   const [selectedScaleId, setSelectedScaleId] = useState<string | undefined>(initialValues?.ratingScaleId)
+  const availableScales = availableRatingScalesProp
 
   // Values: from prop (real data from DB via parent's valuesStore)
   const [selectedValueIds, setSelectedValueIds] = useState<string[]>(initialValues?.valueIds ?? [])
@@ -120,7 +130,7 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
       setName('')
       setStartDate('')
       setEndDate('')
-      setFrequency('Annual')
+      setFrequency('Custom')
       setParticipantsState(defaultParticipantsState())
       setSelectedScaleId(undefined)
       setSelectedValueIds([])
@@ -173,22 +183,16 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
   // Auto-calc end date when start date or frequency changes (e.g. from useEffect or when user changes frequency).
   useEffect(() => {
     const parsed = parseStartDate(startDate)
-    if (!parsed) return
+    if (!parsed) {
+      // If no start date is selected, set frequency to Custom
+      if (frequency !== 'Custom') {
+        setFrequency('Custom')
+      }
+      return
+    }
     const computed = computeEndDateFromStart(parsed, frequency)
     if (computed) setEndDate(computed)
   }, [startDate, frequency])
-
-  // Load available rating scales when modal opens
-  useEffect(() => {
-    if (!open) return
-    try {
-      const rawScales = localStorage.getItem(RATING_SCALES_STORAGE_KEY)
-      const parsedScales = rawScales ? (JSON.parse(rawScales) as RatingScale[]) : []
-      setAvailableScales(Array.isArray(parsedScales) ? parsedScales : [])
-    } catch {
-      setAvailableScales([])
-    }
-  }, [open])
 
   const selectedParticipants = useMemo(() => participantOptions.filter(p => participantsState[p]), [participantsState])
 
@@ -244,7 +248,7 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent data-testid="performance-cycle-editor-modal">
+      <DialogContent data-testid="performance-cycle-editor-modal" onInteractOutside={e => e.preventDefault()}>
         <DialogHeader>
           <DialogTitle>{initialValues ? t('modal-edit-title') : t('modal-create-title')}</DialogTitle>
           <DialogDescription>{t('modal-description')}</DialogDescription>
@@ -259,6 +263,7 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
                 value={name}
                 onChange={e => setName(e.target.value)}
                 placeholder={t('placeholder-name')}
+                maxLength={PERFORMANCE_VALIDATION.CYCLE_NAME_MAX_LENGTH}
               />
             </div>
             <div className="gba:space-y-2">
@@ -283,7 +288,7 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
               />
             </div>
             <div className="gba:space-y-2">
-              <Label>{t('field-frequency')} *</Label>
+              <Label>{t('field-frequency')}</Label>
               <Combobox
                 value={frequency}
                 onValueChange={v => setFrequency((v as FrequencyType) || 'Annual')}
@@ -299,6 +304,10 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
                 onChange={(value: string | [string | null, string | null] | null) => {
                   const raw = typeof value === 'string' ? value : Array.isArray(value) ? (value[0] ?? '') : ''
                   setEndDate(raw)
+                  // If end date is manually changed, set frequency to Custom
+                  if (frequency !== 'Custom') {
+                    setFrequency('Custom')
+                  }
                 }}
                 outputFormat="iso"
               />
@@ -320,7 +329,7 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
           <div className="gba:space-y-2">
             <Label>{t('field-values')}</Label>
             {(() => {
-              const hasValues = availableValues.filter(v => v.recordState === 'active').length > 0
+              const hasValues = availableValues.some(v => v.recordState?.toLowerCase() === 'active')
               const cycleValuesKey = open ? (initialValues?.id ?? 'new') : 'closed'
               if (!hasValues) {
                 return <div className="gba:text-sm gba:text-muted-foreground">{t('placeholder-no-values')}</div>
@@ -335,18 +344,19 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
                     setSelectedValueIds([...new Set(next)])
                   }}
                   options={availableValues
-                    .filter(v => v.recordState === 'active')
+                    .filter(v => v.recordState?.toLowerCase() === 'active')
                     .map(v => ({ label: v.title, value: v.id }))}
                   placeholder="Select values"
                   searchPlaceholder="Type to search values..."
                   emptyText="No results"
+                  className="gba:flex-wrap"
                 />
               )
             })()}
           </div>
 
           <div className="gba:space-y-3">
-            <div className="gba:text-sm gba:text-muted-foreground">{t('label-evaluation-participants')} *</div>
+            <Label>{t('label-evaluation-participants')} *</Label>
             <div className="gba:flex gba:flex-wrap gba:gap-6">
               {participantOptions.map(p => (
                 <label key={p} className="gba:flex gba:items-center gba:gap-2">

@@ -12,6 +12,7 @@ import {
   useTranslation
 } from '@newwork/nw-design-system'
 import translations from './_i18n'
+import { PERFORMANCE_VALIDATION } from './constants/validationConstants'
 
 export interface ValueEditorValues {
   id?: string
@@ -67,16 +68,26 @@ const ValuesEditorModal: React.FC<ValuesEditorModalProps> = ({ open, onOpenChang
           <div className="gba:grid gba:grid-cols-1 gba:gap-4">
             <div className="gba:space-y-2">
               <Label htmlFor="value-title">{t('field-title')} *</Label>
-              <Input id="value-title" value={title} onChange={e => setTitle(e.target.value)} />
+              <Input
+                id="value-title"
+                value={title}
+                onChange={e => setTitle(e.target.value)}
+                maxLength={PERFORMANCE_VALIDATION.VALUE_TITLE_MAX_LENGTH}
+              />
             </div>
             <div className="gba:space-y-2">
               <Label htmlFor="value-description">{t('field-description')}</Label>
-              <Input id="value-description" value={description} onChange={e => setDescription(e.target.value)} />
+              <Input
+                id="value-description"
+                value={description}
+                onChange={e => setDescription(e.target.value)}
+                maxLength={PERFORMANCE_VALIDATION.VALUE_DESCRIPTION_MAX_LENGTH}
+              />
             </div>
             <label className="gba:flex gba:items-center gba:gap-2">
               <Checkbox
-                checked={recordState === 'active'}
-                onCheckedChange={(v: boolean) => setRecordState(v ? 'active' : 'ARCHIVED')}
+                checked={recordState?.toLowerCase() === 'active'}
+                onCheckedChange={(v: boolean) => setRecordState(v ? 'active' : 'inactive')}
               />
               <span>{t('field-active')}</span>
             </label>

@@ -1,14 +1,21 @@
 /**
- * EmailComposer - Email composition dialog with rich text editing.
- * Supports new, reply, reply-all, and forward modes.
+ * EmailComposer - Email composition dialog with auto-suggest recipients.
+ * Supports new, reply, reply-all, and forward modes with rich HTML signature.
+ * Signature is rendered as a styled preview below the body and injected into
+ * the htmlBody on send, positioned before any quoted reply text.
+ * Supports file attachments via button and drag-and-drop.
  */
 
-import React, { useState, useCallback, useEffect } from 'react'
+import React, { useState, useCallback, useEffect, useRef } from 'react'
 import { toast } from 'sonner'
-import { Button, Input, Textarea } from '@newwork/nw-design-system'
-import { Send, X, Minus, Trash2 } from 'lucide-react'
+import { Button, Textarea } from '@newwork/nw-design-system'
+import { Send, X, Minus, Trash2, Paperclip } from 'lucide-react'
 import { EmailApiService } from '../services/EmailApiService'
-import type { EmailMessage, EmailAccount, ComposeMode, SendEmailRequest, EmailAddress } from '../types'
+import { EmailRecipientInput } from './EmailRecipientInput'
+import { ComposerAttachments } from './ComposerAttachments'
+import { useFileAttachments } from '../hooks/useFileAttachments'
+import { buildReplySubject, buildReplyBody, buildHtmlBody, buildTextBody } from '../utils/composerUtils'
+import type { EmailMessage, EmailAccount, ComposeMode, SendEmailRequest, EmailAddress, EmailContact } from '../types'
 
 interface EmailComposerProps {
   isOpen: boolean
@@ -18,20 +25,9 @@ interface EmailComposerProps {
   accounts: EmailAccount[]
   defaultAccountId?: string
   onSent: () => void
+  searchContacts: (query: string) => EmailContact[]
+  onRecipientsUsed?: (recipients: Array<{ name?: string; email: string }>) => void
   'data-testid'?: string
-}
-
-function buildReplySubject(subject: string, mode: ComposeMode): string {
-  const clean = subject.replace(/^(Re:\s*|Fwd:\s*)+/i, '')
-  if (mode === 'forward') return `Fwd: ${clean}`
-  return `Re: ${clean}`
-}
-
-function buildReplyBody(message: EmailMessage): string {
-  const date = new Date(message.date).toLocaleString()
-  const from = message.fromAddress.name || message.fromAddress.address
-  const divider = `\n\n---------- On ${date}, ${from} wrote ----------\n\n`
-  return divider + (message.textBody || '')
 }
 
 export const EmailComposer: React.FC<EmailComposerProps> = ({
@@ -42,10 +38,33 @@ export const EmailComposer: React.FC<EmailComposerProps> = ({
   accounts,
   defaultAccountId,
   onSent,
+  searchContacts,
+  onRecipientsUsed,
   'data-testid': testId = 'email-composer'
 }) => {
   const [accountId, setAccountId] = useState(defaultAccountId || '')
-  const [to, setTo] = useState('')
+  const [toRecipients, setToRecipients] = useState<EmailAddress[]>([])
+  const [ccRecipients, setCcRecipients] = useState<EmailAddress[]>([])
+  const [bccRecipients, setBccRecipients] = useState<EmailAddress[]>([])
+  const [subject, setSubject] = useState('')
+  const [body, setBody] = useState('')
+  const [showCcBcc, setShowCcBcc] = useState(false)
+  const [isSending, setIsSending] = useState(false)
+  const [isMinimized, setIsMinimized] = useState(false)
+  const hasStartedComposingRef = useRef(false)
+  const sigPreviewRef = useRef<HTMLDivElement>(null)
+
+  const {
+    attachments,
+    totalSize,
+    isDragging,
+    fileInputRef,
+    removeAttachment,
+    clearAttachments,
+    openFilePicker,
+    handleFileInputChange,
+    dragHandlers
+  } = useFileAttachments()
 
   // Update accountId when accounts load or defaultAccountId changes
   useEffect(() => {
@@ -53,55 +72,61 @@ export const EmailComposer: React.FC<EmailComposerProps> = ({
       setAccountId(defaultAccountId || accounts[0]?.id || '')
     }
   }, [accounts, defaultAccountId, accountId])
-  const [cc, setCc] = useState('')
-  const [bcc, setBcc] = useState('')
-  const [subject, setSubject] = useState('')
-  const [body, setBody] = useState('')
-  const [showCcBcc, setShowCcBcc] = useState(false)
-  const [isSending, setIsSending] = useState(false)
-  const [isMinimized, setIsMinimized] = useState(false)
 
-  // Populate fields based on mode
+  // Get active account for signature
+  const activeAccount = accounts.find(a => a.id === accountId) || accounts[0]
+  const signatureHtml = activeAccount?.signature || ''
+
+  // Render HTML signature preview
   useEffect(() => {
+    if (sigPreviewRef.current) {
+      sigPreviewRef.current.innerHTML = signatureHtml
+    }
+  }, [signatureHtml])
+
+  // Populate fields based on mode and replyToMessage.
+  // `isOpen` is included so the reset re-runs every time the composer opens,
+  // even when mode/replyToMessage haven't changed (e.g. composing two new
+  // emails in a row).
+  useEffect(() => {
+    if (!isOpen) return
+
+    hasStartedComposingRef.current = false
+
     if (!replyToMessage) {
-      setTo('')
-      setCc('')
-      setBcc('')
+      setToRecipients([])
+      setCcRecipients([])
+      setBccRecipients([])
       setSubject('')
       setBody('')
+      setShowCcBcc(false)
+      clearAttachments()
       return
     }
 
     const msg = replyToMessage
     setSubject(buildReplySubject(msg.subject || '', mode))
+    const quoted = buildReplyBody(msg)
 
     if (mode === 'reply') {
       const replyAddr = msg.replyToAddresses?.[0] || msg.fromAddress
-      setTo(replyAddr.address)
-      setBody(buildReplyBody(msg))
+      setToRecipients([replyAddr])
+      setBody(quoted)
     } else if (mode === 'reply-all') {
       const replyAddr = msg.replyToAddresses?.[0] || msg.fromAddress
-      setTo(replyAddr.address)
+      setToRecipients([replyAddr])
       const ccAddrs = [...msg.toAddresses, ...msg.ccAddresses].filter(a => a.address !== replyAddr.address)
-      setCc(ccAddrs.map(a => a.address).join(', '))
+      setCcRecipients(ccAddrs)
       setShowCcBcc(ccAddrs.length > 0)
-      setBody(buildReplyBody(msg))
+      setBody(quoted)
     } else if (mode === 'forward') {
-      setTo('')
-      setBody(buildReplyBody(msg))
+      setToRecipients([])
+      setBody(quoted)
     }
-  }, [replyToMessage, mode])
-
-  const parseAddresses = (input: string): EmailAddress[] => {
-    return input
-      .split(',')
-      .map(s => s.trim())
-      .filter(Boolean)
-      .map(addr => ({ address: addr }))
-  }
+  }, [isOpen, replyToMessage, mode, clearAttachments])
 
   const handleSend = useCallback(async () => {
-    if (!to.trim()) {
+    if (toRecipients.length === 0) {
       toast.error('Please add at least one recipient')
       return
     }
@@ -114,17 +139,26 @@ export const EmailComposer: React.FC<EmailComposerProps> = ({
     try {
       const request: SendEmailRequest = {
         accountId,
-        to: parseAddresses(to),
-        cc: cc ? parseAddresses(cc) : undefined,
-        bcc: bcc ? parseAddresses(bcc) : undefined,
+        to: toRecipients,
+        cc: ccRecipients.length > 0 ? ccRecipients : undefined,
+        bcc: bccRecipients.length > 0 ? bccRecipients : undefined,
         subject,
-        textBody: body,
-        htmlBody: `<div>${body.replace(/\n/g, '<br>')}</div>`,
+        textBody: buildTextBody(body, signatureHtml),
+        htmlBody: buildHtmlBody(body, signatureHtml),
         inReplyTo: replyToMessage?.messageId,
-        threadId: replyToMessage?.threadId
+        threadId: replyToMessage?.threadId,
+        attachments: attachments.length > 0 ? attachments : undefined
       }
 
       await EmailApiService.sendEmail(request)
+
+      const allRecipients = [
+        ...toRecipients.map(r => ({ name: r.name, email: r.address })),
+        ...ccRecipients.map(r => ({ name: r.name, email: r.address })),
+        ...bccRecipients.map(r => ({ name: r.name, email: r.address }))
+      ]
+      onRecipientsUsed?.(allRecipients)
+
       toast.success('Email sent')
       onSent()
       onClose()
@@ -133,14 +167,27 @@ export const EmailComposer: React.FC<EmailComposerProps> = ({
     } finally {
       setIsSending(false)
     }
-  }, [accountId, to, cc, bcc, subject, body, replyToMessage, onSent, onClose])
+  }, [
+    accountId,
+    toRecipients,
+    ccRecipients,
+    bccRecipients,
+    subject,
+    body,
+    signatureHtml,
+    attachments,
+    replyToMessage,
+    onSent,
+    onClose,
+    onRecipientsUsed
+  ])
 
   const handleSaveDraft = useCallback(async () => {
     if (!accountId) return
     try {
       await EmailApiService.sendEmail({
         accountId,
-        to: parseAddresses(to),
+        to: toRecipients,
         subject,
         textBody: body,
         isDraft: true
@@ -150,21 +197,16 @@ export const EmailComposer: React.FC<EmailComposerProps> = ({
     } catch {
       toast.error('Failed to save draft')
     }
-  }, [accountId, to, subject, body, onClose])
+  }, [accountId, toRecipients, subject, body, onClose])
 
-  const modeTitle = {
-    new: 'New message',
-    reply: 'Reply',
-    'reply-all': 'Reply all',
-    forward: 'Forward'
-  }[mode]
+  const modeTitle = { new: 'New message', reply: 'Reply', 'reply-all': 'Reply all', forward: 'Forward' }[mode]
 
   if (!isOpen) return null
 
   return (
     <div
-      className={`gba:fixed gba:bottom-0 gba:right-6 gba:z-50 gba:w-[560px] gba:bg-card gba:border gba:rounded-t-xl gba:shadow-lg gba:flex gba:flex-col ${
-        isMinimized ? 'gba:h-12' : 'gba:h-[520px]'
+      className={`gba:fixed gba:bottom-0 gba:right-6 gba:z-50 gba:w-xl gba:bg-card gba:border gba:rounded-t-xl gba:flex gba:flex-col ${
+        isMinimized ? 'gba:h-12' : 'gba:max-h-screen gba:h-3/4'
       } gba:transition-all gba:duration-200`}
       data-testid={testId}
     >
@@ -220,58 +262,112 @@ export const EmailComposer: React.FC<EmailComposerProps> = ({
                 </select>
               )}
             </div>
-            <div className="gba:flex gba:items-center gba:gap-2">
-              <span className="gba:text-xs gba:text-muted-foreground gba:w-8">To</span>
-              <Input
-                value={to}
-                onChange={e => setTo(e.target.value)}
+
+            {/* To field with auto-suggest */}
+            <div className="gba:flex gba:items-start gba:gap-2">
+              <span className="gba:text-xs gba:text-muted-foreground gba:w-8 gba:mt-2">To</span>
+              <EmailRecipientInput
+                recipients={toRecipients}
+                onChange={setToRecipients}
+                searchContacts={searchContacts}
                 placeholder="Recipients"
-                className="gba:h-8 gba:text-sm"
                 data-testid={`${testId}-to`}
               />
               {!showCcBcc && (
                 <button
                   onClick={() => setShowCcBcc(true)}
-                  className="gba:text-xs gba:text-primary hover:gba:underline gba:flex-shrink-0"
+                  className="gba:text-xs gba:text-primary hover:gba:underline gba:flex-shrink-0 gba:mt-2"
                 >
                   Cc/Bcc
                 </button>
               )}
             </div>
+
             {showCcBcc && (
               <>
-                <div className="gba:flex gba:items-center gba:gap-2">
-                  <span className="gba:text-xs gba:text-muted-foreground gba:w-8">Cc</span>
-                  <Input value={cc} onChange={e => setCc(e.target.value)} className="gba:h-8 gba:text-sm" />
+                <div className="gba:flex gba:items-start gba:gap-2">
+                  <span className="gba:text-xs gba:text-muted-foreground gba:w-8 gba:mt-2">Cc</span>
+                  <EmailRecipientInput
+                    recipients={ccRecipients}
+                    onChange={setCcRecipients}
+                    searchContacts={searchContacts}
+                    data-testid={`${testId}-cc`}
+                  />
                 </div>
-                <div className="gba:flex gba:items-center gba:gap-2">
-                  <span className="gba:text-xs gba:text-muted-foreground gba:w-8">Bcc</span>
-                  <Input value={bcc} onChange={e => setBcc(e.target.value)} className="gba:h-8 gba:text-sm" />
+                <div className="gba:flex gba:items-start gba:gap-2">
+                  <span className="gba:text-xs gba:text-muted-foreground gba:w-8 gba:mt-2">Bcc</span>
+                  <EmailRecipientInput
+                    recipients={bccRecipients}
+                    onChange={setBccRecipients}
+                    searchContacts={searchContacts}
+                    data-testid={`${testId}-bcc`}
+                  />
                 </div>
               </>
             )}
+
             <div className="gba:flex gba:items-center gba:gap-2">
               <span className="gba:text-xs gba:text-muted-foreground gba:w-8">Subj</span>
-              <Input
+              <input
                 value={subject}
                 onChange={e => setSubject(e.target.value)}
                 placeholder="Subject"
-                className="gba:h-8 gba:text-sm"
+                className="gba:flex-1 gba:h-8 gba:text-sm gba:bg-background gba:border gba:rounded gba:px-2 gba:outline-none"
                 data-testid={`${testId}-subject`}
               />
             </div>
           </div>
 
-          {/* Body */}
-          <div className="gba:flex-1 gba:overflow-hidden gba:px-4 gba:py-2">
+          {/* Body + Signature preview (drag-and-drop zone) */}
+          <div className="gba:flex-1 gba:overflow-y-auto gba:px-4 gba:py-2 gba:relative" {...dragHandlers}>
             <Textarea
               value={body}
               onChange={e => setBody(e.target.value)}
               placeholder="Write your message..."
-              className="gba:h-full gba:resize-none gba:text-sm gba:border-0 gba:p-0 focus:gba:ring-0"
+              className="gba:min-h-32 gba:resize-none gba:text-sm gba:border-0 gba:p-0 gba:focus:ring-0"
               data-testid={`${testId}-body`}
             />
+
+            {/* Rich signature preview */}
+            {signatureHtml && (
+              <div className="gba:mt-3 gba:pt-2 gba:border-t gba:border-dashed gba:border-muted-foreground/30">
+                <p className="gba:text-[10px] gba:text-muted-foreground gba:mb-1">--</p>
+                <div
+                  ref={sigPreviewRef}
+                  className="gba:prose gba:prose-sm gba:max-w-none gba:text-foreground gba:pointer-events-none gba:opacity-80"
+                  data-testid={`${testId}-signature-preview`}
+                />
+              </div>
+            )}
+
+            {/* Drag-and-drop overlay */}
+            {isDragging && (
+              <div className="gba:absolute gba:inset-0 gba:z-10 gba:flex gba:items-center gba:justify-center gba:bg-primary/5 gba:border-2 gba:border-dashed gba:border-primary gba:rounded-lg">
+                <div className="gba:flex gba:flex-col gba:items-center gba:gap-2 gba:text-primary">
+                  <Paperclip className="gba:w-8 gba:h-8" />
+                  <span className="gba:text-sm gba:font-medium">Drop files to attach</span>
+                </div>
+              </div>
+            )}
           </div>
+
+          {/* Hidden file input */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            className="gba:hidden"
+            onChange={handleFileInputChange}
+            data-testid={`${testId}-file-input`}
+          />
+
+          {/* Attachment chips */}
+          <ComposerAttachments
+            attachments={attachments}
+            onRemove={removeAttachment}
+            totalSize={totalSize}
+            data-testid={`${testId}-attachments`}
+          />
 
           {/* Footer */}
           <div className="gba:flex gba:items-center gba:justify-between gba:px-4 gba:py-2 gba:border-t">
@@ -284,9 +380,14 @@ export const EmailComposer: React.FC<EmailComposerProps> = ({
                 Save draft
               </Button>
             </div>
-            <Button variant="ghost" size="icon" onClick={onClose}>
-              <Trash2 className="gba:w-4 gba:h-4" />
-            </Button>
+            <div className="gba:flex gba:items-center gba:gap-1">
+              <Button variant="ghost" size="icon" onClick={openFilePicker} data-testid={`${testId}-attach-btn`}>
+                <Paperclip className="gba:w-4 gba:h-4" />
+              </Button>
+              <Button variant="ghost" size="icon" onClick={onClose}>
+                <Trash2 className="gba:w-4 gba:h-4" />
+              </Button>
+            </div>
           </div>
         </>
       )}

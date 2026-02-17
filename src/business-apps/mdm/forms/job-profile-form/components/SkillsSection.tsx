@@ -1,19 +1,12 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react'
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useFormContext, useFieldArray } from 'react-hook-form'
-import {
-  FormField,
-  FormItem,
-  FormControl,
-  FormMessage,
-  Combobox,
-  Button,
-  Badge,
-  FileUpload
-} from '@newwork/nw-design-system'
+import { FormField, FormItem, FormControl, FormMessage, Combobox, Button, FileUpload } from '@newwork/nw-design-system'
+import { SkillLevelRow } from '@/business-apps/hr/core/forms/add-skill/components/SkillLevelRow'
 import { DebouncedInput } from '@/components/debounced-input'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { SEARCH_SKILLS_QUERY, GET_SKILLS_BY_NAMES } from '@/business-apps/hr/core/forms/add-skill/AddSkillQueries'
 import { useRestClient } from '@/common/network/rest/useRestClient'
+import { hybridSearchSkills } from '@/common/network/flowbot/hybridSearchSkills'
 import { env } from '@/common/env/EnvUtils'
 
 interface SkillsSectionProps {
@@ -30,6 +23,18 @@ const getSkillValidationError = (name: string): string | null => {
 }
 
 const SkillsSection: React.FC<SkillsSectionProps> = ({ dataTestId, accessToken }) => {
+  const levelOptions = [
+    { value: '1', label: '1' },
+    { value: '2', label: '2' },
+    { value: '3', label: '3' },
+    { value: '4', label: '4' },
+    { value: '5', label: '5' },
+    { value: '6', label: '6' },
+    { value: '7', label: '7' },
+    { value: '8', label: '8' },
+    { value: '9', label: '9' },
+    { value: '10', label: '10' }
+  ]
   const form = useFormContext()
   const graphqlClient = useGraphQLClient(accessToken)
   const restClient = useRestClient(env('NEXT_PUBLIC_BASE_URL'))
@@ -57,6 +62,28 @@ const SkillsSection: React.FC<SkillsSectionProps> = ({ dataTestId, accessToken }
     return (searchResults || []).filter(skill => !selectedSkillIds.has(skill.id))
   }, [searchResults, selectedSkillIds])
 
+  const loadSearchResults = useCallback(
+    async (term: string): Promise<Array<{ id: string; name: string }>> => {
+      try {
+        const matches = await hybridSearchSkills(term, accessToken ?? '', 20)
+        return matches.map(m => ({ id: m.id, name: m.name }))
+      } catch {
+        try {
+          const pattern = `%${term}%`
+          const result = await graphqlClient.request<{ skill: Array<{ id: string; name: string; version: number }> }>(
+            SEARCH_SKILLS_QUERY,
+            { search: pattern, limit: 50 }
+          )
+          return result?.skill ?? []
+        } catch (error) {
+          console.error('Error searching skills:', error)
+          return []
+        }
+      }
+    },
+    [accessToken, graphqlClient]
+  )
+
   // Search skills when search term changes
   useEffect(() => {
     let isActive = true
@@ -70,7 +97,7 @@ const SkillsSection: React.FC<SkillsSectionProps> = ({ dataTestId, accessToken }
         return
       }
       const term = searchTerm.trim()
-      if (!term) {
+      if (!term || term.length < 2) {
         if (isActive) setSearchResults([])
         if (isActive) setIsDropdownOpen(false)
         return
@@ -78,22 +105,10 @@ const SkillsSection: React.FC<SkillsSectionProps> = ({ dataTestId, accessToken }
       setIsSearching(true)
       const mySeq = ++searchSeqRef.current
       try {
-        // Search skills from GraphQL API
-        const pattern = `%${term}%`
-        const result = await graphqlClient.request<{ skill: Array<{ id: string; name: string; version: number }> }>(
-          SEARCH_SKILLS_QUERY,
-          { search: pattern, limit: 50 }
-        )
-
+        const matches = await loadSearchResults(term)
         if (!isActive || mySeq !== searchSeqRef.current) return
-        setSearchResults(result?.skill || [])
+        setSearchResults(matches)
         setIsDropdownOpen(true)
-      } catch (error) {
-        console.error('Error searching skills:', error)
-        if (isActive && mySeq === searchSeqRef.current) {
-          setSearchResults([])
-          setIsDropdownOpen(false)
-        }
       } finally {
         if (isActive && mySeq === searchSeqRef.current) setIsSearching(false)
       }
@@ -102,7 +117,7 @@ const SkillsSection: React.FC<SkillsSectionProps> = ({ dataTestId, accessToken }
     return () => {
       isActive = false
     }
-  }, [searchTerm, graphqlClient])
+  }, [searchTerm, loadSearchResults])
 
   const handleSelectSkill = (skill: { id: string; name: string }) => {
     append({
@@ -182,20 +197,12 @@ const SkillsSection: React.FC<SkillsSectionProps> = ({ dataTestId, accessToken }
     remove(index)
   }
 
-  const levelOptions = [
-    { value: '1', label: '1' },
-    { value: '2', label: '2' },
-    { value: '3', label: '3' },
-    { value: '4', label: '4' },
-    { value: '5', label: '5' }
-  ]
-
   const showNoResults = !isSearching && filteredResults.length === 0 && searchTerm.trim().length > 0
 
   return (
     <div className="gba:space-y-4">
       <div className="gba:flex gba:items-center gba:justify-between">
-        <label className="gba:text-sm gba:font-medium gba:text-foreground">Skills</label>
+        <label className="gba:text-sm gba:font-medium gba:text-foreground">Required Skills and Levels</label>
       </div>
 
       {/* Search Input */}
@@ -280,59 +287,35 @@ const SkillsSection: React.FC<SkillsSectionProps> = ({ dataTestId, accessToken }
             const skillName = form.watch(`skills.${index}.skillName`)
 
             return (
-              <div
+              <SkillLevelRow
                 key={field.id}
-                className="gba:border gba:border-border gba:rounded-md gba:p-4"
-                data-testid={`${dataTestId}-skill-row-${index}`}
-              >
-                <div className="gba:flex gba:items-center gba:gap-3">
-                  {/* Skill Badge */}
-                  <Badge
-                    variant="secondary"
-                    className="gba:flex gba:items-center gba:gap-2 gba:h-10 gba:py-0 gba:px-4 gba:text-sm gba:flex-1 gba:min-w-0"
-                    data-testid={`${dataTestId}-skill-badge-${index}`}
-                  >
-                    <span className="gba:flex-1 gba:min-w-0 gba:px-1 gba:truncate" title={skillName || ''}>
-                      {skillName || 'Unknown Skill'}
-                    </span>
-                  </Badge>
-
-                  {/* Level Selection */}
-                  <div className="gba:w-24 gba:flex-shrink-0">
-                    <FormField
-                      name={`skills.${index}.level`}
-                      rules={{ required: 'Please select a level' }}
-                      render={({ field: levelField }) => (
-                        <FormItem className="gba:space-y-0">
-                          <FormControl>
-                            <Combobox
-                              options={levelOptions}
-                              value={levelField.value?.toString() || ''}
-                              onValueChange={value => levelField.onChange(value ? parseInt(value) : null)}
-                              placeholder="Level"
-                              className="gba:!w-full"
-                              data-testid={`${dataTestId}-skill-level-${index}`}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
-                  {/* Remove Button */}
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => handleRemoveSkill(index)}
-                    className="gba:flex-shrink-0"
-                    data-testid={`${dataTestId}-remove-skill-${index}`}
-                  >
-                    Remove
-                  </Button>
-                </div>
-              </div>
+                skillName={skillName || 'Unknown Skill'}
+                onRemove={() => handleRemoveSkill(index)}
+                dataTestIdPrefix={dataTestId}
+                removeButtonTestId={`${dataTestId}-remove-skill-${index}`}
+                index={index}
+                levelContent={
+                  <FormField
+                    name={`skills.${index}.level`}
+                    rules={{ required: 'Please select a level' }}
+                    render={({ field: levelField }) => (
+                      <FormItem className="gba:space-y-0">
+                        <FormControl>
+                          <Combobox
+                            options={levelOptions}
+                            value={levelField.value?.toString() || ''}
+                            onValueChange={value => levelField.onChange(value ? parseInt(value) : null)}
+                            placeholder="Level"
+                            className="gba:!w-full"
+                            data-testid={`${dataTestId}-skill-level-${index}`}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                }
+              />
             )
           })}
         </div>

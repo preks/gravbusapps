@@ -113,9 +113,7 @@ export const NotClockedInView: React.FC<NotClockedInViewProps> = ({
                 <TableHead>
                   {getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.position', 'Position')}
                 </TableHead>
-                <TableHead>
-                  {getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.status', 'Status')}
-                </TableHead>
+                <TableHead>{getTranslationFromI18nKeyAndLabel('master-data:forms.status.label', 'Status')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

@@ -2,7 +2,7 @@
 
 import React, { useCallback } from 'react'
 import dayjs from 'dayjs'
-import { useOpenChat } from '@/modules/chat-sidebar/utils/hooks/useOpenChat'
+import { postToPlatform } from '@/common/utils/postToPlatform'
 import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -122,26 +122,47 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
   // Use prop data if available, otherwise use fetched data
   const employeeData = propEmployeeData || fetchedData
 
-  const { openChatWithUser, openAudioConferenceWithUser, openVideoConferenceWithUser } = useOpenChat()
+  const displayName =
+    employeeData?.displayName || `${employeeData?.firstName ?? ''} ${employeeData?.lastName ?? ''}`.trim() || ''
+  const userId = employeeData?.additionalProperties?.userId
 
-  // Handler functions for actions
   const handleChat = useCallback(() => {
-    if (employeeData?.additionalProperties?.userId) {
-      openChatWithUser(employeeData.additionalProperties.userId)
-    }
-  }, [employeeData?.additionalProperties?.userId, openChatWithUser])
+    if (!userId) return
+    postToPlatform({
+      type: 'OPEN_CHAT_WITH_USER',
+      payload: { userId, userName: displayName || userId }
+    })
+  }, [userId, displayName])
 
   const handleCall = useCallback(() => {
-    if (employeeData?.additionalProperties?.userId) {
-      openAudioConferenceWithUser(employeeData.additionalProperties.userId)
-    }
-  }, [employeeData?.additionalProperties?.userId, openAudioConferenceWithUser])
+    if (!userId) return
+    postToPlatform({
+      type: 'START_CALL_WITH_USER',
+      payload: {
+        userId,
+        displayName: displayName || userId,
+        avatarUrl: employeeData?.pictureThumbnail
+          ? `data:image/gif;base64,${employeeData.pictureThumbnail}`
+          : undefined,
+        callType: 'audio'
+      }
+    })
+  }, [userId, displayName, employeeData?.pictureThumbnail])
 
   const handleVideoCall = useCallback(() => {
-    if (employeeData?.additionalProperties?.userId) {
-      openVideoConferenceWithUser(employeeData.additionalProperties.userId)
-    }
-  }, [employeeData?.additionalProperties?.userId, openVideoConferenceWithUser])
+    if (!userId) return
+    postToPlatform({
+      type: 'START_CALL_WITH_USER',
+      payload: {
+        userId,
+        displayName: displayName || userId,
+        avatarUrl: employeeData?.pictureThumbnail
+          ? `data:image/gif;base64,${employeeData.pictureThumbnail}`
+          : undefined,
+        callType: 'video'
+      }
+    })
+  }, [userId, displayName, employeeData?.pictureThumbnail])
 
   // Helper functions
   const getManagerName = () => {
@@ -173,8 +194,6 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
     const email = extractWorkEmail(employeeData?.communication)
     return email || ''
   }
-
-  const hasWorkEmail = !!getBusinessEmail()
 
   const getBusinessPhone = () => {
     const phone = employeeData?.communication?.find(
@@ -312,7 +331,7 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
               {employeeData.employeePosition?.jobPosition?.name || t('employee-details-not-assigned')}
             </p>
 
-            {/* Chat actions directly under the name */}
+            {/* Chat and call actions directly under the name */}
             <div className="gba:flex gba:gap-2">
               <Button
                 variant="secondary"
@@ -320,7 +339,7 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
                 onClick={handleChat}
                 className="gba:rounded-3xl gba:aspect-square gba:p-2"
                 data-testid="employee-details-chat-button"
-                disabled={!hasWorkEmail}
+                disabled={!userId}
               >
                 <ChatIcon />
               </Button>
@@ -330,7 +349,7 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
                 onClick={handleVideoCall}
                 className="gba:rounded-3xl gba:aspect-square gba:p-2"
                 data-testid="employee-details-video-button"
-                disabled={!hasWorkEmail}
+                disabled={!userId}
               >
                 <VideoCallIcon />
               </Button>
@@ -340,7 +359,7 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
                 onClick={handleCall}
                 className="gba:rounded-3xl gba:aspect-square gba:p-2"
                 data-testid="employee-details-audio-button"
-                disabled={!hasWorkEmail}
+                disabled={!userId}
               >
                 <CallIcon />
               </Button>

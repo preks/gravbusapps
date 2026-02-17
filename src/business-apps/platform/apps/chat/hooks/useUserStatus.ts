@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { UserPresenceStatus, UserStatus, UserStatusChangeEvent, SetUserStatusPayload } from '../types'
 import type { ChatWebSocketClient } from '../services/chatWebSocketClient'
-import { rtkDebug } from '../utils/rtkDebug'
 
 interface UseUserStatusOptions {
   client: ChatWebSocketClient | null
@@ -40,12 +39,12 @@ export function useUserStatus({ client, isConnected, currentUserId }: UseUserSta
         status: data.status,
         isSystemStatus: data.isSystemStatus,
         statusMessage: data.statusMessage,
+        statusMessageExpiresAt: data.statusMessageExpiresAt,
         isOnline: data.isOnline
       }
 
       // ✅ CRITICAL: Update myStatus if this event is for the current user
       if (currentUserId && data.userId === currentUserId) {
-        rtkDebug.log('[useUserStatus] ✅ Received status update for SELF:', statusUpdate)
         setMyStatus(statusUpdate)
       }
 
@@ -61,6 +60,36 @@ export function useUserStatus({ client, isConnected, currentUserId }: UseUserSta
       unsubStatusChange()
     }
   }, [client, isConnected, currentUserId])
+
+  // Auto-clear expired status messages (frontend safeguard)
+  useEffect(() => {
+    if (!myStatus?.statusMessage || !myStatus?.statusMessageExpiresAt) return
+
+    const checkExpiration = () => {
+      try {
+        const expiresAt = new Date(myStatus.statusMessageExpiresAt!)
+        const now = new Date()
+
+        if (expiresAt.getTime() <= now.getTime()) {
+          setMyStatus(prev => ({
+            ...prev!,
+            statusMessage: undefined,
+            statusMessageExpiresAt: undefined
+          }))
+        }
+      } catch (error) {
+        console.error('[useUserStatus] Error checking expiration:', error)
+      }
+    }
+
+    // Check immediately
+    checkExpiration()
+
+    // Check every 30 seconds
+    const interval = setInterval(checkExpiration, 30000)
+
+    return () => clearInterval(interval)
+  }, [myStatus?.statusMessage, myStatus?.statusMessageExpiresAt])
 
   // Set user's manual status
   const setStatus = useCallback(
@@ -88,7 +117,8 @@ export function useUserStatus({ client, isConnected, currentUserId }: UseUserSta
             ...prev!,
             status: response.status as any,
             isSystemStatus: false,
-            statusMessage
+            statusMessage,
+            statusMessageExpiresAt: expiresAt?.toISOString()
           }))
         }
       } catch (err) {

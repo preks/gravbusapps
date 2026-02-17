@@ -24,6 +24,14 @@ import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/u
 
 const API_URL = getDocumentServiceApiUrl()
 
+/**
+ * Per-sheet request queue. Ensures only one updateSheet PATCH request is
+ * in-flight per sheet at a time. This prevents race conditions where rapid
+ * column operations fire overlapping PATCHes whose responses arrive out of
+ * order and corrupt the stored column state.
+ */
+const _sheetUpdateQueue = new Map<string, Promise<unknown>>()
+
 const isSpreadsheetAppsDebugEnabled = (): boolean => {
   try {
     return (
@@ -53,38 +61,10 @@ export function setSpreadsheetApiAuthTokenProvider(provider: (() => string | nul
   externalAuthTokenProvider = provider
 }
 
-// Get auth token - check multiple storage locations
+// Get auth token from the in-memory provider
 const getAuthToken = (): string | null => {
   try {
-    // Prefer external token provider (e.g., BusinessAppContext accessToken)
-    const externalToken = externalAuthTokenProvider?.()
-    if (externalToken) return externalToken
-
-    // First check the IDE's storage key (Business App IDE)
-    const ideToken = localStorage.getItem('business-app-ide-access-token')
-    if (ideToken) return ideToken
-
-    // Check keycloak token format
-    const authData = localStorage.getItem('keycloak-token')
-    if (authData) {
-      try {
-        const parsed = JSON.parse(authData)
-        return parsed.token || parsed.access_token || null
-      } catch {
-        return authData // Return as-is if not JSON
-      }
-    }
-
-    // Check session storage
-    const sessionToken = sessionStorage.getItem('auth_token')
-    if (sessionToken) return sessionToken
-
-    // Check window global
-    if (typeof window !== 'undefined' && (window as unknown as { authToken?: string }).authToken) {
-      return (window as unknown as { authToken: string }).authToken
-    }
-
-    return null
+    return externalAuthTokenProvider?.() || null
   } catch {
     return null
   }
@@ -123,7 +103,21 @@ interface PaginatedResponse<T> {
   totalPages: number
 }
 
-type SpreadsheetRowData = Record<string, unknown> & {
+/**
+ * Cell value stored in a spreadsheet row.
+ * Plain scalars (string, number, boolean, null) represent regular values.
+ * Objects with `f` represent formula cells that preserve formula metadata.
+ */
+type SpreadsheetCellObject = {
+  v?: unknown
+  f?: string
+  m?: string
+  ct?: Record<string, unknown>
+}
+
+type SpreadsheetCellValue = string | number | boolean | null | SpreadsheetCellObject
+
+type SpreadsheetRowData = Record<string, SpreadsheetCellValue> & {
   _clientRowId?: string
 }
 
@@ -202,6 +196,32 @@ function mapApiAppToSpreadsheetApp(apiApp: Record<string, unknown>): Spreadsheet
  * Spreadsheet API Service
  */
 export const SpreadsheetApiService = {
+  /**
+   * Emergency flush: persist row updates with `keepalive: true` so the browser
+   * completes the requests even during page unload (beforeunload / visibilitychange).
+   * Fire-and-forget — callers should NOT await this.
+   */
+  flushRowUpdates(
+    appId: string,
+    sheetId: string,
+    updates: Array<{ rowId: string; data: Record<string, unknown> }>
+  ): void {
+    if (updates.length === 0) return
+    const token = getAuthToken()
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    }
+    for (const { rowId, data } of updates) {
+      fetch(`${API_URL}/spreadsheets/${appId}/sheets/${sheetId}/rows/${rowId}`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify(data),
+        keepalive: true
+      }).catch(() => {})
+    }
+  },
+
   // ============ Apps ============
 
   /**
@@ -439,11 +459,41 @@ export const SpreadsheetApiService = {
 
   /**
    * Update a sheet
+   *
+   * Requests are serialized per sheet to prevent concurrent PATCH race
+   * conditions. If the backend responds with column orders that differ from
+   * what was sent (a known JSONB merge bug in TypeORM), a single correction
+   * PATCH is automatically retried.
    */
   async updateSheet(appId: string, sheetId: string, updates: Partial<SpreadsheetSheet>): Promise<SpreadsheetSheet> {
+    const queueKey = `${appId}/${sheetId}`
+
+    // Chain onto any pending request for the same sheet so they execute
+    // sequentially. If the previous request failed we still proceed.
+    const prev = _sheetUpdateQueue.get(queueKey) ?? Promise.resolve()
+    const next = prev
+      .catch(() => {
+        /* swallow – we still want to run */
+      })
+      .then(() => this._doUpdateSheet(appId, sheetId, updates))
+
+    _sheetUpdateQueue.set(queueKey, next)
+
+    // Clean up the queue entry once settled to avoid memory leaks.
+    next.finally(() => {
+      if (_sheetUpdateQueue.get(queueKey) === next) {
+        _sheetUpdateQueue.delete(queueKey)
+      }
+    })
+
+    return next
+  },
+
+  /** @internal Actual update logic (called via the serialization queue). */
+  async _doUpdateSheet(appId: string, sheetId: string, updates: Partial<SpreadsheetSheet>): Promise<SpreadsheetSheet> {
     debugLog('updateSheet', appId, sheetId, updates)
 
-    const payload = {
+    const payload: Record<string, unknown> = {
       name: updates.name,
       description: updates.description,
       columns: updates.columns,
@@ -453,15 +503,35 @@ export const SpreadsheetApiService = {
 
     // Remove undefined
     Object.keys(payload).forEach(key => {
-      if (payload[key as keyof typeof payload] === undefined) {
-        delete payload[key as keyof typeof payload]
+      if (payload[key] === undefined) {
+        delete payload[key]
       }
     })
 
-    const updated = await apiRequest<Record<string, unknown>>(`/spreadsheets/${appId}/sheets/${sheetId}`, {
+    const sentColumns = payload.columns as SpreadsheetSheet['columns'] | undefined
+
+    let updated = await apiRequest<Record<string, unknown>>(`/spreadsheets/${appId}/sheets/${sheetId}`, {
       method: 'PATCH',
       body: JSON.stringify(payload)
     })
+
+    // ── Correction retry ──────────────────────────────────────────────
+    // The remote backend may merge JSONB arrays instead of replacing them,
+    // which causes new columns to be appended at the end with stale order
+    // values on existing columns. When that happens, re-sending the same
+    // payload corrects the stored orders because all columns now exist in
+    // the backend (the merge updates properties instead of appending).
+    if (sentColumns && Array.isArray(updated.columns)) {
+      const sentOrder = sentColumns.map(c => c.name).join(',')
+      const returnedOrder = (updated.columns as Array<{ name: string }>).map(c => c.name).join(',')
+
+      if (sentOrder !== returnedOrder) {
+        updated = await apiRequest<Record<string, unknown>>(`/spreadsheets/${appId}/sheets/${sheetId}`, {
+          method: 'PATCH',
+          body: JSON.stringify(payload)
+        })
+      }
+    }
 
     return {
       id: updated.id as string,
@@ -499,7 +569,8 @@ export const SpreadsheetApiService = {
   // ============ Rows ============
 
   /**
-   * Get rows for a sheet
+   * Get rows for a sheet.
+   * Automatically paginates through all pages to ensure every row is loaded.
    */
   async getRows(
     appId: string,
@@ -507,31 +578,52 @@ export const SpreadsheetApiService = {
     options?: { page?: number; limit?: number }
   ): Promise<Array<Record<string, unknown>>> {
     try {
-      const params = new URLSearchParams()
-      if (options?.page) params.set('page', options.page.toString())
-      if (options?.limit) params.set('limit', options.limit.toString())
+      const pageSize = options?.limit ?? 100
+      let currentPage = options?.page ?? 1
+      const allRows: Array<Record<string, unknown>> = []
 
-      const queryString = params.toString()
-      const endpoint = `/spreadsheets/${appId}/sheets/${sheetId}/rows${queryString ? `?${queryString}` : ''}`
+      // Fetch pages until all rows are loaded
 
-      debugLog('getRows', endpoint)
+      while (true) {
+        const params = new URLSearchParams()
+        params.set('page', currentPage.toString())
+        params.set('limit', pageSize.toString())
 
-      const response = await apiRequest<PaginatedResponse<Record<string, unknown>>>(endpoint)
-      return response.items.map(row => {
-        const rowData = (((row as Record<string, unknown>).data as Record<string, unknown>) || {}) as SpreadsheetRowData
-        const clientRowId = rowData._clientRowId
-        if (clientRowId) {
+        const queryString = params.toString()
+        const endpoint = `/spreadsheets/${appId}/sheets/${sheetId}/rows?${queryString}`
+
+        debugLog('getRows', endpoint)
+
+        const response = await apiRequest<PaginatedResponse<Record<string, unknown>>>(endpoint)
+
+        const pageRows = response.items.map(row => {
+          const rowData = (((row as Record<string, unknown>).data as Record<string, unknown>) ||
+            {}) as SpreadsheetRowData
+          const clientRowId = rowData._clientRowId
+          if (clientRowId) {
+            return {
+              ...rowData,
+              _id: clientRowId,
+              _rowUuid: (row as Record<string, unknown>).id as string
+            }
+          }
           return {
             ...rowData,
-            _id: clientRowId,
-            _rowUuid: (row as Record<string, unknown>).id as string
+            _id: (row as Record<string, unknown>).id as string
           }
-        }
-        return {
-          ...rowData,
-          _id: (row as Record<string, unknown>).id as string
-        }
-      })
+        })
+
+        allRows.push(...pageRows)
+
+        // If we fetched a specific page (caller passed page option), return just that page
+        if (options?.page) break
+
+        // Otherwise, keep fetching until we have all pages
+        if (currentPage >= (response.totalPages || 1)) break
+        currentPage++
+      }
+
+      return allRows
     } catch (error) {
       console.error('Failed to get rows:', error)
       return []
@@ -616,6 +708,23 @@ export const SpreadsheetApiService = {
       return true
     } catch (error) {
       console.error('Failed to delete row:', error)
+      return false
+    }
+  },
+
+  /**
+   * Reorder rows by updating their positions
+   */
+  async reorderRows(appId: string, sheetId: string, rowIds: string[]): Promise<boolean> {
+    try {
+      debugLog('reorderRows', appId, sheetId, rowIds.length, 'rows')
+      await apiRequest(`/spreadsheets/${appId}/sheets/${sheetId}/rows/reorder`, {
+        method: 'PATCH',
+        body: JSON.stringify({ rowIds })
+      })
+      return true
+    } catch (error) {
+      console.error('Failed to reorder rows:', error)
       return false
     }
   },

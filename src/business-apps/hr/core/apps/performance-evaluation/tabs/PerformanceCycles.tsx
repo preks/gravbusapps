@@ -16,7 +16,7 @@ import {
   toast,
   Spinner
 } from '@newwork/nw-design-system'
-import { CalendarBlank, PencilSimple, Play, Plus, Warning as WarningIcon } from '@phosphor-icons/react'
+import { CalendarBlank, PencilSimple, Play, Plus, Trash, Warning as WarningIcon } from '@phosphor-icons/react'
 import type { PerformanceCycle, RatingScale, ValueItemStored } from '../types'
 import CycleEditorModal, {
   CycleEditorValues,
@@ -192,6 +192,15 @@ export const PerformanceCycles: React.FC<PerformanceCyclesProps> = ({
                             <Button variant="ghost" size="icon" onClick={() => handleEdit(c)} aria-label="Edit">
                               <PencilSimple />
                             </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => onDeleteCycle(c)}
+                              data-testid={`cycle-delete-${c.id}`}
+                              aria-label="Delete"
+                            >
+                              <Trash />
+                            </Button>
                             {c.status === 'Inactive' ? (
                               <Button
                                 variant="secondary"
@@ -221,14 +230,6 @@ export const PerformanceCycles: React.FC<PerformanceCyclesProps> = ({
                               <Play weight="fill" className="gba:mr-1" size={16} />
                               {t('button-start')}
                             </Button>
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              onClick={() => onDeleteCycle(c)}
-                              data-testid={`cycle-delete-${c.id}`}
-                            >
-                              {t('button-delete')}
-                            </Button>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -245,6 +246,7 @@ export const PerformanceCycles: React.FC<PerformanceCyclesProps> = ({
         onOpenChange={open => setIsModalOpen(open)}
         onSave={handleSaveFromModal}
         availableValues={valuesStore}
+        availableRatingScales={ratingScales}
         initialValues={
           editing
             ? {

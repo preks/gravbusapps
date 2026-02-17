@@ -7,7 +7,6 @@ import { useConversations } from './useConversations'
 import { useMessages } from './useMessages'
 import { useTypingIndicator } from './useTypingIndicator'
 import { usePresence, type PresenceState, type PresenceData } from './usePresence'
-import { rtkDebug } from '../utils/rtkDebug'
 
 // Shared WebSocket client to prevent duplicate connections
 // Multiple Chat instances (e.g., forceMount tabs) will share ONE WebSocket
@@ -47,6 +46,7 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
   const nudgeCallbackRef = useRef<
     ((data: { conversationId: string; fromUserId: string; fromUserName: string }) => void) | null
   >(null)
+  const shouldRefreshConversationsOnConnectRef = useRef(false)
 
   // Track processed message IDs to prevent duplicate processing
   const processedMessageIdsRef = useRef<Set<string>>(new Set())
@@ -108,7 +108,7 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
 
   // Use hooks for conversations and messages (must be called unconditionally, BEFORE any useEffect that uses them)
   const conversationsHook = useConversations({
-    apiClient: apiClientState || ({} as ChatApiClient),
+    apiClient: apiClientState || undefined,
     accessToken,
     enabled: !!apiClientState
   })
@@ -137,13 +137,8 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
     // Don't reset to 0 when empty - keep the timestamp from setActiveConversation
   }, [messagesHook.messages, activeConversationId])
 
-  // Load conversations when API client is ready (happens in parallel with getCurrentUser)
-  // This improves initial load time by not blocking on user fetch
-  useEffect(() => {
-    if (apiClientState && conversationsHook) {
-      conversationsHook.loadConversations()
-    }
-  }, [apiClientState])
+  // Note: Conversations are automatically loaded by useConversations hook when apiClient is ready.
+  // Avoid manually calling loadConversations here to prevent duplicate initial requests.
 
   const typingHook = useTypingIndicator({
     onTypingStart: conversationId => {
@@ -300,28 +295,25 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
       setIsOffline(false)
       setError(null)
 
-      // Join all user's conversations when connected
-      // The backend automatically joins users to their conversations on connect,
-      // but we should also join the active conversation if there is one
-      if (activeConversationId && wsClientRef.current) {
-        // PERFORMANCE: Tell backend the newest message we have to avoid sending historical messages
-        const newestTimestamp = newestMessageTimestampRef.current
-        wsClientRef.current.joinConversation(activeConversationId, newestTimestamp)
-        currentConversationIdRef.current = activeConversationId
-      }
-
       // Refresh conversations after WebSocket connects to get accurate unread counts
       // This ensures unread counts reflect messages received while offline
+      // Only refresh on reconnect (avoid duplicate initial load on first connect)
       // Small delay to allow initial connection to stabilize
-      setTimeout(() => {
-        conversationsHookRef.current?.loadConversations?.()
-      }, 500)
+      if (shouldRefreshConversationsOnConnectRef.current) {
+        shouldRefreshConversationsOnConnectRef.current = false
+        setTimeout(() => {
+          if (conversationsHookRef.current?.conversations?.length) {
+            conversationsHookRef.current.loadConversations?.()
+          }
+        }, 500)
+      }
     }
 
     const handleDisconnect = () => {
       console.warn('[useChatClient] ⚠️ WebSocket disconnected')
       setIsConnected(false)
       setIsOffline(true)
+      shouldRefreshConversationsOnConnectRef.current = true
     }
 
     const handleError = (error: any) => {
@@ -357,7 +349,15 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
         sharedWsRefCount = 0
       }
     }
-  }, [accessToken, wsUrl, wsSocketPath, activeConversationId])
+  }, [accessToken, wsUrl, wsSocketPath])
+
+  // Update currentConversationIdRef when activeConversationId changes
+  // This doesn't require recreating the WebSocket connection
+  useEffect(() => {
+    if (activeConversationId && isConnected) {
+      currentConversationIdRef.current = activeConversationId
+    }
+  }, [activeConversationId, isConnected])
 
   // Setup WebSocket event listeners
   useEffect(() => {
@@ -394,6 +394,9 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
         if (messageTimestamp <= newestWeHave && newestWeHave > 0) {
           return // Skip - we already have this message
         }
+
+        // Update the newest timestamp for this conversation
+        newestMessageTimestampRef.current = messageTimestamp
       }
 
       // OPTIMIZATION: Queue ALL logic asynchronously - handler returns immediately
@@ -411,8 +414,30 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
         const isOwnMessage = currentUser && message.senderId === currentUser.id
         const isOtherUserMessage = currentUser && message.senderId !== currentUser.id
 
+        // Check if it's a system message (no sender)
+        const isSystemMessage = !message.senderId || message.type === 'system'
+
         // Use ref to get current active conversation (not stale closure value)
         const currentActiveConversationId = activeConversationIdRef.current
+
+        // Handle system messages (call started/ended, meeting minutes, etc.)
+        if (isSystemMessage) {
+          // System messages don't need status updates or read receipts
+          const messageWithStatus = { ...message, status: message.status || 'sent' }
+
+          // OPTIMIZATION: Defer UI updates to not block the message handler
+          startTransition(() => {
+            // Update conversation list
+            conversationsHookRef.current?.updateConversationLastMessage(message.conversationId, messageWithStatus)
+
+            // Add message to chat view if it's for the active conversation
+            if (message.conversationId === currentActiveConversationId) {
+              messagesHookRef.current?.addMessage(messageWithStatus)
+            }
+          })
+
+          return // Exit early - system messages don't need further processing
+        }
 
         // Stop typing indicator for this user when they send a message
         if (isOtherUserMessage) {
@@ -696,7 +721,6 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
     }
 
     const handleConversationCallStarted = (data: ActiveCall) => {
-      rtkDebug.log('[CHAT CLIENT] 📞 Received conversation:call-started:', data)
       setActiveCalls(prev => ({ ...prev, [data.conversationId]: data }))
       conversationsHookRef.current?.updateConversation?.(data.conversationId, {
         activeCall: data
@@ -704,12 +728,9 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
     }
 
     const handleConversationCallEnded = (data: { conversationId: string; roomId: string }) => {
-      rtkDebug.log('[CHAT CLIENT] 📴 Received conversation:call-ended:', data)
       setActiveCalls(prev => {
-        rtkDebug.log('[CHAT CLIENT] ActiveCalls BEFORE remove:', prev)
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { [data.conversationId]: _removed, ...rest } = prev
-        rtkDebug.log('[CHAT CLIENT] ActiveCalls AFTER remove:', rest)
         return rest
       })
       conversationsHookRef.current?.updateConversation?.(data.conversationId, {
@@ -718,14 +739,27 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
     }
 
     const handleConversationActiveCalls = (calls: ActiveCall[]) => {
-      const map: Record<string, ActiveCall> = {}
-      calls.forEach(call => {
-        map[call.conversationId] = call
+      const next: Record<string, ActiveCall> = {}
+      ;(calls || []).forEach(call => {
+        if (!call?.conversationId) return
+        next[call.conversationId] = call
         conversationsHookRef.current?.updateConversation?.(call.conversationId, {
           activeCall: call
         } as Partial<Conversation>)
       })
-      setActiveCalls(map)
+
+      // IMPORTANT: Clear calls that disappeared from the snapshot.
+      // If we missed a call-ended event (sleep/disconnect/reconnect), UI would otherwise stay stale until refresh.
+      const prev = activeCallsRef.current || {}
+      Object.keys(prev).forEach(conversationId => {
+        if (!next[conversationId]) {
+          conversationsHookRef.current?.updateConversation?.(conversationId, {
+            activeCall: null
+          } as Partial<Conversation>)
+        }
+      })
+
+      setActiveCalls(next)
     }
 
     const handleConversationRead = (data: { conversationId: string; userId: string; readAt: string }) => {
@@ -777,19 +811,15 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
     }
   }, [isConnected]) // Only re-register when connection changes, all other values accessed via refs
 
-  // Join conversation and mark as read when active conversation changes
-  // NOTE: We DON'T leave conversations when going back to the list
-  // Users should stay in all conversation rooms to receive real-time updates
+  // Mark conversation as read when active conversation changes
+  // NOTE: We DON'T need to join conversations - the backend automatically joins us to ALL conversations on connect
+  // Users stay in all conversation rooms to receive real-time updates
   useEffect(() => {
     if (!wsClientRef.current || !isConnected) {
       return
     }
 
-    // Join new conversation if not already joined
     if (activeConversationId) {
-      // PERFORMANCE: Tell backend the newest message we have to avoid sending historical messages
-      const newestTimestamp = newestMessageTimestampRef.current
-      wsClientRef.current.joinConversation(activeConversationId, newestTimestamp)
       currentConversationIdRef.current = activeConversationId
       // Optimistically update UI immediately
       conversationsHookRef.current?.markConversationAsRead(activeConversationId)
@@ -801,7 +831,7 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
       // 3. Trigger handleConversationRead which updates UI across all sessions
       wsClientRef.current.markConversationAsRead(activeConversationId)
     } else {
-      // We've left the room, backend will send conversation_updated events instead
+      // Back to conversation list
       currentConversationIdRef.current = null
     }
   }, [activeConversationId, isConnected])

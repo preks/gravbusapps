@@ -27,7 +27,7 @@ import 'dayjs/locale/it'
 import { Pin } from 'lucide-react'
 import { UnifiedTask } from '../types'
 import { EmployeeAvatarData } from '../hooks/useEmployeeAvatarsBatch'
-import { base64ToObjectURL } from '../utils/avatarUtils'
+import { base64ToDataURL } from '../utils/avatarUtils'
 
 dayjs.extend(relativeTime)
 dayjs.extend(localizedFormat)
@@ -182,7 +182,7 @@ export const TaskCard: React.FC<TaskCardProps> = memo(
     // Avatar URL from base64
     const avatarUrl = useMemo(() => {
       if (employeeData?.pictureThumbnail) {
-        return base64ToObjectURL(employeeData.pictureThumbnail)
+        return base64ToDataURL(employeeData.pictureThumbnail)
       }
       return undefined
     }, [employeeData?.pictureThumbnail])

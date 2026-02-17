@@ -41,12 +41,13 @@ import {
 } from '@newwork/nw-design-system'
 import { useRealtimeKitSelector } from '@cloudflare/realtimekit-react'
 import { getInitials } from '../../utils/callUtils'
-import type { PendingInvite } from '../../hooks/useGroupCall'
+import type { PendingInvite } from '../../services/callTypes'
 
 export interface AvailableParticipant {
   id: string
   odId: string
   odName: string
+  avatarUrl?: string
 }
 
 export interface CallParticipant {
@@ -151,16 +152,6 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
   // Handler for inviting a participant with loading state - supports multiple simultaneous invites
   const handleInviteClick = async (participant: CallParticipant) => {
     if (!onInviteParticipant || invitingParticipantIds.has(participant.odId)) return
-
-    // [DEBUG] Log participant data being sent to backend AND current stored data
-    console.log('[ParticipantsPanel] 📤 Inviting participant:', {
-      id: participant.id,
-      odId: participant.odId,
-      odName: participant.odName,
-      fullParticipant: participant,
-      allSeenParticipantsKeys: Array.from(allSeenParticipantsRef.current.keys()),
-      allSeenParticipantsValues: Array.from(allSeenParticipantsRef.current.values())
-    })
 
     // Add to inviting set
     setInvitingParticipantIds(prev => new Set([...prev, participant.odId]))
@@ -341,23 +332,6 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
       })
     }
 
-    console.log('[ParticipantsPanel] 🔍 Matching SDK participants to conversation participants:', {
-      activeParticipantsCount: activeParticipants.length,
-      availableParticipantsCount: availableParticipants.length,
-      conversationParticipantsCount: conversationParticipants.length,
-      activeParticipants: activeParticipants.map((p: any) => ({
-        userId: p.userId,
-        customParticipantId: p.customParticipantId,
-        id: p.id,
-        name: p.name
-      })),
-      conversationParticipants: conversationParticipants.map((p: any) => ({
-        id: p.id,
-        odId: p.odId,
-        odName: p.odName
-      }))
-    })
-
     activeParticipants.forEach((sdkParticipant: any) => {
       // CRITICAL FIX: Match SDK participant to conversation participant to get the REAL user ID
       // The SDK uses internal IDs which don't match our database user IDs
@@ -368,23 +342,6 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
           cp.id === sdkParticipant.userId ||
           cp.odName?.toLowerCase() === sdkParticipant.name?.toLowerCase()
       )
-
-      console.log('[ParticipantsPanel] 🔎 Matching result for participant:', {
-        sdkParticipant: {
-          userId: sdkParticipant.userId,
-          customParticipantId: sdkParticipant.customParticipantId,
-          id: sdkParticipant.id,
-          name: sdkParticipant.name
-        },
-        conversationParticipant: conversationParticipant
-          ? {
-              id: conversationParticipant.id,
-              odId: conversationParticipant.odId,
-              odName: conversationParticipant.odName
-            }
-          : null,
-        foundMatch: !!conversationParticipant
-      })
 
       // Use the conversation participant's ID if found, otherwise fall back to SDK IDs
       // CRITICAL: customParticipantId is the REAL user ID set by us, userId is SDK's internal ID
@@ -408,31 +365,10 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
           const sdkIds = [sdkParticipant.userId, sdkParticipant.customParticipantId, sdkParticipant.id]
           sdkIds.forEach(sdkId => {
             if (sdkId && sdkId !== realUserId && allSeenParticipantsRef.current.has(sdkId)) {
-              console.log('[ParticipantsPanel] 🧹 Cleaning up old SDK ID:', {
-                sdkId,
-                realUserId,
-                participantName: conversationParticipant.odName
-              })
               allSeenParticipantsRef.current.delete(sdkId)
             }
           })
         }
-
-        const isNewEntry = !allSeenParticipantsRef.current.has(realUserId)
-
-        // [DEBUG] Log when adding/updating seen participants
-        console.log(
-          isNewEntry
-            ? '[ParticipantsPanel] 👀 Adding to allSeenParticipants:'
-            : '[ParticipantsPanel] 🔄 Updating allSeenParticipants:',
-          {
-            key: realUserId,
-            participantData,
-            rawSdkParticipant: sdkParticipant,
-            matchedConversationParticipant: conversationParticipant,
-            isNewEntry
-          }
-        )
 
         allSeenParticipantsRef.current.set(realUserId, participantData)
       }
@@ -498,14 +434,6 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
         odName: conversationParticipant.odName,
         lastSeen: Date.now()
       })
-
-      console.log('[ParticipantsPanel] 🔄 Updated allSeenParticipants with real ID:', {
-        removedSdkIds: [participant.userId, participant.customParticipantId, participant.id].filter(
-          id => id !== conversationParticipant.id
-        ),
-        storedRealId: conversationParticipant.id,
-        conversationParticipant
-      })
     }
 
     // CRITICAL FIX: Mark ALL possible IDs as processed to prevent duplicates
@@ -537,7 +465,13 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
       }
 
       const status =
-        invite.status === 'declined' ? 'declined' : invite.status === 'not-answered' ? 'not-answered' : 'invited'
+        invite.status === 'declined'
+          ? 'declined'
+          : invite.status === 'not-answered'
+            ? 'not-answered'
+            : invite.status === 'left'
+              ? 'left'
+              : 'invited'
 
       pendingInviteEntries.push({
         id: invite.id,
@@ -611,24 +545,9 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
   // Separate into sections for rendering
   const filteredActiveParticipants = filteredAllParticipants.filter(p => p.status === 'in-call')
   const filteredInvitedParticipants = filteredAllParticipants.filter(
-    p => p.status === 'invited' || p.status === 'declined' || p.status === 'not-answered'
+    p => p.status === 'invited' || p.status === 'declined' || p.status === 'not-answered' || p.status === 'left'
   )
-  const filteredAvailableParticipants = filteredAllParticipants.filter(
-    p => p.status === 'available' || p.status === 'left'
-  )
-
-  // [DEBUG] Log participant lists for debugging
-  console.log('[ParticipantsPanel] 📊 Participant lists:', {
-    allSeenCount: allSeenParticipantsRef.current.size,
-    allSeenKeys: Array.from(allSeenParticipantsRef.current.keys()),
-    allSeenValues: Array.from(allSeenParticipantsRef.current.values()),
-    previouslySeenEntriesCount: previouslySeenEntries.length,
-    previouslySeenEntries,
-    activeCount: filteredActiveParticipants.length,
-    invitedCount: filteredInvitedParticipants.length,
-    availableCount: filteredAvailableParticipants.length,
-    allParticipantsCount: allParticipantsWithStatus.length
-  })
+  const filteredAvailableParticipants = filteredAllParticipants.filter(p => p.status === 'available')
 
   if (!isOpen) return null
 
@@ -844,6 +763,8 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
                         return t('participants-declined-invite')
                       case 'not-answered':
                         return t('participants-not-answered')
+                      case 'left':
+                        return t('participants-left-call') || 'Left call'
                       case 'invited':
                       default:
                         return t('participants-ringing')
@@ -856,13 +777,15 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
                         return 'gba:text-destructive-secondary'
                       case 'not-answered':
                         return 'gba:text-warning'
+                      case 'left':
+                        return 'gba:text-info'
                       case 'invited':
                       default:
                         return 'gba:text-muted-foreground'
                     }
                   }
 
-                  const canReInvite = p.status === 'declined' || p.status === 'not-answered'
+                  const canReInvite = p.status === 'declined' || p.status === 'not-answered' || p.status === 'left'
 
                   return (
                     <div

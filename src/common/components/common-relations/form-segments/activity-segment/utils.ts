@@ -1,5 +1,21 @@
 import type { EntityOption } from './ActivitySegment'
 
+/**
+ * Extracts the primary email from an entity's communicationChannels array.
+ * Used by Account, Contact, and Opportunity (which store email in the
+ * communicationChannels relation rather than a flat field).
+ */
+const getEmailFromCommunicationChannels = (entity: any): string | undefined => {
+  const channels = entity?.communicationChannels
+  if (!Array.isArray(channels) || channels.length === 0) return undefined
+  const emailChannel = channels.find(
+    (ch: any) =>
+      ch.communicationChannel?.code?.toLowerCase() === 'e-mail' ||
+      ch.communicationChannelRef?.toLowerCase().includes('e-mail')
+  )
+  return emailChannel?.value || undefined
+}
+
 export const mapEntityToOption = (entity: any, type: 'account' | 'contact' | 'opportunity' | 'lead'): EntityOption => {
   const getEntityName = () => {
     switch (type) {
@@ -23,13 +39,13 @@ export const mapEntityToOption = (entity: any, type: 'account' | 'contact' | 'op
   const getEntitySubtitle = () => {
     switch (type) {
       case 'account':
-        return entity?.email
+        return getEmailFromCommunicationChannels(entity) || entity?.email
       case 'contact':
-        return entity?.email
+        return getEmailFromCommunicationChannels(entity) || entity?.email
       case 'opportunity':
-        return entity?.dealType
+        return getEmailFromCommunicationChannels(entity) || entity?.dealType
       case 'lead':
-        return entity?.email
+        return entity?.email || entity?.companyEmail
       default:
         return undefined
     }

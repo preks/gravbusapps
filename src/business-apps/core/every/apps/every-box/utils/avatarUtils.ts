@@ -3,37 +3,41 @@
  */
 
 /**
- * Convert base64 image data to Object URL for browser caching
+ * Convert base64 image data to a data URL (no memory leak, unlike ObjectURL)
  * @param base64Data - Base64 encoded image data (can include data URL prefix or raw base64)
- * @returns Object URL for the image, or undefined if conversion fails
+ * @returns Data URL for the image, or undefined if conversion fails
  */
-export const base64ToObjectURL = (base64Data: string): string | undefined => {
+export const base64ToDataURL = (base64Data: string): string | undefined => {
   try {
     // Skip if data is JSON or invalid
     if (!base64Data || base64Data.startsWith('{')) {
       return undefined
     }
 
-    // Extract base64 data if it includes data URL prefix
-    let base64 = base64Data
-    if (base64Data.includes('base64,')) {
-      base64 = base64Data.split('base64,')[1]
+    // Already a data URL? Return as-is
+    if (base64Data.startsWith('data:')) {
+      return base64Data
     }
 
-    // Decode base64 to binary
-    const binaryString = atob(base64)
-    const bytes = new Uint8Array(binaryString.length)
-    for (let i = 0; i < binaryString.length; i++) {
-      bytes[i] = binaryString.codePointAt(i) ?? 0
-    }
+    // Strip any existing prefix and return as data URL
+    const raw = base64Data.includes('base64,') ? base64Data.split('base64,')[1] : base64Data
 
-    // Create blob and generate Object URL
-    const blob = new Blob([bytes], { type: 'image/jpeg' })
-    return URL.createObjectURL(blob)
+    // Detect image format from base64 header bytes
+    if (raw.startsWith('/9j/')) return `data:image/jpeg;base64,${raw}`
+    if (raw.startsWith('iVBOR')) return `data:image/png;base64,${raw}`
+    if (raw.startsWith('R0lGOD')) return `data:image/gif;base64,${raw}`
+
+    // Default to JPEG
+    return `data:image/jpeg;base64,${raw}`
   } catch {
     return undefined
   }
 }
+
+/**
+ * @deprecated Use base64ToDataURL instead - ObjectURLs leak memory if not revoked
+ */
+export const base64ToObjectURL = base64ToDataURL
 
 /**
  * Get initials from employee name

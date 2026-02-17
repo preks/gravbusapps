@@ -17,11 +17,7 @@ export interface ImportAnalyzerResponse {
   fieldMappings: FieldMapping[]
   sourceFields: string[]
   unmappedSourceFields: string[]
-}
-
-// Generic parsed row from CSV
-export interface ParsedRow {
-  [key: string]: string
+  totalRowsRead?: number
 }
 
 // Communication channel structure for contacts/accounts
@@ -49,9 +45,7 @@ export interface CatalogLookupCache {
 export interface ImportConfig {
   entityType: string
   domain: 'customer' | 'investment' // Domain for endpoint routing
-  aiAgentName: string
   targetFields: TargetFieldDefinition[]
-  requiredCatalogs: string[]
 }
 
 // Target field definition

@@ -44,7 +44,7 @@ function buildDeletePayload(value: ValueItemStored): SaveCompanyValuePayload {
       version: value.version ?? 0,
       title: '',
       description: '',
-      recordState: 'archived'
+      recordState: 'inactive'
     }
   }
 }
@@ -57,7 +57,7 @@ function buildUpdateRecordStatePayload(value: ValueItemStored, recordState: stri
       version: value.version ?? 0,
       title: value.title,
       description: value.description,
-      recordState: recordState.toUpperCase()
+      recordState
     }
   }
 }

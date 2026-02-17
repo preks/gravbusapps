@@ -12,6 +12,9 @@ export const ADD_SKILL_QUERY = `query MyQuery($id: uuid!) {
     skills(where: {isDeleted: {_eq: false}}) {
       version
       id
+      level
+      validFrom
+      validTo
       skill {
         id
         name
@@ -44,6 +47,21 @@ query GetSkillsByNames($names: [String!]!) {
     id
     name
     version
+  }
+}
+`
+
+/** Document Type catalog for attach verification (Training&Development group only, filtered by parentEntryId in code). */
+export const ADD_SKILL_DOCUMENT_CATALOGS_QUERY = `query AddSkillDocumentCatalogs($activeUserLocale: String!) {
+  documentType: CatalogEntry(where: {catalog: {version: {_eq: "v1"}, identifier: {_eq: "DocumentType"}}}) {
+    value
+    id
+    parentEntryId
+    translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+      localeCode
+      value
+    }
+    catalog { defaultLocale }
   }
 }
 `

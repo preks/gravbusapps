@@ -64,6 +64,7 @@ export interface Meeting {
   organizerId: string
   conversationId?: string
   webrtcSessionId?: string
+  transcriptionEnabled?: boolean
   reminderMinutes: number[]
   isAllDay: boolean
   color: string
@@ -93,6 +94,9 @@ export interface EventParticipant {
   isOrganizer: boolean
   comment?: string
 }
+
+/** Source of the calendar event */
+export type CalendarEventSource = 'internal' | 'microsoft' | 'google'
 
 export interface CalendarEvent {
   id: string
@@ -124,6 +128,14 @@ export interface CalendarEvent {
   recurrenceEndDate?: Date
   reminderMinutes?: number[]
   metadata?: Record<string, any>
+  /** Source of the event: internal meeting or external provider */
+  source?: CalendarEventSource
+  /** External provider event ID */
+  externalId?: string
+  /** Link to open the event in the external provider */
+  externalLink?: string
+  /** Whether this event is read-only (external events cannot be edited) */
+  isReadOnly?: boolean
 }
 
 export interface CreateMeetingData {

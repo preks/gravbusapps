@@ -14,4 +14,8 @@ suffix-thousand = mii
 total-salary = Salariu total
 department-salary-stacked-bar-chart-title = Diagramă stivuită pe departamente (salarii)
 
+# Chart states (shared)
+hr-data-filter-error = Eroare la încărcarea datelor
+hr-data-filter-no-data = Nu există date disponibile
+
 

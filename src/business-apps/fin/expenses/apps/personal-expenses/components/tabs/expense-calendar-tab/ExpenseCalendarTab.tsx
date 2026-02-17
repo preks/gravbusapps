@@ -74,10 +74,10 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = props => {
     return value.format('YYYY-MM')
   }, [])
 
-  // Check if current month data is cached (computed on each render)
+  // Check if current month data is cached for optimistic UI (computed on each render)
   const monthKey = getMonthCacheKey(debouncedCalendarValue)
   const cachedMonthData = monthCacheRef.current.get(monthKey)
-  const isAllCached = !!(cachedMonthData?.plans && cachedMonthData?.requests)
+  const hasCachedData = !!(cachedMonthData?.plans && cachedMonthData?.requests)
 
   const {
     items: rawExpensePlans,
@@ -140,14 +140,16 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = props => {
     }))
   }
 
-  useEffect(() => {
-    // Check cache first - if cached, use it and skip fetch
-    if (cachedMonthData?.plans) {
-      setCalendarPlanItems(cachedMonthData.plans)
-      return
-    }
+  // Track which month each fetch is for to prevent cache corruption
+  const plansMonthKeyRef = useRef<string | null>(null)
+  const requestsMonthKeyRef = useRef<string | null>(null)
 
+  useEffect(() => {
+    // Always fetch data for the current month to ensure data consistency
     const { start, end } = getMonthRange(debouncedCalendarValue)
+    const currentMonthKey = getMonthCacheKey(debouncedCalendarValue)
+    plansMonthKeyRef.current = currentMonthKey
+
     const filters = {
       _and: [
         {
@@ -168,11 +170,18 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = props => {
         }
       ]
     }
+
+    // Use cached data optimistically while fetching
+    const cached = monthCacheRef.current.get(currentMonthKey)
+    if (cached?.plans) {
+      setCalendarPlanItems(cached.plans)
+    }
+
     fetchPlansHookItems(filters, 1, 10000).catch(err => {
       console.error('Failed to fetch expense plans:', err)
       setPlansError(err.message || 'Failed to fetch expense plans')
     })
-  }, [fetchPlansHookItems, debouncedCalendarValue, getMonthRange, cachedMonthData])
+  }, [fetchPlansHookItems, debouncedCalendarValue, getMonthRange, getMonthCacheKey])
 
   useEffect(() => {
     if (fetchPlansErrorHook) {
@@ -190,20 +199,21 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = props => {
         .filter((i): i is CalendarExpenseItem => i !== null)
       setCalendarPlanItems(transformedPlans)
 
-      // Update cache
-      const cached = monthCacheRef.current.get(monthKey) || { plans: [], requests: [] }
-      monthCacheRef.current.set(monthKey, { ...cached, plans: transformedPlans })
+      // Only update cache if this data is for the current fetching month
+      // This prevents cache corruption when navigating quickly between months
+      if (plansMonthKeyRef.current === monthKey) {
+        const cached = monthCacheRef.current.get(monthKey) || { plans: [], requests: [] }
+        monthCacheRef.current.set(monthKey, { ...cached, plans: transformedPlans })
+      }
     }
   }, [rawExpensePlans, monthKey])
 
   useEffect(() => {
-    // Check cache first - if cached, use it and skip fetch
-    if (cachedMonthData?.requests) {
-      setCalendarRequestItems(cachedMonthData.requests)
-      return
-    }
-
+    // Always fetch data for the current month to ensure data consistency
     const { start, end } = getMonthRange(debouncedCalendarValue)
+    const currentMonthKey = getMonthCacheKey(debouncedCalendarValue)
+    requestsMonthKeyRef.current = currentMonthKey
+
     const filters = {
       _and: [
         {
@@ -226,11 +236,18 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = props => {
         }
       ]
     }
+
+    // Use cached data optimistically while fetching
+    const cached = monthCacheRef.current.get(currentMonthKey)
+    if (cached?.requests) {
+      setCalendarRequestItems(cached.requests)
+    }
+
     fetchRequestsHookItems(filters, 1, 10000).catch(err => {
       console.error('Failed to fetch expense requests:', err)
       setRequestsError(err.message || 'Failed to fetch expense requests')
     })
-  }, [fetchRequestsHookItems, debouncedCalendarValue, getMonthRange, cachedMonthData])
+  }, [fetchRequestsHookItems, debouncedCalendarValue, getMonthRange, getMonthCacheKey])
 
   useEffect(() => {
     if (fetchRequestsErrorHook) {
@@ -248,9 +265,12 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = props => {
         .filter((i): i is CalendarExpenseItem => i !== null)
       setCalendarRequestItems(transformedRequests)
 
-      // Update cache
-      const cached = monthCacheRef.current.get(monthKey) || { plans: [], requests: [] }
-      monthCacheRef.current.set(monthKey, { ...cached, requests: transformedRequests })
+      // Only update cache if this data is for the current fetching month
+      // This prevents cache corruption when navigating quickly between months
+      if (requestsMonthKeyRef.current === monthKey) {
+        const cached = monthCacheRef.current.get(monthKey) || { plans: [], requests: [] }
+        monthCacheRef.current.set(monthKey, { ...cached, requests: transformedRequests })
+      }
     }
   }, [rawExpenseRequests, monthKey])
 
@@ -268,13 +288,31 @@ const ExpenseCalendarTab: React.FC<BusinessAppContextProps> = props => {
   // Wrapper for antd v5: use cellRender instead of deprecated dateCellRender
   const cellRender = useStripRcPickerTitle(dateCellRender)
 
+  // Check if we're viewing the current month
+  const isViewingCurrentMonth = calendarValue.isSame(dayjs(), 'month')
+
   return (
     <div
       style={{ padding: '20px', border: '1px solid #f0f0f0', borderRadius: '4px' }}
-      className="gba-expense-calendar-tab"
+      className={`gba-expense-calendar-tab ${!isViewingCurrentMonth ? 'hide-date-highlights' : ''}`}
     >
+      <style>{`
+        /* Hide all date highlights (today marker and selected state) when not viewing the current month */
+        .gba-expense-calendar-tab.hide-date-highlights .ant-picker-cell-today .ant-picker-cell-inner {
+          border-color: transparent !important;
+        }
+        .gba-expense-calendar-tab.hide-date-highlights .ant-picker-calendar-date-today {
+          border-color: transparent !important;
+        }
+        .gba-expense-calendar-tab.hide-date-highlights .ant-picker-cell-selected .ant-picker-cell-inner {
+          background: transparent !important;
+        }
+        .gba-expense-calendar-tab.hide-date-highlights .ant-picker-cell-selected {
+          background: transparent !important;
+        }
+      `}</style>
       <FiltersBar active={activeFilters} toggle={toggleFilter} />
-      {(isLoadingPlans || isLoadingRequests) && !isAllCached && (
+      {(isLoadingPlans || isLoadingRequests) && !hasCachedData && (
         <div style={{ textAlign: 'center', padding: '20px' }}>
           <Spin
             tip={getTranslationFromI18nKeyAndLabel('lowcoder:personal_expenses.loading_data', 'Loading data...')}

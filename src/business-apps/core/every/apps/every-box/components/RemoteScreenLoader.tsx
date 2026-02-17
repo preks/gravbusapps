@@ -24,7 +24,7 @@ const MOBILE_TOKEN_UPDATED_EVENT = 'com.newwork.mobile.token.updated'
 type ExtendedRemoteComponentProps = RemoteComponentProps & {
   onClose?: () => void
   onTaskCompleted?: (taskId: string) => void
-  onTaskUpdated?: () => void
+  onTaskUpdated?: (payload?: unknown) => void
 }
 
 interface RemoteScreenLoaderProps extends BusinessAppContextProps {
@@ -32,7 +32,7 @@ interface RemoteScreenLoaderProps extends BusinessAppContextProps {
   version?: string
   onClose: () => void
   onTaskCompleted?: (taskId: string) => void
-  onTaskUpdated: () => void
+  onTaskUpdated?: (payload?: unknown) => void
   isLoadingMetadata?: boolean // Flag to show spinner while parent is loading metadata
   /** Custom cache key for component isolation (useful for loading same component multiple times) */
   cacheKey?: string
@@ -497,14 +497,48 @@ export const RemoteScreenLoader: React.FC<RemoteScreenLoaderProps> = ({
       .then(() => {
         setComponentLoaded(true)
         setLoading(false)
-        console.log(`[RemoteScreenLoader] Component ${cacheKey} loaded successfully`)
       })
       .catch(err => {
-        console.error('❌ [RemoteScreenLoader]', err)
         setError(err instanceof Error ? err.message : 'Unknown error occurred')
         setLoading(false)
       })
   }, [componentPath, componentName, version, componentCdnBase, cacheKey, componentUrl, isLoadingMetadata])
+
+  // Send initial form data via custom event for content entry forms
+  // This allows the remote component to receive and use the data even if it doesn't read from additionalData
+  // IMPORTANT: This hook must be called BEFORE any conditional returns to maintain hooks order
+  const additionalDataRef = useRef<any>(null)
+  useEffect(() => {
+    additionalDataRef.current = componentProps?.additionalData
+  }, [componentProps?.additionalData])
+
+  useEffect(() => {
+    if (!componentLoaded || !additionalDataRef.current) return
+
+    // Check if this is content entry form data
+    const additionalData = additionalDataRef.current
+    const hasContentEntryData =
+      additionalData.title || additionalData.contentEntry?.title || additionalData.defaultValues?.title
+
+    if (hasContentEntryData) {
+      // Dispatch custom event with form data
+      const title = additionalData.title || additionalData.contentEntry?.title
+      const preview = additionalData.preview || additionalData.previewText || additionalData.contentEntry?.preview
+      const content = additionalData.content || additionalData.contentEntry?.content
+      const changeMode = additionalData.changeMode
+
+      const event = new CustomEvent('contentEntryFormData', {
+        detail: {
+          formData: additionalData,
+          title,
+          preview,
+          content,
+          changeMode
+        }
+      })
+      window.dispatchEvent(event)
+    }
+  }, [componentLoaded])
 
   // Retry handler for error state
   const handleRetry = () => {

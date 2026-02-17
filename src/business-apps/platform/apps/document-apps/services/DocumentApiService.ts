@@ -751,6 +751,8 @@ export const DocumentApiService = {
         content: JSON.stringify(v.contentSnapshot || {}),
         createdAt: v.createdAt as string,
         createdBy: v.changedBy as string,
+        createdByName: (v as Record<string, unknown>).changedByName as string | undefined,
+        createdByAvatar: (v as Record<string, unknown>).changedByAvatar as string | undefined,
         changeDescription: v.changeSummary as string | undefined,
         isCheckpoint: !v.isAutoSave,
         isAutoSave: v.isAutoSave as boolean,
@@ -1145,8 +1147,9 @@ export const DocumentApiService = {
         lockExpiry: response.lockExpiry as string | undefined,
         lockReason: response.lockReason as string | undefined
       }
-    } catch (error) {
-      console.error('Failed to get lock status:', error)
+    } catch {
+      // Silently return null if lock endpoint doesn't exist (404) or fails
+      // Lock feature may not be implemented on backend yet
       return null
     }
   },
@@ -1223,6 +1226,37 @@ export const DocumentApiService = {
       console.error('Failed to update status:', error)
       return null
     }
+  },
+
+  /**
+   * AI Edit - Apply AI-powered edits to a document (whole document or selection)
+   */
+  async aiEdit(
+    documentId: string,
+    payload: {
+      instruction: string
+      llmProvider?: 'openai' | 'groq'
+      documentHtml: string
+      documentPlainText: string
+      mode: 'selection' | 'document'
+      title?: string
+      selection?: {
+        start?: number
+        end?: number
+        selectedPlainText?: string
+        selectionHtml?: string
+      }
+    }
+  ): Promise<{
+    mode: 'selection' | 'document'
+    updatedHtml?: string
+    replacementHtml?: string
+    changeSummary: string
+  }> {
+    return apiRequest(`/documents/${documentId}/ai/edit`, {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    })
   }
 }
 

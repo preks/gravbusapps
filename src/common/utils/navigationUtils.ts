@@ -90,6 +90,7 @@ const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   '/platform/content/intranet/content-record': 'core/content/records/content-record',
 
   // Platform
+  '/platform/chat': 'platform/apps/chat', // Chat application
   '/platform/every-ai': 'platform/apps/every-ai',
   '/platform/debugger': 'platform/apps/debugger',
   '/platform/every-office': 'platform/apps/every-office',
@@ -99,11 +100,13 @@ const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   '/platform/apps/note-apps': 'platform/apps/note-apps',
   '/platform/apps/spreadsheet-apps': 'platform/apps/spreadsheet-apps',
   '/platform/slides': 'platform/apps/slide-apps',
+  '/platform/nexus': 'platform/apps/nexus',
 
   // Email
   '/platform/apps/email-apps': 'platform/apps/email-apps',
   '/platform/mail': 'platform/apps/email-apps',
   '/platform/mail/oauth/callback': 'platform/apps/email-apps',
+  '/platform/mail/settings': 'platform/apps/email-provider-settings',
 
   // Canonical URLs for content apps (production-ready)
   '/platform/documents': 'platform/apps/document-apps',

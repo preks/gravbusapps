@@ -45,18 +45,5 @@ export const realEstateInvestmentTargetFields: TargetFieldDefinition[] = [
 export const realEstateInvestmentImportConfig: ImportConfig = {
   entityType: 'real-estate-investment',
   domain: 'investment',
-  aiAgentName: 'RealEstateInvestmentImportAnalyzer',
-  targetFields: realEstateInvestmentTargetFields,
-  requiredCatalogs: [
-    'InvestmentGroup',
-    'InvestmentType',
-    'InvestmentPhase',
-    'InvestmentStatus',
-    'InvestmentStakeType',
-    'InvestmentRiskLevel',
-    'Currency',
-    'SizeMeasurementUnit',
-    'Country'
-    // Note: Region requires country-specific filtering, not loaded by default
-  ]
+  targetFields: realEstateInvestmentTargetFields
 }

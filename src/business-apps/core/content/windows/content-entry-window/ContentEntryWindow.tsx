@@ -7,8 +7,9 @@ import { useTranslation } from '@newwork/nw-design-system'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
 import { CatalogSelect } from '@/components/catalog-select'
 import { useCreateCatalogEntries } from '@/common/data/catalog/hooks/useCreateCatalogEntries'
+import { useCatalogEntries } from '@/common/data/catalog/hooks/useCatalogEntries'
 import { useFileClient } from '@/common/network/files/useFileClient'
-import { ContentRole } from '@/common/data/content/types/contentEnums'
+import { ContentRole, ContentGroup } from '@/common/data/content/types/contentEnums'
 import { buildContentEntryPayload } from '@/common/data/content/payloads/contentEntryPayloads'
 import { useContentEntry } from '@/common/data/content/hooks/useContentEntry'
 import { buildFileUrl } from '@/common/utils/fileUtils'
@@ -16,6 +17,7 @@ import ArticleSegment from './segments/ArticleSegment'
 import QuestionSegment from './segments/QuestionSegment'
 import DocumentSegment from './segments/DocumentSegment'
 import GlossarySegment from './segments/GlossarySegment'
+import PolicySegment from './segments/PolicySegment'
 import translations from './_i18n'
 
 export interface ContentEntryWindowProps extends BusinessAppContextProps {
@@ -50,6 +52,7 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
   const catalogContext = CatalogSelect.useContext()
   const { validateField } = CatalogSelect.useValidation()
   const { createCatalogEntries } = useCreateCatalogEntries(context)
+  const { fetchCatalogEntriesByIdentifier } = useCatalogEntries({ accessToken: context.accessToken || '' })
   const fileClient = useFileClient(context)
   // Extract props to mark as used
   const { contentId, contentGroupRef } = context
@@ -326,15 +329,32 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
       return mappedFormValues
     }
 
-    // Otherwise use defaults
-    return {
+    // For new entries, check additionalData for initial values from flow proposals
+    const additionalData = context.additionalData
+    // Use nullish coalescing to preserve empty strings but default to empty string if undefined
+    const initialTitle = additionalData?.title ?? additionalData?.contentEntry?.title ?? ''
+    const initialPreview =
+      additionalData?.preview ?? additionalData?.previewText ?? additionalData?.contentEntry?.preview ?? ''
+    const initialContent = additionalData?.content ?? additionalData?.contentEntry?.content ?? ''
+    const initialRole = additionalData?.role ?? additionalData?.contentEntry?.role ?? undefined
+    const initialContentGroupRef =
+      additionalData?.contentGroupRef ?? additionalData?.contentEntry?.contentGroupRef ?? extractedContentGroupRef ?? ''
+    const initialContentTypeRef =
+      additionalData?.contentTypeRef ??
+      additionalData?.contentEntry?.contentTypeRef ??
+      additionalData?.contentEntry?.contentType ??
+      additionalData?.contentEntry?.contentTypeName ??
+      ''
+
+    const defaults = {
       id: '',
       version: 0,
-      title: '',
-      previewText: '',
-      content: '',
-      contentGroupRef: extractedContentGroupRef || '',
-      contentTypeRef: '',
+      title: initialTitle,
+      previewText: initialPreview,
+      content: initialContent,
+      contentGroupRef: initialContentGroupRef,
+      contentTypeRef: initialContentTypeRef,
+      role: initialRole,
       tags: [],
       categories: [],
       contentImage: null,
@@ -347,7 +367,9 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
       startDate: null,
       endDate: null
     }
-  }, [mappedFormValues, extractedContentGroupRef, authorName])
+
+    return defaults
+  }, [mappedFormValues, extractedContentGroupRef, authorName, context.additionalData])
 
   const form = useForm<ContentEntryFormValues, any, ContentEntryFormValues>({
     resolver: zodResolver(schema) as any,
@@ -409,6 +431,140 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
       form.reset(formValues)
     }
   }, [loadedContentEntry?.id, authorName, form])
+
+  // Sync initial values from additionalData for new entries (flow proposals)
+  useEffect(() => {
+    // Skip if we have a loaded entry (update mode) - that's handled by the other useEffect
+    if (loadedContentEntry?.id || !context.additionalData) {
+      return
+    }
+
+    const additionalData = context.additionalData
+
+    // Extract initial values from additionalData (support multiple formats)
+    const initialTitle = additionalData.title ?? additionalData.contentEntry?.title ?? null
+    const initialPreview =
+      additionalData.preview ?? additionalData.previewText ?? additionalData.contentEntry?.preview ?? null
+    const initialContent = additionalData.content ?? additionalData.contentEntry?.content ?? null
+    const initialContentGroupRef =
+      additionalData.contentGroupRef ?? additionalData.contentEntry?.contentGroupRef ?? null
+    const initialRole = additionalData.role ?? additionalData.contentEntry?.role ?? null
+    const initialContentTypeRef =
+      additionalData.contentTypeRef ??
+      additionalData.contentEntry?.contentTypeRef ??
+      additionalData.contentEntry?.contentType ??
+      additionalData.contentEntry?.contentTypeName ??
+      null
+
+    // Skip if no values to set
+    if (
+      !initialTitle &&
+      !initialPreview &&
+      !initialContent &&
+      !initialContentGroupRef &&
+      !initialContentTypeRef &&
+      !initialRole
+    ) {
+      return
+    }
+
+    // Get current form values
+    const currentTitle = form.getValues('title')
+    const currentPreview = form.getValues('previewText')
+    const currentContent = form.getValues('content')
+    const currentContentGroupRef = form.getValues('contentGroupRef')
+    const currentRole = form.getValues('role')
+    const currentContentTypeRef = form.getValues('contentTypeRef')
+
+    // Update fields that need to be changed
+    if (initialTitle !== null && initialTitle !== currentTitle) {
+      form.setValue('title', initialTitle, { shouldDirty: false, shouldValidate: false })
+    }
+
+    if (initialPreview !== null && initialPreview !== currentPreview) {
+      form.setValue('previewText', initialPreview, { shouldDirty: false, shouldValidate: false })
+    }
+
+    if (initialContent !== null && initialContent !== currentContent) {
+      form.setValue('content', initialContent, { shouldDirty: false, shouldValidate: false })
+    }
+
+    if (initialContentGroupRef !== null && initialContentGroupRef !== currentContentGroupRef) {
+      form.setValue('contentGroupRef', initialContentGroupRef, { shouldDirty: false, shouldValidate: false })
+    }
+
+    if (initialContentTypeRef !== null && initialContentTypeRef !== currentContentTypeRef) {
+      form.setValue('contentTypeRef', initialContentTypeRef, { shouldDirty: false, shouldValidate: false })
+    }
+
+    if (initialRole !== null && initialRole !== currentRole) {
+      form.setValue('role', initialRole, { shouldDirty: false, shouldValidate: false })
+    }
+  }, [loadedContentEntry?.id, context.additionalData, form])
+
+  const contentTypeResolutionRef = useRef(false)
+  useEffect(() => {
+    if (contentTypeResolutionRef.current) return
+    if (loadedContentEntry?.id) return
+    if (!context.additionalData || !context.accessToken) return
+
+    const additionalData = context.additionalData
+    const rawContentType =
+      additionalData.contentTypeRef ??
+      additionalData.contentEntry?.contentTypeRef ??
+      additionalData.contentEntry?.contentType ??
+      additionalData.contentEntry?.contentTypeName ??
+      null
+    const contentGroupRef =
+      additionalData.contentGroupRef ?? additionalData.contentEntry?.contentGroupRef ?? extractedContentGroupRef ?? null
+
+    if (!rawContentType || !contentGroupRef) return
+
+    const isLikelyId =
+      typeof rawContentType === 'string' && (rawContentType.includes(':') || /^[0-9a-fA-F-]{36}$/.test(rawContentType))
+    if (isLikelyId) {
+      contentTypeResolutionRef.current = true
+      return
+    }
+
+    const currentContentTypeRef = form.getValues('contentTypeRef')
+    if (currentContentTypeRef && currentContentTypeRef !== rawContentType) return
+
+    const resolveContentTypeRef = async () => {
+      try {
+        const response = await fetchCatalogEntriesByIdentifier('ContentType', {
+          version: 'v1',
+          search: String(rawContentType),
+          parentEntryId: String(contentGroupRef),
+          limit: 25,
+          offset: 0
+        })
+        const entries = response.entries || []
+        if (entries.length === 0) return
+
+        const lowerNeedle = String(rawContentType).toLowerCase()
+        const exactMatch =
+          entries.find(entry => entry.value?.toLowerCase() === lowerNeedle) ||
+          entries.find(entry => entry.code?.toLowerCase() === lowerNeedle)
+        const resolved = exactMatch?.id || entries[0]?.id
+        if (resolved) {
+          form.setValue('contentTypeRef', resolved, { shouldDirty: false, shouldValidate: false })
+          contentTypeResolutionRef.current = true
+        }
+      } catch (error) {
+        console.error('[ContentEntryWindow] Failed to resolve content type ref:', error)
+      }
+    }
+
+    resolveContentTypeRef()
+  }, [
+    loadedContentEntry?.id,
+    context.additionalData,
+    context.accessToken,
+    extractedContentGroupRef,
+    form,
+    fetchCatalogEntriesByIdentifier
+  ])
 
   // Separate useEffect for image loading (following ArticleView pattern)
   useEffect(() => {
@@ -572,12 +728,14 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
   const currentSegment = useMemo(() => {
     if (!watchContentGroupRef) return 'article'
 
-    if (watchContentGroupRef === 'ContentGroup:v1:QUESTION') {
+    if (watchContentGroupRef === ContentGroup.QUESTION) {
       return 'question'
-    } else if (watchContentGroupRef === 'ContentGroup:v1:DOCUMENT') {
+    } else if (watchContentGroupRef === ContentGroup.DOCUMENT) {
       return 'document'
-    } else if (watchContentGroupRef === 'ContentGroup:v1:GLOSSARY') {
+    } else if (watchContentGroupRef === ContentGroup.GLOSSARY) {
       return 'glossary'
+    } else if (watchContentGroupRef === ContentGroup.POLICY) {
+      return 'policy'
     } else {
       // NEWS, KNOWLEDGE, INTRANET use article segment
       return 'article'
@@ -818,11 +976,11 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
       // Employee relations
       ...(isUpdate ? { updaterEmployeeId: employeeId } : { creatorEmployeeId: employeeId }),
 
-      // Settings
+      // Settings - Policies: always disable comments and reactions
       displayCreator: data.displayAuthor,
       displayUpdater: false,
-      allowComment: data.allowComment,
-      allowReaction: data.allowReaction,
+      allowComment: data.contentGroupRef === ContentGroup.POLICY ? false : data.allowComment,
+      allowReaction: data.contentGroupRef === ContentGroup.POLICY ? false : data.allowReaction,
 
       // Optional fields
       activeFrom: data.startDate || null,
@@ -944,6 +1102,30 @@ const ContentEntryWindowContent: React.FC<ContentEntryWindowProps> = context => 
             onCreateTag={onCreateTag}
             onCategoriesChange={handleCategoriesChange}
             onTagsChange={handleTagsChange}
+          />
+        )}
+
+        {currentSegment === 'policy' && (
+          <PolicySegment
+            control={control}
+            watchTitle={watchTitle}
+            watchPreviewText={watchPreviewText}
+            watchContent={watchContent}
+            watchContentTypeRef={watchContentTypeRef}
+            watchCategories={watchCategories}
+            watchTags={watchTags}
+            setValue={setValue}
+            context={context}
+            extractedContentGroupRef={extractedContentGroupRef}
+            onCreateCategory={onCreateCategory}
+            onCreateTag={onCreateTag}
+            onCategoriesChange={handleCategoriesChange}
+            onTagsChange={handleTagsChange}
+            onContentTypeRefChange={handleContentTypeRefChange}
+            onContentCategoryRefsChange={handleContentCategoryRefsChange}
+            onContentCategoryNamesChange={handleContentCategoryNamesChange}
+            onContentTagRefsChange={handleContentTagRefsChange}
+            onContentTagNamesChange={handleContentTagNamesChange}
           />
         )}
       </div>

@@ -9,6 +9,7 @@ interface SecondaryCollapsibleProps {
   onFieldValueChange: (path: string, value: any) => void
   onFieldChange: (fieldName: string, value: any) => void
   accessToken: string
+  moduleName?: string
 }
 
 export const SecondaryCollapsible: React.FC<SecondaryCollapsibleProps> = ({
@@ -18,7 +19,8 @@ export const SecondaryCollapsible: React.FC<SecondaryCollapsibleProps> = ({
   formData,
   onFieldValueChange,
   onFieldChange,
-  accessToken
+  accessToken,
+  moduleName
 }) => {
   const [open, setOpen] = useState(false)
   const [isHovered, setIsHovered] = useState(false)
@@ -92,6 +94,7 @@ export const SecondaryCollapsible: React.FC<SecondaryCollapsibleProps> = ({
               formData={formData}
               onFieldValueChange={onFieldValueChange}
               accessToken={accessToken}
+              moduleName={moduleName}
             />
           ))}
         </div>

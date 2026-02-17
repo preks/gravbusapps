@@ -111,14 +111,23 @@ export const useCatalogTableState = (
     [prefetched?.externalLoadEntries, fetchCatalog, catalog.identifier, catalog.version]
   )
 
-  // Initial load
+  // Track which catalog we last applied prefetched for, so parent re-fetches (e.g. limit 100) don't overwrite user's scrolled state
+  const lastAppliedPrefetchedKeyRef = useRef<string | null>(null)
+
+  // Initial load: use prefetched when available; only apply once per catalog so later prefetched updates don't overwrite
   useEffect(() => {
+    const catalogKey = `${catalog.identifier}:${catalog.version || 'v1'}`
     if (prefetched?.initialEntries) {
-      setEntries(prefetched.initialEntries)
-      setTotalCount(prefetched.initialTotalCount || prefetched.initialEntries.length)
+      const alreadyAppliedForThisCatalog = lastAppliedPrefetchedKeyRef.current === catalogKey
+      if (!alreadyAppliedForThisCatalog) {
+        lastAppliedPrefetchedKeyRef.current = catalogKey
+        setEntries(prefetched.initialEntries)
+        setTotalCount(prefetched.initialTotalCount ?? prefetched.initialEntries.length)
+      }
       setIsLoading(false)
       return
     }
+    lastAppliedPrefetchedKeyRef.current = null
     setIsLoading(true)
     loadEntries(state.searchTerm, state.currentLimit).finally(() => setIsLoading(false))
   }, [catalog.identifier, catalog.version, loadEntries, prefetched?.initialEntries, prefetched?.initialTotalCount])

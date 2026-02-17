@@ -3,10 +3,9 @@ import type { Conversation, Message, ConversationParticipant } from '../types'
 import { ChatApiClient } from '../services/chatApiClient'
 import { useUserManagementClient } from './useUserManagementClient'
 import { useEmployeeAvatarsCache } from './useEmployeeAvatarsCache'
-import { rtkDebug } from '../utils/rtkDebug'
 
 interface UseConversationsOptions {
-  apiClient: ChatApiClient
+  apiClient: ChatApiClient | null | undefined
   accessToken: string
   enabled?: boolean
 }
@@ -186,22 +185,6 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
         const conversationsData = response.data || (response as any).conversations || []
         const total = response.total || 0
 
-        // Log backend response for debugging sorting issues
-        if (process.env.NODE_ENV === 'development') {
-          rtkDebug.debug(
-            '[useConversations] Backend returned conversations:',
-            conversationsData.slice(0, 3).map((c: any) => ({
-              id: c.id?.substring(0, 8),
-              hasLastMessage: !!c.lastMessage,
-              lastMessageCreatedAt: c.lastMessage?.createdAt,
-              lastReadAt: c.lastReadAt,
-              unreadCount: c.unreadCount,
-              updatedAt: c.updatedAt,
-              createdAt: c.createdAt
-            }))
-          )
-        }
-
         // Check if there are more conversations to load
         setHasMore(conversationsData.length === LIMIT && conversationsData.length < total)
 
@@ -212,18 +195,6 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
           ? enrichConversationsWithAvatarsOnly(conversationsData)
           : await enrichConversations(conversationsData)
 
-        // Debug: Log after enrichment to verify data preservation
-        if (process.env.NODE_ENV === 'development') {
-          rtkDebug.debug(
-            '[useConversations] After enrichment:',
-            enrichedConversations.slice(0, 3).map((c: any) => ({
-              id: c.id?.substring(0, 8),
-              lastReadAt: c.lastReadAt,
-              unreadCount: c.unreadCount
-            }))
-          )
-        }
-
         // Sort by most recent activity
         // Priority: lastMessage.createdAt > lastMessageAt > updatedAt > createdAt
         // This ensures proper ordering even if backend's lastMessageAt is stale
@@ -233,31 +204,6 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
           const bTime = b.lastMessage?.createdAt || b.lastMessageAt || b.updatedAt || b.createdAt
           const aTimestamp = new Date(aTime).getTime()
           const bTimestamp = new Date(bTime).getTime()
-
-          if (process.env.NODE_ENV === 'development') {
-            // Log if we're using fallback time sources (not lastMessage.createdAt)
-            const aSource = a.lastMessage?.createdAt
-              ? 'lastMessage'
-              : a.lastMessageAt
-                ? 'lastMessageAt'
-                : a.updatedAt
-                  ? 'updatedAt'
-                  : 'createdAt'
-            const bSource = b.lastMessage?.createdAt
-              ? 'lastMessage'
-              : b.lastMessageAt
-                ? 'lastMessageAt'
-                : b.updatedAt
-                  ? 'updatedAt'
-                  : 'createdAt'
-
-            if (aSource !== 'lastMessage' || bSource !== 'lastMessage') {
-              rtkDebug.debug('[useConversations] Sorting fallback used:', {
-                convA: { id: a.id.substring(0, 8), source: aSource, time: aTime },
-                convB: { id: b.id.substring(0, 8), source: bSource, time: bTime }
-              })
-            }
-          }
 
           return bTimestamp - aTimestamp
         })

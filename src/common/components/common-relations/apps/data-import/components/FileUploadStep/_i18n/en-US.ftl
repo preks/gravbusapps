@@ -1,7 +1,7 @@
 # File Upload Step Translations (English - US)
 
 # Step Header
-step-title = Step 1: Upload CSV File
+file-upload-step-title = Step 1: Upload CSV File
 
 # Form Labels
 file-select-label = Select CSV File

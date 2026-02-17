@@ -5,10 +5,26 @@
  */
 
 import React, { useState } from 'react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, Button, Badge, ScrollArea } from '@newwork/nw-design-system'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  Button,
+  Badge,
+  ScrollArea,
+  Avatar,
+  AvatarImage,
+  AvatarFallback
+} from '@newwork/nw-design-system'
 import { Clock, RotateCcw, FileText, CheckCircle, AlertCircle, User } from 'lucide-react'
 import type { Version } from '../types/versioning'
 import { formatDistanceToNow } from 'date-fns'
+
+export interface VersionUserDisplay {
+  displayName: string
+  avatarUrl?: string
+}
 
 export interface VersionHistoryProps {
   versions: Version[]
@@ -18,6 +34,8 @@ export interface VersionHistoryProps {
   onClose: () => void
   currentVersion?: number
   showAutoSaves?: boolean // Default false - only show checkpoints
+  /** Optional map of createdBy userId -> display name and avatar (e.g. from Employee API) */
+  userDisplayMap?: Record<string, VersionUserDisplay>
   'data-testid'?: string
 }
 
@@ -32,8 +50,16 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
   onClose,
   currentVersion,
   showAutoSaves = false,
+  userDisplayMap,
   'data-testid': testId = 'version-history'
 }) => {
+  const getVersionUserDisplay = (version: Version): { displayName: string; avatarUrl?: string } => {
+    const fromMap = version.createdBy && userDisplayMap?.[version.createdBy]
+    return {
+      displayName: fromMap?.displayName ?? version.createdByName ?? version.createdBy ?? 'Unknown',
+      avatarUrl: fromMap?.avatarUrl ?? version.createdByAvatar
+    }
+  }
   const [selectedVersionA, setSelectedVersionA] = useState<number | null>(null)
   const [selectedVersionB, setSelectedVersionB] = useState<number | null>(null)
   const [isRestoring, setIsRestoring] = useState(false)
@@ -177,9 +203,23 @@ export const VersionHistory: React.FC<VersionHistoryProps> = ({
                       )}
 
                       <div className="gba:flex gba:items-center gba:gap-4 gba:text-xs gba:text-muted-foreground">
-                        <span className="gba:flex gba:items-center gba:gap-1">
-                          <User className="gba:h-3 gba:w-3" />
-                          {version.createdByName || version.createdBy}
+                        <span className="gba:flex gba:items-center gba:gap-2">
+                          {(() => {
+                            const { displayName, avatarUrl } = getVersionUserDisplay(version)
+                            return (
+                              <>
+                                <Avatar className="gba:h-6 gba:w-6 gba:ring-1 gba:ring-border">
+                                  {avatarUrl && (
+                                    <AvatarImage src={avatarUrl} alt={displayName} className="gba:object-cover" />
+                                  )}
+                                  <AvatarFallback className="gba:bg-muted gba:text-muted-foreground gba:text-xs">
+                                    {displayName.slice(0, 2).toUpperCase() || <User className="gba:h-3 gba:w-3" />}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <span className="gba:font-medium gba:text-foreground">{displayName}</span>
+                              </>
+                            )
+                          })()}
                         </span>
                         <span className="gba:flex gba:items-center gba:gap-1">
                           <Clock className="gba:h-3 gba:w-3" />

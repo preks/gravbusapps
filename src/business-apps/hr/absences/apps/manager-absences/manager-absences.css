@@ -1,0 +1,29 @@
+@layer legacy-unlayered-override {
+  /* Override CalendarTimeline colors to use design system pastel colors */
+
+  /* Approved status - use success secondary color (pastel green/teal) */
+  .guic-bg-green-500 {
+    background-color: hsl(var(--nw-success-secondary)) !important;
+  }
+
+  /* Pending status - use warning secondary color (pastel yellow/orange) */
+  .guic-bg-yellow-500,
+  .guic-bg-orange-500 {
+    background-color: hsl(var(--nw-warning-secondary)) !important;
+  }
+
+  /* Rejected status - use destructive secondary color (pastel red) */
+  .guic-bg-red-500 {
+    background-color: hsl(var(--nw-destructive-secondary)) !important;
+  }
+
+  /* Cancelled status - use offline secondary color (pastel gray) */
+  .guic-bg-gray-500 {
+    background-color: hsl(var(--nw-offline-secondary)) !important;
+  }
+
+  /* Draft/Planned status - use muted color */
+  .guic-bg-slate-500 {
+    background-color: hsl(var(--nw-muted)) !important;
+  }
+}

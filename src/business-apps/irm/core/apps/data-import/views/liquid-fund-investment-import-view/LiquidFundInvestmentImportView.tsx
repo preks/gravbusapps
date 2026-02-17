@@ -33,7 +33,6 @@ export const LiquidFundInvestmentImportView: React.FC<LiquidFundInvestmentImport
   // Main import hook
   const {
     file,
-    parsedData,
     agentResponse,
     convertedEntities: convertedLiquidFundInvestments,
     step,
@@ -62,8 +61,8 @@ export const LiquidFundInvestmentImportView: React.FC<LiquidFundInvestmentImport
   }, [agentResponse, setMappings])
 
   // Handle conversion with current mappings and transformation function
-  const handleConvert = () => {
-    baseConvertData(mappings, convertToNestedLiquidFundInvestment)
+  const handleConvert = async () => {
+    await baseConvertData(mappings, convertToNestedLiquidFundInvestment)
   }
 
   return (
@@ -99,7 +98,6 @@ export const LiquidFundInvestmentImportView: React.FC<LiquidFundInvestmentImport
           agentResponse={agentResponse}
           mappings={mappings}
           targetFieldsConfig={liquidFundInvestmentImportConfig.targetFields}
-          parsedDataCount={parsedData.length}
           entityType={t('entity-type')}
           isLoading={isLoading}
           onUpdateMapping={updateMapping}
