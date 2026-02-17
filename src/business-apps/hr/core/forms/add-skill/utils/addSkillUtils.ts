@@ -80,8 +80,7 @@ export const buildEmployeeSkillsPayload = (args: {
     if (verificationDocId !== undefined) {
       item = {
         ...item,
-        verificationDocumentId: verificationDocId,
-        verification_document_id: verificationDocId
+        verificationDocument: verificationDocId
       }
     }
     return item
