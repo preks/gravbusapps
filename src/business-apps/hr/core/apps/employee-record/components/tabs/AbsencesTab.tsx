@@ -206,29 +206,33 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
     }
   }, [shownTab])
 
-  useEffect(() => {
-    const lastRefetchAt = { current: 0 } as { current: number }
+  // Debounce timestamp for process completion handling
+  const lastRefetchAt = React.useRef(0)
 
-    const handler = (event: any) => {
+  // Determine if an incoming event represents a successful process completion
+  const isProcessSuccessEvent = (event: any): boolean => {
+    const resolution = event?.detail?.resolution || event?.detail?.response?.detail?.resolution
+    const hasAbsencePayload = !!(event?.detail?.response?.employeeAbsence || event?.detail?.payload?.employeeAbsence)
+    return resolution === 'success' || hasAbsencePayload
+  }
+
+  // Stable handler to avoid deep nesting in effects
+  const handleProcessEvent = React.useCallback(
+    (event: any) => {
       try {
-        const resolution = event?.detail?.resolution || event?.detail?.response?.detail?.resolution
-        const isSuccess = resolution === 'success'
-        const hasAbsencePayload = !!(
-          event?.detail?.response?.employeeAbsence || event?.detail?.payload?.employeeAbsence
-        )
-        if (isSuccess || hasAbsencePayload) {
-          const now = Date.now()
-          if (now - lastRefetchAt.current < 2000) {
-            return
-          }
-          lastRefetchAt.current = now
-          refetch?.()
-          // Also bump refreshTick so Annual Leave snapshot useEffect re-runs
-          setRefreshTick(t => t + 1)
-        }
+        if (!isProcessSuccessEvent(event)) return
+        const now = Date.now()
+        if (now - lastRefetchAt.current < 2000) return
+        lastRefetchAt.current = now
+        refetch?.()
+        // Also bump refreshTick so Annual Leave snapshot useEffect re-runs
+        setRefreshTick(t => t + 1)
       } catch {}
-    }
+    },
+    [refetch]
+  )
 
+  useEffect(() => {
     const eventNames = [
       'com.newwork.process.taskCompletion',
       'com.newwork.process.completion',
@@ -258,15 +262,15 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
     }
 
     targets.forEach(t => {
-      eventNames.forEach(name => t.addEventListener(name, handler as EventListener))
+      eventNames.forEach(name => t.addEventListener(name, handleProcessEvent as EventListener))
     })
 
     return () => {
       targets.forEach(t => {
-        eventNames.forEach(name => t.removeEventListener(name, handler as EventListener))
+        eventNames.forEach(name => t.removeEventListener(name, handleProcessEvent as EventListener))
       })
     }
-  }, [refetch])
+  }, [handleProcessEvent])
 
   // Merge Annual Leave snapshot override (A001) into entitlements without affecting other types
   const ANNUAL_LABEL_HINTS = ['annual', 'vacation', 'holiday'] as const
