@@ -68,6 +68,7 @@ export interface UseGroupCallReturn {
   participants: GroupCallParticipant[]
   pendingInvites: Map<string, PendingInvite>
   incomingInvite: GroupCallInvite | null
+  isRingingLeader?: boolean
   activeConversationCalls: Map<string, ActiveConversationCall>
   currentCallConversationName?: string
   activeSpeakerId?: string | null
