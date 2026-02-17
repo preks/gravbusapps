@@ -7,7 +7,12 @@ import { useCallback, useMemo, useRef } from 'react'
 import type { CallParticipant, CallType } from '../../services/webrtcClient'
 import type { GroupCallInvite } from '../../services/callTypes'
 import { globalCallManager } from '../../services/globalCallManager'
-import { setActiveCallInStorage, clearActiveCallFromStorage } from '../../utils/activeCallStorage'
+import {
+  setActiveCallInStorage,
+  clearActiveCallFromStorage,
+  setDeclinedInviteInStorage
+} from '../../utils/activeCallStorage'
+import { clearRingingLeader } from '../../utils/ringingLeader'
 import { runLeaveCall } from './runLeaveCall'
 import { runJoinCall } from './runJoinCall'
 import { runConfirmStartCall } from './runConfirmStartCall'
@@ -27,6 +32,7 @@ export interface UseRealtimeKitCallActionsOptions {
   setCallState: React.Dispatch<React.SetStateAction<any>>
   incomingInvite: GroupCallInvite | null
   setIncomingInvite: React.Dispatch<React.SetStateAction<GroupCallInvite | null>>
+  setRingingLeader: React.Dispatch<React.SetStateAction<boolean>>
   activeConversationCalls: Map<string, any>
   setActiveConversationCalls: React.Dispatch<React.SetStateAction<Map<string, any>>>
   refs: RealtimeKitCallRefs
@@ -67,6 +73,7 @@ export function useRealtimeKitCallActions(params: UseRealtimeKitCallActionsOptio
     setCallState,
     incomingInvite,
     setIncomingInvite,
+    setRingingLeader,
     activeConversationCalls,
     setActiveConversationCalls,
     refs,
@@ -333,21 +340,28 @@ export function useRealtimeKitCallActions(params: UseRealtimeKitCallActionsOptio
 
   const declineInvite = useCallback(() => {
     if (!incomingInvite) return
+    const roomId = incomingInvite.roomId
+    const conversationId = incomingInvite.conversationId || incomingInvite.roomId
     try {
       media.stopAllTracks()
     } catch {
       // Best-effort
     }
     refs.startTimeRef.current = null
-    if (currentUser && wsClient?.getSocket()) {
-      wsClient.getSocket()?.emit('rtk-group-call:declined', {
-        conversationId: incomingInvite.conversationId || incomingInvite.roomId,
-        meetingId: incomingInvite.roomId,
-        participantId: currentUser.id
-      })
+    if (currentUser) {
+      setDeclinedInviteInStorage(currentUser.id, roomId, conversationId)
+      if (wsClient?.getSocket()) {
+        wsClient.getSocket()?.emit('rtk-group-call:declined', {
+          conversationId,
+          meetingId: roomId,
+          participantId: currentUser.id
+        })
+      }
     }
+    clearRingingLeader(roomId, conversationId)
+    setRingingLeader(false)
     setIncomingInvite(null)
-  }, [incomingInvite, currentUser, wsClient, media, refs, setIncomingInvite])
+  }, [incomingInvite, currentUser, wsClient, media, refs, setIncomingInvite, setRingingLeader])
 
   const leaveCall = useCallback(async () => {
     await runLeaveCall({

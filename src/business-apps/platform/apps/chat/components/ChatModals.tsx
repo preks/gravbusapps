@@ -181,6 +181,7 @@ export function ChatModals({
               : onRejoinWithPreferences
           }
           onDecline={incomingGroupCallInvite ? onDeclineGroupInvite : onRejoinCancel}
+          playRingtone={!!incomingGroupCallInvite && realtimeKitGroupCall.isRingingLeader === true}
           prefixDataTestId={`${prefixDataTestId}-incoming-group-call`}
         />
       )}
