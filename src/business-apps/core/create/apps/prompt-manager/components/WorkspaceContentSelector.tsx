@@ -23,7 +23,9 @@ import {
   TabsTrigger
 } from '@newwork/nw-design-system'
 import { Search, FileText, StickyNote, TableProperties, Presentation, FolderOpen, CheckCircle2 } from 'lucide-react'
-import { useSpaces } from '@/business-apps/platform/apps/spaces/hooks/useSpaces'
+import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
+
+const API_URL = getDocumentServiceApiUrl()
 
 interface ContentItem {
   id: string
@@ -32,7 +34,18 @@ interface ContentItem {
   description?: string
   updatedAt: string
   spaceId?: string
-  spaceName?: string
+}
+
+interface PaginatedResponse {
+  items: Array<{
+    id: string
+    title?: string
+    name?: string
+    description?: string
+    updatedAt: string
+    spaceId?: string
+  }>
+  total: number
 }
 
 interface WorkspaceContentSelectorProps {
@@ -64,10 +77,8 @@ export const WorkspaceContentSelector: React.FC<WorkspaceContentSelectorProps> =
   accessToken,
   'data-testid': testId = 'workspace-content-selector'
 }) => {
-  const { spaces, isLoading: loadingSpaces } = useSpaces(accessToken, {
-    includeContent: true,
-    autoLoad: isOpen
-  })
+  const [allContent, setAllContent] = useState<ContentItem[]>([])
+  const [loading, setLoading] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [searchQuery, setSearchQuery] = useState('')
   const [activeTab, setActiveTab] = useState<string>('all')
@@ -81,35 +92,73 @@ export const WorkspaceContentSelector: React.FC<WorkspaceContentSelectorProps> =
     }
   }, [isOpen])
 
-  // Flatten all content from all spaces
-  const allContent: ContentItem[] = React.useMemo(() => {
-    const items: ContentItem[] = []
-    for (const space of spaces) {
-      const contentArrays = [
-        ...(space.documents || []),
-        ...(space.notes || []),
-        ...(space.spreadsheets || []),
-        ...(space.slides || []),
-        ...(space.content || [])
-      ]
-      // Deduplicate by id
-      const seen = new Set<string>()
-      for (const item of contentArrays) {
-        if (seen.has(item.id)) continue
-        seen.add(item.id)
-        items.push({
-          id: item.id,
-          type: item.type,
-          title: item.title,
-          description: item.description,
-          updatedAt: item.updatedAt,
-          spaceId: space.id,
-          spaceName: space.name
-        })
-      }
+  // Fetch all accessible content from standalone endpoints
+  useEffect(() => {
+    if (!isOpen || !accessToken) return
+
+    let mounted = true
+    setLoading(true)
+
+    const headers = {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json'
     }
-    return items.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-  }, [spaces])
+
+    const fetchAll = async (endpoint: string): Promise<PaginatedResponse> => {
+      const allItems: PaginatedResponse['items'] = []
+      let page = 1
+      const limit = 100
+      try {
+        while (true) {
+          const res = await fetch(`${API_URL}/${endpoint}?limit=${limit}&page=${page}&includeShared=true`, { headers })
+          if (!res.ok) break
+          const data = await res.json()
+          const items = data.items || []
+          allItems.push(...items)
+          if (items.length < limit || allItems.length >= data.total) break
+          page++
+        }
+      } catch {
+        /* ignore */
+      }
+      return { items: allItems, total: allItems.length }
+    }
+
+    Promise.all([fetchAll('documents'), fetchAll('notes'), fetchAll('spreadsheets'), fetchAll('slides')])
+      .then(([docs, notes, sheets, slides]) => {
+        if (!mounted) return
+
+        const mapItems = (res: PaginatedResponse, type: ContentItem['type']): ContentItem[] =>
+          (res.items || []).map(item => ({
+            id: item.id,
+            type,
+            title: item.title || item.name || 'Untitled',
+            description: item.description,
+            updatedAt: item.updatedAt,
+            spaceId: item.spaceId
+          }))
+
+        const items = [
+          ...mapItems(docs, 'document'),
+          ...mapItems(notes, 'note'),
+          ...mapItems(sheets, 'spreadsheet'),
+          ...mapItems(slides, 'slide')
+        ].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+
+        setAllContent(items)
+      })
+      .catch(err => {
+        console.error('[WorkspaceContentSelector] Error:', err)
+        if (mounted) setAllContent([])
+      })
+      .finally(() => {
+        if (mounted) setLoading(false)
+      })
+
+    return () => {
+      mounted = false
+    }
+  }, [isOpen, accessToken])
 
   // Filter content
   const filteredContent = React.useMemo(() => {
@@ -119,7 +168,7 @@ export const WorkspaceContentSelector: React.FC<WorkspaceContentSelectorProps> =
     }
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase()
-      items = items.filter(i => i.title.toLowerCase().includes(q) || i.spaceName?.toLowerCase().includes(q))
+      items = items.filter(i => i.title.toLowerCase().includes(q) || i.description?.toLowerCase().includes(q))
     }
     return items
   }, [allContent, activeTab, searchQuery])
@@ -201,7 +250,7 @@ export const WorkspaceContentSelector: React.FC<WorkspaceContentSelectorProps> =
 
           {/* Results */}
           <div className="gba:max-h-96 gba:overflow-y-auto gba:space-y-2">
-            {loadingSpaces ? (
+            {loading ? (
               <div className="gba:flex gba:items-center gba:justify-center gba:py-12">
                 <Spinner size="lg" />
               </div>
@@ -242,12 +291,6 @@ export const WorkspaceContentSelector: React.FC<WorkspaceContentSelectorProps> =
                             <Badge variant="secondary" className="gba:text-[10px] gba:px-1.5 gba:py-0">
                               {typeLabels[item.type] || item.type}
                             </Badge>
-                            {item.spaceName && (
-                              <span className="gba:text-xs gba:text-muted-foreground gba:flex gba:items-center gba:gap-1">
-                                <FolderOpen className="gba:w-3 gba:h-3" />
-                                {item.spaceName}
-                              </span>
-                            )}
                             <span className="gba:text-xs gba:text-muted-foreground">{formatDate(item.updatedAt)}</span>
                           </div>
                         </div>

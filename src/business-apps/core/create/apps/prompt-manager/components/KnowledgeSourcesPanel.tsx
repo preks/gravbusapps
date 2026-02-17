@@ -212,6 +212,7 @@ export const KnowledgeSourcesPanel: React.FC<KnowledgeSourcesPanelProps> = ({
           name: item.title,
           description: item.spaceName ? `From space: ${item.spaceName}` : `Workspace ${item.type}`,
           contentEntryId: item.id,
+          fileId: item.id,
           lastUpdated: new Date().toISOString(),
           createdAt: new Date().toISOString()
         }))

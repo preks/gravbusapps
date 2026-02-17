@@ -29,7 +29,7 @@ export type ToolPolicies = Record<string, ToolPolicy>
 
 export interface KnowledgeSource {
   id?: string // Assigned by backend on save; optional for creation
-  type: 'document' | 'url' | 'content_entry' | 'catalog' // content_entry = internal knowledge base, catalog = catalog entries
+  type: 'document' | 'url' | 'content_entry' | 'catalog' | 'note' | 'spreadsheet' | 'slide' // content_entry = internal knowledge base, catalog = catalog entries, note/spreadsheet/slide = workspace content
   name: string
   description?: string
   url?: string

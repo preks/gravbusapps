@@ -74,7 +74,7 @@ export const TaskExpertBuilder: React.FC<TaskExpertBuilderProps> = props => {
           responseStyle: state.agentType === 'everyai' ? state.responseStyle : undefined,
           color: state.agentType === 'everyai' ? state.expertColor : undefined,
           citationMode: state.agentType === 'everyai' ? state.citationMode : undefined,
-          knowledgeSources: state.knowledgeSources.length > 0 ? state.knowledgeSources : undefined,
+          knowledgeSources: state.knowledgeSources,
           isPublic: state.agentType === 'everyai' ? state.isPublic : undefined,
           tags: state.agentType === 'everyai' && state.tags.length > 0 ? state.tags : undefined
         })
@@ -96,7 +96,7 @@ export const TaskExpertBuilder: React.FC<TaskExpertBuilderProps> = props => {
           responseStyle: state.agentType === 'everyai' ? state.responseStyle : undefined,
           color: state.agentType === 'everyai' ? state.expertColor : undefined,
           citationMode: state.agentType === 'everyai' ? state.citationMode : undefined,
-          knowledgeSources: state.knowledgeSources.length > 0 ? state.knowledgeSources : undefined,
+          knowledgeSources: state.knowledgeSources,
           isPublic: state.agentType === 'everyai' ? state.isPublic : undefined,
           tags: state.agentType === 'everyai' && state.tags.length > 0 ? state.tags : undefined
         })
