@@ -9,7 +9,7 @@
  * - Participant status indicators (muted, video, hand raised, screen share)
  */
 
-import React, { useState } from 'react'
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react'
 import {
   MagnifyingGlassIcon,
   MicrophoneIcon,
@@ -20,7 +20,8 @@ import {
   MonitorIcon,
   PhoneIcon,
   DotsThreeVerticalIcon,
-  SpeakerXIcon
+  SpeakerXIcon,
+  XIcon
 } from '@phosphor-icons/react'
 import {
   Avatar,
@@ -42,6 +43,7 @@ import {
 import { useRealtimeKitSelector } from '@cloudflare/realtimekit-react'
 import { getInitials } from '../../utils/callUtils'
 import type { PendingInvite } from '../../services/callTypes'
+import { createEmployeeSearchService } from '../../calendar/services/employeeSearchService'
 
 export interface AvailableParticipant {
   id: string
@@ -89,6 +91,8 @@ export interface ParticipantsPanelProps {
   t?: (key: string) => string
   /** Active conversation for avatar URLs */
   activeConversation?: any
+  /** Access token for employee search (add user to call) */
+  accessToken?: string | null
 }
 
 export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
@@ -107,12 +111,74 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
   activeSpeakerId,
   activeSpeakerHistory = [],
   t = (key: string) => key,
-  activeConversation
+  activeConversation,
+  accessToken
 }) => {
   const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<AvailableParticipant[]>([])
+  const [isSearching, setIsSearching] = useState(false)
   const [invitingParticipantIds, setInvitingParticipantIds] = useState<Set<string>>(new Set())
   const [showMuteAllConfirm, setShowMuteAllConfirm] = useState(false)
   const inviteTimeoutsRef = React.useRef<Map<string, NodeJS.Timeout>>(new Map())
+  const searchDebounceRef = useRef<NodeJS.Timeout | null>(null)
+
+  const employeeSearchService = useMemo(
+    () => (accessToken ? createEmployeeSearchService(accessToken) : null),
+    [accessToken]
+  )
+
+  const runEmployeeSearch = useCallback(
+    async (query: string) => {
+      if (!query.trim() || !employeeSearchService) {
+        setSearchResults([])
+        setIsSearching(false)
+        return
+      }
+      setIsSearching(true)
+      try {
+        const employees = await employeeSearchService.searchEmployees(query, 10)
+        const mapped: AvailableParticipant[] = employees.map(e => ({
+          id: e.userId || e.id,
+          odId: e.userId || e.id,
+          odName: e.displayName || 'Unknown',
+          avatarUrl: e.pictureThumbnail
+        }))
+        setSearchResults(mapped)
+      } catch (err) {
+        console.error('Employee search failed:', err)
+        setSearchResults([])
+      } finally {
+        setIsSearching(false)
+      }
+    },
+    [employeeSearchService]
+  )
+
+  useEffect(() => {
+    if (searchDebounceRef.current) {
+      clearTimeout(searchDebounceRef.current)
+      searchDebounceRef.current = null
+    }
+    if (!searchQuery.trim() || !accessToken) {
+      setSearchResults([])
+      setIsSearching(false)
+      return
+    }
+    if (searchQuery.trim().length < 2) {
+      setSearchResults([])
+      return
+    }
+    searchDebounceRef.current = setTimeout(() => {
+      searchDebounceRef.current = null
+      runEmployeeSearch(searchQuery)
+    }, 300)
+    return () => {
+      if (searchDebounceRef.current) {
+        clearTimeout(searchDebounceRef.current)
+        searchDebounceRef.current = null
+      }
+    }
+  }, [searchQuery, accessToken, runEmployeeSearch])
 
   // Handler to mute all participants with confirmation
   const handleMuteAllClick = () => {
@@ -387,6 +453,10 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
     if (p.name) activeParticipantNames.add(p.name.toLowerCase())
   })
 
+  const notInMeetingResults = searchResults.filter(
+    r => !activeParticipantIds.has(r.odId) && !activeParticipantIds.has(r.id) && !pendingInvites?.has(r.odId)
+  )
+
   // Build a unified participant list from multiple sources
   // Priority: Show SDK active participants + pending invites + conversation participants + previously seen participants
 
@@ -584,16 +654,27 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
             placeholder={t('chat-searchPeople')}
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            className="gba:w-full gba:pl-10 gba:pr-3 gba:py-2 gba:rounded gba:border gba:bg-background"
+            className="gba:w-full gba:pl-10 gba:pr-10 gba:py-2 gba:rounded gba:border gba:bg-background"
             data-testid={`${prefixDataTestId}-participants-search`}
           />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              className="gba:absolute gba:right-2.5 gba:top-2.5 gba:p-0.5 gba:rounded hover:gba:bg-muted gba:text-muted-foreground"
+              aria-label={t('participants-clear-search')}
+              data-testid={`${prefixDataTestId}-participants-search-clear`}
+            >
+              <XIcon className="gba:h-4 gba:w-4" weight="bold" />
+            </button>
+          )}
         </div>
       </div>
 
       {/* Participants List */}
       <div className="gba:overflow-y-auto gba:flex-1 gba:min-h-0">
-        {/* No Results */}
-        {filteredAllParticipants.length === 0 ? (
+        {/* No Results (only when not showing "Not in this meeting" search) */}
+        {filteredAllParticipants.length === 0 && searchQuery.trim().length < 2 ? (
           <div className="gba:p-8 gba:text-center">
             {searchQuery ? (
               // No search results
@@ -836,7 +917,71 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
               </div>
             )}
 
-            {/* Section 3: Available (Not in Call) */}
+            {/* Section 3: Not in this meeting (employee search results) */}
+            {searchQuery.trim().length >= 2 && (
+              <div>
+                <div className="gba:px-3 gba:py-2 gba:bg-muted/30 gba:text-xs gba:font-semibold gba:text-muted-foreground gba:uppercase">
+                  {t('participants-not-in-this-meeting')}
+                </div>
+                {isSearching ? (
+                  <div className="gba:p-4 gba:flex gba:justify-center">
+                    <Spinner className="gba:h-6 gba:w-6" />
+                  </div>
+                ) : notInMeetingResults.length === 0 ? (
+                  <div className="gba:px-3 gba:py-4 gba:text-sm gba:text-muted-foreground">
+                    {t('participants-no-results-found')}
+                  </div>
+                ) : (
+                  notInMeetingResults.map(p => (
+                    <div
+                      key={p.odId}
+                      className="gba:p-3 gba:flex gba:items-center gba:justify-between hover:gba:bg-muted/50 gba:border-b gba:transition-colors"
+                      data-testid={`${prefixDataTestId}-participant-not-in-meeting-${p.odId}`}
+                    >
+                      <div className="gba:flex gba:items-center gba:gap-3 gba:flex-1 gba:min-w-0">
+                        <Avatar className="gba:h-8 gba:w-8 gba:flex-shrink-0">
+                          {p.avatarUrl && <AvatarImage src={p.avatarUrl} alt={p.odName || t('participants-unknown')} />}
+                          <AvatarFallback className="gba:text-xs">
+                            {getInitials(p.odName || t('participants-unknown'))}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="gba:flex-1 gba:min-w-0">
+                          <p className="gba:text-sm gba:font-medium gba:truncate">
+                            {p.odName || t('participants-unknown')}
+                          </p>
+                          <p className="gba:text-xs gba:text-muted-foreground">
+                            {t('participants-available-to-invite')}
+                          </p>
+                        </div>
+                      </div>
+                      {onInviteParticipant && (
+                        <button
+                          onClick={() => handleInviteClick(p)}
+                          disabled={invitingParticipantIds.has(p.odId)}
+                          className="gba:px-3 gba:py-1.5 gba:bg-primary gba:text-primary-foreground hover:gba:bg-primary/90 disabled:gba:bg-primary/60 disabled:gba:cursor-not-allowed gba:rounded gba:flex gba:items-center gba:gap-2 gba:text-xs gba:font-medium gba:transition-colors gba:flex-shrink-0"
+                          aria-label={`${t('participants-invite')} ${p.odName}`}
+                          data-testid={`${prefixDataTestId}-invite-btn-not-in-meeting-${p.odId}`}
+                        >
+                          {invitingParticipantIds.has(p.odId) ? (
+                            <>
+                              <Spinner className="gba:h-3 gba:w-3" />
+                              {t('participants-inviting')}
+                            </>
+                          ) : (
+                            <>
+                              <PhoneIcon className="gba:h-3 gba:w-3" weight="fill" />
+                              {t('participants-invite')}
+                            </>
+                          )}
+                        </button>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+
+            {/* Section 4: Available (Not in Call) */}
             {filteredAvailableParticipants.length > 0 && (
               <div>
                 <div className="gba:px-3 gba:py-2 gba:bg-muted/30 gba:text-xs gba:font-semibold gba:text-muted-foreground gba:uppercase gba:sticky gba:top-0">
