@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect, useLayoutEffect, useRef, useMemo } from 'react'
 import {
   ReactFlow,
   Background,
@@ -13,9 +13,7 @@ import dagre from 'dagre'
 import { Button } from '@newwork/nw-design-system'
 import { Edit, Eye, Plus, LayoutGrid, Trash2 } from 'lucide-react'
 import { AgentNode } from './AgentNode'
-import { ConnectionEdge } from './ConnectionEdge'
 import { MeshSidebar } from './MeshSidebar'
-import { LiveCommunicationFeed } from './LiveCommunicationFeed'
 import type {
   AgentRegistryEntry,
   Connection,
@@ -25,15 +23,11 @@ import type {
   MeshView
 } from '../../types/agentMesh'
 import { useAgentMeshClient } from '../../hooks/useAgentMeshClient'
-import type { UserInfoProps } from '@/common/BusinessAppContext'
-import { useUserAvatar } from '@/business-apps/platform/apps/nexus/hooks/useUserAvatar'
 
 const nodeTypes = { agentNode: AgentNode }
-const edgeTypes = { connectionEdge: ConnectionEdge }
 
 interface MeshDashboardProps {
   accessToken: string
-  userInfo?: UserInfoProps
   onNavigate: (view: MeshView, params?: Record<string, string>) => void
 }
 
@@ -62,16 +56,14 @@ function getLayoutedPositions(
   return positions
 }
 
-export const MeshDashboard: React.FC<MeshDashboardProps> = ({ accessToken, userInfo, onNavigate }) => {
+export const MeshDashboard: React.FC<MeshDashboardProps> = ({ accessToken, onNavigate }) => {
   const api = useAgentMeshClient(accessToken)
-  const userAvatarUrl = useUserAvatar(userInfo?.employeeDetails?.employeeId, accessToken)
   const [agents, setAgents] = useState<AgentRegistryEntry[]>([])
   const [connections, setConnections] = useState<Connection[]>([])
   const [executions, setExecutions] = useState<ExecutionListItem[]>([])
   const [analytics, setAnalytics] = useState<ExecutionAnalytics | null>(null)
   const [alerts, setAlerts] = useState<ActiveAlert[]>([])
   const [editMode, setEditMode] = useState(false)
-  const [feedExpanded, setFeedExpanded] = useState(true)
   const [nodes, setNodes, onNodesChange] = useNodesState([])
   const [edges, setEdges, onEdgesChange] = useEdgesState([])
   const savedPositionsRef = useRef<Record<string, { x: number; y: number }>>({})
@@ -79,9 +71,34 @@ export const MeshDashboard: React.FC<MeshDashboardProps> = ({ accessToken, userI
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null)
   const [connectSource, setConnectSource] = useState<string | null>(null)
 
+  // Resolve design-system token colours from the DOM so we can use them as
+  // literal stroke values on SVG edges.  This avoids any dependency on CSS
+  // class resolution, CSS-variable names, or `currentColor` inheritance inside
+  // the ReactFlow SVG tree – which differs between local and deployed bundles.
+  const [edgeColors, setEdgeColors] = useState({ active: '#22c55e', inactive: '#71717a' })
+  useLayoutEffect(() => {
+    const probe = document.createElement('div')
+    probe.style.position = 'absolute'
+    probe.style.width = '0'
+    probe.style.height = '0'
+    probe.style.overflow = 'hidden'
+    document.body.appendChild(probe)
+
+    probe.className = 'gba:text-success'
+    const active = getComputedStyle(probe).color
+    probe.className = 'gba:text-muted-foreground'
+    const inactive = getComputedStyle(probe).color
+
+    document.body.removeChild(probe)
+    setEdgeColors({
+      active: active || '#22c55e',
+      inactive: inactive || '#71717a'
+    })
+  }, [])
+
   const loadData = useCallback(async () => {
     try {
-      const [agentsData, connectionsData, executionsData, analyticsData, alertsData, layoutData] = await Promise.all([
+      const results = await Promise.allSettled([
         api.getAgentRegistry(),
         api.getConnections(),
         api.getExecutions({ limit: 50 }),
@@ -89,13 +106,20 @@ export const MeshDashboard: React.FC<MeshDashboardProps> = ({ accessToken, userI
         api.getActiveAlerts(),
         api.getMeshLayout()
       ])
-      setAgents(agentsData)
-      setConnections(connectionsData)
-      setExecutions(executionsData)
-      setAnalytics(analyticsData)
-      setAlerts(alertsData)
 
-      // Build saved positions map
+      const getValue = <T,>(r: PromiseSettledResult<T>, fallback: T, label: string): T => {
+        if (r.status === 'fulfilled') return r.value
+        console.error(`Failed to load ${label}:`, r.reason)
+        return fallback
+      }
+
+      setAgents(getValue(results[0], [], 'agents'))
+      setConnections(getValue(results[1], [], 'connections'))
+      setExecutions(getValue(results[2], [], 'executions'))
+      setAnalytics(getValue(results[3], null, 'analytics'))
+      setAlerts(getValue(results[4], [], 'alerts'))
+
+      const layoutData = getValue(results[5], { positions: [] }, 'layout')
       const posMap: Record<string, { x: number; y: number }> = {}
       if (layoutData?.positions) {
         for (const p of layoutData.positions) {
@@ -112,40 +136,69 @@ export const MeshDashboard: React.FC<MeshDashboardProps> = ({ accessToken, userI
     loadData()
   }, [loadData])
 
+  // Mesh agents = agents with connections OR saved in the layout
+  const meshAgents = useMemo(() => {
+    const meshIds = new Set<string>()
+    connections.forEach(c => {
+      meshIds.add(c.caller_id)
+      meshIds.add(c.callee_id)
+    })
+    Object.keys(savedPositionsRef.current).forEach(id => meshIds.add(id))
+    return agents.filter(a => meshIds.has(a.id))
+  }, [agents, connections])
+
+  // Remove an agent from the mesh (delete connections + remove from layout)
+  const handleRemoveFromMesh = useCallback(
+    async (agentId: string) => {
+      const agentConns = connections.filter(c => c.caller_id === agentId || c.callee_id === agentId)
+      await Promise.allSettled(agentConns.map(c => api.deleteConnection(c.connection_id)))
+      const remaining = Object.entries(savedPositionsRef.current)
+        .filter(([id]) => id !== agentId)
+        .map(([id, pos]) => ({ agent_id: id, x: pos.x, y: pos.y }))
+      await api.saveMeshLayout(remaining).catch(() => {})
+      await loadData()
+    },
+    [connections, api, loadData]
+  )
+
   // Build React Flow nodes from agents with dagre layout or saved positions
   useEffect(() => {
-    const dagrePositions = getLayoutedPositions(agents, connections)
+    const dagrePositions = getLayoutedPositions(meshAgents, connections)
     const saved = savedPositionsRef.current
     const hasSavedPositions = Object.keys(saved).length > 0
 
-    const newNodes = agents.map(agent => ({
+    const newNodes = meshAgents.map(agent => ({
       id: agent.id,
       type: 'agentNode',
       position: hasSavedPositions && saved[agent.id] ? saved[agent.id] : dagrePositions[agent.id] || { x: 0, y: 0 },
       data: {
         agent,
         status: 'online' as const,
-        activeQueries: 0
+        activeQueries: 0,
+        onRemove: editMode ? handleRemoveFromMesh : undefined
       }
     }))
     setNodes(newNodes)
 
-    const newEdges = connections.map(c => ({
-      id: c.connection_id,
-      source: c.caller_id,
-      target: c.callee_id,
-      type: 'connectionEdge',
-      animated: c.config.direction === 'bidirectional',
-      selected: c.connection_id === selectedEdgeId,
-      data: {
-        status: c.status,
-        callCount: c.stats?.total_calls || 0,
-        isActive: c.status === 'active',
-        direction: c.config.direction
+    const newEdges = connections.map(c => {
+      const isActive = c.status === 'active'
+      const isBidi = c.config.direction === 'bidirectional'
+      return {
+        id: c.connection_id,
+        source: c.caller_id,
+        target: c.callee_id,
+        type: 'smoothstep',
+        animated: isBidi,
+        selected: c.connection_id === selectedEdgeId,
+        style: {
+          stroke: isActive ? edgeColors.active : edgeColors.inactive,
+          strokeWidth: 2,
+          strokeLinecap: 'round' as const
+        }
       }
-    }))
+    })
     setEdges(newEdges)
-  }, [agents, connections, setNodes, setEdges, selectedEdgeId])
+  }, [meshAgents, connections, setNodes, setEdges, selectedEdgeId, editMode, handleRemoveFromMesh, edgeColors])
 
   // Debounce-save positions when nodes move
   const handleNodesChange: typeof onNodesChange = useCallback(
@@ -167,7 +220,7 @@ export const MeshDashboard: React.FC<MeshDashboardProps> = ({ accessToken, userI
   )
 
   const handleAutoLayout = useCallback(() => {
-    const dagrePositions = getLayoutedPositions(agents, connections)
+    const dagrePositions = getLayoutedPositions(meshAgents, connections)
     setNodes(prev =>
       prev.map(n => ({
         ...n,
@@ -177,7 +230,7 @@ export const MeshDashboard: React.FC<MeshDashboardProps> = ({ accessToken, userI
     const positions = Object.entries(dagrePositions).map(([id, pos]) => ({ agent_id: id, ...pos }))
     savedPositionsRef.current = dagrePositions
     api.saveMeshLayout(positions).catch(() => {})
-  }, [agents, connections, setNodes, api])
+  }, [meshAgents, connections, setNodes, api])
 
   // Connection creation via drag-to-handle
   const onConnect = useCallback(
@@ -186,6 +239,8 @@ export const MeshDashboard: React.FC<MeshDashboardProps> = ({ accessToken, userI
       const sourceAgent = agents.find(a => a.id === params.source)
       const targetAgent = agents.find(a => a.id === params.target)
       if (!sourceAgent || !targetAgent) return
+      const alreadyExists = connections.some(c => c.caller_id === sourceAgent.id && c.callee_id === targetAgent.id)
+      if (alreadyExists) return
 
       try {
         await api.createConnection({
@@ -199,7 +254,7 @@ export const MeshDashboard: React.FC<MeshDashboardProps> = ({ accessToken, userI
         console.error('Failed to create connection:', err)
       }
     },
-    [agents, api, loadData]
+    [agents, connections, api, loadData]
   )
 
   const handleEdgeClick = useCallback(
@@ -244,20 +299,23 @@ export const MeshDashboard: React.FC<MeshDashboardProps> = ({ accessToken, userI
         return
       }
 
-      try {
-        await api.createConnection({
-          caller_id: sourceAgent.id,
-          caller_name: sourceAgent.name,
-          callee_id: targetAgent.id,
-          callee_name: targetAgent.name
-        })
-        loadData()
-      } catch (err) {
-        console.error('Failed to create connection:', err)
+      const alreadyExists = connections.some(c => c.caller_id === sourceAgent.id && c.callee_id === targetAgent.id)
+      if (!alreadyExists) {
+        try {
+          await api.createConnection({
+            caller_id: sourceAgent.id,
+            caller_name: sourceAgent.name,
+            callee_id: targetAgent.id,
+            callee_name: targetAgent.name
+          })
+          loadData()
+        } catch (err) {
+          console.error('Failed to create connection:', err)
+        }
       }
       setConnectSource(null)
     },
-    [editMode, connectSource, agents, api, loadData]
+    [editMode, connectSource, agents, connections, api, loadData]
   )
 
   return (
@@ -316,7 +374,7 @@ export const MeshDashboard: React.FC<MeshDashboardProps> = ({ accessToken, userI
       </div>
 
       <div className="gba:flex gba:flex-1 gba:overflow-hidden">
-        <div className="gba:flex-1 gba:relative">
+        <div className="gba:flex-1 gba:relative gba:min-h-0">
           <ReactFlow
             nodes={nodes}
             edges={edges}
@@ -330,9 +388,10 @@ export const MeshDashboard: React.FC<MeshDashboardProps> = ({ accessToken, userI
               setConnectSource(null)
             }}
             nodeTypes={nodeTypes}
-            edgeTypes={edgeTypes}
             fitView
+            fitViewOptions={{ padding: 0.3 }}
             connectOnClick={false}
+            className="gba:w-full gba:h-full"
           >
             <Background />
             <Controls />
@@ -359,29 +418,14 @@ export const MeshDashboard: React.FC<MeshDashboardProps> = ({ accessToken, userI
         </div>
         <div className="gba:w-72 gba:border-l gba:border-border gba:overflow-y-auto">
           <MeshSidebar
-            agents={agents}
+            agents={meshAgents}
             alerts={alerts}
             analytics={analytics}
+            executions={executions}
+            connections={connections}
             onNavigate={v => onNavigate(v as MeshView)}
           />
         </div>
-      </div>
-
-      {feedExpanded && (
-        <div className="gba:border-t gba:border-border gba:h-48 gba:overflow-hidden">
-          <LiveCommunicationFeed
-            executions={executions}
-            userInfo={userInfo}
-            userAvatarUrl={userAvatarUrl}
-            onTraceClick={cid => onNavigate('traces', { correlationId: cid })}
-          />
-        </div>
-      )}
-
-      <div className="gba:flex gba:justify-center gba:py-1 gba:border-t gba:border-border">
-        <Button variant="ghost" size="sm" onClick={() => setFeedExpanded(!feedExpanded)} data-testid="mesh-feed-toggle">
-          {feedExpanded ? 'Hide Feed' : 'Show Feed'}
-        </Button>
       </div>
     </div>
   )
