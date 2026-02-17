@@ -1154,14 +1154,16 @@ const RunDetailPanel: React.FC<RunDetailPanelProps> = ({ run, accessToken, 'data
                       <Badge variant={submission.status === 'COMPLETED' ? 'success' : 'info'}>
                         {submission.status === 'COMPLETED' ? 'Completed' : 'Sent'}
                       </Badge>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => window.open(submission.copyAppUrl, '_blank', 'noopener,noreferrer')}
-                      >
-                        <ExternalLink className="gba:w-3 gba:h-3 gba:mr-1" />
-                        Open file
-                      </Button>
+                      {submission.status === 'COMPLETED' && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => window.open(submission.copyAppUrl, '_blank', 'noopener,noreferrer')}
+                        >
+                          <ExternalLink className="gba:w-3 gba:h-3 gba:mr-1" />
+                          Open file
+                        </Button>
+                      )}
                     </div>
                   </div>
                   {submission.status === 'COMPLETED' && (
