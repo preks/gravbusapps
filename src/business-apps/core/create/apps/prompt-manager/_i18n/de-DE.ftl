@@ -1,11 +1,11 @@
 # Task Expert Studio Translations (German)
 
 # Page Header
-page-title = AI Task Expert Studio
+page-title = KI Task Expert Studio
 page-description = Erstellen Sie KI-Aufgabenexperten aus Prompts und testen Sie Integrationen.
 
 # Section
-section-label = AI Task Experts
+section-label = KI Aufgabenexperten
 
 # Actions
 new-task-expert = Neuer AI Task Expert
@@ -14,7 +14,7 @@ edit = Bearbeiten
 test = Testen
 
 # Tabs
-tab-task-experts = AI Task Experts
+tab-task-experts = KI Aufgabenexperten
 tab-tools = Einstellungen
 tab-monitoring = Monitoring
 tab-dashboard = Dashboard
@@ -22,10 +22,29 @@ tab-dashboard = Dashboard
 # Search
 search-placeholder = AI Task Experts suchen...
 
+# Navigation / Common actions
+back = Zurueck
+back-to-list = Zurueck zur Liste
+save = Speichern
+saving = Speichern...
+save-failed = Speichern fehlgeschlagen
+ai-assist = KI Assist
+
+# Builder tabs
+builder-tab-general = Allgemein
+builder-tab-behavior = Verhalten
+builder-tab-knowledge = Wissen
+builder-tab-tools = Tools
+builder-tab-advanced = Erweitert
+
 # Table Columns
 column-name = Name
-column-agent-type = Agent-Typ
+column-agent-type = Typ
+column-model = Modell
 column-tools = Tools
+column-knowledge-sources = Wissensquellen
+column-created-at = Zuletzt aktualisiert
+column-created-by = Besitzer
 column-specialty = Spezialitaet
 column-version = Version
 
@@ -33,6 +52,7 @@ column-version = Version
 agent-type-everyai = EveryAI
 agent-type-general = General
 agent-type-flow = FLOW
+agent-type-decision = Entscheidung
 
 # Badges
 badge-public = Oeffentlich

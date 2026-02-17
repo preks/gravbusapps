@@ -64,6 +64,8 @@ export interface AgentBuilderState {
   temperature: number
   responseType: 'text' | 'json'
   responseSchema: string
+  /** Decision Expert: allowed decision result options (mirrored into responseSchema enum) */
+  decisionOptions: string[]
   knowledgeSources: KnowledgeSource[]
 }
 
@@ -91,6 +93,7 @@ export interface AgentBuilderActions {
   setTemperature: (v: number) => void
   setResponseType: (v: 'text' | 'json') => void
   setResponseSchema: (v: string) => void
+  setDecisionOptions: (v: string[]) => void
   setKnowledgeSources: (v: KnowledgeSource[]) => void
 }
 

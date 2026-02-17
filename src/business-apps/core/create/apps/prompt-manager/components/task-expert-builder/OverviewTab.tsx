@@ -12,7 +12,7 @@ import {
   CardTitle,
   CardContent
 } from '@newwork/nw-design-system'
-import { Bot, Sparkles, Workflow } from 'lucide-react'
+import { Bot, Sparkles, Workflow, GitBranch } from 'lucide-react'
 import type { TabProps } from './types'
 import type { AgentType } from '@/common/network/ai/prompt-manager/PromptManagerClient'
 
@@ -31,6 +31,11 @@ const AGENT_TYPE_INFO: Record<AgentType, { label: string; description: string; i
     label: 'General Agent',
     description: 'General purpose agent for standalone use',
     icon: <Bot className="gba:w-5 gba:h-5" />
+  },
+  decision: {
+    label: 'Decision Expert',
+    description: 'Structured decision output for branching',
+    icon: <GitBranch className="gba:w-5 gba:h-5" />
   }
 }
 

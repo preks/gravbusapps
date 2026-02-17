@@ -1,6 +1,7 @@
 import React, { useCallback, useState, useEffect, useMemo } from 'react'
-import { Button, DataDisplay, DataTable, useTranslation } from '@newwork/nw-design-system'
+import { DataDisplay, DataTable, useTranslation } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import type { SortingState } from '@tanstack/react-table'
 import { useTaskExperts } from '../hooks/useTaskExperts'
 import { TaskExpertTestPanel } from './TaskExpertTestPanel'
 import { createTaskExpertColumns } from '../config/taskExpertColumns'
@@ -11,15 +12,24 @@ type TaskExpertRow = PromptODM & { id: string }
 
 interface TaskExpertsSpaceProps extends BusinessAppContextProps {
   translations: { enUS: string; deDE: string; roRO: string }
-  onCreateTaskExpert: () => void
   onViewPrompt: (id: string, name: string) => void
   onEditPrompt: (id: string, name: string) => void
   refreshKey: number
 }
 
+const buildSortParam = (sorting: SortingState): string | null => {
+  if (!sorting || sorting.length === 0) return null
+
+  // We only support server-side sorting on the Prompt Manager fields that are mapped.
+  const allowed = new Set(['name', 'agentType', 'createdAt', 'version'])
+
+  const parts = sorting.filter(s => allowed.has(s.id)).map(s => `${s.desc ? '-' : '+'}${s.id}`)
+
+  return parts.length ? parts.join(',') : null
+}
+
 export const TaskExpertsSpace: React.FC<TaskExpertsSpaceProps> = ({
   translations,
-  onCreateTaskExpert,
   onViewPrompt,
   onEditPrompt,
   refreshKey,
@@ -29,12 +39,14 @@ export const TaskExpertsSpace: React.FC<TaskExpertsSpaceProps> = ({
   const [search, setSearch] = useState<string>('')
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 20 })
   const [testingPromptId, setTestingPromptId] = useState<string | null>(null)
+  const [sorting, setSorting] = useState<SortingState>([{ id: 'createdAt', desc: true }])
 
   const { prompts, total, isLoading, error, reload } = useTaskExperts(context, {
     search,
     limit: pagination.pageSize,
     offset: pagination.pageIndex * pagination.pageSize,
-    returnTotalRecords: true
+    returnTotalRecords: true,
+    sort: buildSortParam(sorting)
   })
 
   // Transform prompts to add id property (DataTable requires id, not _id)
@@ -49,27 +61,33 @@ export const TaskExpertsSpace: React.FC<TaskExpertsSpaceProps> = ({
         search,
         limit: pagination.pageSize,
         offset: pagination.pageIndex * pagination.pageSize,
-        returnTotalRecords: true
+        returnTotalRecords: true,
+        sort: buildSortParam(sorting)
       })
     }
-  }, [refreshKey])
+  }, [refreshKey, reload, search, pagination.pageIndex, pagination.pageSize, sorting])
 
   const onSearchChange = useCallback((value: string) => {
     setSearch(value)
     setPagination(prev => ({ ...prev, pageIndex: 0 }))
   }, [])
 
-  const handlePaginationChange = useCallback(
-    (newPagination: { pageIndex: number; pageSize: number }) => {
-      setPagination(newPagination)
-      reload({
-        search,
-        limit: newPagination.pageSize,
-        offset: newPagination.pageIndex * newPagination.pageSize,
-        returnTotalRecords: true
-      })
+  const handlePaginationChange = useCallback((newPagination: { pageIndex: number; pageSize: number }) => {
+    setPagination(newPagination)
+  }, [])
+
+  const handleSortingChange = useCallback((nextSorting: SortingState) => {
+    setSorting(nextSorting)
+    setPagination(prev => ({ ...prev, pageIndex: 0 }))
+  }, [])
+
+  const handleRowClick = useCallback(
+    (row: TaskExpertRow) => {
+      const id = row?._id || ''
+      if (!id) return
+      onViewPrompt(id, row?.name || '')
     },
-    [reload, search]
+    [onViewPrompt]
   )
 
   return (
@@ -83,11 +101,6 @@ export const TaskExpertsSpace: React.FC<TaskExpertsSpaceProps> = ({
           }
         ]}
         currentSection="experts"
-        primaryAction={
-          <Button variant="default" onClick={onCreateTaskExpert} data-testid="prompt-manager-create-button">
-            {t('new-task-expert')}
-          </Button>
-        }
         searchValue={search}
         searchPlaceholder={t('search-placeholder')}
         onSearchChange={onSearchChange}
@@ -98,7 +111,6 @@ export const TaskExpertsSpace: React.FC<TaskExpertsSpaceProps> = ({
           columns={columns}
           loading={isLoading}
           error={error}
-          onRowClick={(row: TaskExpertRow) => onViewPrompt(row._id || '', row.name || '')}
           actions={[
             { label: t('view'), onClick: (row: TaskExpertRow) => onViewPrompt(row._id || '', row.name || '') },
             { label: t('edit'), onClick: (row: TaskExpertRow) => onEditPrompt(row._id || '', row.name || '') },
@@ -106,12 +118,16 @@ export const TaskExpertsSpace: React.FC<TaskExpertsSpaceProps> = ({
           ]}
           tableLayout="fixed"
           enableColumnPinning={true}
+          enableSorting
+          sorting={sorting}
+          onSortingChange={handleSortingChange}
           enablePagination
           pagination={pagination}
           onPaginationChange={handlePaginationChange}
           totalCount={total}
           rowsPerPageOptions={[10, 20, 50, 100]}
           emptyMessage={t('empty-message')}
+          onRowClick={handleRowClick}
           data-testid="prompt-manager-table"
         />
       </DataDisplay>

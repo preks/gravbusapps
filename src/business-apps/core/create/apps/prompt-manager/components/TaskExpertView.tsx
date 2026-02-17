@@ -9,7 +9,7 @@ import {
   TabsTrigger,
   useTranslation
 } from '@newwork/nw-design-system'
-import { Settings } from 'lucide-react'
+import { ArrowLeft, Settings } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import type { PromptODM } from '@/common/network/ai/prompt-manager/PromptManagerClient'
@@ -27,7 +27,13 @@ export interface TaskExpertViewProps extends BusinessAppContextProps {
 
 type ViewTab = 'dashboard' | 'test' | 'monitoring'
 
-export const TaskExpertView: React.FC<TaskExpertViewProps> = ({ promptId, onEdit, onNameLoaded, ...context }) => {
+export const TaskExpertView: React.FC<TaskExpertViewProps> = ({
+  promptId,
+  onBack,
+  onEdit,
+  onNameLoaded,
+  ...context
+}) => {
   const { t } = useTranslation(translations)
   const client = usePromptManagerClient(context.accessToken)
   const [prompt, setPrompt] = useState<PromptODM | null>(null)
@@ -68,7 +74,10 @@ export const TaskExpertView: React.FC<TaskExpertViewProps> = ({ promptId, onEdit
       {/* Header */}
       <div className="gba:flex gba:flex-wrap gba:items-center gba:justify-between gba:gap-3">
         <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-3">
-          <h2 className="gba:text-lg gba:font-semibold">{prompt?.name || promptId}</h2>
+          <Button variant="outline" size="sm" onClick={onBack} data-testid="expert-view-back" type="button">
+            <ArrowLeft className="gba:w-4 gba:h-4 gba:mr-1" />
+            {t('back-to-list')}
+          </Button>
           {prompt?.agentType && <Badge variant="secondary">{prompt.agentType}</Badge>}
         </div>
         <Button variant="default" size="sm" onClick={onEdit} data-testid="expert-view-edit-button">

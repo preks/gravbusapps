@@ -8,15 +8,40 @@ type TaskExpertRow = PromptODM & { id: string }
 
 type TranslationFn = (key: string) => string
 
+const formatDateTime = (iso: string | undefined): string => {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return '—'
+  return new Intl.DateTimeFormat(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  }).format(d)
+}
+
+const parseToolsCount = (raw: unknown): number => {
+  if (Array.isArray(raw)) return raw.length
+  if (typeof raw !== 'string') return 0
+  return raw
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean).length
+}
+
 export const createTaskExpertColumns = (t: TranslationFn): ColumnDef<TaskExpertRow>[] => [
   {
     id: 'name',
     accessorKey: 'name',
     header: t('column-name'),
     size: 200,
+    meta: { type: 'text' as const },
     cell: ({ row }) => (
-      <div className="gba:flex gba:items-center gba:gap-2">
-        <span className="gba:font-medium">{row.original.name}</span>
+      <div className="gba:flex gba:items-center gba:gap-2 gba:min-w-0">
+        <span className="gba:font-medium gba:truncate gba:flex-1 gba:min-w-0" title={row.original.name}>
+          {row.original.name}
+        </span>
         {row.original.is_public && <Badge variant="success">{t('badge-public')}</Badge>}
       </div>
     )
@@ -25,6 +50,7 @@ export const createTaskExpertColumns = (t: TranslationFn): ColumnDef<TaskExpertR
     id: 'agentType',
     header: t('column-agent-type'),
     size: 120,
+    accessorFn: row => row.agent_type || '',
     cell: ({ row }) => {
       const agentType = row.original.agent_type
       if (agentType === 'everyai') {
@@ -32,6 +58,9 @@ export const createTaskExpertColumns = (t: TranslationFn): ColumnDef<TaskExpertR
       }
       if (agentType === 'general') {
         return <Badge variant="info">{t('agent-type-general')}</Badge>
+      }
+      if (agentType === 'decision') {
+        return <Badge variant="warning">{t('agent-type-decision')}</Badge>
       }
       return <Badge variant="secondary">{t('agent-type-flow')}</Badge>
     }
@@ -41,14 +70,9 @@ export const createTaskExpertColumns = (t: TranslationFn): ColumnDef<TaskExpertR
     header: t('column-tools'),
     size: 140,
     meta: { align: 'right' },
+    enableSorting: false,
     accessorFn: row => {
-      const raw = (row as any).tools
-      if (Array.isArray(raw)) return raw.length
-      if (typeof raw !== 'string') return 0
-      return raw
-        .split(',')
-        .map(s => s.trim())
-        .filter(Boolean).length
+      return parseToolsCount((row as any).tools)
     },
     cell: ({ row }) => {
       const raw = row.original.tools
@@ -71,19 +95,53 @@ export const createTaskExpertColumns = (t: TranslationFn): ColumnDef<TaskExpertR
     }
   },
   {
+    id: 'knowledgeSources',
+    header: t('column-knowledge-sources'),
+    size: 160,
+    meta: { align: 'right' },
+    enableSorting: false,
+    accessorFn: row => (Array.isArray(row.knowledge_sources) ? row.knowledge_sources.length : 0),
+    cell: ({ row }) => {
+      const count = Array.isArray(row.original.knowledge_sources) ? row.original.knowledge_sources.length : 0
+      return (
+        <div className="gba:flex gba:justify-end">
+          <Badge variant="secondary">{count}</Badge>
+        </div>
+      )
+    }
+  },
+  {
+    id: 'createdAt',
+    header: t('column-created-at'),
+    size: 170,
+    accessorFn: row => row.created_at || '',
+    cell: ({ row }) => <div className="gba:text-right gba:text-sm">{formatDateTime(row.original.created_at)}</div>,
+    meta: { align: 'right' }
+  },
+  {
     id: 'version',
     header: t('column-version'),
     size: 100,
     meta: { align: 'right' },
+    accessorFn: row => row.version,
     cell: ({ row }) => <div className="gba:text-right">v{row.original.version}</div>
   }
 ]
 
 export const taskExpertSortableColumns = [
   { id: 'name', label: 'Name' },
-  { id: 'agentType', label: 'Agent Type' },
+  { id: 'agentType', label: 'Type' },
   { id: 'tools', label: 'Tools' },
+  { id: 'knowledgeSources', label: 'Knowledge sources' },
+  { id: 'createdAt', label: 'Last updated' },
   { id: 'version', label: 'Version' }
 ]
 
-export const getDefaultVisibleColumns = (): string[] => ['name', 'agentType', 'tools', 'version']
+export const getDefaultVisibleColumns = (): string[] => [
+  'name',
+  'agentType',
+  'tools',
+  'knowledgeSources',
+  'createdAt',
+  'version'
+]
