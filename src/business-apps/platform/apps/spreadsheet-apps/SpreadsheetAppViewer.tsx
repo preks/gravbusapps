@@ -188,13 +188,19 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
 
   useEffect(() => {
     if (app.settings?.excel_collection_copy || !userId || !app.id || !automations.hasExcelCollectionTaskForApp) return
-    const check = () =>
+    let isUnmounted = false
+    const runCheck = () =>
       void automations.hasExcelCollectionTaskForApp(app.id).then(has => {
-        if (has) setHasTaskForCollectionCopy(true)
+        if (!isUnmounted && has) setHasTaskForCollectionCopy(true)
       })
-    check()
-    const t = setTimeout(check, 1500) // Retry in case flow engine wasn't ready
-    return () => clearTimeout(t)
+    runCheck()
+    const retryTimer = window.setTimeout(() => {
+      runCheck()
+    }, 1500) // Retry in case flow engine wasn't ready
+    return () => {
+      isUnmounted = true
+      window.clearTimeout(retryTimer)
+    }
   }, [app.id, app.settings?.excel_collection_copy, userId, automations.hasExcelCollectionTaskForApp])
 
   const handleSubmitCollection = useCallback(async () => {

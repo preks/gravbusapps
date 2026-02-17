@@ -668,15 +668,31 @@ const AutomationListItem: React.FC<AutomationListItemProps> = ({
           </div>
 
           {/* Right: Actions */}
-          <div className="gba:flex gba:items-center gba:gap-2" onClick={e => e.stopPropagation()}>
+          <div className="gba:flex gba:items-center gba:gap-2">
             {automation.trigger === 'manual' && automation.type === 'excel_collection' && (
-              <Button size="sm" variant="outline" onClick={onRun} disabled={!automation.isEnabled || isRunning}>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={e => {
+                  e.stopPropagation()
+                  onRun()
+                }}
+                disabled={!automation.isEnabled || isRunning}
+              >
                 {isRunning ? <Spinner size="sm" className="gba:mr-1" /> : <Play className="gba:w-4 gba:h-4 gba:mr-1" />}
                 Run
               </Button>
             )}
             {canStopLatestRun && (
-              <Button size="sm" variant="outline" onClick={() => onStopRun(latestRun.id)} disabled={isStoppingRun}>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={e => {
+                  e.stopPropagation()
+                  onStopRun(latestRun.id)
+                }}
+                disabled={isStoppingRun}
+              >
                 {isStoppingRun ? (
                   <Spinner size="sm" className="gba:mr-1" />
                 ) : (
@@ -686,7 +702,14 @@ const AutomationListItem: React.FC<AutomationListItemProps> = ({
               </Button>
             )}
 
-            <Button size="sm" variant="ghost" onClick={onView}>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={e => {
+                e.stopPropagation()
+                onView()
+              }}
+            >
               <Eye className="gba:w-4 gba:h-4 gba:mr-1" />
               View
             </Button>
@@ -946,6 +969,23 @@ function formatCompletionDateTime(value?: string): string | null {
   return date.toLocaleString()
 }
 
+function openSafeSpreadsheetUrl(rawUrl: string): void {
+  if (typeof window === 'undefined' || !rawUrl) return
+
+  try {
+    const currentOrigin = window.location.origin
+    const targetUrl = new URL(rawUrl, currentOrigin)
+
+    // Guard against open-redirect behavior: only allow same-origin spreadsheet app links.
+    if (targetUrl.origin !== currentOrigin) return
+    if (!targetUrl.pathname.startsWith('/platform/apps/spreadsheet-apps')) return
+
+    window.open(targetUrl.toString(), '_blank', 'noopener,noreferrer')
+  } catch {
+    // Ignore malformed URLs.
+  }
+}
+
 function getInitials(name: string): string {
   return name
     .split(' ')
@@ -1158,7 +1198,7 @@ const RunDetailPanel: React.FC<RunDetailPanelProps> = ({ run, accessToken, 'data
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => window.open(submission.copyAppUrl, '_blank', 'noopener,noreferrer')}
+                          onClick={() => openSafeSpreadsheetUrl(submission.copyAppUrl)}
                         >
                           <ExternalLink className="gba:w-3 gba:h-3 gba:mr-1" />
                           Open file
