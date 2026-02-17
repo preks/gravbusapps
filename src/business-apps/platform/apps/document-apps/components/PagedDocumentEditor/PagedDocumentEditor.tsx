@@ -5,8 +5,11 @@
  * page breaks, and Word-like editing experience.
  */
 
-import React, { useState, useCallback, useEffect, useRef, forwardRef, useImperativeHandle } from 'react'
+import React, { useState, useCallback, useEffect, useMemo, useRef, forwardRef, useImperativeHandle } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
+import { DOMSerializer } from '@tiptap/pm/model'
+import { Plugin, PluginKey } from '@tiptap/pm/state'
+import { Decoration, DecorationSet } from '@tiptap/pm/view'
 import StarterKit from '@tiptap/starter-kit'
 import Collaboration from '@tiptap/extension-collaboration'
 import { Placeholder } from '@tiptap/extension-placeholder'
@@ -34,11 +37,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   Badge,
+  Label,
   Separator,
+  Textarea,
   Avatar,
   AvatarImage,
   AvatarFallback,
-  AiButton
+  AiButton,
+  Switch
 } from '@newwork/nw-design-system'
 import {
   ArrowLeft,
@@ -82,6 +88,11 @@ import { useFileLock } from '../../../shared/hooks/useFileLock'
 import { useComments } from '../../../shared/hooks/useComments'
 import { usePublishing } from '../../../shared/hooks/usePublishing'
 import { emitDocumentActivity, emitDocumentActivityEnd } from '../../../spaces/hooks/useSpaceDocumentActivity'
+import { openEveryAI } from '@/common/utils/openEveryAI'
+import { buildDocumentEditPrompt } from '@/common/utils/buildDocumentEditPrompt'
+import { navigateTo } from '@/common/utils/navigationUtils'
+import { env } from '@/common/env/EnvUtils'
+import { flowbotClient } from '@/common/network/flowbot/FlowbotClient'
 import { VersionHistory } from '../../../shared/components/VersionHistory'
 import { CheckpointDialog } from '../../../shared/components/CheckpointDialog'
 import { AutoSaveIndicator } from '../../../shared/components/AutoSaveIndicator'
@@ -93,6 +104,7 @@ import { InlineComment as InlineCommentExtension } from '../../../shared/extensi
 import { AiEditPanel } from '../AiEditPanel'
 import * as Y from 'yjs'
 import { Awareness } from 'y-protocols/awareness'
+import DOMPurify from 'dompurify'
 
 // A4 dimensions in pixels at 96 DPI
 const A4_WIDTH_PX = 794 // 210mm
@@ -101,6 +113,31 @@ const PAGE_MARGIN_PX = 96 // 1 inch = 96px at 96 DPI
 
 /** Delay before auto-saving new documents/templates (no document id). 5 minutes. */
 const AUTO_SAVE_DELAY_MS = 5 * 60 * 1000
+const AUTOCOMPLETE_PLUGIN_KEY = new PluginKey('documentAutocompleteGhost')
+const AUTOCOMPLETE_DEBOUNCE_MS = 350
+const AUTOCOMPLETE_ROLLOUT_STORAGE_KEY = 'document-autocomplete-rollout'
+const AUTOCOMPLETE_TOGGLE_STORAGE_KEY = 'document-autocomplete:enabled'
+
+function isTruthyFlag(value: string | null | undefined): boolean {
+  if (!value) return false
+  return ['1', 'true', 'on', 'yes'].includes(value.toLowerCase())
+}
+
+function isAutocompleteRolloutEnabled(): boolean {
+  if (typeof window !== 'undefined') {
+    const localOverride = window.localStorage.getItem(AUTOCOMPLETE_ROLLOUT_STORAGE_KEY)
+    if (localOverride !== null) {
+      return isTruthyFlag(localOverride)
+    }
+  }
+
+  // Enabled by default; explicit env flag can disable globally.
+  const envValue = env('NEXT_PUBLIC_DOCUMENT_AUTOCOMPLETE_ENABLED')
+  if (envValue === null || envValue === undefined || envValue === '') {
+    return true
+  }
+  return isTruthyFlag(envValue)
+}
 
 // Collaboration cursor styles
 const CURSOR_STYLES = `
@@ -387,6 +424,28 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     const [showInlineCommentPopover, setShowInlineCommentPopover] = useState(false)
     const [inlineCommentPosition, setInlineCommentPosition] = useState<{ top: number; left: number } | null>(null)
     const [pendingSelection, setPendingSelection] = useState<{ from: number; to: number; text: string } | null>(null)
+    const [showAiInstructionDialog, setShowAiInstructionDialog] = useState(false)
+    const [aiInstruction, setAiInstruction] = useState('')
+    const [aiSelectionSnapshot, setAiSelectionSnapshot] = useState('')
+    const [aiSelectionSnapshotHtml, setAiSelectionSnapshotHtml] = useState('')
+    const [isAutocompleteToggleEnabled, setIsAutocompleteToggleEnabled] = useState(false)
+    const [autocompleteSuggestion, setAutocompleteSuggestion] = useState('')
+    const [autocompleteCursorPos, setAutocompleteCursorPos] = useState<number | null>(null)
+    const [, setIsAutocompleteLoading] = useState(false)
+    const autocompleteSuggestionRef = useRef('')
+    const autocompleteCursorPosRef = useRef<number | null>(null)
+    const autocompleteDebounceRef = useRef<NodeJS.Timeout | null>(null)
+    const autocompleteRequestControllerRef = useRef<AbortController | null>(null)
+    const scheduleAutocompleteRef = useRef<() => void>(() => {})
+    const autocompleteRolloutEnabled = useMemo(() => isAutocompleteRolloutEnabled(), [])
+    const [isAiSelectionPreviewExpanded, setIsAiSelectionPreviewExpanded] = useState(false)
+    const sanitizedAiSelectionPreviewHtml = useMemo(() => {
+      if (!aiSelectionSnapshotHtml.trim()) return ''
+      return DOMPurify.sanitize(aiSelectionSnapshotHtml, {
+        USE_PROFILES: { html: true }
+      })
+    }, [aiSelectionSnapshotHtml])
+    const hasLongAiSelectionPreview = aiSelectionSnapshot.length > 220 || sanitizedAiSelectionPreviewHtml.length > 300
 
     const ydoc = React.useMemo(() => new Y.Doc(), [document?.id])
     const awareness = React.useMemo(() => new Awareness(ydoc), [ydoc])
@@ -407,6 +466,10 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     // Get access token for collaboration and avatar fetching - prefer prop, fallback to localStorage
     const accessToken = accessTokenProp || localStorage.getItem('business-app-ide-access-token') || ''
 
+    useEffect(() => {
+      flowbotClient.setAccessToken(accessToken)
+    }, [accessToken])
+
     // Collaboration state
     const { participants: rawParticipants, socket: collaborationSocket } = useCollaboration({
       entityType: 'document',
@@ -420,6 +483,10 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       accessToken,
       rawParticipants
     })
+    const autocompleteToggleStorageKey = useMemo(
+      () => (currentUserId ? `${AUTOCOMPLETE_TOGGLE_STORAGE_KEY}:${currentUserId}` : AUTOCOMPLETE_TOGGLE_STORAGE_KEY),
+      [currentUserId]
+    )
 
     // Versioning, Comments, Locking, Publishing hooks
     const versioning = useVersioning({
@@ -473,6 +540,128 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       () => !isReadOnly && (!document?.id || (isYjsSynced && fileLock.canEdit)),
       [isReadOnly, document?.id, isYjsSynced, fileLock.canEdit]
     )
+    const isAutocompleteActive = autocompleteRolloutEnabled && isAutocompleteToggleEnabled && editorEditable
+
+    useEffect(() => {
+      if (!autocompleteRolloutEnabled) {
+        setIsAutocompleteToggleEnabled(false)
+        return
+      }
+      try {
+        const stored = window.localStorage.getItem(autocompleteToggleStorageKey)
+        if (stored === null) {
+          setIsAutocompleteToggleEnabled(true)
+        } else {
+          setIsAutocompleteToggleEnabled(stored === 'true')
+        }
+      } catch {
+        setIsAutocompleteToggleEnabled(true)
+      }
+    }, [autocompleteRolloutEnabled, autocompleteToggleStorageKey])
+
+    useEffect(() => {
+      if (!autocompleteRolloutEnabled) return
+      try {
+        window.localStorage.setItem(autocompleteToggleStorageKey, String(isAutocompleteToggleEnabled))
+      } catch {
+        // ignore storage write issues
+      }
+    }, [autocompleteRolloutEnabled, autocompleteToggleStorageKey, isAutocompleteToggleEnabled])
+
+    const clearAutocompleteSuggestion = useCallback(() => {
+      setAutocompleteSuggestion('')
+      setAutocompleteCursorPos(null)
+      setIsAutocompleteLoading(false)
+    }, [])
+
+    const getAutocompleteContext = useCallback(() => {
+      const editorInstance = editorRef.current
+      if (!editorInstance) return null
+      const selection = editorInstance.state.selection
+      if (!selection.empty) return null
+
+      const { $from } = selection
+      const parentText = $from.parent.textContent || ''
+      const prefixText = parentText.slice(0, $from.parentOffset)
+      const suffixText = parentText.slice($from.parentOffset)
+      if (prefixText.trim().length < 10) return null
+
+      return {
+        cursorPos: selection.from,
+        prefixText: prefixText.slice(-600),
+        suffixText: suffixText.slice(0, 250)
+      }
+    }, [])
+
+    const requestAutocomplete = useCallback(
+      async (context: { cursorPos: number; prefixText: string; suffixText: string }) => {
+        if (!isAutocompleteActive) return
+        autocompleteRequestControllerRef.current?.abort()
+        const controller = new AbortController()
+        autocompleteRequestControllerRef.current = controller
+        setIsAutocompleteLoading(true)
+
+        try {
+          const response = await flowbotClient.getDocumentAutocomplete(
+            {
+              document_id: document?.id,
+              title,
+              prefix_text: context.prefixText,
+              suffix_text: context.suffixText,
+              max_tokens: 80,
+              llm_provider: 'openai'
+            },
+            { signal: controller.signal }
+          )
+
+          const editorInstance = editorRef.current
+          if (!editorInstance) return
+          if (!editorInstance.state.selection.empty || editorInstance.state.selection.from !== context.cursorPos) return
+
+          const completion = (response.completion_text || '').trim()
+          if (!completion) {
+            clearAutocompleteSuggestion()
+            return
+          }
+
+          setAutocompleteSuggestion(completion)
+          setAutocompleteCursorPos(context.cursorPos)
+        } catch (error) {
+          if (error instanceof Error && error.name === 'AbortError') return
+          clearAutocompleteSuggestion()
+        } finally {
+          if (autocompleteRequestControllerRef.current === controller) {
+            autocompleteRequestControllerRef.current = null
+          }
+          setIsAutocompleteLoading(false)
+        }
+      },
+      [clearAutocompleteSuggestion, document?.id, isAutocompleteActive, title]
+    )
+
+    const scheduleAutocomplete = useCallback(() => {
+      if (!isAutocompleteActive) {
+        if (autocompleteDebounceRef.current) {
+          clearTimeout(autocompleteDebounceRef.current)
+        }
+        autocompleteRequestControllerRef.current?.abort()
+        clearAutocompleteSuggestion()
+        return
+      }
+
+      if (autocompleteDebounceRef.current) {
+        clearTimeout(autocompleteDebounceRef.current)
+      }
+      autocompleteRequestControllerRef.current?.abort()
+      clearAutocompleteSuggestion()
+
+      const context = getAutocompleteContext()
+      if (!context) return
+
+      autocompleteDebounceRef.current = setTimeout(() => {
+        void requestAutocomplete(context)
+      }, AUTOCOMPLETE_DEBOUNCE_MS)
+    }, [clearAutocompleteSuggestion, getAutocompleteContext, isAutocompleteActive, requestAutocomplete])
 
     // Set local awareness state (user meta shown in cursors/selections)
     useEffect(() => {
@@ -602,6 +791,33 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
             if (autoSaveTimeoutRef.current) clearTimeout(autoSaveTimeoutRef.current)
             autoSaveTimeoutRef.current = setTimeout(() => handleSave(), AUTO_SAVE_DELAY_MS)
           }
+          scheduleAutocompleteRef.current()
+        },
+        editorProps: {
+          handleKeyDown(view, event) {
+            const currentSuggestion = autocompleteSuggestionRef.current
+            const currentCursorPos = autocompleteCursorPosRef.current
+
+            if (
+              event.key === 'Tab' &&
+              currentSuggestion &&
+              currentCursorPos === view.state.selection.from &&
+              view.state.selection.empty
+            ) {
+              event.preventDefault()
+              const tr = view.state.tr.insertText(currentSuggestion, view.state.selection.from, view.state.selection.to)
+              view.dispatch(tr)
+              clearAutocompleteSuggestion()
+              return true
+            }
+
+            if (event.key === 'Escape' && currentSuggestion) {
+              event.preventDefault()
+              clearAutocompleteSuggestion()
+              return true
+            }
+            return false
+          }
         }
       },
       [document?.id, ydoc, editorContent, editorEditable]
@@ -630,6 +846,70 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       editorRef.current = editor
     }, [editor])
 
+    useEffect(() => {
+      scheduleAutocompleteRef.current = scheduleAutocomplete
+    }, [scheduleAutocomplete])
+
+    useEffect(() => {
+      autocompleteSuggestionRef.current = autocompleteSuggestion
+      autocompleteCursorPosRef.current = autocompleteCursorPos
+    }, [autocompleteSuggestion, autocompleteCursorPos])
+
+    useEffect(() => {
+      if (!editor) return
+      const existing = AUTOCOMPLETE_PLUGIN_KEY.get(editor.state)
+      if (existing) editor.unregisterPlugin(AUTOCOMPLETE_PLUGIN_KEY)
+
+      if (
+        !isAutocompleteActive ||
+        !autocompleteSuggestion ||
+        autocompleteCursorPos === null ||
+        !editor.state.selection.empty ||
+        editor.state.selection.from !== autocompleteCursorPos
+      ) {
+        return
+      }
+
+      const plugin = new Plugin({
+        key: AUTOCOMPLETE_PLUGIN_KEY,
+        props: {
+          decorations(state) {
+            const position = Math.min(Math.max(autocompleteCursorPos, 0), state.doc.content.size)
+            const ghost = globalThis.document.createElement('span')
+            ghost.className = 'document-autocomplete-ghost-text'
+            ghost.textContent = autocompleteSuggestion
+            return DecorationSet.create(state.doc, [
+              Decoration.widget(position, ghost, {
+                side: 1,
+                ignoreSelection: true
+              })
+            ])
+          }
+        }
+      })
+
+      editor.registerPlugin(plugin)
+      return () => {
+        const activePlugin = AUTOCOMPLETE_PLUGIN_KEY.get(editor.state)
+        if (activePlugin) editor.unregisterPlugin(AUTOCOMPLETE_PLUGIN_KEY)
+      }
+    }, [editor, isAutocompleteActive, autocompleteSuggestion, autocompleteCursorPos])
+
+    useEffect(() => {
+      if (!editor) return
+      const handleSelectionUpdate = () => {
+        if (autocompleteDebounceRef.current) {
+          clearTimeout(autocompleteDebounceRef.current)
+        }
+        autocompleteRequestControllerRef.current?.abort()
+        clearAutocompleteSuggestion()
+      }
+      editor.on('selectionUpdate', handleSelectionUpdate)
+      return () => {
+        editor.off('selectionUpdate', handleSelectionUpdate)
+      }
+    }, [editor, clearAutocompleteSuggestion])
+
     // Expose insertAtCursor for template "Insert field" panel
     useImperativeHandle(
       ref,
@@ -654,23 +934,27 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     }, [editor, isReadOnly, document?.id, isYjsSynced, fileLock.canEdit])
 
     // Handler for inline comment (defined after editor)
-    const handleAddInlineComment = useCallback(() => {
-      if (!editor) return
+    const handleAddInlineComment = useCallback(
+      (contextMenuPosition?: { x: number; y: number }, selectionRange?: { from: number; to: number }) => {
+        if (!editor) return
 
-      const { from, to } = editor.state.selection
-      if (from === to) return // No selection
+        const from = selectionRange?.from ?? editor.state.selection.from
+        const to = selectionRange?.to ?? editor.state.selection.to
+        if (from === to) return // No selection
 
-      const selectedText = editor.state.doc.textBetween(from, to)
-      const { view } = editor
-      const coords = view.coordsAtPos(from)
+        const selectedText = editor.state.doc.textBetween(from, to)
+        const { view } = editor
+        const coords = view.coordsAtPos(from)
 
-      setPendingSelection({ from, to, text: selectedText })
-      setInlineCommentPosition({
-        top: coords.top + window.scrollY + 30,
-        left: coords.left + window.scrollX
-      })
-      setShowInlineCommentPopover(true)
-    }, [editor])
+        setPendingSelection({ from, to, text: selectedText })
+        setInlineCommentPosition({
+          top: contextMenuPosition?.y ? contextMenuPosition.y + 8 : coords.top + 30,
+          left: contextMenuPosition?.x ? contextMenuPosition.x + 8 : coords.left
+        })
+        setShowInlineCommentPopover(true)
+      },
+      [editor]
+    )
 
     // Calculate page count based on content height
     const updatePageCount = useCallback(() => {
@@ -711,6 +995,10 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         if (autoSaveTimeoutRef.current) {
           clearTimeout(autoSaveTimeoutRef.current)
         }
+        if (autocompleteDebounceRef.current) {
+          clearTimeout(autocompleteDebounceRef.current)
+        }
+        autocompleteRequestControllerRef.current?.abort()
       }
     }, [])
 
@@ -798,6 +1086,101 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       setZoom(100)
     }, [])
 
+    const getCurrentEditorSelectionContext = useCallback(() => {
+      if (!editor) return { text: '', html: '' }
+      const { from, to } = editor.state.selection
+      if (from === to) return { text: '', html: '' }
+      const text = editor.state.doc.textBetween(from, to).trim()
+      const slice = editor.state.doc.slice(from, to)
+      const div = globalThis.document.createElement('div')
+      const serializer = DOMSerializer.fromSchema(editor.schema)
+      const domFragment = serializer.serializeFragment(slice.content)
+      div.appendChild(domFragment)
+      return { text, html: div.innerHTML.trim() }
+    }, [editor])
+
+    useEffect(() => {
+      if (!editor || !showAiInstructionDialog) return
+
+      const syncSelectionSnapshot = () => {
+        const selectionContext = getCurrentEditorSelectionContext()
+        setAiSelectionSnapshot(selectionContext.text)
+        setAiSelectionSnapshotHtml(selectionContext.html)
+      }
+
+      // Sync immediately when panel opens, then keep it updated.
+      syncSelectionSnapshot()
+      editor.on('selectionUpdate', syncSelectionSnapshot)
+      return () => {
+        editor.off('selectionUpdate', syncSelectionSnapshot)
+      }
+    }, [editor, getCurrentEditorSelectionContext, showAiInstructionDialog])
+
+    const handleAiEditClick = useCallback(() => {
+      if (!document?.id) return
+
+      const useLegacyPanel =
+        typeof window !== 'undefined' && window.localStorage.getItem('document-ai-edit-entrypoint') === 'legacy'
+      if (useLegacyPanel) {
+        setRightSidebar(prev => (prev === 'ai' ? 'closed' : 'ai'))
+        return
+      }
+
+      if (showAiInstructionDialog) {
+        setShowAiInstructionDialog(false)
+        setAiInstruction('')
+        setAiSelectionSnapshot('')
+        setAiSelectionSnapshotHtml('')
+        return
+      }
+
+      const selectionContext = getCurrentEditorSelectionContext()
+      setAiSelectionSnapshot(selectionContext.text)
+      setAiSelectionSnapshotHtml(selectionContext.html)
+      setAiInstruction('')
+      setShowAiInstructionDialog(true)
+    }, [document?.id, getCurrentEditorSelectionContext, showAiInstructionDialog])
+
+    const handleConfirmAiInstruction = useCallback(() => {
+      if (!document?.id) return
+      const trimmedInstruction = aiInstruction.trim()
+      if (!trimmedInstruction) return
+
+      const prompt = buildDocumentEditPrompt({
+        documentId: document.id,
+        documentTitle: title,
+        selectedText: aiSelectionSnapshot,
+        selectedHtml: aiSelectionSnapshotHtml,
+        userInstruction: trimmedInstruction
+      })
+
+      setShowAiInstructionDialog(false)
+      setAiInstruction('')
+      setAiSelectionSnapshot('')
+      setAiSelectionSnapshotHtml('')
+
+      // Localhost fallback: when modules run separately, openEveryAI event listeners
+      // may not be mounted in the current shell, so route to EveryAI explicitly.
+      const isLocalHost =
+        typeof window !== 'undefined' &&
+        (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+      if (isLocalHost) {
+        try {
+          sessionStorage.setItem('everyAIInitialPrompt', prompt)
+        } catch (error) {
+          console.warn('[PagedDocumentEditor] Failed to persist EveryAI prompt for route fallback', error)
+        }
+      }
+
+      openEveryAI({ prompt })
+
+      if (isLocalHost) {
+        setTimeout(() => {
+          navigateTo('/platform/every-ai')
+        }, 150)
+      }
+    }, [aiInstruction, aiSelectionSnapshot, aiSelectionSnapshotHtml, document?.id, title])
+
     // Get word count
     const wordCount =
       editor?.storage.characterCount?.words?.() || editor?.getText().trim().split(/\s+/).filter(Boolean).length || 0
@@ -836,7 +1219,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     }, [])
 
     return (
-      <div className="gba:flex gba:flex-col gba:h-full gba:bg-background" data-testid={testId}>
+      <div className="gba:flex gba:flex-col gba:h-full gba:bg-background gba:relative" data-testid={testId}>
         {/* Header */}
         <div ref={headerToolbarRef} className="gba:border-b gba:bg-card gba:shadow-sm">
           <div className="gba:px-4 gba:py-3">
@@ -1080,13 +1463,29 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
                 )}
 
                 {/* AI Editor button (same style as notes Transform) */}
+                {document?.id && autocompleteRolloutEnabled && (
+                  <div
+                    className="gba:flex gba:items-center gba:gap-2 gba:px-2"
+                    data-testid="document-autocomplete-toggle"
+                  >
+                    <span className="gba:text-xs gba:text-muted-foreground">Autocomplete</span>
+                    <Switch
+                      checked={isAutocompleteToggleEnabled}
+                      onCheckedChange={checked => {
+                        setIsAutocompleteToggleEnabled(checked)
+                        clearAutocompleteSuggestion()
+                      }}
+                    />
+                  </div>
+                )}
+
                 {document?.id && (
                   <AiButton
                     size="sm"
                     showIcon
                     icon={<Wand2 className="gba:w-4 gba:h-4" />}
                     iconPosition="before"
-                    onClick={() => setRightSidebar(prev => (prev === 'ai' ? 'closed' : 'ai'))}
+                    onClick={handleAiEditClick}
                     data-testid="ai-edit-button"
                   >
                     AI Edit
@@ -1139,6 +1538,91 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           </div>
         </div>
 
+        {document?.id && showAiInstructionDialog && (
+          <div className="gba:absolute gba:top-24 gba:right-6 gba:z-30 gba:pointer-events-none">
+            <div
+              className="gba:pointer-events-auto gba:w-[420px] gba:max-w-[calc(100vw-3rem)] gba:rounded-md gba:border gba:bg-background gba:p-3 gba:space-y-2 gba:shadow-lg"
+              data-testid="document-ai-instruction-inline"
+            >
+              <Label htmlFor="document-ai-instruction-input">Instruction</Label>
+              <Textarea
+                id="document-ai-instruction-input"
+                value={aiInstruction}
+                onChange={e => setAiInstruction(e.target.value)}
+                onInput={e => {
+                  const textarea = e.currentTarget
+                  textarea.style.height = 'auto'
+                  textarea.style.height = `${Math.min(textarea.scrollHeight, 220)}px`
+                }}
+                onKeyDown={e => {
+                  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && aiInstruction.trim()) {
+                    e.preventDefault()
+                    handleConfirmAiInstruction()
+                  }
+                }}
+                placeholder="Example: rewrite this in a more formal tone and fix grammar mistakes."
+                rows={4}
+                className="gba:min-h-[96px] gba:max-h-[220px] gba:overflow-y-auto"
+                autoFocus
+                data-testid="document-ai-instruction-input"
+              />
+              {(aiSelectionSnapshot.trim() || sanitizedAiSelectionPreviewHtml) && (
+                <div className="gba:space-y-1">
+                  <p className="gba:text-xs gba:text-muted-foreground" data-testid="document-ai-selection-hint">
+                    Selection detected. Edits will focus on this content unless you say otherwise.
+                  </p>
+                  <div
+                    className={`gba:overflow-y-auto gba:rounded-md gba:border gba:bg-muted/30 gba:px-2 gba:py-1 gba:text-xs gba:text-muted-foreground ${
+                      isAiSelectionPreviewExpanded ? 'gba:max-h-52' : 'gba:max-h-24'
+                    } ${hasLongAiSelectionPreview ? 'gba:cursor-pointer' : ''}`}
+                    data-testid="document-ai-selection-preview"
+                    onDoubleClick={() => {
+                      if (hasLongAiSelectionPreview) {
+                        setIsAiSelectionPreviewExpanded(prev => !prev)
+                      }
+                    }}
+                    title={hasLongAiSelectionPreview ? 'Double-click to expand/collapse preview' : undefined}
+                  >
+                    {sanitizedAiSelectionPreviewHtml ? (
+                      <div
+                        className="document-ai-selection-preview-content gba:prose gba:prose-sm gba:max-w-none"
+                        dangerouslySetInnerHTML={{ __html: sanitizedAiSelectionPreviewHtml }}
+                      />
+                    ) : (
+                      aiSelectionSnapshot
+                    )}
+                  </div>
+                  {hasLongAiSelectionPreview && (
+                    <p className="gba:text-[10px] gba:text-muted-foreground">
+                      Double-click to {isAiSelectionPreviewExpanded ? 'collapse' : 'expand'}.
+                    </p>
+                  )}
+                </div>
+              )}
+              <div className="gba:flex gba:justify-end gba:gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowAiInstructionDialog(false)
+                    setAiInstruction('')
+                    setAiSelectionSnapshot('')
+                    setAiSelectionSnapshotHtml('')
+                  }}
+                >
+                  Close
+                </Button>
+                <Button
+                  onClick={handleConfirmAiInstruction}
+                  disabled={!aiInstruction.trim()}
+                  data-testid="document-ai-instruction-confirm"
+                >
+                  Submit
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Editor Styles */}
         <style>{`
         .paged-document-editor .ProseMirror {
@@ -1175,6 +1659,29 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
 
         /* TipTap often wraps list-item text in <p>. Keep it inline so markers align nicely. */
         .paged-document-editor .ProseMirror li > p {
+          display: inline;
+          margin: 0;
+        }
+
+        .document-ai-selection-preview-content ul {
+          list-style: disc;
+          list-style-position: outside;
+          padding-left: 1.25rem;
+          margin: 0.25rem 0;
+        }
+
+        .document-ai-selection-preview-content ol {
+          list-style: decimal;
+          list-style-position: outside;
+          padding-left: 1.25rem;
+          margin: 0.25rem 0;
+        }
+
+        .document-ai-selection-preview-content li {
+          margin: 0.15rem 0;
+        }
+
+        .document-ai-selection-preview-content li > p {
           display: inline;
           margin: 0;
         }
@@ -1359,6 +1866,14 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           transition: background 0.2s ease;
         }
 
+        .paged-document-editor .ProseMirror .document-autocomplete-ghost-text {
+          color: #9ca3af;
+          opacity: 0.9;
+          user-select: none;
+          pointer-events: none;
+          white-space: pre-wrap;
+        }
+
         /* Table resize handles */
         .paged-document-editor .ProseMirror .selectedCell:after {
           z-index: 2;
@@ -1517,6 +2032,14 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         <InlineCommentPopover
           isOpen={showInlineCommentPopover}
           position={inlineCommentPosition}
+          onEditWithAI={() => {
+            if (!pendingSelection) return
+            setAiSelectionSnapshot(pendingSelection.text)
+            setAiInstruction('')
+            setShowAiInstructionDialog(true)
+            setShowInlineCommentPopover(false)
+            setPendingSelection(null)
+          }}
           onSubmit={async content => {
             if (!pendingSelection || !editor) return
 

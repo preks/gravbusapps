@@ -75,6 +75,22 @@ export interface ExtractFromFileResponse {
   unmappedSourceFields: string[]
 }
 
+export interface DocumentAutocompleteRequest {
+  document_id?: string
+  title?: string
+  prefix_text: string
+  suffix_text?: string
+  max_tokens?: number
+  llm_provider?: 'openai' | 'groq'
+}
+
+export interface DocumentAutocompleteResponse {
+  completion_text: string
+  finish_reason?: string | null
+  latency_ms: number
+  diagnostics?: string | null
+}
+
 export class FlowbotClient extends RestClient {
   constructor() {
     // Use environment-aware base URL (localhost → dev → env NEXT_PUBLIC_FLOWBOT_ENDPOINT / NEXT_PUBLIC_BASE_URL)
@@ -160,6 +176,13 @@ export class FlowbotClient extends RestClient {
     formData.append('max_rows', maxRows.toString())
 
     return this.post<ExtractFromFileResponse>('/extraction/data/entities/extract-from-file', formData, options)
+  }
+
+  public async getDocumentAutocomplete(
+    request: DocumentAutocompleteRequest,
+    options: Omit<RequestOptions, 'body'> = {}
+  ): Promise<DocumentAutocompleteResponse> {
+    return this.post<DocumentAutocompleteResponse>('/text-generation/document-autocomplete', request, options)
   }
 }
 
