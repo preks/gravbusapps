@@ -41,6 +41,7 @@ import { MicLevelIndicator } from './call/MicLevelIndicator'
 
 interface IncomingGroupCallDialogProps {
   invite: GroupCallInvite
+  playRingtone?: boolean
   userName?: string
   userAvatarUrl?: string
   onAccept: (preferences: {
@@ -78,7 +79,15 @@ const PulsingRing: React.FC<{ colorClass?: string }> = ({ colorClass = 'gba:bg-p
 )
 
 export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = memo(
-  ({ invite, userName, userAvatarUrl, onAccept, onDecline, prefixDataTestId = 'incoming-group-call-dialog' }) => {
+  ({
+    invite,
+    playRingtone = false,
+    userName,
+    userAvatarUrl,
+    onAccept,
+    onDecline,
+    prefixDataTestId = 'incoming-group-call-dialog'
+  }) => {
     const t = useChatTranslation()
     const [ringCount, setRingCount] = useState(0)
     const [isJoining, setIsJoining] = useState(false)
@@ -262,31 +271,44 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = m
       return () => clearInterval(interval)
     }, [])
 
-    // Play ringtone effect
+    // Play ringtone effect only in the ringing-leader tab (one tab per invite).
+    // One AudioContext + oscillator per beep (original behavior); all cleaned up to avoid leaks.
+    const MAX_OPEN_CONTEXTS = 6
+
     useEffect(() => {
-      let audioContext: AudioContext | null = null
-      let oscillator: OscillatorNode | null = null
-      let gainNode: GainNode | null = null
+      if (!playRingtone) return
+      const contexts: AudioContext[] = []
+      const pendingTimeouts: ReturnType<typeof setTimeout>[] = []
 
       const playRing = () => {
         try {
-          audioContext = new AudioContext()
-          oscillator = audioContext.createOscillator()
-          gainNode = audioContext.createGain()
-
+          while (contexts.length >= MAX_OPEN_CONTEXTS) {
+            const old = contexts.shift()
+            if (old) {
+              old.close().catch(() => {
+                // Already closed or failed
+              })
+            }
+          }
+          const audioContext = new AudioContext()
+          contexts.push(audioContext)
+          const oscillator = audioContext.createOscillator()
+          const gainNode = audioContext.createGain()
           oscillator.connect(gainNode)
           gainNode.connect(audioContext.destination)
-
           oscillator.type = 'sine'
           oscillator.frequency.value = 440
-
           gainNode.gain.value = 0.1
-
           oscillator.start()
 
-          setTimeout(() => {
-            if (oscillator) oscillator.stop()
+          const id = setTimeout(() => {
+            try {
+              oscillator.stop()
+            } catch {
+              // Already stopped
+            }
           }, 200)
+          pendingTimeouts.push(id)
         } catch (e) {
           console.debug('Could not play ringtone:', e)
         }
@@ -297,18 +319,14 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = m
 
       return () => {
         clearInterval(ringInterval)
-        if (oscillator) {
-          try {
-            oscillator.stop()
-          } catch {
-            // Already stopped
-          }
-        }
-        if (audioContext) {
-          audioContext.close()
-        }
+        pendingTimeouts.forEach(id => clearTimeout(id))
+        contexts.forEach(ctx => {
+          ctx.close().catch(() => {
+            // Already closed or failed
+          })
+        })
       }
-    }, [])
+    }, [playRingtone])
 
     return (
       <Dialog open={true} onOpenChange={() => {}}>
@@ -652,12 +670,12 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = m
     )
   },
   (prevProps, nextProps) => {
-    // Only re-render if invite or testId changes
     return (
       prevProps.invite.roomId === nextProps.invite.roomId &&
       prevProps.invite.callType === nextProps.invite.callType &&
       prevProps.invite.from.id === nextProps.invite.from.id &&
       prevProps.invite.conversationName === nextProps.invite.conversationName &&
+      prevProps.playRingtone === nextProps.playRingtone &&
       prevProps.prefixDataTestId === nextProps.prefixDataTestId
     )
   }

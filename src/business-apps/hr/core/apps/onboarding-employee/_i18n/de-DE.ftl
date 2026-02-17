@@ -43,7 +43,13 @@ onboarding-employee-column-created = Erstellt
 onboarding-employee-column-updated = Aktualisiert
 onboarding-employee-search-placeholder = Fälle suchen...
 onboarding-employee-empty-message = Keine Onboarding-Fälle gefunden
+onboarding-employee-column-actions = Aktionen
 onboarding-employee-action-view = Details anzeigen
+onboarding-employee-cancel-case-dialog-item-title = Fall
+onboarding-employee-cancel-case-dialog-title = Fall abbrechen
+onboarding-employee-cancel-case-dialog-description = Möchten Sie diesen Onboarding-Fall wirklich abbrechen? Diese Aktion kann nicht rückgängig gemacht werden.
+onboarding-employee-cancel-case-dialog-confirm = Fall abbrechen
+onboarding-employee-cancel-case-dialog-cancel = Behalten
 
 # Create Case form
 create-case-modal-title = Onboarding-Fall anlegen
