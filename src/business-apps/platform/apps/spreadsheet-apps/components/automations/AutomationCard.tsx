@@ -73,7 +73,7 @@ function getAutomationTypeLabel(type: AutomationType): string {
   const labels: Record<AutomationType, string> = {
     row_workflow: 'Row Workflow',
     bulk_collection: 'Bulk Collection',
-    excel_collection: 'Excel Collection',
+    excel_collection: 'Spreadsheet Collection',
     sheet_approval: 'Sheet Approval',
     line_approval: 'Line Approval'
   }

@@ -6,6 +6,7 @@
  */
 
 import React, { useState, useCallback, useMemo, useEffect } from 'react'
+import { toast } from 'sonner'
 import {
   Card,
   CardContent,
@@ -401,7 +402,13 @@ export const AutomationsHub: React.FC<AutomationsHubProps> = ({
     async (automationId: string) => {
       setRunningAutomations(prev => new Set(prev).add(automationId))
       try {
-        await onRunAutomation(automationId)
+        const result = await onRunAutomation(automationId)
+        if (!result?.success && result?.error) {
+          toast.error(result.error)
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Failed to run automation'
+        toast.error(msg)
       } finally {
         setRunningAutomations(prev => {
           const next = new Set(prev)

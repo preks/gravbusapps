@@ -18,6 +18,7 @@ import {
   WorkflowStatusSyncService,
   createWorkflowStatusSyncService
 } from '../services'
+import { isUuid } from '../types/automation'
 import { buildSentRowTrackingValues, buildCompletedRowTrackingValues, isTrackingColumn } from '../utils/trackingColumns'
 import { getDefaultTrackingColumns } from '../components/automations/TrackingColumnsConfig'
 import { graphQLClient } from '@/common/network/graphql/GraphQLClient'
@@ -516,8 +517,12 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
           }
         }
 
-        // Update automation last run time
-        await updateAutomation(automationId, { lastRunAt: executedAt, runCount: automation.runCount + 1 })
+        // Update automation last run time and backendId (when created on first run)
+        await updateAutomation(automationId, {
+          lastRunAt: executedAt,
+          runCount: automation.runCount + 1,
+          ...(result.backendId && { backendId: result.backendId })
+        })
 
         // Add to execution history
         const historyEntry: AutomationExecutionHistory = {
@@ -707,16 +712,19 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
 
     for (const automation of bulkCollectionAutomations) {
       try {
+        // For excel_collection, flows are tagged with backend UUID (document-service). Use backendId when available.
+        const effectiveAutomationId =
+          automation.backendId || (isUuid(automation.id) ? automation.id : null) || automation.id
         console.log('[useSpreadsheetAutomations][trace] fetchBulkCollectionResponses:start', {
           spreadsheetId,
           sheetId,
-          automationId: automation.id,
+          automationId: effectiveAutomationId,
           automationType: automation.type
         })
         const responses = await service.fetchBulkCollectionResponses({
           spreadsheetId,
           sheetId,
-          automationId: automation.id,
+          automationId: effectiveAutomationId,
           automationType: automation.type === 'excel_collection' ? 'excel_collection' : 'bulk_collection'
         })
 
@@ -727,13 +735,11 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
         // until the report sheet is actually updated.
         const shouldDedupeByMemory = automation.type !== 'excel_collection'
         const newResponses = responses.filter(
-          r =>
-            r.status === 'COMPLETED' &&
-            (!shouldDedupeByMemory || !processedWorkflowIdsRef.current.has(r.workflowId))
+          r => r.status === 'COMPLETED' && (!shouldDedupeByMemory || !processedWorkflowIdsRef.current.has(r.workflowId))
         )
 
         console.log('[useSpreadsheetAutomations][trace] fetchBulkCollectionResponses:received', {
-          automationId: automation.id,
+          automationId: effectiveAutomationId,
           shouldDedupeByMemory,
           totalResponses: responses.length,
           completedUnprocessed: newResponses.length,

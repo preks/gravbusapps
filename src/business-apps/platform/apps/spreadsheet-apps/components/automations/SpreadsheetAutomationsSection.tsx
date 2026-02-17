@@ -13,12 +13,9 @@ import {
   Badge,
   Input,
   Spinner,
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
+  Avatar,
+  AvatarImage,
+  AvatarFallback,
   Tabs,
   TabsList,
   TabsTrigger
@@ -27,6 +24,7 @@ import {
   Zap,
   Search,
   Play,
+  Square,
   History,
   Clock,
   CheckCircle,
@@ -38,11 +36,13 @@ import {
   FileDown,
   ClipboardCheck,
   ChevronRight,
-  Eye
+  Eye,
+  ExternalLink
 } from 'lucide-react'
-import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
 import type { SpreadsheetAutomation, AutomationType } from '../../types/automation'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { GET_EMPLOYEE_LIGHT_BY_USER_ID, GET_EMPLOYEE_LIGHT_BY_ID } from '@/common/data/employee/queries/employeeQueries'
 
 export interface AutomationRun {
   id: string
@@ -66,8 +66,25 @@ export interface AutomationWithRuns extends SpreadsheetAutomation {
   recentRuns?: AutomationRun[]
 }
 
-export interface SpreadsheetAutomationsSectionProps extends BusinessAppContextProps {
+export interface SpreadsheetAutomationsSectionProps {
+  accessToken: string
   'data-testid'?: string
+}
+
+function extractArray<T>(payload: unknown): T[] {
+  if (Array.isArray(payload)) return payload as T[]
+  if (!payload || typeof payload !== 'object') return []
+
+  const obj = payload as Record<string, unknown>
+  const data = obj.data
+
+  if (Array.isArray(obj.items)) return obj.items as T[]
+  if (Array.isArray(data)) return data as T[]
+  if (data && typeof data === 'object' && Array.isArray((data as Record<string, unknown>).items)) {
+    return (data as Record<string, unknown>).items as T[]
+  }
+
+  return []
 }
 
 /**
@@ -167,7 +184,7 @@ function getStatusIcon(status: AutomationRun['status']) {
  * SpreadsheetAutomationsSection Component
  */
 export const SpreadsheetAutomationsSection: React.FC<SpreadsheetAutomationsSectionProps> = ({
-  context,
+  accessToken,
   'data-testid': testId = 'spreadsheet-automations-section'
 }) => {
   const [automations, setAutomations] = useState<AutomationWithRuns[]>([])
@@ -177,12 +194,42 @@ export const SpreadsheetAutomationsSection: React.FC<SpreadsheetAutomationsSecti
   const [activeTab, setActiveTab] = useState('all')
   const [selectedAutomation, setSelectedAutomation] = useState<AutomationWithRuns | null>(null)
   const [runningAutomations, setRunningAutomations] = useState<Set<string>>(new Set())
+  const [stoppingRuns, setStoppingRuns] = useState<Set<string>>(new Set())
 
   const docServiceUrl = getDocumentServiceApiUrl().replace(/\/+$/, '')
 
+  const fetchAccessibleSpreadsheets = useCallback(async (): Promise<Array<{ id: string; name: string }>> => {
+    const PAGE_SIZE = 100
+    let page = 1
+    let hasMore = true
+    const apps: Array<{ id: string; name: string }> = []
+
+    while (hasMore) {
+      const response = await fetch(`${docServiceUrl}/spreadsheets?page=${page}&limit=${PAGE_SIZE}`, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      })
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch spreadsheets: ${response.statusText}`)
+      }
+
+      const payload = await response.json()
+      const items = extractArray<{ id: string; name: string }>(payload)
+      apps.push(...items.map(item => ({ id: item.id, name: item.name })))
+      hasMore = items.length === PAGE_SIZE
+      page++
+    }
+
+    return apps
+  }, [accessToken, docServiceUrl])
+
   // Fetch all automations
   const fetchAutomations = useCallback(async () => {
-    if (!context.accessToken) {
+    if (!accessToken) {
       setError('Access token not available')
       setIsLoading(false)
       return
@@ -192,30 +239,46 @@ export const SpreadsheetAutomationsSection: React.FC<SpreadsheetAutomationsSecti
     setError(null)
 
     try {
-      // Fetch automations from document service
-      const response = await fetch(`${docServiceUrl}/automations`, {
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${context.accessToken}`,
-          'Content-Type': 'application/json'
-        }
-      })
+      // Backend does not expose GET /automations.
+      // Aggregate automations by reading all accessible spreadsheets, then per-app automations.
+      const spreadsheets = await fetchAccessibleSpreadsheets()
+      const automationsByApp = await Promise.all(
+        spreadsheets.map(async app => {
+          try {
+            const response = await fetch(`${docServiceUrl}/automations/app/${app.id}`, {
+              method: 'GET',
+              headers: {
+                Authorization: `Bearer ${accessToken}`,
+                'Content-Type': 'application/json'
+              }
+            })
 
-      if (!response.ok) {
-        throw new Error(`Failed to fetch automations: ${response.statusText}`)
-      }
+            if (!response.ok) {
+              return [] as AutomationWithRuns[]
+            }
 
-      const data = await response.json()
-      const automationsList = data.data || data || []
+            const data = await response.json()
+            const appAutomations = extractArray<SpreadsheetAutomation>(data)
+            return appAutomations.map(automation => ({
+              ...automation,
+              spreadsheetAppId: app.id,
+              spreadsheetAppName: app.name
+            }))
+          } catch {
+            return [] as AutomationWithRuns[]
+          }
+        })
+      )
+      const automationsList = automationsByApp.flat()
 
       // Fetch recent runs for each automation
       const automationsWithRuns = await Promise.all(
-        automationsList.map(async (automation: SpreadsheetAutomation & { spreadsheetAppId?: string }) => {
+        automationsList.map(async (automation: AutomationWithRuns) => {
           try {
             const runsResponse = await fetch(`${docServiceUrl}/automations/${automation.id}/runs?limit=5`, {
               method: 'GET',
               headers: {
-                Authorization: `Bearer ${context.accessToken}`,
+                Authorization: `Bearer ${accessToken}`,
                 'Content-Type': 'application/json'
               }
             })
@@ -224,7 +287,7 @@ export const SpreadsheetAutomationsSection: React.FC<SpreadsheetAutomationsSecti
               const runsData = await runsResponse.json()
               return {
                 ...automation,
-                recentRuns: runsData.data || runsData || []
+                recentRuns: extractArray<AutomationRun>(runsData)
               }
             }
           } catch {
@@ -242,7 +305,7 @@ export const SpreadsheetAutomationsSection: React.FC<SpreadsheetAutomationsSecti
     } finally {
       setIsLoading(false)
     }
-  }, [context.accessToken, docServiceUrl])
+  }, [accessToken, docServiceUrl, fetchAccessibleSpreadsheets])
 
   useEffect(() => {
     fetchAutomations()
@@ -271,7 +334,7 @@ export const SpreadsheetAutomationsSection: React.FC<SpreadsheetAutomationsSecti
   // Run automation
   const handleRunAutomation = useCallback(
     async (automation: AutomationWithRuns) => {
-      if (!context.accessToken) return
+      if (!accessToken) return
 
       setRunningAutomations(prev => new Set(prev).add(automation.id))
 
@@ -279,7 +342,7 @@ export const SpreadsheetAutomationsSection: React.FC<SpreadsheetAutomationsSecti
         const response = await fetch(`${docServiceUrl}/automations/${automation.id}/run`, {
           method: 'POST',
           headers: {
-            Authorization: `Bearer ${context.accessToken}`,
+            Authorization: `Bearer ${accessToken}`,
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
@@ -305,13 +368,47 @@ export const SpreadsheetAutomationsSection: React.FC<SpreadsheetAutomationsSecti
         })
       }
     },
-    [context.accessToken, docServiceUrl, fetchAutomations]
+    [accessToken, docServiceUrl, fetchAutomations]
   )
 
   // View automation details
   const handleViewAutomation = useCallback((automation: AutomationWithRuns) => {
     setSelectedAutomation(automation)
   }, [])
+
+  const handleStopRun = useCallback(
+    async (runId: string) => {
+      if (!accessToken || !runId) return
+
+      setStoppingRuns(prev => new Set(prev).add(runId))
+      try {
+        const response = await fetch(`${docServiceUrl}/automations/runs/${runId}/cancel`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          }
+        })
+
+        if (!response.ok) {
+          const errData = await response.json().catch(() => ({}))
+          throw new Error(errData.message || `Failed to stop run: ${response.statusText}`)
+        }
+
+        await fetchAutomations()
+      } catch (err) {
+        console.error('[SpreadsheetAutomationsSection] Error stopping run:', err)
+        setError(err instanceof Error ? err.message : 'Failed to stop run')
+      } finally {
+        setStoppingRuns(prev => {
+          const next = new Set(prev)
+          next.delete(runId)
+          return next
+        })
+      }
+    },
+    [accessToken, docServiceUrl, fetchAutomations]
+  )
 
   // Stats
   const stats = useMemo(() => {
@@ -361,7 +458,7 @@ export const SpreadsheetAutomationsSection: React.FC<SpreadsheetAutomationsSecti
     return (
       <AutomationDetailView
         automation={selectedAutomation}
-        context={context}
+        accessToken={accessToken}
         onBack={() => setSelectedAutomation(null)}
         onRunAgain={() => handleRunAutomation(selectedAutomation)}
         isRunning={runningAutomations.has(selectedAutomation.id)}
@@ -403,7 +500,7 @@ export const SpreadsheetAutomationsSection: React.FC<SpreadsheetAutomationsSecti
           <Card>
             <CardContent className="gba:p-3">
               <div className="gba:flex gba:items-center gba:justify-between">
-                <div className="gba:text-xs gba:text-muted-foreground">Excel Collections</div>
+                <div className="gba:text-xs gba:text-muted-foreground">Spreadsheet Collections</div>
                 <div className="gba:text-lg gba:font-bold gba:text-primary">
                   {stats.byType['excel_collection'] || 0}
                 </div>
@@ -443,7 +540,7 @@ export const SpreadsheetAutomationsSection: React.FC<SpreadsheetAutomationsSecti
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList>
             <TabsTrigger value="all">All</TabsTrigger>
-            <TabsTrigger value="excel_collection">Excel Collection</TabsTrigger>
+            <TabsTrigger value="excel_collection">Spreadsheet Collection</TabsTrigger>
             <TabsTrigger value="bulk_collection">Bulk Collection</TabsTrigger>
             <TabsTrigger value="row_workflow">Row Workflow</TabsTrigger>
           </TabsList>
@@ -474,7 +571,9 @@ export const SpreadsheetAutomationsSection: React.FC<SpreadsheetAutomationsSecti
                 automation={automation}
                 onView={() => handleViewAutomation(automation)}
                 onRun={() => handleRunAutomation(automation)}
+                onStopRun={runId => handleStopRun(runId)}
                 isRunning={runningAutomations.has(automation.id)}
+                isStoppingRun={Boolean(automation.recentRuns?.[0]?.id && stoppingRuns.has(automation.recentRuns[0].id))}
               />
             ))}
           </div>
@@ -491,12 +590,22 @@ interface AutomationListItemProps {
   automation: AutomationWithRuns
   onView: () => void
   onRun: () => void
+  onStopRun: (runId: string) => void
   isRunning: boolean
+  isStoppingRun: boolean
 }
 
-const AutomationListItem: React.FC<AutomationListItemProps> = ({ automation, onView, onRun, isRunning }) => {
+const AutomationListItem: React.FC<AutomationListItemProps> = ({
+  automation,
+  onView,
+  onRun,
+  onStopRun,
+  isRunning,
+  isStoppingRun
+}) => {
   const Icon = getAutomationTypeIcon(automation.type)
   const latestRun = automation.recentRuns?.[0]
+  const canStopLatestRun = latestRun && (latestRun.status === 'RUNNING' || latestRun.status === 'PENDING')
 
   return (
     <Card
@@ -566,6 +675,16 @@ const AutomationListItem: React.FC<AutomationListItemProps> = ({ automation, onV
                 Run
               </Button>
             )}
+            {canStopLatestRun && (
+              <Button size="sm" variant="outline" onClick={() => onStopRun(latestRun.id)} disabled={isStoppingRun}>
+                {isStoppingRun ? (
+                  <Spinner size="sm" className="gba:mr-1" />
+                ) : (
+                  <Square className="gba:w-4 gba:h-4 gba:mr-1" />
+                )}
+                Stop
+              </Button>
+            )}
 
             <Button size="sm" variant="ghost" onClick={onView}>
               <Eye className="gba:w-4 gba:h-4 gba:mr-1" />
@@ -608,7 +727,7 @@ const AutomationListItem: React.FC<AutomationListItemProps> = ({ automation, onV
  */
 interface AutomationDetailViewProps {
   automation: AutomationWithRuns
-  context: BusinessAppContextProps['context']
+  accessToken: string
   onBack: () => void
   onRunAgain: () => void
   isRunning: boolean
@@ -617,7 +736,7 @@ interface AutomationDetailViewProps {
 
 const AutomationDetailView: React.FC<AutomationDetailViewProps> = ({
   automation,
-  context,
+  accessToken,
   onBack,
   onRunAgain,
   isRunning,
@@ -632,32 +751,44 @@ const AutomationDetailView: React.FC<AutomationDetailViewProps> = ({
 
   // Fetch all runs for this automation
   const fetchRuns = useCallback(async () => {
-    if (!context.accessToken) return
+    if (!accessToken) return
 
     setIsLoadingRuns(true)
     try {
       const response = await fetch(`${docServiceUrl}/automations/${automation.id}/runs?limit=50`, {
         method: 'GET',
         headers: {
-          Authorization: `Bearer ${context.accessToken}`,
+          Authorization: `Bearer ${accessToken}`,
           'Content-Type': 'application/json'
         }
       })
 
       if (response.ok) {
         const data = await response.json()
-        setRuns(data.data || data || [])
+        setRuns(extractArray<AutomationRun>(data))
       }
     } catch (err) {
       console.error('[AutomationDetailView] Error fetching runs:', err)
     } finally {
       setIsLoadingRuns(false)
     }
-  }, [context.accessToken, docServiceUrl, automation.id])
+  }, [accessToken, docServiceUrl, automation.id])
 
   useEffect(() => {
     fetchRuns()
   }, [fetchRuns])
+
+  useEffect(() => {
+    if (runs.length === 0) {
+      setSelectedRun(null)
+      return
+    }
+
+    setSelectedRun(prev => {
+      if (!prev) return runs[0]
+      return runs.find(run => run.id === prev.id) || runs[0]
+    })
+  }, [runs])
 
   return (
     <div className="gba:flex gba:flex-col gba:h-full" data-testid={testId}>
@@ -722,121 +853,206 @@ const AutomationDetailView: React.FC<AutomationDetailViewProps> = ({
             </CardContent>
           </Card>
         ) : (
-          <div className="gba:space-y-3">
-            {runs.map(run => {
-              const StatusIcon = getStatusIcon(run.status)
-              const progress = run.recipientCount > 0 ? (run.completedCount / run.recipientCount) * 100 : 0
+          <div className="gba:grid gba:grid-cols-1 xl:gba:grid-cols-[minmax(0,2fr)_minmax(340px,1fr)] gba:gap-4">
+            <div className="gba:space-y-3">
+              {runs.map(run => {
+                const StatusIcon = getStatusIcon(run.status)
+                const progress = run.recipientCount > 0 ? (run.completedCount / run.recipientCount) * 100 : 0
+                const isSelected = selectedRun?.id === run.id
 
-              return (
-                <Card
-                  key={run.id}
-                  className="gba:hover:border-primary/50 gba:transition-colors gba:cursor-pointer"
-                  onClick={() => setSelectedRun(run)}
-                >
-                  <CardContent className="gba:p-4">
-                    <div className="gba:flex gba:items-center gba:justify-between gba:gap-4">
-                      <div className="gba:flex gba:items-center gba:gap-3">
-                        <StatusIcon
-                          className={`gba:w-5 gba:h-5 ${
-                            run.status === 'COMPLETED'
-                              ? 'gba:text-success'
-                              : run.status === 'FAILED' || run.status === 'CANCELLED'
-                                ? 'gba:text-destructive'
-                                : run.status === 'RUNNING'
-                                  ? 'gba:text-info gba:animate-spin'
-                                  : 'gba:text-muted-foreground'
-                          }`}
-                        />
-                        <div>
-                          <div className="gba:flex gba:items-center gba:gap-2">
-                            <span className="gba:font-medium gba:text-foreground">
-                              {formatRelativeTime(run.startedAt)}
-                            </span>
-                            <Badge variant={getStatusBadgeVariant(run.status)} className="gba:text-xs">
-                              {run.status.replace('_', ' ')}
-                            </Badge>
-                          </div>
-                          <p className="gba:text-sm gba:text-muted-foreground gba:mt-1">
-                            {run.completedCount} of {run.recipientCount} completed
-                            {run.message && ` • ${run.message}`}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="gba:flex gba:items-center gba:gap-4">
-                        <div className="gba:w-32">
-                          <div className="gba:h-2 gba:bg-muted gba:rounded-full gba:overflow-hidden">
-                            <div
-                              className={`gba:h-full gba:rounded-full ${
-                                run.status === 'COMPLETED'
-                                  ? 'gba:bg-success'
-                                  : run.status === 'FAILED'
-                                    ? 'gba:bg-destructive'
-                                    : 'gba:bg-primary'
-                              }`}
-                              style={{ width: `${progress}%` }}
-                            />
+                return (
+                  <Card
+                    key={run.id}
+                    className={`gba:transition-colors gba:cursor-pointer ${
+                      isSelected ? 'gba:border-primary gba:bg-primary/5' : 'gba:hover:border-primary/50'
+                    }`}
+                    onClick={() => setSelectedRun(run)}
+                  >
+                    <CardContent className="gba:p-4">
+                      <div className="gba:flex gba:items-center gba:justify-between gba:gap-4">
+                        <div className="gba:flex gba:items-center gba:gap-3">
+                          <StatusIcon
+                            className={`gba:w-5 gba:h-5 ${
+                              run.status === 'COMPLETED'
+                                ? 'gba:text-success'
+                                : run.status === 'FAILED' || run.status === 'CANCELLED'
+                                  ? 'gba:text-destructive'
+                                  : run.status === 'RUNNING'
+                                    ? 'gba:text-info gba:animate-spin'
+                                    : 'gba:text-muted-foreground'
+                            }`}
+                          />
+                          <div>
+                            <div className="gba:flex gba:items-center gba:gap-2">
+                              <span className="gba:font-medium gba:text-foreground">
+                                {formatRelativeTime(run.startedAt)}
+                              </span>
+                              <Badge variant={getStatusBadgeVariant(run.status)} className="gba:text-xs">
+                                {run.status.replace('_', ' ')}
+                              </Badge>
+                            </div>
+                            <p className="gba:text-sm gba:text-muted-foreground gba:mt-1">
+                              {run.completedCount} of {run.recipientCount} completed
+                              {run.message && ` • ${run.message}`}
+                            </p>
                           </div>
                         </div>
-                        <ChevronRight className="gba:w-4 gba:h-4 gba:text-muted-foreground" />
+
+                        <div className="gba:flex gba:items-center gba:gap-4">
+                          <div className="gba:w-32">
+                            <div className="gba:h-2 gba:bg-muted gba:rounded-full gba:overflow-hidden">
+                              <div
+                                className={`gba:h-full gba:rounded-full ${
+                                  run.status === 'COMPLETED'
+                                    ? 'gba:bg-success'
+                                    : run.status === 'FAILED'
+                                      ? 'gba:bg-destructive'
+                                      : 'gba:bg-primary'
+                                }`}
+                                style={{ width: `${progress}%` }}
+                              />
+                            </div>
+                          </div>
+                          <ChevronRight className="gba:w-4 gba:h-4 gba:text-muted-foreground" />
+                        </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )
-            })}
+                    </CardContent>
+                  </Card>
+                )
+              })}
+            </div>
+
+            <RunDetailPanel run={selectedRun} accessToken={accessToken} data-testid={`${testId}-run-detail`} />
           </div>
         )}
       </div>
-
-      {/* Run Detail Dialog */}
-      {selectedRun && (
-        <RunDetailDialog
-          run={selectedRun}
-          context={context}
-          onClose={() => setSelectedRun(null)}
-          data-testid={`${testId}-run-detail`}
-        />
-      )}
     </div>
   )
 }
 
 /**
- * RunDetailDialog Component
+ * RunDetailPanel Component
  */
-interface RunDetailDialogProps {
-  run: AutomationRun
-  context: BusinessAppContextProps['context']
-  onClose: () => void
+interface RunDetailPanelProps {
+  run: AutomationRun | null
+  accessToken: string
   'data-testid'?: string
 }
 
-const RunDetailDialog: React.FC<RunDetailDialogProps> = ({ run, context, onClose, 'data-testid': testId }) => {
-  const [submissions, setSubmissions] = useState<Array<{ id: string; name: string; status: string }>>([])
+function formatCompletionDateTime(value?: string): string | null {
+  if (!value) return null
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return null
+  return date.toLocaleString()
+}
+
+function getInitials(name: string): string {
+  return name
+    .split(' ')
+    .map(part => part[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2)
+}
+
+const RunDetailPanel: React.FC<RunDetailPanelProps> = ({ run, accessToken, 'data-testid': testId }) => {
+  const [submissions, setSubmissions] = useState<
+    Array<{
+      id: string
+      recipientId: string
+      recipientName: string
+      recipientAvatar?: string
+      copyAppName: string
+      copyAppUrl: string
+      status: 'COMPLETED' | 'SENT'
+      completedAt?: string
+    }>
+  >([])
   const [isLoading, setIsLoading] = useState(true)
 
   const docServiceUrl = getDocumentServiceApiUrl().replace(/\/+$/, '')
-  const StatusIcon = getStatusIcon(run.status)
+  const StatusIcon = run ? getStatusIcon(run.status) : null
+  const graphqlClient = useGraphQLClient(accessToken)
 
   // Fetch submissions for this run
   useEffect(() => {
     const fetchSubmissions = async () => {
-      if (!context.accessToken) return
+      if (!accessToken || !run?.id) return
 
       setIsLoading(true)
       try {
         const response = await fetch(`${docServiceUrl}/automations/runs/${run.id}/submissions`, {
           method: 'GET',
           headers: {
-            Authorization: `Bearer ${context.accessToken}`,
+            Authorization: `Bearer ${accessToken}`,
             'Content-Type': 'application/json'
           }
         })
 
         if (response.ok) {
           const data = await response.json()
-          setSubmissions(data.data || data || [])
+          const rawSubmissions = extractArray<Record<string, unknown>>(data)
+
+          const enrichedSubmissions = await Promise.all(
+            rawSubmissions.map(async item => {
+              const copyAppId = String(item.id ?? '')
+              const recipientId = String(item.ownerId ?? '')
+              let recipientName = recipientId ? `User ${recipientId.slice(0, 8)}` : 'Unknown user'
+              let recipientAvatar: string | undefined
+
+              if (graphqlClient && recipientId) {
+                for (const queryFn of [GET_EMPLOYEE_LIGHT_BY_USER_ID, GET_EMPLOYEE_LIGHT_BY_ID]) {
+                  try {
+                    const query = queryFn(recipientId)
+                    const result = await graphqlClient.request<{
+                      Employee: Array<{ displayName: string; pictureThumbnail?: string }>
+                    }>(query)
+                    const employee = result.Employee?.[0]
+                    if (employee?.displayName) {
+                      recipientName = employee.displayName
+                      recipientAvatar = employee.pictureThumbnail
+                        ? employee.pictureThumbnail.startsWith('data:')
+                          ? employee.pictureThumbnail
+                          : `data:image/png;base64,${employee.pictureThumbnail}`
+                        : undefined
+                      break
+                    }
+                  } catch {
+                    // Try next strategy
+                  }
+                }
+              }
+
+              const baseOrigin = typeof window !== 'undefined' ? window.location.origin : ''
+              const copyAppUrl = `${baseOrigin}/platform/apps/spreadsheet-apps?appId=${encodeURIComponent(copyAppId)}&view=viewer`
+              const settings = (
+                item.settings && typeof item.settings === 'object' ? (item.settings as Record<string, unknown>) : {}
+              ) as Record<string, unknown>
+              const completedAtRaw =
+                (settings.excel_collection_submitted_at as string | undefined) ||
+                (item.excel_collection_submitted_at as string | undefined) ||
+                (item.completedAt as string | undefined)
+              const isCompleted =
+                settings.excel_collection_submitted === true ||
+                Boolean(completedAtRaw) ||
+                String(item.status ?? '')
+                  .toUpperCase()
+                  .includes('COMPLETED')
+
+              return {
+                id: copyAppId,
+                recipientId,
+                recipientName,
+                recipientAvatar,
+                copyAppName: String(item.name ?? 'Spreadsheet copy'),
+                copyAppUrl,
+                status: isCompleted ? 'COMPLETED' : 'SENT',
+                completedAt: isCompleted ? completedAtRaw : undefined
+              }
+            })
+          )
+
+          setSubmissions(enrichedSubmissions)
         }
       } catch (err) {
         console.error('[RunDetailDialog] Error fetching submissions:', err)
@@ -845,102 +1061,121 @@ const RunDetailDialog: React.FC<RunDetailDialogProps> = ({ run, context, onClose
       }
     }
 
-    fetchSubmissions()
-  }, [context.accessToken, docServiceUrl, run.id])
+    void fetchSubmissions()
+  }, [accessToken, docServiceUrl, run?.id])
+
+  if (!run) {
+    return (
+      <Card className="gba:h-fit" data-testid={testId}>
+        <CardContent className="gba:p-4">
+          <p className="gba:text-sm gba:text-muted-foreground">Select a run to see recipient details.</p>
+        </CardContent>
+      </Card>
+    )
+  }
 
   return (
-    <Dialog open onOpenChange={onClose}>
-      <DialogContent className="gba:max-w-2xl" data-testid={testId}>
-        <DialogHeader>
-          <DialogTitle className="gba:flex gba:items-center gba:gap-2">
-            <StatusIcon
-              className={`gba:w-5 gba:h-5 ${
-                run.status === 'COMPLETED'
-                  ? 'gba:text-success'
-                  : run.status === 'FAILED'
-                    ? 'gba:text-destructive'
-                    : run.status === 'RUNNING'
-                      ? 'gba:text-info gba:animate-spin'
-                      : 'gba:text-muted-foreground'
-              }`}
-            />
+    <Card className="gba:h-fit" data-testid={testId}>
+      <CardContent className="gba:p-4">
+        <div className="gba:mb-4">
+          <h4 className="gba:flex gba:items-center gba:gap-2 gba:font-semibold gba:text-foreground">
+            {StatusIcon && (
+              <StatusIcon
+                className={`gba:w-5 gba:h-5 ${
+                  run.status === 'COMPLETED'
+                    ? 'gba:text-success'
+                    : run.status === 'FAILED'
+                      ? 'gba:text-destructive'
+                      : run.status === 'RUNNING'
+                        ? 'gba:text-info gba:animate-spin'
+                        : 'gba:text-muted-foreground'
+                }`}
+              />
+            )}
             Run Details
-          </DialogTitle>
-          <DialogDescription>
+          </h4>
+          <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">
             Started {formatRelativeTime(run.startedAt)}
             {run.completedAt && ` • Completed ${formatRelativeTime(run.completedAt)}`}
-          </DialogDescription>
-        </DialogHeader>
+          </p>
+        </div>
 
-        <div className="gba:py-4">
-          {/* Progress */}
-          <div className="gba:mb-6">
-            <div className="gba:flex gba:items-center gba:justify-between gba:mb-2">
-              <span className="gba:text-sm gba:font-medium">Progress</span>
-              <span className="gba:text-sm gba:text-muted-foreground">
-                {run.completedCount} / {run.recipientCount}
-              </span>
-            </div>
-            <div className="gba:h-2 gba:bg-muted gba:rounded-full gba:overflow-hidden">
-              <div
-                className={`gba:h-full gba:rounded-full ${
-                  run.status === 'COMPLETED'
-                    ? 'gba:bg-success'
-                    : run.status === 'FAILED'
-                      ? 'gba:bg-destructive'
-                      : 'gba:bg-primary'
-                }`}
-                style={{
-                  width: `${run.recipientCount > 0 ? (run.completedCount / run.recipientCount) * 100 : 0}%`
-                }}
-              />
-            </div>
+        <div className="gba:mb-4">
+          <div className="gba:flex gba:items-center gba:justify-between gba:mb-2">
+            <span className="gba:text-sm gba:font-medium">Progress</span>
+            <span className="gba:text-sm gba:text-muted-foreground">
+              {run.completedCount} / {run.recipientCount}
+            </span>
           </div>
-
-          {/* Submissions list */}
-          <div>
-            <h4 className="gba:font-medium gba:text-foreground gba:mb-3">Recipients</h4>
-            {isLoading ? (
-              <div className="gba:flex gba:items-center gba:justify-center gba:py-8">
-                <Spinner size="sm" />
-              </div>
-            ) : submissions.length === 0 ? (
-              <p className="gba:text-sm gba:text-muted-foreground gba:text-center gba:py-4">
-                No submission data available
-              </p>
-            ) : (
-              <div className="gba:space-y-2 gba:max-h-64 gba:overflow-auto">
-                {submissions.map(submission => (
-                  <div
-                    key={submission.id}
-                    className="gba:flex gba:items-center gba:justify-between gba:p-3 gba:rounded-lg gba:bg-muted/50"
-                  >
-                    <span className="gba:text-sm gba:font-medium">{submission.name || submission.id}</span>
-                    <Badge
-                      variant={
-                        submission.status === 'COMPLETED'
-                          ? 'success'
-                          : submission.status === 'PENDING'
-                            ? 'offline'
-                            : 'info'
-                      }
-                    >
-                      {submission.status}
-                    </Badge>
-                  </div>
-                ))}
-              </div>
-            )}
+          <div className="gba:h-2 gba:bg-muted gba:rounded-full gba:overflow-hidden">
+            <div
+              className={`gba:h-full gba:rounded-full ${
+                run.status === 'COMPLETED'
+                  ? 'gba:bg-success'
+                  : run.status === 'FAILED'
+                    ? 'gba:bg-destructive'
+                    : 'gba:bg-primary'
+              }`}
+              style={{
+                width: `${run.recipientCount > 0 ? (run.completedCount / run.recipientCount) * 100 : 0}%`
+              }}
+            />
           </div>
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            Close
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        <div>
+          <h5 className="gba:font-medium gba:text-foreground gba:mb-3">Recipients</h5>
+          {isLoading ? (
+            <div className="gba:flex gba:items-center gba:justify-center gba:py-8">
+              <Spinner size="sm" />
+            </div>
+          ) : submissions.length === 0 ? (
+            <p className="gba:text-sm gba:text-muted-foreground gba:text-center gba:py-4">
+              No submission data available
+            </p>
+          ) : (
+            <div className="gba:space-y-2 gba:max-h-80 gba:overflow-auto">
+              {submissions.map(submission => (
+                <div key={submission.id} className="gba:p-3 gba:rounded-lg gba:bg-muted/50">
+                  <div className="gba:flex gba:items-center gba:justify-between">
+                    <div className="gba:flex gba:items-center gba:gap-3 gba:min-w-0">
+                      <Avatar className="gba:w-7 gba:h-7">
+                        {submission.recipientAvatar && <AvatarImage src={submission.recipientAvatar} />}
+                        <AvatarFallback className="gba:text-[10px] gba:bg-muted">
+                          {getInitials(submission.recipientName)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="gba:min-w-0">
+                        <p className="gba:text-sm gba:font-medium gba:truncate">{submission.recipientName}</p>
+                        <p className="gba:text-xs gba:text-muted-foreground gba:truncate">{submission.copyAppName}</p>
+                      </div>
+                    </div>
+                    <div className="gba:flex gba:items-center gba:gap-2">
+                      <Badge variant={submission.status === 'COMPLETED' ? 'success' : 'info'}>
+                        {submission.status === 'COMPLETED' ? 'Completed' : 'Sent'}
+                      </Badge>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => window.open(submission.copyAppUrl, '_blank', 'noopener,noreferrer')}
+                      >
+                        <ExternalLink className="gba:w-3 gba:h-3 gba:mr-1" />
+                        Open file
+                      </Button>
+                    </div>
+                  </div>
+                  {submission.status === 'COMPLETED' && (
+                    <p className="gba:mt-2 gba:text-xs gba:text-muted-foreground">
+                      Completed at {formatCompletionDateTime(submission.completedAt) || 'N/A'}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
   )
 }
 

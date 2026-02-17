@@ -103,7 +103,7 @@ export const TRACKING_COLUMNS: TrackingColumnDefinition[] = [
     id: 'copy_link',
     name: '_copy_link',
     label: 'View Response',
-    description: 'Link to open the completed sheet (Excel Collection)',
+    description: 'Link to open the completed sheet (Spreadsheet Collection)',
     icon: ExternalLink,
     defaultEnabled: true,
     category: 'status'

@@ -336,9 +336,18 @@ export interface BulkCollectionConfig {
 /**
  * Complete automation definition
  */
+/** UUID v4 regex for validation */
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+export function isUuid(s: string): boolean {
+  return UUID_REGEX.test(s)
+}
+
 export interface SpreadsheetAutomation {
-  /** Unique automation ID */
+  /** Unique automation ID (client-side: auto_xxx, or backend UUID) */
   id: string
+  /** Document-service automation UUID (for excel_collection API calls when id is client-side) */
+  backendId?: string
   /** Human-readable name */
   name: string
   /** Description of the automation */
@@ -456,6 +465,8 @@ export interface AutomationExecutionResult {
   success: boolean
   /** Error message if failed */
   error?: string
+  /** Document-service automation UUID (when automation was created on first run) */
+  backendId?: string
   /** Created workflow instances */
   workflows: Array<{
     rowId: string

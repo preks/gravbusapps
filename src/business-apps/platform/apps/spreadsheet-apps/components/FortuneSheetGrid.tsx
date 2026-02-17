@@ -207,6 +207,7 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
 
         try {
           isLocalEditRef.current = true
+          const targetColumn = columns[colIndex]
 
           if (value && typeof value === 'object' && 'f' in value) {
             const cellObj = value as { f: string; v?: unknown; m?: string }
@@ -225,6 +226,11 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
             }
           } else {
             workbook.setCellValue(rowIndex, colIndex, value, { id: sheet.id })
+            // FortuneSheet can keep empty display text (`m`) for URL-only updates.
+            // Force a visible label for View Response links.
+            if (targetColumn?.name === '_copy_link' && typeof value === 'string' && value.trim()) {
+              workbook.setCellFormat(rowIndex, colIndex, 'm', targetColumn.label || 'View Response', { id: sheet.id })
+            }
           }
 
           lastRemoteAppliedRef.current = { row: rowIndex, col: colIndex, value, at: Date.now() }
@@ -236,7 +242,7 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
           }, REMOTE_APPLY_DEDUPE_MS)
         }
       },
-      [sheet.id]
+      [sheet.id, columns]
     )
 
     /**
@@ -406,7 +412,9 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
             if (!rowData) return
             const url = rowData[column.name]
             if (typeof url !== 'string' || !url.trim()) return
-            const href = url.startsWith('/') ? `${typeof window !== 'undefined' ? window.location.origin : ''}${url}` : url
+            const href = url.startsWith('/')
+              ? `${typeof window !== 'undefined' ? window.location.origin : ''}${url}`
+              : url
             if (href.startsWith('http://') || href.startsWith('https://')) {
               window.open(href, '_blank', 'noopener,noreferrer')
             }

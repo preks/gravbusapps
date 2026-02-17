@@ -105,7 +105,7 @@ export interface SpreadsheetAppsHubProps extends BusinessAppContextProps {
 }
 
 type HubView = 'list' | 'upload' | 'analysis' | 'viewer' | 'editor'
-type SidebarSection = 'home' | 'my-files' | 'shared' | 'favorites' | 'recent' | 'trash'
+type SidebarSection = 'home' | 'my-files' | 'shared' | 'favorites' | 'recent' | 'automations' | 'trash'
 
 /** Get initials from a name */
 function getInitials(name: string): string {
@@ -115,6 +115,15 @@ function getInitials(name: string): string {
     .join('')
     .toUpperCase()
     .slice(0, 2)
+}
+
+function isOwner(app: SpreadsheetAppSummary, currentUserId: string): boolean {
+  return app.isOwner ?? app.createdBy === currentUserId
+}
+
+function isManagerSharedExcelCollectionCopy(app: SpreadsheetAppSummary, currentUserId: string): boolean {
+  const excelCollectionCopy = app.settings?.excel_collection_copy === true
+  return excelCollectionCopy && !isOwner(app, currentUserId)
 }
 
 /**
@@ -314,6 +323,9 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     sortBy,
     sortOrder
   })
+  const sharedWithMeCount = apps.filter(
+    app => app.isShared && !isOwner(app, currentUserId) && !isManagerSharedExcelCollectionCopy(app, currentUserId)
+  ).length
 
   const {
     paginatedItems: paginatedApps,
@@ -1034,9 +1046,9 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                     {!isSidebarCollapsed && (
                       <>
                         Shared with me
-                        {apps.filter(a => a.isShared && !(a.isOwner ?? a.createdBy === currentUserId)).length > 0 && (
+                        {sharedWithMeCount > 0 && (
                           <Badge variant="secondary" className="gba:ml-auto gba:text-xs">
-                            {apps.filter(a => a.isShared && !(a.isOwner ?? a.createdBy === currentUserId)).length}
+                            {sharedWithMeCount}
                           </Badge>
                         )}
                       </>
@@ -1045,9 +1057,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                 </TooltipTrigger>
                 {isSidebarCollapsed && (
                   <TooltipContent side="right">
-                    Shared with me{' '}
-                    {apps.filter(a => a.isShared && !(a.isOwner ?? a.createdBy === currentUserId)).length > 0 &&
-                      `(${apps.filter(a => a.isShared && !(a.isOwner ?? a.createdBy === currentUserId)).length})`}
+                    Shared with me {sharedWithMeCount > 0 && `(${sharedWithMeCount})`}
                   </TooltipContent>
                 )}
               </Tooltip>
@@ -1212,7 +1222,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
 
         {/* Automations View */}
         {currentView === 'list' && activeSection === 'automations' && (
-          <SpreadsheetAutomationsSection context={context} data-testid={`${testId}-automations-section`} />
+          <SpreadsheetAutomationsSection accessToken={accessToken} data-testid={`${testId}-automations-section`} />
         )}
 
         {/* List View */}

@@ -6,6 +6,7 @@
  */
 
 import React, { useState, useCallback, useMemo } from 'react'
+import { toast } from 'sonner'
 import {
   Button,
   AiButton,
@@ -126,7 +127,14 @@ export const AutomationToolbarActions: React.FC<AutomationToolbarActionsProps> =
     async (automationId: string) => {
       setRunningAutomationId(automationId)
       try {
-        await onRunAutomation(automationId, selectedRowIds.length > 0 ? selectedRowIds : undefined)
+        const result = await onRunAutomation(automationId, selectedRowIds.length > 0 ? selectedRowIds : undefined)
+        const r = result as { success?: boolean; error?: string } | undefined
+        if (r && !r.success && r.error) {
+          toast.error(r.error)
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Failed to run automation'
+        toast.error(msg)
       } finally {
         setRunningAutomationId(null)
       }
@@ -164,11 +172,7 @@ export const AutomationToolbarActions: React.FC<AutomationToolbarActionsProps> =
                 size="sm"
                 showIcon
                 icon={
-                  isSummarizing ? (
-                    <Spinner className="gba:w-4 gba:h-4" />
-                  ) : (
-                    <Sparkles className="gba:w-4 gba:h-4" />
-                  )
+                  isSummarizing ? <Spinner className="gba:w-4 gba:h-4" /> : <Sparkles className="gba:w-4 gba:h-4" />
                 }
                 iconPosition="before"
                 onClick={onSummarizeClick}
@@ -179,7 +183,7 @@ export const AutomationToolbarActions: React.FC<AutomationToolbarActionsProps> =
               </AiButton>
             </TooltipTrigger>
             <TooltipContent>
-              <p>Generate AI summary of completed Excel Collection submissions</p>
+              <p>Generate AI summary of completed Spreadsheet Collection submissions</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>

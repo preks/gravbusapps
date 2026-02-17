@@ -26,8 +26,14 @@ export interface UseSpreadsheetAppsHubFilteringReturn {
   filteredApps: SpreadsheetAppSummary[]
 }
 
-// Note: Excel Collection copies are now filtered at the BE level (parent_app_id IS NULL)
-// No client-side filtering needed for collection copies
+function isOwner(app: SpreadsheetAppSummary, currentUserId: string): boolean {
+  return app.isOwner ?? app.createdBy === currentUserId
+}
+
+function isManagerSharedExcelCollectionCopy(app: SpreadsheetAppSummary, currentUserId: string): boolean {
+  const excelCollectionCopy = app.settings?.excel_collection_copy === true
+  return excelCollectionCopy && !isOwner(app, currentUserId)
+}
 
 function filterBySection(params: {
   apps: SpreadsheetAppSummary[]
@@ -36,21 +42,24 @@ function filterBySection(params: {
   favorites: Set<string>
 }): SpreadsheetAppSummary[] {
   const { apps, activeSection, currentUserId, favorites } = params
+  const visibleApps = apps.filter(app => !isManagerSharedExcelCollectionCopy(app, currentUserId))
 
   switch (activeSection) {
     case 'my-files':
-      return apps.filter(app => app.isOwner ?? app.createdBy === currentUserId)
+      return visibleApps.filter(app => isOwner(app, currentUserId))
     case 'shared':
-      return apps.filter(app => app.isShared && !(app.isOwner ?? app.createdBy === currentUserId))
+      return visibleApps.filter(app => app.isShared && !isOwner(app, currentUserId))
     case 'favorites':
-      return apps.filter(app => favorites.has(app.id))
+      return visibleApps.filter(app => favorites.has(app.id))
     case 'recent':
-      return [...apps].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()).slice(0, 10)
+      return [...visibleApps]
+        .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+        .slice(0, 10)
     case 'trash':
-      return apps
+      return visibleApps
     case 'home':
     default:
-      return apps
+      return visibleApps
   }
 }
 

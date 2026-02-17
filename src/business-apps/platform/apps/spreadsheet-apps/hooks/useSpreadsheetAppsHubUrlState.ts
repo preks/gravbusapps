@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef } from 'react'
 import { navigateTo } from '@/common/utils/navigationUtils'
 
 type HubView = 'list' | 'upload' | 'analysis' | 'viewer' | 'editor'
-type SidebarSection = 'home' | 'my-files' | 'shared' | 'favorites' | 'recent' | 'trash'
+type SidebarSection = 'home' | 'my-files' | 'shared' | 'favorites' | 'recent' | 'automations' | 'trash'
 
 export interface UseSpreadsheetAppsHubUrlStateParams {
   currentView: HubView

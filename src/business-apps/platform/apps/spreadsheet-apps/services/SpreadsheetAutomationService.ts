@@ -18,6 +18,7 @@ import type {
   AutomationInputType,
   AutomationStepType
 } from '../types/automation'
+import { isUuid } from '../types/automation'
 import { env } from '@/common/env/EnvUtils'
 import { getFlowEngineBaseUrl } from '@/common/network/flows/flowEngineUrl'
 import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
@@ -524,6 +525,61 @@ export class SpreadsheetAutomationService {
   }
 
   /**
+   * Ensure automation exists in document-service and return its UUID.
+   * Creates the automation if it has a client-side id (auto_xxx) and no backendId.
+   */
+  private async ensureBackendAutomationId(
+    automation: SpreadsheetAutomation,
+    params: ExecuteExcelCollectionParams
+  ): Promise<string> {
+    const backendId = automation.backendId || (isUuid(automation.id) ? automation.id : null)
+    if (backendId) return backendId
+
+    const { spreadsheetId, sheetId } = params
+    const docBase = getDocumentServiceApiUrl().replace(/\/+$/, '')
+    const templateAppId = automation.collectionConfig?.templateSpreadsheetId || spreadsheetId
+
+    const createRes = await fetch(`${docBase}/automations`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${this.accessToken}`
+      },
+      body: JSON.stringify({
+        spreadsheetAppId: templateAppId,
+        sheetId,
+        name: automation.name,
+        description: automation.description,
+        type: automation.type,
+        trigger: automation.trigger ?? 'manual',
+        workflowConfig: automation.workflowConfig ?? {},
+        triggerConfig: automation.triggerConfig ?? {},
+        approvalConfig: automation.approvalConfig ?? undefined,
+        collectionConfig: automation.collectionConfig ?? {}
+      })
+    })
+
+    if (!createRes.ok) {
+      const errText = await createRes.text()
+      let msg: string
+      try {
+        const err = JSON.parse(errText)
+        msg = err.message || err.error || errText
+      } catch {
+        msg = errText || `HTTP ${createRes.status}`
+      }
+      throw new Error(`Failed to create automation in document-service: ${msg}`)
+    }
+
+    const created = await createRes.json()
+    const id = created.data?.id ?? created.id
+    if (!id || !isUuid(id)) {
+      throw new Error('Document-service did not return a valid automation UUID')
+    }
+    return id
+  }
+
+  /**
    * Execute excel collection - calls BE endpoint which handles duplication and workflow creation
    * The BE now handles:
    * - Creating an AutomationRun record to track this execution
@@ -531,20 +587,37 @@ export class SpreadsheetAutomationService {
    * - Creating workflow tasks with richer content for each recipient
    */
   async executeExcelCollection(params: ExecuteExcelCollectionParams): Promise<AutomationExecutionResult> {
-    const { automation, recipients, spreadsheetId, initiatorId } = params
+    const { automation, recipients } = params
     const executedAt = new Date().toISOString()
 
     const docBase = getDocumentServiceApiUrl().replace(/\/+$/, '')
 
+    let backendId: string
+    try {
+      backendId = await this.ensureBackendAutomationId(automation, params)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to ensure backend automation'
+      console.error('[SpreadsheetAutomationService]', msg)
+      return {
+        success: false,
+        error: msg,
+        workflows: [],
+        executedAt,
+        totalRows: recipients.length
+      }
+    }
+
+    const wasCreated = !automation.backendId && !isUuid(automation.id)
+
     console.log('[SpreadsheetAutomationService] Executing excel collection via BE endpoint:', {
-      automationId: automation.id,
+      automationId: backendId,
       recipientCount: recipients.length,
       templateId: automation.collectionConfig?.templateSpreadsheetId
     })
 
     try {
       // Call the new BE endpoint that handles all duplication and workflow creation
-      const response = await fetch(`${docBase}/automations/${automation.id}/run`, {
+      const response = await fetch(`${docBase}/automations/${backendId}/run`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -552,9 +625,9 @@ export class SpreadsheetAutomationService {
         },
         body: JSON.stringify({
           recipients,
-          spreadsheetAppId: spreadsheetId,
-          initiatorId,
-          message: automation.collectionConfig?.message
+          message: automation.collectionConfig?.message,
+          baseUrl: (typeof window !== 'undefined' && window.location?.origin) || env('NEXT_PUBLIC_BASE_URL') || '',
+          managerDisplayName: 'Manager'
         })
       })
 
@@ -571,9 +644,16 @@ export class SpreadsheetAutomationService {
           status: response.status,
           errorMessage
         })
+        let userError = errorMessage
+        if (
+          (response.status === 404 || errorMessage.toLowerCase().includes('not found')) &&
+          errorMessage.toLowerCase().includes('template')
+        ) {
+          userError = `Template spreadsheet not found. If using a local document-service, ensure the spreadsheet app exists there. Check NEXT_PUBLIC_DOCUMENT_SERVICE_DEBUG_URL.`
+        }
         return {
           success: false,
-          error: errorMessage,
+          error: userError,
           workflows: [],
           executedAt,
           totalRows: recipients.length
@@ -584,24 +664,25 @@ export class SpreadsheetAutomationService {
       const runData = result.data || result
 
       console.log('[SpreadsheetAutomationService] Excel collection run started:', {
-        runId: runData.runId,
-        recipientCount: runData.recipientCount,
+        runId: runData.run?.id || runData.runId,
+        recipientCount: runData.run?.recipientCount || runData.recipientCount || recipients.length,
         successCount: runData.successCount,
-        failedCount: runData.failedCount
+        failedCount: runData.failureCount ?? runData.failedCount
       })
 
       // Transform BE response to match AutomationExecutionResult format
-      const workflows: Array<{ rowId: string; workflowId: string; status: WorkflowStatus }> = (
-        runData.results || []
-      ).map((r: { recipientId: string; workflowId?: string; success: boolean }) => ({
+      const runCopies = (runData.copies || runData.results || []) as Array<{
+        recipientId: string
+        workflowId?: string
+        error?: string
+      }>
+      const workflows: Array<{ rowId: string; workflowId: string; status: WorkflowStatus }> = runCopies.map(r => ({
         rowId: `recipient_${r.recipientId}`,
         workflowId: r.workflowId || '',
-        status: r.success ? 'RUNNING' : ('FAILED' as WorkflowStatus)
+        status: r.workflowId ? 'RUNNING' : ('FAILED' as WorkflowStatus)
       }))
 
-      const failedRows = (runData.results || [])
-        .filter((r: { success: boolean }) => !r.success)
-        .map((r: { recipientId: string }) => r.recipientId)
+      const failedRows = runCopies.filter(r => !r.workflowId).map(r => r.recipientId)
 
       return {
         success: failedRows.length === 0,
@@ -609,7 +690,8 @@ export class SpreadsheetAutomationService {
         workflows,
         executedAt,
         totalRows: recipients.length,
-        failedRows: failedRows.length > 0 ? failedRows : undefined
+        failedRows: failedRows.length > 0 ? failedRows : undefined,
+        ...(wasCreated && { backendId })
       }
     } catch (error) {
       console.error('[SpreadsheetAutomationService] Excel collection execution error:', error)
@@ -1670,7 +1752,13 @@ export class SpreadsheetAutomationService {
     }>
   > {
     try {
-      // Query the webhook controller for aggregated results
+      // For excel_collection, use document-service (implements aggregate-bulk).
+      // Flow engine does not have this endpoint (returns 404).
+      const aggregateUrl =
+        params.automationType === 'excel_collection'
+          ? `${getDocumentServiceApiUrl().replace(/\/+$/, '')}/automations/webhooks/spreadsheet/aggregate-bulk`
+          : `${this.apiBaseUrl}/webhooks/spreadsheet/aggregate-bulk`
+
       const queryParams = new URLSearchParams({
         spreadsheetId: params.spreadsheetId,
         sheetId: params.sheetId,
@@ -1678,7 +1766,7 @@ export class SpreadsheetAutomationService {
         ...(params.bulkGroupId && { bulkGroupId: params.bulkGroupId })
       })
 
-      const response = await fetch(`${this.apiBaseUrl}/webhooks/spreadsheet/aggregate-bulk?${queryParams}`, {
+      const response = await fetch(`${aggregateUrl}?${queryParams}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1791,13 +1879,14 @@ export class SpreadsheetAutomationService {
           const automationType = params.automationType || 'bulk_collection'
           flows = allFlows.filter((flow: Record<string, unknown>) => {
             const tags = (flow.tags as Record<string, string>) || {}
-            return (
+            const baseMatch =
               tags.app === 'spreadsheet-automation' &&
               tags.automationType === automationType &&
-              tags.spreadsheetId === params.spreadsheetId &&
               tags.automationId === params.automationId &&
               flow.status === 'COMPLETED'
-            )
+            // excel_collection flows from document-service don't set spreadsheetId in tags; automationId is sufficient
+            if (automationType === 'excel_collection') return baseMatch
+            return baseMatch && tags.spreadsheetId === params.spreadsheetId
           })
         }
       } catch {
@@ -2124,6 +2213,10 @@ export class SpreadsheetAutomationService {
       }
 
       if (!targetTaskId) {
+        const marked = await this.markDocumentRunSubmissionComplete(copyAppId)
+        if (marked) {
+          return { success: true }
+        }
         return { success: false, error: 'Could not find your collection task. It may already be completed.' }
       }
 
@@ -2146,10 +2239,37 @@ export class SpreadsheetAutomationService {
         return { success: false, error: 'Failed to submit' }
       }
 
+      // 4. Notify document-service so automation run counters/status are updated.
+      // This keeps manager "In Progress" state in sync with recipient submissions.
+      await this.markDocumentRunSubmissionComplete(copyAppId)
+
       return { success: true }
     } catch (e) {
       console.error('[SpreadsheetAutomationService] findAndCompleteExcelCollectionTask error:', e)
       return { success: false, error: e instanceof Error ? e.message : 'Submit failed' }
+    }
+  }
+
+  private async markDocumentRunSubmissionComplete(copyAppId: string): Promise<boolean> {
+    try {
+      const docBase = getDocumentServiceApiUrl().replace(/\/+$/, '')
+      const markRes = await fetch(`${docBase}/automations/runs/submissions/complete`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${this.accessToken}`
+        },
+        body: JSON.stringify({ copyAppId })
+      })
+      if (!markRes.ok) {
+        const markErr = await markRes.text().catch(() => '')
+        console.error('[SpreadsheetAutomationService] Failed to mark run submission complete:', markRes.status, markErr)
+        return false
+      }
+      return true
+    } catch (markError) {
+      console.error('[SpreadsheetAutomationService] Error marking run submission complete:', markError)
+      return false
     }
   }
 

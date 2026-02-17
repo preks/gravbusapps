@@ -181,12 +181,17 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   const isCollectionCopy = Boolean(
     app.settings?.excel_collection_copy || hasTaskForCollectionCopy || fromCollectionLink
   )
+  const isCopyOwner = Boolean(userId && app.createdBy && app.createdBy === userId)
+  // Show submit only to the intended responder (copy owner) or users with an active collection task.
+  // Managers opening shared response copies from run history should not see submit.
+  const canSubmitCollection = Boolean((app.settings?.excel_collection_copy && isCopyOwner) || hasTaskForCollectionCopy)
 
   useEffect(() => {
     if (app.settings?.excel_collection_copy || !userId || !app.id || !automations.hasExcelCollectionTaskForApp) return
-    const check = () => void automations.hasExcelCollectionTaskForApp(app.id).then(has => {
-      if (has) setHasTaskForCollectionCopy(true)
-    })
+    const check = () =>
+      void automations.hasExcelCollectionTaskForApp(app.id).then(has => {
+        if (has) setHasTaskForCollectionCopy(true)
+      })
     check()
     const t = setTimeout(check, 1500) // Retry in case flow engine wasn't ready
     return () => clearTimeout(t)
@@ -209,13 +214,15 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   const collectionSummary = useExcelCollectionSummary({
     accessToken,
     sheetData,
-    columns: activeSheet.columns,
+    columns: activeSheet.columns
   })
 
   const hasExcelCollectionWithEligibleRows = useMemo(() => {
-    const hasExcelCollection = automations.automations.some(a => a.type === 'excel_collection')
-    return hasExcelCollection && collectionSummary.hasEligibleRows
-  }, [automations.automations, collectionSummary.hasEligibleRows])
+    // Drive visibility from persisted tracking data in the sheet.
+    // After refresh, automation config may not always be present in local sheet metadata,
+    // but completed rows with _copy_link/_workflow_status are still the source of truth.
+    return collectionSummary.hasEligibleRows
+  }, [collectionSummary.hasEligibleRows])
 
   const handleSummarizeClick = useCallback(async () => {
     setShowCollectionSummaryDialog(true)
@@ -250,7 +257,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
           isRequired: false,
           isUnique: false,
           order: activeSheet.columns.length,
-          width: 200,
+          width: 200
         }
         const updatedColumns = [...activeSheet.columns, newCol]
         await SpreadsheetApiService.updateSheet(app.id, activeSheetId, { columns: updatedColumns })
@@ -310,15 +317,13 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
             isRequired: false,
             isUnique: false,
             order: columns.length,
-            width: 200,
+            width: 200
           }
           columns = [...columns, newCol]
           await SpreadsheetApiService.updateSheet(app.id, activeSheetId, { columns })
           if (onSheetUpdate) await onSheetUpdate(app.id, activeSheetId, { columns })
           else if (onAppUpdate) {
-            const updatedSheets = app.sheets.map(sheet =>
-              sheet.id === activeSheetId ? { ...sheet, columns } : sheet
-            )
+            const updatedSheets = app.sheets.map(sheet => (sheet.id === activeSheetId ? { ...sheet, columns } : sheet))
             onAppUpdate({ ...app, sheets: updatedSheets })
           }
         }
@@ -331,11 +336,13 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         const execSummaryPayload: Record<string, unknown> = {
           [execSummaryColName]: executiveSummary,
           _recipient_name: 'Executive Summary',
-          _is_executive_summary: true,
+          _is_executive_summary: true
         }
 
         if (existingExecSummaryRow) {
-          const rowId = String(existingExecSummaryRow._rowUuid ?? existingExecSummaryRow._id ?? existingExecSummaryRow.id ?? '')
+          const rowId = String(
+            existingExecSummaryRow._rowUuid ?? existingExecSummaryRow._id ?? existingExecSummaryRow.id ?? ''
+          )
           if (rowId && !rowId.startsWith('tmp_')) {
             await SpreadsheetApiService.updateRow(app.id, activeSheetId, rowId, execSummaryPayload)
           }
@@ -352,7 +359,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
           const newRow: Record<string, unknown> = {
             ...execSummaryPayload,
             _id: (added as Record<string, unknown>)?._id ?? (added as Record<string, unknown>)?.id,
-            _rowUuid: (added as Record<string, unknown>)?._rowUuid,
+            _rowUuid: (added as Record<string, unknown>)?._rowUuid
           }
           const next = [newRow, ...sheetData]
           localSheetDataRef.current = next
@@ -383,7 +390,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     onRowUpdate,
     onDataChange,
     setLocalSheetData,
-    setActiveSheetId,
+    setActiveSheetId
   ])
   const [remoteUpdateKey, setRemoteUpdateKey] = useState(0)
   const [receivedOperation, setReceivedOperation] = useState<{
@@ -881,7 +888,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         onEdit={onEdit}
         onExportToExcel={handleExportToExcel}
         isCollectionCopy={isCollectionCopy}
-        onSubmitCollection={isCollectionCopy ? handleSubmitCollection : undefined}
+        onSubmitCollection={canSubmitCollection ? handleSubmitCollection : undefined}
         showSummarizeButton={hasExcelCollectionWithEligibleRows}
         onSummarizeClick={handleSummarizeClick}
         isSummarizing={collectionSummary.isSummarizing}
@@ -1038,7 +1045,6 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         isSummarizing={collectionSummary.isSummarizing}
         data-testid={`${testId}-automations-panel`}
       />
-
     </div>
   )
 }
