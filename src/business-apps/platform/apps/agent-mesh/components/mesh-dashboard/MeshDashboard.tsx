@@ -6,6 +6,7 @@ import {
   MiniMap,
   useNodesState,
   useEdgesState,
+  MarkerType,
   type Connection as RFConnection
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
@@ -74,7 +75,7 @@ export const MeshDashboard: React.FC<MeshDashboardProps> = ({ accessToken, onNav
 
   // Resolve design-system token colours from the DOM so we can use them as
   // literal stroke values on SVG edges.
-  const [edgeColors, setEdgeColors] = useState({ active: '#22c55e', inactive: '#71717a' })
+  const [edgeColors, setEdgeColors] = useState({ active: '#22c55e', inactive: '#71717a', selected: '#3b82f6' })
   useLayoutEffect(() => {
     const probe = document.createElement('div')
     probe.style.position = 'absolute'
@@ -87,11 +88,14 @@ export const MeshDashboard: React.FC<MeshDashboardProps> = ({ accessToken, onNav
     const active = getComputedStyle(probe).color
     probe.className = 'gba:text-muted-foreground'
     const inactive = getComputedStyle(probe).color
+    probe.className = 'gba:text-primary'
+    const selected = getComputedStyle(probe).color
 
     document.body.removeChild(probe)
     setEdgeColors({
       active: active || '#22c55e',
-      inactive: inactive || '#71717a'
+      inactive: inactive || '#71717a',
+      selected: selected || '#3b82f6'
     })
   }, [])
 
@@ -118,7 +122,6 @@ export const MeshDashboard: React.FC<MeshDashboardProps> = ({ accessToken, onNav
         edgesContainer.style.setProperty('width', '100%', 'important')
         edgesContainer.style.setProperty('height', '100%', 'important')
         edgesContainer.style.setProperty('overflow', 'visible', 'important')
-        edgesContainer.style.setProperty('pointer-events', 'none', 'important')
       }
 
       const svgs = wrapper.querySelectorAll('.react-flow__edges svg')
@@ -132,7 +135,6 @@ export const MeshDashboard: React.FC<MeshDashboardProps> = ({ accessToken, onNav
         el.style.setProperty('width', '100%', 'important')
         el.style.setProperty('height', '100%', 'important')
         el.style.setProperty('overflow', 'visible', 'important')
-        el.style.setProperty('pointer-events', 'none', 'important')
       })
 
       // Also ensure viewport and renderer don't clip
@@ -238,6 +240,59 @@ export const MeshDashboard: React.FC<MeshDashboardProps> = ({ accessToken, onNav
     })
   }, [agents, connections])
 
+  // Merge bidirectional connection pairs into single visual edges
+  const mergedEdges = useMemo(() => {
+    const pairMap = new Map<string, Connection[]>()
+    connections.forEach(c => {
+      const ids = [c.caller_id, c.callee_id].sort()
+      const pairKey = `${ids[0]}__${ids[1]}`
+      const existing = pairMap.get(pairKey) || []
+      existing.push(c)
+      pairMap.set(pairKey, existing)
+    })
+
+    const result: Array<{
+      edgeId: string
+      source: string
+      target: string
+      sourceName: string
+      targetName: string
+      isBidirectional: boolean
+      connectionIds: string[]
+      isActive: boolean
+    }> = []
+
+    pairMap.forEach(conns => {
+      if (conns.length >= 2) {
+        const first = conns[0]
+        result.push({
+          edgeId: first.connection_id,
+          source: first.caller_id,
+          target: first.callee_id,
+          sourceName: first.caller_name,
+          targetName: first.callee_name,
+          isBidirectional: true,
+          connectionIds: conns.map(c => c.connection_id),
+          isActive: conns.some(c => c.status === 'active')
+        })
+      } else {
+        const c = conns[0]
+        result.push({
+          edgeId: c.connection_id,
+          source: c.caller_id,
+          target: c.callee_id,
+          sourceName: c.caller_name,
+          targetName: c.callee_name,
+          isBidirectional: c.config.direction === 'bidirectional',
+          connectionIds: [c.connection_id],
+          isActive: c.status === 'active'
+        })
+      }
+    })
+
+    return result
+  }, [connections])
+
   // Remove an agent from the mesh (delete connections + remove from layout)
   const handleRemoveFromMesh = useCallback(
     async (agentId: string) => {
@@ -271,25 +326,37 @@ export const MeshDashboard: React.FC<MeshDashboardProps> = ({ accessToken, onNav
     }))
     setNodes(newNodes)
 
-    const newEdges = connections.map(c => {
-      const isActive = c.status === 'active'
-      const isBidi = c.config.direction === 'bidirectional'
+    const newEdges = mergedEdges.map(me => {
+      const isSelected = me.edgeId === selectedEdgeId
+      const baseColor = me.isActive ? edgeColors.active : edgeColors.inactive
+      const color = isSelected ? edgeColors.selected : baseColor
       return {
-        id: c.connection_id,
-        source: c.caller_id,
-        target: c.callee_id,
+        id: me.edgeId,
+        source: me.source,
+        target: me.target,
         type: 'smoothstep',
-        animated: isBidi,
-        selected: c.connection_id === selectedEdgeId,
+        selected: isSelected,
+        markerEnd: { type: MarkerType.ArrowClosed, color, width: 20, height: 20 },
+        ...(me.isBidirectional ? { markerStart: { type: MarkerType.ArrowClosed, color, width: 20, height: 20 } } : {}),
         style: {
-          stroke: isActive ? edgeColors.active : edgeColors.inactive,
-          strokeWidth: 2,
+          stroke: color,
+          strokeWidth: isSelected ? 3 : 2,
           strokeLinecap: 'round' as const
         }
       }
     })
     setEdges(newEdges)
-  }, [meshAgents, connections, setNodes, setEdges, selectedEdgeId, editMode, handleRemoveFromMesh, edgeColors])
+  }, [
+    meshAgents,
+    connections,
+    mergedEdges,
+    setNodes,
+    setEdges,
+    selectedEdgeId,
+    editMode,
+    handleRemoveFromMesh,
+    edgeColors
+  ])
 
   // Debounce-save positions when nodes move
   const handleNodesChange: typeof onNodesChange = useCallback(
@@ -357,16 +424,21 @@ export const MeshDashboard: React.FC<MeshDashboardProps> = ({ accessToken, onNav
     [editMode]
   )
 
+  const selectedEdgeInfo = useMemo(() => {
+    if (!selectedEdgeId) return null
+    return mergedEdges.find(me => me.edgeId === selectedEdgeId) ?? null
+  }, [selectedEdgeId, mergedEdges])
+
   const handleDeleteConnection = useCallback(async () => {
-    if (!selectedEdgeId) return
+    if (!selectedEdgeInfo) return
     try {
-      await api.deleteConnection(selectedEdgeId)
+      await Promise.allSettled(selectedEdgeInfo.connectionIds.map(id => api.deleteConnection(id)))
       setSelectedEdgeId(null)
       loadData()
     } catch (err) {
       console.error('Failed to delete connection:', err)
     }
-  }, [selectedEdgeId, api, loadData])
+  }, [selectedEdgeInfo, api, loadData])
 
   const handleNodeClick = useCallback(
     async (_: React.MouseEvent, node: { id: string }) => {
@@ -430,9 +502,11 @@ export const MeshDashboard: React.FC<MeshDashboardProps> = ({ accessToken, onNav
               </button>
             </span>
           )}
-          {editMode && selectedEdgeId && (
+          {editMode && selectedEdgeInfo && (
             <span className="gba:flex gba:items-center gba:gap-2 gba:text-xs gba:text-destructive gba:bg-destructive/10 gba:px-2 gba:py-1 gba:rounded">
-              Connection selected
+              {selectedEdgeInfo.isBidirectional
+                ? `${selectedEdgeInfo.sourceName} ↔ ${selectedEdgeInfo.targetName}`
+                : `${selectedEdgeInfo.sourceName} → ${selectedEdgeInfo.targetName}`}
               <Button
                 variant="destructive"
                 size="sm"
@@ -495,14 +569,17 @@ export const MeshDashboard: React.FC<MeshDashboardProps> = ({ accessToken, onNav
             data-testid="mesh-legend"
           >
             <div className="gba:flex gba:items-center gba:gap-2">
-              <svg width="24" height="6">
-                <line x1="0" y1="3" x2="24" y2="3" stroke="currentColor" strokeWidth="2" />
+              <svg width="30" height="10" viewBox="0 0 30 10">
+                <line x1="0" y1="5" x2="22" y2="5" stroke="currentColor" strokeWidth="2" />
+                <polygon points="22,1 30,5 22,9" fill="currentColor" />
               </svg>
               <span>One-way</span>
             </div>
             <div className="gba:flex gba:items-center gba:gap-2">
-              <svg width="24" height="6">
-                <line x1="0" y1="3" x2="24" y2="3" stroke="currentColor" strokeWidth="2" strokeDasharray="4,3" />
+              <svg width="30" height="10" viewBox="0 0 30 10">
+                <polygon points="8,1 0,5 8,9" fill="currentColor" />
+                <line x1="8" y1="5" x2="22" y2="5" stroke="currentColor" strokeWidth="2" />
+                <polygon points="22,1 30,5 22,9" fill="currentColor" />
               </svg>
               <span>Bidirectional</span>
             </div>
