@@ -1,7 +1,7 @@
 # Functions Manager Translations (Romanian)
 
 # Page Header
-page-title = NEWWORK Functions
+page-title = Functii
 page-description = Gestionati functii versionate pentru agenti si fluxuri
 
 # Section
@@ -18,6 +18,7 @@ search-placeholder = Cautare dupa nume, descriere, versiune...
 column-name = Nume
 column-description = Descriere
 column-version = Versiune
+column-last-version = Ultima actualizare
 column-agent = Agent
 column-workflow = Workflow
 
