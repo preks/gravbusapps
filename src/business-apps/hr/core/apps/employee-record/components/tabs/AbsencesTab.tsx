@@ -223,6 +223,8 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
           }
           lastRefetchAt.current = now
           refetch?.()
+          // Also bump refreshTick so Annual Leave snapshot useEffect re-runs
+          setRefreshTick(t => t + 1)
         }
       } catch {}
     }
@@ -240,9 +242,36 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
       'process-completion'
     ]
 
+    // Listen on current window
     eventNames.forEach(name => window.addEventListener(name, handler))
+
+    // Try to listen on parent/top windows as events may be dispatched there
+    const extraTargets: Array<Window | null | undefined> = []
+    try {
+      if (typeof window !== 'undefined') {
+        if (window.parent && window.parent !== window) extraTargets.push(window.parent)
+        if (window.top && window.top !== window && window.top !== window.parent) extraTargets.push(window.top)
+      }
+    } catch {
+      // ignore cross-origin access errors
+    }
+    extraTargets.forEach(t => {
+      try {
+        eventNames.forEach(name => t?.addEventListener?.(name, handler as EventListener))
+      } catch {
+        // ignore
+      }
+    })
+
     return () => {
       eventNames.forEach(name => window.removeEventListener(name, handler))
+      extraTargets.forEach(t => {
+        try {
+          eventNames.forEach(name => t?.removeEventListener?.(name, handler as EventListener))
+        } catch {
+          // ignore
+        }
+      })
     }
   }, [refetch])
 
