@@ -962,6 +962,26 @@ interface RunDetailPanelProps {
   'data-testid'?: string
 }
 
+interface EmployeeLightResult {
+  Employee?: Array<{ displayName: string; pictureThumbnail?: string }>
+}
+
+interface RecipientProfile {
+  recipientName: string
+  recipientAvatar?: string
+}
+
+interface RunSubmission {
+  id: string
+  recipientId: string
+  recipientName: string
+  recipientAvatar?: string
+  copyAppName: string
+  copyAppUrl: string
+  status: 'COMPLETED' | 'SENT'
+  completedAt?: string
+}
+
 function formatCompletionDateTime(value?: string): string | null {
   if (!value) return null
   const date = new Date(value)
@@ -970,19 +990,97 @@ function formatCompletionDateTime(value?: string): string | null {
 }
 
 function openSafeSpreadsheetUrl(rawUrl: string): void {
-  if (typeof window === 'undefined' || !rawUrl) return
+  if (typeof globalThis.window === 'undefined' || !rawUrl) return
 
   try {
-    const currentOrigin = window.location.origin
+    const currentOrigin = globalThis.window.location.origin
     const targetUrl = new URL(rawUrl, currentOrigin)
 
     // Guard against open-redirect behavior: only allow same-origin spreadsheet app links.
     if (targetUrl.origin !== currentOrigin) return
     if (!targetUrl.pathname.startsWith('/platform/apps/spreadsheet-apps')) return
 
-    window.open(targetUrl.toString(), '_blank', 'noopener,noreferrer')
+    globalThis.window.open(targetUrl.toString(), '_blank', 'noopener,noreferrer')
   } catch {
     // Ignore malformed URLs.
+  }
+}
+
+function safeString(value: unknown, fallback = ''): string {
+  if (typeof value === 'string') return value
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value)
+  return fallback
+}
+
+function getCompletedAt(rawItem: Record<string, unknown>): string | undefined {
+  const settings =
+    rawItem.settings && typeof rawItem.settings === 'object' ? (rawItem.settings as Record<string, unknown>) : {}
+  return (
+    safeString(settings.excel_collection_submitted_at, '') ||
+    safeString(rawItem.excel_collection_submitted_at, '') ||
+    safeString(rawItem.completedAt, '') ||
+    undefined
+  )
+}
+
+function isCompletedSubmission(rawItem: Record<string, unknown>, completedAt?: string): boolean {
+  const settings =
+    rawItem.settings && typeof rawItem.settings === 'object' ? (rawItem.settings as Record<string, unknown>) : {}
+  const normalizedStatus = safeString(rawItem.status, '').toUpperCase()
+  return settings.excel_collection_submitted === true || Boolean(completedAt) || normalizedStatus.includes('COMPLETED')
+}
+
+function normalizeAvatar(avatar?: string): string | undefined {
+  if (!avatar) return undefined
+  return avatar.startsWith('data:') ? avatar : `data:image/png;base64,${avatar}`
+}
+
+async function resolveRecipientProfile(
+  graphqlClient: ReturnType<typeof useGraphQLClient>,
+  recipientId: string
+): Promise<RecipientProfile> {
+  const fallbackName = recipientId ? `User ${recipientId.slice(0, 8)}` : 'Unknown user'
+  if (!graphqlClient || !recipientId) return { recipientName: fallbackName }
+
+  for (const queryFn of [GET_EMPLOYEE_LIGHT_BY_USER_ID, GET_EMPLOYEE_LIGHT_BY_ID]) {
+    try {
+      const query = queryFn(recipientId)
+      const result = await graphqlClient.request<EmployeeLightResult>(query)
+      const employee = result.Employee?.[0]
+      if (employee?.displayName) {
+        return {
+          recipientName: employee.displayName,
+          recipientAvatar: normalizeAvatar(employee.pictureThumbnail)
+        }
+      }
+    } catch {
+      // Try next lookup strategy.
+    }
+  }
+
+  return { recipientName: fallbackName }
+}
+
+async function enrichRunSubmission(
+  item: Record<string, unknown>,
+  graphqlClient: ReturnType<typeof useGraphQLClient>,
+  baseOrigin: string
+): Promise<RunSubmission> {
+  const copyAppId = safeString(item.id, '')
+  const recipientId = safeString(item.ownerId, '')
+  const profile = await resolveRecipientProfile(graphqlClient, recipientId)
+  const completedAt = getCompletedAt(item)
+  const isCompleted = isCompletedSubmission(item, completedAt)
+
+  return {
+    id: copyAppId,
+    recipientId,
+    recipientName: profile.recipientName,
+    recipientAvatar: profile.recipientAvatar,
+    copyAppName: safeString(item.name, 'Spreadsheet copy'),
+    copyAppUrl: `${baseOrigin}/platform/apps/spreadsheet-apps?appId=${encodeURIComponent(copyAppId)}&view=viewer`,
+    status: isCompleted ? 'COMPLETED' : 'SENT',
+    completedAt: isCompleted ? completedAt : undefined
   }
 }
 
@@ -996,18 +1094,7 @@ function getInitials(name: string): string {
 }
 
 const RunDetailPanel: React.FC<RunDetailPanelProps> = ({ run, accessToken, 'data-testid': testId }) => {
-  const [submissions, setSubmissions] = useState<
-    Array<{
-      id: string
-      recipientId: string
-      recipientName: string
-      recipientAvatar?: string
-      copyAppName: string
-      copyAppUrl: string
-      status: 'COMPLETED' | 'SENT'
-      completedAt?: string
-    }>
-  >([])
+  const [submissions, setSubmissions] = useState<RunSubmission[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
   const docServiceUrl = getDocumentServiceApiUrl().replace(/\/+$/, '')
@@ -1029,71 +1116,15 @@ const RunDetailPanel: React.FC<RunDetailPanelProps> = ({ run, accessToken, 'data
           }
         })
 
-        if (response.ok) {
-          const data = await response.json()
-          const rawSubmissions = extractArray<Record<string, unknown>>(data)
+        if (!response.ok) return
 
-          const enrichedSubmissions = await Promise.all(
-            rawSubmissions.map(async item => {
-              const copyAppId = String(item.id ?? '')
-              const recipientId = String(item.ownerId ?? '')
-              let recipientName = recipientId ? `User ${recipientId.slice(0, 8)}` : 'Unknown user'
-              let recipientAvatar: string | undefined
-
-              if (graphqlClient && recipientId) {
-                for (const queryFn of [GET_EMPLOYEE_LIGHT_BY_USER_ID, GET_EMPLOYEE_LIGHT_BY_ID]) {
-                  try {
-                    const query = queryFn(recipientId)
-                    const result = await graphqlClient.request<{
-                      Employee: Array<{ displayName: string; pictureThumbnail?: string }>
-                    }>(query)
-                    const employee = result.Employee?.[0]
-                    if (employee?.displayName) {
-                      recipientName = employee.displayName
-                      recipientAvatar = employee.pictureThumbnail
-                        ? employee.pictureThumbnail.startsWith('data:')
-                          ? employee.pictureThumbnail
-                          : `data:image/png;base64,${employee.pictureThumbnail}`
-                        : undefined
-                      break
-                    }
-                  } catch {
-                    // Try next strategy
-                  }
-                }
-              }
-
-              const baseOrigin = typeof window !== 'undefined' ? window.location.origin : ''
-              const copyAppUrl = `${baseOrigin}/platform/apps/spreadsheet-apps?appId=${encodeURIComponent(copyAppId)}&view=viewer`
-              const settings = (
-                item.settings && typeof item.settings === 'object' ? (item.settings as Record<string, unknown>) : {}
-              ) as Record<string, unknown>
-              const completedAtRaw =
-                (settings.excel_collection_submitted_at as string | undefined) ||
-                (item.excel_collection_submitted_at as string | undefined) ||
-                (item.completedAt as string | undefined)
-              const isCompleted =
-                settings.excel_collection_submitted === true ||
-                Boolean(completedAtRaw) ||
-                String(item.status ?? '')
-                  .toUpperCase()
-                  .includes('COMPLETED')
-
-              return {
-                id: copyAppId,
-                recipientId,
-                recipientName,
-                recipientAvatar,
-                copyAppName: String(item.name ?? 'Spreadsheet copy'),
-                copyAppUrl,
-                status: isCompleted ? 'COMPLETED' : 'SENT',
-                completedAt: isCompleted ? completedAtRaw : undefined
-              }
-            })
-          )
-
-          setSubmissions(enrichedSubmissions)
-        }
+        const data = await response.json()
+        const rawSubmissions = extractArray<Record<string, unknown>>(data)
+        const baseOrigin = typeof globalThis.window !== 'undefined' ? globalThis.window.location.origin : ''
+        const enrichedSubmissions = await Promise.all(
+          rawSubmissions.map(item => enrichRunSubmission(item, graphqlClient, baseOrigin))
+        )
+        setSubmissions(enrichedSubmissions)
       } catch (err) {
         console.error('[RunDetailDialog] Error fetching submissions:', err)
       } finally {

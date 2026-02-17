@@ -385,10 +385,11 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
     const cursorTrackingRef = useRef(cursorTracking)
     cursorTrackingRef.current = cursorTracking
 
-    // Handle click on View Response / copy_link cells - open URL (FortuneSheet doesn't render links clickable)
-    const handleContainerClick = useCallback(
+    // Handle pointer release on View Response / copy_link cells - open URL
+    // (FortuneSheet doesn't render links clickable)
+    const handleContainerMouseUp = useCallback(
       (e: React.MouseEvent) => {
-        // Only handle left clicks, and only if click originated from within the grid (not toolbar, etc.)
+        // Only handle primary-button release from within the grid (not toolbar, etc.)
         if (e.button !== 0) return
         const workbook = workbookRef.current
         if (!workbook || !data.length || !columns.length) return
@@ -914,7 +915,7 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
 
     return (
       <div className="gba:absolute gba:inset-0 gba:w-full gba:h-full gba:overflow-hidden">
-        <div className="fortunesheet-container" onClick={handleContainerClick}>
+        <div className="fortunesheet-container" onMouseUp={handleContainerMouseUp}>
           <Workbook
             ref={ref => {
               workbookRef.current = ref
