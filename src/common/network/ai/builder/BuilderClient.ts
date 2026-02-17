@@ -823,8 +823,38 @@ export class BuilderClient {
       })
     })
 
-    if (!response.ok || !response.body) {
-      throw new Error('Failed to query code')
+    if (!response.ok) {
+      let errorDetails = `Failed to query code (${response.status})`
+      try {
+        const errorData = (await response.json()) as {
+          message?: string
+          error?: string
+          details?: string
+          errors?: Array<{ detail?: string; message?: string }>
+        }
+        if (Array.isArray(errorData.errors) && errorData.errors.length > 0) {
+          const firstError = errorData.errors[0]
+          errorDetails =
+            firstError?.detail || firstError?.message || errorData.message || errorData.error || errorDetails
+        } else {
+          errorDetails = errorData.message || errorData.error || errorData.details || errorDetails
+        }
+      } catch {
+        try {
+          const text = await response.text()
+          if (text) {
+            errorDetails = text
+          }
+        } catch {
+          // Keep fallback message
+        }
+      }
+
+      throw new Error(errorDetails)
+    }
+
+    if (!response.body) {
+      throw new Error('Failed to query code: response stream is not available')
     }
 
     return response.body
