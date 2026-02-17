@@ -220,9 +220,11 @@ export const DocumentApiService = {
   /**
    * Get a single document by ID
    */
-  async getDocument(id: string): Promise<Document | null> {
+  async getDocument(id: string, options?: { fresh?: boolean }): Promise<Document | null> {
     try {
-      const doc = await apiRequest<Record<string, unknown>>(`/documents/${id}`)
+      const fresh = options?.fresh === true
+      const endpoint = fresh ? `/documents/${id}?_ts=${Date.now()}` : `/documents/${id}`
+      const doc = await apiRequest<Record<string, unknown>>(endpoint, fresh ? { cache: 'no-store' } : {})
       return mapApiDocumentToDocument(doc)
     } catch (error) {
       console.error('Failed to get document:', error)

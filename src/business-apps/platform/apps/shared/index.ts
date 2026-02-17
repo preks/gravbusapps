@@ -29,6 +29,11 @@ export { HubPaginationFooter, type HubPaginationFooterProps } from './components
 export { CollaboratorCursor, type CollaboratorCursorProps } from './components/CollaboratorCursor'
 export { CellCollaboratorIndicator, type CellCollaboratorIndicatorProps } from './components/CellCollaboratorIndicator'
 export { DimensionPicker, type DimensionPickerProps } from './components/DimensionPicker'
+export {
+  EmbeddedFlowbotChatPanel,
+  type EmbeddedFlowbotChatPanelProps,
+  type EmbeddedFlowbotChatState
+} from './components/EmbeddedFlowbotChatPanel'
 
 // Types
 export {

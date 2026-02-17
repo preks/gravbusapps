@@ -395,6 +395,7 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
 
   const [state, setState] = useState<ConversationState>(loadState)
   const [isLoading, setIsLoading] = useState(false)
+  const [isGenerating, setIsGenerating] = useState(false)
   const sessionIdRef = useRef<string | null>(null)
   const lastFetchedSessionIdRef = useRef<string | null>(null)
   const [prechatSuggestions, setPrechatSuggestions] = useState<string[]>([])
@@ -624,6 +625,7 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
       try {
         inFlightRef.current = true
         setIsLoading(true)
+        setIsGenerating(true)
 
         let displayMessage = userInputText
         try {
@@ -742,6 +744,7 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
         pruneEphemeralOutputsFromLastAgentTurn()
         inFlightRef.current = false
         setIsLoading(false)
+        setIsGenerating(false)
         abortControllerRef.current = null
       }
     },
@@ -854,6 +857,7 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
     // Reset loading state
     inFlightRef.current = false
     setIsLoading(false)
+    setIsGenerating(false)
 
     return userMessageText
   }, [accessToken, state.sessionId, state.conversation])
@@ -1104,6 +1108,7 @@ export function useFlowBot(accessToken: string, options: UseFlowBotOptions = {})
   return {
     conversation: state.conversation,
     isLoading,
+    isGenerating,
     sendMessage,
     editMessage,
     attachFiles,

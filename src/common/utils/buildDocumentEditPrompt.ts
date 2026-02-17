@@ -6,25 +6,6 @@ interface BuildDocumentEditPromptOptions {
   userInstruction: string
 }
 
-const MAX_SELECTION_PREVIEW_LENGTH = 1200
-const MAX_SELECTION_HTML_PREVIEW_LENGTH = 4000
-
-function truncateSelectionPreview(text: string): string {
-  const normalized = text.replace(/\s+/g, ' ').trim()
-  if (normalized.length <= MAX_SELECTION_PREVIEW_LENGTH) {
-    return normalized
-  }
-  return `${normalized.slice(0, MAX_SELECTION_PREVIEW_LENGTH)}...`
-}
-
-function truncateSelectionHtmlPreview(html: string): string {
-  const normalized = html.trim()
-  if (normalized.length <= MAX_SELECTION_HTML_PREVIEW_LENGTH) {
-    return normalized
-  }
-  return `${normalized.slice(0, MAX_SELECTION_HTML_PREVIEW_LENGTH)}...`
-}
-
 /**
  * Builds a deterministic prompt for document editing in EveryAI/Flowbot.
  *
@@ -37,8 +18,8 @@ export function buildDocumentEditPrompt(options: BuildDocumentEditPromptOptions)
   const rawSelectedHtml = options.selectedHtml?.trim() || ''
   const userInstruction = options.userInstruction.trim()
   const hasSelection = rawSelectedText.length > 0
-  const selectionPreview = hasSelection ? truncateSelectionPreview(rawSelectedText) : ''
-  const selectionHtmlPreview = rawSelectedHtml.length > 0 ? truncateSelectionHtmlPreview(rawSelectedHtml) : ''
+  const selectionText = hasSelection ? rawSelectedText : ''
+  const selectionHtml = rawSelectedHtml.length > 0 ? rawSelectedHtml : ''
   const modeHint = hasSelection ? 'selection' : 'document'
 
   const lines = [
@@ -56,17 +37,23 @@ export function buildDocumentEditPrompt(options: BuildDocumentEditPromptOptions)
     hasSelection
       ? '4. Pass selected_text exactly as provided under Selection context (do not omit or paraphrase).'
       : '4. Do not pass selected_text when there is no Selection context.',
-    hasSelection && selectionHtmlPreview
+    hasSelection && selectionHtml
       ? '5. Pass selected_html exactly as provided under Selection HTML context.'
       : '5. Do not pass selected_html when Selection HTML context is missing.',
-    '6. Return a concise summary of the applied change.'
+    '6. Return a concise summary of the applied change.',
+    hasSelection
+      ? '7. Keep edits scoped to the selected content and preserve unrelated sections.'
+      : '7. Update the full document as requested.',
+    hasSelection
+      ? '8. If updated_html is returned in selection mode, it must be the FULL document HTML (never only the selected fragment).'
+      : '8. Return updated_html with the full document.'
   ]
 
   if (hasSelection) {
-    lines.push('', 'Selection context:', selectionPreview)
+    lines.push('', 'Selection context:', selectionText)
   }
-  if (selectionHtmlPreview) {
-    lines.push('', 'Selection HTML context:', selectionHtmlPreview)
+  if (selectionHtml) {
+    lines.push('', 'Selection HTML context:', selectionHtml)
   }
 
   return lines.join('\n')

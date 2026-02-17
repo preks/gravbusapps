@@ -66,7 +66,8 @@ import {
   Unlock,
   MessageSquare,
   Upload,
-  Wand2
+  Wand2,
+  RefreshCw
 } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { Document, DocumentApprovalRequest } from '../../types'
@@ -88,9 +89,7 @@ import { useFileLock } from '../../../shared/hooks/useFileLock'
 import { useComments } from '../../../shared/hooks/useComments'
 import { usePublishing } from '../../../shared/hooks/usePublishing'
 import { emitDocumentActivity, emitDocumentActivityEnd } from '../../../spaces/hooks/useSpaceDocumentActivity'
-import { openEveryAI } from '@/common/utils/openEveryAI'
 import { buildDocumentEditPrompt } from '@/common/utils/buildDocumentEditPrompt'
-import { navigateTo } from '@/common/utils/navigationUtils'
 import { env } from '@/common/env/EnvUtils'
 import { flowbotClient } from '@/common/network/flowbot/FlowbotClient'
 import { VersionHistory } from '../../../shared/components/VersionHistory'
@@ -102,6 +101,10 @@ import { CommentPanel } from '../../../shared/components/CommentPanel'
 import { InlineCommentPopover } from '../../../shared/components/InlineCommentPopover'
 import { InlineComment as InlineCommentExtension } from '../../../shared/extensions/InlineCommentExtension'
 import { AiEditPanel } from '../AiEditPanel'
+import {
+  EmbeddedFlowbotChatPanel,
+  type EmbeddedFlowbotChatState
+} from '../../../shared/components/EmbeddedFlowbotChatPanel'
 import * as Y from 'yjs'
 import { Awareness } from 'y-protocols/awareness'
 import DOMPurify from 'dompurify'
@@ -114,6 +117,7 @@ const PAGE_MARGIN_PX = 96 // 1 inch = 96px at 96 DPI
 /** Delay before auto-saving new documents/templates (no document id). 5 minutes. */
 const AUTO_SAVE_DELAY_MS = 5 * 60 * 1000
 const AUTOCOMPLETE_PLUGIN_KEY = new PluginKey('documentAutocompleteGhost')
+const CURRENT_SELECTION_PLUGIN_KEY = new PluginKey('documentCurrentSelectionHighlight')
 const AUTOCOMPLETE_DEBOUNCE_MS = 350
 const AUTOCOMPLETE_ROLLOUT_STORAGE_KEY = 'document-autocomplete-rollout'
 const AUTOCOMPLETE_TOGGLE_STORAGE_KEY = 'document-autocomplete:enabled'
@@ -221,6 +225,47 @@ function getAvatarUrl(picture?: string): string | undefined {
   if (picture.startsWith('data:')) return picture
   // Otherwise, add the prefix (try png first, browser will handle it)
   return `data:image/png;base64,${picture}`
+}
+
+function normalizeHtmlForComparison(html: string): string {
+  try {
+    if (typeof window === 'undefined') {
+      return html.trim()
+    }
+    const doc = new window.DOMParser().parseFromString(html, 'text/html')
+    const normalized = doc.body.innerHTML
+      .replace(/\u200B/g, '')
+      .replace(/>\s+</g, '><')
+      .replace(/\s+/g, ' ')
+      .trim()
+    return normalized
+  } catch {
+    return html
+      .replace(/\u200B/g, '')
+      .replace(/>\s+</g, '><')
+      .replace(/\s+/g, ' ')
+      .trim()
+  }
+}
+
+function areHtmlSemanticallyEquivalent(left: string, right: string): boolean {
+  if (left === right) return true
+  const normalizedLeft = normalizeHtmlForComparison(left)
+  const normalizedRight = normalizeHtmlForComparison(right)
+  if (normalizedLeft === normalizedRight) return true
+
+  try {
+    if (typeof window !== 'undefined') {
+      const leftDoc = new window.DOMParser().parseFromString(left, 'text/html')
+      const rightDoc = new window.DOMParser().parseFromString(right, 'text/html')
+      const leftText = (leftDoc.body.textContent || '').replace(/\s+/g, ' ').trim()
+      const rightText = (rightDoc.body.textContent || '').replace(/\s+/g, ' ').trim()
+      return leftText === rightText
+    }
+  } catch {
+    // ignore and return false below
+  }
+  return false
 }
 
 /**
@@ -419,18 +464,31 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     const [showCheckpointDialog, setShowCheckpointDialog] = useState(false)
     const [showPublishDialog, setShowPublishDialog] = useState(false)
     // Right sidebar: only one can be open at a time (comments vs AI editor)
-    type RightSidebar = 'closed' | 'comments' | 'ai'
+    type RightSidebar = 'closed' | 'comments' | 'ai' | 'aiChat'
     const [rightSidebar, setRightSidebar] = useState<RightSidebar>('closed')
     const [showInlineCommentPopover, setShowInlineCommentPopover] = useState(false)
     const [inlineCommentPosition, setInlineCommentPosition] = useState<{ top: number; left: number } | null>(null)
-    const [pendingSelection, setPendingSelection] = useState<{ from: number; to: number; text: string } | null>(null)
+    const [pendingSelection, setPendingSelection] = useState<{
+      from: number
+      to: number
+      text: string
+      html: string
+    } | null>(null)
     const [showAiInstructionDialog, setShowAiInstructionDialog] = useState(false)
     const [aiInstruction, setAiInstruction] = useState('')
     const [aiSelectionSnapshot, setAiSelectionSnapshot] = useState('')
     const [aiSelectionSnapshotHtml, setAiSelectionSnapshotHtml] = useState('')
+    const [pendingAiChatPrompt, setPendingAiChatPrompt] = useState<string | null>(null)
+    // AI chat state is tracked via wasAiChatLoadingRef inside handleAiChatStateChange
+    // rather than React state to avoid unnecessary re-renders of the editor.
+    const wasAiChatLoadingRef = useRef(false)
+    const aiSyncRunIdRef = useRef(0)
+    const aiRunStartUpdatedAtRef = useRef<string | undefined>(undefined)
+    const suppressYjsSnapshotSaveRef = useRef(false)
     const [isAutocompleteToggleEnabled, setIsAutocompleteToggleEnabled] = useState(false)
     const [autocompleteSuggestion, setAutocompleteSuggestion] = useState('')
     const [autocompleteCursorPos, setAutocompleteCursorPos] = useState<number | null>(null)
+    const [currentSelectionRange, setCurrentSelectionRange] = useState<{ from: number; to: number } | null>(null)
     const [, setIsAutocompleteLoading] = useState(false)
     const autocompleteSuggestionRef = useRef('')
     const autocompleteCursorPosRef = useRef<number | null>(null)
@@ -526,6 +584,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       ydoc,
       awareness,
       editorRef,
+      suppressSnapshotSaveRef: suppressYjsSnapshotSaveRef,
       isReadOnly,
       title,
       setLastSaved,
@@ -584,7 +643,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       const parentText = $from.parent.textContent || ''
       const prefixText = parentText.slice(0, $from.parentOffset)
       const suffixText = parentText.slice($from.parentOffset)
-      if (prefixText.trim().length < 10) return null
+      if (prefixText.trim().length < 3) return null
 
       return {
         cursorPos: selection.from,
@@ -691,7 +750,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       emitDocumentActivity({
         userId: currentUserId,
         userName: currentUserName || 'User',
-        userAvatar: currentUserAvatar,
+        userAvatar: currentUserAvatar || undefined,
         documentId: document.id,
         documentTitle: docTitle,
         documentType: 'document',
@@ -704,7 +763,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         emitDocumentActivity({
           userId: currentUserId,
           userName: currentUserName || 'User',
-          userAvatar: currentUserAvatar,
+          userAvatar: currentUserAvatar || undefined,
           documentId: document.id,
           documentTitle: docTitle,
           documentType: 'document',
@@ -730,7 +789,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
             },
             // Disable history when using Collaboration (Yjs provides its own history)
             history: document?.id ? false : {}
-          }),
+          } as any),
           Placeholder.configure({
             placeholder: 'Start writing your document...'
           }),
@@ -898,17 +957,51 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     useEffect(() => {
       if (!editor) return
       const handleSelectionUpdate = () => {
-        if (autocompleteDebounceRef.current) {
-          clearTimeout(autocompleteDebounceRef.current)
-        }
-        autocompleteRequestControllerRef.current?.abort()
         clearAutocompleteSuggestion()
+        const { from, to, empty } = editor.state.selection
+        setCurrentSelectionRange(empty ? null : { from, to })
       }
+      const { from, to, empty } = editor.state.selection
+      setCurrentSelectionRange(empty ? null : { from, to })
       editor.on('selectionUpdate', handleSelectionUpdate)
       return () => {
         editor.off('selectionUpdate', handleSelectionUpdate)
       }
     }, [editor, clearAutocompleteSuggestion])
+
+    useEffect(() => {
+      if (!editor) return
+      const existing = CURRENT_SELECTION_PLUGIN_KEY.get(editor.state)
+      if (existing) {
+        editor.unregisterPlugin(CURRENT_SELECTION_PLUGIN_KEY)
+      }
+
+      if (!currentSelectionRange) return
+
+      const plugin = new Plugin({
+        key: CURRENT_SELECTION_PLUGIN_KEY,
+        props: {
+          decorations(state) {
+            const from = Math.max(0, Math.min(currentSelectionRange.from, state.doc.content.size))
+            const to = Math.max(from, Math.min(currentSelectionRange.to, state.doc.content.size))
+            if (from === to) return DecorationSet.empty
+            return DecorationSet.create(state.doc, [
+              Decoration.inline(from, to, {
+                class: 'current-selection-highlight'
+              })
+            ])
+          }
+        }
+      })
+
+      editor.registerPlugin(plugin)
+      return () => {
+        const active = CURRENT_SELECTION_PLUGIN_KEY.get(editor.state)
+        if (active) {
+          editor.unregisterPlugin(CURRENT_SELECTION_PLUGIN_KEY)
+        }
+      }
+    }, [editor, currentSelectionRange])
 
     // Expose insertAtCursor for template "Insert field" panel
     useImperativeHandle(
@@ -942,11 +1035,17 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         const to = selectionRange?.to ?? editor.state.selection.to
         if (from === to) return // No selection
 
-        const selectedText = editor.state.doc.textBetween(from, to)
+        const selectedText = editor.state.doc.textBetween(from, to, '\n\n', '\n').trim()
+        const slice = editor.state.doc.slice(from, to)
+        const serializer = DOMSerializer.fromSchema(editor.schema)
+        const domFragment = serializer.serializeFragment(slice.content)
+        const selectedContainer = globalThis.document.createElement('div')
+        selectedContainer.appendChild(domFragment)
+        const selectedHtml = selectedContainer.innerHTML.trim()
         const { view } = editor
         const coords = view.coordsAtPos(from)
 
-        setPendingSelection({ from, to, text: selectedText })
+        setPendingSelection({ from, to, text: selectedText, html: selectedHtml })
         setInlineCommentPosition({
           top: contextMenuPosition?.y ? contextMenuPosition.y + 8 : coords.top + 30,
           left: contextMenuPosition?.x ? contextMenuPosition.x + 8 : coords.left
@@ -1090,7 +1189,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       if (!editor) return { text: '', html: '' }
       const { from, to } = editor.state.selection
       if (from === to) return { text: '', html: '' }
-      const text = editor.state.doc.textBetween(from, to).trim()
+      const text = editor.state.doc.textBetween(from, to, '\n\n', '\n').trim()
       const slice = editor.state.doc.slice(from, to)
       const div = globalThis.document.createElement('div')
       const serializer = DOMSerializer.fromSchema(editor.schema)
@@ -1158,28 +1257,157 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       setAiInstruction('')
       setAiSelectionSnapshot('')
       setAiSelectionSnapshotHtml('')
-
-      // Localhost fallback: when modules run separately, openEveryAI event listeners
-      // may not be mounted in the current shell, so route to EveryAI explicitly.
-      const isLocalHost =
-        typeof window !== 'undefined' &&
-        (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-      if (isLocalHost) {
-        try {
-          sessionStorage.setItem('everyAIInitialPrompt', prompt)
-        } catch (error) {
-          console.warn('[PagedDocumentEditor] Failed to persist EveryAI prompt for route fallback', error)
-        }
-      }
-
-      openEveryAI({ prompt })
-
-      if (isLocalHost) {
-        setTimeout(() => {
-          navigateTo('/platform/every-ai')
-        }, 150)
-      }
+      setPendingAiChatPrompt(prompt)
+      setRightSidebar('aiChat')
     }, [aiInstruction, aiSelectionSnapshot, aiSelectionSnapshotHtml, document?.id, title])
+
+    const applyLatestDocumentContent = useCallback(
+      async (html: string, updatedAt?: string): Promise<boolean> => {
+        if (!editor) return false
+        const scrollContainer = editorContainerRef.current
+        const scrollTopBefore = scrollContainer?.scrollTop ?? 0
+        const wasEditable = editor.isEditable
+
+        try {
+          suppressYjsSnapshotSaveRef.current = true
+          const fragment = ydoc.getXmlFragment('default')
+          ydoc.transact(() => {
+            fragment.delete(0, fragment.length)
+          })
+
+          if (!wasEditable) {
+            editor.setEditable(true)
+          }
+
+          editor.commands.setContent(html, { emitUpdate: true })
+          await new Promise(resolve => setTimeout(resolve, 0))
+
+          const applied = areHtmlSemanticallyEquivalent(editor.getHTML(), html)
+
+          if (applied) {
+            setHasUnsavedChanges(false)
+            if (updatedAt) {
+              setLastSaved(new Date(updatedAt))
+            }
+          }
+          return applied
+        } finally {
+          if (!wasEditable) {
+            editor.setEditable(false)
+          }
+          setTimeout(() => {
+            suppressYjsSnapshotSaveRef.current = false
+          }, 1500)
+          if (scrollContainer) {
+            const container = scrollContainer
+            requestAnimationFrame(() => {
+              container.scrollTop = scrollTopBefore
+            })
+          }
+        }
+      },
+      [editor, ydoc]
+    )
+
+    const syncEditorFromLatestDocument = useCallback(async (): Promise<boolean> => {
+      if (!document?.id || !editor) return false
+      try {
+        const latest = await DocumentApiService.getDocument(document.id, { fresh: true })
+        if (!latest?.content) return false
+        const currentHtml = editor.getHTML()
+        if (areHtmlSemanticallyEquivalent(latest.content, currentHtml)) return false
+        return await applyLatestDocumentContent(latest.content, latest.updatedAt)
+      } catch (error) {
+        console.warn('[PagedDocumentEditor] Failed syncing document after AI edit', error)
+        return false
+      }
+    }, [applyLatestDocumentContent, document?.id, editor])
+
+    const reconcileAfterAiCompletion = useCallback(
+      async (runId: number, runStartUpdatedAt?: string) => {
+        if (!document?.id || !editor) return
+        const baselineHtml = editor.getHTML()
+        const baselineUpdatedAtMs = runStartUpdatedAt ? Date.parse(runStartUpdatedAt) : Number.NaN
+        const delays = [0, 800, 1800, 3000, 5000, 8000]
+
+        for (const delayMs of delays) {
+          try {
+            if (runId !== aiSyncRunIdRef.current) return
+            if (delayMs > 0) {
+              await new Promise(resolve => setTimeout(resolve, delayMs))
+              if (runId !== aiSyncRunIdRef.current) return
+            }
+
+            const latest = await DocumentApiService.getDocument(document.id, { fresh: true })
+            if (!latest?.content) continue
+
+            const latestUpdatedAtMs = latest.updatedAt ? Date.parse(latest.updatedAt) : Number.NaN
+            const hasNewerVersionByTimestamp =
+              Number.isFinite(baselineUpdatedAtMs) &&
+              Number.isFinite(latestUpdatedAtMs) &&
+              latestUpdatedAtMs > baselineUpdatedAtMs
+            const hasContentChange = !areHtmlSemanticallyEquivalent(latest.content, baselineHtml)
+            const shouldApply = Number.isFinite(baselineUpdatedAtMs) ? hasNewerVersionByTimestamp : hasContentChange
+            if (!shouldApply) continue
+
+            const applied = await applyLatestDocumentContent(latest.content, latest.updatedAt)
+            if (applied || runId !== aiSyncRunIdRef.current) return
+          } catch {
+            // Retry with the next delay
+          }
+        }
+      },
+      [applyLatestDocumentContent, document?.id, editor]
+    )
+
+    const triggerAiCompletionReload = useCallback(
+      async (runId: number) => {
+        if (!document?.id) return
+        const appliedImmediately = await syncEditorFromLatestDocument()
+        if (appliedImmediately || runId !== aiSyncRunIdRef.current) return
+        await reconcileAfterAiCompletion(runId, aiRunStartUpdatedAtRef.current)
+      },
+      [document?.id, reconcileAfterAiCompletion, syncEditorFromLatestDocument]
+    )
+
+    const handleAiChatStateChange = useCallback(
+      (state: EmbeddedFlowbotChatState) => {
+        const wasLoading = wasAiChatLoadingRef.current
+        wasAiChatLoadingRef.current = state.isGenerating
+
+        if (!wasLoading && state.isGenerating) {
+          aiSyncRunIdRef.current += 1
+          const runId = aiSyncRunIdRef.current
+          aiRunStartUpdatedAtRef.current = undefined
+          if (document?.id) {
+            void DocumentApiService.getDocument(document.id, { fresh: true })
+              .then(doc => {
+                if (runId !== aiSyncRunIdRef.current) return
+                aiRunStartUpdatedAtRef.current = doc?.updatedAt
+              })
+              .catch(() => {})
+          }
+        }
+
+        if (wasLoading && !state.isGenerating) {
+          const runId = aiSyncRunIdRef.current
+          void triggerAiCompletionReload(runId)
+        }
+      },
+      [document?.id, triggerAiCompletionReload]
+    )
+
+    // Cancel any in-flight AI reconcile loop on unmount.
+    useEffect(() => {
+      return () => {
+        aiSyncRunIdRef.current += 1
+      }
+    }, [])
+
+    const handleCloseAiChatPanel = useCallback(() => {
+      void syncEditorFromLatestDocument()
+      setRightSidebar('closed')
+    }, [syncEditorFromLatestDocument])
 
     // Get word count
     const wordCount =
@@ -1460,6 +1688,19 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
+                )}
+
+                {document?.id && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => void syncEditorFromLatestDocument()}
+                    title="Reload latest document content"
+                    data-testid="reload-document-button"
+                  >
+                    <RefreshCw className="gba:w-4 gba:h-4 gba:mr-2" />
+                    Reload
+                  </Button>
                 )}
 
                 {/* AI Editor button (same style as notes Transform) */}
@@ -1866,6 +2107,13 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           transition: background 0.2s ease;
         }
 
+        /* Subtle live selection decoration (non-invasive) */
+        .paged-document-editor .ProseMirror .current-selection-highlight {
+          background: rgba(147, 197, 253, 0.22);
+          border-bottom: 1px solid rgba(59, 130, 246, 0.35);
+          border-radius: 2px;
+        }
+
         .paged-document-editor .ProseMirror .document-autocomplete-ghost-text {
           color: #9ca3af;
           opacity: 0.9;
@@ -1957,7 +2205,9 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           <CheckpointDialog
             isOpen={showCheckpointDialog}
             onClose={() => setShowCheckpointDialog(false)}
-            onSave={versioning.createCheckpoint}
+            onSave={async description => {
+              await versioning.createCheckpoint(description)
+            }}
             isSaving={versioning.isSaving}
             data-testid="document-checkpoint-dialog"
           />
@@ -1967,7 +2217,9 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           <PublishDialog
             isOpen={showPublishDialog}
             onClose={() => setShowPublishDialog(false)}
-            onPublish={publishing.publish}
+            onPublish={async (publishNotes, createCheckpoint) => {
+              await publishing.publish(publishNotes, createCheckpoint)
+            }}
             isPublishing={publishing.isPublishing}
             entityType="document"
             data-testid="document-publish-dialog"
@@ -1991,8 +2243,12 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
             onUpdateComment={async (commentId, content) => {
               await comments.updateComment(commentId, { content })
             }}
-            onResolveComment={comments.resolveComment}
-            onDeleteComment={comments.deleteComment}
+            onResolveComment={async commentId => {
+              await comments.resolveComment(commentId)
+            }}
+            onDeleteComment={async commentId => {
+              await comments.deleteComment(commentId)
+            }}
             onClose={() => setRightSidebar('closed')}
             currentUserId={currentUserId || undefined}
             currentUserName={currentUserName || undefined}
@@ -2028,6 +2284,20 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           />
         )}
 
+        {document?.id && rightSidebar === 'aiChat' && (
+          <EmbeddedFlowbotChatPanel
+            accessToken={accessToken}
+            onClose={handleCloseAiChatPanel}
+            title="AI Document Chat"
+            headerHeight={measuredHeaderHeight || 120}
+            initialPrompt={pendingAiChatPrompt}
+            onInitialPromptConsumed={() => setPendingAiChatPrompt(null)}
+            onStateChange={handleAiChatStateChange}
+            currentUserAvatar={currentUserAvatar}
+            data-testid="document-ai-chat-panel"
+          />
+        )}
+
         {/* Inline comment popover (Google Docs style) */}
         <InlineCommentPopover
           isOpen={showInlineCommentPopover}
@@ -2035,6 +2305,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           onEditWithAI={() => {
             if (!pendingSelection) return
             setAiSelectionSnapshot(pendingSelection.text)
+            setAiSelectionSnapshotHtml(pendingSelection.html)
             setAiInstruction('')
             setShowAiInstructionDialog(true)
             setShowInlineCommentPopover(false)
