@@ -243,6 +243,7 @@ export const GlobalCallContainer: React.FC = () => {
               isMeeting: isMeetingForFallback,
               participantId: participantIdForFallback
             }
+            console.log('[SESSION_ID] GlobalCallContainer emitLeftBestEffort: emitting rtk-group-call:left', payload)
 
             // Prefer ack so the event has a chance to reach backend before teardown.
             if (typeof (socket as any).timeout === 'function') {

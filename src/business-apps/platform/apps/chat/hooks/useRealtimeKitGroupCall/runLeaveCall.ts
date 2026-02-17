@@ -44,7 +44,13 @@ export async function runLeaveCall(ctx: LeaveCallContext): Promise<void> {
   }
 
   const sessionIdForEmit = refs.sessionIdRef.current
-  const isMeetingForEmit = !!refs.calendarMeetingIdRef.current
+  const isMeetingForEmit = !!refs.calendarMeetingIdRef.current || refs.conversationTypeRef.current === 'meeting'
+  console.log('[SESSION_ID] runLeaveCall: sessionIdRef.current (will send on leave)', {
+    meetingId,
+    roomId,
+    sessionIdForEmit,
+    isMeeting: isMeetingForEmit
+  })
 
   refs.lastStartEmitRef.current = null
   clearInviteDedupeFor(meetingId, roomId)
@@ -161,6 +167,7 @@ export async function runLeaveCall(ctx: LeaveCallContext): Promise<void> {
         isMeeting: isMeeting,
         participantId: user.id
       }
+      console.log('[SESSION_ID] runLeaveCall: emitting rtk-group-call:left', payload)
 
       const socketWithTimeout = socket as SocketWithTimeout
       if (typeof socketWithTimeout.timeout === 'function') {

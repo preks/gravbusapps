@@ -229,6 +229,7 @@ export function useRealtimeKitCallActions(params: UseRealtimeKitCallActionsOptio
       callType: CallType,
       meetingId?: string,
       conversationName?: string,
+      resolvedSessionId?: string,
       initialPreferences?: {
         micEnabled: boolean
         cameraEnabled: boolean
@@ -255,7 +256,7 @@ export function useRealtimeKitCallActions(params: UseRealtimeKitCallActionsOptio
           joinMeetingWithTimeout,
           setActiveCallInStorage: setActiveCallInStorageParam
         },
-        { roomId, callType, meetingId, conversationName, initialPreferences, conversationType }
+        { roomId, callType, meetingId, conversationName, resolvedSessionId, initialPreferences, conversationType }
       )
     },
     [
@@ -281,9 +282,18 @@ export function useRealtimeKitCallActions(params: UseRealtimeKitCallActionsOptio
       buildJoinCallWrapper({
         internalJoinCall,
         getActiveConversationCalls: () => activeConversationCalls,
-        getConversations: () => options.conversations
+        getConversations: () => options.conversations,
+        fetchActiveCallByConversationId: apiClient
+          ? async (conversationId: string) => {
+              try {
+                return await apiClient.getActiveCallByConversationId(conversationId)
+              } catch {
+                return null
+              }
+            }
+          : undefined
       }),
-    [internalJoinCall, activeConversationCalls, options]
+    [internalJoinCall, activeConversationCalls, options, apiClient]
   )
 
   const acceptInvite = useCallback(
@@ -319,6 +329,7 @@ export function useRealtimeKitCallActions(params: UseRealtimeKitCallActionsOptio
         invite.callType,
         invite.roomId,
         invite.conversationName,
+        undefined,
         initialPreferences,
         invite.conversationType
       )
