@@ -421,10 +421,11 @@ export const MeshDashboard: React.FC<MeshDashboardProps> = ({ accessToken, onNav
             fitView
             fitViewOptions={{ padding: 0.3 }}
             connectOnClick={false}
-            // In some published builds, ReactFlow base CSS is loaded late or differs, which can
-            // cause the edges SVG to keep its intrinsic size (clipping paths) while nodes still
-            // render via transforms. Force the edges SVG to fill the renderer and avoid clipping.
-            className="gba:w-full gba:h-full gba:[&_.react-flow__renderer]:w-full gba:[&_.react-flow__renderer]:h-full gba:[&_.react-flow__renderer]:overflow-visible gba:[&_.react-flow__viewport]:overflow-visible gba:[&_.react-flow__edges]:absolute gba:[&_.react-flow__edges]:inset-0 gba:[&_.react-flow__edges]:w-full gba:[&_.react-flow__edges]:h-full gba:[&_.react-flow__edges]:overflow-visible"
+            // ReactFlow renders each edge in its own <svg> without explicit width/height.
+            // If CSS differs in published builds, those SVGs can fall back to 300x150 and clip paths,
+            // which looks like “edges don’t know node positions” (only random segments are visible).
+            // Force edge SVGs to fill the renderer and keep overflow visible.
+            className="gba:w-full gba:h-full gba:[&_[class~='react-flow__viewport']]:overflow-visible gba:[&_[class~='react-flow__edges']_svg]:w-full gba:[&_[class~='react-flow__edges']_svg]:h-full gba:[&_[class~='react-flow__edges']_svg]:left-0 gba:[&_[class~='react-flow__edges']_svg]:top-0 gba:[&_[class~='react-flow__edges']_svg]:overflow-visible"
           >
             <Background />
             <Controls />
