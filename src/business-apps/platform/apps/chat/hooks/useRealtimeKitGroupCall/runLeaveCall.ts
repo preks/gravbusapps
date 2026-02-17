@@ -3,6 +3,7 @@
  */
 
 import type { LeaveCallContext } from './contextTypes'
+import type { CallState } from './useRealtimeKitCallState'
 
 interface SocketWithConnect {
   connect?: () => void
@@ -48,10 +49,13 @@ export async function runLeaveCall(ctx: LeaveCallContext): Promise<void> {
   refs.lastStartEmitRef.current = null
   clearInviteDedupeFor(meetingId, roomId)
 
+  // Close modal immediately so UI does not stay open while cleanup runs
+  globalCallManager.updateCallState({ status: 'ended' })
+
+  const meetingForLeave = stableMeeting || globalCallManager.getCallData().realtimeKitMeeting
+
   try {
     refs.isLeavingRef.current = true
-
-    const meetingForLeave = stableMeeting || globalCallManager.getCallData().realtimeKitMeeting
 
     const duration = callStartTime ? Date.now() - callStartTime : 0
 
@@ -178,7 +182,7 @@ export async function runLeaveCall(ctx: LeaveCallContext): Promise<void> {
     refs.pendingCallParticipantsRef.current = []
     refs.calendarMeetingIdRef.current = null
 
-    setCallState(prev => ({
+    setCallState((prev: CallState) => ({
       ...prev,
       isMinimized: false,
       status: 'ended',
@@ -206,12 +210,64 @@ export async function runLeaveCall(ctx: LeaveCallContext): Promise<void> {
     refs.onCallEndedRef.current?.(roomId, duration)
 
     setTimeout(() => {
-      setCallState(prev => ({ ...prev, status: 'idle' }))
+      setCallState((prev: CallState) => ({ ...prev, status: 'idle' }))
       refs.isLeavingRef.current = false
       refs.isCancelledRef.current = false
     }, 100)
   } catch (error) {
     console.error('[useRealtimeKitGroupCall] Error leaving call:', error)
+    try {
+      media.stopAllTracks()
+    } catch {
+      // Best-effort
+    }
+    stopDurationTimer()
+    if (refs.isScreenSharingRef.current && meetingForLeave?.self?.disableScreenShare) {
+      try {
+        await meetingForLeave.self.disableScreenShare()
+      } catch {
+        // Best-effort
+      }
+    }
+    if (meetingForLeave?.leave) {
+      try {
+        await meetingForLeave.leave()
+      } catch {
+        // Best-effort
+      }
+    }
     refs.isLeavingRef.current = false
+    refs.isCancelledRef.current = false
+    refs.startTimeRef.current = null
+    refs.conversationIdRef.current = null
+    refs.callStateRoomIdRef.current = null
+    refs.meetingIdRef.current = null
+    refs.sessionIdRef.current = null
+    refs.wasIdleRef.current = true
+    refs.abortControllerRef.current = null
+    refs.pendingCallParticipantsRef.current = []
+    refs.calendarMeetingIdRef.current = null
+    setCallState((prev: CallState) => ({
+      ...prev,
+      isMinimized: false,
+      status: 'idle',
+      roomId: null,
+      meetingId: null,
+      sessionId: null,
+      callType: 'audio',
+      callStartTime: null,
+      participants: [],
+      hostId: null
+    }))
+    globalCallManager.clearCall()
+    if (roomId) {
+      setActiveConversationCalls((prev: Map<string, any>) => {
+        const newMap = new Map(prev)
+        newMap.delete(roomId)
+        return newMap
+      })
+    }
+    callPreferences.clearActiveCall()
+    clearActiveCallFromStorage()
   }
 }

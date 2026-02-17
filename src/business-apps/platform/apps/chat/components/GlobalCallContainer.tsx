@@ -80,11 +80,8 @@ export const GlobalCallContainer: React.FC = () => {
   }, [instanceId])
 
   const isEligibleRealtimeKitCall = useMemo(() => {
-    return (
-      callData.callState.status !== 'idle' &&
-      !!callData.realtimeKitMeeting &&
-      callData.callState.callImplementation === 'realtime-kit'
-    )
+    const activeStatus = callData.callState.status === 'connected' || callData.callState.status === 'joining'
+    return activeStatus && !!callData.realtimeKitMeeting && callData.callState.callImplementation === 'realtime-kit'
   }, [callData.callState.callImplementation, callData.callState.status, callData.realtimeKitMeeting])
 
   // Claim/release UI ownership based on whether this instance can render the RTK call UI.

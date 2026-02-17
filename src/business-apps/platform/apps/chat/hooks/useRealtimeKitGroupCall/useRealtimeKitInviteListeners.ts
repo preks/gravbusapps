@@ -75,6 +75,14 @@ export function useRealtimeKitInviteListeners(params: UseRealtimeKitInviteListen
         return
       }
 
+      if (
+        data.conversationId &&
+        (refs.conversationIdRef.current === data.conversationId ||
+          refs.callStateRoomIdRef.current === data.conversationId)
+      ) {
+        return
+      }
+
       const isFromSelf = data.from?.id === currentUser?.id || data.from?.odId === currentUser?.odId
       if (isFromSelf) {
         return

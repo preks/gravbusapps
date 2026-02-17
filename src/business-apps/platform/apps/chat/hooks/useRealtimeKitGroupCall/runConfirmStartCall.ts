@@ -51,7 +51,7 @@ export async function runConfirmStartCall(
     refs.isCancelledRef.current = false
     refs.abortControllerRef.current = new AbortController()
 
-    setCallState((prev: any) => ({ ...prev, status: 'joining' }))
+    setCallState((prev: any) => ({ ...prev, status: 'joining', roomId: conversationId }))
     refs.callStateRoomIdRef.current = conversationId
     refs.conversationIdRef.current = conversationId
 

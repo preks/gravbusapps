@@ -127,12 +127,8 @@ export function useChatRejoinCall({
   const handleRejoinWithPreferences = useCallback(
     (preferences: { micEnabled: boolean; cameraEnabled: boolean; backgroundEnabled: boolean }) => {
       if (!rejoinModalState || !stableActiveConversation) return
-      const activeCall = (stableActiveConversation as Conversation & { activeCall?: { roomId: string } }).activeCall
-      const meetingId = rejoinModalState.roomId || activeCall?.roomId
-      if (!meetingId) {
-        return
-      }
-      joinGroupCall?.(meetingId, rejoinModalState.callType, preferences)
+      const conversationId = stableActiveConversation.id
+      joinGroupCall?.(conversationId, rejoinModalState.callType, preferences)
     },
     [rejoinModalState, stableActiveConversation, joinGroupCall]
   )
