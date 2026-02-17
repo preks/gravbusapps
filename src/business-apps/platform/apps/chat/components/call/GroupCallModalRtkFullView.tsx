@@ -327,6 +327,7 @@ export function GroupCallModalRtkFullView({ props: p, state }: GroupCallModalRtk
                     localUserId={state.meeting?.self?.userId}
                     activeConversation={callConversationProp || activeConversation}
                     t={state.t}
+                    accessToken={accessToken}
                   />
                 )}
                 {state.sidebarView === 'chat' && apiClient && accessToken && (

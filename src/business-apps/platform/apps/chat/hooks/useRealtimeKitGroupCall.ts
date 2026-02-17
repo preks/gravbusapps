@@ -188,8 +188,14 @@ export const useRealtimeKitGroupCall = (options: UseRealtimeKitGroupCallOptions)
         joinCall: (...args) => {
           void actionsResult.joinCall(...args)
         },
-        acceptInvite: () => {
-          void actionsResult.acceptInvite()
+        acceptInvite: (preferences?: {
+          micEnabled: boolean
+          cameraEnabled: boolean
+          backgroundEnabled?: boolean
+          audioInputDeviceId?: string | null
+          videoInputDeviceId?: string | null
+        }) => {
+          void actionsResult.acceptInvite(preferences)
         },
         declineInvite: actionsResult.declineInvite,
         leaveCall: () => {

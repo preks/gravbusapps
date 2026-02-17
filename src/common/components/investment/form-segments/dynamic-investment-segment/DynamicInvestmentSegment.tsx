@@ -345,7 +345,11 @@ const DynamicInvestmentSegment: React.FC<DynamicInvestmentSegmentProps> = ({
 
   // Create mode: Check if deepest selected type has no children (show dynamic fields)
   const deepestSelectedType = selectedPath.length > 0 ? selectedPath[selectedPath.length - 1] : null
-  const hasMoreChildren = deepestSelectedType ? getTypesByParent(deepestSelectedType.id).length > 0 : false
+
+  // Determine the effective type to check for children
+  // Use deepestSelectedType if available, otherwise fall back to baseTypeId
+  const typeToCheckForChildren = deepestSelectedType?.id || baseTypeId
+  const hasMoreChildren = typeToCheckForChildren ? getTypesByParent(typeToCheckForChildren).length > 0 : false
 
   // Determine which formFieldsDefinition to use
   // Only show fields when we're at a leaf type (no more children)
@@ -394,7 +398,8 @@ const DynamicInvestmentSegment: React.FC<DynamicInvestmentSegmentProps> = ({
       )}
 
       {/* AI Source Document for Autofill (available in both create and update modes) */}
-      {enableAiAutofill && baseTypeId && !hasMoreChildren && deepestSelectedType && (
+      {/* Show when: AI is enabled, we have a base type, and we're at a leaf level (no more children) */}
+      {enableAiAutofill && baseTypeId && !hasMoreChildren && (
         <InvestmentFileUploadSegment
           file={aiSourceFile}
           onFileChange={setAiSourceFile}
