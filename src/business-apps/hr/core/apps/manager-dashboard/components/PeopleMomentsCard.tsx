@@ -33,6 +33,24 @@ const LoadingSkeleton: React.FC = () => (
   </div>
 )
 
+const getCountSummary = (
+  count: number,
+  singularLabel: string,
+  pluralLabel: string,
+  emptyKey: string,
+  emptyFallback: string,
+  periodKey: string,
+  periodFallback: string
+) => {
+  if (count === 0) {
+    return getTranslationFromI18nKeyAndLabel(emptyKey, emptyFallback)
+  }
+
+  const noun = count === 1 ? singularLabel : pluralLabel
+  const period = getTranslationFromI18nKeyAndLabel(periodKey, periodFallback)
+  return `${count} ${noun} ${period}`
+}
+
 export const PeopleMomentsCard: React.FC<PeopleMomentsCardProps> = ({
   upcomingBirthdays,
   upcomingAnniversaries,
@@ -72,12 +90,15 @@ export const PeopleMomentsCard: React.FC<PeopleMomentsCardProps> = ({
                 <LoadingSkeleton />
               ) : (
                 <div className="gba:text-xs gba:text-muted-foreground">
-                  {upcomingBirthdays.length === 0
-                    ? getTranslationFromI18nKeyAndLabel(
-                        'master-data:hr.manager_dashboard.no_birthdays_this_month',
-                        'No birthdays this month'
-                      )
-                    : `${upcomingBirthdays.length} ${upcomingBirthdays.length === 1 ? 'birthday' : 'birthdays'} ${getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.this_month', 'this month')}`}
+                  {getCountSummary(
+                    upcomingBirthdays.length,
+                    'birthday',
+                    'birthdays',
+                    'master-data:hr.manager_dashboard.no_birthdays_this_month',
+                    'No birthdays this month',
+                    'master-data:hr.manager_dashboard.this_month',
+                    'this month'
+                  )}
                 </div>
               )}
             </div>
@@ -111,12 +132,15 @@ export const PeopleMomentsCard: React.FC<PeopleMomentsCardProps> = ({
                 <LoadingSkeleton />
               ) : (
                 <div className="gba:text-xs gba:text-muted-foreground">
-                  {upcomingAnniversaries.length === 0
-                    ? getTranslationFromI18nKeyAndLabel(
-                        'master-data:hr.manager_dashboard.no_anniversaries_this_week',
-                        'No anniversaries this week'
-                      )
-                    : `${upcomingAnniversaries.length} ${upcomingAnniversaries.length === 1 ? 'anniversary' : 'anniversaries'} ${getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.this_week', 'this week')}`}
+                  {getCountSummary(
+                    upcomingAnniversaries.length,
+                    'anniversary',
+                    'anniversaries',
+                    'master-data:hr.manager_dashboard.no_anniversaries_this_week',
+                    'No anniversaries this week',
+                    'master-data:hr.manager_dashboard.this_week',
+                    'this week'
+                  )}
                 </div>
               )}
             </div>

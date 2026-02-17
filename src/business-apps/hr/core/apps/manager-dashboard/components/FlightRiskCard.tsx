@@ -44,6 +44,16 @@ const getRiskBadgeVariant = (level: RiskLevel): 'destructive' | 'warning' | 'sec
   }
 }
 
+const getRiskIconBgClass = (summary: FlightRiskSummary) => {
+  if (summary.criticalCount > 0) {
+    return 'gba:bg-destructive'
+  }
+  if (summary.highRiskCount > 0) {
+    return 'gba:bg-warning'
+  }
+  return 'gba:bg-success'
+}
+
 const LoadingSkeleton: React.FC = () => (
   <Card data-testid="flight-risk-card-loading">
     <CardHeader className="gba:pb-2">
@@ -88,13 +98,7 @@ export const FlightRiskCard: React.FC<FlightRiskCardProps> = ({
           <div className="gba:flex gba:items-center gba:justify-between">
             <div className="gba:flex gba:items-center gba:gap-3">
               <span
-                className={`gba:inline-flex gba:items-center gba:justify-center gba:w-10 gba:h-10 gba:rounded-full gba:flex-shrink-0 ${
-                  summary.criticalCount > 0
-                    ? 'gba:bg-destructive'
-                    : summary.highRiskCount > 0
-                      ? 'gba:bg-warning'
-                      : 'gba:bg-success'
-                }`}
+                className={`gba:inline-flex gba:items-center gba:justify-center gba:w-10 gba:h-10 gba:rounded-full gba:flex-shrink-0 ${getRiskIconBgClass(summary)}`}
               >
                 {hasRisk ? (
                   <AlertTriangle size={20} className="gba:text-destructive-foreground" />

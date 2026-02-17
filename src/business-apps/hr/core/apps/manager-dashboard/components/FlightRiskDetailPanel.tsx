@@ -176,27 +176,28 @@ const SignalBreakdown: React.FC<{ signals: FlightRiskSignal[] }> = ({ signals })
 )
 
 // Intervention Card Component
-const InterventionCard: React.FC<{ intervention: FlightRiskIntervention }> = ({ intervention }) => (
-  <Card
-    className={`gba:border-l-4 ${
-      intervention.priority === 'high'
-        ? 'gba:border-l-destructive'
-        : intervention.priority === 'medium'
-          ? 'gba:border-l-warning'
-          : 'gba:border-l-muted'
-    }`}
-  >
-    <CardContent className="gba:p-3">
-      <div className="gba:flex gba:items-start gba:gap-2">
-        <Lightbulb size={16} className="gba:text-primary gba:mt-0.5 gba:flex-shrink-0" />
-        <div className="gba:min-w-0">
-          <h4 className="gba:text-sm gba:font-medium">{intervention.title}</h4>
-          <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">{intervention.description}</p>
+const InterventionCard: React.FC<{ intervention: FlightRiskIntervention }> = ({ intervention }) => {
+  let borderClass = 'gba:border-l-muted'
+  if (intervention.priority === 'high') {
+    borderClass = 'gba:border-l-destructive'
+  } else if (intervention.priority === 'medium') {
+    borderClass = 'gba:border-l-warning'
+  }
+
+  return (
+    <Card className={`gba:border-l-4 ${borderClass}`}>
+      <CardContent className="gba:p-3">
+        <div className="gba:flex gba:items-start gba:gap-2">
+          <Lightbulb size={16} className="gba:text-primary gba:mt-0.5 gba:flex-shrink-0" />
+          <div className="gba:min-w-0">
+            <h4 className="gba:text-sm gba:font-medium">{intervention.title}</h4>
+            <p className="gba:text-xs gba:text-muted-foreground gba:mt-1">{intervention.description}</p>
+          </div>
         </div>
-      </div>
-    </CardContent>
-  </Card>
-)
+      </CardContent>
+    </Card>
+  )
+}
 
 // Employee Row Component
 const EmployeeRow: React.FC<{
