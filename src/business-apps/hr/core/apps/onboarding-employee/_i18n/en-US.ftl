@@ -43,7 +43,13 @@ onboarding-employee-column-created = Created
 onboarding-employee-column-updated = Updated
 onboarding-employee-search-placeholder = Search cases...
 onboarding-employee-empty-message = No onboarding cases found
+onboarding-employee-column-actions = Actions
 onboarding-employee-action-view = View details
+onboarding-employee-cancel-case-dialog-item-title = case
+onboarding-employee-cancel-case-dialog-title = Cancel case
+onboarding-employee-cancel-case-dialog-description = Are you sure you want to cancel this onboarding case? This action cannot be undone.
+onboarding-employee-cancel-case-dialog-confirm = Cancel case
+onboarding-employee-cancel-case-dialog-cancel = Keep
 
 # Create Case form
 create-case-modal-title = Create onboarding case

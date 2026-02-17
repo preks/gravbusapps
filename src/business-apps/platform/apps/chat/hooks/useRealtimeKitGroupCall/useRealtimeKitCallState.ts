@@ -51,6 +51,8 @@ export interface UseRealtimeKitCallStateReturn {
   setCallState: Dispatch<SetStateAction<CallState>>
   incomingInvite: GroupCallInvite | null
   setIncomingInvite: Dispatch<SetStateAction<GroupCallInvite | null>>
+  isRingingLeader: boolean
+  setRingingLeader: Dispatch<SetStateAction<boolean>>
   activeConversationCalls: Map<string, ActiveConversationCall>
   setActiveConversationCalls: Dispatch<SetStateAction<Map<string, ActiveConversationCall>>>
   refs: RealtimeKitCallRefs
@@ -68,6 +70,7 @@ export interface UseRealtimeKitCallStateReturn {
 export function useRealtimeKitCallState(): UseRealtimeKitCallStateReturn {
   const [callState, setCallState] = useState<CallState>(initialCallState)
   const [incomingInvite, setIncomingInvite] = useState<GroupCallInvite | null>(null)
+  const [isRingingLeader, setRingingLeader] = useState<boolean>(false)
   const [activeConversationCalls, setActiveConversationCalls] = useState<Map<string, ActiveConversationCall>>(new Map())
 
   const restoredStateRef = useRef<{
@@ -220,6 +223,8 @@ export function useRealtimeKitCallState(): UseRealtimeKitCallStateReturn {
     setCallState,
     incomingInvite,
     setIncomingInvite,
+    isRingingLeader,
+    setRingingLeader,
     activeConversationCalls,
     setActiveConversationCalls,
     refs,
