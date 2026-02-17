@@ -285,11 +285,9 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = m
           while (contexts.length >= MAX_OPEN_CONTEXTS) {
             const old = contexts.shift()
             if (old) {
-              try {
-                old.close()
-              } catch {
-                // Already closed
-              }
+              old.close().catch(() => {
+                // Already closed or failed
+              })
             }
           }
           const audioContext = new AudioContext()
@@ -323,11 +321,9 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = m
         clearInterval(ringInterval)
         pendingTimeouts.forEach(id => clearTimeout(id))
         contexts.forEach(ctx => {
-          try {
-            ctx.close()
-          } catch {
-            // Already closed
-          }
+          ctx.close().catch(() => {
+            // Already closed or failed
+          })
         })
       }
     }, [playRingtone])

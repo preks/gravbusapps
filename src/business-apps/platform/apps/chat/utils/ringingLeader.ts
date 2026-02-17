@@ -73,7 +73,7 @@ export function isRingingLeader(roomId: string, conversationId?: string | null):
   try {
     const tabId = getTabId()
     const stored = getStored()
-    if (!stored || stored.tabId !== tabId) return false
+    if (stored?.tabId !== tabId) return false
     const convId = conversationId ?? roomId
     return (
       stored.roomId === roomId ||
