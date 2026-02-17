@@ -57,7 +57,11 @@ export const useAgentMeshClient = (accessToken: string) => {
       if (params?.status) qp.status = params.status
       if (params?.callerId) qp.callerId = params.callerId
       if (params?.calleeId) qp.calleeId = params.calleeId
-      return client.get<Connection[]>('/api/v1/connections', { params: qp })
+      // Some environments/proxies produce `http://` redirect locations for FastAPI slash redirects,
+      // which then get blocked by the browser as mixed content. Try both variants to avoid redirects.
+      return client
+        .get<Connection[]>('/api/v1/connections/', { params: qp })
+        .catch(() => client.get<Connection[]>('/api/v1/connections', { params: qp }))
     },
     [client]
   )
@@ -68,7 +72,10 @@ export const useAgentMeshClient = (accessToken: string) => {
   )
 
   const createConnection = useCallback(
-    (data: ConnectionCreateRequest) => client.post<Connection>('/api/v1/connections', data),
+    (data: ConnectionCreateRequest) =>
+      client
+        .post<Connection>('/api/v1/connections/', data)
+        .catch(() => client.post<Connection>('/api/v1/connections', data)),
     [client]
   )
 
@@ -98,7 +105,8 @@ export const useAgentMeshClient = (accessToken: string) => {
   const getExecutions = useCallback(
     (params?: Record<string, string | number>) => {
       const qp = params ? Object.fromEntries(Object.entries(params).map(([k, v]) => [k, String(v)])) : undefined
-      return client.get<ExecutionListItem[]>('/api/v1/executions', { params: qp })
+      // trailing slash avoids FastAPI 307 redirect (which can downgrade to http behind proxies)
+      return client.get<ExecutionListItem[]>('/api/v1/executions/', { params: qp })
     },
     [client]
   )
@@ -166,14 +174,16 @@ export const useAgentMeshClient = (accessToken: string) => {
     (params?: { userId?: string }) => {
       const qp: Record<string, string> = {}
       if (params?.userId) qp.userId = params.userId
-      return client.get<MeshSession[]>('/api/v1/mesh-sessions', { params: qp })
+      // trailing slash avoids FastAPI 307 redirect (which can downgrade to http behind proxies)
+      return client.get<MeshSession[]>('/api/v1/mesh-sessions/', { params: qp })
     },
     [client]
   )
 
   const createSession = useCallback(
     (data: { user_id: string; agent_id: string; agent_name: string; title?: string }) =>
-      client.post<MeshSession>('/api/v1/mesh-sessions', data),
+      // trailing slash avoids FastAPI 307 redirect (which can downgrade to http behind proxies)
+      client.post<MeshSession>('/api/v1/mesh-sessions/', data),
     [client]
   )
 

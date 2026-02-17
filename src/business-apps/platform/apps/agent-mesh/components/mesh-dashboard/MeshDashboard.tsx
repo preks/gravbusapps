@@ -391,7 +391,7 @@ export const MeshDashboard: React.FC<MeshDashboardProps> = ({ accessToken, onNav
             fitView
             fitViewOptions={{ padding: 0.3 }}
             connectOnClick={false}
-            className="gba:w-full gba:h-full"
+            className="gba:w-full gba:h-full gba:[&_.react-flow__edges]:overflow-visible gba:[&_.react-flow__viewport]:overflow-visible"
           >
             <Background />
             <Controls />
