@@ -33,6 +33,7 @@ import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { GET_ENTITLEMENTS_SNAPSHOT_FOR_YEAR } from '@/business-apps/hr/absences/apps/personal-absences/queries/graphql'
 import { fetchHolidayDates } from './utils/fetchHolidayDates'
 import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
+import { GET_ABSENCE_DAILY_FACTS } from '../../queries/queries'
 
 const AbsencesTab: React.FC<AbsencesTabProps> = ({
   employee,
@@ -55,6 +56,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
   const [hasHrBackoffice, setHasHrBackoffice] = useState<boolean>(false)
   const [isFetchingGroups, setIsFetchingGroups] = useState<boolean>(true)
   const [holidayDates, setHolidayDates] = useState<string[]>([])
+  const [effectiveDates, setEffectiveDates] = useState<Set<string> | null>(null)
   const graphqlClient = useGraphQLClient(accessToken)
   const A001_TYPE_REF = 'AbsenceType:v1:A001'
   const [annualLeaveOverride, setAnnualLeaveOverride] = useState<{
@@ -339,6 +341,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
             employeeAbsenceEntitlement={employeeAbsenceEntitlement}
             employee={employee}
             accessToken={accessToken}
+            effectiveDates={effectiveDates ?? undefined}
           />
         </div>
       )
@@ -383,6 +386,48 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
     }
     loadHolidays()
   }, [employee?.id, accessToken, graphqlClient, currentDate])
+
+  // Fetch BE-provided daily absence facts for the visible month to paint only effective working days
+  useEffect(() => {
+    const loadDailyFacts = async () => {
+      try {
+        if (!graphqlClient || !employee?.id) {
+          setEffectiveDates(null)
+          return
+        }
+        const from = currentDate.startOf('month').format('YYYY-MM-DD')
+        const to = currentDate.endOf('month').format('YYYY-MM-DD')
+        const STATUSES = [
+          'TIME_PENDING',
+          'TIME_APPROVED',
+          'TIME_REJECTED',
+          'TIME_CANCELLED',
+          'PENDING',
+          'APPROVED',
+          'REJECTED',
+          'CANCELLED'
+        ]
+        const res: any = await graphqlClient.request(GET_ABSENCE_DAILY_FACTS, {
+          employeeId: employee.id,
+          from,
+          to,
+          statuses: STATUSES
+        })
+        const facts: Array<{ dayDate: string; dayFraction: number | string }> =
+          res?.DailyAbsenceFactView || res?.daily_absence_fact_view || []
+        const set = new Set<string>()
+        facts.forEach(f => {
+          const frac = typeof f.dayFraction === 'number' ? f.dayFraction : Number(f.dayFraction)
+          if (frac > 0) set.add(f.dayDate)
+        })
+        setEffectiveDates(set.size > 0 ? set : null)
+      } catch {
+        // Non-fatal; fall back to shading full ranges
+        setEffectiveDates(null)
+      }
+    }
+    loadDailyFacts()
+  }, [graphqlClient, employee?.id, currentDate])
 
   return (
     <div className="gba:absences-tab gba:space-y-8">

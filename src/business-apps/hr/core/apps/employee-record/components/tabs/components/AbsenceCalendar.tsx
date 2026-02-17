@@ -92,7 +92,7 @@ const getAbsenceTooltipContent = (absence: any, opts?: { showStatus?: boolean; s
   )
 }
 
-const AbsenceCalendar: React.FC<CalendarProps> = ({
+const AbsenceCalendar: React.FC<CalendarProps & { effectiveDates?: Set<string> }> = ({
   absenceList,
   loading,
   error,
@@ -111,7 +111,8 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
   customLegend,
   holidayDates,
   employee,
-  onAbsenceTypeSelect
+  onAbsenceTypeSelect,
+  effectiveDates
 }) => {
   const { t } = useTranslation(translations)
   const [contextMenuOpen, setContextMenuOpen] = useState(false)
@@ -509,6 +510,12 @@ const AbsenceCalendar: React.FC<CalendarProps> = ({
                       )}
                       {isCurrentMonth &&
                         (() => {
+                          // When effectiveDates are provided by caller, only render absence segments
+                          // for days that are explicitly marked effective by BE daily facts.
+                          if (effectiveDates && !effectiveDates.has(dayKey)) return null
+                          // Avoid visual overlap with holidays in fallback mode. If it's a holiday and we don't
+                          // have an effectiveDates hit for this day, skip absence segments so only holiday shows.
+                          if (isHolidayDay && !(effectiveDates && effectiveDates.has(dayKey))) return null
                           const overlappingAbsences = absenceList.filter((absence: any) => {
                             const absenceStart = dayjs(absence.startDate)
                             const absenceEnd = dayjs(absence.endDate)
