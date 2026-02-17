@@ -32,6 +32,7 @@ import { useRestClient } from '@/common/network/rest/useRestClient'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { GET_ENTITLEMENTS_SNAPSHOT_FOR_YEAR } from '@/business-apps/hr/absences/apps/personal-absences/queries/graphql'
 import { fetchHolidayDates } from './utils/fetchHolidayDates'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 
 const AbsencesTab: React.FC<AbsencesTabProps> = ({
   employee,
@@ -65,6 +66,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
   const [snapshotByType, setSnapshotByType] = useState<
     Record<string, { total: number; usedApproved: number; usedPending: number; remaining: number }>
   >({})
+  const [refreshTick, setRefreshTick] = useState(0)
 
   const startDateFormatted = selectedStartDate?.format('YYYY-MM-DD') ?? ''
   const endDateFormatted = selectedEndDate?.format('YYYY-MM-DD') ?? ''
@@ -79,6 +81,14 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
     accessToken,
     employeeAbsenceEntitlement
   )
+
+  // Refresh tab data and snapshot when a related process completes successfully
+  useProcessCompletion({
+    onSuccess: () => {
+      refetch?.()
+      setRefreshTick(t => t + 1)
+    }
+  })
 
   useEffect(() => {
     const checkLocale = () => {
@@ -166,7 +176,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
     }
 
     fetchAnnualLeaveSnapshot()
-  }, [graphqlClient, employee?.id, currentDate])
+  }, [graphqlClient, employee?.id, currentDate, refreshTick])
 
   useEffect(() => {
     const fetchUserGroups = async () => {
@@ -196,27 +206,33 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
     }
   }, [shownTab])
 
-  useEffect(() => {
-    const lastRefetchAt = { current: 0 } as { current: number }
+  // Debounce timestamp for process completion handling
+  const lastRefetchAt = React.useRef(0)
 
-    const handler = (event: any) => {
+  // Determine if an incoming event represents a successful process completion
+  const isProcessSuccessEvent = (event: any): boolean => {
+    const resolution = event?.detail?.resolution || event?.detail?.response?.detail?.resolution
+    const hasAbsencePayload = !!(event?.detail?.response?.employeeAbsence || event?.detail?.payload?.employeeAbsence)
+    return resolution === 'success' || hasAbsencePayload
+  }
+
+  // Stable handler to avoid deep nesting in effects
+  const handleProcessEvent = React.useCallback(
+    (event: any) => {
       try {
-        const resolution = event?.detail?.resolution || event?.detail?.response?.detail?.resolution
-        const isSuccess = resolution === 'success'
-        const hasAbsencePayload = !!(
-          event?.detail?.response?.employeeAbsence || event?.detail?.payload?.employeeAbsence
-        )
-        if (isSuccess || hasAbsencePayload) {
-          const now = Date.now()
-          if (now - lastRefetchAt.current < 2000) {
-            return
-          }
-          lastRefetchAt.current = now
-          refetch?.()
-        }
+        if (!isProcessSuccessEvent(event)) return
+        const now = Date.now()
+        if (now - lastRefetchAt.current < 2000) return
+        lastRefetchAt.current = now
+        refetch?.()
+        // Also bump refreshTick so Annual Leave snapshot useEffect re-runs
+        setRefreshTick(t => t + 1)
       } catch {}
-    }
+    },
+    [refetch]
+  )
 
+  useEffect(() => {
     const eventNames = [
       'com.newwork.process.taskCompletion',
       'com.newwork.process.completion',
@@ -230,11 +246,31 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
       'process-completion'
     ]
 
-    eventNames.forEach(name => window.addEventListener(name, handler))
-    return () => {
-      eventNames.forEach(name => window.removeEventListener(name, handler))
+    // Resolve targets using globalThis.window to satisfy static analysis
+    const targets: Window[] = []
+    const win = (globalThis as any).window as Window | undefined
+    if (win) {
+      targets.push(win)
+      try {
+        const parent = win.parent && win.parent !== win ? win.parent : undefined
+        const top = win.top && win.top !== win && win.top !== parent ? win.top : undefined
+        if (parent) targets.push(parent)
+        if (top) targets.push(top)
+      } catch {
+        // ignore cross-origin access errors
+      }
     }
-  }, [refetch])
+
+    targets.forEach(t => {
+      eventNames.forEach(name => t.addEventListener(name, handleProcessEvent as EventListener))
+    })
+
+    return () => {
+      targets.forEach(t => {
+        eventNames.forEach(name => t.removeEventListener(name, handleProcessEvent as EventListener))
+      })
+    }
+  }, [handleProcessEvent])
 
   // Merge Annual Leave snapshot override (A001) into entitlements without affecting other types
   const ANNUAL_LABEL_HINTS = ['annual', 'vacation', 'holiday'] as const

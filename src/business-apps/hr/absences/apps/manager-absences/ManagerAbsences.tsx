@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect } from 'react'
 import { PageLayout } from '@newwork/nw-design-system'
 import { GaugeIcon, CalendarBlankIcon, ListBulletsIcon, ChartBarIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 
 import { AbsenceStatisticsSimple } from './components/tabs/dashboard-tab'
 import { AbsenceListModern } from './components/tabs/absence-list-tab'
@@ -132,6 +133,9 @@ const ManagerAbsences: React.FC<BusinessAppContextProps> = props => {
     onNavigateToTeamCoverage: handleNavigateToTeamCoverage,
     onNavigateToAbsenceListPage: handleNavigateToAbsenceListPage
   }
+
+  // Still listen for process completion if children react to it themselves
+  useProcessCompletion({ onSuccess: () => {} })
 
   // Render tab content based on active tab
   const renderTabContent = () => {
