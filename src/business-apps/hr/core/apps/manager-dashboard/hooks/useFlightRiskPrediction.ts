@@ -320,7 +320,11 @@ const calculateTeamMedianSalary = (currentSalaryRecords: RawSalaryRecord[], toda
   if (amounts.length === 0) return 0
 
   const mid = Math.floor(amounts.length / 2)
-  return amounts.length % 2 !== 0 ? amounts[mid] : (amounts[mid - 1] + amounts[mid]) / 2
+  if (amounts.length % 2 === 1) {
+    return amounts[mid]
+  }
+
+  return (amounts[mid - 1] + amounts[mid]) / 2
 }
 
 /**
@@ -682,7 +686,9 @@ export const useFlightRiskPrediction = ({
     employees: sortedEmployees,
     loading,
     error,
-    refetch: fetchFlightRiskData
+    refetch: () => {
+      void fetchFlightRiskData()
+    }
   }
 }
 

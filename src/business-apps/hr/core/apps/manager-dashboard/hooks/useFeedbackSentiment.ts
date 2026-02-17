@@ -171,7 +171,7 @@ const buildSentimentPrompt = (feedback: RawFeedback[]): string => {
     return ''
   }
 
-  const feedbackText = recentFeedback.map(formatFeedbackLine).join('\n')
+  const feedbackText = recentFeedback.map((item, index) => formatFeedbackLine(item, index)).join('\n')
 
   return `You are a sentiment analysis system that ONLY outputs JSON.
 

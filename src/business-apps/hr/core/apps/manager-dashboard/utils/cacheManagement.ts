@@ -15,8 +15,7 @@ const CACHE_TTL = {
   LAST_FETCH: 5 * 60 * 1000 // 5 minutes
 } as const
 
-const hasSessionStorage = (): boolean =>
-  typeof globalThis !== 'undefined' && typeof globalThis.sessionStorage !== 'undefined'
+const hasSessionStorage = (): boolean => globalThis.sessionStorage !== undefined
 
 /**
  * Get all cache keys with a specific prefix
@@ -165,7 +164,7 @@ export const initFlightRiskCache = (): void => {
   clearExpiredFlightRiskCache()
 
   // Set up periodic cleanup (every 5 minutes)
-  if (typeof globalThis !== 'undefined') {
+  if (globalThis.addEventListener !== undefined) {
     const cleanupInterval = setInterval(
       () => {
         clearExpiredFlightRiskCache()

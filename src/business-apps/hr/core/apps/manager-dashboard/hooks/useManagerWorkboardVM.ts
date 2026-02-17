@@ -31,6 +31,16 @@ type CurrentView =
   | 'not-clocked-in'
 type GoalStatusFilter = 'ALL' | 'ON_TRACK' | 'AT_RISK' | 'BEHIND_TARGET' | 'ACHIEVED'
 
+const getAiInsightType = (index: number): 'warning' | 'success' | 'info' => {
+  if (index === 0) {
+    return 'warning'
+  }
+  if (index === 1) {
+    return 'success'
+  }
+  return 'info'
+}
+
 interface UseManagerWorkboardVMProps {
   employeeId?: string
   accessToken?: string
@@ -365,7 +375,7 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
     if (!aiInsight) return []
 
     const lines = aiInsight
-      .split(/[\n•\-]/)
+      .split(/[\n•-]/)
       .map(line => line.trim())
       .filter(line => line.length > 10)
       .slice(0, 3)
@@ -373,7 +383,7 @@ export const useManagerWorkboardVM = ({ employeeId, accessToken }: UseManagerWor
     return lines.map((line, index) => ({
       id: index,
       text: line,
-      type: index === 0 ? ('warning' as const) : index === 1 ? ('success' as const) : ('info' as const)
+      type: getAiInsightType(index)
     }))
   }, [aiInsight])
 

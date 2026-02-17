@@ -131,6 +131,38 @@ const getManagerClickHandler = (employeeData: any): (() => void) | undefined => 
   }
 }
 
+const openChatWithUser = (userId: string | undefined, displayName: string) => {
+  if (!userId) {
+    return
+  }
+
+  postToPlatform({
+    type: 'OPEN_CHAT_WITH_USER',
+    payload: { userId, userName: displayName || userId }
+  })
+}
+
+const startUserCall = (
+  userId: string | undefined,
+  displayName: string,
+  pictureThumbnail: string | undefined,
+  callType: 'audio' | 'video'
+) => {
+  if (!userId) {
+    return
+  }
+
+  postToPlatform({
+    type: 'START_CALL_WITH_USER',
+    payload: {
+      userId,
+      displayName: displayName || userId,
+      avatarUrl: pictureThumbnail ? `data:image/gif;base64,${pictureThumbnail}` : undefined,
+      callType
+    }
+  })
+}
+
 const ProfileInfoItem: React.FC<ProfileInfoItemProps> = ({ icon, label, value, linkTo, onClick }) => {
   return (
     <div className="gba:flex gba:items-center gba:gap-2 gba:mb-3">
@@ -185,106 +217,33 @@ const ProfileInfoItem: React.FC<ProfileInfoItemProps> = ({ icon, label, value, l
   )
 }
 
-/**
- * Self-contained Employee Details component that fetches its own data
- * @returns {JSX.Element}
- */
-export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
-  const { employeeId, accessToken, employeeData: propEmployeeData } = context
-  const { t } = useTranslation(employeeDetailsTranslations)
+interface EmployeeDetailsContentProps {
+  employeeData: any
+  accessToken?: string
+  userId?: string
+  businessEmail: string
+  businessPhone: string
+  managerName: string
+  managerClickHandler?: () => void
+  t: (key: string) => string
+  onChat: () => void
+  onCall: () => void
+  onVideoCall: () => void
+}
 
-  // Only fetch data if not provided as prop
-  const {
-    employeeData: fetchedData,
-    isLoading,
-    error,
-    refetch
-  } = useEmployeeDetailsData({
-    employeeId,
-    context,
-    skipFetch: !!propEmployeeData // Skip fetching if data provided as prop
-  })
-
-  // Use prop data if available, otherwise use fetched data
-  const employeeData = propEmployeeData || fetchedData
-
-  const displayName =
-    employeeData?.displayName || `${employeeData?.firstName ?? ''} ${employeeData?.lastName ?? ''}`.trim() || ''
-  const userId = employeeData?.additionalProperties?.userId
-  const businessEmail = getBusinessEmail(employeeData)
-  const businessPhone = getBusinessPhone(employeeData)
-  const managerName = getManagerName(employeeData, t)
-  const managerClickHandler = getManagerClickHandler(employeeData)
-
-  const handleChat = useCallback(() => {
-    if (!userId) return
-    postToPlatform({
-      type: 'OPEN_CHAT_WITH_USER',
-      payload: { userId, userName: displayName || userId }
-    })
-  }, [userId, displayName])
-
-  const handleCall = useCallback(() => {
-    if (!userId) return
-    postToPlatform({
-      type: 'START_CALL_WITH_USER',
-      payload: {
-        userId,
-        displayName: displayName || userId,
-        avatarUrl: employeeData?.pictureThumbnail
-          ? `data:image/gif;base64,${employeeData.pictureThumbnail}`
-          : undefined,
-        callType: 'audio'
-      }
-    })
-  }, [userId, displayName, employeeData?.pictureThumbnail])
-
-  const handleVideoCall = useCallback(() => {
-    if (!userId) return
-    postToPlatform({
-      type: 'START_CALL_WITH_USER',
-      payload: {
-        userId,
-        displayName: displayName || userId,
-        avatarUrl: employeeData?.pictureThumbnail
-          ? `data:image/gif;base64,${employeeData.pictureThumbnail}`
-          : undefined,
-        callType: 'video'
-      }
-    })
-  }, [userId, displayName, employeeData?.pictureThumbnail])
-
-  // Error state (only when there's an actual error and not loading)
-  if (!propEmployeeData && error && !isLoading) {
-    return (
-      <div className="gba:bg-white gba:h-full gba:p-6">
-        <Alert variant="destructive">
-          <AlertDescription className="gba:flex gba:items-center gba:justify-between gba:gap-3">
-            <span>{`${t('employee-details-error-loading')}: ${String(error)}`}</span>
-            <Button size="sm" variant="outline" onClick={refetch}>
-              {t('employee-details-retry')}
-            </Button>
-          </AlertDescription>
-        </Alert>
-      </div>
-    )
-  }
-
-  // Don't render anything if we're still loading or don't have data yet
-  if (!propEmployeeData && (isLoading || !employeeData)) {
-    return null
-  }
-
-  // If using prop data but it's missing, show minimal error
-  if (propEmployeeData && !employeeData) {
-    return (
-      <div className="gba:bg-white gba:h-full gba:p-6">
-        <div className="gba:text-center gba:text-muted-foreground">{t('employee-details-not-available')}</div>
-      </div>
-    )
-  }
-
-  // Phosphor icons
+const EmployeeDetailsContent: React.FC<EmployeeDetailsContentProps> = ({
+  employeeData,
+  accessToken,
+  userId,
+  businessEmail,
+  businessPhone,
+  managerName,
+  managerClickHandler,
+  t,
+  onChat,
+  onCall,
+  onVideoCall
+}) => {
   const ChatIcon = PiChat
   const CallIcon = PiPhone
   const VideoCallIcon = PiVideoCamera
@@ -292,7 +251,6 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
   return (
     <div className="gba:bg-white gba:h-full gba:overflow-auto">
       <div className="gba:p-6 gba:relative">
-        {/* Action button in top right corner with absolute positioning */}
         {accessToken && (
           <div className="gba:absolute gba:top-4 gba:right-2" onClick={e => e.stopPropagation()}>
             <AppAction
@@ -341,12 +299,11 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
               {employeeData.employeePosition?.jobPosition?.name || t('employee-details-not-assigned')}
             </p>
 
-            {/* Chat and call actions directly under the name */}
             <div className="gba:flex gba:gap-2">
               <Button
                 variant="secondary"
                 size="lg"
-                onClick={handleChat}
+                onClick={onChat}
                 className="gba:rounded-3xl gba:aspect-square gba:p-2"
                 data-testid="employee-details-chat-button"
                 disabled={!userId}
@@ -356,7 +313,7 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
               <Button
                 variant="secondary"
                 size="lg"
-                onClick={handleVideoCall}
+                onClick={onVideoCall}
                 className="gba:rounded-3xl gba:aspect-square gba:p-2"
                 data-testid="employee-details-video-button"
                 disabled={!userId}
@@ -366,7 +323,7 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
               <Button
                 variant="secondary"
                 size="lg"
-                onClick={handleCall}
+                onClick={onCall}
                 className="gba:rounded-3xl gba:aspect-square gba:p-2"
                 data-testid="employee-details-audio-button"
                 disabled={!userId}
@@ -377,7 +334,6 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
           </div>
 
           <div className="gba:border-t gba:border-border gba:pt-4">
-            {/* Contact Information */}
             <div className="gba:mb-6">
               <h4 className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-4">
                 {t('employee-details-contact-information')}
@@ -420,7 +376,6 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
             </h4>
 
             <div className="gba:space-y-1">
-              {/* Organization */}
               <ProfileInfoItem
                 icon={<PiBuildings className="gba:h-4 gba:w-4" />}
                 label={t('employee-details-organization')}
@@ -432,7 +387,6 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
                 }
               />
 
-              {/* Manager */}
               <ProfileInfoItem
                 icon={<PiUser className="gba:h-4 gba:w-4" />}
                 label={t('employee-details-manager')}
@@ -440,14 +394,12 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
                 onClick={managerClickHandler}
               />
 
-              {/* Job Position */}
               <ProfileInfoItem
                 icon={<PiMapPin className="gba:h-4 gba:w-4" />}
                 label={t('employee-details-job-position')}
                 value={employeeData.employeePosition?.jobPosition?.name || t('employee-details-not-assigned')}
               />
 
-              {/* Cost Center */}
               <ProfileInfoItem
                 icon={<PiCurrencyDollar className="gba:h-4 gba:w-4" />}
                 label={t('employee-details-cost-center')}
@@ -459,7 +411,6 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
                 }
               />
 
-              {/* Hire Date */}
               <ProfileInfoItem
                 icon={<PiCalendar className="gba:h-4 gba:w-4" />}
                 label={t('employee-details-hire-date')}
@@ -470,7 +421,6 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
                 }
               />
 
-              {/* Employment Type */}
               <ProfileInfoItem
                 icon={<PiUser className="gba:h-4 gba:w-4" />}
                 label={t('employee-details-employment-type')}
@@ -480,7 +430,6 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
                 }
               />
 
-              {/* Contract Type */}
               <ProfileInfoItem
                 icon={<PiUser className="gba:h-4 gba:w-4" />}
                 label={t('employee-details-contract-type')}
@@ -491,7 +440,6 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
               />
             </div>
 
-            {/* Teams Section */}
             <div className="gba:mt-6">
               <h4 className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-2">
                 {t('employee-details-teams')}
@@ -519,7 +467,6 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
               </div>
             </div>
 
-            {/* Capabilities Section */}
             <div className="gba:mt-6">
               <h4 className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-2">
                 {t('employee-details-capabilities')}
@@ -547,7 +494,6 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
               </div>
             </div>
 
-            {/* Skills Section */}
             <div className="gba:mt-6">
               <h4 className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-2">
                 {t('employee-details-skills')}
@@ -583,6 +529,96 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
         </div>
       </div>
     </div>
+  )
+}
+
+/**
+ * Self-contained Employee Details component that fetches its own data
+ * @returns {JSX.Element}
+ */
+export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
+  const { employeeId, accessToken, employeeData: propEmployeeData } = context
+  const { t } = useTranslation(employeeDetailsTranslations)
+
+  // Only fetch data if not provided as prop
+  const {
+    employeeData: fetchedData,
+    isLoading,
+    error,
+    refetch
+  } = useEmployeeDetailsData({
+    employeeId,
+    context,
+    skipFetch: !!propEmployeeData // Skip fetching if data provided as prop
+  })
+
+  // Use prop data if available, otherwise use fetched data
+  const employeeData = propEmployeeData || fetchedData
+
+  const displayName =
+    employeeData?.displayName || `${employeeData?.firstName ?? ''} ${employeeData?.lastName ?? ''}`.trim() || ''
+  const userId = employeeData?.additionalProperties?.userId
+  const businessEmail = getBusinessEmail(employeeData)
+  const businessPhone = getBusinessPhone(employeeData)
+  const managerName = getManagerName(employeeData, t)
+  const managerClickHandler = getManagerClickHandler(employeeData)
+
+  const handleChat = useCallback(() => {
+    openChatWithUser(userId, displayName)
+  }, [userId, displayName])
+
+  const handleCall = useCallback(() => {
+    startUserCall(userId, displayName, employeeData?.pictureThumbnail, 'audio')
+  }, [userId, displayName, employeeData?.pictureThumbnail])
+
+  const handleVideoCall = useCallback(() => {
+    startUserCall(userId, displayName, employeeData?.pictureThumbnail, 'video')
+  }, [userId, displayName, employeeData?.pictureThumbnail])
+
+  // Error state (only when there's an actual error and not loading)
+  if (!propEmployeeData && error && !isLoading) {
+    return (
+      <div className="gba:bg-white gba:h-full gba:p-6">
+        <Alert variant="destructive">
+          <AlertDescription className="gba:flex gba:items-center gba:justify-between gba:gap-3">
+            <span>{`${t('employee-details-error-loading')}: ${String(error)}`}</span>
+            <Button size="sm" variant="outline" onClick={refetch}>
+              {t('employee-details-retry')}
+            </Button>
+          </AlertDescription>
+        </Alert>
+      </div>
+    )
+  }
+
+  // Don't render anything if we're still loading or don't have data yet
+  if (!propEmployeeData && (isLoading || !employeeData)) {
+    return null
+  }
+
+  // If using prop data but it's missing, show minimal error
+  if (propEmployeeData && !employeeData) {
+    return (
+      <div className="gba:bg-white gba:h-full gba:p-6">
+        <div className="gba:text-center gba:text-muted-foreground">{t('employee-details-not-available')}</div>
+      </div>
+    )
+  }
+
+  return (
+    <EmployeeDetailsContent
+      employeeData={employeeData}
+      accessToken={accessToken}
+      userId={userId}
+      businessEmail={businessEmail}
+      businessPhone={businessPhone}
+      managerName={managerName}
+      managerClickHandler={managerClickHandler}
+      t={t}
+      onChat={handleChat}
+      onCall={handleCall}
+      onVideoCall={handleVideoCall}
+    />
   )
 }
 
