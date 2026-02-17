@@ -218,8 +218,8 @@ export const AssignProjectDialog: React.FC<AssignProjectDialogProps> = ({
       return
     }
 
-    const allocationValue = parseFloat(allocationPercent)
-    if (isNaN(allocationValue) || allocationValue <= 0) {
+    const allocationValue = Number.parseFloat(allocationPercent)
+    if (Number.isNaN(allocationValue) || allocationValue <= 0) {
       toast.error('Please enter a valid allocation percentage')
       return
     }
@@ -312,7 +312,7 @@ export const AssignProjectDialog: React.FC<AssignProjectDialogProps> = ({
 
   const currentAllocation = employee.currentAllocation || 0
   const availablePercent = 100 - currentAllocation
-  const allocationValue = parseFloat(allocationPercent) || 0
+  const allocationValue = Number.parseFloat(allocationPercent) || 0
   const afterAllocation = currentAllocation + allocationValue
 
   const initials = employee.name

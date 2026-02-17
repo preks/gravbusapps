@@ -12,16 +12,11 @@ interface Anniversary {
   id: string
 }
 
-interface JobPosition {
-  id: string
-}
-
 interface PeopleMomentsSectionProps {
   birthdays: Birthday[]
   anniversaries: Anniversary[]
-  openPositions: JobPosition[]
   loading: boolean
-  onNavigateToInsights: (tab: 'birthdays' | 'anniversaries' | 'open-positions') => void
+  onNavigateToInsights: (tab: 'birthdays' | 'anniversaries') => void
 }
 
 export const PeopleMomentsSection: React.FC<PeopleMomentsSectionProps> = ({

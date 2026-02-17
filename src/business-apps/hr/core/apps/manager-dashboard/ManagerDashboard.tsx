@@ -164,7 +164,7 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
           }}
           data-desktop-grid="2fr-1fr-main"
         >
-          <style>{`
+          <style>{String.raw`
             @media (min-width: 1024px) {
               [data-desktop-grid="2fr-1fr-main"] {
                 grid-template-columns: 2fr 1fr !important;
@@ -284,7 +284,6 @@ export const ManagerDashboard: React.FC<BusinessAppContextProps> = ({ userInfo, 
                 <PeopleMomentsSection
                   birthdays={vm.peopleMoments.birthdays}
                   anniversaries={vm.peopleMoments.anniversaries}
-                  openPositions={vm.peopleMoments.openPositions}
                   loading={vm.peopleMoments.loading.birthdays}
                   onNavigateToInsights={vm.actions.navigateToInsights}
                 />

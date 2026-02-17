@@ -67,21 +67,21 @@ export const MemberQuickPanel: React.FC<MemberQuickPanelProps> = ({
   const handleScheduleOneOnOne = () => {
     // Navigate to calendar/scheduling - using platform URL
     const calendarUrl = `/platform/calendar?employeeId=${member.id}`
-    window.location.href = calendarUrl
+    globalThis.location.href = calendarUrl
     onClose()
   }
 
   const handleGiveFeedback = () => {
     // Navigate to feedback form - using platform URL
     const feedbackUrl = `/platform/employee-record?employeeId=${member.id}&tab=feedback`
-    window.location.href = feedbackUrl
+    globalThis.location.href = feedbackUrl
     onClose()
   }
 
   const handleSetGoals = () => {
     // Navigate to goals page - using platform URL
     const goalsUrl = `/platform/employee-record?employeeId=${member.id}&tab=goals`
-    window.location.href = goalsUrl
+    globalThis.location.href = goalsUrl
     onClose()
   }
 
