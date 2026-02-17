@@ -30,7 +30,10 @@ const parseToolsCount = (raw: unknown): number => {
     .filter(Boolean).length
 }
 
-export const createTaskExpertColumns = (t: TranslationFn): ColumnDef<TaskExpertRow>[] => [
+export const createTaskExpertColumns = (
+  t: TranslationFn,
+  workspaceMap?: Record<string, string>
+): ColumnDef<TaskExpertRow>[] => [
   {
     id: 'name',
     accessorKey: 'name',
@@ -63,6 +66,25 @@ export const createTaskExpertColumns = (t: TranslationFn): ColumnDef<TaskExpertR
         return <Badge variant="warning">{t('agent-type-decision')}</Badge>
       }
       return <Badge variant="secondary">{t('agent-type-flow')}</Badge>
+    }
+  },
+  {
+    id: 'workspace',
+    header: t('column-workspace'),
+    size: 150,
+    enableSorting: false,
+    accessorFn: row => {
+      const wsId = row.workspace?.id
+      return wsId && workspaceMap?.[wsId] ? workspaceMap[wsId] : wsId || '—'
+    },
+    cell: ({ row }) => {
+      const wsId = row.original.workspace?.id
+      const name = wsId && workspaceMap?.[wsId] ? workspaceMap[wsId] : wsId || '—'
+      return (
+        <span className="gba:text-sm gba:truncate" title={name}>
+          {name}
+        </span>
+      )
     }
   },
   {
@@ -131,6 +153,7 @@ export const createTaskExpertColumns = (t: TranslationFn): ColumnDef<TaskExpertR
 export const taskExpertSortableColumns = [
   { id: 'name', label: 'Name' },
   { id: 'agentType', label: 'Type' },
+  { id: 'workspace', label: 'Workspace' },
   { id: 'tools', label: 'Tools' },
   { id: 'knowledgeSources', label: 'Knowledge sources' },
   { id: 'createdAt', label: 'Last updated' },
@@ -140,6 +163,7 @@ export const taskExpertSortableColumns = [
 export const getDefaultVisibleColumns = (): string[] => [
   'name',
   'agentType',
+  'workspace',
   'tools',
   'knowledgeSources',
   'createdAt',

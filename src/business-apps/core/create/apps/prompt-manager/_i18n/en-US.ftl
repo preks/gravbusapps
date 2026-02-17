@@ -49,7 +49,11 @@ column-knowledge-sources = Knowledge Sources
 column-created-at = Last Updated
 column-created-by = Owner
 column-specialty = Specialty
+column-workspace = Workspace
 column-version = Version
+
+# Filters
+filter-workspace-all = All Workspaces
 
 # Agent Types
 agent-type-everyai = EveryAI

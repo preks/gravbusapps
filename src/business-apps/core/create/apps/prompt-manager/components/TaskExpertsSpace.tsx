@@ -1,12 +1,22 @@
 import React, { useCallback, useState, useEffect, useMemo } from 'react'
-import { DataDisplay, DataTable, useTranslation } from '@newwork/nw-design-system'
+import {
+  DataDisplay,
+  DataTable,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  useTranslation
+} from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import type { SortingState } from '@tanstack/react-table'
 import { useTaskExperts } from '../hooks/useTaskExperts'
 import { useAgentMeshClient } from '@/business-apps/platform/apps/agent-mesh/hooks/useAgentMeshClient'
+import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import { TaskExpertTestPanel } from './TaskExpertTestPanel'
 import { createTaskExpertColumns } from '../config/taskExpertColumns'
-import type { PromptODM } from '@/common/network/ai/prompt-manager/PromptManagerClient'
+import type { PromptODM, WorkspaceODM } from '@/common/network/ai/prompt-manager/PromptManagerClient'
 
 // Extended type with id property for DataTable compatibility
 type TaskExpertRow = PromptODM & { id: string }
@@ -38,14 +48,40 @@ export const TaskExpertsSpace: React.FC<TaskExpertsSpaceProps> = ({
 }) => {
   const { t } = useTranslation(translations)
   const meshApi = useAgentMeshClient(context.accessToken)
+  const pmClient = usePromptManagerClient(context.accessToken)
   const [search, setSearch] = useState<string>('')
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 20 })
   const [testingPromptId, setTestingPromptId] = useState<string | null>(null)
   const [sorting, setSorting] = useState<SortingState>([{ id: 'createdAt', desc: true }])
   const [meshStatus, setMeshStatus] = useState<string | null>(null)
+  const [workspaces, setWorkspaces] = useState<WorkspaceODM[]>([])
+  const [selectedWorkspace, setSelectedWorkspace] = useState<string>('all')
+
+  // Fetch workspaces on mount
+  useEffect(() => {
+    let mounted = true
+    pmClient
+      .getWorkspaces({ limit: 100 })
+      .then(res => {
+        if (mounted) setWorkspaces(res.data)
+      })
+      .catch(() => undefined)
+    return () => {
+      mounted = false
+    }
+  }, [pmClient])
+
+  // Build workspace id→name map for column display
+  const workspaceMap = useMemo(() => {
+    const map: Record<string, string> = {}
+    workspaces.forEach(ws => {
+      if (ws._id) map[ws._id] = ws.name
+    })
+    return map
+  }, [workspaces])
 
   const { prompts, total, isLoading, error, reload } = useTaskExperts(context, {
-    workspaceId: 'all',
+    workspaceId: selectedWorkspace,
     search,
     limit: pagination.pageSize,
     offset: pagination.pageIndex * pagination.pageSize,
@@ -56,13 +92,13 @@ export const TaskExpertsSpace: React.FC<TaskExpertsSpaceProps> = ({
   // Transform prompts to add id property (DataTable requires id, not _id)
   const data: TaskExpertRow[] = useMemo(() => prompts.map(p => ({ ...p, id: p._id || p.name })), [prompts])
 
-  const columns = useMemo(() => createTaskExpertColumns(t), [t])
+  const columns = useMemo(() => createTaskExpertColumns(t, workspaceMap), [t, workspaceMap])
 
   // Refresh when parent signals
   useEffect(() => {
     if (refreshKey > 0) {
       reload({
-        workspaceId: 'all',
+        workspaceId: selectedWorkspace,
         search,
         limit: pagination.pageSize,
         offset: pagination.pageIndex * pagination.pageSize,
@@ -70,7 +106,7 @@ export const TaskExpertsSpace: React.FC<TaskExpertsSpaceProps> = ({
         sort: buildSortParam(sorting)
       })
     }
-  }, [refreshKey, reload, search, pagination.pageIndex, pagination.pageSize, sorting])
+  }, [refreshKey, reload, search, pagination.pageIndex, pagination.pageSize, sorting, selectedWorkspace])
 
   const onSearchChange = useCallback((value: string) => {
     setSearch(value)
@@ -83,6 +119,11 @@ export const TaskExpertsSpace: React.FC<TaskExpertsSpaceProps> = ({
 
   const handleSortingChange = useCallback((nextSorting: SortingState) => {
     setSorting(nextSorting)
+    setPagination(prev => ({ ...prev, pageIndex: 0 }))
+  }, [])
+
+  const handleWorkspaceChange = useCallback((value: string) => {
+    setSelectedWorkspace(value)
     setPagination(prev => ({ ...prev, pageIndex: 0 }))
   }, [])
 
@@ -129,6 +170,23 @@ export const TaskExpertsSpace: React.FC<TaskExpertsSpaceProps> = ({
         searchPlaceholder={t('search-placeholder')}
         onSearchChange={onSearchChange}
         toolbarDensity="default"
+        secondaryActions={
+          workspaces.length > 0 ? (
+            <Select value={selectedWorkspace} onValueChange={handleWorkspaceChange}>
+              <SelectTrigger className="gba:w-48" data-testid="prompt-manager-workspace-filter">
+                <SelectValue placeholder={t('filter-workspace-all')} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">{t('filter-workspace-all')}</SelectItem>
+                {workspaces.map(ws => (
+                  <SelectItem key={ws._id} value={ws._id || ''}>
+                    {ws.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : undefined
+        }
       >
         <DataTable<TaskExpertRow>
           data={data}

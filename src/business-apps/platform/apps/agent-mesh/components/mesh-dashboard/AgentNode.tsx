@@ -1,16 +1,19 @@
-import { memo } from 'react'
+import { memo, useState } from 'react'
 import { Handle, Position, type NodeProps } from '@xyflow/react'
-import { Badge } from '@newwork/nw-design-system'
+import { Badge, Button, Spinner } from '@newwork/nw-design-system'
+import { X } from 'lucide-react'
 import type { AgentRegistryEntry } from '../../types/agentMesh'
 
 export interface AgentNodeData {
   agent: AgentRegistryEntry
   status: 'online' | 'offline' | 'busy'
   activeQueries: number
+  onRemove?: (agentId: string) => Promise<void>
 }
 
 export const AgentNode = memo(({ data, selected }: NodeProps<AgentNodeData>) => {
-  const { agent, status, activeQueries } = data
+  const { agent, status, activeQueries, onRemove } = data
+  const [isRemoving, setIsRemoving] = useState(false)
 
   // Get initials from agent name
   const getInitials = (name: string): string => {
@@ -52,13 +55,38 @@ export const AgentNode = memo(({ data, selected }: NodeProps<AgentNodeData>) => 
   const statusColor = getStatusColor()
   const statusBadgeVariant = getStatusBadgeVariant()
 
+  const handleRemove = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!onRemove || isRemoving) return
+    setIsRemoving(true)
+    try {
+      await onRemove(agent.id)
+    } finally {
+      setIsRemoving(false)
+    }
+  }
+
   return (
     <div
-      className={`gba:relative gba:bg-card gba:border-2 gba:rounded-lg gba:shadow-md gba:p-4 gba:min-w-[200px] ${
+      className={`gba:relative gba:group gba:bg-card gba:border-2 gba:rounded-lg gba:shadow-md gba:p-4 gba:min-w-[200px] ${
         selected ? 'gba:border-primary' : 'gba:border-border'
       }`}
       data-testid={`agent-node-${agent.id}`}
     >
+      {/* Remove button (visible in edit mode on hover) */}
+      {onRemove && (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="gba:absolute gba:-top-2 gba:-right-2 gba:w-6 gba:h-6 gba:p-0 gba:rounded-full gba:bg-destructive gba:text-destructive-foreground gba:opacity-0 gba:group-hover:opacity-100 gba:transition-opacity gba:z-10"
+          onClick={handleRemove}
+          disabled={isRemoving}
+          data-testid={`agent-node-${agent.id}-remove`}
+        >
+          {isRemoving ? <Spinner size="sm" /> : <X className="gba:w-3 gba:h-3" />}
+        </Button>
+      )}
+
       {/* Source handles for outgoing connections */}
       <Handle
         type="source"

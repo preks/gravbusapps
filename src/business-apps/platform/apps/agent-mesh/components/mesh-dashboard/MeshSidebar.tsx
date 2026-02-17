@@ -1,15 +1,13 @@
-import { Card, CardContent, Badge, Button } from '@newwork/nw-design-system'
+import { Card, CardContent, Badge } from '@newwork/nw-design-system'
 import type { AgentRegistryEntry, ActiveAlert, ExecutionAnalytics } from '../../types/agentMesh'
 
 interface MeshSidebarProps {
   agents: AgentRegistryEntry[]
   alerts: ActiveAlert[]
   analytics: ExecutionAnalytics | null
-  onNavigate: (view: string) => void
 }
 
-export const MeshSidebar = ({ agents, alerts, analytics, onNavigate }: MeshSidebarProps) => {
-  // Calculate KPIs
+export const MeshSidebar = ({ agents, alerts, analytics }: MeshSidebarProps) => {
   const activeAgentsCount = agents.length
   const onlineCount = agents.filter(() => true).length // TODO: Filter by actual online status when available
 
@@ -27,19 +25,10 @@ export const MeshSidebar = ({ agents, alerts, analytics, onNavigate }: MeshSideb
   )
 
   return (
-    <div
-      className="gba:flex gba:flex-col gba:h-full gba:bg-background gba:border-l gba:border-border"
-      data-testid="mesh-sidebar"
-    >
-      <div className="gba:p-4 gba:border-b gba:border-border">
-        <h2 className="gba:text-lg gba:font-semibold gba:text-foreground" data-testid="mesh-sidebar-title">
-          Mesh Status
-        </h2>
-      </div>
-
+    <div className="gba:flex gba:flex-col gba:gap-4" data-testid="mesh-sidebar">
       {/* KPI Cards */}
-      <div className="gba:p-4 gba:space-y-3 gba:border-b gba:border-border">
-        <h3 className="gba:text-sm gba:font-medium gba:text-foreground gba:mb-3" data-testid="mesh-sidebar-kpi-title">
+      <div className="gba:space-y-3">
+        <h3 className="gba:text-sm gba:font-medium gba:text-foreground" data-testid="mesh-sidebar-kpi-title">
           Key Metrics
         </h3>
         <div className="gba:grid gba:grid-cols-1 gba:gap-3">
@@ -52,7 +41,7 @@ export const MeshSidebar = ({ agents, alerts, analytics, onNavigate }: MeshSideb
       </div>
 
       {/* Active Alerts */}
-      <div className="gba:flex-1 gba:overflow-y-auto gba:p-4">
+      <div className="gba:flex-1">
         <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
           <h3 className="gba:text-sm gba:font-medium gba:text-foreground" data-testid="mesh-sidebar-alerts-title">
             Active Alerts
@@ -98,32 +87,6 @@ export const MeshSidebar = ({ agents, alerts, analytics, onNavigate }: MeshSideb
             ))}
           </div>
         )}
-      </div>
-
-      {/* Quick Actions */}
-      <div className="gba:p-4 gba:border-t gba:border-border gba:space-y-2">
-        <h3
-          className="gba:text-sm gba:font-medium gba:text-foreground gba:mb-2"
-          data-testid="mesh-sidebar-actions-title"
-        >
-          Quick Actions
-        </h3>
-        <Button
-          variant="outline"
-          className="gba:w-full gba:justify-start"
-          onClick={() => onNavigate('console')}
-          data-testid="mesh-sidebar-action-console"
-        >
-          Open Console
-        </Button>
-        <Button
-          variant="outline"
-          className="gba:w-full gba:justify-start"
-          onClick={() => onNavigate('traces')}
-          data-testid="mesh-sidebar-action-traces"
-        >
-          View Traces
-        </Button>
       </div>
     </div>
   )

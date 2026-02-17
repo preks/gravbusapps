@@ -37,6 +37,8 @@ export interface AgentRegistryEntry {
   outgoing_connections: ConnectionRef[]
   incoming_connections: ConnectionRef[]
   created_at: string | null
+  workspace_id?: string | null
+  workspaceId?: string | null
   // Detail-only fields (returned by GET /registry/{id}, not by list)
   tools?: string[]
   knowledge_sources?: KnowledgeSourceEntry[]

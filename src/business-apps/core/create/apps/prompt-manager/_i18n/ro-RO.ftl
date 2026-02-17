@@ -49,7 +49,11 @@ column-knowledge-sources = Surse de cunostinte
 column-created-at = Ultima actualizare
 column-created-by = Proprietar
 column-specialty = Specialitate
+column-workspace = Spatiu de lucru
 column-version = Versiune
+
+# Filters
+filter-workspace-all = Toate spatiile de lucru
 
 # Agent Types
 agent-type-everyai = EveryAI

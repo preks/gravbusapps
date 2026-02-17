@@ -1,47 +1,50 @@
-import { useState, useRef, useEffect } from 'react'
-import { Badge, Button, Input, Avatar, AvatarFallback, AvatarImage } from '@newwork/nw-design-system'
+import { useState, useRef, useEffect, useMemo } from 'react'
+import { Badge, Button, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@newwork/nw-design-system'
 import type { ExecutionListItem } from '../../types/agentMesh'
-import type { UserInfoProps } from '@/common/BusinessAppContext'
 
 interface LiveCommunicationFeedProps {
   executions: ExecutionListItem[]
-  userInfo?: UserInfoProps
-  userAvatarUrl?: string | null
   onTraceClick: (correlationId: string) => void
 }
 
-export const LiveCommunicationFeed = ({
-  executions,
-  userInfo,
-  userAvatarUrl,
-  onTraceClick
-}: LiveCommunicationFeedProps) => {
-  const [isExpanded, setIsExpanded] = useState(false)
+export const LiveCommunicationFeed = ({ executions, onTraceClick }: LiveCommunicationFeedProps) => {
   const [isAutoScroll, setIsAutoScroll] = useState(true)
-  const [filterAgent, setFilterAgent] = useState('')
-  const [filterStatus, setFilterStatus] = useState('')
+  const [filterAgent, setFilterAgent] = useState('all')
+  const [filterStatus, setFilterStatus] = useState('all')
   const scrollRef = useRef<HTMLDivElement>(null)
 
-  // Auto-scroll to bottom when new executions arrive
   useEffect(() => {
     if (isAutoScroll && scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight
     }
   }, [executions, isAutoScroll])
 
-  // Filter executions
+  const agentNames = useMemo(() => {
+    const names = new Set<string>()
+    executions.forEach(e => {
+      if (e.caller_name) names.add(e.caller_name)
+      if (e.prompt_name) names.add(e.prompt_name)
+    })
+    return Array.from(names).sort()
+  }, [executions])
+
+  const statuses = useMemo(() => {
+    const s = new Set<string>()
+    executions.forEach(e => s.add(e.status))
+    return Array.from(s).sort()
+  }, [executions])
+
   const filteredExecutions = executions.filter(exec => {
-    if (filterAgent && exec.caller_name && !exec.caller_name.toLowerCase().includes(filterAgent.toLowerCase())) {
-      return false
+    if (filterAgent !== 'all') {
+      const matchesCaller = exec.caller_name?.toLowerCase() === filterAgent.toLowerCase()
+      const matchesCallee = exec.prompt_name?.toLowerCase() === filterAgent.toLowerCase()
+      if (!matchesCaller && !matchesCallee) return false
     }
-    if (filterStatus && exec.status !== filterStatus) {
-      return false
-    }
+    if (filterStatus !== 'all' && exec.status !== filterStatus) return false
     return true
   })
 
-  // Get status badge variant
-  const getStatusBadgeVariant = (status: string): 'success' | 'destructive' | 'warning' | 'info' => {
+  const getStatusVariant = (status: string): 'success' | 'destructive' | 'warning' | 'info' => {
     switch (status.toLowerCase()) {
       case 'success':
         return 'success'
@@ -54,179 +57,124 @@ export const LiveCommunicationFeed = ({
     }
   }
 
-  // Format duration
   const formatDuration = (ms: number): string => {
     if (ms < 1000) return `${ms}ms`
-    return `${(ms / 1000).toFixed(2)}s`
+    return `${(ms / 1000).toFixed(1)}s`
   }
 
-  // Format timestamp
-  const formatTimestamp = (timestamp: string | null): string => {
-    if (!timestamp) return 'N/A'
+  const formatTime = (ts: string | null): string => {
+    if (!ts) return ''
     try {
-      const date = new Date(timestamp)
-      return date.toLocaleTimeString()
+      return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
     } catch {
-      return 'N/A'
+      return ''
     }
   }
 
   return (
-    <div
-      className={`gba:absolute gba:bottom-0 gba:left-0 gba:right-0 gba:bg-card gba:border-t gba:border-border gba:shadow-lg gba:transition-all ${
-        isExpanded ? 'gba:h-[400px]' : 'gba:h-[60px]'
-      }`}
-      data-testid="live-communication-feed"
-    >
+    <div className="gba:flex gba:flex-col gba:h-full" data-testid="live-communication-feed">
       {/* Header */}
-      <div className="gba:flex gba:items-center gba:justify-between gba:p-3 gba:border-b gba:border-border">
+      <div className="gba:flex gba:items-center gba:justify-between gba:px-4 gba:py-2.5 gba:border-b gba:border-border gba:shrink-0">
         <div className="gba:flex gba:items-center gba:gap-2">
-          <h3 className="gba:text-sm gba:font-semibold gba:text-foreground" data-testid="live-feed-title">
-            Live Communication Feed
-          </h3>
+          <span className="gba:text-sm gba:font-semibold gba:text-foreground">Live Feed</span>
           {filteredExecutions.length > 0 && (
-            <Badge variant="secondary" className="gba:text-xs" data-testid="live-feed-count">
+            <Badge variant="secondary" className="gba:text-[10px]" data-testid="live-feed-count">
               {filteredExecutions.length}
             </Badge>
           )}
         </div>
-        <div className="gba:flex gba:items-center gba:gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setIsAutoScroll(!isAutoScroll)}
-            data-testid="live-feed-toggle-scroll"
-          >
-            {isAutoScroll ? 'Pause' : 'Resume'}
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setIsExpanded(!isExpanded)}
-            data-testid="live-feed-toggle-expand"
-          >
-            {isExpanded ? 'Collapse' : 'Expand'}
-          </Button>
-        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setIsAutoScroll(!isAutoScroll)}
+          data-testid="live-feed-toggle-scroll"
+        >
+          {isAutoScroll ? 'Pause' : 'Resume'}
+        </Button>
       </div>
 
       {/* Filters */}
-      {isExpanded && (
-        <div className="gba:flex gba:items-center gba:gap-2 gba:p-3 gba:border-b gba:border-border">
-          <Input
-            placeholder="Filter by agent..."
-            value={filterAgent}
-            onChange={e => setFilterAgent(e.target.value)}
-            className="gba:flex-1"
-            data-testid="live-feed-filter-agent"
-          />
-          <Input
-            placeholder="Filter by status..."
-            value={filterStatus}
-            onChange={e => setFilterStatus(e.target.value)}
-            className="gba:flex-1"
-            data-testid="live-feed-filter-status"
-          />
-        </div>
-      )}
+      <div className="gba:flex gba:items-center gba:gap-2 gba:px-4 gba:py-2 gba:border-b gba:border-border gba:shrink-0">
+        <Select value={filterAgent} onValueChange={setFilterAgent}>
+          <SelectTrigger className="gba:flex-1 gba:h-8 gba:text-xs" data-testid="live-feed-filter-agent">
+            <SelectValue placeholder="Agent" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Agents</SelectItem>
+            {agentNames.map(name => (
+              <SelectItem key={name} value={name}>
+                {name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={filterStatus} onValueChange={setFilterStatus}>
+          <SelectTrigger className="gba:w-[100px] gba:h-8 gba:text-xs" data-testid="live-feed-filter-status">
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All</SelectItem>
+            {statuses.map(s => (
+              <SelectItem key={s} value={s}>
+                {s}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
 
-      {/* Execution List */}
-      {isExpanded && (
-        <div ref={scrollRef} className="gba:overflow-y-auto gba:h-[calc(400px-120px)]">
-          {filteredExecutions.length === 0 ? (
-            <div
-              className="gba:p-4 gba:text-sm gba:text-muted-foreground gba:text-center"
-              data-testid="live-feed-empty"
-            >
-              No executions found
-            </div>
-          ) : (
-            <div className="gba:divide-y gba:divide-border">
-              {filteredExecutions.map(exec => (
-                <div
-                  key={exec.execution_id}
-                  className="gba:p-3 gba:hover:bg-muted/50 gba:cursor-pointer gba:transition-colors"
-                  onClick={() => onTraceClick(exec.correlation_id)}
-                  data-testid={`live-feed-execution-${exec.execution_id}`}
-                >
-                  <div className="gba:grid gba:grid-cols-12 gba:gap-2 gba:items-center">
-                    {/* Timestamp */}
-                    <div
-                      className="gba:col-span-2 gba:text-xs gba:text-muted-foreground"
-                      data-testid={`live-feed-execution-${exec.execution_id}-timestamp`}
-                    >
-                      {formatTimestamp(exec.created_at)}
-                    </div>
-
-                    {/* Caller */}
-                    <div
-                      className="gba:col-span-2 gba:flex gba:items-center gba:gap-1.5 gba:text-xs gba:font-medium gba:text-foreground gba:truncate"
-                      data-testid={`live-feed-execution-${exec.execution_id}-caller`}
-                    >
-                      {exec.caller_name ? (
-                        exec.caller_name
-                      ) : userInfo ? (
-                        <>
-                          <Avatar className="gba:w-4 gba:h-4 gba:flex-shrink-0">
-                            {userAvatarUrl && <AvatarImage src={userAvatarUrl} alt={userInfo.givenName} />}
-                            <AvatarFallback className="gba:text-[8px] gba:bg-primary gba:text-primary-foreground">
-                              {userInfo.givenName?.[0]}
-                              {userInfo.familyName?.[0]}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="gba:truncate">
-                            {userInfo.givenName} {userInfo.familyName}
-                          </span>
-                        </>
-                      ) : (
-                        'User'
-                      )}
-                    </div>
-
-                    {/* Arrow */}
-                    <div className="gba:col-span-1 gba:text-xs gba:text-muted-foreground gba:text-center">→</div>
-
-                    {/* Callee (prompt name) */}
-                    <div
-                      className="gba:col-span-2 gba:text-xs gba:font-medium gba:text-foreground gba:truncate"
-                      data-testid={`live-feed-execution-${exec.execution_id}-callee`}
-                    >
+      {/* Execution list - vertical card layout for narrow panel */}
+      <div ref={scrollRef} className="gba:flex-1 gba:overflow-y-auto">
+        {filteredExecutions.length === 0 ? (
+          <div className="gba:p-4 gba:text-sm gba:text-muted-foreground gba:text-center" data-testid="live-feed-empty">
+            No executions found
+          </div>
+        ) : (
+          <div className="gba:divide-y gba:divide-border">
+            {filteredExecutions.map(exec => (
+              <div
+                key={exec.execution_id}
+                className="gba:px-4 gba:py-3 gba:hover:bg-muted/50 gba:cursor-pointer gba:transition-colors"
+                onClick={() => onTraceClick(exec.correlation_id)}
+                data-testid={`live-feed-execution-${exec.execution_id}`}
+              >
+                {/* Row 1: Caller → Callee + status */}
+                <div className="gba:flex gba:items-center gba:justify-between gba:gap-2">
+                  <div className="gba:flex gba:items-center gba:gap-1.5 gba:min-w-0 gba:flex-1">
+                    <span className="gba:text-xs gba:font-medium gba:text-foreground gba:truncate">
+                      {exec.caller_name || 'User'}
+                    </span>
+                    <span className="gba:text-xs gba:text-muted-foreground gba:shrink-0">→</span>
+                    <span className="gba:text-xs gba:font-medium gba:text-foreground gba:truncate">
                       {exec.prompt_name}
-                    </div>
-
-                    {/* Message Preview */}
-                    <div
-                      className="gba:col-span-3 gba:text-xs gba:text-muted-foreground gba:truncate"
-                      data-testid={`live-feed-execution-${exec.execution_id}-preview`}
-                    >
-                      {exec.input_preview || exec.output_preview || 'N/A'}
-                    </div>
-
-                    {/* Duration */}
-                    <div
-                      className="gba:col-span-1 gba:text-xs gba:text-muted-foreground"
-                      data-testid={`live-feed-execution-${exec.execution_id}-duration`}
-                    >
-                      {formatDuration(exec.duration_ms)}
-                    </div>
-
-                    {/* Status */}
-                    <div className="gba:col-span-1 gba:flex gba:justify-end">
-                      <Badge
-                        variant={getStatusBadgeVariant(exec.status)}
-                        className="gba:text-xs"
-                        data-testid={`live-feed-execution-${exec.execution_id}-status`}
-                      >
-                        {exec.status}
-                      </Badge>
-                    </div>
+                    </span>
                   </div>
+                  <Badge variant={getStatusVariant(exec.status)} className="gba:text-[10px] gba:shrink-0">
+                    {exec.status}
+                  </Badge>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+
+                {/* Row 2: Preview text */}
+                {(exec.input_preview || exec.output_preview) && (
+                  <p className="gba:text-xs gba:text-muted-foreground gba:truncate gba:mt-1">
+                    {exec.input_preview || exec.output_preview}
+                  </p>
+                )}
+
+                {/* Row 3: Timestamp + Duration */}
+                <div className="gba:flex gba:items-center gba:gap-3 gba:mt-1.5">
+                  <span className="gba:text-[10px] gba:text-muted-foreground">{formatTime(exec.created_at)}</span>
+                  {exec.duration_ms > 0 && (
+                    <span className="gba:text-[10px] gba:text-muted-foreground">
+                      {formatDuration(exec.duration_ms)}
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
