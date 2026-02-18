@@ -198,6 +198,73 @@ export class BuilderClient {
     return headers
   }
 
+  private truncateText(value: unknown, maxChars: number): string | undefined {
+    if (typeof value !== 'string') return undefined
+    const normalized = value.trim()
+    if (!normalized) return undefined
+    if (normalized.length <= maxChars) return normalized
+    return `${normalized.slice(0, maxChars)}\n\n... (truncated)`
+  }
+
+  private compactChatHistoryForSave(
+    messages: ChatMessage[],
+    options?: {
+      maxMessages?: number
+      maxTotalChars?: number
+      maxContentChars?: number
+      maxThinkingChars?: number
+      maxToolCallsPerMessage?: number
+      maxToolArgsChars?: number
+      maxToolResultChars?: number
+    }
+  ): ChatMessage[] {
+    const maxMessages = options?.maxMessages ?? 100
+    const maxTotalChars = options?.maxTotalChars ?? 120_000
+    const maxContentChars = options?.maxContentChars ?? 6_000
+    const maxThinkingChars = options?.maxThinkingChars ?? 2_500
+    const maxToolCallsPerMessage = options?.maxToolCallsPerMessage ?? 8
+    const maxToolArgsChars = options?.maxToolArgsChars ?? 1_200
+    const maxToolResultChars = options?.maxToolResultChars ?? 2_000
+
+    const source = Array.isArray(messages) ? messages.slice(-maxMessages) : []
+    const compacted: ChatMessage[] = source.map(message => {
+      const compactToolCalls =
+        Array.isArray(message.toolCalls) && message.toolCalls.length > 0
+          ? message.toolCalls.slice(-maxToolCallsPerMessage).map(call => ({
+              tool: String(call.tool || 'unknown'),
+              status: (call.status === 'running' ? 'running' : 'complete') as 'running' | 'complete',
+              id: String(call.id || ''),
+              args: this.truncateText(call.args, maxToolArgsChars),
+              result: this.truncateText(call.result, maxToolResultChars)
+            }))
+          : undefined
+
+      return {
+        role: message.role,
+        content: this.truncateText(message.content, maxContentChars) ?? '',
+        toolCalls: compactToolCalls,
+        thinkingLog: this.truncateText(message.thinkingLog, maxThinkingChars),
+        messageId: message.messageId,
+        createdAt: message.createdAt,
+        serverCreatedAt: message.serverCreatedAt
+      }
+    })
+
+    let totalChars = 0
+    const bounded: ChatMessage[] = []
+    for (let i = compacted.length - 1; i >= 0; i -= 1) {
+      const message = compacted[i]
+      const toolChars =
+        message.toolCalls?.reduce((acc, call) => acc + (call.args?.length ?? 0) + (call.result?.length ?? 0), 0) ?? 0
+      const messageChars = (message.content?.length ?? 0) + (message.thinkingLog?.length ?? 0) + toolChars
+      if (bounded.length > 0 && totalChars + messageChars > maxTotalChars) break
+      bounded.unshift(message)
+      totalChars += messageChars
+    }
+
+    return bounded
+  }
+
   // ============================================================================
   // Session Management
   // ============================================================================
@@ -308,15 +375,38 @@ export class BuilderClient {
    */
   async saveChatHistory(repoId: string, sessionId: string, messages: ChatMessage[]): Promise<boolean> {
     try {
-      const response = await fetch(`${this.baseUrl}/chat/history`, {
+      const compactMessages = this.compactChatHistoryForSave(messages)
+      let response = await fetch(`${this.baseUrl}/chat/history`, {
         method: 'POST',
         headers: this.getHeaders(true),
         body: JSON.stringify({
           repoId,
           sessionId,
-          messages
+          messages: compactMessages
         })
       })
+
+      // Retry once with an even smaller payload if upstream rejects body size.
+      if (response.status === 413) {
+        const aggressiveMessages = this.compactChatHistoryForSave(messages, {
+          maxMessages: 40,
+          maxTotalChars: 35_000,
+          maxContentChars: 2_000,
+          maxThinkingChars: 800,
+          maxToolCallsPerMessage: 4,
+          maxToolArgsChars: 400,
+          maxToolResultChars: 700
+        })
+        response = await fetch(`${this.baseUrl}/chat/history`, {
+          method: 'POST',
+          headers: this.getHeaders(true),
+          body: JSON.stringify({
+            repoId,
+            sessionId,
+            messages: aggressiveMessages
+          })
+        })
+      }
 
       return response.ok
     } catch {
