@@ -12,6 +12,7 @@ import { formatNumberFunction } from '../../../../../../../common/utils/windowUt
 import { useHealthInsuranceTypeCatalog } from '../../hooks/useHealthInsuranceTypeCatalog'
 import { useReligionCatalog } from '../../hooks/useReligionCatalog'
 import { useTaxBracketCatalog } from '../../hooks/useTaxBracketCatalog'
+import { useEmploymentRegionLabel } from '../../hooks/useEmploymentRegionLabel'
 import { getCatalogValue } from '../../../../../../../common/utils/windowUtils'
 
 interface EmploymentTabProps {
@@ -27,7 +28,14 @@ interface EmploymentTabProps {
  */
 const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken }) => {
   const { t } = useTranslation(translations)
-  // Using isSelfView from props instead of calculating it locally
+  const workingCondition = employee.workingCondition?.[0]
+  const primaryAddress = employee.addresses?.find(addr => addr.type === 'PRIMARY')
+  const addressCountryId = primaryAddress?.country?.id ?? ''
+  const regionLabelLinkedToAddress = useEmploymentRegionLabel(
+    accessToken,
+    workingCondition?.regionRef,
+    addressCountryId || undefined
+  )
   // Fetch health insurance type catalog for health insurance type mapping
   const { getHealthInsuranceTypeValueById, loading: loadingHealthInsuranceTypes } =
     useHealthInsuranceTypeCatalog(accessToken)
@@ -71,9 +79,8 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken }) 
     }
   ]
 
-  // Prepare working conditions data
   const getWorkingConditionsData = () => {
-    const workingCondition = employee.workingCondition?.[0]
+    const regionDisplay = regionLabelLinkedToAddress || ''
 
     return [
       {
@@ -106,7 +113,7 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken }) 
       },
       {
         label: t('employment-label-region'),
-        value: workingCondition?.region?.value || ''
+        value: regionDisplay || '-'
       },
       {
         label: t('employment-label-vacation-entitlement-days'),
