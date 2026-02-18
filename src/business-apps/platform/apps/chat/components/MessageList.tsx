@@ -174,9 +174,11 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
       const isAIResponse = latestMessage?.metadata?.isAIResponse === true
       const shouldForceScroll = hasNewMessages && (isOwnMessage || isAIResponse)
 
-      // CRITICAL: Only auto-scroll for new messages, NOT for typing indicator changes
-      // Typing indicator should appear at bottom without forcing user to scroll there
-      const shouldScroll = isInitialLoad || (hasNewMessages && isNearBottom) || shouldForceScroll
+      // When user is near bottom and someone starts typing, scroll so typing indicator is visible
+      const typingAppeared = typingChanged && currentTypingCount > prevTypingCount
+
+      const shouldScroll =
+        isInitialLoad || (hasNewMessages && isNearBottom) || shouldForceScroll || (typingAppeared && isNearBottom)
 
       // FEATURE: Track unseen messages when user is scrolled up
       // CRITICAL: Only count real new messages, not pagination (load-more)

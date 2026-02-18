@@ -9,17 +9,10 @@ import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-  TooltipProvider,
-  Spinner,
-  Alert,
-  AlertDescription,
-  Popover,
-  PopoverContent,
-  PopoverTrigger
+  TooltipProvider
 } from '@newwork/nw-design-system'
 import { useCreateMeetingMinutes } from '../hooks/useCreateMeetingMinutes'
-import { ArrowBendUpLeftIcon, VideoCameraIcon } from '@phosphor-icons/react'
-import { UserPlus, UserMinus, Pencil, Users } from 'lucide-react'
+import { ArrowBendUpLeftIcon } from '@phosphor-icons/react'
 import { renderContentWithReferences } from './EntityReferenceBadge'
 import { EveryAIMessageRenderer } from './EveryAIMessageRenderer'
 import { ExpertResponseRenderer } from './ExpertResponseRenderer'
@@ -29,8 +22,11 @@ import { AttachmentPreviewDialog } from './AttachmentPreviewDialog'
 import { isPreviewable } from './utils/attachmentUtils'
 import { getExpertColorStyles } from '../utils/expertColorUtils'
 import { useChatTranslation } from '../contexts/TranslationContext'
-import { MessageReactionPicker } from './MessageReactionPicker'
-import { SmileyIcon } from '@phosphor-icons/react'
+import { MessageReactionBar } from './MessageReactionBar'
+import { TranscriptReadyBlock } from './TranscriptReadyBlock'
+import { MeetingMinutesReadyBlock } from './MeetingMinutesReadyBlock'
+import { SystemMessageBlock } from './SystemMessageBlock'
+import { DeletedMessageBlock } from './DeletedMessageBlock'
 
 interface MessageItemProps {
   message: Message
@@ -87,33 +83,6 @@ const formatTime = (date: Date | string): string => {
   const hours = d.getHours().toString().padStart(2, '0')
   const mins = d.getMinutes().toString().padStart(2, '0')
   return `${month} ${day}, ${hours}:${mins}`
-}
-
-function getSystemMessageIcon(
-  messageType: string | undefined,
-  systemIconClassName: string
-): (() => React.ReactElement) | null {
-  const isMeetingOrCall =
-    messageType === 'meeting_start' ||
-    messageType === 'meeting_end' ||
-    messageType === 'call_start' ||
-    messageType === 'call_end'
-  if (isMeetingOrCall) {
-    return () => <VideoCameraIcon className={systemIconClassName} weight="fill" />
-  }
-  if (messageType === 'participant_joined') {
-    return () => <UserPlus className={systemIconClassName} />
-  }
-  if (messageType === 'participant_left') {
-    return () => <UserMinus className={systemIconClassName} />
-  }
-  if (messageType === 'conversation_created') {
-    return () => <Users className={systemIconClassName} />
-  }
-  if (messageType === 'conversation_renamed') {
-    return () => <Pencil className={systemIconClassName} />
-  }
-  return null
 }
 
 export const MessageItem: React.FC<MessageItemProps> = React.memo(
@@ -177,6 +146,8 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(
       },
       []
     )
+
+    const { createMeetingMinutes, isCreating, error } = useCreateMeetingMinutes(apiClient)
 
     const openPreview = async (att: MessageAttachment) => {
       try {
@@ -304,161 +275,26 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(
       }
     })()
 
-    // Transcript ready system message with meeting minutes creation
     if (message.type === 'system' && message.metadata?.transcriptReady) {
-      const sessionName = message.metadata.sessionName
-      const sessionId = message.metadata.sessionId
-      const transcriptionStatus = message.metadata.transcriptionStatus
-
-      // For old messages without transcriptionStatus, default to 'ready'
-      // This ensures old transcript messages can still create meeting minutes
-      const effectiveStatus = transcriptionStatus || 'ready'
-
-      // Initialize meeting minutes hook
-      const { createMeetingMinutes, isCreating, error } = useCreateMeetingMinutes(apiClient)
-
       return (
-        <div className="gba:flex gba:justify-center gba:py-2" data-testid={`message-transcript-${message.id}`}>
-          <div className="gba:flex gba:flex-col gba:items-center gba:gap-2 gba:bg-success-secondary/20 gba:border gba:border-success gba:px-4 gba:py-3 gba:rounded-lg gba:max-w-md">
-            <div className="gba:flex gba:items-center gba:gap-2">
-              <span className="gba:text-lg">📝</span>
-              <span className="gba:text-sm gba:font-medium gba:text-foreground">
-                {t('chat-transcript-ready', { sessionName })}
-              </span>
-            </div>
-            <p className="gba:text-xs gba:text-muted-foreground gba:text-center">
-              {t('chat-transcript-create-minutes-description')}
-            </p>
-
-            <div className="gba:flex gba:flex-col gba:gap-2 gba:w-full">
-              {effectiveStatus === 'ready' && (
-                <Button
-                  variant="default"
-                  size="sm"
-                  onClick={() => {
-                    if (sessionId) {
-                      createMeetingMinutes(sessionId)
-                    }
-                  }}
-                  disabled={isCreating || !sessionId}
-                  data-testid={`transcript-create-minutes-btn-${message.id}`}
-                >
-                  {isCreating ? (
-                    <>
-                      <Spinner className="gba:mr-2 gba:h-4 gba:w-4" />
-                      {t('chat-transcript-generating-minutes')}
-                    </>
-                  ) : (
-                    t('chat-transcript-create-minutes-button')
-                  )}
-                </Button>
-              )}
-
-              {effectiveStatus === 'PROCESSING' && !isCreating && (
-                <div className="gba:text-sm gba:text-muted-foreground gba:text-center gba:py-2">
-                  <Spinner className="gba:inline gba:mr-2 gba:h-4 gba:w-4" />
-                  {t('chat-transcript-generating-minutes-status')}
-                </div>
-              )}
-
-              {effectiveStatus === 'FAILED' && (
-                <>
-                  <Alert variant="destructive" data-testid={`transcript-error-${message.id}`}>
-                    <AlertDescription className="gba:text-xs">
-                      {t('chat-transcript-failed-create-minutes')}
-                    </AlertDescription>
-                  </Alert>
-                  <Button
-                    variant="default"
-                    size="sm"
-                    onClick={() => {
-                      if (sessionId) {
-                        createMeetingMinutes(sessionId)
-                      }
-                    }}
-                    disabled={isCreating || !sessionId}
-                    data-testid={`transcript-retry-btn-${message.id}`}
-                  >
-                    {t('chat-transcript-retry')}
-                  </Button>
-                </>
-              )}
-
-              {error && (
-                <Alert variant="destructive">
-                  <AlertDescription className="gba:text-xs">{error}</AlertDescription>
-                </Alert>
-              )}
-            </div>
-
-            <span className="gba:text-xs gba:text-muted-foreground">{formattedTime}</span>
-          </div>
-        </div>
+        <TranscriptReadyBlock
+          message={message}
+          formattedTime={formattedTime}
+          createMeetingMinutes={createMeetingMinutes}
+          isCreating={isCreating}
+          error={error}
+          t={t}
+        />
       )
     }
-
-    // Meeting minutes ready system message
     if (message.type === 'system' && message.metadata?.type === 'meeting_minutes_ready') {
-      const noteId = message.metadata.noteId
-      const sessionName = message.metadata.sessionName
-
-      return (
-        <div className="gba:flex gba:justify-center gba:py-2" data-testid={`message-minutes-ready-${message.id}`}>
-          <div className="gba:flex gba:flex-col gba:items-center gba:gap-2 gba:bg-success-secondary/20 gba:border gba:border-success gba:px-4 gba:py-3 gba:rounded-lg gba:max-w-md">
-            <div className="gba:flex gba:items-center gba:gap-2">
-              <span className="gba:text-lg">📋</span>
-              <span className="gba:text-sm gba:font-medium gba:text-foreground">
-                Meeting Minutes Ready: {sessionName}
-              </span>
-            </div>
-            <p className="gba:text-xs gba:text-muted-foreground gba:text-center">
-              AI-generated meeting minutes have been created and shared with all participants
-            </p>
-            <Button
-              variant="default"
-              size="sm"
-              onClick={() => {
-                if (noteId) {
-                  navigateTo(`/platform/notes?noteId=${noteId}&view=editor`)
-                }
-              }}
-              className="gba:mt-1"
-              data-testid={`meeting-minutes-view-btn-${message.id}`}
-            >
-              View Meeting Note
-            </Button>
-            <span className="gba:text-xs gba:text-muted-foreground">{formattedTime}</span>
-          </div>
-        </div>
-      )
+      return <MeetingMinutesReadyBlock message={message} formattedTime={formattedTime} navigateTo={navigateTo} />
     }
-
-    // System message (meeting/call start/end, participant joined/left, conversation created/renamed, etc.)
     if (message.type === 'system') {
-      const messageType = message.metadata?.type
-      const systemIconClassName = 'gba:w-4 gba:h-4 gba:flex-shrink-0 gba:text-muted-foreground'
-      const SystemIcon = getSystemMessageIcon(messageType, systemIconClassName)
-
-      return (
-        <div className="gba:flex gba:justify-center gba:py-1.5" data-testid={`message-system-${message.id}`}>
-          <div className="gba:flex gba:items-center gba:gap-2 gba:bg-muted/50 gba:px-3 gba:py-1.5 gba:rounded-full">
-            {SystemIcon && <SystemIcon />}
-            <span className="gba:text-xs gba:text-muted-foreground">{formattedTime}</span>
-            <span className="gba:text-xs gba:text-foreground gba:font-medium">{message.content}</span>
-          </div>
-        </div>
-      )
+      return <SystemMessageBlock message={message} formattedTime={formattedTime} />
     }
-
-    // Deleted message
     if (message.isDeleted) {
-      return (
-        <div className="gba:flex gba:justify-center gba:py-1.5" data-testid={`message-${message.id}`}>
-          <span className="gba:text-xs gba:text-muted-foreground gba:italic gba:bg-muted/50 gba:px-3 gba:py-1 gba:rounded-full">
-            Message deleted
-          </span>
-        </div>
-      )
+      return <DeletedMessageBlock message={message} />
     }
 
     // Hide form cancellation messages
@@ -608,34 +444,28 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(
               }}
             >
               {/* When no reactions: picker as tooltip above message; 400ms leave delay so cursor can reach it */}
-              {onUpdateMessage &&
-                apiClient &&
-                currentUserId &&
-                !hasReactions &&
-                (messageHovered || reactionPickerOpen) && (
-                  <div
-                    className={`gba:absolute gba:bottom-full gba:mb-1 gba:rounded-lg gba:border gba:border-border gba:bg-muted gba:z-20 ${isOwnMessage ? 'gba:right-0' : 'gba:left-0'}`}
-                    data-testid={`message-reaction-picker-bar-${message.id}`}
-                    onMouseEnter={() => {
-                      if (hidePickerTimeoutRef.current) {
-                        clearTimeout(hidePickerTimeoutRef.current)
-                        hidePickerTimeoutRef.current = null
-                      }
-                      setMessageHovered(true)
-                    }}
-                    onMouseLeave={() => {
-                      hidePickerTimeoutRef.current = setTimeout(() => setMessageHovered(false), 300)
-                    }}
-                  >
-                    <MessageReactionPicker
-                      onSelect={emoji => {
-                        handleReactionClick(emoji)
-                        setReactionPickerOpen(false)
-                      }}
-                      prefixDataTestId={`message-${message.id}`}
-                    />
-                  </div>
-                )}
+              {onUpdateMessage && apiClient && currentUserId && (
+                <MessageReactionBar
+                  message={message}
+                  currentUserId={currentUserId}
+                  isOwnMessage={isOwnMessage}
+                  hasReactions={false}
+                  showFloatingBar={!hasReactions && (messageHovered || reactionPickerOpen)}
+                  onReactionClick={handleReactionClick}
+                  reactionPickerOpen={reactionPickerOpen}
+                  onReactionPickerOpenChange={setReactionPickerOpen}
+                  floatingBarOnMouseEnter={() => {
+                    if (hidePickerTimeoutRef.current) {
+                      clearTimeout(hidePickerTimeoutRef.current)
+                      hidePickerTimeoutRef.current = null
+                    }
+                    setMessageHovered(true)
+                  }}
+                  floatingBarOnMouseLeave={() => {
+                    hidePickerTimeoutRef.current = setTimeout(() => setMessageHovered(false), 300)
+                  }}
+                />
+              )}
               <div
                 className={`${compact ? 'gba:rounded-md gba:px-2.5 gba:py-1.5' : 'gba:rounded-lg gba:px-3 gba:py-2'} gba:break-words gba:w-full gba:min-w-0 ${onUpdateMessage && apiClient && currentUserId && hasReactions ? 'gba:pb-5' : ''} ${(() => {
                   if (isExpertResponse) {
@@ -722,63 +552,17 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(
                 )}
               </div>
 
-              {/* Reactions row below: only when message has reactions (pills + add-reaction button) */}
               {onUpdateMessage && apiClient && currentUserId && hasReactions && (
-                <div
-                  className={`gba:flex gba:flex-wrap gba:items-center gba:gap-1.5 gba:-mt-4 gba:relative gba:z-20 ${isOwnMessage ? 'gba:justify-end' : 'gba:justify-start'}`}
-                  data-testid={`message-reactions-${message.id}`}
-                >
-                  {message.reactions &&
-                    Object.entries(message.reactions).map(([emoji, userIds]) => {
-                      if (!userIds.length) return null
-                      const isYours = userIds.includes(currentUserId)
-                      return (
-                        <button
-                          key={emoji}
-                          type="button"
-                          onClick={() => handleReactionClick(emoji)}
-                          className={`gba:inline-flex gba:items-center gba:gap-1 gba:rounded-full gba:px-2 gba:py-1 gba:text-xs gba:min-w-0 gba:border gba:transition-colors gba:leading-none ${
-                            isOwnMessage
-                              ? `gba:bg-primary gba:border-primary-foreground/25 hover:gba:border-primary-foreground/40 ${isYours ? 'gba:border-primary-foreground/50' : ''}`
-                              : `gba:bg-muted gba:border-border hover:gba:bg-muted/90 ${isYours ? 'gba:border-primary/30' : ''}`
-                          }`}
-                          data-testid={`message-reaction-${message.id}-${emoji}`}
-                        >
-                          <span className="gba:leading-none gba:select-none">{emoji}</span>
-                          <span
-                            className={`gba:tabular-nums ${isOwnMessage ? 'gba:text-primary-foreground gba:opacity-90' : 'gba:text-muted-foreground'}`}
-                          >
-                            {userIds.length}
-                          </span>
-                        </button>
-                      )
-                    })}
-                  <Popover open={reactionPickerOpen} onOpenChange={setReactionPickerOpen}>
-                    <PopoverTrigger asChild>
-                      <button
-                        type="button"
-                        className={`gba:inline-flex gba:items-center gba:justify-center gba:rounded-full gba:px-2 gba:py-1 gba:border gba:transition-colors ${
-                          isOwnMessage
-                            ? 'gba:bg-primary gba:border-primary-foreground/25 gba:text-primary-foreground hover:gba:border-primary-foreground/40'
-                            : 'gba:bg-muted gba:border-border gba:text-muted-foreground hover:gba:bg-muted/90 hover:gba:text-foreground'
-                        }`}
-                        aria-label="Add reaction"
-                        data-testid={`message-reaction-picker-trigger-${message.id}`}
-                      >
-                        <SmileyIcon className="gba:w-4 gba:h-4" />
-                      </button>
-                    </PopoverTrigger>
-                    <PopoverContent align={isOwnMessage ? 'end' : 'start'} side="top" className="gba:p-0">
-                      <MessageReactionPicker
-                        onSelect={emoji => {
-                          handleReactionClick(emoji)
-                          setReactionPickerOpen(false)
-                        }}
-                        prefixDataTestId={`message-${message.id}`}
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
+                <MessageReactionBar
+                  message={message}
+                  currentUserId={currentUserId}
+                  isOwnMessage={isOwnMessage}
+                  hasReactions={true}
+                  showFloatingBar={false}
+                  onReactionClick={handleReactionClick}
+                  reactionPickerOpen={reactionPickerOpen}
+                  onReactionPickerOpenChange={setReactionPickerOpen}
+                />
               )}
             </div>
           )}

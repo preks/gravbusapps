@@ -350,7 +350,7 @@ export function useMessages({
         prev.map(m => {
           if (m.id !== messageId) return m
           const merged = { ...m, ...updates }
-          const incoming = updates.status !== undefined ? updates.status : m.status
+          const incoming = updates.status ?? m.status
           const current = m.status
           if (statusRank(current) > statusRank(incoming)) merged.status = current
           return merged
@@ -361,7 +361,7 @@ export function useMessages({
       if (conversationId) {
         cache.updateCachedMessage(conversationId, messageId, msg => {
           const merged = { ...msg, ...updates }
-          const incoming = updates.status !== undefined ? updates.status : msg.status
+          const incoming = updates.status ?? msg.status
           const current = msg.status
           if (statusRank(current) > statusRank(incoming)) merged.status = current
           return merged
