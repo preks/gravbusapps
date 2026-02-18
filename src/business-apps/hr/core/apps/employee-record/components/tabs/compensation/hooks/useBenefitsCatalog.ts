@@ -91,6 +91,7 @@ export const useBenefitsCatalog = (
       status: graphqlBenefit.status ?? '',
       benefitStatus: graphqlBenefit.benefitStatus ?? '',
       notes: graphqlBenefit.notes ?? '',
+      comments: graphqlBenefit.comments ?? undefined,
       createdAt: graphqlBenefit.createdAt,
       updatedAt: graphqlBenefit.updatedAt
     }
@@ -165,7 +166,7 @@ export const useBenefitsCatalog = (
 
         // Determine action capabilities
         // CRITICAL: Cannot request if benefit is active, scheduled, OR pending
-        const canRequest = !isActive && !isScheduled && !isPending
+        const canRequest = !isActive && !isScheduled && !isPending && !isEmployeeBenefitCancelled
         const canDeactivate = isActive // Can deactivate if currently active
 
         // Store catalog entry with translations for runtime translation
@@ -184,6 +185,7 @@ export const useBenefitsCatalog = (
           // Employee benefit data (if exists)
           isActive,
           isScheduled, // NEW: Indicates benefit is approved and scheduled for future start
+          isCancelled: isEmployeeBenefitCancelled,
           employeeBenefitId: employeeBenefit?.id,
           provider: employeeBenefit?.benefitProvider,
           providerRef: employeeBenefit?.benefitProviderRef,
@@ -194,6 +196,7 @@ export const useBenefitsCatalog = (
           startDate: employeeBenefit?.startDate ?? undefined,
           endDate: employeeBenefit?.endDate ?? undefined,
           notes: employeeBenefit?.notes ?? undefined,
+          comments: employeeBenefit?.comments ?? undefined,
           benefitStatus: employeeBenefit?.benefitStatus as BenefitStatus,
 
           // Action capabilities

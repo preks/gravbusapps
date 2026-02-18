@@ -7,6 +7,10 @@ const FLOWBOT_OVERRIDE_STORAGE_KEY = 'flowbot-endpoint-override'
 const FLOWBOT_OVERRIDE_QUERY_PARAM = 'flowbotEndpoint'
 const FLOWBOT_ENV_KEYS = new Set(['NEXT_PUBLIC_FLOWBOT_ENDPOINT'])
 
+const PROMPT_MANAGER_OVERRIDE_STORAGE_KEY = 'prompt-manager-url-override'
+const PROMPT_MANAGER_OVERRIDE_QUERY_PARAM = 'promptManagerUrl'
+const PROMPT_MANAGER_ENV_KEYS = new Set(['NEXT_PUBLIC_PROMPT_MANAGER_API_URL'])
+
 function getFlowbotOverrideFromQuery(): string | undefined {
   if (typeof window === 'undefined') return undefined
   try {
@@ -37,6 +41,36 @@ function setFlowbotOverrideInStorage(value: string): void {
   }
 }
 
+function getPromptManagerOverrideFromQuery(): string | undefined {
+  if (typeof window === 'undefined') return undefined
+  try {
+    const params = new URLSearchParams(window.location.search)
+    const value = params.get(PROMPT_MANAGER_OVERRIDE_QUERY_PARAM)
+    return value || undefined
+  } catch {
+    return undefined
+  }
+}
+
+function getPromptManagerOverrideFromStorage(): string | undefined {
+  if (typeof window === 'undefined' || !window.localStorage) return undefined
+  try {
+    const value = window.localStorage.getItem(PROMPT_MANAGER_OVERRIDE_STORAGE_KEY)
+    return value || undefined
+  } catch {
+    return undefined
+  }
+}
+
+function setPromptManagerOverrideInStorage(value: string): void {
+  if (typeof window === 'undefined' || !window.localStorage) return
+  try {
+    window.localStorage.setItem(PROMPT_MANAGER_OVERRIDE_STORAGE_KEY, value)
+  } catch {
+    // ignore errors (private browsing, quota exceeded, etc.)
+  }
+}
+
 export function env(key: string): string | undefined {
   if (typeof window !== 'undefined') {
     if (!key.startsWith('NEXT_PUBLIC_')) {
@@ -51,6 +85,19 @@ export function env(key: string): string | undefined {
       }
 
       const storedOverride = getFlowbotOverrideFromStorage()
+      if (storedOverride) {
+        return storedOverride
+      }
+    }
+
+    if (PROMPT_MANAGER_ENV_KEYS.has(key)) {
+      const queryOverride = getPromptManagerOverrideFromQuery()
+      if (queryOverride) {
+        setPromptManagerOverrideInStorage(queryOverride)
+        return queryOverride
+      }
+
+      const storedOverride = getPromptManagerOverrideFromStorage()
       if (storedOverride) {
         return storedOverride
       }

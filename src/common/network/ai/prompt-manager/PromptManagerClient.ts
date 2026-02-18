@@ -29,7 +29,7 @@ export type ToolPolicies = Record<string, ToolPolicy>
 
 export interface KnowledgeSource {
   id?: string // Assigned by backend on save; optional for creation
-  type: 'document' | 'url' | 'content_entry' | 'catalog' // content_entry = internal knowledge base, catalog = catalog entries
+  type: 'document' | 'url' | 'content_entry' | 'catalog' | 'note' | 'spreadsheet' | 'slide' // content_entry = internal knowledge base, catalog = catalog entries, note/spreadsheet/slide = workspace content
   name: string
   description?: string
   url?: string
@@ -44,6 +44,15 @@ export interface KnowledgeSource {
   extractedContent?: string // Extracted text from documents (parsed by FlowBot)
   lastUpdated: string
   createdAt: string
+}
+
+export interface PromptAgentCard {
+  division?: string
+  data_domains?: string[]
+  capabilities?: string[]
+  access_policy?: string
+  allowed_callers?: string[]
+  version?: string
 }
 
 export interface PromptODM {
@@ -73,6 +82,8 @@ export interface PromptODM {
   is_public?: boolean
   created_by?: string
   tags?: string[]
+  // Agent Mesh fields
+  agent_card?: PromptAgentCard | null
 }
 
 export interface PromptPage {
