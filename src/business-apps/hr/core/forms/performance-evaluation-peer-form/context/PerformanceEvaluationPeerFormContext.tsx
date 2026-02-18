@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react'
+import React, { createContext, useContext, useState, useCallback, useMemo, ReactNode } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { PerformanceEvaluationPeerFormValues, EmployeeOption } from '../types'
 import { useStructureEmployees } from '../hooks/useStructureEmployees'
@@ -99,21 +99,38 @@ export const PerformanceEvaluationPeerFormProvider: React.FC<PerformanceEvaluati
     }
   }, [onCancel])
 
-  const value: PerformanceEvaluationPeerFormContextType = {
-    formValues,
-    setFormValues: updateFormValues,
-    isLoading,
-    error,
-    clearError,
-    onSubmit: handleSubmit,
-    onCancel: handleCancel,
-    businessAppContext,
-    employees,
-    employeesLoading,
-    employeesError,
-    searchEmployees,
-    getEmployeeById
-  }
+  const value = useMemo<PerformanceEvaluationPeerFormContextType>(
+    () => ({
+      formValues,
+      setFormValues: updateFormValues,
+      isLoading,
+      error,
+      clearError,
+      onSubmit: handleSubmit,
+      onCancel: handleCancel,
+      businessAppContext,
+      employees,
+      employeesLoading,
+      employeesError,
+      searchEmployees,
+      getEmployeeById
+    }),
+    [
+      formValues,
+      updateFormValues,
+      isLoading,
+      error,
+      clearError,
+      handleSubmit,
+      handleCancel,
+      businessAppContext,
+      employees,
+      employeesLoading,
+      employeesError,
+      searchEmployees,
+      getEmployeeById
+    ]
+  )
 
   return (
     <PerformanceEvaluationPeerFormContext.Provider value={value}>
