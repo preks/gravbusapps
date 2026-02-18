@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect, useMemo } from 'react'
 import { Button, Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
 import {
   Bot,
@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { MarkdownRenderer } from './MarkdownRenderer'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useEmployeeAvatarsBatch } from '@/business-apps/core/every/apps/every-box/hooks/useEmployeeAvatarsBatch'
 
 interface ToolCall {
   tool: string
@@ -29,6 +30,7 @@ interface Message {
   toolCalls?: ToolCall[]
   thinkingLog?: string
   thinkingCollapsed?: boolean
+  createdBy?: string
   messageId?: string
   createdAt?: string
   serverCreatedAt?: string
@@ -54,6 +56,8 @@ interface ChatDrawerProps {
   onToggleThinking?: (messageIndex: number) => void
   onRestoreMessage?: (message: Message) => void
   isRestoringMessageId?: string | null
+  currentUserId?: string
+  accessToken?: string
   examplePrompts?: string[]
   inputPlaceholder?: string
   analyzingRequestText?: string
@@ -65,6 +69,8 @@ interface ChatDrawerProps {
   className?: string
   style?: React.CSSProperties
 }
+
+const UNKNOWN_AUTHOR_ID = 'unknown-user'
 
 export const ChatDrawer: React.FC<ChatDrawerProps> = ({
   messages,
@@ -80,6 +86,8 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
   onToggleThinking,
   onRestoreMessage,
   isRestoringMessageId,
+  currentUserId,
+  accessToken,
   examplePrompts,
   inputPlaceholder,
   analyzingRequestText,
@@ -116,6 +124,56 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
     navigator.clipboard.writeText(content)
     setCopiedMessageId(messageId)
     setTimeout(() => setCopiedMessageId(null), 2000)
+  }
+
+  const userIds = useMemo(() => {
+    const ids = messages
+      .filter(message => message.role === 'user' && message.createdBy)
+      .map(message => message.createdBy as string)
+      .filter(id => id && id !== UNKNOWN_AUTHOR_ID)
+    return Array.from(new Set(ids))
+  }, [messages])
+
+  const { employeeMap } = useEmployeeAvatarsBatch(accessToken ?? '', userIds)
+
+  const toDataUrl = (base64Data?: string): string | undefined => {
+    if (!base64Data) return undefined
+    if (base64Data.startsWith('data:')) return base64Data
+    return `data:image/jpeg;base64,${base64Data}`
+  }
+
+  const getInitials = (name?: string): string => {
+    const trimmed = name?.trim()
+    if (!trimmed) return '??'
+    const parts = trimmed.split(/\s+/).filter(Boolean)
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
+    return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
+  }
+
+  const getAuthorDisplayName = (message: Message): string => {
+    const authorId = message.createdBy
+    if (authorId && authorId === currentUserId) {
+      return userName
+    }
+    if (authorId) {
+      const employee = employeeMap.get(authorId)
+      if (employee?.displayName) return employee.displayName
+      const fallbackName = `${employee?.firstName ?? ''} ${employee?.lastName ?? ''}`.trim()
+      if (fallbackName) return fallbackName
+    }
+    return getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.user', 'User')
+  }
+
+  const getAuthorAvatarSrc = (message: Message): string | undefined => {
+    const authorId = message.createdBy
+    if (authorId && authorId === currentUserId) {
+      return userAvatar
+    }
+    if (authorId) {
+      const employee = employeeMap.get(authorId)
+      return employee?.avatarUrl ?? toDataUrl(employee?.pictureThumbnail)
+    }
+    return undefined
   }
 
   const renderToolCalls = (toolCalls: ToolCall[]) => {
@@ -232,6 +290,8 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
             {messages.map((message, idx) => {
               const canRestore =
                 !!onRestoreMessage && message.role === 'assistant' && !!message.messageId && !message.localOnly
+              const authorDisplayName = message.role === 'user' ? getAuthorDisplayName(message) : undefined
+              const authorAvatarSrc = message.role === 'user' ? getAuthorAvatarSrc(message) : undefined
               return (
                 <div
                   key={message.messageId ?? `${message.role}-${idx}-${message.content.length}`}
@@ -332,10 +392,10 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
 
                   {message.role === 'user' && (
                     <Avatar className="gba:w-8 gba:h-8 gba:shrink-0">
-                      {userAvatar ? (
-                        <AvatarImage src={userAvatar} alt={userName} />
+                      {authorAvatarSrc ? (
+                        <AvatarImage src={authorAvatarSrc} alt={authorDisplayName} />
                       ) : (
-                        <AvatarFallback>{userName.slice(0, 2).toUpperCase()}</AvatarFallback>
+                        <AvatarFallback>{getInitials(authorDisplayName)}</AvatarFallback>
                       )}
                     </Avatar>
                   )}
