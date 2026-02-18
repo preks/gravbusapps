@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react'
-import { Button, Input, Label, Spinner, Alert, AlertDescription } from '@newwork/nw-design-system'
+import { Button, Input, Label, Spinner, Alert, AlertDescription, Textarea } from '@newwork/nw-design-system'
 import { StarFilled, StarOutlined } from '@ant-design/icons'
 import { usePerformanceEvaluationForm } from '../context/PerformanceEvaluationFormContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -49,9 +49,12 @@ const PerformanceEvaluationFormComponent: React.FC = () => {
     await onSubmit()
   }
 
-  // Check if form is valid - all topics must have ratings and employee must be selected
+  // Check if form is valid: employee (selected or pre-selected in task flow) and all topics have a rating
+  const hasEmployee = formValues.employeeId || hasPreSelectedEmployee
   const isFormValid =
-    formValues.employeeId && formValues.topics.every(topic => topic.rating !== undefined && topic.rating > 0)
+    hasEmployee &&
+    formValues.topics.length > 0 &&
+    formValues.topics.every(topic => topic.rating !== undefined && topic.rating > 0)
 
   // Parse employee name for FormHeader (firstName lastName)
   // Always show in header when pre-selected (even if current user)
@@ -226,10 +229,10 @@ const PerformanceEvaluationFormComponent: React.FC = () => {
               className="gba:space-y-3 gba:p-4 gba:border gba:border-border gba:rounded-lg"
               data-testid={formatDataTestId(prefixDataTestId, `Topic-${topic.id}`)}
             >
-              {/* Topic Header */}
+              {/* Topic Header: show topic name (skill/value name) and category in parentheses */}
               <div className="gba:flex gba:items-center gba:gap-2">
                 <Label className="gba:text-base gba:font-semibold">
-                  {topic.name}
+                  {topic.name || (topic.category === 'skill' ? 'Skill' : 'Company Value')}
                   <span className="gba:text-xs gba:font-normal gba:text-muted-foreground gba:ml-2">
                     ({topic.category === 'skill' ? 'Skill' : 'Company Value'})
                   </span>
@@ -284,6 +287,27 @@ const PerformanceEvaluationFormComponent: React.FC = () => {
               </span>
             </div>
           )}
+        </div>
+
+        {/* General Comments */}
+        <div className="gba:space-y-2">
+          <Label htmlFor="general-comments" className="gba:text-sm gba:font-medium">
+            {getTranslationFromI18nKeyAndLabel(
+              'lowcoder:performance_evaluation_form.general_comments.label',
+              'General comments'
+            )}
+          </Label>
+          <Textarea
+            id="general-comments"
+            value={formValues.comments ?? ''}
+            onChange={e => setFormValues({ comments: e.target.value })}
+            placeholder={getTranslationFromI18nKeyAndLabel(
+              'lowcoder:performance_evaluation_form.general_comments.placeholder',
+              'Add general comments...'
+            )}
+            className="gba:min-h-[80px] gba:w-full"
+            data-testid={formatDataTestId(prefixDataTestId, 'GeneralComments')}
+          />
         </div>
 
         {/* Error Display */}

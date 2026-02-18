@@ -283,13 +283,22 @@ export const GlobalCallContainer: React.FC = () => {
           if (maybePromise && typeof (maybePromise as any).finally === 'function') {
             ;(maybePromise as Promise<unknown>).finally(() => {
               leaveSettled = true
+              // Safety: if hook did not clear global state (e.g. early return when roomId missing),
+              // ensure modal closes after a short delay.
+              setTimeout(() => {
+                const after = globalCallManager.getCallData()
+                if (after.callState.status !== 'idle' || after.realtimeKitMeeting != null) {
+                  globalCallManager.clearCall()
+                }
+              }, 400)
             })
           } else {
             leaveSettled = true
           }
         } catch (err) {
           console.error('[GlobalCallContainer] handleEndCall: Hook leaveCall threw error', err)
-          // If callback throws synchronously, fall back below.
+          // If callback throws synchronously, ensure modal still closes.
+          globalCallManager.clearCall()
           leaveSettled = false
         }
 

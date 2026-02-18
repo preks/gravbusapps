@@ -76,6 +76,8 @@ export function useGroupCallModalVideoRefs(props: Pick<GroupCallModalRtkProps, '
     stream: MediaStream
   } | null>(null)
 
+  const [contentProminentWhenSharing, setContentProminentWhenSharing] = useState(true)
+
   return {
     localVideoRef,
     remoteVideoRefs,
@@ -91,6 +93,8 @@ export function useGroupCallModalVideoRefs(props: Pick<GroupCallModalRtkProps, '
     focusedScreenShareId,
     setFocusedScreenShareId,
     expandedScreenShare,
-    setExpandedScreenShare
+    setExpandedScreenShare,
+    contentProminentWhenSharing,
+    setContentProminentWhenSharing
   }
 }

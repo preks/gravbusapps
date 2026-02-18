@@ -88,11 +88,22 @@ export function useGroupCallModalSidebarAndReactions(
     return () => globalThis.window.removeEventListener('resize', handleResize)
   }, [])
 
-  const PARTICIPANTS_PER_PAGE = useMemo(() => {
+  const [gallerySize, setGallerySize] = useState<'default' | 'large'>('default')
+
+  const baseParticipantsPerPage = useMemo(() => {
     if (screenWidth < 768) return 4
     if (screenWidth < 1024) return 6
     return 9
   }, [screenWidth])
+
+  const PARTICIPANTS_PER_PAGE = useMemo(() => {
+    if (gallerySize === 'large') {
+      if (screenWidth < 768) return 9
+      if (screenWidth < 1024) return 16
+      return 25
+    }
+    return baseParticipantsPerPage
+  }, [gallerySize, screenWidth, baseParticipantsPerPage])
 
   useEffect(() => {
     let socket = wsClient?.getSocket()
@@ -138,6 +149,8 @@ export function useGroupCallModalSidebarAndReactions(
     setSelectedVideoInputId,
     canSelectAudioOutput,
     PARTICIPANTS_PER_PAGE,
-    screenWidth
+    screenWidth,
+    gallerySize,
+    setGallerySize
   }
 }

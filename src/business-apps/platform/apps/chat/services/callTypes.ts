@@ -5,13 +5,15 @@
 import type { CallParticipant, CallType } from './webrtcClient'
 import type { GroupCallParticipant, VideoQuality } from './groupWebrtcClient'
 
+export type CallConversationType = 'direct' | 'group' | 'meeting'
+
 export interface GroupCallInvite {
   roomId: string
   callType: CallType
   from: { id: string; odId: string; odName: string; avatarUrl?: string }
   conversationName?: string
   conversationId?: string
-  conversationType?: 'direct' | 'group' | 'meeting'
+  conversationType?: CallConversationType
 }
 
 export interface GroupCallUIState {
@@ -32,7 +34,7 @@ export interface GroupCallUIState {
   handRaisedOrder?: Record<string, { order: number; timestamp: number }>
   startTime: number | null
   conversationName?: string
-  conversationType?: 'direct' | 'group' | 'meeting'
+  conversationType?: CallConversationType
   duration: number
   callImplementation: 'realtime-kit'
   calendarMeetingId?: string | null
@@ -45,6 +47,7 @@ export interface ActiveConversationCall {
   startedBy: string
   startedAt?: Date | string
   conversationName?: string
+  conversationType?: CallConversationType
 }
 
 export type InviteStatus = 'pending' | 'declined' | 'not-answered' | 'left' | 'invited'
@@ -79,7 +82,7 @@ export interface UseGroupCallReturn {
     participants: CallParticipant[],
     conversationName?: string,
     calendarMeetingId?: string | null,
-    conversationType?: 'direct' | 'group' | 'meeting'
+    conversationType?: CallConversationType
   ) => void
   confirmStartCall?: (preferences: {
     micEnabled: boolean
