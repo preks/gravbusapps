@@ -288,21 +288,6 @@ export function calculateFullDiff(
       // Hub: only type is set (MUST have a type - default to USE if missing)
       const hubType = targetItem.type || 'USE'
 
-      // #region agent log
-      fetch('http://127.0.0.1:7244/ingest/00afbd5c-2483-4caa-966f-80d58bf9e341', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          location: 'menuTreeDiff.ts:288',
-          message: 'buildCreatePayload (menuTreeDiff) for hub',
-          data: { targetItemType: targetItem.type, hubType: hubType, level: targetItem.level },
-          timestamp: Date.now(),
-          sessionId: 'debug-session',
-          hypothesisId: 'C'
-        })
-      }).catch(() => {})
-      // #endregion
-
       return {
         ...basePayload,
         type: hubType,
