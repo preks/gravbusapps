@@ -1,6 +1,10 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import {
   Button,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
   Input,
   Select,
   SelectContent,
@@ -9,7 +13,7 @@ import {
   SelectValue,
   Spinner
 } from '@newwork/nw-design-system'
-import { Send, Loader2 } from 'lucide-react'
+import { Send, Loader2, Brain, Zap } from 'lucide-react'
 import { MarkdownWithChipsRenderer } from '@/common/components/markdown/MarkdownWithChipsRenderer'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import { useAgentMeshClient } from '../../hooks/useAgentMeshClient'
@@ -57,8 +61,23 @@ export const SteeringChat = ({
   const [agents, setAgents] = useState<AgentRegistryEntry[]>([])
   const [selectedAgentId, setSelectedAgentId] = useState<string>('')
   const [loadingAgents, setLoadingAgents] = useState(true)
+  const [llmProvider, setLlmProvider] = useState<string>(() => {
+    try {
+      return window.localStorage.getItem('agent-mesh-llm-provider') || 'openai'
+    } catch {
+      return 'openai'
+    }
+  })
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const lastResultRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem('agent-mesh-llm-provider', llmProvider)
+    } catch {
+      /* ignore */
+    }
+  }, [llmProvider])
 
   /** Derive a dynamic thinking status from live comm events */
   const thinkingStatus = useMemo(() => {
@@ -126,6 +145,7 @@ export const SteeringChat = ({
     try {
       const formData = new FormData()
       formData.append('user_params', JSON.stringify({ input: userMessage.content }))
+      if (llmProvider) formData.append('llm_provider', llmProvider)
 
       const response = await promptClient.executePromptById(selectedAgentId, formData)
 
@@ -176,6 +196,7 @@ export const SteeringChat = ({
     agents,
     messages,
     commEvents,
+    llmProvider,
     promptClient,
     meshClient,
     onResultUpdate,
@@ -273,7 +294,36 @@ export const SteeringChat = ({
       </div>
 
       <div className="gba:border-t gba:border-border gba:p-4">
-        <div className="gba:flex gba:gap-2">
+        <div className="gba:flex gba:items-center gba:gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className={`gba:flex gba:items-center gba:justify-center gba:h-8 gba:w-8 gba:rounded-full gba:text-xs gba:font-semibold gba:transition-all gba:duration-200 gba:cursor-pointer gba:outline-none ${
+                  llmProvider === 'groq'
+                    ? 'gba:bg-warning-secondary gba:text-warning-secondary-foreground'
+                    : 'gba:bg-info-secondary gba:text-info-secondary-foreground gba:hover:opacity-90'
+                }`}
+                data-testid="steering-chat-llm-toggle"
+                title={llmProvider === 'groq' ? 'Fast mode (Groq)' : 'Smart mode (OpenAI)'}
+              >
+                {llmProvider === 'groq' ? (
+                  <Zap className="gba:h-3.5 gba:w-3.5" />
+                ) : (
+                  <Brain className="gba:h-3.5 gba:w-3.5" />
+                )}
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              <DropdownMenuItem onClick={() => setLlmProvider('openai')} data-testid="steering-chat-llm-option-openai">
+                <Brain className="gba:h-3.5 gba:w-3.5 gba:mr-2 gba:text-info" />
+                Smart {llmProvider !== 'groq' ? '(active)' : ''}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setLlmProvider('groq')} data-testid="steering-chat-llm-option-groq">
+                <Zap className="gba:h-3.5 gba:w-3.5 gba:mr-2 gba:text-warning" />
+                Fast {llmProvider === 'groq' ? '(active)' : ''}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Input
             value={inputValue}
             onChange={e => setInputValue(e.target.value)}
