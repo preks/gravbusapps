@@ -121,6 +121,8 @@ export const PerformanceEvaluationFormProvider: React.FC<PerformanceEvaluationFo
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  console.log('businessAppContext', businessAppContext)
+
   // Extract employee ID from task payload (for manager reviews - to show employee's skills, not manager's)
   const employeeIdFromTaskPayload = (businessAppContext?.additionalData as any)?.psi_taskPayload
     ?.employeePerformanceEvaluation?.employee
@@ -416,19 +418,25 @@ export const PerformanceEvaluationFormProvider: React.FC<PerformanceEvaluationFo
         comments: ''
       }
 
-      const formattedComments = formValues.topics
-        .map(topic => {
-          const ratingValue = topic.rating !== undefined ? topic.rating : 'N/A'
-          return `${topic.name}:${ratingValue}`
-        })
-        .join(';')
+      const taskName = taskPayload?.TaskName
+      const isPeerReview = taskName === 'peerEvaluation' || taskName === 'peerReview'
 
-      const nodeName = taskPayload?.NodeName
-      const isManagerReview = nodeName === 'Manager Review'
-
-      const payload = isManagerReview
-        ? { managerComments: formattedComments, reviewSubmission }
-        : { employeeComments: formattedComments, reviewSubmission }
+      let payload: Record<string, unknown>
+      if (isPeerReview) {
+        payload = { peerReviewSubmission: reviewSubmission }
+      } else {
+        const formattedComments = formValues.topics
+          .map(topic => {
+            const ratingValue = topic.rating !== undefined ? topic.rating : 'N/A'
+            return `${topic.name}:${ratingValue}`
+          })
+          .join(';')
+        const nodeName = taskPayload?.NodeName
+        const isManagerReview = nodeName === 'Manager Review'
+        payload = isManagerReview
+          ? { managerComments: formattedComments, reviewSubmission }
+          : { employeeComments: formattedComments, reviewSubmission }
+      }
 
       dispatchProcessContinueEvent('pse_submit', payload)
 

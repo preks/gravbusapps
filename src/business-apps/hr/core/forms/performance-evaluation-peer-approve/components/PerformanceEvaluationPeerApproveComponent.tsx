@@ -74,7 +74,7 @@ const PerformanceEvaluationPeerApproveComponent: React.FC = () => {
           </Alert>
         )}
 
-        <Card variant="outlined">
+        <Card variant="surface">
           <CardHeader>
             <CardTitle className="gba:text-base">{peersLabel}</CardTitle>
           </CardHeader>
@@ -100,7 +100,7 @@ const PerformanceEvaluationPeerApproveComponent: React.FC = () => {
                   <li
                     key={peer.id}
                     className="gba:py-2 gba:px-3 gba:rounded-md gba:bg-muted gba:text-foreground gba:text-sm"
-                    data-testid={formatDataTestId(prefixDataTestId, 'PeerItem', index)}
+                    data-testid={formatDataTestId(prefixDataTestId, 'PeerItem', String(index))}
                   >
                     {peer.name}
                   </li>
