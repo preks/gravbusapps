@@ -263,6 +263,7 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
     if (!enabled || isLoadingMore || !hasMore || !apiClient) return
 
     try {
+      setError(null)
       setIsLoadingMore(true)
       const nextPage = currentPage + 1
 
@@ -287,8 +288,8 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
         return [...prev, ...newConversations]
       })
       setCurrentPage(nextPage)
-    } catch {
-      // Error loading more conversations
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error('Failed to load more conversations'))
     } finally {
       setIsLoadingMore(false)
     }
@@ -358,9 +359,15 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
           // Trigger async fetch of the missing conversation
           // This happens when a message arrives for a conversation that's not in the paginated list
           if (apiClient) {
+            if (process.env.NODE_ENV === 'development') {
+              console.log('[useConversations] Conversation not in list, fetching by id', { conversationId })
+            }
             apiClient
               .getConversationById(conversationId)
               .then(async conversation => {
+                if (process.env.NODE_ENV === 'development') {
+                  console.log('[useConversations] Fetched missing conversation, adding to list', { conversationId })
+                }
                 // Enrich before adding
                 const enriched = await enrichConversations([conversation])
                 const enrichedConv = enriched[0] || conversation
@@ -376,9 +383,16 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
                   })
                 })
               })
-              .catch(() => {
-                // Failed to fetch missing conversation
+              .catch(err => {
+                console.error('[useConversations] Failed to fetch missing conversation', {
+                  conversationId,
+                  message: err instanceof Error ? err.message : String(err)
+                })
               })
+          } else if (process.env.NODE_ENV === 'development') {
+            console.log('[useConversations] Conversation not in list but apiClient is null, skipping fetch', {
+              conversationId
+            })
           }
 
           return prev
