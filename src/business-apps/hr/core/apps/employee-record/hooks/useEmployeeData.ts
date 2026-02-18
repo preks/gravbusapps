@@ -181,6 +181,7 @@ export const GET_EMPLOYEE_DATA = /*sql*/ `
         locality
         type
         country {
+          id
           code
           value
         }
