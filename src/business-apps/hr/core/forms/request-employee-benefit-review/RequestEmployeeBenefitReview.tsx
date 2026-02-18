@@ -130,12 +130,12 @@ export const RequestEmployeeBenefitReview: React.FC<BusinessAppContextProps> = (
           onSubmit={async (formData: BenefitReviewFormValues) => {
             return {
               approval: 'approved',
-              comments: formData.comments
+              decisionReason: formData.comments
             }
           }}
           getCancelPayload={() => ({
             approval: 'rejected',
-            comments: form.getValues().comments
+            decisionReason: form.getValues().comments
           })}
           data-testid="request-employee-benefit-review"
         >

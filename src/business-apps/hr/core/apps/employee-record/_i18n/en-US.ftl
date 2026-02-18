@@ -73,14 +73,17 @@ benefits-catalog-no-results-description = No benefits match your search criteria
 benefits-catalog-clear-search = Clear Search
 benefits-active-section-title = Active Benefits ({ $count })
 benefits-scheduled-section-title = Scheduled Benefits ({ $count })
+benefits-not-approved-section-title = Not approved benefits ({ $count })
 benefits-available-section-title = Available Benefits ({ $count })
 
 # Benefit Card
 benefit-status-active = Active
 benefit-status-scheduled = Scheduled
 benefit-status-pending = Pending
+benefit-status-not-approved = Not approved
 benefit-status-available = Available
 benefit-request-button = Request
+benefit-request-again = Request again
 benefit-pending-request-info = You have already requested this benefit. You can only have one active request at a time. The request is pending approval.
 benefit-pending-request-notice = A request for this benefit is currently pending approval
 benefit-request-employee-id-missing = Employee ID not available. Cannot initiate benefit request.
@@ -105,6 +108,7 @@ benefit-details-type = Type
 benefit-details-category = Category
 benefit-details-provider-info = Provider Information
 benefit-details-provider = Provider
+benefit-details-comments = Comments
 benefit-details-value-info = Value Information
 benefit-details-yearly-value = Yearly Value
 benefit-details-monthly-value = Monthly Value
