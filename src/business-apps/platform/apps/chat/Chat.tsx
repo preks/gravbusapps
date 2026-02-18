@@ -599,6 +599,80 @@ const ChatInner: React.FC<ChatProps> = memo(
       }
     }, [conversations, setActiveConversation, activeConversationId, apiClient, conversationsLoading])
 
+    // Handle in-app "open chat with conversation" (e.g. from calendar meeting "Open Chat" - same as dashboard)
+    useEffect(() => {
+      const handleOpenWithConversation = async (event: Event) => {
+        const customEvent = event as CustomEvent<{ conversationId: string }>
+        const conversationIdParam = customEvent.detail?.conversationId
+        if (!conversationIdParam) return
+
+        const conversation = conversations.find(c => c.id === conversationIdParam)
+        if (conversation) {
+          setActiveConversation(conversation)
+          setShowConversationList(false)
+          try {
+            globalThis.dispatchEvent(new CustomEvent('chat:conversation-ready'))
+            const g = globalThis as unknown as Window
+            if (g.parent !== g) {
+              g.parent.postMessage({ type: 'CHAT_CONVERSATION_READY' }, '*')
+            }
+          } catch {
+            // ignore
+          }
+          return
+        }
+
+        if (apiClient) {
+          try {
+            const fetchedConversation = await apiClient.getConversationById(conversationIdParam)
+            if (fetchedConversation) {
+              setActiveConversation(fetchedConversation)
+              setShowConversationList(false)
+              try {
+                globalThis.dispatchEvent(new CustomEvent('chat:conversation-ready'))
+                const g = globalThis as unknown as Window
+                if (g.parent !== g) {
+                  g.parent.postMessage({ type: 'CHAT_CONVERSATION_READY' }, '*')
+                }
+              } catch {
+                // ignore
+              }
+            }
+          } catch {
+            // ignore
+          }
+        }
+      }
+
+      globalThis.addEventListener('chat:open-with-conversation', handleOpenWithConversation)
+      return () => {
+        globalThis.removeEventListener('chat:open-with-conversation', handleOpenWithConversation)
+      }
+    }, [conversations, setActiveConversation, setShowConversationList, apiClient])
+
+    // Notify calendar to refresh when a meeting is created (so other participants see it without reload)
+    useEffect(() => {
+      const socket = wsClient?.getSocket()
+      if (!socket) return
+      const onMeetingCreated = () => {
+        globalThis.dispatchEvent(new CustomEvent('calendar:refresh'))
+      }
+      const onMeetingUpdated = () => {
+        globalThis.dispatchEvent(new CustomEvent('calendar:refresh'))
+      }
+      const onMeetingDeleted = () => {
+        globalThis.dispatchEvent(new CustomEvent('calendar:refresh'))
+      }
+      socket.on('meeting_created', onMeetingCreated)
+      socket.on('meeting_updated', onMeetingUpdated)
+      socket.on('meeting_deleted', onMeetingDeleted)
+      return () => {
+        socket.off('meeting_created', onMeetingCreated)
+        socket.off('meeting_updated', onMeetingUpdated)
+        socket.off('meeting_deleted', onMeetingDeleted)
+      }
+    }, [wsClient])
+
     // Handle URL parameters for context and AI agent conversations (only once)
     useEffect(() => {
       // Only process URL params once when user is connected

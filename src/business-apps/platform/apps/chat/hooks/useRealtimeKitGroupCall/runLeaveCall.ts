@@ -33,24 +33,31 @@ export async function runLeaveCall(ctx: LeaveCallContext): Promise<void> {
     accessToken
   } = ctx
 
-  const roomId = refs.callStateRoomIdRef.current
+  // Use ref first; fallback to global state so we can still remove from activeConversationCalls
+  // when refs are stale (e.g. after navigation), preventing "invite to join call you just left".
+  const roomIdFromRef = refs.callStateRoomIdRef.current
+  const roomIdFromGlobal = globalCallManager.getCallData().callState.roomId
+  const roomId = roomIdFromRef ?? roomIdFromGlobal ?? null
+
   const meetingId = refs.meetingIdRef.current
   const callStartTime = refs.callStartTimeRef.current
-
-  if (!roomId) return
 
   if (refs.isLeavingRef.current) {
     return
   }
 
+  // Close modal immediately so UI does not stay open while cleanup runs.
+  // Always update state so the call UI dismisses even when roomId is missing
+  // (e.g. end call before other user joins, or stale ref after navigation).
+  globalCallManager.updateCallState({ status: 'ended' })
+
   const sessionIdForEmit = refs.sessionIdRef.current
-  const isMeetingForEmit = !!refs.calendarMeetingIdRef.current
+  const isMeetingForEmit = !!refs.calendarMeetingIdRef.current || refs.conversationTypeRef.current === 'meeting'
 
   refs.lastStartEmitRef.current = null
-  clearInviteDedupeFor(meetingId, roomId)
-
-  // Close modal immediately so UI does not stay open while cleanup runs
-  globalCallManager.updateCallState({ status: 'ended' })
+  if (roomId && meetingId) {
+    clearInviteDedupeFor(meetingId, roomId)
+  }
 
   const meetingForLeave = stableMeeting || globalCallManager.getCallData().realtimeKitMeeting
 
@@ -68,7 +75,7 @@ export async function runLeaveCall(ctx: LeaveCallContext): Promise<void> {
 
       refs.isCancelledRef.current = true
 
-      if (meetingId) {
+      if (roomId && meetingId) {
         const user = refs.currentUserRef.current
         const socket = refs.wsClientRef.current?.getSocket()
         if (user && socket) {
@@ -153,7 +160,7 @@ export async function runLeaveCall(ctx: LeaveCallContext): Promise<void> {
       }
     }
 
-    if (user && socket) {
+    if (roomId && user && socket) {
       const payload = {
         conversationId: roomId,
         meetingId: meetingId,
@@ -207,7 +214,9 @@ export async function runLeaveCall(ctx: LeaveCallContext): Promise<void> {
 
     callPreferences.clearActiveCall()
     clearActiveCallFromStorage()
-    refs.onCallEndedRef.current?.(roomId, duration)
+    if (roomId) {
+      refs.onCallEndedRef.current?.(roomId, duration)
+    }
 
     setTimeout(() => {
       setCallState((prev: CallState) => ({ ...prev, status: 'idle' }))

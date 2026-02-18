@@ -30,6 +30,10 @@ export interface UseEntityImportReturn<T> {
   // Conversion state
   convertedEntities: T[]
 
+  // Campaign state
+  campaignId: string
+  setCampaignId: (id: string | null) => void
+
   // UI state
   step: ImportStep
   isLoading: boolean
@@ -130,10 +134,15 @@ export function useEntityImport<T = ConvertedEntity>(
   const [file, setFile] = useState<File | null>(null)
   const [agentResponse, setAgentResponse] = useState<ImportAnalyzerResponse | null>(null)
   const [convertedEntities, setConvertedEntities] = useState<T[]>([])
+  const [campaignId, setCampaignIdState] = useState<string>('')
   const [step, setStep] = useState<ImportStep>('upload')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [importResult, setImportResult] = useState<ImportResult | null>(null)
+
+  const setCampaignId = useCallback((id: string | null) => {
+    setCampaignIdState(id || '')
+  }, [])
 
   // Services
   const aiServiceRef = useRef<ImportAnalyzer | null>(null)
@@ -268,10 +277,11 @@ export function useEntityImport<T = ConvertedEntity>(
     try {
       const ownerEmployeeId = props.userInfo?.employeeDetails?.employeeId
 
-      // Inject ownerEmployee into all entities before import
+      // Inject ownerEmployee and optional campaignId into all entities before import
       const entitiesWithOwner = convertedEntities.map((entity: any) => ({
         ...entity,
-        ownerEmployee: ownerEmployeeId || entity.ownerEmployee || entity.ownerEmployeeId
+        ownerEmployee: ownerEmployeeId || entity.ownerEmployee || entity.ownerEmployeeId,
+        ...(campaignId ? { salesCampaignId: campaignId } : {})
       }))
 
       let result: ImportResult
@@ -321,7 +331,7 @@ export function useEntityImport<T = ConvertedEntity>(
     } finally {
       setIsLoading(false)
     }
-  }, [convertedEntities, config.entityType, config.domain, props.userInfo, restClient, accessToken])
+  }, [convertedEntities, config.entityType, config.domain, props.userInfo, restClient, accessToken, campaignId])
 
   // Download JSON
   const downloadJSON = useCallback(() => {
@@ -340,6 +350,7 @@ export function useEntityImport<T = ConvertedEntity>(
     setFile(null)
     setAgentResponse(null)
     setConvertedEntities([])
+    setCampaignIdState('')
     setStep('upload')
     setError(null)
     setImportResult(null)
@@ -349,6 +360,8 @@ export function useEntityImport<T = ConvertedEntity>(
     file,
     agentResponse,
     convertedEntities,
+    campaignId,
+    setCampaignId,
     step,
     isLoading,
     error,

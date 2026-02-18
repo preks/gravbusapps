@@ -56,6 +56,11 @@ interface Message {
     outputTokens: number
     totalCost: number
   }
+  createdBy?: string
+  editHistory?: Array<{
+    userId: string
+    editedAt: string
+  }>
   messageId?: string
   createdAt?: string
   serverCreatedAt?: string
@@ -169,6 +174,16 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
   const screenBuildSucceededRef = useRef(false)
   const filesChangedInRunRef = useRef(false)
   const resolvedTargetPath = detectedTargetPath || targetPath
+  const UNKNOWN_AUTHOR_ID = 'unknown-user'
+
+  const getCurrentUserId = (): string | undefined => {
+    return context.userInfo?.id ?? undefined
+  }
+
+  const getDefaultCreatedBy = (role: MessageRole): string | undefined => {
+    if (role !== 'user') return undefined
+    return getCurrentUserId() ?? UNKNOWN_AUTHOR_ID
+  }
 
   const createMessageId = (): string => {
     if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -182,18 +197,23 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
     content,
     messageId: createMessageId(),
     createdAt: new Date().toISOString(),
+    createdBy: extras?.createdBy ?? getDefaultCreatedBy(role),
     ...extras
   })
 
-  const ensureMessageIds = (history: Message[]): { messages: Message[]; updated: boolean } => {
+  const ensureMessageMetadata = (history: Message[]): { messages: Message[]; updated: boolean } => {
     let updated = false
     const messages = history.map(message => {
-      if (message.messageId && message.createdAt) return message
+      const needsId = !message.messageId
+      const needsCreatedAt = !message.createdAt
+      const needsCreatedBy = message.role === 'user' && !message.createdBy
+      if (!needsId && !needsCreatedAt && !needsCreatedBy) return message
       updated = true
       return {
         ...message,
         messageId: message.messageId ?? createMessageId(),
-        createdAt: message.createdAt ?? new Date().toISOString()
+        createdAt: message.createdAt ?? new Date().toISOString(),
+        createdBy: message.createdBy ?? (message.role === 'user' ? UNKNOWN_AUTHOR_ID : undefined)
       }
     })
     return { messages, updated }
@@ -382,7 +402,10 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
             const normalizedResourceUrl = normalizeResourceUrl(resourceUrl)
             const previousAutoResourceUrl = detectedTargetPath ? getAutoResourceUrl(detectedTargetPath) : null
             // Auto-generate resource URL from the last segment when not set or previously auto-generated
-            if (!normalizedResourceUrl || (previousAutoResourceUrl && normalizedResourceUrl === previousAutoResourceUrl)) {
+            if (
+              !normalizedResourceUrl ||
+              (previousAutoResourceUrl && normalizedResourceUrl === previousAutoResourceUrl)
+            ) {
               setResourceUrl(autoResourceUrl)
             }
           }
@@ -484,7 +507,7 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
       .loadChatHistory(repositoryId, sessionId)
       .then(history => {
         if (history?.length) {
-          const normalized = ensureMessageIds(history as Message[])
+          const normalized = ensureMessageMetadata(history as Message[])
           if (normalized.updated) {
             builderClient.saveChatHistory(repositoryId, sessionId, normalized.messages)
           }
@@ -563,8 +586,7 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
           completed = true
           const result = event.result
           const publishedPath = result?.targetPath || targetPath
-          const normalizedResourceUrl =
-            normalizeResourceUrl(result?.resourceUrl) ?? normalizeResourceUrl(resourceUrl)
+          const normalizedResourceUrl = normalizeResourceUrl(result?.resourceUrl) ?? normalizeResourceUrl(resourceUrl)
           const fallbackUrl = normalizeResourceUrl(publishedPath)
           const fullUrl = normalizedResourceUrl || fallbackUrl || `/${publishedPath}`
           setPublishSuccess(fullUrl)
@@ -666,7 +688,7 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
       updateRestoreTempMessage(tempMessageId, 'Reloading chat history')
       const history = await builderClient.loadChatHistory(repositoryId, sessionId)
       if (history?.length) {
-        const normalized = ensureMessageIds(history as Message[])
+        const normalized = ensureMessageMetadata(history as Message[])
         if (normalized.updated) {
           builderClient.saveChatHistory(repositoryId, sessionId, normalized.messages)
         }
@@ -695,6 +717,86 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
       const message = error instanceof Error ? error.message : 'Failed to restore message'
       removeTempMessage(tempMessageId)
       setRestoreError(message)
+    } finally {
+      setIsRestoringMessageId(null)
+    }
+  }
+
+  const findPreviousAssistantMessage = (history: Message[], targetIndex: number): Message | null => {
+    for (let i = targetIndex - 1; i >= 0; i -= 1) {
+      const candidate = history[i]
+      if (candidate.role === 'assistant' && candidate.messageId) {
+        return candidate
+      }
+    }
+    return null
+  }
+
+  const handleEditMessage = async (message: Message, nextContent: string) => {
+    if (!sessionId || !resolvedTargetPath) return
+    const trimmedContent = nextContent.trim()
+    if (!trimmedContent || loading) return
+    const historySnapshot = messagesRef.current
+    const targetIndex = historySnapshot.findIndex(item => item.messageId === message.messageId)
+    if (targetIndex === -1) return
+    const previousAssistant = findPreviousAssistantMessage(historySnapshot, targetIndex)
+
+    setIsRestoringMessageId(message.messageId ?? null)
+    restoreProgressRef.current = []
+    const tempMessageId = createMessageId()
+    setMessages(prev => [
+      ...prev,
+      buildMessage('assistant', formatRestoreProgress([]), {
+        messageId: tempMessageId,
+        localOnly: true
+      })
+    ])
+
+    try {
+      updateRestoreTempMessage(tempMessageId, 'Restoring files and chat')
+      if (previousAssistant?.messageId) {
+        await builderClient.restoreToMessage({
+          repoId: repositoryId,
+          sessionId,
+          targetPath: resolvedTargetPath,
+          messageId: previousAssistant.messageId,
+          restoreChat: true
+        })
+      } else {
+        await builderClient.restoreToInitial({
+          repoId: repositoryId,
+          sessionId,
+          targetPath: resolvedTargetPath,
+          restoreChat: true
+        })
+      }
+
+      updateRestoreTempMessage(tempMessageId, 'Reloading chat history')
+      const history = await builderClient.loadChatHistory(repositoryId, sessionId)
+      const normalized = ensureMessageMetadata(history as Message[])
+      if (normalized.updated) {
+        builderClient.saveChatHistory(repositoryId, sessionId, normalized.messages)
+      }
+
+      const editorId = getCurrentUserId() ?? UNKNOWN_AUTHOR_ID
+      const editedMessage: Message = {
+        ...message,
+        content: trimmedContent,
+        createdBy: message.createdBy ?? editorId,
+        editHistory: [...(message.editHistory ?? []), { userId: editorId, editedAt: new Date().toISOString() }]
+      }
+
+      const nextHistory = [...(normalized.messages as Message[]), editedMessage]
+      setMessages(nextHistory)
+      await builderClient.saveChatHistory(repositoryId, sessionId, nextHistory)
+
+      updateRestoreTempMessage(tempMessageId, 'Sending updated prompt')
+      await runPrompt(trimmedContent, normalized.messages as Message[])
+      removeTempMessage(tempMessageId)
+    } catch (error) {
+      const messageText = error instanceof Error ? error.message : 'Failed to edit message'
+      removeTempMessage(tempMessageId)
+      setRestoreError(messageText)
     } finally {
       setIsRestoringMessageId(null)
     }
@@ -952,16 +1054,10 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
     }
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!input.trim() || loading) return
-    const userMessage = buildMessage('user', input)
-    const userInput = input
+  const runPrompt = async (userInput: string, history: Message[]) => {
     screenBuildUsedRef.current = false
     screenBuildSucceededRef.current = false
     filesChangedInRunRef.current = false
-    setMessages(prev => [...prev, userMessage])
-    setInput('')
     setLoading(true)
     setThinking(false)
     setThinkingContent('')
@@ -974,11 +1070,10 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
         const data: ChangesResponse = await builderClient.getChanges(repoIdToUse, sessionId)
         previousChangeCountRef.current = data.summary?.files?.length ?? 0
       }
-      const history = messages.slice(-20)
       const stream = await builderClient.queryCode(
         repositoryId,
         userInput,
-        history,
+        history.slice(-20),
         true,
         buildEnabled,
         sessionId,
@@ -1060,6 +1155,16 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
         filesChangedInRunRef.current = false
       }, 2000)
     }
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!input.trim() || loading) return
+    const userMessage = buildMessage('user', input)
+    const userInput = input
+    setMessages(prev => [...prev, userMessage])
+    setInput('')
+    await runPrompt(userInput, messages)
   }
 
   const restoreMessagePreview = pendingRestoreMessage?.content ? pendingRestoreMessage.content.slice(0, 160) : ''
@@ -1411,7 +1516,10 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
                     isProcessing={loading}
                     thinking={thinking}
                     onRestoreMessage={openRestoreDialog}
+                    onEditMessage={handleEditMessage}
                     isRestoringMessageId={isRestoringMessageId}
+                    currentUserId={context.userInfo?.id}
+                    accessToken={context.accessToken}
                     userName={
                       context.userInfo
                         ? `${context.userInfo.givenName ?? ''} ${context.userInfo.familyName ?? ''}`.trim() ||
@@ -1503,7 +1611,10 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
                   isProcessing={loading}
                   thinking={thinking}
                   onRestoreMessage={openRestoreDialog}
+                  onEditMessage={handleEditMessage}
                   isRestoringMessageId={isRestoringMessageId}
+                  currentUserId={context.userInfo?.id}
+                  accessToken={context.accessToken}
                   userName={
                     context.userInfo
                       ? `${context.userInfo.givenName ?? ''} ${context.userInfo.familyName ?? ''}`.trim() ||

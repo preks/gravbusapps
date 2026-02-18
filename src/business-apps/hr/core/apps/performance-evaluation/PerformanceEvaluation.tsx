@@ -249,29 +249,14 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
     }
 
     try {
-      // Convert dates to ISO 8601 format with timestamp
-      const toISOString = (dateStr: string): string => {
-        const date = new Date(dateStr)
-        return date.toISOString()
-      }
-
       // Build the payload according to the API specification
       const payload = {
         employeePerformanceEvaluation: {
-          version: 0,
-          businessKey: `eval-${cycle.id}-${platformContext.employeeId}`,
-          activeTo: toISOString(cycle.endDate),
-          startDate: toISOString(cycle.startDate),
-          targetCompletionDate: toISOString(cycle.endDate),
-          actualCompletionDate: toISOString(cycle.endDate),
           employee: platformContext.employeeId,
-          performanceCycle: cycle.id,
-          organizationalUnitIds: selectedTeamIds
+          performanceCycle: cycle.id
         },
         managerUserId: managerUserId || '',
-        employeeUserId: currentEmployeeUserId || '',
-        selectedTeams: selectedTeamIds,
-        runFor
+        employeeUserId: currentEmployeeUserId || ''
       }
 
       // Start the Kogito process
@@ -415,9 +400,9 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
     )
   }
 
-  if (!hrBackoffice.hasPermission) {
-    return null
-  }
+  // if (!hrBackoffice.hasPermission) {
+  //   return null
+  // }
 
   return (
     <div data-testid="performance-evaluation-container">

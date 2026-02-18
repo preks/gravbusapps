@@ -168,6 +168,7 @@ export function useRealtimeKitInviteListeners(params: UseRealtimeKitInviteListen
       participantIds: string[]
       startedAt?: Date | string
       conversationName?: string
+      conversationType?: 'direct' | 'group' | 'meeting'
     }) => {
       setActiveConversationCalls(prev => {
         const newMap = new Map(prev)
@@ -177,7 +178,8 @@ export function useRealtimeKitInviteListeners(params: UseRealtimeKitInviteListen
           participantIds: data.participantIds,
           startedBy: data.startedBy.id,
           startedAt: data.startedAt,
-          conversationName: data.conversationName
+          conversationName: data.conversationName,
+          conversationType: data.conversationType
         })
         return newMap
       })
@@ -251,7 +253,8 @@ export function useRealtimeKitInviteListeners(params: UseRealtimeKitInviteListen
             participantIds: call.participantIds || [],
             startedBy: call.startedBy?.id || existing?.startedBy || '',
             startedAt: call.startedAt,
-            conversationName: existing?.conversationName
+            conversationName: existing?.conversationName ?? call.conversationName,
+            conversationType: call.conversationType ?? existing?.conversationType
           })
         })
         for (const conversationId of Array.from(next.keys())) {

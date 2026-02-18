@@ -1,5 +1,17 @@
-import React, { useState, useRef, useEffect } from 'react'
-import { Button, Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
+import React, { useState, useRef, useEffect, useMemo } from 'react'
+import {
+  Button,
+  Avatar,
+  AvatarImage,
+  AvatarFallback,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  Textarea
+} from '@newwork/nw-design-system'
 import {
   Bot,
   Sparkles,
@@ -10,10 +22,12 @@ import {
   ChevronRight,
   Upload,
   Brain,
-  MoreVertical
+  RotateCcw,
+  Pencil
 } from 'lucide-react'
 import { MarkdownRenderer } from './MarkdownRenderer'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useEmployeeAvatarsBatch } from '@/business-apps/core/every/apps/every-box/hooks/useEmployeeAvatarsBatch'
 
 interface ToolCall {
   tool: string
@@ -29,6 +43,11 @@ interface Message {
   toolCalls?: ToolCall[]
   thinkingLog?: string
   thinkingCollapsed?: boolean
+  createdBy?: string
+  editHistory?: Array<{
+    userId: string
+    editedAt: string
+  }>
   messageId?: string
   createdAt?: string
   serverCreatedAt?: string
@@ -53,7 +72,10 @@ interface ChatDrawerProps {
   onAttachFile?: () => void
   onToggleThinking?: (messageIndex: number) => void
   onRestoreMessage?: (message: Message) => void
+  onEditMessage?: (message: Message, nextContent: string) => void
   isRestoringMessageId?: string | null
+  currentUserId?: string
+  accessToken?: string
   examplePrompts?: string[]
   inputPlaceholder?: string
   analyzingRequestText?: string
@@ -65,6 +87,8 @@ interface ChatDrawerProps {
   className?: string
   style?: React.CSSProperties
 }
+
+const UNKNOWN_AUTHOR_ID = 'unknown-user'
 
 export const ChatDrawer: React.FC<ChatDrawerProps> = ({
   messages,
@@ -79,7 +103,10 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
   onAttachFile,
   onToggleThinking,
   onRestoreMessage,
+  onEditMessage,
   isRestoringMessageId,
+  currentUserId,
+  accessToken,
   examplePrompts,
   inputPlaceholder,
   analyzingRequestText,
@@ -94,6 +121,8 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const [editingMessage, setEditingMessage] = useState<Message | null>(null)
+  const [editingContent, setEditingContent] = useState('')
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -116,6 +145,114 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
     navigator.clipboard.writeText(content)
     setCopiedMessageId(messageId)
     setTimeout(() => setCopiedMessageId(null), 2000)
+  }
+
+  const openEditDialog = (message: Message) => {
+    setEditingMessage(message)
+    setEditingContent(message.content)
+  }
+
+  const closeEditDialog = () => {
+    setEditingMessage(null)
+    setEditingContent('')
+  }
+
+  const confirmEditDialog = () => {
+    if (!editingMessage) return
+    const nextContent = editingContent.trim()
+    if (!nextContent) return
+    onEditMessage?.(editingMessage, nextContent)
+    closeEditDialog()
+  }
+
+  const userIds = useMemo(() => {
+    const ids = messages.flatMap(message => {
+      if (message.role !== 'user') return []
+      const historyIds = message.editHistory?.map(entry => entry.userId) ?? []
+      return [message.createdBy, ...historyIds].filter(Boolean)
+    })
+    const filtered = ids.filter((id): id is string => !!id && id !== UNKNOWN_AUTHOR_ID)
+    return Array.from(new Set(filtered))
+  }, [messages])
+
+  const { employeeMap } = useEmployeeAvatarsBatch(accessToken ?? '', userIds)
+
+  const toDataUrl = (base64Data?: string): string | undefined => {
+    if (!base64Data) return undefined
+    if (base64Data.startsWith('data:')) return base64Data
+    return `data:image/jpeg;base64,${base64Data}`
+  }
+
+  const getInitials = (name?: string): string => {
+    const trimmed = name?.trim()
+    if (!trimmed) return '??'
+    const parts = trimmed.split(/\s+/).filter(Boolean)
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
+    return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
+  }
+
+  const getDisplayNameForUserId = (userId?: string): string => {
+    if (userId && userId === currentUserId) {
+      return userName
+    }
+    if (userId) {
+      const employee = employeeMap.get(userId)
+      if (employee?.displayName) return employee.displayName
+      const fallbackName = `${employee?.firstName ?? ''} ${employee?.lastName ?? ''}`.trim()
+      if (fallbackName) return fallbackName
+    }
+    return getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.user', 'User')
+  }
+
+  const getAvatarForUserId = (userId?: string): string | undefined => {
+    if (userId && userId === currentUserId) {
+      return userAvatar
+    }
+    if (userId) {
+      const employee = employeeMap.get(userId)
+      return employee?.avatarUrl ?? toDataUrl(employee?.pictureThumbnail)
+    }
+    return undefined
+  }
+
+  const getOrderedEditorIds = (message: Message): string[] => {
+    const ids: string[] = []
+    if (message.createdBy) ids.push(message.createdBy)
+    if (message.editHistory) {
+      message.editHistory.forEach(entry => {
+        if (entry.userId) ids.push(entry.userId)
+      })
+    }
+    const unique: string[] = []
+    const seen = new Set<string>()
+    ids.forEach(id => {
+      if (!id || seen.has(id)) return
+      seen.add(id)
+      unique.push(id)
+    })
+    return unique
+  }
+
+  const renderEditorAvatars = (message: Message) => {
+    const ids = getOrderedEditorIds(message)
+    if (ids.length === 0) return null
+    return (
+      <div className="gba:flex gba:items-center gba:-space-x-2">
+        {ids.map(userId => {
+          const displayName = getDisplayNameForUserId(userId)
+          const avatarSrc = getAvatarForUserId(userId)
+          return (
+            <Avatar key={userId} className="gba:w-6 gba:h-6 gba:border gba:border-background gba:shadow-sm">
+              {avatarSrc ? (
+                <AvatarImage src={avatarSrc} alt={displayName} />
+              ) : (
+                <AvatarFallback className="gba:text-[10px]">{getInitials(displayName)}</AvatarFallback>
+              )}
+            </Avatar>
+          )
+        })}
+      </div>
+    )
   }
 
   const renderToolCalls = (toolCalls: ToolCall[]) => {
@@ -232,6 +369,7 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
             {messages.map((message, idx) => {
               const canRestore =
                 !!onRestoreMessage && message.role === 'assistant' && !!message.messageId && !message.localOnly
+              const canEdit = !!onEditMessage && message.role === 'user' && !!message.messageId && !message.localOnly
               return (
                 <div
                   key={message.messageId ?? `${message.role}-${idx}-${message.content.length}`}
@@ -253,9 +391,26 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
                           disabled={isRestoringMessageId === message.messageId}
                           className="gba:h-7 gba:px-2 gba:text-xs gba:gap-1"
                         >
-                          <MoreVertical className="gba:w-3 gba:h-3" />
+                          <RotateCcw className="gba:w-3 gba:h-3" />
                           Restore
                         </Button>
+                      </div>
+                    )}
+                    {(canEdit || message.editHistory?.length || message.createdBy) && (
+                      <div className="gba:flex gba:justify-end gba:items-center gba:gap-2 gba:mb-1">
+                        {renderEditorAvatars(message)}
+                        {canEdit && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => openEditDialog(message)}
+                            disabled={isRestoringMessageId === message.messageId}
+                            className="gba:h-7 gba:px-2 gba:text-xs gba:gap-1"
+                          >
+                            <Pencil className="gba:w-3 gba:h-3" />
+                            Edit
+                          </Button>
+                        )}
                       </div>
                     )}
                     {message.role === 'user' ? (
@@ -329,16 +484,6 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
                       </div>
                     )}
                   </div>
-
-                  {message.role === 'user' && (
-                    <Avatar className="gba:w-8 gba:h-8 gba:shrink-0">
-                      {userAvatar ? (
-                        <AvatarImage src={userAvatar} alt={userName} />
-                      ) : (
-                        <AvatarFallback>{userName.slice(0, 2).toUpperCase()}</AvatarFallback>
-                      )}
-                    </Avatar>
-                  )}
                 </div>
               )
             })}
@@ -346,7 +491,6 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
           </>
         )}
       </div>
-
       {/* Input Area */}
       <div className="gba:flex-shrink-0 gba:border-t gba:border-border gba:p-4 gba:bg-background">
         <div className="gba:flex gba:gap-2 gba:items-end">
@@ -400,6 +544,31 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
           </div>
         )}
       </div>
+
+      <Dialog open={!!editingMessage} onOpenChange={open => (!open ? closeEditDialog() : null)}>
+        <DialogContent className="gba:max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Edit prompt</DialogTitle>
+            <DialogDescription>
+              This will restore the state before the prompt and re-run the AI with your changes.
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            value={editingContent}
+            onChange={e => setEditingContent(e.target.value)}
+            rows={6}
+            className="gba:mt-2"
+          />
+          <DialogFooter className="gba:gap-2">
+            <Button variant="ghost" onClick={closeEditDialog}>
+              Cancel
+            </Button>
+            <Button onClick={confirmEditDialog} disabled={!editingContent.trim()}>
+              Save & Re-run
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

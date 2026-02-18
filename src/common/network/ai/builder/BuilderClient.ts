@@ -86,6 +86,11 @@ export interface ChatMessage {
   content: string
   toolCalls?: ToolCall[]
   thinkingLog?: string
+  createdBy?: string
+  editHistory?: Array<{
+    userId: string
+    editedAt: string
+  }>
   messageId?: string
   createdAt?: string
   serverCreatedAt?: string
@@ -367,6 +372,34 @@ export class BuilderClient {
 
     if (!response.ok) {
       throw new Error(data.error || data.message || 'Failed to restore message')
+    }
+  }
+
+  /**
+   * Restore session files and chat to initial state
+   */
+  async restoreToInitial(params: {
+    repoId: string
+    sessionId: string
+    targetPath: string
+    restoreChat?: boolean
+  }): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/versions/restore/initial`, {
+      method: 'POST',
+      headers: this.getHeaders(true),
+      body: JSON.stringify({
+        repoId: params.repoId,
+        sessionId: params.sessionId,
+        targetPath: params.targetPath,
+        applyToCache: true,
+        restoreChat: params.restoreChat !== false
+      })
+    })
+
+    const data = await response.json()
+
+    if (!response.ok) {
+      throw new Error(data.error || data.message || 'Failed to restore initial state')
     }
   }
 

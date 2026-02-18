@@ -51,7 +51,7 @@ export const useAIInsights = ({ accessToken, managerId }: UseAIInsightsProps): U
       // Add page context for manager dashboard
       const pageContext = {
         type: 'overview',
-        url: window.location.href,
+        url: globalThis.location.href,
         entity_name: 'employee'
       }
       form.append('current_page_context', JSON.stringify(pageContext))
