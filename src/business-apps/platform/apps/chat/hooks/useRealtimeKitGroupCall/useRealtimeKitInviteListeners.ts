@@ -7,12 +7,14 @@ import type { RealtimeKitCallRefs } from './contextTypes'
 import type { GroupCallInvite, ActiveConversationCall } from '../../services/callTypes'
 import type { CallState } from './useRealtimeKitCallState'
 import { isInCallInAnotherTab } from '../../utils/activeCallStorage'
+import { tryClaimRingingLeader, clearRingingLeader } from '../../utils/ringingLeader'
 
 export interface UseRealtimeKitInviteListenersParams {
   inviteSocket: any
   currentUser: { id: string; odId: string; odName?: string } | null
   refs: RealtimeKitCallRefs
   setIncomingInvite: Dispatch<SetStateAction<GroupCallInvite | null>>
+  setRingingLeader: Dispatch<SetStateAction<boolean>>
   setActiveConversationCalls: Dispatch<SetStateAction<Map<string, ActiveConversationCall>>>
   setCallState: Dispatch<SetStateAction<CallState>>
   clearInviteDedupeFor: (meetingId?: string | null, conversationId?: string | null) => void
@@ -29,6 +31,7 @@ export function useRealtimeKitInviteListeners(params: UseRealtimeKitInviteListen
     currentUser,
     refs,
     setIncomingInvite,
+    setRingingLeader,
     setActiveConversationCalls,
     setCallState,
     clearInviteDedupeFor,
@@ -96,6 +99,9 @@ export function useRealtimeKitInviteListeners(params: UseRealtimeKitInviteListen
         return
       }
 
+      const isLeader = tryClaimRingingLeader(data.meetingId, data.conversationId)
+      setRingingLeader(isLeader)
+
       setIncomingInvite(prev => {
         if (prev && prev.roomId === data.meetingId && prev.conversationId === data.conversationId) {
           return prev
@@ -130,6 +136,8 @@ export function useRealtimeKitInviteListeners(params: UseRealtimeKitInviteListen
           // Best-effort
         }
         refs.startTimeRef.current = null
+        clearRingingLeader(data.meetingId, data.conversationId)
+        setRingingLeader(false)
         setIncomingInvite(null)
       }
     }
@@ -146,6 +154,8 @@ export function useRealtimeKitInviteListeners(params: UseRealtimeKitInviteListen
           // Best-effort
         }
         refs.startTimeRef.current = null
+        clearRingingLeader(data.meetingId, data.conversationId)
+        setRingingLeader(false)
         setIncomingInvite(null)
       }
     }
@@ -158,6 +168,7 @@ export function useRealtimeKitInviteListeners(params: UseRealtimeKitInviteListen
       participantIds: string[]
       startedAt?: Date | string
       conversationName?: string
+      conversationType?: 'direct' | 'group' | 'meeting'
     }) => {
       setActiveConversationCalls(prev => {
         const newMap = new Map(prev)
@@ -167,7 +178,8 @@ export function useRealtimeKitInviteListeners(params: UseRealtimeKitInviteListen
           participantIds: data.participantIds,
           startedBy: data.startedBy.id,
           startedAt: data.startedAt,
-          conversationName: data.conversationName
+          conversationName: data.conversationName,
+          conversationType: data.conversationType
         })
         return newMap
       })
@@ -241,7 +253,8 @@ export function useRealtimeKitInviteListeners(params: UseRealtimeKitInviteListen
             participantIds: call.participantIds || [],
             startedBy: call.startedBy?.id || existing?.startedBy || '',
             startedAt: call.startedAt,
-            conversationName: existing?.conversationName
+            conversationName: existing?.conversationName ?? call.conversationName,
+            conversationType: call.conversationType ?? existing?.conversationType
           })
         })
         for (const conversationId of Array.from(next.keys())) {
@@ -308,6 +321,8 @@ export function useRealtimeKitInviteListeners(params: UseRealtimeKitInviteListen
           // Best-effort
         }
         refs.startTimeRef.current = null
+        clearRingingLeader(data.meetingId, data.conversationId)
+        setRingingLeader(false)
         setIncomingInvite(null)
       } else {
         resetCallerToIdle(data.meetingId, data.conversationId)

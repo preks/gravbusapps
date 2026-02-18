@@ -5,14 +5,28 @@
 
 import { useCallback, useMemo, useRef } from 'react'
 import type { CallParticipant, CallType } from '../../services/webrtcClient'
-import type { GroupCallInvite } from '../../services/callTypes'
+import type { GroupCallInvite, CallConversationType } from '../../services/callTypes'
 import { globalCallManager } from '../../services/globalCallManager'
-import { setActiveCallInStorage, clearActiveCallFromStorage } from '../../utils/activeCallStorage'
+import {
+  setActiveCallInStorage,
+  clearActiveCallFromStorage,
+  setDeclinedInviteInStorage
+} from '../../utils/activeCallStorage'
+import { clearRingingLeader } from '../../utils/ringingLeader'
 import { runLeaveCall } from './runLeaveCall'
 import { runJoinCall } from './runJoinCall'
 import { runConfirmStartCall } from './runConfirmStartCall'
 import { buildJoinCallWrapper } from './buildJoinCallWrapper'
 import type { RealtimeKitCallRefs } from './contextTypes'
+
+function resolveConversationType(
+  calendarMeetingId: string | null | undefined,
+  participants: CallParticipant[]
+): CallConversationType {
+  if (calendarMeetingId) return 'meeting'
+  if (participants.length === 2) return 'direct'
+  return 'group'
+}
 
 export interface UseRealtimeKitCallActionsOptions {
   options: {
@@ -27,6 +41,7 @@ export interface UseRealtimeKitCallActionsOptions {
   setCallState: React.Dispatch<React.SetStateAction<any>>
   incomingInvite: GroupCallInvite | null
   setIncomingInvite: React.Dispatch<React.SetStateAction<GroupCallInvite | null>>
+  setRingingLeader: React.Dispatch<React.SetStateAction<boolean>>
   activeConversationCalls: Map<string, any>
   setActiveConversationCalls: React.Dispatch<React.SetStateAction<Map<string, any>>>
   refs: RealtimeKitCallRefs
@@ -67,6 +82,7 @@ export function useRealtimeKitCallActions(params: UseRealtimeKitCallActionsOptio
     setCallState,
     incomingInvite,
     setIncomingInvite,
+    setRingingLeader,
     activeConversationCalls,
     setActiveConversationCalls,
     refs,
@@ -123,7 +139,7 @@ export function useRealtimeKitCallActions(params: UseRealtimeKitCallActionsOptio
       participants: CallParticipant[],
       conversationName?: string,
       calendarMeetingId?: string | null,
-      conversationType?: 'direct' | 'group' | 'meeting'
+      conversationType?: CallConversationType
     ) => {
       if (!currentUser || !apiClient) return
       refs.isCancelledRef.current = false
@@ -199,7 +215,8 @@ export function useRealtimeKitCallActions(params: UseRealtimeKitCallActionsOptio
       conversationName?: string,
       calendarMeetingId?: string | null
     ) => {
-      initiateCall(conversationId, callType, participants, conversationName, calendarMeetingId)
+      const conversationType = resolveConversationType(calendarMeetingId, participants)
+      initiateCall(conversationId, callType, participants, conversationName, calendarMeetingId, conversationType)
       await confirmStartCall({
         micEnabled: true,
         cameraEnabled: callType === 'video',
@@ -215,6 +232,7 @@ export function useRealtimeKitCallActions(params: UseRealtimeKitCallActionsOptio
       callType: CallType,
       meetingId?: string,
       conversationName?: string,
+      resolvedSessionId?: string,
       initialPreferences?: {
         micEnabled: boolean
         cameraEnabled: boolean
@@ -222,7 +240,7 @@ export function useRealtimeKitCallActions(params: UseRealtimeKitCallActionsOptio
         audioInputDeviceId?: string | null
         videoInputDeviceId?: string | null
       },
-      conversationType?: 'direct' | 'group' | 'meeting'
+      conversationType?: CallConversationType
     ) => {
       await runJoinCall(
         {
@@ -241,7 +259,7 @@ export function useRealtimeKitCallActions(params: UseRealtimeKitCallActionsOptio
           joinMeetingWithTimeout,
           setActiveCallInStorage: setActiveCallInStorageParam
         },
-        { roomId, callType, meetingId, conversationName, initialPreferences, conversationType }
+        { roomId, callType, meetingId, conversationName, resolvedSessionId, initialPreferences, conversationType }
       )
     },
     [
@@ -267,9 +285,18 @@ export function useRealtimeKitCallActions(params: UseRealtimeKitCallActionsOptio
       buildJoinCallWrapper({
         internalJoinCall,
         getActiveConversationCalls: () => activeConversationCalls,
-        getConversations: () => options.conversations
+        getConversations: () => options.conversations,
+        fetchActiveCallByConversationId: apiClient
+          ? async (conversationId: string) => {
+              try {
+                return await apiClient.getActiveCallByConversationId(conversationId)
+              } catch {
+                return null
+              }
+            }
+          : undefined
       }),
-    [internalJoinCall, activeConversationCalls, options]
+    [internalJoinCall, activeConversationCalls, options, apiClient]
   )
 
   const acceptInvite = useCallback(
@@ -296,7 +323,8 @@ export function useRealtimeKitCallActions(params: UseRealtimeKitCallActionsOptio
           callType: invite.callType,
           participantIds: [],
           startedBy: invite.from.id,
-          conversationName: invite.conversationName
+          conversationName: invite.conversationName,
+          conversationType: invite.conversationType
         })
         return newMap
       })
@@ -305,6 +333,7 @@ export function useRealtimeKitCallActions(params: UseRealtimeKitCallActionsOptio
         invite.callType,
         invite.roomId,
         invite.conversationName,
+        undefined,
         initialPreferences,
         invite.conversationType
       )
@@ -333,21 +362,28 @@ export function useRealtimeKitCallActions(params: UseRealtimeKitCallActionsOptio
 
   const declineInvite = useCallback(() => {
     if (!incomingInvite) return
+    const roomId = incomingInvite.roomId
+    const conversationId = incomingInvite.conversationId || incomingInvite.roomId
     try {
       media.stopAllTracks()
     } catch {
       // Best-effort
     }
     refs.startTimeRef.current = null
-    if (currentUser && wsClient?.getSocket()) {
-      wsClient.getSocket()?.emit('rtk-group-call:declined', {
-        conversationId: incomingInvite.conversationId || incomingInvite.roomId,
-        meetingId: incomingInvite.roomId,
-        participantId: currentUser.id
-      })
+    if (currentUser) {
+      setDeclinedInviteInStorage(currentUser.id, roomId, conversationId)
+      if (wsClient?.getSocket()) {
+        wsClient.getSocket()?.emit('rtk-group-call:declined', {
+          conversationId,
+          meetingId: roomId,
+          participantId: currentUser.id
+        })
+      }
     }
+    clearRingingLeader(roomId, conversationId)
+    setRingingLeader(false)
     setIncomingInvite(null)
-  }, [incomingInvite, currentUser, wsClient, media, refs, setIncomingInvite])
+  }, [incomingInvite, currentUser, wsClient, media, refs, setIncomingInvite, setRingingLeader])
 
   const leaveCall = useCallback(async () => {
     await runLeaveCall({

@@ -216,7 +216,12 @@ export const useAbsenceKPIData = (context: BusinessAppContextProps) => {
       return monthData
     })
 
-    const totalAbsenceDays = enrichedAbsences.reduce((total, absence) => total + (absence.calendarDays || 0), 0)
+    // Prefer business days for totals
+    const totalAbsenceDays = enrichedAbsences.reduce((total, absence) => {
+      const businessDays =
+        (absence as any).effectiveDays ?? (absence as any).workingDays ?? (absence as any).calendarDays ?? 0
+      return total + Number(businessDays || 0)
+    }, 0)
 
     const currentYear = new Date().getFullYear()
     const currentYearAbsences = enrichedAbsences.filter(absence => {
@@ -231,11 +236,17 @@ export const useAbsenceKPIData = (context: BusinessAppContextProps) => {
       const color = absence.type.color || 'var(--nw-chart-1)'
 
       if (!groupTotals[groupName]) groupTotals[groupName] = 0
-      groupTotals[groupName] += absence.calendarDays || 0
+      const businessDays =
+        (absence as any).effectiveDays ?? (absence as any).workingDays ?? (absence as any).calendarDays ?? 0
+      groupTotals[groupName] += Number(businessDays || 0)
       groupColors[groupName] = color
     })
 
-    const currentYearTotalDays = currentYearAbsences.reduce((total, absence) => total + (absence.calendarDays || 0), 0)
+    const currentYearTotalDays = currentYearAbsences.reduce((total, absence) => {
+      const businessDays =
+        (absence as any).effectiveDays ?? (absence as any).workingDays ?? (absence as any).calendarDays ?? 0
+      return total + Number(businessDays || 0)
+    }, 0)
 
     const sortedPieEntries = Object.entries(groupTotals).sort(([a], [b]) => a.localeCompare(b))
 
@@ -268,7 +279,9 @@ export const useAbsenceKPIData = (context: BusinessAppContextProps) => {
           absences: []
         }
       }
-      employeeAbsences[employeeId].totalDays += absence.calendarDays || 0
+      const businessDays =
+        (absence as any).effectiveDays ?? (absence as any).workingDays ?? (absence as any).calendarDays ?? 0
+      employeeAbsences[employeeId].totalDays += Number(businessDays || 0)
       employeeAbsences[employeeId].absenceCount += 1
       employeeAbsences[employeeId].absences.push(absence)
     })
@@ -309,7 +322,11 @@ export const useAbsenceKPIData = (context: BusinessAppContextProps) => {
 
     const departmentData = Object.entries(departmentTotals).map(([department, absences], index) => ({
       department,
-      total: absences.reduce((sum, absence) => sum + (absence.calendarDays || 0), 0),
+      total: absences.reduce((sum, absence) => {
+        const businessDays =
+          (absence as any).effectiveDays ?? (absence as any).workingDays ?? (absence as any).calendarDays ?? 0
+        return sum + Number(businessDays || 0)
+      }, 0),
       colorIdx: index,
       absences
     }))

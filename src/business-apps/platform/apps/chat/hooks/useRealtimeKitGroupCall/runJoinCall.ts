@@ -12,6 +12,8 @@ export interface RunJoinCallParams {
   callType: CallType
   meetingId?: string
   conversationName?: string
+  /** DB session ID when rejoining (e.g. from getActiveCallByConversationId); set so leave sends it. */
+  resolvedSessionId?: string
   initialPreferences?: {
     micEnabled: boolean
     cameraEnabled: boolean
@@ -25,6 +27,7 @@ export interface RunJoinCallParams {
 export async function runJoinCall(ctx: JoinCallContext, params: RunJoinCallParams): Promise<void> {
   const {
     refs,
+    options,
     apiClient,
     initMeeting,
     callPreferences,
@@ -38,10 +41,16 @@ export async function runJoinCall(ctx: JoinCallContext, params: RunJoinCallParam
     setActiveCallInStorage
   } = ctx
 
-  const { roomId, callType, meetingId, conversationName, initialPreferences, conversationType } = params
+  const { roomId, callType, meetingId, conversationName, resolvedSessionId, initialPreferences, conversationType } =
+    params
 
   if (!currentUser || !apiClient) {
     return
+  }
+
+  if (resolvedSessionId) {
+    refs.sessionIdRef.current = resolvedSessionId
+    setCallState((prev: any) => ({ ...prev, sessionId: resolvedSessionId }))
   }
 
   try {
@@ -175,12 +184,40 @@ export async function runJoinCall(ctx: JoinCallContext, params: RunJoinCallParam
     callPreferences.saveActiveCall(currentUser.id, roomId)
     setActiveCallInStorage(currentUser.id, roomId)
 
+    let sessionIdToEmit = refs.sessionIdRef.current ?? resolvedSessionId
+    if (!sessionIdToEmit && calendarMeetingIdForJoin && options?.calendarApiClient) {
+      try {
+        const { sessionId: linkedSessionId } =
+          await options.calendarApiClient.resolveAndLinkSession(calendarMeetingIdForJoin)
+        if (linkedSessionId) {
+          refs.sessionIdRef.current = linkedSessionId
+          sessionIdToEmit = linkedSessionId
+          setCallState((prev: any) => ({ ...prev, sessionId: linkedSessionId }))
+        }
+      } catch {
+        // Best-effort; backend may still resolve by meetingId in some paths
+      }
+    }
+    if (!sessionIdToEmit && roomId && apiClient) {
+      try {
+        const active = await apiClient.getActiveCallByConversationId(roomId)
+        if (active?.sessionId) {
+          refs.sessionIdRef.current = active.sessionId
+          sessionIdToEmit = active.sessionId
+          setCallState((prev: any) => ({ ...prev, sessionId: active.sessionId }))
+        }
+      } catch {
+        // Best-effort
+      }
+    }
+
+    const isMeeting = !!refs.calendarMeetingIdRef.current || conversationType === 'meeting'
     if (wsClient?.getSocket()) {
       wsClient.getSocket()?.emit('rtk-group-call:joined', {
         conversationId: roomId,
         meetingId: finalMeetingId,
-        sessionId: refs.sessionIdRef.current,
-        isMeeting: !!refs.calendarMeetingIdRef.current,
+        sessionId: sessionIdToEmit ?? undefined,
+        isMeeting,
         participant: {
           id: currentUser.id,
           odId: currentUser.odId,

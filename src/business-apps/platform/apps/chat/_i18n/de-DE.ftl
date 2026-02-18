@@ -422,6 +422,7 @@ calendar-today = Heute
 calendar-viewDay = Tag
 calendar-viewWeek = Woche
 calendar-viewMonth = Monat
+calendar-refresh = Kalender aktualisieren
 
 # Calendar - CreateMeetingModal
 calendar-scheduleMeeting = Termin planen

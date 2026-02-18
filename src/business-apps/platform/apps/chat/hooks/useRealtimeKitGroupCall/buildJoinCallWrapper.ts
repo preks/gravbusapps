@@ -11,6 +11,7 @@ export type InternalJoinCall = (
   callType: CallType,
   meetingId?: string,
   conversationName?: string,
+  resolvedSessionId?: string,
   initialPreferences?: {
     micEnabled: boolean
     cameraEnabled: boolean
@@ -33,10 +34,14 @@ export interface BuildJoinCallWrapperParams {
   internalJoinCall: InternalJoinCall
   getActiveConversationCalls: () => Map<string, ActiveConversationCall>
   getConversations: () => any[] | null | undefined
+  /** Resolve meetingId from backend when rejoining from chat (conversationId only). */
+  fetchActiveCallByConversationId?: (
+    conversationId: string
+  ) => Promise<{ meetingId: string; sessionId?: string } | null>
 }
 
 export function buildJoinCallWrapper(params: BuildJoinCallWrapperParams): PublicJoinCall {
-  const { internalJoinCall, getActiveConversationCalls, getConversations } = params
+  const { internalJoinCall, getActiveConversationCalls, getConversations, fetchActiveCallByConversationId } = params
 
   return async (
     roomIdOrMeetingId: string,
@@ -73,16 +78,20 @@ export function buildJoinCallWrapper(params: BuildJoinCallWrapperParams): Public
       let resolvedConversationId: string = roomIdOrMeetingId
       let resolvedMeetingId: string | undefined = undefined
       let resolvedConversationName: string | undefined = undefined
+      let resolvedSessionId: string | undefined = undefined
+      let resolvedConversationType: 'direct' | 'group' | 'meeting' | undefined = undefined
 
       activeConversationCalls.forEach((call, convId) => {
         if (call.roomId === roomIdOrMeetingId) {
           resolvedConversationId = convId
           resolvedMeetingId = roomIdOrMeetingId
           resolvedConversationName = call.conversationName
+          resolvedConversationType = call.conversationType
         } else if (convId === roomIdOrMeetingId) {
           resolvedConversationId = convId
           resolvedMeetingId = call.roomId
           resolvedConversationName = call.conversationName
+          resolvedConversationType = call.conversationType
         }
       })
 
@@ -92,6 +101,7 @@ export function buildJoinCallWrapper(params: BuildJoinCallWrapperParams): Public
           resolvedConversationId = byMeetingId.id
           resolvedMeetingId = roomIdOrMeetingId
           resolvedConversationName = byMeetingId.name
+          resolvedConversationType = byMeetingId.activeCall?.conversationType
         }
       }
 
@@ -102,6 +112,16 @@ export function buildJoinCallWrapper(params: BuildJoinCallWrapperParams): Public
           resolvedConversationId = byConversationId.id
           resolvedMeetingId = meetingIdFromConversation
           resolvedConversationName = byConversationId.name
+          resolvedConversationType = byConversationId.activeCall?.conversationType
+        }
+      }
+
+      if (!resolvedMeetingId && fetchActiveCallByConversationId) {
+        const active = await fetchActiveCallByConversationId(roomIdOrMeetingId)
+        if (active?.meetingId) {
+          resolvedConversationId = roomIdOrMeetingId
+          resolvedMeetingId = active.meetingId
+          resolvedSessionId = active.sessionId
         }
       }
 
@@ -110,7 +130,26 @@ export function buildJoinCallWrapper(params: BuildJoinCallWrapperParams): Public
         resolvedMeetingId = undefined
       }
 
-      await internalJoinCall(resolvedConversationId, callType, resolvedMeetingId, resolvedConversationName, preferences)
+      // When we have conversationId + meetingId but no sessionId (e.g. from local state), fetch sessionId so joined/leave emit it
+      if (
+        resolvedSessionId === undefined &&
+        resolvedConversationId &&
+        resolvedMeetingId &&
+        fetchActiveCallByConversationId
+      ) {
+        const active = await fetchActiveCallByConversationId(resolvedConversationId)
+        if (active?.sessionId) resolvedSessionId = active.sessionId
+      }
+
+      await internalJoinCall(
+        resolvedConversationId,
+        callType,
+        resolvedMeetingId,
+        resolvedConversationName,
+        resolvedSessionId,
+        preferences,
+        resolvedConversationType
+      )
     } else {
       throw new Error('joinCall with initialParticipants not supported - use startCall')
     }
