@@ -30,9 +30,10 @@ const PerformanceEvaluationForm: React.FC<BusinessAppContextProps & PerformanceE
     additionalData
   }
 
-  // If preSelectedUserId is not provided explicitly, try to get it from userInfo
-  // Note: userInfo.id is the userId, not userInfo.userId
-  const effectivePreSelectedUserId = preSelectedUserId || userInfo?.id
+  // Only pass preSelectedUserId when explicitly provided (e.g. receiverId from task).
+  // Do not default to userInfo?.id: when the screen passes only preSelectedEmployeeId (employee
+  // being evaluated), we must use employee-by-id lookup so the header shows that employee.
+  const effectivePreSelectedUserId = preSelectedUserId
 
   return (
     <PerformanceEvaluationFormProvider
