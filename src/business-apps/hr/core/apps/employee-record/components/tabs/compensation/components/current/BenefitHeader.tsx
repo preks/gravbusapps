@@ -41,6 +41,9 @@ const BenefitHeader: React.FC<BenefitHeaderProps> = ({ title, benefit, t, locale
     if (benefit.isScheduled) {
       return { variant: 'info' as const, text: t('benefit-status-scheduled') }
     }
+    if (benefit.isCancelled) {
+      return { variant: 'secondary' as const, text: t('benefit-status-not-approved') }
+    }
     return { variant: 'default' as const, text: t('benefit-status-available') }
   }
 
