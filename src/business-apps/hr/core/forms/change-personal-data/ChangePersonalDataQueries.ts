@@ -2,6 +2,7 @@ export const EMPLOYEE_DATA_QUERY = `query fetchEmployee($idEmployee: uuid!, $act
   EmployeeByPk(id: $idEmployee) {
     id
     version
+    status
     academicTitleRef
     birthName
     birthDate
