@@ -121,8 +121,6 @@ export const PerformanceEvaluationFormProvider: React.FC<PerformanceEvaluationFo
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  console.log('businessAppContext', businessAppContext)
-
   // Extract employee ID from task payload (for manager reviews - to show employee's skills, not manager's)
   const employeeIdFromTaskPayload = (businessAppContext?.additionalData as any)?.psi_taskPayload
     ?.employeePerformanceEvaluation?.employee

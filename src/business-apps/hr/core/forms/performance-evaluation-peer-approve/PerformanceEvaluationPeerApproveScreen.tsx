@@ -8,7 +8,6 @@ const PerformanceEvaluationPeerApproveScreen: React.FC<BusinessAppContextProps> 
   userInfo,
   additionalData
 }) => {
-  console.log('additionalData', additionalData)
   const handleSubmit = async () => {
     // Submission is handled by context via dispatchProcessContinueEvent
   }
