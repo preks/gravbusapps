@@ -73,14 +73,17 @@ benefits-catalog-no-results-description = Niciun beneficiu nu corespunde criteri
 benefits-catalog-clear-search = Șterge căutarea
 benefits-active-section-title = Beneficii active ({ $count })
 benefits-scheduled-section-title = Beneficii programate ({ $count })
+benefits-not-approved-section-title = Beneficii neaprobate ({ $count })
 benefits-available-section-title = Beneficii disponibile ({ $count })
 
 # Benefit Card
 benefit-status-active = Activ
 benefit-status-scheduled = Programat
 benefit-status-pending = În așteptare
+benefit-status-not-approved = Neaprobat
 benefit-status-available = Disponibil
 benefit-request-button = Solicită
+benefit-request-again = Solicită din nou
 benefit-pending-request-info = Ați solicitat deja acest beneficiu. Puteți avea doar o solicitare activă la un moment dat. Solicitarea este în așteptare de aprobare.
 benefit-pending-request-notice = O solicitare pentru acest beneficiu este în așteptare de aprobare
 benefit-request-employee-id-missing = ID-ul angajatului nu este disponibil. Nu se poate iniția solicitarea de beneficiu.
@@ -105,6 +108,7 @@ benefit-details-type = Tip
 benefit-details-category = Categorie
 benefit-details-provider-info = Informații despre furnizor
 benefit-details-provider = Furnizor
+benefit-details-comments = Comentarii
 benefit-details-value-info = Informații despre valoare
 benefit-details-yearly-value = Valoare anuală
 benefit-details-monthly-value = Valoare lunară
@@ -690,3 +694,7 @@ service-requests-status-open = Deschis
 service-requests-status-in-progress = În progres
 service-requests-status-completed = Finalizat
 service-requests-status-canceled = Anulat
+
+# Change Personal Data - Pending state (aligns with notification-personal-data-updated-success)
+change-personal-data-pending-message = Actualizările datelor personale au fost deja trimise spre aprobare departamentului HR. Vă rugăm așteptați aprobarea înainte de a face alte modificări.
+change-personal-data-pending-ok = OK

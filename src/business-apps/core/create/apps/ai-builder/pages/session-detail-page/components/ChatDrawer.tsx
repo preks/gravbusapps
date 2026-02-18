@@ -7,7 +7,14 @@ import {
   Tooltip,
   TooltipTrigger,
   TooltipContent,
-  TooltipProvider
+  TooltipProvider,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  Textarea
 } from '@newwork/nw-design-system'
 import {
   Bot,
@@ -25,7 +32,8 @@ import {
   Plus,
   FileEdit,
   Trash2,
-  MoreVertical
+  RotateCcw,
+  Pencil
 } from 'lucide-react'
 import { MarkdownRenderer } from './MarkdownRenderer'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -47,6 +55,10 @@ interface Message {
   thinkingLog?: string
   thinkingCollapsed?: boolean
   createdBy?: string
+  editHistory?: Array<{
+    userId: string
+    editedAt: string
+  }>
   messageId?: string
   createdAt?: string
   serverCreatedAt?: string
@@ -71,6 +83,7 @@ interface ChatDrawerProps {
   onAttachFile?: () => void
   onToggleThinking?: (messageIndex: number) => void
   onRestoreMessage?: (message: Message) => void
+  onEditMessage?: (message: Message, nextContent: string) => void
   isRestoringMessageId?: string | null
   currentUserId?: string
   accessToken?: string
@@ -109,6 +122,7 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
   onAttachFile,
   onToggleThinking,
   onRestoreMessage,
+  onEditMessage,
   isRestoringMessageId,
   currentUserId,
   accessToken,
@@ -131,6 +145,8 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
   const [filesExpanded, setFilesExpanded] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const [editingMessage, setEditingMessage] = useState<Message | null>(null)
+  const [editingContent, setEditingContent] = useState('')
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -155,12 +171,32 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
     setTimeout(() => setCopiedMessageId(null), 2000)
   }
 
+  const openEditDialog = (message: Message) => {
+    setEditingMessage(message)
+    setEditingContent(message.content)
+  }
+
+  const closeEditDialog = () => {
+    setEditingMessage(null)
+    setEditingContent('')
+  }
+
+  const confirmEditDialog = () => {
+    if (!editingMessage) return
+    const nextContent = editingContent.trim()
+    if (!nextContent) return
+    onEditMessage?.(editingMessage, nextContent)
+    closeEditDialog()
+  }
+
   const userIds = useMemo(() => {
-    const ids = messages
-      .filter(message => message.role === 'user' && message.createdBy)
-      .map(message => message.createdBy as string)
-      .filter(id => id && id !== UNKNOWN_AUTHOR_ID)
-    return Array.from(new Set(ids))
+    const ids = messages.flatMap(message => {
+      if (message.role !== 'user') return []
+      const historyIds = message.editHistory?.map(entry => entry.userId) ?? []
+      return [message.createdBy, ...historyIds].filter(Boolean)
+    })
+    const filtered = ids.filter((id): id is string => !!id && id !== UNKNOWN_AUTHOR_ID)
+    return Array.from(new Set(filtered))
   }, [messages])
 
   const { employeeMap } = useEmployeeAvatarsBatch(accessToken ?? '', userIds)
@@ -179,13 +215,12 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
     return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
   }
 
-  const getAuthorDisplayName = (message: Message): string => {
-    const authorId = message.createdBy
-    if (authorId && authorId === currentUserId) {
+  const getDisplayNameForUserId = (userId?: string): string => {
+    if (userId && userId === currentUserId) {
       return userName
     }
-    if (authorId) {
-      const employee = employeeMap.get(authorId)
+    if (userId) {
+      const employee = employeeMap.get(userId)
       if (employee?.displayName) return employee.displayName
       const fallbackName = `${employee?.firstName ?? ''} ${employee?.lastName ?? ''}`.trim()
       if (fallbackName) return fallbackName
@@ -193,16 +228,55 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
     return getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.user', 'User')
   }
 
-  const getAuthorAvatarSrc = (message: Message): string | undefined => {
-    const authorId = message.createdBy
-    if (authorId && authorId === currentUserId) {
+  const getAvatarForUserId = (userId?: string): string | undefined => {
+    if (userId && userId === currentUserId) {
       return userAvatar
     }
-    if (authorId) {
-      const employee = employeeMap.get(authorId)
+    if (userId) {
+      const employee = employeeMap.get(userId)
       return employee?.avatarUrl ?? toDataUrl(employee?.pictureThumbnail)
     }
     return undefined
+  }
+
+  const getOrderedEditorIds = (message: Message): string[] => {
+    const ids: string[] = []
+    if (message.createdBy) ids.push(message.createdBy)
+    if (message.editHistory) {
+      message.editHistory.forEach(entry => {
+        if (entry.userId) ids.push(entry.userId)
+      })
+    }
+    const unique: string[] = []
+    const seen = new Set<string>()
+    ids.forEach(id => {
+      if (!id || seen.has(id)) return
+      seen.add(id)
+      unique.push(id)
+    })
+    return unique
+  }
+
+  const renderEditorAvatars = (message: Message) => {
+    const ids = getOrderedEditorIds(message)
+    if (ids.length === 0) return null
+    return (
+      <div className="gba:flex gba:items-center gba:-space-x-2">
+        {ids.map(userId => {
+          const displayName = getDisplayNameForUserId(userId)
+          const avatarSrc = getAvatarForUserId(userId)
+          return (
+            <Avatar key={userId} className="gba:w-6 gba:h-6 gba:border gba:border-background gba:shadow-sm">
+              {avatarSrc ? (
+                <AvatarImage src={avatarSrc} alt={displayName} />
+              ) : (
+                <AvatarFallback className="gba:text-[10px]">{getInitials(displayName)}</AvatarFallback>
+              )}
+            </Avatar>
+          )
+        })}
+      </div>
+    )
   }
 
   const renderToolCalls = (toolCalls: ToolCall[]) => {
@@ -357,8 +431,7 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
             {messages.map((message, idx) => {
               const canRestore =
                 !!onRestoreMessage && message.role === 'assistant' && !!message.messageId && !message.localOnly
-              const authorDisplayName = message.role === 'user' ? getAuthorDisplayName(message) : undefined
-              const authorAvatarSrc = message.role === 'user' ? getAuthorAvatarSrc(message) : undefined
+              const canEdit = !!onEditMessage && message.role === 'user' && !!message.messageId && !message.localOnly
               return (
                 <div
                   key={message.messageId ?? `${message.role}-${idx}-${message.content.length}`}
@@ -380,9 +453,26 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
                           disabled={isRestoringMessageId === message.messageId}
                           className="gba:h-7 gba:px-2 gba:text-xs gba:gap-1"
                         >
-                          <MoreVertical className="gba:w-3 gba:h-3" />
+                          <RotateCcw className="gba:w-3 gba:h-3" />
                           Restore
                         </Button>
+                      </div>
+                    )}
+                    {(canEdit || message.editHistory?.length || message.createdBy) && (
+                      <div className="gba:flex gba:justify-end gba:items-center gba:gap-2 gba:mb-1">
+                        {renderEditorAvatars(message)}
+                        {canEdit && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => openEditDialog(message)}
+                            disabled={isRestoringMessageId === message.messageId}
+                            className="gba:h-7 gba:px-2 gba:text-xs gba:gap-1"
+                          >
+                            <Pencil className="gba:w-3 gba:h-3" />
+                            Edit
+                          </Button>
+                        )}
                       </div>
                     )}
                     {message.role === 'user' ? (
@@ -456,16 +546,6 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
                       </div>
                     )}
                   </div>
-
-                  {message.role === 'user' && (
-                    <Avatar className="gba:w-8 gba:h-8 gba:shrink-0">
-                      {authorAvatarSrc ? (
-                        <AvatarImage src={authorAvatarSrc} alt={authorDisplayName} />
-                      ) : (
-                        <AvatarFallback>{getInitials(authorDisplayName)}</AvatarFallback>
-                      )}
-                    </Avatar>
-                  )}
                 </div>
               )
             })}
@@ -473,7 +553,6 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
           </>
         )}
       </div>
-
       {/* Input Area */}
       <div className="gba:flex-shrink-0 gba:border-t gba:border-border gba:bg-background">
         {/* File Changes Banner */}
@@ -598,6 +677,31 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
           )}
         </div>
       </div>
+
+      <Dialog open={!!editingMessage} onOpenChange={open => (!open ? closeEditDialog() : null)}>
+        <DialogContent className="gba:max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Edit prompt</DialogTitle>
+            <DialogDescription>
+              This will restore the state before the prompt and re-run the AI with your changes.
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            value={editingContent}
+            onChange={e => setEditingContent(e.target.value)}
+            rows={6}
+            className="gba:mt-2"
+          />
+          <DialogFooter className="gba:gap-2">
+            <Button variant="ghost" onClick={closeEditDialog}>
+              Cancel
+            </Button>
+            <Button onClick={confirmEditDialog} disabled={!editingContent.trim()}>
+              Save & Re-run
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

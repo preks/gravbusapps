@@ -6,6 +6,7 @@ import type { PromptODM, PromptPage } from '@/common/network/ai/prompt-manager/P
 export interface UseTaskExpertsParams {
   workspaceId?: string | null
   search?: string | null
+  sort?: string | null
   limit?: number
   offset?: number
   returnTotalRecords?: boolean
@@ -26,6 +27,7 @@ export const useTaskExperts = (context: BusinessAppContextProps, initialParams: 
     () => ({
       workspaceId: initialParams.workspaceId ?? null,
       promptName: initialParams.search ?? null,
+      sort: initialParams.sort ?? null,
       limit: initialParams.limit ?? 20,
       offset: initialParams.offset ?? 0,
       returnTotalRecords: initialParams.returnTotalRecords ?? true
@@ -33,6 +35,7 @@ export const useTaskExperts = (context: BusinessAppContextProps, initialParams: 
     [
       initialParams.workspaceId,
       initialParams.search,
+      initialParams.sort,
       initialParams.limit,
       initialParams.offset,
       initialParams.returnTotalRecords
@@ -46,6 +49,7 @@ export const useTaskExperts = (context: BusinessAppContextProps, initialParams: 
         const response: PromptPage = await client.getPrompts({
           workspaceId: override?.workspaceId ?? params.workspaceId ?? null,
           promptName: override?.search ?? params.promptName ?? null,
+          sort: override?.sort ?? params.sort ?? null,
           limit: override?.limit ?? params.limit,
           offset: override?.offset ?? params.offset,
           returnTotalRecords: override?.returnTotalRecords ?? params.returnTotalRecords

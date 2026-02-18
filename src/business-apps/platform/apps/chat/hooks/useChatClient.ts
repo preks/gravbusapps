@@ -558,7 +558,7 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
     }
 
     const handleMessageUpdated = (message: Message) => {
-      messagesHookRef.current?.updateMessage(message)
+      messagesHookRef.current?.updateMessage(message.id, message)
     }
 
     const handleMessageDeleted = (data: { messageId: string; conversationId: string }) => {
@@ -1183,6 +1183,19 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
     []
   )
 
+  /** Clear active call for a conversation when user leaves locally (so "invite to join" does not persist). */
+  const clearActiveCallForConversation = useCallback((conversationId: string) => {
+    setActiveCalls(prev => {
+      if (!(conversationId in prev)) return prev
+      const next = { ...prev }
+      delete next[conversationId]
+      return next
+    })
+    conversationsHookRef.current?.updateConversation?.(conversationId, {
+      activeCall: null
+    } as Partial<Conversation>)
+  }, [])
+
   // PERFORMANCE: Memoize the return object to prevent unnecessary re-renders in Chat component
   // Only recreate when actual values change, not on every render
   return useMemo(
@@ -1226,10 +1239,12 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
       loadMoreConversations: conversationsHook.loadMoreConversations,
       refreshConversations: conversationsHook.loadConversations,
       refreshMessages: messagesHook.refresh,
+      updateMessage: messagesHook.updateMessage,
       startTyping: typingHook.startTyping,
       stopTyping: typingHook.stopTyping,
       sendNudge,
       registerNudgeCallback,
+      clearActiveCallForConversation,
       // Clients (for advanced usage)
       apiClient: apiClientRef.current,
       wsClient: wsClientRef.current,
@@ -1275,10 +1290,12 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
       conversationsHook.loadMoreConversations,
       conversationsHook.loadConversations,
       messagesHook.refresh,
+      messagesHook.updateMessage,
       typingHook.startTyping,
       typingHook.stopTyping,
       sendNudge,
       registerNudgeCallback,
+      clearActiveCallForConversation,
       // Clients (refs are stable)
       apiClientRef.current,
       wsClientRef.current,

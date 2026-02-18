@@ -58,12 +58,20 @@ export interface AgentBuilderState {
   /** Per-prompt tool policies (e.g. MCP allowlists), keyed by tool code (e.g. `mcp.flow-engine`) */
   toolPolicies: ToolPolicies
 
+  // Agent Card (Mesh metadata)
+  agentCardDivision: string
+  agentCardDataDomains: string
+  agentCardCapabilities: string
+  agentCardAccessPolicy: string
+
   // Advanced
   serviceId: string
   modelId: string
   temperature: number
   responseType: 'text' | 'json'
   responseSchema: string
+  /** Decision Expert: allowed decision result options (mirrored into responseSchema enum) */
+  decisionOptions: string[]
   knowledgeSources: KnowledgeSource[]
 }
 
@@ -86,11 +94,16 @@ export interface AgentBuilderActions {
   setSelectedToolIds: (v: string[]) => void
   setSelectedToolVersion: (v: Record<string, string>) => void
   setToolPolicies: (v: ToolPolicies) => void
+  setAgentCardDivision: (v: string) => void
+  setAgentCardDataDomains: (v: string) => void
+  setAgentCardCapabilities: (v: string) => void
+  setAgentCardAccessPolicy: (v: string) => void
   setServiceId: (v: string) => void
   setModelId: (v: string) => void
   setTemperature: (v: number) => void
   setResponseType: (v: 'text' | 'json') => void
   setResponseSchema: (v: string) => void
+  setDecisionOptions: (v: string[]) => void
   setKnowledgeSources: (v: KnowledgeSource[]) => void
 }
 
@@ -105,6 +118,7 @@ export interface AgentBuilderCatalogs {
   capabilitiesLoading: boolean
   capabilitiesError: string | null
   reloadCapabilities: () => Promise<void>
+  createWorkspace?: (name: string) => Promise<WorkspaceODM>
 }
 
 /**

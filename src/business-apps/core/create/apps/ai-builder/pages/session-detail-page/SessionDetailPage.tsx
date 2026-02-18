@@ -45,6 +45,10 @@ interface Message {
     totalCost: number
   }
   createdBy?: string
+  editHistory?: Array<{
+    userId: string
+    editedAt: string
+  }>
   messageId?: string
   createdAt?: string
   serverCreatedAt?: string
@@ -714,6 +718,86 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
     }
   }
 
+  const findPreviousAssistantMessage = (history: Message[], targetIndex: number): Message | null => {
+    for (let i = targetIndex - 1; i >= 0; i -= 1) {
+      const candidate = history[i]
+      if (candidate.role === 'assistant' && candidate.messageId) {
+        return candidate
+      }
+    }
+    return null
+  }
+
+  const handleEditMessage = async (message: Message, nextContent: string) => {
+    if (!sessionId || !resolvedTargetPath) return
+    const trimmedContent = nextContent.trim()
+    if (!trimmedContent || loading) return
+    const historySnapshot = messagesRef.current
+    const targetIndex = historySnapshot.findIndex(item => item.messageId === message.messageId)
+    if (targetIndex === -1) return
+    const previousAssistant = findPreviousAssistantMessage(historySnapshot, targetIndex)
+
+    setIsRestoringMessageId(message.messageId ?? null)
+    restoreProgressRef.current = []
+    const tempMessageId = createMessageId()
+    setMessages(prev => [
+      ...prev,
+      buildMessage('assistant', formatRestoreProgress([]), {
+        messageId: tempMessageId,
+        localOnly: true
+      })
+    ])
+
+    try {
+      updateRestoreTempMessage(tempMessageId, 'Restoring files and chat')
+      if (previousAssistant?.messageId) {
+        await builderClient.restoreToMessage({
+          repoId: repositoryId,
+          sessionId,
+          targetPath: resolvedTargetPath,
+          messageId: previousAssistant.messageId,
+          restoreChat: true
+        })
+      } else {
+        await builderClient.restoreToInitial({
+          repoId: repositoryId,
+          sessionId,
+          targetPath: resolvedTargetPath,
+          restoreChat: true
+        })
+      }
+
+      updateRestoreTempMessage(tempMessageId, 'Reloading chat history')
+      const history = await builderClient.loadChatHistory(repositoryId, sessionId)
+      const normalized = ensureMessageMetadata(history as Message[])
+      if (normalized.updated) {
+        builderClient.saveChatHistory(repositoryId, sessionId, normalized.messages)
+      }
+
+      const editorId = getCurrentUserId() ?? UNKNOWN_AUTHOR_ID
+      const editedMessage: Message = {
+        ...message,
+        content: trimmedContent,
+        createdBy: message.createdBy ?? editorId,
+        editHistory: [...(message.editHistory ?? []), { userId: editorId, editedAt: new Date().toISOString() }]
+      }
+
+      const nextHistory = [...(normalized.messages as Message[]), editedMessage]
+      setMessages(nextHistory)
+      await builderClient.saveChatHistory(repositoryId, sessionId, nextHistory)
+
+      updateRestoreTempMessage(tempMessageId, 'Sending updated prompt')
+      await runPrompt(trimmedContent, normalized.messages as Message[])
+      removeTempMessage(tempMessageId)
+    } catch (error) {
+      const messageText = error instanceof Error ? error.message : 'Failed to edit message'
+      removeTempMessage(tempMessageId)
+      setRestoreError(messageText)
+    } finally {
+      setIsRestoringMessageId(null)
+    }
+  }
+
   type StreamCtx = {
     setMessages: React.Dispatch<React.SetStateAction<Message[]>>
     setUsage: React.Dispatch<
@@ -966,16 +1050,10 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
     }
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!input.trim() || loading) return
-    const userMessage = buildMessage('user', input)
-    const userInput = input
+  const runPrompt = async (userInput: string, history: Message[]) => {
     screenBuildUsedRef.current = false
     screenBuildSucceededRef.current = false
     filesChangedInRunRef.current = false
-    setMessages(prev => [...prev, userMessage])
-    setInput('')
     setLoading(true)
     setThinking(false)
     setThinkingContent('')
@@ -988,11 +1066,10 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
         const data: ChangesResponse = await builderClient.getChanges(repoIdToUse, sessionId)
         previousChangeCountRef.current = data.summary?.files?.length ?? 0
       }
-      const history = messages.slice(-20)
       const stream = await builderClient.queryCode(
         repositoryId,
         userInput,
-        history,
+        history.slice(-20),
         true,
         buildEnabled,
         sessionId,
@@ -1076,6 +1153,16 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
     }
   }
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!input.trim() || loading) return
+    const userMessage = buildMessage('user', input)
+    const userInput = input
+    setMessages(prev => [...prev, userMessage])
+    setInput('')
+    await runPrompt(userInput, messages)
+  }
+
   const restoreMessagePreview = pendingRestoreMessage?.content ? pendingRestoreMessage.content.slice(0, 160) : ''
   const restoreMessageTimeValue = pendingRestoreMessage?.createdAt || pendingRestoreMessage?.serverCreatedAt || ''
   const restoreMessageTimestamp = restoreMessageTimeValue ? new Date(restoreMessageTimeValue).toLocaleString() : ''
@@ -1117,6 +1204,7 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
                   isProcessing={loading}
                   thinking={thinking}
                   onRestoreMessage={openRestoreDialog}
+                  onEditMessage={handleEditMessage}
                   isRestoringMessageId={isRestoringMessageId}
                   currentUserId={context.userInfo?.id}
                   accessToken={context.accessToken}
