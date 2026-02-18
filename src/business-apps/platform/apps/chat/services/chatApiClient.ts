@@ -292,6 +292,17 @@ export class ChatApiClient {
     await this.client.delete(`/messages/${messageId}`)
   }
 
+  async addReaction(messageId: string, emoji: string): Promise<Message> {
+    const response = await this.client.post<Message>(`/messages/${messageId}/reactions`, { emoji })
+    return response.data
+  }
+
+  async removeReaction(messageId: string, emoji: string): Promise<Message> {
+    const encodedEmoji = encodeURIComponent(emoji)
+    const response = await this.client.delete<Message>(`/messages/${messageId}/reactions/${encodedEmoji}`)
+    return response.data
+  }
+
   async markAsRead(conversationId: string) {
     await this.client.post(`/messages/conversation/${conversationId}/mark-read`)
   }
