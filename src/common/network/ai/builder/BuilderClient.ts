@@ -103,6 +103,12 @@ export interface AutoInitConfig {
   name: string
   branch: string
   enabled: boolean
+  autoInitOnStartup: boolean
+  supportsPublish: boolean
+  publishBasePath: string | null
+  publishAssetsPath: string | null
+  publishAzureEnabled: boolean
+  blockedBranches: string[]
   repoId: string | null
   indexStatus: string | null
   createdAt: string
@@ -111,18 +117,25 @@ export interface AutoInitConfig {
 
 export interface CreateAutoInitConfigRequest {
   url: string
-  owner: string
-  name: string
   branch: string
+  autoInitOnStartup?: boolean
+  blockedBranches?: string[]
   enabled?: boolean
+  supportsPublish?: boolean
+  publishBasePath?: string
+  publishAssetsPath?: string
+  publishAzureEnabled?: boolean
 }
 
 export interface UpdateAutoInitConfigRequest {
-  url?: string
-  owner?: string
-  name?: string
   branch?: string
+  autoInitOnStartup?: boolean
+  blockedBranches?: string[]
   enabled?: boolean
+  supportsPublish?: boolean
+  publishBasePath?: string
+  publishAssetsPath?: string
+  publishAzureEnabled?: boolean
 }
 
 export interface IndexProgress {
@@ -892,6 +905,31 @@ export class BuilderClient {
   // Code Query & Analysis
   // ============================================================================
 
+  private async parseQueryCodeError(response: Response): Promise<string> {
+    const fallback = `Failed to query code (${response.status})`
+    try {
+      const errorData = (await response.json()) as {
+        message?: string
+        error?: string
+        details?: string
+        errors?: Array<{ detail?: string; message?: string }>
+      }
+      if (Array.isArray(errorData.errors) && errorData.errors.length > 0) {
+        const firstError = errorData.errors[0]
+        return firstError?.detail ?? firstError?.message ?? errorData.message ?? errorData.error ?? fallback
+      }
+      return errorData.message ?? errorData.error ?? errorData.details ?? fallback
+    } catch {
+      try {
+        const text = await response.text()
+        if (text) return text
+      } catch {
+        // Keep fallback message
+      }
+    }
+    return fallback
+  }
+
   /**
    * Query code using AI
    */
@@ -962,8 +1000,12 @@ export class BuilderClient {
       })
     })
 
-    if (!response.ok || !response.body) {
-      throw new Error('Failed to query code')
+    if (!response.ok) {
+      throw new Error(await this.parseQueryCodeError(response))
+    }
+
+    if (!response.body) {
+      throw new Error('Failed to query code: response stream is not available')
     }
 
     return response.body
