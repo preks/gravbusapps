@@ -145,6 +145,52 @@ export class OrchestratorClient {
   /**
    * Execute a build plan using fetch-based SSE (supports authorization)
    */
+  private parseSseLine(line: string, onEvent: (event: BuildProgressEvent) => void) {
+    if (!line.startsWith('data:')) return
+    const data = line.slice(5).trim()
+    if (!data) return
+    try {
+      const raw = JSON.parse(data) as Record<string, unknown>
+      const event = normalizeProgressEvent(raw)
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('[OrchestratorClient] Received SSE event:', {
+          type: event.eventType,
+          componentId: event.componentId,
+          componentName: event.componentName,
+          resourceUrl: event.resourceUrl,
+          azureUrl: event.azureUrl,
+          filesPublished: event.filesPublished,
+          message: event.message
+        })
+      }
+      onEvent(event)
+    } catch (e) {
+      console.error('[OrchestratorClient] Failed to parse SSE event:', e, data)
+    }
+  }
+
+  private async readSseStream(
+    reader: ReadableStreamDefaultReader<Uint8Array>,
+    onEvent: (event: BuildProgressEvent) => void,
+    onComplete?: () => void
+  ) {
+    const decoder = new TextDecoder()
+    let buffer = ''
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) {
+        onComplete?.()
+        break
+      }
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() || ''
+      for (const line of lines) {
+        this.parseSseLine(line, onEvent)
+      }
+    }
+  }
+
   async executeWithProgress(
     jobId: string,
     request: ExecuteRequest,
@@ -174,51 +220,7 @@ export class OrchestratorClient {
         throw new Error('No response body')
       }
 
-      const decoder = new TextDecoder()
-      let buffer = ''
-
-      while (true) {
-        const { done, value } = await reader.read()
-
-        if (done) {
-          onComplete?.()
-          break
-        }
-
-        buffer += decoder.decode(value, { stream: true })
-
-        // Process SSE events
-        const lines = buffer.split('\n')
-        buffer = lines.pop() || '' // Keep incomplete line in buffer
-
-        for (const line of lines) {
-          if (line.startsWith('data:')) {
-            const data = line.slice(5).trim()
-            if (data) {
-              try {
-                const raw = JSON.parse(data) as Record<string, unknown>
-                const event = normalizeProgressEvent(raw)
-
-                // Only log sensitive event details in non-production environments
-                if (process.env.NODE_ENV !== 'production') {
-                  console.log('[OrchestratorClient] Received SSE event:', {
-                    type: event.eventType,
-                    componentId: event.componentId,
-                    componentName: event.componentName,
-                    resourceUrl: event.resourceUrl,
-                    azureUrl: event.azureUrl,
-                    filesPublished: event.filesPublished,
-                    message: event.message
-                  })
-                }
-                onEvent(event)
-              } catch (e) {
-                console.error('[OrchestratorClient] Failed to parse SSE event:', e, data)
-              }
-            }
-          }
-        }
-      }
+      await this.readSseStream(reader, onEvent, onComplete)
     } catch (error) {
       onError?.(error instanceof Error ? error : new Error(String(error)))
     }

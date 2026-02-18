@@ -781,6 +781,31 @@ export class BuilderClient {
   // Code Query & Analysis
   // ============================================================================
 
+  private async parseQueryCodeError(response: Response): Promise<string> {
+    const fallback = `Failed to query code (${response.status})`
+    try {
+      const errorData = (await response.json()) as {
+        message?: string
+        error?: string
+        details?: string
+        errors?: Array<{ detail?: string; message?: string }>
+      }
+      if (Array.isArray(errorData.errors) && errorData.errors.length > 0) {
+        const firstError = errorData.errors[0]
+        return firstError?.detail ?? firstError?.message ?? errorData.message ?? errorData.error ?? fallback
+      }
+      return errorData.message ?? errorData.error ?? errorData.details ?? fallback
+    } catch {
+      try {
+        const text = await response.text()
+        if (text) return text
+      } catch {
+        // Keep fallback message
+      }
+    }
+    return fallback
+  }
+
   /**
    * Query code using AI
    */
@@ -852,33 +877,7 @@ export class BuilderClient {
     })
 
     if (!response.ok) {
-      let errorDetails = `Failed to query code (${response.status})`
-      try {
-        const errorData = (await response.json()) as {
-          message?: string
-          error?: string
-          details?: string
-          errors?: Array<{ detail?: string; message?: string }>
-        }
-        if (Array.isArray(errorData.errors) && errorData.errors.length > 0) {
-          const firstError = errorData.errors[0]
-          errorDetails =
-            firstError?.detail || firstError?.message || errorData.message || errorData.error || errorDetails
-        } else {
-          errorDetails = errorData.message || errorData.error || errorData.details || errorDetails
-        }
-      } catch {
-        try {
-          const text = await response.text()
-          if (text) {
-            errorDetails = text
-          }
-        } catch {
-          // Keep fallback message
-        }
-      }
-
-      throw new Error(errorDetails)
+      throw new Error(await this.parseQueryCodeError(response))
     }
 
     if (!response.body) {

@@ -27,7 +27,6 @@ interface PreviewSandboxProps {
   onError?: (error: Error) => void
   uniqueFileSummary?: UniqueFileSummary | null
   onPublish?: () => void
-  onDownloadPatch?: () => void
   onRefresh?: () => void
   publishSuccess?: string | null
   onDismissPublishSuccess?: () => void
@@ -67,7 +66,6 @@ export const PreviewSandbox = forwardRef<PreviewSandboxHandle, PreviewSandboxPro
   const [error, setError] = useState<string | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [bundleVersion, setBundleVersion] = useState<string | null>(null)
-  const [buildElapsedSec, setBuildElapsedSec] = useState(0)
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const builderClient = useBuilderClient(accessToken ?? '')
 
@@ -182,23 +180,9 @@ export const PreviewSandbox = forwardRef<PreviewSandboxHandle, PreviewSandboxPro
         nwEnvsKeys: Object.keys(nwEnvs || {})
       })
     }
-    window.addEventListener('message', handleMessage)
-    return () => window.removeEventListener('message', handleMessage)
+    globalThis.addEventListener('message', handleMessage)
+    return () => globalThis.removeEventListener('message', handleMessage)
   }, [accessToken, userInfo])
-
-  useEffect(() => {
-    if (!buildStatus?.active) {
-      setBuildElapsedSec(0)
-      return
-    }
-
-    setBuildElapsedSec(0)
-    const timer = setInterval(() => {
-      setBuildElapsedSec(prev => prev + 1)
-    }, 1000)
-
-    return () => clearInterval(timer)
-  }, [buildStatus?.active])
 
   const handleIframeError = () => {
     const errorMsg = 'Failed to load preview iframe'
