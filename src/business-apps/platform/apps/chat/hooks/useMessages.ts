@@ -4,6 +4,14 @@ import { ChatApiClient } from '../services/chatApiClient'
 import { devPerf } from '../utils/performanceUtils'
 import { useCache } from './useCache'
 
+const TRACE_MESSAGES = process.env.NODE_ENV === 'development'
+function trace(msg: string, data?: Record<string, unknown>) {
+  if (TRACE_MESSAGES) {
+    if (data) console.debug('[useMessages]', msg, data)
+    else console.debug('[useMessages]', msg)
+  }
+}
+
 interface UseMessagesOptions {
   apiClient: ChatApiClient
   conversationId: string | null
@@ -146,6 +154,11 @@ export function useMessages({
   const loadMessages = useCallback(
     async (page: number = 1) => {
       if (!conversationId || !enabled || !apiClient) {
+        trace('loadMessages early return', {
+          reason: !conversationId ? 'no conversationId' : !enabled ? 'disabled' : 'no apiClient',
+          conversationId: conversationId ?? null,
+          enabled
+        })
         return
       }
 
@@ -154,6 +167,7 @@ export function useMessages({
         // CRITICAL: Prevent duplicate loads
         // If we just loaded this conversation, skip (prevents double cache loads)
         if (lastLoadedConversationRef.current === conversationId) {
+          trace('loadMessages(1) skip duplicate', { conversationId, lastLoaded: lastLoadedConversationRef.current })
           return
         }
 
@@ -161,11 +175,13 @@ export function useMessages({
         if (cached) {
           // Verify conversation hasn't changed (prevents race conditions)
           if (conversationId !== displayedConversationIdRef.current) {
+            trace('loadMessages(1) skip cache race', { conversationId, displayed: displayedConversationIdRef.current })
             return
           }
 
           // CRITICAL: Prevent concurrent cache loads
           if (isLoadingRef.current) {
+            trace('loadMessages(1) skip cache concurrent', { conversationId })
             return
           }
 
@@ -185,12 +201,14 @@ export function useMessages({
           setHasMore(cached.hasMore)
           // Note: isLoading stays false - cached data appears instantly
 
+          trace('loadMessages(1) served from cache', { conversationId, count: cached.messages.length })
           return // Skip API call
         }
       }
 
       // Prevent concurrent requests
       if (isLoadingRef.current) {
+        trace('loadMessages skip concurrent request', { conversationId, page })
         return
       }
 
@@ -202,7 +220,7 @@ export function useMessages({
       abortControllerRef.current = new AbortController()
       const requestConversationId = conversationId
 
-      // Start performance tracking
+      trace('loadMessages API request start', { conversationId, page })
 
       try {
         isLoadingRef.current = true
@@ -218,6 +236,10 @@ export function useMessages({
         // CRITICAL: Verify response is still relevant (check against current displayed conversation)
         // This prevents race conditions when switching conversations rapidly
         if (requestConversationId !== displayedConversationIdRef.current) {
+          trace('loadMessages API response discarded (conversation changed)', {
+            requestConversationId,
+            displayed: displayedConversationIdRef.current
+          })
           return
         }
 
@@ -226,6 +248,12 @@ export function useMessages({
 
         const newPage = response.page
         const newHasMore = response.page < response.totalPages
+
+        trace('loadMessages API response applied', {
+          conversationId: requestConversationId,
+          page,
+          count: loadedMessages.length
+        })
 
         // Cache initial loads
         if (page === 1) {
@@ -256,6 +284,7 @@ export function useMessages({
       } catch (err) {
         // Ignore abort errors
         if (err instanceof Error && err.name === 'AbortError') {
+          trace('loadMessages API aborted', { conversationId: requestConversationId, page })
           return
         }
 
@@ -447,7 +476,15 @@ export function useMessages({
   useEffect(() => {
     if (conversationId) {
       // Check if we're actually switching to a different conversation
-      const isSwitchingConversation = displayedConversationIdRef.current !== conversationId
+      const displayed = displayedConversationIdRef.current
+      const isSwitchingConversation = displayed !== conversationId
+
+      trace('effect conversationId', {
+        conversationId,
+        displayed,
+        isSwitchingConversation,
+        willCallLoadMessages: isSwitchingConversation
+      })
 
       if (isSwitchingConversation) {
         // Reset the last loaded conversation so loadMessages can proceed
@@ -462,6 +499,7 @@ export function useMessages({
         loadMessages(1)
       }
     } else {
+      trace('effect conversationId cleared', { displayed: displayedConversationIdRef.current })
       // ConversationId is null/undefined - clear the displayed conversation ref
       // This ensures the next conversation selection is treated as a new conversation
       if (displayedConversationIdRef.current) {
@@ -471,10 +509,13 @@ export function useMessages({
 
     // Cleanup on unmount or conversation change
     return () => {
+      trace('effect cleanup', { conversationId })
       if (abortControllerRef.current) {
         abortControllerRef.current.abort()
         abortControllerRef.current = null
       }
+      // Reset so the next effect run can start loadMessages(1) (prevents "skip concurrent request" after abort)
+      isLoadingRef.current = false
     }
   }, [conversationId]) // CRITICAL: Only conversationId, not loadMessages or cache
 
