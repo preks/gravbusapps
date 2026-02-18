@@ -124,6 +124,82 @@ function createInitialTileState(plan: BuildPlan | null): TileState {
   return tiles
 }
 
+// ─── Module-level tile updaters (extracted to reduce function nesting depth) ────
+
+type ComponentUpdateFn = ((id: string, updates: any) => void) | null | undefined
+const DONE_STATUSES = ['completed', 'reused', 'error', 'skipped']
+
+function applyComponentReused(t: any, e: BuildProgressEvent, onUpdate: ComponentUpdateFn) {
+  t.currentOperation = e.message
+  t.reusedCount = (t.reusedCount || 0) + 1
+  t.items = t.items.map((i: any) =>
+    i.id === e.componentId ? { ...i, status: 'reused', createdId: e.createdId, reused: true } : i
+  )
+  const allDone = t.items.every((i: any) => DONE_STATUSES.includes(i.status))
+  if (allDone) {
+    t.status = t.items.some((i: any) => i.status === 'error') ? 'error' : 'completed'
+  } else if (t.status !== 'building') {
+    t.status = 'building'
+  }
+  if (e.componentId) {
+    onUpdate?.(e.componentId, { status: 'reused', createdId: e.createdId })
+  }
+}
+
+function applyComponentStarted(t: any, e: BuildProgressEvent, onUpdate: ComponentUpdateFn) {
+  t.status = 'building'
+  t.currentOperation = e.message
+  t.items = t.items.map((i: any) => (i.id === e.componentId ? { ...i, status: 'building' } : i))
+  if (e.componentId) {
+    onUpdate?.(e.componentId, { status: 'building' })
+  }
+}
+
+function applyComponentCompleted(t: any, e: BuildProgressEvent, onUpdate: ComponentUpdateFn) {
+  t.currentOperation = undefined
+  t.items = t.items.map((i: any) =>
+    i.id === e.componentId ? { ...i, status: 'completed', createdId: e.createdId } : i
+  )
+  const allDone = t.items.every((i: any) => DONE_STATUSES.includes(i.status))
+  if (allDone) {
+    t.status = t.items.some((i: any) => i.status === 'error') ? 'error' : 'completed'
+  }
+  if (e.componentId) {
+    const updates: any = { status: 'completed', createdId: e.createdId }
+    if (e.metadata) updates.metadata = e.metadata
+    onUpdate?.(e.componentId, updates)
+  }
+}
+
+function applyComponentError(t: any, e: BuildProgressEvent, onUpdate: ComponentUpdateFn) {
+  t.currentOperation = undefined
+  t.items = t.items.map((i: any) => (i.id === e.componentId ? { ...i, status: 'error', error: e.errorDetails } : i))
+  if (e.componentId) {
+    const updates: any = { status: 'error', errorMessage: e.errorDetails || e.message }
+    if (e.metadata) updates.metadata = e.metadata
+    onUpdate?.(e.componentId, updates)
+  }
+}
+
+function applyComponentProgress(t: any, e: BuildProgressEvent) {
+  if (e.message && e.message.length > 10) {
+    t.currentOperation = e.message
+  }
+  if (e.progressPercent !== undefined) t.progressPercent = e.progressPercent
+}
+
+function applyPublishProgress(t: any, e: BuildProgressEvent, onUpdate: ComponentUpdateFn) {
+  t.currentOperation = e.message
+  if (e.componentId) {
+    onUpdate?.(e.componentId, {
+      resourceUrl: e.resourceUrl,
+      azureUrl: e.azureUrl,
+      publishedFileCount: e.filesPublished,
+      metadata: e.metadata
+    })
+  }
+}
+
 /**
  * Reducer for tiles state - ensures atomic updates without race conditions
  */
@@ -327,101 +403,32 @@ export function useBuildProgress({
   const handleComponentEvent = useCallback((event: BuildProgressEvent) => {
     if (!event.componentType) return
 
-    // Use reducer dispatch to update tile atomically
+    const onUpdate = onComponentUpdateRef.current
+
     dispatchTiles({
       type: 'UPDATE_TILE',
       componentType: event.componentType,
       updater: (tile: any) => {
-        const eventHandlers: Record<string, (t: any, e: BuildProgressEvent) => void> = {
-          component_reused: (t, e) => {
-            t.currentOperation = e.message
-            t.reusedCount = (t.reusedCount || 0) + 1
-            t.items = t.items.map((i: any) =>
-              i.id === e.componentId ? { ...i, status: 'reused', createdId: e.createdId, reused: true } : i
-            )
-            // Only mark tile as completed when all items are done (mirror component_completed logic)
-            const allDone = t.items.every((i: any) => ['completed', 'reused', 'error', 'skipped'].includes(i.status))
-            if (allDone) {
-              t.status = t.items.some((i: any) => i.status === 'error') ? 'error' : 'completed'
-            } else if (t.status !== 'building') {
-              t.status = 'building' // Ensure tile shows as in-progress if not all done
-            }
-            if (e.componentId) {
-              onComponentUpdateRef.current?.(e.componentId, { status: 'reused', createdId: e.createdId })
-            }
-          },
-          component_started: (t, e) => {
-            t.status = 'building'
-            t.currentOperation = e.message
-            t.items = t.items.map((i: any) => (i.id === e.componentId ? { ...i, status: 'building' } : i))
-            if (e.componentId) {
-              onComponentUpdateRef.current?.(e.componentId, { status: 'building' })
-            }
-          },
-          component_completed: (t, e) => {
-            t.currentOperation = undefined
-            t.items = t.items.map((i: any) =>
-              i.id === e.componentId ? { ...i, status: 'completed', createdId: e.createdId } : i
-            )
-            const allDone = t.items.every((i: any) => ['completed', 'reused', 'error', 'skipped'].includes(i.status))
-            if (allDone) {
-              t.status = t.items.some((i: any) => i.status === 'error') ? 'error' : 'completed'
-            }
-
-            // Pass metadata and status to the component update
-            if (e.componentId) {
-              const updates: any = {
-                status: 'completed',
-                createdId: e.createdId
-              }
-
-              if (e.metadata) {
-                updates.metadata = e.metadata
-              }
-
-              onComponentUpdateRef.current?.(e.componentId, updates)
-            }
-          },
-          component_error: (t, e) => {
-            t.currentOperation = undefined
-            t.items = t.items.map((i: any) =>
-              i.id === e.componentId ? { ...i, status: 'error', error: e.errorDetails } : i
-            )
-            if (e.componentId) {
-              const updates: any = {
-                status: 'error',
-                errorMessage: e.errorDetails || e.message
-              }
-
-              // Include metadata if present (for accessing partial generated code)
-              if (e.metadata) {
-                updates.metadata = e.metadata
-              }
-
-              onComponentUpdateRef.current?.(e.componentId, updates)
-            }
-          },
-          component_progress: (t, e) => {
-            // Only update currentOperation with meaningful messages (not single-token AI stream chunks)
-            if (e.message && e.message.length > 10) {
-              t.currentOperation = e.message
-            }
-            if (e.progressPercent !== undefined) t.progressPercent = e.progressPercent
-          },
-          publish_progress: (t, e) => {
-            t.currentOperation = e.message
-            if (e.componentId) {
-              onComponentUpdateRef.current?.(e.componentId, {
-                resourceUrl: e.resourceUrl,
-                azureUrl: e.azureUrl,
-                publishedFileCount: e.filesPublished,
-                metadata: e.metadata
-              })
-            }
-          }
+        switch (event.eventType) {
+          case 'component_reused':
+            applyComponentReused(tile, event, onUpdate)
+            break
+          case 'component_started':
+            applyComponentStarted(tile, event, onUpdate)
+            break
+          case 'component_completed':
+            applyComponentCompleted(tile, event, onUpdate)
+            break
+          case 'component_error':
+            applyComponentError(tile, event, onUpdate)
+            break
+          case 'component_progress':
+            applyComponentProgress(tile, event)
+            break
+          case 'publish_progress':
+            applyPublishProgress(tile, event, onUpdate)
+            break
         }
-
-        eventHandlers[event.eventType]?.(tile, event)
       }
     })
 

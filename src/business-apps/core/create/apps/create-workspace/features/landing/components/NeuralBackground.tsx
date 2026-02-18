@@ -13,6 +13,35 @@ interface Node {
   pulsePhase: number
 }
 
+function drawNodeConnections(
+  ctx: CanvasRenderingContext2D,
+  nodes: Node[],
+  node: Node,
+  nodeIndex: number,
+  aiColor: string,
+  primaryColor: string
+) {
+  nodes.forEach((other, j) => {
+    if (nodeIndex >= j) return
+    const distance = Math.hypot(other.x - node.x, other.y - node.y)
+    const maxDistance = 150
+    if (distance < maxDistance) {
+      const opacity = (1 - distance / maxDistance) * 0.15
+      const gradient = ctx.createLinearGradient(node.x, node.y, other.x, other.y)
+      gradient.addColorStop(0, aiColor)
+      gradient.addColorStop(1, primaryColor)
+      ctx.beginPath()
+      ctx.moveTo(node.x, node.y)
+      ctx.lineTo(other.x, other.y)
+      ctx.strokeStyle = gradient
+      ctx.globalAlpha = opacity
+      ctx.lineWidth = 1
+      ctx.stroke()
+      ctx.globalAlpha = 1
+    }
+  })
+}
+
 /**
  * NeuralBackground - Subtle animated neural network background
  * Creates an AI-themed atmosphere with floating nodes and connections
@@ -87,29 +116,7 @@ export const NeuralBackground: React.FC<NeuralBackgroundProps> = ({ className = 
         node.y = Math.max(0, Math.min(canvas.height, node.y))
 
         // Draw connections to nearby nodes
-        nodes.forEach((other, j) => {
-          if (i >= j) return
-          const dx = other.x - node.x
-          const dy = other.y - node.y
-          const distance = Math.hypot(dx, dy)
-          const maxDistance = 150
-
-          if (distance < maxDistance) {
-            const opacity = (1 - distance / maxDistance) * 0.15
-            const gradient = ctx.createLinearGradient(node.x, node.y, other.x, other.y)
-            gradient.addColorStop(0, `${aiColor}`)
-            gradient.addColorStop(1, `${primaryColor}`)
-
-            ctx.beginPath()
-            ctx.moveTo(node.x, node.y)
-            ctx.lineTo(other.x, other.y)
-            ctx.strokeStyle = gradient
-            ctx.globalAlpha = opacity
-            ctx.lineWidth = 1
-            ctx.stroke()
-            ctx.globalAlpha = 1
-          }
-        })
+        drawNodeConnections(ctx, nodes, node, i, aiColor, primaryColor)
 
         // Draw node with pulse effect
         const pulse = Math.sin(time * 2 + node.pulsePhase) * 0.3 + 0.7
