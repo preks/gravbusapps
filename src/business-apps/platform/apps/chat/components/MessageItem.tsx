@@ -454,6 +454,7 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(
                   onReactionClick={handleReactionClick}
                   reactionPickerOpen={reactionPickerOpen}
                   onReactionPickerOpenChange={setReactionPickerOpen}
+                  participants={participants}
                   floatingBarOnMouseEnter={() => {
                     if (hidePickerTimeoutRef.current) {
                       clearTimeout(hidePickerTimeoutRef.current)
@@ -562,6 +563,7 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(
                   onReactionClick={handleReactionClick}
                   reactionPickerOpen={reactionPickerOpen}
                   onReactionPickerOpenChange={setReactionPickerOpen}
+                  participants={participants}
                 />
               )}
             </div>
