@@ -71,7 +71,6 @@ export const CompleteView: React.FC<CompleteViewProps> = ({
             <div className="gba:h-full gba:min-h-0 gba:flex gba:flex-col gba:overflow-hidden gba:relative">
               <ScreenPreview
                 component={previewComponent}
-                jobId={jobId}
                 accessToken={accessToken}
                 userInfo={userInfo}
                 refreshToken={previewRefreshToken}
@@ -89,7 +88,7 @@ export const CompleteView: React.FC<CompleteViewProps> = ({
             </div>
           ) : (
             <div className="gba:h-full gba:min-h-[400px] gba:flex gba:items-center gba:justify-center gba:text-muted-foreground gba:px-6">
-              {!accessToken ? 'Sign in to see preview.' : 'No preview available for this build.'}
+              {accessToken ? 'No preview available for this build.' : 'Sign in to see preview.'}
             </div>
           )}
         </ResizablePanel>

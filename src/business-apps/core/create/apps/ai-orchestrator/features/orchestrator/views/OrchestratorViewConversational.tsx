@@ -55,8 +55,8 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
           plan.status === 'completed' || plan.components.some(c => c.status === 'completed' || c.status === 'reused')
         if (alreadyBuilt) {
           const firstWithSession = plan.components.find(c => c.metadata?.sessionId && c.metadata?.repoId)
-          const sessionId = firstWithSession?.metadata?.sessionId as string | undefined
-          const repoId = firstWithSession?.metadata?.repoId as string | undefined
+          const sessionId = firstWithSession?.metadata?.sessionId
+          const repoId = firstWithSession?.metadata?.repoId
           if (sessionId || repoId) {
             orchestratorClient.setSessionFromBuild(sessionId, repoId)
           }
