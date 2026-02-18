@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import {
   Button,
   Input,
@@ -13,18 +13,24 @@ import { Send, Loader2 } from 'lucide-react'
 import { MarkdownWithChipsRenderer } from '@/common/components/markdown/MarkdownWithChipsRenderer'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import { useAgentMeshClient } from '../../hooks/useAgentMeshClient'
+import { SubAgentSources } from './SubAgentSources'
+import type { CommEvent } from './AgentCommFeed'
 import type { ExecutionTrace, AgentRegistryEntry, SessionMessage } from '../../types/agentMesh'
 
 interface Message {
   id: string
   role: 'user' | 'assistant'
   content: string
+  /** Snapshot of comm events at the time the assistant responded (used for source display) */
+  sourceEvents?: CommEvent[]
 }
 
 interface SteeringChatProps {
   accessToken: string
   sessionId?: string | null
   initialMessages?: SessionMessage[]
+  /** Live comm events from the polling mechanism for real-time status */
+  commEvents?: CommEvent[]
   onResultUpdate?: (result: string) => void
   onTraceUpdate?: (trace: ExecutionTrace | null) => void
   onExecutionStart?: (agentName: string) => void
@@ -36,6 +42,7 @@ export const SteeringChat = ({
   accessToken,
   sessionId,
   initialMessages,
+  commEvents,
   onResultUpdate,
   onTraceUpdate,
   onExecutionStart,
@@ -53,9 +60,22 @@ export const SteeringChat = ({
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const lastResultRef = useRef<string | null>(null)
 
-  const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  /** Derive a dynamic thinking status from live comm events */
+  const thinkingStatus = useMemo(() => {
+    if (!isLoading || !commEvents?.length) return 'Analyzing your request...'
+    const latest = [...commEvents].reverse().find(e => e.status === 'running' || e.type === 'thinking')
+    if (latest?.type === 'response' && latest.status === 'running' && latest.toAgent) {
+      return `Consulting ${latest.toAgent}...`
+    }
+    if (latest?.type === 'thinking' && latest.fromAgent) {
+      return `${latest.fromAgent} is thinking...`
+    }
+    if (commEvents.some(e => e.status === 'running')) return 'Agents are working...'
+    return 'Analyzing your request...'
+  }, [isLoading, commEvents])
+
   useEffect(() => {
-    scrollToBottom()
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
   // Restore messages when session changes
@@ -115,7 +135,8 @@ export const SteeringChat = ({
       const assistantMessage: Message = {
         id: `assistant-${Date.now()}`,
         role: 'assistant',
-        content: resultContent || 'No response received.'
+        content: resultContent || 'No response received.',
+        sourceEvents: commEvents ? [...commEvents] : undefined
       }
       const finalMessages = [...updatedMessages, assistantMessage]
       setMessages(finalMessages)
@@ -154,6 +175,7 @@ export const SteeringChat = ({
     selectedAgentId,
     agents,
     messages,
+    commEvents,
     promptClient,
     meshClient,
     onResultUpdate,
@@ -220,12 +242,17 @@ export const SteeringChat = ({
               }`}
             >
               {message.role === 'assistant' ? (
-                <MarkdownWithChipsRenderer
-                  content={message.content}
-                  accessToken={accessToken}
-                  variant="chat"
-                  data-testid={`steering-chat-message-${message.id}-content`}
-                />
+                <>
+                  <MarkdownWithChipsRenderer
+                    content={message.content}
+                    accessToken={accessToken}
+                    variant="chat"
+                    data-testid={`steering-chat-message-${message.id}-content`}
+                  />
+                  {message.sourceEvents && message.sourceEvents.length > 0 && (
+                    <SubAgentSources commEvents={message.sourceEvents} accessToken={accessToken} />
+                  )}
+                </>
               ) : (
                 <div className="gba:text-sm">{message.content}</div>
               )}
@@ -239,7 +266,7 @@ export const SteeringChat = ({
             data-testid="steering-chat-thinking"
           >
             <Loader2 className="gba:w-4 gba:h-4 gba:animate-spin gba:text-primary" />
-            <span className="gba:text-sm gba:text-muted-foreground">Agents are working...</span>
+            <span className="gba:text-sm gba:text-muted-foreground">{thinkingStatus}</span>
           </div>
         )}
         <div ref={messagesEndRef} />

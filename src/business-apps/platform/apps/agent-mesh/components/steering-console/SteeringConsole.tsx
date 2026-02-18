@@ -246,6 +246,7 @@ export const SteeringConsole = ({ accessToken, userInfo }: SteeringConsoleProps)
               accessToken={accessToken}
               sessionId={activeSessionId}
               initialMessages={activeSession?.messages}
+              commEvents={commEvents}
               onResultUpdate={handleResultUpdate}
               onTraceUpdate={handleTraceUpdate}
               onExecutionStart={handleExecutionStart}
