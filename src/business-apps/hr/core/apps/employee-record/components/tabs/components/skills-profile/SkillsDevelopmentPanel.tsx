@@ -2,65 +2,112 @@ import React, { useMemo } from 'react'
 import {
   Card,
   CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   ChartContainer,
   ChartConfig,
   ChartTooltip,
   ChartTooltipContent
 } from '@newwork/nw-design-system'
+import { SparkleIcon } from '@phosphor-icons/react'
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer } from 'recharts'
-import { SkillDistribution, SkillStatusFilter } from './skillsProfile.utils'
+import { SkillDistribution, type JobProfileGap } from './skillsProfile.utils'
 
 interface SkillsDevelopmentPanelProps {
-  setLevelsCount: number
   verifyCount: number
-  agingCount: number
   distribution: SkillDistribution[]
-  groupFilter: SkillStatusFilter
-  onGroupFilterChange: (value: SkillStatusFilter) => void
+  jobProfileGap: JobProfileGap | null
   t: (key: string, args?: Record<string, unknown>) => string
 }
 
+function buildNextActionItems(
+  verifyCount: number,
+  jobProfileGap: JobProfileGap | null,
+  t: (key: string, args?: Record<string, unknown>) => string
+): Array<{ key: string; node: React.ReactNode }> {
+  const items: Array<{ key: string; node: React.ReactNode }> = []
+  if (verifyCount > 0) {
+    items.push({
+      key: 'verify',
+      node: <div className="gba:text-sm">{t('skills-development-verify-certification', { count: verifyCount })}</div>
+    })
+  }
+  if (jobProfileGap == null) return items
+  const { jobProfileName, missingSkills, belowLevelSkills } = jobProfileGap
+  const hasMissing = missingSkills.length > 0
+  const hasBelowLevel = belowLevelSkills.length > 0
+  if (hasMissing === false && hasBelowLevel === false) {
+    items.push({
+      key: 'job-profile-fit',
+      node: (
+        <div className="gba:text-sm" data-testid="skills-job-profile-fit">
+          {t('skills-development-job-profile-fit', { name: jobProfileName })}
+        </div>
+      )
+    })
+    return items
+  }
+  if (hasMissing) {
+    if (missingSkills.length === 1) {
+      items.push({
+        key: 'job-profile-missing-one',
+        node: (
+          <div className="gba:text-sm" data-testid="skills-job-profile-gap">
+            {t('skills-development-job-profile-missing-one-prefix')}{' '}
+            <strong className="gba:font-bold gba:text-foreground">{missingSkills[0].name}</strong>
+            {t('skills-development-job-profile-missing-one-suffix')}
+          </div>
+        )
+      })
+    } else {
+      items.push({
+        key: 'job-profile-missing',
+        node: (
+          <div className="gba:text-sm" data-testid="skills-job-profile-gap">
+            {t('skills-development-job-profile-missing-prefix', { count: missingSkills.length })}{' '}
+            {missingSkills.map((s, i) => (
+              <React.Fragment key={s.id}>
+                {i > 0 && ', '}
+                <strong className="gba:font-bold gba:text-foreground">{s.name}</strong>
+              </React.Fragment>
+            ))}
+            .
+          </div>
+        )
+      })
+    }
+  }
+  if (hasBelowLevel) {
+    belowLevelSkills.forEach(s => {
+      items.push({
+        key: `job-profile-below-${s.skillName}-${s.employeeLevel}-${s.profileLevel}`,
+        node: (
+          <div className="gba:text-sm">
+            {t('skills-development-job-profile-below-level-prefix')}{' '}
+            <strong className="gba:font-bold gba:text-foreground">{s.skillName}</strong>{' '}
+            {t('skills-development-job-profile-below-level-suffix', {
+              employeeLevel: s.employeeLevel,
+              profileLevel: s.profileLevel
+            })}
+          </div>
+        )
+      })
+    })
+  }
+  return items
+}
+
 export const SkillsDevelopmentPanel: React.FC<SkillsDevelopmentPanelProps> = ({
-  setLevelsCount,
   verifyCount,
-  agingCount,
   distribution,
-  groupFilter,
-  onGroupFilterChange,
+  jobProfileGap,
   t
 }) => {
-  const nextActionLines = useMemo(() => {
-    const lines: React.ReactNode[] = []
-    if (setLevelsCount > 0) {
-      lines.push(
-        <div key="setLevels" className="gba:text-sm">
-          {t('skills-development-set-levels', { count: setLevelsCount })}
-        </div>
-      )
-    }
-    if (verifyCount > 0) {
-      lines.push(
-        <div key="verify" className="gba:text-sm">
-          {t('skills-development-verify', { count: verifyCount })}
-        </div>
-      )
-    }
-    if (agingCount > 0) {
-      lines.push(
-        <div key="aging" className="gba:text-sm">
-          {t('skills-development-aging', { count: agingCount })}
-        </div>
-      )
-    }
-    return lines
-  }, [setLevelsCount, verifyCount, agingCount, t])
+  const nextActionItems = useMemo(
+    () => buildNextActionItems(verifyCount, jobProfileGap, t),
+    [verifyCount, jobProfileGap, t]
+  )
 
   const chartColor = 'var(--nw-chart-2)'
   const chartData = useMemo(
@@ -84,18 +131,38 @@ export const SkillsDevelopmentPanel: React.FC<SkillsDevelopmentPanelProps> = ({
 
   return (
     <div className="gba:space-y-4" data-testid="skills-development-panel">
-      {nextActionLines.length > 0 && (
+      {nextActionItems.length > 0 && (
         <Card data-testid="skills-next-actions-card">
           <CardHeader className="gba:pb-2">
-            <CardTitle className="gba:text-base">{t('skills-development-next-actions')}</CardTitle>
+            <CardTitle className="gba:flex gba:items-center gba:gap-2">
+              <SparkleIcon className="gba:w-5 gba:h-5 gba:text-primary" />
+              {t('skills-development-next-actions')}
+            </CardTitle>
+            <CardDescription>{t('skills-development-next-actions-description')}</CardDescription>
           </CardHeader>
-          <CardContent className="gba:space-y-3">{nextActionLines}</CardContent>
+          <CardContent>
+            <ul className="gba:space-y-0 gba:list-none gba:pl-0 gba:m-0" data-testid="skills-next-actions-list">
+              {nextActionItems.map(item => (
+                <li
+                  key={item.key}
+                  className="gba:flex gba:gap-2 gba:items-start gba:py-2 gba:border-b gba:border-border gba:last:border-b-0 gba:first:pt-0"
+                >
+                  <span
+                    className="gba:flex-shrink-0 gba:w-1.5 gba:h-1.5 gba:rounded-full gba:bg-primary gba:mt-1.5"
+                    aria-hidden
+                  />
+                  <div className="gba:min-w-0 gba:flex-1">{item.node}</div>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
         </Card>
       )}
 
       <Card data-testid="skills-distribution-card">
         <CardHeader className="gba:pb-2">
-          <CardTitle className="gba:text-base">{t('skills-development-distribution')}</CardTitle>
+          <CardTitle>{t('skills-development-distribution')}</CardTitle>
+          <CardDescription>{t('skills-development-distribution-description')}</CardDescription>
         </CardHeader>
         <CardContent>
           {hasDistribution ? (
@@ -112,25 +179,6 @@ export const SkillsDevelopmentPanel: React.FC<SkillsDevelopmentPanelProps> = ({
           ) : (
             <p className="gba:text-sm gba:text-muted-foreground">{t('skills-development-distribution-empty')}</p>
           )}
-        </CardContent>
-      </Card>
-
-      <Card data-testid="skills-groups-card">
-        <CardHeader className="gba:pb-2">
-          <CardTitle className="gba:text-base">{t('skills-development-groups')}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Select value={groupFilter} onValueChange={value => onGroupFilterChange(value as SkillStatusFilter)}>
-            <SelectTrigger data-testid="skills-groups-select">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{t('skills-filter-status-all')}</SelectItem>
-              <SelectItem value="verified">{t('skills-filter-status-verified')}</SelectItem>
-              <SelectItem value="unverified">{t('skills-filter-status-unverified')}</SelectItem>
-              <SelectItem value="inactive">{t('skills-filter-status-inactive')}</SelectItem>
-            </SelectContent>
-          </Select>
         </CardContent>
       </Card>
     </div>

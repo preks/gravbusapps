@@ -3,7 +3,7 @@ import { Employee } from '../../../../hooks/useEmployeeData'
 /**
  * Status and pending approval are derived from the employee_skill fields returned
  * by GET_EMPLOYEE_DATA (useEmployeeData.ts). The GraphQL selection must request:
- * recordState, processInstanceId, verificationDocumentId, activeFrom, activeTo.
+ * recordState, processInstanceId, verificationDocumentId, validFrom, validTo.
  * Visibility (acl) is optional; when present it is shown in the UI.
  */
 export const AGING_SKILL_DAYS_THRESHOLD = 180
@@ -37,10 +37,10 @@ export const parseSkillLevel = (level: string | number | null | undefined): numb
 export const isSkillVerified = (skill: EmployeeSkillItem): boolean => Boolean(skill.verificationDocumentId)
 
 export const isSkillActive = (skill: EmployeeSkillItem, now = new Date()): boolean => {
-  if (!skill.activeTo) return true
-  const activeToDate = new Date(skill.activeTo)
-  if (Number.isNaN(activeToDate.getTime())) return true
-  return activeToDate > now
+  if (!skill.validTo) return true
+  const validToDate = new Date(skill.validTo)
+  if (Number.isNaN(validToDate.getTime())) return true
+  return validToDate > now
 }
 
 const APPROVED_RECORD_STATES = new Set(['APPROVED', 'ACTIVE', 'COMPLETED'])
@@ -121,6 +121,63 @@ export const getAgingSkillCount = (skills: EmployeeSkillItem[], thresholdDays = 
       if (Number.isNaN(timestamp)) return false
       return now - timestamp > thresholdMs
     }).length
+}
+
+/** Job profile gap: missing skills from profile and optionally skills where employee level is below profile level. */
+export interface JobProfileGap {
+  jobProfileName: string
+  missingSkills: Array<{ id: string; name: string }>
+  belowLevelSkills: Array<{ skillName: string; employeeLevel: number; profileLevel: number }>
+}
+
+export const getJobProfileGap = (args: {
+  employeeSkills: EmployeeSkillItem[]
+  jobProfile?: {
+    name: string
+    jobProfileSkills?: Array<{ skill: { id: string; name: string }; requiredLevel?: number | null }>
+  } | null
+}): JobProfileGap | null => {
+  const { employeeSkills, jobProfile } = args
+  if (!jobProfile?.name) return null
+  const profileSkills = jobProfile.jobProfileSkills ?? []
+  if (profileSkills.length === 0) return null
+
+  const employeeSkillMap = new Map<string, { level: number }>()
+  employeeSkills
+    .filter(s => !s.isDeleted)
+    .forEach(s => {
+      const level = parseSkillLevel(s.level)
+      employeeSkillMap.set(s.skill?.id ?? '', { level: level ?? 0 })
+    })
+
+  const missingSkills: Array<{ id: string; name: string }> = []
+  const belowLevelSkills: Array<{ skillName: string; employeeLevel: number; profileLevel: number }> = []
+
+  profileSkills.forEach(ps => {
+    const skillId = ps.skill?.id
+    const skillName = ps.skill?.name ?? ''
+    if (skillId != null) {
+      const emp = employeeSkillMap.get(skillId)
+      if (emp == null) {
+        missingSkills.push({ id: skillId, name: skillName })
+      } else {
+        const requiredLevel = ps.requiredLevel != null ? Number(ps.requiredLevel) : null
+        if (requiredLevel != null && emp.level < requiredLevel) {
+          belowLevelSkills.push({
+            skillName,
+            employeeLevel: emp.level,
+            profileLevel: requiredLevel
+          })
+        }
+      }
+    }
+  })
+
+  return {
+    jobProfileName: jobProfile.name,
+    missingSkills,
+    belowLevelSkills
+  }
 }
 
 export const applySkillsFiltersAndSort = (args: {

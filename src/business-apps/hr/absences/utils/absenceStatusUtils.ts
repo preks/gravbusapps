@@ -67,6 +67,17 @@ const STATUS_CONFIG_MAP: Record<
  * @param status - The absence status
  * @returns Object with user-friendly label, Badge variant, color, and type
  */
+// Normalize canonical TIME_* codes to legacy values for backward compatibility
+const normalizeToLegacy = (status?: string): string | undefined => {
+  if (!status) return status
+  const s = status.toUpperCase()
+  if (s === 'TIME_PENDING') return 'PENDING'
+  if (s === 'TIME_APPROVED') return 'APPROVED'
+  if (s === 'TIME_CANCELLED') return 'CANCELLED'
+  if (s === 'TIME_REJECTED') return 'REJECTED'
+  return s
+}
+
 export function getAbsenceStatusConfig(status?: string): AbsenceStatusConfig {
   if (!status) {
     return {
@@ -78,7 +89,7 @@ export function getAbsenceStatusConfig(status?: string): AbsenceStatusConfig {
     }
   }
 
-  const upperStatus = status.toUpperCase()
+  const upperStatus = normalizeToLegacy(status) as string
   const config = STATUS_CONFIG_MAP[upperStatus]
 
   if (config) {
@@ -93,7 +104,7 @@ export function getAbsenceStatusConfig(status?: string): AbsenceStatusConfig {
 
   // Default case for unknown statuses
   return {
-    label: status.charAt(0).toUpperCase() + status.slice(1).toLowerCase(),
+    label: (status || '').charAt(0).toUpperCase() + (status || '').slice(1).toLowerCase(),
     variant: 'secondary',
     color: 'var(--nw-muted-foreground)',
     type: 'unknown',
@@ -239,7 +250,7 @@ export function isActiveAbsenceStatus(status?: string): boolean {
  * @returns True if status is approved
  */
 export function isApprovedAbsenceStatus(status?: string): boolean {
-  return status?.toUpperCase() === 'APPROVED'
+  return normalizeToLegacy(status) === 'APPROVED'
 }
 
 /**
@@ -248,7 +259,7 @@ export function isApprovedAbsenceStatus(status?: string): boolean {
  * @returns True if status is pending
  */
 export function isPendingAbsenceStatus(status?: string): boolean {
-  return status?.toUpperCase() === 'PENDING'
+  return normalizeToLegacy(status) === 'PENDING'
 }
 
 /**
@@ -257,5 +268,5 @@ export function isPendingAbsenceStatus(status?: string): boolean {
  * @returns True if status is rejected
  */
 export function isRejectedAbsenceStatus(status?: string): boolean {
-  return status?.toUpperCase() === 'REJECTED'
+  return normalizeToLegacy(status) === 'REJECTED'
 }

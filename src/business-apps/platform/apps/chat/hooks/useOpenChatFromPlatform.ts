@@ -56,8 +56,15 @@ export const useOpenChatFromPlatform = ({
           setDraftMessage(prefilledMessage)
         }
 
-        // 4. Focus happens naturally when conversation opens
-        // The MessageInput component handles focus restoration automatically
+        // 4. Signal platform to reveal sidepanel content (so user doesn't see tab/list transition)
+        try {
+          window.dispatchEvent(new CustomEvent('chat:conversation-ready'))
+          if (window.parent !== window) {
+            window.parent.postMessage({ type: 'CHAT_CONVERSATION_READY' }, '*')
+          }
+        } catch {
+          // ignore
+        }
       } finally {
         processingRef.current = false
       }

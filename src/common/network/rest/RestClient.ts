@@ -183,7 +183,7 @@ export class RestClient {
     return this.request<T>(HttpMethod.PATCH, path, { ...options, body })
   }
 
-  public async delete<T = any>(path: string, options: RequestOptions = {}): Promise<T> {
+  public async delete<T = any>(path: string, options: RequestOptionsWithBody = {}): Promise<T> {
     return this.request<T>(HttpMethod.DELETE, path, options)
   }
 

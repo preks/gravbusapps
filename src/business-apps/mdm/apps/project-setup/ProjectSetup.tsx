@@ -53,9 +53,6 @@ import {
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
-  Avatar,
-  AvatarImage,
-  AvatarFallback,
   Select,
   SelectContent,
   SelectItem,
@@ -74,6 +71,7 @@ import CardTabHeaderComponent from '../generic-components/card'
 import { DeleteButton } from '../generic-components/delete-button/DeleteButton'
 import { formatDateToISO, getClosureDate } from '@/business-apps/mdm/forms/project-form/ProjectForm'
 import { DebouncedInput } from '@/components/debounced-input/DebouncedInput'
+import { PersonDisplay } from '@/common/components/person-display/PersonDisplay'
 
 export interface ProjectSetupProps extends BusinessAppContextProps {
   prefixDataTestId?: string
@@ -133,7 +131,12 @@ const getProjectTimeStatus = (project: Project) => {
   return null
 }
 
-export const showProjectManager = (project: Project) => {
+export interface ShowProjectManagerOptions {
+  /** When provided, the manager block is clickable and calls this with manager's employee id (e.g. navigateTo employee record) */
+  onClick?: (employeeId: string) => void
+}
+
+export const showProjectManager = (project: Project, options?: ShowProjectManagerOptions) => {
   const manager = project.manager as ProjectManager
   const projectManagerName =
     project.manager?.displayName ??
@@ -143,37 +146,14 @@ export const showProjectManager = (project: Project) => {
   const managerPicture = project.manager?.pictureThumbnail
 
   return (
-    <div className="gba:flex gba:items-center gba:gap-2">
-      {managerPicture ? (
-        <Avatar
-          size="default"
-          className="gba:h-10 gba:w-10"
-          data-testid={`manager-dashboard-direct-report-avatar-${projectManagerName}`}
-        >
-          <AvatarImage
-            src={
-              managerPicture && !managerPicture.startsWith('{') ? `data:image/jpeg;base64,${managerPicture}` : undefined
-            }
-            alt={projectManagerName}
-          />
-          <AvatarFallback>
-            {`${manager?.firstName?.[0] || ''}${manager?.lastName?.[0] || ''}`.toUpperCase()}
-          </AvatarFallback>
-        </Avatar>
-      ) : projectManagerName ? (
-        <div className="gba:w-8 gba:h-8 gba:rounded-full gba:bg-muted gba:flex gba:items-center gba:justify-center gba:text-xs gba:font-medium">
-          {projectManagerName
-            .split(' ')
-            .map((n: string) => n[0])
-            .join('')
-            .toUpperCase()
-            .slice(0, 2)}
-        </div>
-      ) : null}
-      <span className="gba:font-semibold">
-        {projectManagerName || <span className="gba:text-muted-foreground">-</span>}
-      </span>
-    </div>
+    <PersonDisplay
+      displayName={projectManagerName ?? '–'}
+      pictureThumbnail={managerPicture}
+      employeeId={manager?.id}
+      onClick={options?.onClick}
+      dataTestId={`manager-dashboard-direct-report-avatar-${projectManagerName ?? 'unknown'}`}
+      className="gba:flex gba:items-center gba:gap-2"
+    />
   )
 }
 

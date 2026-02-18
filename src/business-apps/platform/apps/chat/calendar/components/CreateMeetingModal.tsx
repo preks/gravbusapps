@@ -18,7 +18,6 @@ import {
   Spinner,
   IconAvatar
 } from '@newwork/nw-design-system'
-import { rtkDebug } from '../../utils/rtkDebug'
 import {
   Calendar,
   Clock,
@@ -204,13 +203,6 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
   // Initialize form when editMeeting changes
   useEffect(() => {
     if (editMeeting && isOpen) {
-      rtkDebug.log('[CreateMeetingModal] Initializing from editMeeting:', {
-        meetingId: editMeeting.id,
-        hasMetadata: !!editMeeting.metadata,
-        metadata: editMeeting.metadata,
-        aiTranscriptionEnabled: editMeeting.metadata?.aiTranscriptionEnabled
-      })
-
       setTitle(editMeeting.title || '')
       setDescription(editMeeting.description || '')
       setDate(formatDateForInput(editMeeting.startTime))
@@ -225,7 +217,6 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
       setReminderMinutes(editMeeting.reminderMinutes || [15])
 
       const transcriptionValue = editMeeting.metadata?.aiTranscriptionEnabled === true
-      rtkDebug.log('[CreateMeetingModal] Setting AI Transcription to:', transcriptionValue)
       setEnableAITranscription(transcriptionValue)
 
       // Initialize agenda from metadata

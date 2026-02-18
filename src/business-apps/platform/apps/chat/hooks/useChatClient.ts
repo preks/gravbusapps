@@ -7,7 +7,6 @@ import { useConversations } from './useConversations'
 import { useMessages } from './useMessages'
 import { useTypingIndicator } from './useTypingIndicator'
 import { usePresence, type PresenceState, type PresenceData } from './usePresence'
-import { rtkDebug } from '../utils/rtkDebug'
 
 // Shared WebSocket client to prevent duplicate connections
 // Multiple Chat instances (e.g., forceMount tabs) will share ONE WebSocket
@@ -704,6 +703,13 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
       }
     }
 
+    const handleParticipantRemoved = (data: { conversationId: string }) => {
+      conversationsHookRef.current?.removeConversation?.(data.conversationId)
+      if (activeConversationIdRef.current === data.conversationId) {
+        setActiveConversationId(null)
+      }
+    }
+
     const handleConversationCreated = async (data: { conversation: any }) => {
       // New conversation was created and this user is a participant
       if (conversationsHookRef.current) {
@@ -715,6 +721,11 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
           } else {
             conversationsHookRef.current.addConversation(data.conversation)
           }
+          // If this conversation is already open (e.g. user was removed but view wasn't cleared, then re-added), load messages
+          const conversationId = data.conversation?.id
+          if (conversationId && activeConversationIdRef.current === conversationId) {
+            setTimeout(() => messagesHookRef.current?.refresh?.(), 0)
+          }
         } catch {
           // Error adding new conversation
         }
@@ -722,7 +733,6 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
     }
 
     const handleConversationCallStarted = (data: ActiveCall) => {
-      rtkDebug.log('[CHAT CLIENT] 📞 Received conversation:call-started:', data)
       setActiveCalls(prev => ({ ...prev, [data.conversationId]: data }))
       conversationsHookRef.current?.updateConversation?.(data.conversationId, {
         activeCall: data
@@ -730,12 +740,9 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
     }
 
     const handleConversationCallEnded = (data: { conversationId: string; roomId: string }) => {
-      rtkDebug.log('[CHAT CLIENT] 📴 Received conversation:call-ended:', data)
       setActiveCalls(prev => {
-        rtkDebug.log('[CHAT CLIENT] ActiveCalls BEFORE remove:', prev)
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { [data.conversationId]: _removed, ...rest } = prev
-        rtkDebug.log('[CHAT CLIENT] ActiveCalls AFTER remove:', rest)
         return rest
       })
       conversationsHookRef.current?.updateConversation?.(data.conversationId, {
@@ -789,6 +796,7 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
     wsClient.onMessageRead(handleMessageRead)
     wsClient.onConversationUpdated(handleConversationUpdated)
     wsClient.onConversationCreated(handleConversationCreated)
+    wsClient.onParticipantRemoved(handleParticipantRemoved)
     wsClient.onConversationRead(handleConversationRead)
 
     wsClient.onConversationCallStarted(handleConversationCallStarted)
@@ -808,6 +816,7 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
       wsClient.off('message:read', handleMessageRead)
       wsClient.off('conversation_updated', handleConversationUpdated)
       wsClient.off('conversation_created', handleConversationCreated)
+      wsClient.off('participant_removed', handleParticipantRemoved)
       wsClient.off('conversation:read', handleConversationRead)
       wsClient.off('conversation:call-started', handleConversationCallStarted)
       wsClient.off('conversation:call-ended', handleConversationCallEnded)
@@ -1066,9 +1075,15 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
       // This allows the UI to show the conversation view instantly
       setActiveConversationId(conversation.id)
 
+      // Join the conversation room so we receive new_message, conversation:call-started, etc.
+      // Required for leave/rejoin: after re-add, opening the conversation must re-join the socket to the room.
+      const lastMessageTimestamp = conversation.lastMessage?.createdAt
+        ? new Date(conversation.lastMessage.createdAt).getTime()
+        : 0
+      wsClientRef.current?.joinConversation(conversation.id, lastMessageTimestamp)
+
       // Set initial timestamp to filter out historical WebSocket messages
       if (conversation.lastMessage?.createdAt) {
-        const lastMessageTimestamp = new Date(conversation.lastMessage.createdAt).getTime()
         newestMessageTimestampRef.current = lastMessageTimestamp
       } else {
         // Fallback to already-loaded messages
@@ -1084,6 +1099,12 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
       // NOTE: Backend handles read receipts when conversation is opened
       // Frontend relies on participant.lastReadAt timestamps for message status calculation
       // WebSocket events (message:delivered, message:read) update status in real-time
+
+      // Ensure messages are loaded when opening a conversation (e.g. re-added user opening the thread).
+      // Defer so React commits activeConversationId first; then refresh loads messages for the new conversation.
+      setTimeout(() => {
+        messagesHookRef.current?.refresh?.()
+      }, 0)
 
       // OPTIMIZATION: Defer expensive API calls and enrichment
       // Do this in the background without blocking the click handler
@@ -1124,6 +1145,10 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
       try {
         // Remove current user as participant (leave conversation)
         await apiClientRef.current.removeParticipant(conversationId, currentUser.id)
+
+        // Leave the Socket.IO conversation room so we stop receiving events for this conversation.
+        // Required for leave/rejoin: when they rejoin and open the conversation, join_conversation will add the socket back.
+        wsClientRef.current?.leaveConversation(conversationId)
 
         // Clear active conversation if it's the one being closed
         if (activeConversationId === conversationId) {

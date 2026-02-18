@@ -155,7 +155,9 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
     lines: string[]
     error: string | null
   }>({ active: false, lines: [], error: null })
+  const [fileExplorerRefreshKey, setFileExplorerRefreshKey] = useState(0)
   const [previewReady, setPreviewReady] = useState(false)
+  const messagesRef = useRef<Message[]>([])
 
   const builderClient = useBuilderClient(context.accessToken)
   const toolIdCounter = useRef(0)
@@ -163,6 +165,9 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
   const previousChangeCountRef = useRef(0)
   const publishProgressRef = useRef<string[]>([])
   const restoreProgressRef = useRef<string[]>([])
+  const screenBuildUsedRef = useRef(false)
+  const screenBuildSucceededRef = useRef(false)
+  const filesChangedInRunRef = useRef(false)
   const resolvedTargetPath = detectedTargetPath || targetPath
 
   const createMessageId = (): string => {
@@ -192,6 +197,26 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
       }
     })
     return { messages, updated }
+  }
+
+  useEffect(() => {
+    messagesRef.current = messages
+  }, [messages])
+
+  const hasSuccessfulScreenBuildInMessages = (items: Message[]): boolean => {
+    for (let i = items.length - 1; i >= 0; i -= 1) {
+      const message = items[i]
+      if (!message.toolCalls || message.toolCalls.length === 0) continue
+      for (let j = message.toolCalls.length - 1; j >= 0; j -= 1) {
+        const call = message.toolCalls[j]
+        if (call.tool !== 'screen_build') continue
+        const resultText = call.result ?? ''
+        if (resultText.includes('"success": true') || resultText.includes('"success":true')) {
+          return true
+        }
+      }
+    }
+    return false
   }
 
   const readSseStream = async <T,>(stream: ReadableStream, onEvent: (event: T) => void): Promise<void> => {
@@ -267,6 +292,10 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
     localStorage.setItem('ai-builder-show-file-explorer', String(newValue))
   }
 
+  const refreshFileExplorer = () => {
+    setFileExplorerRefreshKey(prev => prev + 1)
+  }
+
   const getNormalizedChangeType = (type: string): 'create' | 'modify' | 'delete' => {
     if (type === 'create') return 'create'
     if (type === 'delete') return 'delete'
@@ -281,6 +310,18 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
 
   const normalizeNonEmpty = (value?: string | null): string | null => {
     return value?.trim() ?? null
+  }
+
+  const normalizeResourceUrl = (value?: string | null): string | null => {
+    const normalized = normalizeNonEmpty(value)
+    if (!normalized) return null
+    return normalized.startsWith('/') ? normalized : `/${normalized}`
+  }
+
+  const getAutoResourceUrl = (pathValue: string): string => {
+    const segments = pathValue.split('/').filter(Boolean)
+    const screenName = segments[segments.length - 1] ?? pathValue
+    return `/platform/generated/${screenName}`
   }
 
   const toPreviewAppName = (pathValue?: string | null): string | null => {
@@ -331,15 +372,19 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
         const screenRootPattern = new RegExp(String.raw`^src/business-apps/(.+/(?:${screenTypes})/[^/]+)/index\.ts$`)
         const indexFiles = data.summary.files.filter((f: FileChange) => screenRootPattern.test(f.path))
         if (indexFiles.length > 0) {
-          const match = screenRootPattern.exec(indexFiles[0].path)
+          const latestIndexFile = indexFiles[indexFiles.length - 1]
+          const match = screenRootPattern.exec(latestIndexFile.path)
           if (match) {
             const detectedPath = match[1]
             setDetectedTargetPath(detectedPath)
             setTargetPath(detectedPath)
-            const segments = detectedPath.split('/')
-            const screenName = segments[segments.length - 1]
-            // Auto-generate resource URL from the last segment (target path name), e.g. "/platform/generated/hello-world"
-            setResourceUrl('/platform/generated/' + screenName)
+            const autoResourceUrl = getAutoResourceUrl(detectedPath)
+            const normalizedResourceUrl = normalizeResourceUrl(resourceUrl)
+            const previousAutoResourceUrl = detectedTargetPath ? getAutoResourceUrl(detectedTargetPath) : null
+            // Auto-generate resource URL from the last segment when not set or previously auto-generated
+            if (!normalizedResourceUrl || (previousAutoResourceUrl && normalizedResourceUrl === previousAutoResourceUrl)) {
+              setResourceUrl(autoResourceUrl)
+            }
           }
         }
       }
@@ -367,7 +412,12 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
       })
       await readSseStream<{ type?: string; message?: string; result?: { cacheHit?: boolean } }>(stream, event => {
         if (event?.type === 'done') {
-          setPreviewBuildStatus(prev => ({ ...prev, active: false }))
+          setPreviewBuildStatus(prev => ({
+            ...prev,
+            active: true,
+            lines: [...prev.lines, 'Reloading preview...'].slice(-6),
+            error: null
+          }))
           if (!previewReady) {
             setPreviewReady(true)
           }
@@ -513,18 +563,22 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
           completed = true
           const result = event.result
           const publishedPath = result?.targetPath || targetPath
-          const fullUrl = `/${publishedPath}`
+          const normalizedResourceUrl =
+            normalizeResourceUrl(result?.resourceUrl) ?? normalizeResourceUrl(resourceUrl)
+          const fallbackUrl = normalizeResourceUrl(publishedPath)
+          const fullUrl = normalizedResourceUrl || fallbackUrl || `/${publishedPath}`
           setPublishSuccess(fullUrl)
           setPublishError(null)
           setPublishVersionNote('')
+          const linkText = fullUrl
           replaceTempMessage(
             tempMessageId,
             buildMessage(
               'assistant',
               getTranslationFromI18nKeyAndLabel(
                 'lowcoder:ai_builder.publish_success_message',
-                `✅ **Screen published successfully!**\n\nYou can now access your screen at:\n${fullUrl}\n\nClick the link in the success banner to open it in a new tab.`,
-                { url: fullUrl }
+                `✅ **Screen published successfully!**\n\nOpen screen: [${linkText}](${linkText})`,
+                { url: linkText }
               )
             )
           )
@@ -659,6 +713,16 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
     setThinking: (v: boolean) => void
     setThinkingContent: (v: React.SetStateAction<string>) => void
     toolIdCounter: React.MutableRefObject<number>
+    markScreenBuildUsed: () => void
+    markScreenBuildSucceeded: () => void
+    setPreviewBuildStatus: React.Dispatch<
+      React.SetStateAction<{
+        active: boolean
+        lines: string[]
+        error: string | null
+      }>
+    >
+    markFilesChanged: () => void
   }
   type StreamState = { assistantMessage: string; needsNewMessage: boolean; hasCreatedInitialMessage: boolean }
 
@@ -730,6 +794,14 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
   }
 
   const applyToolCallEvent = (data: Record<string, unknown>, streamState: StreamState, ctx: StreamCtx): void => {
+    if (data.toolName === 'screen_build') {
+      ctx.markScreenBuildUsed()
+      ctx.setPreviewBuildStatus({
+        active: true,
+        lines: ['Waiting for build to start...'],
+        error: null
+      })
+    }
     if (!streamState.hasCreatedInitialMessage) {
       ctx.setMessages(prev => [...prev, buildMessage('assistant', '')])
       streamState.hasCreatedInitialMessage = true
@@ -757,6 +829,65 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
   }
 
   const applyToolResultEvent = (data: Record<string, unknown>, ctx: StreamCtx): void => {
+    const resultContent =
+      typeof data.content === 'string'
+        ? data.content
+        : data.toolResult && typeof data.toolResult === 'object'
+          ? JSON.stringify(data.toolResult)
+          : ''
+
+    if (data.toolName === 'screen_build') {
+      const toolResult =
+        data.toolResult && typeof data.toolResult === 'object' ? (data.toolResult as Record<string, unknown>) : null
+      const statusLines =
+        Array.isArray(toolResult?.lines) && toolResult?.lines.length > 0
+          ? (toolResult.lines.filter(line => typeof line === 'string') as string[])
+          : []
+      const resultMessage = typeof toolResult?.message === 'string' ? toolResult.message : null
+      const successFromResult = toolResult?.success === true
+      const successFromContent = resultContent.includes('"success": true') || resultContent.includes('"success":true')
+      if (successFromResult || successFromContent) {
+        ctx.markScreenBuildSucceeded()
+        ctx.setPreviewBuildStatus(prev => ({
+          ...prev,
+          active: true,
+          lines: [
+            ...(statusLines.length > 0 ? statusLines : prev.lines),
+            ...(resultMessage ? [resultMessage] : []),
+            'Waiting to reload preview...'
+          ].slice(-6),
+          error: null
+        }))
+      } else {
+        const failedMessage =
+          (data.toolResult &&
+            typeof data.toolResult === 'object' &&
+            'error' in (data.toolResult as Record<string, unknown>) &&
+            typeof (data.toolResult as Record<string, unknown>).error === 'string' &&
+            ((data.toolResult as Record<string, unknown>).error as string)) ||
+          'Preview build failed'
+        ctx.setPreviewBuildStatus(prev => ({
+          ...prev,
+          active: false,
+          lines: [
+            ...(statusLines.length > 0 ? statusLines : prev.lines),
+            ...(resultMessage ? [resultMessage] : ['Preview build failed'])
+          ].slice(-6),
+          error: failedMessage as string
+        }))
+      }
+    }
+    if (data.toolName === 'write_file' || data.toolName === 'delete_file') {
+      const toolResult =
+        data.toolResult && typeof data.toolResult === 'object' ? (data.toolResult as Record<string, unknown>) : null
+      if (
+        toolResult?.success === true ||
+        resultContent.includes('"success": true') ||
+        resultContent.includes('"success":true')
+      ) {
+        ctx.markFilesChanged()
+      }
+    }
     ctx.setMessages(prev => {
       const newMessages = [...prev]
       const lastMsg = newMessages[newMessages.length - 1]
@@ -765,7 +896,7 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
       if (runningTools.length === 0) return newMessages
       const tool = runningTools[runningTools.length - 1]
       tool.status = 'complete'
-      tool.result = data.content as string
+      tool.result = resultContent
       return newMessages
     })
   }
@@ -826,6 +957,9 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
     if (!input.trim() || loading) return
     const userMessage = buildMessage('user', input)
     const userInput = input
+    screenBuildUsedRef.current = false
+    screenBuildSucceededRef.current = false
+    filesChangedInRunRef.current = false
     setMessages(prev => [...prev, userMessage])
     setInput('')
     setLoading(true)
@@ -862,7 +996,17 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
         setUsage,
         setThinking,
         setThinkingContent,
-        toolIdCounter
+        toolIdCounter,
+        markScreenBuildUsed: () => {
+          screenBuildUsedRef.current = true
+        },
+        markScreenBuildSucceeded: () => {
+          screenBuildSucceededRef.current = true
+        },
+        setPreviewBuildStatus,
+        markFilesChanged: () => {
+          filesChangedInRunRef.current = true
+        }
       }
       await runStreamToEnd(reader, streamState, ctx)
     } catch (error) {
@@ -883,10 +1027,37 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
       setLoading(false)
       setTimeout(async () => {
         const newCount = await checkForChanges()
-        if (newCount > previousChangeCountRef.current) {
-          await refreshPreview()
+        if (filesChangedInRunRef.current || newCount > previousChangeCountRef.current) {
+          refreshFileExplorer()
+        }
+        const hasNewChanges = newCount > previousChangeCountRef.current
+        if (hasNewChanges) {
+          const succeededFromMessages = hasSuccessfulScreenBuildInMessages(messagesRef.current)
+          if ((screenBuildUsedRef.current && screenBuildSucceededRef.current) || succeededFromMessages) {
+            setPreviewBuildStatus(prev => ({
+              ...prev,
+              active: true,
+              lines: [...prev.lines, 'Reloading preview...'].slice(-6),
+              error: null
+            }))
+            setPreviewReady(true)
+            previewSandboxRef.current?.reload()
+          } else {
+            await refreshPreview()
+          }
+        } else if (screenBuildUsedRef.current && screenBuildSucceededRef.current) {
+          // screen_build succeeded but no new diff count; close overlay cleanly
+          setPreviewBuildStatus(prev => ({
+            ...prev,
+            active: false,
+            lines: [...prev.lines, 'Preview already up to date'].slice(-6),
+            error: null
+          }))
         }
         previousChangeCountRef.current = newCount
+        screenBuildUsedRef.current = false
+        screenBuildSucceededRef.current = false
+        filesChangedInRunRef.current = false
       }, 2000)
     }
   }
@@ -921,7 +1092,12 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
       <div className="gba:relative gba:z-10 gba:flex gba:w-full gba:h-full">
         {fileExplorerEnabled && showFileExplorer && sessionId && (
           <div className="gba:w-[320px] gba:border-r gba:border-border gba:flex-shrink-0 gba:bg-card/80 gba:backdrop-blur-sm">
-            <FileExplorer repoId={repositoryId} sessionId={sessionId} onFileClick={path => setSelectedFile(path)} />
+            <FileExplorer
+              key={`${sessionId}-${fileExplorerRefreshKey}`}
+              repoId={repositoryId}
+              sessionId={sessionId}
+              onFileClick={path => setSelectedFile(path)}
+            />
           </div>
         )}
 
@@ -1303,6 +1479,16 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
                       userInfo={context.userInfo}
                       buildStatus={previewBuildStatus}
                       allowLoad={previewReady}
+                      onReady={() => {
+                        setPreviewBuildStatus(prev => ({ ...prev, active: false }))
+                      }}
+                      onError={error => {
+                        setPreviewBuildStatus(prev => ({
+                          ...prev,
+                          active: false,
+                          error: error.message || 'Preview failed to load'
+                        }))
+                      }}
                     />
                   </div>
                 </ResizablePanel>

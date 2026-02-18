@@ -357,6 +357,7 @@ participants-everyones-here = Toată lumea e aici!
 participants-all-members-in-call = Toți membrii conversației sunt fie în apel, fie au fost invitați.
 participants-in-call = În apel
 participants-invited = Invitați
+participants-not-in-this-meeting = Nu sunt în această întâlnire
 participants-left-call = A părăsit apelul
 participants-unknown = Necunoscut
 participants-you = Tu
@@ -421,6 +422,7 @@ calendar-today = Astăzi
 calendar-viewDay = Zi
 calendar-viewWeek = Săptămână
 calendar-viewMonth = Lună
+calendar-refresh = Reîmprospătează calendarul
 
 # Calendar - CreateMeetingModal
 calendar-scheduleMeeting = Programează Întâlnire

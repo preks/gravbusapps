@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useMemo, useState } from 'react'
 import {
   Button,
   Badge,
@@ -13,19 +13,22 @@ import {
   AvatarImage,
   AvatarFallback
 } from '@newwork/nw-design-system'
-import { ChevronLeft } from 'lucide-react'
+import { ChevronDown, ChevronLeft, ChevronUp } from 'lucide-react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { DirectReport } from '../hooks/useDirectReports'
+import { getAbsenceStatusBadgeVariant } from '@/business-apps/hr/absences/utils/absenceStatusUtils'
 
 export interface FilteredTeammatesViewProps {
   directReports: DirectReport[]
   unallocatedEmployeeIds: string[]
+  employeeAllocations: Array<{ id: string; allocationPercent: number }>
   filterAbsentOnly: boolean
   filterUnallocatedOnly: boolean
   loadingDirectReports: boolean
   directReportsError: Error | null
   onNavigateBack: () => void
   onNavigateToEmployee: (employeeId: string) => void
+  onAssignProject: (employeeId: string) => void
 }
 
 interface Employee {
@@ -35,6 +38,7 @@ interface Employee {
   jobTitle: string
   organizationalUnit: string
   profilePicture: string
+  allocationPercent: number
   status?: string
   currentAbsence?: {
     type: string
@@ -47,8 +51,10 @@ interface Employee {
 
 const StatusBadge: React.FC<{ employee: Employee }> = ({ employee }) => {
   if (employee.status === 'On Leave') {
+    const absenceVariant = getAbsenceStatusBadgeVariant(employee.currentAbsence?.status)
+
     return (
-      <Badge variant="warning">
+      <Badge variant={absenceVariant}>
         {employee.currentAbsence?.type ||
           getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.on_leave', 'On Leave')}
       </Badge>
@@ -67,20 +73,30 @@ const StatusBadge: React.FC<{ employee: Employee }> = ({ employee }) => {
 export const FilteredTeammatesView: React.FC<FilteredTeammatesViewProps> = ({
   directReports,
   unallocatedEmployeeIds,
+  employeeAllocations,
   filterAbsentOnly,
   filterUnallocatedOnly,
   loadingDirectReports,
   directReportsError,
   onNavigateBack,
-  onNavigateToEmployee
+  onNavigateToEmployee,
+  onAssignProject
 }) => {
+  const [sortField, setSortField] = useState<'name' | 'allocation'>('name')
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
+
+  const allocationMap = useMemo(
+    () => new Map(employeeAllocations.map(item => [item.id, item.allocationPercent])),
+    [employeeAllocations]
+  )
+
   // Filter direct reports based on active filter
   const getFilteredDirectReports = () => {
     if (filterAbsentOnly) {
       return directReports.filter(report => report.status === 'On Leave')
     }
     if (filterUnallocatedOnly) {
-      return directReports.filter(report => unallocatedEmployeeIds.includes(report.id))
+      return directReports
     }
     return directReports
   }
@@ -108,7 +124,10 @@ export const FilteredTeammatesView: React.FC<FilteredTeammatesViewProps> = ({
       return `${count} ${getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.out_of_office', 'out of office')}`
     }
     if (filterUnallocatedOnly) {
-      return `${count} ${getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.not_allocated', 'not allocated')}`
+      return `${unallocatedEmployeeIds.length} ${getTranslationFromI18nKeyAndLabel(
+        'master-data:hr.manager_dashboard.not_allocated',
+        'not allocated'
+      )}`
     }
     return `${count} ${getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.total_teammates', 'team members').toLowerCase()}`
   }
@@ -140,6 +159,7 @@ export const FilteredTeammatesView: React.FC<FilteredTeammatesViewProps> = ({
     jobTitle: report.jobPositionName || '',
     organizationalUnit: report.organizationalUnitName || '',
     profilePicture: report.pictureThumbnail || '',
+    allocationPercent: allocationMap.get(report.id) ?? 0,
     status: report.status === 'Away' ? 'On Leave' : report.status,
     currentAbsence: report.currentAbsence
       ? {
@@ -152,8 +172,54 @@ export const FilteredTeammatesView: React.FC<FilteredTeammatesViewProps> = ({
       : undefined
   }))
 
+  const sortedFilteredReports = useMemo(() => {
+    const cloned = [...transformedFilteredReports]
+
+    cloned.sort((a, b) => {
+      if (sortField === 'allocation') {
+        const allocationComparison = a.allocationPercent - b.allocationPercent
+        return sortDirection === 'asc' ? allocationComparison : -allocationComparison
+      }
+
+      const nameA = `${a.firstName} ${a.lastName}`.toLowerCase()
+      const nameB = `${b.firstName} ${b.lastName}`.toLowerCase()
+      const nameComparison = nameA.localeCompare(nameB)
+      return sortDirection === 'asc' ? nameComparison : -nameComparison
+    })
+
+    return cloned
+  }, [transformedFilteredReports, sortField, sortDirection])
+
+  const handleSortChange = (field: 'name' | 'allocation') => {
+    if (sortField === field) {
+      setSortDirection(current => (current === 'asc' ? 'desc' : 'asc'))
+      return
+    }
+
+    setSortField(field)
+    setSortDirection('asc')
+  }
+
   const handleSelectEmployee = (employee: Employee) => {
     onNavigateToEmployee(employee.id)
+  }
+
+  const renderSortIndicator = (field: 'name' | 'allocation') => {
+    if (sortField !== field) {
+      return null
+    }
+
+    return sortDirection === 'asc' ? (
+      <ChevronUp size={14} className="gba:text-muted-foreground" />
+    ) : (
+      <ChevronDown size={14} className="gba:text-muted-foreground" />
+    )
+  }
+
+  const getHeaderBadgeVariant = () => {
+    if (filterAbsentOnly) return 'warning' as const
+    if (filterUnallocatedOnly) return 'secondary' as const
+    return 'secondary' as const
   }
 
   return (
@@ -175,7 +241,7 @@ export const FilteredTeammatesView: React.FC<FilteredTeammatesViewProps> = ({
             )}
           </Button>
           <h1 className="gba:text-xl gba:font-semibold">{getHeaderTitle()}</h1>
-          <Badge variant={filterAbsentOnly ? 'warning' : 'info'} className="gba:ml-3">
+          <Badge variant={getHeaderBadgeVariant()} className="gba:ml-3">
             {getBadgeText(transformedFilteredReports.length)}
           </Badge>
         </div>
@@ -215,7 +281,15 @@ export const FilteredTeammatesView: React.FC<FilteredTeammatesViewProps> = ({
             <TableHeader>
               <TableRow>
                 <TableHead>
-                  {getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.team_member', 'Team Member')}
+                  <button
+                    type="button"
+                    onClick={() => handleSortChange('name')}
+                    className="gba:inline-flex gba:items-center gba:gap-1 gba:font-medium hover:gba:text-foreground"
+                    data-testid="manager-dashboard-sort-by-name-header"
+                  >
+                    {getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.team_member', 'Team Member')}
+                    {renderSortIndicator('name')}
+                  </button>
                 </TableHead>
                 <TableHead>
                   {getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.position', 'Position')}
@@ -224,10 +298,29 @@ export const FilteredTeammatesView: React.FC<FilteredTeammatesViewProps> = ({
                   {getTranslationFromI18nKeyAndLabel('master-data:hr.manager_dashboard.department', 'Department')}
                 </TableHead>
                 <TableHead>{getTranslationFromI18nKeyAndLabel('lowcoder:absence_table.status', 'Status')}</TableHead>
+                {filterUnallocatedOnly && (
+                  <>
+                    <TableHead>
+                      <button
+                        type="button"
+                        onClick={() => handleSortChange('allocation')}
+                        className="gba:inline-flex gba:items-center gba:gap-1 gba:font-medium hover:gba:text-foreground"
+                        data-testid="manager-dashboard-sort-by-allocation-header"
+                      >
+                        {getTranslationFromI18nKeyAndLabel(
+                          'master-data:hr.manager_dashboard.total_allocation',
+                          'Total Allocation'
+                        )}
+                        {renderSortIndicator('allocation')}
+                      </button>
+                    </TableHead>
+                    <TableHead>{getTranslationFromI18nKeyAndLabel('master-data:allocate', 'Allocate')}</TableHead>
+                  </>
+                )}
               </TableRow>
             </TableHeader>
             <TableBody>
-              {transformedFilteredReports.map(employee => (
+              {sortedFilteredReports.map(employee => (
                 <TableRow
                   key={employee.id}
                   className="gba:cursor-pointer hover:gba:bg-muted/50"
@@ -261,6 +354,26 @@ export const FilteredTeammatesView: React.FC<FilteredTeammatesViewProps> = ({
                   <TableCell>
                     <StatusBadge employee={employee} />
                   </TableCell>
+                  {filterUnallocatedOnly && (
+                    <>
+                      <TableCell>{employee.allocationPercent}%</TableCell>
+                      <TableCell>
+                        {employee.allocationPercent !== 100 && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={event => {
+                              event.stopPropagation()
+                              onAssignProject(employee.id)
+                            }}
+                            data-testid={`manager-dashboard-filtered-teammates-allocate-${employee.id}`}
+                          >
+                            Allocate
+                          </Button>
+                        )}
+                      </TableCell>
+                    </>
+                  )}
                 </TableRow>
               ))}
             </TableBody>
