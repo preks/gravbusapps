@@ -190,6 +190,7 @@ export const PerformanceEvaluationFormProvider: React.FC<PerformanceEvaluationFo
     employeeId: undefined,
     employeeName: undefined,
     topics: [],
+    comments: '',
     ...initialValues
   })
 
@@ -390,7 +391,14 @@ export const PerformanceEvaluationFormProvider: React.FC<PerformanceEvaluationFo
       }
 
       const evaluationId = evaluationFormDataPayload?.evaluationId ?? ''
-      const employeeId = formValues.employeeId ?? preSelectedEmployeeId ?? ''
+      const nodeName = taskPayload?.NodeName
+      const taskName = taskPayload?.TaskName
+      const isManagerReview = nodeName === 'Manager Review' || nodeName === 'Manager Evaluation'
+      const isPeerReview = taskName === 'peerEvaluation' || taskName === 'peerReview'
+      const employeeId =
+        isManagerReview || isPeerReview
+          ? (businessAppContext?.userInfo?.employeeDetails?.employeeId ?? '')
+          : (formValues.employeeId ?? preSelectedEmployeeId ?? '')
 
       const skillRatings = formValues.topics
         .filter(t => t.category === 'skill')
@@ -413,22 +421,17 @@ export const PerformanceEvaluationFormProvider: React.FC<PerformanceEvaluationFo
         employeeId,
         skillRatings,
         companyValueRatings,
-        comments: ''
+        comments: formValues.comments ?? ''
       }
 
-      const formattedComments = formValues.topics
-        .map(topic => {
-          const ratingValue = topic.rating !== undefined ? topic.rating : 'N/A'
-          return `${topic.name}:${ratingValue}`
-        })
-        .join(';')
-
-      const nodeName = taskPayload?.NodeName
-      const isManagerReview = nodeName === 'Manager Review'
-
-      const payload = isManagerReview
-        ? { managerComments: formattedComments, reviewSubmission }
-        : { employeeComments: formattedComments, reviewSubmission }
+      let payload: Record<string, unknown>
+      if (isPeerReview) {
+        payload = { peerReviewSubmission: reviewSubmission }
+      } else if (isManagerReview) {
+        payload = { managerReviewSubmission: reviewSubmission }
+      } else {
+        payload = { reviewSubmission }
+      }
 
       dispatchProcessContinueEvent('pse_submit', payload)
 
