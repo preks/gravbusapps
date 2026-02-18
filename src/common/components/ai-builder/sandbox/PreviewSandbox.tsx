@@ -20,7 +20,7 @@ interface PreviewSandboxProps {
 }
 
 export interface PreviewSandboxHandle {
-  reload: () => void
+  reload: (opts?: { cacheOnly?: boolean }) => void
 }
 
 export const PreviewSandbox = forwardRef<PreviewSandboxHandle, PreviewSandboxProps>(function PreviewSandbox(
@@ -36,11 +36,14 @@ export const PreviewSandbox = forwardRef<PreviewSandboxHandle, PreviewSandboxPro
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const builderClient = useBuilderClient(accessToken ?? '')
 
-  const createPreviewUrl = (cacheBust: string) => {
-    const query: Record<string, string> = { v: cacheBust }
+  const createPreviewUrl = (cacheBust: string, cacheOnly?: boolean) => {
+    const query: Record<string, string | boolean> = { v: cacheBust }
     const app = previewAppName?.trim()
     if (app) {
       query.app = app
+    }
+    if (cacheOnly) {
+      query.bundle = false
     }
     return builderClient.getPreviewFileUrl(sessionId, 'index.html', query)
   }
@@ -48,11 +51,11 @@ export const PreviewSandbox = forwardRef<PreviewSandboxHandle, PreviewSandboxPro
   useImperativeHandle(
     ref,
     () => ({
-      reload() {
+      reload(opts?: { cacheOnly?: boolean }) {
         setIframeLoaded(false)
         const cacheBust = Date.now().toString()
         setBundleVersion(cacheBust)
-        setPreviewUrl(createPreviewUrl(cacheBust))
+        setPreviewUrl(createPreviewUrl(cacheBust, opts?.cacheOnly))
       }
     }),
     [builderClient, sessionId, previewAppName]

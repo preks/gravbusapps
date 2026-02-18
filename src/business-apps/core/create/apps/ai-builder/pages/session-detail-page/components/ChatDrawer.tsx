@@ -16,6 +16,7 @@ import {
   Bot,
   Sparkles,
   Loader2,
+  Square,
   Copy,
   Check,
   ChevronDown,
@@ -64,7 +65,12 @@ interface ChatDrawerProps {
   input: string
   onInputChange: (value: string) => void
   onSendMessage: () => void
+  onStopMessage?: () => void
+  onQueueFollowUp?: () => void
+  onSendQueuedFollowUpNow?: () => void
+  onDeleteQueuedFollowUp?: () => void
   isProcessing: boolean
+  queuedFollowUpPrompt?: string | null
   thinking?: boolean
   userName?: string
   userAvatar?: string
@@ -81,7 +87,6 @@ interface ChatDrawerProps {
   analyzingRequestText?: string
   tipText?: string
   sendButtonLabel?: string
-  buildingLabel?: string
   emptyTitle?: string
   emptyDescription?: string
   className?: string
@@ -95,7 +100,12 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
   input,
   onInputChange,
   onSendMessage,
+  onStopMessage,
+  onQueueFollowUp,
+  onSendQueuedFollowUpNow,
+  onDeleteQueuedFollowUp,
   isProcessing,
+  queuedFollowUpPrompt,
   thinking = false,
   userName = 'You',
   userAvatar,
@@ -112,7 +122,6 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
   analyzingRequestText,
   tipText,
   sendButtonLabel,
-  buildingLabel,
   emptyTitle,
   emptyDescription,
   className,
@@ -135,7 +144,10 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
-      if (!isProcessing && input.trim()) {
+      if (!input.trim()) return
+      if (isProcessing && onQueueFollowUp) {
+        onQueueFollowUp()
+      } else if (!isProcessing) {
         onSendMessage()
       }
     }
@@ -506,27 +518,69 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
               onChange={e => onInputChange(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder={inputPlaceholder ?? 'Describe what you want to build...'}
-              disabled={isProcessing}
               className="gba:w-full gba:px-4 gba:py-3 gba:pr-12 gba:border gba:border-border gba:rounded-lg gba:bg-background gba:text-sm gba:resize-none focus:gba:outline-none focus:gba:ring-2 focus:gba:ring-primary focus:gba:border-transparent disabled:gba:opacity-50 disabled:gba:cursor-not-allowed"
               rows={3}
               data-testid="ai-builder-input"
             />
           </div>
+          {isProcessing && input.trim() && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onQueueFollowUp}
+              disabled={!onQueueFollowUp}
+              className="gba:shrink-0"
+              data-testid="ai-builder-queue-followup-button"
+              title="Queue follow-up prompt"
+            >
+              Queue
+            </Button>
+          )}
           <Button
-            onClick={onSendMessage}
-            disabled={isProcessing || !input.trim()}
+            onClick={isProcessing ? onStopMessage : onSendMessage}
+            disabled={isProcessing ? !onStopMessage : !input.trim()}
             size="icon"
             className="gba:shrink-0"
             data-testid="ai-builder-send-button"
-            title={isProcessing ? (buildingLabel ?? undefined) : (sendButtonLabel ?? undefined)}
+            title={
+              isProcessing
+                ? getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.stop_generation', 'Stop generation')
+                : (sendButtonLabel ?? undefined)
+            }
           >
-            {isProcessing ? (
-              <Loader2 className="gba:w-4 gba:h-4 gba:animate-spin" />
-            ) : (
-              <Sparkles className="gba:w-4 gba:h-4" />
-            )}
+            {isProcessing ? <Square className="gba:w-4 gba:h-4" /> : <Sparkles className="gba:w-4 gba:h-4" />}
           </Button>
         </div>
+        {queuedFollowUpPrompt && (
+          <div className="gba:mt-2 gba:rounded-md gba:border gba:bg-muted/40 gba:p-2">
+            <p className="gba:text-xs gba:text-muted-foreground">
+              Queued follow-up (will send automatically after current response):
+            </p>
+            <p className="gba:text-sm gba:mt-1 gba:line-clamp-2">{queuedFollowUpPrompt}</p>
+            <div className="gba:mt-2 gba:flex gba:gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="default"
+                onClick={onSendQueuedFollowUpNow}
+                disabled={!onSendQueuedFollowUpNow}
+                data-testid="ai-builder-send-followup-now-button"
+              >
+                Send now
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={onDeleteQueuedFollowUp}
+                disabled={!onDeleteQueuedFollowUp}
+                data-testid="ai-builder-delete-followup-button"
+              >
+                Delete
+              </Button>
+            </div>
+          </div>
+        )}
         {analyzingRequestText && isProcessing && (
           <div className="gba:text-center gba:text-sm gba:text-muted-foreground gba:flex gba:items-center gba:justify-center gba:gap-2 gba:mt-2">
             <Loader2 className="gba:w-4 gba:h-4 gba:animate-spin" />
