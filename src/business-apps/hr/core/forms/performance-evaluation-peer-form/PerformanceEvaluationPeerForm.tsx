@@ -28,8 +28,6 @@ const PerformanceEvaluationPeerForm: React.FC<BusinessAppContextProps & Performa
     additionalData
   }
 
-  console.log('additionalData', additionalData)
-
   return (
     <PerformanceEvaluationPeerFormProvider
       businessAppContext={businessAppContext}
