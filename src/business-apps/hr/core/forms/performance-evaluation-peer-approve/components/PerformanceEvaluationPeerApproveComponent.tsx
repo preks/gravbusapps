@@ -9,15 +9,17 @@ import {
   CardTitle,
   Textarea,
   Label,
-  Spinner
+  Spinner,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { usePerformanceEvaluationPeerApprove } from '../context/PerformanceEvaluationPeerApproveContext'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import translations from '../_i18n'
 
 const prefixDataTestId = 'PerformanceEvaluationPeerApprove'
 
 const PerformanceEvaluationPeerApproveComponent: React.FC = () => {
+  const { t } = useTranslation(translations)
   const { nominatedPeers, peersLoading, isLoading, error, onApprove, onReject, onCancel } =
     usePerformanceEvaluationPeerApprove()
 
@@ -45,26 +47,13 @@ const PerformanceEvaluationPeerApproveComponent: React.FC = () => {
 
   const isBusy = isLoading || rejecting || approving || peersLoading
 
-  const title = getTranslationFromI18nKeyAndLabel(
-    'lowcoder:performance_evaluation_peer_approve.title',
-    'Approve Nominated Peers'
-  )
-  const peersLabel = getTranslationFromI18nKeyAndLabel(
-    'lowcoder:performance_evaluation_peer_approve.peersLabel',
-    'Nominated peers'
-  )
-  const noPeersMessage = getTranslationFromI18nKeyAndLabel(
-    'lowcoder:performance_evaluation_peer_approve.noPeers',
-    'No nominated peers to display.'
-  )
-
   return (
     <div
       className="gba:flex gba:flex-col gba:h-full gba:w-full gba:bg-background"
       data-testid={formatDataTestId(prefixDataTestId, 'Container')}
     >
       <div className="gba:flex-shrink-0 gba:px-6 gba:py-4 gba:border-b gba:border-border">
-        <h2 className="gba:text-lg gba:font-semibold gba:text-foreground">{title}</h2>
+        <h2 className="gba:text-lg gba:font-semibold gba:text-foreground">{t('title')}</h2>
       </div>
 
       <div className="gba:flex-1 gba:px-6 gba:py-6 gba:space-y-4 gba:overflow-auto">
@@ -76,21 +65,16 @@ const PerformanceEvaluationPeerApproveComponent: React.FC = () => {
 
         <Card variant="surface">
           <CardHeader>
-            <CardTitle className="gba:text-base">{peersLabel}</CardTitle>
+            <CardTitle className="gba:text-base">{t('peers-label')}</CardTitle>
           </CardHeader>
           <CardContent className="gba:pt-0">
             {peersLoading ? (
               <div className="gba:flex gba:items-center gba:gap-2 gba:py-4">
                 <Spinner size="sm" />
-                <p className="gba:text-sm gba:text-muted-foreground">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:performance_evaluation_peer_approve.loadingPeers',
-                    'Loading nominated peers...'
-                  )}
-                </p>
+                <p className="gba:text-sm gba:text-muted-foreground">{t('loading-peers')}</p>
               </div>
             ) : nominatedPeers.length === 0 ? (
-              <p className="gba:text-sm gba:text-muted-foreground">{noPeersMessage}</p>
+              <p className="gba:text-sm gba:text-muted-foreground">{t('no-peers')}</p>
             ) : (
               <ul
                 className="gba:space-y-2 gba:list-none gba:pl-0"
@@ -111,17 +95,9 @@ const PerformanceEvaluationPeerApproveComponent: React.FC = () => {
         </Card>
 
         <div className="gba:space-y-2">
-          <Label className="gba:text-sm gba:font-medium gba:text-muted-foreground">
-            {getTranslationFromI18nKeyAndLabel(
-              'lowcoder:performance_evaluation_peer_approve.rejectCommentLabel',
-              'Comment (optional, for rejection)'
-            )}
-          </Label>
+          <Label className="gba:text-sm gba:font-medium gba:text-muted-foreground">{t('reject-comment-label')}</Label>
           <Textarea
-            placeholder={getTranslationFromI18nKeyAndLabel(
-              'lowcoder:performance_evaluation_peer_approve.rejectCommentPlaceholder',
-              'Add a comment if rejecting...'
-            )}
+            placeholder={t('reject-comment-placeholder')}
             value={rejectComment}
             onChange={e => setRejectComment(e.target.value)}
             className="gba:min-h-[80px]"
@@ -138,7 +114,7 @@ const PerformanceEvaluationPeerApproveComponent: React.FC = () => {
           disabled={isBusy}
           data-testid={formatDataTestId(prefixDataTestId, 'CancelButton')}
         >
-          {getTranslationFromI18nKeyAndLabel('common.cancel', 'Cancel')}
+          {t('cancel-button')}
         </Button>
         <Button
           type="button"
@@ -147,7 +123,7 @@ const PerformanceEvaluationPeerApproveComponent: React.FC = () => {
           onClick={handleReject}
           data-testid={formatDataTestId(prefixDataTestId, 'RejectButton')}
         >
-          {getTranslationFromI18nKeyAndLabel('lowcoder:performance_evaluation_peer_approve.reject', 'Reject')}
+          {t('reject-button')}
         </Button>
         <Button
           type="button"
@@ -156,7 +132,7 @@ const PerformanceEvaluationPeerApproveComponent: React.FC = () => {
           onClick={handleApprove}
           data-testid={formatDataTestId(prefixDataTestId, 'ApproveButton')}
         >
-          {getTranslationFromI18nKeyAndLabel('lowcoder:performance_evaluation_peer_approve.approve', 'Approve')}
+          {t('approve-button')}
         </Button>
       </div>
     </div>
