@@ -33,7 +33,12 @@ export async function runLeaveCall(ctx: LeaveCallContext): Promise<void> {
     accessToken
   } = ctx
 
-  const roomId = refs.callStateRoomIdRef.current
+  // Use ref first; fallback to global state so we can still remove from activeConversationCalls
+  // when refs are stale (e.g. after navigation), preventing "invite to join call you just left".
+  const roomIdFromRef = refs.callStateRoomIdRef.current
+  const roomIdFromGlobal = globalCallManager.getCallData().callState.roomId
+  const roomId = roomIdFromRef ?? roomIdFromGlobal ?? null
+
   const meetingId = refs.meetingIdRef.current
   const callStartTime = refs.callStartTimeRef.current
 
