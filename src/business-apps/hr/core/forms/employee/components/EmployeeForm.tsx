@@ -190,12 +190,12 @@ const EmployeeForm: React.FC = () => {
         }
 
         const cleanup = () => {
-          window.removeEventListener('com.newwork.process.processCompletion', handleProcessCompletion)
-          window.removeEventListener('com.newwork.process.taskCompletion', handleProcessCompletion)
+          globalThis.window.removeEventListener('com.newwork.process.processCompletion', handleProcessCompletion)
+          globalThis.window.removeEventListener('com.newwork.process.taskCompletion', handleProcessCompletion)
         }
 
-        window.addEventListener('com.newwork.process.processCompletion', handleProcessCompletion)
-        window.addEventListener('com.newwork.process.taskCompletion', handleProcessCompletion)
+        globalThis.window.addEventListener('com.newwork.process.processCompletion', handleProcessCompletion)
+        globalThis.window.addEventListener('com.newwork.process.taskCompletion', handleProcessCompletion)
       })
     } catch (err) {
       console.error('Error submitting employee form:', err)
