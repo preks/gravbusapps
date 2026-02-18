@@ -23,19 +23,32 @@ import {
 } from '@newwork/nw-design-system'
 import { useRestClient } from '@/common/network/rest/useRestClient'
 import { env } from '@/common/env/EnvUtils'
-import type { Company, CompanyAddress } from '../../apps/organizational-data/types'
+import type { Company, CompanyAddress, Director } from '../../apps/organizational-data/types'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { AddressSegment } from '@/common/components/common-relations/form-segments/address-segment'
 import { EmployeeSelect } from '@/components/employee-select'
 import { CatalogSelect } from '@/components/catalog-select'
 import { DynamicForm } from '@/components/dynamic-form'
 import { useCompanyAdditionalProperties } from '../../hooks/useCompanyAdditionalProperties'
-import { useEmployeeSearch } from '@/common/data/employee/useEmployeeSearch'
+import { useEmployeeSearch, type EmployeeLiteOption } from '@/common/data/employee/useEmployeeSearch'
 import translations from './_i18n'
 import { useCatalogManagerClient } from '@/common/network/catalogs/useCatalogManagerClient'
 
 // Helper to validate no leading whitespace (trailing will be trimmed on submit)
 const noLeadingWhitespace = (value: string) => value === value.trimStart()
+
+/** Build EmployeeLiteOption from company.director so useEmployeeSearch can show director in the list when not in first 20 results */
+function directorToEmployeeLiteOption(director: Director): EmployeeLiteOption {
+  const displayName =
+    director.displayName || `${director.firstName || ''} ${director.lastName || ''}`.trim() || 'Unknown'
+  return {
+    id: director.id,
+    displayName,
+    firstName: director.firstName,
+    lastName: director.lastName,
+    pictureThumbnail: director.pictureThumbnail
+  }
+}
 
 // Address schema for validation (id and companyId preserved for existing addresses)
 const createAddressSchema = (t: (key: string) => string) =>
@@ -75,7 +88,7 @@ const createCompanySchema = (t: (key: string) => string) =>
     code: z
       .string()
       .min(1, t('validation-code-required'))
-      .max(10, t('validation-company-code-max'))
+      .max(20, t('validation-company-code-max'))
       .refine(val => !val || noLeadingWhitespace(val), t('validation-no-leading-whitespace')),
     description: z
       .string()
@@ -166,11 +179,25 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
   // Key to force FileUpload remount when logo is removed (clears its internal file list)
   const [logoFileUploadKey, setLogoFileUploadKey] = useState(0)
 
+  // Director from company (tree enriches with director) – we prepend them at top of list so they’re always visible
+  const directorFromCompany = useMemo(
+    () => (company?.director ? directorToEmployeeLiteOption(company.director) : undefined),
+    [company?.director]
+  )
+
   // Fetch dynamic fields configuration from catalog
   const { configuration: additionalPropertiesConfig, isLoading: additionalPropertiesLoading } =
     useCompanyAdditionalProperties(accessToken)
   const { employees, loading: searchLoading, search, hasMore, loadMore } = useEmployeeSearch(accessToken)
   const catalogClient = useCatalogManagerClient(accessToken)
+
+  // When we have a director: if hook list is still empty, pass it through so select triggers initial search (no race with user search).
+  // Once hook has results, prepend director and drop duplicate from results.
+  const employeesForSelect = useMemo(() => {
+    if (!directorFromCompany || !company?.directorId) return employees
+    if (employees.length === 0) return employees
+    return [directorFromCompany, ...employees.filter(e => e.id !== company.directorId)]
+  }, [directorFromCompany, company?.directorId, employees])
 
   const companyData = company as (Company & Partial<CompanyFormData>) | undefined
 
@@ -995,7 +1022,7 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
               <FormControl>
                 <EmployeeSelect
                   value={selectedUserId}
-                  employees={employees}
+                  employees={employeesForSelect}
                   onValueChange={value => {
                     setSelectedUserId(value)
                     form.setValue('director', value ?? '', { shouldDirty: true })
