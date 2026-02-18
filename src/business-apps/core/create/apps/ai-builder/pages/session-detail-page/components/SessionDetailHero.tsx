@@ -10,9 +10,9 @@ interface SessionDetailHeroProps {
   'data-testid'?: string
 }
 
-const hostedVideoUrl = typeof import.meta !== 'undefined' && import.meta.env?.VITE_SPACE_HERO_VIDEO_URL
+const hostedVideoUrl = import.meta !== undefined && import.meta.env?.VITE_SPACE_HERO_VIDEO_URL
 const localVideoUrl = '/space-hero-background.mp4'
-const useVideo = hostedVideoUrl || (typeof import.meta !== 'undefined' && import.meta.env?.DEV && localVideoUrl)
+const useVideo = hostedVideoUrl || (import.meta !== undefined && import.meta.env?.DEV && localVideoUrl)
 const HERO_VIDEO_SRC = hostedVideoUrl || localVideoUrl
 
 export const SessionDetailHero: React.FC<SessionDetailHeroProps> = ({
@@ -32,7 +32,6 @@ export const SessionDetailHero: React.FC<SessionDetailHeroProps> = ({
             playsInline
             preload="metadata"
             className="gba:absolute gba:inset-0 gba:w-full gba:h-full gba:object-cover gba:pointer-events-none"
-            aria-hidden
             data-testid={`${testId}-video`}
           />
         ) : (

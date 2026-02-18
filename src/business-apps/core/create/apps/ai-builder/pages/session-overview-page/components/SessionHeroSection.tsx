@@ -2,10 +2,10 @@ import React from 'react'
 import { Sparkles } from 'lucide-react'
 import { SpaceHeroBackground } from '@/business-apps/platform/apps/spaces/components/SpaceHeroBackground'
 
-const aiBuilderHostedVideoUrl = typeof import.meta !== 'undefined' && import.meta.env?.VITE_SPACE_HERO_VIDEO_URL
+const aiBuilderHostedVideoUrl = import.meta !== undefined && import.meta.env?.VITE_SPACE_HERO_VIDEO_URL
 const aiBuilderLocalVideoUrl = '/space-hero-background.mp4'
 const aiBuilderUseVideo =
-  aiBuilderHostedVideoUrl || (typeof import.meta !== 'undefined' && import.meta.env?.DEV && aiBuilderLocalVideoUrl)
+  aiBuilderHostedVideoUrl || (import.meta !== undefined && import.meta.env?.DEV && aiBuilderLocalVideoUrl)
 const aiBuilderVideoSrc = aiBuilderHostedVideoUrl || aiBuilderLocalVideoUrl
 
 interface SessionHeroSectionProps {
@@ -27,7 +27,6 @@ export const SessionHeroSection: React.FC<SessionHeroSectionProps> = ({
           playsInline
           preload="metadata"
           className="gba:absolute gba:inset-0 gba:w-full gba:h-full gba:object-cover gba:pointer-events-none"
-          aria-hidden
         />
       ) : (
         <SpaceHeroBackground />

@@ -150,7 +150,12 @@ export const ContentBackground: React.FC<ContentBackgroundProps> = ({ className 
         ctx.rotate(el.rotation)
         ctx.globalAlpha = el.opacity
 
-        const color = el.type === 'sparkle' ? primaryColor : el.type === 'code' ? accentColor : secondaryColor
+        const colorByType: Record<string, string> = {
+          sparkle: primaryColor,
+          code: accentColor,
+          brackets: secondaryColor
+        }
+        const color = colorByType[el.type] ?? secondaryColor
 
         switch (el.type) {
           case 'sparkle':

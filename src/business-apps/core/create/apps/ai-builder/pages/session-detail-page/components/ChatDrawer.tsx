@@ -278,7 +278,11 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <div className="gba:w-8 gba:h-8 gba:cursor-pointer gba:group" onClick={onToggleFileExplorer}>
+                  <button
+                    type="button"
+                    className="gba:w-8 gba:h-8 gba:cursor-pointer gba:group"
+                    onClick={onToggleFileExplorer}
+                  >
                     {/* Show avatar by default */}
                     <div className="gba:w-8 gba:h-8 gba:rounded-full gba:bg-gradient-to-br gba:from-purple-500 gba:to-blue-500 gba:flex gba:items-center gba:justify-center gba:group-hover:hidden">
                       <Bot className="gba:w-5 gba:h-5 gba:text-white" />
@@ -291,7 +295,7 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
                         <PanelLeft className="gba:w-4 gba:h-4 gba:text-foreground" />
                       )}
                     </div>
-                  </div>
+                  </button>
                 </TooltipTrigger>
                 <TooltipContent>
                   {showFileExplorer
@@ -516,9 +520,9 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
             {filesExpanded && (
               <div className="gba:px-4 gba:pb-2 gba:max-h-48 gba:overflow-y-auto">
                 <div className="gba:space-y-1">
-                  {uniqueFileSummary.files.map((file, idx) => (
+                  {uniqueFileSummary.files.map(file => (
                     <div
-                      key={idx}
+                      key={file.path}
                       className="gba:flex gba:items-center gba:gap-2 gba:text-xs gba:py-1 gba:px-2 gba:rounded gba:bg-muted/50"
                     >
                       {file.type === 'create' && (
