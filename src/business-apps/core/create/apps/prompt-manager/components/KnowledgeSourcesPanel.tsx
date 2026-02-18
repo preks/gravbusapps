@@ -17,10 +17,24 @@ import {
   Badge,
   Spinner
 } from '@newwork/nw-design-system'
-import { Upload, Link as LinkIcon, FileText, ExternalLink, Trash2, Plus, BookOpen, Database } from 'lucide-react'
+import {
+  Upload,
+  Link as LinkIcon,
+  FileText,
+  ExternalLink,
+  Trash2,
+  Plus,
+  BookOpen,
+  Database,
+  FolderOpen,
+  StickyNote,
+  TableProperties,
+  Presentation
+} from 'lucide-react'
 import type { KnowledgeSource } from '@/common/network/ai/prompt-manager/PromptManagerClient'
 import { ContentEntrySelector } from './ContentEntrySelector'
 import { CatalogSelector } from './CatalogSelector'
+import { WorkspaceContentSelector } from './WorkspaceContentSelector'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
 interface KnowledgeSourcesPanelProps extends BusinessAppContextProps {
@@ -45,6 +59,7 @@ export const KnowledgeSourcesPanel: React.FC<KnowledgeSourcesPanelProps> = ({
   const [urlDescription, setUrlDescription] = useState('')
   const [showContentSelector, setShowContentSelector] = useState(false)
   const [showCatalogSelector, setShowCatalogSelector] = useState(false)
+  const [showWorkspaceContent, setShowWorkspaceContent] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleFileUpload = useCallback(
@@ -185,6 +200,34 @@ export const KnowledgeSourcesPanel: React.FC<KnowledgeSourcesPanelProps> = ({
     [sources, onSourcesChange]
   )
 
+  const handleAddWorkspaceContent = useCallback(
+    (items: Array<{ id: string; type: string; title: string; spaceName?: string }>) => {
+      setIsUploading(true)
+      setUploadError(null)
+
+      try {
+        const addedSources: KnowledgeSource[] = items.map(item => ({
+          id: `workspace-${item.type}-${item.id}`,
+          type: item.type as KnowledgeSource['type'],
+          name: item.title,
+          description: item.spaceName ? `From space: ${item.spaceName}` : `Workspace ${item.type}`,
+          contentEntryId: item.id,
+          fileId: item.id,
+          lastUpdated: new Date().toISOString(),
+          createdAt: new Date().toISOString()
+        }))
+
+        onSourcesChange([...sources, ...addedSources])
+        setShowWorkspaceContent(false)
+      } catch (error) {
+        setUploadError(error instanceof Error ? error.message : 'Failed to add workspace content')
+      } finally {
+        setIsUploading(false)
+      }
+    },
+    [sources, onSourcesChange]
+  )
+
   /** Get a stable identifier for a knowledge source (backend id, or fallback to content/catalog id). */
   const getSourceKey = (source: KnowledgeSource, idx: number): string =>
     source.id || source.contentEntryId || source.catalogIdentifier || String(idx)
@@ -220,6 +263,16 @@ export const KnowledgeSourcesPanel: React.FC<KnowledgeSourcesPanelProps> = ({
         {true ? (
           <>
             <div className="gba:flex gba:gap-2 gba:flex-wrap">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowWorkspaceContent(true)}
+                disabled={isUploading}
+                data-testid={`${testId}-add-workspace-content-button`}
+              >
+                <FolderOpen className="gba:w-4 gba:h-4 gba:mr-2" />
+                From Workspace
+              </Button>
               <Button
                 variant="outline"
                 size="sm"
@@ -367,6 +420,12 @@ export const KnowledgeSourcesPanel: React.FC<KnowledgeSourcesPanelProps> = ({
                       <BookOpen className="gba:w-4 gba:h-4 gba:text-primary" />
                     ) : source.type === 'catalog' ? (
                       <Database className="gba:w-4 gba:h-4 gba:text-primary" />
+                    ) : source.type === 'note' ? (
+                      <StickyNote className="gba:w-4 gba:h-4 gba:text-primary" />
+                    ) : source.type === 'spreadsheet' ? (
+                      <TableProperties className="gba:w-4 gba:h-4 gba:text-primary" />
+                    ) : source.type === 'slide' ? (
+                      <Presentation className="gba:w-4 gba:h-4 gba:text-primary" />
                     ) : (
                       <FileText className="gba:w-4 gba:h-4 gba:text-primary" />
                     )}
@@ -428,7 +487,7 @@ export const KnowledgeSourcesPanel: React.FC<KnowledgeSourcesPanelProps> = ({
             <FileText className="gba:w-12 gba:h-12 gba:mx-auto gba:mb-2 gba:opacity-50" />
             <p className="gba:text-sm">No knowledge sources yet</p>
             <p className="gba:text-xs gba:mt-1">
-              Add from knowledge base, catalogs, upload documents, or add external URLs
+              Add from workspace content, knowledge base, catalogs, upload documents, or add external URLs
             </p>
           </div>
         )}
@@ -449,6 +508,14 @@ export const KnowledgeSourcesPanel: React.FC<KnowledgeSourcesPanelProps> = ({
         existingSources={sources}
         {...context}
         onClose={() => setShowCatalogSelector(false)}
+      />
+
+      {/* Workspace Content Selector Dialog */}
+      <WorkspaceContentSelector
+        isOpen={showWorkspaceContent}
+        onSelect={handleAddWorkspaceContent}
+        accessToken={context.accessToken}
+        onClose={() => setShowWorkspaceContent(false)}
       />
     </Card>
   )

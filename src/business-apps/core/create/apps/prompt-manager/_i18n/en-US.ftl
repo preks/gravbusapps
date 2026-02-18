@@ -12,6 +12,9 @@ new-task-expert = New AI Task Expert
 view = View
 edit = Edit
 test = Test
+add-to-mesh = Add to Mesh
+added-to-mesh = Added to Mesh
+already-in-mesh = Already in Mesh
 
 # Tabs
 tab-task-experts = AI Task Experts
@@ -22,17 +25,41 @@ tab-dashboard = Dashboard
 # Search
 search-placeholder = Search AI task experts...
 
+# Navigation / Common actions
+back = Back
+back-to-list = Back to list
+save = Save
+saving = Saving...
+save-failed = Failed to save
+ai-assist = AI Assist
+
+# Builder tabs
+builder-tab-general = General
+builder-tab-behavior = Behavior
+builder-tab-knowledge = Knowledge
+builder-tab-tools = Tools
+builder-tab-advanced = Advanced
+
 # Table Columns
 column-name = Name
-column-agent-type = Agent Type
+column-agent-type = Type
+column-model = Model
 column-tools = Tools
+column-knowledge-sources = Knowledge Sources
+column-created-at = Last Updated
+column-created-by = Owner
 column-specialty = Specialty
+column-workspace = Workspace
 column-version = Version
+
+# Filters
+filter-workspace-all = All Workspaces
 
 # Agent Types
 agent-type-everyai = EveryAI
 agent-type-general = General
 agent-type-flow = FLOW
+agent-type-decision = Decision
 
 # Badges
 badge-public = Public

@@ -15,6 +15,7 @@ export interface EmployeeByPk {
   id?: string
   userId?: string
   version?: number
+  status?: string | null
   salutationRef?: string | null
   salutation?: CatalogEntry | null
   title?: string

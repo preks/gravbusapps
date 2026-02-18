@@ -55,6 +55,7 @@ export interface BenefitCatalogItem {
   availableProviders?: ProviderEntry[]
   isActive: boolean
   isScheduled: boolean // NEW: Approved benefit scheduled to start in the future
+  isCancelled?: boolean // Request was rejected (status CANCELLED_COMPENSATION)
   employeeBenefitId?: string
   provider?: CatalogEntry
   providerRef?: string
@@ -65,6 +66,7 @@ export interface BenefitCatalogItem {
   startDate?: string
   endDate?: string
   notes?: string
+  comments?: string // Rejection/approval reason (e.g. from benefit review decision)
   benefitStatus?: BenefitStatus
   canRequest: boolean
   canDeactivate: boolean
@@ -150,6 +152,7 @@ export interface GraphQLEmployeeBenefitResponse {
   status?: string
   benefitStatus?: string
   notes?: string
+  comments?: string
   createdAt?: string
   updatedAt?: string
 }
