@@ -75,56 +75,107 @@ export async function exportTableToPdf(
 
   const margin = 40
   const rowHeight = 18
-  const colWidths = columns.map((_, i) => (i === 0 ? 180 : 120))
-  let y = margin
+  const headerFontSize = 10
+  const cellFontSize = 9
+  const maxCellChars = 60
+  const minColWidth = 64
+  const maxColWidth = 220
+  const availableWidth = doc.page.width - margin * 2
 
-  doc.fontSize(14).font('Helvetica-Bold').text(title, margin, y)
-  y += 28
-
-  const drawHeader = () => {
-    doc.fontSize(10)
-    doc.font('Helvetica-Bold')
-    let x = margin
-    columns.forEach((col, i) => {
-      doc.rect(x, y - 2, colWidths[i], rowHeight).stroke()
-      doc.text(col.header, x + 4, y + 4, {
-        width: colWidths[i] - 8,
-        lineBreak: false,
-        ellipsis: true
-      })
-      x += colWidths[i]
-    })
-    y += rowHeight
+  const estimateColWidth = (texts: string[]): number => {
+    const maxLen = texts.reduce((acc, text) => Math.max(acc, text.length), 0)
+    const approx = Math.ceil(maxLen * 5.8 + 20)
+    return Math.max(minColWidth, Math.min(maxColWidth, approx))
   }
 
-  const ensureRowSpace = () => {
-    const pageBottom = doc.page.height - margin
-    if (y + rowHeight > pageBottom) {
-      doc.addPage()
-      y = margin
-      drawHeader()
-      doc.font('Helvetica')
+  const sampleRows = data.slice(0, 200)
+  const colWidths = columns.map(col => {
+    const texts = [col.header, ...sampleRows.map(row => String(formatCellValue(row[col.key])).slice(0, maxCellChars))]
+    return estimateColWidth(texts)
+  })
+
+  const columnChunks: number[][] = []
+  let currentChunk: number[] = []
+  let currentWidth = 0
+
+  columns.forEach((_, index) => {
+    const nextWidth = colWidths[index]
+    if (currentChunk.length > 0 && currentWidth + nextWidth > availableWidth) {
+      columnChunks.push(currentChunk)
+      currentChunk = [index]
+      currentWidth = nextWidth
+    } else {
+      currentChunk.push(index)
+      currentWidth += nextWidth
+    }
+  })
+  if (currentChunk.length > 0) {
+    columnChunks.push(currentChunk)
+  }
+
+  const drawChunk = (chunk: number[], chunkIndex: number) => {
+    let y = margin
+    const suffix = columnChunks.length > 1 ? ` (${chunkIndex + 1}/${columnChunks.length})` : ''
+
+    doc.fontSize(14).font('Helvetica-Bold').text(`${title}${suffix}`, margin, y)
+    y += 28
+
+    const drawHeader = () => {
+      doc.fontSize(headerFontSize)
+      doc.font('Helvetica-Bold')
+      let x = margin
+      chunk.forEach(colIndex => {
+        const width = colWidths[colIndex]
+        const col = columns[colIndex]
+        doc.rect(x, y - 2, width, rowHeight).stroke()
+        doc.text(col.header, x + 4, y + 4, {
+          width: width - 8,
+          lineBreak: false,
+          ellipsis: true
+        })
+        x += width
+      })
+      y += rowHeight
+    }
+
+    const ensureRowSpace = () => {
+      const pageBottom = doc.page.height - margin
+      if (y + rowHeight > pageBottom) {
+        doc.addPage()
+        y = margin
+        doc.fontSize(14).font('Helvetica-Bold').text(`${title}${suffix}`, margin, y)
+        y += 28
+        drawHeader()
+      }
+    }
+
+    drawHeader()
+    doc.font('Helvetica').fontSize(cellFontSize)
+    for (const row of data) {
+      ensureRowSpace()
+      let x = margin
+      chunk.forEach(colIndex => {
+        const width = colWidths[colIndex]
+        const col = columns[colIndex]
+        const value = formatCellValue(row[col.key])
+        doc.rect(x, y - 2, width, rowHeight).stroke()
+        doc.text(String(value).slice(0, maxCellChars), x + 4, y + 4, {
+          width: width - 8,
+          lineBreak: false,
+          ellipsis: true
+        })
+        x += width
+      })
+      y += rowHeight
     }
   }
 
-  drawHeader()
-
-  doc.font('Helvetica')
-  for (const row of data) {
-    ensureRowSpace()
-    let x = margin
-    columns.forEach((col, i) => {
-      const value = formatCellValue(row[col.key])
-      doc.rect(x, y - 2, colWidths[i], rowHeight).stroke()
-      doc.text(String(value).slice(0, 50), x + 4, y + 4, {
-        width: colWidths[i] - 8,
-        lineBreak: false,
-        ellipsis: true
-      })
-      x += colWidths[i]
-    })
-    y += rowHeight
-  }
+  columnChunks.forEach((chunk, chunkIndex) => {
+    if (chunkIndex > 0) {
+      doc.addPage()
+    }
+    drawChunk(chunk, chunkIndex)
+  })
 
   doc.end()
   return resultPromise

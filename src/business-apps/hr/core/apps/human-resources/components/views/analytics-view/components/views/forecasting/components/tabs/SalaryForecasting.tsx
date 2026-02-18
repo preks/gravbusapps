@@ -1,9 +1,30 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useRef, useState } from 'react'
 import { Typography } from 'antd'
-import { SectionKpiCards, KpiCardData, useTranslation, Icon } from '@newwork/nw-design-system'
+import {
+  SectionKpiCards,
+  KpiCardData,
+  useTranslation,
+  Icon,
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  Button,
+  Badge,
+  Table,
+  TableHeader,
+  TableRow,
+  TableHead,
+  TableBody,
+  TableCell
+} from '@newwork/nw-design-system'
 import { UsersIcon, CalendarIcon } from '@phosphor-icons/react'
+import { PiFilePdf, PiFileText } from 'react-icons/pi'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useMonthlySalaryForecastEmployee } from '../../../../../hooks/useMonthlySalaryForecastEmployee'
+import { useMonthlySalaryChangesEmployees } from '../../../../../hooks/useMonthlySalaryChangesEmployees'
+import { useMonthlySalaryByDepartment } from '../../../../../hooks/useMonthlySalaryByDepartment'
+import { useDepartmentContributionAnalysis } from '../../../../../hooks/useDepartmentContributionAnalysis'
 import SalaryForecastChart from '../SalaryForecastChart'
 import SalaryChangesChart from '../SalaryChangesChart'
 import DepartmentSalaryStackedBarChart from '../DepartmentSalaryStackedBarChart'
@@ -11,6 +32,7 @@ import DepartmentContributionAnalysis from '../DepartmentContributionAnalysis'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import dayjs from 'dayjs'
+import { exportTableToExcel, exportTableToPdf } from '../../../../../utils/exportUtils'
 
 const { Title, Text } = Typography
 
@@ -21,6 +43,9 @@ interface SalaryForecastingProps extends BusinessAppContextProps {
 export const SalaryForecasting: React.FC<SalaryForecastingProps> = props => {
   const { prefixDataTestId = 'SalaryForecasting' } = props
   const { t } = useTranslation(hrTranslations)
+  const [selectedChart, setSelectedChart] = useState<string | null>(null)
+  const [exportingTable, setExportingTable] = useState<string | null>(null)
+  const tableRef = useRef<HTMLDivElement>(null)
 
   // Calculate date ranges
   const today = dayjs()
@@ -33,6 +58,13 @@ export const SalaryForecasting: React.FC<SalaryForecastingProps> = props => {
   const fullYearStart = today.startOf('year').format('YYYY-MM-DD')
   const fullYearEnd = yearEnd.format('YYYY-MM-DD')
   const { data: fullYearData, loading: fullYearLoading } = useMonthlySalaryForecastEmployee(
+    props.accessToken,
+    fullYearStart,
+    fullYearEnd
+  )
+  const { data: salaryChangesData } = useMonthlySalaryChangesEmployees(props.accessToken, fullYearStart, fullYearEnd)
+  const { data: departmentSalaryData } = useMonthlySalaryByDepartment(props.accessToken, fullYearStart, fullYearEnd)
+  const { data: departmentContributionData } = useDepartmentContributionAnalysis(
     props.accessToken,
     fullYearStart,
     fullYearEnd
@@ -147,6 +179,140 @@ export const SalaryForecasting: React.FC<SalaryForecastingProps> = props => {
     return fullYearData
   }, [fullYearData])
 
+  interface TableDataRow {
+    period: string
+    value: number | string
+    headcount?: number
+    newHires?: number
+    change?: number | string
+    department?: string
+    percentage?: string
+    growth?: string
+  }
+
+  const transformSalaryForecastData = (): TableDataRow[] => {
+    return monthlyData.map(item => ({
+      period: item.month,
+      value: Math.round(item.totalSalary),
+      headcount: item.headcount,
+      newHires: item.newHires
+    }))
+  }
+
+  const transformSalaryChangesData = (): TableDataRow[] => {
+    return salaryChangesData.map(item => ({
+      period: item.month,
+      value: item.change
+    }))
+  }
+
+  const transformDepartmentSalaryData = (): TableDataRow[] => {
+    return departmentSalaryData.flatMap(month =>
+      month.departments.map(department => ({
+        period: month.month,
+        department: department.name,
+        value: Math.round(department.salary),
+        percentage: `${department.percent.toFixed(1)}%`,
+        change: department.change
+      }))
+    )
+  }
+
+  const transformDepartmentContributionData = (): TableDataRow[] => {
+    return departmentContributionData.map(item => ({
+      department: item.departmentName,
+      value: Math.round(item.currentSalary),
+      period: Math.round(item.firstMonthSalary).toString(),
+      percentage: `${item.percentage.toFixed(1)}%`,
+      growth: `${item.growthPercentage >= 0 ? '+' : ''}${item.growthPercentage.toFixed(1)}%`
+    }))
+  }
+
+  const handleExport = async (
+    format: 'excel' | 'pdf',
+    tableName: string,
+    title: string,
+    columns: { key: string; header: string }[],
+    data: TableDataRow[]
+  ) => {
+    setExportingTable(`${tableName}-${format}`)
+    try {
+      const rows = data.map(row => ({ ...row })) as Record<string, unknown>[]
+      if (format === 'excel') {
+        await exportTableToExcel(title, columns, rows)
+      } else {
+        await exportTableToPdf(title, columns, rows)
+      }
+    } finally {
+      setExportingTable(null)
+    }
+  }
+
+  const handleChartClick = (chartId: string) => {
+    setSelectedChart(selectedChart === chartId ? null : chartId)
+    if (selectedChart !== chartId && tableRef.current) {
+      setTimeout(() => {
+        tableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start', inline: 'nearest' })
+      }, 100)
+    }
+  }
+
+  const chartConfigs = [
+    {
+      title: t('hr-analytics-salary-forecasting'),
+      testId: 'salary-forecast-chart',
+      description: t('hr-analytics-salary-forecasting-description'),
+      tag: t('hr-analytics-months', { count: monthlyData.length }),
+      tableData: transformSalaryForecastData(),
+      exportColumns: [
+        { key: 'period', header: t('hr-analytics-month') },
+        { key: 'value', header: t('hr-analytics-value') },
+        { key: 'headcount', header: t('hr-analytics-employee-count') },
+        { key: 'newHires', header: t('hr-analytics-hires') }
+      ]
+    },
+    {
+      title: t('hr-analytics-monthly-salary-changes'),
+      testId: 'salary-changes-chart',
+      description: t('hr-analytics-salary-changes-description'),
+      tag: t('hr-analytics-months', { count: salaryChangesData.length }),
+      tableData: transformSalaryChangesData(),
+      exportColumns: [
+        { key: 'period', header: t('hr-analytics-month') },
+        { key: 'value', header: t('hr-analytics-salary-change') }
+      ]
+    },
+    {
+      title: t('hr-analytics-department-breakdown'),
+      testId: 'department-salary-chart',
+      description: t('hr-analytics-salary-by-org-unit-description'),
+      tag: t('hr-analytics-departments-label'),
+      tableData: transformDepartmentSalaryData(),
+      exportColumns: [
+        { key: 'period', header: t('hr-analytics-month') },
+        { key: 'department', header: t('hr-analytics-department') },
+        { key: 'value', header: t('hr-analytics-value') },
+        { key: 'percentage', header: t('hr-analytics-percentage') },
+        { key: 'change', header: t('hr-analytics-change') }
+      ]
+    },
+    {
+      title: t('hr-analytics-department-contribution-analysis'),
+      testId: 'department-contribution-chart',
+      description: t('hr-analytics-department-contribution-analysis'),
+      tag: t('hr-analytics-departments-label'),
+      tableData: transformDepartmentContributionData(),
+      exportColumns: [
+        { key: 'department', header: t('hr-analytics-department') },
+        { key: 'value', header: t('hr-analytics-value') },
+        { key: 'period', header: t('hr-analytics-period') },
+        { key: 'percentage', header: t('hr-analytics-percentage') },
+        { key: 'growth', header: t('hr-analytics-change') }
+      ]
+    }
+  ]
+  const selectedConfig = chartConfigs.find(config => config.testId === selectedChart)
+
   return (
     <div data-testid={prefixDataTestId} className="gba:flex gba:flex-col gba:gap-6">
       {/* Header */}
@@ -165,11 +331,161 @@ export const SalaryForecasting: React.FC<SalaryForecastingProps> = props => {
       </div>
 
       {/* Salary Charts */}
+      <div className="gba:mb-2">
+        <h3 className="gba:text-lg gba:font-semibold gba:text-foreground">{t('hr-analytics-workforce-charts')}</h3>
+        <Text className="gba:text-muted-foreground">{t('hr-analytics-click-to-view-table')}</Text>
+      </div>
+
       <div className="gba:space-y-6">
-        <SalaryForecastChart data={monthlyData} />
-        <SalaryChangesChart {...props} />
-        <DepartmentSalaryStackedBarChart {...props} />
-        <DepartmentContributionAnalysis {...props} />
+        <Card
+          data-testid={`${prefixDataTestId}-salary-forecast-card`}
+          className={`gba:cursor-pointer gba:transition-all gba:duration-200 ${
+            selectedChart === 'salary-forecast-chart' ? 'gba:ring-2 gba:ring-info gba:shadow-lg' : 'gba:hover:shadow-lg'
+          }`}
+          onClick={() => handleChartClick('salary-forecast-chart')}
+        >
+          <CardContent className="gba:p-4">
+            <SalaryForecastChart data={monthlyData} />
+            {selectedChart === 'salary-forecast-chart' && (
+              <p className="gba:text-xs gba:text-info gba:mt-2">✓ {t('common-selected')}</p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card
+          data-testid={`${prefixDataTestId}-salary-changes-card`}
+          className={`gba:cursor-pointer gba:transition-all gba:duration-200 ${
+            selectedChart === 'salary-changes-chart' ? 'gba:ring-2 gba:ring-info gba:shadow-lg' : 'gba:hover:shadow-lg'
+          }`}
+          onClick={() => handleChartClick('salary-changes-chart')}
+        >
+          <CardContent className="gba:p-4">
+            <SalaryChangesChart {...props} />
+            {selectedChart === 'salary-changes-chart' && (
+              <p className="gba:text-xs gba:text-info gba:mt-2">✓ {t('common-selected')}</p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card
+          data-testid={`${prefixDataTestId}-department-salary-card`}
+          className={`gba:cursor-pointer gba:transition-all gba:duration-200 ${
+            selectedChart === 'department-salary-chart'
+              ? 'gba:ring-2 gba:ring-info gba:shadow-lg'
+              : 'gba:hover:shadow-lg'
+          }`}
+          onClick={() => handleChartClick('department-salary-chart')}
+        >
+          <CardContent className="gba:p-4">
+            <DepartmentSalaryStackedBarChart {...props} />
+            {selectedChart === 'department-salary-chart' && (
+              <p className="gba:text-xs gba:text-info gba:mt-2">✓ {t('common-selected')}</p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card
+          data-testid={`${prefixDataTestId}-department-contribution-card`}
+          className={`gba:cursor-pointer gba:transition-all gba:duration-200 ${
+            selectedChart === 'department-contribution-chart'
+              ? 'gba:ring-2 gba:ring-info gba:shadow-lg'
+              : 'gba:hover:shadow-lg'
+          }`}
+          onClick={() => handleChartClick('department-contribution-chart')}
+        >
+          <CardContent className="gba:p-4">
+            <DepartmentContributionAnalysis {...props} />
+            {selectedChart === 'department-contribution-chart' && (
+              <p className="gba:text-xs gba:text-info gba:mt-2">✓ {t('common-selected')}</p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <div ref={tableRef}>
+        {selectedConfig && (
+          <Card data-testid={`${prefixDataTestId}-${selectedConfig.testId}-table`}>
+            <CardHeader>
+              <div className="gba:flex gba:justify-between gba:items-center">
+                <div className="gba:flex gba:items-center gba:gap-2">
+                  <CardTitle className="gba:text-xl">
+                    {t('hr-analytics-data-table', { title: selectedConfig.title })}
+                  </CardTitle>
+                  <Badge variant="outline" className="gba:bg-success-secondary gba:text-success-secondary-foreground">
+                    {t('hr-analytics-total-entries', { count: selectedConfig.tableData.length })}
+                  </Badge>
+                </div>
+                <div className="gba:flex gba:gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    data-testid={`${prefixDataTestId}-${selectedConfig.testId}-export-excel`}
+                    disabled={exportingTable === `${selectedConfig.testId}-excel`}
+                    onClick={e => {
+                      e.stopPropagation()
+                      handleExport(
+                        'excel',
+                        selectedConfig.testId,
+                        selectedConfig.title,
+                        selectedConfig.exportColumns,
+                        selectedConfig.tableData
+                      )
+                    }}
+                    className="gba:flex gba:items-center gba:gap-1"
+                  >
+                    <PiFileText className="gba:w-3 gba:h-3" />
+                    {t('common-export-excel')}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    data-testid={`${prefixDataTestId}-${selectedConfig.testId}-export-pdf`}
+                    disabled={exportingTable === `${selectedConfig.testId}-pdf`}
+                    onClick={e => {
+                      e.stopPropagation()
+                      handleExport(
+                        'pdf',
+                        selectedConfig.testId,
+                        selectedConfig.title,
+                        selectedConfig.exportColumns,
+                        selectedConfig.tableData
+                      )
+                    }}
+                    className="gba:flex gba:items-center gba:gap-1"
+                  >
+                    <PiFilePdf className="gba:w-3 gba:h-3" />
+                    {t('common-export-pdf')}
+                  </Button>
+                </div>
+              </div>
+              <Text className="gba:text-muted-foreground">{selectedConfig.description}</Text>
+            </CardHeader>
+            <CardContent>
+              <div className="gba:max-h-96 gba:overflow-y-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      {selectedConfig.exportColumns.map(col => (
+                        <TableHead key={col.key}>{col.header}</TableHead>
+                      ))}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {selectedConfig.tableData.map((row, index) => (
+                      <TableRow key={`${selectedConfig.testId}-${index}`}>
+                        {selectedConfig.exportColumns.map(col => (
+                          <TableCell key={`${col.key}-${index}`}>
+                            {String((row as Record<string, unknown>)[col.key] ?? '-')}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   )

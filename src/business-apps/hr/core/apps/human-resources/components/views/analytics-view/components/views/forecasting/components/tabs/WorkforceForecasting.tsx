@@ -1,13 +1,31 @@
-import React, { useMemo } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { Typography } from 'antd'
-import { SectionKpiCards, KpiCardData, useTranslation, Icon } from '@newwork/nw-design-system'
+import {
+  SectionKpiCards,
+  KpiCardData,
+  useTranslation,
+  Icon,
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  Table,
+  TableHeader,
+  TableRow,
+  TableHead,
+  TableBody,
+  TableCell,
+  Badge,
+  Button
+} from '@newwork/nw-design-system'
 import { UsersIcon, CalendarIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useQueryExecutionClient, QueryType, Services } from '@/common/network/dataset'
-import { useState, useEffect, useCallback } from 'react'
+import { PiFilePdf, PiFileText } from 'react-icons/pi'
 import HeadcountChangesChart from '../HeadcountChangesChart'
 import { useMonthlyHeadcountChanges } from '../../../../../hooks/useMonthlyHeadcountChanges'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
+import { exportTableToExcel, exportTableToPdf } from '../../../../../utils/exportUtils'
 
 const { Title, Text } = Typography
 
@@ -18,6 +36,7 @@ interface WorkforceForecastingProps extends BusinessAppContextProps {
 export const WorkforceForecasting: React.FC<WorkforceForecastingProps> = props => {
   const { prefixDataTestId = 'WorkforceForecasting' } = props
   const { t } = useTranslation(hrTranslations)
+  const [exportingTable, setExportingTable] = useState<string | null>(null)
   const currentYear = useMemo(() => new Date().getFullYear(), [])
   const { data: monthlyChanges, loading: monthlyChangesLoading } = useMonthlyHeadcountChanges(props, currentYear)
 
@@ -169,6 +188,38 @@ export const WorkforceForecasting: React.FC<WorkforceForecastingProps> = props =
     ]
   }, [monthlyChanges, monthlyChangesLoading, isLoadingEmployeeCount, totalEmployeeCount, t, currentYear])
 
+  const tableData = useMemo(
+    () =>
+      monthlyChanges.map(item => ({
+        period: item.month,
+        hires: item.newHires,
+        departures: item.departures,
+        netChange: item.newHires - item.departures
+      })),
+    [monthlyChanges]
+  )
+
+  const exportColumns = [
+    { key: 'period', header: t('hr-analytics-month') },
+    { key: 'hires', header: t('hr-analytics-hires') },
+    { key: 'departures', header: t('hr-analytics-monthly-departures') },
+    { key: 'netChange', header: t('hr-analytics-change') }
+  ]
+
+  const handleExport = async (format: 'excel' | 'pdf') => {
+    setExportingTable(`headcount-changes-${format}`)
+    try {
+      const rows = tableData.map(row => ({ ...row })) as Record<string, unknown>[]
+      if (format === 'excel') {
+        await exportTableToExcel(t('hr-analytics-headcount-changes-chart'), exportColumns, rows)
+      } else {
+        await exportTableToPdf(t('hr-analytics-headcount-changes-chart'), exportColumns, rows)
+      }
+    } finally {
+      setExportingTable(null)
+    }
+  }
+
   return (
     <div data-testid={prefixDataTestId} className="gba:flex gba:flex-col gba:gap-6">
       {/* Header */}
@@ -189,7 +240,67 @@ export const WorkforceForecasting: React.FC<WorkforceForecastingProps> = props =
       {/* Workforce Charts */}
       <div className="gba:space-y-6">
         <HeadcountChangesChart {...props} />
-        {/* Future workforce-related charts can be added here */}
+        <Card data-testid={`${prefixDataTestId}-headcount-changes-table`}>
+          <CardHeader>
+            <div className="gba:flex gba:justify-between gba:items-center">
+              <div className="gba:flex gba:items-center gba:gap-2">
+                <CardTitle className="gba:text-xl">
+                  {t('hr-analytics-data-table', { title: t('hr-analytics-headcount-changes-chart') })}
+                </CardTitle>
+                <Badge variant="outline" className="gba:bg-success-secondary gba:text-success-secondary-foreground">
+                  {t('hr-analytics-total-entries', { count: tableData.length })}
+                </Badge>
+              </div>
+              <div className="gba:flex gba:gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  data-testid={`${prefixDataTestId}-headcount-changes-export-excel`}
+                  disabled={exportingTable === 'headcount-changes-excel'}
+                  onClick={() => handleExport('excel')}
+                  className="gba:flex gba:items-center gba:gap-1"
+                >
+                  <PiFileText className="gba:w-3 gba:h-3" />
+                  {t('common-export-excel')}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  data-testid={`${prefixDataTestId}-headcount-changes-export-pdf`}
+                  disabled={exportingTable === 'headcount-changes-pdf'}
+                  onClick={() => handleExport('pdf')}
+                  className="gba:flex gba:items-center gba:gap-1"
+                >
+                  <PiFilePdf className="gba:w-3 gba:h-3" />
+                  {t('common-export-pdf')}
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="gba:max-h-96 gba:overflow-y-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    {exportColumns.map(col => (
+                      <TableHead key={col.key}>{col.header}</TableHead>
+                    ))}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {tableData.map(row => (
+                    <TableRow key={row.period}>
+                      <TableCell>{row.period}</TableCell>
+                      <TableCell>{row.hires}</TableCell>
+                      <TableCell>{row.departures}</TableCell>
+                      <TableCell>{row.netChange}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   )
