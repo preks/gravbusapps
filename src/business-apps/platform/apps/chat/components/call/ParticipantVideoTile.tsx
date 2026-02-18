@@ -173,40 +173,43 @@ export const ParticipantVideoTile: React.FC<ParticipantVideoTileProps> = ({
     )
   }
 
-  // Video/Audio/Avatar Tile
+  // Video/Audio/Avatar Tile. Use black background when video is on so letterboxing (object-contain) is black, not gray.
   return (
     <div
-      className={`gba:relative gba:flex gba:items-center gba:justify-center gba:bg-muted gba:overflow-hidden gba:rounded-lg gba:w-full gba:h-full ${
-        isActiveSpeaker ? 'gba:ring-4 gba:ring-primary gba:ring-offset-2 gba:ring-offset-background' : ''
-      }`}
+      className={`gba:relative gba:flex gba:items-center gba:justify-center gba:rounded-lg gba:w-full gba:h-full ${
+        hasVideoTrack ? 'gba:overflow-hidden gba:bg-black' : 'gba:overflow-hidden gba:bg-muted'
+      } ${isActiveSpeaker ? 'gba:ring-4 gba:ring-primary gba:ring-offset-2 gba:ring-offset-background' : ''}`}
     >
-      {/* Video element (or hidden for audio-only). object-contain keeps full frame visible (no head crop). */}
+      {/* Video element (or hidden for audio-only). object-cover fills the tile (no black bars); may crop edges if aspect differs. */}
       <video
         ref={videoRef}
         autoPlay
         playsInline
         muted={isLocal}
-        className={hasVideoTrack ? 'gba:w-full gba:h-full gba:object-contain' : 'gba:hidden'}
+        className={hasVideoTrack ? 'gba:w-full gba:h-full gba:object-cover' : 'gba:hidden'}
         data-testid={`${prefixDataTestId}-video-${peerId}`}
         onLoadedMetadata={() => {}}
         onLoadedData={() => {}}
         onError={() => {}}
       />
 
-      {/* Avatar (shown when no video) */}
+      {/* Avatar (shown when no video) - fits in tile with name and mic indicator always visible */}
       {!hasVideoTrack && (
-        <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:w-full gba:h-full gba:gap-1.5">
-          <Avatar className="gba:w-14 gba:h-14">
+        <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:w-full gba:min-h-0 gba:flex-1 gba:gap-2 gba:px-3 gba:pt-3 gba:pb-4">
+          <Avatar className="gba:w-20 gba:h-20 gba:flex-shrink-0">
             {avatarUrl && <AvatarImage src={avatarUrl} alt={peerName} />}
             <AvatarFallback className="gba:text-lg gba:font-semibold">{getInitials(peerName)}</AvatarFallback>
           </Avatar>
-          <div className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:font-medium gba:text-foreground gba:px-1 gba:text-center">
-            <span className="gba:truncate gba:max-w-full">
+          <div className="gba:flex gba:flex-shrink-0 gba:items-center gba:justify-center gba:gap-1.5 gba:text-sm gba:font-medium gba:text-foreground gba:px-2 gba:text-center gba:min-h-0">
+            <span className="gba:truncate gba:max-w-full" title={`${peerName} ${isLocal ? '(You)' : ''}`}>
               {peerName} {isLocal ? '(You)' : ''}
             </span>
             {isMuted && (
-              <div className="gba:flex gba:items-center gba:justify-center gba:w-4 gba:h-4 gba:rounded-full gba:bg-destructive gba:flex-shrink-0">
-                <MicrophoneSlashIcon className="gba:w-2.5 gba:h-2.5 gba:text-destructive-foreground" weight="fill" />
+              <div
+                className="gba:flex gba:items-center gba:justify-center gba:w-5 gba:h-5 gba:flex-shrink-0 gba:rounded-full gba:bg-destructive gba:text-destructive-foreground"
+                title="Muted"
+              >
+                <MicrophoneSlashIcon className="gba:w-3 gba:h-3 gba:text-destructive-foreground" weight="fill" />
               </div>
             )}
           </div>

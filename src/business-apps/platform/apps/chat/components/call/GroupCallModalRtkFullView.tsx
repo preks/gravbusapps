@@ -15,7 +15,6 @@ import { MemoizedParticipantVideoTile } from './ParticipantVideoTile'
 import { VideoGrid } from './VideoGrid'
 import { HorizontalFilmstrip } from './HorizontalFilmstrip'
 import { AudioSettingsModal } from './AudioSettingsModal'
-import { getOptimalAspectRatio } from '../../utils/groupCallModalUtils'
 import type { GroupCallModalRtkProps } from './groupCallModalTypes'
 import type { GroupCallModalRtkState } from '../../hooks/useGroupCallModalRtkState'
 
@@ -252,72 +251,66 @@ export function GroupCallModalRtkFullView({ props: p, state }: GroupCallModalRtk
                   minTileSize={state.minTileSize}
                   maxTileSize={state.maxTileSize}
                   gridItems={state.paginatedGridItems.items.map(item => {
-                    const aspectRatio = getOptimalAspectRatio(
-                      globalThis.window.innerWidth,
-                      state.paginatedGridItems.items.length,
-                      item.type === 'screen-share',
-                      state.sidebarView !== 'closed'
+                    const hasVideoOrShare = item.hasVideoTrack || !!item.screenShareTrack
+                    const tileBg = hasVideoOrShare ? 'gba:bg-black' : 'gba:bg-muted'
+                    const tile = (
+                      <MemoizedParticipantVideoTile
+                        peerId={item.peerId}
+                        peerName={item.peerName}
+                        avatarUrl={item.avatarUrl}
+                        userId={item.userId}
+                        customParticipantId={item.customParticipantId}
+                        isLocal={item.isLocal}
+                        isMuted={item.isMuted}
+                        hasVideoTrack={item.hasVideoTrack || false}
+                        hasAudioTrack={item.hasAudioTrack || false}
+                        screenShareTrack={item.screenShareTrack}
+                        isFocusedScreenShare={false}
+                        totalScreenShares={state.allScreenShares.length}
+                        isHandRaised={
+                          hideReactionsAndHandRaise
+                            ? false
+                            : state.isParticipantHandRaised(item.peerId, item.userId, item.customParticipantId)
+                        }
+                        handRaisedOrderNumber={
+                          hideReactionsAndHandRaise
+                            ? undefined
+                            : state.getHandRaisedOrderNumber(item.peerId, item.userId, item.customParticipantId)
+                        }
+                        isActiveSpeaker={item.isActiveSpeaker}
+                        reactions={hideReactionsAndHandRaise ? [] : state.activeReactions}
+                        isMinimized={callState.isMinimized}
+                        onScreenShareClick={() => {
+                          if (item.screenShareTrack) {
+                            state.setFocusedScreenShareId(item.peerId)
+                          }
+                        }}
+                        onScreenShareFocus={() => {
+                          state.setFocusedScreenShareId(item.peerId)
+                        }}
+                        videoRef={state.getVideoRefCallback(item.peerId, item.peerName, item.isLocal)}
+                        screenShareVideoRef={
+                          item.screenShareTrack
+                            ? el => {
+                                if (el) {
+                                  state.screenShareVideoRefs.current.set(item.peerId, el)
+                                } else {
+                                  state.screenShareVideoRefs.current.delete(item.peerId)
+                                }
+                              }
+                            : undefined
+                        }
+                        prefixDataTestId={prefixDataTestId}
+                        t={state.t}
+                      />
                     )
                     return (
                       <div
                         key={item.id}
-                        className="gba:flex gba:items-center gba:justify-center gba:w-full gba:h-full gba:min-h-0 gba:rounded-lg gba:overflow-hidden gba:bg-muted"
+                        className={`gba:w-full gba:min-w-0 gba:aspect-video gba:rounded-lg gba:overflow-hidden ${tileBg}`}
                         data-testid={`${prefixDataTestId}-grid-item-${item.id}`}
                       >
-                        <div
-                          className="gba:relative gba:max-w-full gba:max-h-full gba:rounded-lg gba:overflow-hidden gba:bg-muted"
-                          style={{ aspectRatio }}
-                        >
-                          <MemoizedParticipantVideoTile
-                            peerId={item.peerId}
-                            peerName={item.peerName}
-                            avatarUrl={item.avatarUrl}
-                            userId={item.userId}
-                            customParticipantId={item.customParticipantId}
-                            isLocal={item.isLocal}
-                            isMuted={item.isMuted}
-                            hasVideoTrack={item.hasVideoTrack || false}
-                            hasAudioTrack={item.hasAudioTrack || false}
-                            screenShareTrack={item.screenShareTrack}
-                            isFocusedScreenShare={false}
-                            totalScreenShares={state.allScreenShares.length}
-                            isHandRaised={
-                              hideReactionsAndHandRaise
-                                ? false
-                                : state.isParticipantHandRaised(item.peerId, item.userId, item.customParticipantId)
-                            }
-                            handRaisedOrderNumber={
-                              hideReactionsAndHandRaise
-                                ? undefined
-                                : state.getHandRaisedOrderNumber(item.peerId, item.userId, item.customParticipantId)
-                            }
-                            isActiveSpeaker={item.isActiveSpeaker}
-                            reactions={hideReactionsAndHandRaise ? [] : state.activeReactions}
-                            isMinimized={callState.isMinimized}
-                            onScreenShareClick={() => {
-                              if (item.screenShareTrack) {
-                                state.setFocusedScreenShareId(item.peerId)
-                              }
-                            }}
-                            onScreenShareFocus={() => {
-                              state.setFocusedScreenShareId(item.peerId)
-                            }}
-                            videoRef={state.getVideoRefCallback(item.peerId, item.peerName, item.isLocal)}
-                            screenShareVideoRef={
-                              item.screenShareTrack
-                                ? el => {
-                                    if (el) {
-                                      state.screenShareVideoRefs.current.set(item.peerId, el)
-                                    } else {
-                                      state.screenShareVideoRefs.current.delete(item.peerId)
-                                    }
-                                  }
-                                : undefined
-                            }
-                            prefixDataTestId={prefixDataTestId}
-                            t={state.t}
-                          />
-                        </div>
+                        {tile}
                       </div>
                     )
                   })}
