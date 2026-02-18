@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useRef, useEffect } from 'react'
 import type { Message, ConversationParticipant } from '../types'
 import type { ChatApiClient } from '../services/chatApiClient'
 import {
@@ -12,7 +12,10 @@ import {
   TooltipProvider,
   Spinner,
   Alert,
-  AlertDescription
+  AlertDescription,
+  Popover,
+  PopoverContent,
+  PopoverTrigger
 } from '@newwork/nw-design-system'
 import { useCreateMeetingMinutes } from '../hooks/useCreateMeetingMinutes'
 import { ArrowBendUpLeftIcon, VideoCameraIcon } from '@phosphor-icons/react'
@@ -26,6 +29,8 @@ import { AttachmentPreviewDialog } from './AttachmentPreviewDialog'
 import { isPreviewable } from './utils/attachmentUtils'
 import { getExpertColorStyles } from '../utils/expertColorUtils'
 import { useChatTranslation } from '../contexts/TranslationContext'
+import { MessageReactionPicker } from './MessageReactionPicker'
+import { SmileyIcon } from '@phosphor-icons/react'
 
 interface MessageItemProps {
   message: Message
@@ -39,8 +44,9 @@ interface MessageItemProps {
   previewLabel?: string // Pre-translated label for attachments
   timestampRefreshKey?: number // Triggers timestamp recalculation when changed
   aiInitiatedByCurrentUser?: boolean // Explicitly computed by MessageList for backward compatibility
-  compact?: boolean // Compact mode for in-call chat (Teams-style density)
+  compact?: boolean // Compact mode for in-call chat
   apiClient?: ChatApiClient | null // For transcript/meeting minutes functionality
+  onUpdateMessage?: (messageId: string, updates: Partial<Message>) => void
 }
 
 /**
@@ -124,7 +130,8 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(
     timestampRefreshKey = 0,
     aiInitiatedByCurrentUser,
     compact = false,
-    apiClient = null
+    apiClient = null,
+    onUpdateMessage
   }) => {
     const t = useChatTranslation()
     const isAIResponse = message.metadata?.isAIResponse === true
@@ -158,6 +165,18 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(
       att: null
     })
     const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+    const [reactionPickerOpen, setReactionPickerOpen] = useState(false)
+    const [messageHovered, setMessageHovered] = useState(false)
+    const hidePickerTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const hasReactions =
+      !!message.reactions && Object.values(message.reactions).some(ids => Array.isArray(ids) && ids.length > 0)
+
+    useEffect(
+      () => () => {
+        if (hidePickerTimeoutRef.current) clearTimeout(hidePickerTimeoutRef.current)
+      },
+      []
+    )
 
     const openPreview = async (att: MessageAttachment) => {
       try {
@@ -183,6 +202,39 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(
       if (previewUrl) {
         URL.revokeObjectURL(previewUrl)
         setPreviewUrl(null)
+      }
+    }
+
+    const handleReactionClick = async (emoji: string) => {
+      if (!currentUserId || !apiClient || !onUpdateMessage) return
+      const reactions = message.reactions ? { ...message.reactions } : {}
+      const userIds = reactions[emoji] || []
+      const hasReacted = userIds.includes(currentUserId)
+
+      const nextReactions: Record<string, string[]> = { ...reactions }
+      if (hasReacted) {
+        const next = (nextReactions[emoji] || []).filter(id => id !== currentUserId)
+        if (next.length === 0) delete nextReactions[emoji]
+        else nextReactions[emoji] = next
+      } else {
+        Object.keys(nextReactions).forEach(e => {
+          nextReactions[e] = (nextReactions[e] || []).filter(id => id !== currentUserId)
+          if (nextReactions[e].length === 0) delete nextReactions[e]
+        })
+        nextReactions[emoji] = [...(nextReactions[emoji] || []), currentUserId]
+      }
+
+      onUpdateMessage(message.id, { reactions: nextReactions })
+      try {
+        if (hasReacted) {
+          const updated = await apiClient.removeReaction(message.id, emoji)
+          if (updated) onUpdateMessage(updated.id, updated)
+        } else {
+          const updated = await apiClient.addReaction(message.id, emoji)
+          if (updated) onUpdateMessage(updated.id, updated)
+        }
+      } catch {
+        onUpdateMessage(message.id, { reactions: message.reactions })
       }
     }
 
@@ -543,87 +595,189 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(
             </>
           ) : (
             <div
-              className={`${compact ? 'gba:rounded-md gba:px-2.5 gba:py-1.5' : 'gba:rounded-lg gba:px-3 gba:py-2'} gba:break-words ${(() => {
-                if (isExpertResponse) {
-                  return 'gba:bg-gradient-to-br gba:from-muted/50 gba:to-accent/5 gba:text-foreground gba:rounded-2xl gba:rounded-bl-md gba:border-2'
+              className={`gba:relative gba:inline-flex gba:flex-col ${isOwnMessage ? 'gba:items-end' : 'gba:items-start'}`}
+              onMouseEnter={() => {
+                if (hidePickerTimeoutRef.current) {
+                  clearTimeout(hidePickerTimeoutRef.current)
+                  hidePickerTimeoutRef.current = null
                 }
-                if (isOwnMessage) {
-                  return 'gba:bg-primary gba:text-primary-foreground'
-                }
-                return 'gba:bg-muted gba:text-foreground'
-              })()}`}
-              style={
-                isExpertResponse && message.metadata?.expertColor
-                  ? { borderColor: message.metadata.expertColor }
-                  : undefined
-              }
+                setMessageHovered(true)
+              }}
+              onMouseLeave={() => {
+                hidePickerTimeoutRef.current = setTimeout(() => setMessageHovered(false), 400)
+              }}
             >
-              {/* Expert Message Header */}
-              {isExpertResponse && (
-                <div className="gba:text-[11px] gba:font-semibold gba:mb-1.5 gba:flex gba:items-center gba:gap-2">
-                  {/* Expert Avatar */}
+              {/* When no reactions: picker as tooltip above message; 400ms leave delay so cursor can reach it */}
+              {onUpdateMessage &&
+                apiClient &&
+                currentUserId &&
+                !hasReactions &&
+                (messageHovered || reactionPickerOpen) && (
                   <div
-                    className="gba:w-6 gba:h-6 gba:flex-shrink-0 gba:rounded-full gba:flex gba:items-center gba:justify-center gba:text-white gba:font-bold gba:text-[10px]"
-                    style={getExpertColorStyles(message.metadata?.expertColor).avatar}
+                    className={`gba:absolute gba:bottom-full gba:mb-1 gba:rounded-lg gba:border gba:border-border gba:bg-muted gba:z-20 ${isOwnMessage ? 'gba:right-0' : 'gba:left-0'}`}
+                    data-testid={`message-reaction-picker-bar-${message.id}`}
+                    onMouseEnter={() => {
+                      if (hidePickerTimeoutRef.current) {
+                        clearTimeout(hidePickerTimeoutRef.current)
+                        hidePickerTimeoutRef.current = null
+                      }
+                      setMessageHovered(true)
+                    }}
+                    onMouseLeave={() => {
+                      hidePickerTimeoutRef.current = setTimeout(() => setMessageHovered(false), 300)
+                    }}
                   >
-                    {message.metadata?.expertAvatar || message.metadata?.expertName?.charAt(0).toUpperCase() || 'E'}
-                  </div>
-                  {/* Expert Name with Emoji */}
-                  <div className="gba:flex gba:items-center gba:gap-1.5">
-                    <span className="gba:text-xs">🎓</span>
-                    <span style={getExpertColorStyles(message.metadata?.expertColor).text}>
-                      {message.metadata?.expertName || 'Expert'}
-                    </span>
-                  </div>
-                </div>
-              )}
-
-              {/* Text content */}
-              {message.content && (
-                <div className="gba:text-sm gba:whitespace-pre-wrap">
-                  {isExpertResponse ? (
-                    <ExpertResponseRenderer
-                      content={message.content}
-                      expertColor={message.metadata?.expertColor}
-                      citations={message.metadata?.citations}
-                      confidence={message.metadata?.confidence}
-                      accessToken={accessToken}
+                    <MessageReactionPicker
+                      onSelect={emoji => {
+                        handleReactionClick(emoji)
+                        setReactionPickerOpen(false)
+                      }}
+                      prefixDataTestId={`message-${message.id}`}
                     />
-                  ) : (
-                    renderContentWithReferences(message.content, message.metadata, isOwnMessage)
-                  )}
-                </div>
-              )}
+                  </div>
+                )}
+              <div
+                className={`${compact ? 'gba:rounded-md gba:px-2.5 gba:py-1.5' : 'gba:rounded-lg gba:px-3 gba:py-2'} gba:break-words gba:w-full gba:min-w-0 ${onUpdateMessage && apiClient && currentUserId && hasReactions ? 'gba:pb-5' : ''} ${(() => {
+                  if (isExpertResponse) {
+                    return 'gba:bg-gradient-to-br gba:from-muted/50 gba:to-accent/5 gba:text-foreground gba:rounded-2xl gba:rounded-bl-md gba:border-2'
+                  }
+                  if (isOwnMessage) {
+                    return 'gba:bg-primary gba:text-primary-foreground'
+                  }
+                  return 'gba:bg-muted gba:text-foreground'
+                })()}`}
+                style={
+                  isExpertResponse && message.metadata?.expertColor
+                    ? { borderColor: message.metadata.expertColor }
+                    : undefined
+                }
+              >
+                {/* Expert Message Header */}
+                {isExpertResponse && (
+                  <div className="gba:text-[11px] gba:font-semibold gba:mb-1.5 gba:flex gba:items-center gba:gap-2">
+                    {/* Expert Avatar */}
+                    <div
+                      className="gba:w-6 gba:h-6 gba:flex-shrink-0 gba:rounded-full gba:flex gba:items-center gba:justify-center gba:text-white gba:font-bold gba:text-[10px]"
+                      style={getExpertColorStyles(message.metadata?.expertColor).avatar}
+                    >
+                      {message.metadata?.expertAvatar || message.metadata?.expertName?.charAt(0).toUpperCase() || 'E'}
+                    </div>
+                    {/* Expert Name with Emoji */}
+                    <div className="gba:flex gba:items-center gba:gap-1.5">
+                      <span className="gba:text-xs">🎓</span>
+                      <span style={getExpertColorStyles(message.metadata?.expertColor).text}>
+                        {message.metadata?.expertName || 'Expert'}
+                      </span>
+                    </div>
+                  </div>
+                )}
 
-              {/* File Attachments */}
-              {attachments.length > 0 && !isAIResponse && !isExpertResponse && (
-                <div className="gba:mt-2">
-                  <MessageAttachments
-                    attachments={attachments}
-                    isOwnMessage={isOwnMessage}
-                    onPreview={openPreview}
-                    previewLabel={previewLabel}
-                  />
-                </div>
-              )}
+                {/* Text content */}
+                {message.content && (
+                  <div className="gba:text-sm gba:whitespace-pre-wrap">
+                    {isExpertResponse ? (
+                      <ExpertResponseRenderer
+                        content={message.content}
+                        expertColor={message.metadata?.expertColor}
+                        citations={message.metadata?.citations}
+                        confidence={message.metadata?.confidence}
+                        accessToken={accessToken}
+                      />
+                    ) : (
+                      renderContentWithReferences(message.content, message.metadata, isOwnMessage)
+                    )}
+                  </div>
+                )}
 
-              {/* Timestamp and Status - hide timestamp in compact mode if shown inline with sender */}
-              {!(compact && !isOwnMessage && isGroupChat && showSender) && (
-                <div className="gba:flex gba:items-center gba:justify-end gba:gap-1 gba:mt-1">
-                  <span
-                    className={`gba:text-xs ${isOwnMessage ? 'gba:text-primary-foreground gba:opacity-70' : 'gba:text-muted-foreground'}`}
-                  >
-                    {formattedTime}
-                  </span>
-                  {/* Status icon (only for own messages) */}
-                  {isOwnMessage && message.status && (
-                    <span className="gba:text-xs gba:text-primary-foreground gba:opacity-70" title={message.status}>
-                      {message.status === 'sending' && '⏳'}
-                      {message.status === 'sent' && '✓'}
-                      {message.status === 'delivered' && '✓✓'}
-                      {message.status === 'read' && <span className="gba:text-primary-foreground">✓✓</span>}
+                {/* File Attachments */}
+                {attachments.length > 0 && !isAIResponse && !isExpertResponse && (
+                  <div className="gba:mt-2">
+                    <MessageAttachments
+                      attachments={attachments}
+                      isOwnMessage={isOwnMessage}
+                      onPreview={openPreview}
+                      previewLabel={previewLabel}
+                    />
+                  </div>
+                )}
+
+                {/* Timestamp and Status - hide timestamp in compact mode if shown inline with sender */}
+                {!(compact && !isOwnMessage && isGroupChat && showSender) && (
+                  <div className="gba:flex gba:items-center gba:justify-end gba:gap-1 gba:mt-1">
+                    <span
+                      className={`gba:text-xs ${isOwnMessage ? 'gba:text-primary-foreground gba:opacity-70' : 'gba:text-muted-foreground'}`}
+                    >
+                      {formattedTime}
                     </span>
-                  )}
+                    {/* Status icon (only for own messages) */}
+                    {isOwnMessage && message.status && (
+                      <span className="gba:text-xs gba:text-primary-foreground gba:opacity-70" title={message.status}>
+                        {message.status === 'sending' && '⏳'}
+                        {message.status === 'sent' && '✓'}
+                        {message.status === 'delivered' && '✓✓'}
+                        {message.status === 'read' && <span className="gba:text-primary-foreground">✓✓</span>}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Reactions row below: only when message has reactions (pills + add-reaction button) */}
+              {onUpdateMessage && apiClient && currentUserId && hasReactions && (
+                <div
+                  className={`gba:flex gba:flex-wrap gba:items-center gba:gap-1.5 gba:-mt-4 gba:relative gba:z-20 ${isOwnMessage ? 'gba:justify-end' : 'gba:justify-start'}`}
+                  data-testid={`message-reactions-${message.id}`}
+                >
+                  {message.reactions &&
+                    Object.entries(message.reactions).map(([emoji, userIds]) => {
+                      if (!userIds.length) return null
+                      const isYours = userIds.includes(currentUserId)
+                      return (
+                        <button
+                          key={emoji}
+                          type="button"
+                          onClick={() => handleReactionClick(emoji)}
+                          className={`gba:inline-flex gba:items-center gba:gap-1 gba:rounded-full gba:px-2 gba:py-1 gba:text-xs gba:min-w-0 gba:border gba:transition-colors gba:leading-none ${
+                            isOwnMessage
+                              ? `gba:bg-primary gba:border-primary-foreground/25 hover:gba:border-primary-foreground/40 ${isYours ? 'gba:border-primary-foreground/50' : ''}`
+                              : `gba:bg-muted gba:border-border hover:gba:bg-muted/90 ${isYours ? 'gba:border-primary/30' : ''}`
+                          }`}
+                          data-testid={`message-reaction-${message.id}-${emoji}`}
+                        >
+                          <span className="gba:leading-none gba:select-none">{emoji}</span>
+                          <span
+                            className={`gba:tabular-nums ${isOwnMessage ? 'gba:text-primary-foreground gba:opacity-90' : 'gba:text-muted-foreground'}`}
+                          >
+                            {userIds.length}
+                          </span>
+                        </button>
+                      )
+                    })}
+                  <Popover open={reactionPickerOpen} onOpenChange={setReactionPickerOpen}>
+                    <PopoverTrigger asChild>
+                      <button
+                        type="button"
+                        className={`gba:inline-flex gba:items-center gba:justify-center gba:rounded-full gba:px-2 gba:py-1 gba:border gba:transition-colors ${
+                          isOwnMessage
+                            ? 'gba:bg-primary gba:border-primary-foreground/25 gba:text-primary-foreground hover:gba:border-primary-foreground/40'
+                            : 'gba:bg-muted gba:border-border gba:text-muted-foreground hover:gba:bg-muted/90 hover:gba:text-foreground'
+                        }`}
+                        aria-label="Add reaction"
+                        data-testid={`message-reaction-picker-trigger-${message.id}`}
+                      >
+                        <SmileyIcon className="gba:w-4 gba:h-4" />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent align={isOwnMessage ? 'end' : 'start'} side="top" className="gba:p-0">
+                      <MessageReactionPicker
+                        onSelect={emoji => {
+                          handleReactionClick(emoji)
+                          setReactionPickerOpen(false)
+                        }}
+                        prefixDataTestId={`message-${message.id}`}
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
               )}
             </div>
@@ -648,6 +802,7 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(
     if (prevProps.message.id !== nextProps.message.id) return false
     if (prevProps.message.content !== nextProps.message.content) return false
     if (prevProps.message.status !== nextProps.message.status) return false
+    if (prevProps.message.reactions !== nextProps.message.reactions) return false
 
     // Check current user (determines "own message" styling)
     if (prevProps.currentUserId !== nextProps.currentUserId) return false

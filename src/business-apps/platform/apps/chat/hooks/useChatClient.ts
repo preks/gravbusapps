@@ -558,7 +558,7 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
     }
 
     const handleMessageUpdated = (message: Message) => {
-      messagesHookRef.current?.updateMessage(message)
+      messagesHookRef.current?.updateMessage(message.id, message)
     }
 
     const handleMessageDeleted = (data: { messageId: string; conversationId: string }) => {
@@ -1226,6 +1226,7 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
       loadMoreConversations: conversationsHook.loadMoreConversations,
       refreshConversations: conversationsHook.loadConversations,
       refreshMessages: messagesHook.refresh,
+      updateMessage: messagesHook.updateMessage,
       startTyping: typingHook.startTyping,
       stopTyping: typingHook.stopTyping,
       sendNudge,
@@ -1275,6 +1276,7 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
       conversationsHook.loadMoreConversations,
       conversationsHook.loadConversations,
       messagesHook.refresh,
+      messagesHook.updateMessage,
       typingHook.startTyping,
       typingHook.stopTyping,
       sendNudge,

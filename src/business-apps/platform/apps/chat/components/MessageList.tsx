@@ -26,6 +26,7 @@ interface MessageListProps {
   participants?: ConversationParticipant[]
   compact?: boolean // Compact mode for in-call chat
   apiClient?: ChatApiClient | null // For transcript/meeting minutes functionality
+  onUpdateMessage?: (messageId: string, updates: Partial<Message>) => void
 }
 
 /**
@@ -55,7 +56,8 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
     onSendMessage,
     participants,
     compact = false,
-    apiClient = null
+    apiClient = null,
+    onUpdateMessage
   }) => {
     // OPTIMIZATION: Call useTranslation once and memoize the result
     const t = useChatTranslation()
@@ -509,6 +511,7 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
                         aiInitiatedByCurrentUser={aiInitiatedByCurrentUser}
                         compact={compact}
                         apiClient={apiClient}
+                        onUpdateMessage={onUpdateMessage}
                       />
                     )
                   })
@@ -536,6 +539,10 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
 
     // Loading state changed? Re-render
     if (prevProps.isLoading !== nextProps.isLoading) return false
+
+    // Re-render when messages array reference changes (e.g. reaction update, edit)
+    // so that in-place updates like reactions are visible without refresh
+    if (prevProps.messages !== nextProps.messages) return false
 
     // OPTIMIZATION: Check messages more efficiently than array reference
     // Instead of comparing array reference, check length + first/last message IDs
