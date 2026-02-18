@@ -239,8 +239,7 @@ const ChatInner: React.FC<ChatProps> = memo(
       containerRef,
       isEmbeddedMobile,
       showConversationList,
-      hasConversation: !!stableActiveConversation,
-      isMainLayoutShown: !error && (isConnected || !conversationsLoading)
+      hasConversation: !!stableActiveConversation
     })
 
     // Render tracking (after stableActiveConversation is defined)
@@ -839,7 +838,6 @@ const ChatInner: React.FC<ChatProps> = memo(
           showListView={showListView}
           showChatView={showChatView}
           isSingleViewMode={isSingleViewMode}
-          viewMode={viewMode}
           chatViewRef={chatViewRef}
           listSlot={
             <ConversationList
