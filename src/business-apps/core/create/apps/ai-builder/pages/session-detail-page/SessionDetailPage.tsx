@@ -1153,6 +1153,13 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
         }
       }
       await runStreamToEnd(reader, streamState, ctx)
+
+      const wasStopped = stopRequestedRef.current
+      if (wasStopped) {
+        screenBuildUsedRef.current = false
+        screenBuildSucceededRef.current = false
+        filesChangedInRunRef.current = false
+      }
     } catch (error) {
       if (stopRequestedRef.current) {
         return
@@ -1170,16 +1177,17 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
           )
         )
       ])
-    } finally {
-      activeStreamReaderRef.current = null
-      setLoading(false)
+
       const wasStopped = stopRequestedRef.current
       if (wasStopped) {
         screenBuildUsedRef.current = false
         screenBuildSucceededRef.current = false
         filesChangedInRunRef.current = false
-        return
       }
+    } finally {
+      activeStreamReaderRef.current = null
+      setLoading(false)
+
       void (async () => {
         const newCount = await checkForChanges()
         if (filesChangedInRunRef.current || newCount > previousChangeCountRef.current) {

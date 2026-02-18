@@ -235,13 +235,15 @@ export class BuilderClient {
     const compacted: ChatMessage[] = source.map(message => {
       const compactToolCalls =
         Array.isArray(message.toolCalls) && message.toolCalls.length > 0
-          ? message.toolCalls.slice(-maxToolCallsPerMessage).map(call => ({
-              tool: String(call.tool || 'unknown'),
-              status: (call.status === 'running' ? 'running' : 'complete') as 'running' | 'complete',
-              id: String(call.id || ''),
-              args: this.truncateText(call.args, maxToolArgsChars),
-              result: this.truncateText(call.result, maxToolResultChars)
-            }))
+          ? message.toolCalls.slice(-maxToolCallsPerMessage).map(
+              (call): ToolCall => ({
+                tool: String(call.tool || 'unknown'),
+                status: call.status === 'running' ? 'running' : 'complete',
+                id: String(call.id || ''),
+                args: this.truncateText(call.args, maxToolArgsChars),
+                result: this.truncateText(call.result, maxToolResultChars)
+              })
+            )
           : undefined
 
       return {
