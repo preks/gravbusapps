@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
-import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
-import { getCatalogValue } from '@/common/utils/windowUtils'
+import { getCatalogValue, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import { GET_CATALOG_ENTRY_BY_ID } from '../queries/queries'
 
 interface CatalogEntryResult {
