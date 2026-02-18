@@ -148,13 +148,36 @@ export const useAbsenceFilters = ({ accessToken, employeeId }: UseAbsenceFilters
       conditions._or = [{ type: { value: searchPattern } }, { status: searchPattern }, { description: searchPattern }]
     }
 
-    const statusFilters = selectedFilters
+    const statusFiltersRaw = selectedFilters
       .filter(f => f.startsWith('status-'))
       .map(f => f.replace('status-', ''))
       .map(s => String(s).toUpperCase())
+
+    // Expand each selected status to include canonical TIME_* and legacy equivalents
+    const mapToCanonicalAndLegacy = (s: string): string[] => {
+      switch (s) {
+        case 'PENDING':
+        case 'TIME_PENDING':
+          return ['PENDING', 'TIME_PENDING']
+        case 'APPROVED':
+        case 'TIME_APPROVED':
+          return ['APPROVED', 'TIME_APPROVED']
+        case 'CANCELLED':
+        case 'TIME_CANCELLED':
+          return ['CANCELLED', 'TIME_CANCELLED']
+        case 'REJECTED':
+        case 'TIME_REJECTED':
+          return ['REJECTED', 'TIME_REJECTED']
+        default:
+          return [s]
+      }
+    }
+    const statusFilters = Array.from(new Set(statusFiltersRaw.flatMap(mapToCanonicalAndLegacy)))
     const typeFilters = selectedFilters.filter(f => f.startsWith('type-')).map(f => f.replace('type-', ''))
 
     if (statusFilters.length > 0) {
+      // BE currently exposes only legacy 'status'. We still include TIME_* values in the list; they will not match
+      // until BE adds statusCode, but keeping them makes the rollout non-breaking later.
       conditions.status = { _in: statusFilters }
     }
 

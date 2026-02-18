@@ -1,5 +1,5 @@
 import React from 'react'
-import { Badge, Card, CardContent, CardHeader, CardTitle, Progress } from '@newwork/nw-design-system'
+import { Badge, Card, CardContent, CardDescription, CardHeader, CardTitle, Progress } from '@newwork/nw-design-system'
 import { EmployeeSkillItem, SkillSnapshotData, parseSkillLevel } from './skillsProfile.utils'
 
 interface SkillsSnapshotProps {
@@ -18,14 +18,9 @@ const TopSkillsContent: React.FC<{ topSkills: EmployeeSkillItem[]; t: SkillsSnap
   return (
     <div className="gba:flex gba:flex-wrap gba:gap-2" data-testid="skills-snapshot-top-skills-list">
       {topSkills.map(skill => (
-        <Badge
-          key={skill.skill.id}
-          variant="secondary"
-          className="gba:gap-2"
-          data-testid={`skills-snapshot-top-${skill.skill.id}`}
-        >
+        <Badge key={skill.skill.id} variant="secondary" data-testid={`skills-snapshot-top-${skill.skill.id}`}>
           <span>{skill.skill.name}</span>
-          <span className="gba:font-semibold">{parseSkillLevel(skill.level) || '-'}</span>
+          <span>{parseSkillLevel(skill.level) || '-'}</span>
         </Badge>
       ))}
     </div>
@@ -37,18 +32,15 @@ export const SkillsSnapshot: React.FC<SkillsSnapshotProps> = ({ snapshot, t }) =
     <div className="gba:grid gba:grid-cols-1 gba:lg:grid-cols-3 gba:gap-4" data-testid="skills-snapshot-section">
       <Card data-testid="skills-snapshot-strength-card">
         <CardHeader className="gba:pb-2">
-          <CardTitle className="gba:text-base">{t('skills-snapshot-strength-title')}</CardTitle>
+          <CardTitle>{t('skills-snapshot-strength-title')}</CardTitle>
+          <CardDescription>{t('skills-snapshot-strength-description')}</CardDescription>
         </CardHeader>
         <CardContent className="gba:space-y-3">
           <div className="gba:flex gba:items-end gba:gap-2">
             <span className="gba:text-3xl gba:font-bold">{snapshot.strengthScore}</span>
             <span className="gba:text-sm gba:text-muted-foreground">/100</span>
           </div>
-          <Progress
-            value={snapshot.strengthScore}
-            className="gba:h-2"
-            data-testid="skills-snapshot-strength-progress"
-          />
+          <Progress value={snapshot.strengthScore} data-testid="skills-snapshot-strength-progress" />
           <p className="gba:text-xs gba:text-muted-foreground">
             {t('skills-snapshot-strength-footnote', { count: snapshot.leveledSkillCount })}
           </p>
@@ -57,7 +49,8 @@ export const SkillsSnapshot: React.FC<SkillsSnapshotProps> = ({ snapshot, t }) =
 
       <Card data-testid="skills-snapshot-top-card">
         <CardHeader className="gba:pb-2">
-          <CardTitle className="gba:text-base">{t('skills-snapshot-top-title')}</CardTitle>
+          <CardTitle>{t('skills-snapshot-top-title')}</CardTitle>
+          <CardDescription>{t('skills-snapshot-top-description')}</CardDescription>
         </CardHeader>
         <CardContent>
           <TopSkillsContent topSkills={snapshot.topSkills} t={t} />
@@ -66,7 +59,8 @@ export const SkillsSnapshot: React.FC<SkillsSnapshotProps> = ({ snapshot, t }) =
 
       <Card data-testid="skills-snapshot-coverage-card">
         <CardHeader className="gba:pb-2">
-          <CardTitle className="gba:text-base">{t('skills-snapshot-coverage-title')}</CardTitle>
+          <CardTitle>{t('skills-snapshot-coverage-title')}</CardTitle>
+          <CardDescription>{t('skills-snapshot-coverage-description')}</CardDescription>
         </CardHeader>
         <CardContent className="gba:space-y-3">
           <div className="gba:flex gba:items-center gba:justify-between">

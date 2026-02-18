@@ -3,7 +3,6 @@
  */
 
 import { useCallback, useEffect } from 'react'
-import { rtkDebug } from '../utils/rtkDebug'
 import type { CallParticipant } from '../services/webrtcClient'
 import type { Conversation, User } from '../types'
 
@@ -52,23 +51,10 @@ export function useChatCallHandlers({
       if (!activeConversation || activeConversation?.type !== 'group' || !currentUser) return
       const existingCall = activeConversationCalls.get(activeConversation.id)
       const shouldJoinExisting = isJoiningExisting || !!existingCall
-      rtkDebug.log('[CHAT] handleGroupCall check:', {
-        conversationId: activeConversation.id,
-        existingCall,
-        activeConversationCalls: Array.from(activeConversationCalls.entries()),
-        shouldJoinExisting
-      })
       if (shouldJoinExisting) {
         if (!existingCall?.roomId) {
-          rtkDebug.error('[CHAT] Cannot join - no roomId in existingCall!')
           return
         }
-        rtkDebug.log(
-          '[CHAT] Joining existing call with roomId:',
-          existingCall.roomId,
-          'conversationId:',
-          activeConversation.id
-        )
         joinGroupCall?.(existingCall.roomId, callType, undefined)
       } else {
         const callParticipants: CallParticipant[] =
@@ -154,7 +140,6 @@ export function useChatCallHandlers({
             user.displayName || `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim() || user.username || 'Unknown',
           avatarUrl: user.avatarUrl
         }
-        rtkDebug.log('[CHAT] Starting 1-on-1 video call with RTK for direct conversation')
         const calendarMeetingId = activeConversation.metadata?.meetingId ?? null
         initiateGroupCall?.(activeConversation.id, 'video', [participant], undefined, calendarMeetingId, 'direct')
       } else if (activeConversation.type === 'group') {

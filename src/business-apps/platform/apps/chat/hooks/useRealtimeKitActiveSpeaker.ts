@@ -6,7 +6,6 @@
  */
 
 import { useEffect, useState, useRef } from 'react'
-import { rtkDebug } from '../utils/rtkDebug'
 
 export interface UseRealtimeKitActiveSpeakerOptions {
   meeting: any // RealtimeKitMeeting instance
@@ -54,16 +53,8 @@ export const useRealtimeKitActiveSpeaker = ({
       // RTK provides peerId in the activeSpeaker event
       const speakerId = participant?.peerId || participant?.id || participant?.userId
       if (!speakerId) {
-        rtkDebug.warn('[RTK Active Speaker] Active speaker event with no ID:', participant)
         return
       }
-
-      rtkDebug.log('[RTK Active Speaker] 🎙️ Active speaker event:', {
-        speakerId,
-        peerId: participant?.peerId,
-        volume: participant?.volume,
-        participantName: participant?.name
-      })
 
       // If this is the same speaker already active, do nothing
       if (speakerId === activeSpeakerId) {
@@ -83,8 +74,6 @@ export const useRealtimeKitActiveSpeaker = ({
         const newSpeakerId = pendingSpeakerRef.current
         if (!newSpeakerId) return
 
-        rtkDebug.log('[RTK Active Speaker] ✅ Debounced update - new active speaker:', newSpeakerId)
-
         // Update current active speaker
         setActiveSpeakerId(newSpeakerId)
 
@@ -100,15 +89,12 @@ export const useRealtimeKitActiveSpeaker = ({
 
     // Subscribe to active speaker event
     meeting.participants.on('activeSpeaker', handleActiveSpeaker)
-    rtkDebug.log('[RTK Active Speaker] ✅ Listener attached with', debounceMs, 'ms debounce')
 
     return () => {
-      // Clean up timer on unmount
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current)
       }
       meeting.participants.off('activeSpeaker', handleActiveSpeaker)
-      rtkDebug.log('[RTK Active Speaker] Listener removed')
     }
   }, [meeting, debounceMs, activeSpeakerId])
 

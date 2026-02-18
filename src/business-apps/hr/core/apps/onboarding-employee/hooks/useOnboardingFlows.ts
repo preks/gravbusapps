@@ -16,13 +16,35 @@ export interface OnboardingFlowItem {
   initiatedBy?: string
 }
 
+/** BE may return flows with other tags; keep only those that match the onboarding app tag. */
+function flowHasOnboardingTag(f: Record<string, unknown>): boolean {
+  if (!f || typeof f !== 'object') return false
+  const tags = f.tags
+  if (Array.isArray(tags)) {
+    return tags.some((t: unknown) => {
+      if (t === ONBOARDING_APP_TAG) return true
+      if (typeof t === 'string') {
+        return t === ONBOARDING_APP_TAG || t.endsWith(ONBOARDING_APP_TAG) || t.includes(ONBOARDING_APP_TAG)
+      }
+      return false
+    })
+  }
+  if (tags && typeof tags === 'object' && 'app' in tags) {
+    return (tags as { app?: string }).app === ONBOARDING_APP_TAG
+  }
+  return false
+}
+
 function normalizeFlowsResponse(raw: unknown): OnboardingFlowItem[] {
   const data = raw && typeof raw === 'object' && 'data' in raw ? (raw as { data?: { flows?: unknown[] } }).data : raw
-  const flows =
+  const rawFlows =
     data && typeof data === 'object' && 'flows' in data && Array.isArray((data as { flows: unknown[] }).flows)
       ? (data as { flows: unknown[] }).flows
       : []
-  return flows.map((f: any) => ({
+  const filtered = rawFlows.filter((f: unknown) =>
+    flowHasOnboardingTag(typeof f === 'object' && f !== null ? (f as Record<string, unknown>) : {})
+  )
+  return filtered.map((f: any) => ({
     flowId: f.flowId || f.id || '',
     workflowId: f.workflowId || f.flowId,
     flowName: f.flowName || f.workflowName || 'Unknown',

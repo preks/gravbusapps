@@ -21,7 +21,7 @@ declare global {
 }
 
 export interface GlobalCallState {
-  status: 'idle' | 'joining' | 'connected'
+  status: 'idle' | 'joining' | 'connected' | 'ended'
   roomId: string | null
   // RealtimeKit identifiers (optional for other implementations)
   meetingId?: string | null

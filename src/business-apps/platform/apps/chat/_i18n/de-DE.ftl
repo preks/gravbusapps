@@ -357,6 +357,7 @@ participants-everyones-here = Alle sind da!
 participants-all-members-in-call = Alle Mitglieder der Unterhaltung sind entweder im Anruf oder wurden eingeladen.
 participants-in-call = Im Anruf
 participants-invited = Eingeladen
+participants-not-in-this-meeting = Nicht in dieser Besprechung
 participants-left-call = Anruf verlassen
 participants-unknown = Unbekannt
 participants-you = Sie
@@ -421,6 +422,7 @@ calendar-today = Heute
 calendar-viewDay = Tag
 calendar-viewWeek = Woche
 calendar-viewMonth = Monat
+calendar-refresh = Kalender aktualisieren
 
 # Calendar - CreateMeetingModal
 calendar-scheduleMeeting = Termin planen

@@ -794,6 +794,33 @@ export class BuilderClient {
     customSystemPrompt?: string
   ): Promise<ReadableStream> {
     const endpoint = useAgenticMode ? '/analyze/query-agentic' : '/analyze/query'
+    const MAX_MESSAGES = 10
+    const MAX_SINGLE_MESSAGE_CHARS = 3000
+    const MAX_TOTAL_CHARS = 20000
+
+    const compactHistory = conversationHistory.slice(-MAX_MESSAGES).map(message => {
+      const rawContent = typeof message.content === 'string' ? message.content : JSON.stringify(message.content ?? '')
+      const normalizedContent = rawContent.trim()
+      const content =
+        normalizedContent.length > MAX_SINGLE_MESSAGE_CHARS
+          ? `${normalizedContent.slice(0, MAX_SINGLE_MESSAGE_CHARS)}\n\n... (history message truncated)`
+          : normalizedContent
+      return {
+        role: message.role,
+        content
+      }
+    })
+
+    let totalChars = 0
+    const boundedHistory: Array<{ role: 'user' | 'assistant'; content: string }> = []
+    for (let i = compactHistory.length - 1; i >= 0; i -= 1) {
+      const item = compactHistory[i]
+      if (!item.content) continue
+      const nextTotal = totalChars + item.content.length
+      if (nextTotal > MAX_TOTAL_CHARS) break
+      boundedHistory.unshift(item)
+      totalChars = nextTotal
+    }
 
     const response = await fetch(`${this.baseUrl}${endpoint}`, {
       method: 'POST',
@@ -802,7 +829,7 @@ export class BuilderClient {
         repoId,
         query,
         stream: true,
-        conversationHistory,
+        conversationHistory: boundedHistory,
         buildEnabled,
         sessionId,
         llmProvider,
