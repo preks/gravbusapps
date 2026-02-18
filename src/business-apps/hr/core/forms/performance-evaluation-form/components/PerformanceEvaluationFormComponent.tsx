@@ -49,9 +49,12 @@ const PerformanceEvaluationFormComponent: React.FC = () => {
     await onSubmit()
   }
 
-  // Check if form is valid - all topics must have ratings and employee must be selected
+  // Check if form is valid: employee (selected or pre-selected in task flow) and all topics have a rating
+  const hasEmployee = formValues.employeeId || hasPreSelectedEmployee
   const isFormValid =
-    formValues.employeeId && formValues.topics.every(topic => topic.rating !== undefined && topic.rating > 0)
+    hasEmployee &&
+    formValues.topics.length > 0 &&
+    formValues.topics.every(topic => topic.rating !== undefined && topic.rating > 0)
 
   // Parse employee name for FormHeader (firstName lastName)
   // Always show in header when pre-selected (even if current user)
@@ -226,10 +229,10 @@ const PerformanceEvaluationFormComponent: React.FC = () => {
               className="gba:space-y-3 gba:p-4 gba:border gba:border-border gba:rounded-lg"
               data-testid={formatDataTestId(prefixDataTestId, `Topic-${topic.id}`)}
             >
-              {/* Topic Header */}
+              {/* Topic Header: show topic name (skill/value name) and category in parentheses */}
               <div className="gba:flex gba:items-center gba:gap-2">
                 <Label className="gba:text-base gba:font-semibold">
-                  {topic.name}
+                  {topic.name || (topic.category === 'skill' ? 'Skill' : 'Company Value')}
                   <span className="gba:text-xs gba:font-normal gba:text-muted-foreground gba:ml-2">
                     ({topic.category === 'skill' ? 'Skill' : 'Company Value'})
                   </span>

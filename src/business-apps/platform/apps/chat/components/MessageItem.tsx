@@ -15,8 +15,8 @@ import {
   AlertDescription
 } from '@newwork/nw-design-system'
 import { useCreateMeetingMinutes } from '../hooks/useCreateMeetingMinutes'
-import { ArrowBendUpLeft } from '@phosphor-icons/react'
-import { VideoCamera } from '@phosphor-icons/react'
+import { ArrowBendUpLeftIcon, VideoCameraIcon } from '@phosphor-icons/react'
+import { UserPlus, UserMinus, Pencil, Users } from 'lucide-react'
 import { renderContentWithReferences } from './EntityReferenceBadge'
 import { EveryAIMessageRenderer } from './EveryAIMessageRenderer'
 import { ExpertResponseRenderer } from './ExpertResponseRenderer'
@@ -81,6 +81,33 @@ const formatTime = (date: Date | string): string => {
   const hours = d.getHours().toString().padStart(2, '0')
   const mins = d.getMinutes().toString().padStart(2, '0')
   return `${month} ${day}, ${hours}:${mins}`
+}
+
+function getSystemMessageIcon(
+  messageType: string | undefined,
+  systemIconClassName: string
+): (() => React.ReactElement) | null {
+  const isMeetingOrCall =
+    messageType === 'meeting_start' ||
+    messageType === 'meeting_end' ||
+    messageType === 'call_start' ||
+    messageType === 'call_end'
+  if (isMeetingOrCall) {
+    return () => <VideoCameraIcon className={systemIconClassName} weight="fill" />
+  }
+  if (messageType === 'participant_joined') {
+    return () => <UserPlus className={systemIconClassName} />
+  }
+  if (messageType === 'participant_left') {
+    return () => <UserMinus className={systemIconClassName} />
+  }
+  if (messageType === 'conversation_created') {
+    return () => <Users className={systemIconClassName} />
+  }
+  if (messageType === 'conversation_renamed') {
+    return () => <Pencil className={systemIconClassName} />
+  }
+  return null
 }
 
 export const MessageItem: React.FC<MessageItemProps> = React.memo(
@@ -354,18 +381,16 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(
       )
     }
 
-    // System message (meeting/call start/end, etc.)
+    // System message (meeting/call start/end, participant joined/left, conversation created/renamed, etc.)
     if (message.type === 'system') {
       const messageType = message.metadata?.type
-      const isMeetingMessage = messageType === 'meeting_start' || messageType === 'meeting_end'
-      const isCallMessage = messageType === 'call_start' || messageType === 'call_end'
+      const systemIconClassName = 'gba:w-4 gba:h-4 gba:flex-shrink-0 gba:text-muted-foreground'
+      const SystemIcon = getSystemMessageIcon(messageType, systemIconClassName)
 
       return (
         <div className="gba:flex gba:justify-center gba:py-1.5" data-testid={`message-system-${message.id}`}>
           <div className="gba:flex gba:items-center gba:gap-2 gba:bg-muted/50 gba:px-3 gba:py-1.5 gba:rounded-full">
-            {(isMeetingMessage || isCallMessage) && (
-              <VideoCamera className="gba:w-4 gba:h-4 gba:text-muted-foreground" weight="fill" />
-            )}
+            {SystemIcon && <SystemIcon />}
             <span className="gba:text-xs gba:text-muted-foreground">{formattedTime}</span>
             <span className="gba:text-xs gba:text-foreground gba:font-medium">{message.content}</span>
           </div>
@@ -496,7 +521,7 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(
                                   className="gba:h-5 gba:w-5 gba:text-primary/70 hover:gba:text-primary hover:gba:bg-primary/10"
                                   data-testid={`reply-to-ai-${message.id}`}
                                 >
-                                  <ArrowBendUpLeft className="gba:w-3.5 gba:h-3.5" />
+                                  <ArrowBendUpLeftIcon className="gba:w-3.5 gba:h-3.5" />
                                 </Button>
                               </TooltipTrigger>
                               <TooltipContent>

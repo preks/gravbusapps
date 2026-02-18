@@ -135,22 +135,12 @@ export function ChatModals({
           invite={
             (incomingGroupCallInvite as GroupCallInvite) ??
             (() => {
-              let convType: 'meeting' | 'direct' | 'group' = 'group'
-              if (activeConversation?.metadata?.type === 'meeting') {
-                convType = 'meeting'
-              } else if (activeConversation?.type === ConversationType.DIRECT) {
-                convType = 'direct'
-              }
+              // Rejoin is always a call (group or direct), not a "meeting" in the scheduled sense.
+              const convType: 'direct' | 'group' =
+                activeConversation?.type === ConversationType.DIRECT ? 'direct' : 'group'
               const meetingName = rejoinModalState!.conversationName ?? activeConversation?.name
               const startedBy = rejoinModalState!.startedBy
-              let defaultOdName: string
-              if (convType === 'direct') {
-                defaultOdName = 'Call'
-              } else if (convType === 'meeting') {
-                defaultOdName = 'Meeting'
-              } else {
-                defaultOdName = 'Group call'
-              }
+              const defaultOdName = convType === 'direct' ? 'Call' : 'Group call'
               return {
                 roomId: rejoinModalState!.roomId,
                 callType: rejoinModalState!.callType,
@@ -181,6 +171,7 @@ export function ChatModals({
               : onRejoinWithPreferences
           }
           onDecline={incomingGroupCallInvite ? onDeclineGroupInvite : onRejoinCancel}
+          playRingtone={!!incomingGroupCallInvite && realtimeKitGroupCall.isRingingLeader === true}
           prefixDataTestId={`${prefixDataTestId}-incoming-group-call`}
         />
       )}

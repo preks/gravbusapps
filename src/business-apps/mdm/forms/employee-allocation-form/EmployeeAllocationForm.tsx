@@ -136,29 +136,25 @@ const EmployeeAllocationForm: React.FC<EmployeeAllocationFormProps> = ({
         }
       })
 
+      const employeeId = employee.employeeId || employee.id
+      const updatedTotalAllocationPercent = totalAllocationPercent
+        ? (totalAllocationPercent.totalAllocationPercent ?? 0) + percentageDifference
+        : Number(values.percentage)
       const workingHoursPayload = {
         changeMode: 'INSERT',
         employeeWorkingHours: {
-          employeeId: employee.employeeId || employee.id,
-          totalAllocationPercent: totalAllocationPercent
-            ? (totalAllocationPercent.totalAllocationPercent ?? 0) + percentageDifference
-            : values.percentage,
-          ...(totalAllocationPercent && {
-            id: totalAllocationPercent.id,
-            version: totalAllocationPercent.version
-          })
+          employeeId,
+          totalAllocationPercent: updatedTotalAllocationPercent,
+          id: totalAllocationPercent?.id ?? employeeId,
+          version: totalAllocationPercent?.version ?? 0
         }
       }
-      await restClientEmployees.post(
-        `/${totalAllocationPercent ? 'updateEmployeeWorkingHours' : 'createEmployeeWorkingHours'}`,
-        workingHoursPayload,
-        {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            'Content-Type': 'application/json'
-          }
+      await restClientEmployees.post(`/updateEmployeeWorkingHours`, workingHoursPayload, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
         }
-      )
+      })
 
       refetch?.()
       onSubmit?.()
