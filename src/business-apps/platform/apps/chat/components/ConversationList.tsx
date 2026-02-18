@@ -1,6 +1,13 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react'
 import { Button, Input, Spinner, Popover, PopoverContent, PopoverTrigger } from '@newwork/nw-design-system'
-import { Plus, MagnifyingGlass, User, UsersThree, CaretDown, CaretUp } from '@phosphor-icons/react'
+import {
+  PlusIcon,
+  MagnifyingGlassIcon,
+  UserIcon,
+  UsersThreeIcon,
+  CaretDownIcon,
+  CaretUpIcon
+} from '@phosphor-icons/react'
 import { ConversationItem } from './ConversationItem'
 import { UserSearch } from './UserSearch'
 import { UserStatusDropdown } from './UserStatusDropdown'
@@ -164,6 +171,134 @@ export const ConversationList: React.FC<ConversationListProps> = ({
     setShowUserSearch(false)
   }
 
+  const renderFilterChipRow = () => (
+    <>
+      <Button
+        variant={unreadOnly ? 'default' : 'outline'}
+        size="sm"
+        className="gba:h-7 gba:text-xs"
+        onClick={() => onUnreadOnlyChange?.(!unreadOnly)}
+        data-testid="conversation-filter-unread"
+      >
+        {t('chat-filterUnreadOnly')}
+      </Button>
+      <Button
+        variant={filterKind === 'direct' ? 'default' : 'outline'}
+        size="sm"
+        className="gba:h-7 gba:text-xs"
+        onClick={() => handleKindChipClick('direct')}
+        data-testid="conversation-filter-direct"
+      >
+        {t('chat-filterDirect')}
+      </Button>
+      <Button
+        variant={filterKind === 'group' ? 'default' : 'outline'}
+        size="sm"
+        className="gba:h-7 gba:text-xs"
+        onClick={() => handleKindChipClick('group')}
+        data-testid="conversation-filter-group"
+      >
+        {t('chat-filterGroup')}
+      </Button>
+      <Button
+        variant={filterKind === 'meeting' ? 'default' : 'outline'}
+        size="sm"
+        className="gba:h-7 gba:text-xs"
+        onClick={() => handleKindChipClick('meeting')}
+        data-testid="conversation-filter-meeting"
+      >
+        {t('chat-filterMeetingChats')}
+      </Button>
+    </>
+  )
+
+  const renderFilterChips = () => {
+    if (filtersNeedFolding) {
+      if (filtersExpanded) {
+        return (
+          <>
+            {renderFilterChipRow()}
+            <button
+              type="button"
+              onClick={() => setFiltersExpanded(false)}
+              className="gba:flex-shrink-0 gba:p-1 gba:rounded gba:hover:bg-accent/50 gba:outline-none gba:focus-visible:ring-2 gba:focus-visible:ring-primary"
+              aria-label={t('chat-filtersCollapse')}
+              data-testid="conversation-filters-collapse"
+            >
+              <CaretUpIcon className="gba:w-4 gba:h-4 gba:text-muted-foreground" aria-hidden />
+            </button>
+          </>
+        )
+      }
+      const onLine1 = filterChipOrder.slice(0, chipsThatFitInOneLine)
+      const onLine2 = filterChipOrder.slice(chipsThatFitInOneLine)
+      const renderChip = (key: 'unread' | 'direct' | 'group' | 'meeting') => {
+        if (key === 'unread') {
+          return (
+            <Button
+              key="unread"
+              variant={unreadOnly ? 'default' : 'outline'}
+              size="sm"
+              className="gba:h-7 gba:text-xs"
+              onClick={() => onUnreadOnlyChange?.(!unreadOnly)}
+              data-testid="conversation-filter-unread"
+            >
+              {t('chat-filterUnreadOnly')}
+            </Button>
+          )
+        }
+        const variant = filterKind === key ? 'default' : 'outline'
+        const onClick = () => (filterKind === key ? handleKindChipClick(key) : onFilterKindChange?.(key))
+        const labels = {
+          direct: t('chat-filterDirect'),
+          group: t('chat-filterGroup'),
+          meeting: t('chat-filterMeetingChats')
+        }
+        const testIds = {
+          direct: 'conversation-filter-direct',
+          group: 'conversation-filter-group',
+          meeting: 'conversation-filter-meeting'
+        }
+        return (
+          <Button
+            key={key}
+            variant={variant}
+            size="sm"
+            className="gba:h-7 gba:text-xs"
+            onClick={onClick}
+            data-testid={testIds[key]}
+          >
+            {labels[key]}
+          </Button>
+        )
+      }
+      return (
+        <div className="gba:flex gba:flex-col gba:gap-1.5 gba:w-full">
+          <div className="gba:flex gba:items-center gba:gap-1.5 gba:flex-nowrap">
+            {onLine1.map(k => renderChip(k))}
+            <button
+              type="button"
+              onClick={() => setFiltersExpanded(!filtersExpanded)}
+              className="gba:flex-shrink-0 gba:p-1 gba:rounded gba:hover:bg-accent/50 gba:outline-none gba:focus-visible:ring-2 gba:focus-visible:ring-primary"
+              aria-label={filtersExpanded ? t('chat-filtersCollapse') : t('chat-filtersExpand')}
+              data-testid={filtersExpanded ? 'conversation-filters-collapse' : 'conversation-filters-expand'}
+            >
+              {filtersExpanded ? (
+                <CaretUpIcon className="gba:w-4 gba:h-4 gba:text-muted-foreground" aria-hidden />
+              ) : (
+                <CaretDownIcon className="gba:w-4 gba:h-4 gba:text-muted-foreground" aria-hidden />
+              )}
+            </button>
+          </div>
+          {filtersExpanded && onLine2.length > 0 && (
+            <div className="gba:flex gba:items-center gba:gap-1.5 gba:flex-wrap">{onLine2.map(k => renderChip(k))}</div>
+          )}
+        </div>
+      )
+    }
+    return renderFilterChipRow()
+  }
+
   // Handle scroll to load more conversations
   useEffect(() => {
     const container = scrollContainerRef.current
@@ -217,7 +352,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
               className="gba:h-8 gba:w-8 gba:flex-shrink-0"
               data-testid="new-conversation-button"
             >
-              <Plus className="gba:w-4 gba:h-4" />
+              <PlusIcon className="gba:w-4 gba:h-4" />
             </Button>
           </PopoverTrigger>
           <PopoverContent align="end" className="gba:w-52 gba:p-1">
@@ -230,7 +365,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
               data-testid="new-direct-message-option"
             >
               <div className="gba:p-1.5 gba:rounded-md gba:bg-primary/10">
-                <User className="gba:w-4 gba:h-4 gba:text-primary" weight="fill" />
+                <UserIcon className="gba:w-4 gba:h-4 gba:text-primary" weight="fill" />
               </div>
               <span className="gba:text-sm gba:font-medium">{t('chat-directMessage')}</span>
             </button>
@@ -245,7 +380,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
                 data-testid="new-group-chat-option"
               >
                 <div className="gba:p-1.5 gba:rounded-md gba:bg-muted">
-                  <UsersThree className="gba:w-4 gba:h-4 gba:text-muted-foreground" weight="fill" />
+                  <UsersThreeIcon className="gba:w-4 gba:h-4 gba:text-muted-foreground" weight="fill" />
                 </div>
                 <span className="gba:text-sm gba:font-medium">{t('chat-groupChat')}</span>
               </button>
@@ -257,7 +392,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
       {/* Search */}
       <div className={`gba:border-b gba:border-border/50 ${compact ? 'gba:px-3 gba:py-2' : 'gba:p-3'}`}>
         <div className="gba:relative">
-          <MagnifyingGlass className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:w-4 gba:h-4 gba:text-muted-foreground gba:pointer-events-none gba:z-10" />
+          <MagnifyingGlassIcon className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:w-4 gba:h-4 gba:text-muted-foreground gba:pointer-events-none gba:z-10" />
           <Input
             value={search}
             onChange={e => onSearchChange?.(e.target.value)}
@@ -293,167 +428,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
           </Button>
         </div>
 
-        {!filtersNeedFolding ? (
-          /* All fit: show all chips (Unread first) */
-          <>
-            <Button
-              variant={unreadOnly ? 'default' : 'outline'}
-              size="sm"
-              className="gba:h-7 gba:text-xs"
-              onClick={() => onUnreadOnlyChange?.(!unreadOnly)}
-              data-testid="conversation-filter-unread"
-            >
-              {t('chat-filterUnreadOnly')}
-            </Button>
-            <Button
-              variant={filterKind === 'direct' ? 'default' : 'outline'}
-              size="sm"
-              className="gba:h-7 gba:text-xs"
-              onClick={() => handleKindChipClick('direct')}
-              data-testid="conversation-filter-direct"
-            >
-              {t('chat-filterDirect')}
-            </Button>
-            <Button
-              variant={filterKind === 'group' ? 'default' : 'outline'}
-              size="sm"
-              className="gba:h-7 gba:text-xs"
-              onClick={() => handleKindChipClick('group')}
-              data-testid="conversation-filter-group"
-            >
-              {t('chat-filterGroup')}
-            </Button>
-            <Button
-              variant={filterKind === 'meeting' ? 'default' : 'outline'}
-              size="sm"
-              className="gba:h-7 gba:text-xs"
-              onClick={() => handleKindChipClick('meeting')}
-              data-testid="conversation-filter-meeting"
-            >
-              {t('chat-filterMeetingChats')}
-            </Button>
-          </>
-        ) : filtersExpanded ? (
-          /* Don't fit + expanded: show all chips (Unread first) and collapse chevron */
-          <>
-            <Button
-              variant={unreadOnly ? 'default' : 'outline'}
-              size="sm"
-              className="gba:h-7 gba:text-xs"
-              onClick={() => onUnreadOnlyChange?.(!unreadOnly)}
-              data-testid="conversation-filter-unread"
-            >
-              {t('chat-filterUnreadOnly')}
-            </Button>
-            <Button
-              variant={filterKind === 'direct' ? 'default' : 'outline'}
-              size="sm"
-              className="gba:h-7 gba:text-xs"
-              onClick={() => handleKindChipClick('direct')}
-              data-testid="conversation-filter-direct"
-            >
-              {t('chat-filterDirect')}
-            </Button>
-            <Button
-              variant={filterKind === 'group' ? 'default' : 'outline'}
-              size="sm"
-              className="gba:h-7 gba:text-xs"
-              onClick={() => handleKindChipClick('group')}
-              data-testid="conversation-filter-group"
-            >
-              {t('chat-filterGroup')}
-            </Button>
-            <Button
-              variant={filterKind === 'meeting' ? 'default' : 'outline'}
-              size="sm"
-              className="gba:h-7 gba:text-xs"
-              onClick={() => handleKindChipClick('meeting')}
-              data-testid="conversation-filter-meeting"
-            >
-              {t('chat-filterMeetingChats')}
-            </Button>
-            <button
-              type="button"
-              onClick={() => setFiltersExpanded(false)}
-              className="gba:flex-shrink-0 gba:p-1 gba:rounded gba:hover:bg-accent/50 gba:outline-none gba:focus-visible:ring-2 gba:focus-visible:ring-primary"
-              aria-label={t('chat-filtersCollapse')}
-              data-testid="conversation-filters-collapse"
-            >
-              <CaretUp className="gba:w-4 gba:h-4 gba:text-muted-foreground" aria-hidden />
-            </button>
-          </>
-        ) : (
-          /* Don't fit + folded: line 1 = as many as fit (Unread, then selected, then Direct/Group/Meeting); line 2 = rest, hidden by default */
-          (() => {
-            const onLine1 = filterChipOrder.slice(0, chipsThatFitInOneLine)
-            const onLine2 = filterChipOrder.slice(chipsThatFitInOneLine)
-            const renderChip = (key: 'unread' | 'direct' | 'group' | 'meeting') => {
-              if (key === 'unread') {
-                return (
-                  <Button
-                    key="unread"
-                    variant={unreadOnly ? 'default' : 'outline'}
-                    size="sm"
-                    className="gba:h-7 gba:text-xs"
-                    onClick={() => onUnreadOnlyChange?.(!unreadOnly)}
-                    data-testid="conversation-filter-unread"
-                  >
-                    {t('chat-filterUnreadOnly')}
-                  </Button>
-                )
-              }
-              const variant = filterKind === key ? 'default' : 'outline'
-              const onClick = () => (filterKind === key ? handleKindChipClick(key) : onFilterKindChange?.(key))
-              const labels = {
-                direct: t('chat-filterDirect'),
-                group: t('chat-filterGroup'),
-                meeting: t('chat-filterMeetingChats')
-              }
-              const testIds = {
-                direct: 'conversation-filter-direct',
-                group: 'conversation-filter-group',
-                meeting: 'conversation-filter-meeting'
-              }
-              return (
-                <Button
-                  key={key}
-                  variant={variant}
-                  size="sm"
-                  className="gba:h-7 gba:text-xs"
-                  onClick={onClick}
-                  data-testid={testIds[key]}
-                >
-                  {labels[key]}
-                </Button>
-              )
-            }
-            return (
-              <div className="gba:flex gba:flex-col gba:gap-1.5 gba:w-full">
-                <div className="gba:flex gba:items-center gba:gap-1.5 gba:flex-nowrap">
-                  {onLine1.map(k => renderChip(k))}
-                  <button
-                    type="button"
-                    onClick={() => setFiltersExpanded(!filtersExpanded)}
-                    className="gba:flex-shrink-0 gba:p-1 gba:rounded gba:hover:bg-accent/50 gba:outline-none gba:focus-visible:ring-2 gba:focus-visible:ring-primary"
-                    aria-label={filtersExpanded ? t('chat-filtersCollapse') : t('chat-filtersExpand')}
-                    data-testid={filtersExpanded ? 'conversation-filters-collapse' : 'conversation-filters-expand'}
-                  >
-                    {filtersExpanded ? (
-                      <CaretUp className="gba:w-4 gba:h-4 gba:text-muted-foreground" aria-hidden />
-                    ) : (
-                      <CaretDown className="gba:w-4 gba:h-4 gba:text-muted-foreground" aria-hidden />
-                    )}
-                  </button>
-                </div>
-                {filtersExpanded && onLine2.length > 0 && (
-                  <div className="gba:flex gba:items-center gba:gap-1.5 gba:flex-wrap">
-                    {onLine2.map(k => renderChip(k))}
-                  </div>
-                )}
-              </div>
-            )
-          })()
-        )}
+        {renderFilterChips()}
       </div>
 
       {/* Conversations */}

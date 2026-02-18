@@ -787,6 +787,13 @@ const ChatInner: React.FC<ChatProps> = memo(
     const connectionError = error
     const isLoading = !isConnected && conversationsLoading
 
+    const getConnectionErrorLabel = (name: string): string => {
+      if (name === 'chat.serviceUnavailable') return t('chat-serviceUnavailable')
+      if (name === 'chat.serviceNotFound') return t('chat-serviceNotFound')
+      if (name === 'chat.authenticationFailed') return t('chat-authenticationFailed')
+      return t('chat-connectionError')
+    }
+
     return (
       <div
         ref={containerRef}
@@ -799,15 +806,7 @@ const ChatInner: React.FC<ChatProps> = memo(
             data-testid={`${prefixDataTestId}-error`}
           >
             <Alert variant="destructive" className="gba:max-w-sm">
-              <AlertDescription>
-                {connectionError.name === 'chat.serviceUnavailable'
-                  ? t('chat-serviceUnavailable')
-                  : connectionError.name === 'chat.serviceNotFound'
-                    ? t('chat-serviceNotFound')
-                    : connectionError.name === 'chat.authenticationFailed'
-                      ? t('chat-authenticationFailed')
-                      : t('chat-connectionError')}
-              </AlertDescription>
+              <AlertDescription>{getConnectionErrorLabel(connectionError.name)}</AlertDescription>
             </Alert>
           </div>
         )}

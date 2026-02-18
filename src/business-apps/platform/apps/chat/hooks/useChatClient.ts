@@ -404,8 +404,8 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
         let messageStatus = raw.status || 'sent'
 
         const currentUser = currentUserRef.current
-        const isOwnMessage = currentUser && raw.senderId === currentUser.id
-        const isOtherUserMessage = currentUser && raw.senderId !== currentUser.id
+        const isOwnMessage = raw.senderId === currentUser?.id
+        const isOtherUserMessage = currentUser !== undefined && raw.senderId !== currentUser.id
 
         // Check if it's a system message (no sender)
         const isSystemMessage = !raw.senderId || raw.type === 'system'

@@ -3,6 +3,13 @@ import type { User, Conversation, Message, PaginatedResponse, ConversationType }
 
 type NormalizedConversationsResponse = PaginatedResponse<Conversation>
 
+/** Coerce to string only for primitives to avoid [object Object] from API. */
+function safeString(value: unknown): string {
+  if (value == null) return ''
+  if (typeof value === 'string' || typeof value === 'number') return String(value)
+  return ''
+}
+
 /** Backend returns lastMessage with snake_case; normalize to camelCase for frontend. */
 function normalizeLastMessage(lastMessage: unknown): Message | undefined {
   if (lastMessage == null || typeof lastMessage !== 'object') return undefined
@@ -10,11 +17,11 @@ function normalizeLastMessage(lastMessage: unknown): Message | undefined {
   const createdAt = (m.created_at ?? m.createdAt) as string | undefined
   const updatedAt = (m.updated_at ?? m.updatedAt ?? m.created_at ?? m.createdAt) as string | undefined
   return {
-    id: String(m.id ?? ''),
-    conversationId: String(m.conversation_id ?? m.conversationId ?? ''),
+    id: safeString(m.id),
+    conversationId: safeString(m.conversation_id ?? m.conversationId),
     senderId: (m.sender_id ?? m.senderId) as string | null,
     type: (m.type ?? 'text') as Message['type'],
-    content: String(m.content ?? ''),
+    content: safeString(m.content),
     metadata: (m.metadata as Message['metadata']) ?? undefined,
     parentId: (m.reply_to_id ?? m.parentId ?? m.replyToId) as string | undefined,
     isEdited: Boolean(m.is_edited ?? m.isEdited),
@@ -143,17 +150,18 @@ export class ChatApiClient {
       .then(response => {
         // Backend returns { conversations: [...] } but we expect { data: [...] }
         // Normalize lastMessage (snake_case → camelCase) so sorting and UI work correctly.
-        const rawData = 'conversations' in response.data ? response.data.conversations : response.data.data
+        const rawData: Conversation[] =
+          'conversations' in response.data ? response.data.conversations : response.data.data
         const normalized: NormalizedConversationsResponse =
           'conversations' in response.data
             ? {
-                data: (rawData as Conversation[]).map(normalizeConversationLastMessage),
+                data: rawData.map(normalizeConversationLastMessage),
                 total: response.data.total,
                 page: response.data.page,
                 limit: response.data.limit,
                 totalPages: response.data.totalPages
               }
-            : { ...response.data, data: (rawData as Conversation[]).map(normalizeConversationLastMessage) }
+            : { ...response.data, data: rawData.map(normalizeConversationLastMessage) }
 
         conversationsResponseCache.set(key, { ts: Date.now(), value: normalized })
         if (conversationsResponseCache.size > 50) {
