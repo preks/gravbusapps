@@ -14,10 +14,10 @@ const PLAN_NEW_PARAM = 'plan'
 const PROMPT_PARAM = 'prompt'
 
 function getQueryParams(): { jobId: string | null; planNew: boolean; initialPrompt: string | null } {
-  if (typeof window === 'undefined') {
+  if (typeof globalThis.window === 'undefined') {
     return { jobId: null, planNew: false, initialPrompt: null }
   }
-  const params = new URLSearchParams(window.location.search)
+  const params = new URLSearchParams(globalThis.location.search)
   const jobId = params.get(JOB_ID_PARAM)
   const planNew = params.get(PLAN_NEW_PARAM) === 'new'
   const initialPrompt = params.get(PROMPT_PARAM)
