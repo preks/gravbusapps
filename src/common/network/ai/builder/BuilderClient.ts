@@ -86,6 +86,7 @@ export interface ChatMessage {
   content: string
   toolCalls?: ToolCall[]
   thinkingLog?: string
+  createdBy?: string
   messageId?: string
   createdAt?: string
   serverCreatedAt?: string
