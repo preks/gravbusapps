@@ -385,17 +385,12 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
       }
       processedMessageIdsRef.current.add(message.id)
 
-      // PERFORMANCE: Skip old WebSocket messages that we already loaded from API/cache
+      // Update newest timestamp for active conversation (used for ordering/display).
+      // Do NOT skip by timestamp: we only have page 1 loaded; duplicate prevention is by message ID above.
+      // Skipping by timestamp could drop real new messages (clock skew or lastMessage-update race).
       const currentActiveConversationId = activeConversationIdRef.current
       if (message.conversationId === currentActiveConversationId) {
         const messageTimestamp = new Date(message.createdAt).getTime()
-        const newestWeHave = newestMessageTimestampRef.current
-
-        if (messageTimestamp <= newestWeHave && newestWeHave > 0) {
-          return // Skip - we already have this message
-        }
-
-        // Update the newest timestamp for this conversation
         newestMessageTimestampRef.current = messageTimestamp
       }
 
