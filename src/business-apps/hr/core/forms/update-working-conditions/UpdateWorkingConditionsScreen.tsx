@@ -36,7 +36,8 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
     firstName,
     lastName,
     pictureThumbnail,
-    loading
+    loading,
+    regionCatalogIsFull
   } = useWorkingConditionsLookups(context)
 
   const [employmentType, setEmploymentType] = useState<string | undefined>(undefined)
@@ -67,10 +68,10 @@ const UpdateWorkingConditionsScreen: React.FC<BusinessAppContextProps> = context
   }, [current])
 
   useEffect(() => {
-    if (!region && Array.isArray(regions) && regions.length === 1) {
+    if (!regionCatalogIsFull && !region && Array.isArray(regions) && regions.length === 1) {
       setRegion(regions[0].id)
     }
-  }, [regions, region])
+  }, [regions, region, regionCatalogIsFull])
 
   const probationPeriodText = useMemo(() => {
     if (!contractType) return null
