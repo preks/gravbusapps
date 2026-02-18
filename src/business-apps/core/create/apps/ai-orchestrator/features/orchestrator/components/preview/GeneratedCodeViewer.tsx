@@ -22,7 +22,11 @@ import { Code2, FileText, AlertCircle, ExternalLink } from 'lucide-react'
 import { env } from '@/common/env/EnvUtils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
 
-const BASE_URL = (env('NEXT_PUBLIC_BASE_URL') || '').replace(/\/+$/, '')
+const BASE_URL = (() => {
+  let u = env('NEXT_PUBLIC_BASE_URL') || ''
+  while (u.endsWith('/')) u = u.slice(0, -1)
+  return u
+})()
 const AI_SERVICE_API_URL = env('NEXT_PUBLIC_AI_BUILDER_API_URL') || `${BASE_URL}/ai-builder`
 
 export interface GeneratedCodeViewerProps {
