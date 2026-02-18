@@ -180,13 +180,13 @@ export const ParticipantVideoTile: React.FC<ParticipantVideoTileProps> = ({
         isActiveSpeaker ? 'gba:ring-4 gba:ring-primary gba:ring-offset-2 gba:ring-offset-background' : ''
       }`}
     >
-      {/* Video element (or hidden for audio-only) */}
+      {/* Video element (or hidden for audio-only). object-contain keeps full frame visible (no head crop). */}
       <video
         ref={videoRef}
         autoPlay
         playsInline
         muted={isLocal}
-        className={hasVideoTrack ? 'gba:w-full gba:h-full gba:object-cover' : 'gba:hidden'}
+        className={hasVideoTrack ? 'gba:w-full gba:h-full gba:object-contain' : 'gba:hidden'}
         data-testid={`${prefixDataTestId}-video-${peerId}`}
         onLoadedMetadata={() => {}}
         onLoadedData={() => {}}

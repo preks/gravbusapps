@@ -174,12 +174,13 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
     return baseColumns
   }
 
-  // Determine grid style based on mode
+  // Determine grid style based on mode.
+  // auto-fit: rows use minmax(0, 1fr) so they share available height and shrink when container is short (no overlap).
   const gridStyle =
     mode === 'auto-fit'
       ? {
           gridTemplateColumns: `repeat(${calculateOptimalColumns(gridItems.length)}, minmax(${minTileSize}px, ${maxTileSize}px))`,
-          gridAutoRows: 'auto' // Let aspect-ratio control height
+          gridAutoRows: 'minmax(0, 1fr)' // Rows share height and shrink to fit (auto-adjustable, no overlap)
         }
       : {
           gridTemplateColumns: `repeat(${gridLayout?.cols || 1}, 1fr)`,
@@ -208,7 +209,7 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
         {/* Grid Container */}
         <div
           ref={gridContainerRef}
-          className="gba:w-full gba:h-full gba:grid gba:gap-3 gba:content-start gba:overflow-hidden gba:justify-center"
+          className="gba:w-full gba:h-full gba:grid gba:gap-3 gba:overflow-hidden gba:justify-center gba:items-stretch"
           style={gridStyle}
           data-testid={`${prefixDataTestId}-video-grid`}
         >
