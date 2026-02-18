@@ -178,7 +178,6 @@ const StatPill: React.FC<{
 /** A single component result card */
 const ComponentCard: React.FC<{
   component: ComponentSpec
-  jobId?: string
   showError?: boolean
 }> = ({ component, showError = false }) => {
   const [errorExpanded, setErrorExpanded] = useState(false)
@@ -190,14 +189,12 @@ const ComponentCard: React.FC<{
   const isClickable = component.status === 'completed' || component.status === 'reused'
   const hasError = component.status === 'error' && component.errorMessage
 
-  const borderClass =
-    component.status === 'error'
-      ? 'gba:border-destructive/40'
-      : component.status === 'completed'
-        ? 'hover:gba:border-emerald-400/60'
-        : component.status === 'reused'
-          ? 'hover:gba:border-blue-400/60'
-          : ''
+  const borderClassByStatus: Record<string, string> = {
+    error: 'gba:border-destructive/40',
+    completed: 'hover:gba:border-emerald-400/60',
+    reused: 'hover:gba:border-blue-400/60'
+  }
+  const borderClass = borderClassByStatus[component.status] ?? ''
 
   return (
     <Card
@@ -282,7 +279,7 @@ const ComponentCard: React.FC<{
               {/* Published file count */}
               {component.publishedFileCount != null && component.publishedFileCount > 0 && (
                 <div className="gba:text-[10px] gba:text-muted-foreground">
-                  Published {component.publishedFileCount} file{component.publishedFileCount !== 1 ? 's' : ''}
+                  Published {component.publishedFileCount} file{component.publishedFileCount === 1 ? '' : 's'}
                 </div>
               )}
 
@@ -356,10 +353,9 @@ const ComponentSection: React.FC<{
   icon: React.ElementType
   iconClass?: string
   components: ComponentSpec[]
-  jobId?: string
   showErrors?: boolean
   defaultOpen?: boolean
-}> = ({ title, icon: Icon, iconClass, components, jobId, showErrors = false, defaultOpen = true }) => {
+}> = ({ title, icon: Icon, iconClass, components, showErrors = false, defaultOpen = true }) => {
   const [open, setOpen] = useState(defaultOpen)
   if (components.length === 0) return null
 
@@ -386,7 +382,7 @@ const ComponentSection: React.FC<{
       {open && (
         <div className="gba:space-y-1.5">
           {components.map(c => (
-            <ComponentCard key={c.id} component={c} jobId={jobId} showError={showErrors} />
+            <ComponentCard key={c.id} component={c} showError={showErrors} />
           ))}
         </div>
       )}
@@ -399,7 +395,6 @@ const ComponentSection: React.FC<{
 export const BuildResultsView: React.FC<BuildResultsViewProps> = ({
   success,
   components,
-  jobId,
   buildDuration,
   prompt,
   errorMessage,
@@ -448,11 +443,11 @@ export const BuildResultsView: React.FC<BuildResultsViewProps> = ({
               </div>
               <div className="gba:flex-1">
                 <h2 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-0.5">
-                  {success
-                    ? 'Build Completed Successfully'
-                    : failed.length > 0 && completed.length > 0
-                      ? 'Build Partially Completed'
-                      : 'Build Failed'}
+                  {(() => {
+                    if (success) return 'Build Completed Successfully'
+                    if (failed.length > 0 && completed.length > 0) return 'Build Partially Completed'
+                    return 'Build Failed'
+                  })()}
                 </h2>
                 {prompt && (
                   <p className="gba:text-xs gba:text-foreground/80 gba:italic gba:mb-1 gba:line-clamp-1">
@@ -461,9 +456,15 @@ export const BuildResultsView: React.FC<BuildResultsViewProps> = ({
                 )}
                 <p className="gba:text-xs gba:text-muted-foreground">
                   {success
-                    ? `All ${components.length} component${components.length !== 1 ? 's were' : ' was'} processed in ${formatDuration(buildDuration)}.`
+                    ? (() => {
+                        const suffix = components.length === 1 ? ' was' : 's were'
+                        return `All ${components.length} component${suffix} processed in ${formatDuration(buildDuration)}.`
+                      })()
                     : errorMessage ||
-                      `${failed.length} component${failed.length !== 1 ? 's' : ''} failed during the build.`}
+                      (() => {
+                        const suffix = failed.length === 1 ? '' : 's'
+                        return `${failed.length} component${suffix} failed during the build.`
+                      })()}
                 </p>
               </div>
             </div>
@@ -499,7 +500,6 @@ export const BuildResultsView: React.FC<BuildResultsViewProps> = ({
         icon={XCircle}
         iconClass="gba:text-destructive"
         components={failed}
-        jobId={jobId}
         showErrors
         defaultOpen
       />
@@ -510,7 +510,6 @@ export const BuildResultsView: React.FC<BuildResultsViewProps> = ({
         icon={CheckCircle2}
         iconClass="gba:text-emerald-500"
         components={completed}
-        jobId={jobId}
         defaultOpen
       />
 
@@ -520,7 +519,6 @@ export const BuildResultsView: React.FC<BuildResultsViewProps> = ({
         icon={Recycle}
         iconClass="gba:text-blue-500"
         components={reused}
-        jobId={jobId}
         defaultOpen={failed.length === 0}
       />
 
@@ -530,24 +528,27 @@ export const BuildResultsView: React.FC<BuildResultsViewProps> = ({
         icon={SkipForward}
         iconClass="gba:text-gray-400"
         components={skipped}
-        jobId={jobId}
         defaultOpen={false}
       />
 
       {/* ── Actions ──────────────────────────────────────────────────── */}
       <div className="gba:flex gba:items-center gba:justify-center gba:gap-2 gba:pt-1 gba:pb-2 gba:flex-wrap">
-        {!success && onRetry && (
-          <Button size="sm" onClick={onRetry} className="gba:min-w-[140px]">
-            <RotateCcw className="gba:w-4 gba:h-4 gba:mr-2" />
-            Retry Build
-          </Button>
-        )}
-        {!success && onModifyPlan && (
-          <Button variant="outline" size="sm" onClick={onModifyPlan}>
-            <Edit className="gba:w-4 gba:h-4 gba:mr-2" />
-            Modify Plan
-          </Button>
-        )}
+        {success
+          ? null
+          : onRetry && (
+              <Button size="sm" onClick={onRetry} className="gba:min-w-[140px]">
+                <RotateCcw className="gba:w-4 gba:h-4 gba:mr-2" />
+                Retry Build
+              </Button>
+            )}
+        {success
+          ? null
+          : onModifyPlan && (
+              <Button variant="outline" size="sm" onClick={onModifyPlan}>
+                <Edit className="gba:w-4 gba:h-4 gba:mr-2" />
+                Modify Plan
+              </Button>
+            )}
         <Button variant={success ? 'default' : 'outline'} size="sm" onClick={onReset} className="gba:min-w-[170px]">
           <Plus className="gba:w-4 gba:h-4 gba:mr-2" />
           Build Something {success ? 'Else' : 'New'}

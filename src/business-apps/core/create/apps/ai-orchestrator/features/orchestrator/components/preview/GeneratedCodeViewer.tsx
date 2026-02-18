@@ -194,7 +194,7 @@ export const GeneratedCodeViewer: React.FC<GeneratedCodeViewerProps> = ({
         <div>
           <h3 className="gba:text-lg gba:font-semibold gba:text-foreground">Generated Code</h3>
           <p className="gba:text-sm gba:text-muted-foreground">
-            {files.length} file{files.length !== 1 ? 's' : ''} generated for {componentName}
+            {files.length} file{files.length === 1 ? '' : 's'} generated for {componentName}
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={handleOpenInAIBuilder}>
@@ -261,29 +261,40 @@ export const GeneratedCodeViewer: React.FC<GeneratedCodeViewerProps> = ({
                 </div>
               </CardHeader>
               <CardContent className="gba:flex-1 gba:overflow-auto gba:p-0">
-                {fileLoadError ? (
-                  <div className="gba:flex gba:items-center gba:justify-center gba:h-full gba:p-4">
-                    <Alert variant="destructive" className="gba:max-w-md">
-                      <AlertCircle className="gba:h-4 gba:w-4" />
-                      <AlertTitle>Failed to Load File</AlertTitle>
-                      <AlertDescription className="gba:mt-2">
-                        <p>{fileLoadError}</p>
-                      </AlertDescription>
-                    </Alert>
-                  </div>
-                ) : selectedFile.content ? (
-                  <pre className="gba:p-4 gba:text-xs gba:font-mono gba:text-foreground gba:whitespace-pre gba:overflow-x-auto">
-                    {selectedFile.content}
-                  </pre>
-                ) : isLoadingFile ? (
-                  <div className="gba:flex gba:items-center gba:justify-center gba:h-full">
-                    <Spinner size="sm" />
-                  </div>
-                ) : (
-                  <div className="gba:flex gba:items-center gba:justify-center gba:h-full gba:text-muted-foreground">
-                    <p className="gba:text-sm">Select a file to view its contents</p>
-                  </div>
-                )}
+                {(() => {
+                  if (fileLoadError) {
+                    return (
+                      <div className="gba:flex gba:items-center gba:justify-center gba:h-full gba:p-4">
+                        <Alert variant="destructive" className="gba:max-w-md">
+                          <AlertCircle className="gba:h-4 gba:w-4" />
+                          <AlertTitle>Failed to Load File</AlertTitle>
+                          <AlertDescription className="gba:mt-2">
+                            <p>{fileLoadError}</p>
+                          </AlertDescription>
+                        </Alert>
+                      </div>
+                    )
+                  }
+                  if (selectedFile.content) {
+                    return (
+                      <pre className="gba:p-4 gba:text-xs gba:font-mono gba:text-foreground gba:whitespace-pre gba:overflow-x-auto">
+                        {selectedFile.content}
+                      </pre>
+                    )
+                  }
+                  if (isLoadingFile) {
+                    return (
+                      <div className="gba:flex gba:items-center gba:justify-center gba:h-full">
+                        <Spinner size="sm" />
+                      </div>
+                    )
+                  }
+                  return (
+                    <div className="gba:flex gba:items-center gba:justify-center gba:h-full gba:text-muted-foreground">
+                      <p className="gba:text-sm">Select a file to view its contents</p>
+                    </div>
+                  )
+                })()}
               </CardContent>
             </>
           ) : (

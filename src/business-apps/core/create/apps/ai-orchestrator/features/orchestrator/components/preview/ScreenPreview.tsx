@@ -10,10 +10,8 @@ import type { ComponentSpec } from '../../types'
 
 export interface ScreenPreviewProps {
   component: ComponentSpec
-  jobId?: string
   accessToken: string
   userInfo?: any
-  onClose?: () => void
   refreshToken?: number
   isFixWorking?: boolean
 }

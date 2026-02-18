@@ -30,7 +30,7 @@ export const BuildPlanActions: React.FC<BuildPlanActionsProps> = ({
     return (
       <div className="gba:flex gba:items-center gba:justify-between gba:pt-6 gba:pb-4 gba:mt-10 gba:border-t gba:border-border gba:bg-background">
         <div className="gba:text-sm gba:text-muted-foreground gba:font-medium">
-          {selectedCount} of {totalCount} component{totalCount !== 1 ? 's' : ''} selected
+          {selectedCount} of {totalCount} component{totalCount === 1 ? '' : 's'} selected
         </div>
         <div className="gba:flex gba:items-center gba:gap-3">
           <Button variant="ghost" onClick={onCancel} disabled={isLoading} size="lg">
@@ -42,14 +42,7 @@ export const BuildPlanActions: React.FC<BuildPlanActionsProps> = ({
             disabled={isLoading || !allQuestionsAnswered}
             className="gba:min-w-[160px]"
           >
-            {isLoading ? (
-              <>
-                <span className="gba:animate-spin gba:mr-2">...</span>
-                Building...
-              </>
-            ) : (
-              <>Start Build</>
-            )}
+            {isLoading ? <>{`... Building...`}</> : <>Start Build</>}
           </Button>
         </div>
       </div>
