@@ -1,5 +1,5 @@
 /**
- * Outer chat layout: container, PerformanceMonitor, OfflineBanner, error Alert,
+ * Outer chat layout: PerformanceMonitor, OfflineBanner, error Alert,
  * and flex slots for conversation list and chat view.
  */
 
@@ -8,7 +8,6 @@ import { Alert, AlertDescription } from '@newwork/nw-design-system'
 import { PerformanceMonitor } from './PerformanceMonitor'
 
 export interface ChatLayoutProps {
-  containerRef: RefObject<HTMLDivElement>
   prefixDataTestId: string
   errorMessage: string | null
   onDismissError: () => void
@@ -25,7 +24,6 @@ export interface ChatLayoutProps {
 }
 
 export function ChatLayout({
-  containerRef,
   prefixDataTestId,
   errorMessage,
   onDismissError,
@@ -42,7 +40,6 @@ export function ChatLayout({
 }: Readonly<ChatLayoutProps>) {
   return (
     <div
-      ref={containerRef}
       className="gba:h-full gba:flex gba:flex-col gba:bg-background gba:overflow-hidden"
       data-testid={prefixDataTestId}
     >
