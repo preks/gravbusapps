@@ -72,6 +72,7 @@ const EmployeeSelect = React.forwardRef<HTMLButtonElement, EmployeeSelectProps>(
     })
 
     // Build options
+    // Support both nested employeePosition and flat jobPositionName/organizationalUnitName (e.g. from useEmployeeSearch)
     const options = React.useMemo(() => {
       return employeesWithInitial.map(emp => {
         const initials = (emp.displayName || '?')
@@ -80,6 +81,11 @@ const EmployeeSelect = React.forwardRef<HTMLButtonElement, EmployeeSelectProps>(
           .join('')
           .slice(0, 2)
           .toUpperCase()
+
+        const empWithFlat = emp as Employee & { jobPositionName?: string; organizationalUnitName?: string }
+        const orgName = emp.employeePosition?.organizationalUnit?.name ?? empWithFlat.organizationalUnitName
+        const jobName = emp.employeePosition?.jobPosition?.name ?? empWithFlat.jobPositionName
+        const hasPositionInfo = Boolean(orgName || jobName)
 
         return {
           value: emp.id,
@@ -94,21 +100,19 @@ const EmployeeSelect = React.forwardRef<HTMLButtonElement, EmployeeSelectProps>(
               </Avatar>
               <div className="gba:flex gba:flex-col gba:min-w-0 gba:flex-1">
                 <div className="gba:text-sm gba:font-medium gba:truncate gba:text-left">{emp.displayName}</div>
-                {(emp.employeePosition?.organizationalUnit?.name || emp.employeePosition?.jobPosition?.name) && (
+                {hasPositionInfo && (
                   <div className="gba:flex gba:flex-wrap gba:items-center gba:gap-2 gba:text-xs gba:text-left">
-                    {emp.employeePosition?.organizationalUnit?.name && (
+                    {orgName && (
                       <span className="gba:flex gba:items-center gba:gap-1">
                         <Building2 className="gba:w-3 gba:h-3" />
-                        {emp.employeePosition.organizationalUnit.name}
+                        {orgName}
                       </span>
                     )}
-                    {emp.employeePosition?.organizationalUnit?.name && emp.employeePosition?.jobPosition?.name && (
-                      <span>·</span>
-                    )}
-                    {emp.employeePosition?.jobPosition?.name && (
+                    {orgName && jobName && <span>·</span>}
+                    {jobName && (
                       <span className="gba:flex gba:items-center gba:gap-1">
                         <Briefcase className="gba:w-3 gba:h-3" />
-                        {emp.employeePosition.jobPosition.name}
+                        {jobName}
                       </span>
                     )}
                   </div>

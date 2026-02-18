@@ -14,8 +14,10 @@ import {
   Spinner,
   Avatar,
   AvatarImage,
-  AvatarFallback
+  AvatarFallback,
+  useTranslation
 } from '@newwork/nw-design-system'
+import translations from '../../_i18n'
 import {
   EyeIcon,
   FolderIcon,
@@ -51,6 +53,7 @@ const CompaniesTab: React.FC<CompaniesTabProps> = context => {
   const { prefixDataTestId } = context
   const dataTestId = formatDataTestId(prefixDataTestId, DATA_TEST_ID_PREFIX)
   const restClient = useRestClient(ORGCHART_BASE_URL)
+  const { t } = useTranslation(translations)
 
   const { rootCompanies, structureId, allCompanies, isLoading, error, refetch } = useCompanies(context)
 
@@ -428,8 +431,14 @@ const CompaniesTab: React.FC<CompaniesTabProps> = context => {
       selectedCompany.addresses.forEach((address, index) => {
         const formattedAddress = formatAddress(address)
         if (formattedAddress !== '-') {
+          const addressTypeLabel =
+            address.addressType === 'PRIMARY_ADDRESS'
+              ? t('address-type-PRIMARY_ADDRESS')
+              : address.addressType === 'SECONDARY_ADDRESS'
+                ? t('address-type-SECONDARY_ADDRESS')
+                : t('address-type-index', { index: index + 1 })
           addressItems.push({
-            label: address.addressType || `Address ${index + 1}`,
+            label: addressTypeLabel,
             value: formattedAddress
           })
         }
@@ -437,7 +446,7 @@ const CompaniesTab: React.FC<CompaniesTabProps> = context => {
       if (addressItems.length > 0) {
         items.push({
           icon: <InfoIcon />,
-          title: 'Address Information',
+          title: t('section-address-information'),
           items: addressItems
         })
       }
@@ -473,7 +482,7 @@ const CompaniesTab: React.FC<CompaniesTabProps> = context => {
     }
 
     return items
-  }, [selectedCompany, formatAddress, showDirector])
+  }, [selectedCompany, formatAddress, showDirector, t])
 
   const navigationItems = useMemo(() => {
     if (!selectedCompany) return []

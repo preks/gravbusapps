@@ -163,6 +163,8 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
   const [picturePreview, setPicturePreview] = useState<string | null>(company?.pictureThumbnail || null)
   // Key to force CatalogSelect.Provider remount when modal closes (resets internal state)
   const [providerKey, setProviderKey] = useState(0)
+  // Key to force FileUpload remount when logo is removed (clears its internal file list)
+  const [logoFileUploadKey, setLogoFileUploadKey] = useState(0)
 
   // Fetch dynamic fields configuration from catalog
   const { configuration: additionalPropertiesConfig, isLoading: additionalPropertiesLoading } =
@@ -840,6 +842,7 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
     setSelectedUserId(null)
     setPictureFile(null)
     setPicturePreview(null)
+    setLogoFileUploadKey(prev => prev + 1)
     onCancel?.()
   }, [onCancel])
 
@@ -967,6 +970,7 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
                     onClick={() => {
                       setPictureFile(null)
                       setPicturePreview(null)
+                      setLogoFileUploadKey(prev => prev + 1)
                       form.setValue('pictureModified', true, { shouldDirty: true })
                     }}
                     className="gba:text-sm gba:text-destructive hover:gba:underline"
@@ -976,7 +980,7 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
                   </button>
                 </div>
               )}
-              <FileUpload multiple={false} accept="image/*" onChange={handlePictureUpload} />
+              <FileUpload key={logoFileUploadKey} multiple={false} accept="image/*" onChange={handlePictureUpload} />
               <p className="gba:text-sm gba:text-muted-foreground">{t('message-logo-upload-info')}</p>
             </div>
           </FormControl>
@@ -992,7 +996,10 @@ const CompanyForm: React.FC<CompanyFormProps> = ({
                 <EmployeeSelect
                   value={selectedUserId}
                   employees={employees}
-                  onValueChange={setSelectedUserId}
+                  onValueChange={value => {
+                    setSelectedUserId(value)
+                    form.setValue('director', value ?? '', { shouldDirty: true })
+                  }}
                   onSearch={search}
                   loading={searchLoading}
                   hasMore={hasMore}

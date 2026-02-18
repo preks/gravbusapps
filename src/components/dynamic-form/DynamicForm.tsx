@@ -175,7 +175,7 @@ export function DynamicForm<TFieldValues extends FieldValues = FieldValues>({
   const sortedGroups = [...configuration.formFields].sort((a, b) => a.displayOrder - b.displayOrder)
 
   return (
-    <div data-testid={formatDataTestId(testIdPrefix, 'Container')}>
+    <div data-testid={formatDataTestId(testIdPrefix, 'Container')} className="gba:flex gba:flex-col gba:gap-4">
       {sortedGroups.map((group: DynamicFormFieldGroup) => {
         const fieldGroups = groupFieldsByDisplayOrder(group.fields)
 
@@ -187,7 +187,7 @@ export function DynamicForm<TFieldValues extends FieldValues = FieldValues>({
           >
             {/* Group Header */}
             <div>
-              <h3 className="gba:text-lg gba:font-semibold gba:mb-2">{group.groupLabel}</h3>
+              <h3 className="gba:text-lg gba:font-medium gba:mb-2">{group.groupLabel}</h3>
             </div>
 
             {/* Render fields grouped by display order */}
