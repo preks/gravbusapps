@@ -19,15 +19,10 @@ import {
   AlertTitle
 } from '@newwork/nw-design-system'
 import { Code2, FileText, AlertCircle, ExternalLink } from 'lucide-react'
-import { env } from '@/common/env/EnvUtils'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { AI_BUILDER_API_URL } from '@/common/utils/serviceResolver'
 
-const BASE_URL = (() => {
-  let u = env('NEXT_PUBLIC_BASE_URL') || ''
-  while (u.endsWith('/')) u = u.slice(0, -1)
-  return u
-})()
-const AI_SERVICE_API_URL = env('NEXT_PUBLIC_AI_BUILDER_API_URL') || `${BASE_URL}/ai-builder`
+const AI_SERVICE_API_URL = AI_BUILDER_API_URL
 
 export interface GeneratedCodeViewerProps {
   sessionId: string | null
