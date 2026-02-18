@@ -226,7 +226,9 @@ export const useOpenJobPositions = ({
           contractType: pos.contractType || null,
           employmentType: pos.employmentType || null,
           organizationalUnitEmployees: pos.organizationalUnitEmployees || [],
-          employeePositions: pos.employeePositions || []
+          // Open positions in this query are intentionally vacant.
+          // Keep details view consistent by forcing no assignee in this context.
+          employeePositions: []
         }))
         setFullPositions(fullPositionsData)
 

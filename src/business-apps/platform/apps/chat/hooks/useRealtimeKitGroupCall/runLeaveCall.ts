@@ -44,7 +44,7 @@ export async function runLeaveCall(ctx: LeaveCallContext): Promise<void> {
   }
 
   const sessionIdForEmit = refs.sessionIdRef.current
-  const isMeetingForEmit = !!refs.calendarMeetingIdRef.current
+  const isMeetingForEmit = !!refs.calendarMeetingIdRef.current || refs.conversationTypeRef.current === 'meeting'
 
   refs.lastStartEmitRef.current = null
   clearInviteDedupeFor(meetingId, roomId)

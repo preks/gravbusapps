@@ -470,6 +470,12 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
             prefixDataTestId={`${prefixDataTestId}-calendar`}
             activeCalls={activeCalls}
             externalCalendarEvents={externalCalendarEvents}
+            onOpenChat={conversationId => {
+              setActiveTab('chat')
+              setTimeout(() => {
+                globalThis.dispatchEvent(new CustomEvent('chat:open-with-conversation', { detail: { conversationId } }))
+              }, 100)
+            }}
             {...props}
           />
         </TabSwitchContent>

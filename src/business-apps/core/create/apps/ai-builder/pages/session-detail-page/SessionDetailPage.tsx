@@ -56,6 +56,7 @@ interface Message {
     outputTokens: number
     totalCost: number
   }
+  createdBy?: string
   messageId?: string
   createdAt?: string
   serverCreatedAt?: string
@@ -169,6 +170,16 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
   const screenBuildSucceededRef = useRef(false)
   const filesChangedInRunRef = useRef(false)
   const resolvedTargetPath = detectedTargetPath || targetPath
+  const UNKNOWN_AUTHOR_ID = 'unknown-user'
+
+  const getCurrentUserId = (): string | undefined => {
+    return context.userInfo?.id ?? undefined
+  }
+
+  const getDefaultCreatedBy = (role: MessageRole): string | undefined => {
+    if (role !== 'user') return undefined
+    return getCurrentUserId() ?? UNKNOWN_AUTHOR_ID
+  }
 
   const createMessageId = (): string => {
     if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -182,18 +193,23 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
     content,
     messageId: createMessageId(),
     createdAt: new Date().toISOString(),
+    createdBy: extras?.createdBy ?? getDefaultCreatedBy(role),
     ...extras
   })
 
-  const ensureMessageIds = (history: Message[]): { messages: Message[]; updated: boolean } => {
+  const ensureMessageMetadata = (history: Message[]): { messages: Message[]; updated: boolean } => {
     let updated = false
     const messages = history.map(message => {
-      if (message.messageId && message.createdAt) return message
+      const needsId = !message.messageId
+      const needsCreatedAt = !message.createdAt
+      const needsCreatedBy = message.role === 'user' && !message.createdBy
+      if (!needsId && !needsCreatedAt && !needsCreatedBy) return message
       updated = true
       return {
         ...message,
         messageId: message.messageId ?? createMessageId(),
-        createdAt: message.createdAt ?? new Date().toISOString()
+        createdAt: message.createdAt ?? new Date().toISOString(),
+        createdBy: message.createdBy ?? (message.role === 'user' ? UNKNOWN_AUTHOR_ID : undefined)
       }
     })
     return { messages, updated }
@@ -382,7 +398,10 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
             const normalizedResourceUrl = normalizeResourceUrl(resourceUrl)
             const previousAutoResourceUrl = detectedTargetPath ? getAutoResourceUrl(detectedTargetPath) : null
             // Auto-generate resource URL from the last segment when not set or previously auto-generated
-            if (!normalizedResourceUrl || (previousAutoResourceUrl && normalizedResourceUrl === previousAutoResourceUrl)) {
+            if (
+              !normalizedResourceUrl ||
+              (previousAutoResourceUrl && normalizedResourceUrl === previousAutoResourceUrl)
+            ) {
               setResourceUrl(autoResourceUrl)
             }
           }
@@ -484,7 +503,7 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
       .loadChatHistory(repositoryId, sessionId)
       .then(history => {
         if (history?.length) {
-          const normalized = ensureMessageIds(history as Message[])
+          const normalized = ensureMessageMetadata(history as Message[])
           if (normalized.updated) {
             builderClient.saveChatHistory(repositoryId, sessionId, normalized.messages)
           }
@@ -563,8 +582,7 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
           completed = true
           const result = event.result
           const publishedPath = result?.targetPath || targetPath
-          const normalizedResourceUrl =
-            normalizeResourceUrl(result?.resourceUrl) ?? normalizeResourceUrl(resourceUrl)
+          const normalizedResourceUrl = normalizeResourceUrl(result?.resourceUrl) ?? normalizeResourceUrl(resourceUrl)
           const fallbackUrl = normalizeResourceUrl(publishedPath)
           const fullUrl = normalizedResourceUrl || fallbackUrl || `/${publishedPath}`
           setPublishSuccess(fullUrl)
@@ -666,7 +684,7 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
       updateRestoreTempMessage(tempMessageId, 'Reloading chat history')
       const history = await builderClient.loadChatHistory(repositoryId, sessionId)
       if (history?.length) {
-        const normalized = ensureMessageIds(history as Message[])
+        const normalized = ensureMessageMetadata(history as Message[])
         if (normalized.updated) {
           builderClient.saveChatHistory(repositoryId, sessionId, normalized.messages)
         }
@@ -1412,6 +1430,8 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
                     thinking={thinking}
                     onRestoreMessage={openRestoreDialog}
                     isRestoringMessageId={isRestoringMessageId}
+                    currentUserId={context.userInfo?.id}
+                    accessToken={context.accessToken}
                     userName={
                       context.userInfo
                         ? `${context.userInfo.givenName ?? ''} ${context.userInfo.familyName ?? ''}`.trim() ||
@@ -1504,6 +1524,8 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
                   thinking={thinking}
                   onRestoreMessage={openRestoreDialog}
                   isRestoringMessageId={isRestoringMessageId}
+                  currentUserId={context.userInfo?.id}
+                  accessToken={context.accessToken}
                   userName={
                     context.userInfo
                       ? `${context.userInfo.givenName ?? ''} ${context.userInfo.familyName ?? ''}`.trim() ||

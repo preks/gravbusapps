@@ -95,7 +95,7 @@ export const ManagerAssistant: React.FC<ManagerAssistantProps> = ({ className, a
       // Add current page context - use correct structure for manager dashboard
       const pageContext = {
         type: 'overview',
-        url: window.location.href,
+        url: globalThis.location.href,
         entity_name: 'employee'
       }
       form.append('current_page_context', JSON.stringify(pageContext))
