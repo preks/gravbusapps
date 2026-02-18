@@ -23,6 +23,7 @@ import HeadcountByOrgUnitChart from '../components/HeadcountByOrgUnitChart'
 import { useHeadcountTrendsData } from '../../../../../hooks/useHeadcountTrendsData'
 import { useTranslation } from '@newwork/nw-design-system'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
+import { exportTableToExcel, exportTableToPdf } from '../../../../../utils/exportUtils'
 
 const { Title, Text } = Typography
 
@@ -88,16 +89,24 @@ const HeadcountTrends: React.FC<BusinessAppContextProps> = context => {
     }))
   }
 
-  // Mock export functions
-  const handleExport = async (format: 'excel' | 'pdf', tableName: string, data: TableData[]) => {
+  const handleExport = async (
+    format: 'excel' | 'pdf',
+    tableName: string,
+    title: string,
+    columns: { key: string; header: string }[],
+    data: TableData[]
+  ) => {
     setExportingTable(`${tableName}-${format}`)
-
-    // Mock export delay
-    await new Promise(resolve => setTimeout(resolve, 1500))
-
-    console.log(`Exporting ${tableName} as ${format}:`, data)
-
-    setExportingTable(null)
+    try {
+      const rows = data.map(row => ({ ...row })) as Record<string, unknown>[]
+      if (format === 'excel') {
+        await exportTableToExcel(title, columns, rows)
+      } else {
+        await exportTableToPdf(title, columns, rows)
+      }
+    } finally {
+      setExportingTable(null)
+    }
   }
 
   const handleChartClick = (chartId: string) => {
@@ -123,7 +132,12 @@ const HeadcountTrends: React.FC<BusinessAppContextProps> = context => {
       tableData: transformHeadcountOverTimeData(),
       testId: 'headcount-trends-chart',
       tag: t('hr-analytics-total-data-points', { count: headcountOverTime.length }),
-      description: t('hr-analytics-headcount-trends-description')
+      description: t('hr-analytics-headcount-trends-description'),
+      exportColumns: [
+        { key: 'period', header: t('hr-analytics-period') },
+        { key: 'value', header: t('hr-analytics-value') },
+        { key: 'change', header: t('hr-analytics-change') }
+      ]
     },
     {
       title: t('hr-analytics-monthly-hires-departures'),
@@ -131,7 +145,12 @@ const HeadcountTrends: React.FC<BusinessAppContextProps> = context => {
       tableData: transformHiresAndDeparturesData(),
       testId: 'hires-departures-chart',
       tag: t('hr-analytics-months', { count: Math.max(monthlyHires.length, monthlyExits.length) }),
-      description: t('hr-analytics-hires-departures-description')
+      description: t('hr-analytics-hires-departures-description'),
+      exportColumns: [
+        { key: 'period', header: t('hr-analytics-period') },
+        { key: 'value', header: t('hr-analytics-value') },
+        { key: 'change', header: t('hr-analytics-change') }
+      ]
     },
     {
       title: t('hr-analytics-headcount-by-org-unit'),
@@ -139,7 +158,11 @@ const HeadcountTrends: React.FC<BusinessAppContextProps> = context => {
       tableData: transformOrgUnitData(),
       testId: 'headcount-by-org-unit-chart',
       tag: t('hr-analytics-departments', { count: departmentData.length }),
-      description: t('hr-analytics-headcount-by-org-unit-description')
+      description: t('hr-analytics-headcount-by-org-unit-description'),
+      exportColumns: [
+        { key: 'period', header: t('hr-analytics-department') },
+        { key: 'value', header: t('hr-analytics-value') }
+      ]
     }
   ]
 
@@ -304,7 +327,13 @@ const HeadcountTrends: React.FC<BusinessAppContextProps> = context => {
                     disabled={exportingTable === `${selectedConfig.testId}-excel`}
                     onClick={e => {
                       e.stopPropagation()
-                      handleExport('excel', selectedConfig.testId, selectedConfig.tableData)
+                      handleExport(
+                        'excel',
+                        selectedConfig.testId,
+                        selectedConfig.title,
+                        selectedConfig.exportColumns,
+                        selectedConfig.tableData
+                      )
                     }}
                     className="gba:flex gba:items-center gba:gap-1"
                   >
@@ -318,7 +347,13 @@ const HeadcountTrends: React.FC<BusinessAppContextProps> = context => {
                     disabled={exportingTable === `${selectedConfig.testId}-pdf`}
                     onClick={e => {
                       e.stopPropagation()
-                      handleExport('pdf', selectedConfig.testId, selectedConfig.tableData)
+                      handleExport(
+                        'pdf',
+                        selectedConfig.testId,
+                        selectedConfig.title,
+                        selectedConfig.exportColumns,
+                        selectedConfig.tableData
+                      )
                     }}
                     className="gba:flex gba:items-center gba:gap-1"
                   >

@@ -19,6 +19,7 @@ import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recha
 import type { DemographicsData } from '../../../../hooks/useDemographicsDataIntegration'
 import { useTranslation } from '@newwork/nw-design-system'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
+import { exportTableToExcel, exportTableToPdf } from '../../../../utils/exportUtils'
 
 const { Title, Text } = Typography
 
@@ -92,17 +93,31 @@ const DemographicsChartsView: React.FC<DemographicsChartsViewProps> = ({ demogra
     }))
   }
 
-  // Mock export functions
-  const handleExport = async (format: 'excel' | 'pdf', tableName: string, data: TableData[]) => {
+  const handleExport = async (
+    format: 'excel' | 'pdf',
+    tableName: string,
+    title: string,
+    columns: { key: string; header: string }[],
+    data: TableData[]
+  ) => {
     setExportingTable(`${tableName}-${format}`)
-
-    // Mock export delay
-    await new Promise(resolve => setTimeout(resolve, 1500))
-
-    console.log(`Exporting ${tableName} as ${format}:`, data)
-
-    setExportingTable(null)
+    try {
+      const rows = data.map(row => ({ ...row })) as Record<string, unknown>[]
+      if (format === 'excel') {
+        await exportTableToExcel(title, columns, rows)
+      } else {
+        await exportTableToPdf(title, columns, rows)
+      }
+    } finally {
+      setExportingTable(null)
+    }
   }
+
+  const exportColumnsDemographics = [
+    { key: 'category', header: t('common-category') },
+    { key: 'value', header: t('hr-analytics-value') },
+    { key: 'percentage', header: t('hr-analytics-percentage') }
+  ]
 
   const chartConfigs = [
     {
@@ -112,7 +127,8 @@ const DemographicsChartsView: React.FC<DemographicsChartsViewProps> = ({ demogra
       colors: chartColors,
       testId: 'gender-chart',
       tag: t('hr-analytics-categories', { count: genderData.length }),
-      description: t('hr-analytics-gender-description')
+      description: t('hr-analytics-gender-description'),
+      exportColumns: exportColumnsDemographics
     },
     {
       title: t('hr-analytics-age-distribution'),
@@ -121,7 +137,8 @@ const DemographicsChartsView: React.FC<DemographicsChartsViewProps> = ({ demogra
       colors: chartColors,
       testId: 'age-chart',
       tag: t('hr-analytics-age-groups', { count: ageData.length }),
-      description: t('hr-analytics-age-description')
+      description: t('hr-analytics-age-description'),
+      exportColumns: exportColumnsDemographics
     },
     {
       title: t('hr-analytics-nationality-distribution'),
@@ -130,7 +147,8 @@ const DemographicsChartsView: React.FC<DemographicsChartsViewProps> = ({ demogra
       colors: chartColors,
       testId: 'nationality-chart',
       tag: t('hr-analytics-top-8-of-nationalities', { total: nationalityData.length }),
-      description: t('hr-analytics-nationality-description')
+      description: t('hr-analytics-nationality-description'),
+      exportColumns: exportColumnsDemographics
     }
   ]
 
@@ -229,7 +247,10 @@ const DemographicsChartsView: React.FC<DemographicsChartsViewProps> = ({ demogra
                           ))}
                         </Pie>
                         <Tooltip
-                          formatter={(value: number, name: string) => [`${value} ${t('hr-analytics-employees')}`, name]}
+                          formatter={(value: number | undefined, name: string | undefined) => [
+                            `${value ?? 0} ${t('hr-analytics-employees')}`,
+                            name ?? ''
+                          ]}
                         />
                         <Legend
                           wrapperStyle={{
@@ -272,7 +293,13 @@ const DemographicsChartsView: React.FC<DemographicsChartsViewProps> = ({ demogra
                     disabled={exportingTable === `${selectedConfig.testId}-excel`}
                     onClick={e => {
                       e.stopPropagation()
-                      handleExport('excel', selectedConfig.testId, selectedConfig.tableData)
+                      handleExport(
+                        'excel',
+                        selectedConfig.testId,
+                        selectedConfig.title,
+                        selectedConfig.exportColumns,
+                        selectedConfig.tableData
+                      )
                     }}
                     data-testid={`${dataTestId}-${selectedConfig.testId}-export-excel`}
                     className="gba:flex gba:items-center gba:gap-1"
@@ -287,7 +314,13 @@ const DemographicsChartsView: React.FC<DemographicsChartsViewProps> = ({ demogra
                     disabled={exportingTable === `${selectedConfig.testId}-pdf`}
                     onClick={e => {
                       e.stopPropagation()
-                      handleExport('pdf', selectedConfig.testId, selectedConfig.tableData)
+                      handleExport(
+                        'pdf',
+                        selectedConfig.testId,
+                        selectedConfig.title,
+                        selectedConfig.exportColumns,
+                        selectedConfig.tableData
+                      )
                     }}
                     data-testid={`${dataTestId}-${selectedConfig.testId}-export-pdf`}
                     className="gba:flex gba:items-center gba:gap-1"

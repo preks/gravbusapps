@@ -26,6 +26,7 @@ import { useProbationRateByOrgUnit } from '../../../../../hooks/useProbationRate
 import EmploymentStatistics from '../components/EmploymentStatistics'
 import { useTranslation } from '@newwork/nw-design-system'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
+import { exportTableToExcel, exportTableToPdf } from '../../../../../utils/exportUtils'
 import TenureHeatmapChart from '../charts/TenureHeatmapChart'
 import EmploymentTypePieChart from '../charts/EmploymentTypePieChart'
 import ContractTypePieChart from '../charts/ContractTypePieChart'
@@ -98,7 +99,7 @@ const Employment: React.FC<BusinessAppContextProps> = context => {
     tenureRanges,
     loading: tenureDistributionLoading,
     error: tenureDistributionError
-  } = useTenureByOrgUnit(context, structureId)
+  } = useTenureByOrgUnit(context, structureId ?? undefined)
 
   // Transform data functions for tables
   const transformEmploymentTypeData = (): TableData[] => {
@@ -136,6 +137,11 @@ const Employment: React.FC<BusinessAppContextProps> = context => {
     }))
   }
 
+  const exportColumnsPeriodValue = [
+    { key: 'period', header: t('hr-analytics-period') },
+    { key: 'value', header: t('hr-analytics-value') }
+  ]
+
   // Chart configurations
   const chartConfigs = [
     {
@@ -144,7 +150,8 @@ const Employment: React.FC<BusinessAppContextProps> = context => {
       tableData: transformEmploymentTypeData(),
       testId: 'employment-type-chart',
       tag: t('hr-analytics-types', { count: employmentTypeDistribution.length }),
-      description: t('hr-analytics-employment-type-description')
+      description: t('hr-analytics-employment-type-description'),
+      exportColumns: exportColumnsPeriodValue
     },
     {
       title: t('hr-analytics-contract-type-distribution'),
@@ -152,7 +159,8 @@ const Employment: React.FC<BusinessAppContextProps> = context => {
       tableData: transformContractTypeData(),
       testId: 'contract-type-chart',
       tag: t('hr-analytics-contract-breakdown'),
-      description: t('hr-analytics-contract-types-description')
+      description: t('hr-analytics-contract-types-description'),
+      exportColumns: exportColumnsPeriodValue
     },
     {
       title: t('hr-analytics-gap-rate-by-organizational-unit'),
@@ -160,7 +168,8 @@ const Employment: React.FC<BusinessAppContextProps> = context => {
       tableData: transformGapRateByOrgUnitData(),
       testId: 'gap-rate-org-unit-chart',
       tag: t('hr-analytics-position-gaps'),
-      description: t('hr-analytics-gap-rate-description')
+      description: t('hr-analytics-gap-rate-description'),
+      exportColumns: exportColumnsPeriodValue
     },
     {
       title: t('hr-analytics-probation-rate-by-organizational-unit'),
@@ -168,7 +177,8 @@ const Employment: React.FC<BusinessAppContextProps> = context => {
       tableData: transformProbationRateByOrgUnitData(),
       testId: 'probation-rate-org-unit-chart',
       tag: t('hr-analytics-probation-status'),
-      description: t('hr-analytics-probation-rate-description')
+      description: t('hr-analytics-probation-rate-description'),
+      exportColumns: exportColumnsPeriodValue
     },
     {
       title: t('hr-analytics-tenure-distribution-by-organizational-unit'),
@@ -176,20 +186,29 @@ const Employment: React.FC<BusinessAppContextProps> = context => {
       tableData: transformTenureHeatmapData(),
       testId: 'tenure-heatmap-chart',
       tag: t('hr-analytics-data-points', { count: tenureDistribution.length }),
-      description: t('hr-analytics-tenure-chart-description')
+      description: t('hr-analytics-tenure-chart-description'),
+      exportColumns: exportColumnsPeriodValue
     }
   ]
 
-  // Mock export functions
-  const handleExport = async (format: 'excel' | 'pdf', tableName: string, data: TableData[]) => {
+  const handleExport = async (
+    format: 'excel' | 'pdf',
+    tableName: string,
+    title: string,
+    columns: { key: string; header: string }[],
+    data: TableData[]
+  ) => {
     setExportingTable(`${tableName}-${format}`)
-
-    // Mock export delay
-    await new Promise(resolve => setTimeout(resolve, 1500))
-
-    console.log(`Exporting ${tableName} as ${format}:`, data)
-
-    setExportingTable(null)
+    try {
+      const rows = data.map(row => ({ ...row })) as Record<string, unknown>[]
+      if (format === 'excel') {
+        await exportTableToExcel(title, columns, rows)
+      } else {
+        await exportTableToPdf(title, columns, rows)
+      }
+    } finally {
+      setExportingTable(null)
+    }
   }
 
   const handleChartClick = (chartId: string) => {
@@ -390,7 +409,13 @@ const Employment: React.FC<BusinessAppContextProps> = context => {
                     disabled={exportingTable === `${selectedConfig.testId}-excel`}
                     onClick={e => {
                       e.stopPropagation()
-                      handleExport('excel', selectedConfig.testId, selectedConfig.tableData)
+                      handleExport(
+                        'excel',
+                        selectedConfig.testId,
+                        selectedConfig.title,
+                        selectedConfig.exportColumns,
+                        selectedConfig.tableData
+                      )
                     }}
                     className="gba:flex gba:items-center gba:gap-1"
                   >
@@ -404,7 +429,13 @@ const Employment: React.FC<BusinessAppContextProps> = context => {
                     disabled={exportingTable === `${selectedConfig.testId}-pdf`}
                     onClick={e => {
                       e.stopPropagation()
-                      handleExport('pdf', selectedConfig.testId, selectedConfig.tableData)
+                      handleExport(
+                        'pdf',
+                        selectedConfig.testId,
+                        selectedConfig.title,
+                        selectedConfig.exportColumns,
+                        selectedConfig.tableData
+                      )
                     }}
                     className="gba:flex gba:items-center gba:gap-1"
                   >

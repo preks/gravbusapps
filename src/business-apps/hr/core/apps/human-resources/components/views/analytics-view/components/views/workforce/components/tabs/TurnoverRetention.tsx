@@ -23,6 +23,7 @@ import RetentionByDepartmentChart from '../components/RetentionByDepartmentChart
 import { useTurnoverRetentionData } from '../../../../../hooks/useTurnoverRetentionData'
 import { useTranslation } from '@newwork/nw-design-system'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
+import { exportTableToExcel, exportTableToPdf } from '../../../../../utils/exportUtils'
 
 const { Title, Text } = Typography
 
@@ -67,16 +68,24 @@ const TurnoverRetention: React.FC<BusinessAppContextProps> = context => {
     }))
   }
 
-  // Mock export functions
-  const handleExport = async (format: 'excel' | 'pdf', tableName: string, data: TableData[]) => {
+  const handleExport = async (
+    format: 'excel' | 'pdf',
+    tableName: string,
+    title: string,
+    columns: { key: string; header: string }[],
+    data: TableData[]
+  ) => {
     setExportingTable(`${tableName}-${format}`)
-
-    // Mock export delay
-    await new Promise(resolve => setTimeout(resolve, 1500))
-
-    console.log(`Exporting ${tableName} as ${format}:`, data)
-
-    setExportingTable(null)
+    try {
+      const rows = data.map(row => ({ ...row })) as Record<string, unknown>[]
+      if (format === 'excel') {
+        await exportTableToExcel(title, columns, rows)
+      } else {
+        await exportTableToPdf(title, columns, rows)
+      }
+    } finally {
+      setExportingTable(null)
+    }
   }
 
   const handleChartClick = (chartId: string) => {
@@ -102,7 +111,11 @@ const TurnoverRetention: React.FC<BusinessAppContextProps> = context => {
       tableData: transformTurnoverRateData(),
       testId: 'turnover-rate-chart',
       tag: t('hr-analytics-months', { count: turnoverRateOverTime.length }),
-      description: t('hr-analytics-turnover-rate-description')
+      description: t('hr-analytics-turnover-rate-description'),
+      exportColumns: [
+        { key: 'period', header: t('hr-analytics-month') },
+        { key: 'value', header: t('hr-analytics-turnover-rate') }
+      ]
     },
     {
       title: t('hr-analytics-employee-tenure-distribution'),
@@ -110,7 +123,11 @@ const TurnoverRetention: React.FC<BusinessAppContextProps> = context => {
       tableData: transformTenureDistributionData(),
       testId: 'tenure-distribution-chart',
       tag: t('hr-analytics-tenure-ranges', { count: tenureDistribution.length }),
-      description: t('hr-analytics-employee-tenure-description')
+      description: t('hr-analytics-employee-tenure-description'),
+      exportColumns: [
+        { key: 'period', header: t('hr-analytics-tenure-range') },
+        { key: 'value', header: t('hr-analytics-employees') }
+      ]
     },
     {
       title: t('hr-analytics-retention-by-department'),
@@ -118,7 +135,11 @@ const TurnoverRetention: React.FC<BusinessAppContextProps> = context => {
       tableData: transformRetentionByDepartmentData(),
       testId: 'retention-by-department-chart',
       tag: t('hr-analytics-departments', { count: retentionByDepartment.length }),
-      description: t('hr-analytics-retention-by-department-description')
+      description: t('hr-analytics-retention-by-department-description'),
+      exportColumns: [
+        { key: 'period', header: t('hr-analytics-department') },
+        { key: 'value', header: t('hr-analytics-retention-rate') }
+      ]
     }
   ]
 
@@ -336,7 +357,13 @@ const TurnoverRetention: React.FC<BusinessAppContextProps> = context => {
                     disabled={exportingTable === `${selectedConfig.testId}-excel`}
                     onClick={e => {
                       e.stopPropagation()
-                      handleExport('excel', selectedConfig.testId, selectedConfig.tableData)
+                      handleExport(
+                        'excel',
+                        selectedConfig.testId,
+                        selectedConfig.title,
+                        selectedConfig.exportColumns,
+                        selectedConfig.tableData
+                      )
                     }}
                     className="gba:flex gba:items-center gba:gap-1"
                   >
@@ -350,7 +377,13 @@ const TurnoverRetention: React.FC<BusinessAppContextProps> = context => {
                     disabled={exportingTable === `${selectedConfig.testId}-pdf`}
                     onClick={e => {
                       e.stopPropagation()
-                      handleExport('pdf', selectedConfig.testId, selectedConfig.tableData)
+                      handleExport(
+                        'pdf',
+                        selectedConfig.testId,
+                        selectedConfig.title,
+                        selectedConfig.exportColumns,
+                        selectedConfig.tableData
+                      )
                     }}
                     className="gba:flex gba:items-center gba:gap-1"
                   >
