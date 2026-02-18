@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react'
 import { Button, Input, Spinner, Popover, PopoverContent, PopoverTrigger } from '@newwork/nw-design-system'
-import { Plus, MagnifyingGlass, User, UsersThree } from '@phosphor-icons/react'
+import { Plus, MagnifyingGlass, User, UsersThree, CaretDown, CaretUp } from '@phosphor-icons/react'
 import { ConversationItem } from './ConversationItem'
 import { UserSearch } from './UserSearch'
 import { UserStatusDropdown } from './UserStatusDropdown'
 import type { Conversation } from '../types'
 import type { ChatWebSocketClient } from '../services/chatWebSocketClient'
 import type { PresenceData } from '../hooks/usePresence'
+import type { ConversationFilterKind } from '../hooks/useConversations'
 import { useChatTranslation } from '../contexts/TranslationContext'
 
 interface ConversationListProps {
@@ -28,6 +29,12 @@ interface ConversationListProps {
   conversationExpertCounts?: Map<string, number>
   wsClient?: ChatWebSocketClient | null
   isConnected?: boolean
+  search?: string
+  filterKind?: ConversationFilterKind
+  unreadOnly?: boolean
+  onSearchChange?: (value: string) => void
+  onFilterKindChange?: (kind: ConversationFilterKind) => void
+  onUnreadOnlyChange?: (value: boolean) => void
 }
 
 // Helper to get the other participant's user ID from a direct conversation
@@ -59,18 +66,58 @@ export const ConversationList: React.FC<ConversationListProps> = ({
   presenceVersion,
   conversationExpertCounts,
   wsClient = null,
-  isConnected = false
+  isConnected = false,
+  search = '',
+  filterKind = 'all',
+  unreadOnly = false,
+  onSearchChange,
+  onFilterKindChange,
+  onUnreadOnlyChange
 }) => {
   const t = useChatTranslation()
   // Force re-render when presenceVersion changes
   void presenceVersion
 
-  const [searchQuery, setSearchQuery] = useState('')
   const [showUserSearch, setShowUserSearch] = useState(false)
   const [showNewChatMenu, setShowNewChatMenu] = useState(false)
+  const [filtersNeedFolding, setFiltersNeedFolding] = useState(false)
+  const [chipsThatFitInOneLine, setChipsThatFitInOneLine] = useState(4)
+  const [filtersExpanded, setFiltersExpanded] = useState(false)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const filterContainerRef = useRef<HTMLDivElement>(null)
+  const filterMeasureRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const container = filterContainerRef.current
+    const measure = filterMeasureRef.current
+    if (!container || !measure) return
+    const gap = 6
+    const chevronSpace = 28
+    const check = () => {
+      const containerWidth = container.clientWidth
+      const available = containerWidth - chevronSpace
+      const children = measure.children
+      let width = 0
+      let fitCount = 0
+      for (let i = 0; i < children.length; i++) {
+        const w = (children[i] as HTMLElement).offsetWidth + (i > 0 ? gap : 0)
+        if (width + w <= available) {
+          width += w
+          fitCount = i + 1
+        } else break
+      }
+      const needFolding = fitCount < 4
+      setFiltersNeedFolding(needFolding)
+      setChipsThatFitInOneLine(Math.max(1, fitCount))
+    }
+    check()
+    const ro = new ResizeObserver(check)
+    ro.observe(container)
+    return () => ro.disconnect()
+  }, [])
 
   // Deduplicate conversations by ID (defensive programming - duplicates should be rare after fixes)
+  // List is backend-filtered; no client-side search/filter
   const uniqueConversations = useMemo(() => {
     const seen = new Set<string>()
     const duplicates: string[] = []
@@ -84,7 +131,6 @@ export const ConversationList: React.FC<ConversationListProps> = ({
       return true
     })
 
-    // Only log in development if duplicates are found (should be rare now)
     if (duplicates.length > 0 && process.env.NODE_ENV === 'development') {
       console.debug('[ConversationList] Filtered out duplicate conversations:', duplicates)
     }
@@ -92,39 +138,24 @@ export const ConversationList: React.FC<ConversationListProps> = ({
     return filtered
   }, [conversations])
 
-  const filteredConversations = uniqueConversations.filter(conv => {
-    if (!searchQuery.trim()) return true
+  const hasActiveFilters = (search?.trim()?.length ?? 0) > 0 || filterKind !== 'all' || unreadOnly
 
-    const query = searchQuery.toLowerCase()
+  /** Line 1 order: Unread always, then selected kind (if any), then unselected in order Direct, Group, Meeting */
+  const filterChipOrder = useMemo(() => {
+    const kinds = ['direct', 'group', 'meeting'] as const
+    const selected = filterKind !== 'all' ? filterKind : null
+    const unselected = kinds.filter(k => k !== filterKind)
+    return ['unread', ...(selected ? [selected] : []), ...unselected] as const
+  }, [filterKind])
 
-    // Search in conversation name (for group chats)
-    if (conv.name?.toLowerCase().includes(query)) {
-      return true
+  const handleKindChipClick = (kind: 'direct' | 'group' | 'meeting') => {
+    if (!onFilterKindChange) return
+    if (filterKind === kind) {
+      onFilterKindChange('all')
+    } else {
+      onFilterKindChange(kind)
     }
-
-    // Search in participant names (for direct chats)
-    const participantMatch = conv.participants?.some(p => {
-      if (!p.user) return false
-
-      const firstName = p.user.firstName?.toLowerCase() || ''
-      const lastName = p.user.lastName?.toLowerCase() || ''
-      const username = p.user.username?.toLowerCase() || ''
-      const email = p.user.email?.toLowerCase() || ''
-
-      return firstName.includes(query) || lastName.includes(query) || username.includes(query) || email.includes(query)
-    })
-
-    if (participantMatch) {
-      return true
-    }
-
-    // Search in last message content
-    if (conv.lastMessage?.content.toLowerCase().includes(query)) {
-      return true
-    }
-
-    return false
-  })
+  }
 
   const handleUserSelect = async (user: any) => {
     if (onCreateConversation) {
@@ -228,13 +259,201 @@ export const ConversationList: React.FC<ConversationListProps> = ({
         <div className="gba:relative">
           <MagnifyingGlass className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:w-4 gba:h-4 gba:text-muted-foreground gba:pointer-events-none gba:z-10" />
           <Input
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
+            value={search}
+            onChange={e => onSearchChange?.(e.target.value)}
             placeholder={t('chat-searchConversations')}
             className="gba:h-8 gba:text-sm gba:!pl-10 gba:bg-background/50"
             data-testid="conversation-search-input"
           />
         </div>
+      </div>
+
+      {/* Filters: always visible. Fold (show selected + chevron) only when chips don't fit in one line. */}
+      <div
+        ref={filterContainerRef}
+        className={`gba:flex gba:items-center gba:gap-1.5 gba:flex-wrap gba:border-b gba:border-border/50 gba:min-h-0 ${compact ? 'gba:px-3 gba:py-2' : 'gba:px-3 gba:pb-2'}`}
+      >
+        {/* Hidden row used to measure if all chips fit in one line (order: Unread, Direct, Group, Meeting) */}
+        <div
+          ref={filterMeasureRef}
+          className="gba:absolute gba:left-[-9999px] gba:top-0 gba:flex gba:gap-1.5 gba:flex-nowrap gba:pointer-events-none gba:invisible"
+          aria-hidden
+        >
+          <Button variant="outline" size="sm" className="gba:h-7 gba:text-xs">
+            {t('chat-filterUnreadOnly')}
+          </Button>
+          <Button variant="outline" size="sm" className="gba:h-7 gba:text-xs">
+            {t('chat-filterDirect')}
+          </Button>
+          <Button variant="outline" size="sm" className="gba:h-7 gba:text-xs">
+            {t('chat-filterGroup')}
+          </Button>
+          <Button variant="outline" size="sm" className="gba:h-7 gba:text-xs">
+            {t('chat-filterMeetingChats')}
+          </Button>
+        </div>
+
+        {!filtersNeedFolding ? (
+          /* All fit: show all chips (Unread first) */
+          <>
+            <Button
+              variant={unreadOnly ? 'default' : 'outline'}
+              size="sm"
+              className="gba:h-7 gba:text-xs"
+              onClick={() => onUnreadOnlyChange?.(!unreadOnly)}
+              data-testid="conversation-filter-unread"
+            >
+              {t('chat-filterUnreadOnly')}
+            </Button>
+            <Button
+              variant={filterKind === 'direct' ? 'default' : 'outline'}
+              size="sm"
+              className="gba:h-7 gba:text-xs"
+              onClick={() => handleKindChipClick('direct')}
+              data-testid="conversation-filter-direct"
+            >
+              {t('chat-filterDirect')}
+            </Button>
+            <Button
+              variant={filterKind === 'group' ? 'default' : 'outline'}
+              size="sm"
+              className="gba:h-7 gba:text-xs"
+              onClick={() => handleKindChipClick('group')}
+              data-testid="conversation-filter-group"
+            >
+              {t('chat-filterGroup')}
+            </Button>
+            <Button
+              variant={filterKind === 'meeting' ? 'default' : 'outline'}
+              size="sm"
+              className="gba:h-7 gba:text-xs"
+              onClick={() => handleKindChipClick('meeting')}
+              data-testid="conversation-filter-meeting"
+            >
+              {t('chat-filterMeetingChats')}
+            </Button>
+          </>
+        ) : filtersExpanded ? (
+          /* Don't fit + expanded: show all chips (Unread first) and collapse chevron */
+          <>
+            <Button
+              variant={unreadOnly ? 'default' : 'outline'}
+              size="sm"
+              className="gba:h-7 gba:text-xs"
+              onClick={() => onUnreadOnlyChange?.(!unreadOnly)}
+              data-testid="conversation-filter-unread"
+            >
+              {t('chat-filterUnreadOnly')}
+            </Button>
+            <Button
+              variant={filterKind === 'direct' ? 'default' : 'outline'}
+              size="sm"
+              className="gba:h-7 gba:text-xs"
+              onClick={() => handleKindChipClick('direct')}
+              data-testid="conversation-filter-direct"
+            >
+              {t('chat-filterDirect')}
+            </Button>
+            <Button
+              variant={filterKind === 'group' ? 'default' : 'outline'}
+              size="sm"
+              className="gba:h-7 gba:text-xs"
+              onClick={() => handleKindChipClick('group')}
+              data-testid="conversation-filter-group"
+            >
+              {t('chat-filterGroup')}
+            </Button>
+            <Button
+              variant={filterKind === 'meeting' ? 'default' : 'outline'}
+              size="sm"
+              className="gba:h-7 gba:text-xs"
+              onClick={() => handleKindChipClick('meeting')}
+              data-testid="conversation-filter-meeting"
+            >
+              {t('chat-filterMeetingChats')}
+            </Button>
+            <button
+              type="button"
+              onClick={() => setFiltersExpanded(false)}
+              className="gba:flex-shrink-0 gba:p-1 gba:rounded gba:hover:bg-accent/50 gba:outline-none gba:focus-visible:ring-2 gba:focus-visible:ring-primary"
+              aria-label={t('chat-filtersCollapse')}
+              data-testid="conversation-filters-collapse"
+            >
+              <CaretUp className="gba:w-4 gba:h-4 gba:text-muted-foreground" aria-hidden />
+            </button>
+          </>
+        ) : (
+          /* Don't fit + folded: line 1 = as many as fit (Unread, then selected, then Direct/Group/Meeting); line 2 = rest, hidden by default */
+          (() => {
+            const onLine1 = filterChipOrder.slice(0, chipsThatFitInOneLine)
+            const onLine2 = filterChipOrder.slice(chipsThatFitInOneLine)
+            const renderChip = (key: 'unread' | 'direct' | 'group' | 'meeting') => {
+              if (key === 'unread') {
+                return (
+                  <Button
+                    key="unread"
+                    variant={unreadOnly ? 'default' : 'outline'}
+                    size="sm"
+                    className="gba:h-7 gba:text-xs"
+                    onClick={() => onUnreadOnlyChange?.(!unreadOnly)}
+                    data-testid="conversation-filter-unread"
+                  >
+                    {t('chat-filterUnreadOnly')}
+                  </Button>
+                )
+              }
+              const variant = filterKind === key ? 'default' : 'outline'
+              const onClick = () => (filterKind === key ? handleKindChipClick(key) : onFilterKindChange?.(key))
+              const labels = {
+                direct: t('chat-filterDirect'),
+                group: t('chat-filterGroup'),
+                meeting: t('chat-filterMeetingChats')
+              }
+              const testIds = {
+                direct: 'conversation-filter-direct',
+                group: 'conversation-filter-group',
+                meeting: 'conversation-filter-meeting'
+              }
+              return (
+                <Button
+                  key={key}
+                  variant={variant}
+                  size="sm"
+                  className="gba:h-7 gba:text-xs"
+                  onClick={onClick}
+                  data-testid={testIds[key]}
+                >
+                  {labels[key]}
+                </Button>
+              )
+            }
+            return (
+              <div className="gba:flex gba:flex-col gba:gap-1.5 gba:w-full">
+                <div className="gba:flex gba:items-center gba:gap-1.5 gba:flex-nowrap">
+                  {onLine1.map(k => renderChip(k))}
+                  <button
+                    type="button"
+                    onClick={() => setFiltersExpanded(!filtersExpanded)}
+                    className="gba:flex-shrink-0 gba:p-1 gba:rounded gba:hover:bg-accent/50 gba:outline-none gba:focus-visible:ring-2 gba:focus-visible:ring-primary"
+                    aria-label={filtersExpanded ? t('chat-filtersCollapse') : t('chat-filtersExpand')}
+                    data-testid={filtersExpanded ? 'conversation-filters-collapse' : 'conversation-filters-expand'}
+                  >
+                    {filtersExpanded ? (
+                      <CaretUp className="gba:w-4 gba:h-4 gba:text-muted-foreground" aria-hidden />
+                    ) : (
+                      <CaretDown className="gba:w-4 gba:h-4 gba:text-muted-foreground" aria-hidden />
+                    )}
+                  </button>
+                </div>
+                {filtersExpanded && onLine2.length > 0 && (
+                  <div className="gba:flex gba:items-center gba:gap-1.5 gba:flex-wrap">
+                    {onLine2.map(k => renderChip(k))}
+                  </div>
+                )}
+              </div>
+            )
+          })()
+        )}
       </div>
 
       {/* Conversations */}
@@ -248,11 +467,11 @@ export const ConversationList: React.FC<ConversationListProps> = ({
             )
           }
 
-          if (filteredConversations.length === 0) {
+          if (uniqueConversations.length === 0) {
             return (
               <div className="gba:p-6 gba:text-center">
                 <p className="gba:text-sm gba:text-muted-foreground">
-                  {searchQuery.trim() ? t('chat-noConversationsFound') : t('chat-noConversationsYet')}
+                  {hasActiveFilters ? t('chat-noConversationsFound') : t('chat-noConversationsYet')}
                 </p>
               </div>
             )
@@ -261,7 +480,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
           return (
             <>
               <div className="gba:py-1">
-                {filteredConversations.map(conversation => {
+                {uniqueConversations.map(conversation => {
                   const otherUserId = getOtherParticipantUserId(conversation, currentUserId)
                   // GOLD STANDARD: Direct map lookup - zero function calls, maximum performance ✅
                   const otherUserPresence = otherUserId ? presenceMap.get(otherUserId) : undefined

@@ -10,6 +10,8 @@ interface UseConversationsOptions {
   enabled?: boolean
 }
 
+export type ConversationFilterKind = 'all' | 'direct' | 'group' | 'meeting'
+
 export function useConversations({ apiClient, accessToken, enabled = true }: UseConversationsOptions) {
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -21,6 +23,20 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false)
   const loadConversationsPromiseRef = useRef<Promise<void> | null>(null)
   const LIMIT = 20
+
+  const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [filterKind, setFilterKind] = useState<ConversationFilterKind>('all')
+  const [unreadOnly, setUnreadOnly] = useState(false)
+
+  useEffect(() => {
+    if (!search.trim()) {
+      setDebouncedSearch('')
+      return
+    }
+    const timer = setTimeout(() => setDebouncedSearch(search.trim()), 350)
+    return () => clearTimeout(timer)
+  }, [search])
 
   // Use user management client to fetch real user data
   const { getUsersByIds } = useUserManagementClient(accessToken)
@@ -180,7 +196,11 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
         setError(null)
         setCurrentPage(1)
 
-        const response = await apiClient.getConversations(1, LIMIT)
+        const response = await apiClient.getConversations(1, LIMIT, {
+          search: debouncedSearch || undefined,
+          filter: filterKind,
+          unreadOnly: unreadOnly || undefined
+        })
         // Handle both response structures: { data: [...] } or { conversations: [...] }
         const conversationsData = response.data || (response as any).conversations || []
         const total = response.total || 0
@@ -226,7 +246,18 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
     // Store the promise for deduplication
     loadConversationsPromiseRef.current = loadPromise
     return loadPromise
-  }, [apiClient, accessToken, enabled, enrichConversations, enrichConversationsWithAvatarsOnly, hasLoadedOnce, LIMIT])
+  }, [
+    apiClient,
+    accessToken,
+    enabled,
+    enrichConversations,
+    enrichConversationsWithAvatarsOnly,
+    hasLoadedOnce,
+    LIMIT,
+    debouncedSearch,
+    filterKind,
+    unreadOnly
+  ])
 
   const loadMoreConversations = useCallback(async () => {
     if (!enabled || isLoadingMore || !hasMore || !apiClient) return
@@ -235,7 +266,11 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
       setIsLoadingMore(true)
       const nextPage = currentPage + 1
 
-      const response = await apiClient.getConversations(nextPage, LIMIT)
+      const response = await apiClient.getConversations(nextPage, LIMIT, {
+        search: debouncedSearch || undefined,
+        filter: filterKind,
+        unreadOnly: unreadOnly || undefined
+      })
       const conversationsData = response.data || (response as any).conversations || []
       const total = response.total || 0
 
@@ -257,7 +292,19 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
     } finally {
       setIsLoadingMore(false)
     }
-  }, [apiClient, enabled, isLoadingMore, hasMore, currentPage, conversations.length, enrichConversations, LIMIT])
+  }, [
+    apiClient,
+    enabled,
+    isLoadingMore,
+    hasMore,
+    currentPage,
+    conversations.length,
+    enrichConversations,
+    LIMIT,
+    debouncedSearch,
+    filterKind,
+    unreadOnly
+  ])
 
   const updateConversation = useCallback((conversationId: string, updates: Partial<Conversation>) => {
     setConversations(prev => {
@@ -446,7 +493,13 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
       incrementUnreadCount,
       removeConversation,
       enrichConversations, // Export for use in websocket handlers (full enrichment with user data fetch)
-      enrichConversationsWithAvatarsOnly // Export for fast enrichment (avatars only, no blocking)
+      enrichConversationsWithAvatarsOnly, // Export for fast enrichment (avatars only, no blocking)
+      search,
+      filterKind,
+      unreadOnly,
+      setSearch,
+      setFilterKind,
+      setUnreadOnly
     }),
     [
       conversations,
@@ -463,7 +516,10 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
       incrementUnreadCount,
       removeConversation,
       enrichConversations,
-      enrichConversationsWithAvatarsOnly
+      enrichConversationsWithAvatarsOnly,
+      search,
+      filterKind,
+      unreadOnly
     ]
   )
 }

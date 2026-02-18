@@ -7,8 +7,10 @@ import React, { type RefObject } from 'react'
 import { Alert, AlertDescription } from '@newwork/nw-design-system'
 import { PerformanceMonitor } from './PerformanceMonitor'
 
+export type ChatLayoutViewMode = 'full' | 'compact' | 'mobile'
+
 export interface ChatLayoutProps {
-  containerRef: RefObject<HTMLDivElement | null>
+  containerRef: RefObject<HTMLDivElement>
   prefixDataTestId: string
   errorMessage: string | null
   onDismissError: () => void
@@ -18,8 +20,8 @@ export interface ChatLayoutProps {
   messageCount: number
   showListView: boolean
   showChatView: boolean
-  isSingleViewMode: boolean
-  chatViewRef?: RefObject<HTMLDivElement | null>
+  viewMode?: ChatLayoutViewMode
+  chatViewRef?: RefObject<HTMLDivElement>
   listSlot: React.ReactNode
   chatViewSlot: React.ReactNode
 }
@@ -35,11 +37,12 @@ export function ChatLayout({
   messageCount,
   showListView,
   showChatView,
-  isSingleViewMode,
+  viewMode = 'full',
   chatViewRef,
   listSlot,
   chatViewSlot
 }: Readonly<ChatLayoutProps>) {
+  const listWidthClass = viewMode === 'full' ? 'gba:w-72 gba:flex-shrink-0' : 'gba:w-full'
   return (
     <div
       ref={containerRef}
@@ -72,9 +75,7 @@ export function ChatLayout({
       <div className="gba:flex-1 gba:flex gba:flex-row gba:min-h-0 gba:h-full gba:overflow-hidden">
         {showListView && (
           <div
-            className={`gba:flex gba:flex-col gba:h-full gba:border-r gba:border-border/50 gba:bg-muted/30 ${
-              isSingleViewMode ? 'gba:w-full' : 'gba:w-72 gba:flex-shrink-0'
-            }`}
+            className={`gba:flex gba:flex-col gba:h-full gba:border-r gba:border-border/50 gba:bg-muted/30 ${listWidthClass}`}
           >
             {listSlot}
           </div>
@@ -82,7 +83,7 @@ export function ChatLayout({
         {showChatView && (
           <div
             ref={chatViewRef}
-            className="gba:flex-1 gba:flex gba:flex-col gba:min-w-0 gba:h-full gba:max-h-full gba:overflow-hidden gba:relative"
+            className="gba:flex-1 gba:flex gba:flex-col gba:min-w-0 gba:min-w-48 gba:h-full gba:max-h-full gba:overflow-hidden gba:relative"
           >
             {chatViewSlot}
           </div>

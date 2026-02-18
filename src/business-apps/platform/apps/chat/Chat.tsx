@@ -163,7 +163,13 @@ const ChatInner: React.FC<ChatProps> = memo(
       sendNudge,
       registerNudgeCallback,
       apiClient,
-      wsClient
+      wsClient,
+      conversationSearch,
+      conversationFilterKind,
+      conversationUnreadOnly,
+      setConversationSearch,
+      setConversationFilterKind,
+      setConversationUnreadOnly
       // Note: activeCalls is now provided by useRealtimeKitGroupCall hook as activeConversationCalls
     } = chatClient
 
@@ -233,7 +239,8 @@ const ChatInner: React.FC<ChatProps> = memo(
       containerRef,
       isEmbeddedMobile,
       showConversationList,
-      hasConversation: !!stableActiveConversation
+      hasConversation: !!stableActiveConversation,
+      isMainLayoutShown: !error && (isConnected || !conversationsLoading)
     })
 
     // Render tracking (after stableActiveConversation is defined)
@@ -832,6 +839,7 @@ const ChatInner: React.FC<ChatProps> = memo(
           showListView={showListView}
           showChatView={showChatView}
           isSingleViewMode={isSingleViewMode}
+          viewMode={viewMode}
           chatViewRef={chatViewRef}
           listSlot={
             <ConversationList
@@ -871,6 +879,12 @@ const ChatInner: React.FC<ChatProps> = memo(
               conversationExpertCounts={conversationExpertCounts}
               wsClient={wsClient}
               isConnected={isConnected}
+              search={conversationSearch}
+              filterKind={conversationFilterKind}
+              unreadOnly={conversationUnreadOnly}
+              onSearchChange={setConversationSearch}
+              onFilterKindChange={setConversationFilterKind}
+              onUnreadOnlyChange={setConversationUnreadOnly}
             />
           }
           chatViewSlot={

@@ -76,10 +76,15 @@ export class ChatApiClient {
   }
 
   // Conversation endpoints
-  async getConversations(page: number = 1, limit: number = 20) {
+  async getConversations(
+    page: number = 1,
+    limit: number = 20,
+    filters?: { search?: string; filter?: 'all' | 'direct' | 'group' | 'meeting'; unreadOnly?: boolean }
+  ) {
     const baseURL = this.client.defaults.baseURL ?? ''
     const tokenKey = this.token ? String(hashToken(this.token)) : 'no-token'
-    const key = `${baseURL}|${tokenKey}|${page}|${limit}`
+    const filterKey = filters ? JSON.stringify(filters) : ''
+    const key = `${baseURL}|${tokenKey}|${page}|${limit}|${filterKey}`
 
     const cached = conversationsResponseCache.get(key)
     if (cached && Date.now() - cached.ts < CONVERSATIONS_CACHE_TTL_MS) {
@@ -91,15 +96,17 @@ export class ChatApiClient {
       return existing
     }
 
+    const params: Record<string, string | number | boolean | undefined> = { page, limit }
+    if (filters?.search !== undefined && filters.search !== '') params.search = filters.search
+    if (filters?.filter !== undefined && filters.filter !== 'all') params.filter = filters.filter
+    if (filters?.unreadOnly === true) params.unreadOnly = true
+
     const requestPromise: Promise<NormalizedConversationsResponse> = this.client
       .get<
         | PaginatedResponse<Conversation>
         | { conversations: Conversation[]; total: number; page: number; limit: number; totalPages: number }
       >('/conversations', {
-        params: {
-          page,
-          limit
-        }
+        params
         // Removed aggressive cache-busting for performance
         // WebSocket updates handle real-time changes, so HTTP caching is safe
       })

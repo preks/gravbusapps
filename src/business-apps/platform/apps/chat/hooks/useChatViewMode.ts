@@ -1,6 +1,9 @@
 /**
  * View mode state and derived flags for chat layout: full / compact / mobile,
  * ResizeObserver-driven updates, showListView / showChatView.
+ *
+ * List + conversation side-by-side: desktop (full) only.
+ * Single-pane (list OR conversation): compact and mobile; user toggles via back/selection.
  */
 
 import { useState, useEffect, useMemo, type RefObject } from 'react'
@@ -12,6 +15,8 @@ export interface UseChatViewModeParams {
   isEmbeddedMobile: boolean
   showConversationList: boolean
   hasConversation: boolean
+  /** When true, the ref is attached to the main layout root (list+chat); re-run measurement so we observe the correct container */
+  isMainLayoutShown?: boolean
 }
 
 export interface UseChatViewModeReturn {
@@ -21,11 +26,17 @@ export interface UseChatViewModeReturn {
   showChatView: boolean
 }
 
+const MOBILE_MAX_WIDTH = 380
+const COMPACT_MAX_WIDTH = 700
+/** Width below this is treated as "not yet laid out" - keep full so both list and chat show */
+const MIN_MEANINGFUL_WIDTH = 100
+
 export function useChatViewMode({
   containerRef,
   isEmbeddedMobile,
   showConversationList,
-  hasConversation
+  hasConversation,
+  isMainLayoutShown = true
 }: UseChatViewModeParams): UseChatViewModeReturn {
   const [viewMode, setViewMode] = useState<ViewMode>('full')
 
@@ -40,9 +51,11 @@ export function useChatViewMode({
 
     const checkViewMode = () => {
       const containerWidth = container.offsetWidth
-      if (containerWidth < 480) {
+      if (containerWidth < MIN_MEANINGFUL_WIDTH) {
+        setViewMode('full')
+      } else if (containerWidth < MOBILE_MAX_WIDTH) {
         setViewMode('mobile')
-      } else if (containerWidth < 700) {
+      } else if (containerWidth < COMPACT_MAX_WIDTH) {
         setViewMode('compact')
       } else {
         setViewMode('full')
@@ -53,16 +66,18 @@ export function useChatViewMode({
     const resizeObserver = new ResizeObserver(checkViewMode)
     resizeObserver.observe(container)
     return () => resizeObserver.disconnect()
-  }, [isEmbeddedMobile])
+  }, [isEmbeddedMobile, isMainLayoutShown])
 
-  const isSingleViewMode = viewMode === 'mobile' || viewMode === 'compact'
+  const isDesktop = viewMode === 'full'
+  const isSingleViewMode = !isDesktop
+
   const showListView = useMemo(
-    () => (isSingleViewMode ? showConversationList || !hasConversation : true),
-    [isSingleViewMode, showConversationList, hasConversation]
+    () => (isDesktop ? true : showConversationList || !hasConversation),
+    [isDesktop, showConversationList, hasConversation]
   )
   const showChatView = useMemo(
-    () => (isSingleViewMode ? !showConversationList && hasConversation : true),
-    [isSingleViewMode, showConversationList, hasConversation]
+    () => (isDesktop ? true : !showConversationList && hasConversation),
+    [isDesktop, showConversationList, hasConversation]
   )
 
   return { viewMode, isSingleViewMode, showListView, showChatView }

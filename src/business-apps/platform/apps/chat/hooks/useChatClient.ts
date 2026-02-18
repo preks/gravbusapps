@@ -1213,6 +1213,12 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
       conversationsLoadingMore: conversationsHook.isLoadingMore,
       conversationsHasMore: conversationsHook.hasMore,
       conversationsError: conversationsHook.error,
+      conversationSearch: conversationsHook.search,
+      conversationFilterKind: conversationsHook.filterKind,
+      conversationUnreadOnly: conversationsHook.unreadOnly,
+      setConversationSearch: conversationsHook.setSearch,
+      setConversationFilterKind: conversationsHook.setFilterKind,
+      setConversationUnreadOnly: conversationsHook.setUnreadOnly,
       // Messages
       messages: messagesHook.messages,
       messagesLoading: messagesHook.isLoading,
@@ -1264,6 +1270,9 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
       conversationsHook.isLoadingMore,
       conversationsHook.hasMore,
       conversationsHook.error,
+      conversationsHook.search,
+      conversationsHook.filterKind,
+      conversationsHook.unreadOnly,
       // Messages
       messagesHook.messages,
       messagesHook.isLoading,
