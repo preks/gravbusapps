@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useProcessCompletion } from '../../../../../../common/hooks/useProcessCompletion'
 import { useGraphQLClient } from '../../../../../../common/network/graphql/useGraphQLClient'
 import { useCatalogManagerClient } from '../../../../../../common/network/catalogs/useCatalogManagerClient'
 import { getCurrentActiveUserLocale } from '../../../../../../common/utils/windowUtils'
@@ -113,6 +114,12 @@ export const useDashboardData = ({
       fetchData()
     }
   }, [accessToken, timeFilter])
+
+  useProcessCompletion({
+    onSuccess: () => {
+      fetchData()
+    }
+  })
 
   return data
 }

@@ -1,3 +1,4 @@
+import dayjs from 'dayjs'
 export function getCurrentActiveStructureId(): string | null {
   // Try primary source: activeStructureId
   if (window?.lowcoder?.activeStructureId) {
@@ -127,18 +128,48 @@ export function getTranslationFromI18nKeyAndLabel(
 
 export const formatDate = (
   dateValue: Date | string | undefined,
-  format = 'date.short',
-  customSpecificFormat = null
+  format: string = 'date.short',
+  customSpecificFormat: string | null = null
 ): string | undefined => {
   if (!dateValue) return dateValue
 
   const date = new Date(dateValue)
 
-  if (typeof window?.lowcoder?.i18n?.formatDate !== 'function') {
-    return date.toISOString()
+  // Prefer platform formatter when available
+  if (typeof window?.lowcoder?.i18n?.formatDate === 'function') {
+    return window.lowcoder.i18n.formatDate(date, format, customSpecificFormat)
   }
 
-  return window?.lowcoder?.i18n?.formatDate(date, format, customSpecificFormat)
+  // Fallback: format locally for dev/local without platform i18n
+  try {
+    // If a specific format is provided, use dayjs to respect it
+    if (customSpecificFormat) {
+      return dayjs(date).format(customSpecificFormat)
+    }
+
+    const locale = getCurrentActiveUserLocale() || 'en-US'
+
+    // Map common keys to Intl options
+    const toLocale = (opts: Intl.DateTimeFormatOptions) => date.toLocaleDateString(locale, opts)
+
+    switch (format) {
+      case 'date.short':
+        return toLocale({ year: '2-digit', month: '2-digit', day: '2-digit' })
+      case 'date.medium':
+        return toLocale({ year: 'numeric', month: 'short', day: '2-digit' })
+      case 'date.long':
+        return toLocale({ year: 'numeric', month: 'long', day: '2-digit' })
+      case 'fullDateTime.ISO':
+        return date.toISOString()
+      default:
+        // Attempt a dayjs parse of an arbitrary token format, else default short
+        if (/[YMD]/.test(format)) return dayjs(date).format(format)
+        return toLocale({ year: '2-digit', month: '2-digit', day: '2-digit' })
+    }
+  } catch {
+    // Safe final fallback
+    return dayjs(date).format('YYYY-MM-DD')
+  }
 }
 
 export const formatNumberFunction = (number: number | string, format: string = '0.00[,]00'): string => {

@@ -21,7 +21,6 @@ import { Mic, MicOff, Video, VideoOff, PhoneOff, Maximize2, Users } from 'lucide
 import { globalCallManager, type GlobalCallState } from '../services/globalCallManager'
 import type { GroupCallParticipant } from '../services/groupWebrtcClient'
 import { useChatTranslation } from '../contexts/TranslationContext'
-import { rtkDebug } from '../utils/rtkDebug'
 
 // All exports are commented out - this module is deprecated
 // See GlobalCallContainer.tsx for the new implementation

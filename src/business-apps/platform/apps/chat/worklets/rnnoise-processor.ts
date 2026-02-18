@@ -31,7 +31,6 @@ declare function registerProcessor(name: string, processorCtor: typeof AudioWork
 const clamp01 = (value: number): number => Math.max(0, Math.min(1, value))
 
 class RnnoiseProcessor extends AudioWorkletProcessor {
-  private logLevel: 'verbose' | 'normal' | 'minimal'
   private strength: number
 
   private rnnoiseReady = false
@@ -60,7 +59,6 @@ class RnnoiseProcessor extends AudioWorkletProcessor {
     super()
 
     const processorOptions = (options?.processorOptions ?? {}) as any
-    this.logLevel = processorOptions.logLevel ?? 'normal'
     this.strength = clamp01(processorOptions.strength ?? 0.8)
 
     // Large enough to avoid frequent wrap handling and keep processing ahead.
@@ -80,21 +78,10 @@ class RnnoiseProcessor extends AudioWorkletProcessor {
         this.stopped = true
         this.rnnoiseReady = false
         this.cleanup()
-        if (this.logLevel === 'verbose') {
-          console.log('[RNNoise Worklet] Stopped processing')
-        }
       }
     }
 
     this.initializeRnnoise()
-
-    if (this.logLevel === 'verbose') {
-      console.log('[RNNoise Worklet] Processor constructed', {
-        sampleRate,
-        strength: this.strength,
-        initialFrameSize: this.frameSize
-      })
-    }
   }
 
   private initializeRnnoise(): void {

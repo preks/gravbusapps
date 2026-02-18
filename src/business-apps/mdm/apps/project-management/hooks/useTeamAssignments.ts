@@ -195,29 +195,24 @@ export const useTeamAssignments = (accessToken: string) => {
           payload.map(async employee => {
             const totalAllocationPercent = employee.totalAllocationPercent
 
+            const updatedTotalAllocationPercent = totalAllocationPercent
+              ? (totalAllocationPercent.totalAllocationPercent ?? 0) + employee.percentage
+              : employee.percentage
             const workingHoursPayload = {
               changeMode: 'INSERT',
               employeeWorkingHours: {
                 employeeId: employee.employeeId,
-                totalAllocationPercent: totalAllocationPercent
-                  ? (totalAllocationPercent.totalAllocationPercent ?? 0) + employee.percentage
-                  : employee.percentage,
-                ...(totalAllocationPercent && {
-                  id: totalAllocationPercent.id,
-                  version: totalAllocationPercent.version
-                })
+                totalAllocationPercent: updatedTotalAllocationPercent,
+                id: totalAllocationPercent?.id ?? employee.employeeId,
+                version: totalAllocationPercent?.version ?? 0
               }
             }
-            await restClientEmployees.post(
-              `/${totalAllocationPercent ? 'updateEmployeeWorkingHours' : 'createEmployeeWorkingHours'}`,
-              workingHoursPayload,
-              {
-                headers: {
-                  Authorization: `Bearer ${accessToken}`,
-                  'Content-Type': 'application/json'
-                }
+            await restClientEmployees.post(`/updateEmployeeWorkingHours`, workingHoursPayload, {
+              headers: {
+                Authorization: `Bearer ${accessToken}`,
+                'Content-Type': 'application/json'
               }
-            )
+            })
           })
         )
 
