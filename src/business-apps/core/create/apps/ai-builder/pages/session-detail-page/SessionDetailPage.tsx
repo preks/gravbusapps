@@ -97,6 +97,7 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
   const [messages, setMessages] = useState<Message[]>([])
   const debouncedMessages = useDebounce(messages, 1000)
   const [input, setInput] = useState('')
+  const [queuedFollowUpPrompt, setQueuedFollowUpPrompt] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [thinking, setThinking] = useState(false)
   const [, setThinkingContent] = useState('')
@@ -150,6 +151,8 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
   const screenBuildUsedRef = useRef(false)
   const screenBuildSucceededRef = useRef(false)
   const filesChangedInRunRef = useRef(false)
+  const activeStreamReaderRef = useRef<ReadableStreamDefaultReader<Uint8Array> | null>(null)
+  const stopRequestedRef = useRef(false)
   const resolvedTargetPath = detectedTargetPath || targetPath
   const UNKNOWN_AUTHOR_ID = 'unknown-user'
 
@@ -353,32 +356,51 @@ export const SessionDetailPage: React.FC<SessionDetailPageProps> = ({
           files: uniqueFiles
         })
       }
-      // Auto-detect screen path from created files.
+      // Auto-detect screen path from active (non-deleted) changed files.
       // Uses screen types from screen-discovery.config.json (e.g. apps, forms, popups, records, windows).
-      // Build regex from config: match screen root index.ts exactly one level after a screen type directory.
-      // e.g. src/business-apps/hr/common/apps/employee-list/index.ts
-      // NOT: src/business-apps/hr/common/apps/employee-list/_i18n/index.ts
+      // Match any file under a screen root:
+      //   src/business-apps/<product>/<area>/<screenType>/<screenName>/...
+      // then choose the most affected root, preferring app screens.
       if (data.summary?.files) {
         const screenTypes = (screenDiscoveryConfig as { types: string[] }).types.join('|')
-        const screenRootPattern = new RegExp(String.raw`^src/business-apps/(.+/(?:${screenTypes})/[^/]+)/index\.ts$`)
-        const indexFiles = data.summary.files.filter((f: FileChange) => screenRootPattern.test(f.path))
-        if (indexFiles.length > 0) {
-          const latestIndexFile = indexFiles[indexFiles.length - 1]
-          const match = screenRootPattern.exec(latestIndexFile.path)
-          if (match) {
-            const detectedPath = match[1]
-            setDetectedTargetPath(detectedPath)
-            setTargetPath(detectedPath)
-            const autoResourceUrl = getAutoResourceUrl(detectedPath)
-            const normalizedResourceUrl = normalizeResourceUrl(resourceUrl)
-            const previousAutoResourceUrl = detectedTargetPath ? getAutoResourceUrl(detectedTargetPath) : null
-            // Auto-generate resource URL from the last segment when not set or previously auto-generated
-            if (
-              !normalizedResourceUrl ||
-              (previousAutoResourceUrl && normalizedResourceUrl === previousAutoResourceUrl)
-            ) {
-              setResourceUrl(autoResourceUrl)
-            }
+        const screenRootPattern = new RegExp(String.raw`^src/business-apps/(.+/(?:${screenTypes})/[^/]+)/(?:.*)$`)
+        const activeFiles = data.summary.files.filter((f: FileChange) => getNormalizedChangeType(f.type) !== 'delete')
+
+        const rootStats = new Map<string, { count: number; hasIndexFile: boolean; isAppScreen: boolean }>()
+        for (const file of activeFiles) {
+          const match = screenRootPattern.exec(file.path)
+          if (!match) continue
+          const root = match[1]
+          const current = rootStats.get(root) ?? {
+            count: 0,
+            hasIndexFile: false,
+            isAppScreen: root.includes('/apps/')
+          }
+          current.count += 1
+          if (file.path.endsWith('/index.ts')) {
+            current.hasIndexFile = true
+          }
+          rootStats.set(root, current)
+        }
+
+        if (rootStats.size > 0) {
+          const detectedPath = Array.from(rootStats.entries()).sort((a, b) => {
+            const scoreA = a[1].count * 100 + (a[1].isAppScreen ? 10 : 0) + (a[1].hasIndexFile ? 1 : 0)
+            const scoreB = b[1].count * 100 + (b[1].isAppScreen ? 10 : 0) + (b[1].hasIndexFile ? 1 : 0)
+            if (scoreA !== scoreB) return scoreB - scoreA
+            return a[0].localeCompare(b[0])
+          })[0][0]
+          setDetectedTargetPath(detectedPath)
+          setTargetPath(detectedPath)
+          const autoResourceUrl = getAutoResourceUrl(detectedPath)
+          const normalizedResourceUrl = normalizeResourceUrl(resourceUrl)
+          const previousAutoResourceUrl = detectedTargetPath ? getAutoResourceUrl(detectedTargetPath) : null
+          // Auto-generate resource URL from the last segment when not set or previously auto-generated
+          if (
+            !normalizedResourceUrl ||
+            (previousAutoResourceUrl && normalizedResourceUrl === previousAutoResourceUrl)
+          ) {
+            setResourceUrl(autoResourceUrl)
           }
         }
       }
@@ -1022,6 +1044,15 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
     }
     if (data.type === 'tool_result' && data.toolName) {
       applyToolResultEvent(data, ctx)
+      return
+    }
+    if (data.type === 'tool_progress' && data.toolName === 'screen_build' && data.content) {
+      ctx.setPreviewBuildStatus(prev => ({
+        ...prev,
+        active: true,
+        lines: [...prev.lines, data.content as string].slice(-6),
+        error: null
+      }))
     }
   }
 
@@ -1031,11 +1062,13 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
     ctx: StreamCtx
   ): Promise<void> => {
     const decoder = new TextDecoder()
+    let buffer = ''
     while (true) {
       const { done, value } = await reader.read()
       if (done) break
-      const chunk = decoder.decode(value)
-      const lines = chunk.split('\n')
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() ?? ''
       for (const line of lines) {
         if (!line.startsWith('data: ')) continue
         try {
@@ -1048,9 +1081,23 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
         }
       }
     }
+
+    const remaining = buffer.trim()
+    if (remaining.startsWith('data: ')) {
+      try {
+        const jsonStr = remaining.slice(6).trim()
+        if (jsonStr) {
+          const data = JSON.parse(jsonStr) as Record<string, unknown>
+          if (data && typeof data === 'object') processStreamEvent(data, streamState, ctx)
+        }
+      } catch {
+        // ignore trailing partial payload
+      }
+    }
   }
 
   const runPrompt = async (userInput: string, history: Message[]) => {
+    stopRequestedRef.current = false
     screenBuildUsedRef.current = false
     screenBuildSucceededRef.current = false
     filesChangedInRunRef.current = false
@@ -1077,6 +1124,7 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
         SYSTEM_PROMPT
       )
       const reader = stream.getReader()
+      activeStreamReaderRef.current = reader
       const streamState: StreamState = {
         assistantMessage: '',
         needsNewMessage: false,
@@ -1100,7 +1148,17 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
         }
       }
       await runStreamToEnd(reader, streamState, ctx)
+
+      const wasStopped = stopRequestedRef.current
+      if (wasStopped) {
+        screenBuildUsedRef.current = false
+        screenBuildSucceededRef.current = false
+        filesChangedInRunRef.current = false
+      }
     } catch (error) {
+      if (stopRequestedRef.current) {
+        return
+      }
       console.error('Query failed:', error)
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
       setMessages(prev => [
@@ -1114,17 +1172,27 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
           )
         )
       ])
+
+      const wasStopped = stopRequestedRef.current
+      if (wasStopped) {
+        screenBuildUsedRef.current = false
+        screenBuildSucceededRef.current = false
+        filesChangedInRunRef.current = false
+      }
     } finally {
+      activeStreamReaderRef.current = null
       setLoading(false)
-      setTimeout(async () => {
+
+      void (async () => {
         const newCount = await checkForChanges()
         if (filesChangedInRunRef.current || newCount > previousChangeCountRef.current) {
           refreshFileExplorer()
         }
         const hasNewChanges = newCount > previousChangeCountRef.current
         if (hasNewChanges) {
+          const screenBuildUsedInRun = screenBuildUsedRef.current
           const succeededFromMessages = hasSuccessfulScreenBuildInMessages(messagesRef.current)
-          if ((screenBuildUsedRef.current && screenBuildSucceededRef.current) || succeededFromMessages) {
+          if ((screenBuildUsedInRun && screenBuildSucceededRef.current) || succeededFromMessages) {
             setPreviewBuildStatus(prev => ({
               ...prev,
               active: true,
@@ -1132,7 +1200,16 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
               error: null
             }))
             setPreviewReady(true)
-            previewSandboxRef.current?.reload()
+            // Use cacheOnly=true so the iframe requests bundle=false — the backend serves
+            // the already-cached bundle from screen_build instead of triggering a new build.
+            previewSandboxRef.current?.reload({ cacheOnly: true })
+          } else if (screenBuildUsedInRun) {
+            // screen_build already attempted this run; avoid triggering a second build.
+            setPreviewBuildStatus(prev => ({
+              ...prev,
+              active: false,
+              lines: [...prev.lines, 'screen_build finished without a successful result'].slice(-6)
+            }))
           } else {
             await refreshPreview()
           }
@@ -1149,8 +1226,50 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
         screenBuildUsedRef.current = false
         screenBuildSucceededRef.current = false
         filesChangedInRunRef.current = false
-      }, 2000)
+      })()
     }
+  }
+
+  const handleQueueFollowUp = () => {
+    const followUp = input.trim()
+    if (!followUp) return
+    setQueuedFollowUpPrompt(followUp)
+    setInput('')
+  }
+
+  const handleDeleteQueuedFollowUp = () => {
+    setQueuedFollowUpPrompt(null)
+  }
+
+  const handleSendQueuedFollowUpNow = () => {
+    const followUp = queuedFollowUpPrompt?.trim()
+    if (!followUp) return
+    if (loading) {
+      handleStopGeneration()
+      return
+    }
+    const userMessage = buildMessage('user', followUp)
+    setMessages(prev => [...prev, userMessage])
+    setQueuedFollowUpPrompt(null)
+    void runPrompt(followUp, messages)
+  }
+
+  useEffect(() => {
+    if (loading) return
+    const followUp = queuedFollowUpPrompt?.trim()
+    if (!followUp) return
+    const userMessage = buildMessage('user', followUp)
+    setMessages(prev => [...prev, userMessage])
+    setQueuedFollowUpPrompt(null)
+    void runPrompt(followUp, messages)
+  }, [loading, queuedFollowUpPrompt])
+
+  const handleStopGeneration = () => {
+    stopRequestedRef.current = true
+    setThinking(false)
+    setThinkingContent('')
+    activeStreamReaderRef.current?.cancel().catch(() => undefined)
+    activeStreamReaderRef.current = null
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -1201,7 +1320,12 @@ Please analyze the error, fix the issues, and let me know when it's ready to rep
                   input={input}
                   onInputChange={v => setInput(v)}
                   onSendMessage={() => handleSubmit({ preventDefault: () => {} } as React.FormEvent)}
+                  onStopMessage={handleStopGeneration}
+                  onQueueFollowUp={handleQueueFollowUp}
+                  onSendQueuedFollowUpNow={handleSendQueuedFollowUpNow}
+                  onDeleteQueuedFollowUp={handleDeleteQueuedFollowUp}
                   isProcessing={loading}
+                  queuedFollowUpPrompt={queuedFollowUpPrompt}
                   thinking={thinking}
                   onRestoreMessage={openRestoreDialog}
                   onEditMessage={handleEditMessage}

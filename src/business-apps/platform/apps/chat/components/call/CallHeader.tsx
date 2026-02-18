@@ -10,7 +10,7 @@
  */
 
 import React, { useState, useEffect } from 'react'
-import { Users, Minimize2, MessageSquare } from 'lucide-react'
+import { Users, Minimize2, MessageSquare, LayoutGrid } from 'lucide-react'
 import { formatDuration } from '../../utils/callUtils'
 
 /**
@@ -57,6 +57,12 @@ export interface CallHeaderProps {
   onToggleMinimize?: () => void
   /** Callback to close/end the call */
   onClose?: () => void
+  /** Show Large gallery toggle (e.g. when participant count > 10) */
+  showLargeGalleryControl?: boolean
+  /** Current gallery size mode */
+  gallerySize?: 'default' | 'large'
+  /** Callback to toggle gallery size */
+  onToggleGallerySize?: () => void
   /** Data test ID prefix */
   prefixDataTestId?: string
   /** Translation function */
@@ -75,6 +81,9 @@ export const CallHeader: React.FC<CallHeaderProps> = ({
   onToggleParticipantsPanel,
   onToggleChat,
   onToggleMinimize,
+  showLargeGalleryControl = false,
+  gallerySize = 'default',
+  onToggleGallerySize,
   prefixDataTestId = 'rtk-group-call',
   t = (key: string) => key
 }) => {
@@ -173,6 +182,21 @@ export const CallHeader: React.FC<CallHeaderProps> = ({
                 <span className="gba:absolute gba:-top-1 gba:-right-1 gba:w-[16px] gba:h-[16px] gba:rounded-full gba:bg-primary gba:animate-ping gba:opacity-75" />
               </>
             )}
+          </button>
+        )}
+
+        {/* Large gallery toggle - only when many participants */}
+        {showLargeGalleryControl && onToggleGallerySize && (
+          <button
+            onClick={onToggleGallerySize}
+            className={`gba:relative gba:p-1.5 gba:rounded gba:transition-colors ${
+              gallerySize === 'large' ? 'gba:bg-accent' : 'hover:gba:bg-accent'
+            }`}
+            data-testid={`${prefixDataTestId}-large-gallery-btn`}
+            aria-label={t('groupCall-largeGallery') || 'Large gallery'}
+            title={t('groupCall-largeGallery') || 'Large gallery'}
+          >
+            <LayoutGrid className="gba:w-4 gba:h-4" />
           </button>
         )}
 
