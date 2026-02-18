@@ -345,11 +345,27 @@ export function useMessages({
    */
   const updateMessage = useCallback(
     (messageId: string, updates: Partial<Message>) => {
-      setMessages(prev => prev.map(m => (m.id === messageId ? { ...m, ...updates } : m)))
+      const statusRank = (s: string | undefined) => ({ sending: 0, sent: 1, delivered: 2, read: 3 })[s ?? ''] ?? -1
+      setMessages(prev =>
+        prev.map(m => {
+          if (m.id !== messageId) return m
+          const merged = { ...m, ...updates }
+          const incoming = updates.status !== undefined ? updates.status : m.status
+          const current = m.status
+          if (statusRank(current) > statusRank(incoming)) merged.status = current
+          return merged
+        })
+      )
 
-      // Update cache
+      // Update cache (never downgrade status: keep read over sent/delivered)
       if (conversationId) {
-        cache.updateCachedMessage(conversationId, messageId, msg => ({ ...msg, ...updates }))
+        cache.updateCachedMessage(conversationId, messageId, msg => {
+          const merged = { ...msg, ...updates }
+          const incoming = updates.status !== undefined ? updates.status : msg.status
+          const current = msg.status
+          if (statusRank(current) > statusRank(incoming)) merged.status = current
+          return merged
+        })
       }
     },
     [conversationId, cache]

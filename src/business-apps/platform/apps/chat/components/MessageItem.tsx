@@ -228,10 +228,10 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(
       try {
         if (hasReacted) {
           const updated = await apiClient.removeReaction(message.id, emoji)
-          if (updated) onUpdateMessage(updated.id, updated)
+          if (updated) onUpdateMessage(updated.id, { reactions: updated.reactions })
         } else {
           const updated = await apiClient.addReaction(message.id, emoji)
-          if (updated) onUpdateMessage(updated.id, updated)
+          if (updated) onUpdateMessage(updated.id, { reactions: updated.reactions })
         }
       } catch {
         onUpdateMessage(message.id, { reactions: message.reactions })
