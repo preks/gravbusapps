@@ -468,7 +468,7 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
       {isSelfView && (
         <div className="gba:space-y-6 " data-testid="feedback-requests-section">
           <div className="gba:flex gba:items-center">
-            <h3 className="gba:text-xl gba:font-semibold">
+            <h3 className="gba:text-lg gba:font-semibold">
               {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.section_requests', 'Feedback Requests')}
             </h3>
           </div>
@@ -477,7 +477,7 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
           <div className="gba:grid gba:grid-cols-1 gba:lg:grid-cols-2 gba:gap-6 gba:px-4 gba:py-2">
             <div>
               <div className="gba:flex gba:items-center gba:justify-start gba:gap-2 gba:mb-2">
-                <h4 className="gba:text-base gba:font-medium">
+                <h4 className="gba:text-sm gba:font-medium">
                   {getTranslationFromI18nKeyAndLabel(
                     'lowcoder:feedback_tab.col_received',
                     'Feedback requests you received'
@@ -530,7 +530,10 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
                             <CardContent className="gba:p-2">
                               <div className="gba:flex gba:items-center gba:justify-between gba:min-h-10">
                                 <div className="gba:flex gba:flex-col">
-                                  <div className="gba:font-medium" data-testid={`received-request-line-${request.id}`}>
+                                  <div
+                                    className="gba:text-sm gba:font-medium"
+                                    data-testid={`received-request-line-${request.id}`}
+                                  >
                                     {getTranslationFromI18nKeyAndLabel(
                                       'lowcoder:feedback_tab.from_on_text',
                                       `From ${request.creatorName || ''} on ${dateLabel}`,
@@ -629,7 +632,7 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
 
             <div>
               <div className="gba:flex gba:items-center gba:justify-start gba:gap-2 gba:mb-2">
-                <h4 className="gba:text-base gba:font-medium">
+                <h4 className="gba:text-sm gba:font-medium">
                   {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.col_requested', 'Feedback you requested')}
                 </h4>
               </div>
@@ -671,7 +674,10 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
                             <CardContent className="gba:p-2">
                               <div className="gba:flex gba:items-center gba:justify-between gba:min-h-10">
                                 <div className="gba:flex gba:flex-col">
-                                  <div className="gba:font-medium" data-testid={`requested-request-line-${request.id}`}>
+                                  <div
+                                    className="gba:text-sm gba:font-medium"
+                                    data-testid={`requested-request-line-${request.id}`}
+                                  >
                                     {getTranslationFromI18nKeyAndLabel(
                                       'lowcoder:feedback_tab.from_since_text',
                                       `From ${fromName} since ${dateLabel}`,
@@ -761,7 +767,7 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
       {/* Feedback History Section */}
       <div className="gba:space-y-6" data-testid="feedback-history-section">
         <div className="gba:flex gba:justify-between gba:items-center">
-          <h3 className="gba:text-xl gba:font-semibold">
+          <h3 className="gba:text-lg gba:font-semibold">
             {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.section_history', 'Feedback History')}
           </h3>
 
