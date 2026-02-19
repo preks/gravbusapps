@@ -251,104 +251,106 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
         />
       )}
 
-      <div className="gba:flex-1 gba:relative gba:min-h-0 gba:min-w-0 gba:overflow-auto">
-        {rowsLoading && rows.length === 0 ? (
-          <div className="gba:flex gba:items-center gba:justify-center gba:py-16">
-            <Spinner size="lg" />
-          </div>
-        ) : rowsError ? (
-          <div className="gba:flex gba:items-center gba:justify-center gba:py-16">
-            <p className="gba:text-destructive gba:text-sm" data-testid={`${testId}-error`}>
-              {rowsError}
-            </p>
-          </div>
-        ) : (
-          <>
-            <BoardViewContent
-              view={activeView}
-              sheet={activeSheet!}
-              rows={rows}
-              boardId={board.id}
-              sheetId={activeSheet!.id}
-              highlightedRowId={highlightedRowId}
-              onClearHighlight={() => setHighlightedRowId(null)}
-              onRowClick={handleRowOpen}
-              onAddRow={
-                onCreateRow
-                  ? async data => {
-                      await onCreateRow(board.id, activeSheet!.id, data)
-                    }
-                  : undefined
-              }
-              onUpdateCell={
-                onUpdateRow
-                  ? async (rowId, colName, value) => {
-                      await onUpdateRow(board.id, activeSheet!.id, rowId, { [colName]: value })
-                    }
-                  : undefined
-              }
-              onSubmitRow={
-                onCreateRow
-                  ? async data => {
-                      await onCreateRow(board.id, activeSheet!.id, data)
-                    }
-                  : undefined
-              }
-              onAddColumn={
-                onSheetUpdate
-                  ? column => {
-                      const nextColumns = [...activeSheet!.columns, column].map((c, i) => ({
-                        ...c,
-                        order: c.order ?? i
-                      }))
-                      void onSheetUpdate(board.id, activeSheet!.id, { columns: nextColumns } as any)
-                    }
-                  : undefined
-              }
-              onUpdateColumn={
-                onSheetUpdate
-                  ? updated => {
-                      const nextColumns = activeSheet!.columns.map(c => (c.id === updated.id ? updated : c))
-                      void onSheetUpdate(board.id, activeSheet!.id, { columns: nextColumns } as any)
-                    }
-                  : undefined
-              }
-              onDeleteColumn={
-                onSheetUpdate
-                  ? columnId => {
-                      const target = activeSheet!.columns.find(c => c.id === columnId)
-                      if (target?.isPrimary) return
-                      const nextColumns = activeSheet!.columns.filter(c => c.id !== columnId)
-                      void onSheetUpdate(board.id, activeSheet!.id, { columns: nextColumns } as any)
-                    }
-                  : undefined
-              }
-              onUpdateDashboardWidgets={
-                onSheetUpdate && activeView
-                  ? widgets => {
-                      const updatedConfig = { ...activeView.config, widgets }
-                      const updatedViews = activeSheet!.views.map(v =>
-                        v.id === activeView.id ? { ...v, config: updatedConfig } : v
-                      )
-                      void onSheetUpdate(board.id, activeSheet!.id, { views: updatedViews } as any)
-                    }
-                  : undefined
-              }
-              testId={`${testId}-${viewType}`}
-            />
-
-            {activeRow && (
-              <RowPagePanel
+      <div className="gba:flex-1 gba:relative gba:min-h-0 gba:min-w-0 gba:overflow-hidden">
+        <div className="gba:absolute gba:inset-0 gba:overflow-auto">
+          {rowsLoading && rows.length === 0 ? (
+            <div className="gba:flex gba:items-center gba:justify-center gba:py-16">
+              <Spinner size="lg" />
+            </div>
+          ) : rowsError ? (
+            <div className="gba:flex gba:items-center gba:justify-center gba:py-16">
+              <p className="gba:text-destructive gba:text-sm" data-testid={`${testId}-error`}>
+                {rowsError}
+              </p>
+            </div>
+          ) : (
+            <>
+              <BoardViewContent
+                view={activeView}
+                sheet={activeSheet!}
+                rows={rows}
                 boardId={board.id}
                 sheetId={activeSheet!.id}
-                row={activeRow}
-                columns={activeSheet!.columns}
-                onClose={() => setActiveRow(null)}
-                data-testid={`${testId}-row-page`}
+                highlightedRowId={highlightedRowId}
+                onClearHighlight={() => setHighlightedRowId(null)}
+                onRowClick={handleRowOpen}
+                onAddRow={
+                  onCreateRow
+                    ? async data => {
+                        await onCreateRow(board.id, activeSheet!.id, data)
+                      }
+                    : undefined
+                }
+                onUpdateCell={
+                  onUpdateRow
+                    ? async (rowId, colName, value) => {
+                        await onUpdateRow(board.id, activeSheet!.id, rowId, { [colName]: value })
+                      }
+                    : undefined
+                }
+                onSubmitRow={
+                  onCreateRow
+                    ? async data => {
+                        await onCreateRow(board.id, activeSheet!.id, data)
+                      }
+                    : undefined
+                }
+                onAddColumn={
+                  onSheetUpdate
+                    ? column => {
+                        const nextColumns = [...activeSheet!.columns, column].map((c, i) => ({
+                          ...c,
+                          order: c.order ?? i
+                        }))
+                        void onSheetUpdate(board.id, activeSheet!.id, { columns: nextColumns } as any)
+                      }
+                    : undefined
+                }
+                onUpdateColumn={
+                  onSheetUpdate
+                    ? updated => {
+                        const nextColumns = activeSheet!.columns.map(c => (c.id === updated.id ? updated : c))
+                        void onSheetUpdate(board.id, activeSheet!.id, { columns: nextColumns } as any)
+                      }
+                    : undefined
+                }
+                onDeleteColumn={
+                  onSheetUpdate
+                    ? columnId => {
+                        const target = activeSheet!.columns.find(c => c.id === columnId)
+                        if (target?.isPrimary) return
+                        const nextColumns = activeSheet!.columns.filter(c => c.id !== columnId)
+                        void onSheetUpdate(board.id, activeSheet!.id, { columns: nextColumns } as any)
+                      }
+                    : undefined
+                }
+                onUpdateDashboardWidgets={
+                  onSheetUpdate && activeView
+                    ? widgets => {
+                        const updatedConfig = { ...activeView.config, widgets }
+                        const updatedViews = activeSheet!.views.map(v =>
+                          v.id === activeView.id ? { ...v, config: updatedConfig } : v
+                        )
+                        void onSheetUpdate(board.id, activeSheet!.id, { views: updatedViews } as any)
+                      }
+                    : undefined
+                }
+                testId={`${testId}-${viewType}`}
               />
-            )}
-          </>
-        )}
+
+              {activeRow && (
+                <RowPagePanel
+                  boardId={board.id}
+                  sheetId={activeSheet!.id}
+                  row={activeRow}
+                  columns={activeSheet!.columns}
+                  onClose={() => setActiveRow(null)}
+                  data-testid={`${testId}-row-page`}
+                />
+              )}
+            </>
+          )}
+        </div>
       </div>
 
       <BoardViewerFooter

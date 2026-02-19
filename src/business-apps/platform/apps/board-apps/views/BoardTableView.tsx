@@ -196,10 +196,10 @@ export const BoardTableView: React.FC<BoardTableViewProps> = ({
       ref={containerRef}
       tabIndex={0}
       onKeyDown={handleGridKeyDown}
-      className="gba:w-full gba:h-full gba:overflow-auto gba:outline-none"
+      className="gba:w-full gba:max-w-full gba:min-w-0 gba:h-full gba:overflow-auto gba:outline-none"
       data-testid={testId}
     >
-      <table className="gba:w-full gba:border-collapse gba:text-xs gba:table-fixed">
+      <table className="gba:w-max gba:min-w-full gba:border-collapse gba:text-xs gba:table-fixed">
         <thead className="gba:sticky gba:top-0 gba:z-10">
           <tr className="gba:bg-muted/60">
             {columns.map(col => (
