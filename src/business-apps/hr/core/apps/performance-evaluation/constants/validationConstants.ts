@@ -17,5 +17,8 @@ export const PERFORMANCE_VALIDATION = {
   VALUE_TITLE_MAX_LENGTH: 64,
 
   /** Maximum length for company value descriptions */
-  VALUE_DESCRIPTION_MAX_LENGTH: 100
+  VALUE_DESCRIPTION_MAX_LENGTH: 100,
+
+  /** Maximum length for comment textareas (topic comments and general comments); aligned with HR app (e.g. notes, justification: 500) */
+  COMMENT_MAX_LENGTH: 500
 } as const
