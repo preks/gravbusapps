@@ -3,6 +3,43 @@ import type { User, Conversation, Message, PaginatedResponse, ConversationType }
 
 type NormalizedConversationsResponse = PaginatedResponse<Conversation>
 
+/** Coerce to string only for primitives to avoid [object Object] from API. */
+function safeString(value: unknown): string {
+  if (value == null) return ''
+  if (typeof value === 'string' || typeof value === 'number') return String(value)
+  return ''
+}
+
+/** Backend returns lastMessage with snake_case; normalize to camelCase for frontend. */
+function normalizeLastMessage(lastMessage: unknown): Message | undefined {
+  if (lastMessage == null || typeof lastMessage !== 'object') return undefined
+  const m = lastMessage as Record<string, unknown>
+  const createdAt = (m.created_at ?? m.createdAt) as string | undefined
+  const updatedAt = (m.updated_at ?? m.updatedAt ?? m.created_at ?? m.createdAt) as string | undefined
+  return {
+    id: safeString(m.id),
+    conversationId: safeString(m.conversation_id ?? m.conversationId),
+    senderId: (m.sender_id ?? m.senderId) as string | null,
+    type: (m.type ?? 'text') as Message['type'],
+    content: safeString(m.content),
+    metadata: (m.metadata as Message['metadata']) ?? undefined,
+    parentId: (m.reply_to_id ?? m.parentId ?? m.replyToId) as string | undefined,
+    isEdited: Boolean(m.is_edited ?? m.isEdited),
+    isDeleted: Boolean(m.is_deleted ?? m.isDeleted),
+    createdAt: createdAt ?? updatedAt ?? new Date().toISOString(),
+    updatedAt: updatedAt ?? createdAt ?? new Date().toISOString(),
+    sender: (m.sender as Message['sender']) ?? undefined,
+    reactions: (m.reactions as Message['reactions']) ?? undefined,
+    status: (m.status as Message['status']) ?? undefined
+  } as Message
+}
+
+/** Apply lastMessage normalization to a conversation from the API. */
+function normalizeConversationLastMessage<T extends { lastMessage?: unknown }>(conv: T): T {
+  if (conv.lastMessage == null) return conv
+  return { ...conv, lastMessage: normalizeLastMessage(conv.lastMessage) }
+}
+
 // In-flight request deduplication to prevent duplicate network calls (e.g. React StrictMode).
 const inFlightConversationsRequests = new Map<string, Promise<NormalizedConversationsResponse>>()
 
@@ -76,10 +113,15 @@ export class ChatApiClient {
   }
 
   // Conversation endpoints
-  async getConversations(page: number = 1, limit: number = 20) {
+  async getConversations(
+    page: number = 1,
+    limit: number = 20,
+    filters?: { search?: string; filter?: 'all' | 'direct' | 'group' | 'meeting'; unreadOnly?: boolean }
+  ) {
     const baseURL = this.client.defaults.baseURL ?? ''
     const tokenKey = this.token ? String(hashToken(this.token)) : 'no-token'
-    const key = `${baseURL}|${tokenKey}|${page}|${limit}`
+    const filterKey = filters ? JSON.stringify(filters) : ''
+    const key = `${baseURL}|${tokenKey}|${page}|${limit}|${filterKey}`
 
     const cached = conversationsResponseCache.get(key)
     if (cached && Date.now() - cached.ts < CONVERSATIONS_CACHE_TTL_MS) {
@@ -91,30 +133,35 @@ export class ChatApiClient {
       return existing
     }
 
+    const params: Record<string, string | number | boolean | undefined> = { page, limit }
+    if (filters?.search !== undefined && filters.search !== '') params.search = filters.search
+    if (filters?.filter !== undefined && filters.filter !== 'all') params.filter = filters.filter
+    if (filters?.unreadOnly === true) params.unreadOnly = true
+
     const requestPromise: Promise<NormalizedConversationsResponse> = this.client
       .get<
         | PaginatedResponse<Conversation>
         | { conversations: Conversation[]; total: number; page: number; limit: number; totalPages: number }
       >('/conversations', {
-        params: {
-          page,
-          limit
-        }
+        params
         // Removed aggressive cache-busting for performance
         // WebSocket updates handle real-time changes, so HTTP caching is safe
       })
       .then(response => {
         // Backend returns { conversations: [...] } but we expect { data: [...] }
+        // Normalize lastMessage (snake_case → camelCase) so sorting and UI work correctly.
+        const rawData: Conversation[] =
+          'conversations' in response.data ? response.data.conversations : response.data.data
         const normalized: NormalizedConversationsResponse =
           'conversations' in response.data
             ? {
-                data: response.data.conversations,
+                data: rawData.map(normalizeConversationLastMessage),
                 total: response.data.total,
                 page: response.data.page,
                 limit: response.data.limit,
                 totalPages: response.data.totalPages
               }
-            : response.data
+            : { ...response.data, data: rawData.map(normalizeConversationLastMessage) }
 
         conversationsResponseCache.set(key, { ts: Date.now(), value: normalized })
         if (conversationsResponseCache.size > 50) {
@@ -139,7 +186,7 @@ export class ChatApiClient {
 
   async getConversationById(conversationId: string) {
     const response = await this.client.get<Conversation>(`/conversations/${conversationId}`)
-    return response.data
+    return normalizeConversationLastMessage(response.data)
   }
 
   async createConversation(data: {
@@ -290,6 +337,17 @@ export class ChatApiClient {
 
   async deleteMessage(messageId: string) {
     await this.client.delete(`/messages/${messageId}`)
+  }
+
+  async addReaction(messageId: string, emoji: string): Promise<Message> {
+    const response = await this.client.post<Message>(`/messages/${messageId}/reactions`, { emoji })
+    return response.data
+  }
+
+  async removeReaction(messageId: string, emoji: string): Promise<Message> {
+    const encodedEmoji = encodeURIComponent(emoji)
+    const response = await this.client.delete<Message>(`/messages/${messageId}/reactions/${encodedEmoji}`)
+    return response.data
   }
 
   async markAsRead(conversationId: string) {

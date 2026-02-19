@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react'
-import { Button, Input, Label, Spinner, Alert, AlertDescription } from '@newwork/nw-design-system'
+import { Button, Input, Label, Spinner, Alert, AlertDescription, Textarea } from '@newwork/nw-design-system'
 import { StarFilled, StarOutlined } from '@ant-design/icons'
 import { usePerformanceEvaluationForm } from '../context/PerformanceEvaluationFormContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -287,6 +287,27 @@ const PerformanceEvaluationFormComponent: React.FC = () => {
               </span>
             </div>
           )}
+        </div>
+
+        {/* General Comments */}
+        <div className="gba:space-y-2">
+          <Label htmlFor="general-comments" className="gba:text-sm gba:font-medium">
+            {getTranslationFromI18nKeyAndLabel(
+              'lowcoder:performance_evaluation_form.general_comments.label',
+              'General comments'
+            )}
+          </Label>
+          <Textarea
+            id="general-comments"
+            value={formValues.comments ?? ''}
+            onChange={e => setFormValues({ comments: e.target.value })}
+            placeholder={getTranslationFromI18nKeyAndLabel(
+              'lowcoder:performance_evaluation_form.general_comments.placeholder',
+              'Add general comments...'
+            )}
+            className="gba:min-h-[80px] gba:w-full"
+            data-testid={formatDataTestId(prefixDataTestId, 'GeneralComments')}
+          />
         </div>
 
         {/* Error Display */}

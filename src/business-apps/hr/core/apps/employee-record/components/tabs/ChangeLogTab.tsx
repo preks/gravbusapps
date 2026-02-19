@@ -315,7 +315,7 @@ export const ChangeLogTab: React.FC<ChangeLogTabProps> = ({ employeeId, employee
           <h2 className="gba:text-2xl gba:font-bold gba:text-foreground gba:m-0">
             {getTranslationFromI18nKeyAndLabel('lowcoder:changelog_tab.title', 'Change Log')}
           </h2>
-          <p className="gba:text-muted-foreground gba:mt-1">
+          <p className="gba:text-muted-foreground gba:text-lg gba:mt-1">
             {getTranslationFromI18nKeyAndLabel(
               'lowcoder:changelog_tab.subtitle',
               "Track all changes to {employeeName}'s profile",

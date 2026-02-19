@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react'
 import { Button, Input, Spinner, Popover, PopoverContent, PopoverTrigger } from '@newwork/nw-design-system'
-import { Plus, MagnifyingGlass, User, UsersThree } from '@phosphor-icons/react'
+import { PlusIcon, MagnifyingGlassIcon, UserIcon, UsersThreeIcon } from '@phosphor-icons/react'
 import { ConversationItem } from './ConversationItem'
 import { UserSearch } from './UserSearch'
 import { UserStatusDropdown } from './UserStatusDropdown'
 import type { Conversation } from '../types'
 import type { ChatWebSocketClient } from '../services/chatWebSocketClient'
 import type { PresenceData } from '../hooks/usePresence'
+import type { ConversationFilterKind } from '../hooks/useConversations'
 import { useChatTranslation } from '../contexts/TranslationContext'
 
 interface ConversationListProps {
@@ -28,6 +29,12 @@ interface ConversationListProps {
   conversationExpertCounts?: Map<string, number>
   wsClient?: ChatWebSocketClient | null
   isConnected?: boolean
+  search?: string
+  filterKind?: ConversationFilterKind
+  unreadOnly?: boolean
+  onSearchChange?: (value: string) => void
+  onFilterKindChange?: (kind: ConversationFilterKind) => void
+  onUnreadOnlyChange?: (value: boolean) => void
 }
 
 // Helper to get the other participant's user ID from a direct conversation
@@ -59,18 +66,24 @@ export const ConversationList: React.FC<ConversationListProps> = ({
   presenceVersion,
   conversationExpertCounts,
   wsClient = null,
-  isConnected = false
+  isConnected = false,
+  search = '',
+  filterKind = 'all',
+  unreadOnly = false,
+  onSearchChange,
+  onFilterKindChange,
+  onUnreadOnlyChange
 }) => {
   const t = useChatTranslation()
   // Force re-render when presenceVersion changes
   void presenceVersion
 
-  const [searchQuery, setSearchQuery] = useState('')
   const [showUserSearch, setShowUserSearch] = useState(false)
   const [showNewChatMenu, setShowNewChatMenu] = useState(false)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
 
   // Deduplicate conversations by ID (defensive programming - duplicates should be rare after fixes)
+  // List is backend-filtered; no client-side search/filter
   const uniqueConversations = useMemo(() => {
     const seen = new Set<string>()
     const duplicates: string[] = []
@@ -84,7 +97,6 @@ export const ConversationList: React.FC<ConversationListProps> = ({
       return true
     })
 
-    // Only log in development if duplicates are found (should be rare now)
     if (duplicates.length > 0 && process.env.NODE_ENV === 'development') {
       console.debug('[ConversationList] Filtered out duplicate conversations:', duplicates)
     }
@@ -92,39 +104,16 @@ export const ConversationList: React.FC<ConversationListProps> = ({
     return filtered
   }, [conversations])
 
-  const filteredConversations = uniqueConversations.filter(conv => {
-    if (!searchQuery.trim()) return true
+  const hasActiveFilters = (search?.trim()?.length ?? 0) > 0 || filterKind !== 'all' || unreadOnly
 
-    const query = searchQuery.toLowerCase()
-
-    // Search in conversation name (for group chats)
-    if (conv.name?.toLowerCase().includes(query)) {
-      return true
+  const handleKindChipClick = (kind: 'direct' | 'group' | 'meeting') => {
+    if (!onFilterKindChange) return
+    if (filterKind === kind) {
+      onFilterKindChange('all')
+    } else {
+      onFilterKindChange(kind)
     }
-
-    // Search in participant names (for direct chats)
-    const participantMatch = conv.participants?.some(p => {
-      if (!p.user) return false
-
-      const firstName = p.user.firstName?.toLowerCase() || ''
-      const lastName = p.user.lastName?.toLowerCase() || ''
-      const username = p.user.username?.toLowerCase() || ''
-      const email = p.user.email?.toLowerCase() || ''
-
-      return firstName.includes(query) || lastName.includes(query) || username.includes(query) || email.includes(query)
-    })
-
-    if (participantMatch) {
-      return true
-    }
-
-    // Search in last message content
-    if (conv.lastMessage?.content.toLowerCase().includes(query)) {
-      return true
-    }
-
-    return false
-  })
+  }
 
   const handleUserSelect = async (user: any) => {
     if (onCreateConversation) {
@@ -132,6 +121,50 @@ export const ConversationList: React.FC<ConversationListProps> = ({
     }
     setShowUserSearch(false)
   }
+
+  const renderFilterChips = () => (
+    <div
+      className="gba:flex gba:items-center gba:gap-1.5 gba:overflow-x-auto gba:flex-nowrap gba:w-full gba:min-w-0"
+      data-testid="conversation-filters"
+    >
+      <Button
+        variant={unreadOnly ? 'default' : 'outline'}
+        size="sm"
+        className="gba:h-7 gba:text-xs gba:flex-shrink-0"
+        onClick={() => onUnreadOnlyChange?.(!unreadOnly)}
+        data-testid="conversation-filter-unread"
+      >
+        {t('chat-filterUnreadOnly')}
+      </Button>
+      <Button
+        variant={filterKind === 'direct' ? 'default' : 'outline'}
+        size="sm"
+        className="gba:h-7 gba:text-xs gba:flex-shrink-0"
+        onClick={() => handleKindChipClick('direct')}
+        data-testid="conversation-filter-direct"
+      >
+        {t('chat-filterDirect')}
+      </Button>
+      <Button
+        variant={filterKind === 'group' ? 'default' : 'outline'}
+        size="sm"
+        className="gba:h-7 gba:text-xs gba:flex-shrink-0"
+        onClick={() => handleKindChipClick('group')}
+        data-testid="conversation-filter-group"
+      >
+        {t('chat-filterGroup')}
+      </Button>
+      <Button
+        variant={filterKind === 'meeting' ? 'default' : 'outline'}
+        size="sm"
+        className="gba:h-7 gba:text-xs gba:flex-shrink-0"
+        onClick={() => handleKindChipClick('meeting')}
+        data-testid="conversation-filter-meeting"
+      >
+        {t('chat-filterMeetingChats')}
+      </Button>
+    </div>
+  )
 
   // Handle scroll to load more conversations
   useEffect(() => {
@@ -186,7 +219,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
               className="gba:h-8 gba:w-8 gba:flex-shrink-0"
               data-testid="new-conversation-button"
             >
-              <Plus className="gba:w-4 gba:h-4" />
+              <PlusIcon className="gba:w-4 gba:h-4" />
             </Button>
           </PopoverTrigger>
           <PopoverContent align="end" className="gba:w-52 gba:p-1">
@@ -199,7 +232,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
               data-testid="new-direct-message-option"
             >
               <div className="gba:p-1.5 gba:rounded-md gba:bg-primary/10">
-                <User className="gba:w-4 gba:h-4 gba:text-primary" weight="fill" />
+                <UserIcon className="gba:w-4 gba:h-4 gba:text-primary" weight="fill" />
               </div>
               <span className="gba:text-sm gba:font-medium">{t('chat-directMessage')}</span>
             </button>
@@ -214,7 +247,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
                 data-testid="new-group-chat-option"
               >
                 <div className="gba:p-1.5 gba:rounded-md gba:bg-muted">
-                  <UsersThree className="gba:w-4 gba:h-4 gba:text-muted-foreground" weight="fill" />
+                  <UsersThreeIcon className="gba:w-4 gba:h-4 gba:text-muted-foreground" weight="fill" />
                 </div>
                 <span className="gba:text-sm gba:font-medium">{t('chat-groupChat')}</span>
               </button>
@@ -226,15 +259,22 @@ export const ConversationList: React.FC<ConversationListProps> = ({
       {/* Search */}
       <div className={`gba:border-b gba:border-border/50 ${compact ? 'gba:px-3 gba:py-2' : 'gba:p-3'}`}>
         <div className="gba:relative">
-          <MagnifyingGlass className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:w-4 gba:h-4 gba:text-muted-foreground gba:pointer-events-none gba:z-10" />
+          <MagnifyingGlassIcon className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:w-4 gba:h-4 gba:text-muted-foreground gba:pointer-events-none gba:z-10" />
           <Input
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
+            value={search}
+            onChange={e => onSearchChange?.(e.target.value)}
             placeholder={t('chat-searchConversations')}
             className="gba:h-8 gba:text-sm gba:!pl-10 gba:bg-background/50"
             data-testid="conversation-search-input"
           />
         </div>
+      </div>
+
+      {/* Filters: single scrollable row */}
+      <div
+        className={`gba:flex gba:items-center gba:border-b gba:border-border/50 gba:min-h-0 gba:min-w-0 ${compact ? 'gba:px-3 gba:py-2' : 'gba:px-3 gba:pb-2'}`}
+      >
+        {renderFilterChips()}
       </div>
 
       {/* Conversations */}
@@ -248,11 +288,11 @@ export const ConversationList: React.FC<ConversationListProps> = ({
             )
           }
 
-          if (filteredConversations.length === 0) {
+          if (uniqueConversations.length === 0) {
             return (
               <div className="gba:p-6 gba:text-center">
                 <p className="gba:text-sm gba:text-muted-foreground">
-                  {searchQuery.trim() ? t('chat-noConversationsFound') : t('chat-noConversationsYet')}
+                  {hasActiveFilters ? t('chat-noConversationsFound') : t('chat-noConversationsYet')}
                 </p>
               </div>
             )
@@ -261,7 +301,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
           return (
             <>
               <div className="gba:py-1">
-                {filteredConversations.map(conversation => {
+                {uniqueConversations.map(conversation => {
                   const otherUserId = getOtherParticipantUserId(conversation, currentUserId)
                   // GOLD STANDARD: Direct map lookup - zero function calls, maximum performance ✅
                   const otherUserPresence = otherUserId ? presenceMap.get(otherUserId) : undefined

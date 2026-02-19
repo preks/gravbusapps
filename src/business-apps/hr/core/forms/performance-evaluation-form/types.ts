@@ -10,6 +10,7 @@ export interface PerformanceEvaluationFormValues {
   employeeId?: string
   employeeName?: string
   topics: EvaluationTopic[]
+  comments?: string
 }
 
 export interface TextTransformationRequest {

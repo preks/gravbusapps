@@ -97,7 +97,8 @@ export interface Message {
   createdAt: Date | string
   updatedAt: Date | string
   sender?: User
-  reactions?: MessageReaction[]
+  /** emoji -> userId[] (matches chat-service API) */
+  reactions?: Record<string, string[]>
   replies?: Message[]
   status?: 'sending' | 'sent' | 'delivered' | 'read'
 }
