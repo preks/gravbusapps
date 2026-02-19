@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { Badge } from '@newwork/nw-design-system'
-import { CheckCircle2, Loader2, XCircle, ArrowRight, MessageSquare, Zap, Brain } from 'lucide-react'
+import { CheckCircle2, Loader2, XCircle, ArrowRight, MessageSquare, Brain } from 'lucide-react'
 import { MarkdownWithChipsRenderer } from '@/common/components/markdown/MarkdownWithChipsRenderer'
 
 export interface CommEvent {
@@ -238,27 +238,6 @@ export const AgentCommFeed = ({ events, isExecuting }: AgentCommFeedProps) => {
 
   return (
     <div className="gba:flex gba:flex-col gba:h-full gba:bg-background" data-testid="agent-comm-feed">
-      {/* Header */}
-      <div className="gba:flex gba:items-center gba:justify-between gba:border-b gba:border-border gba:px-4 gba:py-2.5 gba:bg-card">
-        <div className="gba:flex gba:items-center gba:gap-2">
-          <Zap
-            className={`gba:w-4 gba:h-4 ${isExecuting ? 'gba:text-primary gba:animate-pulse' : 'gba:text-muted-foreground'}`}
-          />
-          <span className="gba:text-sm gba:font-semibold gba:text-foreground">Agent Communication</span>
-          {isExecuting && (
-            <Badge variant="info" className="gba:text-xs gba:animate-pulse">
-              Live
-            </Badge>
-          )}
-          {hasEvents && !isExecuting && (
-            <Badge variant="secondary" className="gba:text-xs">
-              {events.filter(e => e.status === 'success').length} completed
-            </Badge>
-          )}
-        </div>
-      </div>
-
-      {/* Feed */}
       <div ref={scrollRef} className="gba:flex-1 gba:overflow-y-auto gba:p-4" data-testid="agent-comm-feed-content">
         {!hasEvents && !isExecuting && (
           <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-full gba:text-muted-foreground gba:gap-3">

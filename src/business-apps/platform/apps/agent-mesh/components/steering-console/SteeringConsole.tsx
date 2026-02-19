@@ -1,13 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
-import {
-  ResizablePanelGroup,
-  ResizablePanel,
-  ResizableHandle,
-  Tabs,
-  TabsList,
-  TabsTrigger,
-  TabsContent
-} from '@newwork/nw-design-system'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@newwork/nw-design-system'
 import { SteeringChat } from './SteeringChat'
 import { ResultCanvas } from './ResultCanvas'
 import { AgentCommFeed, type CommEvent } from './AgentCommFeed'
@@ -23,6 +15,10 @@ interface SteeringConsoleProps {
   userInfo?: UserInfoProps
 }
 
+const MIN_PANEL_WIDTH = 340
+const MAX_PANEL_RATIO = 0.45
+const DEFAULT_PANEL_WIDTH = 400
+
 export const SteeringConsole = ({ accessToken, userInfo }: SteeringConsoleProps) => {
   const meshClient = useAgentMeshClient(accessToken)
   const [result, setResult] = useState<string | null>(null)
@@ -31,14 +27,17 @@ export const SteeringConsole = ({ accessToken, userInfo }: SteeringConsoleProps)
   const [commEvents, setCommEvents] = useState<CommEvent[]>([])
   const [isExecuting, setIsExecuting] = useState(false)
   const [rightTab, setRightTab] = useState<string>('communication')
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [panelWidth, setPanelWidth] = useState(DEFAULT_PANEL_WIDTH)
+  const [isDragging, setIsDragging] = useState(false)
 
+  const containerRef = useRef<HTMLDivElement>(null)
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const seenIdsRef = useRef<Map<string, boolean>>(new Map())
   const pollSinceRef = useRef<string>('')
   const callerNameRef = useRef<string>('Steering Agent')
   const commEventsRef = useRef<CommEvent[]>([])
 
-  // Session management via hook
   const sessionResetCb = useCallback(() => {
     setResult(null)
     setTrace(null)
@@ -49,11 +48,16 @@ export const SteeringConsole = ({ accessToken, userInfo }: SteeringConsoleProps)
     sessions,
     activeSessionId,
     activeSession,
-    handleNewSession,
+    handleNewSession: rawNewSession,
     handleSelectSession: rawSelectSession,
     handleDeleteSession,
     handleSessionSave
   } = useSteeringSessions({ meshClient, userId: userInfo?.id, onReset: sessionResetCb })
+
+  const handleNewSession = useCallback(() => {
+    rawNewSession()
+    setSidebarOpen(false)
+  }, [rawNewSession])
 
   const handleSelectSession = useCallback(
     async (sessionId: string) => {
@@ -63,8 +67,44 @@ export const SteeringConsole = ({ accessToken, userInfo }: SteeringConsoleProps)
         setCommEvents(session.comm_events ?? [])
         setTrace(null)
       }
+      setSidebarOpen(false)
     },
     [rawSelectSession]
+  )
+
+  const handleOpenHistory = useCallback(() => {
+    setSidebarOpen(true)
+  }, [])
+
+  const handleCloseSidebar = useCallback(() => {
+    setSidebarOpen(false)
+  }, [])
+
+  // Resize handle logic (matching NexusLayout)
+  const handleMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault()
+      setIsDragging(true)
+      const startX = e.clientX
+      const startWidth = panelWidth
+
+      const handleMouseMove = (moveEvent: MouseEvent) => {
+        const containerWidth = containerRef.current?.offsetWidth || window.innerWidth
+        const maxWidth = containerWidth * MAX_PANEL_RATIO
+        const delta = moveEvent.clientX - startX
+        setPanelWidth(Math.max(MIN_PANEL_WIDTH, Math.min(maxWidth, startWidth + delta)))
+      }
+
+      const handleMouseUp = () => {
+        setIsDragging(false)
+        document.removeEventListener('mousemove', handleMouseMove)
+        document.removeEventListener('mouseup', handleMouseUp)
+      }
+
+      document.addEventListener('mousemove', handleMouseMove)
+      document.addEventListener('mouseup', handleMouseUp)
+    },
+    [panelWidth]
   )
 
   const stopPolling = useCallback(() => {
@@ -86,7 +126,6 @@ export const SteeringConsole = ({ accessToken, userInfo }: SteeringConsoleProps)
         ...(pollSinceRef.current ? { since: pollSinceRef.current } : {})
       })
 
-      // Process executions sorted by created_at ascending (oldest first = decision before agents)
       const sorted = [...executions].sort((a, b) => {
         const ta = a.created_at ? new Date(a.created_at).getTime() : 0
         const tb = b.created_at ? new Date(b.created_at).getTime() : 0
@@ -98,10 +137,7 @@ export const SteeringConsole = ({ accessToken, userInfo }: SteeringConsoleProps)
         const isDecision = exec.status === 'decision'
         const isComplete = exec.status === 'success' || exec.status === 'error' || exec.status === 'timeout'
 
-        // Skip if we already saw this event in its final state
         if (wasSeenAsComplete) continue
-
-        // Mark decision events as complete immediately (they don't update)
         seenIdsRef.current.set(exec.execution_id, isComplete || isDecision)
 
         if (isDecision) {
@@ -145,7 +181,6 @@ export const SteeringConsole = ({ accessToken, userInfo }: SteeringConsoleProps)
         }
       }
 
-      // Also update the trace live
       if (executions.length > 0) {
         const latest = executions[0]
         if (latest?.correlation_id) {
@@ -220,83 +255,88 @@ export const SteeringConsole = ({ accessToken, userInfo }: SteeringConsoleProps)
 
   return (
     <div
-      className="gba:flex gba:flex-col gba:h-full gba:w-full gba:overflow-hidden gba:bg-background"
+      ref={containerRef}
+      className="gba:flex gba:h-full gba:w-full gba:overflow-hidden gba:bg-background"
       data-testid="steering-console"
     >
-      <div className="gba:flex-1 gba:flex gba:min-h-0 gba:overflow-hidden">
-        {/* Session sidebar */}
-        <div className="gba:w-52 gba:flex-shrink-0 gba:overflow-hidden">
+      {/* Left panel: Chat or Session Sidebar */}
+      <div
+        className="gba:flex-shrink-0 gba:flex gba:flex-col gba:overflow-hidden gba:bg-background gba:border-r gba:border-border gba:transition-[width,opacity] gba:duration-500 gba:ease-[cubic-bezier(0.4,0,0.2,1)]"
+        style={{ width: panelWidth, opacity: 1 }}
+        data-testid="steering-console-left-panel"
+      >
+        {sidebarOpen ? (
           <SessionSidebar
             sessions={sessions}
             activeSessionId={activeSessionId}
             onSelectSession={handleSelectSession}
             onNewSession={handleNewSession}
             onDeleteSession={handleDeleteSession}
+            onClose={handleCloseSidebar}
           />
-        </div>
-
-        <ResizablePanelGroup direction="horizontal" className="gba:flex-1 gba:min-h-0 gba:w-full">
-          <ResizablePanel
-            defaultSize={35}
-            minSize={25}
-            maxSize={50}
-            className="gba:flex gba:flex-col gba:min-h-0 gba:border-r gba:border-border"
-          >
-            <SteeringChat
-              accessToken={accessToken}
-              sessionId={activeSessionId}
-              initialMessages={activeSession?.messages}
-              commEvents={commEvents}
-              onResultUpdate={handleResultUpdate}
-              onTraceUpdate={handleTraceUpdate}
-              onExecutionStart={handleExecutionStart}
-              onExecutionEnd={handleExecutionEnd}
-              onSessionSave={handleSessionSaveWithComm}
-            />
-          </ResizablePanel>
-
-          <ResizableHandle className="gba:w-1 gba:bg-border gba:hover:bg-primary/30" />
-
-          <ResizablePanel defaultSize={65} minSize={40} className="gba:flex gba:flex-col gba:min-h-0">
-            <Tabs value={rightTab} onValueChange={setRightTab} className="gba:flex gba:flex-col gba:h-full">
-              <div className="gba:border-b gba:border-border gba:bg-card gba:px-4">
-                <TabsList className="gba:h-9" data-testid="steering-console-right-tabs">
-                  <TabsTrigger
-                    value="communication"
-                    className="gba:text-xs gba:gap-1.5"
-                    data-testid="steering-console-tab-comm"
-                  >
-                    Agent Communication
-                    {isExecuting && (
-                      <span className="gba:w-2 gba:h-2 gba:rounded-full gba:bg-primary gba:animate-pulse" />
-                    )}
-                  </TabsTrigger>
-                  <TabsTrigger value="result" className="gba:text-xs" data-testid="steering-console-tab-result">
-                    Result
-                    {result && <span className="gba:w-1.5 gba:h-1.5 gba:rounded-full gba:bg-success gba:ml-1" />}
-                  </TabsTrigger>
-                </TabsList>
-              </div>
-
-              <TabsContent value="communication" className="gba:flex-1 gba:min-h-0 gba:m-0">
-                <AgentCommFeed events={commEvents} isExecuting={isExecuting} />
-              </TabsContent>
-
-              <TabsContent value="result" className="gba:flex-1 gba:min-h-0 gba:m-0">
-                <ResultCanvas result={result} />
-              </TabsContent>
-            </Tabs>
-          </ResizablePanel>
-        </ResizablePanelGroup>
+        ) : (
+          <SteeringChat
+            accessToken={accessToken}
+            sessionId={activeSessionId}
+            initialMessages={activeSession?.messages}
+            commEvents={commEvents}
+            onResultUpdate={handleResultUpdate}
+            onTraceUpdate={handleTraceUpdate}
+            onExecutionStart={handleExecutionStart}
+            onExecutionEnd={handleExecutionEnd}
+            onSessionSave={handleSessionSaveWithComm}
+            onOpenHistory={handleOpenHistory}
+            onNewSession={handleNewSession}
+          />
+        )}
       </div>
 
-      <LiveTracePanel
-        trace={trace}
-        isExpanded={isTraceExpanded}
-        onToggle={() => setIsTraceExpanded(prev => !prev)}
-        liveEvents={[]}
-        isExecuting={isExecuting}
+      {/* Resize handle */}
+      <div
+        className={`gba:flex-shrink-0 gba:w-1 gba:-ml-px gba:cursor-col-resize gba:transition-colors gba:duration-200 gba:z-10 ${
+          isDragging ? 'gba:bg-primary' : 'gba:bg-transparent gba:hover:bg-primary/30'
+        }`}
+        onMouseDown={handleMouseDown}
+        data-testid="steering-console-resize-handle"
       />
+
+      {/* Right panel: Tabs + LiveTrace */}
+      <div className="gba:flex-1 gba:flex gba:flex-col gba:overflow-hidden gba:min-w-0">
+        <Tabs value={rightTab} onValueChange={setRightTab} className="gba:flex gba:flex-col gba:flex-1 gba:min-h-0">
+          <div className="gba:flex gba:items-center gba:border-b gba:border-border gba:bg-card gba:px-4 gba:py-3">
+            <TabsList className="gba:h-8" data-testid="steering-console-right-tabs">
+              <TabsTrigger
+                value="communication"
+                className="gba:text-xs gba:gap-1.5"
+                data-testid="steering-console-tab-comm"
+              >
+                Agent Communication
+                {isExecuting && <span className="gba:w-2 gba:h-2 gba:rounded-full gba:bg-primary gba:animate-pulse" />}
+              </TabsTrigger>
+              <TabsTrigger value="result" className="gba:text-xs" data-testid="steering-console-tab-result">
+                Result
+                {result && <span className="gba:w-1.5 gba:h-1.5 gba:rounded-full gba:bg-success gba:ml-1" />}
+              </TabsTrigger>
+            </TabsList>
+          </div>
+
+          <TabsContent value="communication" className="gba:flex-1 gba:min-h-0 gba:m-0">
+            <AgentCommFeed events={commEvents} isExecuting={isExecuting} />
+          </TabsContent>
+
+          <TabsContent value="result" className="gba:flex-1 gba:min-h-0 gba:m-0">
+            <ResultCanvas result={result} />
+          </TabsContent>
+        </Tabs>
+
+        <LiveTracePanel
+          trace={trace}
+          isExpanded={isTraceExpanded}
+          onToggle={() => setIsTraceExpanded(prev => !prev)}
+          liveEvents={[]}
+          isExecuting={isExecuting}
+        />
+      </div>
     </div>
   )
 }

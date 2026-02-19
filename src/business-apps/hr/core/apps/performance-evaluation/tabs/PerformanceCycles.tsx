@@ -94,6 +94,15 @@ export const PerformanceCycles: React.FC<PerformanceCyclesProps> = ({
         className: 'gba:text-base',
         icon: <WarningIcon size={18} weight="fill" className="gba:text-warning" />
       })
+      return
+    }
+    if (valuesStore.length === 0) {
+      toast.warning(t('cycles-error-no-company-values'), {
+        position: 'bottom-right',
+        className: 'gba:text-base',
+        icon: <WarningIcon size={18} weight="fill" className="gba:text-warning" />
+      })
+      return
     }
     setEditing(null)
     setIsModalOpen(true)
