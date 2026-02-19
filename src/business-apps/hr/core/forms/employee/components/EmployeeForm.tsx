@@ -48,6 +48,7 @@ const EmployeeForm: React.FC = () => {
 
   const [showAdditionalAttributes, setShowAdditionalAttributes] = useState(false)
   const [isCreateJobPositionModalOpen, setIsCreateJobPositionModalOpen] = useState(false)
+  const [isProcessPending, setIsProcessPending] = useState(false)
 
   const selectedOrgUnit = organizationalUnits.find(unit => unit.id === formValues.organizationalUnitId)
   const selectedOrgUnitName = selectedOrgUnit?.name || ''
@@ -126,6 +127,7 @@ const EmployeeForm: React.FC = () => {
   }
 
   const handleSubmit = async () => {
+    setIsProcessPending(true)
     try {
       await submit()
 
@@ -174,9 +176,31 @@ const EmployeeForm: React.FC = () => {
           detail: { payload }
         })
       )
+
+      // Wait for the same process-completion event that closes the modal (shell listens to it too)
       dispatchProcessContinueEvent('pse_submit', payload)
+      await new Promise<void>(resolve => {
+        const handleProcessCompletion = (event: Event) => {
+          const customEvent = event as CustomEvent<{ resolution?: 'success' | 'failure' }>
+          const detail = customEvent?.detail ?? null
+          if (detail?.resolution === 'success' || detail?.resolution === 'failure') {
+            cleanup()
+            resolve()
+          }
+        }
+
+        const cleanup = () => {
+          globalThis.window.removeEventListener('com.newwork.process.processCompletion', handleProcessCompletion)
+          globalThis.window.removeEventListener('com.newwork.process.taskCompletion', handleProcessCompletion)
+        }
+
+        globalThis.window.addEventListener('com.newwork.process.processCompletion', handleProcessCompletion)
+        globalThis.window.addEventListener('com.newwork.process.taskCompletion', handleProcessCompletion)
+      })
     } catch (err) {
       console.error('Error submitting employee form:', err)
+    } finally {
+      setIsProcessPending(false)
     }
   }
 
@@ -466,11 +490,15 @@ const EmployeeForm: React.FC = () => {
         <div className="gba:mt-6 gba:pt-4 gba:border-t gba:border-border">
           <Button
             variant="default"
-            disabled={!isFormValid || !isEmailFieldValid || hasFixedTermDateError || loading}
+            disabled={!isFormValid || !isEmailFieldValid || hasFixedTermDateError || loading || isProcessPending}
             className="gba:w-full"
             onClick={handleSubmit}
           >
-            {loading ? t('loading') : isEdit ? t('employee-form-update-employee') : t('employee-form-create-employee')}
+            {loading || isProcessPending
+              ? t('loading')
+              : isEdit
+                ? t('employee-form-update-employee')
+                : t('employee-form-create-employee')}
           </Button>
         </div>
       </form>

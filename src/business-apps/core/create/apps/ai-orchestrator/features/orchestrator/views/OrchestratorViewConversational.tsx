@@ -1,0 +1,231 @@
+/**
+ * OrchestratorViewConversational - Autonomous full-screen orchestrator
+ *
+ * Features:
+ * - Full-screen canvas with direct input
+ * - Clean state transitions (idle → analyzing → review → building → complete/error)
+ * - Professional, tool-focused design (not chatbot-style)
+ */
+
+import React, { useEffect } from 'react'
+import { useOrchestratorClient } from '../hooks/useOrchestratorClient'
+import { useBuildProgress } from '../hooks/useBuildProgress'
+import { useOrchestratorState } from '../hooks/useOrchestratorState'
+import { useOrchestratorHandlers } from '../hooks/useOrchestratorHandlers'
+import { useOrchestratorEffects } from '../hooks/useOrchestratorEffects'
+import { IdleCanvas } from '../components/layouts'
+import { AnalyzingView, ReviewView, BuildingView, CompleteView, ErrorView } from '../components/state-views'
+
+export interface OrchestratorViewConversationalProps {
+  accessToken: string
+  userInfo?: any
+  initialPrompt?: string
+  /** When set, load this plan on mount and show review (for deep link / bookmark) */
+  initialJobId?: string
+  onBack?: () => void
+  onComplete?: (success: boolean) => void
+  'data-testid'?: string
+}
+
+export const OrchestratorViewConversational: React.FC<OrchestratorViewConversationalProps> = ({
+  accessToken,
+  userInfo,
+  initialPrompt = '',
+  initialJobId,
+  onBack,
+  onComplete,
+  'data-testid': testId = 'orchestrator-conversational'
+}) => {
+  // Initialize state
+  const state = useOrchestratorState({ initialPrompt })
+
+  // Orchestrator client
+  const orchestratorClient = useOrchestratorClient({
+    accessToken
+  })
+
+  // Load plan from URL (jobId) when opening an existing plan
+  useEffect(() => {
+    if (!initialJobId || !accessToken) return
+    orchestratorClient
+      .refreshPlan(initialJobId)
+      .then(plan => {
+        if (!plan) return
+        const alreadyBuilt =
+          plan.status === 'completed' || plan.components.some(c => c.status === 'completed' || c.status === 'reused')
+        if (alreadyBuilt) {
+          const firstWithSession = plan.components.find(c => c.metadata?.sessionId && c.metadata?.repoId)
+          const sessionId = firstWithSession?.metadata?.sessionId
+          const repoId = firstWithSession?.metadata?.repoId
+          if (sessionId || repoId) {
+            orchestratorClient.setSessionFromBuild(sessionId, repoId)
+          }
+        }
+        state.setViewState(alreadyBuilt ? 'complete' : 'review')
+      })
+      .catch(() => {})
+  }, [initialJobId, accessToken])
+
+  // Build progress
+  const buildProgress = useBuildProgress({
+    client: orchestratorClient.client,
+    plan: orchestratorClient.currentPlan,
+    onComplete: success => {
+      state.setViewState(success ? 'complete' : 'error')
+      if (state.buildStartTime) {
+        state.setBuildDuration(Date.now() - state.buildStartTime)
+      }
+      onComplete?.(success)
+    },
+    onError: (error: string) => {
+      console.error('Build error:', error)
+      state.setCapturedBuildError(error)
+      state.setViewState('error')
+      if (state.buildStartTime) {
+        state.setBuildDuration(Date.now() - state.buildStartTime)
+      }
+    },
+    onBuildComplete: event => {
+      const meta = event.metadata as { sessionId?: string; repoId?: string } | undefined
+      orchestratorClient.setSessionFromBuild(meta?.sessionId, meta?.repoId)
+      if (event.jobId) {
+        orchestratorClient.refreshPlan(event.jobId).catch(() => {})
+      }
+    },
+    onComponentUpdate: orchestratorClient.updateComponentProperties
+  })
+
+  // Event handlers
+  const handlers = useOrchestratorHandlers({
+    state,
+    orchestratorClient,
+    buildProgress,
+    onComplete,
+    onBack
+  })
+
+  // Side effects
+  const { completedPhases } = useOrchestratorEffects({
+    state,
+    handlers,
+    buildProgress,
+    initialPrompt
+  })
+
+  // Render view based on state
+  const renderView = () => {
+    switch (state.viewState) {
+      case 'idle':
+        return <IdleCanvas onSubmit={handlers.handleAnalyze} isLoading={orchestratorClient.isAnalyzing} />
+
+      case 'analyzing':
+        return <AnalyzingView thinkingSteps={state.thinkingSteps} analysisProgress={state.analysisProgress} />
+
+      case 'review':
+        if (!orchestratorClient.currentPlan) return null
+        return (
+          <ReviewView
+            plan={orchestratorClient.currentPlan}
+            userPrompt={state.userPrompt}
+            skippedCount={state.skippedCount}
+            isEditModalOpen={state.isEditModalOpen}
+            isSavingPlan={state.isSavingPlan}
+            editError={state.editError}
+            isAnalyzing={orchestratorClient.isAnalyzing}
+            isRefining={orchestratorClient.isRefining}
+            refinementSummary={orchestratorClient.refinementSummary}
+            refineError={orchestratorClient.refineError}
+            onStartBuild={handlers.handleStartBuild}
+            onCancel={handlers.handleCancel}
+            onReanalyze={handlers.handleReanalyze}
+            onEditModalOpen={() => state.setIsEditModalOpen(true)}
+            onEditModalClose={() => {
+              state.setIsEditModalOpen(false)
+              state.setEditError(null)
+            }}
+            onEditPlan={handlers.handleEditPlan}
+            onRefine={handlers.handleRefine}
+            onReset={handlers.handleReset}
+            onSkippedComponentsChange={ids => state.setSkippedCount(ids.length)}
+            onReanalyzePrompt={handlers.handleAnalyze}
+          />
+        )
+
+      case 'building':
+        return (
+          <BuildingView
+            currentPhase={buildProgress.currentPhase}
+            completedPhases={completedPhases}
+            overallProgress={buildProgress.overallProgress}
+            completedCount={buildProgress.completedCount}
+            reusedCount={buildProgress.reusedCount}
+            totalCount={buildProgress.totalCount}
+            failedCount={buildProgress.failedCount}
+            buildLogs={state.buildLogs}
+            phaseMessage={buildProgress.phaseMessage}
+            isBuilding={buildProgress.isBuilding}
+            tiles={buildProgress.tiles}
+            onCancel={buildProgress.cancelBuild}
+          />
+        )
+
+      case 'complete':
+        if (!orchestratorClient.currentPlan) {
+          console.warn('[OrchestratorView] No current plan in complete state')
+          return null
+        }
+        if (process.env.NODE_ENV !== 'production') {
+          console.log('[OrchestratorView] Rendering complete view:', {
+            componentCount: orchestratorClient.currentPlan.components.length,
+            components: orchestratorClient.currentPlan.components.map(c => ({
+              id: c.id,
+              name: c.name,
+              type: c.type,
+              status: c.status,
+              publishedFileCount: c.publishedFileCount
+            }))
+          })
+        }
+        return (
+          <CompleteView
+            components={orchestratorClient.currentPlan.components}
+            jobId={orchestratorClient.currentPlan?.jobId}
+            buildDuration={buildProgress.buildDuration}
+            prompt={state.userPrompt}
+            accessToken={accessToken}
+            userInfo={userInfo}
+            onReset={handlers.handleReset}
+          />
+        )
+
+      case 'error':
+        return (
+          <ErrorView
+            error={
+              state.capturedBuildError ||
+              buildProgress.buildError ||
+              orchestratorClient.analyzeError ||
+              'An error occurred'
+            }
+            partialComponents={orchestratorClient.currentPlan?.components}
+            jobId={orchestratorClient.currentPlan?.jobId}
+            buildDuration={buildProgress.buildDuration}
+            onReset={handlers.handleReset}
+            onRetry={handlers.handleRetry}
+            onModifyPlan={() => state.setViewState('review')}
+          />
+        )
+
+      default:
+        return <IdleCanvas onSubmit={handlers.handleAnalyze} isLoading={orchestratorClient.isAnalyzing} />
+    }
+  }
+
+  return (
+    <div className="gba:h-screen gba:overflow-hidden gba:bg-background" data-testid={testId}>
+      {renderView()}
+    </div>
+  )
+}
+
+export default OrchestratorViewConversational

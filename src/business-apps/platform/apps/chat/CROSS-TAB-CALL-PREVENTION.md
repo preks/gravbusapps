@@ -119,7 +119,7 @@ const handleInvite = (data: any) => {
 
   // 🚨 CRITICAL: This check MUST happen before setIncomingInvite()
   if (currentUser && isInCallInAnotherTab(currentUser.id)) {
-    rtkDebug.log('[RTK] Ignoring invite - user is in call in another tab')
+    // Optional: console.log('[RTK] Ignoring invite - user is in call in another tab')
     return // Don't show dialog, don't ring
   }
 
@@ -204,7 +204,7 @@ useEffect(() => {
       try {
         const data = JSON.parse(event.newValue)
         if (data.userId === currentUser.id && Date.now() - data.timestamp < 5000) {
-          rtkDebug.log('[RTK] User joined call in another tab, dismissing incoming invite')
+          // Optional: console.log('[RTK] User joined call in another tab, dismissing incoming invite')
           setIncomingInvite(null) // Closes dialog and stops ringtone
         }
       } catch {

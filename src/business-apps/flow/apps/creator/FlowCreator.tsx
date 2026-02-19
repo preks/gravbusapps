@@ -9,6 +9,7 @@ import { useFlowTemplateStore } from './hooks/useFlowTemplateStore'
 import { useWizardStore } from './hooks/useWizardStore'
 import { useFlowTemplateClient } from '@/common/network/flows/useFlowTemplateClient'
 import { FlowTemplate } from '@/common/network/flows/FlowTemplateClient'
+import { resolveFlowbotBaseUrl } from '@/common/utils/flowbotUtils'
 import {
   Spinner,
   Alert,
@@ -96,7 +97,14 @@ export const FlowCreator: React.FC<FlowCreatorProps> = ({
   const getTemplateIdFromUrl = (): string | null => {
     if (typeof window === 'undefined') return null
     const urlParams = new URLSearchParams(window.location.search)
-    return urlParams.get('templateId')
+    return urlParams.get('templateId') || urlParams.get('template')
+  }
+
+  // Get draft ID from URL query parameters (EveryAI → Flow Creator handoff)
+  const getDraftIdFromUrl = (): string | null => {
+    if (typeof window === 'undefined') return null
+    const urlParams = new URLSearchParams(window.location.search)
+    return urlParams.get('draftId')
   }
 
   // Update URL with template ID (for deep linking)
@@ -106,8 +114,26 @@ export const FlowCreator: React.FC<FlowCreatorProps> = ({
 
     if (templateId) {
       urlParams.set('templateId', templateId)
+      // Canonicalize: remove legacy alias if present
+      urlParams.delete('template')
     } else {
       urlParams.delete('templateId')
+      urlParams.delete('template')
+    }
+
+    const newUrl = `${window.location.pathname}?${urlParams.toString()}${window.location.hash}`
+    window.history.replaceState({}, '', newUrl)
+  }
+
+  // Update URL with draft ID (for deep linking into drafts)
+  const updateUrlWithDraftId = (draftId: string | null) => {
+    if (typeof window === 'undefined') return
+    const urlParams = new URLSearchParams(window.location.search)
+
+    if (draftId) {
+      urlParams.set('draftId', draftId)
+    } else {
+      urlParams.delete('draftId')
     }
 
     const newUrl = `${window.location.pathname}?${urlParams.toString()}${window.location.hash}`
@@ -133,17 +159,21 @@ export const FlowCreator: React.FC<FlowCreatorProps> = ({
   // Check if designer should be initially open (from URL)
   const getInitialShowDesigner = (): boolean => {
     if (typeof window === 'undefined') return false
-    return !!getTemplateIdFromUrl()
+    return Boolean(getTemplateIdFromUrl() || getDraftIdFromUrl())
   }
 
   // State declarations (after helper functions are defined)
   const [isWizardOpen, setIsWizardOpen] = useState(false)
   const [showDesigner, setShowDesigner] = useState(getInitialShowDesigner)
   const [selectedTemplate, setSelectedTemplate] = useState<FlowTemplate | null>(null)
+  const [draftIdFromUrl, setDraftIdFromUrl] = useState<string | null>(getDraftIdFromUrl)
   const [previewTemplate, setPreviewTemplate] = useState<FlowTemplate | null>(null)
   const [isLoadingTemplateFromUrl, setIsLoadingTemplateFromUrl] = useState(getInitialShowDesigner)
   const [activeTab, setActiveTab] = useState<'create' | 'manage'>(getInitialTab)
   const { resetTemplate } = useFlowTemplateStore()
+  const [isRefiningDraft, setIsRefiningDraft] = useState(false)
+  const [draftLoadError, setDraftLoadError] = useState<string | null>(null)
+  const [draftRefineError, setDraftRefineError] = useState<string | null>(null)
 
   // Sync with URL hash for deep links (#create, #manage)
   useEffect(() => {
@@ -1335,33 +1365,83 @@ export const FlowCreator: React.FC<FlowCreatorProps> = ({
   useEffect(() => {
     const loadTemplateFromUrl = async () => {
       const templateId = getTemplateIdFromUrl()
+      const draftId = getDraftIdFromUrl()
+
       if (templateId && accessToken) {
         console.log('FlowCreator: Loading template from URL:', templateId)
         try {
           const template = await flowTemplateClient.getTemplate(templateId)
           setSelectedTemplate(template)
           setShowDesigner(true)
+          setDraftIdFromUrl(null)
           setActiveTab('manage')
         } catch (error) {
           console.error('Failed to load template from URL:', error)
           // Clear invalid templateId from URL
           updateUrlWithTemplateId(null)
           setShowDesigner(false)
+          setSelectedTemplate(null)
         } finally {
           setIsLoadingTemplateFromUrl(false)
         }
-      } else {
-        setIsLoadingTemplateFromUrl(false)
+        return
       }
+
+      if (draftId && accessToken) {
+        console.log('FlowCreator: Loading draft from URL:', draftId)
+        try {
+          const baseUrl = resolveFlowbotBaseUrl()
+          const res = await fetch(`${baseUrl}/flowbot/api/agent/workflow-drafts/${draftId}`, {
+            method: 'GET',
+            headers: {
+              accept: 'application/json',
+              Authorization: `Bearer ${accessToken}`
+            }
+          })
+
+          if (!res.ok) {
+            const body = await res.text().catch(() => '')
+            throw new Error(`Failed to fetch draft: ${res.status} ${res.statusText} ${body}`.trim())
+          }
+
+          const draftTemplate: any = await res.json()
+          // Ensure Save becomes createTemplate (never update existing id)
+          if (draftTemplate && typeof draftTemplate === 'object') {
+            delete draftTemplate.id
+          }
+
+          setSelectedTemplate(draftTemplate as FlowTemplate)
+          setDraftIdFromUrl(draftId)
+          setDraftLoadError(null)
+          setShowDesigner(true)
+          setActiveTab('manage')
+        } catch (error) {
+          console.error('Failed to load draft from URL:', error)
+          const message = error instanceof Error ? error.message : 'Failed to load draft'
+          setDraftLoadError(message)
+          setDraftIdFromUrl(draftId)
+          setShowDesigner(true)
+          setSelectedTemplate(null)
+        } finally {
+          setIsLoadingTemplateFromUrl(false)
+        }
+        return
+      }
+
+      setDraftIdFromUrl(null)
+      setDraftLoadError(null)
+      setDraftRefineError(null)
+      setIsLoadingTemplateFromUrl(false)
     }
 
     loadTemplateFromUrl()
   }, [accessToken, flowTemplateClient])
 
-  // Handle browser back/forward navigation for templateId
+  // Handle browser back/forward navigation for templateId / draftId
   useEffect(() => {
     const handlePopState = () => {
       const templateId = getTemplateIdFromUrl()
+      const draftId = getDraftIdFromUrl()
       if (templateId) {
         // Template ID in URL - show designer
         flowTemplateClient
@@ -1369,6 +1449,8 @@ export const FlowCreator: React.FC<FlowCreatorProps> = ({
           .then(template => {
             setSelectedTemplate(template)
             setShowDesigner(true)
+            setDraftIdFromUrl(null)
+            setDraftLoadError(null)
             setActiveTab('manage')
           })
           .catch(() => {
@@ -1377,16 +1459,61 @@ export const FlowCreator: React.FC<FlowCreatorProps> = ({
             setShowDesigner(false)
             setSelectedTemplate(null)
           })
+      } else if (draftId) {
+        if (!accessToken) {
+          setDraftLoadError('Missing access token. Please refresh and try again.')
+          setDraftIdFromUrl(draftId)
+          setShowDesigner(true)
+          setSelectedTemplate(null)
+          setActiveTab('manage')
+          return
+        }
+
+        const baseUrl = resolveFlowbotBaseUrl()
+        fetch(`${baseUrl}/flowbot/api/agent/workflow-drafts/${draftId}`, {
+          method: 'GET',
+          headers: {
+            accept: 'application/json',
+            Authorization: `Bearer ${accessToken}`
+          }
+        })
+          .then(async res => {
+            if (!res.ok) {
+              const body = await res.text().catch(() => '')
+              throw new Error(`Failed to fetch draft: ${res.status} ${res.statusText} ${body}`.trim())
+            }
+            return res.json()
+          })
+          .then((draftTemplate: any) => {
+            if (draftTemplate && typeof draftTemplate === 'object') {
+              delete draftTemplate.id
+            }
+            setSelectedTemplate(draftTemplate as FlowTemplate)
+            setShowDesigner(true)
+            setDraftIdFromUrl(draftId)
+            setDraftLoadError(null)
+            setActiveTab('manage')
+          })
+          .catch(e => {
+            const message = e instanceof Error ? e.message : 'Failed to load draft'
+            setDraftLoadError(message)
+            setDraftIdFromUrl(draftId)
+            setShowDesigner(true)
+            setSelectedTemplate(null)
+            setActiveTab('manage')
+          })
       } else {
-        // No template ID - close designer
+        // No template/draft ID - close designer
         setShowDesigner(false)
         setSelectedTemplate(null)
+        setDraftIdFromUrl(null)
+        setDraftLoadError(null)
       }
     }
 
     window.addEventListener('popstate', handlePopState)
     return () => window.removeEventListener('popstate', handlePopState)
-  }, [flowTemplateClient])
+  }, [flowTemplateClient, accessToken])
 
   // Save template (create or update) - implements template ID immutability
   const saveTemplate = async (template: FlowTemplate) => {
@@ -1409,32 +1536,78 @@ export const FlowCreator: React.FC<FlowCreatorProps> = ({
       setSelectedTemplate(null)
       // Clear templateId from URL
       updateUrlWithTemplateId(null)
+      // Clear draftId from URL (drafts should never persist once saved)
+      updateUrlWithDraftId(null)
+      setDraftIdFromUrl(null)
+      setDraftLoadError(null)
+      setDraftRefineError(null)
     } catch (err) {
       console.error('Error saving template:', err)
       throw err
     }
   }
 
+  const handleRefineDraft = async () => {
+    if (!draftIdFromUrl) return
+
+    const instruction = window.prompt('How should I refine this workflow draft?')
+    if (!instruction?.trim()) return
+
+    setIsRefiningDraft(true)
+    setDraftRefineError(null)
+    try {
+      const baseUrl = resolveFlowbotBaseUrl()
+      const res = await fetch(`${baseUrl}/flowbot/api/agent/workflow-drafts/${draftIdFromUrl}/refine`, {
+        method: 'POST',
+        headers: {
+          accept: 'application/json',
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`
+        },
+        body: JSON.stringify({ instruction: instruction.trim() })
+      })
+
+      if (!res.ok) {
+        const body = await res.text().catch(() => '')
+        throw new Error(`Failed to refine draft: ${res.status} ${res.statusText} ${body}`.trim())
+      }
+
+      const updatedTemplate: any = await res.json()
+      // Ensure Save becomes createTemplate (never update existing id)
+      if (updatedTemplate && typeof updatedTemplate === 'object') {
+        delete updatedTemplate.id
+      }
+      setSelectedTemplate(updatedTemplate as FlowTemplate)
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Failed to refine draft'
+      setDraftRefineError(message)
+    } finally {
+      setIsRefiningDraft(false)
+    }
+  }
+
   const handleCreateNew = () => {
     // Open new FlowDesigner for creating templates
     setSelectedTemplate(null) // Clear any existing template
+    updateUrlWithTemplateId(null)
+    updateUrlWithDraftId(null)
+    setDraftIdFromUrl(null)
+    setDraftLoadError(null)
+    setDraftRefineError(null)
     setShowDesigner(true)
     setActiveTab('manage') // Stay in manage tab context
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const _handleOpenLegacyWizard = () => {
-    // Legacy wizard (kept for special cases)
-    resetTemplate()
-    setSelectedTemplate(null)
-    useWizardStore.getState().initializeForCreate()
-    setIsWizardOpen(true)
   }
 
   // Removed handleWizardCreate and handleCustomCreate as they're no longer needed
 
   const handleEdit = async (template: FlowTemplate) => {
     try {
+      // Ensure we are not in draft mode when editing persisted templates
+      updateUrlWithDraftId(null)
+      setDraftIdFromUrl(null)
+      setDraftLoadError(null)
+      setDraftRefineError(null)
+
       // Try to get the template for better editing experience
       if (template.id) {
         const fullTemplate = await flowTemplateClient.getTemplate(template.id)
@@ -1579,6 +1752,10 @@ export const FlowCreator: React.FC<FlowCreatorProps> = ({
                       setShowDesigner(false)
                       setSelectedTemplate(null)
                       updateUrlWithTemplateId(null)
+                      updateUrlWithDraftId(null)
+                      setDraftIdFromUrl(null)
+                      setDraftLoadError(null)
+                      setDraftRefineError(null)
                     }}
                     data-testid={`${testId}-designer-back`}
                   >
@@ -1587,15 +1764,65 @@ export const FlowCreator: React.FC<FlowCreatorProps> = ({
                   </Button>
                   <div className="gba:h-6 gba:w-px gba:bg-border" />
                   <div>
-                    <h2 className="gba:text-xl gba:font-semibold gba:text-foreground">
-                      {selectedTemplate?.name || 'New Flow'}
-                    </h2>
+                    <div className="gba:flex gba:items-center gba:gap-2">
+                      <h2 className="gba:text-xl gba:font-semibold gba:text-foreground">
+                        {selectedTemplate?.name || 'New Flow'}
+                      </h2>
+                      {draftIdFromUrl && (
+                        <Badge variant="secondary" className="gba:text-xs">
+                          Draft (not saved)
+                        </Badge>
+                      )}
+                    </div>
                     <p className="gba:text-sm gba:text-muted-foreground">
-                      {selectedTemplate ? 'Editing flow' : 'Create a new flow'}
+                      {draftIdFromUrl
+                        ? 'Draft loaded from EveryAI — click Save to persist to Flow Engine'
+                        : selectedTemplate
+                          ? 'Editing flow'
+                          : 'Create a new flow'}
                     </p>
                   </div>
                 </div>
+                {draftIdFromUrl && (
+                  <div className="gba:flex gba:items-center gba:gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleRefineDraft}
+                      disabled={isRefiningDraft}
+                      data-testid={`${testId}-refine-draft`}
+                    >
+                      {isRefiningDraft ? (
+                        <>
+                          <Spinner size="sm" className="gba:mr-2" />
+                          Refining...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="gba:h-4 gba:w-4 gba:mr-2" />
+                          Refine with AI
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                )}
               </div>
+
+              {draftLoadError && (
+                <div className="gba:mb-4" data-testid={`${testId}-draft-load-error`}>
+                  <Alert variant="destructive">
+                    <AlertDescription>{draftLoadError}</AlertDescription>
+                  </Alert>
+                </div>
+              )}
+
+              {draftRefineError && (
+                <div className="gba:mb-4" data-testid={`${testId}-draft-refine-error`}>
+                  <Alert variant="destructive">
+                    <AlertDescription>{draftRefineError}</AlertDescription>
+                  </Alert>
+                </div>
+              )}
 
               {/* Designer Content */}
               <Card className="gba:border-border">
@@ -1604,11 +1831,16 @@ export const FlowCreator: React.FC<FlowCreatorProps> = ({
                     accessToken={accessToken}
                     userInfo={userInfo}
                     initialTemplate={selectedTemplate}
+                    draftId={draftIdFromUrl}
                     onSave={saveTemplate}
                     onCancel={() => {
                       setShowDesigner(false)
                       setSelectedTemplate(null)
                       updateUrlWithTemplateId(null)
+                      updateUrlWithDraftId(null)
+                      setDraftIdFromUrl(null)
+                      setDraftLoadError(null)
+                      setDraftRefineError(null)
                     }}
                     data-testid={`${testId}-designer`}
                   />

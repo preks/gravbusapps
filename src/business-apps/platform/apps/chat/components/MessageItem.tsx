@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useRef, useEffect } from 'react'
 import type { Message, ConversationParticipant } from '../types'
 import type { ChatApiClient } from '../services/chatApiClient'
 import {
@@ -9,14 +9,10 @@ import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-  TooltipProvider,
-  Spinner,
-  Alert,
-  AlertDescription
+  TooltipProvider
 } from '@newwork/nw-design-system'
 import { useCreateMeetingMinutes } from '../hooks/useCreateMeetingMinutes'
-import { ArrowBendUpLeftIcon, VideoCameraIcon } from '@phosphor-icons/react'
-import { UserPlus, UserMinus, Pencil, Users } from 'lucide-react'
+import { ArrowBendUpLeftIcon } from '@phosphor-icons/react'
 import { renderContentWithReferences } from './EntityReferenceBadge'
 import { EveryAIMessageRenderer } from './EveryAIMessageRenderer'
 import { ExpertResponseRenderer } from './ExpertResponseRenderer'
@@ -26,6 +22,11 @@ import { AttachmentPreviewDialog } from './AttachmentPreviewDialog'
 import { isPreviewable } from './utils/attachmentUtils'
 import { getExpertColorStyles } from '../utils/expertColorUtils'
 import { useChatTranslation } from '../contexts/TranslationContext'
+import { MessageReactionBar } from './MessageReactionBar'
+import { TranscriptReadyBlock } from './TranscriptReadyBlock'
+import { MeetingMinutesReadyBlock } from './MeetingMinutesReadyBlock'
+import { SystemMessageBlock } from './SystemMessageBlock'
+import { DeletedMessageBlock } from './DeletedMessageBlock'
 
 interface MessageItemProps {
   message: Message
@@ -39,8 +40,9 @@ interface MessageItemProps {
   previewLabel?: string // Pre-translated label for attachments
   timestampRefreshKey?: number // Triggers timestamp recalculation when changed
   aiInitiatedByCurrentUser?: boolean // Explicitly computed by MessageList for backward compatibility
-  compact?: boolean // Compact mode for in-call chat (Teams-style density)
+  compact?: boolean // Compact mode for in-call chat
   apiClient?: ChatApiClient | null // For transcript/meeting minutes functionality
+  onUpdateMessage?: (messageId: string, updates: Partial<Message>) => void
 }
 
 /**
@@ -83,33 +85,6 @@ const formatTime = (date: Date | string): string => {
   return `${month} ${day}, ${hours}:${mins}`
 }
 
-function getSystemMessageIcon(
-  messageType: string | undefined,
-  systemIconClassName: string
-): (() => React.ReactElement) | null {
-  const isMeetingOrCall =
-    messageType === 'meeting_start' ||
-    messageType === 'meeting_end' ||
-    messageType === 'call_start' ||
-    messageType === 'call_end'
-  if (isMeetingOrCall) {
-    return () => <VideoCameraIcon className={systemIconClassName} weight="fill" />
-  }
-  if (messageType === 'participant_joined') {
-    return () => <UserPlus className={systemIconClassName} />
-  }
-  if (messageType === 'participant_left') {
-    return () => <UserMinus className={systemIconClassName} />
-  }
-  if (messageType === 'conversation_created') {
-    return () => <Users className={systemIconClassName} />
-  }
-  if (messageType === 'conversation_renamed') {
-    return () => <Pencil className={systemIconClassName} />
-  }
-  return null
-}
-
 export const MessageItem: React.FC<MessageItemProps> = React.memo(
   ({
     message,
@@ -124,7 +99,8 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(
     timestampRefreshKey = 0,
     aiInitiatedByCurrentUser,
     compact = false,
-    apiClient = null
+    apiClient = null,
+    onUpdateMessage
   }) => {
     const t = useChatTranslation()
     const isAIResponse = message.metadata?.isAIResponse === true
@@ -158,6 +134,20 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(
       att: null
     })
     const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+    const [reactionPickerOpen, setReactionPickerOpen] = useState(false)
+    const [messageHovered, setMessageHovered] = useState(false)
+    const hidePickerTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const hasReactions =
+      !!message.reactions && Object.values(message.reactions).some(ids => Array.isArray(ids) && ids.length > 0)
+
+    useEffect(
+      () => () => {
+        if (hidePickerTimeoutRef.current) clearTimeout(hidePickerTimeoutRef.current)
+      },
+      []
+    )
+
+    const { createMeetingMinutes, isCreating, error } = useCreateMeetingMinutes(apiClient)
 
     const openPreview = async (att: MessageAttachment) => {
       try {
@@ -183,6 +173,39 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(
       if (previewUrl) {
         URL.revokeObjectURL(previewUrl)
         setPreviewUrl(null)
+      }
+    }
+
+    const handleReactionClick = async (emoji: string) => {
+      if (!currentUserId || !apiClient || !onUpdateMessage) return
+      const reactions = message.reactions ? { ...message.reactions } : {}
+      const userIds = reactions[emoji] || []
+      const hasReacted = userIds.includes(currentUserId)
+
+      const nextReactions: Record<string, string[]> = { ...reactions }
+      if (hasReacted) {
+        const next = (nextReactions[emoji] || []).filter(id => id !== currentUserId)
+        if (next.length === 0) delete nextReactions[emoji]
+        else nextReactions[emoji] = next
+      } else {
+        Object.keys(nextReactions).forEach(e => {
+          nextReactions[e] = (nextReactions[e] || []).filter(id => id !== currentUserId)
+          if (nextReactions[e].length === 0) delete nextReactions[e]
+        })
+        nextReactions[emoji] = [...(nextReactions[emoji] || []), currentUserId]
+      }
+
+      onUpdateMessage(message.id, { reactions: nextReactions })
+      try {
+        if (hasReacted) {
+          const updated = await apiClient.removeReaction(message.id, emoji)
+          if (updated) onUpdateMessage(updated.id, { reactions: updated.reactions })
+        } else {
+          const updated = await apiClient.addReaction(message.id, emoji)
+          if (updated) onUpdateMessage(updated.id, { reactions: updated.reactions })
+        }
+      } catch {
+        onUpdateMessage(message.id, { reactions: message.reactions })
       }
     }
 
@@ -252,161 +275,26 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(
       }
     })()
 
-    // Transcript ready system message with meeting minutes creation
     if (message.type === 'system' && message.metadata?.transcriptReady) {
-      const sessionName = message.metadata.sessionName
-      const sessionId = message.metadata.sessionId
-      const transcriptionStatus = message.metadata.transcriptionStatus
-
-      // For old messages without transcriptionStatus, default to 'ready'
-      // This ensures old transcript messages can still create meeting minutes
-      const effectiveStatus = transcriptionStatus || 'ready'
-
-      // Initialize meeting minutes hook
-      const { createMeetingMinutes, isCreating, error } = useCreateMeetingMinutes(apiClient)
-
       return (
-        <div className="gba:flex gba:justify-center gba:py-2" data-testid={`message-transcript-${message.id}`}>
-          <div className="gba:flex gba:flex-col gba:items-center gba:gap-2 gba:bg-success-secondary/20 gba:border gba:border-success gba:px-4 gba:py-3 gba:rounded-lg gba:max-w-md">
-            <div className="gba:flex gba:items-center gba:gap-2">
-              <span className="gba:text-lg">📝</span>
-              <span className="gba:text-sm gba:font-medium gba:text-foreground">
-                {t('chat-transcript-ready', { sessionName })}
-              </span>
-            </div>
-            <p className="gba:text-xs gba:text-muted-foreground gba:text-center">
-              {t('chat-transcript-create-minutes-description')}
-            </p>
-
-            <div className="gba:flex gba:flex-col gba:gap-2 gba:w-full">
-              {effectiveStatus === 'ready' && (
-                <Button
-                  variant="default"
-                  size="sm"
-                  onClick={() => {
-                    if (sessionId) {
-                      createMeetingMinutes(sessionId)
-                    }
-                  }}
-                  disabled={isCreating || !sessionId}
-                  data-testid={`transcript-create-minutes-btn-${message.id}`}
-                >
-                  {isCreating ? (
-                    <>
-                      <Spinner className="gba:mr-2 gba:h-4 gba:w-4" />
-                      {t('chat-transcript-generating-minutes')}
-                    </>
-                  ) : (
-                    t('chat-transcript-create-minutes-button')
-                  )}
-                </Button>
-              )}
-
-              {effectiveStatus === 'PROCESSING' && !isCreating && (
-                <div className="gba:text-sm gba:text-muted-foreground gba:text-center gba:py-2">
-                  <Spinner className="gba:inline gba:mr-2 gba:h-4 gba:w-4" />
-                  {t('chat-transcript-generating-minutes-status')}
-                </div>
-              )}
-
-              {effectiveStatus === 'FAILED' && (
-                <>
-                  <Alert variant="destructive" data-testid={`transcript-error-${message.id}`}>
-                    <AlertDescription className="gba:text-xs">
-                      {t('chat-transcript-failed-create-minutes')}
-                    </AlertDescription>
-                  </Alert>
-                  <Button
-                    variant="default"
-                    size="sm"
-                    onClick={() => {
-                      if (sessionId) {
-                        createMeetingMinutes(sessionId)
-                      }
-                    }}
-                    disabled={isCreating || !sessionId}
-                    data-testid={`transcript-retry-btn-${message.id}`}
-                  >
-                    {t('chat-transcript-retry')}
-                  </Button>
-                </>
-              )}
-
-              {error && (
-                <Alert variant="destructive">
-                  <AlertDescription className="gba:text-xs">{error}</AlertDescription>
-                </Alert>
-              )}
-            </div>
-
-            <span className="gba:text-xs gba:text-muted-foreground">{formattedTime}</span>
-          </div>
-        </div>
+        <TranscriptReadyBlock
+          message={message}
+          formattedTime={formattedTime}
+          createMeetingMinutes={createMeetingMinutes}
+          isCreating={isCreating}
+          error={error}
+          t={t}
+        />
       )
     }
-
-    // Meeting minutes ready system message
     if (message.type === 'system' && message.metadata?.type === 'meeting_minutes_ready') {
-      const noteId = message.metadata.noteId
-      const sessionName = message.metadata.sessionName
-
-      return (
-        <div className="gba:flex gba:justify-center gba:py-2" data-testid={`message-minutes-ready-${message.id}`}>
-          <div className="gba:flex gba:flex-col gba:items-center gba:gap-2 gba:bg-success-secondary/20 gba:border gba:border-success gba:px-4 gba:py-3 gba:rounded-lg gba:max-w-md">
-            <div className="gba:flex gba:items-center gba:gap-2">
-              <span className="gba:text-lg">📋</span>
-              <span className="gba:text-sm gba:font-medium gba:text-foreground">
-                Meeting Minutes Ready: {sessionName}
-              </span>
-            </div>
-            <p className="gba:text-xs gba:text-muted-foreground gba:text-center">
-              AI-generated meeting minutes have been created and shared with all participants
-            </p>
-            <Button
-              variant="default"
-              size="sm"
-              onClick={() => {
-                if (noteId) {
-                  navigateTo(`/platform/notes?noteId=${noteId}&view=editor`)
-                }
-              }}
-              className="gba:mt-1"
-              data-testid={`meeting-minutes-view-btn-${message.id}`}
-            >
-              View Meeting Note
-            </Button>
-            <span className="gba:text-xs gba:text-muted-foreground">{formattedTime}</span>
-          </div>
-        </div>
-      )
+      return <MeetingMinutesReadyBlock message={message} formattedTime={formattedTime} navigateTo={navigateTo} />
     }
-
-    // System message (meeting/call start/end, participant joined/left, conversation created/renamed, etc.)
     if (message.type === 'system') {
-      const messageType = message.metadata?.type
-      const systemIconClassName = 'gba:w-4 gba:h-4 gba:flex-shrink-0 gba:text-muted-foreground'
-      const SystemIcon = getSystemMessageIcon(messageType, systemIconClassName)
-
-      return (
-        <div className="gba:flex gba:justify-center gba:py-1.5" data-testid={`message-system-${message.id}`}>
-          <div className="gba:flex gba:items-center gba:gap-2 gba:bg-muted/50 gba:px-3 gba:py-1.5 gba:rounded-full">
-            {SystemIcon && <SystemIcon />}
-            <span className="gba:text-xs gba:text-muted-foreground">{formattedTime}</span>
-            <span className="gba:text-xs gba:text-foreground gba:font-medium">{message.content}</span>
-          </div>
-        </div>
-      )
+      return <SystemMessageBlock message={message} formattedTime={formattedTime} />
     }
-
-    // Deleted message
     if (message.isDeleted) {
-      return (
-        <div className="gba:flex gba:justify-center gba:py-1.5" data-testid={`message-${message.id}`}>
-          <span className="gba:text-xs gba:text-muted-foreground gba:italic gba:bg-muted/50 gba:px-3 gba:py-1 gba:rounded-full">
-            Message deleted
-          </span>
-        </div>
-      )
+      return <DeletedMessageBlock message={message} />
     }
 
     // Hide form cancellation messages
@@ -543,88 +431,140 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(
             </>
           ) : (
             <div
-              className={`${compact ? 'gba:rounded-md gba:px-2.5 gba:py-1.5' : 'gba:rounded-lg gba:px-3 gba:py-2'} gba:break-words ${(() => {
-                if (isExpertResponse) {
-                  return 'gba:bg-gradient-to-br gba:from-muted/50 gba:to-accent/5 gba:text-foreground gba:rounded-2xl gba:rounded-bl-md gba:border-2'
+              className={`gba:relative gba:inline-flex gba:flex-col ${isOwnMessage ? 'gba:items-end' : 'gba:items-start'}`}
+              onMouseEnter={() => {
+                if (hidePickerTimeoutRef.current) {
+                  clearTimeout(hidePickerTimeoutRef.current)
+                  hidePickerTimeoutRef.current = null
                 }
-                if (isOwnMessage) {
-                  return 'gba:bg-primary gba:text-primary-foreground'
-                }
-                return 'gba:bg-muted gba:text-foreground'
-              })()}`}
-              style={
-                isExpertResponse && message.metadata?.expertColor
-                  ? { borderColor: message.metadata.expertColor }
-                  : undefined
-              }
+                setMessageHovered(true)
+              }}
+              onMouseLeave={() => {
+                hidePickerTimeoutRef.current = setTimeout(() => setMessageHovered(false), 400)
+              }}
             >
-              {/* Expert Message Header */}
-              {isExpertResponse && (
-                <div className="gba:text-[11px] gba:font-semibold gba:mb-1.5 gba:flex gba:items-center gba:gap-2">
-                  {/* Expert Avatar */}
-                  <div
-                    className="gba:w-6 gba:h-6 gba:flex-shrink-0 gba:rounded-full gba:flex gba:items-center gba:justify-center gba:text-white gba:font-bold gba:text-[10px]"
-                    style={getExpertColorStyles(message.metadata?.expertColor).avatar}
-                  >
-                    {message.metadata?.expertAvatar || message.metadata?.expertName?.charAt(0).toUpperCase() || 'E'}
-                  </div>
-                  {/* Expert Name with Emoji */}
-                  <div className="gba:flex gba:items-center gba:gap-1.5">
-                    <span className="gba:text-xs">🎓</span>
-                    <span style={getExpertColorStyles(message.metadata?.expertColor).text}>
-                      {message.metadata?.expertName || 'Expert'}
-                    </span>
-                  </div>
-                </div>
+              {/* When no reactions: picker as tooltip above message; 400ms leave delay so cursor can reach it */}
+              {onUpdateMessage && apiClient && currentUserId && (
+                <MessageReactionBar
+                  message={message}
+                  currentUserId={currentUserId}
+                  isOwnMessage={isOwnMessage}
+                  hasReactions={false}
+                  showFloatingBar={!hasReactions && (messageHovered || reactionPickerOpen)}
+                  onReactionClick={handleReactionClick}
+                  reactionPickerOpen={reactionPickerOpen}
+                  onReactionPickerOpenChange={setReactionPickerOpen}
+                  participants={participants}
+                  floatingBarOnMouseEnter={() => {
+                    if (hidePickerTimeoutRef.current) {
+                      clearTimeout(hidePickerTimeoutRef.current)
+                      hidePickerTimeoutRef.current = null
+                    }
+                    setMessageHovered(true)
+                  }}
+                  floatingBarOnMouseLeave={() => {
+                    hidePickerTimeoutRef.current = setTimeout(() => setMessageHovered(false), 300)
+                  }}
+                />
               )}
+              <div
+                className={`${compact ? 'gba:rounded-md gba:px-2.5 gba:py-1.5' : 'gba:rounded-lg gba:px-3 gba:py-2'} gba:break-words gba:w-full gba:min-w-0 ${onUpdateMessage && apiClient && currentUserId && hasReactions ? 'gba:pb-5' : ''} ${(() => {
+                  if (isExpertResponse) {
+                    return 'gba:bg-gradient-to-br gba:from-muted/50 gba:to-accent/5 gba:text-foreground gba:rounded-2xl gba:rounded-bl-md gba:border-2'
+                  }
+                  if (isOwnMessage) {
+                    return 'gba:bg-primary gba:text-primary-foreground'
+                  }
+                  return 'gba:bg-muted gba:text-foreground'
+                })()}`}
+                style={
+                  isExpertResponse && message.metadata?.expertColor
+                    ? { borderColor: message.metadata.expertColor }
+                    : undefined
+                }
+              >
+                {/* Expert Message Header */}
+                {isExpertResponse && (
+                  <div className="gba:text-[11px] gba:font-semibold gba:mb-1.5 gba:flex gba:items-center gba:gap-2">
+                    {/* Expert Avatar */}
+                    <div
+                      className="gba:w-6 gba:h-6 gba:flex-shrink-0 gba:rounded-full gba:flex gba:items-center gba:justify-center gba:text-white gba:font-bold gba:text-[10px]"
+                      style={getExpertColorStyles(message.metadata?.expertColor).avatar}
+                    >
+                      {message.metadata?.expertAvatar || message.metadata?.expertName?.charAt(0).toUpperCase() || 'E'}
+                    </div>
+                    {/* Expert Name with Emoji */}
+                    <div className="gba:flex gba:items-center gba:gap-1.5">
+                      <span className="gba:text-xs">🎓</span>
+                      <span style={getExpertColorStyles(message.metadata?.expertColor).text}>
+                        {message.metadata?.expertName || 'Expert'}
+                      </span>
+                    </div>
+                  </div>
+                )}
 
-              {/* Text content */}
-              {message.content && (
-                <div className="gba:text-sm gba:whitespace-pre-wrap">
-                  {isExpertResponse ? (
-                    <ExpertResponseRenderer
-                      content={message.content}
-                      expertColor={message.metadata?.expertColor}
-                      citations={message.metadata?.citations}
-                      confidence={message.metadata?.confidence}
-                      accessToken={accessToken}
+                {/* Text content */}
+                {message.content && (
+                  <div className="gba:text-sm gba:whitespace-pre-wrap">
+                    {isExpertResponse ? (
+                      <ExpertResponseRenderer
+                        content={message.content}
+                        expertColor={message.metadata?.expertColor}
+                        citations={message.metadata?.citations}
+                        confidence={message.metadata?.confidence}
+                        accessToken={accessToken}
+                      />
+                    ) : (
+                      renderContentWithReferences(message.content, message.metadata, isOwnMessage)
+                    )}
+                  </div>
+                )}
+
+                {/* File Attachments */}
+                {attachments.length > 0 && !isAIResponse && !isExpertResponse && (
+                  <div className="gba:mt-2">
+                    <MessageAttachments
+                      attachments={attachments}
+                      isOwnMessage={isOwnMessage}
+                      onPreview={openPreview}
+                      previewLabel={previewLabel}
                     />
-                  ) : (
-                    renderContentWithReferences(message.content, message.metadata, isOwnMessage)
-                  )}
-                </div>
-              )}
+                  </div>
+                )}
 
-              {/* File Attachments */}
-              {attachments.length > 0 && !isAIResponse && !isExpertResponse && (
-                <div className="gba:mt-2">
-                  <MessageAttachments
-                    attachments={attachments}
-                    isOwnMessage={isOwnMessage}
-                    onPreview={openPreview}
-                    previewLabel={previewLabel}
-                  />
-                </div>
-              )}
-
-              {/* Timestamp and Status - hide timestamp in compact mode if shown inline with sender */}
-              {!(compact && !isOwnMessage && isGroupChat && showSender) && (
-                <div className="gba:flex gba:items-center gba:justify-end gba:gap-1 gba:mt-1">
-                  <span
-                    className={`gba:text-xs ${isOwnMessage ? 'gba:text-primary-foreground gba:opacity-70' : 'gba:text-muted-foreground'}`}
-                  >
-                    {formattedTime}
-                  </span>
-                  {/* Status icon (only for own messages) */}
-                  {isOwnMessage && message.status && (
-                    <span className="gba:text-xs gba:text-primary-foreground gba:opacity-70" title={message.status}>
-                      {message.status === 'sending' && '⏳'}
-                      {message.status === 'sent' && '✓'}
-                      {message.status === 'delivered' && '✓✓'}
-                      {message.status === 'read' && <span className="gba:text-primary-foreground">✓✓</span>}
+                {/* Timestamp and Status - hide timestamp in compact mode if shown inline with sender */}
+                {!(compact && !isOwnMessage && isGroupChat && showSender) && (
+                  <div className="gba:flex gba:items-center gba:justify-end gba:gap-1 gba:mt-1">
+                    <span
+                      className={`gba:text-xs ${isOwnMessage ? 'gba:text-primary-foreground gba:opacity-70' : 'gba:text-muted-foreground'}`}
+                    >
+                      {formattedTime}
                     </span>
-                  )}
-                </div>
+                    {/* Status icon (only for own messages) */}
+                    {isOwnMessage && message.status && (
+                      <span className="gba:text-xs gba:text-primary-foreground gba:opacity-70" title={message.status}>
+                        {message.status === 'sending' && '⏳'}
+                        {message.status === 'sent' && '✓'}
+                        {message.status === 'delivered' && '✓✓'}
+                        {message.status === 'read' && <span className="gba:text-primary-foreground">✓✓</span>}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {onUpdateMessage && apiClient && currentUserId && hasReactions && (
+                <MessageReactionBar
+                  message={message}
+                  currentUserId={currentUserId}
+                  isOwnMessage={isOwnMessage}
+                  hasReactions={true}
+                  showFloatingBar={false}
+                  onReactionClick={handleReactionClick}
+                  reactionPickerOpen={reactionPickerOpen}
+                  onReactionPickerOpenChange={setReactionPickerOpen}
+                  participants={participants}
+                />
               )}
             </div>
           )}
@@ -648,6 +588,7 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(
     if (prevProps.message.id !== nextProps.message.id) return false
     if (prevProps.message.content !== nextProps.message.content) return false
     if (prevProps.message.status !== nextProps.message.status) return false
+    if (prevProps.message.reactions !== nextProps.message.reactions) return false
 
     // Check current user (determines "own message" styling)
     if (prevProps.currentUserId !== nextProps.currentUserId) return false

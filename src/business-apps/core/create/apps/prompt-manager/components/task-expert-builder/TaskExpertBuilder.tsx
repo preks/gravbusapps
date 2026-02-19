@@ -1,9 +1,10 @@
 import React, { useCallback, useState } from 'react'
-import { Button, Tabs, TabsList, TabsTrigger, TabsContent, Spinner } from '@newwork/nw-design-system'
-import { LayoutDashboard, Save, Sparkles } from 'lucide-react'
+import { Button, Tabs, TabsList, TabsTrigger, TabsContent, Spinner, useTranslation } from '@newwork/nw-design-system'
+import { ArrowLeft, LayoutDashboard, Save, Sparkles } from 'lucide-react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import { useAgentBuilderState, type AgentBuilderInitialState } from '../../hooks/useAgentBuilderState'
+import translations from '../../_i18n'
 import { OverviewTab } from './OverviewTab'
 import { BehaviorTab } from './BehaviorTab'
 import { KnowledgeTab } from './KnowledgeTab'
@@ -16,12 +17,15 @@ export interface TaskExpertBuilderProps extends BusinessAppContextProps {
   onSaved: () => void
   onNameLoaded?: (name: string) => void
   initialState?: AgentBuilderInitialState
+  onGoToDashboard?: () => void
+  onBack?: () => void
 }
 
 type BuilderTab = 'overview' | 'behavior' | 'knowledge' | 'capabilities' | 'advanced'
 
 export const TaskExpertBuilder: React.FC<TaskExpertBuilderProps> = props => {
-  const { mode, promptId, onSaved, onNameLoaded, initialState, onGoToDashboard } = props
+  const { mode, promptId, onSaved, onNameLoaded, initialState, onGoToDashboard, onBack } = props
+  const { t } = useTranslation(translations)
   const client = usePromptManagerClient(props.accessToken)
   const [activeTab, setActiveTab] = useState<BuilderTab>('overview')
   const [isSaving, setIsSaving] = useState(false)
@@ -50,8 +54,10 @@ export const TaskExpertBuilder: React.FC<TaskExpertBuilderProps> = props => {
         modelSettings.response_format = { type: 'json_object' }
       }
 
+      let savedPromptId: string | undefined
+
       if (mode === 'create') {
-        await client.createPrompt({
+        const created = await client.createPrompt({
           name: state.name,
           description: state.description,
           type: 'completion',
@@ -68,10 +74,11 @@ export const TaskExpertBuilder: React.FC<TaskExpertBuilderProps> = props => {
           responseStyle: state.agentType === 'everyai' ? state.responseStyle : undefined,
           color: state.agentType === 'everyai' ? state.expertColor : undefined,
           citationMode: state.agentType === 'everyai' ? state.citationMode : undefined,
-          knowledgeSources: state.knowledgeSources.length > 0 ? state.knowledgeSources : undefined,
+          knowledgeSources: state.knowledgeSources,
           isPublic: state.agentType === 'everyai' ? state.isPublic : undefined,
           tags: state.agentType === 'everyai' && state.tags.length > 0 ? state.tags : undefined
         })
+        savedPromptId = created._id
       } else if (prompt?._id) {
         await client.putPrompt(prompt._id, {
           description: state.description,
@@ -89,18 +96,47 @@ export const TaskExpertBuilder: React.FC<TaskExpertBuilderProps> = props => {
           responseStyle: state.agentType === 'everyai' ? state.responseStyle : undefined,
           color: state.agentType === 'everyai' ? state.expertColor : undefined,
           citationMode: state.agentType === 'everyai' ? state.citationMode : undefined,
-          knowledgeSources: state.knowledgeSources.length > 0 ? state.knowledgeSources : undefined,
+          knowledgeSources: state.knowledgeSources,
           isPublic: state.agentType === 'everyai' ? state.isPublic : undefined,
           tags: state.agentType === 'everyai' && state.tags.length > 0 ? state.tags : undefined
         })
+        savedPromptId = prompt._id
       }
+
+      // Save Agent Card metadata via the mesh API (best-effort)
+      if (savedPromptId && state.agentType === 'everyai') {
+        const hasCardData = state.agentCardDivision || state.agentCardDataDomains || state.agentCardCapabilities
+        if (hasCardData) {
+          try {
+            await client.patch(`/api/v1/agents/registry/${savedPromptId}/card`, {
+              division: state.agentCardDivision || undefined,
+              data_domains: state.agentCardDataDomains
+                ? state.agentCardDataDomains
+                    .split(',')
+                    .map(s => s.trim())
+                    .filter(Boolean)
+                : undefined,
+              capabilities: state.agentCardCapabilities
+                ? state.agentCardCapabilities
+                    .split(',')
+                    .map(s => s.trim())
+                    .filter(Boolean)
+                : undefined,
+              access_policy: state.agentCardAccessPolicy || undefined
+            })
+          } catch {
+            // Agent card save is best-effort; prompt was saved successfully
+          }
+        }
+      }
+
       onSaved()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to save')
+      setError(e instanceof Error ? e.message : t('save-failed'))
     } finally {
       setIsSaving(false)
     }
-  }, [mode, prompt, client, state, catalogs.capabilities, onSaved, setError])
+  }, [mode, prompt, client, state, catalogs.capabilities, onSaved, setError, t])
 
   if (isLoadingPrompt) {
     return (
@@ -113,27 +149,37 @@ export const TaskExpertBuilder: React.FC<TaskExpertBuilderProps> = props => {
   return (
     <div className="gba:space-y-4" data-testid="agent-builder">
       {/* Header actions */}
-      <div className="gba:flex gba:items-center gba:justify-end gba:gap-2">
-        {mode === 'edit' && onGoToDashboard && (
-          <Button variant="outline" size="sm" onClick={onGoToDashboard} data-testid="agent-builder-go-dashboard">
-            <LayoutDashboard className="gba:w-4 gba:h-4 gba:mr-1" />
-            Dashboard
+      <div className="gba:flex gba:items-center gba:justify-between gba:gap-2">
+        <div className="gba:flex gba:items-center gba:gap-2">
+          {onBack ? (
+            <Button variant="outline" size="sm" onClick={onBack} data-testid="agent-builder-back" type="button">
+              <ArrowLeft className="gba:w-4 gba:h-4 gba:mr-1" />
+              {t('back')}
+            </Button>
+          ) : null}
+        </div>
+        <div className="gba:flex gba:items-center gba:gap-2">
+          {mode === 'edit' && onGoToDashboard ? (
+            <Button variant="outline" size="sm" onClick={onGoToDashboard} data-testid="agent-builder-go-dashboard">
+              <LayoutDashboard className="gba:w-4 gba:h-4 gba:mr-1" />
+              {t('tab-dashboard')}
+            </Button>
+          ) : null}
+          <Button variant="outline" size="sm" disabled data-testid="agent-builder-ai-assist">
+            <Sparkles className="gba:w-4 gba:h-4 gba:mr-1" />
+            {t('ai-assist')}
           </Button>
-        )}
-        <Button variant="outline" size="sm" disabled data-testid="agent-builder-ai-assist">
-          <Sparkles className="gba:w-4 gba:h-4 gba:mr-1" />
-          AI Assist
-        </Button>
-        <Button
-          variant="default"
-          size="sm"
-          onClick={onSave}
-          disabled={!isValid || isSaving}
-          data-testid="agent-builder-save"
-        >
-          <Save className="gba:w-4 gba:h-4 gba:mr-1" />
-          {isSaving ? 'Saving...' : 'Save'}
-        </Button>
+          <Button
+            variant="default"
+            size="sm"
+            onClick={onSave}
+            disabled={!isValid || isSaving}
+            data-testid="agent-builder-save"
+          >
+            <Save className="gba:w-4 gba:h-4 gba:mr-1" />
+            {isSaving ? t('saving') : t('save')}
+          </Button>
+        </div>
       </div>
 
       {error && (
@@ -149,19 +195,19 @@ export const TaskExpertBuilder: React.FC<TaskExpertBuilderProps> = props => {
       <Tabs value={activeTab} onValueChange={v => setActiveTab(v as BuilderTab)} className="gba:w-full">
         <TabsList className="gba:w-full gba:justify-start gba:bg-background" data-testid="agent-builder-tabs">
           <TabsTrigger value="overview" data-testid="agent-builder-tab-overview">
-            General
+            {t('builder-tab-general')}
           </TabsTrigger>
           <TabsTrigger value="behavior" data-testid="agent-builder-tab-behavior">
-            Behavior
+            {t('builder-tab-behavior')}
           </TabsTrigger>
           <TabsTrigger value="knowledge" data-testid="agent-builder-tab-knowledge">
-            Knowledge
+            {t('builder-tab-knowledge')}
           </TabsTrigger>
           <TabsTrigger value="capabilities" data-testid="agent-builder-tab-capabilities">
-            Tools
+            {t('builder-tab-tools')}
           </TabsTrigger>
           <TabsTrigger value="advanced" data-testid="agent-builder-tab-advanced">
-            Advanced
+            {t('builder-tab-advanced')}
           </TabsTrigger>
         </TabsList>
 

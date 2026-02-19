@@ -36,6 +36,11 @@ interface SpeechRecognitionErrorEvent extends Event {
   message?: string
 }
 
+interface NativeSpeechToTextDetail {
+  text?: string
+  isFinal?: boolean
+}
+
 interface SpeechRecognition extends EventTarget {
   continuous: boolean
   interimResults: boolean
@@ -55,6 +60,16 @@ declare global {
   interface Window {
     SpeechRecognition: new () => SpeechRecognition
     webkitSpeechRecognition: new () => SpeechRecognition
+    NWMobileSpeech?: {
+      start: (options?: { language?: string; continuous?: boolean; interimResults?: boolean }) => boolean | void
+      stop: () => boolean | void
+    }
+    webkit?: {
+      messageHandlers?: {
+        'com.newwork.NWMobileSpeechStart'?: { postMessage: (payload: unknown) => void }
+        'com.newwork.NWMobileSpeechStop'?: { postMessage: (payload: unknown) => void }
+      }
+    }
   }
 }
 
@@ -85,16 +100,48 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
   const finalTranscriptRef = useRef<string>('')
   const silenceTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const lastSpeechTimeRef = useRef<number>(Date.now())
+  const nativeBridgeModeRef = useRef<'none' | 'nwMobileSpeech' | 'webkitMessageHandlers'>('none')
+
+  const getNativeBridgeMode = useCallback((): 'none' | 'nwMobileSpeech' | 'webkitMessageHandlers' => {
+    if (
+      window.NWMobileSpeech &&
+      typeof window.NWMobileSpeech.start === 'function' &&
+      typeof window.NWMobileSpeech.stop === 'function'
+    ) {
+      return 'nwMobileSpeech'
+    }
+    if (
+      window.webkit?.messageHandlers?.['com.newwork.NWMobileSpeechStart'] &&
+      typeof window.webkit.messageHandlers['com.newwork.NWMobileSpeechStart'].postMessage === 'function' &&
+      window.webkit?.messageHandlers?.['com.newwork.NWMobileSpeechStop'] &&
+      typeof window.webkit.messageHandlers['com.newwork.NWMobileSpeechStop'].postMessage === 'function'
+    ) {
+      return 'webkitMessageHandlers'
+    }
+    return 'none'
+  }, [])
+
+  const stopNativeBridge = useCallback(() => {
+    const mode = nativeBridgeModeRef.current
+    if (mode === 'nwMobileSpeech') {
+      window.NWMobileSpeech?.stop()
+      return
+    }
+    if (mode === 'webkitMessageHandlers') {
+      window.webkit?.messageHandlers?.['com.newwork.NWMobileSpeechStop']?.postMessage({})
+    }
+  }, [])
 
   // Check for browser support
   useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
-    setState(prev => ({ ...prev, isSupported: !!SpeechRecognition }))
-  }, [])
+    const nativeMode = getNativeBridgeMode()
+    nativeBridgeModeRef.current = nativeMode
+    setState(prev => ({ ...prev, isSupported: nativeMode !== 'none' || !!SpeechRecognition }))
+  }, [getNativeBridgeMode])
 
   // Volume analysis for visualizations
   const startVolumeAnalysis = useCallback(async () => {
-    console.log('[VoiceInput] startVolumeAnalysis: begin')
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       mediaStreamRef.current = stream
@@ -126,7 +173,6 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
   }, [])
 
   const stopVolumeAnalysis = useCallback(() => {
-    console.log('[VoiceInput] stopVolumeAnalysis: begin')
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current)
       animationFrameRef.current = null
@@ -144,14 +190,14 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
 
     analyserRef.current = null
     setState(prev => ({ ...prev, volume: 0 }))
-    console.log('[VoiceInput] stopVolumeAnalysis: complete')
   }, [])
 
   const startListening = useCallback(async () => {
-    console.log('[VoiceInput] startListening: begin')
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+    const nativeMode = getNativeBridgeMode()
+    nativeBridgeModeRef.current = nativeMode
 
-    if (!SpeechRecognition) {
+    if (!SpeechRecognition && nativeMode === 'none') {
       setState(prev => ({ ...prev, error: 'Speech recognition not supported in this browser' }))
       return
     }
@@ -174,6 +220,29 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
 
     // Start volume analysis for visualizations
     await startVolumeAnalysis()
+
+    if (nativeMode !== 'none') {
+      let started: boolean | void = false
+      if (nativeMode === 'nwMobileSpeech') {
+        started = window.NWMobileSpeech?.start({
+          language,
+          continuous,
+          interimResults
+        })
+      } else if (nativeMode === 'webkitMessageHandlers') {
+        window.webkit?.messageHandlers?.['com.newwork.NWMobileSpeechStart']?.postMessage({
+          language,
+          continuous,
+          interimResults
+        })
+        started = true
+      }
+      if (started === false) {
+        setState(prev => ({ ...prev, error: 'Native speech recognition is unavailable', isListening: false }))
+        stopVolumeAnalysis()
+      }
+      return
+    }
 
     // Create new recognition instance
     const recognition = new SpeechRecognition()
@@ -221,13 +290,6 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
       }
 
       finalTranscriptRef.current = final
-      console.log('[VoiceInput] onresult: computed', {
-        final,
-        interim: cleanedInterim,
-        previousFinal,
-        lastResultFinal: !!lastResult?.isFinal,
-        lastText: lastTrimmed
-      })
 
       // Track when we last received speech
       lastSpeechTimeRef.current = Date.now()
@@ -280,7 +342,6 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
     }
 
     recognition.onend = () => {
-      console.log('[VoiceInput] onend')
       setState(prev => ({ ...prev, isListening: false }))
       stopVolumeAnalysis()
 
@@ -298,25 +359,35 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
 
     recognitionRef.current = recognition
     recognition.start()
-  }, [language, continuous, interimResults, silenceDelay, onTranscript, onEnd, startVolumeAnalysis, stopVolumeAnalysis])
+  }, [
+    language,
+    continuous,
+    interimResults,
+    silenceDelay,
+    onTranscript,
+    onEnd,
+    startVolumeAnalysis,
+    stopVolumeAnalysis,
+    getNativeBridgeMode
+  ])
 
   const stopListening = useCallback(() => {
-    console.log('[VoiceInput] stopListening')
+    stopNativeBridge()
     if (recognitionRef.current) {
       recognitionRef.current.stop()
       recognitionRef.current = null
     }
     stopVolumeAnalysis()
     setState(prev => ({ ...prev, isListening: false }))
-  }, [stopVolumeAnalysis])
+  }, [stopVolumeAnalysis, stopNativeBridge])
 
   const cancelListening = useCallback(() => {
-    console.log('[VoiceInput] cancelListening')
     // Clear any pending send timeout
     if (silenceTimeoutRef.current) {
       clearTimeout(silenceTimeoutRef.current)
       silenceTimeoutRef.current = null
     }
+    stopNativeBridge()
     if (recognitionRef.current) {
       recognitionRef.current.abort()
       recognitionRef.current = null
@@ -329,10 +400,9 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
       transcript: '',
       interimTranscript: ''
     }))
-  }, [stopVolumeAnalysis])
+  }, [stopVolumeAnalysis, stopNativeBridge])
 
   const resetTranscript = useCallback(() => {
-    console.log('[VoiceInput] resetTranscript')
     finalTranscriptRef.current = ''
     setState(prev => ({
       ...prev,
@@ -350,9 +420,67 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}) {
       if (recognitionRef.current) {
         recognitionRef.current.abort()
       }
+      stopNativeBridge()
       stopVolumeAnalysis()
     }
-  }, [stopVolumeAnalysis])
+  }, [stopVolumeAnalysis, stopNativeBridge])
+
+  useEffect(() => {
+    const handleNativeStart = () => {
+      void startVolumeAnalysis()
+      setState(prev => ({ ...prev, isListening: true, error: null }))
+    }
+    const handleNativeStop = () => {
+      stopVolumeAnalysis()
+      setState(prev => ({ ...prev, isListening: false }))
+    }
+    window.addEventListener('com.newwork.NWMobileSpeechStart', handleNativeStart)
+    window.addEventListener('com.newwork.NWMobileSpeechStop', handleNativeStop)
+    return () => {
+      window.removeEventListener('com.newwork.NWMobileSpeechStart', handleNativeStart)
+      window.removeEventListener('com.newwork.NWMobileSpeechStop', handleNativeStop)
+    }
+  }, [startVolumeAnalysis, stopVolumeAnalysis])
+
+  useEffect(() => {
+    const handleNativeSpeechToText = (event: Event) => {
+      const customEvent = event as CustomEvent<NativeSpeechToTextDetail | string>
+      const detail = customEvent.detail
+      const text = typeof detail === 'string' ? detail : detail?.text
+      const isFinal = typeof detail === 'string' ? true : detail?.isFinal !== false
+      if (!text || typeof text !== 'string') {
+        return
+      }
+      const normalizedText = text.trim()
+      if (!normalizedText) {
+        return
+      }
+
+      if (isFinal) {
+        finalTranscriptRef.current = normalizedText
+        setState(prev => ({
+          ...prev,
+          transcript: normalizedText,
+          interimTranscript: '',
+          isListening: false
+        }))
+        if (onTranscript) {
+          onTranscript(normalizedText)
+        }
+      } else {
+        setState(prev => ({
+          ...prev,
+          interimTranscript: normalizedText,
+          isListening: true
+        }))
+      }
+    }
+
+    window.addEventListener('com.newwork.nativeSpeechToText', handleNativeSpeechToText)
+    return () => {
+      window.removeEventListener('com.newwork.nativeSpeechToText', handleNativeSpeechToText)
+    }
+  }, [onTranscript])
 
   return {
     ...state,

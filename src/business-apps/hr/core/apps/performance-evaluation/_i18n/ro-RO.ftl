@@ -113,5 +113,6 @@ start-confirm-button = Pornește evaluarea
 # Erori
 values-error-cannot-deactivate-active-cycle = Valoarea nu poate fi dezactivată cât timp este folosită într-un ciclu activ.
 cycles-error-no-rating-scales = Este necesară cel puțin o scală de evaluare pentru a crea un ciclu.
+cycles-error-no-company-values = Este necesară cel puțin o valoare de companie pentru a crea un ciclu.
 error-activate-out-of-period = Ciclul nu poate fi activat. Data de astăzi este în afara perioadei ciclului.
 

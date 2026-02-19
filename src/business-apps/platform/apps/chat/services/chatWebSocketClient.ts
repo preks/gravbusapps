@@ -249,6 +249,13 @@ export class ChatWebSocketClient {
     this.socket?.on('conversation:call-ended', handler)
   }
 
+  onCallHistoryMissedCount(handler: (data: { count: number }) => void): () => void {
+    this.socket?.on('call_history:missed_count', handler)
+    return () => {
+      this.socket?.off('call_history:missed_count', handler)
+    }
+  }
+
   onConversationActiveCalls(handler: (data: ActiveCall[]) => void) {
     this.socket?.on('conversation:active-calls', (data: ActiveCall[]) => {
       handler(data)

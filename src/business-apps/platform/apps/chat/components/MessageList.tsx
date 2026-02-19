@@ -26,6 +26,7 @@ interface MessageListProps {
   participants?: ConversationParticipant[]
   compact?: boolean // Compact mode for in-call chat
   apiClient?: ChatApiClient | null // For transcript/meeting minutes functionality
+  onUpdateMessage?: (messageId: string, updates: Partial<Message>) => void
 }
 
 /**
@@ -55,7 +56,8 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
     onSendMessage,
     participants,
     compact = false,
-    apiClient = null
+    apiClient = null,
+    onUpdateMessage
   }) => {
     // OPTIMIZATION: Call useTranslation once and memoize the result
     const t = useChatTranslation()
@@ -75,7 +77,7 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
     const lastScrollHeightIncreaseRef = useRef<number>(0) // Track scroll height increase for unseen message detection
     const lastLoadMoreTimeRef = useRef<number>(0) // Track when load-more was last triggered
 
-    // State for "new messages" indicator (Slack/Teams pattern)
+    // State for "new messages" indicator
     const [hasUnseenMessages, setHasUnseenMessages] = useState(false)
     const [unseenCount, setUnseenCount] = useState(0)
 
@@ -172,11 +174,13 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
       const isAIResponse = latestMessage?.metadata?.isAIResponse === true
       const shouldForceScroll = hasNewMessages && (isOwnMessage || isAIResponse)
 
-      // CRITICAL: Only auto-scroll for new messages, NOT for typing indicator changes
-      // Typing indicator should appear at bottom without forcing user to scroll there
-      const shouldScroll = isInitialLoad || (hasNewMessages && isNearBottom) || shouldForceScroll
+      // When user is near bottom and someone starts typing, scroll so typing indicator is visible
+      const typingAppeared = typingChanged && currentTypingCount > prevTypingCount
 
-      // FEATURE: Track unseen messages when user is scrolled up (Slack/Teams pattern)
+      const shouldScroll =
+        isInitialLoad || (hasNewMessages && isNearBottom) || shouldForceScroll || (typingAppeared && isNearBottom)
+
+      // FEATURE: Track unseen messages when user is scrolled up
       // CRITICAL: Only count real new messages, not pagination (load-more)
       // Detection logic:
       // - Large scroll increase (>1000px) = pagination loading old messages → skip
@@ -258,7 +262,7 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
         const savedScrollTop = scrollBeforeLoadRef.current
         const newScrollTop = savedScrollTop + scrollHeightDiff
 
-        // Adjust scroll to maintain viewport (Slack/Teams behavior)
+        // Adjust scroll to maintain viewport
         container.scrollTop = newScrollTop
         lastScrollTopRef.current = newScrollTop
 
@@ -328,7 +332,7 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
         const timeSinceLastLoad = Date.now() - lastLoadMoreTimeRef.current
         const isRecentlyLoaded = timeSinceLastLoad < 3000
 
-        // Load more if near top (< 200px) - Slack/Teams use ~200px threshold
+        // Load more if near top (< 200px
         // Also check if not already loading and not recently loaded to prevent cascade
         if (scrollTop < 200 && !isLoadingMoreRef.current && !isRecentlyLoaded) {
           // CRITICAL: Save scroll position BEFORE loading (browser will reset it to 0)
@@ -383,7 +387,7 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
         className="gba:flex-1 gba:overflow-y-auto gba:min-h-0 gba:relative"
         data-testid="message-list-v2"
       >
-        {/* "New Messages" indicator (Slack/Teams pattern) */}
+        {/* "New Messages" indicator */}
         {hasUnseenMessages && unseenCount > 0 && (
           <div
             className="gba:fixed gba:bottom-24 gba:left-1/2 gba:-translate-x-1/2 gba:z-[9999]"
@@ -509,6 +513,7 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
                         aiInitiatedByCurrentUser={aiInitiatedByCurrentUser}
                         compact={compact}
                         apiClient={apiClient}
+                        onUpdateMessage={onUpdateMessage}
                       />
                     )
                   })
@@ -536,6 +541,10 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
 
     // Loading state changed? Re-render
     if (prevProps.isLoading !== nextProps.isLoading) return false
+
+    // Re-render when messages array reference changes (e.g. reaction update, edit)
+    // so that in-place updates like reactions are visible without refresh
+    if (prevProps.messages !== nextProps.messages) return false
 
     // OPTIMIZATION: Check messages more efficiently than array reference
     // Instead of comparing array reference, check length + first/last message IDs

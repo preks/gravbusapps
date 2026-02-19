@@ -27,20 +27,8 @@ export function getScreenShareTrack(peer: any): MediaStreamTrack | null {
   return null
 }
 
-/** Optimal aspect ratio for video tiles from screen width, participant count, screen share, and sidebar. */
-export function getOptimalAspectRatio(
-  screenWidth: number,
-  participantCount: number,
-  isScreenShare: boolean,
-  hasSidebar: boolean
-): string {
-  if (isScreenShare) return '16/9'
-  if (screenWidth < 768) return '4/3'
-  if (screenWidth < 1024) {
-    if (hasSidebar || participantCount > 4) return '4/3'
-    return '16/9'
-  }
-  if (hasSidebar) return participantCount <= 2 ? '4/3' : '16/9'
+/** Aspect ratio for video tiles: always 16:9 so the tile (tail) matches typical video and stays consistent. */
+export function getOptimalAspectRatio(): string {
   return '16/9'
 }
 

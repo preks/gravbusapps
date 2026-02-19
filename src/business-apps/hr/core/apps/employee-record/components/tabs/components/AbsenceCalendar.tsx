@@ -438,8 +438,11 @@ const AbsenceCalendar: React.FC<
               const daysToSubtract = firstDayOfWeek === 0 ? 6 : firstDayOfWeek - 1 // Convert Sunday (0) to 6, others to day-1
               const startOfCalendar = firstDayOfMonth.subtract(daysToSubtract, 'day')
 
-              // Calculate how many days to display (either 35 or 42 depending on the month)
-              const daysToDisplay = Math.ceil((daysInMonth + firstDayOfMonth.day()) / 7) * 7
+              // Calculate how many days to display for a Monday-first grid.
+              // We must use the Monday-based leading offset (`daysToSubtract`),
+              // not dayjs Sunday-based `day()`, otherwise months starting on Sunday
+              // can lose their final week.
+              const daysToDisplay = Math.ceil((daysInMonth + daysToSubtract) / 7) * 7
 
               return Array.from({ length: daysToDisplay }).map((_, idx) => {
                 // Create a new dayjs object for each day to avoid mutation issues
@@ -519,7 +522,7 @@ const AbsenceCalendar: React.FC<
                       {isCurrentMonth && isHolidayDay && (
                         <div className="gba:flex gba:gap-1 gba:mt-1">
                           <div className="gba:flex gba:items-center gba:justify-center gba:rounded-full gba:min-h-4 gba:px-1 gba:w-full gba:bg-background">
-                            <span className="gba:text-xs gba:font-medium gba:text-info-on-card gba:truncate gba:leading-none">
+                            <span className="gba:text-xs gba:font-medium gba:text-info-secondary-foreground gba:truncate gba:leading-none">
                               {t('holiday')}
                             </span>
                           </div>
@@ -558,16 +561,8 @@ const AbsenceCalendar: React.FC<
                           const maxSegments = 3
                           const segments = overlappingAbsences.slice(0, maxSegments)
 
-                          const resolveSegmentTextClass = (a: any): string => {
-                            // When consumer provides planned/effective minutes (e.g., DailyLog)
-                            if (typeof a?.plannedMinutes === 'number' && typeof a?.effectiveMinutes === 'number') {
-                              if (a.effectiveMinutes >= a.plannedMinutes) {
-                                return 'gba:text-success-on-card'
-                              }
-                              return 'gba:text-warning-on-card'
-                            }
-                            return getAbsenceStatusTextClass(a.originalStatus || a.status)
-                          }
+                          const resolveSegmentTextClass = (a: any): string =>
+                            getAbsenceStatusTextClass(a.originalStatus || a.status)
 
                           const segmentWidth = `${100 / segments.length}%`
 

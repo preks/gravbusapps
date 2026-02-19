@@ -85,6 +85,7 @@ import { useVersioning } from '../shared/hooks/useVersioning'
 import { useFileLock } from '../shared/hooks/useFileLock'
 import { useComments } from '../shared/hooks/useComments'
 import { usePublishing } from '../shared/hooks/usePublishing'
+import { useEditorKeyboardIsolation } from '../shared/hooks/useEditorKeyboardIsolation'
 import { emitDocumentActivity, emitDocumentActivityEnd } from '../spaces/hooks/useSpaceDocumentActivity'
 import { VersionHistory } from '../shared/components/VersionHistory'
 import { CheckpointDialog } from '../shared/components/CheckpointDialog'
@@ -422,6 +423,8 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
     currentStatus: note.publishMetadata?.status || 'draft',
     apiService: NoteApiService
   })
+
+  useEditorKeyboardIsolation(editorContainerRef)
 
   useEffect(() => {
     if (!rawParticipants.length) {

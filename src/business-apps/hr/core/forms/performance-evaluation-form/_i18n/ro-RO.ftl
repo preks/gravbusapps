@@ -1,0 +1,16 @@
+# Performance Evaluation Form
+
+title = Evaluare performanță
+employee-loading = Se încarcă detaliile angajatului...
+employee-label = Angajat
+employee-placeholder = Selectați un angajat...
+topic-rating-helper = Selectați o evaluare
+topic-comment = Comentariu
+topic-comment-placeholder = Adăugați un comentariu...
+topic-category-skill = Competență
+topic-category-company-value = Valoare companie
+skills-loading = Se încarcă competențele angajatului...
+general-comments-label = Comentarii generale
+general-comments-placeholder = Adăugați comentarii generale...
+cancel-button = Anulare
+submit-button = Trimite

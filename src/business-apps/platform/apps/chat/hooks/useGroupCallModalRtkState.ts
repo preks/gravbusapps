@@ -77,7 +77,9 @@ export function useGroupCallModalRtkState(props: GroupCallModalRtkProps) {
     setSelectedAudioOutputId,
     setSelectedVideoInputId,
     canSelectAudioOutput,
-    PARTICIPANTS_PER_PAGE
+    PARTICIPANTS_PER_PAGE,
+    gallerySize,
+    setGallerySize
   } = sidebar
 
   const videoRefs = useGroupCallModalVideoRefs(props)
@@ -95,7 +97,9 @@ export function useGroupCallModalRtkState(props: GroupCallModalRtkProps) {
     focusedScreenShareId,
     setFocusedScreenShareId,
     expandedScreenShare,
-    setExpandedScreenShare
+    setExpandedScreenShare,
+    contentProminentWhenSharing,
+    setContentProminentWhenSharing
   } = videoRefs
 
   useGroupCallModalStreamAttachment(
@@ -554,10 +558,22 @@ export function useGroupCallModalRtkState(props: GroupCallModalRtkProps) {
     return () => globalThis.window.removeEventListener('resize', handleResize)
   }, [])
 
-  // Calculate minimum tile size for auto-fit grid based on panel state and screen size
+  // Calculate minimum tile size for auto-fit grid based on panel state, screen size, and gallery mode
   const minTileSize = useMemo(() => {
-    return sidebarView === 'closed' ? responsiveConfig.minTileSize : responsiveConfig.minTileSizeWithSidebar
-  }, [sidebarView, responsiveConfig])
+    const base = sidebarView === 'closed' ? responsiveConfig.minTileSize : responsiveConfig.minTileSizeWithSidebar
+    if (gallerySize === 'large') {
+      return Math.max(100, Math.floor(base * 0.7))
+    }
+    return base
+  }, [sidebarView, responsiveConfig, gallerySize])
+
+  // Cap max tile size when large gallery is on so more tiles fit
+  const maxTileSize = useMemo(() => {
+    if (gallerySize === 'large') {
+      return Math.min(responsiveConfig.maxTileSize, 350)
+    }
+    return responsiveConfig.maxTileSize
+  }, [gallerySize, responsiveConfig.maxTileSize])
 
   // Create stable track IDs for dependency tracking
   const screenShareTrackIds = useMemo(() => {
@@ -632,6 +648,8 @@ export function useGroupCallModalRtkState(props: GroupCallModalRtkProps) {
     setFocusedScreenShareId,
     expandedScreenShare,
     setExpandedScreenShare,
+    contentProminentWhenSharing,
+    setContentProminentWhenSharing,
     meeting,
     currentParticipant,
     globalMeetingId,
@@ -667,7 +685,10 @@ export function useGroupCallModalRtkState(props: GroupCallModalRtkProps) {
     gridItems,
     paginatedGridItems,
     minTileSize,
+    maxTileSize,
     responsiveConfig,
+    gallerySize,
+    setGallerySize,
     allScreenShares,
     focusedScreenShare,
     handleMuteParticipant,

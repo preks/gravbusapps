@@ -473,13 +473,7 @@ const EmployeeRecordContent: React.FC<EmployeeRecordContentProps> = ({
         icon: <UserIcon className="gba:mr-2" size={20} />,
         content: (
           <div className="gba:col-span-full">
-            <SummaryTab
-              employee={employee}
-              employeeAbsenceEntitlement={absenceEntitlements ?? []}
-              accessToken={accessToken}
-              currentUserEmployeeId={currentUserEmployeeId}
-              userInfo={userInfo}
-            />
+            <SummaryTab employee={employee} accessToken={accessToken} currentUserEmployeeId={currentUserEmployeeId} />
           </div>
         )
       },
