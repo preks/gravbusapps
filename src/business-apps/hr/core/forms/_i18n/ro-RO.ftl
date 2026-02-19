@@ -283,6 +283,7 @@ adjust-salary-pending-status = În așteptare
 
 # Update Working Conditions Form
 working-conditions-probation-period = Perioadă de probă
+working-conditions-probation-end-before-start = Data de încheiere a perioadei de probă trebuie să fie la sau după data de începere.
 working-conditions-probation-exception-warning = Ați modificat manual data de încheiere a perioadei de probă față de valoarea din contract. Vă rugăm să verificați.
 working-conditions-unit-day = { $count ->
     [one] Zi

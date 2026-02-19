@@ -286,6 +286,7 @@ adjust-salary-pending-status = Pending
 
 # Update Working Conditions Form
 working-conditions-probation-period = Probation Period
+working-conditions-probation-end-before-start = Probation end date must be on or after the start date.
 working-conditions-probation-exception-warning = You've manually changed the probation period end date from the contract value. Please review.
 working-conditions-unit-day = { $count ->
     [one] Day
