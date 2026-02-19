@@ -27,13 +27,14 @@ export const transformAbsenceData = (absences: any[]): AbsenceListCardAbsence[] 
     title: getCatalogValue(absence.type) || '',
     startDate: absence.startDate,
     endDate: absence.endDate,
-    duration: absence.workingDays
-      ? `${absence.workingDays} ${
-          absence.workingDays === 1
-            ? getTranslationFromI18nKeyAndLabel('lowcoder:absence_module.limited_pending_days_text.day', 'day')
-            : getTranslationFromI18nKeyAndLabel('lowcoder:absence_module.limited_pending_days_text.days', 'days')
-        }`
-      : '',
+    duration:
+      (absence.effectiveDays ?? absence.workingDays)
+        ? `${absence.effectiveDays ?? absence.workingDays} ${
+            (absence.effectiveDays ?? absence.workingDays) === 1
+              ? getTranslationFromI18nKeyAndLabel('lowcoder:absence_module.limited_pending_days_text.day', 'day')
+              : getTranslationFromI18nKeyAndLabel('lowcoder:absence_module.limited_pending_days_text.days', 'days')
+          }`
+        : '',
     description: absence.description || '',
     icon: CalendarBlankIcon,
     typeColor: absence.type?.objectValue?.color ? absence.type.objectValue.color : 'blue',

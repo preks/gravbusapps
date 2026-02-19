@@ -4,11 +4,72 @@ import { PerformanceEvaluationFormValues, EmployeeOption, EvaluationTopic } from
 import { useStructureEmployees } from '../hooks/useStructureEmployees'
 import { useEmployeeDetails } from '../hooks/useEmployeeDetails'
 import { useEmployeeByUserId } from '../hooks/useEmployeeByUserId'
-import { usePerformanceCycleById } from '../hooks/usePerformanceCycleById'
 import { useEmployeeSkills } from '../hooks/useEmployeeSkills'
-import { useRatingScales } from '../../../apps/performance-evaluation/hooks/useRatingScales'
-import { useCompanyValues } from '../../../apps/performance-evaluation/hooks/useCompanyValues'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
+
+/** Rating scale value for UI: { label, value } */
+const DEFAULT_RATING_SCALE_VALUES = [
+  { label: '1', value: 1 },
+  { label: '2', value: 2 },
+  { label: '3', value: 3 },
+  { label: '4', value: 4 },
+  { label: '5', value: 5 }
+]
+
+/** Normalize ratingScaleValues from psi_taskPayload.evaluationFormData to UI shape. */
+function normalizeEvaluationFormRatingScaleValues(raw: unknown): Array<{ label: string; value: number }> {
+  if (!Array.isArray(raw) || raw.length === 0) return DEFAULT_RATING_SCALE_VALUES
+  return raw.map((item: any, index: number) => ({
+    label: item?.label ?? item?.name ?? String(index + 1),
+    value: typeof item?.value === 'number' ? item.value : index + 1
+  }))
+}
+
+/** Pick first non-empty string from possible display-name fields. */
+function getDisplayName(item: any, ...keys: string[]): string {
+  if (!item || typeof item !== 'object') return ''
+  for (const key of keys) {
+    const val = item[key]
+    if (typeof val === 'string' && val.trim()) return val.trim()
+  }
+  const nested = item?.skill ?? item?.companyValue ?? item?.skillName
+  if (nested && typeof nested === 'object') {
+    return getDisplayName(nested, 'name', 'title', 'label', 'skillName', 'displayName')
+  }
+  return ''
+}
+
+/** Normalize companyValues from psi_taskPayload.evaluationFormData for topic names. */
+function normalizeEvaluationFormCompanyValues(raw: unknown): Array<{ id: string; title: string }> {
+  if (!Array.isArray(raw)) return []
+  return (raw as any[])
+    .map((item: any) => {
+      const id = item?.id ?? item?.companyValueId
+      const title = getDisplayName(item, 'valueName', 'title', 'name', 'label', 'companyValueTitle', 'displayName')
+      if (!id && !title) return null
+      return { id: String(id ?? title), title: title || String(id) }
+    })
+    .filter((v): v is { id: string; title: string } => v !== null)
+}
+
+/** Normalize skills from psi_taskPayload.evaluationFormData to EvaluationTopic[]. */
+function normalizeEvaluationFormSkills(raw: unknown): EvaluationTopic[] {
+  if (!Array.isArray(raw)) return []
+  const result: EvaluationTopic[] = []
+  for (const item of raw as any[]) {
+    const id = item?.id ?? item?.skillId
+    const name = getDisplayName(item, 'name', 'title', 'label', 'skillName', 'displayName')
+    if (!id && !name) continue
+    result.push({
+      id: `skill-${id ?? name}`,
+      name: name || String(id ?? 'Skill'),
+      category: 'skill',
+      rating: undefined,
+      comment: ''
+    })
+  }
+  return result
+}
 
 interface PerformanceEvaluationFormContextType {
   formValues: PerformanceEvaluationFormValues
@@ -70,103 +131,66 @@ export const PerformanceEvaluationFormProvider: React.FC<PerformanceEvaluationFo
     employeeIdFromTaskPayload || preSelectedEmployeeId || initialValues.employeeId
   )
 
-  // Extract performance cycle ID from additionalData
-  const performanceCycleId = (businessAppContext?.additionalData as any)?.psi_taskPayload?.employeePerformanceEvaluation
-    ?.performanceCycle
+  const ad = businessAppContext?.additionalData as any
+  const evaluationFormData = ad?.psi_taskPayload?.evaluationFormData
 
-  // Fetch performance cycle details
-  const { cycle: performanceCycle, loading: cycleLoading } = usePerformanceCycleById({
-    accessToken: businessAppContext.accessToken,
-    cycleId: performanceCycleId
-  })
+  // Rating scale values and company values from evaluationFormData (no GraphQL)
+  const ratingScaleValues = useMemo(
+    () => normalizeEvaluationFormRatingScaleValues(evaluationFormData?.ratingScaleValues),
+    [evaluationFormData?.ratingScaleValues]
+  )
 
-  // Fetch all rating scales and company values
-  const { ratingScales, loading: ratingScalesLoading } = useRatingScales(businessAppContext.accessToken)
-  const { values: companyValues, loading: companyValuesLoading } = useCompanyValues(businessAppContext.accessToken)
+  const evaluationFormCompanyValues = useMemo(
+    () => normalizeEvaluationFormCompanyValues(evaluationFormData?.companyValues),
+    [evaluationFormData?.companyValues]
+  )
 
-  // Fetch employee's actual skills (from employee_skill table)
+  const evaluationFormSkillsAsTopics = useMemo(
+    () => normalizeEvaluationFormSkills(evaluationFormData?.skills),
+    [evaluationFormData?.skills]
+  )
+
+  // Fetch employee's actual skills only when we don't have evaluationFormData.skills (fallback)
   const { skills: employeeSkills, loading: employeeSkillsLoading } = useEmployeeSkills({
     accessToken: businessAppContext.accessToken,
     employeeId: selectedEmployeeIdForJobProfile
   })
 
-  // Get the rating scale for this cycle
-  const ratingScale = useMemo(() => {
-    if (!performanceCycle?.ratingScaleId || ratingScalesLoading) {
-      return null
-    }
-    return ratingScales.find(scale => scale.id === performanceCycle.ratingScaleId)
-  }, [performanceCycle, ratingScales, ratingScalesLoading])
-
-  // Extract rating scale values for UI
-  const ratingScaleValues = useMemo(() => {
-    if (!ratingScale || !ratingScale.values || ratingScale.values.length === 0) {
-      // Default to 1-5 scale if no rating scale found
-      return [
-        { label: '1', value: 1 },
-        { label: '2', value: 2 },
-        { label: '3', value: 3 },
-        { label: '4', value: 4 },
-        { label: '5', value: 5 }
-      ]
-    }
-
-    // Map rating scale values to UI format
-    return ratingScale.values.map((label, index) => ({
-      label: label,
-      value: index + 1 // Use 1-based indexing
-    }))
-  }, [ratingScale])
-
-  // Build topics from the performance cycle configuration and employee skills
+  // Build topics: prefer evaluationFormData (skills + company values), else employee skills only
   const topics = useMemo<EvaluationTopic[]>(() => {
-    // Wait for initial loading to complete
-    if (ratingScalesLoading || companyValuesLoading) {
-      return []
+    if (evaluationFormData) {
+      const valueTopics: EvaluationTopic[] = evaluationFormCompanyValues.map(v => ({
+        id: `value-${v.id}`,
+        name: v.title,
+        category: 'value' as const,
+        rating: undefined,
+        comment: ''
+      }))
+      return [...evaluationFormSkillsAsTopics, ...valueTopics]
     }
-
-    const topicsFromCycle: EvaluationTopic[] = []
-
-    // Add employee's actual skills as topics (independent of performance cycle)
-    if (employeeSkills && employeeSkills.length > 0) {
+    const topicsFromSkills: EvaluationTopic[] = []
+    if (employeeSkills?.length) {
       employeeSkills.forEach(employeeSkill => {
         if (employeeSkill.skill) {
-          const skillTopic: EvaluationTopic = {
+          topicsFromSkills.push({
             id: `skill-${employeeSkill.skill.id}`,
             name: employeeSkill.skill.name,
             category: 'skill',
-            rating: undefined,
-            comment: ''
-          }
-          topicsFromCycle.push(skillTopic)
-        }
-      })
-    }
-
-    // Add company values as topics (only if performance cycle exists)
-    if ((performanceCycle?.companyValueIds?.length ?? 0) > 0) {
-      performanceCycle!.companyValueIds!.forEach(valueId => {
-        const value = companyValues.find(v => v.id === valueId)
-        if (value) {
-          topicsFromCycle.push({
-            id: `value-${value.id}`,
-            name: value.title,
-            category: 'value',
             rating: undefined,
             comment: ''
           })
         }
       })
     }
-
-    return topicsFromCycle
-  }, [performanceCycle, companyValues, ratingScales, ratingScalesLoading, companyValuesLoading, employeeSkills])
+    return topicsFromSkills
+  }, [evaluationFormData, evaluationFormSkillsAsTopics, evaluationFormCompanyValues, employeeSkills])
 
   // Initialize form values with dynamic topics
   const [formValues, setFormValues] = useState<PerformanceEvaluationFormValues>({
     employeeId: undefined,
     employeeName: undefined,
     topics: [],
+    comments: '',
     ...initialValues
   })
 
@@ -355,25 +379,62 @@ export const PerformanceEvaluationFormProvider: React.FC<PerformanceEvaluationFo
     try {
       setIsLoading(true)
 
-      // Format topics (skills and values) with their ratings as a string
-      // Format: "topicName:rating;topicName:rating;..."
-      const formattedComments = formValues.topics
-        .map(topic => {
-          const ratingValue = topic.rating !== undefined ? topic.rating : 'N/A'
-          return `${topic.name}:${ratingValue}`
-        })
-        .join(';')
+      const taskPayload = (businessAppContext?.additionalData as any)?.psi_taskPayload
+      const evaluationFormDataPayload = taskPayload?.evaluationFormData
+      const rawRatingScaleValues = evaluationFormDataPayload?.ratingScaleValues
 
-      // Check if this is a manager review by looking at NodeName in taskPayload
-      const nodeName = (businessAppContext?.additionalData as any)?.psi_taskPayload?.NodeName
-      const isManagerReview = nodeName === 'Manager Review'
-      // Create payload with appropriate field name based on review type
-      const payload = isManagerReview ? { managerComments: formattedComments } : { employeeComments: formattedComments }
+      const getRatingScaleValueId = (rating: number | undefined): string => {
+        if (rating == null || !Array.isArray(rawRatingScaleValues)) return ''
+        const index = rating - 1
+        const item = rawRatingScaleValues[index]
+        return (item?.id ?? item?.ratingScaleValueId ?? '') as string
+      }
 
-      // Dispatch the process continue event
+      const evaluationId = evaluationFormDataPayload?.evaluationId ?? ''
+      const nodeName = taskPayload?.NodeName
+      const taskName = taskPayload?.TaskName
+      const isManagerReview = nodeName === 'Manager Review' || nodeName === 'Manager Evaluation'
+      const isPeerReview = taskName === 'peerEvaluation' || taskName === 'peerReview'
+      const employeeId =
+        isManagerReview || isPeerReview
+          ? (businessAppContext?.userInfo?.employeeDetails?.employeeId ?? '')
+          : (formValues.employeeId ?? preSelectedEmployeeId ?? '')
+
+      const skillRatings = formValues.topics
+        .filter(t => t.category === 'skill')
+        .map(topic => ({
+          skillId: topic.id.replace(/^skill-/, ''),
+          ratingScaleValueId: getRatingScaleValueId(topic.rating),
+          comments: topic.comment ?? ''
+        }))
+
+      const companyValueRatings = formValues.topics
+        .filter(t => t.category === 'value')
+        .map(topic => ({
+          companyValueId: topic.id.replace(/^value-/, ''),
+          ratingScaleValueId: getRatingScaleValueId(topic.rating),
+          comments: topic.comment ?? ''
+        }))
+
+      const reviewSubmission = {
+        evaluationId,
+        employeeId,
+        skillRatings,
+        companyValueRatings,
+        comments: formValues.comments ?? ''
+      }
+
+      let payload: Record<string, unknown>
+      if (isPeerReview) {
+        payload = { peerReviewSubmission: reviewSubmission }
+      } else if (isManagerReview) {
+        payload = { managerReviewSubmission: reviewSubmission }
+      } else {
+        payload = { reviewSubmission }
+      }
+
       dispatchProcessContinueEvent('pse_submit', payload)
 
-      // Also call the original onSubmit if provided (for backward compatibility)
       if (onSubmit) {
         await onSubmit(formValues)
       }
@@ -382,7 +443,7 @@ export const PerformanceEvaluationFormProvider: React.FC<PerformanceEvaluationFo
     } finally {
       setIsLoading(false)
     }
-  }, [formValues, onSubmit, setError, businessAppContext.userInfo, preSelectedEmployee, getEmployeeById])
+  }, [formValues, onSubmit, setError, businessAppContext?.additionalData, preSelectedEmployeeId])
 
   const handleCancel = useCallback(async () => {
     try {
@@ -420,7 +481,7 @@ export const PerformanceEvaluationFormProvider: React.FC<PerformanceEvaluationFo
     isPreSelectedEmployeeCurrentUser,
     isRequestedEvaluationFlow,
     ratingScaleValues,
-    ratingScaleLoading: ratingScalesLoading || cycleLoading,
+    ratingScaleLoading: false,
     employeeSkillsLoading
   }
 

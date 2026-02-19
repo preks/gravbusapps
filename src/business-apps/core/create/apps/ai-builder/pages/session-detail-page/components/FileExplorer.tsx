@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { ChevronRight, ChevronDown, File, Folder, FolderOpen, RefreshCw, Search, X } from 'lucide-react'
+import { ChevronRight, ChevronDown, File, Folder, FolderOpen, RefreshCw, Search, X, Download } from 'lucide-react'
 import { Button } from '@newwork/nw-design-system'
 import { builderClient } from '@/common/network/ai/builder'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -16,9 +16,17 @@ interface FileExplorerProps {
   repoId: string
   sessionId: string
   onFileClick?: (path: string) => void
+  onDownloadPatch?: () => void
+  uniqueFileSummary?: { totalUniqueFiles: number } | null
 }
 
-export const FileExplorer: React.FC<FileExplorerProps> = ({ repoId, sessionId, onFileClick }) => {
+export const FileExplorer: React.FC<FileExplorerProps> = ({
+  repoId,
+  sessionId,
+  onFileClick,
+  onDownloadPatch,
+  uniqueFileSummary
+}) => {
   const [tree, setTree] = useState<TreeNode | null>(null)
   const [loading, setLoading] = useState(false)
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
@@ -29,7 +37,7 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({ repoId, sessionId, o
     try {
       const data = await builderClient.executeTool(
         'get_repository_explorer',
-        { path: '.', max_depth: 15 },
+        { path: '.', max_depth: 15, sessionOnly: true },
         repoId,
         sessionId
       )
@@ -194,6 +202,21 @@ export const FileExplorer: React.FC<FileExplorerProps> = ({ repoId, sessionId, o
             <RefreshCw size={16} className={loading ? 'gba:animate-spin' : ''} />
           </Button>
         </div>
+
+        {/* Patch Button (Debug) */}
+        {uniqueFileSummary && uniqueFileSummary.totalUniqueFiles > 0 && onDownloadPatch && (
+          <div className="gba:mb-3">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={onDownloadPatch}
+              className="gba:w-full gba:h-8 gba:gap-2 gba:text-xs"
+            >
+              <Download size={14} />
+              {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.patch_button', 'Patch')} (Debug)
+            </Button>
+          </div>
+        )}
 
         {/* Search */}
         <div className="gba:relative gba:mb-2">

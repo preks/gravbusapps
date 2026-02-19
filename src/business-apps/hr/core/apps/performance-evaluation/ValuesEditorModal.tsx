@@ -58,7 +58,7 @@ const ValuesEditorModal: React.FC<ValuesEditorModalProps> = ({ open, onOpenChang
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent data-testid="performance-values-editor-modal">
+      <DialogContent data-testid="performance-values-editor-modal" onInteractOutside={e => e.preventDefault()}>
         <DialogHeader>
           <DialogTitle>{initialValues ? t('values-modal-title-edit') : t('values-modal-title-add')}</DialogTitle>
           <DialogDescription>{t('values-modal-description')}</DialogDescription>

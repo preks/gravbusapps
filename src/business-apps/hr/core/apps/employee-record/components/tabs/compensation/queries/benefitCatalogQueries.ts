@@ -41,6 +41,7 @@ export const GET_EMPLOYEE_BENEFITS_FOR_CATALOG = /*sql*/ `
       status
       benefitStatus
       notes
+      comments
       createdAt
       updatedAt
     }

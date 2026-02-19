@@ -13,8 +13,10 @@ export const DOCUMENT_REF = `
   }
   documentTypeRef
   fileInfo
+  fileSize
   folder
   id
+  mimeType
   name
   parentDocumentId
 `

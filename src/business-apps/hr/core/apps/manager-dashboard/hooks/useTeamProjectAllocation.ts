@@ -11,6 +11,8 @@ export interface TeamAllocationData {
 
 export interface TeamProjectAllocationResult {
   allocations: TeamAllocationData[]
+  /** Per-employee allocation totals (sum of EmployeeMatrixUnit percentages) */
+  employeeAllocations: Array<{ id: string; allocationPercent: number }>
   totalAllocatedPercentage: number
   averageAllocationPercentage: number
   unallocatedCount: number
@@ -38,6 +40,7 @@ export const useTeamProjectAllocation = ({
   managerId
 }: UseTeamProjectAllocationProps): TeamProjectAllocationResult => {
   const [allocations, setAllocations] = useState<TeamAllocationData[]>([])
+  const [employeeAllocations, setEmployeeAllocations] = useState<Array<{ id: string; allocationPercent: number }>>([])
   const [totalAllocatedPercentage, setTotalAllocatedPercentage] = useState(0)
   const [averageAllocationPercentage, setAverageAllocationPercentage] = useState(0)
   const [unallocatedCount, setUnallocatedCount] = useState(0)
@@ -78,6 +81,7 @@ export const useTeamProjectAllocation = ({
 
       if (employeeIds.length === 0) {
         setAllocations([])
+        setEmployeeAllocations([])
         setTotalAllocatedPercentage(0)
         setAverageAllocationPercentage(0)
         setUnallocatedCount(0)
@@ -171,6 +175,12 @@ export const useTeamProjectAllocation = ({
       setAverageAllocationPercentage(avgAllocation)
       setUnallocatedCount(notAllocatedCount)
       setUnallocatedEmployeeIds(notAllocatedIds)
+      setEmployeeAllocations(
+        employeeIds.map(id => ({
+          id,
+          allocationPercent: employeeAllocationMap.get(id) || 0
+        }))
+      )
 
       // Build team breakdown
       const aggregatedAllocations: TeamAllocationData[] = Array.from(teamAllocationMap.entries()).map(
@@ -190,6 +200,7 @@ export const useTeamProjectAllocation = ({
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Failed to fetch team project allocation'))
       console.error('Error fetching team project allocation:', err)
+      setEmployeeAllocations([])
     } finally {
       setLoading(false)
     }
@@ -201,6 +212,7 @@ export const useTeamProjectAllocation = ({
 
   return {
     allocations,
+    employeeAllocations,
     totalAllocatedPercentage,
     averageAllocationPercentage,
     unallocatedCount,

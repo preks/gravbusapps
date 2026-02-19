@@ -6,7 +6,6 @@
 import RealtimeKitVideoBackgroundTransformer from '@cloudflare/realtimekit-virtual-background'
 import type { RealtimeKitMeeting, VideoMiddleware } from '@cloudflare/realtimekit-react'
 import backgroundPoster from '../assets/background-poster.jpg'
-import { rtkDebug } from '../utils/rtkDebug'
 
 export class RTKVirtualBackground {
   private transformer: RealtimeKitVideoBackgroundTransformer | null = null
@@ -18,7 +17,6 @@ export class RTKVirtualBackground {
 
     // Check browser support
     if (!RealtimeKitVideoBackgroundTransformer.isSupported()) {
-      rtkDebug.warn('[RTK Virtual Background] ⚠️ Not supported in this browser')
       throw new Error('Virtual background not supported in this browser')
     }
 

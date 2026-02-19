@@ -46,6 +46,7 @@ export interface ChatConversationViewProps {
   accessToken: string | undefined
   onSendMessage: (content: string, metadata?: Record<string, unknown>) => Promise<void>
   apiClient: ChatApiClient | null
+  onUpdateMessage?: (messageId: string, updates: Partial<Message>) => void
   isAIProcessing: boolean
   aiStreamingText: string | null
   isExpertProcessing: boolean
@@ -94,6 +95,7 @@ export function ChatConversationView({
   accessToken,
   onSendMessage,
   apiClient,
+  onUpdateMessage,
   isAIProcessing,
   aiStreamingText,
   isExpertProcessing,
@@ -151,6 +153,7 @@ export function ChatConversationView({
           onSendMessage={onSendMessage}
           participants={stableActiveConversation.participants}
           apiClient={apiClient}
+          onUpdateMessage={onUpdateMessage}
         />
         {isAIProcessing && (
           <div className="gba:px-4 gba:py-2 gba:border-t gba:border-border/30 gba:bg-muted/20">

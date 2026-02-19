@@ -1,8 +1,13 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { PageLayout, useTranslation } from '@newwork/nw-design-system'
 import { ClipboardTextIcon, TicketIcon, GitBranchIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { MODULE_COLORS } from '@/common/constants/ui'
+import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
+import { OnboardingCasesView } from './views/onboarding-cases-view/OnboardingCasesView'
+import { OnboardingCaseDetailView } from './views/onboarding-case-detail-view/OnboardingCaseDetailView'
+import { OnboardingTicketsView } from './views/onboarding-tickets-view/OnboardingTicketsView'
+import { OnboardingFlowsView } from './views/onboarding-flows-view/OnboardingFlowsView'
 import onboardingI18n from './_i18n'
 
 const moduleColor = MODULE_COLORS.HR
@@ -36,7 +41,7 @@ function getCaseIdFromUrl(): string | null {
   return new URLSearchParams(globalThis.window.location.search).get('caseId')
 }
 
-export const OnboardingEmployee: React.FC<BusinessAppContextProps> = () => {
+export const OnboardingEmployee: React.FC<BusinessAppContextProps> = context => {
   const { t } = useTranslation(onboardingI18n)
   const [caseId, setCaseId] = useState<string | null>(getCaseIdFromUrl)
 
@@ -68,6 +73,11 @@ export const OnboardingEmployee: React.FC<BusinessAppContextProps> = () => {
     updateUrl(key)
   }
 
+  const handleBackFromCase = () => {
+    setCaseId(null)
+    navigateTo(buildPlatformUrl('/platform/onboarding-employee', { view: 'cases' }))
+  }
+
   useEffect(() => {
     const urlParams = new URLSearchParams(globalThis.window.location.search)
     if (!urlParams.has('view')) {
@@ -91,10 +101,15 @@ export const OnboardingEmployee: React.FC<BusinessAppContextProps> = () => {
 
   const activeTabInfo = VIEW_OPTIONS.find(opt => opt.key === activeTab) ?? VIEW_OPTIONS[0]
 
+  const onNavigateToCase = useCallback((id: string) => {
+    setCaseId(id)
+    navigateTo(buildPlatformUrl('/platform/onboarding-employee', { view: 'cases', caseId: id }))
+  }, [])
+
   if (caseId) {
     return (
       <div data-testid="onboarding-employee-app">
-        <div>Case Detail</div>
+        <OnboardingCaseDetailView caseId={caseId} onBack={handleBackFromCase} accessToken={context.accessToken} />
       </div>
     )
   }
@@ -102,11 +117,11 @@ export const OnboardingEmployee: React.FC<BusinessAppContextProps> = () => {
   const renderContent = () => {
     switch (activeTab) {
       case 'cases':
-        return <div>Cases</div>
+        return <OnboardingCasesView {...context} onNavigateToCase={onNavigateToCase} />
       case 'tickets':
-        return <div>Tickets</div>
+        return <OnboardingTicketsView {...context} />
       case 'flows':
-        return <div>Flows</div>
+        return <OnboardingFlowsView {...context} />
       default:
         return null
     }

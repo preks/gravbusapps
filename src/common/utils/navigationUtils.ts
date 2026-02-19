@@ -61,6 +61,7 @@ const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   // HR
   '/platform/employee-record': 'hr/core/apps/employee-record',
   '/platform/hr/absences/manager-absences': 'hr/absences/apps/manager-absences',
+  '/platform/onboarding-employee': 'hr/core/apps/onboarding-employee',
 
   /// Recruiting: Apps
   '/platform/hr/recruiting/recruiting-manager': 'hr/recruiting/apps/recruiting-manager',
@@ -118,6 +119,7 @@ const PLATFORM_URL_TO_APP_MAPPING: NavigationMapping = {
   '/platform/create/function-manager': 'core/create/apps/function-manager',
   '/platform/create/prompt-manager': 'core/create/apps/prompt-manager',
   '/platform/create/ai-builder': 'core/create/apps/ai-builder',
+  '/platform/create/ai-orchestrator': 'core/create/apps/ai-orchestrator',
 
   // Flow
   '/platform/apps/flow/apps/creator': 'flow/apps/creator',
