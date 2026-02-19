@@ -1,15 +1,16 @@
 import React, { useState, useMemo, useEffect } from 'react'
-import { Button, Alert, Label, AlertDescription } from '@newwork/nw-design-system'
+import { Button, Alert, Label, AlertDescription, useTranslation } from '@newwork/nw-design-system'
 import { usePerformanceEvaluationPeerForm } from '../context/PerformanceEvaluationPeerFormContext'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import MultiEmployeeSelectionModal, {
   MultiEmployeeOption
 } from '../../feedback-request-form/components/MultiEmployeeSelectionModal'
+import translations from '../_i18n'
 
 const prefixDataTestId = 'PerformanceEvaluationPeerForm'
 
 const PerformanceEvaluationPeerFormComponent: React.FC = () => {
+  const { t } = useTranslation(translations)
   const {
     formValues,
     setFormValues,
@@ -52,15 +53,13 @@ const PerformanceEvaluationPeerFormComponent: React.FC = () => {
     return `${shown}${extra}`
   }, [formValues.peerEmployeeNames])
 
-  const title = getTranslationFromI18nKeyAndLabel('lowcoder:performance_evaluation_peer_form.title', 'Select Peers')
-
   return (
     <div
       className="gba:flex gba:flex-col gba:h-full gba:w-full gba:bg-background"
       data-testid={formatDataTestId(prefixDataTestId, 'Container')}
     >
       <div className="gba:flex-shrink-0 gba:px-6 gba:py-4 gba:border-b gba:border-border">
-        <h2 className="gba:text-lg gba:font-semibold gba:text-foreground">{title}</h2>
+        <h2 className="gba:text-lg gba:font-semibold gba:text-foreground">{t('title')}</h2>
       </div>
 
       <div className="gba:flex-1 gba:px-6 gba:py-6 gba:space-y-4">
@@ -72,16 +71,11 @@ const PerformanceEvaluationPeerFormComponent: React.FC = () => {
 
         <div className="gba:space-y-2">
           <Label className="gba:block gba:text-sm gba:font-medium">
-            {getTranslationFromI18nKeyAndLabel('lowcoder:performance_evaluation_peer_form.peersLabel', 'Peers')}{' '}
-            <span className="gba:text-destructive">*</span>
+            {t('peers-label')} <span className="gba:text-destructive">*</span>
           </Label>
           <div className="gba:flex gba:items-center gba:justify-between gba:gap-2">
             <div className="gba:text-sm gba:text-muted-foreground gba:min-w-0 gba:truncate">
-              {peersPreview ||
-                getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:performance_evaluation_peer_form.selectPeersPlaceholder',
-                  'Select peers'
-                )}
+              {peersPreview || t('select-peers-placeholder')}
             </div>
             <Button
               variant="outline"
@@ -89,10 +83,7 @@ const PerformanceEvaluationPeerFormComponent: React.FC = () => {
               onClick={() => setIsModalOpen(true)}
               data-testid={formatDataTestId(prefixDataTestId, 'OpenPeerSelect')}
             >
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:performance_evaluation_peer_form.selectPeers',
-                'Select peers'
-              )}
+              {t('select-peers')}
             </Button>
           </div>
         </div>
@@ -105,7 +96,7 @@ const PerformanceEvaluationPeerFormComponent: React.FC = () => {
           onClick={onCancel}
           data-testid={formatDataTestId(prefixDataTestId, 'CancelButton')}
         >
-          {getTranslationFromI18nKeyAndLabel('common.cancel', 'Cancel')}
+          {t('cancel-button')}
         </Button>
         <Button
           type="button"
@@ -114,7 +105,7 @@ const PerformanceEvaluationPeerFormComponent: React.FC = () => {
           onClick={onSubmit}
           data-testid={formatDataTestId(prefixDataTestId, 'SubmitButton')}
         >
-          {getTranslationFromI18nKeyAndLabel('lowcoder:performance_evaluation_peer_form.submit', 'Submit')}
+          {t('submit-button')}
         </Button>
       </div>
 
