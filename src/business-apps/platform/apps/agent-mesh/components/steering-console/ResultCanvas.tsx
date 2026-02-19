@@ -1,4 +1,4 @@
-import { Card, CardContent, CardTitle, Button } from '@newwork/nw-design-system'
+import { Card, CardContent, Button } from '@newwork/nw-design-system'
 import { FileText, Table } from 'lucide-react'
 import { MarkdownWithChipsRenderer } from '@/common/components/markdown/MarkdownWithChipsRenderer'
 
@@ -20,25 +20,20 @@ export const ResultCanvas = ({ result }: ResultCanvasProps) => {
 
   return (
     <div className="gba:flex gba:flex-col gba:h-full gba:bg-muted/20" data-testid="result-canvas">
-      <div className="gba:flex gba:items-center gba:justify-between gba:border-b gba:border-border gba:bg-background gba:px-4 gba:py-2">
-        <CardTitle className="gba:text-lg" data-testid="result-canvas-title">
-          Result
-        </CardTitle>
-        {result && (
-          <div className="gba:flex gba:gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              className="gba:gap-2"
-              onClick={handleExportText}
-              data-testid="result-canvas-export-text"
-            >
-              <FileText className="gba:w-4 gba:h-4" />
-              Export
-            </Button>
-          </div>
-        )}
-      </div>
+      {result && (
+        <div className="gba:flex gba:items-center gba:justify-end gba:px-4 gba:py-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gba:gap-2"
+            onClick={handleExportText}
+            data-testid="result-canvas-export-text"
+          >
+            <FileText className="gba:w-4 gba:h-4" />
+            Export
+          </Button>
+        </div>
+      )}
 
       <div className="gba:flex-1 gba:overflow-y-auto gba:p-4">
         {!result ? (

@@ -7,6 +7,7 @@
 
 import React, { useState, useCallback, useRef, useMemo, useEffect } from 'react'
 import ReactQuill from 'react-quill'
+import { useEditorKeyboardIsolation } from '../shared/hooks/useEditorKeyboardIsolation'
 import {
   Button,
   Input,
@@ -142,8 +143,11 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
   const [isExporting, setIsExporting] = useState(false)
 
   const editorRef = useRef<ReactQuill>(null)
+  const editorContainerRef = useRef<HTMLDivElement>(null)
   const titleInputRef = useRef<HTMLInputElement>(null)
   const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  useEditorKeyboardIsolation(editorContainerRef)
 
   /**
    * Save document
@@ -550,7 +554,7 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
             }
           `}</style>
 
-          <div className="gba:flex gba:flex-col gba:flex-1 document-editor">
+          <div ref={editorContainerRef} className="gba:flex gba:flex-col gba:flex-1 document-editor">
             <ReactQuill
               ref={editorRef}
               theme="snow"

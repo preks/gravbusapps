@@ -1,5 +1,5 @@
-import { Button, Badge } from '@newwork/nw-design-system'
-import { Plus, MessageSquare, Trash2, Clock } from 'lucide-react'
+import { Button } from '@newwork/nw-design-system'
+import { Plus, MessageSquare, Trash2, X } from 'lucide-react'
 import type { MeshSession } from '../../types/agentMesh'
 
 interface SessionSidebarProps {
@@ -8,19 +8,21 @@ interface SessionSidebarProps {
   onSelectSession: (sessionId: string) => void
   onNewSession: () => void
   onDeleteSession: (sessionId: string) => void
+  onClose?: () => void
 }
 
 const formatRelativeTime = (dateStr: string): string => {
-  const now = Date.now()
-  const then = new Date(dateStr).getTime()
-  const diffMs = now - then
-  const diffMin = Math.floor(diffMs / 60000)
-  if (diffMin < 1) return 'just now'
-  if (diffMin < 60) return `${diffMin}m ago`
-  const diffHours = Math.floor(diffMin / 60)
-  if (diffHours < 24) return `${diffHours}h ago`
-  const diffDays = Math.floor(diffHours / 24)
-  return `${diffDays}d ago`
+  const date = new Date(dateStr)
+  const now = new Date()
+  const diff = now.getTime() - date.getTime()
+  const minutes = Math.floor(diff / 60000)
+  if (minutes < 1) return 'Just now'
+  if (minutes < 60) return `${minutes}m ago`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}h ago`
+  const days = Math.floor(hours / 24)
+  if (days < 7) return `${days}d ago`
+  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
 }
 
 export const SessionSidebar = ({
@@ -28,25 +30,46 @@ export const SessionSidebar = ({
   activeSessionId,
   onSelectSession,
   onNewSession,
-  onDeleteSession
+  onDeleteSession,
+  onClose
 }: SessionSidebarProps) => {
   return (
-    <div
-      className="gba:flex gba:flex-col gba:h-full gba:bg-card gba:border-r gba:border-border"
-      data-testid="session-sidebar"
-    >
-      <div className="gba:flex gba:items-center gba:justify-between gba:p-3 gba:border-b gba:border-border">
-        <span className="gba:text-xs gba:font-semibold gba:text-foreground">Sessions</span>
-        <Button variant="ghost" size="sm" onClick={onNewSession} data-testid="session-new-btn">
-          <Plus className="gba:w-3.5 gba:h-3.5" />
+    <div className="gba:flex gba:flex-col gba:h-full" data-testid="session-sidebar">
+      {/* Header */}
+      <div className="gba:flex gba:items-center gba:justify-between gba:px-4 gba:py-3 gba:border-b gba:border-border">
+        <h2 className="gba:text-sm gba:font-bold gba:text-foreground gba:tracking-tight">Session History</h2>
+        {onClose && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="gba:h-8 gba:w-8 gba:rounded-xl"
+            onClick={onClose}
+            data-testid="session-sidebar-close"
+          >
+            <X className="gba:h-4 gba:w-4" />
+          </Button>
+        )}
+      </div>
+
+      {/* New Session button */}
+      <div className="gba:p-3">
+        <Button
+          variant="outline"
+          className="gba:w-full gba:justify-start gba:gap-2.5 gba:rounded-xl gba:h-10"
+          onClick={onNewSession}
+          data-testid="session-new-btn"
+        >
+          <Plus className="gba:h-4 gba:w-4" />
+          <span className="gba:text-sm gba:font-medium">New Session</span>
         </Button>
       </div>
 
-      <div className="gba:flex-1 gba:overflow-y-auto gba:p-1.5">
+      {/* Sessions list */}
+      <div className="gba:flex-1 gba:overflow-y-auto gba:px-3 gba:pb-3 gba:space-y-0.5">
         {sessions.length === 0 && (
-          <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-full gba:text-muted-foreground gba:gap-2 gba:p-4">
-            <MessageSquare className="gba:w-6 gba:h-6 gba:opacity-30" />
-            <p className="gba:text-xs gba:text-center">No conversations yet</p>
+          <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-12 gba:space-y-2">
+            <MessageSquare className="gba:h-6 gba:w-6 gba:text-muted-foreground/40" />
+            <p className="gba:text-sm gba:text-muted-foreground">No sessions yet</p>
           </div>
         )}
 
@@ -55,46 +78,30 @@ export const SessionSidebar = ({
           return (
             <div
               key={session.session_id}
-              className={`gba:group gba:flex gba:items-start gba:gap-2 gba:p-2 gba:rounded-lg gba:cursor-pointer gba:transition-colors gba:mb-0.5 ${
-                isActive ? 'gba:bg-primary/10 gba:border gba:border-primary/20' : 'gba:hover:bg-muted/50'
+              className={`gba:flex gba:items-start gba:gap-2.5 gba:rounded-xl gba:px-3 gba:py-2.5 gba:cursor-pointer gba:group gba:transition-all gba:duration-150 ${
+                isActive ? 'gba:bg-accent gba:text-accent-foreground' : 'gba:hover:bg-muted/70'
               }`}
               onClick={() => onSelectSession(session.session_id)}
               data-testid={`session-item-${session.session_id}`}
             >
-              <MessageSquare
-                className={`gba:w-3.5 gba:h-3.5 gba:mt-0.5 gba:flex-shrink-0 ${
-                  isActive ? 'gba:text-primary' : 'gba:text-muted-foreground'
-                }`}
-              />
+              <MessageSquare className="gba:h-3.5 gba:w-3.5 gba:flex-shrink-0 gba:text-muted-foreground gba:mt-1" />
               <div className="gba:flex-1 gba:min-w-0">
-                <p
-                  className={`gba:text-xs gba:font-medium gba:truncate ${
-                    isActive ? 'gba:text-primary' : 'gba:text-foreground'
-                  }`}
-                >
-                  {session.title}
-                </p>
-                <div className="gba:flex gba:items-center gba:gap-1 gba:mt-0.5">
-                  <Clock className="gba:w-2.5 gba:h-2.5 gba:text-muted-foreground" />
-                  <span className="gba:text-[10px] gba:text-muted-foreground">
-                    {formatRelativeTime(session.updated_at)}
-                  </span>
-                  <Badge variant="secondary" className="gba:text-[9px] gba:px-1 gba:py-0 gba:ml-1">
-                    {session.messages.length}
-                  </Badge>
-                </div>
+                <span className="gba:text-sm gba:truncate gba:block gba:font-medium">{session.title}</span>
+                <span className="gba:text-[10px] gba:text-muted-foreground/70">
+                  {formatRelativeTime(session.updated_at)}
+                </span>
               </div>
               <Button
                 variant="ghost"
-                size="sm"
-                className="gba:opacity-0 gba:group-hover:opacity-100 gba:transition-opacity gba:p-1 gba:h-auto"
+                size="icon"
+                className="gba:h-6 gba:w-6 gba:rounded-md gba:opacity-0 gba:group-hover:opacity-100 gba:transition-opacity gba:flex-shrink-0"
                 onClick={e => {
                   e.stopPropagation()
                   onDeleteSession(session.session_id)
                 }}
                 data-testid={`session-delete-${session.session_id}`}
               >
-                <Trash2 className="gba:w-3 gba:h-3 gba:text-muted-foreground" />
+                <Trash2 className="gba:h-3 gba:w-3" />
               </Button>
             </div>
           )
