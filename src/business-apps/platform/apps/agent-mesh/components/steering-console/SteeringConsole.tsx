@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@newwork/nw-design-system'
+import { Tabs, TabsContent } from '@newwork/nw-design-system'
+import { Activity, Sparkles, Network } from 'lucide-react'
 import { SteeringChat } from './SteeringChat'
 import { ResultCanvas } from './ResultCanvas'
 import { AgentCommFeed, type CommEvent } from './AgentCommFeed'
@@ -37,6 +38,8 @@ export const SteeringConsole = ({ accessToken, userInfo }: SteeringConsoleProps)
   const pollSinceRef = useRef<string>('')
   const callerNameRef = useRef<string>('Steering Agent')
   const commEventsRef = useRef<CommEvent[]>([])
+  // Latched correlation_id for the current execution run — filters out unrelated executions
+  const currentCorrelationIdRef = useRef<string | null>(null)
 
   const sessionResetCb = useCallback(() => {
     setResult(null)
@@ -133,6 +136,16 @@ export const SteeringConsole = ({ accessToken, userInfo }: SteeringConsoleProps)
       })
 
       for (const exec of sorted) {
+        // Latch onto the first correlation_id we see — all subsequent executions must match it.
+        // This prevents executions from other users, previous queries, or unrelated runs
+        // from bleeding into the current session's communication feed.
+        if (!currentCorrelationIdRef.current && exec.correlation_id) {
+          currentCorrelationIdRef.current = exec.correlation_id
+        }
+        if (currentCorrelationIdRef.current && exec.correlation_id !== currentCorrelationIdRef.current) {
+          continue
+        }
+
         const wasSeenAsComplete = seenIdsRef.current.get(exec.execution_id)
         const isDecision = exec.status === 'decision'
         const isComplete = exec.status === 'success' || exec.status === 'error' || exec.status === 'timeout'
@@ -181,15 +194,12 @@ export const SteeringConsole = ({ accessToken, userInfo }: SteeringConsoleProps)
         }
       }
 
-      if (executions.length > 0) {
-        const latest = executions[0]
-        if (latest?.correlation_id) {
-          try {
-            const traceData = await meshClient.getExecutionTrace(latest.correlation_id)
-            setTrace(traceData)
-          } catch {
-            /* best effort */
-          }
+      if (currentCorrelationIdRef.current) {
+        try {
+          const traceData = await meshClient.getExecutionTrace(currentCorrelationIdRef.current)
+          setTrace(traceData)
+        } catch {
+          /* best effort */
         }
       }
     } catch {
@@ -206,6 +216,7 @@ export const SteeringConsole = ({ accessToken, userInfo }: SteeringConsoleProps)
       setIsTraceExpanded(true)
       callerNameRef.current = agentName || 'Steering Agent'
       seenIdsRef.current = new Map()
+      currentCorrelationIdRef.current = null
       pollSinceRef.current = new Date().toISOString()
 
       stopPolling()
@@ -303,21 +314,49 @@ export const SteeringConsole = ({ accessToken, userInfo }: SteeringConsoleProps)
       {/* Right panel: Tabs + LiveTrace */}
       <div className="gba:flex-1 gba:flex gba:flex-col gba:overflow-hidden gba:min-w-0">
         <Tabs value={rightTab} onValueChange={setRightTab} className="gba:flex gba:flex-col gba:flex-1 gba:min-h-0">
-          <div className="gba:flex gba:items-center gba:border-b gba:border-border gba:bg-card gba:px-4 gba:py-3">
-            <TabsList className="gba:h-8" data-testid="steering-console-right-tabs">
-              <TabsTrigger
-                value="communication"
-                className="gba:text-xs gba:gap-1.5"
-                data-testid="steering-console-tab-comm"
-              >
-                Agent Communication
-                {isExecuting && <span className="gba:w-2 gba:h-2 gba:rounded-full gba:bg-primary gba:animate-pulse" />}
-              </TabsTrigger>
-              <TabsTrigger value="result" className="gba:text-xs" data-testid="steering-console-tab-result">
-                Result
-                {result && <span className="gba:w-1.5 gba:h-1.5 gba:rounded-full gba:bg-success gba:ml-1" />}
-              </TabsTrigger>
-            </TabsList>
+          {/* Sleek underline tab header */}
+          <div
+            className="gba:flex gba:items-stretch gba:h-11 gba:border-b gba:border-border gba:bg-background gba:flex-shrink-0"
+            data-testid="steering-console-right-tabs"
+          >
+            {/* Context icon */}
+            <div className="gba:flex gba:items-center gba:px-3 gba:border-r gba:border-border/50 gba:text-muted-foreground">
+              <Network className="gba:w-4 gba:h-4" />
+            </div>
+
+            {/* Communication tab */}
+            <button
+              className={`gba:h-full gba:px-4 gba:flex gba:items-center gba:gap-2 gba:text-sm gba:font-medium gba:border-b-2 gba:transition-all gba:duration-200 gba:outline-none gba:cursor-pointer ${
+                rightTab === 'communication'
+                  ? 'gba:border-primary gba:text-foreground'
+                  : 'gba:border-transparent gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/40'
+              }`}
+              onClick={() => setRightTab('communication')}
+              data-testid="steering-console-tab-comm"
+            >
+              <Activity className="gba:w-3.5 gba:h-3.5 gba:flex-shrink-0" />
+              <span>Agent Communication</span>
+              {isExecuting && (
+                <span className="gba:w-1.5 gba:h-1.5 gba:rounded-full gba:bg-primary gba:animate-pulse gba:flex-shrink-0" />
+              )}
+            </button>
+
+            {/* Result tab */}
+            <button
+              className={`gba:h-full gba:px-4 gba:flex gba:items-center gba:gap-2 gba:text-sm gba:font-medium gba:border-b-2 gba:transition-all gba:duration-200 gba:outline-none gba:cursor-pointer ${
+                rightTab === 'result'
+                  ? 'gba:border-primary gba:text-foreground'
+                  : 'gba:border-transparent gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/40'
+              }`}
+              onClick={() => setRightTab('result')}
+              data-testid="steering-console-tab-result"
+            >
+              <Sparkles className="gba:w-3.5 gba:h-3.5 gba:flex-shrink-0" />
+              <span>Result</span>
+              {result && !isExecuting && (
+                <span className="gba:w-1.5 gba:h-1.5 gba:rounded-full gba:bg-success gba:flex-shrink-0" />
+              )}
+            </button>
           </div>
 
           <TabsContent value="communication" className="gba:flex-1 gba:min-h-0 gba:m-0">
