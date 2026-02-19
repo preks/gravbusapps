@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { PageLayout, useTranslation, toast, Spinner } from '@newwork/nw-design-system'
+import { PageLayout, useTranslation, toast, Spinner, Toaster } from '@newwork/nw-design-system'
 import { ListChecks } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { MODULE_COLORS } from '@/common/constants/ui'
@@ -406,6 +406,7 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
 
   return (
     <div data-testid="performance-evaluation-container">
+      <Toaster position="bottom-right" />
       <PageLayout
         headerIcon={ListChecks}
         headerTitle={pageTitle}
