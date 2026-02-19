@@ -41,19 +41,21 @@ export const AIOrchestrator: React.FC<BusinessAppContextProps> = context => {
     navigateTo(buildPlatformUrl(`/platform/create/ai-orchestrator?jobId=${encodeURIComponent(jobId)}`))
   }, [])
 
-  if (showPlanDetail) {
-    return (
-      <PlanDetailPage
-        accessToken={context.accessToken ?? ''}
-        userInfo={context.userInfo}
-        jobId={jobId}
-        initialPrompt={initialPrompt ?? undefined}
-        onBack={handleBackToOverview}
-      />
-    )
-  }
-
-  return <OverviewPage accessToken={context.accessToken ?? ''} onNewPlan={handleNewPlan} onOpenPlan={handleOpenPlan} />
+  return (
+    <div className="gba:h-full gba:w-full">
+      {showPlanDetail ? (
+        <PlanDetailPage
+          accessToken={context.accessToken ?? ''}
+          userInfo={context.userInfo}
+          jobId={jobId}
+          initialPrompt={initialPrompt ?? undefined}
+          onBack={handleBackToOverview}
+        />
+      ) : (
+        <OverviewPage accessToken={context.accessToken ?? ''} onNewPlan={handleNewPlan} onOpenPlan={handleOpenPlan} />
+      )}
+    </div>
+  )
 }
 
 export default AIOrchestrator

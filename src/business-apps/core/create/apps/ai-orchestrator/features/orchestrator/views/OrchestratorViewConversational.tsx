@@ -1,26 +1,27 @@
 /**
- * OrchestratorViewConversational - Autonomous full-screen orchestrator
+ * OrchestratorViewConversational - Main orchestrator with agent chat + canvas layout.
  *
- * Features:
- * - Full-screen canvas with direct input
- * - Clean state transitions (idle → analyzing → review → building → complete/error)
- * - Professional, tool-focused design (not chatbot-style)
+ * - idle: Full-screen prompt input (IdleCanvas)
+ * - All other states: CreateLayout with chat side panel + canvas
  */
 
-import React, { useEffect } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useOrchestratorClient } from '../hooks/useOrchestratorClient'
 import { useBuildProgress } from '../hooks/useBuildProgress'
 import { useOrchestratorState } from '../hooks/useOrchestratorState'
 import { useOrchestratorHandlers } from '../hooks/useOrchestratorHandlers'
 import { useOrchestratorEffects } from '../hooks/useOrchestratorEffects'
+import { useCreateChat } from '../hooks/useCreateChat'
+import { useBuilderClient } from '@/common/network/ai/builder/useBuilderClient'
 import { IdleCanvas } from '../components/layouts'
-import { AnalyzingView, ReviewView, BuildingView, CompleteView, ErrorView } from '../components/state-views'
+import { CreateLayout } from '../components/layouts/CreateLayout'
+import { CreateAgentChat } from '../components/chat/CreateAgentChat'
+import { OrchestratorCanvasContent } from './OrchestratorCanvasContent.tsx'
 
 export interface OrchestratorViewConversationalProps {
   accessToken: string
   userInfo?: any
   initialPrompt?: string
-  /** When set, load this plan on mount and show review (for deep link / bookmark) */
   initialJobId?: string
   onBack?: () => void
   onComplete?: (success: boolean) => void
@@ -36,15 +37,16 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
   onComplete,
   'data-testid': testId = 'orchestrator-conversational'
 }) => {
-  // Initialize state
   const state = useOrchestratorState({ initialPrompt })
+  const orchestratorClient = useOrchestratorClient({ accessToken })
+  const builderClient = useBuilderClient(accessToken)
 
-  // Orchestrator client
-  const orchestratorClient = useOrchestratorClient({
-    accessToken
-  })
+  // Preview refresh token — bumped when AI fix modifies screen code
+  const [previewRefreshToken, setPreviewRefreshToken] = useState(0)
 
-  // Load plan from URL (jobId) when opening an existing plan
+  // Track which state transitions we already posted chat messages for
+  const lastChatStateRef = useRef<string | null>(null)
+
   useEffect(() => {
     if (!initialJobId || !accessToken) return
     orchestratorClient
@@ -55,18 +57,17 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
           plan.status === 'completed' || plan.components.some(c => c.status === 'completed' || c.status === 'reused')
         if (alreadyBuilt) {
           const firstWithSession = plan.components.find(c => c.metadata?.sessionId && c.metadata?.repoId)
-          const sessionId = firstWithSession?.metadata?.sessionId
-          const repoId = firstWithSession?.metadata?.repoId
-          if (sessionId || repoId) {
-            orchestratorClient.setSessionFromBuild(sessionId, repoId)
-          }
+          orchestratorClient.setSessionFromBuild(
+            firstWithSession?.metadata?.sessionId as string | undefined,
+            firstWithSession?.metadata?.repoId as string | undefined
+          )
         }
+        state.setChatActive(true)
         state.setViewState(alreadyBuilt ? 'complete' : 'review')
       })
       .catch(() => {})
   }, [initialJobId, accessToken])
 
-  // Build progress
   const buildProgress = useBuildProgress({
     client: orchestratorClient.client,
     plan: orchestratorClient.currentPlan,
@@ -95,7 +96,6 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
     onComponentUpdate: orchestratorClient.updateComponentProperties
   })
 
-  // Event handlers
   const handlers = useOrchestratorHandlers({
     state,
     orchestratorClient,
@@ -104,7 +104,6 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
     onBack
   })
 
-  // Side effects
   const { completedPhases } = useOrchestratorEffects({
     state,
     handlers,
@@ -112,118 +111,144 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
     initialPrompt
   })
 
-  // Render view based on state
-  const renderView = () => {
-    switch (state.viewState) {
-      case 'idle':
-        return <IdleCanvas onSubmit={handlers.handleAnalyze} isLoading={orchestratorClient.isAnalyzing} />
+  // --- Fix send handler (routes to AI builder for screen fixes) ---
+  const handleFixSend = useCallback(
+    async (prompt: string) => {
+      const sessionId = orchestratorClient.lastSessionId
+      const repoId = orchestratorClient.lastRepoId
+      if (!sessionId || !repoId) {
+        throw new Error('No session available for AI fix')
+      }
 
-      case 'analyzing':
-        return <AnalyzingView thinkingSteps={state.thinkingSteps} analysisProgress={state.analysisProgress} />
+      const stream = await builderClient.queryCode(repoId, prompt, [], true, true, sessionId, 'claude')
+      const reader = stream.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+      let hasMutation = false
 
-      case 'review':
-        if (!orchestratorClient.currentPlan) return null
-        return (
-          <ReviewView
-            plan={orchestratorClient.currentPlan}
-            userPrompt={state.userPrompt}
-            skippedCount={state.skippedCount}
-            isEditModalOpen={state.isEditModalOpen}
-            isSavingPlan={state.isSavingPlan}
-            editError={state.editError}
-            isAnalyzing={orchestratorClient.isAnalyzing}
-            isRefining={orchestratorClient.isRefining}
-            refinementSummary={orchestratorClient.refinementSummary}
-            refineError={orchestratorClient.refineError}
-            onStartBuild={handlers.handleStartBuild}
-            onCancel={handlers.handleCancel}
-            onReanalyze={handlers.handleReanalyze}
-            onEditModalOpen={() => state.setIsEditModalOpen(true)}
-            onEditModalClose={() => {
-              state.setIsEditModalOpen(false)
-              state.setEditError(null)
-            }}
-            onEditPlan={handlers.handleEditPlan}
-            onRefine={handlers.handleRefine}
-            onReset={handlers.handleReset}
-            onSkippedComponentsChange={ids => state.setSkippedCount(ids.length)}
-            onReanalyzePrompt={handlers.handleAnalyze}
-          />
-        )
+      while (true) {
+        const { value, done } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() ?? ''
 
-      case 'building':
-        return (
-          <BuildingView
-            currentPhase={buildProgress.currentPhase}
-            completedPhases={completedPhases}
-            overallProgress={buildProgress.overallProgress}
-            completedCount={buildProgress.completedCount}
-            reusedCount={buildProgress.reusedCount}
-            totalCount={buildProgress.totalCount}
-            failedCount={buildProgress.failedCount}
-            buildLogs={state.buildLogs}
-            phaseMessage={buildProgress.phaseMessage}
-            isBuilding={buildProgress.isBuilding}
-            tiles={buildProgress.tiles}
-            onCancel={buildProgress.cancelBuild}
-          />
-        )
+        for (const line of lines) {
+          const trimmed = line.trim()
+          if (!trimmed.startsWith('data:')) continue
+          const payload = trimmed.slice(5).trim()
+          if (!payload || payload === '[DONE]') continue
 
-      case 'complete':
-        if (!orchestratorClient.currentPlan) {
-          console.warn('[OrchestratorView] No current plan in complete state')
-          return null
-        }
-        if (process.env.NODE_ENV !== 'production') {
-          console.log('[OrchestratorView] Rendering complete view:', {
-            componentCount: orchestratorClient.currentPlan.components.length,
-            components: orchestratorClient.currentPlan.components.map(c => ({
-              id: c.id,
-              name: c.name,
-              type: c.type,
-              status: c.status,
-              publishedFileCount: c.publishedFileCount
-            }))
-          })
-        }
-        return (
-          <CompleteView
-            components={orchestratorClient.currentPlan.components}
-            jobId={orchestratorClient.currentPlan?.jobId}
-            buildDuration={buildProgress.buildDuration}
-            prompt={state.userPrompt}
-            accessToken={accessToken}
-            userInfo={userInfo}
-            onReset={handlers.handleReset}
-          />
-        )
+          try {
+            const eventData = JSON.parse(payload) as Record<string, unknown>
+            const eventType = String(eventData.type ?? '')
 
-      case 'error':
-        return (
-          <ErrorView
-            error={
-              state.capturedBuildError ||
-              buildProgress.buildError ||
-              orchestratorClient.analyzeError ||
-              'An error occurred'
+            if (eventType === 'tool_call') {
+              const toolName = String(eventData.toolName ?? '')
+              if (['write_file', 'delete_file', 'screen_build', 'run_command'].includes(toolName)) {
+                hasMutation = true
+              }
             }
-            partialComponents={orchestratorClient.currentPlan?.components}
-            jobId={orchestratorClient.currentPlan?.jobId}
-            buildDuration={buildProgress.buildDuration}
-            onReset={handlers.handleReset}
-            onRetry={handlers.handleRetry}
-            onModifyPlan={() => state.setViewState('review')}
-          />
-        )
+            if (eventType === 'error') {
+              throw new Error(String(eventData.content ?? 'Fix request failed'))
+            }
+          } catch (parseErr) {
+            if (parseErr instanceof Error && parseErr.message !== 'Fix request failed') continue
+            throw parseErr
+          }
+        }
+      }
 
-      default:
-        return <IdleCanvas onSubmit={handlers.handleAnalyze} isLoading={orchestratorClient.isAnalyzing} />
+      if (hasMutation) {
+        setPreviewRefreshToken(prev => prev + 1)
+      }
+    },
+    [builderClient, orchestratorClient.lastSessionId, orchestratorClient.lastRepoId]
+  )
+
+  // --- Chat integration ---
+  const chat = useCreateChat({
+    viewState: state.viewState,
+    onRefine: handlers.handleRefine,
+    onStartBuild: handlers.handleStartBuild,
+    onFixSend: handleFixSend
+  })
+
+  const handleIdleSubmit = useCallback(
+    async (prompt: string) => {
+      state.setChatActive(true)
+      // Add user's initial prompt to chat history
+      chat.addUserMessage(prompt, 'prompt')
+      await handlers.handleAnalyze(prompt)
+    },
+    [handlers, state, chat]
+  )
+
+  // Post contextual chat messages on state transitions (deduplicated via ref)
+  const viewState = state.viewState
+  const planJobId = orchestratorClient.currentPlan?.jobId
+  const planTitle = orchestratorClient.currentPlan?.userSummary?.title
+
+  useEffect(() => {
+    const stateKey = `${viewState}:${planJobId ?? ''}`
+    if (stateKey === lastChatStateRef.current) return
+    lastChatStateRef.current = stateKey
+
+    if (viewState === 'review' && planTitle) {
+      chat.addAssistantMessage(
+        `Your build plan is ready: **${planTitle}**. ` +
+          'Review it on the canvas, then tell me to refine it or say "build" to start.'
+      )
+    } else if (viewState === 'building') {
+      chat.addSystemMessage('Build started. Watch the progress on the canvas.')
+    } else if (viewState === 'complete') {
+      chat.addAssistantMessage(
+        'Build complete! The screen preview is on the canvas. ' + 'You can ask me to make changes or fixes from here.'
+      )
     }
+  }, [viewState, planJobId, planTitle, chat])
+
+  const handleNewSession = useCallback(() => {
+    chat.resetMessages()
+    handlers.handleReset()
+    state.setChatActive(false)
+    lastChatStateRef.current = null
+  }, [chat, handlers, state])
+
+  // --- Idle: full-screen ---
+  if (!state.chatActive && state.viewState === 'idle') {
+    return (
+      <div className="gba:h-full gba:w-full gba:overflow-hidden gba:bg-background" data-testid={testId}>
+        <IdleCanvas onSubmit={handleIdleSubmit} isLoading={orchestratorClient.isAnalyzing} />
+      </div>
+    )
   }
 
+  // --- Chat + Canvas layout ---
   return (
-    <div className="gba:h-screen gba:overflow-hidden gba:bg-background" data-testid={testId}>
-      {renderView()}
+    <div className="gba:h-full gba:w-full gba:overflow-hidden gba:bg-background" data-testid={testId}>
+      <CreateLayout
+        chatPanel={
+          <CreateAgentChat
+            messages={chat.messages}
+            isProcessing={chat.isProcessing || orchestratorClient.isRefining || buildProgress.isBuilding}
+            onSend={chat.handleSend}
+            onNewSession={handleNewSession}
+          />
+        }
+        canvasPanel={
+          <OrchestratorCanvasContent
+            state={state}
+            orchestratorClient={orchestratorClient}
+            buildProgress={buildProgress}
+            handlers={handlers}
+            completedPhases={completedPhases}
+            accessToken={accessToken}
+            userInfo={userInfo}
+            previewRefreshToken={previewRefreshToken}
+          />
+        }
+      />
     </div>
   )
 }
