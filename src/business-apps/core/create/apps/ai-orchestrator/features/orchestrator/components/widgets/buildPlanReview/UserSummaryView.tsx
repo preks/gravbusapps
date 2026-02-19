@@ -53,7 +53,7 @@ export const UserSummaryView: React.FC<UserSummaryViewProps> = ({
   return (
     <div className="gba:space-y-4" data-testid={testId}>
       {/* Two-column layout for What You're Getting and What You Can Do */}
-      <div className="gba:grid gba:grid-cols-1 md:gba:grid-cols-2 gba:gap-3 md:gba:gap-5">
+      <div className="gba:grid gba:grid-cols-2 gba:gap-4">
         <div className="gba:space-y-1.5">
           <h3 className="gba:text-sm gba:font-semibold gba:text-foreground">What You're Getting</h3>
           <ul className="gba:space-y-1">
