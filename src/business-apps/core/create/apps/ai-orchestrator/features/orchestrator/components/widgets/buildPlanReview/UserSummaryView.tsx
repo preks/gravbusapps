@@ -1,5 +1,6 @@
 /**
- * UserSummaryView - User-friendly view of build plan with natural language summary
+ * UserSummaryView - User-friendly view of build plan with natural language summary.
+ * Refinement section has been removed (now handled by the agent chat panel).
  */
 
 import React from 'react'
@@ -7,27 +8,20 @@ import { Button } from '@newwork/nw-design-system'
 import type { BuildPlan } from '../../../types'
 import { ComponentList } from './ComponentList'
 import { QuestionField } from './QuestionField'
-import { RefinementSection } from './RefinementSection'
 import { BuildPlanActions } from './BuildPlanActions'
 
 interface UserSummaryViewProps {
   plan: BuildPlan
   answers: Record<string, string>
   skippedComponents: Set<string>
-  feedback: string
   hasQuestions: boolean
   allQuestionsAnswered: boolean
   isLoading?: boolean
-  isRefining?: boolean
-  refinementSummary?: string | null
-  refineError?: string | null
   hideActions?: boolean
   onAnswerChange: (questionId: string, answer: string) => void
   onToggleComponent: (componentId: string) => void
   onReanalyze: () => void
   onEdit?: () => void
-  onRefine?: (feedback: string) => void
-  onFeedbackChange: (feedback: string) => void
   onConfirm: () => void
   onCancel: () => void
   testId?: string
@@ -37,20 +31,14 @@ export const UserSummaryView: React.FC<UserSummaryViewProps> = ({
   plan,
   answers,
   skippedComponents,
-  feedback,
   hasQuestions,
   allQuestionsAnswered,
   isLoading = false,
-  isRefining = false,
-  refinementSummary,
-  refineError,
   hideActions = false,
   onAnswerChange,
   onToggleComponent,
   onReanalyze,
   onEdit,
-  onRefine,
-  onFeedbackChange,
   onConfirm,
   onCancel,
   testId
@@ -142,27 +130,12 @@ export const UserSummaryView: React.FC<UserSummaryViewProps> = ({
         variant="flat"
       />
 
-      {/* Refinement Section */}
-      {onRefine && (
-        <RefinementSection
-          feedback={feedback}
-          onFeedbackChange={onFeedbackChange}
-          onRefine={() => onRefine(feedback)}
-          onClear={() => onFeedbackChange('')}
-          isRefining={isRefining}
-          isLoading={isLoading}
-          refinementSummary={refinementSummary}
-          refineError={refineError}
-        />
-      )}
-
       {/* Actions */}
       {!hideActions && (
         <BuildPlanActions
           onConfirm={onConfirm}
           onCancel={onCancel}
           isLoading={isLoading}
-          isRefining={isRefining}
           allQuestionsAnswered={allQuestionsAnswered}
           variant="simple"
         />
