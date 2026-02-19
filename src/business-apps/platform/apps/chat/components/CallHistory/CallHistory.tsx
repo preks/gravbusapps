@@ -147,7 +147,7 @@ export const CallHistory: React.FC<CallHistoryProps> = ({
         </div>
 
         <div
-          className="gba:flex gba:items-center gba:gap-1 gba:flex-nowrap gba:overflow-x-auto gba:px-3 gba:py-2 gba:border-t gba:border-border gba:sm:border-t-0"
+          className="gba:flex gba:items-center gba:gap-1 gba:flex-nowrap gba:overflow-x-auto gba:px-3 gba:pt-3 gba:pb-2 gba:border-t gba:border-border"
           aria-label={t('chat-callHistoryAllTypes')}
         >
           {(['all', 'direct', 'group', 'meeting'] as const).map(f => (
