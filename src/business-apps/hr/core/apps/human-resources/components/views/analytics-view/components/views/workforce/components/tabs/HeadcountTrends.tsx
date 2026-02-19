@@ -316,7 +316,7 @@ const HeadcountTrends: React.FC<BusinessAppContextProps> = context => {
                   <CardTitle className="gba:text-xl">
                     {t('hr-analytics-data-table', { title: selectedConfig.title })}
                   </CardTitle>
-                  <Badge variant="outline" className="gba:bg-success-secondary gba:text-success-secondary/50">
+                  <Badge variant="outline" className="gba:bg-success-secondary gba:text-success-secondary-foreground">
                     {t('hr-analytics-total-entries', { count: selectedConfig.tableData.length })}
                   </Badge>
                 </div>

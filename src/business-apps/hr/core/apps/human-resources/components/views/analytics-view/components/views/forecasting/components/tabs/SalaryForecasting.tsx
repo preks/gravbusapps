@@ -180,7 +180,7 @@ export const SalaryForecasting: React.FC<SalaryForecastingProps> = props => {
   }, [fullYearData])
 
   interface TableDataRow {
-    period: string
+    period: string | number
     value: number | string
     headcount?: number
     newHires?: number
@@ -191,15 +191,17 @@ export const SalaryForecasting: React.FC<SalaryForecastingProps> = props => {
   }
 
   const transformSalaryForecastData = (): TableDataRow[] => {
+    if (!monthlyData?.length) return []
     return monthlyData.map(item => ({
       period: item.month,
-      value: Math.round(item.totalSalary),
+      value: item.totalSalary,
       headcount: item.headcount,
       newHires: item.newHires
     }))
   }
 
   const transformSalaryChangesData = (): TableDataRow[] => {
+    if (!salaryChangesData?.length) return []
     return salaryChangesData.map(item => ({
       period: item.month,
       value: item.change
@@ -207,11 +209,12 @@ export const SalaryForecasting: React.FC<SalaryForecastingProps> = props => {
   }
 
   const transformDepartmentSalaryData = (): TableDataRow[] => {
+    if (!departmentSalaryData?.length) return []
     return departmentSalaryData.flatMap(month =>
       month.departments.map(department => ({
         period: month.month,
         department: department.name,
-        value: Math.round(department.salary),
+        value: department.salary,
         percentage: `${department.percent.toFixed(1)}%`,
         change: department.change
       }))
@@ -219,13 +222,23 @@ export const SalaryForecasting: React.FC<SalaryForecastingProps> = props => {
   }
 
   const transformDepartmentContributionData = (): TableDataRow[] => {
+    if (!departmentContributionData?.length) return []
     return departmentContributionData.map(item => ({
       department: item.departmentName,
-      value: Math.round(item.currentSalary),
-      period: Math.round(item.firstMonthSalary).toString(),
+      value: item.currentSalary,
+      period: item.firstMonthSalary,
       percentage: `${item.percentage.toFixed(1)}%`,
       growth: `${item.growthPercentage >= 0 ? '+' : ''}${item.growthPercentage.toFixed(1)}%`
     }))
+  }
+
+  const locale = getCurrentActiveUserLocale() ?? 'en-US'
+  const formatTableCell = (value: unknown): string => {
+    if (value === null || value === undefined) return '-'
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value.toLocaleString(locale, { minimumFractionDigits: 0, maximumFractionDigits: 2 })
+    }
+    return String(value)
   }
 
   const handleExport = async (
@@ -237,7 +250,17 @@ export const SalaryForecasting: React.FC<SalaryForecastingProps> = props => {
   ) => {
     setExportingTable(`${tableName}-${format}`)
     try {
-      const rows = data.map(row => ({ ...row })) as Record<string, unknown>[]
+      const rows: Record<string, unknown>[] =
+        format === 'pdf'
+          ? data.map(row => {
+              const out: Record<string, unknown> = {}
+              columns.forEach(col => {
+                const v = (row as unknown as Record<string, unknown>)[col.key]
+                out[col.key] = typeof v === 'number' && Number.isFinite(v) ? formatTableCell(v) : v
+              })
+              return out
+            })
+          : (data.map(row => ({ ...row })) as Record<string, unknown>[])
       if (format === 'excel') {
         await exportTableToExcel(title, columns, rows)
       } else {
@@ -262,7 +285,7 @@ export const SalaryForecasting: React.FC<SalaryForecastingProps> = props => {
       title: t('hr-analytics-salary-forecasting'),
       testId: 'salary-forecast-chart',
       description: t('hr-analytics-salary-forecasting-description'),
-      tag: t('hr-analytics-months', { count: monthlyData.length }),
+      tag: t('hr-analytics-months', { count: monthlyData?.length ?? 0 }),
       tableData: transformSalaryForecastData(),
       exportColumns: [
         { key: 'period', header: t('hr-analytics-month') },
@@ -275,7 +298,7 @@ export const SalaryForecasting: React.FC<SalaryForecastingProps> = props => {
       title: t('hr-analytics-monthly-salary-changes'),
       testId: 'salary-changes-chart',
       description: t('hr-analytics-salary-changes-description'),
-      tag: t('hr-analytics-months', { count: salaryChangesData.length }),
+      tag: t('hr-analytics-months', { count: salaryChangesData?.length ?? 0 }),
       tableData: transformSalaryChangesData(),
       exportColumns: [
         { key: 'period', header: t('hr-analytics-month') },
@@ -475,7 +498,7 @@ export const SalaryForecasting: React.FC<SalaryForecastingProps> = props => {
                       <TableRow key={`${selectedConfig.testId}-${index}`}>
                         {selectedConfig.exportColumns.map(col => (
                           <TableCell key={`${col.key}-${index}`}>
-                            {String((row as Record<string, unknown>)[col.key] ?? '-')}
+                            {formatTableCell((row as unknown as Record<string, unknown>)[col.key])}
                           </TableCell>
                         ))}
                       </TableRow>

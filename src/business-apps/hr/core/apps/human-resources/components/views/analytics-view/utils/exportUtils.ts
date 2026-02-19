@@ -16,6 +16,15 @@ export interface ExportColumn {
   header: string
 }
 
+/** Format a cell value for PDF display: numbers are rounded to avoid floating-point noise (e.g. 416.6700000000001 → 416.67). */
+function formatCellValueForPdf(value: unknown): string {
+  if (value === null || value === undefined) return ''
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value === Math.round(value) ? String(Math.round(value)) : value.toFixed(2)
+  }
+  return formatCellValue(value)
+}
+
 /**
  * Export table data to Excel (.xlsx) and trigger download.
  */
@@ -90,7 +99,7 @@ export async function exportTableToPdf(
 
   const sampleRows = data.slice(0, 200)
   const colWidths = columns.map(col => {
-    const texts = [col.header, ...sampleRows.map(row => String(formatCellValue(row[col.key])).slice(0, maxCellChars))]
+    const texts = [col.header, ...sampleRows.map(row => formatCellValueForPdf(row[col.key]).slice(0, maxCellChars))]
     return estimateColWidth(texts)
   })
 
@@ -158,9 +167,9 @@ export async function exportTableToPdf(
       chunk.forEach(colIndex => {
         const width = colWidths[colIndex]
         const col = columns[colIndex]
-        const value = formatCellValue(row[col.key])
+        const value = formatCellValueForPdf(row[col.key])
         doc.rect(x, y - 2, width, rowHeight).stroke()
-        doc.text(String(value).slice(0, maxCellChars), x + 4, y + 4, {
+        doc.text(value.slice(0, maxCellChars), x + 4, y + 4, {
           width: width - 8,
           lineBreak: false,
           ellipsis: true

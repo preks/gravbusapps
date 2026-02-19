@@ -433,11 +433,24 @@ const Dashboard: React.FC<DashboardProps> = ({ accessToken }) => {
                     <TableBody>
                       {selectedConfig.tableData.map((row, index) => (
                         <TableRow key={`${selectedConfig.testId}-${index}`}>
-                          {selectedConfig.exportColumns.map(col => (
-                            <TableCell key={`${col.key}-${index}`}>
-                              {String((row as Record<string, unknown>)[col.key] ?? '-')}
-                            </TableCell>
-                          ))}
+                          {selectedConfig.exportColumns.map(col => {
+                            const value = (row as unknown as Record<string, unknown>)[col.key]
+                            const display = value === null || value === undefined ? '-' : String(value)
+                            return (
+                              <TableCell key={`${col.key}-${index}`}>
+                                {col.key === 'percentage' ? (
+                                  <Badge
+                                    variant="outline"
+                                    className="gba:bg-info-secondary gba:text-info-secondary-foreground"
+                                  >
+                                    {display}
+                                  </Badge>
+                                ) : (
+                                  display
+                                )}
+                              </TableCell>
+                            )
+                          })}
                         </TableRow>
                       ))}
                     </TableBody>
