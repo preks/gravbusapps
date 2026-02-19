@@ -63,9 +63,33 @@ const DemographicsChartsView: React.FC<DemographicsChartsViewProps> = ({ demogra
     ) : null
   }
 
+  const getAgeSortKey = (category: string): number => {
+    const label = String(category || '')
+      .trim()
+      .toLowerCase()
+    if (!label || label === 'unknown') return Number.MAX_SAFE_INTEGER
+    if (label.includes('under 25') || label.includes('<25') || label.includes('< 25')) return 24
+
+    const rangeMatch = label.match(/(\d+)\s*-\s*(\d+)/)
+    if (rangeMatch) return Number(rangeMatch[1])
+
+    const plusMatch = label.match(/(\d+)\s*\+/)
+    if (plusMatch) return Number(plusMatch[1])
+
+    const underMatch = label.match(/under\s*(\d+)/)
+    if (underMatch) return Number(underMatch[1]) - 1
+
+    return Number.MAX_SAFE_INTEGER
+  }
+
   // Safe access to data with null checks
   const genderData = demographicsData?.genderDistribution || []
-  const ageData = demographicsData?.ageDistribution || []
+  const ageData = [...(demographicsData?.ageDistribution || [])].sort((a, b) => {
+    const aKey = getAgeSortKey(a.category)
+    const bKey = getAgeSortKey(b.category)
+    if (aKey !== bKey) return aKey - bKey
+    return String(a.category).localeCompare(String(b.category))
+  })
   const nationalityData = demographicsData?.nationalityDistribution || []
 
   // Transform data to include percentages
@@ -240,10 +264,22 @@ const DemographicsChartsView: React.FC<DemographicsChartsViewProps> = ({ demogra
                           ]}
                         />
                         <Legend
-                          wrapperStyle={{
-                            fontSize: '10px',
-                            marginTop: '8px'
-                          }}
+                          content={() => (
+                            <div className="gba:flex gba:flex-wrap gba:justify-center gba:gap-3 gba:mt-2 gba:text-[10px]">
+                              {config.data.map((entry, entryIndex) => (
+                                <div
+                                  key={`${config.testId}-${entry.category}`}
+                                  className="gba:flex gba:items-center gba:gap-1"
+                                >
+                                  <span
+                                    className="gba:inline-block gba:w-2.5 gba:h-2.5"
+                                    style={{ backgroundColor: config.colors[entryIndex % config.colors.length] }}
+                                  />
+                                  <span>{entry.category}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         />
                       </PieChart>
                     </ResponsiveContainer>
