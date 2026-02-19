@@ -438,8 +438,11 @@ const AbsenceCalendar: React.FC<
               const daysToSubtract = firstDayOfWeek === 0 ? 6 : firstDayOfWeek - 1 // Convert Sunday (0) to 6, others to day-1
               const startOfCalendar = firstDayOfMonth.subtract(daysToSubtract, 'day')
 
-              // Calculate how many days to display (either 35 or 42 depending on the month)
-              const daysToDisplay = Math.ceil((daysInMonth + firstDayOfMonth.day()) / 7) * 7
+              // Calculate how many days to display for a Monday-first grid.
+              // We must use the Monday-based leading offset (`daysToSubtract`),
+              // not dayjs Sunday-based `day()`, otherwise months starting on Sunday
+              // can lose their final week.
+              const daysToDisplay = Math.ceil((daysInMonth + daysToSubtract) / 7) * 7
 
               return Array.from({ length: daysToDisplay }).map((_, idx) => {
                 // Create a new dayjs object for each day to avoid mutation issues
