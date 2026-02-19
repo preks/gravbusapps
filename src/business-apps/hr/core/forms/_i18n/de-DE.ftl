@@ -283,6 +283,7 @@ adjust-salary-pending-status = Ausstehend
 
 # Update Working Conditions Form
 working-conditions-probation-period = Probezeit
+working-conditions-probation-end-before-start = Das Ende der Probezeit muss am Startdatum oder danach liegen.
 working-conditions-probation-exception-warning = Sie haben das Enddatum der Probezeit manuell vom Vertragswert geändert. Bitte überprüfen.
 working-conditions-unit-day = { $count ->
     [one] Tag
