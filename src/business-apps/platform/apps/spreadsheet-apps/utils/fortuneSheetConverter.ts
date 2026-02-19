@@ -28,6 +28,20 @@ export function excelColumnToIndex(col: string): number {
 }
 
 /**
+ * Parse Excel-style cell reference (e.g. "A1", "B5") to FortuneSheet row/col indices.
+ * Returns { row, column } for FortuneSheet (row 0 = header, row 1+ = data).
+ * Returns null if the reference cannot be parsed.
+ */
+export function parseA1CellReference(ref: string): { row: number; column: number } | null {
+  const match = ref.trim().match(/^([A-Za-z]+)([0-9]+)$/)
+  if (!match) return null
+  const colIndex = excelColumnToIndex(match[1])
+  const rowNum = parseInt(match[2], 10)
+  if (rowNum < 1) return null
+  return { row: rowNum, column: colIndex }
+}
+
+/**
  * Convert index to Excel column letter (0=A, 1=B, ..., 25=Z, 26=AA, etc.)
  */
 export function indexToExcelColumn(index: number): string {

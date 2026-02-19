@@ -82,6 +82,8 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
   const isOwnComment = currentUserId && comment.createdBy === currentUserId
   const isResolved = !!comment.resolvedAt
   const isInlineComment = comment.type === 'inline' || comment.type === 'selection'
+  const isCellComment = comment.type === 'cell'
+  const hasCellReference = isCellComment && comment.cellReference
 
   const handleResolveAndUnhighlight = async () => {
     await onResolve()
@@ -147,6 +149,19 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
               </Badge>
             )}
           </div>
+
+          {/* Cell reference for spreadsheet comments - display only (setSelection causes page refresh) */}
+          {hasCellReference && (
+            <div className="gba:mb-2 gba:flex gba:items-center gba:gap-1.5">
+              <Badge
+                variant="outline"
+                className="gba:text-xs gba:font-mono gba:bg-muted/50"
+                data-testid={`${testId}-cell-ref-${comment.id}`}
+              >
+                Cell {comment.cellReference}
+              </Badge>
+            </div>
+          )}
 
           {/* Inline comment reference */}
           {isInlineComment && comment.selectedText && (

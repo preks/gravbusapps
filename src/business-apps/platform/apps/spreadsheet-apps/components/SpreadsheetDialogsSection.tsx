@@ -59,6 +59,10 @@ export interface SpreadsheetDialogsSectionProps {
   // Comments Panel
   showComments: boolean
   setShowComments: (show: boolean) => void
+  onScrollToHighlight?: (commentId: string) => void
+  onUnhighlight?: (commentId: string) => void
+  /** Get currently selected cell as A1 reference for new comments */
+  getSelectedCellRef?: () => string | null
   comments: {
     comments: unknown[]
     unresolvedCount: number
@@ -101,6 +105,9 @@ export const SpreadsheetDialogsSection: React.FC<SpreadsheetDialogsSectionProps>
     publishing,
     showComments,
     setShowComments,
+    onScrollToHighlight,
+    onUnhighlight,
+    getSelectedCellRef,
     comments,
     currentUserId,
     currentUserName,
@@ -184,10 +191,12 @@ export const SpreadsheetDialogsSection: React.FC<SpreadsheetDialogsSectionProps>
             unresolvedCount={comments.unresolvedCount}
             isLoading={comments.isLoading}
             onCreateComment={async (content, parentId, userName, userAvatar) => {
+              const cellRef = !parentId ? getSelectedCellRef?.() : undefined
               await comments.createComment({
                 type: parentId ? 'document' : 'cell',
                 content,
                 parentId,
+                cellReference: cellRef ?? undefined,
                 createdByName: userName,
                 createdByAvatar: userAvatar
               })
@@ -207,6 +216,8 @@ export const SpreadsheetDialogsSection: React.FC<SpreadsheetDialogsSectionProps>
             currentUserAvatar={currentUserAvatar || undefined}
             accessToken={accessToken}
             headerHeight={100}
+            onScrollToHighlight={onScrollToHighlight}
+            onUnhighlight={onUnhighlight}
             data-testid="spreadsheet-comment-panel"
           />
         )}

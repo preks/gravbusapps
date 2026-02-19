@@ -28,6 +28,7 @@ import { useFileLock } from '../shared/hooks/useFileLock'
 import { usePublishing } from '../shared/hooks/usePublishing'
 import { emitDocumentActivity, emitDocumentActivityEnd } from '../spaces/hooks/useSpaceDocumentActivity'
 
+import type { FortuneSheetGridHandle } from './components/FortuneSheetGrid'
 import { TableView, FormView, DashboardView, KanbanView } from './views'
 import { AutomationsPanel } from './components/AutomationsPanel'
 import { CollectionSummaryDialog } from './components/automations/CollectionSummaryDialog'
@@ -100,6 +101,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   // Track in-flight PATCH data so beforeunload can re-send with keepalive if page unloads mid-flight
   const inFlightCellUpdates = useRef<Map<string, { backendRowId: string; changes: Record<string, unknown> }>>(new Map())
   const cellPersistTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const gridRef = useRef<FortuneSheetGridHandle | null>(null)
   const [restoreSyncToken, setRestoreSyncToken] = useState(0)
   const [pendingRestoreSyncFromAppRef, setPendingRestoreSyncFromAppRef] = useState<SpreadsheetApp | null>(null)
 
@@ -153,6 +155,15 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     entityType: 'spreadsheet_app',
     apiService: SpreadsheetApiService
   })
+
+  const handleScrollToHighlight = useCallback(
+    (commentId: string) => {
+      const comment = (comments.comments as Array<{ id: string; cellReference?: string }>).find(c => c.id === commentId)
+      if (!comment?.cellReference || !gridRef.current) return
+      gridRef.current.scrollToCellRef(comment.cellReference)
+    },
+    [comments.comments]
+  )
 
   const fileLock = useFileLock({
     entityId: app.id,
@@ -1186,6 +1197,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       <div className="gba:flex-1 gba:relative gba:min-h-0 gba:overflow-hidden">
         {viewType === 'table' && (
           <TableView
+            gridRef={gridRef}
             sheet={activeSheet}
             data={sheetData}
             columns={[]}
@@ -1269,6 +1281,8 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         publishing={publishing as any}
         showComments={showComments}
         setShowComments={setShowComments}
+        onScrollToHighlight={handleScrollToHighlight}
+        getSelectedCellRef={() => gridRef.current?.getSelectedCellRef() ?? null}
         comments={comments as any}
         currentUserId={userId}
         currentUserName={collaboration.currentUserName}

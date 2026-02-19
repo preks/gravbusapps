@@ -5,7 +5,7 @@
  */
 
 import React, { useState } from 'react'
-import { Button, Badge, ScrollArea } from '@newwork/nw-design-system'
+import { Button, Badge } from '@newwork/nw-design-system'
 import { MessageSquare, MessageCircle, CheckCircle, X } from 'lucide-react'
 import type { Comment } from '../types/versioning'
 import { CommentThread } from './CommentThread'
@@ -144,52 +144,50 @@ export const CommentPanel: React.FC<CommentPanelProps> = ({
       </div>
 
       {/* Content */}
-      <div className="gba:flex-1 gba:overflow-hidden">
-        <ScrollArea className="gba:h-full gba:px-6">
-          {isLoading ? (
-            <div className="gba:flex gba:items-center gba:justify-center gba:py-12">
-              <p className="gba:text-sm gba:text-muted-foreground">Loading comments...</p>
+      <div className="gba:flex-1 gba:min-h-0 gba:overflow-y-auto gba:overflow-x-hidden gba:px-6">
+        {isLoading ? (
+          <div className="gba:flex gba:items-center gba:justify-center gba:py-12">
+            <p className="gba:text-sm gba:text-muted-foreground">Loading comments...</p>
+          </div>
+        ) : displayComments.length === 0 ? (
+          <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-16 gba:text-center">
+            <div className="gba:w-16 gba:h-16 gba:rounded-2xl gba:bg-muted/50 gba:flex gba:items-center gba:justify-center gba:mb-4">
+              {activeTab === 'unresolved' ? (
+                <MessageSquare className="gba:h-8 gba:w-8 gba:text-muted-foreground/50" />
+              ) : (
+                <CheckCircle className="gba:h-8 gba:w-8 gba:text-muted-foreground/50" />
+              )}
             </div>
-          ) : displayComments.length === 0 ? (
-            <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-16 gba:text-center">
-              <div className="gba:w-16 gba:h-16 gba:rounded-2xl gba:bg-muted/50 gba:flex gba:items-center gba:justify-center gba:mb-4">
-                {activeTab === 'unresolved' ? (
-                  <MessageSquare className="gba:h-8 gba:w-8 gba:text-muted-foreground/50" />
-                ) : (
-                  <CheckCircle className="gba:h-8 gba:w-8 gba:text-muted-foreground/50" />
-                )}
-              </div>
-              <p className="gba:text-sm gba:font-medium gba:text-foreground gba:mb-1">
-                {activeTab === 'unresolved' ? 'All caught up!' : 'No resolved comments'}
-              </p>
-              <p className="gba:text-xs gba:text-muted-foreground gba:max-w-[200px]">
-                {activeTab === 'unresolved' ? 'All comments have been resolved' : 'Resolved comments will appear here'}
-              </p>
-            </div>
-          ) : (
-            <div className="gba:space-y-3 gba:py-4">
-              {displayComments.map(comment => (
-                <CommentThread
-                  key={comment.id}
-                  comment={comment}
-                  replies={comments.filter(c => c.parentId === comment.id)}
-                  onReply={content => onCreateComment(content, comment.id, currentUserName, currentUserAvatar)}
-                  onUpdate={content => onUpdateComment(comment.id, content)}
-                  onResolve={() => onResolveComment(comment.id)}
-                  onDelete={() => onDeleteComment(comment.id)}
-                  currentUserId={currentUserId}
-                  accessToken={accessToken}
-                  onUnhighlight={onUnhighlight}
-                  onScrollToHighlight={onScrollToHighlight}
-                />
-              ))}
-            </div>
-          )}
-        </ScrollArea>
+            <p className="gba:text-sm gba:font-medium gba:text-foreground gba:mb-1">
+              {activeTab === 'unresolved' ? 'All caught up!' : 'No resolved comments'}
+            </p>
+            <p className="gba:text-xs gba:text-muted-foreground gba:max-w-[200px]">
+              {activeTab === 'unresolved' ? 'All comments have been resolved' : 'Resolved comments will appear here'}
+            </p>
+          </div>
+        ) : (
+          <div className="gba:space-y-3 gba:py-4">
+            {displayComments.map(comment => (
+              <CommentThread
+                key={comment.id}
+                comment={comment}
+                replies={comments.filter(c => c.parentId === comment.id)}
+                onReply={content => onCreateComment(content, comment.id, currentUserName, currentUserAvatar)}
+                onUpdate={content => onUpdateComment(comment.id, content)}
+                onResolve={() => onResolveComment(comment.id)}
+                onDelete={() => onDeleteComment(comment.id)}
+                currentUserId={currentUserId}
+                accessToken={accessToken}
+                onUnhighlight={onUnhighlight}
+                onScrollToHighlight={onScrollToHighlight}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* New comment input */}
-      <div className="gba:p-4 gba:border-t gba:border-border/50 gba:bg-muted/20">
+      {/* New comment input - shrink-0 ensures it stays visible; min-h-32 avoids clipping Send button */}
+      <div className="gba:shrink-0 gba:min-h-32 gba:p-4 gba:border-t gba:border-border/50 gba:bg-muted/20">
         <CommentEditor
           onSubmit={handleCreateComment}
           isSubmitting={isCreating}

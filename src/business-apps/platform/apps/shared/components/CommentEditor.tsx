@@ -54,7 +54,7 @@ export const CommentEditor: React.FC<CommentEditorProps> = ({
   }
 
   return (
-    <div className="gba:space-y-3" data-testid={testId}>
+    <div className="gba:flex gba:flex-col gba:gap-3 gba:min-h-0" data-testid={testId}>
       <Textarea
         value={content}
         onChange={e => setContent(e.target.value)}
@@ -62,12 +62,12 @@ export const CommentEditor: React.FC<CommentEditorProps> = ({
         placeholder={placeholder}
         rows={3}
         disabled={isSubmitting}
-        className="gba:resize-none gba:text-sm gba:border-border/50 focus-visible:gba:ring-primary/20"
+        className="gba:resize-none gba:text-sm gba:border-border/50 focus-visible:gba:ring-primary/20 gba:min-h-0"
         data-testid={`${testId}-textarea`}
       />
-      <div className="gba:flex gba:items-center gba:justify-between gba:gap-2">
-        <p className="gba:text-xs gba:text-muted-foreground gba:flex-1">⌘+Enter to send</p>
-        <div className="gba:flex gba:gap-1.5">
+      <div className="gba:flex gba:shrink-0 gba:items-center gba:justify-between gba:gap-2 gba:min-w-0">
+        <p className="gba:text-xs gba:text-muted-foreground gba:flex-1 gba:min-w-0 gba:truncate">⌘+Enter to send</p>
+        <div className="gba:flex gba:gap-1.5 gba:shrink-0">
           {onCancel && (
             <Button
               variant="ghost"

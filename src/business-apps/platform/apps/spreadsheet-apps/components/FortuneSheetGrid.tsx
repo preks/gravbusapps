@@ -13,7 +13,13 @@ import './FortuneSheetGrid.css'
 import type { SpreadsheetSheet, SpreadsheetColumn } from '../types/spreadsheet'
 import type { DocumentParticipant, DocumentOperation } from '../../shared/services/CollaborationClient'
 import type { FortuneSheetOp } from '../types/fortuneSheet'
-import { convertToFortuneSheet, createConversionContext, HEADER_ROW_OFFSET } from '../utils/fortuneSheetConverter'
+import {
+  convertToFortuneSheet,
+  createConversionContext,
+  HEADER_ROW_OFFSET,
+  indexToExcelColumn,
+  parseA1CellReference
+} from '../utils/fortuneSheetConverter'
 import { useFortuneSheetCollaboration, useFortuneSheetCursorTracking } from '../hooks/useFortuneSheetCollaboration'
 import { useEditorKeyboardIsolation } from '../../shared/hooks/useEditorKeyboardIsolation'
 
@@ -76,6 +82,10 @@ export interface FortuneSheetGridProps {
 export interface FortuneSheetGridHandle {
   /** Apply a remote cell update without full re-render */
   applyRemoteCellUpdate: (rowIndex: number, colIndex: number, value: unknown) => void
+  /** Scroll to and select a cell by Excel reference (e.g. "A1") */
+  scrollToCellRef: (cellRef: string) => void
+  /** Get currently selected cell as A1 reference, or null if none/multi */
+  getSelectedCellRef: () => string | null
 }
 
 function getBaseOrigin(): string {
@@ -299,13 +309,72 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
       anyRef.__gbaSelectionPatched = true
     }, [])
 
+    const scrollToCellRef = useCallback(
+      (cellRef: string) => {
+        const parsed = parseA1CellReference(cellRef)
+        if (!parsed) return
+        const workbook = workbookRef.current as unknown as { setSelection?: (r: object, opts?: object) => void }
+        if (!workbook?.setSelection) return
+        try {
+          workbook.setSelection(
+            {
+              row: [parsed.row, parsed.row],
+              column: [parsed.column, parsed.column],
+              row_focus: parsed.row,
+              column_focus: parsed.column
+            } as object,
+            { id: sheet.id }
+          )
+        } catch {
+          // Ignore if FortuneSheet not ready
+        }
+      },
+      [sheet.id]
+    )
+
+    const getSelectedCellRef = useCallback(() => {
+      const toA1 = (row: number, col: number) => `${indexToExcelColumn(col)}${row + 1}`
+
+      const workbook = workbookRef.current as unknown as {
+        getSelection?: () => Array<{ row: number[]; column: number[] }>
+      }
+      try {
+        const sel = workbook?.getSelection?.()
+        if (sel?.length) {
+          const r = sel[0]
+          const rowStart = r?.row?.[0]
+          const rowEnd = r?.row?.[1] ?? rowStart
+          const colStart = r?.column?.[0]
+          const colEnd = r?.column?.[1] ?? colStart
+          if (
+            typeof rowStart === 'number' &&
+            typeof colStart === 'number' &&
+            rowStart === rowEnd &&
+            colStart === colEnd
+          ) {
+            return toA1(rowStart, colStart)
+          }
+        }
+        const last = lastKnownSelectionRef.current
+        if (last) {
+          return toA1(last.fortuneSheetRow, last.colIndex)
+        }
+        return null
+      } catch {
+        const last = lastKnownSelectionRef.current
+        return last ? toA1(last.fortuneSheetRow, last.colIndex) : null
+      }
+    }, [])
+
     // Expose imperative methods to parent via ref
     useImperativeHandle(
       ref,
       () => ({
-        applyRemoteCellUpdate
+        applyRemoteCellUpdate,
+        scrollToCellRef,
+        getSelectedCellRef
       }),
-      [applyRemoteCellUpdate]
+      [applyRemoteCellUpdate, scrollToCellRef, getSelectedCellRef]
     )
 
     /**
