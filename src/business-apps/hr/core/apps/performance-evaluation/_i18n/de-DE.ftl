@@ -113,5 +113,6 @@ start-confirm-button = Bewertung starten
 # Fehler
 values-error-cannot-deactivate-active-cycle = Wert kann nicht deaktiviert werden, solange er in einem aktiven Zyklus verwendet wird.
 cycles-error-no-rating-scales = Mindestens eine Bewertungsskala wird für das Erstellen eines Zyklus benötigt.
+cycles-error-no-company-values = Mindestens ein Unternehmenswert wird für das Erstellen eines Zyklus benötigt.
 error-activate-out-of-period = Zyklus kann nicht aktiviert werden. Das heutige Datum liegt außerhalb des Zykluszeitraums.
 

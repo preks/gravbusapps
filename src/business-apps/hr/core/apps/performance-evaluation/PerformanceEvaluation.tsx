@@ -92,7 +92,7 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
   const [cycles, setCycles] = useState<PerformanceCycle[]>([])
   const [ratingScales, setRatingScales] = useState<RatingScale[]>([])
   const [valuesStore, setValuesStore] = useState<ValueItemStored[]>([])
-  const [activeTab, setActiveTab] = useState<PerformanceTabEnum>(PerformanceTabEnum.Cycles)
+  const [activeTab, setActiveTab] = useState<PerformanceTabEnum>(PerformanceTabEnum.RatingScales)
   const [startingCycleId, setStartingCycleId] = useState<string | null>(null)
   const handleTabChange = (value: string) => setActiveTab(value as PerformanceTabEnum)
 
@@ -415,9 +415,9 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
           value: activeTab,
           onValueChange: handleTabChange,
           items: [
-            { value: PerformanceTabEnum.Cycles, label: t('tab-cycles') },
             { value: PerformanceTabEnum.RatingScales, label: t('tab-rating-scales') },
-            { value: PerformanceTabEnum.Values, label: t('tab-values') }
+            { value: PerformanceTabEnum.Values, label: t('tab-values') },
+            { value: PerformanceTabEnum.Cycles, label: t('tab-cycles') }
           ]
         }}
         variant={MODULE_COLORS.HR}

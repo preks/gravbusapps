@@ -14,6 +14,9 @@ import-success-title = Import reușit!
 import-success-message = Au fost importate cu succes { $count } { $entityType } în CRM
 conversion-success-message = Au fost convertite cu succes { $count } { $entityType }
 
+# Campaign
+campaign-label = Campanie: { $name }
+
 # Preview Section
 preview-title = Previzualizare (Primele { $count } { $entityType })
 preview-more-text = ... și încă { $count } { $entityType }
