@@ -9,6 +9,40 @@ import { CallHistoryItemJoined, CallHistoryItemOutcome } from './CallHistoryItem
 
 const LIMIT = 50
 
+type TFunction = (key: string, params?: Record<string, unknown>) => string
+
+function getStatusFilterLabel(f: CallHistoryFilter, t: TFunction): string {
+  switch (f) {
+    case 'all':
+      return t('chat-callHistoryAll')
+    case 'missed':
+      return t('chat-callHistoryMissed')
+    case 'declined':
+      return t('chat-callHistoryDeclined')
+    case 'incoming':
+      return t('chat-callHistoryIncoming')
+    case 'outgoing':
+      return t('chat-callHistoryOutgoing')
+    default:
+      return t('chat-callHistoryAll')
+  }
+}
+
+function getTypeFilterLabel(f: CallHistoryTypeFilter, t: TFunction): string {
+  switch (f) {
+    case 'all':
+      return t('chat-callHistoryAllTypes')
+    case 'direct':
+      return t('chat-callHistoryTypeDirect')
+    case 'group':
+      return t('chat-callHistoryTypeGroup')
+    case 'meeting':
+      return t('chat-callHistoryTypeMeeting')
+    default:
+      return t('chat-callHistoryAllTypes')
+  }
+}
+
 interface CallHistoryProps {
   apiClient: ChatApiClient
   accessToken: string
@@ -106,15 +140,7 @@ export const CallHistory: React.FC<CallHistoryProps> = ({
                     : 'gba:text-muted-foreground hover:gba:bg-accent hover:gba:text-accent-foreground'
                 }`}
               >
-                {f === 'all'
-                  ? t('chat-callHistoryAll')
-                  : f === 'missed'
-                    ? t('chat-callHistoryMissed')
-                    : f === 'declined'
-                      ? t('chat-callHistoryDeclined')
-                      : f === 'incoming'
-                        ? t('chat-callHistoryIncoming')
-                        : t('chat-callHistoryOutgoing')}
+                {getStatusFilterLabel(f, t)}
               </button>
             ))}
           </nav>
@@ -136,13 +162,7 @@ export const CallHistory: React.FC<CallHistoryProps> = ({
                   : 'gba:text-muted-foreground hover:gba:bg-accent hover:gba:text-accent-foreground'
               }`}
             >
-              {f === 'all'
-                ? t('chat-callHistoryAllTypes')
-                : f === 'direct'
-                  ? t('chat-callHistoryTypeDirect')
-                  : f === 'group'
-                    ? t('chat-callHistoryTypeGroup')
-                    : t('chat-callHistoryTypeMeeting')}
+              {getTypeFilterLabel(f, t)}
             </button>
           ))}
         </div>

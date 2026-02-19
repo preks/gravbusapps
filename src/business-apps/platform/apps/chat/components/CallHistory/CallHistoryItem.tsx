@@ -48,6 +48,28 @@ function getInviterDisplayName(inviter?: CallInviteOutcomeItem['inviter']): stri
   return name || 'Someone'
 }
 
+type TFunction = (key: string, params?: Record<string, unknown>) => string
+
+function getCallHistoryTitleKey(callType: string): string {
+  const normalized = callType.toLowerCase()
+  if (normalized === 'scheduled_meeting' || normalized === 'meeting') return 'chat-callHistoryMeetingName'
+  if (normalized === 'group') return 'chat-callHistoryGroupCallName'
+  return 'chat-callHistoryCallName'
+}
+
+function getOutcomeLabel(outcome: CallInviteOutcomeItem['outcome'], t: TFunction): string {
+  switch (outcome) {
+    case 'missed':
+      return t('chat-callHistoryMissed')
+    case 'declined':
+      return t('chat-callHistoryDeclined')
+    case 'not_answered':
+      return t('chat-callHistoryNotAnswered')
+    default:
+      return t('chat-callHistoryNotAnswered')
+  }
+}
+
 export interface CallHistoryItemJoinedProps {
   item: CallSessionItem
   currentUserId: string
@@ -62,7 +84,7 @@ export function CallHistoryItemJoined({
   avatarMap = new Map(),
   onOpenConversation,
   t
-}: CallHistoryItemJoinedProps) {
+}: Readonly<CallHistoryItemJoinedProps>) {
   const callName =
     item.sessionName ||
     item.conversation?.name ||
@@ -70,12 +92,7 @@ export function CallHistoryItemJoined({
     item.meeting?.title ||
     t('chat-callHistoryGroupCall')
   const callType = (item.callType ?? 'direct').toLowerCase()
-  const titleKey =
-    callType === 'scheduled_meeting' || callType === 'meeting'
-      ? 'chat-callHistoryMeetingName'
-      : callType === 'group'
-        ? 'chat-callHistoryGroupCallName'
-        : 'chat-callHistoryCallName'
+  const titleKey = getCallHistoryTitleKey(callType)
   const hostName = getHostDisplayName(item.host)
   const hostId = item.hostId ?? item.host?.id
   const hostFromApi = item.host as { avatarUrl?: string; avatar_url?: string } | undefined
@@ -128,28 +145,18 @@ export function CallHistoryItemOutcome({
   avatarMap = new Map(),
   onOpenConversation,
   t
-}: CallHistoryItemOutcomeProps) {
+}: Readonly<CallHistoryItemOutcomeProps>) {
   const inviterName = getInviterDisplayName(item.inviter)
   const callName = item.conversation?.name || inviterName || t('chat-callHistoryGroupCall')
   const callType = (item.callType ?? 'direct').toLowerCase()
-  const titleKey =
-    callType === 'scheduled_meeting' || callType === 'meeting'
-      ? 'chat-callHistoryMeetingName'
-      : callType === 'group'
-        ? 'chat-callHistoryGroupCallName'
-        : 'chat-callHistoryCallName'
+  const titleKey = getCallHistoryTitleKey(callType)
   const inviterId = item.inviterId ?? item.inviter?.id
   const inviterFromApi = item.inviter as { avatarUrl?: string; avatar_url?: string } | undefined
   const inviterAvatarUrl =
     inviterFromApi?.avatarUrl ?? inviterFromApi?.avatar_url ?? (inviterId ? avatarMap.get(inviterId) : undefined)
   const rightLabel = formatCallDate(item.callEndedAt ?? item.invitedAt)
 
-  const outcomeLabel =
-    item.outcome === 'missed'
-      ? t('chat-callHistoryMissed')
-      : item.outcome === 'declined'
-        ? t('chat-callHistoryDeclined')
-        : t('chat-callHistoryNotAnswered')
+  const outcomeLabel = getOutcomeLabel(item.outcome, t)
   const isMissedOrNotAnswered = item.outcome === 'missed' || item.outcome === 'not_answered'
 
   return (

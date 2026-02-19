@@ -108,10 +108,7 @@ export const PreCallSetupStateSync: React.FC<PreCallSetupStateSyncProps> = ({
       globalPreCallSetupManager.setStateFrom(instanceId, {
         isOpen: true,
         callType: groupCallState.callType,
-        conversationName:
-          activeConversation?.type === 'direct'
-            ? undefined // For direct calls, don't pass conversation name (will show "Call")
-            : activeConversation?.name, // For group/meeting, use conversation name
+        conversationName: activeConversation?.name,
         participantCount: groupParticipants.length,
         userName,
         userAvatarUrl,

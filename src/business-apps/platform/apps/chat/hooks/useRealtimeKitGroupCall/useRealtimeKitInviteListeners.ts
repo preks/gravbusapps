@@ -162,9 +162,8 @@ export function useRealtimeKitInviteListeners(params: UseRealtimeKitInviteListen
 
     const handleInviteAcceptedByYou = (data: { meetingId: string; conversationId: string }) => {
       if (
-        refs.incomingInviteRef.current &&
-        refs.incomingInviteRef.current.roomId === data.meetingId &&
-        refs.incomingInviteRef.current.conversationId === data.conversationId
+        refs.incomingInviteRef.current?.roomId === data.meetingId &&
+        refs.incomingInviteRef.current?.conversationId === data.conversationId
       ) {
         try {
           media.stopAllTracks()
