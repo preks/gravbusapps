@@ -5,22 +5,11 @@ import { useEmployeeUpcomingAbsence } from '../../hooks/useEmployeeUpcomingAbsen
 import dayjs from 'dayjs'
 import isSameOrAfter from 'dayjs/plugin/isSameOrAfter'
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore'
-import { Employee, EmployeeAbsenceEntitlement } from '../../hooks/useEmployeeData'
+import { Employee } from '../../hooks/useEmployeeData'
 // Extend dayjs with plugins
 dayjs.extend(isSameOrAfter)
 dayjs.extend(isSameOrBefore)
-import {
-  Card,
-  CardContent,
-  Avatar,
-  AvatarImage,
-  AvatarFallback,
-  useTranslation,
-  Button,
-  Tooltip,
-  TooltipTrigger,
-  TooltipContent
-} from '@newwork/nw-design-system'
+import { Card, CardContent, Avatar, AvatarImage, AvatarFallback, useTranslation } from '@newwork/nw-design-system'
 import {
   PiBriefcase,
   PiStack,
@@ -28,17 +17,12 @@ import {
   PiFunction,
   PiClock,
   PiCalendarCheck,
-  PiLightning,
   PiCalendarX,
-  PiCheckCircle,
-  PiSignIn,
-  PiSignOut
+  PiCheckCircle
 } from 'react-icons/pi'
 import { ArrowCircleLeftIcon } from '@phosphor-icons/react'
-import { UserInfoProps } from '@/common/BusinessAppContext'
 import translations from '../../_i18n'
 import { AppAction } from '@/components/app-action/AppAction'
-import { AppActionMenu } from '@/components/app-action-menu'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import JobDetailsDrawer from './JobDetailsDrawer'
 import JobFamilyDrawerContent, { getJobFamilyIcon, getJobFamilyTitle } from './drawer-content/JobFamilyDrawerContent'
@@ -54,8 +38,6 @@ interface SummaryTabProps {
   employee: Employee
   accessToken: string
   currentUserEmployeeId?: string
-  userInfo?: UserInfoProps // Current user info
-  employeeAbsenceEntitlement: EmployeeAbsenceEntitlement[]
 }
 
 /**
@@ -67,12 +49,7 @@ interface SummaryTabProps {
 // Employee availability & schedule information comes from employee data
 // Specific schedule information should be retrieved from the API
 
-const SummaryTab: React.FC<SummaryTabProps> = ({
-  employee,
-  accessToken,
-  currentUserEmployeeId,
-  employeeAbsenceEntitlement
-}) => {
+const SummaryTab: React.FC<SummaryTabProps> = ({ employee, accessToken, currentUserEmployeeId }) => {
   const { t } = useTranslation(translations)
   // Fetch upcoming absence for this employee
   const { loading: absenceLoading, upcomingAbsence } = useEmployeeUpcomingAbsence(accessToken, employee.id)
@@ -529,83 +506,6 @@ const SummaryTab: React.FC<SummaryTabProps> = ({
                     <div className="gba:text-sm gba:text-muted-foreground">{computedWorkingHours}</div>
                   </div>
                 </div>
-
-                {/* Quick Actions - Only visible when user is viewing their own profile */}
-                {isCurrentUser &&
-                  (() => {
-                    const requestAbsenceText = t('summary-request-absence')
-                    return (
-                      <div className="">
-                        <div className="gba:flex gba:items-center gba:mb-3">
-                          <PiLightning className="gba:h-5 gba:w-5 gba:text-muted-foreground gba:mr-3" />
-                          <div
-                            className="gba:text-sm gba:font-medium gba:text-foreground"
-                            data-testid="quick-actions-heading"
-                          >
-                            {t('summary-quick-actions')}
-                          </div>
-                        </div>
-                        <div className="gba:flex gba:gap-2 gba:w-full gba:flex-wrap">
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="gba:hover:bg-muted gba:flex-1"
-                                data-testid="clock-in-button"
-                                onClick={() => {
-                                  // Clock in action logic would go here
-                                }}
-                              >
-                                <span data-testid="clock-in-button-text">
-                                  <PiSignIn className="gba:h-3 gba:w-3" />
-                                </span>
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>{t('summary-clock-in')}</TooltipContent>
-                          </Tooltip>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="gba:hover:bg-muted gba:flex-1"
-                                data-testid="clock-out-button"
-                                onClick={() => {
-                                  // Clock out action logic would go here
-                                }}
-                              >
-                                <span data-testid="clock-out-button-text">
-                                  <PiSignOut className="gba:h-3 gba:w-3" />
-                                </span>
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>{t('summary-clock-out')}</TooltipContent>
-                          </Tooltip>
-                          <AppActionMenu
-                            data-testid="request-absence-button"
-                            contextsArray={[FlowContextName.employeeAbsenceRecord]}
-                            externalContextData={{
-                              employeeId: employee.id,
-                              flowType: 'vacation',
-                              absenceType: employeeAbsenceEntitlement.find(e => e.type?.id === 'AbsenceType:v1:A001')
-                                ?.type?.id,
-                              startDate: null,
-                              endDate: null
-                            }}
-                            prefixDataTestId="request-absence"
-                            accessToken={accessToken}
-                            key={requestAbsenceText}
-                          >
-                            <div className="gba:flex gba:items-center gba:gap-2 gba:cursor-pointer gba:flex-1 gba:min-w-0">
-                              <PiCalendarX className="gba:h-4 gba:w-4" />
-                              <span className="gba:text-xs gba:md:text-sm gba:truncate">{requestAbsenceText}</span>
-                            </div>
-                          </AppActionMenu>
-                        </div>
-                      </div>
-                    )
-                  })()}
 
                 {/* Upcoming Absence Section */}
                 {firstUpcomingValidAbsence && (

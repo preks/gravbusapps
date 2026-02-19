@@ -53,6 +53,10 @@ export interface AppActionFormProps {
    */
   getCancelPayload?: () => Record<string, unknown>
   /**
+   * Optional callback run before cancel validation (e.g. to set form values so validation can require comments only on reject).
+   */
+  onBeforeCancel?: () => void | Promise<void>
+  /**
    * @deprecated This prop is obsolete and will be removed in a future version. It is not used by AppActionForm.
    */
   businessAppContext?: BusinessAppContextProps
@@ -217,7 +221,8 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
   handlePreSubmit,
   isSubmitDisabled = false,
   onProcessCompletion,
-  getCancelPayload
+  getCancelPayload,
+  onBeforeCancel
 }) => {
   const { t } = useTranslation(translations)
   const [loading, setLoading] = useState(false)
@@ -326,6 +331,7 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
   const handleCancel = useCallback(async () => {
     let payload: Record<string, unknown> = {}
     if (getCancelPayload && externalForm) {
+      await onBeforeCancel?.()
       const valid = await externalForm.trigger()
       if (!valid) {
         return
@@ -337,7 +343,7 @@ export const AppActionForm: React.FC<AppActionFormProps> = ({
     if (onCancel) {
       onCancel()
     }
-  }, [cancelEventType, onCancel, getCancelPayload, externalForm])
+  }, [cancelEventType, onCancel, getCancelPayload, onBeforeCancel, externalForm])
 
   // IMPORTANT: Hooks must not be called conditionally. Always create an internal form instance
   // and choose layout behavior via props. This prevents crashes when disableFormSubmission flips

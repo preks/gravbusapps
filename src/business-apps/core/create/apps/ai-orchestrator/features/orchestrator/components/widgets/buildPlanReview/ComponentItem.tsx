@@ -1,0 +1,91 @@
+/**
+ * ComponentItem - Individual component display with checkbox
+ */
+
+import React from 'react'
+import { Box } from 'lucide-react'
+import { cn } from '@newwork/nw-design-system'
+import type { BuildPlan } from '../../../types'
+import { typeIcons } from './buildPlanReview.utils'
+
+interface ComponentItemProps {
+  component: BuildPlan['components'][0]
+  description: string
+  isSkipped: boolean
+  onToggle: (componentId: string) => void
+  variant?: 'flat' | 'grouped'
+}
+
+export const ComponentItem: React.FC<ComponentItemProps> = ({
+  component,
+  description,
+  isSkipped,
+  onToggle,
+  variant = 'flat'
+}) => {
+  const IconComponent = typeIcons[component.type] || Box
+
+  if (variant === 'flat') {
+    return (
+      <button
+        type="button"
+        className={cn(
+          'gba:flex gba:items-start gba:gap-2.5 gba:py-2.5 gba:px-3 gba:rounded-lg gba:border gba:border-border gba:cursor-pointer gba:transition-all hover:gba:bg-secondary/20 gba:bg-secondary/40 gba:w-full gba:text-left',
+          isSkipped && 'gba:opacity-80'
+        )}
+        onClick={() => onToggle(component.id)}
+      >
+        <div className="gba:mt-0.5 gba:shrink-0">
+          <IconComponent
+            className={cn(
+              'gba:w-[18px] gba:h-[18px] gba:transition-all',
+              isSkipped ? 'gba:text-muted-foreground gba:opacity-30' : 'gba:text-foreground'
+            )}
+          />
+        </div>
+        <div className="gba:flex-1 gba:min-w-0 gba:flex gba:items-baseline gba:gap-2">
+          <div
+            className={cn(
+              'gba:text-sm gba:font-medium gba:text-foreground gba:leading-tight gba:shrink-0',
+              isSkipped && 'gba:line-through'
+            )}
+          >
+            {component.name}
+          </div>
+          <div className="gba:text-xs gba:text-muted-foreground gba:leading-tight gba:flex-1">{description}</div>
+        </div>
+      </button>
+    )
+  }
+
+  return (
+    <button
+      type="button"
+      className={cn(
+        'gba:flex gba:items-start gba:gap-3 gba:py-3 gba:px-2 gba:rounded-md gba:group gba:relative gba:cursor-pointer gba:transition-colors hover:gba:bg-muted/50 gba:w-full gba:text-left',
+        isSkipped && 'gba:opacity-40'
+      )}
+      onClick={() => onToggle(component.id)}
+    >
+      <div className="gba:mt-0.5 gba:shrink-0">
+        <IconComponent
+          className={cn(
+            'gba:w-[18px] gba:h-[18px] gba:transition-all',
+            isSkipped ? 'gba:text-muted-foreground gba:opacity-30' : 'gba:text-foreground'
+          )}
+        />
+      </div>
+      <div className="gba:flex-1 gba:min-w-0 gba:pr-20">
+        <div
+          className={cn(
+            'gba:text-sm gba:font-medium gba:text-foreground gba:mb-1 gba:leading-snug',
+            isSkipped && 'gba:line-through'
+          )}
+        >
+          {component.name}
+        </div>
+        <div className="gba:text-xs gba:text-muted-foreground gba:leading-normal">{description}</div>
+      </div>
+    </button>
+  )
+}

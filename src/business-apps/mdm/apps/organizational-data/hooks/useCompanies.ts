@@ -5,6 +5,32 @@ import { env } from '@/common/env/EnvUtils'
 import { Company, CompanyHierarchyState, OrgchartApiResponse, OrganizationalNode } from '../types'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 
+// GraphQL query for employees (directors) by IDs - batch query
+const GET_EMPLOYEES_BY_IDS_QUERY = `
+  query getEmployeesByIds($employeeIds: [uuid!]!) {
+    Employee(where: { id: { _in: $employeeIds } }) {
+      id
+      firstName
+      lastName
+      displayName
+      pictureThumbnail
+    }
+  }
+`
+
+// Employee type for directors
+interface EmployeeData {
+  id: string
+  firstName?: string
+  lastName?: string
+  displayName?: string
+  pictureThumbnail?: string
+}
+
+interface EmployeesGraphQLResponse {
+  Employee?: EmployeeData[]
+}
+
 const ORGCHART_BASE_URL = `${env('NEXT_PUBLIC_ORGCHART_API_URL')}/orgchart/api/v1`
 
 // GraphQL query to get active structure ID
@@ -92,6 +118,8 @@ export const useCompanies = (context: BusinessAppContextProps) => {
       currencyRef: node.data.companyData.currencyRef,
       additionalProperties: node.data.companyData.additionalProperties,
       addresses: node.data.companyData.addresses,
+      picture: node.data.companyData.picture,
+      pictureThumbnail: node.data.companyData.pictureThumbnail,
       // Statistics
       numberOfAssignedJobPositions: node.data.numberOfAssignedJobPositions,
       numberOfAssignedEmployees: node.data.numberOfAssignedEmployees,
@@ -158,6 +186,33 @@ export const useCompanies = (context: BusinessAppContextProps) => {
     }
   }
 
+  // Fetch employees (directors) by IDs - batch query
+  const fetchEmployeesByIds = useCallback(
+    async (employeeIds: string[]): Promise<Map<string, EmployeeData>> => {
+      if (employeeIds.length === 0) {
+        return new Map()
+      }
+
+      try {
+        const result = await graphqlClient.request<EmployeesGraphQLResponse>(GET_EMPLOYEES_BY_IDS_QUERY, {
+          employeeIds
+        })
+
+        const employeeMap = new Map<string, EmployeeData>()
+        if (result.Employee) {
+          result.Employee.forEach(emp => {
+            employeeMap.set(emp.id, emp)
+          })
+        }
+        return employeeMap
+      } catch (error) {
+        console.error('Error fetching employees:', error)
+        return new Map()
+      }
+    },
+    [graphqlClient]
+  )
+
   // Fetch companies from orgchart API
   const fetchCompanies = useCallback(async (): Promise<Company[]> => {
     try {
@@ -195,8 +250,34 @@ export const useCompanies = (context: BusinessAppContextProps) => {
     setError(null)
 
     try {
+      // Step 1: Fetch companies
       const companies = await fetchCompanies()
-      const hierarchy = buildHierarchy(companies)
+
+      // Step 2: Extract unique director IDs for batch query
+      const directorIds = [...new Set(companies.map(c => c.directorId).filter(Boolean) as string[])]
+
+      // Step 3: Batch fetch directors
+      const directorsMap = await fetchEmployeesByIds(directorIds)
+
+      // Step 4: Enrich companies with director data
+      const enrichedCompanies = companies.map(company => {
+        const director = company.directorId ? directorsMap.get(company.directorId) : undefined
+
+        return {
+          ...company,
+          director: director
+            ? {
+                id: director.id,
+                firstName: director.firstName,
+                lastName: director.lastName,
+                displayName: director.displayName,
+                pictureThumbnail: director.pictureThumbnail
+              }
+            : undefined
+        }
+      })
+
+      const hierarchy = buildHierarchy(enrichedCompanies)
       setHierarchyState(hierarchy)
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred'
@@ -205,7 +286,7 @@ export const useCompanies = (context: BusinessAppContextProps) => {
     } finally {
       setIsLoading(false)
     }
-  }, [fetchCompanies])
+  }, [fetchCompanies, fetchEmployeesByIds])
 
   // Toggle expansion state of a company
   const toggleCompanyExpansion = useCallback((companyNodeId: string) => {

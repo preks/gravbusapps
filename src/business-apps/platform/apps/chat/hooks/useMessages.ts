@@ -202,8 +202,6 @@ export function useMessages({
       abortControllerRef.current = new AbortController()
       const requestConversationId = conversationId
 
-      // Start performance tracking
-
       try {
         isLoadingRef.current = true
         setIsLoading(true)
@@ -447,7 +445,8 @@ export function useMessages({
   useEffect(() => {
     if (conversationId) {
       // Check if we're actually switching to a different conversation
-      const isSwitchingConversation = displayedConversationIdRef.current !== conversationId
+      const displayed = displayedConversationIdRef.current
+      const isSwitchingConversation = displayed !== conversationId
 
       if (isSwitchingConversation) {
         // Reset the last loaded conversation so loadMessages can proceed
@@ -475,6 +474,8 @@ export function useMessages({
         abortControllerRef.current.abort()
         abortControllerRef.current = null
       }
+      // Reset so the next effect run can start loadMessages(1) (prevents "skip concurrent request" after abort)
+      isLoadingRef.current = false
     }
   }, [conversationId]) // CRITICAL: Only conversationId, not loadMessages or cache
 

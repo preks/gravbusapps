@@ -24,7 +24,7 @@ import { BenefitDetailsList } from '../employee-benefit-review/components'
 import { useBenefitReviewData } from './hooks/useBenefitReviewData'
 import translations from '../_i18n'
 
-type BenefitReviewFormValues = { comments: string }
+type BenefitReviewFormValues = { comments?: string; _action?: 'approve' | 'reject' }
 
 export const RequestEmployeeBenefitReview: React.FC<BusinessAppContextProps> = ({
   accessToken,
@@ -34,15 +34,19 @@ export const RequestEmployeeBenefitReview: React.FC<BusinessAppContextProps> = (
   const { t } = useTranslation(translations)
   const benefitReviewFormSchema = useMemo(
     () =>
-      z.object({
-        comments: z
-          .string()
-          .min(1, t('request-benefit-review-comments-required', { defaultValue: 'Comments are required' }))
-      }),
+      z
+        .object({
+          comments: z.string().optional(),
+          _action: z.enum(['approve', 'reject']).optional()
+        })
+        .refine(data => data._action !== 'reject' || (data.comments?.trim().length ?? 0) > 0, {
+          message: t('request-benefit-review-comments-required', { defaultValue: 'Comments are required' }),
+          path: ['comments']
+        }),
     [t]
   )
   const form: UseFormReturn<BenefitReviewFormValues> = useForm({
-    defaultValues: { comments: '' },
+    defaultValues: { comments: '', _action: 'approve' },
     mode: 'onChange',
     resolver: zodResolver(benefitReviewFormSchema)
   })
@@ -127,15 +131,16 @@ export const RequestEmployeeBenefitReview: React.FC<BusinessAppContextProps> = (
           cancelButtonText={t('request-benefit-review-reject', { defaultValue: 'Reject' })}
           submitButtonTestId="request-employee-benefit-review-confirm-button"
           cancelButtonTestId="request-employee-benefit-review-cancel-button"
+          onBeforeCancel={() => form.setValue('_action', 'reject')}
           onSubmit={async (formData: BenefitReviewFormValues) => {
             return {
               approval: 'approved',
-              decisionReason: formData.comments
+              decisionReason: formData.comments ?? ''
             }
           }}
           getCancelPayload={() => ({
             approval: 'rejected',
-            decisionReason: form.getValues().comments
+            decisionReason: form.getValues().comments ?? ''
           })}
           data-testid="request-employee-benefit-review"
         >

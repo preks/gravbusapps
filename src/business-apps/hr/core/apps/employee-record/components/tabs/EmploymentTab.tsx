@@ -271,10 +271,10 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken }) 
           className="gba:flex gba:flex-col gba:py-1 gba:px-2 gba:hover:bg-muted gba:rounded-md gba:transition-colors gba:min-w-0"
           data-testid={`employment-item-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
         >
-          <span className="gba:text-sm gba:text-muted-foreground gba:mb-0.5 gba:truncate gba:block" title={item.label}>
+          <span className="gba:text-xs gba:text-muted-foreground gba:mb-0.5 gba:truncate gba:block" title={item.label}>
             {item.label}
           </span>
-          <span className="gba:font-medium gba:text-foreground gba:truncate gba:block" title={item.value}>
+          <span className="gba:font-medium gba:text-sm gba:text-foreground gba:truncate gba:block" title={item.value}>
             {item.value || '-'}
           </span>
         </div>
@@ -299,7 +299,7 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken }) 
         <Card data-testid="employment-section-profile">
           <CardContent className="gba:p-4">
             <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2">
-              <h3 className="gba:text-xl gba:font-semibold">{t('employment-profile')}</h3>
+              <h3 className="gba:text-lg gba:font-semibold">{t('employment-profile')}</h3>
             </div>
             {renderDataItems(organizationalData)}
           </CardContent>
@@ -309,7 +309,7 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken }) 
         <Card data-testid="employment-section-conditions">
           <CardContent className="gba:p-4">
             <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
-              <h3 className="gba:text-xl gba:font-semibold">{t('employment-working-conditions')}</h3>
+              <h3 className="gba:text-lg gba:font-semibold">{t('employment-working-conditions')}</h3>
               <AppAction
                 variant="update-secondary"
                 data-testid="employee-working-conditions-edit-button"
@@ -328,7 +328,7 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken }) 
         <Card data-testid="employment-section-hours">
           <CardContent className="gba:p-4">
             <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
-              <h3 className="gba:text-xl gba:font-semibold">{t('employment-working-hours')}</h3>
+              <h3 className="gba:text-lg gba:font-semibold">{t('employment-working-hours')}</h3>
               <AppAction
                 variant="update-secondary"
                 data-testid="employee-working-hours-edit-button"
@@ -347,7 +347,7 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken }) 
         <Card data-testid="employment-section-payroll">
           <CardContent className="gba:p-4">
             <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
-              <h3 className="gba:text-xl gba:font-semibold">{t('employment-payroll')}</h3>
+              <h3 className="gba:text-lg gba:font-semibold">{t('employment-payroll')}</h3>
               <AppAction
                 variant="update-secondary"
                 data-testid="employment-bank-account-action-button"
@@ -366,7 +366,7 @@ const EmploymentTab: React.FC<EmploymentTabProps> = ({ employee, accessToken }) 
         <Card data-testid="employment-section-tax">
           <CardContent className="gba:p-4">
             <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2">
-              <h3 className="gba:text-xl gba:font-semibold">{t('employment-tax-information')}</h3>
+              <h3 className="gba:text-lg gba:font-semibold">{t('employment-tax-information')}</h3>
             </div>
             {renderDataItems(taxInformationData)}
           </CardContent>
