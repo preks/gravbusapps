@@ -3,9 +3,7 @@
  * Refinement is now handled by the agent chat side panel.
  */
 
-import React, { useState } from 'react'
-import { Button, Textarea } from '@newwork/nw-design-system'
-import { Edit2, X, Check } from 'lucide-react'
+import React from 'react'
 import { Canvas } from '../layouts/Canvas'
 import { BuildPlanReview } from '../widgets/buildPlanReview'
 import { EditPlanModal } from '../modals/EditPlanModal'
@@ -34,7 +32,6 @@ export interface ReviewViewProps {
 
 export const ReviewView: React.FC<ReviewViewProps> = ({
   plan,
-  userPrompt,
   skippedCount,
   isEditModalOpen,
   isSavingPlan,
@@ -47,39 +44,12 @@ export const ReviewView: React.FC<ReviewViewProps> = ({
   onEditModalOpen,
   onEditModalClose,
   onEditPlan,
-  onReset,
-  onSkippedComponentsChange,
-  onReanalyzePrompt
+  onSkippedComponentsChange
 }) => {
-  const [isEditingPrompt, setIsEditingPrompt] = useState(false)
-  const [editedPrompt, setEditedPrompt] = useState(userPrompt)
-
-  const handleEditPromptClick = () => {
-    setEditedPrompt(userPrompt)
-    setIsEditingPrompt(true)
-  }
-
-  const handleCancelEdit = () => {
-    setIsEditingPrompt(false)
-    setEditedPrompt(userPrompt)
-  }
-
-  const handleUpdatePrompt = async () => {
-    if (editedPrompt.trim() && onReanalyzePrompt) {
-      await onReanalyzePrompt(editedPrompt.trim())
-      setIsEditingPrompt(false)
-    }
-  }
-
   return (
     <Canvas
       title={plan.userSummary?.title || 'Review Plan'}
       subtitle="Review what will be built — use the chat panel to refine"
-      actions={
-        <Button variant="ghost" onClick={onReset} disabled={isAnalyzing}>
-          ← Start Over
-        </Button>
-      }
       showGradientFade={true}
       floatingAction={
         <FloatingActionButton
@@ -99,60 +69,6 @@ export const ReviewView: React.FC<ReviewViewProps> = ({
               <div className="gba:animate-spin gba:rounded-full gba:h-8 gba:w-8 gba:border-b-2 gba:border-primary" />
               <p className="gba:text-sm gba:text-muted-foreground">Refining plan...</p>
             </div>
-          </div>
-        )}
-
-        {userPrompt && (
-          <div className="gba:p-4 gba:bg-muted gba:rounded-xl gba:border gba:border-border gba:mt-4 gba:relative">
-            {isEditingPrompt ? (
-              <div className="gba:space-y-3">
-                <p className="gba:text-xs gba:text-muted-foreground gba:uppercase gba:tracking-wider gba:font-semibold">
-                  Edit Your Request:
-                </p>
-                <Textarea
-                  value={editedPrompt}
-                  onChange={e => setEditedPrompt(e.target.value)}
-                  placeholder="Describe what you want to build..."
-                  rows={3}
-                  className="gba:resize-none gba:text-sm"
-                  autoFocus
-                />
-                <div className="gba:flex gba:items-center gba:justify-end gba:gap-2">
-                  <Button variant="ghost" size="sm" onClick={handleCancelEdit} disabled={isAnalyzing}>
-                    <X className="gba:w-3 gba:h-3 gba:mr-1.5" />
-                    Cancel
-                  </Button>
-                  <Button
-                    variant="default"
-                    size="sm"
-                    onClick={handleUpdatePrompt}
-                    disabled={!editedPrompt.trim() || editedPrompt === userPrompt || isAnalyzing}
-                  >
-                    <Check className="gba:w-3 gba:h-3 gba:mr-1.5" />
-                    Update & Re-analyze
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div className="gba:flex gba:items-start gba:justify-between gba:gap-4">
-                <div className="gba:flex-1">
-                  <p className="gba:text-xs gba:text-muted-foreground gba:mb-2 gba:uppercase gba:tracking-wider gba:font-semibold">
-                    Building:
-                  </p>
-                  <p className="gba:text-sm gba:text-foreground gba:leading-relaxed">"{userPrompt}"</p>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleEditPromptClick}
-                  disabled={isAnalyzing}
-                  className="gba:text-xs gba:shrink-0"
-                >
-                  <Edit2 className="gba:w-3 gba:h-3 gba:mr-1.5" />
-                  Edit Prompt
-                </Button>
-              </div>
-            )}
           </div>
         )}
 

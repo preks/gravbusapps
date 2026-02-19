@@ -55,16 +55,6 @@ export const ThinkingSteps: React.FC<ThinkingStepsProps> = ({
     <>
       <style>{keyframesStyles}</style>
       <div className={cn('gba:p-6', className)} data-testid={testId}>
-        {/* Animated AI brain visual - Blue sparkle */}
-        <div className="gba:flex gba:flex-col gba:items-center gba:mb-6">
-          <div className="gba:relative gba:w-20 gba:h-20">
-            {/* Sparkle icon centered */}
-            <div className="gba:absolute gba:inset-0 gba:flex gba:items-center gba:justify-center">
-              <Sparkles className="sparkle-glow-large gba:w-9 gba:h-9 gba:text-info" />
-            </div>
-          </div>
-        </div>
-
         {/* Thinking steps list - Minimal and monochrome */}
         <div className="gba:space-y-2 gba:mb-6">
           {steps.map(step => {
