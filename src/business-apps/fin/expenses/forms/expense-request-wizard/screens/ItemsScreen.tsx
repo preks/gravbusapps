@@ -129,12 +129,14 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
       }
 
       const userLocale = getCurrentActiveUserLocale()
+      const ruleIdForFilter = typeof employeeRuleId === 'string' && employeeRuleId ? employeeRuleId : null
       const countVariables = {
         employeeId,
         status: REQUEST_STATUS.CREATED,
         activeUserLocale: userLocale,
         idsArray: excludedIdsForApi,
-        itemCurrency: itemCurrency
+        itemCurrency: itemCurrency,
+        expenseRuleId: ruleIdForFilter
       }
 
       const countResponse = await graphQLClient.request(fetchEmployeeExpenseItems, {
@@ -211,6 +213,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
     currentPage,
     deletedItems,
     employeeId,
+    employeeRuleId,
     expenseRequestData?.ExpenseItem,
     graphQLClient,
     itemListLimit,
@@ -408,12 +411,14 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
    */
   const fetchAndAddPayloadItems = async (newItemIds: string[], itemCurrency: string): Promise<void> => {
     const userLocale = getCurrentActiveUserLocale()
+    const ruleIdForFilter = typeof employeeRuleId === 'string' && employeeRuleId ? employeeRuleId : null
     const variables = {
       employeeId,
       status: REQUEST_STATUS.CREATED,
       activeUserLocale: userLocale,
       idsArray: newItemIds,
-      itemCurrency: itemCurrency
+      itemCurrency: itemCurrency,
+      expenseRuleId: ruleIdForFilter
     }
 
     const response = await graphQLClient.request(fetchEmployeeExpenseItemsFromPayload, variables)

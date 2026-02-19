@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Typography, Pagination } from 'antd'
 import { useExpenseRequestWizardContext } from '../context/ExpenseRequestWizardContext'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
@@ -51,13 +51,40 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = props => {
 
   const { dispatchProcessContinueEventIfEnabled } = useProcessEventState(props.additionalData)
 
+  /** Session cache for repeated lookups (cost centers, projects, allowance data, regions) */
+  const queryCacheRef = useRef(new Map<string, any>())
+  /**
+   * Cache helper that also deduplicates in-flight requests.
+   * Important for React 18 StrictMode/dev where effects may run twice.
+   */
+  const getCachedOrFetch = useCallback((key: string, fetchFn: () => Promise<any>): Promise<any> => {
+    const cache = queryCacheRef.current
+    if (cache.has(key)) {
+      return Promise.resolve(cache.get(key))
+    }
+
+    const inFlight = fetchFn()
+      .then(result => {
+        cache.set(key, result)
+        return result
+      })
+      .catch(err => {
+        // Don't keep failed results cached; allow retry on next call
+        cache.delete(key)
+        throw err
+      })
+
+    // Store promise immediately so concurrent callers share it
+    cache.set(key, inFlight)
+    return inFlight
+  }, [])
+
   const [, setTravelRegionsData] = useState<any>(null)
   const [, setCostCentersData] = useState<any>(null)
   const [deductionsData, setDeductionsData] = useState<any[]>([])
   const [visibleDeductionKeys, setVisibleDeductionKeys] = useState<string[]>([])
   const [hasDeductions, setHasDeductions] = useState<boolean>(false)
   const [defaultCostCenter, setDefaultCostCenter] = useState<string>('')
-  const [defaultProject, setDefaultProject] = useState<string>('')
   const [costCenters, setCostCenters] = useState<CostCenter[]>([])
   const [listDataArray, setListDataArray] = useState<any[]>([])
   const [collapsedStates, setCollapsedStates] = useState<Record<number, boolean>>({})
@@ -73,11 +100,14 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = props => {
       try {
         const employeeIdValue = userInfo?.employeeDetails?.employeeId
         const locale = getCurrentActiveUserLocale()
-        const travelRegionsResponse = await graphQLClient.request(getTravelRegionsAndUser, {
-          expenseRuleId: employeeRuleId,
-          employeeId: employeeIdValue,
-          activeUserLocale: locale
-        })
+        const travelRegionsCacheKey = `travelRegionsAndUser:${employeeRuleId}:${employeeIdValue ?? 'no-employee'}:${locale}`
+        const travelRegionsResponse = await getCachedOrFetch(travelRegionsCacheKey, () =>
+          graphQLClient.request(getTravelRegionsAndUser, {
+            expenseRuleId: employeeRuleId,
+            employeeId: employeeIdValue,
+            activeUserLocale: locale
+          })
+        )
         setTravelRegionsData(travelRegionsResponse)
         if (
           travelRegionsResponse?.EmployeePosition &&
@@ -86,9 +116,10 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = props => {
         ) {
           const structureId = travelRegionsResponse.EmployeePosition[0].structureId
 
-          const costCentersResponse = await graphQLClient.request(getUserCostCenters, {
-            structureId
-          })
+          const costCentersCacheKey = `userCostCenters:${structureId}`
+          const costCentersResponse = await getCachedOrFetch(costCentersCacheKey, () =>
+            graphQLClient.request(getUserCostCenters, { structureId })
+          )
 
           setCostCentersData(costCentersResponse)
           if (travelRegionsResponse.EmployeePosition[0].costCenterId) {
@@ -116,18 +147,26 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = props => {
     }
 
     fetchTravelRegionsAndCostCenters()
-  }, [employeeRuleId, graphQLClient, userInfo?.employeeDetails?.employeeId])
+  }, [employeeRuleId, graphQLClient, getCachedOrFetch, userInfo?.employeeDetails?.employeeId])
 
   useEffect(() => {
     const fetchAllowanceData = async () => {
       if (!expenseRequestData?.ExpenseRequestByPk) return
       try {
         const employeeIdValue = userInfo?.employeeDetails?.employeeId
-        const response = await graphQLClient.request(getAllowanceData, {
-          employeeId: employeeIdValue,
-          expenseRequestId: additionalData?.psi_taskPayload?.expenseRequest?.id,
-          expenseRequestRuleId: expenseRequestData?.ExpenseRequestByPk?.expenseRuleId
-        })
+        const expenseRequestId = additionalData?.psi_taskPayload?.expenseRequest?.id
+        const ruleId = expenseRequestData?.ExpenseRequestByPk?.expenseRuleId
+        const requestVersion = expenseRequestData?.ExpenseRequestByPk?.version ?? 0
+        const locale = getCurrentActiveUserLocale()
+        // Invalidate automatically when request version changes (after save/next updates)
+        const allowanceCacheKey = `allowanceData:${employeeIdValue ?? 'no-employee'}:${expenseRequestId ?? 'no-request'}:${ruleId ?? 'no-rule'}:${requestVersion}:${locale}`
+        const response = await getCachedOrFetch(allowanceCacheKey, () =>
+          graphQLClient.request(getAllowanceData, {
+            employeeId: employeeIdValue,
+            expenseRequestId,
+            expenseRequestRuleId: ruleId
+          })
+        )
         const setup = Array.isArray(response?.ExpenseRuleAllowanceSetup) ? response.ExpenseRuleAllowanceSetup : []
         const issues = new Set<string>(setup.map((s: any) => s.issue).filter(Boolean))
         const keys: string[] = []
@@ -156,7 +195,7 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = props => {
       }
     }
     fetchAllowanceData()
-  }, [expenseRequestData])
+  }, [expenseRequestData, graphQLClient, getCachedOrFetch, userInfo?.employeeDetails?.employeeId, additionalData])
   useEffect(() => {
     // Determine if deductions exist
     const anyDeductions = Array.isArray(deductionsData) && deductionsData.length > 0
@@ -169,11 +208,6 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = props => {
     const requestProject = expenseRequestData.ExpenseRequestByPk
     const allowanceData = getAllowanceItemsFunction(expenseRequestData.ExpenseItem)
     const tripData = requestProject.ExpenseItem?.expenseRequestTrip || []
-
-    // Set default project if it exists in the expense request
-    if (requestProject.project) {
-      setDefaultProject(requestProject.project.id || '')
-    }
 
     const getDeductionForDate = (date: string) => {
       const match = (deductionsData || []).find((d: any) => d.expenseDate === date)
@@ -310,9 +344,13 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = props => {
     }
 
     try {
-      const projectsResponse = await graphQLClient.request(getUserProjects, {
-        structureIdArray: structureIds
-      })
+      const normalized = [...structureIds].filter(Boolean).sort().join(',')
+      const projectsCacheKey = `userProjects:${normalized}`
+      const projectsResponse = await getCachedOrFetch(projectsCacheKey, () =>
+        graphQLClient.request(getUserProjects, {
+          structureIdArray: structureIds
+        })
+      )
 
       if (projectsResponse?.Project) {
         setProjects(projectsResponse.Project)
@@ -507,10 +545,8 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = props => {
                 isCollapsed={collapsedStates[startIndex + index] || false}
                 onToggleCollapse={() => handleToggleCollapse(startIndex + index)}
                 costCenters={costCenters}
-                defaultCostCenter={defaultCostCenter}
                 onCostCenterChange={handleCostCenterChange}
                 projects={projects}
-                defaultProject={defaultProject}
                 onProjectChange={handleProjectChange}
                 onDeductionsChange={handleDeductionsChange}
                 hasDeductions={hasDeductions && visibleDeductionKeys.length > 0}

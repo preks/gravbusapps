@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Form } from 'antd'
 import { Button, Checkbox } from '@newwork/gravity-ui-catalog'
+import { useTranslation } from '@newwork/nw-design-system'
 import dayjs from 'dayjs'
 import { getTranslationFromI18nKeyAndLabel, getCurrentActiveUserLocale, formatDate } from '@/common/utils/windowUtils'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
@@ -10,12 +11,7 @@ import LocationForm from '../components/LocationForm/LocationForm'
 
 import { DestinationLimit, LocationData, TripScreenProps } from '../utils/types'
 import { getMaxLimits, getMinLimits, getMinMaxLimits, validateAndSanitizeLocation } from '../utils/locationTimeUtils'
-import {
-  getExpenseRulesDataQuery,
-  getRequestsAbsences,
-  fetchEmployeeExpenseItemsFromPayload
-} from '../ExpenseRequestWizardQueries'
-import { getRuleAllowancePeriod } from '../ExpenseRequestWizardQueries'
+import { getRequestsAbsences, fetchEmployeeExpenseItemsFromPayloadForRuleCheck } from '../ExpenseRequestWizardQueries'
 import { useExpenseRequestWizardContext } from '../context/ExpenseRequestWizardContext'
 import { showToast } from '../../../utils/notificationUtils'
 import LoadScreen from './LoadScreen'
@@ -35,6 +31,7 @@ import RejectionComment from '../components/RejectionComment'
 import { EVENTS } from '../../../utils/constants'
 import { mergeUniqueById } from '../../../utils/functionUtils'
 import { getLatestRejectComment, setByExternalCustomComponent, setLocalitiesDefault } from '../utils/tripScreenUtils'
+import expenseRequestWizardTranslations from '../_i18n'
 
 /**
  * Filters travel regions based on expense items' currency
@@ -76,9 +73,17 @@ const filterRules = (items: any[], mainRule: any, otherRules: any[]) => {
 export const TripScreen: React.FC<TripScreenProps> = props => {
   const { accessToken, additionalData } = props
   const [form] = Form.useForm()
+  const { t: tWizard } = useTranslation(expenseRequestWizardTranslations)
   const graphqlClient = useGraphqlClient(accessToken)
-  const { expenseRequestData, employeeRuleId, submitActionTripData, setEmployeeRuleId, updateTripFormValidation } =
-    useExpenseRequestWizardContext()
+  const {
+    expenseRequestData,
+    employeeRuleId,
+    submitActionTripData,
+    setEmployeeRuleId,
+    updateTripFormValidation,
+    getExpenseRulesDataCached,
+    getAllowancePeriodRuleCached
+  } = useExpenseRequestWizardContext()
   const { userInfo } = props
 
   // Get expense items from additionalData if available
@@ -126,13 +131,23 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
   const [locationsAreSynced, setLocationsAreSynced] = useState<boolean>(false)
   const lastAbsenceCheckKeyRef = useRef<string | null>(null)
   const lastRuleCheckKeyRef = useRef<string | null>(null)
+  /** Session cache for repeated queries with same inputs (rule/allowance period/rule details) */
+  const queryCacheRef = useRef(new Map<string, any>())
+
+  const getCachedOrFetch = useCallback(async (key: string, fetchFn: () => Promise<any>): Promise<any> => {
+    const cached = queryCacheRef.current.get(key)
+    if (cached !== undefined) return cached
+    const result = await fetchFn()
+    queryCacheRef.current.set(key, result)
+    return result
+  }, [])
 
   const [startLocationOverlap, setStartLocationOverlap] = useState<{ message: string; isError: boolean } | null>(null)
   const [endLocationOverlap, setEndLocationOverlap] = useState<{ message: string; isError: boolean } | null>(null)
   const [employeeRuleError, setEmployeeRuleError] = useState<string | null>(null)
   const [ruleConflictError, setRuleConflictError] = useState<string | null>(null)
   const [payloadItemsForRuleCheck, setPayloadItemsForRuleCheck] = useState<
-    Array<{ id: string; ruleId: string; code: string; title: string }>
+    Array<{ id: string; ruleId: string; code: string; title: string; ruleLabel?: string }>
   >([])
   const [isFetchingPayloadItems, setIsFetchingPayloadItems] = useState<boolean>(false)
 
@@ -200,7 +215,6 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
       const planValue = requestValue.expensePlan
 
       if (planValue.expenseRuleId && planValue.expenseRuleId !== newRuleId) {
-        // Fetch rule details for both request and plan rules
         try {
           const getRuleDetailsQuery = `query getRuleDetails($requestRuleId: uuid!, $planRuleId: uuid!) {
             requestRule: ExpenseRuleByPk(id: $requestRuleId) {
@@ -212,11 +226,13 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
               name
             }
           }`
-
-          const ruleDetails = await graphqlClient.request(getRuleDetailsQuery, {
-            requestRuleId: newRuleId,
-            planRuleId: planValue.expenseRuleId
-          })
+          const ruleDetailsCacheKey = `ruleDetailsPlan:${[newRuleId, planValue.expenseRuleId].sort().join(':')}`
+          const ruleDetails = await getCachedOrFetch(ruleDetailsCacheKey, () =>
+            graphqlClient.request(getRuleDetailsQuery, {
+              requestRuleId: newRuleId,
+              planRuleId: planValue.expenseRuleId
+            })
+          )
 
           const requestRuleCode = ruleDetails?.requestRule?.code || newRuleId
           const requestRuleName = ruleDetails?.requestRule?.name || ''
@@ -257,21 +273,23 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
       }
     }
 
-    const requestItems: Array<{ id: string; code: string; title: string; ruleId: string }> = []
+    const requestItems: Array<{ id: string; code: string; title: string; ruleId: string; ruleLabel?: string }> = []
     if (expenseRequestData.ExpenseItem && Array.isArray(expenseRequestData.ExpenseItem)) {
       expenseRequestData.ExpenseItem.forEach((item: any) => {
         if (item) {
+          const itemRuleLabel = [item?.expenseRule?.code, item?.expenseRule?.name].filter(Boolean).join(' ')
           requestItems.push({
             id: item.id,
             code: item.code || '',
             title: item.title || '',
-            ruleId: item.expenseRuleId || ''
+            ruleId: item.expenseRuleId || '',
+            ruleLabel: itemRuleLabel || undefined
           })
         }
       })
     }
 
-    const additionalItems: Array<{ id: string; code: string; title: string; ruleId: string }> = []
+    const additionalItems: Array<{ id: string; code: string; title: string; ruleId: string; ruleLabel?: string }> = []
     if (
       additionalData?.psi_taskPayload?.psi_initialParameters?.expenseItems &&
       Array.isArray(additionalData.psi_taskPayload.psi_initialParameters.expenseItems)
@@ -279,11 +297,13 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
       additionalData.psi_taskPayload.psi_initialParameters.expenseItems.forEach((item: any) => {
         const itemId = item.itemId || item.id
         if (!itemId) return
+        const itemRuleLabel = [item?.expenseRule?.code, item?.expenseRule?.name].filter(Boolean).join(' ')
         additionalItems.push({
           id: itemId,
           code: item.code || '',
           title: item.title || '',
-          ruleId: item.expenseRuleId || ''
+          ruleId: item.expenseRuleId || '',
+          ruleLabel: itemRuleLabel || undefined
         })
       })
     }
@@ -295,13 +315,13 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
     }
 
     const mismatchedItem = items.find(
-      (item: { id: string; code: string; title: string; ruleId: string }) => item.ruleId && item.ruleId !== newRuleId
+      (item: { id: string; code: string; title: string; ruleId: string; ruleLabel?: string }) =>
+        item.ruleId && item.ruleId !== newRuleId
     )
 
     if (mismatchedItem) {
-      // Fetch rule details for both request and item rules
       try {
-        const getRuleDetailsQuery = `query getRuleDetails($requestRuleId: uuid!, $itemRuleId: uuid!) {
+        const getRuleDetailsItemQuery = `query getRuleDetails($requestRuleId: uuid!, $itemRuleId: uuid!) {
           requestRule: ExpenseRuleByPk(id: $requestRuleId) {
             code
             name
@@ -311,15 +331,17 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
             name
           }
         }`
-
-        const ruleDetails = await graphqlClient.request(getRuleDetailsQuery, {
-          requestRuleId: newRuleId,
-          itemRuleId: mismatchedItem.ruleId
-        })
+        const ruleDetailsCacheKey = `ruleDetailsItem:${[newRuleId, mismatchedItem.ruleId].sort().join(':')}`
+        const ruleDetails = await getCachedOrFetch(ruleDetailsCacheKey, () =>
+          graphqlClient.request(getRuleDetailsItemQuery, {
+            requestRuleId: newRuleId,
+            itemRuleId: mismatchedItem.ruleId
+          })
+        )
 
         const requestRuleCode = ruleDetails?.requestRule?.code || newRuleId
         const requestRuleName = ruleDetails?.requestRule?.name || ''
-        const itemRuleCode = ruleDetails?.itemRule?.code || mismatchedItem.ruleId
+        const itemRuleCode = ruleDetails?.itemRule?.code || mismatchedItem.ruleLabel || mismatchedItem.ruleId
         const itemRuleName = ruleDetails?.itemRule?.name || ''
 
         const errorMessage = getTranslationFromI18nKeyAndLabel(
@@ -354,6 +376,54 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
         )
 
         return errorMessage
+      }
+    }
+
+    const requestStoredRuleId = requestValue.expenseRuleId
+    const employeeRuleChanged = !!requestStoredRuleId && requestStoredRuleId !== newRuleId
+
+    // Request rule no longer matches current employee rule.
+    if (employeeRuleChanged) {
+      try {
+        const getRuleDetailsQuery = `query getRuleDetails($requestRuleId: uuid!, $employeeRuleId: uuid!) {
+          requestRule: ExpenseRuleByPk(id: $requestRuleId) {
+            code
+            name
+          }
+          employeeRule: ExpenseRuleByPk(id: $employeeRuleId) {
+            code
+            name
+          }
+        }`
+        const ruleDetailsCacheKey = `ruleDetailsRequestVsEmployee:${[requestStoredRuleId, newRuleId].sort().join(':')}`
+        const ruleDetails = await getCachedOrFetch(ruleDetailsCacheKey, () =>
+          graphqlClient.request(getRuleDetailsQuery, {
+            requestRuleId: requestStoredRuleId,
+            employeeRuleId: newRuleId
+          })
+        )
+
+        const requestRuleLabel =
+          [ruleDetails?.requestRule?.code, ruleDetails?.requestRule?.name].filter(Boolean).join(' ') ||
+          requestStoredRuleId
+        const employeeRuleLabel =
+          [ruleDetails?.employeeRule?.code, ruleDetails?.employeeRule?.name].filter(Boolean).join(' ') || newRuleId
+
+        return getTranslationFromI18nKeyAndLabel(
+          'lowcoder:modify_expense_request.request_rule_vs_employee_rule_message',
+          tWizard('request-rule-vs-employee-rule-message', {
+            requestRule: requestRuleLabel,
+            employeeRule: employeeRuleLabel
+          })
+        )
+      } catch {
+        return getTranslationFromI18nKeyAndLabel(
+          'lowcoder:modify_expense_request.request_rule_vs_employee_rule_message',
+          tWizard('request-rule-vs-employee-rule-message', {
+            requestRule: requestStoredRuleId,
+            employeeRule: newRuleId
+          })
+        )
       }
     }
 
@@ -490,23 +560,19 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
     }
   }
 
-  // Fetch allowance period rule for employee rule id
+  // Fetch allowance period rule for employee rule id (cached per employeeRuleId)
   useEffect(() => {
     const fetchAllowancePeriod = async () => {
       try {
         if (!accessToken || !employeeRuleId) return
-        const response = await graphqlClient.request(getRuleAllowancePeriod, { expenseRuleId: employeeRuleId }) //employeeRuleId
-        const first =
-          response?.ExpenseRuleAllowancePeriod && Array.isArray(response.ExpenseRuleAllowancePeriod)
-            ? response.ExpenseRuleAllowancePeriod[0]
-            : null
+        const first = await getAllowancePeriodRuleCached(employeeRuleId)
         setAllowancePeriodRule(first)
       } catch {
         setAllowancePeriodRule(null)
       }
     }
     fetchAllowancePeriod()
-  }, [accessToken, employeeRuleId, graphqlClient])
+  }, [accessToken, employeeRuleId, getAllowancePeriodRuleCached])
 
   // Determine checkbox visibility: show if rule exists and dates are consecutive calendar days
   useEffect(() => {
@@ -556,7 +622,12 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
     setLocationsAreSynced(sanitizedLocation.location === startLocation.location)
   }
 
-  const loadInitialTripData = async () => {
+  /**
+   * Loads and prefills trip form from expense request/plan data.
+   * Reuses rulesAlreadyFetched when the rule for the trip start date matches context's employeeRuleId.
+   * @param rulesAlreadyFetched - Optional rules already fetched for current employeeRuleId (from init effect)
+   */
+  const loadInitialTripData = async (rulesAlreadyFetched?: any) => {
     try {
       if (
         (expenseRequestData?.ExpenseRequestByPk?.expenseRequestTrip &&
@@ -593,27 +664,33 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
           }
 
           const employeeRuleData = await fetchEmployeeRule(employeeId, formattedDate, accessToken)
+          const ruleIdForTripDate = employeeRuleData?.expenseRuleId ?? employeeRuleData?.id
 
-          if (employeeRuleData && employeeRuleData.expenseRuleId) {
-            setEmployeeRuleId(employeeRuleData.expenseRuleId)
-            const activeUserLocale = getCurrentActiveUserLocale()
-            const rulesResponse = await graphqlClient.request(getExpenseRulesDataQuery, {
-              expenseRuleId: employeeRuleData.expenseRuleId,
-              activeUserLocale
-            })
+          if (ruleIdForTripDate) {
+            const canReuseRules = rulesAlreadyFetched && employeeRuleId && ruleIdForTripDate === employeeRuleId
 
-            setExpenseRulesData(rulesResponse)
-
-            // Prefill trip data from expense request
-            setByExternalCustomComponent(
-              expenseRequestData,
-              rulesResponse,
-              setStartLocation,
-              setDestinations,
-              setEndLocation
-            )
+            if (canReuseRules) {
+              setByExternalCustomComponent(
+                expenseRequestData,
+                rulesAlreadyFetched,
+                setStartLocation,
+                setDestinations,
+                setEndLocation
+              )
+            } else {
+              setEmployeeRuleId(ruleIdForTripDate)
+              const activeUserLocale = getCurrentActiveUserLocale()
+              const rulesResponse = await getExpenseRulesDataCached(ruleIdForTripDate, activeUserLocale)
+              setExpenseRulesData(rulesResponse)
+              setByExternalCustomComponent(
+                expenseRequestData,
+                rulesResponse,
+                setStartLocation,
+                setDestinations,
+                setEndLocation
+              )
+            }
           } else {
-            // Still try to prefill with available data even if rule is missing
             setByExternalCustomComponent(expenseRequestData, null, setStartLocation, setDestinations, setEndLocation)
           }
 
@@ -641,10 +718,9 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
             }
           } catch {}
         } else {
-          // Try to prefill with available data even if start object is invalid
           setByExternalCustomComponent(
             expenseRequestData,
-            expenseRulesData,
+            rulesAlreadyFetched ?? null,
             setStartLocation,
             setDestinations,
             setEndLocation
@@ -816,23 +892,22 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
               payloadItems.find((item: any) => item.currencyId)?.currencyId ||
               ''
 
-            const userLocale = getCurrentActiveUserLocale()
             const variables = {
               employeeId,
               status: REQUEST_STATUS.CREATED,
-              activeUserLocale: userLocale,
               idsArray: itemIdsToFetch,
               itemCurrency
             }
 
-            const response = await graphqlClient.request(fetchEmployeeExpenseItemsFromPayload, variables)
+            const response = await graphqlClient.request(fetchEmployeeExpenseItemsFromPayloadForRuleCheck, variables)
             const fetchedItems = response?.ExpenseItemEmployee || []
 
             const itemsForRuleCheck = fetchedItems.map((item: any) => ({
               id: item.id,
               code: item.code || '',
               title: item.title || '',
-              ruleId: item.expenseRuleId || ''
+              ruleId: item.expenseRuleId || '',
+              ruleLabel: [item?.expenseRule?.code, item?.expenseRule?.name].filter(Boolean).join(' ') || undefined
             }))
 
             setPayloadItemsForRuleCheck(itemsForRuleCheck)
@@ -882,14 +957,11 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
           return
         }
 
-        const rulesResponse = await graphqlClient.request(getExpenseRulesDataQuery, {
-          expenseRuleId: employeeRuleId,
-          activeUserLocale
-        })
+        const rulesResponse = await getExpenseRulesDataCached(employeeRuleId, activeUserLocale)
 
         setExpenseRulesData(rulesResponse)
 
-        await loadInitialTripData()
+        await loadInitialTripData(rulesResponse)
       } catch {
         showToast(
           getTranslationFromI18nKeyAndLabel(

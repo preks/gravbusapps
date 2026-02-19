@@ -1,9 +1,19 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState, ReactNode } from 'react'
 import { Form } from 'antd'
 import { getCurrentActiveUserLocale, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
 import { showToast } from '../../../utils/notificationUtils'
-import { fetchEmployeeRule, fetchExpenseRequestAndItems, getExpenseRulePkData } from '../ExpenseRequestWizardQueries'
+import {
+  fetchEmployeeRule,
+  fetchExpenseRequestAndItems,
+  getAllowanceData,
+  getTravelRegionsAndUser,
+  getUserCostCenters,
+  getUserProjects,
+  getRuleAllowancePeriod,
+  getExpenseRulePkData,
+  getExpenseRulesDataQuery
+} from '../ExpenseRequestWizardQueries'
 import { handleTripSubmitAction } from '../utils/tripScreenUtils'
 import { LocationData } from '../utils/types'
 import { getCurrencyWithFallback } from '../utils/currencyUtils'
@@ -55,6 +65,40 @@ export interface ExpenseRequestWizardContextProps {
   setPayloadItemIds: (ids: string[]) => void
   showSelectItems: boolean
   setShowSelectItems: (show: boolean) => void
+  /**
+   * Fetches and caches expense rule data by (expenseRuleId, locale).
+   * Used to avoid repeated getExpenseRulesDataQuery calls across screens.
+   */
+  getExpenseRulesDataCached: (expenseRuleId: string, activeUserLocale?: string) => Promise<any>
+  /**
+   * Fetches and caches allowance period rule by expenseRuleId.
+   * Returns the first matching rule or null.
+   */
+  getAllowancePeriodRuleCached: (expenseRuleId: string) => Promise<any | null>
+  /**
+   * Fetches and caches travel regions + employee position by (expenseRuleId, employeeId, locale).
+   */
+  getTravelRegionsAndUserCached: (expenseRuleId: string, employeeId: string, activeUserLocale?: string) => Promise<any>
+  /**
+   * Fetches and caches user cost centers by structureId.
+   */
+  getUserCostCentersCached: (structureId: string) => Promise<any>
+  /**
+   * Fetches and caches user projects by a set of structureIds.
+   * Cache key is order-independent (sorted list).
+   */
+  getUserProjectsCached: (structureIdArray: string[]) => Promise<any>
+  /**
+   * Fetches and caches allowance data by (employeeId, expenseRequestId, expenseRuleId, requestVersion, locale).
+   * Including requestVersion makes the cache safely invalidate after save/next updates.
+   */
+  getAllowanceDataCached: (args: {
+    employeeId: string
+    expenseRequestId: string
+    expenseRequestRuleId: string
+    requestVersion?: number
+    activeUserLocale?: string
+  }) => Promise<any>
 }
 
 /**
@@ -109,6 +153,118 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
   const [showSelectItems, setShowSelectItems] = useState<boolean>(false)
   const graphqlClient = useGraphqlClient(accessToken)
   const { dispatchProcessContinueEventIfEnabled } = useProcessEventState(additionalData)
+
+  /**
+   * Wizard-session cache for repeated lookups with identical inputs.
+   * Stores in-flight Promises to avoid duplicate requests (React 18 StrictMode/dev).
+   */
+  const queryCacheRef = useRef(new Map<string, any>())
+  const getCachedOrFetch = useCallback((key: string, fetchFn: () => Promise<any>): Promise<any> => {
+    const cache = queryCacheRef.current
+    if (cache.has(key)) {
+      return Promise.resolve(cache.get(key))
+    }
+
+    const inFlight = fetchFn()
+      .then(result => {
+        cache.set(key, result)
+        return result
+      })
+      .catch(err => {
+        cache.delete(key)
+        throw err
+      })
+
+    cache.set(key, inFlight)
+    return inFlight
+  }, [])
+
+  const getExpenseRulesDataCached = useCallback(
+    async (expenseRuleId: string, activeUserLocale?: string) => {
+      const locale = activeUserLocale ?? getCurrentActiveUserLocale()
+      const cacheKey = `expenseRules:${expenseRuleId}:${locale}`
+      return await getCachedOrFetch(cacheKey, () =>
+        graphqlClient.request(getExpenseRulesDataQuery, {
+          expenseRuleId,
+          activeUserLocale: locale
+        })
+      )
+    },
+    [getCachedOrFetch, graphqlClient]
+  )
+
+  const getAllowancePeriodRuleCached = useCallback(
+    async (expenseRuleId: string) => {
+      const cacheKey = `allowancePeriod:${expenseRuleId}`
+      const response = await getCachedOrFetch(cacheKey, () =>
+        graphqlClient.request(getRuleAllowancePeriod, { expenseRuleId })
+      )
+      const first =
+        response?.ExpenseRuleAllowancePeriod && Array.isArray(response.ExpenseRuleAllowancePeriod)
+          ? response.ExpenseRuleAllowancePeriod[0]
+          : null
+      return first
+    },
+    [getCachedOrFetch, graphqlClient]
+  )
+
+  const getTravelRegionsAndUserCached = useCallback(
+    async (expenseRuleId: string, employeeId: string, activeUserLocale?: string) => {
+      const locale = activeUserLocale ?? getCurrentActiveUserLocale()
+      const cacheKey = `travelRegionsAndUser:${expenseRuleId}:${employeeId}:${locale}`
+      return await getCachedOrFetch(cacheKey, () =>
+        graphqlClient.request(getTravelRegionsAndUser, {
+          expenseRuleId,
+          employeeId,
+          activeUserLocale: locale
+        })
+      )
+    },
+    [getCachedOrFetch, graphqlClient]
+  )
+
+  const getUserCostCentersCached = useCallback(
+    async (structureId: string) => {
+      const cacheKey = `userCostCenters:${structureId}`
+      return await getCachedOrFetch(cacheKey, () => graphqlClient.request(getUserCostCenters, { structureId }))
+    },
+    [getCachedOrFetch, graphqlClient]
+  )
+
+  const getUserProjectsCached = useCallback(
+    async (structureIdArray: string[]) => {
+      const normalized = [...(structureIdArray || [])].filter(Boolean).sort().join(',')
+      const cacheKey = `userProjects:${normalized}`
+      return await getCachedOrFetch(cacheKey, () =>
+        graphqlClient.request(getUserProjects, {
+          structureIdArray
+        })
+      )
+    },
+    [getCachedOrFetch, graphqlClient]
+  )
+
+  const getAllowanceDataCached = useCallback(
+    async (args: {
+      employeeId: string
+      expenseRequestId: string
+      expenseRequestRuleId: string
+      requestVersion?: number
+      activeUserLocale?: string
+    }) => {
+      const locale = args.activeUserLocale ?? getCurrentActiveUserLocale()
+      const version = args.requestVersion ?? 0
+      const cacheKey = `allowanceData:${args.employeeId}:${args.expenseRequestId}:${args.expenseRequestRuleId}:${version}:${locale}`
+      return await getCachedOrFetch(cacheKey, () =>
+        graphqlClient.request(getAllowanceData, {
+          employeeId: args.employeeId,
+          expenseRequestId: args.expenseRequestId,
+          expenseRequestRuleId: args.expenseRequestRuleId
+        })
+      )
+    },
+    [getCachedOrFetch, graphqlClient]
+  )
 
   // Fetch expense data when employeeRuleId is available
   // Made public so it can be called after expense item creation
@@ -389,7 +545,13 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
     payloadItemIds,
     setPayloadItemIds,
     showSelectItems,
-    setShowSelectItems
+    setShowSelectItems,
+    getExpenseRulesDataCached,
+    getAllowancePeriodRuleCached,
+    getTravelRegionsAndUserCached,
+    getUserCostCentersCached,
+    getUserProjectsCached,
+    getAllowanceDataCached
   }
 
   return <ExpenseRequestWizardContext.Provider value={contextValue}>{children}</ExpenseRequestWizardContext.Provider>
