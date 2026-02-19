@@ -1,25 +1,12 @@
 import React, { useState, useRef } from 'react'
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  Badge,
-  Button,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow
-} from '@newwork/nw-design-system'
+import { Card, CardContent, CardHeader, Badge } from '@newwork/nw-design-system'
 import { Typography } from 'antd'
-import { PiFileText, PiFilePdf } from 'react-icons/pi'
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 import type { DemographicsData } from '../../../../hooks/useDemographicsDataIntegration'
 import { useTranslation } from '@newwork/nw-design-system'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 import { exportTableToExcel, exportTableToPdf } from '../../../../utils/exportUtils'
+import AnalyticsDataTable, { HIGHLIGHT_BADGE } from '../../../shared/AnalyticsDataTable'
 
 const { Title, Text } = Typography
 
@@ -116,7 +103,7 @@ const DemographicsChartsView: React.FC<DemographicsChartsViewProps> = ({ demogra
   const exportColumnsDemographics = [
     { key: 'category', header: t('common-category') },
     { key: 'value', header: t('hr-analytics-value') },
-    { key: 'percentage', header: t('hr-analytics-percentage') }
+    { key: 'percentage', header: t('hr-analytics-percentage'), badge: HIGHLIGHT_BADGE }
   ]
 
   const chartConfigs = [
@@ -275,91 +262,41 @@ const DemographicsChartsView: React.FC<DemographicsChartsViewProps> = ({ demogra
       {/* Selected Chart Data Table */}
       <div ref={tableRef}>
         {selectedConfig && (
-          <Card data-testid={`${dataTestId}-${selectedConfig.testId}-table`}>
-            <CardHeader>
-              <div className="gba:flex gba:justify-between gba:items-center">
-                <div className="gba:flex gba:items-center gba:gap-2">
-                  <CardTitle className="gba:text-xl">
-                    {t('hr-analytics-data-table', { title: selectedConfig.title })}
-                  </CardTitle>
-                  <Badge variant="outline" className="gba:bg-success-secondary gba:text-success-secondary-foreground">
-                    {t('hr-analytics-total-entries', { count: selectedConfig.tableData.length })}
-                  </Badge>
-                </div>
-                <div className="gba:flex gba:gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={exportingTable === `${selectedConfig.testId}-excel`}
-                    onClick={e => {
-                      e.stopPropagation()
-                      handleExport(
-                        'excel',
-                        selectedConfig.testId,
-                        selectedConfig.title,
-                        selectedConfig.exportColumns,
-                        selectedConfig.tableData
-                      )
-                    }}
-                    data-testid={`${dataTestId}-${selectedConfig.testId}-export-excel`}
-                    className="gba:flex gba:items-center gba:gap-1"
-                  >
-                    <PiFileText className="gba:w-3 gba:h-3" />
-                    {t('common-export-excel')}
-                  </Button>
-
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={exportingTable === `${selectedConfig.testId}-pdf`}
-                    onClick={e => {
-                      e.stopPropagation()
-                      handleExport(
-                        'pdf',
-                        selectedConfig.testId,
-                        selectedConfig.title,
-                        selectedConfig.exportColumns,
-                        selectedConfig.tableData
-                      )
-                    }}
-                    data-testid={`${dataTestId}-${selectedConfig.testId}-export-pdf`}
-                    className="gba:flex gba:items-center gba:gap-1"
-                  >
-                    <PiFilePdf className="gba:w-3 gba:h-3" />
-                    {t('common-export-pdf')}
-                  </Button>
-                </div>
-              </div>
-              <p className="gba:text-sm gba:text-muted-foreground gba:mt-2">{selectedConfig.description}</p>
-            </CardHeader>
-
-            <CardContent>
-              <div className="gba:max-h-96 gba:overflow-y-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="gba:w-2/5">{t('common-category')}</TableHead>
-                      <TableHead className="gba:w-1/5">{t('hr-analytics-employee-count')}</TableHead>
-                      <TableHead className="gba:w-2/5">{t('hr-analytics-percentage')}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {selectedConfig.tableData.map(item => (
-                      <TableRow key={item.category}>
-                        <TableCell className="gba:font-medium">{item.category}</TableCell>
-                        <TableCell>{item.value.toLocaleString()}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className="gba:bg-info-secondary gba:text-info-secondary-foreground">
-                            {item.percentage}
-                          </Badge>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-
-              {/* Summary */}
+          <AnalyticsDataTable
+            dataTestId={`${dataTestId}-${selectedConfig.testId}-table`}
+            title={t('hr-analytics-data-table', { title: selectedConfig.title })}
+            description={selectedConfig.description}
+            entriesText={t('hr-analytics-total-entries', { count: selectedConfig.tableData.length })}
+            columns={selectedConfig.exportColumns}
+            rows={selectedConfig.tableData}
+            exportingFormat={
+              exportingTable === `${selectedConfig.testId}-excel`
+                ? 'excel'
+                : exportingTable === `${selectedConfig.testId}-pdf`
+                  ? 'pdf'
+                  : null
+            }
+            exportExcelTestId={`${dataTestId}-${selectedConfig.testId}-export-excel`}
+            exportPdfTestId={`${dataTestId}-${selectedConfig.testId}-export-pdf`}
+            exportExcelLabel={t('common-export-excel')}
+            exportPdfLabel={t('common-export-pdf')}
+            onExport={format =>
+              handleExport(
+                format,
+                selectedConfig.testId,
+                selectedConfig.title,
+                selectedConfig.exportColumns,
+                selectedConfig.tableData
+              )
+            }
+            getRowKey={row => (row as TableData).category}
+            renderCell={(item, col) => {
+              if (col.key === 'category') return <span className="gba:font-medium">{item.category}</span>
+              if (col.key === 'value') return item.value.toLocaleString()
+              if (col.key === 'percentage') return item.percentage
+              return '-'
+            }}
+            footer={
               <div className="gba:mt-4 gba:p-3 gba:bg-muted gba:rounded-md gba:flex gba:justify-between gba:items-center">
                 <span className="gba:font-medium gba:text-sm">
                   {t('hr-analytics-total-label')}:{' '}
@@ -370,8 +307,8 @@ const DemographicsChartsView: React.FC<DemographicsChartsViewProps> = ({ demogra
                   {t('hr-analytics-categories', { count: selectedConfig.tableData.length })}
                 </span>
               </div>
-            </CardContent>
-          </Card>
+            }
+          />
         )}
 
         {/* Help Text */}

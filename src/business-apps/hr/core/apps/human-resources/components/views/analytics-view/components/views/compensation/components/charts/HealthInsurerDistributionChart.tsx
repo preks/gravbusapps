@@ -27,11 +27,11 @@ export const HealthInsurerDistributionChart: React.FC<BusinessAppContextProps> =
     'var(--nw-chart-8)'
   ]
 
-  // Format data for the pie chart
+  // Format data for the pie chart (percentage rounded to 2 decimals)
   const chartData = data.map((item: any, index: number) => ({
     name: item.name,
     value: item.count,
-    percentage: item.percentage,
+    percentage: Number((item.percentage ?? 0).toFixed(2)),
     color: COLORS[index % COLORS.length]
   }))
 
@@ -46,7 +46,7 @@ export const HealthInsurerDistributionChart: React.FC<BusinessAppContextProps> =
             <span className="gba:font-medium">Employees:</span> {data.value.toLocaleString()}
           </p>
           <p className="gba:text-sm">
-            <span className="gba:font-medium">Percentage:</span> {data.payload.percentage}%
+            <span className="gba:font-medium">Percentage:</span> {Number(data.payload.percentage).toFixed(2)}%
           </p>
         </div>
       )
@@ -76,9 +76,7 @@ export const HealthInsurerDistributionChart: React.FC<BusinessAppContextProps> =
         </div>
       ) : error ? (
         <div className="gba:flex gba:justify-center gba:items-center gba:h-96">
-          <Text type="danger">
-            {t('hr-analytics-error-loading')}
-          </Text>
+          <Text type="danger">{t('hr-analytics-error-loading')}</Text>
         </div>
       ) : !data || data.length === 0 ? (
         <div className="gba:flex gba:justify-center gba:items-center gba:h-96">
@@ -96,7 +94,7 @@ export const HealthInsurerDistributionChart: React.FC<BusinessAppContextProps> =
                 outerRadius={100}
                 fill="var(--nw-chart-1)"
                 dataKey="value"
-                label={({ name, percentage }) => `${name} (${percentage}%)`}
+                label={({ name, percentage }) => `${name} (${Number(percentage).toFixed(2)}%)`}
               >
                 {chartData.map((entry: any, index: number) => (
                   <Cell key={`cell-${index}`} fill={entry.color} />

@@ -1,31 +1,14 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { Typography } from 'antd'
-import {
-  SectionKpiCards,
-  KpiCardData,
-  useTranslation,
-  Icon,
-  Card,
-  CardHeader,
-  CardTitle,
-  CardContent,
-  Table,
-  TableHeader,
-  TableRow,
-  TableHead,
-  TableBody,
-  TableCell,
-  Badge,
-  Button
-} from '@newwork/nw-design-system'
+import { SectionKpiCards, KpiCardData, useTranslation, Icon } from '@newwork/nw-design-system'
 import { UsersIcon, CalendarIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useQueryExecutionClient, QueryType, Services } from '@/common/network/dataset'
-import { PiFilePdf, PiFileText } from 'react-icons/pi'
 import HeadcountChangesChart from '../HeadcountChangesChart'
 import { useMonthlyHeadcountChanges } from '../../../../../hooks/useMonthlyHeadcountChanges'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 import { exportTableToExcel, exportTableToPdf } from '../../../../../utils/exportUtils'
+import AnalyticsDataTable, { DIFFERENT_BADGE } from '../../../../shared/AnalyticsDataTable'
 
 const { Title, Text } = Typography
 
@@ -203,7 +186,7 @@ export const WorkforceForecasting: React.FC<WorkforceForecastingProps> = props =
     { key: 'period', header: t('hr-analytics-month') },
     { key: 'hires', header: t('hr-analytics-hires') },
     { key: 'departures', header: t('hr-analytics-monthly-departures') },
-    { key: 'netChange', header: t('hr-analytics-change') }
+    { key: 'netChange', header: t('hr-analytics-change'), badge: DIFFERENT_BADGE }
   ]
 
   const handleExport = async (format: 'excel' | 'pdf') => {
@@ -240,67 +223,26 @@ export const WorkforceForecasting: React.FC<WorkforceForecastingProps> = props =
       {/* Workforce Charts */}
       <div className="gba:space-y-6">
         <HeadcountChangesChart {...props} />
-        <Card data-testid={`${prefixDataTestId}-headcount-changes-table`}>
-          <CardHeader>
-            <div className="gba:flex gba:justify-between gba:items-center">
-              <div className="gba:flex gba:items-center gba:gap-2">
-                <CardTitle className="gba:text-xl">
-                  {t('hr-analytics-data-table', { title: t('hr-analytics-headcount-changes-chart') })}
-                </CardTitle>
-                <Badge variant="outline" className="gba:bg-success-secondary gba:text-success-secondary-foreground">
-                  {t('hr-analytics-total-entries', { count: tableData.length })}
-                </Badge>
-              </div>
-              <div className="gba:flex gba:gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  data-testid={`${prefixDataTestId}-headcount-changes-export-excel`}
-                  disabled={exportingTable === 'headcount-changes-excel'}
-                  onClick={() => handleExport('excel')}
-                  className="gba:flex gba:items-center gba:gap-1"
-                >
-                  <PiFileText className="gba:w-3 gba:h-3" />
-                  {t('common-export-excel')}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  data-testid={`${prefixDataTestId}-headcount-changes-export-pdf`}
-                  disabled={exportingTable === 'headcount-changes-pdf'}
-                  onClick={() => handleExport('pdf')}
-                  className="gba:flex gba:items-center gba:gap-1"
-                >
-                  <PiFilePdf className="gba:w-3 gba:h-3" />
-                  {t('common-export-pdf')}
-                </Button>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="gba:max-h-96 gba:overflow-y-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    {exportColumns.map(col => (
-                      <TableHead key={col.key}>{col.header}</TableHead>
-                    ))}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {tableData.map(row => (
-                    <TableRow key={row.period}>
-                      <TableCell>{row.period}</TableCell>
-                      <TableCell>{row.hires}</TableCell>
-                      <TableCell>{row.departures}</TableCell>
-                      <TableCell>{row.netChange}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
+        <AnalyticsDataTable
+          dataTestId={`${prefixDataTestId}-headcount-changes-table`}
+          title={t('hr-analytics-data-table', { title: t('hr-analytics-headcount-changes-chart') })}
+          entriesText={t('hr-analytics-total-entries', { count: tableData.length })}
+          columns={exportColumns}
+          rows={tableData}
+          exportingFormat={
+            exportingTable === 'headcount-changes-excel'
+              ? 'excel'
+              : exportingTable === 'headcount-changes-pdf'
+                ? 'pdf'
+                : null
+          }
+          exportExcelTestId={`${prefixDataTestId}-headcount-changes-export-excel`}
+          exportPdfTestId={`${prefixDataTestId}-headcount-changes-export-pdf`}
+          exportExcelLabel={t('common-export-excel')}
+          exportPdfLabel={t('common-export-pdf')}
+          onExport={handleExport}
+          getRowKey={row => row.period}
+        />
       </div>
     </div>
   )

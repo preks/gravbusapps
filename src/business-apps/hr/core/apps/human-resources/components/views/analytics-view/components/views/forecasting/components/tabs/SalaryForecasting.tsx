@@ -1,25 +1,7 @@
 import React, { useMemo, useRef, useState } from 'react'
 import { Typography } from 'antd'
-import {
-  SectionKpiCards,
-  KpiCardData,
-  useTranslation,
-  Icon,
-  Card,
-  CardHeader,
-  CardTitle,
-  CardContent,
-  Button,
-  Badge,
-  Table,
-  TableHeader,
-  TableRow,
-  TableHead,
-  TableBody,
-  TableCell
-} from '@newwork/nw-design-system'
+import { SectionKpiCards, KpiCardData, useTranslation, Icon, Card, CardContent } from '@newwork/nw-design-system'
 import { UsersIcon, CalendarIcon } from '@phosphor-icons/react'
-import { PiFilePdf, PiFileText } from 'react-icons/pi'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useMonthlySalaryForecastEmployee } from '../../../../../hooks/useMonthlySalaryForecastEmployee'
 import { useMonthlySalaryChangesEmployees } from '../../../../../hooks/useMonthlySalaryChangesEmployees'
@@ -33,6 +15,7 @@ import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import dayjs from 'dayjs'
 import { exportTableToExcel, exportTableToPdf } from '../../../../../utils/exportUtils'
+import AnalyticsDataTable, { DIFFERENT_BADGE, DIFFERENT_PERCENTAGE_BADGE } from '../../../../shared/AnalyticsDataTable'
 
 const { Title, Text } = Typography
 
@@ -302,7 +285,7 @@ export const SalaryForecasting: React.FC<SalaryForecastingProps> = props => {
       tableData: transformSalaryChangesData(),
       exportColumns: [
         { key: 'period', header: t('hr-analytics-month') },
-        { key: 'value', header: t('hr-analytics-salary-change') }
+        { key: 'value', header: t('hr-analytics-salary-change'), badge: DIFFERENT_BADGE }
       ]
     },
     {
@@ -316,7 +299,7 @@ export const SalaryForecasting: React.FC<SalaryForecastingProps> = props => {
         { key: 'department', header: t('hr-analytics-department') },
         { key: 'value', header: t('hr-analytics-value') },
         { key: 'percentage', header: t('hr-analytics-percentage') },
-        { key: 'change', header: t('hr-analytics-change') }
+        { key: 'change', header: t('hr-analytics-change'), badge: DIFFERENT_BADGE }
       ]
     },
     {
@@ -330,7 +313,7 @@ export const SalaryForecasting: React.FC<SalaryForecastingProps> = props => {
         { key: 'value', header: t('hr-analytics-value') },
         { key: 'period', header: t('hr-analytics-period') },
         { key: 'percentage', header: t('hr-analytics-percentage') },
-        { key: 'growth', header: t('hr-analytics-change') }
+        { key: 'growth', header: t('hr-analytics-change'), badge: DIFFERENT_PERCENTAGE_BADGE }
       ]
     }
   ]
@@ -427,87 +410,36 @@ export const SalaryForecasting: React.FC<SalaryForecastingProps> = props => {
 
       <div ref={tableRef}>
         {selectedConfig && (
-          <Card data-testid={`${prefixDataTestId}-${selectedConfig.testId}-table`}>
-            <CardHeader>
-              <div className="gba:flex gba:justify-between gba:items-center">
-                <div className="gba:flex gba:items-center gba:gap-2">
-                  <CardTitle className="gba:text-xl">
-                    {t('hr-analytics-data-table', { title: selectedConfig.title })}
-                  </CardTitle>
-                  <Badge variant="outline" className="gba:bg-success-secondary gba:text-success-secondary-foreground">
-                    {t('hr-analytics-total-entries', { count: selectedConfig.tableData.length })}
-                  </Badge>
-                </div>
-                <div className="gba:flex gba:gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    data-testid={`${prefixDataTestId}-${selectedConfig.testId}-export-excel`}
-                    disabled={exportingTable === `${selectedConfig.testId}-excel`}
-                    onClick={e => {
-                      e.stopPropagation()
-                      handleExport(
-                        'excel',
-                        selectedConfig.testId,
-                        selectedConfig.title,
-                        selectedConfig.exportColumns,
-                        selectedConfig.tableData
-                      )
-                    }}
-                    className="gba:flex gba:items-center gba:gap-1"
-                  >
-                    <PiFileText className="gba:w-3 gba:h-3" />
-                    {t('common-export-excel')}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    data-testid={`${prefixDataTestId}-${selectedConfig.testId}-export-pdf`}
-                    disabled={exportingTable === `${selectedConfig.testId}-pdf`}
-                    onClick={e => {
-                      e.stopPropagation()
-                      handleExport(
-                        'pdf',
-                        selectedConfig.testId,
-                        selectedConfig.title,
-                        selectedConfig.exportColumns,
-                        selectedConfig.tableData
-                      )
-                    }}
-                    className="gba:flex gba:items-center gba:gap-1"
-                  >
-                    <PiFilePdf className="gba:w-3 gba:h-3" />
-                    {t('common-export-pdf')}
-                  </Button>
-                </div>
-              </div>
-              <Text className="gba:text-muted-foreground">{selectedConfig.description}</Text>
-            </CardHeader>
-            <CardContent>
-              <div className="gba:max-h-96 gba:overflow-y-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      {selectedConfig.exportColumns.map(col => (
-                        <TableHead key={col.key}>{col.header}</TableHead>
-                      ))}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {selectedConfig.tableData.map((row, index) => (
-                      <TableRow key={`${selectedConfig.testId}-${index}`}>
-                        {selectedConfig.exportColumns.map(col => (
-                          <TableCell key={`${col.key}-${index}`}>
-                            {formatTableCell((row as unknown as Record<string, unknown>)[col.key])}
-                          </TableCell>
-                        ))}
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
+          <AnalyticsDataTable
+            dataTestId={`${prefixDataTestId}-${selectedConfig.testId}-table`}
+            title={t('hr-analytics-data-table', { title: selectedConfig.title })}
+            description={selectedConfig.description}
+            entriesText={t('hr-analytics-total-entries', { count: selectedConfig.tableData.length })}
+            columns={selectedConfig.exportColumns}
+            rows={selectedConfig.tableData}
+            exportingFormat={
+              exportingTable === `${selectedConfig.testId}-excel`
+                ? 'excel'
+                : exportingTable === `${selectedConfig.testId}-pdf`
+                  ? 'pdf'
+                  : null
+            }
+            exportExcelTestId={`${prefixDataTestId}-${selectedConfig.testId}-export-excel`}
+            exportPdfTestId={`${prefixDataTestId}-${selectedConfig.testId}-export-pdf`}
+            exportExcelLabel={t('common-export-excel')}
+            exportPdfLabel={t('common-export-pdf')}
+            onExport={format =>
+              handleExport(
+                format,
+                selectedConfig.testId,
+                selectedConfig.title,
+                selectedConfig.exportColumns,
+                selectedConfig.tableData
+              )
+            }
+            getRowKey={(_, index) => `${selectedConfig.testId}-${index}`}
+            renderCell={(row, col) => formatTableCell((row as unknown as Record<string, unknown>)[col.key])}
+          />
         )}
       </div>
     </div>

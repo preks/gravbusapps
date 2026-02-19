@@ -16,21 +16,13 @@ import {
   Spinner,
   Card,
   CardContent,
-  Button,
-  CardHeader,
-  CardTitle,
-  Badge,
-  Table,
-  TableHeader,
-  TableRow,
-  TableHead,
-  TableBody,
-  TableCell
+  Button
 } from '@newwork/nw-design-system'
 import { ChartPieIcon, ChartBarIcon, BuildingsIcon, UsersIcon } from '@phosphor-icons/react'
-import { PiArrowClockwise, PiFilePdf, PiFileText } from 'react-icons/pi'
+import { PiArrowClockwise } from 'react-icons/pi'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 import { exportTableToExcel, exportTableToPdf } from '../../../utils/exportUtils'
+import AnalyticsDataTable from '../../shared/AnalyticsDataTable'
 
 interface StructuralAnalysisReportProps extends BusinessAppContextProps {
   prefixDataTestId?: string
@@ -426,68 +418,28 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
       </Tabs>
 
       {selectedTableConfig && (
-        <Card data-testid={`${prefixDataTestId}-${selectedTableConfig.testId}-table`} className="gba:mt-6">
-          <CardHeader>
-            <div className="gba:flex gba:justify-between gba:items-center">
-              <div className="gba:flex gba:items-center gba:gap-2">
-                <CardTitle className="gba:text-xl">
-                  {t('hr-analytics-data-table', { title: selectedTableConfig.title })}
-                </CardTitle>
-                <Badge variant="outline" className="gba:bg-success-secondary gba:text-success-secondary-foreground">
-                  {t('hr-analytics-total-entries', { count: selectedTableConfig.rows.length })}
-                </Badge>
-              </div>
-              <div className="gba:flex gba:gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  data-testid={`${prefixDataTestId}-${selectedTableConfig.testId}-export-excel`}
-                  disabled={exportingTable === `${selectedTableConfig.testId}-excel`}
-                  onClick={() => handleExport('excel')}
-                  className="gba:flex gba:items-center gba:gap-1"
-                >
-                  <PiFileText className="gba:w-3 gba:h-3" />
-                  {t('common-export-excel')}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  data-testid={`${prefixDataTestId}-${selectedTableConfig.testId}-export-pdf`}
-                  disabled={exportingTable === `${selectedTableConfig.testId}-pdf`}
-                  onClick={() => handleExport('pdf')}
-                  className="gba:flex gba:items-center gba:gap-1"
-                >
-                  <PiFilePdf className="gba:w-3 gba:h-3" />
-                  {t('common-export-pdf')}
-                </Button>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="gba:max-h-96 gba:overflow-y-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    {selectedTableConfig.columns.map(col => (
-                      <TableHead key={col.key}>{col.header}</TableHead>
-                    ))}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {selectedTableConfig.rows.map((row, index) => (
-                    <TableRow key={`${selectedTableConfig.testId}-${index}`}>
-                      {selectedTableConfig.columns.map(col => (
-                        <TableCell key={`${col.key}-${index}`}>
-                          {String((row as Record<string, unknown>)[col.key] ?? '-')}
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
+        <AnalyticsDataTable
+          dataTestId={`${prefixDataTestId}-${selectedTableConfig.testId}-table`}
+          className="gba:mt-6"
+          title={t('hr-analytics-data-table', { title: selectedTableConfig.title })}
+          entriesText={t('hr-analytics-total-entries', { count: selectedTableConfig.rows.length })}
+          columns={selectedTableConfig.columns}
+          rows={selectedTableConfig.rows}
+          exportingFormat={
+            exportingTable === `${selectedTableConfig.testId}-excel`
+              ? 'excel'
+              : exportingTable === `${selectedTableConfig.testId}-pdf`
+                ? 'pdf'
+                : null
+          }
+          exportExcelTestId={`${prefixDataTestId}-${selectedTableConfig.testId}-export-excel`}
+          exportPdfTestId={`${prefixDataTestId}-${selectedTableConfig.testId}-export-pdf`}
+          exportExcelLabel={t('common-export-excel')}
+          exportPdfLabel={t('common-export-pdf')}
+          onExport={handleExport}
+          getRowKey={(_, index) => `${selectedTableConfig.testId}-${index}`}
+          renderCell={(row, col) => String((row as unknown as Record<string, unknown>)[col.key] ?? '-')}
+        />
       )}
     </div>
   )

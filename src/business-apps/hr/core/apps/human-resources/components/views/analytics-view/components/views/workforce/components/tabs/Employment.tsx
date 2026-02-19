@@ -1,19 +1,7 @@
 import React, { useState, useRef } from 'react'
-import {
-  Card,
-  CardContent,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-  Badge,
-  Button
-} from '@newwork/nw-design-system'
+import { Card, CardContent } from '@newwork/nw-design-system'
 import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { PiFileText, PiFilePdf } from 'react-icons/pi'
 import { useEmploymentTypeDistribution } from '../../../../../hooks/useEmploymentTypeDistribution'
 import { useFteRatio } from '../../../../../hooks/useFteRatio'
 import { useGapRate } from '../../../../../hooks/useGapRate'
@@ -32,6 +20,7 @@ import EmploymentTypePieChart from '../charts/EmploymentTypePieChart'
 import ContractTypePieChart from '../charts/ContractTypePieChart'
 import GapRateByOrgUnitChart from '../charts/GapRateByOrgUnitChart'
 import ProbationRateByOrgUnitChart from '../charts/ProbationRateByOrgUnitChart'
+import AnalyticsDataTable from '../../../../shared/AnalyticsDataTable'
 
 interface TableData {
   period: string
@@ -387,117 +376,38 @@ const Employment: React.FC<BusinessAppContextProps> = context => {
       {/* Interactive Data Table */}
       <div ref={tableRef}>
         {selectedConfig && (
-          <Card data-testid={`${selectedConfig.testId}-table`} className="gba:mt-6">
-            <CardContent>
-              {/* Table Header */}
-              <div className="gba:flex gba:justify-between gba:items-center gba:mb-4 gba:pb-4 gba:border-b">
-                <div className="gba:flex gba:items-center gba:gap-2">
-                  <h3 className="gba:text-xl gba:font-semibold gba:text-foreground">
-                    {t('hr-analytics-data-table', { title: selectedConfig.title })}
-                  </h3>
-                  <Badge
-                    variant="outline"
-                    className="gba:bg-success-secondary/50 gba:text-success-secondary-foreground"
-                  >
-                    {t('hr-analytics-total-entries', { count: selectedConfig.tableData.length })}
-                  </Badge>
-                </div>
-                <div className="gba:flex gba:gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={exportingTable === `${selectedConfig.testId}-excel`}
-                    onClick={e => {
-                      e.stopPropagation()
-                      handleExport(
-                        'excel',
-                        selectedConfig.testId,
-                        selectedConfig.title,
-                        selectedConfig.exportColumns,
-                        selectedConfig.tableData
-                      )
-                    }}
-                    className="gba:flex gba:items-center gba:gap-1"
-                  >
-                    <PiFileText className="gba:w-3 gba:h-3" />
-                    {t('common-export-excel')}
-                  </Button>
-
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={exportingTable === `${selectedConfig.testId}-pdf`}
-                    onClick={e => {
-                      e.stopPropagation()
-                      handleExport(
-                        'pdf',
-                        selectedConfig.testId,
-                        selectedConfig.title,
-                        selectedConfig.exportColumns,
-                        selectedConfig.tableData
-                      )
-                    }}
-                    className="gba:flex gba:items-center gba:gap-1"
-                  >
-                    <PiFilePdf className="gba:w-3 gba:h-3" />
-                    {t('common-export-pdf')}
-                  </Button>
-                </div>
-              </div>
-
-              <p className="gba:text-sm gba:text-muted-foreground gba:mb-4">{selectedConfig.description}</p>
-
-              <div className="gba:max-h-96 gba:overflow-y-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="gba:w-2/5">
-                        {selectedConfig.testId === 'employment-type-chart'
-                          ? t('hr-analytics-employment-type')
-                          : selectedConfig.testId === 'contract-type-chart'
-                            ? t('hr-analytics-contract-types')
-                            : selectedConfig.testId === 'gap-rate-org-unit-chart'
-                              ? t('hr-analytics-entity-organizational-unit')
-                              : selectedConfig.testId === 'probation-rate-org-unit-chart'
-                                ? t('hr-analytics-entity-organizational-unit')
-                                : t('common-category')}
-                      </TableHead>
-                      <TableHead className="gba:w-3/5">
-                        {selectedConfig.testId === 'employment-type-chart'
-                          ? t('hr-analytics-employee-count')
-                          : selectedConfig.testId === 'contract-type-chart'
-                            ? t('hr-analytics-employee-count')
-                            : selectedConfig.testId === 'gap-rate-org-unit-chart'
-                              ? t('hr-analytics-gap-rate')
-                              : selectedConfig.testId === 'probation-rate-org-unit-chart'
-                                ? t('hr-analytics-probation-rate')
-                                : t('hr-analytics-employee-count')}
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {selectedConfig.tableData.map((item, index) => (
-                      <TableRow key={index}>
-                        <TableCell className="gba:font-medium">{item.period}</TableCell>
-                        <TableCell>
-                          {typeof item.value === 'number' ? (
-                            <Badge
-                              variant="outline"
-                              className="gba:bg-info-secondary/50 gba:text-info-secondary-foreground"
-                            >
-                              {item.value.toLocaleString()}
-                            </Badge>
-                          ) : (
-                            <span className="gba:text-sm">{item.value}</span>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-
-              {/* Summary */}
+          <AnalyticsDataTable
+            dataTestId={`${selectedConfig.testId}-table`}
+            className="gba:mt-6"
+            title={t('hr-analytics-data-table', { title: selectedConfig.title })}
+            description={selectedConfig.description}
+            entriesText={t('hr-analytics-total-entries', { count: selectedConfig.tableData.length })}
+            columns={selectedConfig.exportColumns}
+            rows={selectedConfig.tableData}
+            exportingFormat={
+              exportingTable === `${selectedConfig.testId}-excel`
+                ? 'excel'
+                : exportingTable === `${selectedConfig.testId}-pdf`
+                  ? 'pdf'
+                  : null
+            }
+            exportExcelLabel={t('common-export-excel')}
+            exportPdfLabel={t('common-export-pdf')}
+            onExport={format =>
+              handleExport(
+                format,
+                selectedConfig.testId,
+                selectedConfig.title,
+                selectedConfig.exportColumns,
+                selectedConfig.tableData
+              )
+            }
+            getRowKey={(_, index) => `${selectedConfig.testId}-${index}`}
+            renderCell={(item, col) => {
+              if (col.key === 'period') return <span className="gba:font-medium">{item.period}</span>
+              return typeof item.value === 'number' ? item.value.toLocaleString() : item.value
+            }}
+            footer={
               <div className="gba:mt-4 gba:pt-4 gba:border-t gba:bg-muted gba:rounded gba:p-3">
                 <div className="gba:flex gba:justify-between gba:text-sm">
                   <span className="gba:text-muted-foreground">
@@ -526,8 +436,8 @@ const Employment: React.FC<BusinessAppContextProps> = context => {
                   </span>
                 </div>
               </div>
-            </CardContent>
-          </Card>
+            }
+          />
         )}
 
         {!selectedConfig && (
