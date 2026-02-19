@@ -75,6 +75,7 @@ export const SteeringChat = ({
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const lastResultRef = useRef<string | null>(null)
   const userScrolledUpRef = useRef(false)
+  const sendInFlightRef = useRef(false)
 
   useEffect(() => {
     try {
@@ -171,7 +172,9 @@ export const SteeringChat = ({
   }, [inputValue, syncTextareaHeight])
 
   const handleSend = useCallback(async () => {
+    if (sendInFlightRef.current) return
     if (!inputValue.trim() || isLoading || !selectedAgentId) return
+    sendInFlightRef.current = true
 
     const userMessage: Message = { id: `user-${Date.now()}`, role: 'user', content: inputValue.trim() }
     const updatedMessages = [...messages, userMessage]
@@ -190,6 +193,7 @@ export const SteeringChat = ({
       const formData = new FormData()
       formData.append('user_params', JSON.stringify({ input: userMessage.content }))
       if (llmProvider) formData.append('llm_provider', llmProvider)
+      if (sessionId) formData.append('session_id', sessionId)
 
       const response = await promptClient.executePromptById(selectedAgentId, formData)
 
@@ -231,6 +235,7 @@ export const SteeringChat = ({
       onSessionSave?.(finalMessages, selectedAgentId, selectedAgent?.name || '', lastResultRef.current)
     } finally {
       setIsLoading(false)
+      sendInFlightRef.current = false
       onExecutionEnd?.()
     }
   }, [
@@ -253,6 +258,7 @@ export const SteeringChat = ({
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
+      if (e.repeat) return
       if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
         e.preventDefault()
         handleSend()
@@ -269,18 +275,18 @@ export const SteeringChat = ({
   return (
     <div className="gba:flex gba:flex-col gba:h-full gba:bg-background" data-testid="steering-chat">
       {/* Header — Nexus-style: History | Agent selector | New session */}
-      <div className="gba:flex gba:items-center gba:gap-3 gba:px-4 gba:py-3 gba:border-b gba:border-border">
+      <div className="gba:flex gba:items-center gba:gap-3 gba:px-4 gba:h-11 gba:flex-shrink-0 gba:border-b gba:border-border">
         <Button
           variant="ghost"
           size="icon"
-          className="gba:h-8 gba:w-8 gba:rounded-xl gba:hover:bg-muted"
+          className="gba:h-8 gba:w-8 gba:rounded-xl gba:hover:bg-muted gba:flex-shrink-0"
           onClick={onOpenHistory}
           data-testid="steering-chat-history-btn"
         >
           <History className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
         </Button>
 
-        <div className="gba:flex-1 gba:min-w-0">
+        <div className="gba:flex-1 gba:min-w-0 gba:overflow-hidden">
           {loadingAgents ? (
             <div className="gba:flex gba:items-center gba:justify-center gba:gap-2">
               <Spinner size="sm" />
@@ -288,7 +294,7 @@ export const SteeringChat = ({
             </div>
           ) : (
             <Select value={selectedAgentId} onValueChange={setSelectedAgentId} data-testid="steering-chat-agent-select">
-              <SelectTrigger className="gba:h-8 gba:text-sm gba:border-0 gba:bg-transparent gba:shadow-none gba:font-semibold gba:text-foreground gba:justify-center gba:gap-1.5">
+              <SelectTrigger className="gba:h-8 gba:text-sm gba:border-0 gba:bg-transparent gba:shadow-none gba:font-semibold gba:text-foreground gba:gap-1.5">
                 <SelectValue placeholder="Select agent..." />
               </SelectTrigger>
               <SelectContent>
@@ -305,7 +311,7 @@ export const SteeringChat = ({
         <Button
           variant="ghost"
           size="icon"
-          className="gba:h-8 gba:w-8 gba:rounded-xl gba:hover:bg-muted"
+          className="gba:h-8 gba:w-8 gba:rounded-xl gba:hover:bg-muted gba:flex-shrink-0"
           onClick={onNewSession}
           data-testid="steering-chat-new-session-btn"
         >
