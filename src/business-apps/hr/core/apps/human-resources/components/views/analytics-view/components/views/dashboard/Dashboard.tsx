@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react'
+import React, { useMemo } from 'react'
 import { Typography, Spin } from 'antd'
 import { SectionKpiCards, KpiCardData, useTranslation, Icon, Card, CardContent } from '@newwork/nw-design-system'
 import { UsersIcon, CurrencyDollarIcon } from '@phosphor-icons/react'
@@ -14,7 +14,8 @@ import HiresPerYearChart from './components/charts/HiresPerYearChart'
 import EmployeesPerYearChart from './components/charts/EmployeesPerYearChart'
 import EmployeesByOrgUnitChart from './components/charts/EmployeesByOrgUnitChart'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
-import { exportTableToExcel, exportTableToPdf } from '../../../utils/exportUtils'
+import { useAnalyticsTableExport } from '../../../hooks/useAnalyticsTableExport'
+import { useChartTableSelection } from '../../../hooks/useChartTableSelection'
 import AnalyticsDataTable, { DIFFERENT_BADGE, HIGHLIGHT_BADGE } from '../../shared/AnalyticsDataTable'
 
 const { Title, Text } = Typography
@@ -31,9 +32,8 @@ interface TableDataRow {
  */
 const Dashboard: React.FC<DashboardProps> = ({ accessToken }) => {
   const { t } = useTranslation(hrTranslations)
-  const [selectedChart, setSelectedChart] = useState<string | null>(null)
-  const [exportingTable, setExportingTable] = useState<string | null>(null)
-  const tableRef = useRef<HTMLDivElement>(null)
+  const { handleExport, resolveExportingFormat } = useAnalyticsTableExport()
+  const { selectedChart, tableRef, handleChartClick } = useChartTableSelection()
 
   // Get data from custom hooks
   const {
@@ -186,35 +186,6 @@ const Dashboard: React.FC<DashboardProps> = ({ accessToken }) => {
     }))
   }
 
-  const handleExport = async (
-    format: 'excel' | 'pdf',
-    tableName: string,
-    title: string,
-    columns: { key: string; header: string }[],
-    data: TableDataRow[]
-  ) => {
-    setExportingTable(`${tableName}-${format}`)
-    try {
-      const rows = data.map(row => ({ ...row })) as Record<string, unknown>[]
-      if (format === 'excel') {
-        await exportTableToExcel(title, columns, rows)
-      } else {
-        await exportTableToPdf(title, columns, rows)
-      }
-    } finally {
-      setExportingTable(null)
-    }
-  }
-
-  const handleChartClick = (chartId: string) => {
-    setSelectedChart(selectedChart === chartId ? null : chartId)
-    if (selectedChart !== chartId && tableRef.current) {
-      setTimeout(() => {
-        tableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start', inline: 'nearest' })
-      }, 100)
-    }
-  }
-
   const chartConfigs = [
     {
       title: t('hr-analytics-employees-per-year'),
@@ -254,11 +225,6 @@ const Dashboard: React.FC<DashboardProps> = ({ accessToken }) => {
     }
   ]
   const selectedConfig = chartConfigs.find(config => config.testId === selectedChart)
-  const resolveExportingFormat = (tableName: string): 'excel' | 'pdf' | null => {
-    if (exportingTable === `${tableName}-excel`) return 'excel'
-    if (exportingTable === `${tableName}-pdf`) return 'pdf'
-    return null
-  }
 
   if (loading) {
     return (
@@ -371,7 +337,7 @@ const Dashboard: React.FC<DashboardProps> = ({ accessToken }) => {
                   selectedConfig.testId,
                   selectedConfig.title,
                   selectedConfig.exportColumns,
-                  selectedConfig.tableData
+                  selectedConfig.tableData as unknown as Record<string, unknown>[]
                 )
               }
               getRowKey={(_, index) => `${selectedConfig.testId}-${index}`}

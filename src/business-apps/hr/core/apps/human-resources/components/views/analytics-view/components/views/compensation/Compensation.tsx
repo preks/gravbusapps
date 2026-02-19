@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react'
+import React, { useMemo } from 'react'
 import { Typography, Row, Col } from 'antd'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { SectionKpiCards, KpiCardData, Icon, Card, CardContent, useTranslation } from '@newwork/nw-design-system'
@@ -12,7 +12,8 @@ import SalaryByOrgUnitChart from './components/charts/SalaryByOrgUnitChart'
 import HealthInsurerDistributionChart from './components/charts/HealthInsurerDistributionChart'
 import HealthInsuranceTypeDistributionChart from './components/charts/HealthInsuranceTypeDistributionChart'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
-import { exportTableToExcel, exportTableToPdf } from '../../../utils/exportUtils'
+import { useAnalyticsTableExport } from '../../../hooks/useAnalyticsTableExport'
+import { useChartTableSelection } from '../../../hooks/useChartTableSelection'
 import AnalyticsDataTable, { HIGHLIGHT_BADGE } from '../../shared/AnalyticsDataTable'
 
 const { Title, Text } = Typography
@@ -23,9 +24,8 @@ interface CompensationProps extends BusinessAppContextProps {
 
 export const Compensation: React.FC<CompensationProps> = ({ accessToken, prefixDataTestId = 'Compensation' }) => {
   const { t } = useTranslation(hrTranslations)
-  const [selectedChart, setSelectedChart] = useState<string | null>(null)
-  const [exportingTable, setExportingTable] = useState<string | null>(null)
-  const tableRef = useRef<HTMLDivElement>(null)
+  const { handleExport, resolveExportingFormat } = useAnalyticsTableExport()
+  const { selectedChart, tableRef, handleChartClick } = useChartTableSelection()
   // Use combined hook for compensation metrics (median, average salary, and merit increase)
   const {
     medianSalary,
@@ -88,35 +88,6 @@ export const Compensation: React.FC<CompensationProps> = ({ accessToken, prefixD
     }))
   }
 
-  const handleExport = async (
-    format: 'excel' | 'pdf',
-    tableName: string,
-    title: string,
-    columns: { key: string; header: string }[],
-    data: TableDataRow[]
-  ) => {
-    setExportingTable(`${tableName}-${format}`)
-    try {
-      const rows = data.map(row => ({ ...row })) as Record<string, unknown>[]
-      if (format === 'excel') {
-        await exportTableToExcel(title, columns, rows)
-      } else {
-        await exportTableToPdf(title, columns, rows)
-      }
-    } finally {
-      setExportingTable(null)
-    }
-  }
-
-  const handleChartClick = (chartId: string) => {
-    setSelectedChart(selectedChart === chartId ? null : chartId)
-    if (selectedChart !== chartId && tableRef.current) {
-      setTimeout(() => {
-        tableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start', inline: 'nearest' })
-      }, 100)
-    }
-  }
-
   const chartConfigs = [
     {
       title: t('hr-analytics-salary-by-org-unit'),
@@ -156,11 +127,6 @@ export const Compensation: React.FC<CompensationProps> = ({ accessToken, prefixD
     }
   ]
   const selectedConfig = chartConfigs.find(config => config.testId === selectedChart)
-  const resolveExportingFormat = (tableName: string): 'excel' | 'pdf' | null => {
-    if (exportingTable === `${tableName}-excel`) return 'excel'
-    if (exportingTable === `${tableName}-pdf`) return 'pdf'
-    return null
-  }
 
   // Format merit increases
   const meritIncreases = useMemo(
@@ -346,7 +312,7 @@ export const Compensation: React.FC<CompensationProps> = ({ accessToken, prefixD
                 selectedConfig.testId,
                 selectedConfig.title,
                 selectedConfig.exportColumns,
-                selectedConfig.tableData
+                selectedConfig.tableData as unknown as Record<string, unknown>[]
               )
             }
             getRowKey={(_, index) => `${selectedConfig.testId}-${index}`}

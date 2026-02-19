@@ -14,6 +14,7 @@ import {
   TableCell
 } from '@newwork/nw-design-system'
 import { PiFilePdf, PiFileText } from 'react-icons/pi'
+import { toDisplayString } from '../../utils/valueDisplayUtils'
 
 /** Blue pill for percentages/rates. */
 export const HIGHLIGHT_BADGE = 'highlight' as const
@@ -68,21 +69,6 @@ const NEUTRAL_BADGE_TONE: BadgeTone = {
   className: 'gba:bg-muted gba:text-muted-foreground'
 }
 
-const toDisplayString = (value: unknown): string => {
-  if (value === null || value === undefined) return '-'
-  if (typeof value === 'string') return value
-  if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') return String(value)
-  if (value instanceof Date) return value.toISOString()
-  if (typeof value === 'object') {
-    try {
-      return JSON.stringify(value)
-    } catch {
-      return '-'
-    }
-  }
-  return String(value)
-}
-
 const getToneForNumber = (num: number): BadgeTone => {
   if (Number.isFinite(num) && num > 0) return POSITIVE_BADGE_TONE
   if (num < 0) return NEGATIVE_BADGE_TONE
@@ -116,10 +102,12 @@ function renderBadgeCell(
   if (badge === DIFFERENT_BADGE) {
     const numericValue = typeof rawValue === 'number' ? rawValue : Number(rawValue)
     const tone = getToneForNumber(numericValue)
-    const display =
-      typeof rawValue === 'number' && Number.isFinite(rawValue)
-        ? `${rawValue > 0 ? '+' : ''}${rawValue}`
-        : toDisplayString(rawValue)
+    let display: string
+    if (typeof rawValue === 'number' && Number.isFinite(rawValue)) {
+      display = rawValue > 0 ? `+${rawValue}` : String(rawValue)
+    } else {
+      display = toDisplayString(rawValue)
+    }
     return (
       <TableCell key={key}>
         <Badge variant={tone.variant} className={tone.className}>

@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react'
+import React, { useMemo } from 'react'
 import { Typography } from 'antd'
 import { SectionKpiCards, KpiCardData, useTranslation, Icon, Card, CardContent } from '@newwork/nw-design-system'
 import { UsersIcon, CalendarIcon } from '@phosphor-icons/react'
@@ -14,7 +14,9 @@ import DepartmentContributionAnalysis from '../DepartmentContributionAnalysis'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 import { getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
 import dayjs from 'dayjs'
-import { exportTableToExcel, exportTableToPdf } from '../../../../../utils/exportUtils'
+import { formatTableCell } from '../../../../../utils/valueDisplayUtils'
+import { useAnalyticsTableExport } from '../../../../../hooks/useAnalyticsTableExport'
+import { useChartTableSelection } from '../../../../../hooks/useChartTableSelection'
 import AnalyticsDataTable, { DIFFERENT_BADGE, DIFFERENT_PERCENTAGE_BADGE } from '../../../../shared/AnalyticsDataTable'
 
 const { Title, Text } = Typography
@@ -26,9 +28,8 @@ interface SalaryForecastingProps extends BusinessAppContextProps {
 export const SalaryForecasting: React.FC<SalaryForecastingProps> = props => {
   const { prefixDataTestId = 'SalaryForecasting' } = props
   const { t } = useTranslation(hrTranslations)
-  const [selectedChart, setSelectedChart] = useState<string | null>(null)
-  const [exportingTable, setExportingTable] = useState<string | null>(null)
-  const tableRef = useRef<HTMLDivElement>(null)
+  const { handleExport, resolveExportingFormat } = useAnalyticsTableExport()
+  const { selectedChart, tableRef, handleChartClick } = useChartTableSelection()
 
   // Calculate date ranges
   const today = dayjs()
@@ -216,62 +217,22 @@ export const SalaryForecasting: React.FC<SalaryForecastingProps> = props => {
   }
 
   const locale = getCurrentActiveUserLocale() ?? 'en-US'
-  const formatTableCell = (value: unknown): string => {
-    if (value === null || value === undefined) return '-'
-    if (typeof value === 'number' && Number.isFinite(value)) {
-      return value.toLocaleString(locale, { minimumFractionDigits: 0, maximumFractionDigits: 2 })
-    }
-    if (typeof value === 'string') return value
-    if (typeof value === 'boolean' || typeof value === 'bigint') return String(value)
-    if (value instanceof Date) return value.toISOString()
-    if (typeof value === 'object') {
-      try {
-        return JSON.stringify(value)
-      } catch {
-        return '-'
-      }
-    }
-    return String(value)
-  }
-
-  const handleExport = async (
+  const formatCell = (value: unknown) => formatTableCell(value, locale)
+  const transformRowsForExport = (
+    data: TableDataRow[],
     format: 'excel' | 'pdf',
-    tableName: string,
-    title: string,
-    columns: { key: string; header: string }[],
-    data: TableDataRow[]
-  ) => {
-    setExportingTable(`${tableName}-${format}`)
-    try {
-      const rows: Record<string, unknown>[] =
-        format === 'pdf'
-          ? data.map(row => {
-              const out: Record<string, unknown> = {}
-              columns.forEach(col => {
-                const v = (row as unknown as Record<string, unknown>)[col.key]
-                out[col.key] = typeof v === 'number' && Number.isFinite(v) ? formatTableCell(v) : v
-              })
-              return out
-            })
-          : (data.map(row => ({ ...row })) as Record<string, unknown>[])
-      if (format === 'excel') {
-        await exportTableToExcel(title, columns, rows)
-      } else {
-        await exportTableToPdf(title, columns, rows)
-      }
-    } finally {
-      setExportingTable(null)
-    }
-  }
-
-  const handleChartClick = (chartId: string) => {
-    setSelectedChart(selectedChart === chartId ? null : chartId)
-    if (selectedChart !== chartId && tableRef.current) {
-      setTimeout(() => {
-        tableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start', inline: 'nearest' })
-      }, 100)
-    }
-  }
+    columns: { key: string; header: string }[]
+  ): Record<string, unknown>[] =>
+    format === 'pdf'
+      ? data.map(row => {
+          const out: Record<string, unknown> = {}
+          columns.forEach(col => {
+            const v = (row as unknown as Record<string, unknown>)[col.key]
+            out[col.key] = typeof v === 'number' && Number.isFinite(v) ? formatCell(v) : v
+          })
+          return out
+        })
+      : (data.map(row => ({ ...row })) as Record<string, unknown>[])
 
   const chartConfigs = [
     {
@@ -328,11 +289,6 @@ export const SalaryForecasting: React.FC<SalaryForecastingProps> = props => {
     }
   ]
   const selectedConfig = chartConfigs.find(config => config.testId === selectedChart)
-  const resolveExportingFormat = (tableName: string): 'excel' | 'pdf' | null => {
-    if (exportingTable === `${tableName}-excel`) return 'excel'
-    if (exportingTable === `${tableName}-pdf`) return 'pdf'
-    return null
-  }
 
   return (
     <div data-testid={prefixDataTestId} className="gba:flex gba:flex-col gba:gap-6">
@@ -443,11 +399,16 @@ export const SalaryForecasting: React.FC<SalaryForecastingProps> = props => {
                 selectedConfig.testId,
                 selectedConfig.title,
                 selectedConfig.exportColumns,
-                selectedConfig.tableData
+                selectedConfig.tableData as unknown as Record<string, unknown>[],
+                transformRowsForExport as unknown as (
+                  data: Record<string, unknown>[],
+                  f: 'excel' | 'pdf',
+                  cols: { key: string; header: string }[]
+                ) => Record<string, unknown>[]
               )
             }
             getRowKey={(_, index) => `${selectedConfig.testId}-${index}`}
-            renderCell={(row, col) => formatTableCell((row as unknown as Record<string, unknown>)[col.key])}
+            renderCell={(row, col) => formatCell((row as unknown as Record<string, unknown>)[col.key])}
           />
         )}
       </div>

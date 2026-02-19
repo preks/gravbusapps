@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react'
+import React from 'react'
 import { Card, CardContent, useTranslation } from '@newwork/nw-design-system'
 import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -13,7 +13,8 @@ import { useGapRateByOrgUnit } from '../../../../../hooks/useGapRateByOrgUnit'
 import { useProbationRateByOrgUnit } from '../../../../../hooks/useProbationRateByOrgUnit'
 import EmploymentStatistics from '../components/EmploymentStatistics'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
-import { exportTableToExcel, exportTableToPdf } from '../../../../../utils/exportUtils'
+import { useAnalyticsTableExport } from '../../../../../hooks/useAnalyticsTableExport'
+import { useChartTableSelection } from '../../../../../hooks/useChartTableSelection'
 import TenureHeatmapChart from '../charts/TenureHeatmapChart'
 import EmploymentTypePieChart from '../charts/EmploymentTypePieChart'
 import ContractTypePieChart from '../charts/ContractTypePieChart'
@@ -32,10 +33,9 @@ interface TableData {
  */
 const Employment: React.FC<BusinessAppContextProps> = context => {
   const prefixDataTestId = 'Employment'
-  const [selectedChart, setSelectedChart] = useState<string | null>(null)
-  const [exportingTable, setExportingTable] = useState<string | null>(null)
-  const tableRef = useRef<HTMLDivElement>(null)
   const { t } = useTranslation(hrTranslations)
+  const { handleExport, resolveExportingFormat } = useAnalyticsTableExport()
+  const { selectedChart, tableRef, handleChartClick } = useChartTableSelection()
 
   // Get the current active structure ID
   const structureId = getCurrentActiveStructureId()
@@ -179,41 +179,6 @@ const Employment: React.FC<BusinessAppContextProps> = context => {
     }
   ]
 
-  const handleExport = async (
-    format: 'excel' | 'pdf',
-    tableName: string,
-    title: string,
-    columns: { key: string; header: string }[],
-    data: TableData[]
-  ) => {
-    setExportingTable(`${tableName}-${format}`)
-    try {
-      const rows = data.map(row => ({ ...row })) as Record<string, unknown>[]
-      if (format === 'excel') {
-        await exportTableToExcel(title, columns, rows)
-      } else {
-        await exportTableToPdf(title, columns, rows)
-      }
-    } finally {
-      setExportingTable(null)
-    }
-  }
-
-  const handleChartClick = (chartId: string) => {
-    setSelectedChart(selectedChart === chartId ? null : chartId)
-
-    // Smooth scroll to table after a brief delay to allow state update
-    if (selectedChart !== chartId && tableRef.current) {
-      setTimeout(() => {
-        tableRef.current?.scrollIntoView({
-          behavior: 'smooth',
-          block: 'start',
-          inline: 'nearest'
-        })
-      }, 100)
-    }
-  }
-
   // Determine overall loading and error states
   const isLoading = fteLoading || gapRateLoading || probationRateLoading || tenureLoading
   const hasError = fteError || gapRateError || probationRateError || tenureError
@@ -232,13 +197,7 @@ const Employment: React.FC<BusinessAppContextProps> = context => {
     totalEmployees: totalEmployees || 0
   }
 
-  // Find the selected chart configuration
   const selectedConfig = chartConfigs.find(config => config.testId === selectedChart)
-  const resolveExportingFormat = (tableName: string): 'excel' | 'pdf' | null => {
-    if (exportingTable === `${tableName}-excel`) return 'excel'
-    if (exportingTable === `${tableName}-pdf`) return 'pdf'
-    return null
-  }
 
   // Handle error state
   if (hasError) {
@@ -397,7 +356,7 @@ const Employment: React.FC<BusinessAppContextProps> = context => {
                 selectedConfig.testId,
                 selectedConfig.title,
                 selectedConfig.exportColumns,
-                selectedConfig.tableData
+                selectedConfig.tableData as unknown as Record<string, unknown>[]
               )
             }
             getRowKey={(_, index) => `${selectedConfig.testId}-${index}`}

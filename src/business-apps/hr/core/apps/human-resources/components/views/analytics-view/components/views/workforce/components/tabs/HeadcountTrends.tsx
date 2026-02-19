@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react'
+import React from 'react'
 import { Card, CardContent, CardHeader, Badge, useTranslation } from '@newwork/nw-design-system'
 import { Typography } from 'antd'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -8,7 +8,8 @@ import HiresAndDeparturesChart from '../components/HiresAndDeparturesChart'
 import HeadcountByOrgUnitChart from '../components/HeadcountByOrgUnitChart'
 import { useHeadcountTrendsData } from '../../../../../hooks/useHeadcountTrendsData'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
-import { exportTableToExcel, exportTableToPdf } from '../../../../../utils/exportUtils'
+import { useAnalyticsTableExport } from '../../../../../hooks/useAnalyticsTableExport'
+import { useChartTableSelection } from '../../../../../hooks/useChartTableSelection'
 import AnalyticsDataTable, { DIFFERENT_BADGE } from '../../../../shared/AnalyticsDataTable'
 
 const { Title, Text } = Typography
@@ -20,10 +21,9 @@ interface TableData {
 }
 
 const HeadcountTrends: React.FC<BusinessAppContextProps> = context => {
-  const [selectedChart, setSelectedChart] = useState<string | null>(null)
-  const [exportingTable, setExportingTable] = useState<string | null>(null)
-  const tableRef = useRef<HTMLDivElement>(null)
   const { t } = useTranslation(hrTranslations)
+  const { handleExport, resolveExportingFormat } = useAnalyticsTableExport()
+  const { selectedChart, tableRef, handleChartClick } = useChartTableSelection()
 
   const {
     statistics,
@@ -75,41 +75,6 @@ const HeadcountTrends: React.FC<BusinessAppContextProps> = context => {
     }))
   }
 
-  const handleExport = async (
-    format: 'excel' | 'pdf',
-    tableName: string,
-    title: string,
-    columns: { key: string; header: string }[],
-    data: TableData[]
-  ) => {
-    setExportingTable(`${tableName}-${format}`)
-    try {
-      const rows = data.map(row => ({ ...row })) as Record<string, unknown>[]
-      if (format === 'excel') {
-        await exportTableToExcel(title, columns, rows)
-      } else {
-        await exportTableToPdf(title, columns, rows)
-      }
-    } finally {
-      setExportingTable(null)
-    }
-  }
-
-  const handleChartClick = (chartId: string) => {
-    setSelectedChart(selectedChart === chartId ? null : chartId)
-
-    // Smooth scroll to table after a brief delay to allow state update
-    if (selectedChart !== chartId && tableRef.current) {
-      setTimeout(() => {
-        tableRef.current?.scrollIntoView({
-          behavior: 'smooth',
-          block: 'start',
-          inline: 'nearest'
-        })
-      }, 100)
-    }
-  }
-
   // Chart configurations
   const chartConfigs = [
     {
@@ -152,13 +117,7 @@ const HeadcountTrends: React.FC<BusinessAppContextProps> = context => {
     }
   ]
 
-  // Find the selected chart configuration
   const selectedConfig = chartConfigs.find(config => config.testId === selectedChart)
-  const resolveExportingFormat = (tableName: string): 'excel' | 'pdf' | null => {
-    if (exportingTable === `${tableName}-excel`) return 'excel'
-    if (exportingTable === `${tableName}-pdf`) return 'pdf'
-    return null
-  }
 
   if (error) {
     return (
@@ -317,7 +276,7 @@ const HeadcountTrends: React.FC<BusinessAppContextProps> = context => {
                 selectedConfig.testId,
                 selectedConfig.title,
                 selectedConfig.exportColumns,
-                selectedConfig.tableData
+                selectedConfig.tableData as unknown as Record<string, unknown>[]
               )
             }
             getRowKey={(_, index) => `${selectedConfig.testId}-${index}`}

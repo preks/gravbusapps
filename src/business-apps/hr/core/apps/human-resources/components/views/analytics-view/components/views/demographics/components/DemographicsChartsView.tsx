@@ -1,10 +1,11 @@
-import React, { useState, useRef } from 'react'
+import React from 'react'
 import { Card, CardContent, CardHeader, Badge, useTranslation } from '@newwork/nw-design-system'
 import { Typography } from 'antd'
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 import type { DemographicsData } from '../../../../hooks/useDemographicsDataIntegration'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
-import { exportTableToExcel, exportTableToPdf } from '../../../../utils/exportUtils'
+import { useAnalyticsTableExport } from '../../../../hooks/useAnalyticsTableExport'
+import { useChartTableSelection } from '../../../../hooks/useChartTableSelection'
 import AnalyticsDataTable, { HIGHLIGHT_BADGE } from '../../../shared/AnalyticsDataTable'
 
 const { Title, Text } = Typography
@@ -42,10 +43,9 @@ const DemographicsLegend: React.FC<DemographicsLegendProps> = ({ testId, data, c
 )
 
 const DemographicsChartsView: React.FC<DemographicsChartsViewProps> = ({ demographicsData, isLoading, dataTestId }) => {
-  const [selectedChart, setSelectedChart] = useState<string | null>(null)
-  const [exportingTable, setExportingTable] = useState<string | null>(null)
-  const tableRef = useRef<HTMLDivElement>(null)
   const { t } = useTranslation(hrTranslations)
+  const { handleExport, resolveExportingFormat } = useAnalyticsTableExport()
+  const { selectedChart, tableRef, handleChartClick } = useChartTableSelection()
 
   // Chart colors from design system
   const chartColors = [
@@ -123,26 +123,6 @@ const DemographicsChartsView: React.FC<DemographicsChartsViewProps> = ({ demogra
     }))
   }
 
-  const handleExport = async (
-    format: 'excel' | 'pdf',
-    tableName: string,
-    title: string,
-    columns: { key: string; header: string }[],
-    data: TableData[]
-  ) => {
-    setExportingTable(`${tableName}-${format}`)
-    try {
-      const rows = data.map(row => ({ ...row })) as Record<string, unknown>[]
-      if (format === 'excel') {
-        await exportTableToExcel(title, columns, rows)
-      } else {
-        await exportTableToPdf(title, columns, rows)
-      }
-    } finally {
-      setExportingTable(null)
-    }
-  }
-
   const exportColumnsDemographics = [
     { key: 'category', header: t('common-category') },
     { key: 'value', header: t('hr-analytics-value') },
@@ -181,29 +161,6 @@ const DemographicsChartsView: React.FC<DemographicsChartsViewProps> = ({ demogra
       exportColumns: exportColumnsDemographics
     }
   ]
-  const resolveExportingFormat = (tableName: string): 'excel' | 'pdf' | null => {
-    if (exportingTable === `${tableName}-excel`) return 'excel'
-    if (exportingTable === `${tableName}-pdf`) return 'pdf'
-    return null
-  }
-
-  const handleChartClick = (chartId: string) => {
-    // If clicking the same chart, deselect it. Otherwise, select the new one.
-    setSelectedChart(selectedChart === chartId ? null : chartId)
-
-    // Smooth scroll to table after a brief delay to allow state update
-    if (selectedChart !== chartId && tableRef.current) {
-      setTimeout(() => {
-        tableRef.current?.scrollIntoView({
-          behavior: 'smooth',
-          block: 'start',
-          inline: 'nearest'
-        })
-      }, 100)
-    }
-  }
-
-  // Find the selected chart configuration
   const selectedConfig = chartConfigs.find(config => config.testId === selectedChart)
 
   if (isLoading) {
@@ -327,7 +284,7 @@ const DemographicsChartsView: React.FC<DemographicsChartsViewProps> = ({ demogra
                 selectedConfig.testId,
                 selectedConfig.title,
                 selectedConfig.exportColumns,
-                selectedConfig.tableData
+                selectedConfig.tableData as unknown as Record<string, unknown>[]
               )
             }
             getRowKey={row => row.category}
