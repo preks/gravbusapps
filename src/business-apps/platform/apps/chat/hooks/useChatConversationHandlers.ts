@@ -113,20 +113,22 @@ export function useChatConversationHandlers({
   const handleBack = useCallback(() => {
     setShowConversationList(true)
     setActiveConversation(null)
+    refreshConversations?.()
     const url = new URL(globalThis.location.href)
     url.searchParams.delete('conversationId')
     globalThis.history.replaceState({}, '', url.toString())
-  }, [setActiveConversation, setShowConversationList])
+  }, [setActiveConversation, setShowConversationList, refreshConversations])
 
   const handleCloseConversation = useCallback(() => {
     setActiveConversation(null)
     if (viewMode !== 'full') {
       setShowConversationList(true)
+      refreshConversations?.()
     }
     const url = new URL(globalThis.location.href)
     url.searchParams.delete('conversationId')
     globalThis.history.replaceState({}, '', url.toString())
-  }, [setActiveConversation, viewMode, setShowConversationList])
+  }, [setActiveConversation, viewMode, setShowConversationList, refreshConversations])
 
   const handleRemoveConversation = useCallback(
     async (conversationId: string) => {

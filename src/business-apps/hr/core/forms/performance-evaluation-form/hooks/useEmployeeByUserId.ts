@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 
 export interface EmployeeByUserIdData {
@@ -92,7 +92,7 @@ export const GET_EMPLOYEE_BY_USER_ID = (userId: string): string => {
 /**
  * Custom hook for fetching a single employee by userId
  */
-export const useEmployeeByUserId = ({ accessToken }: UseEmployeeByUserIdProps): UseEmployeeByUserIdReturn => {
+export const useEmployeeByUserId = ({ accessToken, userId }: UseEmployeeByUserIdProps): UseEmployeeByUserIdReturn => {
   const [employee, setEmployee] = useState<EmployeeByUserIdData | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -127,6 +127,15 @@ export const useEmployeeByUserId = ({ accessToken }: UseEmployeeByUserIdProps): 
     },
     [accessToken, graphqlClient]
   )
+
+  useEffect(() => {
+    if (userId) {
+      fetchEmployeeByUserId(userId)
+    } else {
+      setEmployee(null)
+      setError(null)
+    }
+  }, [userId, fetchEmployeeByUserId])
 
   return {
     employee,

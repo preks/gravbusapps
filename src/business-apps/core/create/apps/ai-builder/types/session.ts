@@ -32,3 +32,14 @@ export interface SessionListView {
   sessions: SessionMetadata[]
   currentSessionId: string | null
 }
+
+export interface UniqueFileSummary {
+  totalUniqueFiles: number
+  createCount: number
+  modifyCount: number
+  deleteCount: number
+  files: Array<{
+    path: string
+    type: 'create' | 'modify' | 'delete'
+  }>
+}

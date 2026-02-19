@@ -157,12 +157,19 @@ const ChatInner: React.FC<ChatProps> = memo(
       loadMoreMessages,
       loadMoreConversations,
       refreshConversations,
+      updateMessage,
       startTyping,
       stopTyping,
       sendNudge,
       registerNudgeCallback,
       apiClient,
-      wsClient
+      wsClient,
+      conversationSearch,
+      conversationFilterKind,
+      conversationUnreadOnly,
+      setConversationSearch,
+      setConversationFilterKind,
+      setConversationUnreadOnly
       // Note: activeCalls is now provided by useRealtimeKitGroupCall hook as activeConversationCalls
     } = chatClient
 
@@ -777,208 +784,210 @@ const ChatInner: React.FC<ChatProps> = memo(
       currentUserId: currentUser?.id ?? null
     })
 
-    // Error state
-    if (error) {
-      const getErrorMessage = () => {
-        const errorKey = error.name || 'chat.connectionError'
-        const errorMessages: Record<string, string> = {
-          'chat.serviceUnavailable': t('chat-serviceUnavailable'),
-          'chat.serviceNotFound': t('chat-serviceNotFound'),
-          'chat.authenticationFailed': t('chat-authenticationFailed'),
-          'chat.connectionError': t('chat-connectionError')
-        }
-        return errorMessages[errorKey] || errorMessages['chat.connectionError']
-      }
+    const connectionError = error
+    const isLoading = !isConnected && conversationsLoading
 
-      return (
-        <div
-          ref={containerRef}
-          className="gba:h-full gba:flex gba:items-center gba:justify-center gba:p-4 gba:bg-background"
-          data-testid={`${prefixDataTestId}-error`}
-        >
-          <Alert variant="destructive" className="gba:max-w-sm">
-            <AlertDescription>{getErrorMessage()}</AlertDescription>
-          </Alert>
-        </div>
-      )
-    }
-
-    // Loading state
-    if (!isConnected && conversationsLoading) {
-      return (
-        <div
-          ref={containerRef}
-          className="gba:h-full gba:flex gba:flex-col gba:items-center gba:justify-center gba:gap-3 gba:bg-background"
-          data-testid={`${prefixDataTestId}-loading`}
-        >
-          <Spinner size="lg" />
-          <span className="gba:text-sm gba:text-muted-foreground">{t('chat-connecting')}</span>
-        </div>
-      )
+    const getConnectionErrorLabel = (name: string): string => {
+      if (name === 'chat.serviceUnavailable') return t('chat-serviceUnavailable')
+      if (name === 'chat.serviceNotFound') return t('chat-serviceNotFound')
+      if (name === 'chat.authenticationFailed') return t('chat-authenticationFailed')
+      return t('chat-connectionError')
     }
 
     return (
-      <>
-        <ChatLayout
-          containerRef={containerRef}
-          prefixDataTestId={prefixDataTestId}
-          errorMessage={errorMessage}
-          onDismissError={() => setErrorMessage(null)}
-          isOffline={isOffline}
-          offlineLabel={t('chat-offline')}
-          conversationId={activeConversationId}
-          messageCount={messages.length}
-          showListView={showListView}
-          showChatView={showChatView}
-          isSingleViewMode={isSingleViewMode}
-          chatViewRef={chatViewRef}
-          listSlot={
-            <ConversationList
-              conversations={conversations}
-              activeConversationId={activeConversationId}
-              onConversationSelect={handleConversationSelect}
-              onRemoveConversation={async conversationId => {
-                try {
-                  setErrorMessage(null)
-                  await closeConversation(conversationId)
-                } catch (error: any) {
-                  const errorMsg = error?.response?.data?.message || error?.message || ''
-                  if (errorMsg.toLowerCase().includes('last owner')) {
-                    setErrorMessage(t('chat-cannotLeaveAsLastOwner'))
-                    // Select the conversation and open group settings
-                    const conv = conversations.find(c => c.id === conversationId)
-                    if (conv) {
-                      handleConversationSelect(conv)
-                      setShowGroupSettingsModal(true)
-                    }
-                  } else {
-                    setErrorMessage(t('chat-failedToLeave'))
-                  }
-                }
-              }}
-              onCreateConversation={handleCreateConversation}
-              onCreateGroup={handleCreateGroup}
-              isLoading={conversationsLoading}
-              isLoadingMore={conversationsLoadingMore}
-              hasMore={conversationsHasMore}
-              onLoadMore={loadMoreConversations}
-              currentUserId={currentUser?.id || null}
-              accessToken={accessToken}
-              compact={viewMode === 'compact'}
-              presenceMap={presenceMap}
-              presenceVersion={presenceVersion}
-              conversationExpertCounts={conversationExpertCounts}
-              wsClient={wsClient}
-              isConnected={isConnected}
-            />
-          }
-          chatViewSlot={
-            <ChatConversationView
+      <div
+        ref={containerRef}
+        className="gba:h-full gba:flex gba:flex-col gba:bg-background gba:overflow-hidden"
+        data-testid={`${prefixDataTestId}-container`}
+      >
+        {connectionError && (
+          <div
+            className="gba:h-full gba:flex gba:items-center gba:justify-center gba:p-4 gba:bg-background"
+            data-testid={`${prefixDataTestId}-error`}
+          >
+            <Alert variant="destructive" className="gba:max-w-sm">
+              <AlertDescription>{getConnectionErrorLabel(connectionError.name)}</AlertDescription>
+            </Alert>
+          </div>
+        )}
+        {!connectionError && isLoading && (
+          <div
+            className="gba:h-full gba:flex gba:flex-col gba:items-center gba:justify-center gba:gap-3 gba:bg-background"
+            data-testid={`${prefixDataTestId}-loading`}
+          >
+            <Spinner size="lg" />
+            <span className="gba:text-sm gba:text-muted-foreground">{t('chat-connecting')}</span>
+          </div>
+        )}
+        {!connectionError && !isLoading && (
+          <>
+            <ChatLayout
               prefixDataTestId={prefixDataTestId}
-              stableActiveConversation={stableActiveConversation}
+              errorMessage={errorMessage}
+              onDismissError={() => setErrorMessage(null)}
+              isOffline={isOffline}
+              offlineLabel={t('chat-offline')}
+              conversationId={activeConversationId}
+              messageCount={messages.length}
+              showListView={showListView}
+              showChatView={showChatView}
               isSingleViewMode={isSingleViewMode}
-              viewMode={viewMode}
-              onBack={handleBack}
-              onCloseConversation={handleCloseConversation}
-              onRemoveConversation={handleRemoveConversation}
-              onShowGroupSettings={handleShowGroupSettings}
-              onShowExpertSelector={() => setShowExpertSelector(true)}
-              onNudge={handleNudge}
-              onAudioCall={handleAudioCall}
-              onVideoCall={handleVideoCall}
-              onJoinCall={handleJoinActiveCall}
-              currentUserId={currentUser?.id || null}
-              otherUserPresence={otherUserPresence as UserPresence | undefined}
-              isCallEnabled={isConnected}
-              isInCall={isInAnyCall}
-              isStartingCall={isStartingCall}
-              activeCall={activeCallInfo}
-              t={t}
-              activeExperts={activeExperts}
-              onRemoveExpert={expertId => removeExpert(expertId, sendMessageVoid)}
-              messages={messages}
-              messagesLoading={messagesLoading}
-              hasMoreMessages={hasMoreMessages}
-              onLoadMoreMessages={loadMoreMessages}
-              activeConversationId={activeConversationId}
-              typingUsers={Object.values(typingUsers || {}).flat()}
-              onReplyToAI={handleReplyToAI}
-              accessToken={accessToken}
-              onSendMessage={handleAISendMessage}
-              apiClient={apiClient}
-              isAIProcessing={isAIProcessing}
-              aiStreamingText={aiStreamingText}
-              isExpertProcessing={isExpertProcessing}
-              processingExpert={processingExpert}
-              onSendMessageInput={handleSendMessage as (content: string, ...args: unknown[]) => Promise<void>}
-              onTypingStart={handleTypingStart}
-              onTypingStop={handleTypingStop}
-              draftMessage={draftMessage}
-              onDraftChange={setDraftMessage}
-              onRegisterMentionReady={fn => {
-                registerMentionEntityRef.current = fn
-              }}
-              onFocusReady={fn => {
-                focusInputRef.current = fn
-              }}
+              chatViewRef={chatViewRef}
+              listSlot={
+                <ConversationList
+                  conversations={conversations}
+                  activeConversationId={activeConversationId}
+                  onConversationSelect={handleConversationSelect}
+                  onRemoveConversation={async conversationId => {
+                    try {
+                      setErrorMessage(null)
+                      await closeConversation(conversationId)
+                    } catch (error: any) {
+                      const errorMsg = error?.response?.data?.message || error?.message || ''
+                      if (errorMsg.toLowerCase().includes('last owner')) {
+                        setErrorMessage(t('chat-cannotLeaveAsLastOwner'))
+                        // Select the conversation and open group settings
+                        const conv = conversations.find(c => c.id === conversationId)
+                        if (conv) {
+                          handleConversationSelect(conv)
+                          setShowGroupSettingsModal(true)
+                        }
+                      } else {
+                        setErrorMessage(t('chat-failedToLeave'))
+                      }
+                    }
+                  }}
+                  onCreateConversation={handleCreateConversation}
+                  onCreateGroup={handleCreateGroup}
+                  isLoading={conversationsLoading}
+                  isLoadingMore={conversationsLoadingMore}
+                  hasMore={conversationsHasMore}
+                  onLoadMore={loadMoreConversations}
+                  currentUserId={currentUser?.id || null}
+                  accessToken={accessToken}
+                  compact={viewMode === 'compact'}
+                  presenceMap={presenceMap}
+                  presenceVersion={presenceVersion}
+                  conversationExpertCounts={conversationExpertCounts}
+                  wsClient={wsClient}
+                  isConnected={isConnected}
+                  search={conversationSearch}
+                  filterKind={conversationFilterKind}
+                  unreadOnly={conversationUnreadOnly}
+                  onSearchChange={setConversationSearch}
+                  onFilterKindChange={setConversationFilterKind}
+                  onUnreadOnlyChange={setConversationUnreadOnly}
+                />
+              }
+              chatViewSlot={
+                <ChatConversationView
+                  prefixDataTestId={prefixDataTestId}
+                  stableActiveConversation={stableActiveConversation}
+                  isSingleViewMode={isSingleViewMode}
+                  viewMode={viewMode}
+                  onBack={handleBack}
+                  onCloseConversation={handleCloseConversation}
+                  onRemoveConversation={handleRemoveConversation}
+                  onShowGroupSettings={handleShowGroupSettings}
+                  onShowExpertSelector={() => setShowExpertSelector(true)}
+                  onNudge={handleNudge}
+                  onAudioCall={handleAudioCall}
+                  onVideoCall={handleVideoCall}
+                  onJoinCall={handleJoinActiveCall}
+                  currentUserId={currentUser?.id || null}
+                  otherUserPresence={otherUserPresence as UserPresence | undefined}
+                  isCallEnabled={isConnected}
+                  isInCall={isInAnyCall}
+                  isStartingCall={isStartingCall}
+                  activeCall={activeCallInfo}
+                  t={t}
+                  activeExperts={activeExperts}
+                  onRemoveExpert={expertId => removeExpert(expertId, sendMessageVoid)}
+                  messages={messages}
+                  messagesLoading={messagesLoading}
+                  hasMoreMessages={hasMoreMessages}
+                  onLoadMoreMessages={loadMoreMessages}
+                  activeConversationId={activeConversationId}
+                  typingUsers={Object.values(typingUsers || {}).flat()}
+                  onReplyToAI={handleReplyToAI}
+                  accessToken={accessToken}
+                  onSendMessage={handleAISendMessage}
+                  apiClient={apiClient}
+                  onUpdateMessage={updateMessage}
+                  isAIProcessing={isAIProcessing}
+                  aiStreamingText={aiStreamingText}
+                  isExpertProcessing={isExpertProcessing}
+                  processingExpert={processingExpert}
+                  onSendMessageInput={handleSendMessage as (content: string, ...args: unknown[]) => Promise<void>}
+                  onTypingStart={handleTypingStart}
+                  onTypingStop={handleTypingStop}
+                  draftMessage={draftMessage}
+                  onDraftChange={setDraftMessage}
+                  onRegisterMentionReady={fn => {
+                    registerMentionEntityRef.current = fn
+                  }}
+                  onFocusReady={fn => {
+                    focusInputRef.current = fn
+                  }}
+                />
+              }
             />
-          }
-        />
-
-        <ChatModals
-          prefixDataTestId={prefixDataTestId}
-          accessToken={accessToken}
-          apiClient={apiClient}
-          currentUserId={currentUser?.id || null}
-          currentUser={currentUser}
-          activeConversation={activeConversation}
-          showCreateGroupModal={showCreateGroupModal}
-          onCloseCreateGroupModal={() => setShowCreateGroupModal(false)}
-          onCreateGroup={
-            handleCreateGroupSubmit as (
-              name: string,
-              participantIds: string[],
-              description?: string,
-              dimensionContext?: unknown
-            ) => Promise<void>
-          }
-          showGroupSettingsModal={showGroupSettingsModal}
-          onCloseGroupSettingsModal={handleCloseGroupSettings}
-          onRefreshConversations={refreshConversations}
-          showExpertSelector={showExpertSelector}
-          onCloseExpertSelector={() => setShowExpertSelector(false)}
-          availableExperts={availableExperts}
-          expertsLoading={expertsLoading}
-          activeExperts={activeExperts}
-          onAddExpert={(expert, sendMessageVoid) =>
-            addExpert(
-              expert as never,
-              sendMessageVoid as (
-                conversationId: string,
-                content: string,
-                metadata?: Record<string, unknown>
-              ) => Promise<void>
-            )
-          }
-          sendMessageVoid={
-            sendMessageVoid as (
-              conversationId: string,
-              content: string,
-              metadata?: Record<string, unknown>
-            ) => void | Promise<void>
-          }
-          incomingGroupCallInvite={incomingGroupCallInvite}
-          currentUserAsParticipant={currentUserAsParticipant}
-          onAcceptGroupInvite={acceptGroupInvite}
-          onDeclineGroupInvite={declineGroupInvite}
-          rejoinModalState={rejoinModalState}
-          onRejoinWithPreferences={handleRejoinWithPreferences}
-          onRejoinCancel={handleRejoinCancel}
-          groupCallState={groupCallState}
-          realtimeKitGroupCall={realtimeKitGroupCall}
-          groupParticipants={groupParticipants}
-        />
-      </>
+            <ChatModals
+              prefixDataTestId={prefixDataTestId}
+              accessToken={accessToken}
+              apiClient={apiClient}
+              currentUserId={currentUser?.id || null}
+              currentUser={currentUser}
+              activeConversation={activeConversation}
+              showCreateGroupModal={showCreateGroupModal}
+              onCloseCreateGroupModal={() => setShowCreateGroupModal(false)}
+              onCreateGroup={
+                handleCreateGroupSubmit as (
+                  name: string,
+                  participantIds: string[],
+                  description?: string,
+                  dimensionContext?: unknown
+                ) => Promise<void>
+              }
+              showGroupSettingsModal={showGroupSettingsModal}
+              onCloseGroupSettingsModal={handleCloseGroupSettings}
+              onRefreshConversations={refreshConversations}
+              showExpertSelector={showExpertSelector}
+              onCloseExpertSelector={() => setShowExpertSelector(false)}
+              availableExperts={availableExperts}
+              expertsLoading={expertsLoading}
+              activeExperts={activeExperts}
+              onAddExpert={(expert, sendMessageVoid) =>
+                addExpert(
+                  expert as never,
+                  sendMessageVoid as (
+                    conversationId: string,
+                    content: string,
+                    metadata?: Record<string, unknown>
+                  ) => Promise<void>
+                )
+              }
+              sendMessageVoid={
+                sendMessageVoid as (
+                  conversationId: string,
+                  content: string,
+                  metadata?: Record<string, unknown>
+                ) => void | Promise<void>
+              }
+              incomingGroupCallInvite={incomingGroupCallInvite}
+              currentUserAsParticipant={currentUserAsParticipant}
+              onAcceptGroupInvite={acceptGroupInvite}
+              onDeclineGroupInvite={declineGroupInvite}
+              rejoinModalState={rejoinModalState}
+              onRejoinWithPreferences={handleRejoinWithPreferences}
+              onRejoinCancel={handleRejoinCancel}
+              groupCallState={groupCallState}
+              realtimeKitGroupCall={realtimeKitGroupCall}
+              groupParticipants={groupParticipants}
+            />
+          </>
+        )}
+      </div>
     )
   },
   (prevProps, nextProps) => {

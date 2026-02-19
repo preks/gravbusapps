@@ -338,6 +338,7 @@ function renderEntity(item: EntityData, accessToken: string) {
           flowProposal={item.flow_proposal}
           textTitle={item.text_title}
           tool={item.tool}
+          link={item.link}
         />
       )
     default: {

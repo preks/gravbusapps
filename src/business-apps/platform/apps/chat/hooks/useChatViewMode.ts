@@ -56,6 +56,7 @@ export function useChatViewMode({
   }, [isEmbeddedMobile])
 
   const isSingleViewMode = viewMode === 'mobile' || viewMode === 'compact'
+
   const showListView = useMemo(
     () => (isSingleViewMode ? showConversationList || !hasConversation : true),
     [isSingleViewMode, showConversationList, hasConversation]

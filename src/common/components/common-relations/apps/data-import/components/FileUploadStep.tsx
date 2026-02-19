@@ -16,6 +16,8 @@ import {
   useTranslation
 } from '@newwork/nw-design-system'
 import { SparkleIcon, CheckCircleIcon } from '@phosphor-icons/react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import CampaignSelect from '@/common/components/customer/selects/campaign-select/CampaignSelect'
 import translations from './FileUploadStep/_i18n'
 
 export interface FileUploadStepProps {
@@ -23,6 +25,9 @@ export interface FileUploadStepProps {
   isLoading: boolean
   onFileChange: (file: File | null) => Promise<void>
   onAnalyze: () => Promise<void>
+  campaignId?: string
+  onCampaignIdChange?: (id: string | null) => void
+  businessAppContext?: BusinessAppContextProps
   'data-testid'?: string
 }
 
@@ -31,6 +36,9 @@ export const FileUploadStep: React.FC<FileUploadStepProps> = ({
   isLoading,
   onFileChange,
   onAnalyze,
+  campaignId,
+  onCampaignIdChange,
+  businessAppContext,
   'data-testid': testId = 'file-upload-step'
 }) => {
   const { t } = useTranslation(translations)
@@ -68,6 +76,19 @@ export const FileUploadStep: React.FC<FileUploadStepProps> = ({
             >
               <CheckCircleIcon className="gba:w-4 gba:h-4 gba:text-success" weight="fill" />
               {t('file-loaded-text', { fileName: file.name, fileSize: (file.size / 1024).toFixed(2) })}
+            </div>
+          )}
+
+          {onCampaignIdChange && businessAppContext && (
+            <div>
+              <Label htmlFor="campaign-select">{t('campaign-id-label')}</Label>
+              <CampaignSelect
+                value={campaignId || null}
+                onValueChange={onCampaignIdChange}
+                businessAppContext={businessAppContext}
+                className="gba:mt-2 gba:w-full"
+                data-testid={`${testId}-campaign-select`}
+              />
             </div>
           )}
 
