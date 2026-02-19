@@ -33,19 +33,123 @@ export interface FunctionVersionsResponse {
   versions: FunctionVersionMeta[]
 }
 
+export type FunctionAssistantMode = 'create' | 'refine'
+
+export type FunctionAssistantDocSource =
+  | { type: 'url'; url: string }
+  | { type: 'content'; content: string }
+  | { type: 'openapiDirectory'; name: string }
+
+export type FunctionAssistantExistingSnapshot = {
+  name?: string
+  description?: string
+  source?: string
+  inputSchema?: Record<string, unknown>
+  outputSchema?: Record<string, unknown>
+  configKeys?: string[]
+}
+
+export type FunctionAssistantDraftRequest = {
+  prompt: string
+  mode: FunctionAssistantMode
+  clarifyCount?: number
+  clarifyLimit?: number
+  docSource?: FunctionAssistantDocSource
+  existing?: FunctionAssistantExistingSnapshot
+  answers?: Record<
+    string,
+    {
+      // Legacy label-based selection (deprecated)
+      selectedOption?: string
+      // New value/id based selection (preferred)
+      selectedOptionValue?: string
+      selectedOptionId?: string
+      freeText?: string
+    }
+  >
+  sessionId?: string
+}
+
+export type FunctionAssistantQuestionOption = {
+  id: string
+  label: string
+  value: string
+  freeText?: { required?: boolean; placeholder?: string }
+  meta?: { docSourceType?: 'content' | 'openapiDirectory' | 'url' | 'preset' }
+}
+
+export type FunctionAssistantDraftResponse = {
+  kind?: 'draft' | 'clarify'
+  track?: 'integration' | 'webhook' | 'transformer' | 'rules' | 'computation' | 'tokenExchange'
+  applyToEditor?: boolean
+  name?: string
+  description?: string
+  appliedHeadline: string
+  keyChanges: string[]
+  nextSteps?: string[]
+  questions?: Array<{
+    id: string
+    question: string
+    options?: string[]
+    optionsV2?: FunctionAssistantQuestionOption[]
+    freeText?: {
+      required?: boolean
+      placeholder?: string
+      requiredWhenOptionIn?: string[]
+      placeholderByOption?: Record<string, string>
+    }
+  }>
+  source: string
+  inputSchema: Record<string, unknown>
+  outputSchema: Record<string, unknown>
+  configKeys: string[]
+  configHelp?: Array<{ key: string; label?: string; description?: string; example?: string; whereToFind?: string }>
+  examplePayload?: unknown
+  notes?: string
+  testInstructions?: string
+  implementationSummary?: string[]
+}
+
+export type FunctionExecutionLogEntry = { level: string; message: string }
+
+export type FunctionAssistantDraftStreamEvent =
+  | { type: 'progress'; phase?: string; message: string; data?: Record<string, unknown> }
+  | { type: 'result'; result: FunctionAssistantDraftResponse }
+  | { type: 'error'; message: string }
+
+export type FunctionAssistantIterateRequest = {
+  instruction: string
+  source: string
+  inputSchema?: Record<string, unknown>
+  outputSchema?: Record<string, unknown>
+  configKeys?: string[]
+  config?: Record<string, string>
+  payload?: Record<string, unknown>
+  frontendError?: string
+  frontendResult?: string
+  maxFixIterations?: number
+}
+
 export class FunctionsServiceClient {
   readonly baseUrl: string
   private accessToken?: string
 
   constructor(accessToken?: string) {
-    const explicitFunctionsUrl = env('NEXT_PUBLIC_FUNCTIONS_SERVICE_URL')
-    const baseUrl = env('NEXT_PUBLIC_BASE_URL') || ''
-    if (!explicitFunctionsUrl && !baseUrl) {
-      throw new Error('NEXT_PUBLIC_FUNCTIONS_SERVICE_URL or NEXT_PUBLIC_BASE_URL is required')
+    const override = env('NEXT_PUBLIC_FUNCTIONS_SERVICE_URL')
+    if (override && override.trim()) {
+      const trimmed = override.endsWith('/') ? override.slice(0, -1) : override
+      this.baseUrl = trimmed.endsWith('/api/v1') ? trimmed : trimmed + '/api/v1'
+    } else {
+      const base = env('NEXT_PUBLIC_BASE_URL')
+      if (!base || !base.trim()) {
+        throw new Error(
+          'Missing Functions Service URL. Set NEXT_PUBLIC_FUNCTIONS_SERVICE_URL (full override) or NEXT_PUBLIC_BASE_URL (fallback).'
+        )
+      }
+      const functionsServiceUrl = base + '/functions'
+      const trimmed = functionsServiceUrl.endsWith('/') ? functionsServiceUrl.slice(0, -1) : functionsServiceUrl
+      this.baseUrl = trimmed + '/api/v1'
     }
-    const functionsServiceUrl = explicitFunctionsUrl ?? `${baseUrl.replace(/\/+$/, '')}/functions`
-    const trimmed = functionsServiceUrl.endsWith('/') ? functionsServiceUrl.slice(0, -1) : functionsServiceUrl
-    this.baseUrl = trimmed + '/api/v1'
     this.accessToken = accessToken
   }
 
@@ -55,6 +159,19 @@ export class FunctionsServiceClient {
       headers['Authorization'] = `Bearer ${this.accessToken}`
     }
     return headers
+  }
+
+  private async readErrorMessage(res: Response): Promise<string> {
+    const text = await res.text()
+    try {
+      const json = JSON.parse(text) as any
+      const msg = json?.message
+      if (typeof msg === 'string' && msg.trim()) return msg
+      if (Array.isArray(msg) && msg.length) return msg.map(String).join('\n')
+    } catch {
+      // ignore
+    }
+    return text
   }
 
   private async get<T>(path: string, params?: Record<string, string | number | boolean | undefined>): Promise<T> {
@@ -167,7 +284,7 @@ export class FunctionsServiceClient {
     inputSchema?: Record<string, unknown>
     outputSchema?: Record<string, unknown>
     config?: Record<string, string>
-  }): Promise<{ result: unknown }> {
+  }): Promise<{ result: unknown; logs?: FunctionExecutionLogEntry[] }> {
     const res = await fetch(this.baseUrl + '/test', {
       method: 'POST',
       headers: {
@@ -176,15 +293,164 @@ export class FunctionsServiceClient {
       },
       body: JSON.stringify(data)
     })
-    if (!res.ok) {
-      const text = await res.text()
-      throw new Error(`Test function failed: ${res.status} - ${text}`)
+    const raw = await res.text()
+    let parsed: any = null
+    try {
+      parsed = raw ? JSON.parse(raw) : null
+    } catch {
+      parsed = null
     }
-    return (await res.json()) as { result: unknown }
+
+    if (!res.ok) {
+      const msg =
+        typeof parsed?.message === 'string' && parsed.message.trim()
+          ? parsed.message.trim()
+          : raw || `Test function failed (${res.status})`
+      const err = new Error(msg)
+      if (Array.isArray(parsed?.logs)) (err as any).logs = parsed.logs
+      throw err
+    }
+
+    const result = parsed && typeof parsed === 'object' && 'result' in parsed ? parsed.result : parsed
+    const logs =
+      parsed && typeof parsed === 'object' && Array.isArray(parsed.logs)
+        ? (parsed.logs as FunctionExecutionLogEntry[])
+        : undefined
+    return { result, logs }
   }
 
   async getFunction(functionId: string): Promise<FunctionMetadata & { version?: { source?: string } }> {
     return await this.get<FunctionMetadata & { version?: { source?: string } }>(`/functions/${functionId}`)
+  }
+
+  async functionAssistantDraft(data: FunctionAssistantDraftRequest): Promise<FunctionAssistantDraftResponse> {
+    const res = await fetch(this.baseUrl + '/ai/function-draft', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...this.getAuthHeaders()
+      },
+      body: JSON.stringify(data)
+    })
+    if (!res.ok) {
+      const msg = await this.readErrorMessage(res)
+      throw new Error(msg || `Function assistant failed (${res.status})`)
+    }
+    return (await res.json()) as FunctionAssistantDraftResponse
+  }
+
+  async functionAssistantDraftStream(
+    data: FunctionAssistantDraftRequest,
+    onEvent: (evt: FunctionAssistantDraftStreamEvent) => void
+  ): Promise<FunctionAssistantDraftResponse> {
+    const res = await fetch(this.baseUrl + '/ai/function-draft/stream', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'text/event-stream',
+        ...this.getAuthHeaders()
+      },
+      body: JSON.stringify(data)
+    })
+    if (!res.ok) {
+      const msg = await this.readErrorMessage(res)
+      throw new Error(msg || `Function assistant failed (${res.status})`)
+    }
+    if (!res.body) throw new Error('Streaming not supported (no response body)')
+
+    const reader = res.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+    let finalResult: FunctionAssistantDraftResponse | null = null
+    let lastError: string | null = null
+
+    const emit = (evt: FunctionAssistantDraftStreamEvent) => {
+      try {
+        onEvent(evt)
+      } catch {
+        // ignore consumer errors
+      }
+    }
+
+    const processBuffer = () => {
+      // Normalize CRLF so we can reliably split on \n\n
+      buffer = buffer.replace(/\r/g, '')
+
+      while (true) {
+        const idx = buffer.indexOf('\n\n')
+        if (idx < 0) break
+        const raw = buffer.slice(0, idx)
+        buffer = buffer.slice(idx + 2)
+
+        const lines = raw.split('\n')
+        let eventName = 'message'
+        const dataLines: string[] = []
+        for (const line of lines) {
+          if (!line) continue
+          if (line.startsWith(':')) continue
+          if (line.startsWith('event:')) {
+            eventName = line.slice('event:'.length).trim()
+          } else if (line.startsWith('data:')) {
+            dataLines.push(line.slice('data:'.length).trimStart())
+          }
+        }
+        const dataStr = dataLines.join('\n').trim()
+        if (!dataStr) continue
+
+        try {
+          const parsed = JSON.parse(dataStr) as any
+          if (eventName === 'progress') {
+            emit({
+              type: 'progress',
+              phase: typeof parsed?.phase === 'string' ? parsed.phase : undefined,
+              message: String(parsed?.message || ''),
+              data: parsed?.data && typeof parsed.data === 'object' ? parsed.data : undefined
+            })
+          } else if (eventName === 'result') {
+            finalResult = parsed as FunctionAssistantDraftResponse
+            emit({ type: 'result', result: finalResult })
+          } else if (eventName === 'error') {
+            lastError = String(parsed?.message || 'Stream error')
+            emit({ type: 'error', message: lastError })
+          }
+        } catch {
+          // ignore malformed events
+        }
+      }
+    }
+
+    while (true) {
+      const { value, done } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      processBuffer()
+      if (finalResult || lastError) break
+    }
+
+    // Flush remaining decoder output + trailing buffer (in case stream ended without final \n\n)
+    buffer += decoder.decode()
+    buffer += '\n\n'
+    processBuffer()
+
+    if (finalResult) return finalResult
+    if (lastError) throw new Error(lastError)
+    throw new Error('Stream ended without result')
+  }
+
+  async functionAssistantIterate(data: FunctionAssistantIterateRequest): Promise<FunctionAssistantDraftResponse> {
+    const res = await fetch(this.baseUrl + '/ai/function-iterate', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...this.getAuthHeaders()
+      },
+      body: JSON.stringify(data)
+    })
+    if (!res.ok) {
+      const msg = await this.readErrorMessage(res)
+      throw new Error(msg || `Function assistant iterate failed (${res.status})`)
+    }
+    return (await res.json()) as FunctionAssistantDraftResponse
   }
 
   async findFunctionByName(name: string): Promise<FunctionMetadata | null> {
