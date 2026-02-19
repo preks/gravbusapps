@@ -14,7 +14,7 @@ import {
 import { ChatTextIcon, SignOutIcon } from '@phosphor-icons/react'
 import type { Conversation } from '../types'
 import type { UserPresence } from '../hooks/usePresence'
-import { UserIcon, UsersIcon, Sparkles, CalendarIcon } from 'lucide-react'
+import { UserIcon, UsersIcon, Sparkles, CalendarIcon, PhoneCall } from 'lucide-react'
 import { UserStatusIndicator } from './UserStatusIndicator'
 
 interface ConversationItemProps {
@@ -219,7 +219,9 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
               {name}
             </span>
             {hasActiveCall && (
-              <span className="gba:text-[10px] gba:text-success gba:uppercase">{t(getCallMessageKey())}</span>
+              <span className="gba:flex gba:items-center gba:text-success" title={t(getCallMessageKey())}>
+                <PhoneCall className="gba:w-4 gba:h-4" />
+              </span>
             )}
             {unreadCount > 0 && (
               <Badge

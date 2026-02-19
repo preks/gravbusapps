@@ -373,9 +373,9 @@ export class ChatApiClient {
   }
 
   /**
-   * Get call history for current user
+   * Get WebRTC sessions history (legacy; for call history UI use getCallHistory with status/callType).
    */
-  async getCallHistory(page: number = 1, limit: number = 20) {
+  async getWebrtcSessionsHistory(page: number = 1, limit: number = 20) {
     const response = await this.client.get('/webrtc/sessions/history', {
       params: { page, limit }
     })
@@ -388,6 +388,65 @@ export class ChatApiClient {
   async getCallStats() {
     const response = await this.client.get('/webrtc/sessions/stats')
     return response.data
+  }
+
+  /**
+   * Get call sessions the user participated in (RTK call history)
+   */
+  async getCallSessionsUserHistory(userId: string, limit: number = 50) {
+    const response = await this.client.get<unknown[] | { data?: unknown[] }>(
+      `/call-sessions/users/${encodeURIComponent(userId)}/history`,
+      { params: { limit } }
+    )
+    const data = response.data
+    if (Array.isArray(data)) return data
+    if (data && typeof data === 'object' && 'data' in data && Array.isArray((data as { data?: unknown[] }).data)) {
+      return (data as { data: unknown[] }).data
+    }
+    return []
+  }
+
+  /**
+   * Get invite outcomes for current user (missed / declined / not_answered)
+   */
+  async getCallInviteOutcomesMine(params?: { outcome?: string; since?: string; limit?: number }) {
+    const response = await this.client.get<unknown[]>('/call-invite-outcomes/mine', { params: params ?? { limit: 50 } })
+    return Array.isArray(response.data) ? response.data : []
+  }
+
+  /**
+   * Get unified call history (sessions + outcomes) with status and call-type filtering (BE).
+   */
+  async getCallHistory(params: {
+    status: import('../components/CallHistory/CallHistoryTypes').CallHistoryFilter
+    callType: import('../components/CallHistory/CallHistoryTypes').CallHistoryTypeFilter
+    limit?: number
+  }): Promise<import('../components/CallHistory/CallHistoryTypes').CallHistoryEntry[]> {
+    const { status, callType, limit = 50 } = params
+    const response = await this.client.get<Array<{ type: 'joined' | 'outcome'; [key: string]: unknown }>>(
+      '/call-history',
+      { params: { status, callType, limit } }
+    )
+    const data = Array.isArray(response.data) ? response.data : []
+    return data.map(entry => {
+      const { type, ...rest } = entry
+      return { type, item: rest }
+    }) as unknown as import('../components/CallHistory/CallHistoryTypes').CallHistoryEntry[]
+  }
+
+  /**
+   * Get count of missed calls not yet seen by the user (for badge).
+   */
+  async getMissedCallsCount(): Promise<number> {
+    const response = await this.client.get<{ count: number }>('/call-history/missed-count')
+    return response.data?.count ?? 0
+  }
+
+  /**
+   * Mark call history as seen; resets unseen missed count (call when user opens Call History).
+   */
+  async markCallHistorySeen(): Promise<void> {
+    await this.client.post<{ ok: boolean }>('/call-history/mark-seen')
   }
 
   // File upload endpoints

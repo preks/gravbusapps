@@ -98,7 +98,13 @@ export const PreCallSetupStateSync: React.FC<PreCallSetupStateSyncProps> = ({
       // FIXED: Always show the CURRENT USER's avatar
       const userAvatarUrl = currentUserAsParticipant?.avatarUrl
 
-      // Update global state (EXACT ORIGINAL LOGIC)
+      // Meeting chats: metadata.type === 'meeting' or metadata.meetingId → send 'meeting' so backend shows "Meeting started/ended"
+      const isMeetingConversation =
+        activeConversation?.metadata?.type === 'meeting' || Boolean(activeConversation?.metadata?.meetingId)
+      const conversationType: 'direct' | 'group' | 'meeting' = isMeetingConversation
+        ? 'meeting'
+        : ((activeConversation?.type as 'direct' | 'group' | 'meeting') ?? 'group')
+
       globalPreCallSetupManager.setStateFrom(instanceId, {
         isOpen: true,
         callType: groupCallState.callType,
@@ -109,7 +115,7 @@ export const PreCallSetupStateSync: React.FC<PreCallSetupStateSyncProps> = ({
         participantCount: groupParticipants.length,
         userName,
         userAvatarUrl,
-        conversationType: activeConversation?.type as 'direct' | 'group' | 'meeting'
+        conversationType
       })
 
       return
