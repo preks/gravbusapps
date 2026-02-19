@@ -26,7 +26,7 @@ export interface FileUploadStepProps {
   onFileChange: (file: File | null) => Promise<void>
   onAnalyze: () => Promise<void>
   campaignId?: string
-  onCampaignIdChange?: (id: string | null) => void
+  onCampaignChange?: (campaign: { id: string; name: string } | null) => void
   businessAppContext?: BusinessAppContextProps
   'data-testid'?: string
 }
@@ -37,7 +37,7 @@ export const FileUploadStep: React.FC<FileUploadStepProps> = ({
   onFileChange,
   onAnalyze,
   campaignId,
-  onCampaignIdChange,
+  onCampaignChange,
   businessAppContext,
   'data-testid': testId = 'file-upload-step'
 }) => {
@@ -79,12 +79,13 @@ export const FileUploadStep: React.FC<FileUploadStepProps> = ({
             </div>
           )}
 
-          {onCampaignIdChange && businessAppContext && (
+          {onCampaignChange && businessAppContext && (
             <div>
               <Label htmlFor="campaign-select">{t('campaign-id-label')}</Label>
               <CampaignSelect
                 value={campaignId || null}
-                onValueChange={onCampaignIdChange}
+                onValueChange={(id: string | null) => onCampaignChange(id ? { id, name: id } : null)}
+                onCampaignOptionChange={onCampaignChange}
                 businessAppContext={businessAppContext}
                 className="gba:mt-2 gba:w-full"
                 data-testid={`${testId}-campaign-select`}

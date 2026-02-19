@@ -5,7 +5,7 @@
  */
 
 import React from 'react'
-import { PageLayout, Alert, AlertDescription } from '@newwork/nw-design-system'
+import { PageLayout, Alert, AlertDescription, useTranslation } from '@newwork/nw-design-system'
 import { XCircleIcon, SparkleIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { ImportConfig } from '@/common/components/common-relations/apps/data-import/types'
@@ -13,6 +13,9 @@ import { useEntityImport, useEntityMappings } from '@/common/components/common-r
 import { FileUploadStep } from './FileUploadStep'
 import { MappingReviewStep } from './MappingReviewStep'
 import { ConversionResultStep } from './ConversionResultStep'
+import fileUploadTranslations from './FileUploadStep/_i18n'
+import mappingReviewTranslations from './MappingReviewStep/_i18n'
+import conversionResultTranslations from './ConversionResultStep/_i18n'
 
 export interface EntityImportViewProps extends BusinessAppContextProps {
   config: ImportConfig
@@ -39,12 +42,20 @@ export const EntityImportView: React.FC<EntityImportViewProps> = ({
   'data-testid': testId = 'entity-import-view',
   ...context
 }) => {
+  // Pre-register all step translation bundles so they are available before each step mounts.
+  // This ensures translations are in the global registry during the LocalizationProvider's
+  // initial re-render cycle, preventing raw keys from showing on first render.
+  useTranslation(fileUploadTranslations)
+  useTranslation(mappingReviewTranslations)
+  useTranslation(conversionResultTranslations)
+
   const {
     file,
     agentResponse,
     convertedEntities,
     campaignId,
-    setCampaignId,
+    campaignName,
+    setCampaign,
     step,
     isLoading,
     error,
@@ -95,7 +106,8 @@ export const EntityImportView: React.FC<EntityImportViewProps> = ({
           onAnalyze={analyzeWithAgent}
           {...(enableCampaignSelection && {
             campaignId,
-            onCampaignIdChange: setCampaignId,
+            onCampaignChange: (campaign: { id: string; name: string } | null) =>
+              setCampaign(campaign?.id ?? null, campaign?.name),
             businessAppContext: context
           })}
           data-testid={`${testId}-upload-step`}
@@ -125,6 +137,7 @@ export const EntityImportView: React.FC<EntityImportViewProps> = ({
           entityType={entityTypeSingular}
           isLoading={isLoading}
           importResult={importResult}
+          campaignName={campaignName || undefined}
           onDownloadJSON={downloadJSON}
           onImportToBackend={importToBackend}
           onReset={reset}

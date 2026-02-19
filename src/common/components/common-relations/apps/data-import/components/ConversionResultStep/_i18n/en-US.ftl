@@ -14,6 +14,9 @@ import-success-title = Import Successful!
 import-success-message = Successfully imported { $count } { $entityType } to CRM
 conversion-success-message = Successfully converted { $count } { $entityType }
 
+# Campaign
+campaign-label = Campaign: { $name }
+
 # Preview Section
 preview-title = Preview (First { $count } { $entityType })
 preview-more-text = ... and { $count } more { $entityType }

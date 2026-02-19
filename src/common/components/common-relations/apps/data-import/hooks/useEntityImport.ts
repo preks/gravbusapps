@@ -32,7 +32,8 @@ export interface UseEntityImportReturn<T> {
 
   // Campaign state
   campaignId: string
-  setCampaignId: (id: string | null) => void
+  campaignName: string
+  setCampaign: (id: string | null, name?: string | null) => void
 
   // UI state
   step: ImportStep
@@ -135,13 +136,15 @@ export function useEntityImport<T = ConvertedEntity>(
   const [agentResponse, setAgentResponse] = useState<ImportAnalyzerResponse | null>(null)
   const [convertedEntities, setConvertedEntities] = useState<T[]>([])
   const [campaignId, setCampaignIdState] = useState<string>('')
+  const [campaignName, setCampaignNameState] = useState<string>('')
   const [step, setStep] = useState<ImportStep>('upload')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [importResult, setImportResult] = useState<ImportResult | null>(null)
 
-  const setCampaignId = useCallback((id: string | null) => {
+  const setCampaign = useCallback((id: string | null, name?: string | null) => {
     setCampaignIdState(id || '')
+    setCampaignNameState(name || '')
   }, [])
 
   // Services
@@ -351,6 +354,7 @@ export function useEntityImport<T = ConvertedEntity>(
     setAgentResponse(null)
     setConvertedEntities([])
     setCampaignIdState('')
+    setCampaignNameState('')
     setStep('upload')
     setError(null)
     setImportResult(null)
@@ -361,7 +365,8 @@ export function useEntityImport<T = ConvertedEntity>(
     agentResponse,
     convertedEntities,
     campaignId,
-    setCampaignId,
+    campaignName,
+    setCampaign,
     step,
     isLoading,
     error,
