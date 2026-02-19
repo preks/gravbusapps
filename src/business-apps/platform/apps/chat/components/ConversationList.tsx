@@ -1,6 +1,12 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react'
-import { Button, Input, Spinner, Popover, PopoverContent, PopoverTrigger } from '@newwork/nw-design-system'
-import { PlusIcon, MagnifyingGlassIcon, UserIcon, UsersThreeIcon } from '@phosphor-icons/react'
+import { Button, Input, Spinner, Popover, PopoverContent, PopoverTrigger, Badge } from '@newwork/nw-design-system'
+import {
+  PlusIcon,
+  MagnifyingGlassIcon,
+  UserIcon,
+  UsersThreeIcon,
+  ClockCounterClockwiseIcon
+} from '@phosphor-icons/react'
 import { ConversationItem } from './ConversationItem'
 import { UserSearch } from './UserSearch'
 import { UserStatusDropdown } from './UserStatusDropdown'
@@ -35,6 +41,8 @@ interface ConversationListProps {
   onSearchChange?: (value: string) => void
   onFilterKindChange?: (kind: ConversationFilterKind) => void
   onUnreadOnlyChange?: (value: boolean) => void
+  onOpenCallHistory?: () => void
+  missedCallsCount?: number
 }
 
 // Helper to get the other participant's user ID from a direct conversation
@@ -72,7 +80,9 @@ export const ConversationList: React.FC<ConversationListProps> = ({
   unreadOnly = false,
   onSearchChange,
   onFilterKindChange,
-  onUnreadOnlyChange
+  onUnreadOnlyChange,
+  onOpenCallHistory,
+  missedCallsCount = 0
 }) => {
   const t = useChatTranslation()
   // Force re-render when presenceVersion changes
@@ -211,6 +221,29 @@ export const ConversationList: React.FC<ConversationListProps> = ({
           </div>
         )}
 
+        {onOpenCallHistory && (
+          <div className="gba:relative gba:flex-shrink-0">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="gba:h-8 gba:w-8"
+              onClick={onOpenCallHistory}
+              aria-label={t('chat-callHistory')}
+              data-testid="chat-openCallHistory"
+            >
+              <ClockCounterClockwiseIcon className="gba:w-4 gba:h-4" weight="regular" />
+            </Button>
+            {missedCallsCount > 0 && (
+              <Badge
+                variant="destructive"
+                className="gba:absolute gba:-top-1 gba:-right-1 gba:min-w-[1.25rem] gba:h-5 gba:px-1 gba:text-xs gba:flex gba:items-center gba:justify-center"
+                data-testid="chat-missedCallsBadge"
+              >
+                {missedCallsCount > 99 ? '99+' : missedCallsCount}
+              </Badge>
+            )}
+          </div>
+        )}
         <Popover open={showNewChatMenu} onOpenChange={setShowNewChatMenu}>
           <PopoverTrigger asChild>
             <Button
