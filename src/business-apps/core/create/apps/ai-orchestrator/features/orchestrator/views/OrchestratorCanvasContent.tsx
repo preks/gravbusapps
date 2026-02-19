@@ -54,6 +54,13 @@ export const OrchestratorCanvasContent: React.FC<OrchestratorCanvasContentProps>
 
   // Determine header actions based on state
   const getHeaderActions = () => {
+    if (state.viewState === 'review') {
+      return (
+        <Button variant="ghost" size="sm" onClick={handlers.handleReset} disabled={orchestratorClient.isAnalyzing}>
+          ← Start Over
+        </Button>
+      )
+    }
     if (state.viewState === 'building' && buildProgress.isBuilding) {
       return (
         <Button variant="outline" size="sm" onClick={buildProgress.cancelBuild}>

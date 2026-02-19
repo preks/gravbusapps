@@ -179,6 +179,8 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
       state.setChatActive(true)
       // Add user's initial prompt to chat history
       chat.addUserMessage(prompt, 'prompt')
+      // Add analyzing feedback to chat
+      chat.addAssistantMessage('Analyzing your request and planning the solution...', 'system')
       await handlers.handleAnalyze(prompt)
     },
     [handlers, state, chat]
@@ -215,10 +217,13 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
     lastChatStateRef.current = null
   }, [chat, handlers, state])
 
-  // --- Idle: full-screen ---
+  // --- Idle: full-screen (square top so banner has no top border radius) ---
   if (!state.chatActive && state.viewState === 'idle') {
     return (
-      <div className="gba:h-full gba:w-full gba:overflow-hidden gba:bg-background" data-testid={testId}>
+      <div
+        className="gba:h-full gba:w-full gba:overflow-hidden gba:bg-background gba:rounded-t-none"
+        data-testid={testId}
+      >
         <IdleCanvas onSubmit={handleIdleSubmit} isLoading={orchestratorClient.isAnalyzing} />
       </div>
     )
@@ -231,7 +236,12 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
         chatPanel={
           <CreateAgentChat
             messages={chat.messages}
-            isProcessing={chat.isProcessing || orchestratorClient.isRefining || buildProgress.isBuilding}
+            isProcessing={
+              chat.isProcessing ||
+              orchestratorClient.isAnalyzing ||
+              orchestratorClient.isRefining ||
+              buildProgress.isBuilding
+            }
             onSend={chat.handleSend}
             onNewSession={handleNewSession}
           />
