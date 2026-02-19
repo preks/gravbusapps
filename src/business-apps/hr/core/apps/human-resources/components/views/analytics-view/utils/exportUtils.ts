@@ -36,7 +36,7 @@ export async function exportTableToExcel(
   const excelColumns = columns.map(c => ({ header: c.header, key: c.key }))
   const sheetName = title.slice(0, 31) // Excel sheet name length limit
   const workbook = buildExcelWorkbook(sheetName, excelColumns, data, 'NEWWORK HR Analytics')
-  const filename = buildFilename(title.replace(/\s+/g, '-'), 'xlsx')
+  const filename = buildFilename(title.trim().split(/\s+/).join('-'), 'xlsx')
   await downloadExcelWorkbook(workbook, filename)
 }
 
@@ -50,13 +50,13 @@ export async function exportTableToPdf(
   data: Record<string, unknown>[]
 ): Promise<void> {
   const globalShim = globalThis as unknown as { global?: unknown }
-  if (typeof globalShim.global === 'undefined') {
+  if (globalShim.global === undefined) {
     globalShim.global = globalShim
   }
 
-  const PDFDocument = (PDFKitModule as { default?: unknown }).default ?? PDFKitModule
-
-  const doc = new (PDFDocument as any)({ size: 'A4', margin: 40 })
+  const PDFDocument = (PDFKitModule as { default?: new (...args: any[]) => any }).default
+  const PdfCtor = PDFDocument ?? (PDFKitModule as unknown as new (...args: any[]) => any)
+  const doc = new PdfCtor({ size: 'A4', margin: 40 })
 
   const chunks: Uint8Array[] = []
   doc.on('data', (chunk: unknown) => chunks.push(chunk as Uint8Array))
@@ -72,7 +72,7 @@ export async function exportTableToPdf(
           offset += c.length
         }
         const blob = new Blob([out], { type: 'application/pdf' })
-        const filename = buildFilename(title.replace(/\s+/g, '-'), 'pdf')
+        const filename = buildFilename(title.trim().split(/\s+/).join('-'), 'pdf')
         triggerDownload(blob, filename)
         resolve()
       } catch (e) {

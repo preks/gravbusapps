@@ -254,6 +254,11 @@ const Dashboard: React.FC<DashboardProps> = ({ accessToken }) => {
     }
   ]
   const selectedConfig = chartConfigs.find(config => config.testId === selectedChart)
+  const resolveExportingFormat = (tableName: string): 'excel' | 'pdf' | null => {
+    if (exportingTable === `${tableName}-excel`) return 'excel'
+    if (exportingTable === `${tableName}-pdf`) return 'pdf'
+    return null
+  }
 
   if (loading) {
     return (
@@ -355,13 +360,7 @@ const Dashboard: React.FC<DashboardProps> = ({ accessToken }) => {
               entriesText={t('hr-analytics-total-entries', { count: selectedConfig.tableData.length })}
               columns={selectedConfig.exportColumns}
               rows={selectedConfig.tableData}
-              exportingFormat={
-                exportingTable === `${selectedConfig.testId}-excel`
-                  ? 'excel'
-                  : exportingTable === `${selectedConfig.testId}-pdf`
-                    ? 'pdf'
-                    : null
-              }
+              exportingFormat={resolveExportingFormat(selectedConfig.testId)}
               exportExcelTestId={`dashboard-${selectedConfig.testId}-export-excel`}
               exportPdfTestId={`dashboard-${selectedConfig.testId}-export-pdf`}
               exportExcelLabel={t('common-export-excel')}

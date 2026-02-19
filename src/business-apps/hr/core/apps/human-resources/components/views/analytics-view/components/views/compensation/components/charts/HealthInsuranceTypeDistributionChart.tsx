@@ -1,12 +1,31 @@
 import React from 'react'
 import { Typography, Spin, Empty } from 'antd'
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts'
+import { PieChart, Pie, ResponsiveContainer, Tooltip, Legend } from 'recharts'
 import { useHealthInsuranceTypeDistribution } from '../../../../../hooks/useHealthInsuranceTypeDistribution'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useTranslation } from '@newwork/nw-design-system'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 
 const { Title, Text } = Typography
+
+const DistributionTooltip: React.FC<{ active?: boolean; payload?: Array<{ payload: any; value: number }> }> = ({
+  active,
+  payload
+}) => {
+  if (!active || !payload || payload.length === 0) return null
+  const point = payload[0]
+  return (
+    <div className="gba:bg-white gba:p-3 gba:rounded gba:shadow-lg gba:border">
+      <p className="gba:font-semibold gba:mb-1">{point.payload.name}</p>
+      <p className="gba:text-sm">
+        <span className="gba:font-medium">Employees:</span> {point.value.toLocaleString()}
+      </p>
+      <p className="gba:text-sm">
+        <span className="gba:font-medium">Percentage:</span> {Number(point.payload.percentage).toFixed(2)}%
+      </p>
+    </div>
+  )
+}
 
 /**
  * Pie chart component for displaying health insurance type distribution.
@@ -32,25 +51,55 @@ export const HealthInsuranceTypeDistributionChart: React.FC<BusinessAppContextPr
     name: item.name,
     value: item.count,
     percentage: Number((item.percentage ?? 0).toFixed(2)),
-    color: COLORS[index % COLORS.length]
+    fill: COLORS[index % COLORS.length]
   }))
-
-  const CustomTooltip = ({ active, payload }: any) => {
-    if (active && payload && payload.length) {
-      const data = payload[0]
-      return (
-        <div className="gba:bg-white gba:p-3 gba:rounded gba:shadow-lg gba:border">
-          <p className="gba:font-semibold gba:mb-1">{data.payload.name}</p>
-          <p className="gba:text-sm">
-            <span className="gba:font-medium">Employees:</span> {data.value.toLocaleString()}
-          </p>
-          <p className="gba:text-sm">
-            <span className="gba:font-medium">Percentage:</span> {Number(data.payload.percentage).toFixed(2)}%
-          </p>
-        </div>
-      )
-    }
-    return null
+  let content: React.ReactNode
+  if (loading) {
+    content = (
+      <div className="gba:flex gba:justify-center gba:items-center gba:h-96">
+        <Spin size="large" data-testid="health-insurance-type-distribution-loading" />
+      </div>
+    )
+  } else if (error) {
+    content = (
+      <div className="gba:flex gba:justify-center gba:items-center gba:h-96">
+        <Text type="danger">{t('hr-analytics-error-loading')}</Text>
+      </div>
+    )
+  } else if (!data || data.length === 0) {
+    content = (
+      <div className="gba:flex gba:justify-center gba:items-center gba:h-96">
+        <Empty description={t('hr-analytics-no-data')} data-testid="health-insurance-type-distribution-empty" />
+      </div>
+    )
+  } else {
+    content = (
+      <div className="gba:h-96">
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Pie
+              data={chartData}
+              cx="50%"
+              cy="50%"
+              labelLine={false}
+              outerRadius={100}
+              fill="var(--nw-chart-1)"
+              dataKey="value"
+              label={(props: { payload?: { name: string; percentage?: number } }) => {
+                const p = props.payload
+                return p ? `${p.name} (${Number(p.percentage ?? 0).toFixed(2)}%)` : ''
+              }}
+            />
+            <Tooltip content={<DistributionTooltip />} />
+            <Legend
+              verticalAlign="bottom"
+              height={36}
+              formatter={(value: any, entry: any) => <span style={{ color: entry.color }}>{value}</span>}
+            />
+          </PieChart>
+        </ResponsiveContainer>
+      </div>
+    )
   }
 
   return (
@@ -67,46 +116,7 @@ export const HealthInsuranceTypeDistributionChart: React.FC<BusinessAppContextPr
         </Text>
       </div>
 
-      {loading ? (
-        <div className="gba:flex gba:justify-center gba:items-center gba:h-96">
-          <Spin size="large" data-testid="health-insurance-type-distribution-loading" />
-        </div>
-      ) : error ? (
-        <div className="gba:flex gba:justify-center gba:items-center gba:h-96">
-          <Text type="danger">{t('hr-analytics-error-loading')}</Text>
-        </div>
-      ) : !data || data.length === 0 ? (
-        <div className="gba:flex gba:justify-center gba:items-center gba:h-96">
-          <Empty description={t('hr-analytics-no-data')} data-testid="health-insurance-type-distribution-empty" />
-        </div>
-      ) : (
-        <div className="gba:h-96">
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie
-                data={chartData}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                outerRadius={100}
-                fill="var(--nw-chart-1)"
-                dataKey="value"
-                label={({ name, percentage }) => `${name} (${Number(percentage).toFixed(2)}%)`}
-              >
-                {chartData.map((entry: any, index: number) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
-                ))}
-              </Pie>
-              <Tooltip content={<CustomTooltip />} />
-              <Legend
-                verticalAlign="bottom"
-                height={36}
-                formatter={(value: any, entry: any) => <span style={{ color: entry.color }}>{value}</span>}
-              />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
-      )}
+      {content}
     </div>
   )
 }

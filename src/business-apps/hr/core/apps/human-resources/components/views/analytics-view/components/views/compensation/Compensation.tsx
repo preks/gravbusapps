@@ -1,8 +1,7 @@
 import React, { useMemo, useRef, useState } from 'react'
 import { Typography, Row, Col } from 'antd'
-import { useTranslation } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { SectionKpiCards, KpiCardData, Icon, Card, CardContent } from '@newwork/nw-design-system'
+import { SectionKpiCards, KpiCardData, Icon, Card, CardContent, useTranslation } from '@newwork/nw-design-system'
 import { CalendarIcon, CurrencyDollarIcon } from '@phosphor-icons/react'
 import { useCompensationMetrics } from '../../../hooks/useCompensationMetrics'
 import { useSalaryByOrgUnit } from '../../../hooks/useSalaryByOrgUnit'
@@ -157,6 +156,11 @@ export const Compensation: React.FC<CompensationProps> = ({ accessToken, prefixD
     }
   ]
   const selectedConfig = chartConfigs.find(config => config.testId === selectedChart)
+  const resolveExportingFormat = (tableName: string): 'excel' | 'pdf' | null => {
+    if (exportingTable === `${tableName}-excel`) return 'excel'
+    if (exportingTable === `${tableName}-pdf`) return 'pdf'
+    return null
+  }
 
   // Format merit increases
   const meritIncreases = useMemo(
@@ -331,13 +335,7 @@ export const Compensation: React.FC<CompensationProps> = ({ accessToken, prefixD
             entriesText={t('hr-analytics-total-entries', { count: selectedConfig.tableData.length })}
             columns={selectedConfig.exportColumns}
             rows={selectedConfig.tableData}
-            exportingFormat={
-              exportingTable === `${selectedConfig.testId}-excel`
-                ? 'excel'
-                : exportingTable === `${selectedConfig.testId}-pdf`
-                  ? 'pdf'
-                  : null
-            }
+            exportingFormat={resolveExportingFormat(selectedConfig.testId)}
             exportExcelTestId={`${prefixDataTestId}-${selectedConfig.testId}-export-excel`}
             exportPdfTestId={`${prefixDataTestId}-${selectedConfig.testId}-export-pdf`}
             exportExcelLabel={t('common-export-excel')}
@@ -352,7 +350,6 @@ export const Compensation: React.FC<CompensationProps> = ({ accessToken, prefixD
               )
             }
             getRowKey={(_, index) => `${selectedConfig.testId}-${index}`}
-            renderCell={(row, col) => String((row as unknown as Record<string, unknown>)[col.key] ?? '-')}
           />
         )}
       </div>

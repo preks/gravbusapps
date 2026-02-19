@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react'
-import { Card, CardContent } from '@newwork/nw-design-system'
+import { Card, CardContent, useTranslation } from '@newwork/nw-design-system'
 import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useEmploymentTypeDistribution } from '../../../../../hooks/useEmploymentTypeDistribution'
@@ -12,7 +12,6 @@ import { useContractTypeDistribution } from '../../../../../hooks/useContractTyp
 import { useGapRateByOrgUnit } from '../../../../../hooks/useGapRateByOrgUnit'
 import { useProbationRateByOrgUnit } from '../../../../../hooks/useProbationRateByOrgUnit'
 import EmploymentStatistics from '../components/EmploymentStatistics'
-import { useTranslation } from '@newwork/nw-design-system'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 import { exportTableToExcel, exportTableToPdf } from '../../../../../utils/exportUtils'
 import TenureHeatmapChart from '../charts/TenureHeatmapChart'
@@ -235,6 +234,11 @@ const Employment: React.FC<BusinessAppContextProps> = context => {
 
   // Find the selected chart configuration
   const selectedConfig = chartConfigs.find(config => config.testId === selectedChart)
+  const resolveExportingFormat = (tableName: string): 'excel' | 'pdf' | null => {
+    if (exportingTable === `${tableName}-excel`) return 'excel'
+    if (exportingTable === `${tableName}-pdf`) return 'pdf'
+    return null
+  }
 
   // Handle error state
   if (hasError) {
@@ -384,13 +388,7 @@ const Employment: React.FC<BusinessAppContextProps> = context => {
             entriesText={t('hr-analytics-total-entries', { count: selectedConfig.tableData.length })}
             columns={selectedConfig.exportColumns}
             rows={selectedConfig.tableData}
-            exportingFormat={
-              exportingTable === `${selectedConfig.testId}-excel`
-                ? 'excel'
-                : exportingTable === `${selectedConfig.testId}-pdf`
-                  ? 'pdf'
-                  : null
-            }
+            exportingFormat={resolveExportingFormat(selectedConfig.testId)}
             exportExcelLabel={t('common-export-excel')}
             exportPdfLabel={t('common-export-pdf')}
             onExport={format =>

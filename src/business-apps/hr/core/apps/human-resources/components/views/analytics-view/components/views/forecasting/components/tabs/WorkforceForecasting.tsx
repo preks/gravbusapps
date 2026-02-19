@@ -188,6 +188,11 @@ export const WorkforceForecasting: React.FC<WorkforceForecastingProps> = props =
     { key: 'departures', header: t('hr-analytics-monthly-departures') },
     { key: 'netChange', header: t('hr-analytics-change'), badge: DIFFERENT_BADGE }
   ]
+  const resolveExportingFormat = (): 'excel' | 'pdf' | null => {
+    if (exportingTable === 'headcount-changes-excel') return 'excel'
+    if (exportingTable === 'headcount-changes-pdf') return 'pdf'
+    return null
+  }
 
   const handleExport = async (format: 'excel' | 'pdf') => {
     setExportingTable(`headcount-changes-${format}`)
@@ -229,13 +234,7 @@ export const WorkforceForecasting: React.FC<WorkforceForecastingProps> = props =
           entriesText={t('hr-analytics-total-entries', { count: tableData.length })}
           columns={exportColumns}
           rows={tableData}
-          exportingFormat={
-            exportingTable === 'headcount-changes-excel'
-              ? 'excel'
-              : exportingTable === 'headcount-changes-pdf'
-                ? 'pdf'
-                : null
-          }
+          exportingFormat={resolveExportingFormat()}
           exportExcelTestId={`${prefixDataTestId}-headcount-changes-export-excel`}
           exportPdfTestId={`${prefixDataTestId}-headcount-changes-export-pdf`}
           exportExcelLabel={t('common-export-excel')}

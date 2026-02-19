@@ -221,6 +221,16 @@ export const SalaryForecasting: React.FC<SalaryForecastingProps> = props => {
     if (typeof value === 'number' && Number.isFinite(value)) {
       return value.toLocaleString(locale, { minimumFractionDigits: 0, maximumFractionDigits: 2 })
     }
+    if (typeof value === 'string') return value
+    if (typeof value === 'boolean' || typeof value === 'bigint') return String(value)
+    if (value instanceof Date) return value.toISOString()
+    if (typeof value === 'object') {
+      try {
+        return JSON.stringify(value)
+      } catch {
+        return '-'
+      }
+    }
     return String(value)
   }
 
@@ -318,6 +328,11 @@ export const SalaryForecasting: React.FC<SalaryForecastingProps> = props => {
     }
   ]
   const selectedConfig = chartConfigs.find(config => config.testId === selectedChart)
+  const resolveExportingFormat = (tableName: string): 'excel' | 'pdf' | null => {
+    if (exportingTable === `${tableName}-excel`) return 'excel'
+    if (exportingTable === `${tableName}-pdf`) return 'pdf'
+    return null
+  }
 
   return (
     <div data-testid={prefixDataTestId} className="gba:flex gba:flex-col gba:gap-6">
@@ -417,13 +432,7 @@ export const SalaryForecasting: React.FC<SalaryForecastingProps> = props => {
             entriesText={t('hr-analytics-total-entries', { count: selectedConfig.tableData.length })}
             columns={selectedConfig.exportColumns}
             rows={selectedConfig.tableData}
-            exportingFormat={
-              exportingTable === `${selectedConfig.testId}-excel`
-                ? 'excel'
-                : exportingTable === `${selectedConfig.testId}-pdf`
-                  ? 'pdf'
-                  : null
-            }
+            exportingFormat={resolveExportingFormat(selectedConfig.testId)}
             exportExcelTestId={`${prefixDataTestId}-${selectedConfig.testId}-export-excel`}
             exportPdfTestId={`${prefixDataTestId}-${selectedConfig.testId}-export-pdf`}
             exportExcelLabel={t('common-export-excel')}

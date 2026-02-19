@@ -1,9 +1,8 @@
 import React, { useState, useRef } from 'react'
-import { Card, CardContent, CardHeader, Badge } from '@newwork/nw-design-system'
+import { Card, CardContent, CardHeader, Badge, useTranslation } from '@newwork/nw-design-system'
 import { Typography } from 'antd'
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 import type { DemographicsData } from '../../../../hooks/useDemographicsDataIntegration'
-import { useTranslation } from '@newwork/nw-design-system'
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 import { exportTableToExcel, exportTableToPdf } from '../../../../utils/exportUtils'
 import AnalyticsDataTable, { HIGHLIGHT_BADGE } from '../../../shared/AnalyticsDataTable'
@@ -21,6 +20,26 @@ interface TableData {
   value: number
   percentage: string
 }
+
+interface DemographicsLegendProps {
+  testId: string
+  data: Array<{ category: string }>
+  colors: string[]
+}
+
+const DemographicsLegend: React.FC<DemographicsLegendProps> = ({ testId, data, colors }) => (
+  <div className="gba:flex gba:flex-wrap gba:justify-center gba:gap-3 gba:mt-2 gba:text-[10px]">
+    {data.map((entry, entryIndex) => (
+      <div key={`${testId}-${entry.category}`} className="gba:flex gba:items-center gba:gap-1">
+        <span
+          className="gba:inline-block gba:w-2.5 gba:h-2.5"
+          style={{ backgroundColor: colors[entryIndex % colors.length] }}
+        />
+        <span>{entry.category}</span>
+      </div>
+    ))}
+  </div>
+)
 
 const DemographicsChartsView: React.FC<DemographicsChartsViewProps> = ({ demographicsData, isLoading, dataTestId }) => {
   const [selectedChart, setSelectedChart] = useState<string | null>(null)
@@ -70,13 +89,13 @@ const DemographicsChartsView: React.FC<DemographicsChartsViewProps> = ({ demogra
     if (!label || label === 'unknown') return Number.MAX_SAFE_INTEGER
     if (label.includes('under 25') || label.includes('<25') || label.includes('< 25')) return 24
 
-    const rangeMatch = label.match(/(\d+)\s*-\s*(\d+)/)
+    const rangeMatch = /(\d+)\s*-\s*(\d+)/.exec(label)
     if (rangeMatch) return Number(rangeMatch[1])
 
-    const plusMatch = label.match(/(\d+)\s*\+/)
+    const plusMatch = /(\d+)\s*\+/.exec(label)
     if (plusMatch) return Number(plusMatch[1])
 
-    const underMatch = label.match(/under\s*(\d+)/)
+    const underMatch = /under\s*(\d+)/.exec(label)
     if (underMatch) return Number(underMatch[1]) - 1
 
     return Number.MAX_SAFE_INTEGER
@@ -162,6 +181,11 @@ const DemographicsChartsView: React.FC<DemographicsChartsViewProps> = ({ demogra
       exportColumns: exportColumnsDemographics
     }
   ]
+  const resolveExportingFormat = (tableName: string): 'excel' | 'pdf' | null => {
+    if (exportingTable === `${tableName}-excel`) return 'excel'
+    if (exportingTable === `${tableName}-pdf`) return 'pdf'
+    return null
+  }
 
   const handleChartClick = (chartId: string) => {
     // If clicking the same chart, deselect it. Otherwise, select the new one.
@@ -264,22 +288,9 @@ const DemographicsChartsView: React.FC<DemographicsChartsViewProps> = ({ demogra
                           ]}
                         />
                         <Legend
-                          content={() => (
-                            <div className="gba:flex gba:flex-wrap gba:justify-center gba:gap-3 gba:mt-2 gba:text-[10px]">
-                              {config.data.map((entry, entryIndex) => (
-                                <div
-                                  key={`${config.testId}-${entry.category}`}
-                                  className="gba:flex gba:items-center gba:gap-1"
-                                >
-                                  <span
-                                    className="gba:inline-block gba:w-2.5 gba:h-2.5"
-                                    style={{ backgroundColor: config.colors[entryIndex % config.colors.length] }}
-                                  />
-                                  <span>{entry.category}</span>
-                                </div>
-                              ))}
-                            </div>
-                          )}
+                          content={
+                            <DemographicsLegend testId={config.testId} data={config.data} colors={config.colors} />
+                          }
                         />
                       </PieChart>
                     </ResponsiveContainer>
@@ -305,13 +316,7 @@ const DemographicsChartsView: React.FC<DemographicsChartsViewProps> = ({ demogra
             entriesText={t('hr-analytics-total-entries', { count: selectedConfig.tableData.length })}
             columns={selectedConfig.exportColumns}
             rows={selectedConfig.tableData}
-            exportingFormat={
-              exportingTable === `${selectedConfig.testId}-excel`
-                ? 'excel'
-                : exportingTable === `${selectedConfig.testId}-pdf`
-                  ? 'pdf'
-                  : null
-            }
+            exportingFormat={resolveExportingFormat(selectedConfig.testId)}
             exportExcelTestId={`${dataTestId}-${selectedConfig.testId}-export-excel`}
             exportPdfTestId={`${dataTestId}-${selectedConfig.testId}-export-pdf`}
             exportExcelLabel={t('common-export-excel')}
@@ -325,7 +330,7 @@ const DemographicsChartsView: React.FC<DemographicsChartsViewProps> = ({ demogra
                 selectedConfig.tableData
               )
             }
-            getRowKey={row => (row as TableData).category}
+            getRowKey={row => row.category}
             renderCell={(item, col) => {
               if (col.key === 'category') return <span className="gba:font-medium">{item.category}</span>
               if (col.key === 'value') return item.value.toLocaleString()

@@ -50,6 +50,96 @@ interface AnalyticsDataTableProps<T> {
   footer?: React.ReactNode
 }
 
+type BadgeTone = {
+  variant: 'outline' | 'destructive' | 'secondary'
+  className: string
+}
+
+const POSITIVE_BADGE_TONE: BadgeTone = {
+  variant: 'outline',
+  className: 'gba:bg-success-secondary gba:text-success-secondary-foreground'
+}
+const NEGATIVE_BADGE_TONE: BadgeTone = {
+  variant: 'destructive',
+  className: 'gba:bg-destructive/10 gba:text-destructive'
+}
+const NEUTRAL_BADGE_TONE: BadgeTone = {
+  variant: 'secondary',
+  className: 'gba:bg-muted gba:text-muted-foreground'
+}
+
+const toDisplayString = (value: unknown): string => {
+  if (value === null || value === undefined) return '-'
+  if (typeof value === 'string') return value
+  if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') return String(value)
+  if (value instanceof Date) return value.toISOString()
+  if (typeof value === 'object') {
+    try {
+      return JSON.stringify(value)
+    } catch {
+      return '-'
+    }
+  }
+  return String(value)
+}
+
+const getToneForNumber = (num: number): BadgeTone => {
+  if (Number.isFinite(num) && num > 0) return POSITIVE_BADGE_TONE
+  if (num < 0) return NEGATIVE_BADGE_TONE
+  return NEUTRAL_BADGE_TONE
+}
+
+const parsePercentageLikeNumber = (value: unknown): number => {
+  const str = toDisplayString(value).trim()
+  if (!str || str === '-') return Number.NaN
+  const compact = str.split(' ').join('')
+  const numStr = compact.endsWith('%') ? compact.slice(0, -1) : compact
+  return Number(numStr)
+}
+
+function renderBadgeCell(
+  badge: ColumnBadge,
+  rawValue: unknown,
+  displayContent: React.ReactNode,
+  key: string
+): React.ReactElement {
+  if (badge === HIGHLIGHT_BADGE) {
+    return (
+      <TableCell key={key}>
+        <Badge variant="outline" className="gba:bg-info-secondary gba:text-info-secondary-foreground">
+          {displayContent}
+        </Badge>
+      </TableCell>
+    )
+  }
+
+  if (badge === DIFFERENT_BADGE) {
+    const numericValue = typeof rawValue === 'number' ? rawValue : Number(rawValue)
+    const tone = getToneForNumber(numericValue)
+    const display =
+      typeof rawValue === 'number' && Number.isFinite(rawValue)
+        ? `${rawValue > 0 ? '+' : ''}${rawValue}`
+        : toDisplayString(rawValue)
+    return (
+      <TableCell key={key}>
+        <Badge variant={tone.variant} className={tone.className}>
+          {display}
+        </Badge>
+      </TableCell>
+    )
+  }
+
+  const numericValue = parsePercentageLikeNumber(rawValue)
+  const tone = getToneForNumber(numericValue)
+  return (
+    <TableCell key={key}>
+      <Badge variant={tone.variant} className={tone.className}>
+        {toDisplayString(rawValue)}
+      </Badge>
+    </TableCell>
+  )
+}
+
 export function AnalyticsDataTable<T>({
   dataTestId,
   className,
@@ -67,7 +157,7 @@ export function AnalyticsDataTable<T>({
   getRowKey,
   renderCell,
   footer
-}: AnalyticsDataTableProps<T>) {
+}: Readonly<AnalyticsDataTableProps<T>>) {
   return (
     <Card data-testid={dataTestId} className={className}>
       <CardHeader>
@@ -122,64 +212,13 @@ export function AnalyticsDataTable<T>({
                 <TableRow key={getRowKey ? getRowKey(row, index) : `${index}`}>
                   {columns.map(col => {
                     const rawValue = (row as unknown as Record<string, unknown>)[col.key]
-                    const defaultDisplay = rawValue === null || rawValue === undefined ? '-' : String(rawValue)
+                    const defaultDisplay = toDisplayString(rawValue)
                     const content = renderCell ? renderCell(row, col, index) : defaultDisplay
-                    const displayContent = content !== undefined && content !== null ? content : defaultDisplay
+                    const displayContent = content ?? defaultDisplay
+                    const cellKey = `${col.key}-${index}`
+                    if (col.badge) return renderBadgeCell(col.badge, rawValue, displayContent, cellKey)
 
-                    if (col.badge === HIGHLIGHT_BADGE) {
-                      return (
-                        <TableCell key={`${col.key}-${index}`}>
-                          <Badge variant="outline" className="gba:bg-info-secondary gba:text-info-secondary-foreground">
-                            {displayContent}
-                          </Badge>
-                        </TableCell>
-                      )
-                    }
-                    if (col.badge === DIFFERENT_BADGE) {
-                      const num = typeof rawValue === 'number' ? rawValue : Number(rawValue)
-                      const display =
-                        typeof rawValue === 'number' && Number.isFinite(rawValue)
-                          ? (rawValue > 0 ? '+' : '') + String(rawValue)
-                          : defaultDisplay
-                      const variant =
-                        Number.isFinite(num) && num > 0 ? 'outline' : num < 0 ? 'destructive' : 'secondary'
-                      const className =
-                        Number.isFinite(num) && num > 0
-                          ? 'gba:bg-success-secondary gba:text-success-secondary-foreground'
-                          : num < 0
-                            ? 'gba:bg-destructive/10 gba:text-destructive'
-                            : 'gba:bg-muted gba:text-muted-foreground'
-                      return (
-                        <TableCell key={`${col.key}-${index}`}>
-                          <Badge variant={variant} className={className}>
-                            {display}
-                          </Badge>
-                        </TableCell>
-                      )
-                    }
-                    if (col.badge === DIFFERENT_PERCENTAGE_BADGE) {
-                      const str = rawValue === null || rawValue === undefined ? '' : String(rawValue).trim()
-                      const numStr = str.replace(/%\s*$/, '').replace(/\s/g, '')
-                      const num = Number(numStr)
-                      const display = defaultDisplay
-                      const variant =
-                        Number.isFinite(num) && num > 0 ? 'outline' : num < 0 ? 'destructive' : 'secondary'
-                      const className =
-                        Number.isFinite(num) && num > 0
-                          ? 'gba:bg-success-secondary gba:text-success-secondary-foreground'
-                          : num < 0
-                            ? 'gba:bg-destructive/10 gba:text-destructive'
-                            : 'gba:bg-muted gba:text-muted-foreground'
-                      return (
-                        <TableCell key={`${col.key}-${index}`}>
-                          <Badge variant={variant} className={className}>
-                            {display}
-                          </Badge>
-                        </TableCell>
-                      )
-                    }
-
-                    return <TableCell key={`${col.key}-${index}`}>{displayContent}</TableCell>
+                    return <TableCell key={cellKey}>{displayContent}</TableCell>
                   })}
                 </TableRow>
               ))}

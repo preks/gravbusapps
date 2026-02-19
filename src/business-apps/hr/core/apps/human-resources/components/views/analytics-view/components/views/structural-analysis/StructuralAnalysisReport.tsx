@@ -316,6 +316,11 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
       setExportingTable(null)
     }
   }
+  const resolveExportingFormat = (tableName: string): 'excel' | 'pdf' | null => {
+    if (exportingTable === `${tableName}-excel`) return 'excel'
+    if (exportingTable === `${tableName}-pdf`) return 'pdf'
+    return null
+  }
 
   return (
     <div data-testid={prefixDataTestId} className="gba:min-h-full gba:p-6 gba:rounded-lg">
@@ -425,20 +430,13 @@ export const StructuralAnalysisReport: React.FC<StructuralAnalysisReportProps> =
           entriesText={t('hr-analytics-total-entries', { count: selectedTableConfig.rows.length })}
           columns={selectedTableConfig.columns}
           rows={selectedTableConfig.rows}
-          exportingFormat={
-            exportingTable === `${selectedTableConfig.testId}-excel`
-              ? 'excel'
-              : exportingTable === `${selectedTableConfig.testId}-pdf`
-                ? 'pdf'
-                : null
-          }
+          exportingFormat={resolveExportingFormat(selectedTableConfig.testId)}
           exportExcelTestId={`${prefixDataTestId}-${selectedTableConfig.testId}-export-excel`}
           exportPdfTestId={`${prefixDataTestId}-${selectedTableConfig.testId}-export-pdf`}
           exportExcelLabel={t('common-export-excel')}
           exportPdfLabel={t('common-export-pdf')}
           onExport={handleExport}
           getRowKey={(_, index) => `${selectedTableConfig.testId}-${index}`}
-          renderCell={(row, col) => String((row as unknown as Record<string, unknown>)[col.key] ?? '-')}
         />
       )}
     </div>
