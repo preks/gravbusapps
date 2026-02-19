@@ -91,7 +91,12 @@ export const CreateAgentChat = ({
 
       {/* Input */}
       <div className="gba:shrink-0">
-        <CreateAgentChatInput onSend={onSend} disabled={isProcessing} testId={`${testId}-input`} />
+        <CreateAgentChatInput
+          onSend={onSend}
+          disabled={isProcessing}
+          isProcessing={isProcessing}
+          testId={`${testId}-input`}
+        />
       </div>
     </div>
   )

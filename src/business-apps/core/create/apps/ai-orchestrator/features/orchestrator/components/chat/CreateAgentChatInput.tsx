@@ -5,11 +5,12 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { Button, Textarea } from '@newwork/nw-design-system'
-import { SendHorizontal } from 'lucide-react'
+import { SendHorizontal, Loader2 } from 'lucide-react'
 
 interface CreateAgentChatInputProps {
   onSend: (message: string) => void
   disabled?: boolean
+  isProcessing?: boolean
   placeholder?: string
   testId?: string
 }
@@ -17,6 +18,7 @@ interface CreateAgentChatInputProps {
 export const CreateAgentChatInput = ({
   onSend,
   disabled = false,
+  isProcessing = false,
   placeholder = 'Ask the agent to refine, build, or fix...',
   testId = 'create-chat-input'
 }: CreateAgentChatInputProps) => {
@@ -111,13 +113,17 @@ export const CreateAgentChatInput = ({
           <Button
             size="icon"
             className={`gba:h-8 gba:w-8 gba:shrink-0 gba:rounded-xl gba:transition-all gba:duration-200 ${
-              value.trim() ? 'gba:opacity-100 gba:scale-100' : 'gba:opacity-40 gba:scale-95'
+              value.trim() && !isProcessing ? 'gba:opacity-100 gba:scale-100' : 'gba:opacity-40 gba:scale-95'
             }`}
             onClick={handleSend}
-            disabled={disabled || !value.trim()}
+            disabled={disabled || !value.trim() || isProcessing}
             data-testid={`${testId}-send`}
           >
-            <SendHorizontal className="gba:h-4 gba:w-4" />
+            {isProcessing ? (
+              <Loader2 className="gba:h-4 gba:w-4 gba:animate-spin" />
+            ) : (
+              <SendHorizontal className="gba:h-4 gba:w-4" />
+            )}
           </Button>
         </div>
       </div>
