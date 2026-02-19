@@ -100,6 +100,19 @@ export const AmountField: React.FC<AmountFieldProps> = ({
 
         let value = String(field.value)
 
+        // Allow only digits and one decimal separator (. or ,); block letters and other characters
+        value = value.replace(/[^\d.,]/g, '')
+        const firstSepIndex = value.search(/[.,]/)
+        if (firstSepIndex >= 0) {
+          const sep = value[firstSepIndex]
+          const before = value.slice(0, firstSepIndex).replace(/[.,]/g, '')
+          const after = value
+            .slice(firstSepIndex + 1)
+            .replace(/[.,]/g, '')
+            .slice(0, 2)
+          value = after.length > 0 ? `${before}${sep}${after}` : before || sep
+        }
+
         // Limit to 2 decimal places (accept both . and , as decimal separator)
         if (value.includes('.') || value.includes(',')) {
           const sep = value.includes('.') ? '.' : ','
