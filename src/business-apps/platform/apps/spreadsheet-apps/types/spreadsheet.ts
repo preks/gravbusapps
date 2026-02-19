@@ -433,6 +433,8 @@ export interface AppSettings {
   requireAuthentication: boolean
   /** Set when app is a copy created for Excel Collection; enables Submit button for recipient */
   excel_collection_copy?: boolean
+  /** ISO timestamp set when the recipient submits their Excel Collection copy */
+  excel_collection_submitted_at?: string
 }
 
 // ============================================================================

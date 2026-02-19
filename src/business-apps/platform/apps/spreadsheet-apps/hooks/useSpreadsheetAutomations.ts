@@ -734,9 +734,15 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
         // because row persistence can race/fail and we must keep retrying on every poll
         // until the report sheet is actually updated.
         const shouldDedupeByMemory = automation.type !== 'excel_collection'
-        const newResponses = responses.filter(
-          r => r.status === 'COMPLETED' && (!shouldDedupeByMemory || !processedWorkflowIdsRef.current.has(r.workflowId))
-        )
+        const newResponses = responses.filter(r => {
+          if (r.status !== 'COMPLETED') return false
+          const normalizedWorkflowId = String(r.workflowId || '').trim()
+          const normalizedResponderId = String(r.responderId || '').trim()
+          // Without either identifier we cannot safely match rows and may create duplicates.
+          if (!normalizedWorkflowId && !normalizedResponderId) return false
+          if (!shouldDedupeByMemory) return true
+          return normalizedWorkflowId ? !processedWorkflowIdsRef.current.has(normalizedWorkflowId) : true
+        })
 
         console.log('[useSpreadsheetAutomations][trace] fetchBulkCollectionResponses:received', {
           automationId: effectiveAutomationId,
@@ -772,7 +778,14 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
           const displayEmail = response.responderEmail ?? recipientData?.email
 
           // Build tracking column update values (include avatar for recipient_avatar column)
-          const copyAppId = response.formData?.copyAppId as string | undefined
+          const copyAppId =
+            (response.formData?.copyAppId as string | undefined) ||
+            (response.formData?.copy_app_id as string | undefined)
+          const copyUrl =
+            (response.formData?.copyUrl as string | undefined) ||
+            (response.formData?.copyURL as string | undefined) ||
+            (response.formData?.copyLink as string | undefined) ||
+            (response.formData?.copy_link as string | undefined)
           const trackingValues = buildCompletedRowTrackingValues(
             trackingColumns,
             {
@@ -783,7 +796,8 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
             },
             new Date().toISOString(), // sentAt - will be overridden if _sent_at exists in row
             response.submittedAt,
-            copyAppId
+            copyAppId,
+            copyUrl
           )
 
           // Build a lookup from columnId to columnName for proper data mapping
@@ -851,8 +865,8 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
             }
           }
           return {
-            workflowId: response.workflowId,
-            recipientId: response.responderId, // Include for matching by recipient when workflowId differs
+            workflowId: String(response.workflowId || '').trim(),
+            recipientId: String(response.responderId || '').trim() || undefined, // Include for matching by recipient when workflowId differs
             cells
           }
         })

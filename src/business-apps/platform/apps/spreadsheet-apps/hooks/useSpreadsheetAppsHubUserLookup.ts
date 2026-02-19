@@ -20,7 +20,7 @@ export interface UseSpreadsheetAppsHubUserLookupParams {
   apps: SpreadsheetAppSummary[]
   currentUserId: string
   graphqlClient: GraphQLClient
-  activeSection: 'home' | 'my-files' | 'shared' | 'favorites' | 'recent' | 'trash'
+  activeSection: 'home' | 'my-files' | 'shared' | 'favorites' | 'recent' | 'automations' | 'tasks' | 'trash'
 }
 
 export interface UseSpreadsheetAppsHubUserLookupReturn {

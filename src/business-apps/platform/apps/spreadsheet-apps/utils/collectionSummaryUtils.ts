@@ -20,7 +20,7 @@ export interface CopyRowInfo {
 
 /**
  * Extract appId from a _copy_link URL.
- * Format: https://origin/platform/apps/spreadsheet-apps?appId=xxx&view=viewer
+ * Format: https://origin/platform/spreadsheets?appId=xxx&view=viewer (prod) or /platform/apps/spreadsheet-apps (dev)
  * Or plain URL string. Also handles markdown [title](url) format.
  */
 export function extractAppIdFromCopyLink(value: unknown): string | null {
@@ -49,10 +49,7 @@ export function extractAppIdFromCopyLink(value: unknown): string | null {
  * Extract copy app IDs and recipient info from completed rows.
  * Filters rows where _workflow_status === 'Completed' and _copy_link is present.
  */
-export function extractCopyAppIdsFromRows(
-  rows: RowData[],
-  columns: SpreadsheetColumn[]
-): CopyRowInfo[] {
+export function extractCopyAppIdsFromRows(rows: RowData[], columns: SpreadsheetColumn[]): CopyRowInfo[] {
   const copyLinkCol = columns.find(c => c.name === '_copy_link')
   const recipientCol = columns.find(c => c.name === '_recipient_name')
   const avatarCol = columns.find(c => c.name === '_recipient_avatar')
@@ -73,9 +70,7 @@ export function extractCopyAppIdsFromRows(
     const appId = extractAppIdFromCopyLink(copyLinkValue)
     if (!appId) return
 
-    const recipientName = recipientCol
-      ? String(row[recipientCol.name] ?? 'Unknown')
-      : 'Unknown'
+    const recipientName = recipientCol ? String(row[recipientCol.name] ?? 'Unknown') : 'Unknown'
 
     const avatar = avatarCol ? (row[avatarCol.name] as string | undefined) : undefined
     const avatarStr = typeof avatar === 'string' && avatar.trim() ? avatar : undefined

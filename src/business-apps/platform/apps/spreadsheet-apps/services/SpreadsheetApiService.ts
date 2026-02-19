@@ -212,12 +212,20 @@ export const SpreadsheetApiService = {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {})
     }
+    // Browsers enforce a hard 64 KB limit on fetch requests with keepalive:true.
+    // Payloads that exceed this limit are silently dropped, which causes large
+    // text values to be lost when the user refreshes before the normal debounce
+    // completes. For oversized payloads we still fire the request without
+    // keepalive so the browser at least attempts it during the unload window.
+    const KEEPALIVE_LIMIT = 60 * 1024 // 60 KB — leave a small safety margin
     for (const { rowId, data } of updates) {
+      const body = JSON.stringify(data)
+      const useKeepalive = new Blob([body]).size < KEEPALIVE_LIMIT
       fetch(`${API_URL}/spreadsheets/${appId}/sheets/${sheetId}/rows/${rowId}`, {
         method: 'PATCH',
         headers,
-        body: JSON.stringify(data),
-        keepalive: true
+        body,
+        ...(useKeepalive ? { keepalive: true } : {})
       }).catch(() => {})
     }
   },

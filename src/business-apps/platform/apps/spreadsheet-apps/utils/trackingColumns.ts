@@ -7,6 +7,7 @@
 
 import type { SpreadsheetColumn } from '../types/spreadsheet'
 import { TRACKING_COLUMNS, getTrackingColumnDefinitions } from '../components/automations/TrackingColumnsConfig'
+import { getSpreadsheetBasePath } from './spreadsheetPaths'
 
 /**
  * Create SpreadsheetColumn definitions for selected tracking columns
@@ -113,7 +114,8 @@ export function buildCompletedRowTrackingValues(
   recipientInfo: RecipientInfo,
   sentAt: string,
   respondedAt: string,
-  copyAppId?: string
+  copyAppId?: string,
+  copyUrl?: string
 ): Record<string, unknown> {
   const values: Record<string, unknown> = {}
   const origin = typeof window !== 'undefined' ? window.location.origin : ''
@@ -149,8 +151,10 @@ export function buildCompletedRowTrackingValues(
         values[def.name] = 'Completed'
         break
       case 'copy_link':
-        if (copyAppId) {
-          values[def.name] = `${origin}/platform/apps/spreadsheet-apps?appId=${encodeURIComponent(copyAppId)}&view=viewer`
+        if (copyUrl && /^(https?:\/\/|\/)/i.test(copyUrl.trim())) {
+          values[def.name] = copyUrl.trim()
+        } else if (copyAppId) {
+          values[def.name] = `${origin}${getSpreadsheetBasePath()}?appId=${encodeURIComponent(copyAppId)}&view=viewer`
         }
         break
     }

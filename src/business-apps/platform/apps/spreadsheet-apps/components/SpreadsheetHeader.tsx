@@ -7,7 +7,17 @@
 
 import React, { memo, useState, useEffect, useCallback } from 'react'
 import { Button, AiButton, Badge, Input, Spinner } from '@newwork/nw-design-system'
-import { ChevronRight, Eye, Home, FileSpreadsheet, MessageSquare, Lock, Send, Sparkles } from 'lucide-react'
+import {
+  ChevronRight,
+  Eye,
+  Home,
+  FileSpreadsheet,
+  MessageSquare,
+  Lock,
+  Send,
+  Sparkles,
+  CheckCircle2
+} from 'lucide-react'
 import { getIconByName } from '../utils/appIcons'
 import { StatusIndicators } from './StatusIndicators'
 import { SpreadsheetActionsMenu } from './SpreadsheetActionsMenu'
@@ -70,6 +80,8 @@ export interface SpreadsheetHeaderProps {
   /** Excel Collection: Show Submit button when viewing a collection copy */
   isCollectionCopy?: boolean
   onSubmitCollection?: () => Promise<void>
+  /** ISO timestamp set when the recipient already submitted; shows "Submitted" label instead of button */
+  collectionSubmittedAt?: string | null
 
   /** Excel Collection: Show Summarize with AI when manager view has completed submissions */
   showSummarizeButton?: boolean
@@ -106,6 +118,7 @@ export const SpreadsheetHeader: React.FC<SpreadsheetHeaderProps> = memo(function
   onExportToExcel,
   isCollectionCopy,
   onSubmitCollection,
+  collectionSubmittedAt,
   showSummarizeButton = false,
   onSummarizeClick,
   isSummarizing = false,
@@ -121,6 +134,12 @@ export const SpreadsheetHeader: React.FC<SpreadsheetHeaderProps> = memo(function
       setIsSubmitting(false)
     }
   }, [onSubmitCollection])
+
+  const formattedSubmittedAt = collectionSubmittedAt
+    ? new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(
+        new Date(collectionSubmittedAt)
+      )
+    : null
   const [localName, setLocalName] = useState(app.name)
   useEffect(() => {
     setLocalName(app.name)
@@ -263,8 +282,18 @@ export const SpreadsheetHeader: React.FC<SpreadsheetHeaderProps> = memo(function
             </div>
           )}
 
-          {/* Excel Collection Submit (recipient view) */}
-          {isCollectionCopy && onSubmitCollection && (
+          {/* Excel Collection: already submitted → show label; not yet submitted → show button */}
+          {isCollectionCopy && collectionSubmittedAt && formattedSubmittedAt && (
+            <Badge
+              variant="success"
+              className="gba:flex gba:items-center gba:gap-1.5"
+              data-testid="spreadsheet-submitted-badge"
+            >
+              <CheckCircle2 className="gba:w-3.5 gba:h-3.5" />
+              <span>Submitted · {formattedSubmittedAt}</span>
+            </Badge>
+          )}
+          {isCollectionCopy && !collectionSubmittedAt && onSubmitCollection && (
             <Button
               size="sm"
               onClick={handleSubmitCollection}
@@ -281,13 +310,7 @@ export const SpreadsheetHeader: React.FC<SpreadsheetHeaderProps> = memo(function
             <AiButton
               size="sm"
               showIcon
-              icon={
-                isSummarizing ? (
-                  <Spinner className="gba:w-4 gba:h-4" />
-                ) : (
-                  <Sparkles className="gba:w-4 gba:h-4" />
-                )
-              }
+              icon={isSummarizing ? <Spinner className="gba:w-4 gba:h-4" /> : <Sparkles className="gba:w-4 gba:h-4" />}
               iconPosition="before"
               onClick={onSummarizeClick}
               disabled={isSummarizing}

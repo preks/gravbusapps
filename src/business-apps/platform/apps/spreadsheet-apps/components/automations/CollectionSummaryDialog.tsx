@@ -35,14 +35,16 @@ import { FileText, Sparkles, Copy, Trash2, ChevronUp, ChevronDown } from 'lucide
 import type { ExcelCollectionSummaryResult } from '../../hooks/useExcelCollectionSummary'
 
 function getInitials(name: string): string {
-  return name
-    .trim()
-    .split(/\s+/)
-    .map(p => p[0])
-    .filter(Boolean)
-    .slice(0, 2)
-    .join('')
-    .toUpperCase() || '?'
+  return (
+    name
+      .trim()
+      .split(/\s+/)
+      .map(p => p[0])
+      .filter(Boolean)
+      .slice(0, 2)
+      .join('')
+      .toUpperCase() || '?'
+  )
 }
 
 export interface CollectionSummaryDialogProps {
@@ -71,12 +73,9 @@ export const CollectionSummaryDialog: React.FC<CollectionSummaryDialogProps> = (
   }, [open, summary])
 
   const fullSummaryText = summary
-    ? [
-        summary.executiveSummary,
-        ...summary.perRecipient.map(
-          item => `${item.recipientName}:\n${item.summary}`
-        )
-      ].join('\n\n')
+    ? [summary.executiveSummary, ...summary.perRecipient.map(item => `${item.recipientName}:\n${item.summary}`)].join(
+        '\n\n'
+      )
     : ''
 
   const handleCopy = useCallback(async () => {
@@ -95,10 +94,7 @@ export const CollectionSummaryDialog: React.FC<CollectionSummaryDialogProps> = (
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        className="gba:max-w-2xl gba:max-h-[90vh] gba:flex gba:flex-col"
-        data-testid={testId}
-      >
+      <DialogContent className="gba:max-w-2xl gba:max-h-[90vh] gba:flex gba:flex-col" data-testid={testId}>
         <DialogHeader className="gba:flex-row gba:items-center gba:justify-between gba:gap-4 gba:pr-2">
           <div className="gba:flex gba:items-center gba:gap-3">
             <div className="gba:flex gba:items-center gba:justify-center gba:w-10 gba:h-10 gba:rounded-full gba:bg-primary gba:text-primary-foreground">
@@ -168,17 +164,14 @@ export const CollectionSummaryDialog: React.FC<CollectionSummaryDialogProps> = (
 
         <div className="gba:flex-1 gba:min-h-0 gba:flex gba:flex-col gba:gap-4">
           {isSummarizing && (
-            <div
-              className="gba:flex gba:items-center gba:justify-center gba:py-12"
-              data-testid={`${testId}-loading`}
-            >
+            <div className="gba:flex gba:items-center gba:justify-center gba:py-12" data-testid={`${testId}-loading`}>
               <Spinner size="lg" />
             </div>
           )}
 
           {error && (
             <div
-              className="gba:p-4 gba:rounded-md gba:bg-destructive-secondary gba:text-destructive-secondary"
+              className="gba:p-4 gba:rounded-md gba:bg-destructive-secondary gba:text-destructive-secondary-foreground"
               data-testid={`${testId}-error`}
             >
               {error}
@@ -232,9 +225,7 @@ export const CollectionSummaryDialog: React.FC<CollectionSummaryDialogProps> = (
                             </AvatarFallback>
                           </Avatar>
                           <div className="gba:min-w-0 gba:flex-1 gba:space-y-2">
-                            <p className="gba:font-semibold gba:text-sm gba:text-foreground">
-                              {item.recipientName}
-                            </p>
+                            <p className="gba:font-semibold gba:text-sm gba:text-foreground">{item.recipientName}</p>
                             <Separator className="gba:my-1" />
                             <div
                               className="gba:text-sm gba:leading-relaxed gba:text-muted-foreground gba:max-w-prose"
@@ -263,11 +254,7 @@ export const CollectionSummaryDialog: React.FC<CollectionSummaryDialogProps> = (
 
         {!isSummarizing && summary && (
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              data-testid={`${testId}-close-button`}
-            >
+            <Button variant="outline" onClick={() => onOpenChange(false)} data-testid={`${testId}-close-button`}>
               Close
             </Button>
             <Button

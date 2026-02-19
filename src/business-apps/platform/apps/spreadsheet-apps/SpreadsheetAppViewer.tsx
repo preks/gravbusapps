@@ -53,6 +53,37 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   userId,
   'data-testid': testId = 'spreadsheet-app-viewer'
 }) => {
+  const normalizeCellPersistValue = (rawValue: unknown): unknown => {
+    if (rawValue === null || rawValue === undefined) return rawValue
+    if (typeof rawValue === 'string' || typeof rawValue === 'number' || typeof rawValue === 'boolean') {
+      return rawValue
+    }
+    if (!rawValue || typeof rawValue !== 'object' || Array.isArray(rawValue)) return ''
+
+    const cellObject = rawValue as Record<string, unknown>
+    if ('f' in cellObject) {
+      // Keep formula objects intact for calculated cells.
+      return rawValue
+    }
+
+    if ('m' in cellObject && typeof cellObject.m === 'string' && cellObject.m.trim().length > 0) {
+      return cellObject.m
+    }
+
+    if (
+      'v' in cellObject &&
+      (typeof cellObject.v === 'string' || typeof cellObject.v === 'number' || typeof cellObject.v === 'boolean')
+    ) {
+      return cellObject.v
+    }
+
+    if (cellObject.v === null || cellObject.v === undefined) {
+      return ''
+    }
+
+    return ''
+  }
+
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const cellChangeBatchTimerRef = useRef<NodeJS.Timeout | null>(null)
   // Accumulate per-row cell changes so a multi-cell paste sends ONE backend PATCH
@@ -186,6 +217,8 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   // Show submit only to the intended responder (copy owner) or users with an active collection task.
   // Managers opening shared response copies from run history should not see submit.
   const canSubmitCollection = Boolean((app.settings?.excel_collection_copy && isCopyOwner) || hasTaskForCollectionCopy)
+  // ISO timestamp set on successful submission — drives "Submitted" label in the header
+  const collectionSubmittedAt = app.settings?.excel_collection_submitted_at ?? null
 
   useEffect(() => {
     if (app.settings?.excel_collection_copy || !userId || !app.id || !automations.hasExcelCollectionTaskForApp) return
@@ -208,12 +241,24 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     if (!userId || !automations.completeExcelCollectionTask) return
     const result = await automations.completeExcelCollectionTask(app.id)
     if (result.success) {
+      const submittedAt = new Date().toISOString()
+      // Persist the submission timestamp so returning to this sheet shows "Submitted" label
+      try {
+        await SpreadsheetApiService.updateApp(app.id, {
+          settings: { ...app.settings, excel_collection_submitted_at: submittedAt }
+        })
+        if (onAppUpdate) {
+          onAppUpdate({ ...app, settings: { ...app.settings, excel_collection_submitted_at: submittedAt } })
+        }
+      } catch {
+        // Non-critical — submission succeeded; timestamp persistence failure is acceptable
+      }
       toast.success('Submitted successfully. Your task is now complete.')
       if (onBack) onBack()
     } else {
       toast.error(result.error || 'Failed to submit')
     }
-  }, [app.id, userId, automations.completeExcelCollectionTask, onBack])
+  }, [app, userId, automations.completeExcelCollectionTask, onBack, onAppUpdate])
 
   const [isAutomationsOpen, setIsAutomationsOpen] = useState(false)
   const [showCollectionSummaryDialog, setShowCollectionSummaryDialog] = useState(false)
@@ -484,9 +529,40 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   const handleCellChange = useCallback(
     async (rowId: string, columnName: string, value: unknown, options?: { fromRemote?: boolean }) => {
       if (entityEnabled) return
+      const normalizedValue = normalizeCellPersistValue(value)
 
       const current = localSheetDataRef.current
-      const idx = current.findIndex(r => String(r._id ?? r.id ?? '') === String(rowId))
+      const idx = current.findIndex(r => String(r._id ?? r._rowUuid ?? r.id ?? '') === String(rowId))
+      // #region agent log
+      const rawLen =
+        typeof value === 'string'
+          ? value.length
+          : value && typeof value === 'object' && 'm' in (value as object)
+            ? String((value as { m: unknown }).m).length
+            : 0
+      const normLen = typeof normalizedValue === 'string' ? normalizedValue.length : 0
+      fetch('http://127.0.0.1:7244/ingest/29e4e19a-f86b-4f4e-9c0f-f3ddb4f01625', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          runId: 'long-paste-debug',
+          hypothesisId: idx < 0 ? 'H2' : rawLen > 500 || normLen > 500 ? 'H4' : 'H2',
+          location: 'SpreadsheetAppViewer.tsx:handleCellChange:rowLookup',
+          message: idx < 0 ? 'Row not found - update dropped' : 'Viewer row lookup',
+          data: {
+            rowId,
+            columnName,
+            idx,
+            currentRows: current.length,
+            rawValueLen: rawLen,
+            normalizedLen: normLen,
+            valueType: value === null ? 'null' : Array.isArray(value) ? 'array' : typeof value,
+            fromRemote: Boolean(options?.fromRemote)
+          },
+          timestamp: Date.now()
+        })
+      }).catch(() => {})
+      // #endregion
       if (idx < 0) return
 
       const row = current[idx]
@@ -496,7 +572,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       // (e.g. multi-cell paste) each see the previous call's changes.
       // Without this, all concurrent calls read the same original row
       // and only the last setLocalSheetData wins — losing all but one cell.
-      const updatedRow = { ...row, [columnName]: value, _updatedAt: new Date().toISOString() }
+      const updatedRow = { ...row, [columnName]: normalizedValue, _updatedAt: new Date().toISOString() }
       const next = [...current.slice(0, idx), updatedRow, ...current.slice(idx + 1)]
       localSheetDataRef.current = next
 
@@ -518,21 +594,40 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       // where concurrent PATCHes each read the same row and overwrite each other.
       const existing = pendingCellUpdates.current.get(rowId)
       if (existing) {
-        existing.changes[columnName] = value
+        existing.changes[columnName] = normalizedValue
       } else {
         pendingCellUpdates.current.set(rowId, {
           backendRowId: String(backendRowId),
-          changes: { [columnName]: value }
+          changes: { [columnName]: normalizedValue }
         })
       }
 
       if (cellPersistTimerRef.current) {
         clearTimeout(cellPersistTimerRef.current)
       }
+      // Use 0 ms (next event-loop tick) instead of a longer debounce so the
+      // PATCH is in-flight before the user can trigger a page reload.
+      // Batching is preserved: all FortuneSheet paste ops run synchronously in
+      // the same call stack, so every handleCellChange call within a paste
+      // accumulates into pendingCellUpdates before the single setTimeout fires.
       cellPersistTimerRef.current = setTimeout(async () => {
         const pending = new Map(pendingCellUpdates.current)
         pendingCellUpdates.current.clear()
         cellPersistTimerRef.current = null
+        // #region agent log
+        fetch('http://127.0.0.1:7244/ingest/29e4e19a-f86b-4f4e-9c0f-f3ddb4f01625', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            runId: 'long-paste-debug',
+            hypothesisId: 'H3',
+            location: 'SpreadsheetAppViewer.tsx:cellPersistTimer:start',
+            message: 'Debounce fired - persisting patch batch',
+            data: { pendingCount: pending.size, pendingRowKeys: [...pending.keys()] },
+            timestamp: Date.now()
+          })
+        }).catch(() => {})
+        // #endregion
 
         // Store in-flight data so beforeunload can re-send with keepalive
         // if the page unloads while these PATCHes are still in progress.
@@ -547,19 +642,66 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
             } else {
               await SpreadsheetApiService.updateRow(app.id, activeSheetId, bid, changes)
             }
+
+            // #region agent log
+            fetch('http://127.0.0.1:7244/ingest/29e4e19a-f86b-4f4e-9c0f-f3ddb4f01625', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                runId: 'long-paste-debug',
+                hypothesisId: 'H3',
+                location: 'SpreadsheetAppViewer.tsx:cellPersistTimer:patchSuccess',
+                message: 'Row patch persisted',
+                data: {
+                  pendingKey: key,
+                  backendRowId: bid,
+                  changeKeys: Object.keys(changes),
+                  maxChangeLen: Object.values(changes).reduce(
+                    (m, v) => Math.max(m, typeof v === 'string' ? v.length : 0),
+                    0
+                  )
+                },
+                timestamp: Date.now()
+              })
+            }).catch(() => {})
+            // #endregion
             // Remove from in-flight tracking once successfully persisted
             inFlightCellUpdates.current.delete(key)
           } catch (error) {
+            // #region agent log
+            fetch('http://127.0.0.1:7244/ingest/29e4e19a-f86b-4f4e-9c0f-f3ddb4f01625', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                runId: 'long-paste-debug',
+                hypothesisId: 'H4',
+                location: 'SpreadsheetAppViewer.tsx:cellPersistTimer:patchError',
+                message: 'Row patch failed',
+                data: {
+                  pendingKey: key,
+                  backendRowId: bid,
+                  error: error instanceof Error ? error.message : String(error)
+                },
+                timestamp: Date.now()
+              })
+            }).catch(() => {})
+            // #endregion
             console.error('[SpreadsheetAppViewer] Failed to persist cell changes:', error)
           }
         })
         await Promise.all(patchPromises)
-
-        // Clear any remaining in-flight entries (all done or failed)
-        inFlightCellUpdates.current.clear()
-      }, 100)
+      }, 0)
     },
-    [activeSheetId, app.id, entityEnabled, localSheetDataRef, onDataChange, onRowUpdate, setLocalSheetData]
+    [
+      activeSheetId,
+      app.id,
+      entityEnabled,
+      localSheetDataRef,
+      normalizeCellPersistValue,
+      onDataChange,
+      onRowUpdate,
+      setLocalSheetData
+    ]
   )
 
   useEffect(() => {
@@ -573,6 +715,20 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   // so the browser completes the requests even during page teardown.
   useEffect(() => {
     const flushPendingOnUnload = () => {
+      // #region agent log
+      fetch('http://127.0.0.1:7244/ingest/29e4e19a-f86b-4f4e-9c0f-f3ddb4f01625', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          runId: 'long-paste-debug',
+          hypothesisId: 'H3',
+          location: 'SpreadsheetAppViewer.tsx:flushPendingOnUnload',
+          message: 'Flush on unload/hidden triggered',
+          data: { pendingCount: pendingCellUpdates.current.size, inFlightCount: inFlightCellUpdates.current.size },
+          timestamp: Date.now()
+        })
+      }).catch(() => {})
+      // #endregion
       // Clear debounce timers — we're sending everything right now
       if (cellPersistTimerRef.current) {
         clearTimeout(cellPersistTimerRef.current)
@@ -592,12 +748,50 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       // Merge: in-flight first, then pending overwrites (pending has newer data)
       const allUpdates = new Map([...inFlight, ...pending])
 
-      if (allUpdates.size === 0) return
+      if (allUpdates.size === 0) {
+        // #region agent log
+        fetch('http://127.0.0.1:7244/ingest/29e4e19a-f86b-4f4e-9c0f-f3ddb4f01625', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            runId: 'long-paste-debug',
+            hypothesisId: 'H3',
+            location: 'SpreadsheetAppViewer.tsx:flushPendingOnUnload:empty',
+            message: 'Flush ran but no updates to send',
+            data: {},
+            timestamp: Date.now()
+          })
+        }).catch(() => {})
+        // #endregion
+        return
+      }
 
       const updates = [...allUpdates.values()].map(({ backendRowId, changes }) => ({
         rowId: backendRowId,
         data: changes
       }))
+
+      // #region agent log
+      const payloads = updates.map(u => ({ rowId: u.rowId, bytes: new Blob([JSON.stringify(u.data)]).size }))
+      const oversize = payloads.filter(p => p.bytes > 60000)
+      fetch('http://127.0.0.1:7244/ingest/29e4e19a-f86b-4f4e-9c0f-f3ddb4f01625', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          runId: 'long-paste-debug',
+          hypothesisId: 'H1_H3',
+          location: 'SpreadsheetAppViewer.tsx:flushPendingOnUnload:beforeFlush',
+          message: oversize.length ? 'Payload exceeds 64KB keepalive limit' : 'Flush sending updates',
+          data: {
+            updateCount: updates.length,
+            payloadSizes: payloads,
+            oversizeCount: oversize.length,
+            oversizeRows: oversize.map(p => p.rowId)
+          },
+          timestamp: Date.now()
+        })
+      }).catch(() => {})
+      // #endregion
 
       // Fire-and-forget with keepalive — browser will complete these after unload
       SpreadsheetApiService.flushRowUpdates(app.id, activeSheetId, updates)
@@ -613,6 +807,8 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     document.addEventListener('visibilitychange', handleVisibilityChange)
 
     return () => {
+      // Flush debounced/in-flight updates on SPA navigation/unmount as well.
+      flushPendingOnUnload()
       globalThis.window.removeEventListener('beforeunload', flushPendingOnUnload)
       document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
@@ -669,19 +865,22 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   const handleUpdateRow = useCallback(
     async (values: Record<string, unknown>) => {
       if (!editingRow) return
-      const rowId = String(editingRow._id ?? editingRow.id ?? '')
-      if (!rowId) return
+      const rowId = String(editingRow._id ?? editingRow._rowUuid ?? editingRow.id ?? '')
+      const backendRowId = String(editingRow._rowUuid ?? editingRow._id ?? editingRow.id ?? '')
+      if (!rowId || !backendRowId) return
 
-      const next = localSheetDataRef.current.map(r => (String(r._id ?? r.id ?? '') === rowId ? { ...r, ...values } : r))
+      const next = localSheetDataRef.current.map(r =>
+        String(r._id ?? r._rowUuid ?? r.id ?? '') === rowId ? { ...r, ...values } : r
+      )
       setLocalSheetData(next)
       onDataChange?.(activeSheetId, next)
       setEditingRow(null)
 
       try {
         if (onRowUpdate) {
-          await onRowUpdate(app.id, activeSheetId, rowId, values)
+          await onRowUpdate(app.id, activeSheetId, backendRowId, values)
         } else {
-          await SpreadsheetApiService.updateRow(app.id, activeSheetId, rowId, values)
+          await SpreadsheetApiService.updateRow(app.id, activeSheetId, backendRowId, values)
         }
       } catch (error) {
         console.error('[SpreadsheetAppViewer] Failed to update row:', error)
@@ -692,7 +891,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
 
   const handleDeleteRow = useCallback(
     async (rowId: string) => {
-      const next = localSheetDataRef.current.filter(r => String(r._id ?? r.id ?? '') !== String(rowId))
+      const next = localSheetDataRef.current.filter(r => String(r._id ?? r._rowUuid ?? r.id ?? '') !== String(rowId))
       setLocalSheetData(next)
       onDataChange?.(activeSheetId, next)
       try {
@@ -896,7 +1095,8 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         onEdit={onEdit}
         onExportToExcel={handleExportToExcel}
         isCollectionCopy={isCollectionCopy}
-        onSubmitCollection={canSubmitCollection ? handleSubmitCollection : undefined}
+        collectionSubmittedAt={collectionSubmittedAt}
+        onSubmitCollection={canSubmitCollection && !collectionSubmittedAt ? handleSubmitCollection : undefined}
         showSummarizeButton={hasExcelCollectionWithEligibleRows}
         onSummarizeClick={handleSummarizeClick}
         isSummarizing={collectionSummary.isSummarizing}

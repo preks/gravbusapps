@@ -40,7 +40,7 @@ import 'dayjs/locale/fr'
 import 'dayjs/locale/es'
 import 'dayjs/locale/it'
 import { UnifiedTask } from '../types'
-import { env } from '@/common/env/EnvUtils'
+import { getCflowEndpoint } from '../../every-api/utils/config'
 import { TaskDetailHeader } from './TaskDetailHeader'
 import { TaskDetailFooter } from './TaskDetailFooter'
 import { useEmployeeAvatar } from '../hooks/useEmployeeAvatar'
@@ -328,6 +328,12 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
   ])
 
   const isBlinkTask = task.source === 'cflow' && task.tags?.app === 'quick-task'
+  const taskAppTag =
+    task.tags?.app ||
+    task.sourceMetadata?.tags?.app ||
+    task.workflowMeta?.tags?.app ||
+    (task.sourceMetadata as any)?.app
+  const isMarkdownMessageTask = taskAppTag === 'scheduled_task' || taskAppTag === 'spreadsheet-automation'
   // Check both task.tags and sourceMetadata.tags for glossary request detection
   const isGlossaryRequestTask =
     task.source === 'cflow' &&
@@ -457,7 +463,7 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
   }
 
   // Helper: Complete task action
-  const handleCompleteTask = async (flowEngineApi: string) => {
+  const handleCompleteTask = async () => {
     // Validate form data before submission
     const validation = validateFormData()
     if (!validation.isValid) {
@@ -480,7 +486,8 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
       ...(showComment && comment?.trim() ? { comment: comment.trim() } : {})
     }
 
-    const response = await fetch(`${flowEngineApi}/api/tasks/${task.id}/complete`, {
+    const base = getCflowEndpoint()
+    const response = await fetch(`${base}/api/tasks/${task.id}/complete`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -515,14 +522,15 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
   }
 
   // Helper: Reject task action
-  const handleRejectTask = async (flowEngineApi: string, data?: any) => {
+  const handleRejectTask = async (data?: any) => {
     const rejectRequestBody = {
       userId: userId,
       rejectionComment: comment || data?.comment || '',
       comment: comment || data?.comment || ''
     }
 
-    const response = await fetch(`${flowEngineApi}/api/tasks/${task.id}/reject`, {
+    const base = getCflowEndpoint()
+    const response = await fetch(`${base}/api/tasks/${task.id}/reject`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -558,8 +566,9 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
   }
 
   // Helper: Claim task action
-  const handleClaimTask = async (flowEngineApi: string) => {
-    const response = await fetch(`${flowEngineApi}/api/tasks/${task.id}/claim`, {
+  const handleClaimTask = async () => {
+    const base = getCflowEndpoint()
+    const response = await fetch(`${base}/api/tasks/${task.id}/claim`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -580,8 +589,9 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
   }
 
   // Helper: Unclaim task action
-  const handleUnclaimTask = async (flowEngineApi: string) => {
-    const response = await fetch(`${flowEngineApi}/api/tasks/${task.id}/unclaim`, {
+  const handleUnclaimTask = async () => {
+    const base = getCflowEndpoint()
+    const response = await fetch(`${base}/api/tasks/${task.id}/unclaim`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -608,25 +618,23 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
       return
     }
 
-    const flowEngineApi = env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || env('NEXT_PUBLIC_BASE_URL') + '/flow-engine'
-
     setIsCompleting(true)
     try {
       switch (action) {
         case 'claim':
-          await handleClaimTask(flowEngineApi)
+          await handleClaimTask()
           break
         case 'complete':
-          await handleCompleteTask(flowEngineApi)
+          await handleCompleteTask()
           break
         case 'reject':
-          await handleRejectTask(flowEngineApi, data)
+          await handleRejectTask(data)
           break
         case 'reassign':
           toast.info(t('task-details-reassign-coming'))
           break
         case 'unclaim':
-          await handleUnclaimTask(flowEngineApi)
+          await handleUnclaimTask()
           break
         default:
           toast.warning(t('task-details-unknown-action', { action }))
@@ -791,20 +799,21 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
           {/* Task instruction message - above links, dark and prominent */}
           {(task.message || task.description) && (
             <div className="gba:space-y-3">
-              {(task.tags?.app === 'scheduled_task' ? (
+              {isMarkdownMessageTask ? (
                 <MarkdownRenderer content={task.message || task.description || ''} accessToken={accessToken} />
               ) : (
                 <p className="gba:text-base gba:leading-relaxed gba:font-medium gba:text-foreground">
                   {task.message || task.description}
                 </p>
-              ))}
+              )}
               {/* Blue hint explaining what to do */}
               {!isCompleted && (otherLinks.length > 0 || documentLinks.length > 0) && (
                 <div className="gba:flex gba:items-start gba:gap-3 gba:rounded-lg gba:border gba:border-primary/30 gba:bg-info-secondary gba:p-4">
                   <Info className="gba:h-5 gba:w-5 gba:text-primary gba:flex-shrink-0 gba:mt-0.5" />
                   <p className="gba:text-sm gba:leading-relaxed gba:text-info-secondary-foreground">
                     {t('task-details-blink-instruction-hint', {
-                      defaultValue: 'Open the link below to access your assigned copy, complete it, and return here to submit.'
+                      defaultValue:
+                        'Open the link below to access your assigned copy, complete it, and return here to submit.'
                     })}
                   </p>
                 </div>
@@ -859,12 +868,12 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
                       data-testid={`task-document-link-${link.name}`}
                     >
                       <FileText className="gba:h-4 gba:w-4 gba:text-primary gba:shrink-0" />
-                    <span className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate gba:flex-1 group-hover:gba:underline">
-                      {link.name}
-                    </span>
-                    <Download className="gba:h-3 gba:w-3 gba:text-muted-foreground gba:shrink-0" />
-                  </a>
-                ))}
+                      <span className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate gba:flex-1 group-hover:gba:underline">
+                        {link.name}
+                      </span>
+                      <Download className="gba:h-3 gba:w-3 gba:text-muted-foreground gba:shrink-0" />
+                    </a>
+                  ))}
                 </div>
               </CardContent>
             </Card>
@@ -879,28 +888,28 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
                 </div>
                 <div className="gba:space-y-2">
                   {otherLinks.map(link => (
-                  <a
-                    key={link.url || link.name}
-                    href={link.url}
-                    onClick={e => {
-                      // For internal links, use navigateTo instead of opening new tab
-                      if (link.type?.startsWith('internal:')) {
-                        e.preventDefault()
-                        navigateTo(link.url)
-                      }
-                    }}
-                    target={link.type?.startsWith('internal:') ? undefined : '_blank'}
-                    rel={link.type?.startsWith('internal:') ? undefined : 'noopener noreferrer'}
-                    className="gba:flex gba:items-center gba:gap-3 gba:p-2 gba:-mx-2 gba:rounded-md hover:gba:bg-accent gba:transition-colors gba:no-underline gba:group"
-                    data-testid={`task-other-link-${link.name}`}
-                  >
-                    <LinkIcon className="gba:h-4 gba:w-4 gba:text-primary gba:shrink-0" />
-                    <span className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate gba:flex-1 group-hover:gba:underline">
-                      {link.name}
-                    </span>
-                    <ExternalLink className="gba:h-3 gba:w-3 gba:text-primary gba:shrink-0" />
-                  </a>
-                ))}
+                    <a
+                      key={link.url || link.name}
+                      href={link.url}
+                      onClick={e => {
+                        // For internal links, use navigateTo instead of opening new tab
+                        if (link.type?.startsWith('internal:')) {
+                          e.preventDefault()
+                          navigateTo(link.url)
+                        }
+                      }}
+                      target={link.type?.startsWith('internal:') ? undefined : '_blank'}
+                      rel={link.type?.startsWith('internal:') ? undefined : 'noopener noreferrer'}
+                      className="gba:flex gba:items-center gba:gap-3 gba:p-2 gba:-mx-2 gba:rounded-md hover:gba:bg-accent gba:transition-colors gba:no-underline gba:group"
+                      data-testid={`task-other-link-${link.name}`}
+                    >
+                      <LinkIcon className="gba:h-4 gba:w-4 gba:text-primary gba:shrink-0" />
+                      <span className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate gba:flex-1 group-hover:gba:underline">
+                        {link.name}
+                      </span>
+                      <ExternalLink className="gba:h-3 gba:w-3 gba:text-primary gba:shrink-0" />
+                    </a>
+                  ))}
                 </div>
               </CardContent>
             </Card>
@@ -1202,7 +1211,7 @@ export const UniversalCflowTaskDetails: React.FC<UniversalCflowTaskDetailsProps>
 
         {/* Description - use markdown for scheduled tasks */}
         {(task.message || task.description) &&
-          (task.tags?.app === 'scheduled_task' ? (
+          (isMarkdownMessageTask ? (
             <MarkdownRenderer content={task.message || task.description || ''} accessToken={accessToken} />
           ) : (
             <p className="gba:text-base gba:leading-relaxed gba:text-muted-foreground">

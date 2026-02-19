@@ -8,6 +8,7 @@ export type SpreadsheetHubSidebarSection =
   | 'favorites'
   | 'recent'
   | 'automations'
+  | 'tasks'
   | 'trash'
 export type SpreadsheetHubSortBy = 'name' | 'modified' | 'created'
 export type SpreadsheetHubSortOrder = 'asc' | 'desc'
@@ -27,12 +28,21 @@ export interface UseSpreadsheetAppsHubFilteringReturn {
 }
 
 function isOwner(app: SpreadsheetAppSummary, currentUserId: string): boolean {
-  return app.isOwner ?? app.createdBy === currentUserId
+  if (app.createdBy) return app.createdBy === currentUserId
+  return app.isOwner === true
 }
 
-function isManagerSharedExcelCollectionCopy(app: SpreadsheetAppSummary, currentUserId: string): boolean {
-  const excelCollectionCopy = app.settings?.excel_collection_copy === true
-  return excelCollectionCopy && !isOwner(app, currentUserId)
+function isExcelCollectionCopy(app: SpreadsheetAppSummary): boolean {
+  return app.settings?.excel_collection_copy === true
+}
+
+function hasContributorAccess(app: SpreadsheetAppSummary, currentUserId: string): boolean {
+  if (isOwner(app, currentUserId)) return true
+  return app.permission === 'owner' || app.permission === 'edit' || app.permission === 'admin'
+}
+
+function isExcelCollectionTaskForCurrentUser(app: SpreadsheetAppSummary, currentUserId: string): boolean {
+  return isExcelCollectionCopy(app) && hasContributorAccess(app, currentUserId)
 }
 
 function filterBySection(params: {
@@ -42,13 +52,17 @@ function filterBySection(params: {
   favorites: Set<string>
 }): SpreadsheetAppSummary[] {
   const { apps, activeSection, currentUserId, favorites } = params
-  const visibleApps = apps.filter(app => !isManagerSharedExcelCollectionCopy(app, currentUserId))
+  const taskApps = apps.filter(app => isExcelCollectionTaskForCurrentUser(app, currentUserId))
+  // Keep all collection copies out of the regular hub lists.
+  const visibleApps = apps.filter(app => !isExcelCollectionCopy(app))
 
   switch (activeSection) {
     case 'my-files':
       return visibleApps.filter(app => isOwner(app, currentUserId))
     case 'shared':
       return visibleApps.filter(app => app.isShared && !isOwner(app, currentUserId))
+    case 'tasks':
+      return taskApps
     case 'favorites':
       return visibleApps.filter(app => favorites.has(app.id))
     case 'recent':

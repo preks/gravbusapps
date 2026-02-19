@@ -40,9 +40,11 @@ import {
   ExternalLink
 } from 'lucide-react'
 import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
+import { getSpreadsheetBasePath, isAllowedSpreadsheetPath } from '../../utils/spreadsheetPaths'
 import type { SpreadsheetAutomation, AutomationType } from '../../types/automation'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { GET_EMPLOYEE_LIGHT_BY_USER_ID, GET_EMPLOYEE_LIGHT_BY_ID } from '@/common/data/employee/queries/employeeQueries'
+import { RunSummarizeWithAI } from './RunSummarizeWithAI'
 
 export interface AutomationRun {
   id: string
@@ -1019,7 +1021,7 @@ function openSafeSpreadsheetUrl(rawUrl: string): void {
 
     // Guard against open-redirect behavior: only allow same-origin spreadsheet app links.
     if (targetUrl.origin !== currentOrigin) return
-    if (!targetUrl.pathname.startsWith('/platform/apps/spreadsheet-apps')) return
+    if (!isAllowedSpreadsheetPath(targetUrl.pathname)) return
 
     globalThis.window.open(targetUrl.toString(), '_blank', 'noopener,noreferrer')
   } catch {
@@ -1099,7 +1101,7 @@ async function enrichRunSubmission(
     recipientName: profile.recipientName,
     recipientAvatar: profile.recipientAvatar,
     copyAppName: safeString(item.name, 'Spreadsheet copy'),
-    copyAppUrl: `${baseOrigin}/platform/apps/spreadsheet-apps?appId=${encodeURIComponent(copyAppId)}&view=viewer`,
+    copyAppUrl: `${baseOrigin}${getSpreadsheetBasePath()}?appId=${encodeURIComponent(copyAppId)}&view=viewer`,
     status: isCompleted ? 'COMPLETED' : 'SENT',
     completedAt: isCompleted ? completedAt : undefined
   }
@@ -1198,7 +1200,15 @@ const RunDetailPanel: React.FC<RunDetailPanelProps> = ({ run, accessToken, 'data
         </div>
 
         <div>
-          <h5 className="gba:font-medium gba:text-foreground gba:mb-3">Recipients</h5>
+          <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
+            <h5 className="gba:font-medium gba:text-foreground">Recipients</h5>
+            <RunSummarizeWithAI
+              accessToken={accessToken}
+              submissions={submissions}
+              runName={run ? formatRelativeTime(run.startedAt) : undefined}
+              data-testid="run-detail-summarize-ai"
+            />
+          </div>
           {isLoading ? (
             <div className="gba:flex gba:items-center gba:justify-center gba:py-8">
               <Spinner size="sm" />

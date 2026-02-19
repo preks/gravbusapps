@@ -134,7 +134,16 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
     const presenceUsersRef = useRef<Map<string, { username: string; userId?: string }>>(new Map())
     /** Track last applied remote cell to suppress duplicate apply to adjacent column (G6 value appearing in H6) */
     const lastRemoteAppliedRef = useRef<{ row: number; col: number; value: unknown; at: number } | null>(null)
+    const lastDataOpRef = useRef<{ path: (string | number)[]; op: string; at: number } | null>(null)
     const REMOTE_APPLY_DEDUPE_MS = 150
+    /**
+     * Track last known cell selection (FortuneSheet row + col indices).
+     * getSelection() can return [] when FortuneSheet's internal ctx is undefined
+     * (e.g. during the paste capture phase). This ref is updated by afterSelectionChange
+     * which fires reliably before any paste starts, giving handlePasteCapture a safe
+     * fallback to identify the target cell even when getSelection() fails.
+     */
+    const lastKnownSelectionRef = useRef<{ fortuneSheetRow: number; colIndex: number } | null>(null)
 
     // Create conversion context
     const context = useMemo(() => {
@@ -448,15 +457,157 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
       [openSelectedCopyLink]
     )
 
+    // Capture paste to persist clipboard text before FortuneSheet processes it.
+    // FortuneSheet emits meta-only ops ({ct,fs}) for long pastes and never stores the text
+    // in the workbook model - so we must persist from clipboard directly.
+    const handlePasteCapture = useCallback(
+      (e: React.ClipboardEvent) => {
+        const text = e.clipboardData?.getData('text/plain')
+        // #region agent log
+        fetch('http://127.0.0.1:7244/ingest/29e4e19a-f86b-4f4e-9c0f-f3ddb4f01625', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            runId: 'ltdbg',
+            hypothesisId: 'H1',
+            location: 'FortuneSheetGrid.tsx:handlePasteCapture:entry',
+            message: 'Paste capture fired',
+            data: {
+              textLen: text?.length ?? 0,
+              hasText: Boolean(text),
+              hasOnCellChange: Boolean(onCellChange),
+              hasContext: Boolean(context),
+              lastKnownSel: lastKnownSelectionRef.current
+            },
+            timestamp: Date.now()
+          })
+        }).catch(() => {})
+        // #endregion
+        if (!text || !onCellChange || !context) return
+        try {
+          // getSelection() is called during the capture phase — before FortuneSheet's own
+          // paste handler runs — and can crash (ctx undefined), returning [] from the patch.
+          // Use lastKnownSelectionRef (updated by afterSelectionChange which fires before
+          // every paste) as a reliable fallback so we always know the target cell.
+          const workbook = workbookRef.current
+          const sel = (workbook as any)?.getSelection?.()
+
+          let fortuneSheetRow: number | undefined
+          let colIndex: number | undefined
+
+          if (sel?.[0]) {
+            fortuneSheetRow = sel[0]?.row?.[0]
+            colIndex = sel[0]?.column?.[0]
+          }
+
+          const usedFallback = typeof fortuneSheetRow !== 'number' || typeof colIndex !== 'number'
+          if (usedFallback) {
+            // Fall back to the last recorded selection
+            const last = lastKnownSelectionRef.current
+            if (!last) {
+              // #region agent log
+              fetch('http://127.0.0.1:7244/ingest/29e4e19a-f86b-4f4e-9c0f-f3ddb4f01625', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  runId: 'ltdbg',
+                  hypothesisId: 'H2',
+                  location: 'FortuneSheetGrid.tsx:handlePasteCapture:noSelection',
+                  message: 'BAILED: no selection from getSelection AND lastKnownSelectionRef is null',
+                  data: { selRaw: sel },
+                  timestamp: Date.now()
+                })
+              }).catch(() => {})
+              // #endregion
+              return
+            }
+            fortuneSheetRow = last.fortuneSheetRow
+            colIndex = last.colIndex
+          }
+
+          if (fortuneSheetRow < HEADER_ROW_OFFSET) return
+          const dataRowIndex = fortuneSheetRow - HEADER_ROW_OFFSET
+          const rowId = context.rowIndexToId.get(dataRowIndex)
+          const columnId = context.columnIndexToId.get(colIndex)
+          if (!rowId || !columnId) {
+            // #region agent log
+            fetch('http://127.0.0.1:7244/ingest/29e4e19a-f86b-4f4e-9c0f-f3ddb4f01625', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                runId: 'ltdbg',
+                hypothesisId: 'H2',
+                location: 'FortuneSheetGrid.tsx:handlePasteCapture:noRowCol',
+                message: 'BAILED: rowId or columnId not found in context',
+                data: {
+                  fortuneSheetRow,
+                  colIndex,
+                  dataRowIndex,
+                  rowId,
+                  columnId,
+                  contextRowCount: context.rowIndexToId.size,
+                  contextColCount: context.columnIndexToId.size,
+                  usedFallback
+                },
+                timestamp: Date.now()
+              })
+            }).catch(() => {})
+            // #endregion
+            return
+          }
+          const column = columns.find(c => c.id === columnId)
+          const columnName = column?.name ?? columnId
+          // #region agent log
+          fetch('http://127.0.0.1:7244/ingest/29e4e19a-f86b-4f4e-9c0f-f3ddb4f01625', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              runId: 'ltdbg',
+              hypothesisId: 'H1_H2',
+              location: 'FortuneSheetGrid.tsx:handlePasteCapture:callingOnCellChange',
+              message: 'Calling onCellChange with pasted text',
+              data: { rowId, columnName, textLen: text.length, usedFallback, fortuneSheetRow, colIndex },
+              timestamp: Date.now()
+            })
+          }).catch(() => {})
+          // #endregion
+          onCellChange(rowId, columnName, text)
+        } catch (err) {
+          // #region agent log
+          fetch('http://127.0.0.1:7244/ingest/29e4e19a-f86b-4f4e-9c0f-f3ddb4f01625', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              runId: 'ltdbg',
+              hypothesisId: 'H1',
+              location: 'FortuneSheetGrid.tsx:handlePasteCapture:caught',
+              message: 'CAUGHT exception in handlePasteCapture',
+              data: { error: String(err) },
+              timestamp: Date.now()
+            })
+          }).catch(() => {})
+          // #endregion
+        }
+      },
+      [context, columns, onCellChange]
+    )
+
     // Use FortuneSheet native selection hook (avoids calling Workbook.getSelection() which can crash when ctx is undefined)
     const workbookHooks = useMemo(() => {
       return {
         afterSelectionChange: (activeSheetId: string, selection: any) => {
-          if (!collaborationEnabled) return
-          if (activeSheetId !== sheet.id) return
-
           const fortuneSheetRow = selection?.row?.[0]
           const col = selection?.column?.[0]
+
+          if (typeof fortuneSheetRow === 'number' && typeof col === 'number') {
+            // Always keep the last selection recorded so handlePasteCapture can
+            // identify the target cell even when getSelection() crashes and
+            // returns [] (FortuneSheet's ctx is transiently undefined during paste).
+            lastKnownSelectionRef.current = { fortuneSheetRow, colIndex: col }
+          }
+
+          if (!collaborationEnabled) return
+          if (activeSheetId !== sheet.id) return
 
           if (typeof fortuneSheetRow !== 'number' || typeof col !== 'number') return
           // Subtract header offset to get data row index for cursor tracking
@@ -590,13 +741,187 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
       [sheet.id]
     )
 
+    // Ensure existing data is wrapped and expanded by default (not only after edit/paste).
+    // Skip tracking columns - they use fixed row heights; wrap+expand would make rows excessively tall.
+    const isTrackingColumn = (col: { name?: string; type?: string }) =>
+      col.name?.startsWith('_') ||
+      col.type === 'image' ||
+      col.type === 'date' ||
+      col.type === 'datetime' ||
+      col.type === 'url'
+
+    useEffect(() => {
+      if (!data || data.length === 0 || columns.length === 0) return
+
+      const cellsToWrap: Array<{ row: number; col: number; text: string }> = []
+
+      data.forEach((row, dataRowIndex) => {
+        columns.forEach((column, colIndex) => {
+          if (isTrackingColumn(column)) return
+          const rawValue = row[column.name]
+          if (rawValue === null || rawValue === undefined) return
+
+          let text = ''
+          if (typeof rawValue === 'string') {
+            text = rawValue
+          } else if (typeof rawValue === 'number' || typeof rawValue === 'boolean') {
+            text = String(rawValue)
+          } else if (rawValue && typeof rawValue === 'object' && !Array.isArray(rawValue)) {
+            const cellObject = rawValue as Record<string, unknown>
+            if (typeof cellObject.m === 'string') {
+              text = cellObject.m
+            } else if (
+              cellObject.v !== null &&
+              cellObject.v !== undefined &&
+              (typeof cellObject.v === 'string' ||
+                typeof cellObject.v === 'number' ||
+                typeof cellObject.v === 'boolean')
+            ) {
+              text = String(cellObject.v)
+            }
+          }
+
+          if (!text.trim()) return
+
+          cellsToWrap.push({
+            row: dataRowIndex + HEADER_ROW_OFFSET,
+            col: colIndex,
+            text
+          })
+        })
+      })
+
+      if (cellsToWrap.length === 0) return
+
+      const timer = setTimeout(() => {
+        applyTextWrapAndExpand(cellsToWrap)
+      }, 80)
+
+      return () => clearTimeout(timer)
+    }, [applyTextWrapAndExpand, columns, data])
+
+    useEffect(() => {
+      const logWorkbookSnapshotOnHide = () => {
+        const lastDataOp = lastDataOpRef.current
+        if (!lastDataOp || lastDataOp.path.length < 3) return
+        const row = Number(lastDataOp.path[1])
+        const col = Number(lastDataOp.path[2])
+        let cellType = 'unknown'
+        let cellPreview: string | null = null
+        try {
+          const currentSheet = workbookRef.current?.getSheet() as any
+          let rawCell = currentSheet?.data?.[row]?.[col] ?? null
+          if (!rawCell && Array.isArray(currentSheet?.celldata)) {
+            const found = currentSheet.celldata.find(
+              (cd: { r: number; c: number; v?: unknown }) => cd.r === row && cd.c === col
+            )
+            rawCell = found?.v ?? null
+          }
+          const cellValue =
+            rawCell && typeof rawCell === 'object' && !Array.isArray(rawCell) && 'v' in rawCell ? rawCell.v : rawCell
+          cellType = cellValue === null ? 'null' : Array.isArray(cellValue) ? 'array' : typeof cellValue
+          if (typeof cellValue === 'string') {
+            cellPreview = cellValue.slice(0, 120)
+          } else if (cellValue !== null && cellValue !== undefined) {
+            cellPreview = String(cellValue).slice(0, 120)
+          }
+          // Persist last edited cell on visibility hidden (e.g. user refreshes) - handles meta-only ops that skipped onCellChange
+          if (rawCell && onCellChange && row >= HEADER_ROW_OFFSET) {
+            const dataRowIndex = row - HEADER_ROW_OFFSET
+            const rowId = context.rowIndexToId.get(dataRowIndex)
+            const columnId = context.columnIndexToId.get(col)
+            if (rowId && columnId) {
+              const oc = rawCell as Record<string, unknown>
+              let val: unknown = null
+              if ('m' in oc && typeof oc.m === 'string') val = oc.m
+              else if ('v' in oc) {
+                const v = oc.v
+                if (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') val = v
+                else if (v && typeof v === 'object' && !Array.isArray(v)) {
+                  const vo = v as Record<string, unknown>
+                  if ('m' in vo && typeof vo.m === 'string') val = vo.m
+                  else if ('v' in vo) val = (vo as { v: unknown }).v
+                  else val = String(v)
+                } else val = v
+              }
+              if (val !== null && val !== undefined && (typeof val !== 'string' || val.trim().length > 0)) {
+                const column = columns.find(c => c.id === columnId)
+                const columnName = column?.name ?? columnId
+                onCellChange(rowId, columnName, val)
+              }
+            }
+          }
+        } catch {
+          cellType = 'read-error'
+        }
+        // #region agent log
+        fetch('http://127.0.0.1:7244/ingest/29e4e19a-f86b-4f4e-9c0f-f3ddb4f01625', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            runId: 'long-paste-debug',
+            hypothesisId: 'H11',
+            location: 'FortuneSheetGrid.tsx:visibilitySnapshot',
+            message: 'Workbook snapshot on visibility hidden',
+            data: { lastDataOpPath: lastDataOp.path, lastDataOpType: lastDataOp.op, cellType, cellPreview },
+            timestamp: Date.now()
+          })
+        }).catch(() => {})
+        // #endregion
+      }
+      const onVisibility = () => {
+        if (document.visibilityState === 'hidden') {
+          logWorkbookSnapshotOnHide()
+        }
+      }
+      document.addEventListener('visibilitychange', onVisibility)
+      return () => {
+        document.removeEventListener('visibilitychange', onVisibility)
+      }
+    }, [context, columns, onCellChange])
+
     /**
      * Handle FortuneSheet onOp event
      */
     const handleOp = useCallback(
       (ops: FortuneSheetOp[]) => {
+        // #region agent log
+        fetch('http://127.0.0.1:7244/ingest/29e4e19a-f86b-4f4e-9c0f-f3ddb4f01625', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            runId: 'paste-refresh-debug-v5',
+            hypothesisId: 'H11_H12',
+            location: 'FortuneSheetGrid.tsx:handleOp:opsSummary',
+            message: 'FortuneSheet onOp batch received',
+            data: {
+              opsCount: Array.isArray(ops) ? ops.length : 0,
+              sample: Array.isArray(ops) ? ops.slice(0, 8).map(o => ({ op: o.op, path: o.path })) : [],
+              isLocalEdit: Boolean(isLocalEditRef.current)
+            },
+            timestamp: Date.now()
+          })
+        }).catch(() => {})
+        // #endregion
         // Ignore operations that come from programmatic updates (remote sync)
         if (isLocalEditRef.current) {
+          // #region agent log
+          fetch('http://127.0.0.1:7244/ingest/29e4e19a-f86b-4f4e-9c0f-f3ddb4f01625', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              runId: 'paste-refresh-debug-v3',
+              hypothesisId: 'H8',
+              location: 'FortuneSheetGrid.tsx:handleOp:ignoredLocalEdit',
+              message: 'Ops ignored due isLocalEditRef',
+              data: {
+                opsCount: Array.isArray(ops) ? ops.length : 0,
+                ops: Array.isArray(ops) ? ops.slice(0, 5).map(o => ({ op: o.op, path: o.path })) : []
+              },
+              timestamp: Date.now()
+            })
+          }).catch(() => {})
+          // #endregion
           return
         }
 
@@ -624,6 +949,65 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
             op.path.length >= 3 &&
             op.path[0] === 'data'
           ) {
+            // Ignore deep nested property ops (e.g. ['data', r, c, 'ct', 's']).
+            // Only cell-level ops (len 3) and direct cell properties (len 4) should persist.
+            if (op.path.length > 4) {
+              // #region agent log
+              fetch('http://127.0.0.1:7244/ingest/29e4e19a-f86b-4f4e-9c0f-f3ddb4f01625', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  runId: 'paste-refresh-debug-v4',
+                  hypothesisId: 'H10',
+                  location: 'FortuneSheetGrid.tsx:handleOp:skipDeepPathOp',
+                  message: 'Skipping deep nested data op',
+                  data: {
+                    op: op.op,
+                    path: op.path,
+                    valueType: op.value === null ? 'null' : Array.isArray(op.value) ? 'array' : typeof op.value
+                  },
+                  timestamp: Date.now()
+                })
+              }).catch(() => {})
+              // #endregion
+              return
+            }
+            // #region agent log
+            fetch('http://127.0.0.1:7244/ingest/29e4e19a-f86b-4f4e-9c0f-f3ddb4f01625', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                runId: 'paste-refresh-debug-v4',
+                hypothesisId: 'H6_H7',
+                location: 'FortuneSheetGrid.tsx:handleOp:dataOpRaw',
+                message: 'Raw FortuneSheet data op',
+                data: {
+                  op: op.op,
+                  path: op.path,
+                  rawType: op.value === null ? 'null' : Array.isArray(op.value) ? 'array' : typeof op.value,
+                  rawPreview:
+                    typeof op.value === 'string'
+                      ? op.value.slice(0, 120)
+                      : op.value && typeof op.value === 'object'
+                        ? {
+                            keys: Object.keys(op.value as Record<string, unknown>).slice(0, 8),
+                            vType: typeof (op.value as Record<string, unknown>).v,
+                            mPreview:
+                              typeof (op.value as Record<string, unknown>).m === 'string'
+                                ? (op.value as Record<string, unknown>).m.slice(0, 120)
+                                : null,
+                            vPreview:
+                              typeof (op.value as Record<string, unknown>).v === 'string'
+                                ? (op.value as Record<string, unknown>).v.slice(0, 120)
+                                : null
+                          }
+                        : null
+                },
+                timestamp: Date.now()
+              })
+            }).catch(() => {})
+            // #endregion
+            lastDataOpRef.current = { path: [...op.path], op: op.op, at: Date.now() }
             const fortuneSheetRowIndex = op.path[1] as number
             const colIndex = op.path[2] as number
 
@@ -659,10 +1043,12 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
             // Skip styling-only changes (fc, bg, bl, it, etc.) - they're handled by FortuneSheet UI
             // but we don't persist them to avoid complexity
             // path.length === 4 means: ['data', row, col, 'property'] → specific property change
+            let cellProp: string = 'v'
             if (op.path.length === 4) {
-              const prop = op.path[3]
-              // Persist 'v' (value) and 'f' (formula) changes, skip styling properties
-              if (prop !== 'v' && prop !== 'f') {
+              cellProp = String(op.path[3])
+              // Persist 'v' (value), 'f' (formula), and 'm' (display text) changes.
+              // Some paste flows emit text primarily through `m`.
+              if (cellProp !== 'v' && cellProp !== 'f' && cellProp !== 'm') {
                 return
               }
             }
@@ -674,29 +1060,229 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
             // Extract cell value - handle both direct values and cell objects
             // For 'remove' ops (cell clear, undo), the cell should become null
             let cellValue = op.value
+            // FortuneSheet can emit cell-level replace ops that only carry formatting/meta
+            // (e.g. { ct, fs }) after paste. These are not data changes and must not be persisted.
+            if (
+              op.op !== 'remove' &&
+              op.path.length === 3 &&
+              cellValue &&
+              typeof cellValue === 'object' &&
+              !Array.isArray(cellValue)
+            ) {
+              const valueObject = cellValue as Record<string, unknown>
+              const hasDataField = 'v' in valueObject || 'm' in valueObject || 'f' in valueObject
+              if (!hasDataField) {
+                // FortuneSheet can emit paste as a meta-only op (e.g. { ct, fs }) while the actual
+                // text is applied internally. Defer reading the workbook to next tick so FortuneSheet
+                // has finished applying the change, then persist if the cell has data.
+                const capturedRowId = rowId
+                const capturedColumnId = columnId
+                const capturedColIndex = colIndex
+                const capturedFortuneSheetRowIndex = fortuneSheetRowIndex
+                const column = columns.find(c => c.id === capturedColumnId)
+                const columnName = column?.name ?? capturedColumnId
+                // #region agent log
+                fetch('http://127.0.0.1:7244/ingest/29e4e19a-f86b-4f4e-9c0f-f3ddb4f01625', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    runId: 'long-paste-debug',
+                    hypothesisId: 'META_FALLBACK',
+                    location: 'FortuneSheetGrid.tsx:handleOp:metaOnlyScheduling',
+                    message: 'Meta-only: scheduling deferred read',
+                    data: { rowId: rowId, columnId: columnId, hasOnCellChange: Boolean(onCellChange) },
+                    timestamp: Date.now()
+                  })
+                }).catch(() => {})
+                // #endregion
+                if (capturedRowId && capturedColumnId && onCellChange) {
+                  setTimeout(() => {
+                    try {
+                      const currentSheet = workbookRef.current?.getSheet() as any
+                      const dataRows = currentSheet?.data
+                      let rawCell = dataRows?.[capturedFortuneSheetRowIndex]?.[capturedColIndex] ?? null
+                      if (!rawCell && Array.isArray(currentSheet?.celldata)) {
+                        const found = currentSheet.celldata.find(
+                          (cd: { r: number; c: number; v?: unknown }) =>
+                            cd.r === capturedFortuneSheetRowIndex && cd.c === capturedColIndex
+                        )
+                        rawCell = found?.v ?? null
+                      }
+                      const rawCellKeys =
+                        rawCell && typeof rawCell === 'object' && !Array.isArray(rawCell)
+                          ? Object.keys(rawCell as object)
+                          : []
+                      const hasV = rawCell && typeof rawCell === 'object' && 'v' in (rawCell as object)
+                      const hasM = rawCell && typeof rawCell === 'object' && 'm' in (rawCell as object)
+                      // #region agent log
+                      fetch('http://127.0.0.1:7244/ingest/29e4e19a-f86b-4f4e-9c0f-f3ddb4f01625', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          runId: 'long-paste-debug',
+                          hypothesisId: 'META_FALLBACK',
+                          location: 'FortuneSheetGrid.tsx:handleOp:metaOnlyDeferredRead',
+                          message: 'Meta-only: deferred read result',
+                          data: {
+                            rawCellNull: rawCell == null,
+                            rawCellKeys,
+                            hasV,
+                            hasM,
+                            dataRowsLen: Array.isArray(dataRows) ? dataRows.length : 0,
+                            rowExists: dataRows?.[capturedFortuneSheetRowIndex] != null,
+                            vType:
+                              rawCell && typeof rawCell === 'object' && 'v' in (rawCell as object)
+                                ? typeof (rawCell as Record<string, unknown>).v
+                                : 'n/a'
+                          },
+                          timestamp: Date.now()
+                        })
+                      }).catch(() => {})
+                      // #endregion
+                      if (!rawCell || typeof rawCell !== 'object' || Array.isArray(rawCell)) return
+                      const oc = rawCell as Record<string, unknown>
+                      let val: unknown = null
+                      if ('m' in oc && typeof oc.m === 'string') val = oc.m
+                      else if ('v' in oc) {
+                        const v = oc.v
+                        if (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') val = v
+                        else if (v && typeof v === 'object' && !Array.isArray(v)) {
+                          const vo = v as Record<string, unknown>
+                          if ('m' in vo && typeof vo.m === 'string') val = vo.m
+                          else if ('v' in vo) {
+                            const vv = vo.v
+                            if (typeof vv === 'string' || typeof vv === 'number' || typeof vv === 'boolean') val = vv
+                            else if (vv && typeof vv === 'object' && !Array.isArray(vv) && 'm' in (vv as object))
+                              val = String((vv as { m?: unknown }).m ?? '')
+                            else val = vv
+                          } else val = String(v)
+                        } else val = v
+                      }
+                      if (val !== null && val !== undefined && (typeof val !== 'string' || val.trim().length > 0)) {
+                        // #region agent log
+                        fetch('http://127.0.0.1:7244/ingest/29e4e19a-f86b-4f4e-9c0f-f3ddb4f01625', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            runId: 'long-paste-debug',
+                            hypothesisId: 'FIX',
+                            location: 'FortuneSheetGrid.tsx:handleOp:metaOnlyFallback',
+                            message: 'Meta-only fallback: persisting workbook value',
+                            data: {
+                              rowId: capturedRowId,
+                              columnName,
+                              valLen: typeof val === 'string' ? val.length : 0
+                            },
+                            timestamp: Date.now()
+                          })
+                        }).catch(() => {})
+                        // #endregion
+                        onCellChange(capturedRowId, columnName, val)
+                      }
+                    } catch (e) {
+                      // #region agent log
+                      fetch('http://127.0.0.1:7244/ingest/29e4e19a-f86b-4f4e-9c0f-f3ddb4f01625', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          runId: 'long-paste-debug',
+                          hypothesisId: 'META_FALLBACK',
+                          location: 'FortuneSheetGrid.tsx:handleOp:metaOnlyError',
+                          message: 'Meta-only fallback error',
+                          data: { error: String(e) },
+                          timestamp: Date.now()
+                        })
+                      }).catch(() => {})
+                      // #endregion
+                    }
+                  }, 0)
+                }
+                return
+              }
+            }
             if (op.op === 'remove') {
               cellValue = null
+            } else if (cellProp === 'm') {
+              if (typeof cellValue === 'string' || typeof cellValue === 'number' || typeof cellValue === 'boolean') {
+                cellValue = String(cellValue)
+              } else if (cellValue === null || cellValue === undefined) {
+                cellValue = ''
+              } else {
+                cellValue = ''
+              }
             } else {
               const isCellObject = cellValue && typeof cellValue === 'object' && !Array.isArray(cellValue)
               if (isCellObject && 'f' in (cellValue as Record<string, unknown>)) {
                 // Preserve full cell object when it includes a formula
               } else if (isCellObject && 'v' in (cellValue as Record<string, unknown>)) {
-                cellValue = (cellValue as { v: unknown }).v
+                const nextValue = (cellValue as { v: unknown }).v
+                if (
+                  (nextValue === null || nextValue === undefined) &&
+                  'm' in (cellValue as Record<string, unknown>) &&
+                  typeof (cellValue as { m?: unknown }).m === 'string'
+                ) {
+                  // FortuneSheet may carry pasted text in `m` while `v` is null.
+                  cellValue = (cellValue as { m: string }).m
+                } else if (
+                  nextValue === null ||
+                  nextValue === undefined ||
+                  typeof nextValue === 'string' ||
+                  typeof nextValue === 'number' ||
+                  typeof nextValue === 'boolean'
+                ) {
+                  cellValue = nextValue
+                } else if (
+                  nextValue &&
+                  typeof nextValue === 'object' &&
+                  !Array.isArray(nextValue) &&
+                  'v' in (nextValue as Record<string, unknown>)
+                ) {
+                  const nestedValue = (nextValue as { v: unknown }).v
+                  if (
+                    (nestedValue === null || nestedValue === undefined) &&
+                    'm' in (nextValue as Record<string, unknown>) &&
+                    typeof (nextValue as { m?: unknown }).m === 'string'
+                  ) {
+                    cellValue = (nextValue as { m: string }).m
+                  } else if (
+                    nestedValue === null ||
+                    nestedValue === undefined ||
+                    typeof nestedValue === 'string' ||
+                    typeof nestedValue === 'number' ||
+                    typeof nestedValue === 'boolean'
+                  ) {
+                    cellValue = nestedValue
+                  } else if ('m' in (cellValue as Record<string, unknown>)) {
+                    cellValue = String((cellValue as { m?: unknown }).m ?? '')
+                  } else {
+                    cellValue = ''
+                  }
+                } else if ('m' in (cellValue as Record<string, unknown>)) {
+                  // Some paste payloads contain structured value objects; persist visible text.
+                  cellValue = String((cellValue as { m?: unknown }).m ?? '')
+                } else {
+                  cellValue = ''
+                }
+              } else if (isCellObject && 'm' in (cellValue as Record<string, unknown>)) {
+                cellValue = String((cellValue as { m?: unknown }).m ?? '')
               } else if (isCellObject) {
                 cellValue = ''
               }
             }
 
-            // Default: text wrap + auto-expand for pasted/edited text
+            // Default: text wrap + auto-expand for pasted/edited text (skip tracking columns - keep compact)
             if ((op.op === 'replace' || op.op === 'add') && cellValue != null) {
-              const text =
-                typeof cellValue === 'string'
-                  ? cellValue
-                  : cellValue && typeof cellValue === 'object' && 'm' in (cellValue as object)
-                    ? String((cellValue as { m: unknown }).m ?? '')
-                    : String(cellValue)
-              if (text && text.length > 0) {
-                cellsToWrap.push({ row: fortuneSheetRowIndex, col: colIndex, text })
+              const column = columns[colIndex]
+              if (column && !isTrackingColumn(column)) {
+                const text =
+                  typeof cellValue === 'string'
+                    ? cellValue
+                    : cellValue && typeof cellValue === 'object' && 'm' in (cellValue as object)
+                      ? String((cellValue as { m: unknown }).m ?? '')
+                      : String(cellValue)
+                if (text && text.length > 0) {
+                  cellsToWrap.push({ row: fortuneSheetRowIndex, col: colIndex, text })
+                }
               }
             }
 
@@ -795,6 +1381,33 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
             if (rowId && columnId) {
               const column = columns.find(c => c.id === columnId)
               const columnName = column?.name || columnId
+              // #region agent log
+              const cvLen =
+                typeof cellValue === 'string'
+                  ? cellValue.length
+                  : cellValue && typeof cellValue === 'object' && 'm' in (cellValue as object)
+                    ? String((cellValue as { m: unknown }).m).length
+                    : 0
+              fetch('http://127.0.0.1:7244/ingest/29e4e19a-f86b-4f4e-9c0f-f3ddb4f01625', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  runId: 'ltdbg',
+                  hypothesisId: 'H3',
+                  location: 'FortuneSheetGrid.tsx:handleOp:onCellChange',
+                  message: 'handleOp emitting cell value via onCellChange',
+                  data: {
+                    op: op.op,
+                    rowId,
+                    columnName,
+                    cellValueLen: cvLen,
+                    cellValueType: cellValue === null ? 'null' : typeof cellValue,
+                    cellValuePreview: typeof cellValue === 'string' ? cellValue.slice(0, 80) : null
+                  },
+                  timestamp: Date.now()
+                })
+              }).catch(() => {})
+              // #endregion
               onCellChange(rowId, columnName, cellValue)
             }
           }
@@ -940,6 +1553,7 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
           className="fortunesheet-container"
           onMouseUp={handleContainerMouseUp}
           onKeyDown={handleContainerKeyDown}
+          onPasteCapture={handlePasteCapture}
           role="button"
           tabIndex={0}
           aria-label="Spreadsheet grid"

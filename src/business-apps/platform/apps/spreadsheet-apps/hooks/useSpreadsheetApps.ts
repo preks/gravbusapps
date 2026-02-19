@@ -502,10 +502,45 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
       rowId: string,
       updates: Record<string, unknown>
     ): Promise<Record<string, unknown> | null> => {
+      // #region agent log
+      fetch('http://127.0.0.1:7244/ingest/29e4e19a-f86b-4f4e-9c0f-f3ddb4f01625', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          runId: 'paste-refresh-debug-v4',
+          hypothesisId: 'H3',
+          location: 'useSpreadsheetApps.ts:updateRow:entry',
+          message: 'useSpreadsheetApps updateRow called',
+          data: { appId, sheetId, rowId, hasAccessToken: Boolean(accessToken), updateKeys: Object.keys(updates) },
+          timestamp: Date.now()
+        })
+      }).catch(() => {})
+      // #endregion
       if (!accessToken) return null
 
       try {
         const updatedRow = await SpreadsheetApiService.updateRow(appId, sheetId, rowId, updates)
+        // #region agent log
+        fetch('http://127.0.0.1:7244/ingest/29e4e19a-f86b-4f4e-9c0f-f3ddb4f01625', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            runId: 'paste-refresh-debug-v4',
+            hypothesisId: 'H3_H4',
+            location: 'useSpreadsheetApps.ts:updateRow:success',
+            message: 'useSpreadsheetApps updateRow succeeded',
+            data: {
+              appId,
+              sheetId,
+              rowId,
+              returnedRowId: String(
+                (updatedRow as Record<string, unknown>)._id ?? (updatedRow as Record<string, unknown>)._rowUuid ?? ''
+              )
+            },
+            timestamp: Date.now()
+          })
+        }).catch(() => {})
+        // #endregion
 
         if (state.currentApp?.id === appId) {
           setState(prev => ({
@@ -525,6 +560,20 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
 
         return updatedRow
       } catch (error) {
+        // #region agent log
+        fetch('http://127.0.0.1:7244/ingest/29e4e19a-f86b-4f4e-9c0f-f3ddb4f01625', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            runId: 'paste-refresh-debug-v4',
+            hypothesisId: 'H3_H4',
+            location: 'useSpreadsheetApps.ts:updateRow:error',
+            message: 'useSpreadsheetApps updateRow failed',
+            data: { appId, sheetId, rowId, error: error instanceof Error ? error.message : String(error) },
+            timestamp: Date.now()
+          })
+        }).catch(() => {})
+        // #endregion
         console.error('[useSpreadsheetApps] Failed to update row:', error)
         return null
       }

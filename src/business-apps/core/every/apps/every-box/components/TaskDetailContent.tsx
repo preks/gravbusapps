@@ -11,7 +11,7 @@ import { useScreenManagementApi } from '../hooks/useScreenManagementApi'
 import { RemoteScreenLoader } from './RemoteScreenLoader'
 import { LowcoderScreenLoader } from './LowcoderScreenLoader'
 import { useKogitoProcess } from '../hooks/useKogitoProcess'
-import { env } from '@/common/env/EnvUtils'
+import { getCflowEndpoint } from '../../every-api/utils/config'
 import { storeCommunication } from '../../every-api/services/AiService'
 import { UniversalCflowTaskDetails } from './UniversalCflowTaskDetails'
 import { useFlowStepData } from '../hooks/useFlowStepData'
@@ -162,10 +162,8 @@ export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
         }
       } else if (task?.source === 'cflow' && task?.id && userId) {
         try {
-          const flowEngineApi =
-            env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || env('NEXT_PUBLIC_BASE_URL') + '/flow-engine'
-
-          const response = await fetch(`${flowEngineApi}/api/tasks/${task.id}/complete`, {
+          const base = getCflowEndpoint()
+          const response = await fetch(`${base}/api/tasks/${task.id}/complete`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -432,10 +430,8 @@ export const TaskDetailContent: React.FC<TaskDetailContentProps> = ({
     setIsCompleting(true)
 
     try {
-      const flowEngineApi =
-        env('NEXT_PUBLIC_CUSTOM_FLOW_ENGINE_API_URL') || env('NEXT_PUBLIC_BASE_URL') + '/flow-engine'
-
-      const response = await fetch(`${flowEngineApi}/api/tasks/${task.id}/complete`, {
+      const base = getCflowEndpoint()
+      const response = await fetch(`${base}/api/tasks/${task.id}/complete`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

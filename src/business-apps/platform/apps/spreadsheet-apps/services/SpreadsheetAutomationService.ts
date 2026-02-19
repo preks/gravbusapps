@@ -22,6 +22,7 @@ import { isUuid } from '../types/automation'
 import { env } from '@/common/env/EnvUtils'
 import { getFlowEngineBaseUrl } from '@/common/network/flows/flowEngineUrl'
 import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
+import { getSpreadsheetBasePath } from '../utils/spreadsheetPaths'
 
 // Flow engine API base URL for tasks, flows, etc.
 // Develop flow engine uses /api/... (not /api/v1/...) for tasks and flows
@@ -615,6 +616,9 @@ export class SpreadsheetAutomationService {
       templateId: automation.collectionConfig?.templateSpreadsheetId
     })
 
+    // Resolve display names so each copy is named "Template - Recipient Name"
+    const recipientNames = await this.resolveRecipientDisplayNames(recipients)
+
     try {
       // Call the new BE endpoint that handles all duplication and workflow creation
       const response = await fetch(`${docBase}/automations/${backendId}/run`, {
@@ -627,7 +631,8 @@ export class SpreadsheetAutomationService {
           recipients,
           message: automation.collectionConfig?.message,
           baseUrl: (typeof window !== 'undefined' && window.location?.origin) || env('NEXT_PUBLIC_BASE_URL') || '',
-          managerDisplayName: 'Manager'
+          managerDisplayName: 'Manager',
+          recipientNames
         })
       })
 
@@ -716,7 +721,7 @@ export class SpreadsheetAutomationService {
     copyAppId: string
   ): AutomationFlowTemplate {
     const origin = typeof window !== 'undefined' ? window.location.origin : ''
-    const copyUrl = `${origin}/platform/apps/spreadsheet-apps?appId=${encodeURIComponent(copyAppId)}&view=viewer&excel_collection=1`
+    const copyUrl = `${origin}${getSpreadsheetBasePath()}?appId=${encodeURIComponent(copyAppId)}&view=viewer&excel_collection=1`
 
     return {
       type: 'TEMPLATE',
@@ -1795,8 +1800,13 @@ export class SpreadsheetAutomationService {
         completedCount: data.completedResults?.length || 0
       })
 
-      // If aggregate-bulk returns empty results, fall back to flow-based query
+      // If aggregate-bulk returns empty results, fall back to flow-based query ONLY for bulk_collection.
+      // For excel_collection the document-service is the source of truth; an empty response means
+      // no submissions yet and we must NOT hit the flow engine (which may not track these workflows).
       if (!data.completedResults || data.completedResults.length === 0) {
+        if (params.automationType === 'excel_collection') {
+          return []
+        }
         console.log('[SpreadsheetAutomationService] aggregate-bulk returned empty, using fallback')
         return this.fetchBulkResponsesFromFlows({
           ...params,
@@ -1807,23 +1817,82 @@ export class SpreadsheetAutomationService {
       return (data.completedResults || []).map((result: Record<string, unknown>) => {
         const outputData = (result.outputData as Record<string, unknown>) || {}
         const tags = (result.tags as Record<string, string>) || {}
-        const responderId =
+        const outputContext = (outputData.context as Record<string, unknown>) || {}
+        const formDataBase = (outputData.formData as Record<string, unknown>) || outputData
+
+        const workflowId = String(
+          result.workflowId ||
+            result.flowId ||
+            result.id ||
+            (result.data as Record<string, unknown> | undefined)?.workflowId ||
+            ''
+        ).trim()
+
+        const responderIdRaw =
           (outputData.responderId as string) ||
           (outputData.userId as string) ||
           (outputData.recipientId as string) ||
           (outputData.assignedTo as string) ||
+          (outputData.ownerId as string) ||
+          (formDataBase.responderId as string) ||
+          (formDataBase.recipientId as string) ||
+          (formDataBase.userId as string) ||
+          (formDataBase.ownerId as string) ||
           tags.recipientId ||
+          tags.userId ||
+          tags.ownerId ||
           ''
-        let formData = (outputData.formData as Record<string, unknown>) || outputData
-        // For excel_collection, copyAppId lives in flow tags – merge into formData for View Response link
-        if (params.automationType === 'excel_collection' && tags.copyAppId) {
-          formData = { ...formData, copyAppId: tags.copyAppId }
+        const responderId = responderIdRaw && String(responderIdRaw).trim() ? String(responderIdRaw).trim() : ''
+
+        let formData = formDataBase
+        if (params.automationType === 'excel_collection') {
+          const copyAppId = String(
+            tags.copyAppId ||
+              tags.copy_app_id ||
+              (outputData.copyAppId as string) ||
+              (outputData.copy_app_id as string) ||
+              (outputContext.copyAppId as string) ||
+              (outputContext.copy_app_id as string) ||
+              (formDataBase.copyAppId as string) ||
+              (formDataBase.copy_app_id as string) ||
+              ''
+          ).trim()
+          const copyUrl = String(
+            (outputData.copyUrl as string) ||
+              (outputData.copyURL as string) ||
+              (outputData.copyLink as string) ||
+              (outputData.copy_link as string) ||
+              (outputContext.copyUrl as string) ||
+              (outputContext.copyURL as string) ||
+              (outputContext.copyLink as string) ||
+              (outputContext.copy_link as string) ||
+              (formDataBase.copyUrl as string) ||
+              (formDataBase.copyURL as string) ||
+              (formDataBase.copyLink as string) ||
+              (formDataBase.copy_link as string) ||
+              ''
+          ).trim()
+          if (copyAppId || copyUrl) {
+            formData = {
+              ...formData,
+              ...(copyAppId ? { copyAppId } : {}),
+              ...(copyUrl ? { copyUrl } : {})
+            }
+          }
         }
+
         return {
-          workflowId: result.workflowId as string,
-          responderId: responderId && String(responderId).trim() ? String(responderId).trim() : '',
-          responderName: (outputData.responderName as string) || 'Unknown',
-          responderEmail: outputData.responderEmail as string,
+          workflowId,
+          responderId,
+          responderName:
+            (outputData.responderName as string) ||
+            (formDataBase.responderName as string) ||
+            (outputData.ownerName as string) ||
+            'Unknown',
+          responderEmail:
+            (outputData.responderEmail as string) ||
+            (formDataBase.responderEmail as string) ||
+            (outputData.ownerEmail as string),
           submittedAt: (result.completedAt as string) || new Date().toISOString(),
           formData,
           status: 'COMPLETED'
@@ -2157,6 +2226,9 @@ export class SpreadsheetAutomationService {
       if (!tasksRes.ok) {
         const err = await tasksRes.text()
         console.error('[SpreadsheetAutomationService] Failed to fetch user tasks:', tasksRes.status, err)
+        // Flow-engine unavailable (e.g. 503) - attempt document-service fallback before giving up
+        const marked = await this.markDocumentRunSubmissionComplete(copyAppId)
+        if (marked) return { success: true }
         return { success: false, error: 'Failed to load your task' }
       }
 
@@ -2282,6 +2354,38 @@ export class SpreadsheetAutomationService {
       chunks.push(array.slice(i, i + size))
     }
     return chunks
+  }
+
+  /**
+   * Resolve a list of user IDs to a { [userId]: displayName } map.
+   * Used to name each collection copy "Template - Recipient Name" instead of "Template (Copy)".
+   */
+  private async resolveRecipientDisplayNames(userIds: string[]): Promise<Record<string, string>> {
+    if (!userIds.length) return {}
+    const query = `
+      query GetEmployeeDisplayNames($userIds: [String!]!) {
+        Employee(where: { userId: { _in: $userIds }, isDeleted: { _eq: false } }) {
+          userId
+          firstName
+          lastName
+          displayName
+        }
+      }
+    `
+    try {
+      const result = (await this.executeGraphQLQuery(query, { userIds })) as {
+        Employee?: Array<{ userId?: string; firstName?: string; lastName?: string; displayName?: string }>
+      } | null
+      const names: Record<string, string> = {}
+      for (const emp of result?.Employee || []) {
+        if (!emp.userId) continue
+        const name = emp.displayName || `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || emp.userId
+        names[emp.userId] = name
+      }
+      return names
+    } catch {
+      return {}
+    }
   }
 
   /**

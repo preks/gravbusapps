@@ -64,9 +64,9 @@ export function createConversionContext(
     indexToExcelCol.set(index, excelCol)
   })
 
-  // Map rows (use _id or generate index-based ID)
+  // Map rows (prefer stable UI id; fall back to backend UUID/id)
   data.forEach((row, index) => {
-    const rowId = (row._id as string) || `row_${index}`
+    const rowId = String(row._id ?? row._rowUuid ?? row.id ?? `row_${index}`)
     rowIdToIndex.set(rowId, index)
     rowIndexToId.set(index, rowId)
   })
@@ -307,11 +307,28 @@ export function convertToFortuneSheet(
         } else {
           displayValue = String(value ?? '')
         }
+        // Use tb: 0 (no wrap) for short-content columns to prevent row height auto-expansion
+        const isTrackingCol =
+          column.name?.startsWith('_') ||
+          column.type === 'image' ||
+          column.type === 'date' ||
+          column.type === 'datetime' ||
+          column.type === 'url'
+        const textWrap = isTrackingCol ? 0 : 2
         cell = {
           v: value as any,
           m: displayValue,
           ct: getFortuneSheetCellType(column.type),
-          tb: 2 // Text wrap by default - expand cell to show full content
+          tb: textWrap
+        }
+        // Center-align avatar/image cells for consistent layout
+        if (column.type === 'image') {
+          cell.ht = 1
+          cell.vt = 1
+        }
+        // Right-align date/datetime columns (spreadsheet convention)
+        if (column.type === 'date' || column.type === 'datetime') {
+          cell.ht = 2
         }
         // Badge-like styling for workflow status and columns named/labeled as status
         const isStatusCol =
@@ -327,6 +344,7 @@ export function convertToFortuneSheet(
             cell.ht = 1 // center horizontal
             cell.vt = 1 // center vertical
             cell.bl = 1 // bold for badge emphasis
+            cell.tb = 0 // no wrap - keep badge on one line
           }
         }
         celldata.push({
@@ -339,8 +357,8 @@ export function convertToFortuneSheet(
   })
 
   // Build column width config - set custom widths for our defined columns
-  // Image/avatar columns need min width (56) so avatar centers with proper spacing
-  const MIN_AVATAR_COL_WIDTH = 56
+  // Image/avatar columns need min width so avatars center with proper spacing
+  const MIN_AVATAR_COL_WIDTH = 64
   const columnlen: Record<string, number> = {}
   columns.forEach((column, index) => {
     const baseWidth = column.width ?? 100
@@ -352,7 +370,9 @@ export function convertToFortuneSheet(
   // Image coordinates use cell-area space (visibledatacolumn/visibledatarow) - no row/col header offsets
   const AVATAR_SIZE = 24
   const defaultColWidth = 100
-  const defaultRowHeight = 25
+  const defaultRowHeight = 19 // Match FortuneSheet default for consistency
+  /** Compact height for data rows - fits avatars (24px) and single-line text without excessive padding */
+  const DATA_ROW_HEIGHT = 30
 
   const images: Array<{
     id: string
@@ -379,9 +399,9 @@ export function convertToFortuneSheet(
           (src.startsWith('data:') || src.startsWith('http://') || src.startsWith('https://') || src.startsWith('/'))
         if (isValidSrc) {
           const fsRow = rowIndex + HEADER_ROW_OFFSET
-          const cellTop = fsRow * defaultRowHeight
+          const cellTop = defaultRowHeight + rowIndex * DATA_ROW_HEIGHT
           const cellLeft = cumulativeLeft
-          const top = cellTop + (defaultRowHeight - AVATAR_SIZE) / 2
+          const top = cellTop + (DATA_ROW_HEIGHT - AVATAR_SIZE) / 2
           const left = cellLeft + (colWidth - AVATAR_SIZE) / 2
           images.push({
             id: `avatar_${fsRow}_${colIndex}_${rowIndex}`,
@@ -402,10 +422,18 @@ export function convertToFortuneSheet(
   // Ensure celldata is always a valid array (never undefined/null)
   const safeCelldata = Array.isArray(celldata) ? celldata : []
 
+  // Set consistent row heights for header and data rows (prevents FortuneSheet auto-expansion)
+  const rowlen: Record<string, number> = {
+    '0': 28 // Header row - compact single-line height
+  }
+  data.forEach((_, rowIndex) => {
+    rowlen[String(rowIndex + HEADER_ROW_OFFSET)] = DATA_ROW_HEIGHT
+  })
+
   // Ensure config is always a valid object (FortuneSheet expects `{}` not null/undefined)
   const safeConfig: NonNullable<FortuneSheetConfig['config']> = {
     merge: {},
-    rowlen: {},
+    rowlen: Object.keys(rowlen).length > 0 ? rowlen : {},
     columnlen: {},
     rowhidden: sheet.settings?.fortuneSheetFilterState?.rowhidden ?? {},
     colhidden: {},
@@ -454,7 +482,7 @@ export function convertToFortuneSheet(
     // Excel-like dimensions - MUST be positive integers
     row: Math.max(1, excelRows),
     column: Math.max(1, excelColumns),
-    defaultRowHeight: 25, // Excel default is ~25px
+    defaultRowHeight: defaultRowHeight, // 19px - FortuneSheet default, prevents oversized rows
     defaultColWidth: 100, // Excel default column width
     // celldata MUST be an array (can be empty)
     celldata: safeCelldata,

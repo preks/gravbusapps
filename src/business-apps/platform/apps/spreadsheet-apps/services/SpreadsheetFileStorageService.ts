@@ -441,11 +441,26 @@ export class SpreadsheetFileStorageService {
       }
     }
 
-    // Try local index
+    // Try local index (own apps)
     const index = await this.getIndex()
     const entry = index.apps.find(a => a.id === id)
 
+    // If not in own index, try shared apps (e.g. excel collection copies shared with this user)
     if (!entry) {
+      try {
+        const sharedApps = await this.syncService.getSharedApps()
+        const shared = sharedApps.find(a => a.appId === id)
+        if (shared?.filePath) {
+          debugLog('[SpreadsheetStorage] Loading from shared apps:', id)
+          app = await this.readJsonFileByPath<SpreadsheetApp>(shared.filePath)
+          if (app && app.id === id) {
+            // Verify: shared entry implies recipient has access
+            return app
+          }
+        }
+      } catch (e) {
+        console.warn('[SpreadsheetStorage] Failed to load from shared apps:', e)
+      }
       console.warn('[SpreadsheetStorage] App not found in index:', id)
       return null
     }
