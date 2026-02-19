@@ -234,7 +234,7 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
   const totalPages = Math.ceil(rowsTotal / (activeSheet?.settings.rowsPerPage || 50))
 
   return (
-    <div className="gba:flex gba:flex-col gba:flex-1 gba:min-h-0 gba:overflow-hidden" data-testid={testId}>
+    <div className="gba:flex gba:flex-col gba:flex-1 gba:min-h-0 gba:min-w-0 gba:overflow-hidden" data-testid={testId}>
       {activeSheet && (
         <BoardViewerTabs
           views={activeSheet.views}
@@ -251,7 +251,7 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
         />
       )}
 
-      <div className="gba:flex-1 gba:relative gba:min-h-0 gba:overflow-auto">
+      <div className="gba:flex-1 gba:relative gba:min-h-0 gba:min-w-0 gba:overflow-auto">
         {rowsLoading && rows.length === 0 ? (
           <div className="gba:flex gba:items-center gba:justify-center gba:py-16">
             <Spinner size="lg" />

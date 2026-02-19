@@ -273,7 +273,10 @@ export const BoardsHub: React.FC<BoardsHubProps> = ({
   ]
 
   return (
-    <div className="gba:h-full gba:flex gba:flex-col gba:overflow-hidden" data-testid={testId}>
+    <div
+      className="gba:h-full gba:w-full gba:max-w-full gba:flex gba:flex-col gba:overflow-hidden"
+      data-testid={testId}
+    >
       <CreateHeroHeader
         icon={LayoutGrid}
         appLabel="Boards"
