@@ -953,9 +953,12 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
             op.path.length >= 3 &&
             op.path[0] === 'data'
           ) {
-            // Ignore deep nested property ops (e.g. ['data', r, c, 'ct', 's']).
-            // Only cell-level ops (len 3) and direct cell properties (len 4) should persist.
-            if (op.path.length > 4) {
+            // Ignore most deep nested property ops (e.g. ['data', r, c, 'ct', 's']).
+            // Keep background-color updates even when emitted as nested paths
+            // (e.g. ['data', r, c, 'v', 'bg']) so fill/highlight survives refresh.
+            const deepProp = op.path.length > 4 ? String(op.path[op.path.length - 1]) : null
+            const isNestedBackgroundOp = deepProp === 'bg'
+            if (op.path.length > 4 && !isNestedBackgroundOp) {
               // #region agent log
               fetch('http://127.0.0.1:7244/ingest/29e4e19a-f86b-4f4e-9c0f-f3ddb4f01625', {
                 method: 'POST',
@@ -1048,11 +1051,11 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
             // but we don't persist them to avoid complexity
             // path.length === 4 means: ['data', row, col, 'property'] → specific property change
             let cellProp: string = 'v'
-            if (op.path.length === 4) {
-              cellProp = String(op.path[3])
-              // Persist 'v' (value), 'f' (formula), and 'm' (display text) changes.
-              // Some paste flows emit text primarily through `m`.
-              if (cellProp !== 'v' && cellProp !== 'f' && cellProp !== 'm') {
+            if (op.path.length >= 4) {
+              cellProp = op.path.length > 4 ? String(op.path[op.path.length - 1]) : String(op.path[3])
+              // Persist value and selected formatting changes.
+              // `bg` (cell background color) must persist across refreshes.
+              if (cellProp !== 'v' && cellProp !== 'f' && cellProp !== 'm' && cellProp !== 'bg') {
                 return
               }
             }
@@ -1385,12 +1388,44 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
             if (rowId && columnId) {
               const column = columns.find(c => c.id === columnId)
               const columnName = column?.name || columnId
+              let persistedCellValue = cellValue
+
+              if (cellProp === 'bg') {
+                const existingRaw = data[rowIndex]?.[columnName]
+                let baseCell: Record<string, unknown>
+                if (existingRaw && typeof existingRaw === 'object' && !Array.isArray(existingRaw)) {
+                  const existingObject = existingRaw as Record<string, unknown>
+                  if ('v' in existingObject || 'f' in existingObject || 'm' in existingObject) {
+                    baseCell = { ...existingObject }
+                  } else {
+                    baseCell = { v: '', m: '' }
+                  }
+                } else if (
+                  typeof existingRaw === 'string' ||
+                  typeof existingRaw === 'number' ||
+                  typeof existingRaw === 'boolean'
+                ) {
+                  baseCell = { v: existingRaw, m: String(existingRaw) }
+                } else {
+                  baseCell = { v: '', m: '' }
+                }
+
+                if (op.op === 'remove' || op.value === null || op.value === undefined || op.value === '') {
+                  delete baseCell.bg
+                } else {
+                  baseCell.bg = op.value
+                }
+
+                persistedCellValue = baseCell
+              }
               // #region agent log
               const cvLen =
-                typeof cellValue === 'string'
-                  ? cellValue.length
-                  : cellValue && typeof cellValue === 'object' && 'm' in (cellValue as object)
-                    ? String((cellValue as { m: unknown }).m).length
+                typeof persistedCellValue === 'string'
+                  ? persistedCellValue.length
+                  : persistedCellValue &&
+                      typeof persistedCellValue === 'object' &&
+                      'm' in (persistedCellValue as object)
+                    ? String((persistedCellValue as { m: unknown }).m).length
                     : 0
               fetch('http://127.0.0.1:7244/ingest/29e4e19a-f86b-4f4e-9c0f-f3ddb4f01625', {
                 method: 'POST',
@@ -1405,14 +1440,14 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
                     rowId,
                     columnName,
                     cellValueLen: cvLen,
-                    cellValueType: cellValue === null ? 'null' : typeof cellValue,
-                    cellValuePreview: typeof cellValue === 'string' ? cellValue.slice(0, 80) : null
+                    cellValueType: persistedCellValue === null ? 'null' : typeof persistedCellValue,
+                    cellValuePreview: typeof persistedCellValue === 'string' ? persistedCellValue.slice(0, 80) : null
                   },
                   timestamp: Date.now()
                 })
               }).catch(() => {})
               // #endregion
-              onCellChange(rowId, columnName, cellValue)
+              onCellChange(rowId, columnName, persistedCellValue)
             }
           }
 
@@ -1494,6 +1529,82 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
         // Apply text wrap + auto-expand to pasted/edited cells
         if (cellsToWrap.length > 0) {
           setTimeout(() => applyTextWrapAndExpand(cellsToWrap), 0)
+        }
+
+        // Fallback persistence for background highlight (fill color).
+        // Some FortuneSheet range-fill actions emit ops that don't carry all changed
+        // cells explicitly. After bg-related ops, reconcile workbook cell bg against
+        // local data and persist diffs so colors survive refresh.
+        const hasBackgroundFormattingOp = ops.some(op => {
+          const pathHasBg = op.path.some(segment => String(segment) === 'bg')
+          const valueHasBg =
+            op.value &&
+            typeof op.value === 'object' &&
+            !Array.isArray(op.value) &&
+            'bg' in (op.value as Record<string, unknown>)
+          return pathHasBg || valueHasBg
+        })
+        if (hasBackgroundFormattingOp && onCellChange) {
+          setTimeout(() => {
+            try {
+              const currentSheet = workbookRef.current?.getSheet() as any
+              const workbookData = currentSheet?.data
+              if (!Array.isArray(workbookData)) return
+
+              for (let rowIndex = 0; rowIndex < data.length; rowIndex += 1) {
+                const rowId = context.rowIndexToId.get(rowIndex)
+                if (!rowId) continue
+
+                const fortuneSheetRow = rowIndex + HEADER_ROW_OFFSET
+                for (let colIndex = 0; colIndex < columns.length; colIndex += 1) {
+                  const columnId = context.columnIndexToId.get(colIndex)
+                  if (!columnId) continue
+
+                  const column = columns.find(c => c.id === columnId)
+                  const columnName = column?.name || columnId
+
+                  const localRaw = data[rowIndex]?.[columnName]
+                  const workbookRaw = workbookData?.[fortuneSheetRow]?.[colIndex] ?? null
+
+                  const localBg =
+                    localRaw && typeof localRaw === 'object' && !Array.isArray(localRaw) && 'bg' in localRaw
+                      ? (localRaw as Record<string, unknown>).bg
+                      : null
+                  const workbookBg =
+                    workbookRaw && typeof workbookRaw === 'object' && !Array.isArray(workbookRaw) && 'bg' in workbookRaw
+                      ? (workbookRaw as Record<string, unknown>).bg
+                      : null
+
+                  if ((localBg ?? null) === (workbookBg ?? null)) continue
+
+                  let nextPersistValue: unknown = workbookRaw
+                  if (workbookRaw && typeof workbookRaw === 'object' && !Array.isArray(workbookRaw)) {
+                    const workbookObject = workbookRaw as Record<string, unknown>
+                    if ('v' in workbookObject || 'f' in workbookObject || 'm' in workbookObject) {
+                      nextPersistValue = { ...workbookObject }
+                    }
+                  } else if (workbookRaw === null || workbookRaw === undefined) {
+                    if (localRaw && typeof localRaw === 'object' && !Array.isArray(localRaw)) {
+                      const localObject = localRaw as Record<string, unknown>
+                      if ('v' in localObject || 'f' in localObject || 'm' in localObject) {
+                        const withoutBg = { ...localObject }
+                        delete (withoutBg as { bg?: unknown }).bg
+                        nextPersistValue = withoutBg
+                      } else {
+                        nextPersistValue = ''
+                      }
+                    } else {
+                      nextPersistValue = localRaw ?? ''
+                    }
+                  }
+
+                  onCellChange(rowId, columnName, nextPersistValue)
+                }
+              }
+            } catch {
+              // Workbook not ready or unsupported data shape
+            }
+          }, 0)
         }
 
         // Capture filter state changes for persistence across refreshes.

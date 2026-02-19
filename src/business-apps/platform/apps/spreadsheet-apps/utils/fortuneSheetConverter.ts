@@ -103,11 +103,20 @@ function getCellValue(row: Record<string, unknown>, column: SpreadsheetColumn): 
 
   // Handle FortuneSheet cell objects - preserve full object when it contains a formula
   if (value && typeof value === 'object' && !Array.isArray(value)) {
-    if ('f' in (value as Record<string, unknown>)) {
+    const valueObject = value as Record<string, unknown>
+    if ('f' in valueObject) {
       return value
     }
-    if ('v' in (value as Record<string, unknown>)) {
-      return (value as Record<string, unknown>).v
+    if ('v' in valueObject) {
+      const hasFormattingMetadata = ['bg', 'fc', 'bl', 'it', 'vt', 'ht', 'tb', 'ff', 'fs', 'cl', 'ul', 'strike'].some(
+        key => key in valueObject
+      )
+
+      if (hasFormattingMetadata) {
+        return value
+      }
+
+      return valueObject.v
     }
   }
 

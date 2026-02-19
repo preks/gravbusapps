@@ -61,8 +61,17 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     if (!rawValue || typeof rawValue !== 'object' || Array.isArray(rawValue)) return ''
 
     const cellObject = rawValue as Record<string, unknown>
+    const hasFormattingMetadata = ['bg', 'fc', 'bl', 'it', 'vt', 'ht', 'tb', 'ff', 'fs', 'cl', 'ul', 'strike'].some(
+      key => key in cellObject
+    )
+
     if ('f' in cellObject) {
       // Keep formula objects intact for calculated cells.
+      return rawValue
+    }
+
+    if (hasFormattingMetadata && ('v' in cellObject || 'm' in cellObject)) {
+      // Keep styled FortuneSheet cell objects intact (e.g. background color).
       return rawValue
     }
 

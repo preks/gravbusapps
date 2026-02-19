@@ -13,12 +13,53 @@ import { sanitizeFilename } from '@/common/utils/textUtils'
 // Cell formatting
 // ---------------------------------------------------------------------------
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  Boolean(value) && typeof value === 'object' && !Array.isArray(value)
+
+const normalizeHexToArgb = (value: unknown): string | null => {
+  if (typeof value !== 'string') return null
+  const trimmed = value.trim()
+  if (!trimmed.startsWith('#')) return null
+  const hex = trimmed.slice(1)
+  if (hex.length === 3 && /^[0-9a-fA-F]{3}$/.test(hex)) {
+    const expanded = hex
+      .split('')
+      .map(ch => `${ch}${ch}`)
+      .join('')
+      .toUpperCase()
+    return `FF${expanded}`
+  }
+  if (hex.length === 6 && /^[0-9a-fA-F]{6}$/.test(hex)) {
+    return `FF${hex.toUpperCase()}`
+  }
+  return null
+}
+
+const extractExportCell = (value: unknown): { text: string; bgArgb?: string } => {
+  if (isRecord(value) && ('v' in value || 'm' in value || 'f' in value || 'bg' in value)) {
+    const display =
+      typeof value.m === 'string'
+        ? value.m
+        : value.v === null || value.v === undefined
+          ? ''
+          : typeof value.v === 'string' || typeof value.v === 'number' || typeof value.v === 'boolean'
+            ? String(value.v)
+            : ''
+    const bgArgb = normalizeHexToArgb(value.bg)
+    return { text: display, bgArgb: bgArgb ?? undefined }
+  }
+  return { text: formatCellValue(value) }
+}
+
 /** Formats a cell value for display in exports (handles null, Date, arrays, booleans, objects). */
 export const formatCellValue = (value: unknown): string => {
   if (value === null || value === undefined) return ''
   if (value instanceof Date) return value.toISOString().split('T')[0]
   if (Array.isArray(value)) return value.map(item => formatCellValue(item)).join(', ')
   if (typeof value === 'boolean') return value ? 'Yes' : 'No'
+  if (isRecord(value) && ('v' in value || 'm' in value || 'f' in value || 'bg' in value)) {
+    return extractExportCell(value).text
+  }
   if (typeof value === 'object') return JSON.stringify(value)
   return String(value)
 }
@@ -100,10 +141,26 @@ export const buildExcelWorkbook = (
   // Add data rows
   data.forEach(row => {
     const rowData: Record<string, string> = {}
+    const rowCellStyles: Array<{ colIndex: number; bgArgb: string }> = []
     columns.forEach(col => {
-      rowData[col.key] = formatCellValue(row[col.key])
+      const parsedCell = extractExportCell(row[col.key])
+      rowData[col.key] = parsedCell.text
+      if (parsedCell.bgArgb) {
+        const colIndex = columns.findIndex(c => c.key === col.key)
+        if (colIndex >= 0) {
+          rowCellStyles.push({ colIndex, bgArgb: parsedCell.bgArgb })
+        }
+      }
     })
-    worksheet.addRow(rowData)
+    const addedRow = worksheet.addRow(rowData)
+    rowCellStyles.forEach(({ colIndex, bgArgb }) => {
+      const cell = addedRow.getCell(colIndex + 1)
+      cell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: bgArgb }
+      }
+    })
   })
 
   // Auto-fit column widths (capped at 50)
