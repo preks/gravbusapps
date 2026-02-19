@@ -146,6 +146,7 @@ export async function exportTableToPdf(
         doc.fontSize(14).font('Helvetica-Bold').text(`${title}${suffix}`, margin, y)
         y += 28
         drawHeader()
+        doc.font('Helvetica').fontSize(cellFontSize)
       }
     }
 
