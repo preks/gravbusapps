@@ -190,7 +190,7 @@ function getFortuneSheetCellType(columnType: ColumnType): FortuneSheetCell['ct']
     case 'number':
     case 'currency':
     case 'percentage':
-      return { t: 'n', fa: columnType === 'currency' ? '$#,##0.00' : columnType === 'percentage' ? '0.00%' : '0.00' }
+      return { t: 'n', fa: columnType === 'currency' ? '€#,##0.00' : columnType === 'percentage' ? '0.00%' : '0.00' }
     case 'date':
       return { t: 'd', fa: 'yyyy-MM-dd' }
     case 'datetime':
@@ -368,9 +368,22 @@ export function convertToFortuneSheet(
   // Build column width config - set custom widths for our defined columns
   // Image/avatar columns need min width so avatars center with proper spacing
   const MIN_AVATAR_COL_WIDTH = 64
+  const DEFAULT_STATUS_COL_WIDTH = 56
+  const LEGACY_DEFAULT_COL_WIDTH = 100
   const columnlen: Record<string, number> = {}
   columns.forEach((column, index) => {
-    const baseWidth = column.width ?? 100
+    const isStatusCol =
+      column.type === 'workflow_status' ||
+      column.name === '_workflow_status' ||
+      /status/i.test(column.name) ||
+      (column.label && /status/i.test(column.label))
+    const hasLegacyDefaultWidth = isStatusCol && column.width === LEGACY_DEFAULT_COL_WIDTH
+    const baseWidth =
+      column.width === undefined || column.width === null || hasLegacyDefaultWidth
+        ? isStatusCol
+          ? DEFAULT_STATUS_COL_WIDTH
+          : LEGACY_DEFAULT_COL_WIDTH
+        : column.width
     const width = column.type === 'image' ? Math.max(MIN_AVATAR_COL_WIDTH, baseWidth) : baseWidth
     columnlen[String(index)] = width
   })
@@ -460,17 +473,31 @@ export function convertToFortuneSheet(
   // This means FortuneSheet's initialization is failing completely.
   //
   // Let's ensure we provide a minimal valid structure that FortuneSheet can initialize from.
+  const defaultSelection: {
+    row: number[]
+    column: number[]
+    row_focus: number
+    column_focus: number
+  } = {
+    // Prevent "A1:NaN" on first render by providing a concrete initial selection.
+    // FortuneSheet can emit invalid range text when selection arrays are empty.
+    row: [0, 0],
+    column: [0, 0],
+    row_focus: 0,
+    column_focus: 0
+  }
+
   const luckysheetSelectSave: Array<{
     row: number[]
     column: number[]
     row_focus?: number
     column_focus?: number
-  }> = [] // Empty array as per FortuneSheet docs
+  }> = [defaultSelection]
 
   const luckysheetSelectionRange: Array<{
     row: number[]
     column: number[]
-  }> = [] // Empty array as per FortuneSheet docs
+  }> = [{ row: [0, 0], column: [0, 0] }]
 
   // Build the complete sheet configuration object
   // All properties must be present and in the correct format for FortuneSheet to initialize properly

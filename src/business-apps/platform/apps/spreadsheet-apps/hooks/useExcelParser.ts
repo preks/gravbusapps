@@ -31,6 +31,21 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
 }
 
+function normalizeColorToHex(value: unknown): string | null {
+  if (!isRecord(value) || typeof value.argb !== 'string') return null
+  const argb = value.argb.trim()
+  if (!/^[0-9a-fA-F]{8}$/.test(argb)) return null
+  // ExcelJS stores ARGB (AARRGGBB). FortuneSheet expects #RRGGBB.
+  return `#${argb.slice(2).toLowerCase()}`
+}
+
+function extractCellBackgroundHex(cell: ExcelJS.Cell): string | null {
+  const fill = cell.fill
+  if (!fill || fill.type !== 'pattern' || fill.pattern !== 'solid') return null
+  if (!('fgColor' in fill)) return null
+  return normalizeColorToHex(fill.fgColor)
+}
+
 function normalizeExcelJsCellValue(value: unknown): NormalizedCellValue {
   if (value === null || value === undefined) return null
 
@@ -110,8 +125,9 @@ function buildParsedSheetFromAoa(params: {
   headers: string[]
   dataRows: unknown[][]
   formulaByColumnIndex?: Record<number, string | undefined>
+  backgroundByCell?: Record<string, string | undefined>
 }): ParsedSheet {
-  const { name, index, headers, dataRows, formulaByColumnIndex } = params
+  const { name, index, headers, dataRows, formulaByColumnIndex, backgroundByCell } = params
 
   const isEmpty = headers.length === 0 || (dataRows.length === 0 && headers.every(h => !h))
   if (isEmpty) {
@@ -151,10 +167,20 @@ function buildParsedSheetFromAoa(params: {
     }
   })
 
-  const rows = dataRows.map(row => {
+  const rows = dataRows.map((row, rowIndex) => {
     const rowObj: Record<string, unknown> = {}
     headers.forEach((header, i) => {
-      rowObj[header] = row?.[i] ?? null
+      const value = row?.[i] ?? null
+      const backgroundHex = backgroundByCell?.[`${rowIndex}:${i}`]
+      if (backgroundHex) {
+        rowObj[header] = {
+          v: value,
+          m: value === null || value === undefined ? '' : String(value),
+          bg: backgroundHex
+        }
+      } else {
+        rowObj[header] = value
+      }
     })
     return rowObj
   })
@@ -199,20 +225,29 @@ async function parseXlsxArrayBuffer(arrayBuffer: ArrayBuffer): Promise<{
     }
 
     const dataRows: unknown[][] = []
+    const backgroundByCell: Record<string, string | undefined> = {}
     const startRow = 2
     const endRow = worksheet.actualRowCount > 0 ? worksheet.actualRowCount : worksheet.rowCount
 
     for (let rowNum = startRow; rowNum <= endRow; rowNum++) {
       const row = worksheet.getRow(rowNum)
       const rowValues: unknown[] = []
+      const rowBackgrounds: Array<string | undefined> = []
       for (let col = 1; col <= maxColumns; col++) {
         const cell = row.getCell(col)
         rowValues[col - 1] = normalizeExcelJsCellValue(cell.value)
+        rowBackgrounds[col - 1] = extractCellBackgroundHex(cell) ?? undefined
       }
 
       const hasData = rowValues.some(v => v !== null && v !== undefined && v !== '')
-      if (hasData) {
+      const hasBackground = rowBackgrounds.some(Boolean)
+      if (hasData || hasBackground) {
+        const parsedRowIndex = dataRows.length
         dataRows.push(rowValues)
+        rowBackgrounds.forEach((backgroundHex, colIndex) => {
+          if (!backgroundHex) return
+          backgroundByCell[`${parsedRowIndex}:${colIndex}`] = backgroundHex
+        })
       }
     }
 
@@ -230,7 +265,8 @@ async function parseXlsxArrayBuffer(arrayBuffer: ArrayBuffer): Promise<{
       index,
       headers,
       dataRows,
-      formulaByColumnIndex
+      formulaByColumnIndex,
+      backgroundByCell
     })
   })
 

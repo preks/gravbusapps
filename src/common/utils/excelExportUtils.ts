@@ -105,22 +105,47 @@ export interface ExcelColumn {
   key: string
 }
 
-/**
- * Creates an ExcelJS workbook with a single styled worksheet, populates it
- * with the given columns and data rows, and returns the workbook.
- */
-export const buildExcelWorkbook = (
-  sheetName: string,
+const EXCEL_SHEET_NAME_MAX_LENGTH = 31
+
+const sanitizeSheetName = (name: string, fallback: string): string => {
+  const cleaned = name
+    .replace(/[\\/?*:[\]]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+  const baseName = cleaned || fallback
+  return baseName.slice(0, EXCEL_SHEET_NAME_MAX_LENGTH)
+}
+
+const buildUniqueSheetName = (requestedName: string, usedNames: Set<string>, index: number): string => {
+  const fallback = `Sheet ${index + 1}`
+  const baseName = sanitizeSheetName(requestedName, fallback)
+  if (!usedNames.has(baseName)) {
+    usedNames.add(baseName)
+    return baseName
+  }
+
+  let counter = 2
+  while (counter < 1000) {
+    const suffix = ` (${counter})`
+    const candidateBase = baseName.slice(0, EXCEL_SHEET_NAME_MAX_LENGTH - suffix.length).trim() || fallback
+    const candidate = `${candidateBase}${suffix}`
+    if (!usedNames.has(candidate)) {
+      usedNames.add(candidate)
+      return candidate
+    }
+    counter++
+  }
+
+  const guaranteed = `${fallback} (${index + 1})`.slice(0, EXCEL_SHEET_NAME_MAX_LENGTH)
+  usedNames.add(guaranteed)
+  return guaranteed
+}
+
+const populateWorksheet = (
+  worksheet: ExcelJS.Worksheet,
   columns: ExcelColumn[],
-  data: Record<string, unknown>[],
-  creator: string = 'NEWWORK'
-): ExcelJS.Workbook => {
-  const workbook = new ExcelJS.Workbook()
-  workbook.creator = creator
-  workbook.created = new Date()
-
-  const worksheet = workbook.addWorksheet(sheetName)
-
+  data: Record<string, unknown>[]
+): void => {
   // Configure columns with headers and initial width
   worksheet.columns = columns.map(col => ({
     header: col.header,
@@ -173,8 +198,48 @@ export const buildExcelWorkbook = (
     })
     column.width = Math.min(maxLength + 2, 50)
   })
+}
+
+/**
+ * Creates an ExcelJS workbook with a single styled worksheet, populates it
+ * with the given columns and data rows, and returns the workbook.
+ */
+export const buildExcelWorkbook = (
+  sheetName: string,
+  columns: ExcelColumn[],
+  data: Record<string, unknown>[],
+  creator: string = 'NEWWORK'
+): ExcelJS.Workbook => {
+  const workbook = new ExcelJS.Workbook()
+  workbook.creator = creator
+  workbook.created = new Date()
+
+  const worksheet = workbook.addWorksheet(sanitizeSheetName(sheetName, 'Sheet 1'))
+  populateWorksheet(worksheet, columns, data)
 
   return workbook
+}
+
+/** Creates a multi-sheet Excel workbook and triggers download. */
+export const exportWorkbookToExcel = async (
+  appName: string,
+  sheets: Array<{ name: string; columns: ExcelColumn[]; data: Record<string, unknown>[] }>
+): Promise<void> => {
+  const workbook = new ExcelJS.Workbook()
+  workbook.creator = 'NEWWORK'
+  workbook.created = new Date()
+
+  const usedNames = new Set<string>()
+  const resolvedSheets = sheets.length > 0 ? sheets : [{ name: 'Sheet 1', columns: [], data: [] }]
+
+  resolvedSheets.forEach((sheet, index) => {
+    const worksheetName = buildUniqueSheetName(sheet.name || `Sheet ${index + 1}`, usedNames, index)
+    const worksheet = workbook.addWorksheet(worksheetName)
+    populateWorksheet(worksheet, sheet.columns, sheet.data)
+  })
+
+  const filename = buildFilename(appName, 'xlsx')
+  await downloadExcelWorkbook(workbook, filename)
 }
 
 /** Writes the workbook to a buffer, wraps it in a Blob, and triggers download. */

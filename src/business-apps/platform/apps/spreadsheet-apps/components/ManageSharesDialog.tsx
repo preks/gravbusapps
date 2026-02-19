@@ -26,7 +26,7 @@ import {
   SelectTrigger,
   SelectValue
 } from '@newwork/nw-design-system'
-import { Users, Eye, Pencil, Trash2, AlertCircle, UserPlus } from 'lucide-react'
+import { Users, Eye, Pencil, Shield, Trash2, AlertCircle, UserPlus } from 'lucide-react'
 import { toast } from 'sonner'
 import { SpreadsheetApiService } from '../services/SpreadsheetApiService'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
@@ -45,7 +45,7 @@ export interface ManageSharesDialogProps {
   'data-testid'?: string
 }
 
-type Permission = 'view' | 'edit'
+type Permission = 'view' | 'edit' | 'admin'
 
 interface ShareWithUserInfo {
   id: string
@@ -352,6 +352,12 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
                           <div className="gba:flex gba:items-center gba:gap-2">
                             <Pencil className="gba:w-3 gba:h-3" />
                             <span>Edit</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="admin">
+                          <div className="gba:flex gba:items-center gba:gap-2">
+                            <Shield className="gba:w-3 gba:h-3" />
+                            <span>Admin</span>
                           </div>
                         </SelectItem>
                       </SelectContent>

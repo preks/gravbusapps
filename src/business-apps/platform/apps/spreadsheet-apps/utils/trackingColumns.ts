@@ -9,6 +9,8 @@ import type { SpreadsheetColumn } from '../types/spreadsheet'
 import { TRACKING_COLUMNS, getTrackingColumnDefinitions } from '../components/automations/TrackingColumnsConfig'
 import { getSpreadsheetBasePath } from './spreadsheetPaths'
 
+const DEFAULT_TRACKING_STATUS_WIDTH = 56
+
 /**
  * Create SpreadsheetColumn definitions for selected tracking columns
  */
@@ -23,6 +25,8 @@ export function createTrackingColumnDefinitions(
     name: def.name,
     label: def.label,
     type: getColumnTypeForTracking(def.id),
+    // Keep status pills compact by default; users can expand via header auto-fit.
+    width: def.id === 'workflow_status' ? DEFAULT_TRACKING_STATUS_WIDTH : undefined,
     isVisible: true,
     isEditable: false, // Tracking columns are read-only
     isRequired: false,

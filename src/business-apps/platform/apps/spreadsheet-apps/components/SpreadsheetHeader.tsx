@@ -46,6 +46,10 @@ export interface SpreadsheetHeaderProps {
     isSaving: boolean
     lastSaveTime: Date | null
     hasUnsavedChanges: boolean
+    currentVersion?: {
+      version: number
+      changeDescription?: string
+    } | null
   }
   onShowCheckpointDialog: () => void
   onShowVersionHistory: () => void
@@ -248,6 +252,7 @@ export const SpreadsheetHeader: React.FC<SpreadsheetHeaderProps> = memo(function
                 isSaving={versioning.isSaving}
                 lastSaveTime={versioning.lastSaveTime}
                 hasUnsavedChanges={versioning.hasUnsavedChanges}
+                currentVersion={versioning.currentVersion ?? null}
                 onManualSave={onShowCheckpointDialog}
                 data-testid="spreadsheet-auto-save-indicator"
               />

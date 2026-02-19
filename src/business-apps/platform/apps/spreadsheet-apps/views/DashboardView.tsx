@@ -9,6 +9,11 @@ import { Card } from '@newwork/nw-design-system'
 import { BarChart3 } from 'lucide-react'
 import type { SpreadsheetSheet } from '../types'
 
+const eurCurrencyFormatter = new Intl.NumberFormat(undefined, {
+  style: 'currency',
+  currency: 'EUR'
+})
+
 export interface DashboardViewProps {
   sheet: SpreadsheetSheet
   data: Record<string, unknown>[]
@@ -30,8 +35,8 @@ export const DashboardView = memo<DashboardViewProps>(function DashboardView({ s
 
     return {
       label: col.label,
-      value: col.type === 'currency' ? `$${sum.toLocaleString()}` : sum.toLocaleString(),
-      subValue: `Avg: ${col.type === 'currency' ? '$' : ''}${avg.toFixed(2)}`,
+      value: col.type === 'currency' ? eurCurrencyFormatter.format(sum) : sum.toLocaleString(),
+      subValue: col.type === 'currency' ? `Avg: ${eurCurrencyFormatter.format(avg)}` : `Avg: ${avg.toFixed(2)}`,
       type: col.type
     }
   })

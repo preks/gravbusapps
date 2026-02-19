@@ -54,8 +54,7 @@ export interface ShareAppDialogProps {
     sharedAt: string
   }>
   onShare: (
-    userIds: string[],
-    permission: SharePermission,
+    shares: Array<{ userId: string; permission: SharePermission }>,
     userDetails?: Array<{ userId: string; displayName: string; avatar?: string; email?: string }>
   ) => Promise<boolean>
   onUnshare: (shareId: string) => Promise<boolean>
@@ -223,9 +222,9 @@ export const ShareAppDialog: React.FC<ShareAppDialogProps> = ({
   onRefreshShares
 }) => {
   const [searchQuery, setSearchQuery] = useState('')
-  const [selectedPermission, setSelectedPermission] = useState<SharePermission>('view')
   const [isSharing, setIsSharing] = useState(false)
   const [selectedUsers, setSelectedUsers] = useState<EmployeeLiteOption[]>([])
+  const [selectedUserPermissions, setSelectedUserPermissions] = useState<Record<string, SharePermission>>({})
   const [resolvedSharedUsers, setResolvedSharedUsers] = useState<
     Array<{
       id: string
@@ -275,18 +274,26 @@ export const ShareAppDialog: React.FC<ShareAppDialogProps> = ({
 
     const selectedIds = new Set(safeSelectedUsers.map(u => u.userId))
     const sharedIds = new Set(safeResolvedSharedUsers.map(u => u.userId))
+    const normalizedQuery = searchQuery.trim().toLowerCase()
 
     return searchResults.filter(
-      emp => emp.userId !== currentUserId && !sharedIds.has(emp.userId) && !selectedIds.has(emp.userId)
+      emp =>
+        emp.userId !== currentUserId &&
+        !sharedIds.has(emp.userId) &&
+        !selectedIds.has(emp.userId) &&
+        (!normalizedQuery ||
+          emp.displayName?.toLowerCase().includes(normalizedQuery) ||
+          emp.workEmail?.toLowerCase().includes(normalizedQuery) ||
+          emp.userId?.toLowerCase().includes(normalizedQuery))
     )
-  }, [searchResults, selectedUsers, resolvedSharedUsers, currentUserId])
+  }, [searchResults, selectedUsers, resolvedSharedUsers, currentUserId, searchQuery])
 
   // Reset form when dialog closes - same pattern as ShareEntityDialog
   useEffect(() => {
     if (!open) {
       setSearchQuery('')
       setSelectedUsers([])
-      setSelectedPermission('view')
+      setSelectedUserPermissions({})
       setError(null)
       setSentSuccess(false)
     }
@@ -299,8 +306,17 @@ export const ShareAppDialog: React.FC<ShareAppDialogProps> = ({
     setSelectedUsers(prev => {
       const exists = prev.find(u => u.userId === user.userId)
       if (exists) {
+        setSelectedUserPermissions(prevPermissions => {
+          const nextPermissions = { ...prevPermissions }
+          delete nextPermissions[user.userId]
+          return nextPermissions
+        })
         return prev.filter(u => u.userId !== user.userId)
       } else {
+        setSelectedUserPermissions(prevPermissions => ({
+          ...prevPermissions,
+          [user.userId]: 'view'
+        }))
         return [...prev, user]
       }
     })
@@ -310,7 +326,19 @@ export const ShareAppDialog: React.FC<ShareAppDialogProps> = ({
    * Remove user from selection
    */
   const removeUser = useCallback((userId: string) => {
+    setSelectedUserPermissions(prevPermissions => {
+      const nextPermissions = { ...prevPermissions }
+      delete nextPermissions[userId]
+      return nextPermissions
+    })
     setSelectedUsers(prev => prev.filter(u => u.userId !== userId))
+  }, [])
+
+  const updateUserPermission = useCallback((userId: string, permission: SharePermission) => {
+    setSelectedUserPermissions(prevPermissions => ({
+      ...prevPermissions,
+      [userId]: permission
+    }))
   }, [])
 
   /**
@@ -326,10 +354,17 @@ export const ShareAppDialog: React.FC<ShareAppDialogProps> = ({
     setError(null)
 
     try {
-      // Share with all selected users at once
-      const userIds = selectedUsers.map(u => u.userId || u.id).filter(Boolean) as string[]
-      // Map 'admin' permission to 'edit' since backend only supports 'view' | 'edit'
-      const permission: 'view' | 'edit' = selectedPermission === 'admin' ? 'edit' : selectedPermission
+      const shares = selectedUsers
+        .map(user => {
+          const userId = (user.userId || user.id) as string
+          const selectedPermission = selectedUserPermissions[userId] || 'view'
+          return {
+            userId,
+            permission: selectedPermission
+          }
+        })
+        .filter(share => Boolean(share.userId))
+
       // Pass known user details so the Hub doesn't need to re-fetch them
       const userDetails = selectedUsers.map(u => ({
         userId: (u.userId || u.id) as string,
@@ -337,7 +372,7 @@ export const ShareAppDialog: React.FC<ShareAppDialogProps> = ({
         avatar: u.pictureThumbnail,
         email: ''
       }))
-      const success = await onShare(userIds, permission, userDetails)
+      const success = await onShare(shares, userDetails)
 
       if (success) {
         // Send Blink notifications
@@ -381,7 +416,7 @@ export const ShareAppDialog: React.FC<ShareAppDialogProps> = ({
     }
   }, [
     selectedUsers,
-    selectedPermission,
+    selectedUserPermissions,
     onShare,
     onRefreshShares,
     accessToken,
@@ -524,6 +559,27 @@ export const ShareAppDialog: React.FC<ShareAppDialogProps> = ({
                             {user.organizationalUnitName || user.jobPositionName || ''}
                           </p>
                         </div>
+                        <Select
+                          value={selectedUserPermissions[user.userId] || 'view'}
+                          onValueChange={val => updateUserPermission(user.userId, val as SharePermission)}
+                        >
+                          <SelectTrigger
+                            className="gba:w-32 gba:h-8"
+                            data-testid={`share-user-permission-select-${user.userId}`}
+                          >
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Object.entries(PERMISSION_CONFIG).map(([key, config]) => (
+                              <SelectItem key={key} value={key}>
+                                <div className="gba:flex gba:items-center gba:gap-2">
+                                  <config.icon className="gba:w-4 gba:h-4" />
+                                  {config.label}
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                         <Button
                           variant="ghost"
                           size="sm"
@@ -534,27 +590,6 @@ export const ShareAppDialog: React.FC<ShareAppDialogProps> = ({
                         </Button>
                       </div>
                     ))}
-                  </div>
-                  <div className="gba:flex gba:items-center gba:gap-2">
-                    <Label className="gba:text-xs">Permission:</Label>
-                    <Select
-                      value={selectedPermission}
-                      onValueChange={val => setSelectedPermission(val as SharePermission)}
-                    >
-                      <SelectTrigger className="gba:w-40" data-testid="share-permission-select">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Object.entries(PERMISSION_CONFIG).map(([key, config]) => (
-                          <SelectItem key={key} value={key}>
-                            <div className="gba:flex gba:items-center gba:gap-2">
-                              <config.icon className="gba:w-4 gba:h-4" />
-                              {config.label}
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
                   </div>
                 </div>
               )}
@@ -663,7 +698,7 @@ export const ShareAppDialog: React.FC<ShareAppDialogProps> = ({
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Done
+            Close
           </Button>
         </DialogFooter>
       </DialogContent>

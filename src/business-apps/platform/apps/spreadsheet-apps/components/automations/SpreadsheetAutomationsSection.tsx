@@ -89,6 +89,108 @@ function extractArray<T>(payload: unknown): T[] {
   return []
 }
 
+function unwrapObject(payload: unknown): Record<string, unknown> {
+  if (!payload || typeof payload !== 'object') return {}
+  const obj = payload as Record<string, unknown>
+  if (obj.data && typeof obj.data === 'object' && !Array.isArray(obj.data)) {
+    return obj.data as Record<string, unknown>
+  }
+  return obj
+}
+
+function extractAutomations(payload: unknown): Record<string, unknown>[] {
+  const direct = extractArray<Record<string, unknown>>(payload)
+  if (direct.length > 0) return direct
+
+  const root = unwrapObject(payload)
+  if (Array.isArray(root.automations)) {
+    return root.automations as Record<string, unknown>[]
+  }
+  if (root.items && Array.isArray(root.items)) {
+    return root.items as Record<string, unknown>[]
+  }
+  return []
+}
+
+function normalizeAutomationType(rawType: unknown): AutomationType {
+  const value = typeof rawType === 'string' ? rawType.trim().toLowerCase() : ''
+  if (!value) return 'row_workflow'
+
+  if (value === 'bulk_collection' || value === 'bulkcollection' || value === 'bulk-collection') {
+    return 'bulk_collection'
+  }
+
+  if (
+    value === 'excel_collection' ||
+    value === 'excelcollection' ||
+    value === 'excel-collection' ||
+    value === 'template_collection' ||
+    value === 'spreadsheet_collection'
+  ) {
+    return 'excel_collection'
+  }
+
+  if (
+    value === 'form_collection' ||
+    value === 'formcollection' ||
+    value === 'form-collection' ||
+    value === 'data_collection' ||
+    value === 'datacollection'
+  ) {
+    return 'bulk_collection'
+  }
+
+  if (value === 'sheet_approval' || value === 'sheetapproval' || value === 'sheet-approval') {
+    return 'sheet_approval'
+  }
+
+  if (value === 'line_approval' || value === 'lineapproval' || value === 'line-approval') {
+    return 'line_approval'
+  }
+
+  return 'row_workflow'
+}
+
+function normalizeAutomationTrigger(rawTrigger: unknown): SpreadsheetAutomation['trigger'] {
+  const value = typeof rawTrigger === 'string' ? rawTrigger.trim() : ''
+  if (
+    value === 'manual' ||
+    value === 'onRowAdd' ||
+    value === 'onFieldChange' ||
+    value === 'scheduled' ||
+    value === 'onApprovalRequest'
+  ) {
+    return value
+  }
+  return 'manual'
+}
+
+function normalizeAutomation(raw: Record<string, unknown>): SpreadsheetAutomation {
+  const normalizedType = normalizeAutomationType(raw.type ?? raw.automationType)
+  const collectionConfig =
+    raw.collectionConfig && typeof raw.collectionConfig === 'object'
+      ? (raw.collectionConfig as Record<string, unknown>)
+      : undefined
+  const collectionMode = typeof collectionConfig?.type === 'string' ? collectionConfig.type.toLowerCase() : ''
+  const modeAdjustedType =
+    normalizedType === 'bulk_collection' && collectionMode === 'excel_collection' ? 'excel_collection' : normalizedType
+
+  return {
+    ...(raw as SpreadsheetAutomation),
+    type: modeAdjustedType,
+    trigger: normalizeAutomationTrigger(raw.trigger)
+  }
+}
+
+function getAutomationIdentity(automation: SpreadsheetAutomation): string {
+  const backendId =
+    typeof automation.backendId === 'string' && automation.backendId.trim().length > 0
+      ? automation.backendId.trim()
+      : ''
+  const id = typeof automation.id === 'string' ? automation.id.trim() : ''
+  return backendId || id
+}
+
 /**
  * Get icon for automation type
  */
@@ -247,21 +349,91 @@ export const SpreadsheetAutomationsSection: React.FC<SpreadsheetAutomationsSecti
       const automationsByApp = await Promise.all(
         spreadsheets.map(async app => {
           try {
-            const response = await fetch(`${docServiceUrl}/automations/app/${app.id}`, {
-              method: 'GET',
-              headers: {
-                Authorization: `Bearer ${accessToken}`,
-                'Content-Type': 'application/json'
-              }
-            })
+            const [automationsResponse, spreadsheetResponse] = await Promise.all([
+              fetch(`${docServiceUrl}/automations/app/${app.id}`, {
+                method: 'GET',
+                headers: {
+                  Authorization: `Bearer ${accessToken}`,
+                  'Content-Type': 'application/json'
+                }
+              }),
+              fetch(`${docServiceUrl}/spreadsheets/${app.id}`, {
+                method: 'GET',
+                headers: {
+                  Authorization: `Bearer ${accessToken}`,
+                  'Content-Type': 'application/json'
+                }
+              })
+            ])
 
-            if (!response.ok) {
-              return [] as AutomationWithRuns[]
+            const fromAutomationEndpoint = automationsResponse.ok
+              ? extractAutomations(await automationsResponse.json()).map(normalizeAutomation)
+              : []
+
+            const fromSheetConfig: SpreadsheetAutomation[] = []
+            if (spreadsheetResponse.ok) {
+              const spreadsheetPayload = unwrapObject(await spreadsheetResponse.json())
+              const appLevelAutomations = extractAutomations(spreadsheetPayload.automations)
+              for (const rawAutomation of appLevelAutomations) {
+                fromSheetConfig.push(normalizeAutomation(rawAutomation))
+              }
+
+              const sheets = extractArray<Record<string, unknown>>(spreadsheetPayload.sheets)
+              const sheetIdsNeedingDetails: string[] = []
+              for (const sheet of sheets) {
+                const sheetAutomations = extractAutomations(sheet.automations)
+                if (sheetAutomations.length > 0) {
+                  for (const rawAutomation of sheetAutomations) {
+                    fromSheetConfig.push(normalizeAutomation(rawAutomation))
+                  }
+                } else {
+                  const sheetId = typeof sheet.id === 'string' ? sheet.id.trim() : ''
+                  if (sheetId) {
+                    sheetIdsNeedingDetails.push(sheetId)
+                  }
+                }
+              }
+
+              // Fallback: some API payloads omit sheet automations in list view.
+              if (sheetIdsNeedingDetails.length > 0) {
+                const sheetResponses = await Promise.all(
+                  sheetIdsNeedingDetails.map(sheetId =>
+                    fetch(`${docServiceUrl}/spreadsheets/${app.id}/sheets/${sheetId}`, {
+                      method: 'GET',
+                      headers: {
+                        Authorization: `Bearer ${accessToken}`,
+                        'Content-Type': 'application/json'
+                      }
+                    })
+                      .then(async res => {
+                        if (!res.ok) return null
+                        return (await res.json()) as Record<string, unknown>
+                      })
+                      .catch(() => null)
+                  )
+                )
+
+                for (const sheetPayload of sheetResponses) {
+                  if (!sheetPayload) continue
+                  const normalizedSheetPayload = unwrapObject(sheetPayload)
+                  const sheetAutomations = extractAutomations(normalizedSheetPayload.automations)
+                  for (const rawAutomation of sheetAutomations) {
+                    fromSheetConfig.push(normalizeAutomation(rawAutomation))
+                  }
+                }
+              }
             }
 
-            const data = await response.json()
-            const appAutomations = extractArray<SpreadsheetAutomation>(data)
-            return appAutomations.map(automation => ({
+            const seen = new Set<string>()
+            const mergedAutomations: SpreadsheetAutomation[] = []
+            for (const automation of [...fromAutomationEndpoint, ...fromSheetConfig]) {
+              const key = getAutomationIdentity(automation)
+              if (!key || seen.has(key)) continue
+              seen.add(key)
+              mergedAutomations.push(automation)
+            }
+
+            return mergedAutomations.map(automation => ({
               ...automation,
               spreadsheetAppId: app.id,
               spreadsheetAppName: app.name
@@ -543,7 +715,7 @@ export const SpreadsheetAutomationsSection: React.FC<SpreadsheetAutomationsSecti
           <TabsList>
             <TabsTrigger value="all">All</TabsTrigger>
             <TabsTrigger value="excel_collection">Spreadsheet Collection</TabsTrigger>
-            <TabsTrigger value="bulk_collection">Bulk Collection</TabsTrigger>
+            <TabsTrigger value="bulk_collection">Form Collection</TabsTrigger>
             <TabsTrigger value="row_workflow">Row Workflow</TabsTrigger>
           </TabsList>
         </Tabs>

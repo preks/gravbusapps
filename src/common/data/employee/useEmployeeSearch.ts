@@ -8,6 +8,7 @@ export interface EmployeeLiteOption {
   firstName?: string
   lastName?: string
   userId?: string
+  workEmail?: string
   pictureThumbnail?: string
   organizationalUnitName?: string
   jobPositionName?: string
@@ -71,6 +72,7 @@ export const useEmployeeSearch = (accessToken?: string, initialEmployee?: Employ
           firstName: e.firstName,
           lastName: e.lastName,
           userId: e.userId,
+          workEmail: e.workCommunications?.[0]?.value || '',
           pictureThumbnail: e.pictureThumbnail,
           organizationalUnitName: e.employeePosition?.organizationalUnit?.name,
           jobPositionName: e.employeePosition?.jobPosition?.name
@@ -149,6 +151,7 @@ export const useEmployeeSearch = (accessToken?: string, initialEmployee?: Employ
           firstName: e.firstName,
           lastName: e.lastName,
           userId: e.userId,
+          workEmail: e.workCommunications?.[0]?.value || '',
           pictureThumbnail: e.pictureThumbnail,
           organizationalUnitName: e.employeePosition?.organizationalUnit?.name,
           jobPositionName: e.employeePosition?.jobPosition?.name

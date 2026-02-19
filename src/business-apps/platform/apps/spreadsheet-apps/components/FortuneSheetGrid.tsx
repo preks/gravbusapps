@@ -88,6 +88,8 @@ function openSafeHttpUrl(rawUrl: string): void {
   globalThis.window.open(rawUrl, '_blank', 'noopener,noreferrer')
 }
 
+const EURO_CURRENCY_FORMAT = '€#,##0.00'
+
 /**
  * FortuneSheetGrid - Main wrapper component
  */
@@ -439,6 +441,43 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
       })
     }, [columns, data])
 
+    const normalizeCurrencyFormatAtCell = useCallback(
+      (row: number, col: number) => {
+        try {
+          const workbook = workbookRef.current as any
+          if (!workbook) return
+          const options = { id: sheet.id }
+          workbook.setCellFormat(row, col, 'fa', EURO_CURRENCY_FORMAT, options)
+          workbook.setCellFormat(row, col, 'ct', { t: 'n', fa: EURO_CURRENCY_FORMAT }, options)
+        } catch {
+          // Ignore normalization errors; native formatting may still apply.
+        }
+      },
+      [sheet.id]
+    )
+
+    useEffect(() => {
+      const container = sheetContainerRef.current
+      if (!container || typeof MutationObserver === 'undefined') return
+
+      const applyEuroToToolbar = () => {
+        const toolbarCurrencyAction = container.querySelector<HTMLElement>("[data-menu-id='currency-format']")
+        if (!toolbarCurrencyAction) return
+        const symbolElement = toolbarCurrencyAction.querySelector<HTMLElement>('i, span') ?? toolbarCurrencyAction
+        if (!symbolElement) return
+        if (symbolElement.textContent?.trim() === '€') return
+        symbolElement.textContent = '€'
+      }
+
+      applyEuroToToolbar()
+      const observer = new MutationObserver(() => {
+        applyEuroToToolbar()
+      })
+      observer.observe(container, { childList: true, subtree: true, characterData: true })
+
+      return () => observer.disconnect()
+    }, [])
+
     // Handle pointer release on View Response / copy_link cells - open URL
     // (FortuneSheet doesn't render links clickable).
     const handleContainerMouseUp = useCallback(
@@ -698,7 +737,7 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
       presenceUsersRef.current = nextUsers
     }, [participants, columns, data, sheet.id, collaborationEnabled])
 
-    /** Apply text wrap + auto-expand to cells after paste/edit */
+    /** Apply text wrap + row-height expansion to cells after paste/edit */
     const applyTextWrapAndExpand = useCallback(
       (cells: Array<{ row: number; col: number; text: string }>) => {
         const workbook = workbookRef.current
@@ -708,25 +747,18 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
         const options = { id: sheetId }
 
         // Approximate px per character for monospace-ish fonts
-        const PX_PER_CHAR = 8
         const DEFAULT_ROW_HEIGHT = 25
-        const MIN_COL_WIDTH = 80
-        const MAX_COL_WIDTH = 400
         const CHARS_PER_LINE = 25
 
         const rowHeights: Record<string, number> = {}
-        const colWidths: Record<string, number> = {}
         cells.forEach(({ row, col, text }) => {
           try {
             workbook.setCellFormat(row, col, 'tb', 2, options)
             const len = text.length
             const lineBreaks = (text.match(/\n/g) || []).length
             const lines = Math.max(1, lineBreaks + Math.ceil(len / CHARS_PER_LINE))
-            const longestLine = Math.max(...text.split('\n').map(l => l.length), len)
             const rowHeight = Math.max(DEFAULT_ROW_HEIGHT, Math.min(200, DEFAULT_ROW_HEIGHT * lines))
-            const colWidth = Math.max(MIN_COL_WIDTH, Math.min(MAX_COL_WIDTH, longestLine * PX_PER_CHAR))
             rowHeights[String(row)] = Math.max(rowHeights[String(row)] ?? 0, rowHeight)
-            colWidths[String(col)] = Math.max(colWidths[String(col)] ?? 0, colWidth)
           } catch {
             // FortuneSheet may throw if sheet not ready
           }
@@ -735,9 +767,6 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
           if (Object.keys(rowHeights).length > 0) {
             workbook.setRowHeight(rowHeights, options, true)
           }
-          if (Object.keys(colWidths).length > 0) {
-            workbook.setColumnWidth(colWidths, options, true)
-          }
         } catch {
           // Workbook may not be ready
         }
@@ -745,64 +774,15 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
       [sheet.id]
     )
 
-    // Ensure existing data is wrapped and expanded by default (not only after edit/paste).
-    // Skip tracking columns - they use fixed row heights; wrap+expand would make rows excessively tall.
-    const isTrackingColumn = (col: { name?: string; type?: string }) =>
+    const isCompactColumn = (col: { name?: string; label?: string; type?: string }) =>
       col.name?.startsWith('_') ||
+      col.type === 'workflow_status' ||
       col.type === 'image' ||
       col.type === 'date' ||
       col.type === 'datetime' ||
-      col.type === 'url'
-
-    useEffect(() => {
-      if (!data || data.length === 0 || columns.length === 0) return
-
-      const cellsToWrap: Array<{ row: number; col: number; text: string }> = []
-
-      data.forEach((row, dataRowIndex) => {
-        columns.forEach((column, colIndex) => {
-          if (isTrackingColumn(column)) return
-          const rawValue = row[column.name]
-          if (rawValue === null || rawValue === undefined) return
-
-          let text = ''
-          if (typeof rawValue === 'string') {
-            text = rawValue
-          } else if (typeof rawValue === 'number' || typeof rawValue === 'boolean') {
-            text = String(rawValue)
-          } else if (rawValue && typeof rawValue === 'object' && !Array.isArray(rawValue)) {
-            const cellObject = rawValue as Record<string, unknown>
-            if (typeof cellObject.m === 'string') {
-              text = cellObject.m
-            } else if (
-              cellObject.v !== null &&
-              cellObject.v !== undefined &&
-              (typeof cellObject.v === 'string' ||
-                typeof cellObject.v === 'number' ||
-                typeof cellObject.v === 'boolean')
-            ) {
-              text = String(cellObject.v)
-            }
-          }
-
-          if (!text.trim()) return
-
-          cellsToWrap.push({
-            row: dataRowIndex + HEADER_ROW_OFFSET,
-            col: colIndex,
-            text
-          })
-        })
-      })
-
-      if (cellsToWrap.length === 0) return
-
-      const timer = setTimeout(() => {
-        applyTextWrapAndExpand(cellsToWrap)
-      }, 80)
-
-      return () => clearTimeout(timer)
-    }, [applyTextWrapAndExpand, columns, data])
+      col.type === 'url' ||
+      /status/i.test(col.name || '') ||
+      /status/i.test(col.label || '')
 
     useEffect(() => {
       const logWorkbookSnapshotOnHide = () => {
@@ -957,6 +937,14 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
             // Keep background-color updates even when emitted as nested paths
             // (e.g. ['data', r, c, 'v', 'bg']) so fill/highlight survives refresh.
             const deepProp = op.path.length > 4 ? String(op.path[op.path.length - 1]) : null
+            if (
+              deepProp === 'fa' &&
+              typeof op.value === 'string' &&
+              (op.value.includes('¥') || op.value.toUpperCase().includes('JPY'))
+            ) {
+              normalizeCurrencyFormatAtCell(op.path[1] as number, op.path[2] as number)
+              return
+            }
             const isNestedBackgroundOp = deepProp === 'bg'
             if (op.path.length > 4 && !isNestedBackgroundOp) {
               // #region agent log
@@ -1055,7 +1043,25 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
               cellProp = op.path.length > 4 ? String(op.path[op.path.length - 1]) : String(op.path[3])
               // Persist value and selected formatting changes.
               // `bg` (cell background color) must persist across refreshes.
-              if (cellProp !== 'v' && cellProp !== 'f' && cellProp !== 'm' && cellProp !== 'bg') {
+              if (cellProp === 'ct') {
+                const currencyFormat = (op.value as Record<string, unknown> | null)?.fa
+                if (
+                  typeof currencyFormat === 'string' &&
+                  (currencyFormat.includes('¥') || currencyFormat.toUpperCase().includes('JPY'))
+                ) {
+                  normalizeCurrencyFormatAtCell(fortuneSheetRowIndex, colIndex)
+                }
+                return
+              }
+              if (cellProp !== 'v' && cellProp !== 'f' && cellProp !== 'm' && cellProp !== 'bg' && cellProp !== 'fa') {
+                return
+              }
+              if (
+                cellProp === 'fa' &&
+                typeof op.value === 'string' &&
+                (op.value.includes('¥') || op.value.toUpperCase().includes('JPY'))
+              ) {
+                normalizeCurrencyFormatAtCell(fortuneSheetRowIndex, colIndex)
                 return
               }
             }
@@ -1280,7 +1286,7 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
             // Default: text wrap + auto-expand for pasted/edited text (skip tracking columns - keep compact)
             if ((op.op === 'replace' || op.op === 'add') && cellValue != null) {
               const column = columns[colIndex]
-              if (column && !isTrackingColumn(column)) {
+              if (column && !isCompactColumn(column)) {
                 const text =
                   typeof cellValue === 'string'
                     ? cellValue
@@ -1691,6 +1697,7 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
             onOp={handleOp}
             // FortuneSheet Settings props
             allowEdit={!isReadOnly}
+            currency="€"
             // Show Excel-like UI components
             showFormulaBar={true}
             showToolbar={true}

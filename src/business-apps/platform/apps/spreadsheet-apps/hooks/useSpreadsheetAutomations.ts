@@ -23,6 +23,7 @@ import { buildSentRowTrackingValues, buildCompletedRowTrackingValues, isTracking
 import { getDefaultTrackingColumns } from '../components/automations/TrackingColumnsConfig'
 import { graphQLClient } from '@/common/network/graphql/GraphQLClient'
 import { fetchRecipientsData } from '../utils/fetchRecipientData'
+import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
 
 /**
  * Ensure essential recipient tracking columns are always present.
@@ -196,6 +197,8 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
 
   // Track processed workflow IDs to avoid duplicate row creation
   const processedWorkflowIdsRef = useRef<Set<string>>(new Set())
+  // Cache resolved backend IDs for excel_collection automations that were created with client-side IDs.
+  const resolvedExcelBackendIdsRef = useRef<Map<string, string>>(new Map())
 
   // Update refs when callbacks change (without triggering effects)
   useEffect(() => {
@@ -213,6 +216,79 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
   useEffect(() => {
     onUpdateRowsRef.current = onUpdateRows
   }, [onUpdateRows])
+
+  const resolveExcelCollectionAutomationId = useCallback(
+    async (automation: SpreadsheetAutomation): Promise<string | null> => {
+      const backendId = typeof automation.backendId === 'string' ? automation.backendId.trim() : ''
+      if (backendId) return backendId
+
+      const automationId = typeof automation.id === 'string' ? automation.id.trim() : ''
+      if (!automationId) return null
+      if (isUuid(automationId)) return automationId
+
+      const cached = resolvedExcelBackendIdsRef.current.get(automationId)
+      if (cached) return cached
+
+      try {
+        const docBase = getDocumentServiceApiUrl().replace(/\/+$/, '')
+        const response = await fetch(`${docBase}/automations/app/${spreadsheetId}`, {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          }
+        })
+        if (!response.ok) return null
+
+        const payload = (await response.json()) as Record<string, unknown>
+        const items: Array<Record<string, unknown>> = Array.isArray(payload)
+          ? (payload as Array<Record<string, unknown>>)
+          : Array.isArray(payload.data)
+            ? (payload.data as Array<Record<string, unknown>>)
+            : Array.isArray(payload.items)
+              ? (payload.items as Array<Record<string, unknown>>)
+              : []
+
+        const normalizeType = (raw: unknown): string => {
+          const value = typeof raw === 'string' ? raw.trim().toLowerCase() : ''
+          if (
+            value === 'excel_collection' ||
+            value === 'excelcollection' ||
+            value === 'excel-collection' ||
+            value === 'template_collection'
+          ) {
+            return 'excel_collection'
+          }
+          return value
+        }
+
+        const normalizedName = (automation.name || '').trim().toLowerCase()
+        const matched =
+          items.find(item => String(item.id || '').trim() === automationId) ||
+          items.find(item => String(item.backendId || '').trim() === automationId) ||
+          items.find(item => {
+            const itemType = normalizeType(item.type)
+            if (itemType !== 'excel_collection') return false
+            const itemName = String(item.name || '')
+              .trim()
+              .toLowerCase()
+            const itemSheetId = String(item.sheetId || '').trim()
+            return itemName === normalizedName && (itemSheetId === sheetId || itemSheetId.length === 0)
+          })
+
+        const resolvedId = String(matched?.id || '').trim()
+        if (!resolvedId || !isUuid(resolvedId)) {
+          return null
+        }
+
+        resolvedExcelBackendIdsRef.current.set(automationId, resolvedId)
+        return resolvedId
+      } catch {
+        return null
+      }
+    },
+    [accessToken, sheetId, spreadsheetId]
+  )
 
   // Helper to notify automation changes (call after state updates)
   const notifyAutomationsChange = useCallback((newAutomations: SpreadsheetAutomation[]) => {
@@ -436,7 +512,8 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
             totalSteps: automation.workflowConfig.dynamicTemplate?.steps?.length || 1
           }))
           setWorkflowLinks(prev => {
-            const processedRowIds = rows.map(r => r.id)
+            // bulk/excel collection runs can execute without source sheet rows
+            const processedRowIds = rows?.map(r => r.id) ?? []
             const updated = [...prev.filter(l => !processedRowIds.includes(l.rowId)), ...newLinks]
             setTimeout(() => notifyWorkflowLinksChange(updated), 0)
             return updated
@@ -713,8 +790,18 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
     for (const automation of bulkCollectionAutomations) {
       try {
         // For excel_collection, flows are tagged with backend UUID (document-service). Use backendId when available.
-        const effectiveAutomationId =
+        let effectiveAutomationId: string | null =
           automation.backendId || (isUuid(automation.id) ? automation.id : null) || automation.id
+        if (automation.type === 'excel_collection') {
+          const resolvedId = await resolveExcelCollectionAutomationId(automation)
+          if (resolvedId) {
+            effectiveAutomationId = resolvedId
+            if (automation.backendId !== resolvedId) {
+              void updateAutomation(automation.id, { backendId: resolvedId })
+            }
+          }
+        }
+        if (!effectiveAutomationId) continue
         console.log('[useSpreadsheetAutomations][trace] fetchBulkCollectionResponses:start', {
           spreadsheetId,
           sheetId,
@@ -917,7 +1004,7 @@ export function useSpreadsheetAutomations(params: UseSpreadsheetAutomationsParam
         console.error('[useSpreadsheetAutomations] Error fetching bulk collection responses:', err)
       }
     }
-  }, [automations, spreadsheetId, sheetId, accessToken])
+  }, [automations, spreadsheetId, sheetId, accessToken, resolveExcelCollectionAutomationId, updateAutomation])
 
   // Poll for bulk collection responses
   useEffect(() => {

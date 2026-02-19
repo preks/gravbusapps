@@ -180,8 +180,8 @@ function mapApiAppToSpreadsheetApp(apiApp: Record<string, unknown>): Spreadsheet
         entityDataSource: sheet.entityDataSource as SpreadsheetSheet['entityDataSource'],
         chartConfigs: sheet.chartConfigs as SpreadsheetSheet['chartConfigs'],
         data,
-        automations: [],
-        workflowLinks: []
+        automations: (sheet.automations as SpreadsheetSheet['automations']) || [],
+        workflowLinks: (sheet.workflowLinks as SpreadsheetSheet['workflowLinks']) || []
       }
     }),
     sharedWith: [],
@@ -418,8 +418,8 @@ export const SpreadsheetApiService = {
         entityDataSource: sheet.entityDataSource as SpreadsheetSheet['entityDataSource'],
         chartConfigs: sheet.chartConfigs as SpreadsheetSheet['chartConfigs'],
         data: [],
-        automations: [],
-        workflowLinks: []
+        automations: (sheet.automations as SpreadsheetSheet['automations']) || [],
+        workflowLinks: (sheet.workflowLinks as SpreadsheetSheet['workflowLinks']) || []
       }
     } catch (error) {
       console.error('Failed to get sheet:', error)
@@ -461,8 +461,8 @@ export const SpreadsheetApiService = {
       views: (created.views as SpreadsheetSheet['views']) || [],
       settings: (created.settings as SpreadsheetSheet['settings']) || {},
       data: [],
-      automations: [],
-      workflowLinks: []
+      automations: (created.automations as SpreadsheetSheet['automations']) || [],
+      workflowLinks: (created.workflowLinks as SpreadsheetSheet['workflowLinks']) || []
     }
   },
 
@@ -507,7 +507,9 @@ export const SpreadsheetApiService = {
       description: updates.description,
       columns: updates.columns,
       views: updates.views,
-      settings: updates.settings
+      settings: updates.settings,
+      automations: updates.automations,
+      workflowLinks: updates.workflowLinks
     }
 
     // Remove undefined
@@ -556,8 +558,8 @@ export const SpreadsheetApiService = {
       views: (updated.views as SpreadsheetSheet['views']) || [],
       settings: (updated.settings as SpreadsheetSheet['settings']) || {},
       data: [],
-      automations: [],
-      workflowLinks: []
+      automations: (updated.automations as SpreadsheetSheet['automations']) || [],
+      workflowLinks: (updated.workflowLinks as SpreadsheetSheet['workflowLinks']) || []
     }
   },
 

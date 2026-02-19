@@ -97,7 +97,8 @@ import { HubPaginationFooter } from '../shared/components/HubPaginationFooter'
 
 // Services
 import { generateAppSchema, generateEmptyAppSchema } from './services/SchemaGenerator'
-import { setSpreadsheetApiAuthTokenProvider } from './services/SpreadsheetApiService'
+import { setSpreadsheetApiAuthTokenProvider, SpreadsheetApiService } from './services/SpreadsheetApiService'
+import { exportAppToExcel } from './utils/exportUtils'
 
 // Types
 import type { ParsedExcelFile, SpreadsheetAnalysis, SpreadsheetApp, SpreadsheetAppSummary } from './types'
@@ -257,7 +258,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
       userName: string
       userEmail: string
       userAvatar?: string
-      permission: 'view' | 'edit'
+      permission: 'view' | 'edit' | 'admin'
       sharedAt: string
     }>
   >([])
@@ -282,7 +283,6 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     updateApp,
     deleteApp,
     duplicateApp,
-    exportApp,
     shareApp,
     revokeAccess,
     getSharedUsers,
@@ -529,18 +529,32 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
 
   const handleExportApp = useCallback(
     async (id: string) => {
-      const json = await exportApp(id)
-      if (json) {
-        const blob = new Blob([json], { type: 'application/json' })
-        const url = URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = `app-${id}.json`
-        a.click()
-        URL.revokeObjectURL(url)
+      if (!accessToken) {
+        toast.error('Not authenticated')
+        return
+      }
+
+      try {
+        const app = await SpreadsheetApiService.getApp(id)
+        if (!app) {
+          toast.error('Failed to load spreadsheet for download')
+          return
+        }
+
+        const sheetsWithData = await Promise.all(
+          app.sheets.map(async sheet => ({
+            ...sheet,
+            data: await SpreadsheetApiService.getRows(id, sheet.id)
+          }))
+        )
+
+        await exportAppToExcel(app.name, sheetsWithData)
+      } catch (error) {
+        console.error('[SpreadsheetAppsHub] Failed to export spreadsheet as xlsx:', error)
+        toast.error('Failed to download spreadsheet')
       }
     },
-    [exportApp]
+    [accessToken]
   )
 
   /**
@@ -555,7 +569,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
         userId: string
         userName: string
         userEmail: string
-        permission: 'view' | 'edit'
+        permission: 'view' | 'edit' | 'admin'
         sharedAt: string
         sharedBy: string
       }>,
@@ -665,28 +679,18 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
 
   const handleShare = useCallback(
     async (
-      userIds: string[],
-      permission: 'view' | 'edit' | 'admin',
+      shares: Array<{ userId: string; permission: 'view' | 'edit' | 'admin' }>,
       userDetails?: Array<{ userId: string; displayName: string; avatar?: string; email?: string }>
     ) => {
-      const actualPermission = permission === 'admin' ? 'edit' : permission
       if (!selectedAppForShare) return false
-
-      const currentUserName =
-        userInfo?.employeeDetails?.firstName && userInfo?.employeeDetails?.lastName
-          ? `${userInfo.employeeDetails.firstName} ${userInfo.employeeDetails.lastName}`
-          : userInfo?.givenName && userInfo?.familyName
-            ? `${userInfo.givenName} ${userInfo.familyName}`
-            : userInfo?.nickName || userInfo?.userName || 'Someone'
-
-      const success = await shareApp(selectedAppForShare.id, userIds, actualPermission, currentUserName)
+      const success = await shareApp(selectedAppForShare.id, shares)
       if (success) {
         await fetchAndEnrichShares(selectedAppForShare.id, userDetails)
         await refreshApps()
       }
       return success
     },
-    [selectedAppForShare, shareApp, fetchAndEnrichShares, refreshApps, userInfo]
+    [selectedAppForShare, shareApp, fetchAndEnrichShares, refreshApps]
   )
 
   const handleUnshare = useCallback(

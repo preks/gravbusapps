@@ -43,9 +43,7 @@ export interface UseSpreadsheetAppsResult extends UseSpreadsheetAppsState {
   importApp: (jsonData: string) => Promise<SpreadsheetApp | null>
   shareApp: (
     appId: string,
-    recipientUserIds: string[],
-    permission?: 'view' | 'edit',
-    ownerName?: string
+    shares: Array<{ userId: string; permission: 'view' | 'edit' | 'admin' }>
   ) => Promise<boolean>
   getSharedUsers: (appId: string) => Promise<
     Array<{
@@ -53,7 +51,7 @@ export interface UseSpreadsheetAppsResult extends UseSpreadsheetAppsState {
       userId: string
       userName: string
       userEmail: string
-      permission: 'view' | 'edit'
+      permission: 'view' | 'edit' | 'admin'
       sharedAt: string
       sharedBy: string
     }>
@@ -684,24 +682,25 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
    * Share an app with users
    */
   const shareApp = useCallback(
-    async (appId: string, recipientUserIds: string[], permission: 'view' | 'edit' = 'view'): Promise<boolean> => {
+    async (
+      appId: string,
+      shares: Array<{ userId: string; permission: 'view' | 'edit' | 'admin' }>
+    ): Promise<boolean> => {
       if (!accessToken) {
         toast.error('Not authenticated')
         return false
       }
 
-      if (recipientUserIds.length === 0) {
+      if (shares.length === 0) {
         toast.error('Please select at least one user to share with')
         return false
       }
 
       try {
-        const shares = recipientUserIds.map(userId => ({ userId, permission }))
         const success = await SpreadsheetApiService.shareApp(appId, shares)
         if (success) {
-          toast.success(
-            `App shared successfully with ${recipientUserIds.length} ${recipientUserIds.length === 1 ? 'user' : 'users'}`
-          )
+          const uniqueRecipients = new Set(shares.map(share => share.userId)).size
+          toast.success(`App shared successfully with ${uniqueRecipients} ${uniqueRecipients === 1 ? 'user' : 'users'}`)
         } else {
           toast.error('Failed to share app')
         }
@@ -743,7 +742,7 @@ export function useSpreadsheetApps(accessToken: string, userId?: string): UseSpr
           userId: s.userId,
           userName: '', // Backend doesn't return user details, will be fetched separately
           userEmail: '',
-          permission: s.permission as 'view' | 'edit',
+          permission: s.permission as 'view' | 'edit' | 'admin',
           sharedAt: s.sharedAt,
           sharedBy: s.sharedBy
         }))

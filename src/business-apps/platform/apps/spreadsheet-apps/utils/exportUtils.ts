@@ -5,7 +5,12 @@
  * Delegates common Excel logic to the shared excelExportUtils.
  */
 
-import { buildFilename, buildExcelWorkbook, downloadExcelWorkbook } from '@/common/utils/excelExportUtils'
+import {
+  buildFilename,
+  buildExcelWorkbook,
+  downloadExcelWorkbook,
+  exportWorkbookToExcel
+} from '@/common/utils/excelExportUtils'
 import type { SpreadsheetColumn, SpreadsheetSheet } from '../types'
 
 /**
@@ -30,4 +35,22 @@ export const exportSheetToExcel = async (
 
   const filename = buildFilename(`${appName}-${sheet.name}`, 'xlsx')
   await downloadExcelWorkbook(workbook, filename)
+}
+
+/** Exports all spreadsheet sheets to a single multi-sheet Excel file. */
+export const exportAppToExcel = async (appName: string, sheets: SpreadsheetSheet[]): Promise<void> => {
+  const workbookSheets = sheets.map((sheet, index) => {
+    const visibleColumns: SpreadsheetColumn[] = sheet.columns.filter(c => c.isVisible).sort((a, b) => a.order - b.order)
+
+    return {
+      name: sheet.name || `Sheet ${index + 1}`,
+      columns: visibleColumns.map(col => ({
+        header: col.label || col.name,
+        key: col.name
+      })),
+      data: sheet.data || []
+    }
+  })
+
+  await exportWorkbookToExcel(appName || 'spreadsheet-app', workbookSheets)
 }

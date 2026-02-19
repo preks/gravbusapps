@@ -100,6 +100,8 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   // Track in-flight PATCH data so beforeunload can re-send with keepalive if page unloads mid-flight
   const inFlightCellUpdates = useRef<Map<string, { backendRowId: string; changes: Record<string, unknown> }>>(new Map())
   const cellPersistTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const [restoreSyncToken, setRestoreSyncToken] = useState(0)
+  const [pendingRestoreSyncFromAppRef, setPendingRestoreSyncFromAppRef] = useState<SpreadsheetApp | null>(null)
 
   // --- Viewer State (sheet/view + local sheet data) ---
   const {
@@ -113,7 +115,8 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   } = useSpreadsheetViewerState({
     app,
     initialSheetId,
-    initialViewId: initialViewId ?? null
+    initialViewId: initialViewId ?? null,
+    forceSyncToken: restoreSyncToken
   })
 
   // --- Entity data source (optional per-sheet) ---
@@ -1068,6 +1071,32 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     }
   }, [app.name, activeSheet, sheetData])
 
+  const handleRestoreVersion = useCallback(
+    async (versionNumber: number) => {
+      const restored = await versioning.restoreVersion(versionNumber)
+      if (!restored) return
+
+      if (onAppRefreshNeeded) {
+        await onAppRefreshNeeded(app.id, activeSheetId)
+        // Wait for refreshed app prop to arrive before forcing local resync.
+        setPendingRestoreSyncFromAppRef(app)
+        return
+      }
+
+      // Fallback when parent refresh callback is unavailable.
+      setRestoreSyncToken(prev => prev + 1)
+    },
+    [versioning, onAppRefreshNeeded, app.id, activeSheetId]
+  )
+
+  useEffect(() => {
+    if (!pendingRestoreSyncFromAppRef) return
+    if (pendingRestoreSyncFromAppRef === app) return
+
+    setRestoreSyncToken(prev => prev + 1)
+    setPendingRestoreSyncFromAppRef(null)
+  }, [app, pendingRestoreSyncFromAppRef])
+
   return (
     <div className="gba:flex gba:flex-col gba:w-full gba:h-full gba:overflow-hidden" data-testid={testId}>
       <SpreadsheetHeader
@@ -1083,7 +1112,17 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         versioning={{
           isSaving: versioning.isSaving,
           lastSaveTime: versioning.lastSaveTime,
-          hasUnsavedChanges: versioning.hasUnsavedChanges
+          hasUnsavedChanges: versioning.hasUnsavedChanges,
+          currentVersion: (() => {
+            const latestCheckpoint = versioning.versions.find(v => v.isCheckpoint)
+            const version = latestCheckpoint ?? versioning.currentVersion
+            return version
+              ? {
+                  version: version.version,
+                  changeDescription: version.changeDescription
+                }
+              : null
+          })()
         }}
         onShowCheckpointDialog={() => setShowCheckpointDialog(true)}
         onShowVersionHistory={() => setShowVersionHistory(true)}
@@ -1222,7 +1261,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         showVersionHistory={showVersionHistory}
         setShowVersionHistory={setShowVersionHistory}
         versioning={versioning as any}
-        handleRestoreVersion={versioning.restoreVersion as any}
+        handleRestoreVersion={handleRestoreVersion as any}
         showCheckpointDialog={showCheckpointDialog}
         setShowCheckpointDialog={setShowCheckpointDialog}
         showPublishDialog={showPublishDialog}

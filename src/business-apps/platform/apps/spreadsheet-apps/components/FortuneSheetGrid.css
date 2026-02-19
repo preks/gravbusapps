@@ -119,6 +119,17 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
 }
 
+/* Force toolbar currency button symbol to Euro */
+[data-menu-id='currency-format'] {
+  font-size: 0 !important;
+}
+
+[data-menu-id='currency-format']::after {
+  content: '€';
+  font-size: 12px;
+  line-height: 1;
+}
+
 /* FortuneSheet image layer - avatars as circular images, centered in cell */
 .luckysheet-image-container,
 .luckysheet-imageshow {

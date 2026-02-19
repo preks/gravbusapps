@@ -9,6 +9,12 @@ import { Badge } from '@newwork/nw-design-system'
 import type { SpreadsheetColumn } from '../types'
 import { isValidUrl, parseMarkdownLink } from '../utils/linkUtils'
 
+const eurCurrencyFormatter = new Intl.NumberFormat(undefined, {
+  style: 'currency',
+  currency: 'EUR',
+  minimumFractionDigits: 2
+})
+
 /**
  * Check if a value is a workflow status and return badge variant
  */
@@ -105,7 +111,7 @@ function renderMarkdownOrUrlValue(value: string): React.ReactNode | null {
 function renderValueByColumnType(value: unknown, column: SpreadsheetColumn): React.ReactNode {
   switch (column.type) {
     case 'currency':
-      return `$${Number(value).toLocaleString(undefined, { minimumFractionDigits: 2 })}`
+      return eurCurrencyFormatter.format(Number(value))
     case 'percentage':
       return `${Number(value).toFixed(1)}%`
     case 'date':
@@ -132,7 +138,7 @@ function renderValueByColumnType(value: unknown, column: SpreadsheetColumn): Rea
         </a>
       )
     case 'url': {
-      const linkText = column.name === '_copy_link' ? (column.label || 'View Response') : String(value)
+      const linkText = column.name === '_copy_link' ? column.label || 'View Response' : String(value)
       return (
         <a
           href={String(value)}

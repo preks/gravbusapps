@@ -12,6 +12,7 @@ export interface UseSpreadsheetViewerStateProps {
   app: SpreadsheetApp
   initialSheetId?: string
   initialViewId?: string | null
+  forceSyncToken?: number
 }
 
 export interface SpreadsheetViewerState {
@@ -33,7 +34,8 @@ export interface SpreadsheetViewerState {
 export function useSpreadsheetViewerState({
   app,
   initialSheetId,
-  initialViewId
+  initialViewId,
+  forceSyncToken = 0
 }: UseSpreadsheetViewerStateProps): SpreadsheetViewerState {
   // Active sheet state
   const [activeSheetId, setActiveSheetId] = useState(initialSheetId || app.sheets[0]?.id || '')
@@ -72,6 +74,7 @@ export function useSpreadsheetViewerState({
   // Track previous sheet ID and sheet ids to detect changes
   const prevSheetIdRef = useRef(activeSheetId)
   const prevSheetIdsRef = useRef<string[]>(app.sheets.map(s => s.id))
+  const prevForceSyncTokenRef = useRef(forceSyncToken)
 
   // Sync from app.sheets when:
   // 1. User switches sheets (activeSheetId changes)
@@ -85,13 +88,15 @@ export function useSpreadsheetViewerState({
     const newSheetAdded =
       currentSheetIds.length > prevSheetIdsRef.current.length ||
       currentSheetIds.some(id => !prevSheetIdsRef.current.includes(id))
+    const forceSyncRequested = prevForceSyncTokenRef.current !== forceSyncToken
 
-    if (activeSheetChanged || newSheetAdded) {
+    if (activeSheetChanged || newSheetAdded || forceSyncRequested) {
       setLocalSheetData(sortByRowOrder(sheet?.data || [], sheet))
       prevSheetIdRef.current = activeSheetId
     }
     prevSheetIdsRef.current = currentSheetIds
-  }, [activeSheetId, app.sheets])
+    prevForceSyncTokenRef.current = forceSyncToken
+  }, [activeSheetId, app.sheets, forceSyncToken])
 
   // Get active sheet
   const activeSheet = useMemo(
