@@ -5,12 +5,13 @@
  */
 
 import React, { memo } from 'react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@newwork/nw-design-system'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, useTranslation } from '@newwork/nw-design-system'
 import { DynamicFormGenerator } from '@/business-apps/ser/components/DynamicFormGenerator'
 import type { DynamicFormField } from '@/business-apps/ser/types/flowTemplate'
 import type { SpreadsheetColumn } from '../types'
 import { ManageColumnsDialog } from './ManageColumnsDialog'
 import { VersionHistory } from '../../shared/components/VersionHistory'
+import translations from '../_i18n'
 import { CheckpointDialog } from '../../shared/components/CheckpointDialog'
 import { PublishDialog } from '../../shared/components/PublishDialog'
 import { CommentPanel } from '../../shared/components/CommentPanel'
@@ -114,20 +115,22 @@ export const SpreadsheetDialogsSection: React.FC<SpreadsheetDialogsSectionProps>
     currentUserAvatar,
     testId
   }) {
+    const { t } = useTranslation(translations)
+
     return (
       <>
         {/* Edit Row Dialog */}
         <Dialog open={!!editingRow} onOpenChange={() => setEditingRow(null)}>
           <DialogContent className="gba:max-w-2xl">
             <DialogHeader>
-              <DialogTitle>Edit Row</DialogTitle>
+              <DialogTitle>{t('edit-row-title')}</DialogTitle>
             </DialogHeader>
             {editingRow && (
               <DynamicFormGenerator
                 schema={formFields}
                 initialValues={editingRow}
                 onSubmit={handleUpdateRow}
-                submitButtonText="Save Changes"
+                submitButtonText={t('edit-row-save')}
                 showCard={false}
                 accessToken={accessToken}
               />
@@ -156,6 +159,22 @@ export const SpreadsheetDialogsSection: React.FC<SpreadsheetDialogsSectionProps>
             onClose={() => setShowVersionHistory(false)}
             currentVersion={versioning.currentVersion?.version}
             showAutoSaves={false}
+            messages={{
+              title: t('version-history-title'),
+              compareMode: t('version-history-compare-mode'),
+              cancelCompare: t('version-history-cancel-compare'),
+              compareSelected: t('version-history-compare-selected'),
+              loading: t('version-history-loading'),
+              empty: t('version-history-empty'),
+              versionLabel: (num: number) => t('version-history-version', { num }),
+              current: t('version-history-current'),
+              checkpoint: t('version-history-checkpoint'),
+              autosave: t('version-history-autosave'),
+              restoreTitle: t('version-history-restore-title'),
+              restoreConfirm: (num: number) => t('version-history-restore-confirm', { num }),
+              compareHint: t('version-history-compare-hint'),
+              unknownUser: t('version-history-unknown-user')
+            }}
             data-testid="spreadsheet-version-history"
           />
         )}
@@ -168,6 +187,15 @@ export const SpreadsheetDialogsSection: React.FC<SpreadsheetDialogsSectionProps>
               await versioning.createCheckpoint(description)
             }}
             isSaving={versioning.isSaving}
+            messages={{
+              title: t('checkpoint-title'),
+              descriptionLabel: t('checkpoint-description-label'),
+              descriptionPlaceholder: t('checkpoint-description-placeholder'),
+              descriptionHint: t('checkpoint-description-hint'),
+              cancel: t('checkpoint-cancel'),
+              save: t('checkpoint-save'),
+              saving: t('checkpoint-saving')
+            }}
             data-testid="spreadsheet-checkpoint-dialog"
           />
         )}
@@ -181,6 +209,17 @@ export const SpreadsheetDialogsSection: React.FC<SpreadsheetDialogsSectionProps>
             }}
             isPublishing={publishing.isPublishing}
             entityType="spreadsheet"
+            messages={{
+              title: t('publish-title', { entity: t('publish-entity-spreadsheet') }),
+              alert: t('publish-alert', { entity: t('publish-entity-spreadsheet') }),
+              notesLabel: t('publish-notes-label'),
+              notesPlaceholder: t('publish-notes-placeholder'),
+              notesHint: t('publish-notes-hint'),
+              createCheckpointLabel: t('publish-create-checkpoint'),
+              cancel: t('publish-cancel'),
+              confirm: t('publish-confirm'),
+              publishing: t('publish-publishing')
+            }}
             data-testid="spreadsheet-publish-dialog"
           />
         )}

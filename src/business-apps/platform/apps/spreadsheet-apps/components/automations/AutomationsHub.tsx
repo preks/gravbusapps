@@ -29,7 +29,8 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
-  Spinner
+  Spinner,
+  useTranslation
 } from '@newwork/nw-design-system'
 import {
   Zap,
@@ -58,6 +59,7 @@ import type {
   AutomationExecutionHistory,
   WorkflowRowLink
 } from '../../types/automation'
+import translations from '../../_i18n'
 
 export interface AutomationsHubProps {
   /** List of automations for this sheet */
@@ -106,37 +108,40 @@ function getAutomationTypeIcon(type: AutomationType) {
 }
 
 /**
- * Get label for automation type
+ * Get translation key for automation type
  */
-function getAutomationTypeLabel(type: AutomationType): string {
-  const labels: Record<AutomationType, string> = {
-    row_workflow: 'Row Workflow',
-    bulk_collection: 'Data Collection (Form)',
-    excel_collection: 'Data Collection (Template)',
-    sheet_approval: 'Sheet Approval',
-    line_approval: 'Line Approval'
+function getAutomationTypeKey(type: AutomationType): string {
+  const keys: Record<AutomationType, string> = {
+    row_workflow: 'automation-type-row-workflow',
+    bulk_collection: 'automation-type-bulk-collection',
+    excel_collection: 'automation-type-excel-collection',
+    sheet_approval: 'automation-type-sheet-approval',
+    line_approval: 'automation-type-line-approval'
   }
-  return labels[type] || type
+  return keys[type] || type
 }
 
 /**
- * Get label for trigger type
+ * Get translation key for trigger type
  */
-function getTriggerLabel(trigger: AutomationTrigger): string {
-  const labels: Record<AutomationTrigger, string> = {
-    manual: 'Manual',
-    onRowAdd: 'On Row Add',
-    onFieldChange: 'On Field Change',
-    scheduled: 'Scheduled',
-    onApprovalRequest: 'On Approval Request'
+function getTriggerKey(trigger: AutomationTrigger): string {
+  const keys: Record<AutomationTrigger, string> = {
+    manual: 'automation-trigger-manual',
+    onRowAdd: 'automation-trigger-on-row-add',
+    onFieldChange: 'automation-trigger-on-field-change',
+    scheduled: 'automation-trigger-scheduled',
+    onApprovalRequest: 'automation-trigger-on-approval-request'
   }
-  return labels[trigger] || trigger
+  return keys[trigger] || trigger
 }
 
 /**
- * Format relative time
+ * Format relative time (requires t from useTranslation)
  */
-function formatRelativeTime(dateString: string): string {
+function formatRelativeTime(
+  dateString: string,
+  t: (key: string, vars?: Record<string, number | string>) => string
+): string {
   const date = new Date(dateString)
   const now = new Date()
   const diffMs = now.getTime() - date.getTime()
@@ -144,10 +149,10 @@ function formatRelativeTime(dateString: string): string {
   const diffHours = Math.floor(diffMs / 3600000)
   const diffDays = Math.floor(diffMs / 86400000)
 
-  if (diffMins < 1) return 'Just now'
-  if (diffMins < 60) return `${diffMins} min ago`
-  if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`
-  if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`
+  if (diffMins < 1) return t('automations-time-just-now')
+  if (diffMins < 60) return t('automations-time-min-ago', { count: diffMins })
+  if (diffHours < 24) return t('automations-time-hours-ago', { count: diffHours })
+  if (diffDays < 7) return t('automations-time-days-ago', { count: diffDays })
   return date.toLocaleDateString()
 }
 
@@ -163,6 +168,7 @@ interface AutomationCardProps {
   onDuplicate: () => void
   onRun: () => void
   isRunning?: boolean
+  t: (key: string, vars?: Record<string, number | string>) => string
 }
 
 const AutomationCard: React.FC<AutomationCardProps> = ({
@@ -173,7 +179,8 @@ const AutomationCard: React.FC<AutomationCardProps> = ({
   onToggle,
   onDuplicate,
   onRun,
-  isRunning = false
+  isRunning = false,
+  t
 }) => {
   const Icon = getAutomationTypeIcon(automation.type)
 
@@ -194,14 +201,14 @@ const AutomationCard: React.FC<AutomationCardProps> = ({
                 <h3 className="gba:font-semibold gba:text-foreground gba:truncate">{automation.name}</h3>
                 {!automation.isEnabled && (
                   <Badge variant="outline" className="gba:text-xs">
-                    Disabled
+                    {t('automations-hub-disabled')}
                   </Badge>
                 )}
               </div>
               <div className="gba:flex gba:items-center gba:gap-3 gba:mt-1 gba:text-sm gba:text-muted-foreground">
-                <span>{getAutomationTypeLabel(automation.type)}</span>
+                <span>{t(getAutomationTypeKey(automation.type))}</span>
                 <span className="gba:text-muted-foreground/50">•</span>
-                <span>{getTriggerLabel(automation.trigger)}</span>
+                <span>{t(getTriggerKey(automation.trigger))}</span>
               </div>
               {automation.description && (
                 <p className="gba:text-sm gba:text-muted-foreground gba:mt-1 gba:line-clamp-1">
@@ -212,17 +219,17 @@ const AutomationCard: React.FC<AutomationCardProps> = ({
                 {automation.lastRunAt && (
                   <span className="gba:flex gba:items-center gba:gap-1">
                     <Clock className="gba:w-3 gba:h-3" />
-                    Last run: {formatRelativeTime(automation.lastRunAt)}
+                    {t('automations-hub-last-run')}: {formatRelativeTime(automation.lastRunAt, t)}
                   </span>
                 )}
                 <span className="gba:flex gba:items-center gba:gap-1">
                   <History className="gba:w-3 gba:h-3" />
-                  {automation.runCount} executions
+                  {t('automations-hub-executions-count', { count: automation.runCount })}
                 </span>
                 {activeWorkflows > 0 && (
                   <span className="gba:flex gba:items-center gba:gap-1 gba:text-info">
                     <RefreshCw className="gba:w-3 gba:h-3 gba:animate-spin" />
-                    {activeWorkflows} active
+                    {t('automations-hub-active-count', { count: activeWorkflows })}
                   </span>
                 )}
               </div>
@@ -236,7 +243,7 @@ const AutomationCard: React.FC<AutomationCardProps> = ({
             {automation.trigger === 'manual' && (
               <Button size="sm" variant="outline" onClick={onRun} disabled={!automation.isEnabled || isRunning}>
                 {isRunning ? <Spinner size="sm" className="gba:mr-1" /> : <Play className="gba:w-4 gba:h-4 gba:mr-1" />}
-                Run
+                {t('automations-hub-run')}
               </Button>
             )}
 
@@ -249,16 +256,16 @@ const AutomationCard: React.FC<AutomationCardProps> = ({
               <DropdownMenuContent align="end" style={{ zIndex: 1000002 }}>
                 <DropdownMenuItem onClick={onEdit}>
                   <Pencil className="gba:w-4 gba:h-4 gba:mr-2" />
-                  Edit
+                  {t('automations-hub-edit')}
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={onDuplicate}>
                   <Copy className="gba:w-4 gba:h-4 gba:mr-2" />
-                  Duplicate
+                  {t('automations-hub-duplicate')}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={onDelete} className="gba:text-destructive">
                   <Trash2 className="gba:w-4 gba:h-4 gba:mr-2" />
-                  Delete
+                  {t('automations-hub-delete')}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -275,9 +282,10 @@ const AutomationCard: React.FC<AutomationCardProps> = ({
 interface ExecutionHistoryRowProps {
   entry: AutomationExecutionHistory
   automationName?: string
+  t: (key: string, vars?: Record<string, number | string>) => string
 }
 
-const ExecutionHistoryRow: React.FC<ExecutionHistoryRowProps> = ({ entry, automationName }) => {
+const ExecutionHistoryRow: React.FC<ExecutionHistoryRowProps> = ({ entry, automationName, t }) => {
   const isSuccess = entry.failedCount === 0
   const StatusIcon = isSuccess ? CheckCircle : entry.failedCount < entry.rowCount ? AlertTriangle : XCircle
   const statusColor = isSuccess
@@ -291,16 +299,22 @@ const ExecutionHistoryRow: React.FC<ExecutionHistoryRowProps> = ({ entry, automa
       <div className="gba:flex gba:items-center gba:gap-3">
         <StatusIcon className={`gba:w-5 gba:h-5 ${statusColor}`} />
         <div>
-          <div className="gba:text-sm gba:font-medium gba:text-foreground">{automationName || 'Automation'}</div>
+          <div className="gba:text-sm gba:font-medium gba:text-foreground">
+            {automationName || t('automations-hub-automation-label')}
+          </div>
           <div className="gba:text-xs gba:text-muted-foreground">
-            {formatRelativeTime(entry.executedAt)} • {entry.rowCount} rows
+            {formatRelativeTime(entry.executedAt, t)} • {t('automations-hub-rows-count', { count: entry.rowCount })}
           </div>
         </div>
       </div>
       <div className="gba:text-right">
         <div className="gba:text-sm">
-          <span className="gba:text-success">{entry.successCount} succeeded</span>
-          {entry.failedCount > 0 && <span className="gba:text-destructive gba:ml-2">{entry.failedCount} failed</span>}
+          <span className="gba:text-success">{t('automations-hub-succeeded', { count: entry.successCount })}</span>
+          {entry.failedCount > 0 && (
+            <span className="gba:text-destructive gba:ml-2">
+              {t('automations-hub-failed', { count: entry.failedCount })}
+            </span>
+          )}
         </div>
         <div className="gba:text-xs gba:text-muted-foreground">{entry.durationMs}ms</div>
       </div>
@@ -331,6 +345,7 @@ export const AutomationsHub: React.FC<AutomationsHubProps> = ({
   const [automationToDelete, setAutomationToDelete] = useState<SpreadsheetAutomation | null>(null)
   const [runningAutomations, setRunningAutomations] = useState<Set<string>>(new Set())
   const [isDeleting, setIsDeleting] = useState(false)
+  const { t } = useTranslation(translations)
 
   // Inject z-index styles for dropdowns in the hub (higher than parent portal)
   useEffect(() => {
@@ -438,9 +453,9 @@ export const AutomationsHub: React.FC<AutomationsHubProps> = ({
         <div className="gba:flex-1 gba:min-w-0">
           <h2 className="gba:text-lg gba:font-semibold gba:text-foreground gba:flex gba:items-center gba:gap-2">
             <Zap className="gba:w-5 gba:h-5 gba:text-primary" />
-            Automations
+            {t('automations-hub-title')}
           </h2>
-          <p className="gba:text-sm gba:text-muted-foreground gba:mt-1">Automate workflows for your spreadsheet data</p>
+          <p className="gba:text-sm gba:text-muted-foreground gba:mt-1">{t('automations-hub-subtitle')}</p>
         </div>
         <div className="gba:flex gba:items-center gba:gap-2 gba:flex-shrink-0">
           {onRefresh && (
@@ -450,7 +465,7 @@ export const AutomationsHub: React.FC<AutomationsHubProps> = ({
           )}
           <Button size="sm" onClick={onCreateAutomation}>
             <Plus className="gba:w-4 gba:h-4 gba:mr-2" />
-            New
+            {t('automations-hub-new')}
           </Button>
         </div>
       </div>
@@ -460,7 +475,7 @@ export const AutomationsHub: React.FC<AutomationsHubProps> = ({
         <Card>
           <CardContent className="gba:p-3">
             <div className="gba:flex gba:items-center gba:justify-between">
-              <div className="gba:text-xs gba:text-muted-foreground">Total</div>
+              <div className="gba:text-xs gba:text-muted-foreground">{t('automations-hub-total')}</div>
               <div className="gba:text-lg gba:font-bold gba:text-foreground">{stats.total}</div>
             </div>
           </CardContent>
@@ -468,7 +483,7 @@ export const AutomationsHub: React.FC<AutomationsHubProps> = ({
         <Card>
           <CardContent className="gba:p-3">
             <div className="gba:flex gba:items-center gba:justify-between">
-              <div className="gba:text-xs gba:text-muted-foreground">Enabled</div>
+              <div className="gba:text-xs gba:text-muted-foreground">{t('automations-hub-enabled')}</div>
               <div className="gba:text-lg gba:font-bold gba:text-success">{stats.enabled}</div>
             </div>
           </CardContent>
@@ -476,7 +491,7 @@ export const AutomationsHub: React.FC<AutomationsHubProps> = ({
         <Card>
           <CardContent className="gba:p-3">
             <div className="gba:flex gba:items-center gba:justify-between">
-              <div className="gba:text-xs gba:text-muted-foreground">Executions</div>
+              <div className="gba:text-xs gba:text-muted-foreground">{t('automations-hub-executions')}</div>
               <div className="gba:text-lg gba:font-bold gba:text-foreground">{stats.totalExecutions}</div>
             </div>
           </CardContent>
@@ -484,7 +499,7 @@ export const AutomationsHub: React.FC<AutomationsHubProps> = ({
         <Card>
           <CardContent className="gba:p-3">
             <div className="gba:flex gba:items-center gba:justify-between">
-              <div className="gba:text-xs gba:text-muted-foreground">Active</div>
+              <div className="gba:text-xs gba:text-muted-foreground">{t('automations-hub-active')}</div>
               <div className="gba:text-lg gba:font-bold gba:text-info">{stats.activeWorkflows}</div>
             </div>
           </CardContent>
@@ -496,10 +511,10 @@ export const AutomationsHub: React.FC<AutomationsHubProps> = ({
         <div className="gba:flex gba:flex-col gba:gap-3 gba:mb-4">
           <TabsList className="gba:w-full">
             <TabsTrigger value="automations" className="gba:flex-1">
-              Automations
+              {t('automations-hub-tab-automations')}
             </TabsTrigger>
             <TabsTrigger value="history" className="gba:flex-1">
-              History
+              {t('automations-hub-tab-history')}
             </TabsTrigger>
           </TabsList>
 
@@ -507,7 +522,7 @@ export const AutomationsHub: React.FC<AutomationsHubProps> = ({
             <div className="gba:relative">
               <Search className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:w-4 gba:h-4 gba:text-muted-foreground" />
               <Input
-                placeholder="Search automations..."
+                placeholder={t('automations-hub-search-placeholder')}
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 className="gba:pl-10"
@@ -527,17 +542,15 @@ export const AutomationsHub: React.FC<AutomationsHubProps> = ({
               <CardContent className="gba:py-16 gba:text-center">
                 <Zap className="gba:w-12 gba:h-12 gba:text-muted-foreground gba:mx-auto gba:mb-4" />
                 <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-2">
-                  {automations.length === 0 ? 'No automations yet' : 'No matching automations'}
+                  {automations.length === 0 ? t('automations-hub-empty-title') : t('automations-hub-empty-filtered')}
                 </h3>
                 <p className="gba:text-muted-foreground gba:mb-4">
-                  {automations.length === 0
-                    ? 'Create your first automation to start processing rows with workflows.'
-                    : 'Try adjusting your search query.'}
+                  {automations.length === 0 ? t('automations-hub-empty-hint') : t('automations-hub-empty-search-hint')}
                 </p>
                 {automations.length === 0 && (
                   <Button onClick={onCreateAutomation}>
                     <Plus className="gba:w-4 gba:h-4 gba:mr-2" />
-                    Create Automation
+                    {t('automations-hub-create-button')}
                   </Button>
                 )}
               </CardContent>
@@ -555,6 +568,7 @@ export const AutomationsHub: React.FC<AutomationsHubProps> = ({
                   onDuplicate={() => onDuplicateAutomation(automation.id)}
                   onRun={() => handleRunAutomation(automation.id)}
                   isRunning={runningAutomations.has(automation.id)}
+                  t={t}
                 />
               ))}
             </div>
@@ -567,8 +581,10 @@ export const AutomationsHub: React.FC<AutomationsHubProps> = ({
             <Card className="gba:border-dashed">
               <CardContent className="gba:py-16 gba:text-center">
                 <History className="gba:w-12 gba:h-12 gba:text-muted-foreground gba:mx-auto gba:mb-4" />
-                <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-2">No execution history</h3>
-                <p className="gba:text-muted-foreground">Run an automation to see execution history here.</p>
+                <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-2">
+                  {t('automations-hub-history-empty-title')}
+                </h3>
+                <p className="gba:text-muted-foreground">{t('automations-hub-history-empty-hint')}</p>
               </CardContent>
             </Card>
           ) : (
@@ -579,6 +595,7 @@ export const AutomationsHub: React.FC<AutomationsHubProps> = ({
                     key={entry.id}
                     entry={entry}
                     automationName={getAutomationName(entry.automationId)}
+                    t={t}
                   />
                 ))}
               </CardContent>
@@ -591,18 +608,18 @@ export const AutomationsHub: React.FC<AutomationsHubProps> = ({
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent style={{ zIndex: 1000003 }}>
           <DialogHeader>
-            <DialogTitle>Delete Automation</DialogTitle>
+            <DialogTitle>{t('automations-hub-delete-dialog-title')}</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete "{automationToDelete?.name}"? This action cannot be undone.
+              {t('automations-hub-delete-dialog-desc', { name: automationToDelete?.name ?? '' })}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteDialogOpen(false)} disabled={isDeleting}>
-              Cancel
+              {t('automations-hub-dialog-cancel')}
             </Button>
             <Button variant="destructive" onClick={handleDeleteConfirm} disabled={isDeleting}>
               {isDeleting ? <Spinner size="sm" className="gba:mr-2" /> : null}
-              Delete
+              {t('automations-hub-delete')}
             </Button>
           </DialogFooter>
         </DialogContent>

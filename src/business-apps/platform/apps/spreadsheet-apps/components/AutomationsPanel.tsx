@@ -6,8 +6,9 @@
 
 import React, { memo } from 'react'
 import { createPortal } from 'react-dom'
-import { Button } from '@newwork/nw-design-system'
+import { Button, useTranslation } from '@newwork/nw-design-system'
 import { Zap, X } from 'lucide-react'
+import translations from '../_i18n'
 import { AutomationsHub } from './automations/AutomationsHub'
 import { AutomationWizard } from './automations/AutomationWizard'
 import { AutomationToolbarActions } from './automations/AutomationToolbarActions'
@@ -67,6 +68,7 @@ export const AutomationsPanel: React.FC<AutomationsPanelProps> = memo(function A
   isSummarizing = false,
   'data-testid': testId = 'automations-panel'
 }) {
+  const { t } = useTranslation(translations)
   const [isWizardOpen, setIsWizardOpen] = React.useState(false)
   const [editingAutomation, setEditingAutomation] = React.useState<SpreadsheetAutomation | null>(null)
 
@@ -94,8 +96,10 @@ export const AutomationsPanel: React.FC<AutomationsPanelProps> = memo(function A
                   <Zap className="gba:w-4.5 gba:h-4.5 gba:text-primary" />
                 </div>
                 <div>
-                  <h2 className="gba:text-base gba:font-semibold gba:text-foreground">Automations</h2>
-                  <p className="gba:text-xs gba:text-muted-foreground">Automate workflows and actions</p>
+                  <h2 className="gba:text-base gba:font-semibold gba:text-foreground">
+                    {t('automations-panel-title')}
+                  </h2>
+                  <p className="gba:text-xs gba:text-muted-foreground">{t('automations-panel-subtitle')}</p>
                 </div>
               </div>
               <Button

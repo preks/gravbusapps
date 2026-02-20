@@ -11,8 +11,10 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  DropdownMenuSeparator
+  DropdownMenuSeparator,
+  useTranslation
 } from '@newwork/nw-design-system'
+import translations from '../_i18n'
 import {
   FileSpreadsheet,
   History,
@@ -66,45 +68,47 @@ export const SpreadsheetActionsMenu: React.FC<SpreadsheetActionsMenuProps> = ({
   onExportToExcel,
   'data-testid': testId = 'spreadsheet-actions-menu'
 }) => {
+  const { t } = useTranslation(translations)
+
   return (
     <div className="gba:flex gba:items-center gba:gap-1.5" data-testid={testId}>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="outline" size="sm" className="gba:h-8">
             <FileSpreadsheet className="gba:w-4 gba:h-4 gba:mr-2" />
-            Spreadsheet
+            {t('menu-spreadsheet')}
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItem onClick={onShowVersionHistory}>
             <History className="gba:w-4 gba:h-4 gba:mr-2" />
-            Version History
+            {t('menu-version-history')}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={onShowCheckpointDialog}>
             <Save className="gba:w-4 gba:h-4 gba:mr-2" />
-            Save Checkpoint
+            {t('menu-save-checkpoint')}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           {isLockedByMe ? (
             <DropdownMenuItem onClick={onReleaseLock}>
               <Unlock className="gba:w-4 gba:h-4 gba:mr-2" />
-              Unlock Spreadsheet
+              {t('menu-unlock-spreadsheet')}
             </DropdownMenuItem>
           ) : (
             <DropdownMenuItem onClick={onAcquireLock}>
               <Lock className="gba:w-4 gba:h-4 gba:mr-2" />
-              Lock Spreadsheet
+              {t('menu-lock-spreadsheet')}
             </DropdownMenuItem>
           )}
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={onShowPublishDialog}>
             <Upload className="gba:w-4 gba:h-4 gba:mr-2" />
-            Publish...
+            {t('menu-publish')}
           </DropdownMenuItem>
           {allowExport && onExportToExcel && (
             <DropdownMenuItem onClick={onExportToExcel} data-testid={`${testId}-export-excel`}>
               <Download className="gba:w-4 gba:h-4 gba:mr-2" />
-              Export to Excel
+              {t('menu-export-to-excel')}
             </DropdownMenuItem>
           )}
           <DropdownMenuSeparator />
@@ -112,22 +116,22 @@ export const SpreadsheetActionsMenu: React.FC<SpreadsheetActionsMenuProps> = ({
             <>
               <DropdownMenuItem onClick={onAddColumn}>
                 <Plus className="gba:w-4 gba:h-4 gba:mr-2" />
-                Add Column
+                {t('menu-add-column')}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={onManageColumns}>
                 <Columns className="gba:w-4 gba:h-4 gba:mr-2" />
-                Manage Columns
+                {t('menu-manage-columns')}
               </DropdownMenuItem>
             </>
           )}
           <DropdownMenuItem onClick={onOpenAutomations}>
             <Zap className="gba:w-4 gba:h-4 gba:mr-2" />
-            Automations
+            {t('menu-automations')}
           </DropdownMenuItem>
           {onEdit && (
             <DropdownMenuItem onClick={onEdit}>
               <Settings className="gba:w-4 gba:h-4 gba:mr-2" />
-              Settings
+              {t('menu-settings')}
             </DropdownMenuItem>
           )}
         </DropdownMenuContent>

@@ -6,7 +6,7 @@
  */
 
 import React, { memo, useState, useEffect, useCallback } from 'react'
-import { Button, AiButton, Badge, Input, Spinner } from '@newwork/nw-design-system'
+import { Button, AiButton, Badge, Input, Spinner, useTranslation } from '@newwork/nw-design-system'
 import {
   ChevronRight,
   Eye,
@@ -25,6 +25,7 @@ import { AutoSaveIndicator } from '../../shared/components/AutoSaveIndicator'
 import { StatusBadge } from '../../shared/components/StatusBadge'
 import type { SpreadsheetApp, SpreadsheetSheet } from '../types'
 import type { CursorParticipant } from '../hooks/useSpreadsheetCellSelection'
+import translations from '../_i18n'
 
 export interface SpreadsheetHeaderProps {
   app: SpreadsheetApp
@@ -128,6 +129,8 @@ export const SpreadsheetHeader: React.FC<SpreadsheetHeaderProps> = memo(function
   isSummarizing = false,
   testId
 }) {
+  const { t } = useTranslation(translations)
+
   const [isSubmitting, setIsSubmitting] = useState(false)
   const handleSubmitCollection = useCallback(async () => {
     if (!onSubmitCollection) return
@@ -278,7 +281,7 @@ export const SpreadsheetHeader: React.FC<SpreadsheetHeaderProps> = memo(function
               {fileLock.lock?.isLocked && fileLock.isLockedByMe && (
                 <Badge variant="default" className="gba:flex gba:items-center gba:gap-1">
                   <Lock className="gba:h-3 gba:w-3" />
-                  Locked
+                  {t('lock-status-locked')}
                 </Badge>
               )}
 
@@ -295,7 +298,9 @@ export const SpreadsheetHeader: React.FC<SpreadsheetHeaderProps> = memo(function
               data-testid="spreadsheet-submitted-badge"
             >
               <CheckCircle2 className="gba:w-3.5 gba:h-3.5" />
-              <span>Submitted · {formattedSubmittedAt}</span>
+              <span>
+                {t('badge-submitted')} · {formattedSubmittedAt}
+              </span>
             </Badge>
           )}
           {isCollectionCopy && !collectionSubmittedAt && onSubmitCollection && (
@@ -306,7 +311,7 @@ export const SpreadsheetHeader: React.FC<SpreadsheetHeaderProps> = memo(function
               data-testid="spreadsheet-submit-collection"
             >
               <Send className="gba:w-4 gba:h-4 gba:mr-2" />
-              {isSubmitting ? 'Submitting…' : 'Submit'}
+              {isSubmitting ? t('collection-submitting') : t('collection-submit')}
             </Button>
           )}
 
@@ -321,7 +326,7 @@ export const SpreadsheetHeader: React.FC<SpreadsheetHeaderProps> = memo(function
               disabled={isSummarizing}
               data-testid="spreadsheet-summarize-ai"
             >
-              Summarize with AI
+              {t('automation-toolbar-summarize')}
             </AiButton>
           )}
 

@@ -20,10 +20,29 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue
+  SelectValue,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { Columns, Eye, EyeOff, Plus, Save, Trash2 } from 'lucide-react'
 import type { SpreadsheetColumn, ColumnType } from '../types'
+import translations from '../_i18n'
+
+const COLUMN_TYPE_KEYS: Partial<Record<ColumnType, string>> = {
+  text: 'manage-columns-type-text',
+  number: 'manage-columns-type-number',
+  currency: 'manage-columns-type-currency',
+  percentage: 'manage-columns-type-percentage',
+  date: 'manage-columns-type-date',
+  datetime: 'manage-columns-type-datetime',
+  email: 'manage-columns-type-email',
+  phone: 'manage-columns-type-phone',
+  url: 'manage-columns-type-url',
+  select: 'manage-columns-type-select',
+  multiselect: 'manage-columns-type-multiselect',
+  boolean: 'manage-columns-type-boolean',
+  calculated: 'manage-columns-type-calculated',
+  reference: 'manage-columns-type-reference'
+}
 
 export interface ManageColumnsDialogProps {
   isOpen: boolean
@@ -46,6 +65,8 @@ export const ManageColumnsDialog: React.FC<ManageColumnsDialogProps> = ({
   onAddColumn,
   'data-testid': testId = 'manage-columns-dialog'
 }) => {
+  const { t } = useTranslation(translations)
+
   const handleOpenChange = (open: boolean) => {
     if (open) {
       setEditingColumns(columns.map(c => ({ ...c })))
@@ -77,30 +98,28 @@ export const ManageColumnsDialog: React.FC<ManageColumnsDialogProps> = ({
         <DialogHeader>
           <DialogTitle className="gba:flex gba:items-center gba:gap-2">
             <Columns className="gba:w-5 gba:h-5" />
-            Manage Columns
+            {t('manage-columns-title')}
           </DialogTitle>
         </DialogHeader>
         <div className="gba:space-y-3 gba:max-h-[500px] gba:overflow-y-auto">
           {columnsToEdit.length === 0 ? (
-            <p className="gba:text-muted-foreground gba:text-center gba:py-4">
-              No custom columns. Click "Add Column" to create one.
-            </p>
+            <p className="gba:text-muted-foreground gba:text-center gba:py-4">{t('manage-columns-empty')}</p>
           ) : (
             columnsToEdit.map(column => (
               <Card key={column.id} className="gba:p-4">
                 <div className="gba:space-y-4">
                   <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-4">
                     <div className="gba:space-y-2">
-                      <Label htmlFor={`column-label-${column.id}`}>Column Name</Label>
+                      <Label htmlFor={`column-label-${column.id}`}>{t('manage-columns-column-name')}</Label>
                       <Input
                         id={`column-label-${column.id}`}
                         value={column.label}
                         onChange={e => updateColumnField(column.id, 'label', e.target.value)}
-                        placeholder="Column name"
+                        placeholder={t('manage-columns-column-name-placeholder')}
                       />
                     </div>
                     <div className="gba:space-y-2">
-                      <Label htmlFor={`column-type-${column.id}`}>Data Type</Label>
+                      <Label htmlFor={`column-type-${column.id}`}>{t('manage-columns-data-type')}</Label>
                       <Select
                         value={column.type}
                         onValueChange={(value: ColumnType) => updateColumnField(column.id, 'type', value)}
@@ -109,20 +128,11 @@ export const ManageColumnsDialog: React.FC<ManageColumnsDialogProps> = ({
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="text">Text</SelectItem>
-                          <SelectItem value="number">Number</SelectItem>
-                          <SelectItem value="currency">Currency</SelectItem>
-                          <SelectItem value="percentage">Percentage</SelectItem>
-                          <SelectItem value="date">Date</SelectItem>
-                          <SelectItem value="datetime">Date & Time</SelectItem>
-                          <SelectItem value="email">Email</SelectItem>
-                          <SelectItem value="phone">Phone</SelectItem>
-                          <SelectItem value="url">URL</SelectItem>
-                          <SelectItem value="select">Single Select</SelectItem>
-                          <SelectItem value="multiselect">Multi Select</SelectItem>
-                          <SelectItem value="boolean">Checkbox</SelectItem>
-                          <SelectItem value="calculated">Calculated</SelectItem>
-                          <SelectItem value="reference">Reference</SelectItem>
+                          {(Object.keys(COLUMN_TYPE_KEYS) as ColumnType[]).map(type => (
+                            <SelectItem key={type} value={type}>
+                              {COLUMN_TYPE_KEYS[type] ? t(COLUMN_TYPE_KEYS[type]) : type}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
@@ -141,12 +151,12 @@ export const ManageColumnsDialog: React.FC<ManageColumnsDialogProps> = ({
                         {column.isVisible ? (
                           <>
                             <Eye className="gba:w-3 gba:h-3 gba:mr-1" />
-                            Visible
+                            {t('manage-columns-visible')}
                           </>
                         ) : (
                           <>
                             <EyeOff className="gba:w-3 gba:h-3 gba:mr-1" />
-                            Hidden
+                            {t('manage-columns-hidden')}
                           </>
                         )}
                       </Button>
@@ -159,7 +169,7 @@ export const ManageColumnsDialog: React.FC<ManageColumnsDialogProps> = ({
                         className="gba:text-destructive hover:gba:text-destructive"
                       >
                         <Trash2 className="gba:w-4 gba:h-4 gba:mr-1" />
-                        Delete
+                        {t('manage-columns-delete')}
                       </Button>
                     )}
                   </div>
@@ -176,7 +186,7 @@ export const ManageColumnsDialog: React.FC<ManageColumnsDialogProps> = ({
               onOpenChange(false)
             }}
           >
-            Cancel
+            {t('manage-columns-cancel')}
           </Button>
           <Button
             variant="outline"
@@ -186,7 +196,7 @@ export const ManageColumnsDialog: React.FC<ManageColumnsDialogProps> = ({
             }}
           >
             <Plus className="gba:w-4 gba:h-4 gba:mr-2" />
-            Add Column
+            {t('manage-columns-add-column')}
           </Button>
           <Button
             onClick={() => {
@@ -197,7 +207,7 @@ export const ManageColumnsDialog: React.FC<ManageColumnsDialogProps> = ({
             }}
           >
             <Save className="gba:w-4 gba:h-4 gba:mr-2" />
-            Save Changes
+            {t('manage-columns-save')}
           </Button>
         </DialogFooter>
       </DialogContent>

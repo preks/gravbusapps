@@ -21,8 +21,10 @@ import {
   TooltipContent,
   TooltipTrigger,
   TooltipProvider,
-  Spinner
+  Spinner,
+  useTranslation
 } from '@newwork/nw-design-system'
+import translations from '../../_i18n'
 import {
   Zap,
   Play,
@@ -104,6 +106,7 @@ export const AutomationToolbarActions: React.FC<AutomationToolbarActionsProps> =
   isSummarizing = false,
   'data-testid': testId = 'automation-toolbar-actions'
 }) => {
+  const { t } = useTranslation(translations)
   const [runningAutomationId, setRunningAutomationId] = useState<string | null>(null)
 
   // Filter enabled automations
@@ -150,11 +153,11 @@ export const AutomationToolbarActions: React.FC<AutomationToolbarActionsProps> =
           <TooltipTrigger asChild>
             <Button variant="outline" size="sm" onClick={onCreateAutomation} data-testid={testId}>
               <Zap className="gba:w-4 gba:h-4 gba:mr-2" />
-              Add Automation
+              {t('automation-toolbar-add')}
             </Button>
           </TooltipTrigger>
           <TooltipContent>
-            <p>Create your first automation to automate workflows for rows</p>
+            <p>{t('automation-toolbar-add-tooltip')}</p>
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
@@ -179,11 +182,11 @@ export const AutomationToolbarActions: React.FC<AutomationToolbarActionsProps> =
                 disabled={isSummarizing || isExecuting}
                 data-testid={`${testId}-summarize-button`}
               >
-                Summarize with AI
+                {t('automation-toolbar-summarize')}
               </AiButton>
             </TooltipTrigger>
             <TooltipContent>
-              <p>Generate AI summary of completed Spreadsheet Collection submissions</p>
+              <p>{t('automation-toolbar-summarize-tooltip')}</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
@@ -205,10 +208,10 @@ export const AutomationToolbarActions: React.FC<AutomationToolbarActionsProps> =
                 ) : (
                   <Play className="gba:w-4 gba:h-4 gba:mr-2" />
                 )}
-                Run {manualAutomations[0].name}
+                {t('automation-toolbar-run')} {manualAutomations[0].name}
                 {selectedRowIds.length > 0 && (
                   <Badge variant="outline" className="gba:ml-2">
-                    {selectedRowIds.length} selected
+                    {t('automation-toolbar-selected', { count: selectedRowIds.length })}
                   </Badge>
                 )}
               </Button>
@@ -216,8 +219,8 @@ export const AutomationToolbarActions: React.FC<AutomationToolbarActionsProps> =
             <TooltipContent>
               <p>
                 {selectedRowIds.length > 0
-                  ? `Run automation for ${selectedRowIds.length} selected rows`
-                  : 'Run automation for all eligible rows'}
+                  ? t('automation-toolbar-run-for-selected', { count: selectedRowIds.length })
+                  : t('automation-toolbar-run-for-all')}
               </p>
             </TooltipContent>
           </Tooltip>
@@ -230,7 +233,7 @@ export const AutomationToolbarActions: React.FC<AutomationToolbarActionsProps> =
           <DropdownMenuTrigger asChild>
             <Button variant="outline" size="sm" disabled={isExecuting}>
               {isExecuting ? <Spinner size="sm" className="gba:mr-2" /> : <Play className="gba:w-4 gba:h-4 gba:mr-2" />}
-              Run Automation
+              {t('automation-toolbar-run')}
               {selectedRowIds.length > 0 && (
                 <Badge variant="outline" className="gba:ml-2">
                   {selectedRowIds.length}
@@ -240,7 +243,7 @@ export const AutomationToolbarActions: React.FC<AutomationToolbarActionsProps> =
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="gba:w-64">
-            <DropdownMenuLabel>Select Automation</DropdownMenuLabel>
+            <DropdownMenuLabel>{t('automation-toolbar-select-automation')}</DropdownMenuLabel>
             <DropdownMenuSeparator />
             {manualAutomations.map(automation => {
               const Icon = getAutomationTypeIcon(automation.type)
@@ -296,11 +299,17 @@ export const AutomationToolbarActions: React.FC<AutomationToolbarActionsProps> =
             </TooltipTrigger>
             <TooltipContent>
               <div className="gba:text-sm">
-                <p className="gba:font-medium gba:mb-1">Workflow Status</p>
-                {workflowStats.running > 0 && <p>{workflowStats.running} running</p>}
-                {workflowStats.pending > 0 && <p>{workflowStats.pending} pending</p>}
-                {workflowStats.completed > 0 && <p>{workflowStats.completed} completed</p>}
-                {workflowStats.failed > 0 && <p>{workflowStats.failed} failed</p>}
+                <p className="gba:font-medium gba:mb-1">{t('automation-toolbar-workflow-status')}</p>
+                {workflowStats.running > 0 && (
+                  <p>{t('automation-toolbar-running', { count: workflowStats.running })}</p>
+                )}
+                {workflowStats.pending > 0 && (
+                  <p>{t('automation-toolbar-pending', { count: workflowStats.pending })}</p>
+                )}
+                {workflowStats.completed > 0 && (
+                  <p>{t('automation-toolbar-completed', { count: workflowStats.completed })}</p>
+                )}
+                {workflowStats.failed > 0 && <p>{t('automation-toolbar-failed', { count: workflowStats.failed })}</p>}
               </div>
             </TooltipContent>
           </Tooltip>
@@ -317,7 +326,7 @@ export const AutomationToolbarActions: React.FC<AutomationToolbarActionsProps> =
               </Button>
             </TooltipTrigger>
             <TooltipContent>
-              <p>Refresh workflow statuses</p>
+              <p>{t('automation-toolbar-refresh-tooltip')}</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
@@ -334,7 +343,7 @@ export const AutomationToolbarActions: React.FC<AutomationToolbarActionsProps> =
         <DropdownMenuContent align="end">
           <DropdownMenuItem onClick={onOpenHub}>
             <Zap className="gba:w-4 gba:h-4 gba:mr-2" />
-            Manage Automations
+            {t('automation-toolbar-manage')}
             <Badge variant="outline" className="gba:ml-auto">
               {automations.length}
             </Badge>
@@ -342,7 +351,7 @@ export const AutomationToolbarActions: React.FC<AutomationToolbarActionsProps> =
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={onCreateAutomation}>
             <Plus className="gba:w-4 gba:h-4 gba:mr-2" />
-            Create New Automation
+            {t('automation-toolbar-create-new')}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

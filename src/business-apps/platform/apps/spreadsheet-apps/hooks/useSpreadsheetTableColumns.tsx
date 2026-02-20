@@ -7,7 +7,7 @@
 
 import { useMemo } from 'react'
 import type { ColumnDef, Row } from '@tanstack/react-table'
-import { Button } from '@newwork/nw-design-system'
+import { Button, useTranslation } from '@newwork/nw-design-system'
 import { Plus, Trash2, Database, User } from 'lucide-react'
 import type { SpreadsheetSheet, SpreadsheetColumn } from '../types'
 import type { SelectedCell } from './useSpreadsheetCellSelection'
@@ -15,6 +15,7 @@ import type { FormulaSelectionMode } from './useSpreadsheetFormulas'
 import { isTrackingColumn } from '../utils/trackingColumns'
 import { normalizeImageSrc } from '../utils/normalizeImageSrc'
 import { ColumnHeader, EditableCell } from '../views'
+import translations from '../_i18n'
 
 // Re-use DocumentParticipant type for cursor participants
 export interface CursorParticipant {
@@ -101,6 +102,8 @@ export function useSpreadsheetTableColumns({
   isEditingRef,
   accessToken
 }: UseSpreadsheetTableColumnsProps): ColumnDef<Record<string, unknown>>[] {
+  const { t } = useTranslation(translations)
+
   return useMemo(() => {
     if (!activeSheet) return []
 
@@ -297,7 +300,7 @@ export function useSpreadsheetTableColumns({
                 handleAddColumnRef.current()
               }}
               className="gba:h-7 gba:w-7 gba:p-0 gba:rounded-md hover:gba:bg-accent gba:transition-colors gba:duration-150 gba:border gba:border-dashed gba:border-border/50 hover:gba:border-primary/30"
-              title="Add Column"
+              title={t('add-column-title')}
               data-testid="add-column-header-button"
             >
               <Plus className="gba:w-4 gba:h-4 gba:text-muted-foreground" />
@@ -364,6 +367,7 @@ export function useSpreadsheetTableColumns({
     setFormulaSelectionMode,
     setCurrentFormulaDisplay,
     setSelectedCell,
-    accessToken
+    accessToken,
+    t
   ])
 }

@@ -22,7 +22,8 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter
+  DialogFooter,
+  useTranslation
 } from '@newwork/nw-design-system'
 import {
   Save,
@@ -49,6 +50,7 @@ import { EntityDataSourceDialog } from './components/EntityDataSourceDialog'
 import { APP_ICONS, getIconByName, DEFAULT_APP_ICON, getIconCategories, getIconsByCategory } from './utils/appIcons'
 import type { EntityDataSource } from './types/entityDataSource'
 import type { SpreadsheetApp, SpreadsheetSheet, SpreadsheetColumn, SheetView, ViewType } from './types'
+import translations from './_i18n'
 
 export interface SpreadsheetAppEditorProps {
   app: SpreadsheetApp
@@ -70,6 +72,7 @@ export const SpreadsheetAppEditor: React.FC<SpreadsheetAppEditorProps> = ({
   userId,
   'data-testid': testId = 'spreadsheet-app-editor'
 }) => {
+  const { t } = useTranslation(translations)
   const [app, setApp] = useState<SpreadsheetApp>(initialApp)
   const [activeSheetId, setActiveSheetId] = useState(app.sheets[0]?.id || '')
   const [isSaving, setIsSaving] = useState(false)
@@ -86,9 +89,9 @@ export const SpreadsheetAppEditor: React.FC<SpreadsheetAppEditorProps> = ({
 
   const AppIconComponent = useMemo(() => (app.icon ? getIconByName(app.icon) : null), [app.icon])
   const iconButtonLabel = useMemo(() => {
-    if (!app.icon) return 'Select icon'
-    return APP_ICONS.find(i => i.name === app.icon)?.name || 'Select icon'
-  }, [app.icon])
+    if (!app.icon) return t('settings-select-icon')
+    return APP_ICONS.find(i => i.name === app.icon)?.name ?? t('settings-select-icon')
+  }, [app.icon, t])
 
   /**
    * Update app property
@@ -370,7 +373,7 @@ export const SpreadsheetAppEditor: React.FC<SpreadsheetAppEditorProps> = ({
                 <div className="gba:flex gba:items-center gba:justify-between">
                   <span className="gba:font-medium">{sheet.name}</span>
                   <Badge variant="outline" className="gba:text-xs">
-                    {sheet.columns.length} cols
+                    {t('settings-cols-count', { count: sheet.columns.length })}
                   </Badge>
                 </div>
               </button>
@@ -381,20 +384,20 @@ export const SpreadsheetAppEditor: React.FC<SpreadsheetAppEditorProps> = ({
 
           {/* App Settings */}
           <div className="gba:space-y-4">
-            <h3 className="gba:font-medium gba:text-foreground">App Settings</h3>
+            <h3 className="gba:font-medium gba:text-foreground">{t('settings-app-settings')}</h3>
 
             <div className="gba:space-y-2">
-              <Label htmlFor="description">Description</Label>
+              <Label htmlFor="description">{t('settings-description')}</Label>
               <Input
                 id="description"
                 value={app.description || ''}
                 onChange={e => updateApp('description', e.target.value)}
-                placeholder="App description"
+                placeholder={t('settings-description-placeholder')}
               />
             </div>
 
             <div className="gba:space-y-2">
-              <Label>Icon</Label>
+              <Label>{t('settings-icon')}</Label>
               <Button
                 variant="outline"
                 className="gba:w-full gba:justify-start gba:gap-3"
@@ -418,11 +421,11 @@ export const SpreadsheetAppEditor: React.FC<SpreadsheetAppEditorProps> = ({
               <TabsList>
                 <TabsTrigger value="columns">
                   <Columns className="gba:w-4 gba:h-4 gba:mr-2" />
-                  Columns
+                  {t('settings-columns-tab')}
                 </TabsTrigger>
                 <TabsTrigger value="datasource">
                   <Database className="gba:w-4 gba:h-4 gba:mr-2" />
-                  Data Source
+                  {t('settings-datasource-tab')}
                   {activeSheet.entityDataSource?.enabled && (
                     <Badge variant="default" className="gba:ml-2 gba:h-5 gba:px-1.5">
                       <RefreshCw className="gba:w-3 gba:h-3" />
@@ -431,11 +434,11 @@ export const SpreadsheetAppEditor: React.FC<SpreadsheetAppEditorProps> = ({
                 </TabsTrigger>
                 <TabsTrigger value="views">
                   <LayoutDashboard className="gba:w-4 gba:h-4 gba:mr-2" />
-                  Views
+                  {t('settings-views-tab')}
                 </TabsTrigger>
                 <TabsTrigger value="settings">
                   <Settings className="gba:w-4 gba:h-4 gba:mr-2" />
-                  Settings
+                  {t('settings-settings-tab')}
                 </TabsTrigger>
               </TabsList>
 
@@ -443,14 +446,12 @@ export const SpreadsheetAppEditor: React.FC<SpreadsheetAppEditorProps> = ({
               <TabsContent value="columns" className="gba:space-y-4">
                 <div className="gba:flex gba:items-center gba:justify-between">
                   <div>
-                    <h2 className="gba:text-lg gba:font-semibold gba:text-foreground">Columns</h2>
-                    <p className="gba:text-sm gba:text-muted-foreground">
-                      Configure column types, visibility, and order
-                    </p>
+                    <h2 className="gba:text-lg gba:font-semibold gba:text-foreground">{t('settings-columns-title')}</h2>
+                    <p className="gba:text-sm gba:text-muted-foreground">{t('settings-columns-desc')}</p>
                   </div>
                   <Button onClick={() => addColumn(activeSheet.id)}>
                     <Plus className="gba:w-4 gba:h-4 gba:mr-2" />
-                    Add Column
+                    {t('add-column-title')}
                   </Button>
                 </div>
 
@@ -460,16 +461,16 @@ export const SpreadsheetAppEditor: React.FC<SpreadsheetAppEditorProps> = ({
                       <tr className="gba:bg-muted/50">
                         <th className="gba:w-12 gba:px-4 gba:py-3"></th>
                         <th className="gba:px-4 gba:py-3 gba:text-left gba:text-xs gba:font-medium gba:text-muted-foreground">
-                          Column
+                          {t('settings-column-header')}
                         </th>
                         <th className="gba:px-4 gba:py-3 gba:text-left gba:text-xs gba:font-medium gba:text-muted-foreground">
-                          Type
+                          {t('settings-type-header')}
                         </th>
                         <th className="gba:px-4 gba:py-3 gba:text-center gba:text-xs gba:font-medium gba:text-muted-foreground">
-                          Required
+                          {t('settings-required-header')}
                         </th>
                         <th className="gba:px-4 gba:py-3 gba:text-center gba:text-xs gba:font-medium gba:text-muted-foreground">
-                          Visible
+                          {t('settings-visible-header')}
                         </th>
                         <th className="gba:w-32 gba:px-4 gba:py-3"></th>
                       </tr>
@@ -513,9 +514,9 @@ export const SpreadsheetAppEditor: React.FC<SpreadsheetAppEditorProps> = ({
                             </td>
                             <td className="gba:px-4 gba:py-3 gba:text-center">
                               {column.isRequired ? (
-                                <Badge variant="default">Yes</Badge>
+                                <Badge variant="default">{t('settings-yes')}</Badge>
                               ) : (
-                                <span className="gba:text-muted-foreground">No</span>
+                                <span className="gba:text-muted-foreground">{t('settings-no')}</span>
                               )}
                             </td>
                             <td className="gba:px-4 gba:py-3 gba:text-center">
@@ -739,12 +740,14 @@ export const SpreadsheetAppEditor: React.FC<SpreadsheetAppEditorProps> = ({
               {/* Settings Tab */}
               <TabsContent value="settings" className="gba:space-y-6">
                 <div>
-                  <h2 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-4">Sheet Settings</h2>
+                  <h2 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-4">
+                    {t('settings-sheet-settings')}
+                  </h2>
                   <Card className="gba:p-6 gba:space-y-4">
                     <div className="gba:flex gba:items-center gba:justify-between">
                       <div>
-                        <p className="gba:font-medium gba:text-foreground">Allow Adding Rows</p>
-                        <p className="gba:text-sm gba:text-muted-foreground">Users can add new records</p>
+                        <p className="gba:font-medium gba:text-foreground">{t('settings-allow-adding-rows')}</p>
+                        <p className="gba:text-sm gba:text-muted-foreground">{t('settings-allow-adding-rows-desc')}</p>
                       </div>
                       <Switch
                         checked={activeSheet.settings.allowAdd}
@@ -761,8 +764,8 @@ export const SpreadsheetAppEditor: React.FC<SpreadsheetAppEditorProps> = ({
 
                     <div className="gba:flex gba:items-center gba:justify-between">
                       <div>
-                        <p className="gba:font-medium gba:text-foreground">Allow Editing</p>
-                        <p className="gba:text-sm gba:text-muted-foreground">Users can modify existing records</p>
+                        <p className="gba:font-medium gba:text-foreground">{t('settings-allow-editing')}</p>
+                        <p className="gba:text-sm gba:text-muted-foreground">{t('settings-allow-editing-desc')}</p>
                       </div>
                       <Switch
                         checked={activeSheet.settings.allowEdit}
@@ -779,8 +782,8 @@ export const SpreadsheetAppEditor: React.FC<SpreadsheetAppEditorProps> = ({
 
                     <div className="gba:flex gba:items-center gba:justify-between">
                       <div>
-                        <p className="gba:font-medium gba:text-foreground">Allow Deletion</p>
-                        <p className="gba:text-sm gba:text-muted-foreground">Users can delete records</p>
+                        <p className="gba:font-medium gba:text-foreground">{t('settings-allow-deletion')}</p>
+                        <p className="gba:text-sm gba:text-muted-foreground">{t('settings-allow-deletion-desc')}</p>
                       </div>
                       <Switch
                         checked={activeSheet.settings.allowDelete}
@@ -797,8 +800,8 @@ export const SpreadsheetAppEditor: React.FC<SpreadsheetAppEditorProps> = ({
 
                     <div className="gba:flex gba:items-center gba:justify-between">
                       <div>
-                        <p className="gba:font-medium gba:text-foreground">Allow Export</p>
-                        <p className="gba:text-sm gba:text-muted-foreground">Users can export data to Excel</p>
+                        <p className="gba:font-medium gba:text-foreground">{t('settings-allow-export')}</p>
+                        <p className="gba:text-sm gba:text-muted-foreground">{t('settings-allow-export-desc')}</p>
                       </div>
                       <Switch
                         checked={activeSheet.settings.allowExport}
@@ -815,8 +818,8 @@ export const SpreadsheetAppEditor: React.FC<SpreadsheetAppEditorProps> = ({
 
                     <div className="gba:flex gba:items-center gba:justify-between">
                       <div>
-                        <p className="gba:font-medium gba:text-foreground">Show Row Numbers</p>
-                        <p className="gba:text-sm gba:text-muted-foreground">Display row index numbers</p>
+                        <p className="gba:font-medium gba:text-foreground">{t('settings-show-row-numbers')}</p>
+                        <p className="gba:text-sm gba:text-muted-foreground">{t('settings-show-row-numbers-desc')}</p>
                       </div>
                       <Switch
                         checked={activeSheet.settings.showRowNumbers}

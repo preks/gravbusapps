@@ -6,7 +6,8 @@
  */
 
 import React, { useState, useCallback, useRef } from 'react'
-import { Card, Button, Badge, Spinner, Progress } from '@newwork/nw-design-system'
+import { Card, Button, Badge, Spinner, Progress, useTranslation } from '@newwork/nw-design-system'
+import translations from '../_i18n'
 import { FileSpreadsheet, Upload, X, Check, Table2, AlertCircle, Sparkles, ArrowRight, FileUp } from 'lucide-react'
 import { useExcelParser } from '../hooks/useExcelParser'
 import type { ParsedExcelFile, ParsedSheet } from '../types'
@@ -36,6 +37,7 @@ export const ExcelUploader: React.FC<ExcelUploaderProps> = ({
   maxFileSize = 10,
   'data-testid': testId = 'excel-uploader'
 }) => {
+  const { t } = useTranslation(translations)
   const [isDragging, setIsDragging] = useState(false)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -50,7 +52,7 @@ export const ExcelUploader: React.FC<ExcelUploaderProps> = ({
       // Validate file size
       const maxBytes = maxFileSize * 1024 * 1024
       if (file.size > maxBytes) {
-        const errorMsg = `File size exceeds ${maxFileSize}MB limit`
+        const errorMsg = t('excel-file-size-exceeds', { maxMb: maxFileSize })
         onError?.(errorMsg)
         return
       }
@@ -142,13 +144,15 @@ export const ExcelUploader: React.FC<ExcelUploaderProps> = ({
           </div>
 
           <div className="gba:text-center gba:space-y-2">
-            <h3 className="gba:text-lg gba:font-semibold gba:text-foreground">Analyzing your spreadsheet...</h3>
+            <h3 className="gba:text-lg gba:font-semibold gba:text-foreground">{t('excel-analyzing')}</h3>
             <p className="gba:text-sm gba:text-muted-foreground">{selectedFile?.name}</p>
           </div>
 
           <div className="gba:w-full gba:max-w-xs">
             <Progress value={progress} className="gba:h-2" />
-            <p className="gba:text-xs gba:text-muted-foreground gba:text-center gba:mt-2">{progress}% complete</p>
+            <p className="gba:text-xs gba:text-muted-foreground gba:text-center gba:mt-2">
+              {t('excel-complete', { percent: progress })}
+            </p>
           </div>
         </div>
       </Card>
@@ -184,21 +188,19 @@ export const ExcelUploader: React.FC<ExcelUploaderProps> = ({
         <div className="gba:p-6 gba:space-y-4">
           <div className="gba:flex gba:items-center gba:gap-2 gba:mb-4">
             <Table2 className="gba:w-4 gba:h-4 gba:text-muted-foreground" />
-            <span className="gba:text-sm gba:font-medium gba:text-foreground">Detected Sheets</span>
+            <span className="gba:text-sm gba:font-medium gba:text-foreground">{t('excel-detected-sheets')}</span>
           </div>
 
           <div className="gba:grid gba:gap-3">
             {parsedFile.sheets.map((sheet, index) => (
-              <SheetPreviewCard key={index} sheet={sheet} testId={testId} />
+              <SheetPreviewCard key={index} sheet={sheet} testId={testId} t={t} />
             ))}
           </div>
 
           {/* AI hint */}
           <div className="gba:flex gba:items-center gba:gap-2 gba:p-4 gba:bg-primary/5 gba:rounded-lg gba:mt-6">
             <Sparkles className="gba:w-5 gba:h-5 gba:text-primary" />
-            <p className="gba:text-sm gba:text-foreground">
-              AI will analyze your data and suggest the best app structure
-            </p>
+            <p className="gba:text-sm gba:text-foreground">{t('excel-ai-hint')}</p>
             <ArrowRight className="gba:w-4 gba:h-4 gba:text-primary gba:ml-auto" />
           </div>
         </div>
@@ -215,11 +217,11 @@ export const ExcelUploader: React.FC<ExcelUploaderProps> = ({
             <AlertCircle className="gba:w-8 gba:h-8 gba:text-destructive" />
           </div>
           <div className="gba:text-center gba:space-y-2">
-            <h3 className="gba:text-lg gba:font-semibold gba:text-foreground">Failed to parse file</h3>
+            <h3 className="gba:text-lg gba:font-semibold gba:text-foreground">{t('excel-failed-parse')}</h3>
             <p className="gba:text-sm gba:text-muted-foreground gba:max-w-md">{error}</p>
           </div>
           <Button variant="outline" onClick={handleClear}>
-            Try Again
+            {t('excel-try-again')}
           </Button>
         </div>
       </Card>
@@ -276,19 +278,17 @@ export const ExcelUploader: React.FC<ExcelUploaderProps> = ({
           {/* Text */}
           <div className="gba:text-center gba:space-y-2">
             <h3 className="gba:text-xl gba:font-semibold gba:text-foreground">
-              {isDragging ? 'Drop your file here' : 'Upload your Excel file'}
+              {isDragging ? t('excel-drop-here') : t('excel-upload-title')}
             </h3>
             <p className="gba:text-sm gba:text-muted-foreground gba:max-w-sm">
-              Drag and drop your spreadsheet here, or click to browse. We support .xlsx and .csv files up to{' '}
-              {maxFileSize}
-              MB.
+              {t('excel-upload-desc', { maxMb: maxFileSize })}
             </p>
           </div>
 
           {/* Button */}
           <Button variant="outline" className="gba:pointer-events-none">
             <FileUp className="gba:w-4 gba:h-4 gba:mr-2" />
-            Browse Files
+            {t('excel-browse-files')}
           </Button>
 
           {/* Supported formats */}
@@ -310,10 +310,8 @@ export const ExcelUploader: React.FC<ExcelUploaderProps> = ({
             <Sparkles className="gba:w-4 gba:h-4 gba:text-primary" />
           </div>
           <div className="gba:flex-1">
-            <p className="gba:text-sm gba:font-medium gba:text-foreground">AI-Powered Analysis</p>
-            <p className="gba:text-xs gba:text-muted-foreground">
-              We'll automatically detect data types, relationships, and suggest the best app structure
-            </p>
+            <p className="gba:text-sm gba:font-medium gba:text-foreground">{t('excel-ai-powered-title')}</p>
+            <p className="gba:text-xs gba:text-muted-foreground">{t('excel-ai-powered-desc')}</p>
           </div>
         </div>
       </div>
@@ -327,9 +325,10 @@ export const ExcelUploader: React.FC<ExcelUploaderProps> = ({
 interface SheetPreviewCardProps {
   sheet: ParsedSheet
   testId: string
+  t: (key: string, vars?: Record<string, number | string>) => string
 }
 
-const SheetPreviewCard: React.FC<SheetPreviewCardProps> = ({ sheet, testId }) => {
+const SheetPreviewCard: React.FC<SheetPreviewCardProps> = ({ sheet, testId, t }) => {
   const [isExpanded, setIsExpanded] = useState(false)
 
   if (sheet.isEmpty) {
@@ -344,7 +343,7 @@ const SheetPreviewCard: React.FC<SheetPreviewCardProps> = ({ sheet, testId }) =>
             <span className="gba:font-medium gba:text-foreground">{sheet.name}</span>
           </div>
           <Badge variant="secondary" className="gba:text-xs">
-            Empty
+            {t('excel-sheet-empty')}
           </Badge>
         </div>
       </div>
@@ -368,10 +367,10 @@ const SheetPreviewCard: React.FC<SheetPreviewCardProps> = ({ sheet, testId }) =>
         </div>
         <div className="gba:flex gba:items-center gba:gap-2">
           <Badge variant="outline" className="gba:text-xs">
-            {sheet.columns.length} columns
+            {t('excel-sheet-columns', { count: sheet.columns.length })}
           </Badge>
           <Badge variant="outline" className="gba:text-xs">
-            {sheet.rowCount} rows
+            {t('excel-sheet-rows', { count: sheet.rowCount })}
           </Badge>
         </div>
       </button>
@@ -380,7 +379,7 @@ const SheetPreviewCard: React.FC<SheetPreviewCardProps> = ({ sheet, testId }) =>
       {isExpanded && (
         <div className="gba:px-4 gba:pb-4 gba:pt-0">
           <div className="gba:bg-muted/30 gba:rounded-lg gba:p-3">
-            <p className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-2">Columns</p>
+            <p className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-2">{t('excel-columns-label')}</p>
             <div className="gba:flex gba:flex-wrap gba:gap-1">
               {sheet.columns.map((col, idx) => (
                 <Badge key={idx} variant="secondary" className="gba:text-xs gba:font-normal">

@@ -24,7 +24,8 @@ import {
   CardDescription,
   Checkbox,
   Badge,
-  Spinner
+  Spinner,
+  useTranslation
 } from '@newwork/nw-design-system'
 import {
   ChevronRight,
@@ -65,6 +66,7 @@ import type { SpreadsheetColumn } from '../../types/spreadsheet'
 import { UserSelect } from '@/components/user-select'
 import MultiEmployeeSelect from '@/components/multi-employee-select/MultiEmployeeSelect'
 import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
+import translations from '../../_i18n'
 
 function getTriggerStepDescription(automationType: AutomationType): string {
   if (automationType === 'sheet_approval') {
@@ -277,6 +279,7 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
   onColumnLabelsUpdate,
   'data-testid': testId = 'automation-wizard'
 }) => {
+  const { t } = useTranslation(translations)
   const isEditing = !!existingAutomation
 
   // Wizard state
@@ -2031,7 +2034,7 @@ export const AutomationWizard: React.FC<AutomationWizardProps> = ({
               <Label className="gba:text-base gba:font-semibold">Column Mappings</Label>
               <Button size="sm" variant="outline" onClick={addColumnMapping}>
                 <Plus className="gba:w-4 gba:h-4 gba:mr-1" />
-                Add Column
+                {t('add-column-title')}
               </Button>
             </div>
 

@@ -19,12 +19,26 @@ import {
 } from '@newwork/nw-design-system'
 import { CheckCircle, AlertCircle } from 'lucide-react'
 
+export interface PublishDialogMessages {
+  title?: string
+  alert?: string
+  notesLabel?: string
+  notesPlaceholder?: string
+  notesHint?: string
+  createCheckpointLabel?: string
+  cancel?: string
+  confirm?: string
+  publishing?: string
+}
+
 export interface PublishDialogProps {
   isOpen: boolean
   onClose: () => void
   onPublish: (publishNotes?: string, createCheckpoint?: boolean) => Promise<void>
   isPublishing?: boolean
   entityType: 'document' | 'note' | 'spreadsheet'
+  /** Optional translated strings */
+  messages?: PublishDialogMessages
   'data-testid'?: string
 }
 
@@ -37,11 +51,13 @@ export const PublishDialog: React.FC<PublishDialogProps> = ({
   onPublish,
   isPublishing = false,
   entityType,
+  messages,
   'data-testid': testId = 'publish-dialog'
 }) => {
   const [publishNotes, setPublishNotes] = useState('')
   const [createCheckpoint, setCreateCheckpoint] = useState(true)
 
+  const m = messages ?? {}
   const entityLabel = entityType === 'spreadsheet' ? 'spreadsheet app' : entityType
 
   const handlePublish = async () => {
@@ -61,7 +77,7 @@ export const PublishDialog: React.FC<PublishDialogProps> = ({
         <DialogHeader>
           <DialogTitle className="gba:flex gba:items-center gba:gap-2">
             <CheckCircle className="gba:h-5 gba:w-5" />
-            Publish {entityLabel.charAt(0).toUpperCase() + entityLabel.slice(1)}
+            {m.title ?? `Publish ${entityLabel.charAt(0).toUpperCase() + entityLabel.slice(1)}`}
           </DialogTitle>
         </DialogHeader>
 
@@ -69,15 +85,15 @@ export const PublishDialog: React.FC<PublishDialogProps> = ({
           <Alert variant="info">
             <AlertCircle className="gba:h-4 gba:w-4" />
             <p className="gba:text-sm">
-              Publishing will make this {entityLabel} publicly available and mark it as final.
+              {m.alert ?? `Publishing will make this ${entityLabel} publicly available and mark it as final.`}
             </p>
           </Alert>
 
           <div className="gba:space-y-2">
-            <Label htmlFor="publish-notes">Publishing Notes (Optional)</Label>
+            <Label htmlFor="publish-notes">{m.notesLabel ?? 'Publishing Notes (Optional)'}</Label>
             <Textarea
               id="publish-notes"
-              placeholder={`e.g., Final version ready for distribution, Approved by team`}
+              placeholder={m.notesPlaceholder ?? 'e.g., Final version ready for distribution, Approved by team'}
               value={publishNotes}
               onChange={e => setPublishNotes(e.target.value)}
               disabled={isPublishing}
@@ -85,7 +101,7 @@ export const PublishDialog: React.FC<PublishDialogProps> = ({
               data-testid="publish-notes-textarea"
             />
             <p className="gba:text-sm gba:text-muted-foreground">
-              Add notes about this publication for future reference.
+              {m.notesHint ?? 'Add notes about this publication for future reference.'}
             </p>
           </div>
 
@@ -98,17 +114,17 @@ export const PublishDialog: React.FC<PublishDialogProps> = ({
               data-testid="create-checkpoint-checkbox"
             />
             <Label htmlFor="create-checkpoint" className="gba:text-sm gba:font-normal gba:cursor-pointer">
-              Create version checkpoint when publishing
+              {m.createCheckpointLabel ?? 'Create version checkpoint when publishing'}
             </Label>
           </div>
         </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={handleCancel} disabled={isPublishing} data-testid="publish-cancel-button">
-            Cancel
+            {m.cancel ?? 'Cancel'}
           </Button>
           <Button onClick={handlePublish} disabled={isPublishing} data-testid="publish-confirm-button">
-            {isPublishing ? 'Publishing...' : 'Publish'}
+            {isPublishing ? (m.publishing ?? 'Publishing...') : (m.confirm ?? 'Publish')}
           </Button>
         </DialogFooter>
       </DialogContent>
