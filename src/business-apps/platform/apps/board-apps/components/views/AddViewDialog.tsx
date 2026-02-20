@@ -14,6 +14,7 @@ import {
   SelectContent,
   SelectItem
 } from '@newwork/nw-design-system'
+import { Table2, Columns3, CalendarDays, GanttChart, FileText, LayoutDashboard } from 'lucide-react'
 import type { BoardColumn, BoardView, BoardViewType, ViewConfig } from '../../types'
 import { getPrimaryColumn } from '../../types'
 
@@ -34,20 +35,54 @@ function createId(): string {
   }
 }
 
-function defaultViewName(type: BoardViewType, existing: BoardView[]): string {
-  const base =
-    type === 'table'
-      ? 'Table'
-      : type === 'kanban'
-        ? 'Kanban'
-        : type === 'calendar'
-          ? 'Calendar'
-          : type === 'timeline'
-            ? 'Timeline'
-            : type === 'form'
-              ? 'Form'
-              : 'Dashboard'
+interface ViewTypeOption {
+  value: BoardViewType
+  label: string
+  description: string
+  icon: React.ReactNode
+}
 
+const VIEW_TYPES: ViewTypeOption[] = [
+  {
+    value: 'table',
+    label: 'Table',
+    description: 'Rows and columns, like a spreadsheet. Best for editing and bulk data entry.',
+    icon: <Table2 className="gba:w-5 gba:h-5" />
+  },
+  {
+    value: 'kanban',
+    label: 'Kanban',
+    description: 'Drag-and-drop cards grouped by status. Great for tracking workflows.',
+    icon: <Columns3 className="gba:w-5 gba:h-5" />
+  },
+  {
+    value: 'calendar',
+    label: 'Calendar',
+    description: 'View items on a monthly calendar by date. Perfect for scheduling.',
+    icon: <CalendarDays className="gba:w-5 gba:h-5" />
+  },
+  {
+    value: 'timeline',
+    label: 'Timeline',
+    description: 'Gantt-style bar chart across a date range. Ideal for project planning.',
+    icon: <GanttChart className="gba:w-5 gba:h-5" />
+  },
+  {
+    value: 'form',
+    label: 'Form',
+    description: 'A submission form that creates new rows. Use for intake and requests.',
+    icon: <FileText className="gba:w-5 gba:h-5" />
+  },
+  {
+    value: 'dashboard',
+    label: 'Dashboard',
+    description: 'Charts, KPIs, and widgets built from your data. For reporting at a glance.',
+    icon: <LayoutDashboard className="gba:w-5 gba:h-5" />
+  }
+]
+
+function defaultViewName(type: BoardViewType, existing: BoardView[]): string {
+  const base = VIEW_TYPES.find(t => t.value === type)?.label || 'View'
   const used = new Set(existing.map(v => v.name))
   if (!used.has(base)) return base
   for (let i = 2; i < 50; i++) {
@@ -82,17 +117,13 @@ export const AddViewDialog: React.FC<AddViewDialogProps> = ({
 
   const [kanbanStatus, setKanbanStatus] = useState('')
   const [kanbanTitle, setKanbanTitle] = useState('')
-
   const [calendarDate, setCalendarDate] = useState('')
   const [calendarTitle, setCalendarTitle] = useState('')
-
   const [timelineStart, setTimelineStart] = useState('')
   const [timelineEnd, setTimelineEnd] = useState('')
   const [timelineTitle, setTimelineTitle] = useState('')
 
-  const canCreate = useMemo(() => {
-    return Boolean(name.trim())
-  }, [name])
+  const canCreate = useMemo(() => Boolean(name.trim()), [name])
 
   const reset = useCallback(() => {
     setType('table')
@@ -116,8 +147,9 @@ export const AddViewDialog: React.FC<AddViewDialogProps> = ({
 
   const ensureDefaultsForType = useCallback(
     (nextType: BoardViewType) => {
-      const nextName = name.trim() ? name : defaultViewName(nextType, existingViews)
-      setName(nextName)
+      const prevName = name.trim()
+      const isAutoName = !prevName || VIEW_TYPES.some(t => prevName === defaultViewName(t.value, existingViews))
+      if (isAutoName) setName(defaultViewName(nextType, existingViews))
 
       const primaryName = getPrimaryColumn(columns)?.name || columns[0]?.name || ''
 
@@ -151,7 +183,6 @@ export const AddViewDialog: React.FC<AddViewDialogProps> = ({
 
   const handleCreate = useCallback(async () => {
     if (!canCreate) return
-
     const primaryName = getPrimaryColumn(columns)?.name || columns[0]?.name || ''
 
     let config: ViewConfig
@@ -200,6 +231,9 @@ export const AddViewDialog: React.FC<AddViewDialogProps> = ({
     existingViews.length,
     onCreate,
     handleOpenChange,
+    columns,
+    statusCandidates,
+    dateCandidates,
     kanbanStatus,
     kanbanTitle,
     calendarDate,
@@ -209,175 +243,233 @@ export const AddViewDialog: React.FC<AddViewDialogProps> = ({
     timelineTitle
   ])
 
+  const needsConfig = type === 'kanban' || type === 'calendar' || type === 'timeline'
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="gba:max-w-sm" data-testid={testId}>
-        <DialogHeader>
-          <DialogTitle>Add view</DialogTitle>
+      <DialogContent className="gba:max-w-[520px] gba:p-0 gba:gap-0 gba:overflow-hidden" data-testid={testId}>
+        <DialogHeader className="gba:px-5 gba:pt-5 gba:pb-3">
+          <DialogTitle className="gba:text-base">Add a new view</DialogTitle>
+          <p className="gba:text-xs gba:text-muted-foreground gba:mt-0.5">
+            Choose how you want to visualize your data. Each view provides a different perspective.
+          </p>
         </DialogHeader>
 
-        <div className="gba:space-y-3">
+        <div className="gba:px-5 gba:pb-4 gba:space-y-4">
+          {/* View type selector grid */}
+          <div className="gba:grid gba:grid-cols-3 gba:gap-2" role="radiogroup" aria-label="View type">
+            {VIEW_TYPES.map(opt => {
+              const selected = type === opt.value
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  onClick={() => handleTypeChange(opt.value)}
+                  className={[
+                    'gba:flex gba:flex-col gba:items-start gba:gap-1.5 gba:rounded-lg gba:p-3',
+                    'gba:border gba:text-left gba:transition-all gba:cursor-pointer',
+                    selected
+                      ? 'gba:border-primary gba:bg-primary/5 gba:ring-1 gba:ring-primary/30'
+                      : 'gba:border-border gba:hover:border-primary/40 gba:hover:bg-accent/30'
+                  ].join(' ')}
+                  data-testid={`${testId}-type-${opt.value}`}
+                >
+                  <div
+                    className={[
+                      'gba:flex gba:items-center gba:justify-center gba:w-8 gba:h-8 gba:rounded-md',
+                      selected ? 'gba:bg-primary gba:text-primary-foreground' : 'gba:bg-muted gba:text-muted-foreground'
+                    ].join(' ')}
+                  >
+                    {opt.icon}
+                  </div>
+                  <span className="gba:text-sm gba:font-medium gba:text-foreground">{opt.label}</span>
+                  <span className="gba:text-[11px] gba:leading-snug gba:text-muted-foreground">{opt.description}</span>
+                </button>
+              )
+            })}
+          </div>
+
+          {/* Separator */}
+          <div className="gba:border-t gba:border-border" />
+
+          {/* Name input */}
           <div>
-            <Label className="gba:text-xs" htmlFor={`${testId}-name`}>
-              Name
+            <Label className="gba:text-xs gba:font-medium" htmlFor={`${testId}-name`}>
+              View name
             </Label>
             <Input
               id={`${testId}-name`}
               value={name}
               onChange={e => setName(e.target.value)}
               placeholder={defaultViewName(type, existingViews)}
-              className="gba:h-8 gba:text-xs"
+              className="gba:mt-1 gba:h-8 gba:text-sm"
               autoFocus
+              onKeyDown={e => {
+                if (e.key === 'Enter' && canCreate) handleCreate()
+              }}
               data-testid={`${testId}-input-name`}
             />
           </div>
 
-          <div>
-            <Label className="gba:text-xs">Type</Label>
-            <Select value={type} onValueChange={v => handleTypeChange(v as BoardViewType)}>
-              <SelectTrigger className="gba:h-8 gba:text-xs" data-testid={`${testId}-type`}>
-                <SelectValue placeholder="Select type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="table">Table</SelectItem>
-                <SelectItem value="kanban">Kanban</SelectItem>
-                <SelectItem value="calendar">Calendar</SelectItem>
-                <SelectItem value="timeline">Timeline</SelectItem>
-                <SelectItem value="form">Form</SelectItem>
-                <SelectItem value="dashboard">Dashboard</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          {/* Type-specific configuration */}
+          {needsConfig && (
+            <div className="gba:rounded-lg gba:border gba:border-border gba:bg-muted/30 gba:p-3 gba:space-y-3">
+              <p className="gba:text-xs gba:font-medium gba:text-foreground">Configuration</p>
 
-          {type === 'kanban' && (
-            <div className="gba:grid gba:grid-cols-2 gba:gap-2">
-              <div>
-                <Label className="gba:text-xs">Status column</Label>
-                <Select value={kanbanStatus} onValueChange={setKanbanStatus}>
-                  <SelectTrigger className="gba:h-8 gba:text-xs" data-testid={`${testId}-kanban-status`}>
-                    <SelectValue placeholder="Pick" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {statusCandidates.map(c => (
-                      <SelectItem key={c.id} value={c.name}>
-                        {c.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label className="gba:text-xs">Title column</Label>
-                <Select value={kanbanTitle} onValueChange={setKanbanTitle}>
-                  <SelectTrigger className="gba:h-8 gba:text-xs" data-testid={`${testId}-kanban-title`}>
-                    <SelectValue placeholder="Pick" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {columns.map(c => (
-                      <SelectItem key={c.id} value={c.name}>
-                        {c.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          )}
-
-          {type === 'calendar' && (
-            <div className="gba:grid gba:grid-cols-2 gba:gap-2">
-              <div>
-                <Label className="gba:text-xs">Date column</Label>
-                <Select value={calendarDate} onValueChange={setCalendarDate}>
-                  <SelectTrigger className="gba:h-8 gba:text-xs" data-testid={`${testId}-calendar-date`}>
-                    <SelectValue placeholder="Pick" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {dateCandidates.map(c => (
-                      <SelectItem key={c.id} value={c.name}>
-                        {c.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label className="gba:text-xs">Title column</Label>
-                <Select value={calendarTitle} onValueChange={setCalendarTitle}>
-                  <SelectTrigger className="gba:h-8 gba:text-xs" data-testid={`${testId}-calendar-title`}>
-                    <SelectValue placeholder="Pick" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {columns.map(c => (
-                      <SelectItem key={c.id} value={c.name}>
-                        {c.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          )}
-
-          {type === 'timeline' && (
-            <div className="gba:space-y-2">
-              <div className="gba:grid gba:grid-cols-2 gba:gap-2">
-                <div>
-                  <Label className="gba:text-xs">Start</Label>
-                  <Select value={timelineStart} onValueChange={setTimelineStart}>
-                    <SelectTrigger className="gba:h-8 gba:text-xs" data-testid={`${testId}-timeline-start`}>
-                      <SelectValue placeholder="Pick" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {dateCandidates.map(c => (
-                        <SelectItem key={c.id} value={c.name}>
-                          {c.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+              {type === 'kanban' && (
+                <div className="gba:grid gba:grid-cols-2 gba:gap-3">
+                  <div>
+                    <Label className="gba:text-[11px] gba:text-muted-foreground">Group by column</Label>
+                    <Select value={kanbanStatus} onValueChange={setKanbanStatus}>
+                      <SelectTrigger
+                        className="gba:h-8 gba:text-xs gba:mt-1 gba:bg-background"
+                        data-testid={`${testId}-kanban-status`}
+                      >
+                        <SelectValue placeholder="Select column" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {statusCandidates.map(c => (
+                          <SelectItem key={c.id} value={c.name}>
+                            {c.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="gba:text-[11px] gba:text-muted-foreground">Card title</Label>
+                    <Select value={kanbanTitle} onValueChange={setKanbanTitle}>
+                      <SelectTrigger
+                        className="gba:h-8 gba:text-xs gba:mt-1 gba:bg-background"
+                        data-testid={`${testId}-kanban-title`}
+                      >
+                        <SelectValue placeholder="Select column" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {columns.map(c => (
+                          <SelectItem key={c.id} value={c.name}>
+                            {c.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-                <div>
-                  <Label className="gba:text-xs">End</Label>
-                  <Select value={timelineEnd} onValueChange={setTimelineEnd}>
-                    <SelectTrigger className="gba:h-8 gba:text-xs" data-testid={`${testId}-timeline-end`}>
-                      <SelectValue placeholder="Pick" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {dateCandidates.map(c => (
-                        <SelectItem key={c.id} value={c.name}>
-                          {c.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+              )}
+
+              {type === 'calendar' && (
+                <div className="gba:grid gba:grid-cols-2 gba:gap-3">
+                  <div>
+                    <Label className="gba:text-[11px] gba:text-muted-foreground">Date column</Label>
+                    <Select value={calendarDate} onValueChange={setCalendarDate}>
+                      <SelectTrigger
+                        className="gba:h-8 gba:text-xs gba:mt-1 gba:bg-background"
+                        data-testid={`${testId}-calendar-date`}
+                      >
+                        <SelectValue placeholder="Select column" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {dateCandidates.map(c => (
+                          <SelectItem key={c.id} value={c.name}>
+                            {c.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="gba:text-[11px] gba:text-muted-foreground">Card title</Label>
+                    <Select value={calendarTitle} onValueChange={setCalendarTitle}>
+                      <SelectTrigger
+                        className="gba:h-8 gba:text-xs gba:mt-1 gba:bg-background"
+                        data-testid={`${testId}-calendar-title`}
+                      >
+                        <SelectValue placeholder="Select column" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {columns.map(c => (
+                          <SelectItem key={c.id} value={c.name}>
+                            {c.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-              </div>
-              <div>
-                <Label className="gba:text-xs">Title column</Label>
-                <Select value={timelineTitle} onValueChange={setTimelineTitle}>
-                  <SelectTrigger className="gba:h-8 gba:text-xs" data-testid={`${testId}-timeline-title`}>
-                    <SelectValue placeholder="Pick" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {columns.map(c => (
-                      <SelectItem key={c.id} value={c.name}>
-                        {c.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              )}
+
+              {type === 'timeline' && (
+                <div className="gba:space-y-3">
+                  <div className="gba:grid gba:grid-cols-2 gba:gap-3">
+                    <div>
+                      <Label className="gba:text-[11px] gba:text-muted-foreground">Start date</Label>
+                      <Select value={timelineStart} onValueChange={setTimelineStart}>
+                        <SelectTrigger
+                          className="gba:h-8 gba:text-xs gba:mt-1 gba:bg-background"
+                          data-testid={`${testId}-timeline-start`}
+                        >
+                          <SelectValue placeholder="Select column" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {dateCandidates.map(c => (
+                            <SelectItem key={c.id} value={c.name}>
+                              {c.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="gba:text-[11px] gba:text-muted-foreground">End date</Label>
+                      <Select value={timelineEnd} onValueChange={setTimelineEnd}>
+                        <SelectTrigger
+                          className="gba:h-8 gba:text-xs gba:mt-1 gba:bg-background"
+                          data-testid={`${testId}-timeline-end`}
+                        >
+                          <SelectValue placeholder="Select column" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {dateCandidates.map(c => (
+                            <SelectItem key={c.id} value={c.name}>
+                              {c.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="gba:text-[11px] gba:text-muted-foreground">Bar label</Label>
+                    <Select value={timelineTitle} onValueChange={setTimelineTitle}>
+                      <SelectTrigger
+                        className="gba:h-8 gba:text-xs gba:mt-1 gba:bg-background"
+                        data-testid={`${testId}-timeline-title`}
+                      >
+                        <SelectValue placeholder="Select column" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {columns.map(c => (
+                          <SelectItem key={c.id} value={c.name}>
+                            {c.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="gba:px-5 gba:py-3 gba:border-t gba:border-border gba:bg-muted/20">
           <Button variant="outline" size="sm" onClick={() => handleOpenChange(false)} data-testid={`${testId}-cancel`}>
             Cancel
           </Button>
           <Button size="sm" onClick={handleCreate} disabled={!canCreate} data-testid={`${testId}-create`}>
-            Add
+            Create view
           </Button>
         </DialogFooter>
       </DialogContent>

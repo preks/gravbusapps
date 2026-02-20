@@ -68,6 +68,9 @@ export const BoardSettingsSheet: React.FC<BoardSettingsSheetProps> = ({
   }, [onUpdateBoard, name, description, board.settings, liveEnabled, onOpenChange])
 
   const dataSource = activeSheet?.entityDataSource as EntityDataSource | undefined
+  const auxSources = (dataSource as Record<string, unknown> | undefined)?.auxiliarySources as
+    | Array<{ entityType: string; entityDisplayName: string; targetColumn: string; sourceField: string }>
+    | undefined
   const [isSyncing, setIsSyncing] = useState(false)
 
   const handleSyncNow = useCallback(async () => {
@@ -77,13 +80,14 @@ export const BoardSettingsSheet: React.FC<BoardSettingsSheetProps> = ({
     try {
       let syncCount = 0
       if (dsAny.mergeStrategy === 'populateOptions' && dsAny.populateTargetCol && dsAny.populateSourceField) {
+        const optLimit = dataSource.limit != null ? dataSource.limit : 200
         const result = await BoardApiService.populateColumnOptions(
           board.id,
           activeSheet.id,
           dataSource.entityType,
           dsAny.populateSourceField as string,
           dsAny.populateTargetCol as string,
-          dataSource.limit || 200
+          optLimit
         )
         if (!result) {
           toast.error('Sync failed')
@@ -94,9 +98,10 @@ export const BoardSettingsSheet: React.FC<BoardSettingsSheetProps> = ({
           `Updated ${syncCount} options for "${dsAny.populateTargetCol}" from ${dataSource.entityDisplayName || dataSource.entityType}`
         )
       } else {
+        const syncLimit = dataSource.limit != null ? dataSource.limit : 200
         const result = await BoardApiService.syncFromGraphQL(board.id, activeSheet.id, {
           entity: dataSource.entityType,
-          limit: dataSource.limit || 200,
+          limit: syncLimit,
           mode: dataSource.syncMode || 'replace',
           autoColumns: true
         })
@@ -196,59 +201,85 @@ export const BoardSettingsSheet: React.FC<BoardSettingsSheetProps> = ({
             </div>
 
             {dataSource ? (
-              <div className="gba:rounded gba:border gba:border-border gba:p-2.5 gba:space-y-2">
-                <div className="gba:flex gba:items-center gba:justify-between">
-                  <span className="gba:text-xs gba:font-medium">
-                    {dataSource.entityDisplayName || dataSource.entityType}
-                  </span>
-                  <Badge variant="secondary" className="gba:text-xs">
-                    {dataSource.refreshMode === 'periodic'
-                      ? 'Auto-refresh'
-                      : dataSource.refreshMode === 'onOpen'
-                        ? 'On open'
-                        : 'Manual'}
-                  </Badge>
-                </div>
-                {dataSource.lastSyncAt && (
-                  <p className="gba:text-xs gba:text-muted-foreground">
-                    Last sync: {new Date(dataSource.lastSyncAt).toLocaleString()}
-                    {dataSource.lastSyncCount != null && ` (${dataSource.lastSyncCount} records)`}
-                  </p>
-                )}
-                {dataSource.lastSyncError && (
-                  <p className="gba:text-xs gba:text-destructive">{dataSource.lastSyncError}</p>
-                )}
-                <div className="gba:flex gba:gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="gba:h-6 gba:text-xs gba:gap-1"
-                    onClick={() => void handleSyncNow()}
-                    disabled={isSyncing}
-                    data-testid={`${testId}-sync-now`}
-                  >
-                    {isSyncing ? (
-                      <>
-                        <Spinner size="sm" /> Syncing...
-                      </>
-                    ) : (
-                      <>
-                        <RefreshCw className="gba:w-3 gba:h-3" /> Sync now
-                      </>
-                    )}
-                  </Button>
-                  {onSheetUpdate && (
+              <div className="gba:space-y-2">
+                <div className="gba:rounded gba:border gba:border-border gba:p-2.5 gba:space-y-2">
+                  <div className="gba:flex gba:items-center gba:justify-between">
+                    <div className="gba:flex gba:items-center gba:gap-1.5">
+                      <span className="gba:text-xs gba:font-medium">
+                        {dataSource.entityDisplayName || dataSource.entityType}
+                      </span>
+                      <Badge variant="info" className="gba:text-[10px]">
+                        Rows
+                      </Badge>
+                    </div>
+                    <Badge variant="secondary" className="gba:text-xs">
+                      {dataSource.refreshMode === 'periodic'
+                        ? 'Auto-refresh'
+                        : dataSource.refreshMode === 'onOpen'
+                          ? 'On open'
+                          : 'Manual'}
+                    </Badge>
+                  </div>
+                  {dataSource.lastSyncAt && (
+                    <p className="gba:text-xs gba:text-muted-foreground">
+                      Last sync: {new Date(dataSource.lastSyncAt).toLocaleString()}
+                      {dataSource.lastSyncCount != null && ` (${dataSource.lastSyncCount} records)`}
+                    </p>
+                  )}
+                  {dataSource.lastSyncError && (
+                    <p className="gba:text-xs gba:text-destructive">{dataSource.lastSyncError}</p>
+                  )}
+                  <div className="gba:flex gba:gap-2">
                     <Button
                       variant="outline"
                       size="sm"
-                      className="gba:h-6 gba:text-xs gba:gap-1 gba:text-destructive"
-                      onClick={() => void handleDisconnect()}
-                      data-testid={`${testId}-disconnect`}
+                      className="gba:h-6 gba:text-xs gba:gap-1"
+                      onClick={() => void handleSyncNow()}
+                      disabled={isSyncing}
+                      data-testid={`${testId}-sync-now`}
                     >
-                      <Unlink className="gba:w-3 gba:h-3" /> Disconnect
+                      {isSyncing ? (
+                        <>
+                          <Spinner size="sm" /> Syncing...
+                        </>
+                      ) : (
+                        <>
+                          <RefreshCw className="gba:w-3 gba:h-3" /> Sync now
+                        </>
+                      )}
                     </Button>
-                  )}
+                    {onSheetUpdate && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gba:h-6 gba:text-xs gba:gap-1 gba:text-destructive"
+                        onClick={() => void handleDisconnect()}
+                        data-testid={`${testId}-disconnect`}
+                      >
+                        <Unlink className="gba:w-3 gba:h-3" /> Disconnect
+                      </Button>
+                    )}
+                  </div>
                 </div>
+                {auxSources &&
+                  auxSources.length > 0 &&
+                  auxSources.map((aux, i) => (
+                    <div
+                      key={`${aux.entityType}-${i}`}
+                      className="gba:rounded gba:border gba:border-border gba:p-2 gba:flex gba:items-center gba:justify-between"
+                      data-testid={`${testId}-aux-source-${i}`}
+                    >
+                      <div className="gba:flex gba:items-center gba:gap-1.5">
+                        <span className="gba:text-xs gba:font-medium">{aux.entityDisplayName}</span>
+                        <Badge variant="secondary" className="gba:text-[10px]">
+                          Options
+                        </Badge>
+                      </div>
+                      <span className="gba:text-[10px] gba:text-muted-foreground gba:truncate gba:max-w-32">
+                        → {aux.targetColumn}
+                      </span>
+                    </div>
+                  ))}
               </div>
             ) : (
               <p className="gba:text-xs gba:text-muted-foreground gba:py-2 gba:text-center">

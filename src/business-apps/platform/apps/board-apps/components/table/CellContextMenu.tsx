@@ -6,7 +6,7 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger
 } from '@newwork/nw-design-system'
-import { Pencil, Eraser, Copy, FileText } from 'lucide-react'
+import { Pencil, Eraser, Copy, FileText, Trash2 } from 'lucide-react'
 import { toast } from '@newwork/nw-design-system'
 
 export interface CellContextMenuProps {
@@ -15,6 +15,7 @@ export interface CellContextMenuProps {
   onEdit: () => void
   onClear: () => void
   onOpenRowPage?: () => void
+  onDeleteRow?: () => void
   'data-testid'?: string
 }
 
@@ -24,6 +25,7 @@ export const CellContextMenu: React.FC<CellContextMenuProps> = ({
   onEdit,
   onClear,
   onOpenRowPage,
+  onDeleteRow,
   'data-testid': testId = 'cell-ctx-menu'
 }) => {
   const handleCopy = useCallback(() => {
@@ -56,6 +58,19 @@ export const CellContextMenu: React.FC<CellContextMenuProps> = ({
             <ContextMenuItem onClick={onOpenRowPage} data-testid={`${testId}-open-page`}>
               <FileText className="gba:w-3.5 gba:h-3.5 gba:mr-2" />
               Open row page
+            </ContextMenuItem>
+          </>
+        )}
+        {onDeleteRow && (
+          <>
+            <ContextMenuSeparator />
+            <ContextMenuItem
+              onClick={onDeleteRow}
+              className="gba:text-destructive"
+              data-testid={`${testId}-delete-row`}
+            >
+              <Trash2 className="gba:w-3.5 gba:h-3.5 gba:mr-2" />
+              Delete row
             </ContextMenuItem>
           </>
         )}

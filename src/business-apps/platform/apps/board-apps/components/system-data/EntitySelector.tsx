@@ -6,16 +6,14 @@ import {
   SelectTrigger,
   SelectValue,
   SelectContent,
+  SelectGroup,
+  SelectLabel,
   SelectItem,
   Spinner
 } from '@newwork/nw-design-system'
-import { ENTITY_REGISTRY } from '../../queries/entityQueries'
+import { getEntitiesByCategory, ENTITY_REGISTRY } from '../../queries/entityQueries'
 
-const ENTITY_OPTIONS = Object.entries(ENTITY_REGISTRY).map(([key, def]) => ({
-  value: key,
-  label: def.displayName,
-  desc: def.description
-}))
+const GROUPED_ENTITIES = getEntitiesByCategory()
 
 export interface EntitySelectorProps {
   entity: string
@@ -32,7 +30,7 @@ export const EntitySelector: React.FC<EntitySelectorProps> = ({
   isLoading,
   'data-testid': testId = 'entity-selector'
 }) => {
-  const selected = ENTITY_OPTIONS.find(e => e.value === entity)
+  const selected = entity ? ENTITY_REGISTRY[entity] : undefined
 
   return (
     <div className="gba:space-y-4" data-testid={testId}>
@@ -48,11 +46,16 @@ export const EntitySelector: React.FC<EntitySelectorProps> = ({
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {ENTITY_OPTIONS.map(e => (
-              <SelectItem key={e.value} value={e.value}>
-                <span className="gba:font-medium">{e.label}</span>
-                <span className="gba:text-muted-foreground gba:ml-2">{e.desc}</span>
-              </SelectItem>
+            {GROUPED_ENTITIES.map(group => (
+              <SelectGroup key={group.category}>
+                <SelectLabel>{group.label}</SelectLabel>
+                {group.entities.map(e => (
+                  <SelectItem key={e.key} value={e.key}>
+                    <span className="gba:font-medium">{e.def.displayName}</span>
+                    <span className="gba:text-muted-foreground gba:ml-2">{e.def.description}</span>
+                  </SelectItem>
+                ))}
+              </SelectGroup>
             ))}
           </SelectContent>
         </Select>
@@ -60,8 +63,8 @@ export const EntitySelector: React.FC<EntitySelectorProps> = ({
 
       {selected && (
         <div className="gba:rounded gba:border gba:border-border gba:p-3">
-          <p className="gba:text-sm gba:font-medium">{selected.label}</p>
-          <p className="gba:text-xs gba:text-muted-foreground">{selected.desc}</p>
+          <p className="gba:text-sm gba:font-medium">{selected.displayName}</p>
+          <p className="gba:text-xs gba:text-muted-foreground">{selected.description}</p>
         </div>
       )}
 

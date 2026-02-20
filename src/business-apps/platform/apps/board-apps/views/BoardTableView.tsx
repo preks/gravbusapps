@@ -4,15 +4,13 @@
 
 import React, { useMemo, useRef, useState, useCallback, useEffect } from 'react'
 import { toast } from '@newwork/nw-design-system'
-import { Plus, FileText, FilePlus } from 'lucide-react'
-import type { BoardRow, BoardColumn } from '../types'
-import { RelationPicker } from '../components/RelationPicker'
-import { AddColumnPopover } from '../components/columns/AddColumnPopover'
-import { CellRenderer } from '../components/table/CellRenderer'
-import { CellEditor } from '../components/table/CellEditor'
-import { ColumnHeaderMenu } from '../components/table/ColumnHeaderMenu'
-import { CellContextMenu } from '../components/table/CellContextMenu'
+import type { BoardRow, BoardColumn, ViewFilter, ViewSort, FilterConnector } from '../types'
 import { ColumnSettingsSheet } from '../components/columns/ColumnSettingsSheet'
+import { FilterSortToolbar } from '../components/table/FilterSortToolbar'
+import { TableHeader } from '../components/table/TableHeader'
+import { TableBodyRows } from '../components/table/TableBodyRows'
+import { useTableFilterSort } from '../hooks/useTableFilterSort'
+import type { ServerFilterParams } from '../hooks/useTableFilterSort'
 
 export interface BoardTableViewProps {
   columns: BoardColumn[]
@@ -23,10 +21,16 @@ export interface BoardTableViewProps {
   onClearHighlight?: () => void
   onAddRow?: (data: Record<string, unknown>) => Promise<void>
   onUpdateCell?: (rowId: string, columnName: string, value: unknown) => Promise<void>
+  onDeleteRow?: (rowId: string) => void
   onRowClick?: (row: BoardRow) => void
   onAddColumn?: (column: BoardColumn) => void
   onUpdateColumn?: (updated: BoardColumn) => void
   onDeleteColumn?: (columnId: string) => void
+  initialFilters?: ViewFilter[]
+  initialSorts?: ViewSort[]
+  initialConnector?: FilterConnector
+  onServerFilterChange?: (params: ServerFilterParams) => void
+  rowsTotal?: number
   testId: string
 }
 
@@ -39,14 +43,34 @@ export const BoardTableView: React.FC<BoardTableViewProps> = ({
   onClearHighlight,
   onAddRow,
   onUpdateCell,
+  onDeleteRow,
   onRowClick,
   onAddColumn,
   onUpdateColumn,
   onDeleteColumn,
+  initialFilters,
+  initialSorts,
+  initialConnector,
+  onServerFilterChange,
+  rowsTotal: rowsTotalProp,
   testId
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const [settingsColumn, setSettingsColumn] = useState<BoardColumn | null>(null)
+
+  const fs = useTableFilterSort(rows, columns, {
+    initialFilters,
+    initialSorts,
+    initialConnector,
+    onServerParamsChange: onServerFilterChange
+  })
+  const displayRows = fs.filteredRows
+
+  const sortMap = useMemo(() => {
+    const m = new Map<string, { direction: 'asc' | 'desc'; priority: number }>()
+    fs.sorts.forEach((s, i) => m.set(s.column, { direction: s.direction, priority: i }))
+    return m
+  }, [fs.sorts])
 
   const [selectedCell, setSelectedCell] = useState<{
     rowIndex: number
@@ -92,15 +116,15 @@ export const BoardTableView: React.FC<BoardTableViewProps> = ({
     (dr: number, dc: number) => {
       setSelectedCell(prev => {
         if (!prev) return prev
-        const nextRow = Math.max(0, Math.min(rows.length - 1, prev.rowIndex + dr))
+        const nextRow = Math.max(0, Math.min(displayRows.length - 1, prev.rowIndex + dr))
         const nextCol = Math.max(0, Math.min(columns.length - 1, prev.colIndex + dc))
-        const nextRowId = rows[nextRow]?.id
+        const nextRowId = displayRows[nextRow]?.id
         const nextColName = columnKeys[nextCol]
         if (!nextRowId || !nextColName) return prev
         return { rowIndex: nextRow, colIndex: nextCol, rowId: nextRowId, colName: nextColName }
       })
     },
-    [rows, columns.length, columnKeys]
+    [displayRows, columns.length, columnKeys]
   )
 
   const handleGridKeyDown = useCallback(
@@ -127,7 +151,7 @@ export const BoardTableView: React.FC<BoardTableViewProps> = ({
       }
       if (e.key === 'Enter') {
         e.preventDefault()
-        const row = rows[selectedCell.rowIndex]
+        const row = displayRows[selectedCell.rowIndex]
         const col = columns[selectedCell.colIndex]
         if (row && col && col.isEditable) handleStartEdit(row.id, col.name, row.data[col.name])
       }
@@ -138,7 +162,7 @@ export const BoardTableView: React.FC<BoardTableViewProps> = ({
 
       const isTextInput = e.key.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey
       if (isTextInput) {
-        const row = rows[selectedCell.rowIndex]
+        const row = displayRows[selectedCell.rowIndex]
         const col = columns[selectedCell.colIndex]
         if (row && col && col.isEditable) {
           e.preventDefault()
@@ -146,14 +170,14 @@ export const BoardTableView: React.FC<BoardTableViewProps> = ({
         }
       }
     },
-    [selectedCell, editingCell, moveSelection, rows, columns, handleStartEdit]
+    [selectedCell, editingCell, moveSelection, displayRows, columns, handleStartEdit]
   )
 
   const CLICK_TO_EDIT_TYPES = new Set(['status', 'select', 'multiselect', 'boolean', 'date', 'datetime'])
 
   const handleCellClick = useCallback(
     (rowIndex: number, colIndex: number) => {
-      const row = rows[rowIndex]
+      const row = displayRows[rowIndex]
       const col = columns[colIndex]
       if (!row || !col) return
 
@@ -171,8 +195,29 @@ export const BoardTableView: React.FC<BoardTableViewProps> = ({
         containerRef.current?.focus()
       }
     },
-    [rows, columns, editingCell, onUpdateCell]
+    [displayRows, columns, editingCell, onUpdateCell]
   )
+
+  const handleSaveEdit = useCallback(
+    async (_rowId: string, colName: string, newValue: unknown) => {
+      if (!onUpdateCell || !editingCell) return
+      try {
+        await onUpdateCell(editingCell.rowId, colName, newValue)
+      } catch {
+        toast.error('Failed to save')
+      }
+      setEditingCell(null)
+      setEditInitialKey(undefined)
+      requestAnimationFrame(() => containerRef.current?.focus())
+    },
+    [onUpdateCell, editingCell]
+  )
+
+  const handleCancelEdit = useCallback(() => {
+    setEditingCell(null)
+    setEditInitialKey(undefined)
+    requestAnimationFrame(() => containerRef.current?.focus())
+  }, [])
 
   const handleQuickAddRow = useCallback(async () => {
     if (!onAddRow) return
@@ -192,190 +237,69 @@ export const BoardTableView: React.FC<BoardTableViewProps> = ({
     )
 
   return (
-    <div
-      ref={containerRef}
-      tabIndex={0}
-      onKeyDown={handleGridKeyDown}
-      className="gba:w-full gba:max-w-full gba:min-w-0 gba:h-full gba:overflow-auto gba:outline-none"
-      data-testid={testId}
-    >
-      <table className="gba:w-max gba:min-w-full gba:border-collapse gba:text-xs gba:table-fixed">
-        <thead className="gba:sticky gba:top-0 gba:z-10">
-          <tr className="gba:bg-muted/60">
-            {columns.map(col => (
-              <th
-                key={col.id || col.name}
-                className="gba:px-2.5 gba:py-1.5 gba:text-left gba:font-medium gba:text-muted-foreground gba:border-b gba:border-r gba:whitespace-nowrap gba:w-40"
-              >
-                {onUpdateColumn && onDeleteColumn ? (
-                  <ColumnHeaderMenu
-                    column={col}
-                    onRename={(colId, newLabel) => {
-                      const updated = columns.find(c => c.id === colId)
-                      if (updated) onUpdateColumn({ ...updated, label: newLabel })
-                    }}
-                    onOpenSettings={c => {
-                      setSettingsColumn(c)
-                      setSelectedCell(null)
-                      setEditingCell(null)
-                    }}
-                    onHide={colId => {
-                      const updated = columns.find(c => c.id === colId)
-                      if (updated) onUpdateColumn({ ...updated, isVisible: false })
-                    }}
-                    onDelete={onDeleteColumn}
-                    data-testid={`${testId}-col-menu-${col.id}`}
-                  />
-                ) : (
-                  <span className="gba:flex gba:items-center gba:gap-1.5">{col.label}</span>
-                )}
-              </th>
-            ))}
-            {onAddColumn && (
-              <th className="gba:px-1 gba:py-1.5 gba:border-b gba:w-10">
-                <AddColumnPopover
-                  existingColumns={columns}
-                  onAdd={onAddColumn}
-                  data-testid={`${testId}-add-col-popover`}
-                >
-                  <button
-                    className="gba:w-7 gba:h-7 gba:flex gba:items-center gba:justify-center gba:rounded gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60 gba:transition-colors"
-                    data-testid={`${testId}-add-col`}
-                  >
-                    <Plus className="gba:w-3.5 gba:h-3.5" />
-                  </button>
-                </AddColumnPopover>
-              </th>
-            )}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row, rowIndex) => (
-            <tr
-              key={row.id}
-              className={`gba:transition-colors gba:group ${
-                activeHighlight === row.id ? 'gba:bg-primary/10 gba:animate-pulse' : 'gba:hover:bg-muted/20'
-              }`}
-              data-testid={`${testId}-row-${row.id}`}
-            >
-              {columns.map((col, colIndex) => {
-                const isEditing = editingCell?.rowId === row.id && editingCell?.colName === col.name
-                const isSelected = selectedCell?.rowId === row.id && selectedCell?.colName === col.name && !isEditing
-
-                return (
-                  <CellContextMenu
-                    key={col.id || col.name}
-                    value={row.data[col.name]}
-                    onEdit={() => handleStartEdit(row.id, col.name, row.data[col.name])}
-                    onClear={onUpdateCell ? () => void onUpdateCell(row.id, col.name, null) : () => {}}
-                    onOpenRowPage={onRowClick ? () => onRowClick(row) : undefined}
-                    data-testid={`${testId}-ctx-${row.id}-${col.name}`}
-                  >
-                    <td
-                      className={`gba:px-2.5 gba:py-1.5 gba:border-b gba:border-r gba:truncate gba:w-40 ${
-                        isSelected ? 'gba:ring-2 gba:ring-primary gba:ring-inset gba:bg-primary/5' : ''
-                      } ${onUpdateCell ? 'gba:cursor-cell' : ''}`}
-                      onClick={() => handleCellClick(rowIndex, colIndex)}
-                      data-testid={`${testId}-cell-${row.id}-${col.name}`}
-                    >
-                      {isEditing ? (
-                        col.type === 'relation' && col.relationConfig && onUpdateCell ? (
-                          <RelationPicker
-                            config={col.relationConfig}
-                            selectedIds={
-                              Array.isArray(row.data[col.name])
-                                ? ((row.data[col.name] as unknown[]).filter(x => typeof x === 'string') as string[])
-                                : []
-                            }
-                            onChange={async ids => {
-                              try {
-                                await onUpdateCell(row.id, col.name, ids)
-                              } catch {
-                                toast.error('Failed to save')
-                              }
-                              setEditingCell(null)
-                            }}
-                            data-testid={`${testId}-relation-${row.id}-${col.name}`}
-                          />
-                        ) : (
-                          <CellEditor
-                            column={col}
-                            value={row.data[col.name]}
-                            initialKey={editInitialKey}
-                            onSave={async newValue => {
-                              if (!onUpdateCell) return
-                              try {
-                                await onUpdateCell(row.id, col.name, newValue)
-                              } catch {
-                                toast.error('Failed to save')
-                              }
-                              setEditingCell(null)
-                              setEditInitialKey(undefined)
-                              requestAnimationFrame(() => containerRef.current?.focus())
-                            }}
-                            onCancel={() => {
-                              setEditingCell(null)
-                              setEditInitialKey(undefined)
-                              requestAnimationFrame(() => containerRef.current?.focus())
-                            }}
-                            onMoveNext={() => moveSelection(1, 0)}
-                          />
-                        )
-                      ) : (
-                        <div className="gba:flex gba:items-center gba:gap-1">
-                          <span className={`gba:flex-1 gba:truncate ${colIndex === 0 ? 'gba:font-medium' : ''}`}>
-                            <CellRenderer value={row.data[col.name]} type={col.type} options={col.selectOptions} />
-                          </span>
-                          {colIndex === 0 && onRowClick && (
-                            <button
-                              type="button"
-                              onClick={e => {
-                                e.stopPropagation()
-                                onRowClick(row)
-                              }}
-                              className="gba:flex-shrink-0 gba:p-0.5 gba:rounded gba:hover:bg-muted/60 gba:transition-colors"
-                              data-testid={`${testId}-open-row-${row.id}`}
-                            >
-                              {(row.data as Record<string, unknown>)._rowPage ? (
-                                <FileText className="gba:w-3.5 gba:h-3.5 gba:text-primary/60 gba:hover:text-primary" />
-                              ) : (
-                                <FilePlus className="gba:w-3.5 gba:h-3.5 gba:text-muted-foreground/30 gba:hover:text-primary" />
-                              )}
-                            </button>
-                          )}
-                        </div>
-                      )}
-                    </td>
-                  </CellContextMenu>
-                )
-              })}
-            </tr>
-          ))}
-
-          {/* Quick-add row at bottom */}
-          {onAddRow && (
-            <tr>
-              <td colSpan={columns.length} className="gba:px-2.5 gba:py-1 gba:border-b">
-                <button
-                  onClick={handleQuickAddRow}
-                  className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:text-muted-foreground gba:hover:text-foreground gba:transition-colors gba:py-0.5"
-                  data-testid={`${testId}-quick-add`}
-                >
-                  <Plus className="gba:w-3 gba:h-3" /> New row
-                </button>
-              </td>
-            </tr>
-          )}
-
-          {rows.length === 0 && !onAddRow && (
-            <tr>
-              <td colSpan={columns.length} className="gba:px-4 gba:py-8 gba:text-center gba:text-muted-foreground">
-                No rows yet.
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
+    <div className="gba:flex gba:flex-col gba:h-full gba:min-h-0" data-testid={testId}>
+      <FilterSortToolbar
+        columns={columns}
+        filters={fs.filters}
+        sorts={fs.sorts}
+        connector={fs.connector}
+        filteredCount={displayRows.length}
+        totalCount={rowsTotalProp ?? rows.length}
+        onAddFilter={fs.addFilter}
+        onUpdateFilter={fs.updateFilter}
+        onRemoveFilter={fs.removeFilter}
+        onAddSort={fs.addSort}
+        onUpdateSort={fs.updateSort}
+        onRemoveSort={fs.removeSort}
+        onSetConnector={fs.setConnector}
+        onClearAll={fs.clearAll}
+        quickSearch={fs.quickSearch}
+        onQuickSearchChange={fs.setQuickSearch}
+        data-testid={`${testId}-toolbar`}
+      />
+      <div
+        ref={containerRef}
+        tabIndex={0}
+        onKeyDown={handleGridKeyDown}
+        className="gba:w-full gba:max-w-full gba:min-w-0 gba:flex-1 gba:overflow-auto gba:outline-none"
+      >
+        <table className="gba:w-max gba:min-w-full gba:border-collapse gba:text-xs gba:table-fixed">
+          <TableHeader
+            columns={columns}
+            sortMap={sortMap}
+            sortCount={fs.sorts.length}
+            onToggleSort={fs.toggleColumnSort}
+            onUpdateColumn={onUpdateColumn}
+            onDeleteColumn={onDeleteColumn}
+            onAddColumn={onAddColumn}
+            onOpenSettings={c => {
+              setSettingsColumn(c)
+              setSelectedCell(null)
+              setEditingCell(null)
+            }}
+            testId={testId}
+          />
+          <TableBodyRows
+            displayRows={displayRows}
+            totalRows={rows.length}
+            columns={columns}
+            activeHighlight={activeHighlight}
+            selectedCell={selectedCell}
+            editingCell={editingCell}
+            editInitialKey={editInitialKey}
+            onCellClick={handleCellClick}
+            onStartEdit={handleStartEdit}
+            onUpdateCell={onUpdateCell}
+            onDeleteRow={onDeleteRow}
+            onRowClick={onRowClick}
+            onSaveEdit={handleSaveEdit}
+            onCancelEdit={handleCancelEdit}
+            onMoveNext={() => moveSelection(1, 0)}
+            onAddRow={onAddRow ? handleQuickAddRow : undefined}
+            testId={testId}
+          />
+        </table>
+      </div>
 
       {settingsColumn && onUpdateColumn && (
         <ColumnSettingsSheet

@@ -1,13 +1,32 @@
 /**
  * Entity Query Registry - types, utilities, and re-exports.
  *
- * The actual registry data lives in ./entityRegistry.ts to keep
- * each file focused and under 300 lines.
+ * The actual registry data lives in ./entityRegistry.ts and
+ * ./entityRegistryCrm.ts to keep each file focused and under 300 lines.
  */
 
-import { ENTITY_REGISTRY } from './entityRegistry'
+import { ENTITY_REGISTRY_CORE } from './entityRegistry'
+import { ENTITY_REGISTRY_ORG } from './entityRegistryOrg'
+import { ENTITY_REGISTRY_CRM } from './entityRegistryCrm'
 
-export { ENTITY_REGISTRY }
+export const ENTITY_REGISTRY: Record<string, EntityQueryDef> = {
+  ...ENTITY_REGISTRY_CORE,
+  ...ENTITY_REGISTRY_ORG,
+  ...ENTITY_REGISTRY_CRM
+}
+
+export type EntityCategory = 'hr' | 'recruiting' | 'organization' | 'crm' | 'finance' | 'other'
+
+export const ENTITY_CATEGORY_LABELS: Record<EntityCategory, string> = {
+  hr: 'HR & People',
+  recruiting: 'Recruiting',
+  organization: 'Organization',
+  crm: 'CRM & Sales',
+  finance: 'Finance',
+  other: 'Knowledge & Assets'
+}
+
+export const ENTITY_CATEGORY_ORDER: EntityCategory[] = ['hr', 'recruiting', 'organization', 'crm', 'finance', 'other']
 
 export interface EntityFieldDef {
   key: string
@@ -23,12 +42,15 @@ export interface EntityFieldDef {
 export interface EntityQueryDef {
   displayName: string
   description: string
+  category: EntityCategory
   query: string
   entityKey: string
   aggregateKey: string
   boolExpType: string
   orderByType: string
   fields: EntityFieldDef[]
+  /** When true, queries must be scoped to the active org structure via structureId */
+  needsStructureFilter?: boolean
 }
 
 /**
@@ -106,6 +128,60 @@ export function getEntityDef(entityType: string): EntityQueryDef | undefined {
   return ENTITY_REGISTRY[entityType]
 }
 
+/**
+ * Build the default `where` conditions for an entity type.
+ * - Always adds `isDeleted: {_eq: false}` (all entities support this).
+ * - For org-structure-bound entities, adds `structureId: {_eq: ...}`
+ *   using the active org structure from the platform context.
+ */
+export function buildEntityDefaultWhere(entityType: string, structureId?: string | null): Record<string, unknown> {
+  const def = getEntityDef(entityType)
+  if (!def) return {}
+
+  const where: Record<string, unknown> = {
+    isDeleted: { _eq: false }
+  }
+
+  if (def.needsStructureFilter && structureId) {
+    where.structureId = { _eq: structureId }
+  }
+
+  return where
+}
+
 export function getEntityTypes(): string[] {
   return Object.keys(ENTITY_REGISTRY)
+}
+
+/** Returns entities grouped by category, ordered by ENTITY_CATEGORY_ORDER */
+export function getEntitiesByCategory(): Array<{
+  category: EntityCategory
+  label: string
+  entities: Array<{ key: string; def: EntityQueryDef }>
+}> {
+  const grouped = new Map<EntityCategory, Array<{ key: string; def: EntityQueryDef }>>()
+  for (const [key, def] of Object.entries(ENTITY_REGISTRY)) {
+    const list = grouped.get(def.category) ?? []
+    list.push({ key, def })
+    grouped.set(def.category, list)
+  }
+  return ENTITY_CATEGORY_ORDER.filter(cat => grouped.has(cat)).map(cat => ({
+    category: cat,
+    label: ENTITY_CATEGORY_LABELS[cat],
+    entities: grouped.get(cat)!
+  }))
+}
+
+/**
+ * Serialize the entity registry into a compact catalog string for AI prompts.
+ * Each entity is listed with its key, display name, description, category,
+ * and field names/types -- so the AI can reason about available data sources.
+ */
+export function serializeRegistryCatalog(): string {
+  return Object.entries(ENTITY_REGISTRY)
+    .map(([key, def]) => {
+      const fields = def.fields.map(f => `${f.key}(${f.type})`).join(', ')
+      return `[${key}] "${def.displayName}" - ${def.description} (category: ${def.category})\n  Fields: ${fields}`
+    })
+    .join('\n')
 }

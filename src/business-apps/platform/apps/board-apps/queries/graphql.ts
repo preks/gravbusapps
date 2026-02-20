@@ -90,8 +90,8 @@ query BoardGetContacts($where: ContactBoolExp, $limit: Int, $offset: Int, $order
     firstName
     lastName
     department
-    jobPosition
-    type
+    jobTitle
+    contactType
     createdAt
     updatedAt
     ownerEmployee { id displayName pictureThumbnail }
@@ -135,8 +135,8 @@ query BoardGetOpportunities($where: OpportunityBoolExp, $limit: Int, $offset: In
     updatedAt
     currency { code value }
     opportunityStatus { value }
-    opportunityPipeline { value }
-    opportunityPipelineStage { value }
+    salesPipeline { value }
+    salesPipelineStage { value }
     ownerEmployee { id displayName pictureThumbnail }
     ownerEmployeeId
     company { id name }

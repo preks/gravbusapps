@@ -31,6 +31,12 @@ export interface BoardViewerProps {
   board: Board
   accessToken: string
   userId: string
+  initialSheetId?: string | null
+  initialViewId?: string | null
+  initialPage?: number
+  onSheetIdChange?: (id: string | null) => void
+  onViewIdChange?: (id: string | null) => void
+  onPageChange?: (p: number) => void
   onReloadBoard?: (id: string) => Promise<void>
   onBoardUpdate?: (id: string, updates: Partial<Board>) => Promise<void>
   onSheetUpdate?: (boardId: string, sheetId: string, updates: Partial<BoardSheet>) => Promise<BoardSheet | null>
@@ -45,7 +51,11 @@ export interface BoardViewerProps {
       page?: number
       limit?: number
       sort?: string
+      sortOrder?: 'ASC' | 'DESC'
       search?: string
+      filters?: string
+      filterConnector?: 'and' | 'or'
+      sorts?: string
     }
   ) => Promise<void>
   onCreateRow?: (boardId: string, sheetId: string, data: Record<string, unknown>) => Promise<BoardRow | null>
@@ -58,12 +68,19 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
   {
     board,
     accessToken,
+    initialSheetId,
+    initialViewId,
+    initialPage,
+    onSheetIdChange,
+    onViewIdChange,
+    onPageChange,
     onReloadBoard,
     onBoardUpdate,
     onSheetUpdate,
     onLoadRows,
     onCreateRow,
     onUpdateRow,
+    onDeleteRow,
     rows,
     rowsLoading,
     rowsTotal,
@@ -72,9 +89,40 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
   },
   ref
 ) {
-  const [activeSheetId, setActiveSheetId] = useState(board.sheets[0]?.id || '')
-  const [activeViewId, setActiveViewId] = useState('')
-  const [page, setPage] = useState(1)
+  const resolveInitSheet = () => {
+    if (initialSheetId && board.sheets.some(s => s.id === initialSheetId)) return initialSheetId
+    return board.sheets[0]?.id || ''
+  }
+  const [activeSheetId, setActiveSheetIdRaw] = useState(resolveInitSheet)
+  const [activeViewId, setActiveViewIdRaw] = useState(initialViewId || '')
+  const [page, setPageRaw] = useState(initialPage || 1)
+
+  const setActiveSheetId = useCallback(
+    (id: string) => {
+      setActiveSheetIdRaw(id)
+      onSheetIdChange?.(id)
+    },
+    [onSheetIdChange]
+  )
+
+  const setActiveViewId = useCallback(
+    (id: string) => {
+      setActiveViewIdRaw(id)
+      onViewIdChange?.(id)
+    },
+    [onViewIdChange]
+  )
+
+  const setPage = useCallback(
+    (p: number | ((prev: number) => number)) => {
+      setPageRaw(prev => {
+        const next = typeof p === 'function' ? p(prev) : p
+        onPageChange?.(next)
+        return next
+      })
+    },
+    [onPageChange]
+  )
   const [activeRow, setActiveRow] = useState<BoardRow | null>(null)
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
@@ -158,7 +206,11 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
 
   useEffect(() => {
     if (!activeSheet) return
-    void onLoadRows(board.id, activeSheet.id, { page, limit: activeSheet.settings.rowsPerPage || 50 })
+    void onLoadRows(board.id, activeSheet.id, {
+      page,
+      limit: activeSheet.settings.rowsPerPage || 50,
+      ...serverFilterRef.current
+    })
   }, [board.id, activeSheet, page, onLoadRows])
 
   const liveEnabled = Boolean((board.settings as any)?.liveUpdatesEnabled)
@@ -169,7 +221,11 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
     onEvent: event => {
       if (!activeSheet) return
       if (event.sheetId && event.sheetId !== activeSheet.id) return
-      void onLoadRows(board.id, activeSheet.id, { page, limit: activeSheet.settings.rowsPerPage || 50 })
+      void onLoadRows(board.id, activeSheet.id, {
+        page,
+        limit: activeSheet.settings.rowsPerPage || 50,
+        ...serverFilterRef.current
+      })
     }
   })
 
@@ -220,9 +276,34 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
     await onCreateRow(board.id, activeSheet.id, emptyData)
   }, [board.id, activeSheet, onCreateRow])
 
+  const serverFilterRef = useRef<{ filters?: string; filterConnector?: 'and' | 'or'; sorts?: string }>({})
+
+  const handleServerFilterChange = useCallback(
+    (params: { filters?: string; filterConnector?: 'and' | 'or'; sorts?: string }) => {
+      serverFilterRef.current = params
+      if (!activeSheet) return
+      void onLoadRows(board.id, activeSheet.id, {
+        page: 1,
+        limit: activeSheet.settings.rowsPerPage || 50,
+        ...params
+      })
+      setPage(1)
+    },
+    [activeSheet, board.id, onLoadRows, setPage]
+  )
+
   const handleRowOpen = useCallback((row: BoardRow) => {
     setActiveRow(row)
   }, [])
+
+  const handlePageCreated = useCallback(() => {
+    if (!activeSheet) return
+    void onLoadRows(board.id, activeSheet.id, {
+      page,
+      limit: activeSheet.settings.rowsPerPage || 50,
+      ...serverFilterRef.current
+    })
+  }, [activeSheet, board.id, page, onLoadRows])
 
   const handleSheetChange = useCallback((sheetId: string) => {
     setActiveSheetId(sheetId)
@@ -240,6 +321,27 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
           views={activeSheet.views}
           activeViewId={activeView?.id || ''}
           onSelectView={setActiveViewId}
+          onDeleteView={
+            onSheetUpdate
+              ? viewId => {
+                  const target = activeSheet.views.find(v => v.id === viewId)
+                  if (!target || target.type === 'table') return
+                  const nextViews = activeSheet.views.filter(v => v.id !== viewId)
+                  if (activeViewId === viewId) {
+                    const fallback = nextViews[0]
+                    if (fallback) setActiveViewId(fallback.id)
+                  }
+                  void onSheetUpdate(board.id, activeSheet.id, { views: nextViews } as any)
+                }
+              : undefined
+          }
+          onReorderViews={
+            onSheetUpdate
+              ? reordered => {
+                  void onSheetUpdate(board.id, activeSheet.id, { views: reordered } as any)
+                }
+              : undefined
+          }
           existingColumns={activeSheet.columns}
           onAddColumn={column => {
             if (!onSheetUpdate) return
@@ -269,6 +371,7 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
                 view={activeView}
                 sheet={activeSheet!}
                 rows={rows}
+                accessToken={accessToken}
                 boardId={board.id}
                 sheetId={activeSheet!.id}
                 highlightedRowId={highlightedRowId}
@@ -285,6 +388,13 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
                   onUpdateRow
                     ? async (rowId, colName, value) => {
                         await onUpdateRow(board.id, activeSheet!.id, rowId, { [colName]: value })
+                      }
+                    : undefined
+                }
+                onDeleteRow={
+                  onDeleteRow
+                    ? rowId => {
+                        void onDeleteRow(board.id, activeSheet!.id, rowId)
                       }
                     : undefined
                 }
@@ -335,6 +445,8 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
                       }
                     : undefined
                 }
+                onServerFilterChange={handleServerFilterChange}
+                rowsTotal={rowsTotal}
                 testId={`${testId}-${viewType}`}
               />
 
@@ -345,6 +457,7 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
                   row={activeRow}
                   columns={activeSheet!.columns}
                   onClose={() => setActiveRow(null)}
+                  onPageCreated={handlePageCreated}
                   data-testid={`${testId}-row-page`}
                 />
               )}

@@ -31,7 +31,11 @@ export interface UseBoardAppsReturn {
       page?: number
       limit?: number
       sort?: string
+      sortOrder?: 'ASC' | 'DESC'
       search?: string
+      filters?: string
+      filterConnector?: 'and' | 'or'
+      sorts?: string
     }
   ) => Promise<void>
   createRow: (boardId: string, sheetId: string, data: Record<string, unknown>) => Promise<BoardRow | null>
@@ -156,7 +160,16 @@ export function useBoardApps(accessToken: string): UseBoardAppsReturn {
     async (
       boardId: string,
       sheetId: string,
-      options?: { page?: number; limit?: number; sort?: string; search?: string }
+      options?: {
+        page?: number
+        limit?: number
+        sort?: string
+        sortOrder?: 'ASC' | 'DESC'
+        search?: string
+        filters?: string
+        filterConnector?: 'and' | 'or'
+        sorts?: string
+      }
     ) => {
       setRowsLoading(true)
       try {

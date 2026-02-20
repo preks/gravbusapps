@@ -20,6 +20,7 @@ export interface RowPagePanelProps {
   row: BoardRow
   columns: BoardColumn[]
   onClose: () => void
+  onPageCreated?: (rowId: string) => void
   'data-testid'?: string
 }
 
@@ -29,6 +30,7 @@ export const RowPagePanel: React.FC<RowPagePanelProps> = ({
   row,
   columns,
   onClose,
+  onPageCreated,
   'data-testid': testId = 'row-page-panel'
 }) => {
   const [pageContent, setPageContent] = useState<string | null>(null)
@@ -82,6 +84,7 @@ export const RowPagePanel: React.FC<RowPagePanelProps> = ({
           setPageTitle(created.title || title)
           setPageContent('<p></p>')
           setLocalTitle(created.title || title)
+          onPageCreated?.(row.id)
         } catch {
           if (!cancelled) setPageContent(null)
         }
@@ -92,7 +95,7 @@ export const RowPagePanel: React.FC<RowPagePanelProps> = ({
     return () => {
       cancelled = true
     }
-  }, [boardId, sheetId, row.id, columns, row.data])
+  }, [boardId, sheetId, row.id, columns, row.data, onPageCreated])
 
   useEffect(() => {
     if (!editor || !noteId || pageContent === null) return
@@ -114,10 +117,11 @@ export const RowPagePanel: React.FC<RowPagePanelProps> = ({
       setPageTitle(result.title || title)
       setPageContent('<p></p>')
       setLocalTitle(result.title || title)
+      onPageCreated?.(row.id)
     } catch {
       /* silent */
     }
-  }, [boardId, sheetId, row.id, columns, row.data])
+  }, [boardId, sheetId, row.id, columns, row.data, onPageCreated])
 
   const handleSave = useCallback(async () => {
     if (!noteId) {
@@ -247,7 +251,13 @@ export const RowPagePanel: React.FC<RowPagePanelProps> = ({
                         {col.label}
                       </span>
                       <span className="gba:flex-1 gba:min-w-0">
-                        <CellRenderer value={row.data[col.name]} type={col.type} options={col.selectOptions} />
+                        <CellRenderer
+                          value={row.data[col.name]}
+                          type={col.type}
+                          options={col.selectOptions}
+                          isPrimary={!!col.isPrimary}
+                          rowData={row.data}
+                        />
                       </span>
                     </div>
                   ))}

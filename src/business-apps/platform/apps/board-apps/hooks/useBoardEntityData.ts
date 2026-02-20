@@ -7,8 +7,15 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { graphQLClient } from '@/common/network/graphql/GraphQLClient'
-import { getEntityDef, flattenEntityRecord, type EntityFieldDef, type EntityQueryDef } from '../queries/entityQueries'
+import {
+  getEntityDef,
+  flattenEntityRecord,
+  buildEntityDefaultWhere,
+  type EntityFieldDef,
+  type EntityQueryDef
+} from '../queries/entityQueries'
 import { buildGraphQLWhere } from '@/business-apps/platform/apps/spreadsheet-apps/hooks/useEntityDataSource'
+import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
 import type { EntityDataSource } from '../types'
 
 export interface EntityDataState {
@@ -119,10 +126,13 @@ export function useBoardEntityData(accessToken: string): UseBoardEntityDataRetur
       setState(prev => ({ ...prev, isLoading: true, error: null }))
 
       try {
+        const structureId = getCurrentActiveStructureId()
+        const defaultWhere = buildEntityDefaultWhere(entityType, structureId)
+
         const variables: Record<string, unknown> = {
           limit,
           offset: 0,
-          where: {}
+          where: defaultWhere
         }
 
         const result = await executeQuery(def, variables, def.fields)
@@ -165,7 +175,10 @@ export function useBoardEntityData(accessToken: string): UseBoardEntityDataRetur
       setState(prev => ({ ...prev, isLoading: true, error: null }))
 
       try {
-        const where = dataSource.filters?.conditions?.length ? buildGraphQLWhere(dataSource.filters) : {}
+        const structureId = getCurrentActiveStructureId()
+        const defaultWhere = buildEntityDefaultWhere(dataSource.entityType, structureId)
+        const userWhere = dataSource.filters?.conditions?.length ? buildGraphQLWhere(dataSource.filters) : {}
+        const where = { ...defaultWhere, ...userWhere }
 
         const variables: Record<string, unknown> = {
           where,

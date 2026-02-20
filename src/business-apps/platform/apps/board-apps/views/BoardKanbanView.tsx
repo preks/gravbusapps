@@ -167,11 +167,7 @@ export const BoardKanbanView: React.FC<BoardKanbanViewProps> = ({
     [statusCol, rows, onStatusChange]
   )
 
-  const groupCandidates = useMemo(
-    () =>
-      columns.filter(c => c.type === 'status' || c.type === 'select' || c.type === 'text' || c.type === 'multiselect'),
-    [columns]
-  )
+  const groupCandidates = useMemo(() => columns.filter(c => c.type !== 'formula'), [columns])
 
   const toggleCardField = useCallback(
     (name: string) => {

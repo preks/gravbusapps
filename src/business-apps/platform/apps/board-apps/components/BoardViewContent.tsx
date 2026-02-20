@@ -26,11 +26,15 @@ export interface BoardViewContentProps {
   onRowClick?: (row: BoardRow) => void
   onAddRow?: (data: Record<string, unknown>) => Promise<void>
   onUpdateCell?: (rowId: string, columnName: string, value: unknown) => Promise<void>
+  onDeleteRow?: (rowId: string) => void
   onSubmitRow?: (data: Record<string, unknown>) => Promise<void>
   onUpdateDashboardWidgets?: (widgets: DashboardWidget[]) => void
   onAddColumn?: (column: import('../types').BoardColumn) => void
   onUpdateColumn?: (updated: import('../types').BoardColumn) => void
   onDeleteColumn?: (columnId: string) => void
+  onServerFilterChange?: (params: import('../hooks/useTableFilterSort').ServerFilterParams) => void
+  rowsTotal?: number
+  accessToken?: string
   boardId: string
   sheetId: string
   testId: string
@@ -45,11 +49,15 @@ export const BoardViewContent: React.FC<BoardViewContentProps> = ({
   onRowClick,
   onAddRow,
   onUpdateCell,
+  onDeleteRow,
   onSubmitRow,
   onUpdateDashboardWidgets,
   onAddColumn,
   onUpdateColumn,
   onDeleteColumn,
+  onServerFilterChange,
+  rowsTotal,
+  accessToken,
   boardId,
   sheetId,
   testId
@@ -94,6 +102,7 @@ export const BoardViewContent: React.FC<BoardViewContentProps> = ({
         <>
           {hiddenBar}
           <BoardTableView
+            key={view?.id || 'default-table'}
             columns={visibleColumns}
             rows={rows}
             boardId={boardId}
@@ -102,10 +111,13 @@ export const BoardViewContent: React.FC<BoardViewContentProps> = ({
             onClearHighlight={onClearHighlight}
             onAddRow={onAddRow}
             onUpdateCell={onUpdateCell}
+            onDeleteRow={onDeleteRow}
             onRowClick={onRowClick}
             onAddColumn={onAddColumn}
             onUpdateColumn={onUpdateColumn}
             onDeleteColumn={onDeleteColumn}
+            onServerFilterChange={onServerFilterChange}
+            rowsTotal={rowsTotal}
             testId={testId}
           />
         </>
@@ -191,6 +203,7 @@ export const BoardViewContent: React.FC<BoardViewContentProps> = ({
           rows={rows}
           viewConfig={(viewConfig || { type: 'dashboard', widgets: [] }) as DashboardViewConfig}
           onUpdateWidgets={onUpdateDashboardWidgets}
+          accessToken={accessToken}
           data-testid={testId}
         />
       )

@@ -1,16 +1,16 @@
-/**
- * useBoardAI - AI-first features for boards.
- *
- * Uses Prompt Manager for:
- * 1. AI create-board: prompt -> schema + views + groups + automations
- * 2. AI query-board: NL -> filter/sort/group plan (preview before apply)
- * 3. AI enrichment: categorize/extract/summarize columns
- * 4. AI automation recipes: NL -> automation config (validate before save)
- */
+/** useBoardAI - AI features for boards (create, query, enrich, automate, data source analysis). */
 
 import { useState, useCallback } from 'react'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
-import type { BoardSheet, BoardColumn, BoardView, BoardGroup } from '../types'
+import type { BoardSheet, BoardColumn, BoardView, BoardGroup, DashboardWidget } from '../types'
+import {
+  BOARD_CREATOR_SYSTEM,
+  BOARD_CREATOR_WITH_DATASOURCES_SYSTEM,
+  WIDGET_SUGGEST_SYSTEM,
+  MERGE_ANALYZER_SYSTEM,
+  BOARD_QUERY_SYSTEM,
+  DATA_SOURCE_ANALYZER_SYSTEM
+} from './boardAIPrompts'
 
 export interface BoardAIPlan {
   sheets: Array<{
@@ -21,6 +21,12 @@ export interface BoardAIPlan {
   }>
   suggestedName: string
   confidence: number
+  sampleRows?: Record<string, unknown>[]
+}
+
+export interface WidgetSuggestion {
+  widgets: Array<Partial<DashboardWidget>>
+  explanation: string
 }
 
 export interface BoardQueryPlan {
@@ -48,20 +54,45 @@ export interface AutomationRecipe {
 export interface MergePlan {
   strategy: 'addRows' | 'addColumns' | 'hybrid' | 'populateOptions'
   joinKey?: { existingColumn: string; newColumn: string }
-  /** For populateOptions: which existing column to populate, and which imported field to use */
   populateConfig?: { targetColumn: string; sourceField: string }
   explanation: string
   confidence: number
   columnMapping?: Array<{ from: string; to: string; action: 'map' | 'new' }>
 }
 
+export interface DataSourceSuggestion {
+  entityType: string
+  purpose: string
+  importMode: 'rows' | 'selectOptions'
+  /** 'primary' = main row data for the board; 'auxiliary' = populates select/dropdown columns */
+  role: 'primary' | 'auxiliary'
+  suggestedFields: string[]
+  targetColumn?: string
+  sourceField?: string
+  confidence: number
+  explanation: string
+}
+
+export interface DataSourceAnalysis {
+  suggestions: DataSourceSuggestion[]
+  summary: string
+}
+
 export interface UseBoardAIReturn {
   isProcessing: boolean
   error: string | null
-  createBoardFromPrompt: (prompt: string) => Promise<BoardAIPlan | null>
+  createBoardFromPrompt: (
+    prompt: string,
+    includeSampleData?: boolean,
+    dataSources?: DataSourceSuggestion[]
+  ) => Promise<BoardAIPlan | null>
   queryBoardFromPrompt: (prompt: string, sheet: BoardSheet) => Promise<BoardQueryPlan | null>
   enrichColumn: (prompt: string, sheet: BoardSheet, columnId: string) => Promise<EnrichmentPlan | null>
   generateAutomation: (prompt: string, sheet: BoardSheet) => Promise<AutomationRecipe | null>
+  suggestWidgets: (
+    columns: Array<{ name: string; type: string; label: string }>,
+    sampleRows: Record<string, unknown>[]
+  ) => Promise<WidgetSuggestion | null>
   analyzeMerge: (
     existingColumns: Array<{ name: string; type: string; label: string }>,
     existingRowSample: Record<string, unknown>[],
@@ -69,31 +100,9 @@ export interface UseBoardAIReturn {
     newFields: Array<{ key: string; label: string; type: string }>,
     newRecordSample: Record<string, unknown>[]
   ) => Promise<MergePlan | null>
+  analyzeDataSources: (prompt: string, registryCatalog: string) => Promise<DataSourceAnalysis | null>
   reset: () => void
 }
-
-const BOARD_CREATOR_SYSTEM = `You are an expert at creating structured board schemas from natural language descriptions.
-Given a user prompt, produce a JSON board plan with sheets, columns (typed), views, and optional groups.
-Column types: text, number, currency, percentage, date, datetime, email, phone, url, select, multiselect,
-boolean, status, people, attachment, relation, formula, progress, tags, rating, timeline, link, button.
-Status/select columns must include selectOptions with value, label, and colorToken (use design tokens: primary, success, info, warning, destructive, muted).
-Always include at least one table view. Add kanban if there's a status column. Add calendar if there are date columns.
-Return valid JSON only.`
-
-const MERGE_ANALYZER_SYSTEM = `You analyze how two datasets should be combined in a board/spreadsheet.
-Given an existing board schema (columns + sample rows) and a new incoming entity (fields + sample records),
-decide the best merge strategy:
-- "addRows": The new data represents the same kind of records. Add them as new rows, creating any missing columns.
-- "addColumns": The new data enriches existing rows. Match via a join key and add new fields as columns.
-- "hybrid": Some records match existing rows (enrich), others are new (add as rows).
-If "addColumns" or "hybrid", identify the join key: which existing column matches which new field (e.g. existing "id" = new "employeeId").
-Also map new fields to suggest column names.
-Return valid JSON only: { strategy, joinKey?: { existingColumn, newColumn }, explanation, confidence (0-1), columnMapping?: [{ from, to, action }] }`
-
-const BOARD_QUERY_SYSTEM = `You are an expert at translating natural language queries into structured board query plans.
-Given a user question and the board schema, produce a JSON query plan with filters, sorts, groupBy, and an explanation.
-Use column names from the schema. Filter operators: equals, not_equals, contains, greater, less, is_empty, is_not_empty, in.
-Return valid JSON only.`
 
 export function useBoardAI(accessToken: string): UseBoardAIReturn {
   const [isProcessing, setIsProcessing] = useState(false)
@@ -149,10 +158,39 @@ export function useBoardAI(accessToken: string): UseBoardAIReturn {
   )
 
   const createBoardFromPrompt = useCallback(
-    async (prompt: string): Promise<BoardAIPlan | null> => {
+    async (
+      prompt: string,
+      includeSampleData = false,
+      dataSources?: DataSourceSuggestion[]
+    ): Promise<BoardAIPlan | null> => {
+      const sampleDataInstr = includeSampleData
+        ? ' Also include "sampleRows": an array of 10 realistic sample records whose keys match the column names.'
+        : ''
+
+      const hasDataSources = dataSources && dataSources.length > 0
+      const systemPrompt = hasDataSources ? BOARD_CREATOR_WITH_DATASOURCES_SYSTEM : BOARD_CREATOR_SYSTEM
+
+      let dataSourcesInstr = ''
+      if (hasDataSources) {
+        const primary = dataSources.find(ds => ds.role === 'primary')
+        const auxiliary = dataSources.filter(ds => ds.role === 'auxiliary')
+        const parts: string[] = []
+        if (primary) {
+          parts.push(
+            `PRIMARY (rows): [${primary.entityType}] ${primary.purpose}\n  Fields: ${primary.suggestedFields.join(', ')}`
+          )
+        }
+        for (const ds of auxiliary) {
+          parts.push(
+            `AUXILIARY (select options): [${ds.entityType}] -> column "${ds.targetColumn}" (sourceField: ${ds.sourceField})`
+          )
+        }
+        dataSourcesInstr = `\n\nDATA SOURCES (create ONE sheet only):\n${parts.join('\n')}`
+      }
+
       const result = await executePrompt(
-        BOARD_CREATOR_SYSTEM,
-        `Create a board for: "${prompt}". Return JSON with: { suggestedName, confidence, sheets: [{ name, columns: [{name,label,type,selectOptions?,isRequired?}], views: [{name,type,config}], groups?: [{name,colorToken?}] }] }`
+        systemPrompt,
+        `Create a board for: "${prompt}".${sampleDataInstr}${dataSourcesInstr} Return JSON with: { suggestedName, confidence, sheets: [{ name, columns: [{name,label,type,selectOptions?,isRequired?}], views: [{name,type,config}], groups?: [{name,colorToken?}] }]${includeSampleData ? ', sampleRows: [...]' : ''} }`
       )
       return result as BoardAIPlan | null
     },
@@ -195,6 +233,22 @@ export function useBoardAI(accessToken: string): UseBoardAIReturn {
     [executePrompt]
   )
 
+  const suggestWidgets = useCallback(
+    async (
+      columns: Array<{ name: string; type: string; label: string }>,
+      sampleRows: Record<string, unknown>[]
+    ): Promise<WidgetSuggestion | null> => {
+      const schemaDesc = columns.map(c => `${c.name} (${c.type}, label: "${c.label}")`).join(', ')
+      const sample = JSON.stringify(sampleRows.slice(0, 5))
+      const result = await executePrompt(
+        WIDGET_SUGGEST_SYSTEM,
+        `Board columns: ${schemaDesc}\nSample rows: ${sample}\nSuggest 3-6 useful dashboard widgets. Return JSON: { widgets: [...], explanation }`
+      )
+      return result as WidgetSuggestion | null
+    },
+    [executePrompt]
+  )
+
   const analyzeMerge = useCallback(
     async (
       existingColumns: Array<{ name: string; type: string; label: string }>,
@@ -217,6 +271,17 @@ export function useBoardAI(accessToken: string): UseBoardAIReturn {
     [executePrompt]
   )
 
+  const analyzeDataSources = useCallback(
+    async (prompt: string, registryCatalog: string): Promise<DataSourceAnalysis | null> => {
+      const result = await executePrompt(
+        DATA_SOURCE_ANALYZER_SYSTEM,
+        `BOARD DESCRIPTION: "${prompt}"\n\nAVAILABLE DATA SOURCES:\n${registryCatalog}\n\nAnalyze which data sources are relevant and return JSON: { suggestions: [...], summary: "..." }`
+      )
+      return result as DataSourceAnalysis | null
+    },
+    [executePrompt]
+  )
+
   const reset = useCallback(() => {
     setIsProcessing(false)
     setError(null)
@@ -229,7 +294,9 @@ export function useBoardAI(accessToken: string): UseBoardAIReturn {
     queryBoardFromPrompt,
     enrichColumn,
     generateAutomation,
+    suggestWidgets,
     analyzeMerge,
+    analyzeDataSources,
     reset
   }
 }

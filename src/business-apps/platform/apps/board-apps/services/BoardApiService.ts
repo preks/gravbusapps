@@ -10,7 +10,14 @@ import type { Board, BoardSummary, BoardSheet, BoardRow, BoardStatus } from '../
 import type { BoardColumn, BoardColumnType } from '../types/columns'
 import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
 import { graphQLClient } from '@/common/network/graphql/GraphQLClient'
-import { getEntityDef, flattenEntityRecord, type EntityFieldDef } from '../queries/entityQueries'
+import {
+  getEntityDef,
+  flattenEntityRecord,
+  buildEntityDefaultWhere,
+  type EntityFieldDef
+} from '../queries/entityQueries'
+import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
+import { resilientGraphQLRequest } from '../queries/resilientQuery'
 
 const API_URL = getDocumentServiceApiUrl()
 
@@ -133,6 +140,7 @@ const STATUS_HINT_NAMES = [
   'type',
   'category',
   'department',
+  'jobTitle',
   'jobPosition',
   'activityType',
   'requestType',
@@ -152,6 +160,30 @@ const STATUS_HINT_NAMES = [
 ]
 
 const MAX_SELECT_UNIQUE = 20
+
+const SEMANTIC_COLOR_MAP: Array<{ pattern: RegExp; token: string }> = [
+  { pattern: /^(active|approved|won|completed|resolved|done|hired|accepted|published|signed)$/i, token: 'success' },
+  { pattern: /^(open|started|enabled|running|in_?service)$/i, token: 'success' },
+  {
+    pattern: /^(closed|lost|rejected|cancelled|failed|terminated|fired|deleted|declined|archived)$/i,
+    token: 'destructive'
+  },
+  { pattern: /^(pending|in.?progress|review|draft|on.?hold|waiting|submitted|processing)$/i, token: 'warning' },
+  { pattern: /^(new|prospect|qualified|screening|applied|initial|lead|inquiry)$/i, token: 'info' }
+]
+const ROTATION_TOKENS = ['primary', 'info', 'success', 'warning', 'muted']
+
+function assignColorTokens(options: Array<{ value: string; label: string; colorToken?: string }>): typeof options {
+  let rotationIdx = 0
+  return options.map(opt => {
+    if (opt.colorToken) return opt
+    const semantic = SEMANTIC_COLOR_MAP.find(m => m.pattern.test(opt.value))
+    if (semantic) return { ...opt, colorToken: semantic.token }
+    const token = ROTATION_TOKENS[rotationIdx % ROTATION_TOKENS.length]
+    rotationIdx++
+    return { ...opt, colorToken: token }
+  })
+}
 
 function inferColumnsFromRecords(records: Record<string, unknown>[]): BoardColumn[] {
   const seen = new Map<string, { type: BoardColumnType; order: number }>()
@@ -200,11 +232,9 @@ function inferColumnsFromRecords(records: Record<string, unknown>[]): BoardColum
       order: info.order,
       ...(useSelect
         ? {
-            selectOptions: [...uniqueValues!].sort().map(v => ({
-              value: v,
-              label: v,
-              colorToken: undefined
-            }))
+            selectOptions: assignColorTokens(
+              [...uniqueValues!].sort().map(v => ({ value: v, label: v, colorToken: undefined }))
+            )
           }
         : {})
     }
@@ -359,13 +389,26 @@ export const BoardApiService = {
   async getRows(
     boardId: string,
     sheetId: string,
-    options?: { page?: number; limit?: number; sort?: string; filters?: string; search?: string; groupBy?: string }
+    options?: {
+      page?: number
+      limit?: number
+      sort?: string
+      sortOrder?: 'ASC' | 'DESC'
+      filters?: string
+      filterConnector?: 'and' | 'or'
+      sorts?: string
+      search?: string
+      groupBy?: string
+    }
   ): Promise<{ items: BoardRow[]; total: number; page: number; totalPages: number }> {
     const params = new URLSearchParams()
     if (options?.page) params.set('page', String(options.page))
     if (options?.limit) params.set('limit', String(options.limit))
     if (options?.sort) params.set('sort', options.sort)
+    if (options?.sortOrder) params.set('sortOrder', options.sortOrder)
     if (options?.filters) params.set('filters', options.filters)
+    if (options?.filterConnector) params.set('filterConnector', options.filterConnector)
+    if (options?.sorts) params.set('sorts', options.sorts)
     if (options?.search) params.set('search', options.search)
     if (options?.groupBy) params.set('groupBy', options.groupBy)
 
@@ -584,14 +627,16 @@ export const BoardApiService = {
       const token = getAuthToken()
       if (token) graphQLClient.setAccessToken(token)
 
-      const data = await graphQLClient.request<Record<string, unknown>>(def.query, {
-        where: {},
-        limit: limit > 0 ? limit : undefined,
-        offset: 0
-      })
-      const rawEntities = (data[def.entityKey] ?? []) as Record<string, unknown>[]
-      const fieldsToUse = fieldDefs ?? def.fields
-      const records = rawEntities.map(rec => flattenEntityRecord(rec, fieldsToUse))
+      const structureId = getCurrentActiveStructureId()
+      const defaultWhere = buildEntityDefaultWhere(entityType, structureId)
+
+      const result = await resilientGraphQLRequest<Record<string, unknown>>(
+        def.query,
+        { where: defaultWhere, limit: limit > 0 ? limit : undefined, offset: 0 },
+        fieldDefs ?? def.fields
+      )
+      const rawEntities = (result.data[def.entityKey] ?? []) as Record<string, unknown>[]
+      const records = rawEntities.map(rec => flattenEntityRecord(rec, result.fields))
 
       const uniqueValues = [...new Set(records.map(r => String(r[sourceField] ?? '')).filter(v => v.length > 0))].sort()
 
@@ -606,13 +651,14 @@ export const BoardApiService = {
       const existingValues = new Set((targetCol.selectOptions ?? []).map(o => o.value))
       const newOptions = uniqueValues.filter(v => !existingValues.has(v))
 
+      const mergedOptions = [
+        ...(targetCol.selectOptions ?? []),
+        ...newOptions.map(v => ({ value: v, label: v, colorToken: undefined as string | undefined }))
+      ]
       const updatedColumn = {
         ...targetCol,
         type: targetCol.type === 'text' ? ('select' as const) : targetCol.type,
-        selectOptions: [
-          ...(targetCol.selectOptions ?? []),
-          ...newOptions.map(v => ({ value: v, label: v, colorToken: undefined }))
-        ]
+        selectOptions: assignColorTokens(mergedOptions)
       }
 
       const updatedColumns = currentSheet.columns.map(c => (c.name === targetColumnName ? updatedColumn : c))
@@ -658,7 +704,7 @@ export const BoardApiService = {
     }
   ): Promise<{ synced: number; deleted: number; fetched: number } | null> {
     try {
-      let records = dto.records ?? []
+      const records = dto.records ?? []
 
       if (records.length === 0) {
         const def = getEntityDef(dto.entity)
@@ -667,16 +713,36 @@ export const BoardApiService = {
         const token = getAuthToken()
         if (token) graphQLClient.setAccessToken(token)
 
-        const variables: Record<string, unknown> = {
-          where: {},
-          limit: dto.limit && dto.limit > 0 ? dto.limit : undefined,
-          offset: 0
-        }
+        const structureId = getCurrentActiveStructureId()
+        const defaultWhere = buildEntityDefaultWhere(dto.entity, structureId)
+        let currentFields = dto.fieldDefs ?? def.fields
 
-        const data = await graphQLClient.request<Record<string, unknown>>(def.query, variables)
-        const rawEntities = (data[def.entityKey] ?? []) as Record<string, unknown>[]
-        const fieldsToUse = dto.fieldDefs ?? def.fields
-        records = rawEntities.map(rec => flattenEntityRecord(rec, fieldsToUse))
+        const PAGE_SIZE = 200
+        const requestedLimit = dto.limit && dto.limit > 0 ? dto.limit : 0
+        let totalFetched = 0
+        let offset = 0
+        let hasMore = true
+
+        while (hasMore) {
+          const remaining = requestedLimit > 0 ? requestedLimit - totalFetched : PAGE_SIZE
+          const pageLimit = Math.min(PAGE_SIZE, remaining)
+
+          const variables: Record<string, unknown> = {
+            where: defaultWhere,
+            limit: pageLimit,
+            offset
+          }
+
+          const result = await resilientGraphQLRequest<Record<string, unknown>>(def.query, variables, currentFields)
+          currentFields = result.fields
+          const rawEntities = (result.data[def.entityKey] ?? []) as Record<string, unknown>[]
+          const pageRecords = rawEntities.map(rec => flattenEntityRecord(rec, result.fields))
+          records.push(...pageRecords)
+          totalFetched += pageRecords.length
+          offset += pageRecords.length
+
+          hasMore = pageRecords.length === pageLimit && (requestedLimit === 0 || totalFetched < requestedLimit)
+        }
       }
 
       if (records.length === 0) return { synced: 0, deleted: 0, fetched: 0 }
@@ -722,7 +788,7 @@ export const BoardApiService = {
           }
         }
 
-        const BATCH = 10
+        const BATCH = 5
         for (let i = 0; i < unmatchedRows.length; i += BATCH) {
           const results = await Promise.all(
             unmatchedRows
@@ -732,7 +798,7 @@ export const BoardApiService = {
           synced += results.filter(Boolean).length
         }
       } else {
-        const BATCH = 10
+        const BATCH = 5
         for (let i = 0; i < flat.length; i += BATCH) {
           const results = await Promise.all(
             flat

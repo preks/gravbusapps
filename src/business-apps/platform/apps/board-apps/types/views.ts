@@ -114,6 +114,8 @@ export type ViewFilterOperator =
   | 'not_equals'
   | 'contains'
   | 'not_contains'
+  | 'starts_with'
+  | 'ends_with'
   | 'greater'
   | 'less'
   | 'greater_or_equal'
@@ -123,3 +125,23 @@ export type ViewFilterOperator =
   | 'is_not_empty'
   | 'in'
   | 'not_in'
+  | 'is_true'
+  | 'is_false'
+  | 'is_today'
+  | 'is_this_week'
+  | 'is_this_month'
+  | 'is_before'
+  | 'is_after'
+
+export type FilterConnector = 'and' | 'or'
+
+export interface ViewFilterGroup {
+  connector: FilterConnector
+  filters: ViewFilter[]
+}
+
+export interface ViewSort {
+  id: string
+  column: string
+  direction: 'asc' | 'desc'
+}

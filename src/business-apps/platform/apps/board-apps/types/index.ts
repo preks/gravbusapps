@@ -40,6 +40,12 @@ export type {
   FormViewConfig,
   DashboardViewConfig,
   DashboardWidget,
+  KpiWidgetConfig,
+  ChartWidgetConfig,
+  TableWidgetConfig,
   ViewFilter,
-  ViewFilterOperator
+  ViewFilterOperator,
+  FilterConnector,
+  ViewFilterGroup,
+  ViewSort
 } from './views'

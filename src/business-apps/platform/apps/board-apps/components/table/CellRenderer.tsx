@@ -1,11 +1,13 @@
 import React from 'react'
-import { Badge, Checkbox } from '@newwork/nw-design-system'
+import { Avatar, AvatarImage, AvatarFallback, Badge, Checkbox } from '@newwork/nw-design-system'
 import { ExternalLink, Mail, Phone, Star, Link2, FileText, Copy, Calculator } from 'lucide-react'
 
 export interface CellRendererProps {
   value: unknown
   type: string
   options?: Array<{ value: string; label: string; colorToken?: string }>
+  isPrimary?: boolean
+  rowData?: Record<string, unknown>
 }
 
 const TOKEN_CLASSES: Record<string, string> = {
@@ -17,9 +19,32 @@ const TOKEN_CLASSES: Record<string, string> = {
   muted: 'gba:bg-muted gba:text-muted-foreground'
 }
 
-export const CellRenderer: React.FC<CellRendererProps> = ({ value, type, options }) => {
+function getInitials(name: string): string {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map(w => w[0].toUpperCase())
+    .join('')
+}
+
+export const CellRenderer: React.FC<CellRendererProps> = ({ value, type, options, isPrimary, rowData }) => {
   if (value === null || value === undefined || value === '') {
     return <span className="gba:text-muted-foreground/30">--</span>
+  }
+
+  if (isPrimary && rowData?.pictureThumbnail) {
+    const thumbData = String(rowData.pictureThumbnail)
+    const displayText = String(value)
+    return (
+      <span className="gba:flex gba:items-center gba:gap-1.5">
+        <Avatar size="sm" className="gba:flex-shrink-0 gba:h-5 gba:w-5">
+          <AvatarImage src={`data:image/png;base64,${thumbData}`} alt={displayText} />
+          <AvatarFallback className="gba:text-[8px]">{getInitials(displayText)}</AvatarFallback>
+        </Avatar>
+        <span className="gba:text-xs gba:truncate">{displayText}</span>
+      </span>
+    )
   }
 
   switch (type) {

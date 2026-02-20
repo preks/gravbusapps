@@ -36,6 +36,7 @@ import { BoardViewer } from './BoardViewer'
 import type { BoardViewerHandle } from './BoardViewer'
 import { GlobalSearchDialog } from './components/search/GlobalSearchDialog'
 import type { Board } from './types'
+import { useBoardUrlState } from './hooks/useBoardUrlState'
 
 export interface BoardsHubProps extends BusinessAppContextProps {
   'data-testid'?: string
@@ -56,7 +57,8 @@ export const BoardsHub: React.FC<BoardsHubProps> = ({
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [isAIDialogOpen, setIsAIDialogOpen] = useState(false)
   const [newBoardName, setNewBoardName] = useState('')
-  const [selectedBoardId, setSelectedBoardId] = useState<string | null>(null)
+  const urlState = useBoardUrlState()
+  const selectedBoardId = urlState.urlBoardId
   const { isMobile } = useMobileDetect()
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [isGlobalSearchOpen, setIsGlobalSearchOpen] = useState(false)
@@ -98,14 +100,10 @@ export const BoardsHub: React.FC<BoardsHubProps> = ({
   } = useBoardApps(accessToken)
 
   useEffect(() => {
-    const params = new URLSearchParams(globalThis.window?.location?.search || '')
-    const boardId = params.get('boardId')
-    if (boardId) {
-      void loadBoard(boardId).then(b => {
-        if (b) setSelectedBoardId(b.id)
-      })
+    if (urlState.urlBoardId && !currentBoard) {
+      void loadBoard(urlState.urlBoardId)
     }
-  }, [loadBoard])
+  }, [urlState.urlBoardId, currentBoard, loadBoard])
 
   const handleCreateBoard = useCallback(async () => {
     if (!newBoardName.trim()) return
@@ -164,7 +162,7 @@ export const BoardsHub: React.FC<BoardsHubProps> = ({
     if (board) {
       setNewBoardName('')
       setIsCreateDialogOpen(false)
-      setSelectedBoardId(board.id)
+      urlState.setBoardId(board.id)
       toast.success('Board created')
     }
   }, [newBoardName, createBoard])
@@ -172,15 +170,15 @@ export const BoardsHub: React.FC<BoardsHubProps> = ({
   const handleOpenBoard = useCallback(
     async (id: string) => {
       const board = await loadBoard(id)
-      if (board) setSelectedBoardId(id)
+      if (board) urlState.setBoardId(id)
     },
     [loadBoard]
   )
 
   const handleBack = useCallback(() => {
     clearCurrentBoard()
-    setSelectedBoardId(null)
-  }, [clearCurrentBoard])
+    urlState.clearBoardState()
+  }, [clearCurrentBoard, urlState])
 
   const isViewing = Boolean(selectedBoardId && currentBoard)
 
@@ -293,6 +291,12 @@ export const BoardsHub: React.FC<BoardsHubProps> = ({
           board={currentBoard!}
           accessToken={accessToken}
           userId={currentUserId}
+          initialSheetId={urlState.urlSheetId}
+          initialViewId={urlState.urlViewId}
+          initialPage={urlState.urlPage}
+          onSheetIdChange={urlState.setSheetId}
+          onViewIdChange={urlState.setViewId}
+          onPageChange={urlState.setPage}
           onReloadBoard={async id => {
             await loadBoard(id)
           }}
@@ -361,10 +365,11 @@ export const BoardsHub: React.FC<BoardsHubProps> = ({
         accessToken={accessToken}
         onBoardCreated={async board => {
           const created = await createBoard(board)
-          if (created) {
-            setSelectedBoardId(created.id)
-            await loadBoard(created.id)
-          }
+          return created
+        }}
+        onComplete={async boardId => {
+          urlState.setBoardId(boardId)
+          await loadBoard(boardId)
         }}
         data-testid={`${testId}-ai-dialog`}
       />
