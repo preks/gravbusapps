@@ -42,12 +42,19 @@ export function useVoiceSynthesis(options: UseVoiceSynthesisOptions) {
   const abortControllerRef = useRef<AbortController | null>(null)
   const audioQueueRef = useRef<string[]>([])
   const isProcessingQueueRef = useRef(false)
+  const suppressAudioErrorRef = useRef(false)
 
   // Cleanup audio element
   const cleanupAudio = useCallback(() => {
     if (audioRef.current) {
+      suppressAudioErrorRef.current = true
+      audioRef.current.oncanplay = null
+      audioRef.current.onended = null
+      audioRef.current.onerror = null
+      audioRef.current.ontimeupdate = null
       audioRef.current.pause()
       audioRef.current.src = ''
+      audioRef.current.load()
       audioRef.current = null
     }
   }, [])
@@ -157,6 +164,7 @@ export function useVoiceSynthesis(options: UseVoiceSynthesisOptions) {
 
         const mediaSource = new MediaSource()
         const audio = new Audio()
+        suppressAudioErrorRef.current = false
         audioRef.current = audio
         audio.src = URL.createObjectURL(mediaSource)
 
@@ -187,7 +195,9 @@ export function useVoiceSynthesis(options: UseVoiceSynthesisOptions) {
                 })
               }
 
-              sourceBuffer.appendBuffer(value)
+              const chunk = new Uint8Array(value.byteLength)
+              chunk.set(value)
+              sourceBuffer.appendBuffer(chunk.buffer)
 
               // Start playing after we have some data (8KB minimum for MP3 header + first frames)
               if (!hasStartedPlaying && totalBytes > 8000) {
@@ -216,6 +226,10 @@ export function useVoiceSynthesis(options: UseVoiceSynthesisOptions) {
         })
 
         audio.onended = () => {
+          if (audioRef.current !== audio) {
+            resolve()
+            return
+          }
           URL.revokeObjectURL(audio.src)
           setState(prev => ({ ...prev, isSpeaking: false, progress: 1 }))
           onEnd?.()
@@ -223,6 +237,14 @@ export function useVoiceSynthesis(options: UseVoiceSynthesisOptions) {
         }
 
         audio.onerror = () => {
+          if (
+            audioRef.current !== audio ||
+            suppressAudioErrorRef.current ||
+            abortControllerRef.current?.signal.aborted
+          ) {
+            resolve()
+            return
+          }
           URL.revokeObjectURL(audio.src)
           setState(prev => ({
             ...prev,
@@ -249,16 +271,31 @@ export function useVoiceSynthesis(options: UseVoiceSynthesisOptions) {
   // Fallback: download full audio then play
   const playWithFullDownload = useCallback(
     async (response: Response): Promise<void> => {
-      const audioBlob = await response.blob()
-      const audioUrl = URL.createObjectURL(audioBlob)
+      const responseType = response.headers.get('content-type') || ''
+      const downloadedBlob = await response.blob()
+      const normalizedBlob =
+        downloadedBlob.type && downloadedBlob.type !== 'application/octet-stream'
+          ? downloadedBlob
+          : new Blob([await downloadedBlob.arrayBuffer()], {
+              type: responseType.includes('audio/') ? responseType : 'audio/mpeg'
+            })
+      const audioUrl = URL.createObjectURL(normalizedBlob)
 
       return new Promise((resolve, reject) => {
         cleanupAudio()
 
         const audio = new Audio()
+        suppressAudioErrorRef.current = false
         audioRef.current = audio
+        audio.autoplay = false
+        audio.preload = 'auto'
+        ;(audio as HTMLAudioElement & { playsInline?: boolean }).playsInline = true
 
         audio.oncanplay = () => {
+          if (audioRef.current !== audio) {
+            resolve()
+            return
+          }
           setState(prev => ({ ...prev, isLoading: false, isSpeaking: true }))
           onStart?.()
           audio.play().catch(err => {
@@ -274,6 +311,10 @@ export function useVoiceSynthesis(options: UseVoiceSynthesisOptions) {
         }
 
         audio.onended = () => {
+          if (audioRef.current !== audio) {
+            resolve()
+            return
+          }
           URL.revokeObjectURL(audioUrl)
           setState(prev => ({ ...prev, isSpeaking: false, progress: 1 }))
           onEnd?.()
@@ -281,6 +322,22 @@ export function useVoiceSynthesis(options: UseVoiceSynthesisOptions) {
         }
 
         audio.onerror = () => {
+          if (
+            audioRef.current !== audio ||
+            suppressAudioErrorRef.current ||
+            abortControllerRef.current?.signal.aborted
+          ) {
+            resolve()
+            return
+          }
+          console.error('[TTS] audio.onerror in full download', {
+            src: audio.src,
+            currentSrc: audio.currentSrc,
+            responseType,
+            blobType: downloadedBlob.type,
+            normalizedType: normalizedBlob.type,
+            size: normalizedBlob.size
+          })
           URL.revokeObjectURL(audioUrl)
           setState(prev => ({
             ...prev,
@@ -294,8 +351,8 @@ export function useVoiceSynthesis(options: UseVoiceSynthesisOptions) {
           reject(new Error('Failed to play audio'))
         }
 
-        audio.preload = 'auto'
         audio.src = audioUrl
+        audio.load()
       })
     },
     [cleanupAudio, onStart, onEnd, onError]
@@ -324,9 +381,6 @@ export function useVoiceSynthesis(options: UseVoiceSynthesisOptions) {
 
   // Stop current speech and clear queue
   const stop = useCallback(() => {
-    console.log('[TTS] Stopping all speech')
-    
-    // Clear the queue FIRST to prevent any new speech
     audioQueueRef.current = []
     isProcessingQueueRef.current = false
 

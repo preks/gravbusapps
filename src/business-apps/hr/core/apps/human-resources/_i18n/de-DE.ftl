@@ -319,6 +319,7 @@ hr-analytics-gap-rate-by-organizational-unit = Lückenquote nach Organisationsei
 hr-analytics-probation-rate-by-organizational-unit = Probezeit-Quote nach Organisationseinheit
 hr-analytics-data-points = { $count } Datenpunkte
 hr-analytics-employment-error = Fehler beim Laden der Beschäftigungsdaten. Bitte erneut versuchen.
+hr-analytics-compensation-error = Fehler beim Laden der Vergütungsdaten
 hr-analytics-data-table = Datentabelle: { $title }
 hr-analytics-total-entries = { $count } Einträge
 hr-analytics-total-label = Summe

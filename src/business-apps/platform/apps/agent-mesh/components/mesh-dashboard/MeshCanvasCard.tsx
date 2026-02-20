@@ -56,7 +56,9 @@ export const MeshCanvasCard: React.FC<MeshCanvasCardProps> = ({
         onPaneClick={onPaneClick}
         nodeTypes={nodeTypes}
         fitView
-        fitViewOptions={{ padding: 0.5, maxZoom: 1 }}
+        minZoom={0.05}
+        maxZoom={2}
+        fitViewOptions={{ padding: 0.5, maxZoom: 1, minZoom: 0.05 }}
         connectOnClick={false}
         onlyRenderVisibleElements={false}
         proOptions={{ hideAttribution: true }}
@@ -83,28 +85,6 @@ export const MeshCanvasCard: React.FC<MeshCanvasCardProps> = ({
           }}
         />
       </ReactFlow>
-
-      {/* Connection legend */}
-      <div
-        className="gba:absolute gba:bottom-14 gba:left-2 gba:bg-card/90 gba:border gba:border-border gba:rounded gba:px-3 gba:py-2 gba:text-[10px] gba:text-muted-foreground gba:space-y-1 gba:z-10"
-        data-testid="mesh-legend"
-      >
-        <div className="gba:flex gba:items-center gba:gap-2">
-          <svg width="30" height="10" viewBox="0 0 30 10">
-            <line x1="0" y1="5" x2="22" y2="5" stroke="currentColor" strokeWidth="2" />
-            <polygon points="22,1 30,5 22,9" fill="currentColor" />
-          </svg>
-          <span>One-way</span>
-        </div>
-        <div className="gba:flex gba:items-center gba:gap-2">
-          <svg width="30" height="10" viewBox="0 0 30 10">
-            <polygon points="8,1 0,5 8,9" fill="currentColor" />
-            <line x1="8" y1="5" x2="22" y2="5" stroke="currentColor" strokeWidth="2" />
-            <polygon points="22,1 30,5 22,9" fill="currentColor" />
-          </svg>
-          <span>Bidirectional</span>
-        </div>
-      </div>
     </div>
   )
 }
