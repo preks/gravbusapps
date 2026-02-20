@@ -84,6 +84,40 @@ interface ConversationHeaderProps {
   onSearchClear?: () => void
 }
 
+/** Format a date as relative time (e.g. "just now", "5 min ago") or absolute date. */
+function formatRelativeTime(
+  dateInput: string | Date,
+  t: (key: string, params?: Record<string, unknown>) => string,
+  variant: 'message' | 'lastSeen'
+): string | null {
+  try {
+    const d = typeof dateInput === 'string' ? new Date(dateInput) : dateInput
+    if (Number.isNaN(d.getTime())) return variant === 'message' ? '' : null
+    const now = new Date()
+    const diffMs = now.getTime() - d.getTime()
+    if (diffMs < 0 || Number.isNaN(diffMs)) return variant === 'message' ? '' : null
+    const diffMinutes = Math.floor(diffMs / (1000 * 60))
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+    if (diffMinutes < 1) return variant === 'lastSeen' ? 'Last seen just now' : t('chat-time-justNow')
+    if (diffMinutes < 60)
+      return variant === 'lastSeen'
+        ? t('chat-lastSeenMinutes', { minutes: diffMinutes })
+        : t('chat-time-minutesAgo', { minutes: diffMinutes })
+    if (diffHours < 24)
+      return variant === 'lastSeen'
+        ? t('chat-lastSeenHours', { hours: diffHours })
+        : t('chat-time-hoursAgo', { hours: diffHours })
+    if (diffDays < 7)
+      return variant === 'lastSeen'
+        ? t('chat-lastSeenDays', { days: diffDays })
+        : t('chat-time-daysAgo', { days: diffDays })
+    return variant === 'lastSeen' ? t('chat-lastSeenLongAgo') : d.toLocaleDateString()
+  } catch {
+    return variant === 'message' ? '' : null
+  }
+}
+
 /** Split text by query (case-insensitive) and wrap matches in highlight spans. */
 function highlightSearchInText(text: string, query: string): React.ReactNode {
   if (!text) return null
@@ -386,26 +420,7 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
                         [sender.firstName, sender.lastName].filter(Boolean).join(' ') || sender.username || ''
                     }
                     const avatarLabel = senderName || sender?.username || '?'
-                    const createdAt = msg.createdAt
-                      ? (() => {
-                          try {
-                            const d = new Date(msg.createdAt)
-                            if (Number.isNaN(d.getTime())) return ''
-                            const now = new Date()
-                            const diffMs = now.getTime() - d.getTime()
-                            const diffM = Math.floor(diffMs / 60000)
-                            const diffH = Math.floor(diffMs / 3600000)
-                            const diffD = Math.floor(diffMs / 86400000)
-                            if (diffM < 1) return t('chat-time-justNow')
-                            if (diffM < 60) return t('chat-time-minutesAgo', { minutes: diffM })
-                            if (diffH < 24) return t('chat-time-hoursAgo', { hours: diffH })
-                            if (diffD < 7) return t('chat-time-daysAgo', { days: diffD })
-                            return d.toLocaleDateString()
-                          } catch {
-                            return ''
-                          }
-                        })()
-                      : ''
+                    const createdAt = msg.createdAt ? (formatRelativeTime(msg.createdAt, t, 'message') ?? '') : ''
                     const isLast = idx === searchResults.length - 1
                     const resultAvatarUrl =
                       (msg.senderId && searchResultAvatarMap?.get(msg.senderId)) ?? sender?.avatarUrl
@@ -511,30 +526,8 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
                   )
                 }
                 if (isDirectChat && !compact && otherUserPresence?.lastSeen && presenceStatus === 'offline') {
-                  return (
-                    <p className="gba:text-xs gba:text-muted-foreground">
-                      {(() => {
-                        try {
-                          const lastSeenDate = new Date(otherUserPresence.lastSeen)
-                          if (Number.isNaN(lastSeenDate.getTime())) return null
-                          const now = new Date()
-                          const diffMs = now.getTime() - lastSeenDate.getTime()
-                          if (diffMs < 0 || Number.isNaN(diffMs)) return null
-                          const diffMinutes = Math.floor(diffMs / (1000 * 60))
-                          const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
-                          const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
-                          if (diffMinutes < 1) return 'Last seen just now'
-                          if (diffMinutes < 60) return t('chat-lastSeenMinutes', { minutes: diffMinutes })
-                          if (diffHours < 24) return t('chat-lastSeenHours', { hours: diffHours })
-                          if (diffDays < 7) return t('chat-lastSeenDays', { days: diffDays })
-                          return t('chat-lastSeenLongAgo')
-                        } catch (error) {
-                          console.error('Error calculating last seen time in header:', error)
-                          return null
-                        }
-                      })()}
-                    </p>
-                  )
+                  const lastSeenText = formatRelativeTime(otherUserPresence.lastSeen, t, 'lastSeen')
+                  return lastSeenText ? <p className="gba:text-xs gba:text-muted-foreground">{lastSeenText}</p> : null
                 }
                 if (hasActiveCall && !compact) {
                   return <p className="gba:text-xs gba:text-success">{t(getCallMessageKey())}</p>
