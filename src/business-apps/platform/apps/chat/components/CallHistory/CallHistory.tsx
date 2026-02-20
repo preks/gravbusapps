@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useLayoutEffect } from 'react'
+import React, { useState, useEffect, useRef, useLayoutEffect, useCallback } from 'react'
 import { Button, Spinner } from '@newwork/nw-design-system'
 import {
   ArrowLeftIcon,
@@ -92,6 +92,7 @@ export const CallHistory: React.FC<CallHistoryProps> = ({
   const rulerWithoutLabelsRef = useRef<HTMLDivElement>(null)
   const widthWithLabelsRef = useRef<number>(0)
   const widthWithoutLabelsRef = useRef<number>(0)
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -118,7 +119,7 @@ export const CallHistory: React.FC<CallHistoryProps> = ({
     }
   }, [apiClient, filter, callTypeFilter, refreshTrigger, t])
 
-  const loadMore = () => {
+  const loadMore = useCallback(() => {
     if (loadingMore || !hasMore) return
     setLoadingMore(true)
     const offset = entries.length
@@ -131,7 +132,20 @@ export const CallHistory: React.FC<CallHistoryProps> = ({
       })
       .catch(() => {})
       .finally(() => setLoadingMore(false))
-  }
+  }, [loadingMore, hasMore, entries.length, apiClient, filter, callTypeFilter])
+
+  useEffect(() => {
+    const container = scrollContainerRef.current
+    if (!container) return
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = container
+      if (scrollHeight - scrollTop <= clientHeight * 1.2 && hasMore && !loadingMore) {
+        loadMore()
+      }
+    }
+    container.addEventListener('scroll', handleScroll)
+    return () => container.removeEventListener('scroll', handleScroll)
+  }, [hasMore, loadingMore, loadMore])
 
   useEffect(() => {
     const userIds = new Set<string>()
@@ -214,7 +228,7 @@ export const CallHistory: React.FC<CallHistoryProps> = ({
 
   return (
     <div
-      className="gba:flex gba:flex-col gba:h-full gba:w-full gba:min-w-0 gba:bg-background gba:relative"
+      className="gba:flex gba:flex-col gba:h-full gba:w-full gba:min-w-0 gba:overflow-hidden gba:bg-background gba:relative"
       data-testid="chat-callHistory"
     >
       <header
@@ -370,7 +384,11 @@ export const CallHistory: React.FC<CallHistoryProps> = ({
         )}
       </header>
 
-      <div className="gba:flex-1 gba:min-w-0 gba:overflow-auto gba:min-h-0">
+      <div
+        ref={scrollContainerRef}
+        className="gba:flex-1 gba:min-w-0 gba:overflow-auto gba:min-h-0"
+        data-testid="chat-callHistory-list"
+      >
         {loading && (
           <div className="gba:flex gba:items-center gba:justify-center gba:py-8">
             <Spinner className="gba:size-8" data-testid="chat-callHistory-loading" />
@@ -422,20 +440,6 @@ export const CallHistory: React.FC<CallHistoryProps> = ({
                   t={t}
                 />
               )
-            )}
-            {hasMore && (
-              <div className="gba:flex gba:justify-center gba:pt-2 gba:pb-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={loadMore}
-                  disabled={loadingMore}
-                  data-testid="chat-callHistory-loadMore"
-                  className="gba:min-w-24"
-                >
-                  {loadingMore ? <Spinner className="gba:size-4" /> : t('chat-callHistoryLoadMore')}
-                </Button>
-              </div>
             )}
           </div>
         )}
