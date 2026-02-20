@@ -302,6 +302,12 @@ call-rnnoiseWarning = Folosirea unui headset poate îmbunătăți calitatea micr
 # Call Settings
 call-video = video
 call-audio = audio
+call-typeLabelDirectVideo = Apel video 1 la 1
+call-typeLabelDirectAudio = Apel audio 1 la 1
+call-typeLabelGroupVideo = Apel video de grup
+call-typeLabelGroupAudio = Apel audio de grup
+call-typeLabelMeetingVideo = Apel video de meeting
+call-typeLabelMeetingAudio = Apel audio de meeting
 call-videoQuality = Calitate Video
 call-highQuality = Calitate Înaltă
 call-highQualityDesc = 720p, 30fps - Optimal pentru conexiuni rapide

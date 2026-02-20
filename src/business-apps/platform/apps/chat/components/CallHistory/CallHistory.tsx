@@ -124,7 +124,7 @@ export const CallHistory: React.FC<CallHistoryProps> = ({
           </div>
 
           <nav
-            className="gba:flex gba:items-center gba:gap-1 gba:flex-nowrap gba:overflow-x-auto gba:min-w-0 gba:border-t gba:border-border gba:pt-2 gba:sm:flex-1 gba:sm:border-t-0 gba:sm:pt-0"
+            className="gba:flex gba:items-center gba:gap-1 gba:flex-nowrap gba:overflow-x-auto gba:w-full gba:min-w-0 gba:border-t gba:border-border gba:pt-2 gba:sm:w-auto gba:sm:flex-1 gba:sm:border-t-0 gba:sm:pt-0"
             aria-label={t('chat-callHistory')}
           >
             {(['all', 'missed', 'declined', 'incoming', 'outgoing'] as const).map(f => (
@@ -145,7 +145,7 @@ export const CallHistory: React.FC<CallHistoryProps> = ({
           </nav>
 
           <div
-            className="gba:flex gba:items-center gba:gap-1 gba:flex-nowrap gba:overflow-x-auto gba:w-full gba:pt-2 gba:pb-0 gba:sm:pb-0 gba:border-t gba:border-border gba:sm:pt-2 gba:sm:pb-0"
+            className="gba:flex gba:items-center gba:gap-1 gba:flex-nowrap gba:overflow-x-auto gba:w-full gba:min-w-0 gba:pt-2 gba:pb-0 gba:sm:pb-0 gba:border-t gba:border-border gba:sm:pt-2 gba:sm:pb-0"
             aria-label={t('chat-callHistoryAllTypes')}
           >
             {(['all', 'direct', 'group', 'meeting'] as const).map(f => (

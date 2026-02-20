@@ -135,19 +135,33 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = m
 
     const callTitle = getCallTitle()
 
-    // Determine call type label (e.g., "Group video call", "1-on-1 audio call")
+    // Determine call type label (e.g., "Group video call", "1-on-1 audio call") – use full-phrase keys so the whole label is translatable.
     const getCallTypeLabel = (): string => {
-      const mediaType = isVideoCall ? t('call-video') || 'video' : t('call-audio') || 'audio'
-
-      switch (conversationType) {
-        case 'direct':
-          return `1-on-1 ${mediaType} call`
-        case 'meeting':
-          return `${t('chat-meeting') || 'Meeting'} ${mediaType} call`
-        case 'group':
-        default:
-          return `${t('chat-group') || 'Group'} ${mediaType} call`
-      }
+      const key =
+        conversationType === 'direct'
+          ? isVideoCall
+            ? 'call-typeLabelDirectVideo'
+            : 'call-typeLabelDirectAudio'
+          : conversationType === 'meeting'
+            ? isVideoCall
+              ? 'call-typeLabelMeetingVideo'
+              : 'call-typeLabelMeetingAudio'
+            : isVideoCall
+              ? 'call-typeLabelGroupVideo'
+              : 'call-typeLabelGroupAudio'
+      const fallback =
+        conversationType === 'direct'
+          ? isVideoCall
+            ? '1-on-1 video call'
+            : '1-on-1 audio call'
+          : conversationType === 'meeting'
+            ? isVideoCall
+              ? 'Meeting video call'
+              : 'Meeting audio call'
+            : isVideoCall
+              ? 'Group video call'
+              : 'Group audio call'
+      return t(key) || fallback
     }
 
     const callTypeLabel = getCallTypeLabel()

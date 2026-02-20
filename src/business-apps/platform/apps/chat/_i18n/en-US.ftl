@@ -302,6 +302,12 @@ call-rnnoiseWarning = Using a headset can improve mic quality.
 # Call Settings
 call-video = video
 call-audio = audio
+call-typeLabelDirectVideo = 1-on-1 video call
+call-typeLabelDirectAudio = 1-on-1 audio call
+call-typeLabelGroupVideo = Group video call
+call-typeLabelGroupAudio = Group audio call
+call-typeLabelMeetingVideo = Meeting video call
+call-typeLabelMeetingAudio = Meeting audio call
 call-videoQuality = Video Quality
 call-highQuality = High Quality
 call-highQualityDesc = 720p, 30fps - Best for fast connections

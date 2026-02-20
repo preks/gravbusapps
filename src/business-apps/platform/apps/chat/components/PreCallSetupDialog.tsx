@@ -147,11 +147,9 @@ export const PreCallSetupDialog: React.FC<PreCallSetupDialogProps> = memo(
           return conversationName || t('chat-directCall') || '1-on-1 Call'
         }
         case 'meeting':
-          // Calendar meeting
           return conversationName || t('chat-meeting') || 'Meeting'
         case 'group':
         default:
-          // Group call
           return conversationName || t('chat-groupCall') || 'Group Call'
       }
     }
