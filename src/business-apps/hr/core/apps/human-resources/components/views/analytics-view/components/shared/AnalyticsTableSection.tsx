@@ -16,12 +16,21 @@ export interface AnalyticsTableSectionProps<T> {
   ) => void
   exportExcelLabel: string
   exportPdfLabel: string
+  exportExcelTestId?: string
+  exportPdfTestId?: string
   tableTitle: string
   entriesText: string
   clickToViewMessage: string
   getRowKey?: (row: T, index: number) => string
   renderCell?: (row: T, column: AnalyticsDataTableColumn, index: number) => React.ReactNode
+  /** Custom footer node. Ignored when footerVariant === 'simple'. */
   footer?: React.ReactNode
+  /** When 'simple', renders standard footer with data points count and chart title. */
+  footerVariant?: 'simple'
+  /** For footerVariant 'simple': e.g. t('hr-analytics-total-data-points', { count }) */
+  simpleFooterCountText?: string
+  /** For footerVariant 'simple': chart title */
+  simpleFooterTitle?: string
 }
 
 /**
@@ -36,13 +45,28 @@ function AnalyticsTableSection<T>({
   handleExport,
   exportExcelLabel,
   exportPdfLabel,
+  exportExcelTestId,
+  exportPdfTestId,
   tableTitle,
   entriesText,
   clickToViewMessage,
   getRowKey,
   renderCell,
-  footer
+  footer,
+  footerVariant,
+  simpleFooterCountText,
+  simpleFooterTitle
 }: AnalyticsTableSectionProps<T>) {
+  const resolvedFooter =
+    footerVariant === 'simple' && simpleFooterCountText != null && simpleFooterTitle != null ? (
+      <div className="gba:mt-4 gba:p-3 gba:bg-muted gba:rounded-md gba:flex gba:justify-between gba:items-center">
+        <span className="gba:font-medium gba:text-sm">{simpleFooterCountText}</span>
+        <span className="gba:text-sm gba:text-muted-foreground">{simpleFooterTitle}</span>
+      </div>
+    ) : (
+      footer
+    )
+
   return (
     <div ref={tableRef}>
       {selectedConfig && (
@@ -55,6 +79,8 @@ function AnalyticsTableSection<T>({
           columns={selectedConfig.exportColumns}
           rows={selectedConfig.tableData}
           exportingFormat={resolveExportingFormat(selectedConfig.testId)}
+          exportExcelTestId={exportExcelTestId}
+          exportPdfTestId={exportPdfTestId}
           exportExcelLabel={exportExcelLabel}
           exportPdfLabel={exportPdfLabel}
           onExport={format =>
@@ -68,7 +94,7 @@ function AnalyticsTableSection<T>({
           }
           getRowKey={getRowKey ?? ((_, index) => `${selectedConfig.testId}-${index}`)}
           renderCell={renderCell}
-          footer={footer}
+          footer={resolvedFooter}
         />
       )}
       {!selectedConfig && (

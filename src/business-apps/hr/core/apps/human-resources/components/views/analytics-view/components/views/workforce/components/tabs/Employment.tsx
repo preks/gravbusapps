@@ -24,6 +24,8 @@ import type { AnalyticsTableData } from '../../../../shared/analyticsTabTypes'
 import { HIGHLIGHT_BADGE } from '../../../../shared/AnalyticsDataTable'
 import AnalyticsTabErrorCard from '../../../../shared/AnalyticsTabErrorCard'
 import AnalyticsTableSection from '../../../../shared/AnalyticsTableSection'
+import SelectableChartTile from '../../../../shared/SelectableChartTile'
+import { renderPeriodValueCell } from '../../../../shared/analyticsTableRenderers'
 
 /**
  * Employment tab component displaying key employment metrics and distributions
@@ -225,92 +227,50 @@ const Employment: React.FC<BusinessAppContextProps> = context => {
 
       {/* Charts Grid */}
       <div className="gba:space-y-6 gba:mt-6">
-        {/* Top Row: Employment Type and Contract Type */}
         <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-6">
-          {/* Employment Type Distribution */}
-          <div
-            data-testid="employment-type-chart-card"
-            className={`gba:relative gba:cursor-pointer gba:transition-all gba:duration-200 gba:rounded-lg ${
-              selectedChart === 'employment-type-chart'
-                ? 'gba:ring-2 gba:ring-info gba:shadow-lg'
-                : 'gba:hover:shadow-lg'
-            }`}
-            onClick={() => handleChartClick('employment-type-chart')}
+          <SelectableChartTile
+            testId="employment-type-chart"
+            isSelected={selectedChart === 'employment-type-chart'}
+            onSelect={() => handleChartClick('employment-type-chart')}
+            selectedLabel={t('common-selected')}
           >
             <EmploymentTypePieChart data={employmentTypeDistribution} loading={empTypeLoading} error={empTypeError} />
-            {selectedChart === 'employment-type-chart' && (
-              <div className="gba:absolute gba:top-2 gba:right-2 gba:bg-info-secondary gba:text-info-secondary-foreground gba:px-2 gba:py-1 gba:rounded gba:text-xs">
-                ✓ {t('common-selected')}
-              </div>
-            )}
-          </div>
-
-          {/* Contract Type Distribution */}
-          <div
-            data-testid="contract-type-chart-card"
-            className={`gba:relative gba:cursor-pointer gba:transition-all gba:duration-200 gba:rounded-lg ${
-              selectedChart === 'contract-type-chart' ? 'gba:ring-2 gba:ring-info gba:shadow-lg' : 'gba:hover:shadow-lg'
-            }`}
-            onClick={() => handleChartClick('contract-type-chart')}
+          </SelectableChartTile>
+          <SelectableChartTile
+            testId="contract-type-chart"
+            isSelected={selectedChart === 'contract-type-chart'}
+            onSelect={() => handleChartClick('contract-type-chart')}
+            selectedLabel={t('common-selected')}
           >
             <ContractTypePieChart accessToken={context.accessToken} />
-            {selectedChart === 'contract-type-chart' && (
-              <div className="gba:absolute gba:top-2 gba:right-2 gba:bg-info-secondary gba:text-info-secondary-foreground gba:px-2 gba:py-1 gba:rounded gba:text-xs">
-                ✓ {t('common-selected')}
-              </div>
-            )}
-          </div>
+          </SelectableChartTile>
         </div>
 
-        {/* Second Row: Gap Rate and Probation Rate by Organizational Unit */}
         <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-6">
-          {/* Gap Rate by Organizational Unit */}
-          <div
-            data-testid="gap-rate-org-unit-chart-card"
-            className={`gba:relative gba:cursor-pointer gba:transition-all gba:duration-200 gba:rounded-lg ${
-              selectedChart === 'gap-rate-org-unit-chart'
-                ? 'gba:ring-2 gba:ring-info gba:shadow-lg'
-                : 'gba:hover:shadow-lg'
-            }`}
-            onClick={() => handleChartClick('gap-rate-org-unit-chart')}
+          <SelectableChartTile
+            testId="gap-rate-org-unit-chart"
+            isSelected={selectedChart === 'gap-rate-org-unit-chart'}
+            onSelect={() => handleChartClick('gap-rate-org-unit-chart')}
+            selectedLabel={t('common-selected')}
           >
             <GapRateByOrgUnitChart accessToken={context.accessToken} />
-            {selectedChart === 'gap-rate-org-unit-chart' && (
-              <div className="gba:absolute gba:top-2 gba:right-2 gba:bg-info-secondary gba:text-info-secondary-foreground gba:px-2 gba:py-1 gba:rounded gba:text-xs">
-                ✓ {t('common-selected')}
-              </div>
-            )}
-          </div>
-
-          {/* Probation Rate by Organizational Unit */}
-          <div
-            data-testid="probation-rate-org-unit-chart-card"
-            className={`gba:relative gba:cursor-pointer gba:transition-all gba:duration-200 gba:rounded-lg ${
-              selectedChart === 'probation-rate-org-unit-chart'
-                ? 'gba:ring-2 gba:ring-info gba:shadow-lg'
-                : 'gba:hover:shadow-lg'
-            }`}
-            onClick={() => handleChartClick('probation-rate-org-unit-chart')}
+          </SelectableChartTile>
+          <SelectableChartTile
+            testId="probation-rate-org-unit-chart"
+            isSelected={selectedChart === 'probation-rate-org-unit-chart'}
+            onSelect={() => handleChartClick('probation-rate-org-unit-chart')}
+            selectedLabel={t('common-selected')}
           >
             <ProbationRateByOrgUnitChart accessToken={context.accessToken} />
-            {selectedChart === 'probation-rate-org-unit-chart' && (
-              <div className="gba:absolute gba:top-2 gba:right-2 gba:bg-info-secondary gba:text-info-secondary-foreground gba:px-2 gba:py-1 gba:rounded gba:text-xs">
-                ✓ {t('common-selected')}
-              </div>
-            )}
-          </div>
+          </SelectableChartTile>
         </div>
 
-        {/* Bottom Row: Tenure Distribution by Organizational Unit (Full Width) */}
         <div className="gba:w-full">
-          <div
-            data-testid="tenure-heatmap-chart-card"
-            className={`gba:relative gba:cursor-pointer gba:transition-all gba:duration-200 gba:rounded-lg ${
-              selectedChart === 'tenure-heatmap-chart'
-                ? 'gba:ring-2 gba:ring-info gba:shadow-lg'
-                : 'gba:hover:shadow-lg'
-            }`}
-            onClick={() => handleChartClick('tenure-heatmap-chart')}
+          <SelectableChartTile
+            testId="tenure-heatmap-chart"
+            isSelected={selectedChart === 'tenure-heatmap-chart'}
+            onSelect={() => handleChartClick('tenure-heatmap-chart')}
+            selectedLabel={t('common-selected')}
           >
             <TenureHeatmapChart
               data={tenureDistribution}
@@ -319,12 +279,7 @@ const Employment: React.FC<BusinessAppContextProps> = context => {
               loading={tenureDistributionLoading}
               error={tenureDistributionError}
             />
-            {selectedChart === 'tenure-heatmap-chart' && (
-              <div className="gba:absolute gba:top-2 gba:right-2 gba:bg-info-secondary gba:text-info-secondary-foreground gba:px-2 gba:py-1 gba:rounded gba:text-xs">
-                ✓ {t('common-selected')}
-              </div>
-            )}
-          </div>
+          </SelectableChartTile>
         </div>
       </div>
 
@@ -339,10 +294,7 @@ const Employment: React.FC<BusinessAppContextProps> = context => {
         tableTitle={selectedConfig ? t('hr-analytics-data-table', { title: selectedConfig.title }) : ''}
         entriesText={selectedConfig ? t('hr-analytics-total-entries', { count: selectedConfig.tableData.length }) : ''}
         clickToViewMessage={t('hr-analytics-click-to-view-table')}
-        renderCell={(item, col) => {
-          if (col.key === 'period') return <span className="gba:font-medium">{item.period}</span>
-          return typeof item.value === 'number' ? item.value.toLocaleString() : item.value
-        }}
+        renderCell={(item, col) => renderPeriodValueCell(item, col)}
         footer={
           selectedConfig ? (
             <div className="gba:mt-4 gba:pt-4 gba:border-t gba:bg-muted gba:rounded gba:p-3">

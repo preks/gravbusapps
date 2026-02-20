@@ -14,6 +14,7 @@ import type { AnalyticsTableData } from '../../../../shared/analyticsTabTypes'
 import AnalyticsTabErrorCard from '../../../../shared/AnalyticsTabErrorCard'
 import SelectableChartCard from '../../../../shared/SelectableChartCard'
 import AnalyticsTableSection from '../../../../shared/AnalyticsTableSection'
+import { renderPeriodValueCell } from '../../../../shared/analyticsTableRenderers'
 
 const TurnoverRetention: React.FC<BusinessAppContextProps> = context => {
   const { t } = useTranslation(hrTranslations)
@@ -177,20 +178,12 @@ const TurnoverRetention: React.FC<BusinessAppContextProps> = context => {
         tableTitle={selectedConfig ? t('hr-analytics-data-table', { title: selectedConfig.title }) : ''}
         entriesText={selectedConfig ? t('hr-analytics-total-entries', { count: selectedConfig.tableData.length }) : ''}
         clickToViewMessage={t('hr-analytics-click-to-view-table')}
-        renderCell={(item, col) => {
-          if (col.key === 'period') return <span className="gba:font-medium">{item.period}</span>
-          return typeof item.value === 'number' ? item.value.toLocaleString() : item.value
-        }}
-        footer={
-          selectedConfig ? (
-            <div className="gba:mt-4 gba:p-3 gba:bg-muted gba:rounded-md gba:flex gba:justify-between gba:items-center">
-              <span className="gba:font-medium gba:text-sm">
-                {t('hr-analytics-total-data-points', { count: selectedConfig.tableData.length })}
-              </span>
-              <span className="gba:text-sm gba:text-muted-foreground">{selectedConfig.title}</span>
-            </div>
-          ) : undefined
+        renderCell={(item, col) => renderPeriodValueCell(item, col)}
+        footerVariant="simple"
+        simpleFooterCountText={
+          selectedConfig ? t('hr-analytics-total-data-points', { count: selectedConfig.tableData.length }) : undefined
         }
+        simpleFooterTitle={selectedConfig?.title}
       />
     </div>
   )

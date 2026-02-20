@@ -14,7 +14,9 @@ import HealthInsuranceTypeDistributionChart from './components/charts/HealthInsu
 import hrTranslations from '@/business-apps/hr/core/apps/human-resources/_i18n'
 import { useAnalyticsTableExport } from '../../../hooks/useAnalyticsTableExport'
 import { useChartTableSelection } from '../../../hooks/useChartTableSelection'
-import AnalyticsDataTable, { HIGHLIGHT_BADGE } from '../../shared/AnalyticsDataTable'
+import { HIGHLIGHT_BADGE } from '../../shared/AnalyticsDataTable'
+import AnalyticsTabErrorCard from '../../shared/AnalyticsTabErrorCard'
+import AnalyticsTableSection from '../../shared/AnalyticsTableSection'
 
 const { Title, Text } = Typography
 
@@ -194,14 +196,15 @@ export const Compensation: React.FC<CompensationProps> = ({ accessToken, prefixD
 
   if (error) {
     return (
-      <div data-testid={`${prefixDataTestId}-Error`} className="gba:p-6">
-        <div className="gba:bg-destructive-secondary gba:border gba:border-destructive-secondary gba:rounded-lg gba:p-4">
-          <h3 className="gba:text-destructive-secondary-foreground gba:font-medium">Error Loading Compensation Data</h3>
-          <p className="gba:text-destructive-secondary-foreground gba:mt-2">
-            {error instanceof Error ? error.message : String(error)}
-          </p>
-        </div>
-      </div>
+      <AnalyticsTabErrorCard
+        dataTestId={`${prefixDataTestId}-Error`}
+        message={t('hr-analytics-compensation-error')}
+        detail={error instanceof Error ? error.message : String(error)}
+        retryLabel={t('common-retry')}
+        onRetry={() => window.location.reload()}
+        variant="row"
+        className="gba:p-6"
+      />
     )
   }
 
@@ -291,34 +294,19 @@ export const Compensation: React.FC<CompensationProps> = ({ accessToken, prefixD
         </Row>
       </div>
 
-      <div ref={tableRef}>
-        {selectedConfig && (
-          <AnalyticsDataTable
-            dataTestId={`${prefixDataTestId}-${selectedConfig.testId}-table`}
-            className="gba:mt-4"
-            title={t('hr-analytics-data-table', { title: selectedConfig.title })}
-            description={selectedConfig.description}
-            entriesText={t('hr-analytics-total-entries', { count: selectedConfig.tableData.length })}
-            columns={selectedConfig.exportColumns}
-            rows={selectedConfig.tableData}
-            exportingFormat={resolveExportingFormat(selectedConfig.testId)}
-            exportExcelTestId={`${prefixDataTestId}-${selectedConfig.testId}-export-excel`}
-            exportPdfTestId={`${prefixDataTestId}-${selectedConfig.testId}-export-pdf`}
-            exportExcelLabel={t('common-export-excel')}
-            exportPdfLabel={t('common-export-pdf')}
-            onExport={format =>
-              handleExport(
-                format,
-                selectedConfig.testId,
-                selectedConfig.title,
-                selectedConfig.exportColumns,
-                selectedConfig.tableData as unknown as Record<string, unknown>[]
-              )
-            }
-            getRowKey={(_, index) => `${selectedConfig.testId}-${index}`}
-          />
-        )}
-      </div>
+      <AnalyticsTableSection<TableDataRow>
+        tableRef={tableRef}
+        selectedConfig={selectedConfig}
+        resolveExportingFormat={resolveExportingFormat}
+        handleExport={handleExport}
+        exportExcelLabel={t('common-export-excel')}
+        exportPdfLabel={t('common-export-pdf')}
+        exportExcelTestId={selectedConfig ? `${prefixDataTestId}-${selectedConfig.testId}-export-excel` : undefined}
+        exportPdfTestId={selectedConfig ? `${prefixDataTestId}-${selectedConfig.testId}-export-pdf` : undefined}
+        tableTitle={selectedConfig ? t('hr-analytics-data-table', { title: selectedConfig.title }) : ''}
+        entriesText={selectedConfig ? t('hr-analytics-total-entries', { count: selectedConfig.tableData.length }) : ''}
+        clickToViewMessage={t('hr-analytics-click-to-view-table')}
+      />
     </div>
   )
 }
