@@ -7,6 +7,8 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
+import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
+import { GET_EMPLOYEE_LIGHT_BY_ID, GET_EMPLOYEE_LIGHT_BY_USER_ID } from '@/common/data/employee/queries/employeeQueries'
 
 import type { SpreadsheetAppViewerProps, SpreadsheetColumn, SpreadsheetSheet } from './types'
 import { columnToFormField } from './types'
@@ -48,6 +50,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   onAppRefreshNeeded,
   onSheetUpdate,
   onBack,
+  onShare,
   onEdit,
   isEditing = true,
   accessToken = '',
@@ -103,6 +106,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
   const cellPersistTimerRef = useRef<NodeJS.Timeout | null>(null)
   const gridRef = useRef<FortuneSheetGridHandle | null>(null)
   const [restoreSyncToken, setRestoreSyncToken] = useState(0)
+  const [isCellDataSaving, setIsCellDataSaving] = useState(false)
   const [pendingRestoreSyncFromAppRef, setPendingRestoreSyncFromAppRef] = useState<SpreadsheetApp | null>(null)
 
   // --- Viewer State (sheet/view + local sheet data) ---
@@ -149,6 +153,93 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     autoSaveEnabled: true,
     autoSaveInterval: 30000
   })
+  const graphqlClient = useGraphQLClient(accessToken)
+  const [versionUserDisplayMap, setVersionUserDisplayMap] = useState<
+    Record<string, { displayName: string; avatarUrl?: string }>
+  >({})
+
+  const versionCreatorIds = useMemo(
+    () => [...new Set(versioning.versions.map(v => v.createdBy).filter((id): id is string => Boolean(id)))],
+    [versioning.versions]
+  )
+
+  useEffect(() => {
+    let isCancelled = false
+
+    const loadVersionUserDisplayMap = async () => {
+      if (!accessToken || versionCreatorIds.length === 0) {
+        if (!isCancelled) setVersionUserDisplayMap({})
+        return
+      }
+
+      try {
+        const employeeResults = await Promise.all(
+          versionCreatorIds.map(async creatorId => {
+            const byUserIdQuery = GET_EMPLOYEE_LIGHT_BY_USER_ID(creatorId)
+            const byUserIdResult = await graphqlClient.request<{
+              Employee: Array<{
+                id: string
+                userId: string
+                displayName?: string | null
+                firstName?: string | null
+                lastName?: string | null
+                userName?: string | null
+                pictureThumbnail?: string | null
+              }>
+            }>(byUserIdQuery)
+            if (byUserIdResult.Employee?.[0]) return byUserIdResult.Employee[0]
+
+            const byEmployeeIdQuery = GET_EMPLOYEE_LIGHT_BY_ID(creatorId)
+            const byEmployeeIdResult = await graphqlClient.request<{
+              Employee: Array<{
+                id: string
+                userId: string
+                displayName?: string | null
+                firstName?: string | null
+                lastName?: string | null
+                userName?: string | null
+                pictureThumbnail?: string | null
+              }>
+            }>(byEmployeeIdQuery)
+            return byEmployeeIdResult.Employee?.[0] ?? null
+          })
+        )
+
+        const nextMap: Record<string, { displayName: string; avatarUrl?: string }> = {}
+        employeeResults.filter(Boolean).forEach(emp => {
+          const employee = emp as {
+            id: string
+            userId: string
+            displayName?: string | null
+            firstName?: string | null
+            lastName?: string | null
+            userName?: string | null
+            pictureThumbnail?: string | null
+          }
+          const fullName = `${employee.firstName || ''} ${employee.lastName || ''}`.trim()
+          const displayName =
+            employee.displayName || fullName || employee.userName || employee.userId || employee.id || 'Unknown'
+          const avatarUrl = employee.pictureThumbnail
+            ? employee.pictureThumbnail.startsWith('data:')
+              ? employee.pictureThumbnail
+              : `data:image/png;base64,${employee.pictureThumbnail}`
+            : undefined
+
+          if (employee.userId) nextMap[employee.userId] = { displayName, avatarUrl }
+          if (employee.id) nextMap[employee.id] = { displayName, avatarUrl }
+        })
+
+        if (!isCancelled) setVersionUserDisplayMap(nextMap)
+      } catch (error) {
+        console.error('[SpreadsheetAppViewer] Failed to enrich version user display map:', error)
+      }
+    }
+
+    void loadVersionUserDisplayMap()
+    return () => {
+      isCancelled = true
+    }
+  }, [accessToken, graphqlClient, versionCreatorIds])
 
   const comments = useComments({
     entityId: app.id,
@@ -468,16 +559,15 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     setActiveSheetId
   ])
   const [remoteUpdateKey, setRemoteUpdateKey] = useState(0)
-  const [receivedOperation, setReceivedOperation] = useState<{
-    operation: any
-    timestamp: number
-  } | null>(null)
+  // Queue of received operations - prevents dropping ops when multiple arrive rapidly
+  const receivedOpsQueueRef = useRef<any[]>([])
+  const [processOpsTrigger, setProcessOpsTrigger] = useState(0)
 
   // --- Collaboration (header presence + FortuneSheet operations/cursors) ---
   const handleCollaborationOperation = useCallback((op: any) => {
-    // Pass received operation to the grid so it can apply it
     if (op?.operation) {
-      setReceivedOperation({ operation: op.operation, timestamp: Date.now() })
+      receivedOpsQueueRef.current.push(op.operation)
+      setProcessOpsTrigger(t => t + 1)
     }
   }, [])
 
@@ -599,7 +689,11 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
       const next = [...current.slice(0, idx), updatedRow, ...current.slice(idx + 1)]
       localSheetDataRef.current = next
 
-      if (options?.fromRemote) return
+      if (options?.fromRemote) {
+        // Sync React state for remote changes so UI stays in sync (FortuneSheet remount uses this data)
+        setLocalSheetData([...next])
+        return
+      }
 
       // Debounce the React state update so all concurrent cell changes
       // (from a multi-cell paste) are batched into a single re-render.
@@ -624,15 +718,14 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
           changes: { [columnName]: normalizedValue }
         })
       }
+      setIsCellDataSaving(true)
 
       if (cellPersistTimerRef.current) {
         clearTimeout(cellPersistTimerRef.current)
       }
-      // Use 0 ms (next event-loop tick) instead of a longer debounce so the
-      // PATCH is in-flight before the user can trigger a page reload.
-      // Batching is preserved: all FortuneSheet paste ops run synchronously in
-      // the same call stack, so every handleCellChange call within a paste
-      // accumulates into pendingCellUpdates before the single setTimeout fires.
+      // Use 150ms debounce to capture multi-cell operations (e.g. 5x5 delete).
+      // FortuneSheet may emit ops in async batches; a short delay ensures we
+      // accumulate all changes before persisting.
       cellPersistTimerRef.current = setTimeout(async () => {
         const pending = new Map(pendingCellUpdates.current)
         pendingCellUpdates.current.clear()
@@ -713,7 +806,9 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
           }
         })
         await Promise.all(patchPromises)
-      }, 0)
+        // Update saving state - may still be true if new edits arrived during flush
+        setIsCellDataSaving(pendingCellUpdates.current.size > 0 || inFlightCellUpdates.current.size > 0)
+      }, 150)
     },
     [
       activeSheetId,
@@ -1100,6 +1195,13 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
     [versioning, onAppRefreshNeeded, app.id, activeSheetId]
   )
 
+  const handleRefreshSpreadsheet = useCallback(async () => {
+    if (!onAppRefreshNeeded) return
+    await onAppRefreshNeeded(app.id, activeSheetId)
+    // Force viewer state to re-sync from refreshed app (same as browser refresh)
+    setRestoreSyncToken(prev => prev + 1)
+  }, [onAppRefreshNeeded, app.id, activeSheetId])
+
   useEffect(() => {
     if (!pendingRestoreSyncFromAppRef) return
     if (pendingRestoreSyncFromAppRef === app) return
@@ -1121,7 +1223,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         isEntityDataLoading={entityState.isLoading}
         onRefreshEntityData={() => void refreshEntityData()}
         versioning={{
-          isSaving: versioning.isSaving,
+          isSaving: versioning.isSaving || isCellDataSaving,
           lastSaveTime: versioning.lastSaveTime,
           hasUnsavedChanges: versioning.hasUnsavedChanges,
           currentVersion: (() => {
@@ -1151,6 +1253,7 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         onAddColumn={columnsState.handleAddColumn}
         onManageColumns={() => columnsState.setIsManageColumnsDialogOpen(true)}
         onOpenAutomations={() => setIsAutomationsOpen(true)}
+        onShare={onShare}
         onEdit={onEdit}
         onExportToExcel={handleExportToExcel}
         isCollectionCopy={isCollectionCopy}
@@ -1159,6 +1262,8 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         showSummarizeButton={hasExcelCollectionWithEligibleRows}
         onSummarizeClick={handleSummarizeClick}
         isSummarizing={collectionSummary.isSummarizing}
+        onRefreshSpreadsheet={onAppRefreshNeeded ? handleRefreshSpreadsheet : undefined}
+        isCellDataSaving={isCellDataSaving}
         onRename={
           onAppUpdate
             ? newName => {
@@ -1219,7 +1324,8 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
             collaborationEnabled={collaboration.isCollaborationConnected}
             onRemoteChangeApplied={() => setRemoteUpdateKey(k => k + 1)}
             remoteUpdateKey={remoteUpdateKey}
-            receivedOperation={receivedOperation}
+            receivedOpsQueueRef={receivedOpsQueueRef}
+            processOpsTrigger={processOpsTrigger}
             isReadOnly={!isEditing || entityEnabled}
           />
         )}
@@ -1272,6 +1378,29 @@ export const SpreadsheetAppViewer: React.FC<SpreadsheetAppViewerProps> = ({
         onSaveColumns={onSaveColumns}
         showVersionHistory={showVersionHistory}
         setShowVersionHistory={setShowVersionHistory}
+        versionUserDisplayMap={{
+          ...((userId || collaboration.currentUserIdRef.current) && collaboration.currentUserName
+            ? {
+                ...(userId
+                  ? {
+                      [userId]: {
+                        displayName: collaboration.currentUserName,
+                        avatarUrl: collaboration.currentUserAvatar
+                      }
+                    }
+                  : {}),
+                ...(collaboration.currentUserIdRef.current
+                  ? {
+                      [collaboration.currentUserIdRef.current]: {
+                        displayName: collaboration.currentUserName,
+                        avatarUrl: collaboration.currentUserAvatar
+                      }
+                    }
+                  : {})
+              }
+            : {}),
+          ...versionUserDisplayMap
+        }}
         versioning={versioning as any}
         handleRestoreVersion={handleRestoreVersion as any}
         showCheckpointDialog={showCheckpointDialog}
