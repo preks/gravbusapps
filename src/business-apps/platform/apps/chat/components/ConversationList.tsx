@@ -14,6 +14,7 @@ import type { Conversation } from '../types'
 import type { ChatWebSocketClient } from '../services/chatWebSocketClient'
 import type { PresenceData } from '../hooks/usePresence'
 import type { ConversationFilterKind } from '../hooks/useConversations'
+import { sortConversationsPinThenTime } from '../utils/conversationSort'
 import { useChatTranslation } from '../contexts/TranslationContext'
 
 interface ConversationListProps {
@@ -92,8 +93,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
   const [showNewChatMenu, setShowNewChatMenu] = useState(false)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
 
-  // Deduplicate conversations by ID (defensive programming - duplicates should be rare after fixes)
-  // List is backend-filtered; no client-side search/filter
+  // Deduplicate and sort: pinned first (by pinnedOrder), then unpinned by lastMessageAt
   const uniqueConversations = useMemo(() => {
     const seen = new Set<string>()
     const duplicates: string[] = []
@@ -111,7 +111,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
       console.debug('[ConversationList] Filtered out duplicate conversations:', duplicates)
     }
 
-    return filtered
+    return [...filtered].sort(sortConversationsPinThenTime)
   }, [conversations])
 
   const hasActiveFilters = (search?.trim()?.length ?? 0) > 0 || filterKind !== 'all' || unreadOnly
@@ -351,6 +351,8 @@ export const ConversationList: React.FC<ConversationListProps> = ({
                       compact={compact}
                       otherUserPresence={otherUserPresence}
                       activeExpertCount={activeExpertCount}
+                      isPinned={conversation.isPinned}
+                      isMuted={conversation.isMuted}
                       t={t}
                     />
                   )

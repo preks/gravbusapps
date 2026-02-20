@@ -405,7 +405,7 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
 
         const currentUser = currentUserRef.current
         const isOwnMessage = raw.senderId === currentUser?.id
-        const isOtherUserMessage = currentUser !== undefined && raw.senderId !== currentUser.id
+        const isOtherUserMessage = currentUser != null && raw.senderId !== currentUser.id
 
         // Check if it's a system message (no sender)
         const isSystemMessage = !raw.senderId || raw.type === 'system'
@@ -417,10 +417,11 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
         if (isSystemMessage) {
           const messageWithStatus = { ...raw, status: raw.status || 'sent' }
 
+          // List order must update immediately so it's visible without user interaction (same as before pin)
+          if (raw.conversationId) {
+            conversationsHookRef.current?.updateConversationLastMessage(raw.conversationId, messageWithStatus)
+          }
           startTransition(() => {
-            if (raw.conversationId) {
-              conversationsHookRef.current?.updateConversationLastMessage(raw.conversationId, messageWithStatus)
-            }
             if (raw.conversationId === currentActiveConversationId) {
               messagesHookRef.current?.addMessage(messageWithStatus)
             }
@@ -504,15 +505,12 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
           // Processing own message with status
         }
 
-        // OPTIMIZATION: Defer ALL UI updates to not block the message handler
-        // Use startTransition to make conversation list updates non-blocking
+        // Conversation list (order + unread) updates immediately so list reorders without needing to click elsewhere
+        conversationsHookRef.current?.updateConversationLastMessage(raw.conversationId, messageWithStatus)
+        if (isOtherUserMessage && raw.conversationId !== currentActiveConversationId) {
+          conversationsHookRef.current?.incrementUnreadCount(raw.conversationId)
+        }
         startTransition(() => {
-          conversationsHookRef.current?.updateConversationLastMessage(raw.conversationId, messageWithStatus)
-
-          if (isOtherUserMessage && raw.conversationId !== currentActiveConversationId) {
-            conversationsHookRef.current?.incrementUnreadCount(raw.conversationId)
-          }
-
           if (raw.conversationId === currentActiveConversationId) {
             messagesHookRef.current?.addMessage(messageWithStatus)
           }
@@ -574,20 +572,13 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
         }
 
         if (message && message.senderId === currentUser.id) {
-          // Update message status immediately (no startTransition for status updates - they're important!)
-          // Use the real message ID from the event data, not the found message's ID (which might be temp)
           messagesHookRef.current?.updateMessageStatus(data.messageId, 'delivered')
-
-          // Also update in conversation list (use the found message object but with real ID)
+          // List update outside transition so conversation list reorders/updates immediately
           conversationsHookRef.current?.updateConversationLastMessage(data.conversationId, {
             ...message,
-            id: data.messageId, // Use real ID from event
+            id: data.messageId,
             status: 'delivered'
           })
-
-          if (process.env.NODE_ENV === 'development') {
-            // Updated message status to delivered
-          }
         }
       }
     }
@@ -611,14 +602,7 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
         })
 
         if (message && message.senderId === currentUser.id) {
-          // Update message status immediately (no startTransition for status updates - they're important!)
-          // This is your message being read by someone else
-          // Update from 'sent'/'delivered' to 'read' (blue ✓✓)
-          // Use the real message ID from the event data, not the found message's ID (which might be temp)
           messagesHookRef.current?.updateMessageStatus(data.messageId, 'read')
-
-          // Also update ALL previous messages from this sender in this conversation to 'read'
-          // (if someone reads message X, they've also read all messages before X)
           const messageTime = new Date(message.createdAt).getTime()
           messages.forEach((msg: any) => {
             if (
@@ -629,11 +613,10 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
               messagesHookRef.current?.updateMessageStatus(msg.id, 'read')
             }
           })
-
-          // Also update in conversation list (use the found message object but with real ID)
+          // List update outside transition so conversation list reorders/updates immediately
           conversationsHookRef.current?.updateConversationLastMessage(data.conversationId, {
             ...message,
-            id: data.messageId, // Use real ID from event
+            id: data.messageId,
             status: 'read'
           })
         }
@@ -1212,6 +1195,7 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
       loadMoreMessages: messagesHook.loadMore,
       loadMoreConversations: conversationsHook.loadMoreConversations,
       refreshConversations: conversationsHook.loadConversations,
+      updateConversation: conversationsHook.updateConversation,
       refreshMessages: messagesHook.refresh,
       updateMessage: messagesHook.updateMessage,
       startTyping: typingHook.startTyping,
@@ -1241,6 +1225,7 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
       conversationsHook.search,
       conversationsHook.filterKind,
       conversationsHook.unreadOnly,
+      conversationsHook.updateConversation,
       // Messages
       messagesHook.messages,
       messagesHook.isLoading,
