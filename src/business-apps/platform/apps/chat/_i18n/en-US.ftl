@@ -45,6 +45,13 @@ chat-nudgeCooldown = Please wait {$seconds} seconds before sending another nudge
 # Messages
 chat-noMessages = No messages yet. Start the conversation!
 chat-loadOlderMessages = Load older messages
+
+# Message search (in-conversation)
+chat-searchInConversation = Search in conversation
+chat-searchMessagesPlaceholder = Search messages…
+chat-searchNoResults = No results
+chat-searchSearching = Searching…
+chat-searchClear = Clear
 common-loading = Loading...
 chat-preview-open = Open preview
 chat-preview-unsupported = Preview not available.

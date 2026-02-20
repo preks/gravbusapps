@@ -55,6 +55,13 @@ chat-user = Benutzer
 chat-everyAI = Every AI
 chat-replyToEvery = An Every antworten
 
+# Message search (in-conversation)
+chat-searchInConversation = In Unterhaltung suchen
+chat-searchMessagesPlaceholder = Nachrichten suchen…
+chat-searchNoResults = Keine Ergebnisse
+chat-searchSearching = Suche…
+chat-searchClear = Löschen
+
 # Message Time
 chat-time-justNow = Gerade eben
 chat-time-minutesAgo = vor {$minutes}m
