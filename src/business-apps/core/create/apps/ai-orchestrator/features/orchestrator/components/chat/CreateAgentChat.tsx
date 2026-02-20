@@ -1,12 +1,6 @@
-/**
- * CreateAgentChat - Main agent chat panel for the CREATE orchestrator.
- * Displays message history, streaming responses, and chat input.
- * Inspired by NexusChat with a simplified header.
- */
-
-import { useEffect, useRef, useCallback } from 'react'
 import { Button } from '@newwork/nw-design-system'
 import { Sparkles, Plus, MessageSquare } from 'lucide-react'
+import { useChatScroll } from '../../hooks/useChatScroll'
 import { CreateAgentChatMessage } from './CreateAgentChatMessage'
 import { CreateAgentChatInput } from './CreateAgentChatInput'
 import type { CreateChatMessage } from '../../types/chat'
@@ -26,31 +20,7 @@ export const CreateAgentChat = ({
   onNewSession,
   testId = 'create-agent-chat'
 }: CreateAgentChatProps) => {
-  const messagesEndRef = useRef<HTMLDivElement>(null)
-  const scrollContainerRef = useRef<HTMLDivElement>(null)
-  const userScrolledUpRef = useRef(false)
-
-  const handleScroll = useCallback(() => {
-    const el = scrollContainerRef.current
-    if (!el) return
-    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight
-    userScrolledUpRef.current = distanceFromBottom > 80
-  }, [])
-
-  useEffect(() => {
-    if (!userScrolledUpRef.current) {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-    }
-  }, [messages])
-
-  const prevMessageCountRef = useRef(messages.length)
-  useEffect(() => {
-    if (messages.length > prevMessageCountRef.current) {
-      userScrolledUpRef.current = false
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-    }
-    prevMessageCountRef.current = messages.length
-  }, [messages.length])
+  const { messagesEndRef, scrollContainerRef, handleScroll } = useChatScroll(messages.length)
 
   return (
     <div className="gba:flex gba:flex-col gba:h-full gba:min-h-0" data-testid={testId}>
