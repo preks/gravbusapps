@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef, useLayoutEffect } from 'react'
 import { Button, Spinner } from '@newwork/nw-design-system'
 import {
   ArrowLeftIcon,
@@ -86,6 +86,12 @@ export const CallHistory: React.FC<CallHistoryProps> = ({
   const [loadingMore, setLoadingMore] = useState(false)
   const [hasMore, setHasMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [showFilterLabels, setShowFilterLabels] = useState(true)
+  const filterContainerRef = useRef<HTMLDivElement>(null)
+  const rulerWithLabelsRef = useRef<HTMLDivElement>(null)
+  const rulerWithoutLabelsRef = useRef<HTMLDivElement>(null)
+  const widthWithLabelsRef = useRef<number>(0)
+  const widthWithoutLabelsRef = useRef<number>(0)
 
   useEffect(() => {
     let cancelled = false
@@ -169,10 +175,45 @@ export const CallHistory: React.FC<CallHistoryProps> = ({
     { value: 'meeting', label: getTypeFilterLabel('meeting', t), icon: <CalendarIcon className="gba:size-4" /> }
   ]
 
-  const showFilterLabels = !showBackButton
+  const BUFFER_PX = 16
+
+  useLayoutEffect(() => {
+    if (showBackButton) {
+      setShowFilterLabels(false)
+      return
+    }
+    const container = filterContainerRef.current
+    const withLabels = rulerWithLabelsRef.current
+    const withoutLabels = rulerWithoutLabelsRef.current
+    if (!container || !withLabels || !withoutLabels) return
+
+    const update = () => {
+      const available = container.clientWidth
+      const withW = withLabels.getBoundingClientRect().width
+      const withoutW = withoutLabels.getBoundingClientRect().width
+      widthWithLabelsRef.current = withW
+      widthWithoutLabelsRef.current = withoutW
+      setShowFilterLabels(available >= withW + BUFFER_PX)
+    }
+
+    const raf = requestAnimationFrame(() => {
+      update()
+    })
+    const ro = new ResizeObserver(() => {
+      requestAnimationFrame(update)
+    })
+    ro.observe(container)
+    return () => {
+      cancelAnimationFrame(raf)
+      ro.disconnect()
+    }
+  }, [showBackButton])
 
   return (
-    <div className="gba:flex gba:flex-col gba:h-full gba:bg-background" data-testid="chat-callHistory">
+    <div
+      className="gba:flex gba:flex-col gba:h-full gba:w-full gba:bg-background gba:relative"
+      data-testid="chat-callHistory"
+    >
       <header
         className="gba:flex gba:items-center gba:border-b gba:border-border/50 gba:bg-background/80 gba:backdrop-blur-sm gba:flex-shrink-0 gba:gap-3 gba:px-4 gba:py-3 gba:min-w-0"
         data-testid="chat-callHistory-header"
@@ -192,7 +233,65 @@ export const CallHistory: React.FC<CallHistoryProps> = ({
         <div className="gba:flex-1 gba:min-w-0">
           <h2 className="gba:font-semibold gba:truncate gba:text-foreground gba:text-base">{t('chat-callHistory')}</h2>
         </div>
-        <div className="gba:flex gba:items-center gba:gap-2 gba:min-w-0 gba:overflow-x-auto gba:scrollbar-none">
+        <div
+          ref={filterContainerRef}
+          className="gba:flex-1 gba:flex gba:items-center gba:justify-end gba:gap-2 gba:min-w-0 gba:overflow-x-auto gba:scrollbar-none"
+        >
+          {/* Hidden rulers to measure filter width with/without labels (only when not mobile/compact) */}
+          {!showBackButton && (
+            <div
+              ref={rulerWithLabelsRef}
+              className="gba:absolute gba:left-0 gba:top-0 gba:invisible gba:pointer-events-none gba:flex gba:items-center gba:gap-2 gba:whitespace-nowrap"
+              aria-hidden
+            >
+              <div className="gba:inline-flex gba:rounded-lg gba:bg-muted/60 gba:p-0.5 gba:gap-px">
+                {statusFilters.map(({ label, icon }) => (
+                  <span
+                    key={label}
+                    className="gba:flex gba:items-center gba:justify-center gba:gap-1.5 gba:rounded-md gba:p-2 gba:text-sm"
+                  >
+                    {icon}
+                    <span>{label}</span>
+                  </span>
+                ))}
+              </div>
+              <span className="gba:w-px gba:h-4 gba:bg-border gba:flex-shrink-0" />
+              <div className="gba:inline-flex gba:rounded-lg gba:bg-muted/60 gba:p-0.5 gba:gap-px">
+                {typeFilters.map(({ label, icon }) => (
+                  <span
+                    key={label}
+                    className="gba:flex gba:items-center gba:justify-center gba:gap-1.5 gba:rounded-md gba:p-2 gba:text-sm"
+                  >
+                    {icon}
+                    <span>{label}</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+          {!showBackButton && (
+            <div
+              ref={rulerWithoutLabelsRef}
+              className="gba:absolute gba:left-0 gba:top-0 gba:invisible gba:pointer-events-none gba:flex gba:items-center gba:gap-2 gba:whitespace-nowrap"
+              aria-hidden
+            >
+              <div className="gba:inline-flex gba:rounded-lg gba:bg-muted/60 gba:p-0.5 gba:gap-px">
+                {statusFilters.map(({ label, icon }) => (
+                  <span key={label} className="gba:flex gba:items-center gba:justify-center gba:rounded-md gba:p-2">
+                    {icon}
+                  </span>
+                ))}
+              </div>
+              <span className="gba:w-px gba:h-4 gba:bg-border gba:flex-shrink-0" />
+              <div className="gba:inline-flex gba:rounded-lg gba:bg-muted/60 gba:p-0.5 gba:gap-px">
+                {typeFilters.map(({ label, icon }) => (
+                  <span key={label} className="gba:flex gba:items-center gba:justify-center gba:rounded-md gba:p-2">
+                    {icon}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
           <div
             className="gba:inline-flex gba:rounded-lg gba:bg-muted/60 gba:p-0.5 gba:gap-px"
             role="tablist"
@@ -288,7 +387,7 @@ export const CallHistory: React.FC<CallHistoryProps> = ({
           </div>
         )}
         {!loading && !error && entries.length > 0 && (
-          <div className="gba:flex gba:flex-col gba:pb-4">
+          <div className="gba:flex gba:flex-col gba:pb-4 gba:pt-0">
             {entries.map(entry =>
               entry.type === 'joined' ? (
                 <CallHistoryItemJoined

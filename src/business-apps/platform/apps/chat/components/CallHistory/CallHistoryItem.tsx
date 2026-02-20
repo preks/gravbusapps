@@ -1,5 +1,5 @@
 import { Avatar, AvatarFallback, AvatarImage } from '@newwork/nw-design-system'
-import { PhoneIncoming, PhoneOutgoing, PhoneSlash } from '@phosphor-icons/react'
+import { PhoneIncomingIcon, PhoneOutgoingIcon, PhoneSlashIcon } from '@phosphor-icons/react'
 import { CalendarIcon, UsersIcon } from 'lucide-react'
 import type { UserPresence } from '../../hooks/usePresence'
 import { UserStatusIndicator } from '../UserStatusIndicator'
@@ -121,7 +121,7 @@ export function CallHistoryItemJoined({
     <button
       type="button"
       onClick={() => conversationId && onOpenConversation(conversationId)}
-      className="gba:flex gba:items-center gba:gap-3 gba:w-full gba:px-3 gba:py-2.5 gba:border-b gba:border-border gba:text-left hover:gba:bg-accent/50 gba:transition-colors"
+      className="gba:flex gba:items-center gba:gap-3 gba:w-full gba:px-3 gba:py-2 gba:border-b gba:border-border gba:text-left hover:gba:bg-accent/50 gba:transition-colors"
       data-testid="chat-callHistory-item-joined"
     >
       {direct ? (
@@ -154,9 +154,9 @@ export function CallHistoryItemJoined({
         <div className="gba:font-medium gba:text-foreground gba:text-sm gba:truncate">{displayTitle}</div>
         <div className="gba:flex gba:items-center gba:gap-1 gba:text-muted-foreground gba:text-xs gba:truncate">
           {isOutgoing ? (
-            <PhoneOutgoing className="gba:size-4 gba:flex-shrink-0" weight="regular" />
+            <PhoneOutgoingIcon className="gba:size-4 gba:flex-shrink-0" weight="regular" />
           ) : (
-            <PhoneIncoming className="gba:size-4 gba:flex-shrink-0" weight="regular" />
+            <PhoneIncomingIcon className="gba:size-4 gba:flex-shrink-0" weight="regular" />
           )}
           <span>{directionLabel}</span>
           {!direct && hostName && !isOutgoing && (
@@ -215,7 +215,7 @@ export function CallHistoryItemOutcome({
     <button
       type="button"
       onClick={() => onOpenConversation(item.conversationId)}
-      className="gba:flex gba:items-center gba:gap-3 gba:w-full gba:px-3 gba:py-2.5 gba:border-b gba:border-border gba:text-left hover:gba:bg-accent/50 gba:transition-colors"
+      className="gba:flex gba:items-center gba:gap-3 gba:w-full gba:px-3 gba:py-2 gba:border-b gba:border-border gba:text-left hover:gba:bg-accent/50 gba:transition-colors"
       data-testid="chat-callHistory-item-outcome"
     >
       {direct ? (
@@ -253,7 +253,7 @@ export function CallHistoryItemOutcome({
             isMissedOrNotAnswered ? 'gba:text-destructive' : 'gba:text-muted-foreground'
           }`}
         >
-          <PhoneSlash className="gba:size-4 gba:flex-shrink-0" weight="regular" />
+          <PhoneSlashIcon className="gba:size-4 gba:flex-shrink-0" weight="regular" />
           <span>{outcomeLabel}</span>
           {!direct && inviterName && (
             <>
