@@ -5,7 +5,7 @@
  */
 
 import React from 'react'
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@newwork/nw-design-system'
+import { Badge, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@newwork/nw-design-system'
 import { Signal, Database, RefreshCw, Loader2 } from 'lucide-react'
 import { PresenceIndicator } from '../../shared/components/PresenceIndicator'
 import type { CollaborationParticipant } from '../../shared/hooks/useCollaboration'
@@ -38,13 +38,11 @@ export const StatusIndicators: React.FC<StatusIndicatorsProps> = ({
     <div className="gba:flex gba:items-center gba:gap-2" data-testid={testId}>
       {/* Collaboration presence indicator - shows active users */}
       {headerParticipants.length > 0 && (
-        <div className="gba:flex gba:items-center gba:gap-2 gba:px-2 gba:py-1 gba:rounded-full gba:bg-success/10 gba:border gba:border-success/20">
+        <Badge variant="success" className="gba:flex gba:items-center gba:gap-2 gba:pl-2 gba:pr-2.5">
           <div className="gba:w-2 gba:h-2 gba:rounded-full gba:bg-success gba:animate-pulse" />
           <PresenceIndicator participants={headerParticipants} maxVisible={3} size="sm" showLabel={false} />
-          <span className="gba:text-xs gba:font-medium gba:text-success-foreground">
-            {headerParticipants.length} active
-          </span>
-        </div>
+          <span className="gba:text-xs gba:font-medium">{headerParticipants.length} active</span>
+        </Badge>
       )}
 
       {/* Connection status indicator - shows when connected but alone */}
@@ -52,10 +50,10 @@ export const StatusIndicators: React.FC<StatusIndicatorsProps> = ({
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <div className="gba:flex gba:items-center gba:gap-1.5 gba:px-2.5 gba:py-1 gba:rounded-full gba:bg-success/10 gba:border gba:border-success/20 gba:cursor-default">
+              <Badge variant="success" className="gba:flex gba:items-center gba:gap-1.5 gba:cursor-default">
                 <Signal className="gba:w-3.5 gba:h-3.5 gba:text-success" />
-                <span className="gba:text-xs gba:font-medium gba:text-success-foreground">Live</span>
-              </div>
+                <span className="gba:text-xs gba:font-medium">Live</span>
+              </Badge>
             </TooltipTrigger>
             <TooltipContent>
               <span>Real-time collaboration active. Others will appear when they join.</span>
