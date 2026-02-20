@@ -91,7 +91,7 @@ export const createInvestmentReportColumns = (
       columns.push({
         key: field.property.replace(/\./g, '_'),
         title: field.label,
-        width: getReportColumnWidth(field.type),
+        width: getReportColumnWidth(field.type, field.label),
         sortable: isReportFieldSortable(field.type),
         render: (record: any) => {
           // REPORTS DATA STRUCTURE: record is InvestmentReport from report tables
@@ -194,21 +194,33 @@ export const createInvestmentReportColumns = (
 /**
  * Helper functions for report column configuration
  */
-const getReportColumnWidth = (fieldType: string): string => {
+const getReportColumnWidth = (fieldType: string, label?: string): string => {
+  // Base width from field type
+  let baseWidth = 150
   switch (fieldType) {
     case 'DATE':
     case 'DATETIME':
-      return '120px'
+      baseWidth = 120
+      break
     case 'AMOUNT':
-      return '140px'
+      baseWidth = 140
+      break
     case 'PERCENTAGE':
     case 'NUMBER':
-      return '100px'
+      baseWidth = 100
+      break
     case 'TEXT':
-      return '180px'
-    default:
-      return '150px' // Default width for unknown types to prevent overflow
+      baseWidth = 180
+      break
   }
+
+  // If label provided, calculate width needed (roughly 8px per character + padding)
+  if (label) {
+    const labelWidth = Math.ceil(label.length * 8) + 32 // 32px for padding/icons
+    return `${Math.max(baseWidth, labelWidth)}px`
+  }
+
+  return `${baseWidth}px`
 }
 
 const getReportColumnClassName = (fieldType: string): string => {
