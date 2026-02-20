@@ -69,7 +69,8 @@ export interface FortuneSheetGridProps {
   /** Key to force Workbook remount when remote data arrives (bump when onRemoteChangeApplied is called) */
   remoteUpdateKey?: number
   /** Remote operation to apply (from viewer's WebSocket); grid applies it when this changes */
-  receivedOperation?: { operation: any; timestamp: number } | null
+  receivedOpsQueueRef?: React.MutableRefObject<any[]>
+  processOpsTrigger?: number
   /** Called when FortuneSheet filter state changes (for persistence across refreshes) */
   onFilterStateChange?: (filterState: {
     filter?: Record<string, unknown> | null
@@ -125,7 +126,8 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
       collaborationEnabled = false,
       onRemoteChangeApplied,
       remoteUpdateKey = 0,
-      receivedOperation,
+      receivedOpsQueueRef,
+      processOpsTrigger,
       onFilterStateChange
     } = props
 
@@ -386,10 +388,14 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
      */
     const applyOperationToFortuneSheet = useCallback(
       (op: FortuneSheetOp) => {
-        if (op.op !== 'replace' || op.path.length < 3 || op.path[0] !== 'data') return
+        if (op.op !== 'replace' || op.path.length < 3 || op.path[0] !== 'data') {
+          return
+        }
 
-        const rowIndex = op.path[1] as number
+        // Path uses FortuneSheet row (0=header, 1+=data)
+        const fortuneSheetRow = op.path[1] as number
         const colIndex = op.path[2] as number
+        const dataRowIndex = fortuneSheetRow - HEADER_ROW_OFFSET
         // Check if this is a formula operation (path ends with 'f')
         const property = op.path.length >= 4 ? String(op.path[3]) : 'v'
         const isFormula = property === 'f'
@@ -405,32 +411,17 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
           value = (value as { v: unknown }).v
         }
 
-        const last = lastRemoteAppliedRef.current
-        const now = Date.now()
-        // For deduplication, compare the display value
-        const displayValue = isFullCellWithFormula ? (value as any).v : value
-        if (
-          last &&
-          now - last.at < REMOTE_APPLY_DEDUPE_MS &&
-          last.row === rowIndex &&
-          last.col === colIndex - 1 &&
-          last.value === displayValue
-        ) {
-          return
-        }
-
-        // Remote ops use data row indices; translate to FortuneSheet row by adding header offset
-        // Apply the cell update
+        // Path already uses FortuneSheet row; apply directly
         if (isFormula && typeof value === 'string') {
-          applyRemoteCellUpdate(rowIndex + HEADER_ROW_OFFSET, colIndex, { f: value })
+          applyRemoteCellUpdate(fortuneSheetRow, colIndex, { f: value })
         } else if (isFullCellWithFormula) {
-          applyRemoteCellUpdate(rowIndex + HEADER_ROW_OFFSET, colIndex, value)
+          applyRemoteCellUpdate(fortuneSheetRow, colIndex, value)
         } else {
-          applyRemoteCellUpdate(rowIndex + HEADER_ROW_OFFSET, colIndex, value)
+          applyRemoteCellUpdate(fortuneSheetRow, colIndex, value)
         }
 
         // Defer state updates to avoid setState-during-render warning
-        const rowId = context.rowIndexToId.get(rowIndex)
+        const rowId = context.rowIndexToId.get(dataRowIndex)
         const columnId = context.columnIndexToId.get(colIndex)
         const isFormulaOnly = isFormula && typeof value === 'string'
         setTimeout(() => {
@@ -459,14 +450,15 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
       debounceDelay: 300
     })
 
-    // Apply received remote operations from the viewer's WebSocket
-    const lastAppliedOpTimestamp = useRef<number>(0)
+    // Process queued remote operations (prevents dropping ops when multiple arrive rapidly)
     useEffect(() => {
-      if (!receivedOperation || !collaborationEnabled) return
-      if (receivedOperation.timestamp <= lastAppliedOpTimestamp.current) return
-      lastAppliedOpTimestamp.current = receivedOperation.timestamp
-      collaboration.handleDocumentOp(receivedOperation.operation)
-    }, [receivedOperation, collaborationEnabled, collaboration])
+      if (!receivedOpsQueueRef?.current || !collaborationEnabled) return
+      const queue = receivedOpsQueueRef.current
+      while (queue.length > 0) {
+        const op = queue.shift()
+        if (op) collaboration.handleDocumentOp(op)
+      }
+    }, [processOpsTrigger, collaborationEnabled, collaboration, receivedOpsQueueRef])
 
     const cursorTracking = useFortuneSheetCursorTracking({
       sheetId: sheet.id,
@@ -557,16 +549,154 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
       [openSelectedCopyLink]
     )
 
+    const handleDeleteCapture = useCallback(() => {
+      if (!onCellChange || isReadOnly) return
+      const workbook = workbookRef.current as any
+      const sel = workbook?.getSelection?.()
+      if (!sel?.[0]) return
+      const r = sel[0]
+      const rowStart = r?.row?.[0]
+      const rowEnd = r?.row?.[1] ?? rowStart
+      const colStart = r?.column?.[0]
+      const colEnd = r?.column?.[1] ?? colStart
+      if (
+        typeof rowStart !== 'number' ||
+        typeof rowEnd !== 'number' ||
+        typeof colStart !== 'number' ||
+        typeof colEnd !== 'number'
+      )
+        return
+      for (let row = rowStart; row <= rowEnd; row++) {
+        if (row < HEADER_ROW_OFFSET) continue
+        const dataRowIndex = row - HEADER_ROW_OFFSET
+        const rowId = context.rowIndexToId.get(dataRowIndex)
+        if (!rowId) continue
+        for (let col = colStart; col <= colEnd; col++) {
+          const columnId = context.columnIndexToId.get(col)
+          if (!columnId) continue
+          const column = columns.find(c => c.id === columnId)
+          const columnName = column?.name ?? columnId
+          onCellChange(rowId, columnName, null)
+        }
+      }
+    }, [context, columns, onCellChange, isReadOnly])
+
+    const persistDeleteSelectionFromWorkbook = useCallback(() => {
+      if (!onCellChange || isReadOnly) return
+
+      const workbook = workbookRef.current as any
+      const currentSheet = workbook?.getSheet?.()
+      const workbookData = currentSheet?.data
+      if (!Array.isArray(workbookData)) return
+
+      const selection = workbook?.getSelection?.()
+      const ranges = Array.isArray(selection) ? selection : []
+      if (ranges.length === 0) return
+
+      const getPersistValueFromWorkbookCell = (rawCell: unknown): unknown => {
+        if (rawCell === null || rawCell === undefined) return null
+        if (typeof rawCell === 'string' || typeof rawCell === 'number' || typeof rawCell === 'boolean') {
+          return rawCell
+        }
+        if (!rawCell || typeof rawCell !== 'object' || Array.isArray(rawCell)) return null
+
+        const cellObject = rawCell as Record<string, unknown>
+        if ('f' in cellObject) return rawCell
+        if ('v' in cellObject) {
+          const value = cellObject.v
+          if (value === null || value === undefined) {
+            if ('m' in cellObject && typeof cellObject.m === 'string' && cellObject.m.trim().length > 0) {
+              return cellObject.m
+            }
+            return null
+          }
+          if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+            return value
+          }
+          return null
+        }
+        if ('m' in cellObject && typeof cellObject.m === 'string' && cellObject.m.trim().length > 0) {
+          return cellObject.m
+        }
+        return null
+      }
+
+      ranges.forEach((range: { row?: [number, number?]; column?: [number, number?] }) => {
+        const rowStart = range?.row?.[0]
+        const rowEnd = range?.row?.[1] ?? rowStart
+        const colStart = range?.column?.[0]
+        const colEnd = range?.column?.[1] ?? colStart
+        if (
+          typeof rowStart !== 'number' ||
+          typeof rowEnd !== 'number' ||
+          typeof colStart !== 'number' ||
+          typeof colEnd !== 'number'
+        ) {
+          return
+        }
+
+        for (let row = rowStart; row <= rowEnd; row += 1) {
+          if (row < HEADER_ROW_OFFSET) continue
+          const dataRowIndex = row - HEADER_ROW_OFFSET
+          const rowId = context.rowIndexToId.get(dataRowIndex)
+          if (!rowId) continue
+
+          for (let col = colStart; col <= colEnd; col += 1) {
+            const columnId = context.columnIndexToId.get(col)
+            if (!columnId) continue
+            const column = columns.find(c => c.id === columnId)
+            const columnName = column?.name ?? columnId
+            const rawCell = workbookData?.[row]?.[col] ?? null
+            const valueToPersist = getPersistValueFromWorkbookCell(rawCell)
+            onCellChange(rowId, columnName, valueToPersist)
+          }
+        }
+      })
+    }, [context, columns, onCellChange, isReadOnly])
+
     const handleContainerKeyDown = useCallback(
       (e: React.KeyboardEvent) => {
-        // Only treat keyboard events when the container itself is focused.
-        // Do not intercept typing inside FortuneSheet editors/inputs.
+        if (e.key === 'Delete' || e.key === 'Backspace') {
+          const workbook = workbookRef.current as any
+          const selection = workbook?.getSelection?.()
+          const hasMultiCellSelection =
+            Array.isArray(selection) &&
+            selection.some((range: { row?: [number, number?]; column?: [number, number?] }) => {
+              const rowStart = range?.row?.[0]
+              const rowEnd = range?.row?.[1] ?? rowStart
+              const colStart = range?.column?.[0]
+              const colEnd = range?.column?.[1] ?? colStart
+              if (
+                typeof rowStart !== 'number' ||
+                typeof rowEnd !== 'number' ||
+                typeof colStart !== 'number' ||
+                typeof colEnd !== 'number'
+              ) {
+                return false
+              }
+              return rowEnd > rowStart || colEnd > colStart
+            })
+
+          const active = document.activeElement
+          const isEditing =
+            active?.tagName === 'INPUT' ||
+            active?.tagName === 'TEXTAREA' ||
+            (active as HTMLElement)?.getAttribute?.('contenteditable') === 'true'
+          if (!isEditing || hasMultiCellSelection) {
+            handleDeleteCapture()
+            // Reconcile persisted values with workbook after FortuneSheet applies delete.
+            setTimeout(() => {
+              persistDeleteSelectionFromWorkbook()
+            }, 0)
+          }
+          return
+        }
         if (e.target !== e.currentTarget) return
         if (e.key !== 'Enter' && e.key !== ' ') return
         e.preventDefault()
         openSelectedCopyLink()
       },
-      [openSelectedCopyLink]
+      [openSelectedCopyLink, handleDeleteCapture, persistDeleteSelectionFromWorkbook]
     )
 
     // Capture paste to persist clipboard text before FortuneSheet processes it.
@@ -820,9 +950,11 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
         const CHARS_PER_LINE = 25
 
         const rowHeights: Record<string, number> = {}
-        cells.forEach(({ row, col, text }) => {
+        cells.forEach(({ row, text }) => {
           try {
-            workbook.setCellFormat(row, col, 'tb', 2, options)
+            // Do NOT set tb=2 (word wrap) here - FortuneSheet has a bug where setting
+            // format 'tb' to 2 can cause the cell to display "2" as the value when
+            // the display cache is missing. Only expand row height for long text.
             const len = text.length
             const lineBreaks = (text.match(/\n/g) || []).length
             const lines = Math.max(1, lineBreaks + Math.ceil(len / CHARS_PER_LINE))
@@ -1742,7 +1874,7 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
         <div
           className="fortunesheet-container"
           onMouseUp={handleContainerMouseUp}
-          onKeyDown={handleContainerKeyDown}
+          onKeyDownCapture={handleContainerKeyDown}
           onPasteCapture={handlePasteCapture}
           role="button"
           tabIndex={0}
