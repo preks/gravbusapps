@@ -3,13 +3,9 @@ import React from 'react'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
-import {
-  getInvestmentTypeFieldDefinition,
-  getLiquidFundTypeFieldDefinition,
-  formatFieldValue
-} from '../../utils/investmentHeaderConfig'
+import { findFormFieldsDefinition, formatFieldValue } from '../../utils/investmentHeaderConfig'
 import { getValueByPath } from '@/common/utils/objectUtils'
-import { FormFieldsDefinition, FormFieldDefinition } from '@/common/data/investment/hooks/useInvestmentCatalogs'
+import { FormFieldDefinition } from '@/common/data/investment/hooks/useInvestmentCatalogs'
 
 export interface ColumnDefinition {
   key: string
@@ -63,37 +59,14 @@ export const createInvestmentReportColumns = (
     }
   })
 
-  // Get form field definition using the correct logic based on investment group
-  let formFieldsDefinition: FormFieldsDefinition | null = null
-
-  // Determine investment group from either mainInvestment or investmentTypeCode
   const investmentGroup = mainInvestment?.investmentGroup?.code
-
-  // Apply the correct rules:
-  // 1) For equity, check the group catalog's object value
-  // 2) For real estate, check the type
-  // 3) For liquid funds, check the investmentliquidfundtype
-  // 4) For private equity, check the group's object value (no specific types)
-
-  if (investmentGroup === 'EQUITY') {
-    // RULE 1: For equity, check the EQUITY group's object value
-    formFieldsDefinition = getInvestmentTypeFieldDefinition(investmentTypeCode, catalogData)
-  } else if (investmentGroup === 'LIQUID_FUND' && liquidFundTypeCode) {
-    // RULE 3: For liquid funds, check the investmentliquidfundtype
-    formFieldsDefinition = getLiquidFundTypeFieldDefinition(liquidFundTypeCode, catalogData)
-  } else if (investmentGroup === 'REAL_ESTATE') {
-    // RULE 2: For real estate, check the TYPE
-    formFieldsDefinition = getInvestmentTypeFieldDefinition(investmentTypeCode, catalogData)
-  } else {
-    // RULE 4: For other groups (including generic groups), use the generic type definition lookup
-    // Fallback: Use investment type
-    if (liquidFundTypeCode) {
-      formFieldsDefinition = getLiquidFundTypeFieldDefinition(liquidFundTypeCode, catalogData)
-    }
-    if (!formFieldsDefinition) {
-      formFieldsDefinition = getInvestmentTypeFieldDefinition(investmentTypeCode, catalogData)
-    }
-  }
+  const formFieldsDefinition = findFormFieldsDefinition({
+    investment: mainInvestment,
+    catalogData,
+    investmentTypeCode,
+    liquidFundTypeCode,
+    investmentGroupCode: investmentGroup
+  })
 
   if (formFieldsDefinition?.formFields) {
     // Get all fields and sort by display order (same as header)
