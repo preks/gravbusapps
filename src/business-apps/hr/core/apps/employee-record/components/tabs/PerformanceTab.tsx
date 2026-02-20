@@ -179,13 +179,16 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
     const progress = normalizeProgress(goal.progressPercent || 0)
     if (progress > 0) {
       const rawDate = dayjs(goal.updatedAt || goal.completionDate || goal.startDate)
-      const boundedDate = rawDate.isValid()
-        ? rawDate.isBefore(startDate)
-          ? startDate
-          : rawDate.isAfter(dueDate)
-            ? dueDate
-            : rawDate
-        : dayjs()
+      let boundedDate: dayjs.Dayjs
+      if (!rawDate.isValid()) {
+        boundedDate = dayjs()
+      } else if (rawDate.isBefore(startDate)) {
+        boundedDate = startDate
+      } else if (rawDate.isAfter(dueDate)) {
+        boundedDate = dueDate
+      } else {
+        boundedDate = rawDate
+      }
       events.push({ at: boundedDate.toISOString(), progress })
     }
     return events.sort((a, b) => dayjs(a.at).valueOf() - dayjs(b.at).valueOf())
@@ -350,6 +353,15 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
       ]
     }))
   }
+
+  const toggleMilestone = useCallback((milestoneId: string, checked: boolean) => {
+    const now = dayjs().toISOString()
+    setMilestoneDraft(previous =>
+      previous.map(item =>
+        item.id === milestoneId ? { ...item, done: checked, doneAt: checked ? now : undefined } : item
+      )
+    )
+  }, [])
 
   const setGoalStatusLocally = (status: string) => {
     if (!selectedGoal) return
@@ -549,14 +561,15 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
                   </CardHeader>
                   <CardContent className="gba:space-y-2">
                     {outOfCycleGoals.map(goal => (
-                      <div
+                      <button
                         key={goal.id}
-                        className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:cursor-pointer"
+                        type="button"
+                        className="gba:flex gba:items-center gba:justify-between gba:text-sm gba:cursor-pointer gba:w-full gba:text-left"
                         onClick={() => setSelectedGoalId(goal.id)}
                       >
                         <span>{goal.title}</span>
                         <span className="gba:text-warning">Fix dates to edit</span>
-                      </div>
+                      </button>
                     ))}
                   </CardContent>
                 </Card>
@@ -566,13 +579,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
         </section>
 
         <section className="gba:xl:col-span-7">
-          {!selectedGoal ? (
-            <Card>
-              <CardContent className="gba:p-6">
-                <EmptyState title="Select a goal to view details" />
-              </CardContent>
-            </Card>
-          ) : (
+          {selectedGoal ? (
             <Card>
               <CardHeader>
                 <div className="gba:flex gba:items-start gba:justify-between gba:gap-3">
@@ -637,20 +644,7 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
                           <input
                             type="checkbox"
                             checked={milestone.done}
-                            onChange={event => {
-                              const now = dayjs().toISOString()
-                              setMilestoneDraft(previous =>
-                                previous.map(item =>
-                                  item.id === milestone.id
-                                    ? {
-                                        ...item,
-                                        done: event.target.checked,
-                                        doneAt: event.target.checked ? now : undefined
-                                      }
-                                    : item
-                                )
-                              )
-                            }}
+                            onChange={event => toggleMilestone(milestone.id, event.target.checked)}
                           />
                           {milestone.title}
                         </label>
@@ -727,6 +721,12 @@ const PerformanceTab: React.FC<PerformanceTabProps> = ({
                       />
                     )}
                 </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardContent className="gba:p-6">
+                <EmptyState title="Select a goal to view details" />
               </CardContent>
             </Card>
           )}
