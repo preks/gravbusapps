@@ -89,13 +89,17 @@ function highlightSearchInText(text: string, query: string): React.ReactNode {
   if (!text) return null
   const q = query.trim()
   if (!q) return text
-  const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const specials = String.raw`[.*+?^\${\}()|[\]\\]`
+  const escaped = q.replace(new RegExp(specials, 'g'), String.raw`\$&`)
   const re = new RegExp(`(${escaped})`, 'gi')
   const parts = text.split(re)
   if (parts.length <= 1) return text
   return parts.map((part, i) =>
     i % 2 === 1 ? (
-      <span key={i} className="gba:bg-accent gba:text-accent-foreground gba:rounded-sm gba:px-0.5 gba:font-medium">
+      <span
+        key={`hl-${i}-${part}`}
+        className="gba:bg-accent gba:text-accent-foreground gba:rounded-sm gba:px-0.5 gba:font-medium"
+      >
         {part}
       </span>
     ) : (
@@ -358,30 +362,35 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
               onOpenAutoFocus={e => e.preventDefault()}
             >
               <div className="gba:py-1.5 gba:pb-2" data-testid="conversation-search-results">
-                {searchLoading ? (
-                  <div className="gba:px-4 gba:py-6 gba:text-sm gba:text-muted-foreground gba:text-center">
-                    {t('chat-searchSearching')}
-                  </div>
-                ) : searchResults.length === 0 ? (
-                  <div className="gba:px-4 gba:py-6 gba:text-sm gba:text-muted-foreground gba:text-center">
-                    {t('chat-searchNoResults')}
-                  </div>
-                ) : (
-                  searchResults.map((msg, idx) => {
+                {(() => {
+                  if (searchLoading) {
+                    return (
+                      <div className="gba:px-4 gba:py-6 gba:text-sm gba:text-muted-foreground gba:text-center">
+                        {t('chat-searchSearching')}
+                      </div>
+                    )
+                  }
+                  if (searchResults.length === 0) {
+                    return (
+                      <div className="gba:px-4 gba:py-6 gba:text-sm gba:text-muted-foreground gba:text-center">
+                        {t('chat-searchNoResults')}
+                      </div>
+                    )
+                  }
+                  return searchResults.map((msg, idx) => {
                     const snippet = (msg.content || '').slice(0, 60)
                     const sender = msg.sender
-                    const senderName =
-                      sender && isGroupChat
-                        ? [sender.firstName, sender.lastName].filter(Boolean).join(' ') || sender.username || ''
-                        : sender
-                          ? [sender.firstName, sender.lastName].filter(Boolean).join(' ') || sender.username || ''
-                          : ''
+                    let senderName = ''
+                    if (sender) {
+                      senderName =
+                        [sender.firstName, sender.lastName].filter(Boolean).join(' ') || sender.username || ''
+                    }
                     const avatarLabel = senderName || sender?.username || '?'
                     const createdAt = msg.createdAt
                       ? (() => {
                           try {
                             const d = new Date(msg.createdAt)
-                            if (isNaN(d.getTime())) return ''
+                            if (Number.isNaN(d.getTime())) return ''
                             const now = new Date()
                             const diffMs = now.getTime() - d.getTime()
                             const diffM = Math.floor(diffMs / 60000)
@@ -404,7 +413,7 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
                       <button
                         key={msg.id}
                         type="button"
-                        className={`gba:w-full gba:flex gba:items-start gba:gap-3 gba:px-4 gba:py-2.5 gba:text-left gba:transition-colors gba:hover:bg-accent gba:focus:bg-accent gba:focus:outline-none gba:focus-visible:ring-2 gba:focus-visible:ring-ring gba:focus-visible:ring-offset-0 ${!isLast ? 'gba:border-b gba:border-border/50' : ''}`}
+                        className={`gba:w-full gba:flex gba:items-start gba:gap-3 gba:px-4 gba:py-2.5 gba:text-left gba:transition-colors gba:hover:bg-accent gba:focus:bg-accent gba:focus:outline-none gba:focus-visible:ring-2 gba:focus-visible:ring-ring gba:focus-visible:ring-offset-0 ${isLast ? '' : 'gba:border-b gba:border-border/50'}`}
                         onClick={() => onSearchResultSelect?.(msg.id)}
                         data-testid={`conversation-search-result-${msg.id}`}
                       >
@@ -441,7 +450,7 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
                       </button>
                     )
                   })
-                )}
+                })()}
               </div>
             </PopoverContent>
           </Popover>
@@ -472,55 +481,66 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
               >
                 {name}
               </h2>
-              {isDirectChat &&
-              !compact &&
-              otherUserPresence?.userStatus?.statusMessage &&
-              presenceStatus !== 'offline' ? (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div className="gba:flex gba:items-center gba:gap-1.5 gba:cursor-default">
-                        <ChatTextIcon
-                          size={14}
-                          weight="duotone"
-                          className="gba:text-muted-foreground gba:flex-shrink-0"
-                        />
-                        <p className="gba:text-xs gba:text-muted-foreground gba:truncate gba:italic">
-                          {otherUserPresence.userStatus.statusMessage}
-                        </p>
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom" align="start">
-                      <p className="gba:max-w-xs gba:break-words">{otherUserPresence.userStatus.statusMessage}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              ) : isDirectChat && !compact && otherUserPresence?.lastSeen && presenceStatus === 'offline' ? (
-                <p className="gba:text-xs gba:text-muted-foreground">
-                  {(() => {
-                    try {
-                      const lastSeenDate = new Date(otherUserPresence.lastSeen)
-                      if (isNaN(lastSeenDate.getTime())) return null
-                      const now = new Date()
-                      const diffMs = now.getTime() - lastSeenDate.getTime()
-                      if (diffMs < 0 || isNaN(diffMs)) return null
-                      const diffMinutes = Math.floor(diffMs / (1000 * 60))
-                      const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
-                      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
-                      if (diffMinutes < 1) return 'Last seen just now'
-                      if (diffMinutes < 60) return t('chat-lastSeenMinutes', { minutes: diffMinutes })
-                      if (diffHours < 24) return t('chat-lastSeenHours', { hours: diffHours })
-                      if (diffDays < 7) return t('chat-lastSeenDays', { days: diffDays })
-                      return t('chat-lastSeenLongAgo')
-                    } catch (error) {
-                      console.error('Error calculating last seen time in header:', error)
-                      return null
-                    }
-                  })()}
-                </p>
-              ) : hasActiveCall && !compact ? (
-                <p className="gba:text-xs gba:text-success">{t(getCallMessageKey())}</p>
-              ) : null}
+              {(() => {
+                if (
+                  isDirectChat &&
+                  !compact &&
+                  otherUserPresence?.userStatus?.statusMessage &&
+                  presenceStatus !== 'offline'
+                ) {
+                  return (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="gba:flex gba:items-center gba:gap-1.5 gba:cursor-default">
+                            <ChatTextIcon
+                              size={14}
+                              weight="duotone"
+                              className="gba:text-muted-foreground gba:flex-shrink-0"
+                            />
+                            <p className="gba:text-xs gba:text-muted-foreground gba:truncate gba:italic">
+                              {otherUserPresence.userStatus.statusMessage}
+                            </p>
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom" align="start">
+                          <p className="gba:max-w-xs gba:break-words">{otherUserPresence.userStatus.statusMessage}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )
+                }
+                if (isDirectChat && !compact && otherUserPresence?.lastSeen && presenceStatus === 'offline') {
+                  return (
+                    <p className="gba:text-xs gba:text-muted-foreground">
+                      {(() => {
+                        try {
+                          const lastSeenDate = new Date(otherUserPresence.lastSeen)
+                          if (Number.isNaN(lastSeenDate.getTime())) return null
+                          const now = new Date()
+                          const diffMs = now.getTime() - lastSeenDate.getTime()
+                          if (diffMs < 0 || Number.isNaN(diffMs)) return null
+                          const diffMinutes = Math.floor(diffMs / (1000 * 60))
+                          const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
+                          const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+                          if (diffMinutes < 1) return 'Last seen just now'
+                          if (diffMinutes < 60) return t('chat-lastSeenMinutes', { minutes: diffMinutes })
+                          if (diffHours < 24) return t('chat-lastSeenHours', { hours: diffHours })
+                          if (diffDays < 7) return t('chat-lastSeenDays', { days: diffDays })
+                          return t('chat-lastSeenLongAgo')
+                        } catch (error) {
+                          console.error('Error calculating last seen time in header:', error)
+                          return null
+                        }
+                      })()}
+                    </p>
+                  )
+                }
+                if (hasActiveCall && !compact) {
+                  return <p className="gba:text-xs gba:text-success">{t(getCallMessageKey())}</p>
+                }
+                return null
+              })()}
               {isGroupChat && conversation.participants && !compact && (
                 <p className="gba:text-xs gba:text-muted-foreground">
                   {t('chat-participantsCount', { count: conversation.participants.length.toString() })}
