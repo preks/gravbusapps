@@ -711,6 +711,11 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
       conversationsHookRef.current?.updateConversation?.(data.conversationId, {
         activeCall: null
       } as Partial<Conversation>)
+      // Refetch messages for this conversation so "Meeting ended" system message appears
+      // (backend persists it; new_message may be missed if socket left room or due to timing)
+      if (data.conversationId === activeConversationIdRef.current) {
+        setTimeout(() => messagesHookRef.current?.refresh?.(), 300)
+      }
     }
 
     const handleConversationActiveCalls = (calls: ActiveCall[]) => {

@@ -193,63 +193,168 @@ export function GroupCallModalRtkFullView({ props: p, state }: GroupCallModalRtk
                       state.contentProminentWhenSharing ? 'gba:flex-[1]' : 'gba:flex-[3]'
                     }`}
                   >
-                    <HorizontalFilmstrip
-                      participants={
-                        state.gridItems
-                          .filter(
-                            item =>
-                              item.type === 'video' ||
-                              item.type === 'avatar' ||
-                              (item.type === 'screen-share' && !item.isFocusedScreenShare)
-                          )
-                          .map(item => ({
-                            id: item.id,
-                            peerId: item.peerId,
-                            peerName: item.peerName,
-                            avatarUrl: item.avatarUrl,
-                            userId: item.userId,
-                            customParticipantId: item.customParticipantId,
-                            isLocal: item.isLocal,
-                            isMuted: item.isMuted,
-                            hasVideoTrack: item.hasVideoTrack || false,
-                            hasAudioTrack: item.hasAudioTrack || false,
-                            type: item.type,
-                            screenShareTrack: item.screenShareTrack,
-                            isHandRaised: hideReactionsAndHandRaise
-                              ? false
-                              : state.isParticipantHandRaised(item.peerId, item.userId, item.customParticipantId),
-                            handRaisedOrderNumber: hideReactionsAndHandRaise
-                              ? undefined
-                              : state.getHandRaisedOrderNumber(item.peerId, item.userId, item.customParticipantId),
-                            isActiveSpeaker: item.isActiveSpeaker
-                          })) as any
-                      }
-                      videoRefCallback={(peerId: string, isLocal: boolean) =>
-                        state.getVideoRefCallback(peerId, '', isLocal)
-                      }
-                      screenShareVideoRefCallback={(peerId: string) => (el: HTMLVideoElement | null) => {
-                        if (el) {
-                          state.screenShareVideoRefs.current.set(peerId, el)
-                        } else {
-                          state.screenShareVideoRefs.current.delete(peerId)
+                    {state.contentProminentWhenSharing ? (
+                      <HorizontalFilmstrip
+                        participants={
+                          state.gridItems
+                            .filter(
+                              item =>
+                                item.type === 'video' ||
+                                item.type === 'avatar' ||
+                                (item.type === 'screen-share' && !item.isFocusedScreenShare)
+                            )
+                            .map(item => ({
+                              id: item.id,
+                              peerId: item.peerId,
+                              peerName: item.peerName,
+                              avatarUrl: item.avatarUrl,
+                              userId: item.userId,
+                              customParticipantId: item.customParticipantId,
+                              isLocal: item.isLocal,
+                              isMuted: item.isMuted,
+                              hasVideoTrack: item.hasVideoTrack || false,
+                              hasAudioTrack: item.hasAudioTrack || false,
+                              type: item.type,
+                              screenShareTrack: item.screenShareTrack,
+                              isHandRaised: hideReactionsAndHandRaise
+                                ? false
+                                : state.isParticipantHandRaised(item.peerId, item.userId, item.customParticipantId),
+                              handRaisedOrderNumber: hideReactionsAndHandRaise
+                                ? undefined
+                                : state.getHandRaisedOrderNumber(item.peerId, item.userId, item.customParticipantId),
+                              isActiveSpeaker: item.isActiveSpeaker
+                            })) as any
                         }
-                      }}
-                      onScreenShareClick={(peerId: string) => {
-                        state.setFocusedScreenShareId(peerId)
-                      }}
-                      activeSpeakerId={activeSpeakerId}
-                      reactions={hideReactionsAndHandRaise ? [] : state.activeReactions}
-                      t={state.t}
-                      prefixDataTestId={`${prefixDataTestId}-filmstrip`}
-                      isMinimized={callState.isMinimized}
-                    />
+                        videoRefCallback={(peerId: string, isLocal: boolean) =>
+                          state.getVideoRefCallback(peerId, '', isLocal)
+                        }
+                        screenShareVideoRefCallback={(peerId: string) => (el: HTMLVideoElement | null) => {
+                          if (el) {
+                            state.screenShareVideoRefs.current.set(peerId, el)
+                          } else {
+                            state.screenShareVideoRefs.current.delete(peerId)
+                          }
+                        }}
+                        onScreenShareClick={(peerId: string) => {
+                          state.setFocusedScreenShareId(peerId)
+                        }}
+                        activeSpeakerId={activeSpeakerId}
+                        reactions={hideReactionsAndHandRaise ? [] : state.activeReactions}
+                        t={state.t}
+                        prefixDataTestId={`${prefixDataTestId}-filmstrip`}
+                        isMinimized={callState.isMinimized}
+                      />
+                    ) : (
+                      (() => {
+                        const peopleOnlyItems = state.gridItems.filter(
+                          item =>
+                            item.type === 'video' ||
+                            item.type === 'avatar' ||
+                            (item.type === 'screen-share' && !item.isFocusedScreenShare)
+                        )
+                        const perPage =
+                          state.paginatedGridItems.totalPages > 0
+                            ? Math.ceil(state.paginatedGridItems.totalItems / state.paginatedGridItems.totalPages)
+                            : 12
+                        const peopleTotalPages = Math.ceil(peopleOnlyItems.length / perPage) || 1
+                        const effectivePage = Math.min(state.currentPage, Math.max(0, peopleTotalPages - 1))
+                        const peoplePageItems = peopleOnlyItems.slice(
+                          effectivePage * perPage,
+                          (effectivePage + 1) * perPage
+                        )
+                        return (
+                          <VideoGrid
+                            mode="auto-fit"
+                            minTileSize={state.minTileSize}
+                            gridItems={peoplePageItems.map(item => {
+                              const hasVideoOrShare = item.hasVideoTrack || !!item.screenShareTrack
+                              const tileBg = hasVideoOrShare ? 'gba:bg-black' : 'gba:bg-muted'
+                              const tile = (
+                                <MemoizedParticipantVideoTile
+                                  peerId={item.peerId}
+                                  peerName={item.peerName}
+                                  avatarUrl={item.avatarUrl}
+                                  userId={item.userId}
+                                  customParticipantId={item.customParticipantId}
+                                  isLocal={item.isLocal}
+                                  isMuted={item.isMuted}
+                                  hasVideoTrack={item.hasVideoTrack || false}
+                                  hasAudioTrack={item.hasAudioTrack || false}
+                                  screenShareTrack={item.screenShareTrack}
+                                  isFocusedScreenShare={false}
+                                  totalScreenShares={state.allScreenShares.length}
+                                  isHandRaised={
+                                    hideReactionsAndHandRaise
+                                      ? false
+                                      : state.isParticipantHandRaised(
+                                          item.peerId,
+                                          item.userId,
+                                          item.customParticipantId
+                                        )
+                                  }
+                                  handRaisedOrderNumber={
+                                    hideReactionsAndHandRaise
+                                      ? undefined
+                                      : state.getHandRaisedOrderNumber(
+                                          item.peerId,
+                                          item.userId,
+                                          item.customParticipantId
+                                        )
+                                  }
+                                  isActiveSpeaker={item.isActiveSpeaker}
+                                  reactions={hideReactionsAndHandRaise ? [] : state.activeReactions}
+                                  isMinimized={callState.isMinimized}
+                                  onScreenShareClick={() => {
+                                    if (item.screenShareTrack) {
+                                      state.setFocusedScreenShareId(item.peerId)
+                                    }
+                                  }}
+                                  onScreenShareFocus={() => {
+                                    state.setFocusedScreenShareId(item.peerId)
+                                  }}
+                                  videoRef={state.getVideoRefCallback(item.peerId, item.peerName, item.isLocal)}
+                                  screenShareVideoRef={
+                                    item.screenShareTrack
+                                      ? el => {
+                                          if (el) {
+                                            state.screenShareVideoRefs.current.set(item.peerId, el)
+                                          } else {
+                                            state.screenShareVideoRefs.current.delete(item.peerId)
+                                          }
+                                        }
+                                      : undefined
+                                  }
+                                  prefixDataTestId={prefixDataTestId}
+                                  t={state.t}
+                                />
+                              )
+                              return (
+                                <div
+                                  key={item.id}
+                                  className={`gba:w-full gba:min-w-0 gba:aspect-video gba:rounded-lg gba:overflow-hidden ${tileBg}`}
+                                  data-testid={`${prefixDataTestId}-grid-item-${item.id}`}
+                                >
+                                  {tile}
+                                </div>
+                              )
+                            })}
+                            currentPage={effectivePage}
+                            totalPages={peopleTotalPages}
+                            totalItems={peopleOnlyItems.length}
+                            onPageChange={state.setCurrentPage}
+                            isEmpty={peopleOnlyItems.length === 0}
+                            prefixDataTestId={prefixDataTestId}
+                            t={state.t}
+                          />
+                        )
+                      })()
+                    )}
                   </div>
                 </>
               ) : (
                 <VideoGrid
                   mode="auto-fit"
                   minTileSize={state.minTileSize}
-                  maxTileSize={state.maxTileSize}
                   gridItems={state.paginatedGridItems.items.map(item => {
                     const hasVideoOrShare = item.hasVideoTrack || !!item.screenShareTrack
                     const tileBg = hasVideoOrShare ? 'gba:bg-black' : 'gba:bg-muted'
