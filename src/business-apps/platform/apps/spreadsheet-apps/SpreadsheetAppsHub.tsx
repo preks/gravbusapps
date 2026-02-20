@@ -61,7 +61,6 @@ import {
   Copy,
   Play,
   ArrowUpDown,
-  Check,
   X,
   LayoutGrid,
   User,
@@ -329,7 +328,10 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
 
   // Update URL whenever activeSection changes (when user clicks sidebar)
   useEffect(() => {
+    const hasAppIdInUrl = new URLSearchParams(globalThis.window.location.search).has('appId')
     if (currentView === 'list' && !currentApp) {
+      // During initial URL restore, keep appId/view params until loading finishes.
+      if (hasAppIdInUrl) return
       updateUrl(null)
     }
   }, [activeSection, currentView, currentApp, updateUrl])
@@ -1395,50 +1397,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                         {t('action-delete-spreadsheet')}
                       </Button>
                     </>
-                  ) : (
-                    <>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm">
-                            <ArrowUpDown className="gba:w-4 gba:h-4 gba:mr-1" />
-                            {t('action-sort')}
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start">
-                          <DropdownMenuItem
-                            onClick={() => {
-                              setSortBy('name')
-                              setSortOrder('asc')
-                            }}
-                          >
-                            {sortBy === 'name' && <Check className="gba:w-4 gba:h-4 gba:mr-2" />}
-                            {t('action-sort-name')}
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => {
-                              setSortBy('modified')
-                              setSortOrder('desc')
-                            }}
-                          >
-                            {sortBy === 'modified' && <Check className="gba:w-4 gba:h-4 gba:mr-2" />}
-                            {t('action-sort-modified')}
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => {
-                              setSortBy('created')
-                              setSortOrder('desc')
-                            }}
-                          >
-                            {sortBy === 'created' && <Check className="gba:w-4 gba:h-4 gba:mr-2" />}
-                            {t('action-sort-created')}
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                      <Button variant="ghost" size="sm" onClick={() => refreshApps()}>
-                        <RefreshCw className="gba:w-4 gba:h-4" />
-                      </Button>
-                    </>
-                  )}
+                  ) : null}
                 </div>
 
                 <div className="gba:flex gba:items-center gba:gap-2">
@@ -1451,6 +1410,21 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                       className="gba:pl-9 gba:w-64 gba:h-9"
                     />
                   </div>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => refreshApps()}
+                        data-testid="spreadsheet-apps-hub-refresh-button"
+                      >
+                        <RefreshCw className="gba:w-4 gba:h-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{t('action-refresh')}</p>
+                    </TooltipContent>
+                  </Tooltip>
                   <div className="gba:flex gba:items-center gba:border gba:rounded-md">
                     <Button
                       variant={viewLayout === 'list' ? 'secondary' : 'ghost'}

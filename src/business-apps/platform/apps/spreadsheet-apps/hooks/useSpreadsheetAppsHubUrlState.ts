@@ -61,7 +61,12 @@ export function useSpreadsheetAppsHubUrlState(
       if (appId) {
         urlParams.set('appId', appId)
         if (view) urlParams.set('view', view)
-        if (filePath) urlParams.set('filePath', encodeURIComponent(filePath))
+        if (filePath) {
+          urlParams.set('filePath', encodeURIComponent(filePath))
+        } else {
+          // Avoid carrying stale filePath from previous app URL state.
+          urlParams.delete('filePath')
+        }
       } else {
         urlParams.delete('appId')
         urlParams.delete('view')
@@ -102,14 +107,26 @@ export function useSpreadsheetAppsHubUrlState(
     if (loadAttemptedRef.current === appId) return
 
     loadAttemptedRef.current = appId
-    loadAppById(appId, filePath ? decodeURIComponent(filePath) : undefined).then(app => {
+
+    const loadFromUrl = async () => {
+      const decodedFilePath = filePath ? decodeURIComponent(filePath) : undefined
+      let app = await loadAppById(appId, decodedFilePath)
+
+      // Retry once without filePath in case URL carries an outdated path.
+      if (!app && decodedFilePath) {
+        app = await loadAppById(appId)
+      }
+
       if (!app) {
         onLoadFailed?.(appId)
         return
       }
+
       setSelectedAppId(appId)
       setCurrentView(view === 'editor' ? 'editor' : 'viewer')
-    })
+    }
+
+    void loadFromUrl()
   }, [currentAppId, isLoadingApps, loadAppById, setCurrentView, setSelectedAppId, onLoadFailed])
 
   // Track if we came from desk.
