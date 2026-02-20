@@ -2,7 +2,7 @@
  * useGroupCallModalRtkState - State and effects for GroupCallModalRtk (Realtime Kit group call UI).
  */
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useChatTranslation } from '../contexts/TranslationContext'
 import { getScreenShareTrack } from '../utils/groupCallModalUtils'
 import { isVideoTrackScreenShare } from '../utils/callUtils'
@@ -23,7 +23,6 @@ export function useGroupCallModalRtkState(props: GroupCallModalRtkProps) {
     callState,
     participants,
     activeSpeakerId,
-    activeSpeakerHistory,
     onEndCall,
     onToggleMute,
     onToggleVideo,
@@ -81,6 +80,15 @@ export function useGroupCallModalRtkState(props: GroupCallModalRtkProps) {
     gallerySize,
     setGallerySize
   } = sidebar
+
+  // Active speaker promotion to page 1 (gallery only): avoid shuffling; promote after T seconds
+  const PROMOTE_AFTER_MS = 2500
+  const MIN_TIME_IN_SLOT_MS = 2000
+  const [promotedActiveSpeakerId, setPromotedActiveSpeakerId] = useState<string | null>(null)
+  const [promotedAtTimestamp, setPromotedAtTimestamp] = useState(0)
+  const promotionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const promotedActiveSpeakerIdRef = useRef<string | null>(null)
+  const promotedAtTimestampRef = useRef(0)
 
   const videoRefs = useGroupCallModalVideoRefs(props)
   const {
@@ -222,8 +230,8 @@ export function useGroupCallModalRtkState(props: GroupCallModalRtkProps) {
     }
   }, [allScreenShares, focusedScreenShareId])
 
-  // Build unified grid items: participants + screen shares
-  const gridItems = useMemo(() => {
+  // Build stable grid order: focused + local + remotes (stable order) + screen shares. No active-speaker re-sort.
+  const stableGridItems = useMemo(() => {
     // FIXED: Create mapping from userId to avatarUrl from CALL conversation participants
     // NOT from activeConversation (which changes as user navigates)
     const avatarUrlMap = new Map<string, string>()
@@ -346,40 +354,14 @@ export function useGroupCallModalRtkState(props: GroupCallModalRtkProps) {
       seenIds.add(localParticipantId)
     }
 
-    // Add non-focused screen shares to grid
-    allScreenShares.forEach(share => {
-      // Skip if this is the focused screen share (already added above)
-      if (share.peerId === focusedScreenShare?.peerId) {
-        return
-      }
-
-      const shareId = `screen-share-${share.peerId}`
-      if (seenIds.has(shareId)) {
-      } else {
-        items.push({
-          id: shareId,
-          type: 'screen-share',
-          peerId: share.peerId,
-          peerName: share.peerName,
-          screenShareTrack: share.screenShareTrack,
-          isLocal: isLocalUser(share.peerId),
-          isMuted: isLocalUser(share.peerId) ? effectiveLocalIsMuted : false,
-          isVideoEnabled: true
-        })
-        seenIds.add(shareId)
-      }
-    })
-
-    // Add remote participants (videos or avatars) - always add, even if sharing screen
+    // Add remote participants (videos or avatars) in stable order - no re-sort by active speaker
     stableRemotePeers?.forEach((peer: any) => {
-      // Get camera track - exclude screen share track
       const cameraVideoTrack = peer.videoTrack && !isVideoTrackScreenShare(peer.videoTrack) ? peer.videoTrack : null
       const hasVideo = peer.videoEnabled && !!cameraVideoTrack
 
       const participantId = `participant-${peer.id}`
       if (seenIds.has(participantId)) {
       } else {
-        // Try to match avatar by userId or customParticipantId
         const avatarUrl =
           avatarUrlMap.get(peer.userId) ||
           avatarUrlMap.get(peer.customParticipantId) ||
@@ -392,65 +374,42 @@ export function useGroupCallModalRtkState(props: GroupCallModalRtkProps) {
           peerId: peer.id,
           peerName: peer.name || peer.displayName || peer.odName || peer.customParticipantId || 'Unknown',
           avatarUrl: avatarUrl || peer.avatarUrl || peer.picture,
-          userId: peer.userId, // SDK userId - for checking hand-raised state
-          customParticipantId: peer.customParticipantId, // Our DB user ID - for checking hand-raised state
+          userId: peer.userId,
+          customParticipantId: peer.customParticipantId,
           videoTrack: cameraVideoTrack,
           audioTrack: peer.audioTrack,
-          hasVideoTrack: hasVideo, // For rendering decision
-          hasAudioTrack: !!peer.audioTrack, // Audio needs video element too!
+          hasVideoTrack: hasVideo,
+          hasAudioTrack: !!peer.audioTrack,
           isLocal: false,
           isMuted: !peer.audioEnabled,
           isVideoEnabled: peer.videoEnabled || false,
-          isActiveSpeaker: activeSpeakerId === peer.id // Check if this peer is active speaker
+          isActiveSpeaker: activeSpeakerId === peer.id
         })
         seenIds.add(participantId)
       }
     })
 
-    // Sort items: Active speaker first (after focused screen share), then by history
-    const focusedScreenShareCount = focusedScreenShare ? 1 : 0
-    // CRITICAL: Find local participant, NOT screen share (screen share is also isLocal=true)
-    const localItem = items.find(i => i.isLocal && i.type !== 'screen-share')
+    // Add non-focused screen shares after remotes (stable order: focused + local + remotes + screen shares)
+    allScreenShares.forEach(share => {
+      if (share.peerId === focusedScreenShare?.peerId) return
 
-    const activeSpeakerItems = items
-      .slice(focusedScreenShareCount)
-      .filter(item => item.isActiveSpeaker && !item.isLocal && item.type !== 'screen-share')
-    const historyItems = items
-      .slice(focusedScreenShareCount)
-      .filter(
-        item =>
-          !item.isActiveSpeaker &&
-          !item.isLocal &&
-          item.type !== 'screen-share' &&
-          activeSpeakerHistory?.includes(item.peerId)
-      )
-      .sort((a, b) => {
-        const aIndex = activeSpeakerHistory?.indexOf(a.peerId) ?? -1
-        const bIndex = activeSpeakerHistory?.indexOf(b.peerId) ?? -1
-        return aIndex - bIndex
+      const shareId = `screen-share-${share.peerId}`
+      if (seenIds.has(shareId)) return
+
+      items.push({
+        id: shareId,
+        type: 'screen-share',
+        peerId: share.peerId,
+        peerName: share.peerName,
+        screenShareTrack: share.screenShareTrack,
+        isLocal: isLocalUser(share.peerId),
+        isMuted: isLocalUser(share.peerId) ? effectiveLocalIsMuted : false,
+        isVideoEnabled: true
       })
-    const otherItems = items
-      .slice(focusedScreenShareCount)
-      .filter(
-        item =>
-          !item.isActiveSpeaker &&
-          !item.isLocal &&
-          item.type !== 'screen-share' &&
-          !activeSpeakerHistory?.includes(item.peerId)
-      )
-    const screenShareItems = items.slice(focusedScreenShareCount).filter(i => i.type === 'screen-share')
+      seenIds.add(shareId)
+    })
 
-    // Reconstruct: focused screen share (if any) + local + active speaker + history + others + screen shares
-    const sortedItems = [
-      ...items.slice(0, focusedScreenShareCount), // Keep focused screen share first
-      ...(localItem ? [localItem] : []),
-      ...activeSpeakerItems,
-      ...historyItems,
-      ...otherItems,
-      ...screenShareItems
-    ]
-
-    return sortedItems
+    return items
   }, [
     focusedScreenShare,
     allScreenShares,
@@ -470,12 +429,93 @@ export function useGroupCallModalRtkState(props: GroupCallModalRtkProps) {
     localScreenShareTrack?.id, // local screen share track identity
     meeting?.self?.userId, // For hand-raised checks
     meeting?.self?.customParticipantId, // For reactions
-    activeSpeakerId,
-    activeSpeakerHistory,
+    activeSpeakerId, // Only for isActiveSpeaker highlight; order is stable
     callConversationProp?.participants, // For avatar URLs from call conversation
     activeConversation?.participants, // Fallback for avatar URLs
     currentUserId // For local avatar lookup
   ])
+
+  // Apply single swap: promote active speaker from page 2+ into last remote slot on page 1 (gallery only)
+  const gridItems = useMemo(() => {
+    const list = stableGridItems
+    if (!promotedActiveSpeakerId || list.length === 0) return list
+
+    const promotedIndex = list.findIndex(item => item.peerId === promotedActiveSpeakerId)
+    if (promotedIndex === -1) return list
+
+    // Slot = last remote video/avatar on page 1 (swappable position)
+    let slotIndex = -1
+    for (let i = Math.min(PARTICIPANTS_PER_PAGE, list.length) - 1; i >= 0; i--) {
+      const item = list[i]
+      if (!item.isLocal && item.type !== 'screen-share' && !item.isFocusedScreenShare) {
+        slotIndex = i
+        break
+      }
+    }
+    if (slotIndex === -1) return list
+
+    const slotItem = list[slotIndex]
+    if (slotItem.isLocal || slotItem.isFocusedScreenShare) return list
+
+    if (promotedIndex !== slotIndex && promotedIndex >= PARTICIPANTS_PER_PAGE) {
+      const next = [...list]
+      next[slotIndex] = list[promotedIndex]
+      next[promotedIndex] = list[slotIndex]
+      return next
+    }
+    return list
+  }, [stableGridItems, promotedActiveSpeakerId, PARTICIPANTS_PER_PAGE])
+
+  // Keep refs in sync for use inside timer callback
+  promotedActiveSpeakerIdRef.current = promotedActiveSpeakerId
+  promotedAtTimestampRef.current = promotedAtTimestamp
+
+  // Promotion timer: only promote to page 1 after T seconds of continuous active speaker
+  useEffect(() => {
+    if (promotionTimerRef.current) {
+      clearTimeout(promotionTimerRef.current)
+      promotionTimerRef.current = null
+    }
+
+    const localPeerId = meeting?.self?.id ?? null
+    if (activeSpeakerId == null || activeSpeakerId === localPeerId) return
+
+    const stable = stableGridItems
+    const perPage = PARTICIPANTS_PER_PAGE
+
+    promotionTimerRef.current = setTimeout(() => {
+      promotionTimerRef.current = null
+      const idx = stable.findIndex(item => item.peerId === activeSpeakerId)
+      if (idx === -1 || idx < perPage) return
+
+      if (
+        promotedActiveSpeakerIdRef.current != null &&
+        Date.now() - promotedAtTimestampRef.current < MIN_TIME_IN_SLOT_MS
+      ) {
+        return
+      }
+
+      setPromotedActiveSpeakerId(activeSpeakerId)
+      setPromotedAtTimestamp(Date.now())
+    }, PROMOTE_AFTER_MS)
+
+    return () => {
+      if (promotionTimerRef.current) {
+        clearTimeout(promotionTimerRef.current)
+        promotionTimerRef.current = null
+      }
+    }
+  }, [activeSpeakerId, meeting?.self?.id, stableGridItems, PARTICIPANTS_PER_PAGE])
+
+  // Clear promoted when that participant leaves the call
+  useEffect(() => {
+    if (!promotedActiveSpeakerId) return
+    const stillInCall = stableGridItems.some(item => item.peerId === promotedActiveSpeakerId)
+    if (!stillInCall) {
+      setPromotedActiveSpeakerId(null)
+      setPromotedAtTimestamp(0)
+    }
+  }, [promotedActiveSpeakerId, stableGridItems])
 
   // Clean up stale video ref callbacks when participants leave
   useEffect(() => {
