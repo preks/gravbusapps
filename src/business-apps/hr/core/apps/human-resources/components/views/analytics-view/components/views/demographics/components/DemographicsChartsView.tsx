@@ -89,14 +89,34 @@ const DemographicsChartsView: React.FC<DemographicsChartsViewProps> = ({ demogra
     if (!label || label === 'unknown') return Number.MAX_SAFE_INTEGER
     if (label.includes('under 25') || label.includes('<25') || label.includes('< 25')) return 24
 
-    const rangeMatch = /(\d+)\s*-\s*(\d+)/.exec(label)
-    if (rangeMatch) return Number(rangeMatch[1])
+    const isDigitsOnly = (s: string) => s.length > 0 && [...s].every(c => c >= '0' && c <= '9')
 
-    const plusMatch = /(\d+)\s*\+/.exec(label)
-    if (plusMatch) return Number(plusMatch[1])
+    const dashIdx = label.indexOf('-')
+    if (dashIdx !== -1) {
+      const before = label.slice(0, dashIdx).trim()
+      const after = label.slice(dashIdx + 1).trim()
+      if (isDigitsOnly(before) && isDigitsOnly(after)) {
+        const num = Number(before)
+        if (Number.isFinite(num)) return num
+      }
+    }
 
-    const underMatch = /under\s*(\d+)/.exec(label)
-    if (underMatch) return Number(underMatch[1]) - 1
+    const plusIdx = label.indexOf('+')
+    if (plusIdx !== -1) {
+      const before = label.slice(0, plusIdx).trim()
+      if (isDigitsOnly(before)) {
+        const num = Number(before)
+        if (Number.isFinite(num)) return num
+      }
+    }
+
+    if (label.startsWith('under')) {
+      const rest = label.slice(5).trim()
+      if (isDigitsOnly(rest)) {
+        const num = Number(rest)
+        if (Number.isFinite(num)) return num - 1
+      }
+    }
 
     return Number.MAX_SAFE_INTEGER
   }
