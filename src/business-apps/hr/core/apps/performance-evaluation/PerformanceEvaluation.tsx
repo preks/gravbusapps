@@ -268,22 +268,40 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
     }
 
     try {
-      // Build the payload according to the API specification
-      const payload = {
-        employeePerformanceEvaluation: {
-          employee: platformContext.employeeId,
-          performanceCycle: cycle.id
-        },
-        managerUserId: managerUserId || '',
-        employeeUserId: currentEmployeeUserId || ''
+      if (runFor === 'self') {
+        const payload = {
+          employeePerformanceEvaluation: {
+            employee: platformContext.employeeId,
+            performanceCycle: cycle.id
+          },
+          managerUserId: managerUserId || '',
+          employeeUserId: currentEmployeeUserId || '',
+          performanceCycleId: cycle.id
+        }
+        startProcess({
+          domain: 'employee',
+          processName: 'performanceEvaluation',
+          payload
+        })
+      } else {
+        selectedTeamIds.forEach(teamId => {
+          const payload = {
+            employeePerformanceEvaluation: {
+              employee: platformContext.employeeId,
+              performanceCycle: cycle.id
+            },
+            managerUserId: managerUserId || '',
+            employeeUserId: currentEmployeeUserId || '',
+            performanceCycleId: cycle.id,
+            teamId
+          }
+          startProcess({
+            domain: 'employee',
+            processName: 'teamPerformanceEvaluation',
+            payload
+          })
+        })
       }
-
-      // Start the Kogito process
-      startProcess({
-        domain: 'employee',
-        processName: 'performanceEvaluation',
-        payload
-      })
 
       const message =
         runFor === 'self'
