@@ -135,12 +135,12 @@ export const PreCallSetupDialog: React.FC<PreCallSetupDialogProps> = memo(
 
           // Try to parse the conversationName if it's in "Call {Name A} | {Name B}" format
           const participants = parseDirectCallName(conversationName)
-          if (participants && participants.length === 2 && userName) {
+          if (participants?.length === 2 && userName) {
             const other = participants.find(p => p !== userName)
             const name = other ?? participants[0]
             return t('chat-callWith', { name }) || `Call with ${name}`
           }
-          if (participants && participants.length === 2) {
+          if (participants?.length === 2) {
             return t('chat-callWith', { name: participants[0] }) || `Call with ${participants[0]}`
           }
 

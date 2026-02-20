@@ -93,7 +93,7 @@ export const CallHeader: React.FC<CallHeaderProps> = ({
 
   // Use backend-generated call name when provided; otherwise fallback by conversation type
   const getCallTitle = (): string => {
-    if (conversationName && conversationName.trim()) {
+    if (conversationName?.trim()) {
       return conversationName
     }
     switch (conversationType) {

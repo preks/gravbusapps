@@ -266,7 +266,6 @@ export function GroupCallModalRtkFullView({ props: p, state }: GroupCallModalRtk
                           <VideoGrid
                             mode="auto-fit"
                             minTileSize={state.minTileSize}
-                            maxTileSize={state.maxTileSize}
                             gridItems={peoplePageItems.map(item => {
                               const hasVideoOrShare = item.hasVideoTrack || !!item.screenShareTrack
                               const tileBg = hasVideoOrShare ? 'gba:bg-black' : 'gba:bg-muted'
@@ -356,7 +355,6 @@ export function GroupCallModalRtkFullView({ props: p, state }: GroupCallModalRtk
                 <VideoGrid
                   mode="auto-fit"
                   minTileSize={state.minTileSize}
-                  maxTileSize={state.maxTileSize}
                   gridItems={state.paginatedGridItems.items.map(item => {
                     const hasVideoOrShare = item.hasVideoTrack || !!item.screenShareTrack
                     const tileBg = hasVideoOrShare ? 'gba:bg-black' : 'gba:bg-muted'

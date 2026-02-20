@@ -1,3 +1,4 @@
+import React from 'react'
 import { Avatar, AvatarFallback, AvatarImage } from '@newwork/nw-design-system'
 import { PhoneIncomingIcon, PhoneOutgoingIcon, PhoneSlashIcon } from '@phosphor-icons/react'
 import { CalendarIcon, UsersIcon } from 'lucide-react'
@@ -75,6 +76,27 @@ function getOutcomeLabel(outcome: CallInviteOutcomeItem['outcome'], t: TFunction
   }
 }
 
+function renderPresenceIndicator(otherUserPresence: UserPresence | undefined, t: TFunction): React.ReactNode {
+  if (!otherUserPresence) return null
+  if (otherUserPresence.userStatus) {
+    return (
+      <UserStatusIndicator
+        status={otherUserPresence.userStatus}
+        size="sm"
+        className="gba:absolute gba:bottom-0 gba:right-0"
+      />
+    )
+  }
+  const dotClass = otherUserPresence.state === 'online' ? 'gba:bg-success' : 'gba:bg-muted-foreground'
+  const titleText = otherUserPresence.state === 'online' ? t('chat-statusOnline') : t('chat-statusOffline')
+  return (
+    <span
+      className={`gba:absolute gba:bottom-0 gba:right-0 gba:block gba:h-3 gba:w-3 gba:rounded-full gba:border-2 gba:border-background ${dotClass}`}
+      title={titleText}
+    />
+  )
+}
+
 export interface CallHistoryItemJoinedProps {
   item: CallSessionItem
   currentUserId: string
@@ -130,20 +152,7 @@ export function CallHistoryItemJoined({
             {hostAvatarUrl && <AvatarImage src={hostAvatarUrl} alt={hostName} />}
             <AvatarFallback className="gba:text-sm gba:font-medium">{getInitials(hostName || callName)}</AvatarFallback>
           </Avatar>
-          {otherUserPresence?.userStatus ? (
-            <UserStatusIndicator
-              status={otherUserPresence.userStatus}
-              size="sm"
-              className="gba:absolute gba:bottom-0 gba:right-0"
-            />
-          ) : otherUserPresence ? (
-            <span
-              className={`gba:absolute gba:bottom-0 gba:right-0 gba:block gba:h-3 gba:w-3 gba:rounded-full gba:border-2 gba:border-background ${
-                otherUserPresence.state === 'online' ? 'gba:bg-success' : 'gba:bg-muted-foreground'
-              }`}
-              title={otherUserPresence.state === 'online' ? t('chat-statusOnline') : t('chat-statusOffline')}
-            />
-          ) : null}
+          {renderPresenceIndicator(otherUserPresence, t)}
         </div>
       ) : (
         <div className="gba:flex gba:h-10 gba:w-10 gba:flex-shrink-0 gba:items-center gba:justify-center gba:rounded-full gba:bg-muted gba:text-muted-foreground">
@@ -226,20 +235,7 @@ export function CallHistoryItemOutcome({
               {getInitials(inviterName || callName)}
             </AvatarFallback>
           </Avatar>
-          {otherUserPresence?.userStatus ? (
-            <UserStatusIndicator
-              status={otherUserPresence.userStatus}
-              size="sm"
-              className="gba:absolute gba:bottom-0 gba:right-0"
-            />
-          ) : otherUserPresence ? (
-            <span
-              className={`gba:absolute gba:bottom-0 gba:right-0 gba:block gba:h-3 gba:w-3 gba:rounded-full gba:border-2 gba:border-background ${
-                otherUserPresence.state === 'online' ? 'gba:bg-success' : 'gba:bg-muted-foreground'
-              }`}
-              title={otherUserPresence.state === 'online' ? t('chat-statusOnline') : t('chat-statusOffline')}
-            />
-          ) : null}
+          {renderPresenceIndicator(otherUserPresence, t)}
         </div>
       ) : (
         <div className="gba:flex gba:h-10 gba:w-10 gba:flex-shrink-0 gba:items-center gba:justify-center gba:rounded-full gba:bg-muted gba:text-muted-foreground">

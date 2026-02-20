@@ -16,6 +16,21 @@ import type { CallHistoryFilter, CallHistoryTypeFilter, CallHistoryEntry } from 
 import type { PresenceData } from '../../hooks/usePresence'
 import { CallHistoryItemJoined, CallHistoryItemOutcome } from './CallHistoryItem'
 
+function getOtherUserPresenceForEntry(
+  entry: CallHistoryEntry,
+  currentUserId: string,
+  presenceMap: ReadonlyMap<string, PresenceData> | undefined
+): PresenceData | undefined {
+  if (!presenceMap) return undefined
+  if (entry.type === 'joined') {
+    if (entry.item.hostId === currentUserId) return undefined
+    return presenceMap.get(entry.item.hostId ?? '') ?? presenceMap.get(entry.item.host?.id ?? '') ?? undefined
+  }
+  if (entry.item.inviterId) return presenceMap.get(entry.item.inviterId)
+  if (entry.item.inviter?.id) return presenceMap.get(entry.item.inviter.id)
+  return undefined
+}
+
 const LIMIT = 50
 
 type TFunction = (key: string, params?: Record<string, unknown>) => string
@@ -420,11 +435,7 @@ export const CallHistory: React.FC<CallHistoryProps> = ({
                   item={entry.item}
                   currentUserId={currentUserId}
                   avatarMap={avatarMap}
-                  otherUserPresence={
-                    presenceMap && entry.item.hostId !== currentUserId
-                      ? (presenceMap.get(entry.item.hostId ?? '') ?? presenceMap.get(entry.item.host?.id ?? ''))
-                      : undefined
-                  }
+                  otherUserPresence={getOtherUserPresenceForEntry(entry, currentUserId, presenceMap)}
                   onOpenConversation={onOpenConversation}
                   t={t}
                 />
@@ -433,13 +444,7 @@ export const CallHistory: React.FC<CallHistoryProps> = ({
                   key={`outcome-${entry.item.id}`}
                   item={entry.item}
                   avatarMap={avatarMap}
-                  otherUserPresence={
-                    presenceMap && entry.item.inviterId
-                      ? presenceMap.get(entry.item.inviterId)
-                      : presenceMap && entry.item.inviter?.id
-                        ? presenceMap.get(entry.item.inviter.id)
-                        : undefined
-                  }
+                  otherUserPresence={getOtherUserPresenceForEntry(entry, currentUserId, presenceMap)}
                   onOpenConversation={onOpenConversation}
                   t={t}
                 />

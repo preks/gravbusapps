@@ -66,8 +66,8 @@ const ChatInner: React.FC<ChatProps> = memo(
     const chatViewRef = useRef<HTMLDivElement>(null)
     const [showConversationList, setShowConversationList] = useState(!initialOpenWithUser)
     const getShowCallHistoryFromUrl = useCallback((): boolean => {
-      if (typeof window === 'undefined') return false
-      return new URLSearchParams(window.location.search).get('view') === 'call-history'
+      if (typeof globalThis.window === 'undefined') return false
+      return new URLSearchParams(globalThis.window.location.search).get('view') === 'call-history'
     }, [])
     const [showCallHistory, setShowCallHistory] = useState(getShowCallHistoryFromUrl)
     const [missedCallsCount, setMissedCallsCount] = useState(0)
@@ -98,7 +98,7 @@ const ChatInner: React.FC<ChatProps> = memo(
     // Reset URL processing refs on mount to allow restoration after hard refresh
     useEffect(() => {
       // Only reset if there's a conversationId in URL (user refreshed with a conversation open)
-      const urlParams = new URLSearchParams(window.location.search)
+      const urlParams = new URLSearchParams(globalThis.window.location.search)
       if (urlParams.get('conversationId')) {
         conversationIdFromUrlProcessed.current = false
       }
@@ -294,19 +294,19 @@ const ChatInner: React.FC<ChatProps> = memo(
 
     // Sync call history view with URL (bookmarkable; pushState on open so back closes panel)
     const updateCallHistoryUrl = useCallback((show: boolean, push = false) => {
-      if (typeof window === 'undefined') return
-      const urlParams = new URLSearchParams(window.location.search)
+      if (typeof globalThis.window === 'undefined') return
+      const urlParams = new URLSearchParams(globalThis.window.location.search)
       if (show) urlParams.set('view', 'call-history')
       else urlParams.delete('view')
       const query = urlParams.toString()
-      const newUrl = query ? `${window.location.pathname}?${query}` : window.location.pathname
-      if (push) window.history.pushState({}, '', newUrl)
-      else window.history.replaceState({}, '', newUrl)
+      const newUrl = query ? `${globalThis.window.location.pathname}?${query}` : globalThis.window.location.pathname
+      if (push) globalThis.window.history.pushState({}, '', newUrl)
+      else globalThis.window.history.replaceState({}, '', newUrl)
     }, [])
     useEffect(() => {
       const handlePopState = () => setShowCallHistory(getShowCallHistoryFromUrl())
-      window.addEventListener('popstate', handlePopState)
-      return () => window.removeEventListener('popstate', handlePopState)
+      globalThis.window.addEventListener('popstate', handlePopState)
+      return () => globalThis.window.removeEventListener('popstate', handlePopState)
     }, [getShowCallHistoryFromUrl])
 
     // Track active conversation changes
