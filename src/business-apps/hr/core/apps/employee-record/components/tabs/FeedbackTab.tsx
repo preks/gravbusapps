@@ -1,61 +1,41 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { Employee, EmployeeFeedback } from '../../hooks/useEmployeeData'
 import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
   Button,
   Card,
   CardContent,
   EmptyState,
-  Input,
   Pagination,
   PaginationContent,
   PaginationItem,
-  PaginationLink,
   PaginationNext,
   PaginationPrevious,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
   Spinner,
-  Badge
+  Badge,
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
-import { EMPLOYEE_FEEDBACK_REQUESTS_QUERY_PAGED_WITH_COUNT } from './queries/EmployeeFeedbackRequestQueries'
-import { employeeFeedbackQuery } from '../../queries/feedbackQueries'
+import {
+  EMPLOYEE_FEEDBACK_REQUESTS_QUERY_PAGED_WITH_COUNT,
+  EMPLOYEE_FEEDBACK_REQUESTS_SENT_QUERY_PAGED_WITH_COUNT
+} from './queries/EmployeeFeedbackRequestQueries'
+import { employeeFeedbackQuery, employeeFeedbackGivenQuery } from '../../queries/feedbackQueries'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { getTranslationFromI18nKeyAndLabel, formatDate } from '@/common/utils/windowUtils'
+import { formatDate } from '@/common/utils/windowUtils'
 import { startProcess } from '@/common/utils/start-process'
 import { UserInfoProps } from '../../../../../../../common/BusinessAppContext'
-import { Calendar, Search, Download } from 'lucide-react'
-import { useFlowExecutionTasks } from '@/business-apps/fin/expenses/apps/manager-expenses/hooks/useFlowExecutionTasks'
-import { PiPencilSimple } from 'react-icons/pi'
-
-// Normalize avatar source into a valid image URL
-const toAvatarSrc = (thumb?: string | null): string | undefined => {
-  if (!thumb) return undefined
-  const t = thumb.trim()
-  if (!t) return undefined
-  if (t.startsWith('http://') || t.startsWith('https://')) return t
-  if (t.startsWith('data:image')) return t // already a data URL
-  // Detect common base64 signatures
-  const sig = t.slice(0, 12)
-  let mime = 'image/jpeg'
-  if (sig.startsWith('/9j/'))
-    mime = 'image/jpeg' // JPEG
-  else if (sig.startsWith('iVBORw0KGgo'))
-    mime = 'image/png' // PNG
-  else if (sig.startsWith('R0lGOD'))
-    mime = 'image/gif' // GIF
-  else if (sig.startsWith('Qk')) mime = 'image/bmp' // BMP
-  return `data:${mime};base64,${t}`
-}
+import { PiPencilSimple, PiChatCircle, PiPaperPlaneRight, PiList, PiChartBar } from 'react-icons/pi'
+import translations from '../../_i18n'
+import FeedbackCards from './feedback-hub/FeedbackCards'
+import FeedbackToolbar from './feedback-hub/FeedbackToolbar'
+import { ExtendedEmployeeFeedback, FeedbackRequestRow, FormattedFeedback } from './feedback-hub/types'
 
 interface FeedbackTabProps {
   employee: Employee
@@ -66,61 +46,7 @@ interface FeedbackTabProps {
   isSelfView: boolean // Whether user is viewing their own profile
 }
 
-// Extended feedback interface with additional fields
-interface ExtendedEmployeeFeedback extends EmployeeFeedback {
-  id: string
-  rating?: number
-  private?: boolean
-  type?: string
-}
-
-// Interface for feedback requests
-interface FeedbackRequest {
-  id: string
-  requestedOn?: string
-  dueDate?: string
-  recordState?: string | null
-  message?: string | null
-  reviewerNames?: string[] | null
-  taskName?: string | null
-  taskTitle?: string | null
-  feedbackText?: string | null
-  creatorName?: string | null
-  creatorEmployeeId?: string | null
-  endpoint?: string | null
-  processInstanceId?: string | null
-  employeeFeedbackRequestReviewer?: Array<{
-    id: string
-    reviewerEmployeeId?: string
-    reviewerEmployee?: {
-      id: string
-      firstName?: string | null
-      lastName?: string | null
-      employeePosition?: {
-        employee?: { pictureThumbnail?: string | null } | null
-      } | null
-    } | null
-  }>
-}
-
-// Formatted feedback for display
-interface FormattedFeedback {
-  id?: string
-  sender: string
-  date: string
-  content: string
-  avatar?: string | null
-  senderId?: string
-  firstName: string
-  lastName: string
-  rating?: number
-
-  private?: boolean
-  feedbackPublic?: boolean | null
-  type?: string
-  // Numeric timestamp for sorting by most recent first
-  timestamp?: number
-}
+type FeedbackHubTab = 'received' | 'given' | 'requests' | 'insights'
 
 /**
  * Feedback Tab Component
@@ -131,21 +57,39 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
   accessToken,
   userInfo,
   employeeFeedback = [],
-  isSelfView = false // Default to false if not provided
+  isSelfView = false
 }) => {
-  // State variables for feedback and requests
+  const { t } = useTranslation(translations)
+  const currentUserEmployeeId = userInfo?.employeeDetails?.employeeId ?? employee?.id ?? ''
+
   const [localFeedback, setLocalFeedback] = useState<ExtendedEmployeeFeedback[]>([])
-  // No local state needed for approval tasks in this column
   const [loading, setLoading] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
-
-  // Search and filter state
   const [searchTerm, setSearchTerm] = useState<string>('')
   const [filterType, setFilterType] = useState<string>('all')
+  const [dateFrom, setDateFrom] = useState<string>('')
+  const [dateTo, setDateTo] = useState<string>('')
+  const [senderFilter, setSenderFilter] = useState<string>('all')
+  const [typeFilter, setTypeFilter] = useState<string>('all')
 
-  // Filters for requests (currently not displayed)
+  /** Feedback Hub tab (only when isSelfView). */
+  const [activeHubTab, setActiveHubTab] = useState<FeedbackHubTab>('received')
+  /** Feedback given by current user (sender_employee_id = currentUser). */
+  const [givenFeedback, setGivenFeedback] = useState<ExtendedEmployeeFeedback[]>([])
+  const [givenLoading, setGivenLoading] = useState(false)
+  /** Requests received (employee_id = currentUser) from GraphQL. */
+  const [requestsReceivedList, setRequestsReceivedList] = useState<FeedbackRequestRow[]>([])
+  const [requestsReceivedTotal, setRequestsReceivedTotal] = useState(0)
+  const [requestsReceivedLoading, setRequestsReceivedLoading] = useState(false)
+  const [receivedReqPage, setReceivedReqPage] = useState(1)
+  const [receivedReqPageSize] = useState(10)
+  /** Requests sent (requester_employee_id = currentUser). */
+  const [sentRequestsList, setSentRequestsList] = useState<FeedbackRequestRow[]>([])
+  const [sentRequestsTotal, setSentRequestsTotal] = useState(0)
+  const [sentRequestsLoading, setSentRequestsLoading] = useState(false)
+  const [sentReqPage, setSentReqPage] = useState(1)
+  const [sentReqPageSize] = useState(10)
 
-  // Initialize GraphQL client
   const graphQLClient = useGraphqlClient(accessToken)
 
   // Fetch feedback data
@@ -170,99 +114,63 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
     }
   }
 
-  // Load approval tasks (feedback you received to complete)
-  const [receivedCurrentPage, setReceivedCurrentPage] = useState<number>(1)
-  const [receivedPageSize, setReceivedPageSize] = useState<number>(3)
-
-  const {
-    tasks: feedbackTasks,
-    totalCount: receivedTotalCount,
-    isLoading: receivedLoading,
-    error: receivedError
-  } = useFlowExecutionTasks({ accessToken, userInfo } as any, {
-    currentPage: receivedCurrentPage,
-    pageSize: receivedPageSize,
-    searchTerm: '',
-    filterTaskName: 'enterRequestedFeedback'
-  })
-
-  // GraphQL: Feedback you requested (second column)
-  const [requestedFeedback, setRequestedFeedback] = useState<FeedbackRequest[]>([])
-  const [requestedTotalCount, setRequestedTotalCount] = useState<number>(0)
-  const [requestsLoadingApproval, setRequestsLoadingApproval] = useState<boolean>(false)
-  const [requestsErrorApproval, setRequestsErrorApproval] = useState<string | null>(null)
-  const [requestedCurrentPage, setRequestedCurrentPage] = useState<number>(1)
-  const [requestedPageSize, setRequestedPageSize] = useState<number>(3)
-
-  // Query moved to queries/EmployeeFeedbackRequestQueries.ts
-
-  const fetchRequestedFeedback = async () => {
-    if (!employee?.id) return
+  const fetchGivenFeedback = useCallback(async () => {
+    if (!currentUserEmployeeId) return
     try {
-      setRequestsLoadingApproval(true)
-      setRequestsErrorApproval(null)
-
-      // Fetch enough items to account for COMPLETED items being filtered out
-      // Request 3x the page size to ensure we have enough after filtering
-      const fetchLimit = requestedPageSize * 3
-      const baseOffset = (requestedCurrentPage - 1) * requestedPageSize
-      let allFilteredRows: any[] = []
-      let currentOffset = baseOffset
-      let totalCount: number | undefined
-      const maxIterations = 10 // Safety limit to prevent infinite loops
-
-      // Keep fetching until we have enough non-COMPLETED items
-      for (let i = 0; i < maxIterations && allFilteredRows.length < requestedPageSize; i++) {
-        const res = await graphQLClient.request<any>(EMPLOYEE_FEEDBACK_REQUESTS_QUERY_PAGED_WITH_COUNT, {
-          idEmployee: employee.id,
-          limit: fetchLimit,
-          offset: currentOffset
-        })
-        const rows: any[] = res?.EmployeeFeedbackRequest || []
-
-        // Get total count from first response (includes COMPLETED items)
-        if (i === 0) {
-          totalCount = res?.EmployeeFeedbackRequestAggregate?.aggregate?.count
-        }
-
-        // Filter out COMPLETED items
-        const filteredRows = rows.filter(
-          (r: any) => !r.statusRef || r.statusRef !== 'EmployeeFeedbackRequestStatus:v1:COMPLETED'
-        )
-
-        allFilteredRows = [...allFilteredRows, ...filteredRows]
-        currentOffset += rows.length
-      }
-
-      // Set total count (includes COMPLETED, so pagination may show more pages than non-COMPLETED items)
-      setRequestedTotalCount(typeof totalCount === 'number' ? totalCount : allFilteredRows.length)
-
-      // Take only the items needed for the current page
-      const pageItems = allFilteredRows.slice(0, requestedPageSize)
-
-      const mapped: FeedbackRequest[] = pageItems.map((r: any, idx: number) => ({
-        id: `${r.requesterEmployeeId || 'req'}-${r.createdAt || idx}`,
-        requestedOn: r.createdAt,
-        recordState: r.recordState,
-        message: r.message,
-        taskTitle: 'Approve Feedback',
-        feedbackText: r.message,
-        creatorName: r?.requesterEmployee?.displayName || null,
-        creatorEmployeeId: r?.requesterEmployee.id || null
-      }))
-
-      setRequestedFeedback(mapped)
-    } catch (e: any) {
-      setRequestsErrorApproval(e?.message || 'Failed to load requested feedback')
+      setGivenLoading(true)
+      const response = await graphQLClient.request(employeeFeedbackGivenQuery, {
+        senderEmployeeId: currentUserEmployeeId
+      })
+      const data = (response?.EmployeeFeedback ?? []) as ExtendedEmployeeFeedback[]
+      setGivenFeedback(data)
+    } catch (err) {
+      console.error('Error fetching given feedback:', err)
     } finally {
-      setRequestsLoadingApproval(false)
+      setGivenLoading(false)
     }
-  }
+  }, [currentUserEmployeeId, graphQLClient])
 
-  // Format feedback data and apply statistics calculation when data changes
+  const fetchRequestsReceived = useCallback(async () => {
+    if (!currentUserEmployeeId) return
+    try {
+      setRequestsReceivedLoading(true)
+      const res = await graphQLClient.request<any>(EMPLOYEE_FEEDBACK_REQUESTS_QUERY_PAGED_WITH_COUNT, {
+        idEmployee: currentUserEmployeeId,
+        limit: receivedReqPageSize,
+        offset: (receivedReqPage - 1) * receivedReqPageSize
+      })
+      const rows: FeedbackRequestRow[] = res?.EmployeeFeedbackRequest ?? []
+      const total = res?.EmployeeFeedbackRequestAggregate?.aggregate?.count ?? 0
+      setRequestsReceivedList(rows)
+      setRequestsReceivedTotal(total)
+    } catch (err) {
+      console.error('Error fetching requests received:', err)
+    } finally {
+      setRequestsReceivedLoading(false)
+    }
+  }, [currentUserEmployeeId, receivedReqPage, receivedReqPageSize, graphQLClient])
+
+  const fetchSentRequests = useCallback(async () => {
+    if (!currentUserEmployeeId) return
+    try {
+      setSentRequestsLoading(true)
+      const res = await graphQLClient.request<any>(EMPLOYEE_FEEDBACK_REQUESTS_SENT_QUERY_PAGED_WITH_COUNT, {
+        requesterEmployeeId: currentUserEmployeeId,
+        limit: sentReqPageSize,
+        offset: (sentReqPage - 1) * sentReqPageSize
+      })
+      const rows: FeedbackRequestRow[] = res?.EmployeeFeedbackRequest ?? []
+      const total = res?.EmployeeFeedbackRequestAggregate?.aggregate?.count ?? 0
+      setSentRequestsList(rows)
+      setSentRequestsTotal(total)
+    } catch (err) {
+      console.error('Error fetching sent requests:', err)
+    } finally {
+      setSentRequestsLoading(false)
+    }
+  }, [currentUserEmployeeId, sentReqPage, sentReqPageSize, graphQLClient])
 
   useEffect(() => {
-    // Initialize with props if available, otherwise fetch from API
     if (employeeFeedback?.length) {
       setLocalFeedback(employeeFeedback as ExtendedEmployeeFeedback[])
     } else {
@@ -270,66 +178,36 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
     }
   }, [employee?.id, accessToken])
 
-  // Map flow tasks to FeedbackRequest (memoized to avoid re-computation/loops)
-  const feedbackRequests: FeedbackRequest[] = React.useMemo(() => {
-    return (feedbackTasks || []).map((t: any) => ({
-      id: String(t.id),
-      requestedOn: t.started || t.createdAt,
-      dueDate: t.dueDate,
-      recordState: t.state || t.status || null,
-      message: t.description || t.referenceName || t.name || null,
-      reviewerNames: Array.isArray(t.assigneeNames) ? t.assigneeNames : null,
-      taskName: t.name || null,
-      taskTitle: t.referenceName || null,
-      feedbackText: t?.inputs?.feedback?.feedback || null,
-      creatorName: t?.creatorName || null,
-      creatorEmployeeId: t?.creatorUserId || t?.inputs?.creatorUserId || t?.inputs?.receiverId || null,
-      endpoint: t?.endpoint || null,
-      processInstanceId: t?.processInstanceId || null
-    }))
-  }, [feedbackTasks])
+  useEffect(() => {
+    if (isSelfView && activeHubTab === 'given') fetchGivenFeedback()
+  }, [isSelfView, activeHubTab, fetchGivenFeedback])
 
   useEffect(() => {
-    fetchRequestedFeedback()
-  }, [employee?.id, requestedCurrentPage, requestedPageSize])
+    if (isSelfView && activeHubTab === 'requests') {
+      fetchRequestsReceived()
+      fetchSentRequests()
+    }
+  }, [isSelfView, activeHubTab, fetchRequestsReceived, fetchSentRequests])
 
-  // Respond action handler extracted for readability
-  const handleRespondClick = React.useCallback(
-    (request: FeedbackRequest) => {
-      const endpoint = request.endpoint || ''
+  // Keep filters scoped per feedback subtab by resetting on switch.
+  useEffect(() => {
+    setSearchTerm('')
+    setFilterType('all')
+    setDateFrom('')
+    setDateTo('')
+    setSenderFilter('all')
+    setTypeFilter('all')
+  }, [activeHubTab])
 
-      // Extract by splitting the endpoint path: /processes/<domain>/<processName>/<processInstanceId>/...
-      let domain = 'employee'
-      let processName = 'giveFeedback'
-      let processInstanceId: string | undefined = request.processInstanceId || undefined
-
-      const extractFromParts = (parts: string[]) => {
-        const idx = parts.indexOf('processes')
-        if (idx >= 0 && parts.length > idx + 3) {
-          domain = parts[idx + 1]
-          processName = parts[idx + 2]
-          processInstanceId = parts[idx + 3]
-        }
-      }
-
-      try {
-        // Prefer URL parsing if absolute URL
-        const url = new URL(endpoint)
-        extractFromParts(url.pathname.split('/').filter(Boolean))
-      } catch {
-        // Fallback for relative endpoints
-        extractFromParts(endpoint.split('/').filter(Boolean))
-      }
-
+  const handleRespondToRequest = useCallback(
+    (row: FeedbackRequestRow) => {
       startProcess({
-        domain,
-        processName,
+        domain: 'employee',
+        processName: 'giveFeedback',
         payload: {
-          requestId: request.id,
-          employeeId: employee?.id,
-          receiverId: request.creatorEmployeeId // The userId of the person who requested the feedback (will receive the response)
+          requestId: row.id,
+          employeeId: row.employeeId ?? employee?.id
         },
-        processInstanceId,
         builderType: 'NATIVE_SCREEN'
       })
     },
@@ -342,22 +220,23 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
 
     return localFeedback.map(feedback => {
       const timestamp = feedback.feedbackDate ? Date.parse((feedback as any).feedbackDate) : 0
-      const sender = `${feedback.senderEmployee?.firstName || ''} ${feedback.senderEmployee?.lastName || ''}`.trim()
+      const sender = `${feedback.senderEmployee?.firstName ?? ''} ${feedback.senderEmployee?.lastName ?? ''}`.trim()
       const date = feedback.feedbackDate
-        ? (formatDate(feedback.feedbackDate, 'date.short') ??
-          getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.requested_on_date', 'Unknown date'))
-        : 'Unknown date'
-      const content = feedback.feedback || 'No feedback content'
-
-      // Access pictureThumbnail through the correct path based on the GraphQL query structure
-      const avatar = feedback.senderEmployee?.employeePosition?.employee?.pictureThumbnail || null
-      const firstName = feedback.senderEmployee?.firstName || ''
-      const lastName = feedback.senderEmployee?.lastName || ''
-
+        ? (formatDate(feedback.feedbackDate, 'date.short') ?? '')
+        : (feedback as any).createdAt
+          ? (formatDate((feedback as any).createdAt, 'date.short') ?? '')
+          : ''
+      const rawDate = feedback.feedbackDate ?? (feedback as any).createdAt ?? undefined
+      const content = feedback.feedback ?? ''
+      const avatar = feedback.senderEmployee?.employeePosition?.employee?.pictureThumbnail ?? null
+      const firstName = feedback.senderEmployee?.firstName ?? ''
+      const lastName = feedback.senderEmployee?.lastName ?? ''
+      const displaySender = sender.trim() || t('feedback-hub-unknown-sender')
       return {
         id: feedback.id,
-        sender,
+        sender: displaySender,
         date,
+        rawDate,
         content,
         avatar,
         senderId: feedback.senderEmployeeId,
@@ -375,8 +254,119 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
   // Process feedback data for display
   const allFormattedFeedback = formatFeedback()
 
-  // Initial loading/error handling for the entire tab
-  if (loading && !allFormattedFeedback.length) {
+  const formatGivenFeedback = (): FormattedFeedback[] => {
+    if (!givenFeedback?.length) return []
+    return givenFeedback.map(fb => {
+      const rec = (fb as any).employee
+      const firstName = rec?.firstName ?? ''
+      const lastName = rec?.lastName ?? ''
+      const sender = (rec?.displayName ?? `${firstName} ${lastName}`.trim()) || t('feedback-hub-unknown-sender')
+      const timestamp = fb.feedbackDate ? Date.parse(fb.feedbackDate) : 0
+      const date = fb.feedbackDate
+        ? (formatDate(fb.feedbackDate, 'date.short') ?? '')
+        : (fb as any).createdAt
+          ? (formatDate((fb as any).createdAt, 'date.short') ?? '')
+          : ''
+      const rawDate = fb.feedbackDate ?? (fb as any).createdAt ?? undefined
+      return {
+        id: fb.id,
+        sender,
+        date,
+        rawDate,
+        content: fb.feedback ?? '',
+        avatar: rec?.employeePosition?.employee?.pictureThumbnail ?? null,
+        firstName,
+        lastName,
+        rating: fb.rating,
+        feedbackPublic: (fb as any).feedbackPublic,
+        private: (fb as any).feedbackPublic === false,
+        type: (fb as any)?.type?.value ?? (fb as any).typeRef,
+        timestamp
+      }
+    })
+  }
+
+  const allFormattedGiven = formatGivenFeedback()
+  const activeFeedbackList = useMemo(
+    () => (activeHubTab === 'given' ? allFormattedGiven : allFormattedFeedback),
+    [activeHubTab, allFormattedGiven, allFormattedFeedback]
+  )
+  const senderOptions = useMemo(
+    () =>
+      Array.from(new Set(activeFeedbackList.map(item => item.sender).filter(Boolean))).sort((a, b) =>
+        a.localeCompare(b)
+      ),
+    [activeFeedbackList]
+  )
+  const typeOptions = useMemo(
+    () =>
+      Array.from(new Set(activeFeedbackList.map(item => item.type || '').filter(Boolean))).sort((a, b) =>
+        a.localeCompare(b)
+      ),
+    [activeFeedbackList]
+  )
+
+  const isPrivateFeedback = (value: unknown): boolean =>
+    value === false || value === 'false' || value === 0 || value === '0'
+
+  const formattedFilteredFeedback = useMemo(() => {
+    return activeFeedbackList
+      .filter(f => {
+        const matchesSearch =
+          searchTerm === '' ||
+          f.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          f.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          f.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          f.sender.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (f.type || '').toLowerCase().includes(searchTerm.toLowerCase())
+        const isPrivate = isPrivateFeedback(f.feedbackPublic)
+        if (!isSelfView && isPrivate) return false
+        const matchesFilter =
+          filterType === 'all' || (filterType === 'private' && isPrivate) || (filterType === 'public' && !isPrivate)
+        const matchesSender = senderFilter === 'all' || f.sender === senderFilter
+        const matchesType = typeFilter === 'all' || (f.type || '') === typeFilter
+        const ts = f.timestamp ?? 0
+        const fromMs = dateFrom ? new Date(`${dateFrom}T00:00:00`).getTime() : null
+        const toMs = dateTo ? new Date(`${dateTo}T23:59:59`).getTime() : null
+        const matchesFrom = fromMs == null || ts >= fromMs
+        const matchesTo = toMs == null || ts <= toMs
+        return matchesSearch && matchesFilter && matchesSender && matchesType && matchesFrom && matchesTo
+      })
+      .sort((a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0))
+  }, [activeFeedbackList, searchTerm, filterType, isSelfView, senderFilter, typeFilter, dateFrom, dateTo])
+
+  const insightsFromFeedback = useMemo(() => {
+    const list = [...(localFeedback ?? []), ...(givenFeedback ?? [])]
+    const total = list.length
+    const publicCount = list.filter((f: any) => f.feedbackPublic !== false).length
+    const privateCount = total - publicCount
+    const senderIds = new Set((localFeedback ?? []).map((f: any) => f.senderEmployeeId).filter(Boolean))
+    const byType: Record<string, number> = {}
+    const countOverTime: Record<string, number> = {}
+    const byTagOrSkill: Record<string, number> = {}
+    list.forEach((f: any) => {
+      const typ = f?.type?.value ?? f?.typeRef ?? 'Other'
+      byType[typ] = (byType[typ] ?? 0) + 1
+      const date = f?.feedbackDate ?? f?.createdAt
+      if (date) {
+        const monthKey = typeof date === 'string' ? date.slice(0, 7) : new Date(date).toISOString().slice(0, 7)
+        countOverTime[monthKey] = (countOverTime[monthKey] ?? 0) + 1
+      }
+      const ap = f?.additionalProperties
+      if (ap && typeof ap === 'object') {
+        const addKey = (k: string) => {
+          if (k) byTagOrSkill[k] = (byTagOrSkill[k] ?? 0) + 1
+        }
+        if (ap.tag != null) addKey(String(ap.tag).trim())
+        if (ap.skillId != null) addKey(String(ap.skillId).trim())
+        if (Array.isArray(ap.tags)) ap.tags.forEach((t: unknown) => addKey(String(t ?? '').trim()))
+        if (Array.isArray(ap.skillIds)) ap.skillIds.forEach((s: unknown) => addKey(String(s ?? '').trim()))
+      }
+    })
+    return { total, distinctSenders: senderIds.size, publicCount, privateCount, byType, countOverTime, byTagOrSkill }
+  }, [localFeedback, givenFeedback])
+
+  if (loading && !allFormattedFeedback.length && !isSelfView) {
     return (
       <div className="gba:flex gba:justify-center gba:items-center gba:h-40" data-testid="feedback-loading">
         <Spinner size="lg" />
@@ -384,50 +374,20 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
     )
   }
 
-  // Note: Do not early-return error when there is no feedback; prefer empty state
-
-  // Filter feedback based on search and filter criteria
-  const formattedFilteredFeedback = allFormattedFeedback
-    .filter(feedback => {
-      const matchesSearch =
-        searchTerm === '' ||
-        feedback.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        feedback.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        feedback.lastName.toLowerCase().includes(searchTerm.toLowerCase())
-
-      // Use feedbackPublic: explicitly treat false as Private; any other value as Public
-      const isPrivate = feedback.feedbackPublic === false
-      if (!isSelfView && isPrivate) {
-        return false
-      }
-      const matchesFilter =
-        filterType === 'all' || (filterType === 'private' && isPrivate) || (filterType === 'public' && !isPrivate)
-
-      return matchesSearch && matchesFilter
-    })
-    .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))
-
   return (
     <div className="gba:space-y-8 gba:pb-6" data-testid="feedback-tab">
-      {/* Header Section - align with standard page headers */}
       <div className="gba:pb-4" data-testid="feedback-header">
         <div className="gba:flex gba:flex-col gba:sm:flex-row gba:justify-between gba:items-center gba:gap-4">
           <div className="gba:max-w-2xl">
             <h2 className="gba:font-bold gba:text-2xl" data-testid="feedback-title">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.feedback_tab_title', 'Feedback')}
+              {t('feedback-hub-title')}
             </h2>
             <p className="gba:text-muted-foreground gba:text-lg" data-testid="feedback-description">
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:feedback_tab.feedback_tab_description',
-                'Give and receive feedback from colleagues and managers to improve performance.'
-              )}
+              {t('feedback-hub-description')}
             </p>
           </div>
-
-          {/* Header Actions - right aligned, inline with title */}
           <div className="gba:flex gba:gap-4 gba:items-center gba:self-center">
-            {/* Request Feedback Button - Only shown when viewing own profile */}
-            <div>
+            {isSelfView && (
               <AppAction
                 variant="update-primary"
                 data-testid="employee-feedback-request-button"
@@ -441,496 +401,514 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
                 accessToken={accessToken}
                 autoExecute={true}
               >
-                {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.request_feedback', 'Request Feedback')}
+                {t('feedback-hub-request-feedback')}
               </AppAction>
-            </div>
-
-            {/* Give Feedback Button */}
-            <div>
-              <AppAction
-                variant="update-primary"
-                data-testid="employee-feedback-give-button"
-                contexts={[
-                  { context: FlowContextName.employeeGiveFeedback, contextData: { employeeId: employee?.id } }
-                ]}
-                prefixDataTestId="add-feedback"
-                accessToken={accessToken}
-                autoExecute={true}
-              >
-                {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.give_feedback', 'Give Feedback')}
-              </AppAction>
-            </div>
+            )}
+            <AppAction
+              variant="update-primary"
+              data-testid="employee-feedback-give-button"
+              contexts={[{ context: FlowContextName.employeeGiveFeedback, contextData: { employeeId: employee?.id } }]}
+              prefixDataTestId="add-feedback"
+              accessToken={accessToken}
+              autoExecute={true}
+            >
+              {t('feedback-hub-give-feedback')}
+            </AppAction>
           </div>
         </div>
       </div>
 
-      {/* Feedback Requests Section - visible only in self view */}
-      {isSelfView && (
-        <div className="gba:space-y-6 " data-testid="feedback-requests-section">
-          <div className="gba:flex gba:items-center">
-            <h3 className="gba:text-lg gba:font-semibold">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.section_requests', 'Feedback Requests')}
-            </h3>
+      {!isSelfView ? (
+        <div className="gba:space-y-6" data-testid="feedback-history-section">
+          <div className="gba:space-y-3">
+            <FeedbackToolbar
+              searchTerm={searchTerm}
+              onSearchChange={setSearchTerm}
+              filterType={filterType}
+              onFilterChange={setFilterType}
+              dateFrom={dateFrom}
+              onDateFromChange={setDateFrom}
+              dateTo={dateTo}
+              onDateToChange={setDateTo}
+              senderFilter={senderFilter}
+              onSenderFilterChange={setSenderFilter}
+              senderOptions={senderOptions}
+              typeFilter={typeFilter}
+              onTypeFilterChange={setTypeFilter}
+              typeOptions={typeOptions}
+              searchPlaceholder={t('feedback-hub-search-placeholder')}
+              allLabel={t('feedback-hub-filter-all')}
+              privateLabel={t('feedback-hub-filter-private')}
+              publicLabel={t('feedback-hub-filter-public')}
+              dateFromLabel={t('feedback-hub-filter-date-from')}
+              dateToLabel={t('feedback-hub-filter-date-to')}
+              senderLabel={t('feedback-hub-filter-sender')}
+              typeLabel={t('feedback-hub-filter-type')}
+            />
           </div>
-
-          {/* Two-column layout: received (left) and approvals (right) */}
-          <div className="gba:grid gba:grid-cols-1 gba:lg:grid-cols-2 gba:gap-6 gba:px-4 gba:py-2">
-            <div>
-              <div className="gba:flex gba:items-center gba:justify-start gba:gap-2 gba:mb-2">
-                <h4 className="gba:text-sm gba:font-medium">
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:feedback_tab.col_received',
-                    'Feedback requests you received'
-                  )}
-                </h4>
-              </div>
-              {(() => {
-                if (receivedLoading) {
-                  return (
-                    <div className="gba:flex gba:justify-center gba:items-center gba:h-40">
-                      <Spinner size="md" />
-                    </div>
-                  )
-                }
-                if (receivedError) {
-                  return <div className="gba:text-destructive">{receivedError}</div>
-                }
-                if (feedbackRequests.length === 0) {
-                  return (
-                    <EmptyState
-                      title={getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:feedback_tab.no_feedback_requests',
-                        'No feedback requests'
-                      )}
-                    />
-                  )
-                }
-                return (
-                  <>
-                    <div className="gba:grid gba:grid-cols-1 gba:gap-4 gba:items-stretch">
-                      {feedbackRequests.map((request: FeedbackRequest) => {
-                        const dateLabel = request.requestedOn
-                          ? (formatDate(request.requestedOn, 'date.short') ?? '')
-                          : ''
-                        return (
-                          <Card
-                            key={request.id}
-                            className="gba:p-1 gba:cursor-pointer"
-                            data-testid={`received-request-item-${request.id}`}
-                            onClick={() => handleRespondClick(request)}
-                            role="button"
-                            tabIndex={0}
-                            onKeyDown={e => {
-                              if (e.key === 'Enter' || e.key === ' ') {
-                                e.preventDefault()
-                                handleRespondClick(request)
-                              }
-                            }}
-                          >
-                            <CardContent className="gba:p-2">
-                              <div className="gba:flex gba:items-center gba:justify-between gba:min-h-10">
-                                <div className="gba:flex gba:flex-col">
-                                  <div
-                                    className="gba:text-sm gba:font-medium"
-                                    data-testid={`received-request-line-${request.id}`}
-                                  >
-                                    {getTranslationFromI18nKeyAndLabel(
-                                      'lowcoder:feedback_tab.from_on_text',
-                                      `From ${request.creatorName || ''} on ${dateLabel}`,
-                                      {
-                                        employee: request.creatorName || '',
-                                        date: dateLabel,
-                                        interpolation: {
-                                          escapeValue: false
-                                        }
-                                      }
-                                    )}
-                                  </div>
-                                </div>
-                                <Button
-                                  size="sm"
-                                  variant="secondary"
-                                  onClick={e => {
-                                    e.stopPropagation()
-                                    handleRespondClick(request)
-                                  }}
-                                  data-testid={`received-request-respond-button-${request.id}`}
-                                  className="gba:flex gba:items-center gba:gap-2"
-                                >
-                                  <PiPencilSimple />
-                                  {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.respond', 'Respond')}
-                                </Button>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        )
-                      })}
-                    </div>
-                    <div className="gba:mt-4 gba:flex gba:justify-end gba:items-center gba:gap-4">
-                      <Pagination>
-                        <PaginationContent>
-                          <PaginationItem>
-                            <PaginationPrevious
-                              onClick={() => setReceivedCurrentPage(Math.max(1, receivedCurrentPage - 1))}
-                              className={
-                                receivedCurrentPage === 1
-                                  ? 'gba:pointer-events-none gba:opacity-50'
-                                  : 'gba:cursor-pointer'
-                              }
-                            />
-                          </PaginationItem>
-                          {Array.from(
-                            { length: Math.ceil((receivedTotalCount || 0) / receivedPageSize) },
-                            (_, i) => i + 1
-                          ).map(page => (
-                            <PaginationItem key={page}>
-                              <PaginationLink
-                                onClick={() => setReceivedCurrentPage(page)}
-                                isActive={receivedCurrentPage === page}
-                                className="gba:cursor-pointer"
-                              >
-                                {page}
-                              </PaginationLink>
-                            </PaginationItem>
-                          ))}
-                          <PaginationItem>
-                            <PaginationNext
-                              onClick={() =>
-                                setReceivedCurrentPage(
-                                  Math.min(
-                                    Math.ceil((receivedTotalCount || 0) / receivedPageSize),
-                                    receivedCurrentPage + 1
-                                  )
-                                )
-                              }
-                              className={
-                                receivedCurrentPage >= Math.ceil((receivedTotalCount || 0) / receivedPageSize)
-                                  ? 'gba:pointer-events-none gba:opacity-50'
-                                  : 'gba:cursor-pointer'
-                              }
-                            />
-                          </PaginationItem>
-                        </PaginationContent>
-                      </Pagination>
-                      <Select value={String(receivedPageSize)} onValueChange={v => setReceivedPageSize(Number(v))}>
-                        <SelectTrigger className="gba:w-20">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {[3, 10, 20, 50].map(n => (
-                            <SelectItem key={n} value={String(n)}>
-                              {n}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </>
-                )
-              })()}
+          {loading ? (
+            <div className="gba:flex gba:justify-center gba:items-center gba:h-40" data-testid="feedback-loading">
+              <Spinner size="lg" />
             </div>
-
-            <div>
-              <div className="gba:flex gba:items-center gba:justify-start gba:gap-2 gba:mb-2">
-                <h4 className="gba:text-sm gba:font-medium">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.col_requested', 'Feedback you requested')}
-                </h4>
-              </div>
-              {(() => {
-                if (requestsLoadingApproval) {
-                  return (
-                    <div className="gba:flex gba:justify-center gba:items-center gba:h-40">
-                      <Spinner size="md" />
-                    </div>
-                  )
-                }
-                if (requestsErrorApproval) {
-                  return <div className="gba:text-destructive">{requestsErrorApproval}</div>
-                }
-                if (requestedFeedback.length === 0) {
-                  return (
-                    <EmptyState
-                      title={getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:feedback_tab.no_approval_requests',
-                        'No approval requests'
-                      )}
-                    />
-                  )
-                }
-                return (
-                  <>
-                    <div className="gba:grid gba:grid-cols-1 gba:gap-4 gba:items-stretch">
-                      {requestedFeedback.map(request => {
-                        const dateLabel = request.requestedOn
-                          ? (formatDate(request.requestedOn, 'date.short') ?? '')
-                          : ''
-                        const fromName = request.creatorName || '-'
-                        return (
-                          <Card
-                            key={request.id}
-                            className="gba:p-1"
-                            data-testid={`requested-request-item-${request.id}`}
-                          >
-                            <CardContent className="gba:p-2">
-                              <div className="gba:flex gba:items-center gba:justify-between gba:min-h-10">
-                                <div className="gba:flex gba:flex-col">
-                                  <div
-                                    className="gba:text-sm gba:font-medium"
-                                    data-testid={`requested-request-line-${request.id}`}
-                                  >
-                                    {getTranslationFromI18nKeyAndLabel(
-                                      'lowcoder:feedback_tab.from_since_text',
-                                      `From ${fromName} since ${dateLabel}`,
-                                      {
-                                        employee: fromName,
-                                        date: dateLabel,
-                                        interpolation: {
-                                          escapeValue: false
-                                        }
-                                      }
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        )
-                      })}
-                    </div>
-                    <div className="gba:mt-4 gba:flex gba:justify-end gba:items-center gba:gap-4">
-                      <Pagination>
-                        <PaginationContent>
-                          <PaginationItem>
-                            <PaginationPrevious
-                              onClick={() => setRequestedCurrentPage(Math.max(1, requestedCurrentPage - 1))}
-                              className={
-                                requestedCurrentPage === 1
-                                  ? 'gba:pointer-events-none gba:opacity-50'
-                                  : 'gba:cursor-pointer'
-                              }
-                            />
-                          </PaginationItem>
-                          {Array.from(
-                            { length: Math.ceil((requestedTotalCount ?? 0) / requestedPageSize) },
-                            (_, i) => i + 1
-                          ).map(page => (
-                            <PaginationItem key={page}>
-                              <PaginationLink
-                                onClick={() => setRequestedCurrentPage(page)}
-                                isActive={requestedCurrentPage === page}
-                                className="gba:cursor-pointer"
-                              >
-                                {page}
-                              </PaginationLink>
-                            </PaginationItem>
-                          ))}
-                          <PaginationItem>
-                            <PaginationNext
-                              onClick={() =>
-                                setRequestedCurrentPage(
-                                  Math.min(
-                                    Math.ceil((requestedTotalCount ?? 0) / requestedPageSize),
-                                    requestedCurrentPage + 1
-                                  )
-                                )
-                              }
-                              className={
-                                requestedCurrentPage >= Math.ceil((requestedTotalCount ?? 0) / requestedPageSize)
-                                  ? 'gba:pointer-events-none gba:opacity-50'
-                                  : 'gba:cursor-pointer'
-                              }
-                            />
-                          </PaginationItem>
-                        </PaginationContent>
-                      </Pagination>
-                      <Select value={String(requestedPageSize)} onValueChange={v => setRequestedPageSize(Number(v))}>
-                        <SelectTrigger className="gba:w-20">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {[3, 10, 20, 50].map(n => (
-                            <SelectItem key={n} value={String(n)}>
-                              {n}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </>
-                )
-              })()}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Feedback History Section */}
-      <div className="gba:space-y-6" data-testid="feedback-history-section">
-        <div className="gba:flex gba:justify-between gba:items-center">
-          <h3 className="gba:text-lg gba:font-semibold">
-            {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.section_history', 'Feedback History')}
-          </h3>
-
-          <div className="gba:flex gba:items-center gba:gap-4">
-            {/* Export Button */}
-            <Button
-              variant="outline"
-              className="gba:flex gba:items-center gba:gap-2"
-              data-testid="export-feedback-button"
-              onClick={() => {
-                // Export feedback action logic would go here
-              }}
-            >
-              <Download className="gba:h-4 gba:w-4" />{' '}
-              {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.export', 'Export')}
-            </Button>
-
-            {/* Search Input */}
-            <div className="gba:relative">
-              <Search className="gba:absolute gba:left-3 gba:top-1/2 gba:transform gba:-translate-y-1/2 gba:h-4 gba:w-4 gba:text-muted-foreground" />
-              <Input
-                placeholder={getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:feedback_tab.search_placeholder',
-                  'Search feedback'
-                )}
-                className="gba:w-64 gba:pl-9"
-                data-testid="feedback-search-input"
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-              />
-            </div>
-
-            {/* Filter Dropdown */}
-            <Select value={filterType} onValueChange={setFilterType} data-testid="feedback-filter-select">
-              <SelectTrigger className="gba:w-40">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.filter_all', 'All Feedback')}
-                </SelectItem>
-                <SelectItem value="private">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.filter_private', 'Private')}
-                </SelectItem>
-                <SelectItem value="public">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.filter_public', 'Public')}
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        {/* Feedback Cards */}
-        {(() => {
-          if (loading) {
-            return (
-              <div className="gba:flex gba:justify-center gba:items-center gba:h-40" data-testid="feedback-loading">
-                <Spinner size="lg" />
-              </div>
-            )
-          }
-
-          if (formattedFilteredFeedback.length > 0) {
-            return (
-              <div className="gba:space-y-4 gba:px-4" data-testid="feedback-list">
-                {formattedFilteredFeedback.map((feedback, index) => {
-                  const feedbackKey = feedback.id || `${feedback.senderId || feedback.sender}-${feedback.date}`
-                  return (
-                    <Card key={feedbackKey} className="gba:h-full" data-testid={`feedback-card-${index}`}>
-                      <CardContent className="gba:p-4 gba:flex gba:flex-col gba:h-full">
-                        <div className="gba:flex gba:items-start gba:gap-4">
-                          {/* Avatar */}
-                          <div className="gba:shrink-0 gba:mr-2" data-testid="feedback-avatar-container">
-                            <Avatar className="gba:h-10 gba:w-10">
-                              {toAvatarSrc(feedback.avatar) && (
-                                <AvatarImage
-                                  src={toAvatarSrc(feedback.avatar)}
-                                  alt={`${feedback.firstName} ${feedback.lastName}`}
-                                />
-                              )}
-                              <AvatarFallback>
-                                {`${feedback.firstName?.[0] || ''}${feedback.lastName?.[0] || ''}`}
-                              </AvatarFallback>
-                            </Avatar>
-                          </div>
-
-                          {/* Feedback Content */}
-                          <div className="gba:flex-grow">
-                            <div className="gba:flex gba:items-center gba:flex-wrap gba:gap-2">
-                              <span
-                                className="gba:font-semibold gba:text-foreground"
-                                data-testid={`feedback-sender-${index}`}
-                              >
-                                {feedback.sender}
-                              </span>
-
-                              {/* Type Badge */}
-                              {feedback.type && (
-                                <Badge variant="decorative" data-testid={`feedback-type-${index}`}>
-                                  {feedback.type}
-                                </Badge>
-                              )}
-
-                              {/* Private Badge */}
-                              {feedback.private && (
-                                <Badge variant="destructive" data-testid={`feedback-privacy-${index}`}>
-                                  {getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.private_badge', 'Private')}
-                                </Badge>
-                              )}
-                            </div>
-
-                            <div
-                              className="gba:flex gba:items-center gba:gap-1 gba:text-muted-foreground gba:text-sm gba:mt-1"
-                              data-testid={`feedback-date-${index}`}
-                            >
-                              <Calendar className="gba:h-4 gba:w-4" /> {feedback.date}
-                            </div>
-
-                            {/* Rating - custom star display since Rate has no nw-design-system equivalent */}
-                            {feedback.rating !== undefined && feedback.rating > 0 && (
-                              <div className="gba:my-2 gba:flex gba:gap-0.5">
-                                {[1, 2, 3, 4, 5].map(starValue => (
-                                  <span
-                                    key={`${feedbackKey}-star-${starValue}`}
-                                    className={`gba:text-lg ${starValue <= (feedback.rating ?? 0) ? 'gba:text-warning' : 'gba:text-muted-foreground'}`}
-                                  >
-                                    ★
-                                  </span>
-                                ))}
-                              </div>
-                            )}
-
-                            <div
-                              className="gba:mt-3 gba:text-muted-foreground gba:border-t gba:border-border gba:pt-3"
-                              data-testid={`feedback-content-${index}`}
-                            >
-                              {feedback.content}
-                            </div>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )
-                })}
-              </div>
-            )
-          }
-
-          return (
+          ) : formattedFilteredFeedback.length > 0 ? (
+            <FeedbackCards
+              feedbackList={formattedFilteredFeedback}
+              privateBadgeLabel={t('feedback-hub-badge-private')}
+              publicBadgeLabel={t('feedback-hub-badge-public')}
+            />
+          ) : (
             <>
-              <EmptyState
-                title={getTranslationFromI18nKeyAndLabel('lowcoder:feedback_tab.no_feedback', 'No feedback available')}
-                data-testid="feedback-empty"
-              />
+              <EmptyState title={t('feedback-hub-no-feedback')} data-testid="feedback-empty" />
               {error && (
                 <div className="gba:text-center gba:text-muted-foreground gba:py-4" data-testid="feedback-error-inline">
                   <p>{error}</p>
                 </div>
               )}
             </>
-          )
-        })()}
-      </div>
+          )}
+        </div>
+      ) : (
+        <Tabs value={activeHubTab} onValueChange={v => setActiveHubTab(v as FeedbackHubTab)} className="gba:w-full">
+          <TabsList className="gba:mb-4 gba:w-full" data-testid="feedback-hub-tabs">
+            <TabsTrigger value="received" className="gba:flex-1" data-testid="feedback-hub-tab-received">
+              <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
+                <PiChatCircle className="gba:h-4 gba:w-4" />
+                <span>{t('feedback-hub-tab-received')}</span>
+              </div>
+            </TabsTrigger>
+            <TabsTrigger value="given" className="gba:flex-1" data-testid="feedback-hub-tab-given">
+              <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
+                <PiPaperPlaneRight className="gba:h-4 gba:w-4" />
+                <span>{t('feedback-hub-tab-given')}</span>
+              </div>
+            </TabsTrigger>
+            <TabsTrigger value="requests" className="gba:flex-1" data-testid="feedback-hub-tab-requests">
+              <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
+                <PiList className="gba:h-4 gba:w-4" />
+                <span>{t('feedback-hub-tab-requests')}</span>
+              </div>
+            </TabsTrigger>
+            <TabsTrigger value="insights" className="gba:flex-1" data-testid="feedback-hub-tab-insights">
+              <div className="gba:flex gba:items-center gba:gap-2 gba:justify-center">
+                <PiChartBar className="gba:h-4 gba:w-4" />
+                <span>{t('feedback-hub-tab-insights')}</span>
+              </div>
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="received" className="gba:mt-4">
+            <div className="gba:space-y-3 gba:mb-4">
+              <FeedbackToolbar
+                searchTerm={searchTerm}
+                onSearchChange={setSearchTerm}
+                filterType={filterType}
+                onFilterChange={setFilterType}
+                dateFrom={dateFrom}
+                onDateFromChange={setDateFrom}
+                dateTo={dateTo}
+                onDateToChange={setDateTo}
+                senderFilter={senderFilter}
+                onSenderFilterChange={setSenderFilter}
+                senderOptions={senderOptions}
+                typeFilter={typeFilter}
+                onTypeFilterChange={setTypeFilter}
+                typeOptions={typeOptions}
+                searchPlaceholder={t('feedback-hub-search-placeholder')}
+                allLabel={t('feedback-hub-filter-all')}
+                privateLabel={t('feedback-hub-filter-private')}
+                publicLabel={t('feedback-hub-filter-public')}
+                dateFromLabel={t('feedback-hub-filter-date-from')}
+                dateToLabel={t('feedback-hub-filter-date-to')}
+                senderLabel={t('feedback-hub-filter-sender')}
+                typeLabel={t('feedback-hub-filter-type')}
+              />
+            </div>
+            {loading ? (
+              <div className="gba:flex gba:justify-center gba:items-center gba:h-40">
+                <Spinner size="lg" />
+              </div>
+            ) : formattedFilteredFeedback.length > 0 ? (
+              <FeedbackCards
+                feedbackList={formattedFilteredFeedback}
+                privateBadgeLabel={t('feedback-hub-badge-private')}
+                publicBadgeLabel={t('feedback-hub-badge-public')}
+              />
+            ) : (
+              <EmptyState title={t('feedback-hub-no-feedback')} data-testid="feedback-empty" />
+            )}
+          </TabsContent>
+
+          <TabsContent value="given" className="gba:mt-4">
+            <div className="gba:space-y-3 gba:mb-4">
+              <FeedbackToolbar
+                searchTerm={searchTerm}
+                onSearchChange={setSearchTerm}
+                filterType={filterType}
+                onFilterChange={setFilterType}
+                dateFrom={dateFrom}
+                onDateFromChange={setDateFrom}
+                dateTo={dateTo}
+                onDateToChange={setDateTo}
+                senderFilter={senderFilter}
+                onSenderFilterChange={setSenderFilter}
+                senderOptions={senderOptions}
+                typeFilter={typeFilter}
+                onTypeFilterChange={setTypeFilter}
+                typeOptions={typeOptions}
+                searchPlaceholder={t('feedback-hub-search-placeholder')}
+                allLabel={t('feedback-hub-filter-all')}
+                privateLabel={t('feedback-hub-filter-private')}
+                publicLabel={t('feedback-hub-filter-public')}
+                dateFromLabel={t('feedback-hub-filter-date-from')}
+                dateToLabel={t('feedback-hub-filter-date-to')}
+                senderLabel={t('feedback-hub-filter-sender')}
+                typeLabel={t('feedback-hub-filter-type')}
+              />
+            </div>
+            {givenLoading ? (
+              <div className="gba:flex gba:justify-center gba:items-center gba:h-40">
+                <Spinner size="lg" />
+              </div>
+            ) : formattedFilteredFeedback.length > 0 ? (
+              <FeedbackCards
+                feedbackList={formattedFilteredFeedback}
+                privateBadgeLabel={t('feedback-hub-badge-private')}
+                publicBadgeLabel={t('feedback-hub-badge-public')}
+              />
+            ) : (
+              <EmptyState title={t('feedback-hub-no-feedback')} data-testid="feedback-empty-given" />
+            )}
+          </TabsContent>
+
+          <TabsContent value="requests" className="gba:mt-4 gba:space-y-8">
+            <div>
+              <h4 className="gba:text-sm gba:font-medium gba:mb-2">{t('feedback-hub-requests-received')}</h4>
+              {requestsReceivedLoading ? (
+                <div className="gba:flex gba:justify-center gba:items-center gba:h-32">
+                  <Spinner size="md" />
+                </div>
+              ) : requestsReceivedList.length === 0 ? (
+                <EmptyState title={t('feedback-hub-no-requests-received')} />
+              ) : (
+                <div className="gba:grid gba:grid-cols-1 gba:gap-4">
+                  {requestsReceivedList.map(row => {
+                    const dateLabel = row.createdAt ? (formatDate(row.createdAt, 'date.short') ?? '') : ''
+                    const name = row.requesterEmployee?.displayName ?? t('feedback-hub-unknown-sender')
+                    const isPending = !row.statusRef || String(row.statusRef).indexOf('COMPLETED') < 0
+                    const isOverdue = isPending && row.dueDate && new Date(row.dueDate) < new Date()
+                    return (
+                      <Card key={row.id} className="gba:p-2">
+                        <CardContent className="gba:p-2">
+                          <div className="gba:flex gba:items-center gba:justify-between gba:gap-2 gba:flex-wrap">
+                            <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap">
+                              <span className="gba:text-sm gba:font-medium">
+                                {t('feedback-hub-from-date', { name, date: dateLabel })}
+                              </span>
+                              {row.dueDate && (
+                                <span className="gba:text-muted-foreground gba:text-xs">
+                                  Due {formatDate(row.dueDate, 'date.short') ?? row.dueDate}
+                                </span>
+                              )}
+                              {isOverdue && <Badge variant="destructive">{t('feedback-hub-overdue')}</Badge>}
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              onClick={() => handleRespondToRequest(row)}
+                              data-testid={`received-request-respond-${row.id}`}
+                              className="gba:flex gba:items-center gba:gap-2"
+                            >
+                              <PiPencilSimple />
+                              {t('feedback-hub-respond')}
+                            </Button>
+                          </div>
+                          {row.message && (
+                            <p className="gba:text-sm gba:text-muted-foreground gba:mt-2 gba:line-clamp-2">
+                              {row.message}
+                            </p>
+                          )}
+                        </CardContent>
+                      </Card>
+                    )
+                  })}
+                </div>
+              )}
+              {requestsReceivedTotal > receivedReqPageSize && (
+                <div className="gba:mt-4 gba:flex gba:justify-end">
+                  <Pagination>
+                    <PaginationContent>
+                      <PaginationItem>
+                        <PaginationPrevious
+                          onClick={() => setReceivedReqPage(p => Math.max(1, p - 1))}
+                          className={
+                            receivedReqPage === 1 ? 'gba:pointer-events-none gba:opacity-50' : 'gba:cursor-pointer'
+                          }
+                        />
+                      </PaginationItem>
+                      <PaginationItem>
+                        <PaginationNext
+                          onClick={() =>
+                            setReceivedReqPage(p =>
+                              Math.min(Math.ceil(requestsReceivedTotal / receivedReqPageSize), p + 1)
+                            )
+                          }
+                          className={
+                            receivedReqPage >= Math.ceil(requestsReceivedTotal / receivedReqPageSize)
+                              ? 'gba:pointer-events-none gba:opacity-50'
+                              : 'gba:cursor-pointer'
+                          }
+                        />
+                      </PaginationItem>
+                    </PaginationContent>
+                  </Pagination>
+                </div>
+              )}
+            </div>
+
+            <div>
+              <h4 className="gba:text-sm gba:font-medium gba:mb-2">{t('feedback-hub-requests-sent')}</h4>
+              {sentRequestsLoading ? (
+                <div className="gba:flex gba:justify-center gba:items-center gba:h-32">
+                  <Spinner size="md" />
+                </div>
+              ) : sentRequestsList.length === 0 ? (
+                <EmptyState title={t('feedback-hub-no-requests-sent')} />
+              ) : (
+                <div className="gba:grid gba:grid-cols-1 gba:gap-4">
+                  {sentRequestsList.map(row => {
+                    const dateLabel = row.createdAt ? (formatDate(row.createdAt, 'date.short') ?? '') : ''
+                    const name = row.employee?.displayName ?? t('feedback-hub-unknown-sender')
+                    const isCompleted = row.statusRef != null && String(row.statusRef).indexOf('COMPLETED') >= 0
+                    return (
+                      <Card key={row.id} className="gba:p-2">
+                        <CardContent className="gba:p-2">
+                          <div className="gba:flex gba:items-center gba:justify-between gba:gap-2">
+                            <span className="gba:text-sm gba:font-medium">
+                              {t('feedback-hub-to-date', { name, date: dateLabel })}
+                            </span>
+                            {isCompleted ? (
+                              <Button size="sm" variant="secondary" data-testid={`sent-request-view-${row.id}`}>
+                                {t('feedback-hub-view-feedback')}
+                              </Button>
+                            ) : (
+                              <Button size="sm" variant="ghost" data-testid={`sent-request-cancel-${row.id}`}>
+                                {t('feedback-hub-cancel')}
+                              </Button>
+                            )}
+                          </div>
+                          {row.message && (
+                            <p className="gba:text-sm gba:text-muted-foreground gba:mt-2 gba:line-clamp-2">
+                              {row.message}
+                            </p>
+                          )}
+                        </CardContent>
+                      </Card>
+                    )
+                  })}
+                </div>
+              )}
+              {sentRequestsTotal > sentReqPageSize && (
+                <div className="gba:mt-4 gba:flex gba:justify-end">
+                  <Pagination>
+                    <PaginationContent>
+                      <PaginationItem>
+                        <PaginationPrevious
+                          onClick={() => setSentReqPage(p => Math.max(1, p - 1))}
+                          className={
+                            sentReqPage === 1 ? 'gba:pointer-events-none gba:opacity-50' : 'gba:cursor-pointer'
+                          }
+                        />
+                      </PaginationItem>
+                      <PaginationItem>
+                        <PaginationNext
+                          onClick={() =>
+                            setSentReqPage(p => Math.min(Math.ceil(sentRequestsTotal / sentReqPageSize), p + 1))
+                          }
+                          className={
+                            sentReqPage >= Math.ceil(sentRequestsTotal / sentReqPageSize)
+                              ? 'gba:pointer-events-none gba:opacity-50'
+                              : 'gba:cursor-pointer'
+                          }
+                        />
+                      </PaginationItem>
+                    </PaginationContent>
+                  </Pagination>
+                </div>
+              )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="insights" className="gba:mt-4 gba:space-y-8">
+            <div>
+              <h3 className="gba:text-lg gba:font-semibold gba:mb-1">{t('feedback-hub-insights-feedback-title')}</h3>
+              <p className="gba:text-muted-foreground gba:text-sm gba:mb-4">
+                {t('feedback-hub-insights-feedback-description')}
+              </p>
+              <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-4">
+                <Card>
+                  <CardContent className="gba:p-4">
+                    <p className="gba:text-2xl gba:font-semibold">{insightsFromFeedback.total}</p>
+                    <p className="gba:text-sm gba:text-muted-foreground">{t('feedback-hub-insights-total-feedback')}</p>
+                    <p className="gba:text-xs gba:text-muted-foreground gba:mt-2">
+                      {t('feedback-hub-insights-total-feedback-description')}
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="gba:p-4">
+                    <p className="gba:text-2xl gba:font-semibold">{insightsFromFeedback.distinctSenders}</p>
+                    <p className="gba:text-sm gba:text-muted-foreground">
+                      {t('feedback-hub-insights-distinct-senders')}
+                    </p>
+                    <p className="gba:text-xs gba:text-muted-foreground gba:mt-2">
+                      {t('feedback-hub-insights-distinct-senders-description')}
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="gba:p-4">
+                    <p className="gba:text-2xl gba:font-semibold">
+                      {insightsFromFeedback.total > 0
+                        ? `${insightsFromFeedback.publicCount} / ${insightsFromFeedback.privateCount}`
+                        : '—'}
+                    </p>
+                    <p className="gba:text-sm gba:text-muted-foreground">{t('feedback-hub-insights-public-private')}</p>
+                    <p className="gba:text-xs gba:text-muted-foreground gba:mt-2">
+                      {t('feedback-hub-insights-public-private-description')}
+                    </p>
+                  </CardContent>
+                </Card>
+                {Object.keys(insightsFromFeedback.countOverTime).length > 0 && (
+                  <Card>
+                    <CardContent className="gba:p-4">
+                      <p className="gba:text-sm gba:font-medium gba:mb-1">
+                        {t('feedback-hub-insights-count-over-time')}
+                      </p>
+                      <p className="gba:text-xs gba:text-muted-foreground gba:mb-3">
+                        {t('feedback-hub-insights-count-over-time-description')}
+                      </p>
+                      <div className="gba:space-y-2">
+                        {Object.entries(insightsFromFeedback.countOverTime)
+                          .sort(([a], [b]) => a.localeCompare(b))
+                          .map(([monthKey, count]) => {
+                            const [y, m] = monthKey.split('-').map(Number)
+                            const date = !Number.isNaN(y) && !Number.isNaN(m) ? new Date(y, m - 1, 1) : null
+                            const rawLabel = date
+                              ? date.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
+                              : monthKey
+                            const label = rawLabel ? rawLabel.charAt(0).toUpperCase() + rawLabel.slice(1) : rawLabel
+                            return (
+                              <div
+                                key={monthKey}
+                                className="gba:flex gba:items-baseline gba:justify-between gba:gap-2 gba:py-1.5 gba:border-b gba:border-border gba:last:border-0"
+                              >
+                                <span className="gba:text-sm gba:font-medium">{label}</span>
+                                <span className="gba:text-sm gba:text-muted-foreground">{count}</span>
+                              </div>
+                            )
+                          })}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+                {Object.keys(insightsFromFeedback.byType).length > 0 && (
+                  <Card>
+                    <CardContent className="gba:p-4">
+                      <p className="gba:text-sm gba:font-medium gba:mb-1">
+                        {t('feedback-hub-insights-distribution-by-type')}
+                      </p>
+                      <p className="gba:text-xs gba:text-muted-foreground gba:mb-3">
+                        {t('feedback-hub-insights-by-type-description')}
+                      </p>
+                      <ul className="gba:space-y-1 gba:text-sm gba:text-muted-foreground">
+                        {Object.entries(insightsFromFeedback.byType).map(([type, count]) => (
+                          <li key={type}>
+                            {type}: {count}
+                          </li>
+                        ))}
+                      </ul>
+                    </CardContent>
+                  </Card>
+                )}
+                {Object.keys(insightsFromFeedback.byTagOrSkill).length > 0 && (
+                  <Card>
+                    <CardContent className="gba:p-4">
+                      <p className="gba:text-sm gba:font-medium gba:mb-1">
+                        {t('feedback-hub-insights-distribution-by-tag-skill')}
+                      </p>
+                      <p className="gba:text-xs gba:text-muted-foreground gba:mb-3">
+                        {t('feedback-hub-insights-by-tag-skill-description')}
+                      </p>
+                      <ul className="gba:space-y-1 gba:text-sm gba:text-muted-foreground">
+                        {Object.entries(insightsFromFeedback.byTagOrSkill).map(([key, count]) => (
+                          <li key={key}>
+                            {key}: {count}
+                          </li>
+                        ))}
+                      </ul>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            </div>
+            <div>
+              <h3 className="gba:text-lg gba:font-semibold gba:mb-1">{t('feedback-hub-insights-review-title')}</h3>
+              <p className="gba:text-muted-foreground gba:text-sm gba:mb-4">
+                {t('feedback-hub-insights-review-description')}
+              </p>
+              <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-3 gba:gap-4">
+                <Card>
+                  <CardContent className="gba:p-4">
+                    <p className="gba:text-sm gba:font-medium gba:mb-1">
+                      {t('feedback-hub-insights-review-avg-per-skill')}
+                    </p>
+                    <p className="gba:text-2xl gba:font-semibold gba:text-muted-foreground">—</p>
+                    <p className="gba:text-xs gba:text-muted-foreground gba:mt-2">
+                      {t('feedback-hub-insights-no-review-data')}
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="gba:p-4">
+                    <p className="gba:text-sm gba:font-medium gba:mb-1">
+                      {t('feedback-hub-insights-review-overall-avg')}
+                    </p>
+                    <p className="gba:text-2xl gba:font-semibold gba:text-muted-foreground">—</p>
+                    <p className="gba:text-xs gba:text-muted-foreground gba:mt-2">
+                      {t('feedback-hub-insights-no-review-data')}
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="gba:p-4">
+                    <p className="gba:text-sm gba:font-medium gba:mb-1">
+                      {t('feedback-hub-insights-review-top-strengths')}
+                    </p>
+                    <p className="gba:text-sm gba:text-muted-foreground">—</p>
+                    <p className="gba:text-xs gba:text-muted-foreground gba:mt-2">
+                      {t('feedback-hub-insights-no-review-data')}
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="gba:p-4">
+                    <p className="gba:text-sm gba:font-medium gba:mb-1">
+                      {t('feedback-hub-insights-review-growth-areas')}
+                    </p>
+                    <p className="gba:text-sm gba:text-muted-foreground">—</p>
+                    <p className="gba:text-xs gba:text-muted-foreground gba:mt-2">
+                      {t('feedback-hub-insights-no-review-data')}
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+              <p className="gba:text-xs gba:text-muted-foreground gba:mt-2">
+                {t('feedback-hub-insights-review-placeholder')}
+              </p>
+            </div>
+          </TabsContent>
+        </Tabs>
+      )}
     </div>
   )
 }

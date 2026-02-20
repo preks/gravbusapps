@@ -5,9 +5,11 @@
 export const employeeFeedbackQuery = `
   query GetEmployeeFeedback($employeeId: uuid!) {
     EmployeeFeedback(where: {
-      employeeId: {_eq: $employeeId}
+      employeeId: {_eq: $employeeId},
+      isDeleted: {_neq: true}
     }, orderBy: {feedbackDate: DESC}) {
       id
+      createdAt
       feedback
       feedbackDate
       feedbackPublic
@@ -16,11 +18,8 @@ export const employeeFeedbackQuery = `
       rating
       feedbackPublic
       typeRef
-      type {
-        id
-        code
-        value
-      }
+      type { id code value }
+      additionalProperties
       senderEmployee {
         firstName
         lastName
@@ -29,6 +28,40 @@ export const employeeFeedbackQuery = `
             pictureThumbnail
           }
         }
+      }
+    }
+  }
+`
+
+/** Feedback given by current user (sender_employee_id = currentUser). */
+export const employeeFeedbackGivenQuery = `
+  query GetEmployeeFeedbackGiven($senderEmployeeId: uuid!) {
+    EmployeeFeedback(
+      where: { senderEmployeeId: { _eq: $senderEmployeeId }, isDeleted: { _neq: true } }
+      orderBy: { feedbackDate: DESC }
+    ) {
+      id
+      createdAt
+      feedback
+      feedbackDate
+      feedbackPublic
+      senderEmployeeId
+      employeeId
+      rating
+      typeRef
+      additionalProperties
+      type { id code value }
+      senderEmployee {
+        firstName
+        lastName
+        employeePosition { employee { pictureThumbnail } }
+      }
+      employee {
+        id
+        firstName
+        lastName
+        displayName
+        employeePosition { employee { pictureThumbnail } }
       }
     }
   }
