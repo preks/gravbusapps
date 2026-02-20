@@ -71,6 +71,7 @@ export const GlobalPreCallSetupDialog: React.FC = () => {
       userName={dialogState.userName}
       userAvatarUrl={dialogState.userAvatarUrl}
       conversationType={dialogState.conversationType}
+      otherParticipantName={dialogState.otherParticipantName}
       onStart={preferences => {
         if (callbacks.onStart) {
           callbacks.onStart(preferences)

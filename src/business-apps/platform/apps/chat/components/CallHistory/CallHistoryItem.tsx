@@ -118,9 +118,9 @@ export function CallHistoryItemJoined({
         {hostAvatarUrl && <AvatarImage src={hostAvatarUrl} alt={hostName} />}
         <AvatarFallback className="gba:text-sm gba:font-medium">{getInitials(hostName || callName)}</AvatarFallback>
       </Avatar>
-      <div className="gba:flex-1 gba:min-w-0">
+      <div className="gba:flex-1 gba:min-w-0 gba:overflow-visible">
         <div className="gba:font-medium gba:text-foreground gba:truncate">{t(titleKey, { name: callName })}</div>
-        <div className="gba:text-muted-foreground gba:text-sm gba:mt-0.5">
+        <div className="gba:text-muted-foreground gba:text-sm gba:mt-0.5 gba:min-h-5">
           {directionLabel}
           {hostName && !isOutgoing && <> · {t('chat-callHistoryWhoInvited', { name: hostName })}</>}
           {duration && <> · {duration}</>}
@@ -170,10 +170,10 @@ export function CallHistoryItemOutcome({
         {inviterAvatarUrl && <AvatarImage src={inviterAvatarUrl} alt={inviterName} />}
         <AvatarFallback className="gba:text-sm gba:font-medium">{getInitials(inviterName || callName)}</AvatarFallback>
       </Avatar>
-      <div className="gba:flex-1 gba:min-w-0">
+      <div className="gba:flex-1 gba:min-w-0 gba:overflow-visible">
         <div className="gba:font-medium gba:text-foreground gba:truncate">{t(titleKey, { name: callName })}</div>
         <div
-          className={`gba:text-sm gba:mt-0.5 gba:truncate ${
+          className={`gba:text-sm gba:mt-0.5 gba:truncate gba:min-h-5 ${
             isMissedOrNotAnswered ? 'gba:text-destructive' : 'gba:text-muted-foreground'
           }`}
         >

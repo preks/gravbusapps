@@ -108,8 +108,8 @@ export const CallHistory: React.FC<CallHistoryProps> = ({
   return (
     <div className="gba:flex gba:flex-col gba:h-full gba:bg-background" data-testid="chat-callHistory">
       <header className="gba:shrink-0 gba:border-b gba:border-border">
-        <div className="gba:flex gba:flex-col gba:gap-2 gba:px-3 gba:py-3 gba:sm:flex-row gba:sm:items-center gba:sm:gap-3 gba:sm:py-3">
-          <div className="gba:flex gba:items-center gba:gap-3 gba:min-w-0">
+        <div className="gba:flex gba:flex-col gba:gap-y-2 gba:px-3 gba:py-3 gba:sm:flex-row gba:sm:flex-wrap gba:sm:items-center gba:sm:gap-x-3">
+          <div className="gba:flex gba:items-center gba:gap-3 gba:shrink-0">
             <Button
               variant="ghost"
               size="icon"
@@ -120,12 +120,11 @@ export const CallHistory: React.FC<CallHistoryProps> = ({
             >
               <CaretLeftIcon className="gba:size-5" />
             </Button>
-            <h2 className="gba:font-semibold gba:text-foreground gba:text-base gba:truncate gba:min-w-0">
-              {t('chat-callHistory')}
-            </h2>
+            <h2 className="gba:font-semibold gba:text-foreground gba:text-base">{t('chat-callHistory')}</h2>
           </div>
+
           <nav
-            className="gba:flex gba:items-center gba:gap-1 gba:flex-nowrap gba:overflow-x-auto gba:min-w-0 gba:sm:flex-1 gba:sm:justify-end"
+            className="gba:flex gba:items-center gba:gap-1 gba:flex-nowrap gba:overflow-x-auto gba:min-w-0 gba:border-t gba:border-border gba:pt-2 gba:sm:flex-1 gba:sm:border-t-0 gba:sm:pt-0"
             aria-label={t('chat-callHistory')}
           >
             {(['all', 'missed', 'declined', 'incoming', 'outgoing'] as const).map(f => (
@@ -144,27 +143,27 @@ export const CallHistory: React.FC<CallHistoryProps> = ({
               </button>
             ))}
           </nav>
-        </div>
 
-        <div
-          className="gba:flex gba:items-center gba:gap-1 gba:flex-nowrap gba:overflow-x-auto gba:px-3 gba:pt-3 gba:pb-2 gba:border-t gba:border-border"
-          aria-label={t('chat-callHistoryAllTypes')}
-        >
-          {(['all', 'direct', 'group', 'meeting'] as const).map(f => (
-            <button
-              key={f}
-              type="button"
-              onClick={() => setCallTypeFilter(f)}
-              data-testid={`chat-callHistory-typeFilter-${f}`}
-              className={`gba:px-3 gba:py-1.5 gba:text-sm gba:rounded-md gba:flex-shrink-0 gba:transition-colors ${
-                callTypeFilter === f
-                  ? 'gba:bg-primary gba:text-primary-foreground'
-                  : 'gba:text-muted-foreground hover:gba:bg-accent hover:gba:text-accent-foreground'
-              }`}
-            >
-              {getTypeFilterLabel(f, t)}
-            </button>
-          ))}
+          <div
+            className="gba:flex gba:items-center gba:gap-1 gba:flex-nowrap gba:overflow-x-auto gba:w-full gba:pt-2 gba:pb-0 gba:sm:pb-0 gba:border-t gba:border-border gba:sm:pt-2 gba:sm:pb-0"
+            aria-label={t('chat-callHistoryAllTypes')}
+          >
+            {(['all', 'direct', 'group', 'meeting'] as const).map(f => (
+              <button
+                key={f}
+                type="button"
+                onClick={() => setCallTypeFilter(f)}
+                data-testid={`chat-callHistory-typeFilter-${f}`}
+                className={`gba:px-3 gba:py-1.5 gba:text-sm gba:rounded-md gba:flex-shrink-0 gba:transition-colors ${
+                  callTypeFilter === f
+                    ? 'gba:bg-primary gba:text-primary-foreground'
+                    : 'gba:text-muted-foreground hover:gba:bg-accent hover:gba:text-accent-foreground'
+                }`}
+              >
+                {getTypeFilterLabel(f, t)}
+              </button>
+            ))}
+          </div>
         </div>
       </header>
 
@@ -188,7 +187,7 @@ export const CallHistory: React.FC<CallHistoryProps> = ({
           </div>
         )}
         {!loading && !error && entries.length > 0 && (
-          <div className="gba:flex gba:flex-col">
+          <div className="gba:flex gba:flex-col gba:pb-4">
             {entries.map(entry =>
               entry.type === 'joined' ? (
                 <CallHistoryItemJoined
