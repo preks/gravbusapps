@@ -58,8 +58,8 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
         if (alreadyBuilt) {
           const firstWithSession = plan.components.find(c => c.metadata?.sessionId && c.metadata?.repoId)
           orchestratorClient.setSessionFromBuild(
-            firstWithSession?.metadata?.sessionId as string | undefined,
-            firstWithSession?.metadata?.repoId as string | undefined
+            firstWithSession?.metadata?.sessionId,
+            firstWithSession?.metadata?.repoId
           )
         }
         state.setChatActive(true)
@@ -111,6 +111,54 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
     initialPrompt
   })
 
+  const MUTATION_TOOLS = ['write_file', 'delete_file', 'screen_build', 'run_command']
+
+  const processStreamEvent = (payload: string): boolean => {
+    const eventData = JSON.parse(payload) as Record<string, unknown>
+    const eventType = typeof eventData.type === 'string' ? eventData.type : ''
+
+    if (eventType === 'tool_call') {
+      const toolName = typeof eventData.toolName === 'string' ? eventData.toolName : ''
+      if (MUTATION_TOOLS.includes(toolName)) return true
+    }
+    if (eventType === 'error') {
+      const message = typeof eventData.content === 'string' ? eventData.content : 'Fix request failed'
+      throw new Error(message)
+    }
+    return false
+  }
+
+  const readStream = async (stream: ReadableStream<Uint8Array>): Promise<boolean> => {
+    const reader = stream.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+    let hasMutation = false
+
+    while (true) {
+      const { value, done } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() ?? ''
+
+      for (const line of lines) {
+        const trimmed = line.trim()
+        if (!trimmed.startsWith('data:')) continue
+        const payload = trimmed.slice(5).trim()
+        if (!payload || payload === '[DONE]') continue
+
+        try {
+          if (processStreamEvent(payload)) hasMutation = true
+        } catch (error_) {
+          if (error_ instanceof Error && error_.message !== 'Fix request failed') continue
+          throw error_
+        }
+      }
+    }
+
+    return hasMutation
+  }
+
   // --- Fix send handler (routes to AI builder for screen fixes) ---
   const handleFixSend = useCallback(
     async (prompt: string) => {
@@ -121,43 +169,7 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
       }
 
       const stream = await builderClient.queryCode(repoId, prompt, [], true, true, sessionId, 'claude')
-      const reader = stream.getReader()
-      const decoder = new TextDecoder()
-      let buffer = ''
-      let hasMutation = false
-
-      while (true) {
-        const { value, done } = await reader.read()
-        if (done) break
-        buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split('\n')
-        buffer = lines.pop() ?? ''
-
-        for (const line of lines) {
-          const trimmed = line.trim()
-          if (!trimmed.startsWith('data:')) continue
-          const payload = trimmed.slice(5).trim()
-          if (!payload || payload === '[DONE]') continue
-
-          try {
-            const eventData = JSON.parse(payload) as Record<string, unknown>
-            const eventType = String(eventData.type ?? '')
-
-            if (eventType === 'tool_call') {
-              const toolName = String(eventData.toolName ?? '')
-              if (['write_file', 'delete_file', 'screen_build', 'run_command'].includes(toolName)) {
-                hasMutation = true
-              }
-            }
-            if (eventType === 'error') {
-              throw new Error(String(eventData.content ?? 'Fix request failed'))
-            }
-          } catch (parseErr) {
-            if (parseErr instanceof Error && parseErr.message !== 'Fix request failed') continue
-            throw parseErr
-          }
-        }
-      }
+      const hasMutation = await readStream(stream)
 
       if (hasMutation) {
         setPreviewRefreshToken(prev => prev + 1)
