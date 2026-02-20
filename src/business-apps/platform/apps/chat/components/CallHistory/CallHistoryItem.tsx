@@ -121,7 +121,7 @@ export function CallHistoryItemJoined({
     <button
       type="button"
       onClick={() => conversationId && onOpenConversation(conversationId)}
-      className="gba:flex gba:items-center gba:gap-3 gba:w-full gba:px-3 gba:py-2 gba:border-b gba:border-border gba:text-left hover:gba:bg-accent/50 gba:transition-colors"
+      className="gba:flex gba:items-center gba:gap-3 gba:w-full gba:min-w-0 gba:px-3 gba:py-2 gba:border-b gba:border-border gba:text-left hover:gba:bg-accent/50 gba:transition-colors"
       data-testid="chat-callHistory-item-joined"
     >
       {direct ? (
@@ -215,7 +215,7 @@ export function CallHistoryItemOutcome({
     <button
       type="button"
       onClick={() => onOpenConversation(item.conversationId)}
-      className="gba:flex gba:items-center gba:gap-3 gba:w-full gba:px-3 gba:py-2 gba:border-b gba:border-border gba:text-left hover:gba:bg-accent/50 gba:transition-colors"
+      className="gba:flex gba:items-center gba:gap-3 gba:w-full gba:min-w-0 gba:px-3 gba:py-2 gba:border-b gba:border-border gba:text-left hover:gba:bg-accent/50 gba:transition-colors"
       data-testid="chat-callHistory-item-outcome"
     >
       {direct ? (

@@ -203,19 +203,22 @@ export const CallHistory: React.FC<CallHistoryProps> = ({
       requestAnimationFrame(update)
     })
     ro.observe(container)
+    const onResize = () => requestAnimationFrame(update)
+    window.addEventListener('resize', onResize)
     return () => {
       cancelAnimationFrame(raf)
       ro.disconnect()
+      window.removeEventListener('resize', onResize)
     }
   }, [showBackButton])
 
   return (
     <div
-      className="gba:flex gba:flex-col gba:h-full gba:w-full gba:bg-background gba:relative"
+      className="gba:flex gba:flex-col gba:h-full gba:w-full gba:min-w-0 gba:bg-background gba:relative"
       data-testid="chat-callHistory"
     >
       <header
-        className="gba:flex gba:items-center gba:border-b gba:border-border/50 gba:bg-background/80 gba:backdrop-blur-sm gba:flex-shrink-0 gba:gap-3 gba:px-4 gba:py-3 gba:min-w-0"
+        className="gba:flex gba:items-center gba:border-b gba:border-border/50 gba:bg-background/80 gba:backdrop-blur-sm gba:flex-shrink-0 gba:gap-3 gba:px-4 gba:py-3 gba:min-w-0 gba:overflow-x-auto"
         data-testid="chat-callHistory-header"
       >
         {showBackButton && (
@@ -230,12 +233,12 @@ export const CallHistory: React.FC<CallHistoryProps> = ({
             <ArrowLeftIcon className="gba:w-4 gba:h-4" />
           </Button>
         )}
-        <div className="gba:flex-1 gba:min-w-0">
+        <div className="gba:min-w-0 gba:flex-[3]">
           <h2 className="gba:font-semibold gba:truncate gba:text-foreground gba:text-base">{t('chat-callHistory')}</h2>
         </div>
         <div
           ref={filterContainerRef}
-          className="gba:flex-1 gba:flex gba:items-center gba:justify-end gba:gap-2 gba:min-w-0 gba:overflow-x-auto gba:scrollbar-none"
+          className="gba:flex-[7] gba:flex gba:items-center gba:justify-end gba:gap-2 gba:min-w-0 gba:overflow-x-auto"
         >
           {/* Hidden rulers to measure filter width with/without labels (only when not mobile/compact) */}
           {!showBackButton && (
@@ -367,7 +370,7 @@ export const CallHistory: React.FC<CallHistoryProps> = ({
         )}
       </header>
 
-      <div className="gba:flex-1 gba:overflow-auto gba:min-h-0">
+      <div className="gba:flex-1 gba:min-w-0 gba:overflow-auto gba:min-h-0">
         {loading && (
           <div className="gba:flex gba:items-center gba:justify-center gba:py-8">
             <Spinner className="gba:size-8" data-testid="chat-callHistory-loading" />
