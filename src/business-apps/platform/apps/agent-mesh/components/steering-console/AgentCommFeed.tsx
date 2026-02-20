@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { Badge } from '@newwork/nw-design-system'
 import { CheckCircle2, Loader2, XCircle, ArrowRight, MessageSquare, Brain } from 'lucide-react'
 import { MarkdownWithChipsRenderer } from '@/common/components/markdown/MarkdownWithChipsRenderer'
@@ -227,18 +227,42 @@ const CommEventCard = ({ event, index }: { event: CommEvent; index: number }) =>
 
 export const AgentCommFeed = ({ events, isExecuting }: AgentCommFeedProps) => {
   const scrollRef = useRef<HTMLDivElement>(null)
+  const userScrolledUpRef = useRef(false)
+  const prevEventCountRef = useRef(0)
 
+  const handleScroll = useCallback(() => {
+    const el = scrollRef.current
+    if (!el) return
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight
+    userScrolledUpRef.current = distanceFromBottom > 80
+  }, [])
+
+  // Reset scroll lock when a new execution starts (events wiped back to 0)
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
+    if (events.length === 0) {
+      userScrolledUpRef.current = false
+      prevEventCountRef.current = 0
     }
+  }, [events.length])
+
+  // Auto-scroll only when user hasn't manually scrolled up
+  useEffect(() => {
+    if (events.length > prevEventCountRef.current && !userScrolledUpRef.current) {
+      scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
+    }
+    prevEventCountRef.current = events.length
   }, [events])
 
   const hasEvents = events.length > 0
 
   return (
     <div className="gba:flex gba:flex-col gba:h-full gba:bg-background" data-testid="agent-comm-feed">
-      <div ref={scrollRef} className="gba:flex-1 gba:overflow-y-auto gba:p-4" data-testid="agent-comm-feed-content">
+      <div
+        ref={scrollRef}
+        onScroll={handleScroll}
+        className="gba:flex-1 gba:overflow-y-auto gba:p-4"
+        data-testid="agent-comm-feed-content"
+      >
         {!hasEvents && !isExecuting && (
           <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-full gba:text-muted-foreground gba:gap-3">
             <MessageSquare className="gba:w-10 gba:h-10 gba:opacity-30" />
