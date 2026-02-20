@@ -1,5 +1,8 @@
-import React from 'react'
 import { Avatar, AvatarFallback, AvatarImage } from '@newwork/nw-design-system'
+import { PhoneIncoming, PhoneOutgoing, PhoneSlash } from '@phosphor-icons/react'
+import { CalendarIcon, UsersIcon } from 'lucide-react'
+import type { UserPresence } from '../../hooks/usePresence'
+import { UserStatusIndicator } from '../UserStatusIndicator'
 import type { CallSessionItem, CallInviteOutcomeItem } from './CallHistoryTypes'
 
 function getInitials(name: string): string {
@@ -50,23 +53,25 @@ function getInviterDisplayName(inviter?: CallInviteOutcomeItem['inviter']): stri
 
 type TFunction = (key: string, params?: Record<string, unknown>) => string
 
-function getCallHistoryTitleKey(callType: string): string {
+function isDirectCall(callType: string): boolean {
   const normalized = callType.toLowerCase()
-  if (normalized === 'scheduled_meeting' || normalized === 'meeting') return 'chat-callHistoryMeetingName'
-  if (normalized === 'group') return 'chat-callHistoryGroupCallName'
-  return 'chat-callHistoryCallName'
+  return normalized !== 'group' && normalized !== 'scheduled_meeting' && normalized !== 'meeting'
+}
+
+function isMeetingCall(callType: string): boolean {
+  const normalized = callType.toLowerCase()
+  return normalized === 'scheduled_meeting' || normalized === 'meeting'
 }
 
 function getOutcomeLabel(outcome: CallInviteOutcomeItem['outcome'], t: TFunction): string {
   switch (outcome) {
     case 'missed':
+    case 'not_answered':
       return t('chat-callHistoryMissed')
     case 'declined':
       return t('chat-callHistoryDeclined')
-    case 'not_answered':
-      return t('chat-callHistoryNotAnswered')
     default:
-      return t('chat-callHistoryNotAnswered')
+      return t('chat-callHistoryMissed')
   }
 }
 
@@ -74,6 +79,8 @@ export interface CallHistoryItemJoinedProps {
   item: CallSessionItem
   currentUserId: string
   avatarMap?: Map<string, string>
+  /** Presence for the other user (host when incoming); used for status on avatar. */
+  otherUserPresence?: UserPresence
   onOpenConversation: (conversationId: string) => void
   t: (key: string, params?: Record<string, unknown>) => string
 }
@@ -82,6 +89,7 @@ export function CallHistoryItemJoined({
   item,
   currentUserId,
   avatarMap = new Map(),
+  otherUserPresence,
   onOpenConversation,
   t
 }: Readonly<CallHistoryItemJoinedProps>) {
@@ -92,7 +100,8 @@ export function CallHistoryItemJoined({
     item.meeting?.title ||
     t('chat-callHistoryGroupCall')
   const callType = (item.callType ?? 'direct').toLowerCase()
-  const titleKey = getCallHistoryTitleKey(callType)
+  const direct = isDirectCall(callType)
+  const meeting = isMeetingCall(callType)
   const hostName = getHostDisplayName(item.host)
   const hostId = item.hostId ?? item.host?.id
   const hostFromApi = item.host as { avatarUrl?: string; avatar_url?: string } | undefined
@@ -106,27 +115,65 @@ export function CallHistoryItemJoined({
       : null
   const conversationId = item.conversationId ?? item.conversation?.id
   const rightLabel = formatCallDate(item.startedAt)
+  const displayTitle = direct ? hostName || callName : callName
 
   return (
     <button
       type="button"
       onClick={() => conversationId && onOpenConversation(conversationId)}
-      className="gba:flex gba:items-center gba:gap-3 gba:w-full gba:px-3 gba:py-3 gba:border-b gba:border-border gba:text-left hover:gba:bg-accent/50 gba:transition-colors"
+      className="gba:flex gba:items-center gba:gap-3 gba:w-full gba:px-3 gba:py-2.5 gba:border-b gba:border-border gba:text-left hover:gba:bg-accent/50 gba:transition-colors"
       data-testid="chat-callHistory-item-joined"
     >
-      <Avatar className="gba:h-10 gba:w-10 gba:flex-shrink-0">
-        {hostAvatarUrl && <AvatarImage src={hostAvatarUrl} alt={hostName} />}
-        <AvatarFallback className="gba:text-sm gba:font-medium">{getInitials(hostName || callName)}</AvatarFallback>
-      </Avatar>
-      <div className="gba:min-w-24 gba:flex-1 gba:overflow-hidden">
-        <div className="gba:font-medium gba:text-foreground gba:truncate">{t(titleKey, { name: callName })}</div>
-        <div className="gba:text-muted-foreground gba:text-sm gba:mt-0.5 gba:min-h-5 gba:truncate">
-          {directionLabel}
-          {hostName && !isOutgoing && <> · {t('chat-callHistoryWhoInvited', { name: hostName })}</>}
-          {duration && <> · {duration}</>}
+      {direct ? (
+        <div className="gba:relative gba:flex-shrink-0">
+          <Avatar className="gba:h-10 gba:w-10 gba:ring-2 gba:ring-background">
+            {hostAvatarUrl && <AvatarImage src={hostAvatarUrl} alt={hostName} />}
+            <AvatarFallback className="gba:text-sm gba:font-medium">{getInitials(hostName || callName)}</AvatarFallback>
+          </Avatar>
+          {otherUserPresence?.userStatus ? (
+            <UserStatusIndicator
+              status={otherUserPresence.userStatus}
+              size="sm"
+              className="gba:absolute gba:bottom-0 gba:right-0"
+            />
+          ) : otherUserPresence ? (
+            <span
+              className={`gba:absolute gba:bottom-0 gba:right-0 gba:block gba:h-3 gba:w-3 gba:rounded-full gba:border-2 gba:border-background ${
+                otherUserPresence.state === 'online' ? 'gba:bg-success' : 'gba:bg-muted-foreground'
+              }`}
+              title={otherUserPresence.state === 'online' ? t('chat-statusOnline') : t('chat-statusOffline')}
+            />
+          ) : null}
+        </div>
+      ) : (
+        <div className="gba:flex gba:h-10 gba:w-10 gba:flex-shrink-0 gba:items-center gba:justify-center gba:rounded-full gba:bg-muted gba:text-muted-foreground">
+          {meeting ? <CalendarIcon className="gba:size-5" /> : <UsersIcon className="gba:size-5" />}
+        </div>
+      )}
+      <div className="gba:min-w-0 gba:flex-1 gba:flex gba:flex-col gba:gap-px gba:overflow-hidden">
+        <div className="gba:font-medium gba:text-foreground gba:text-sm gba:truncate">{displayTitle}</div>
+        <div className="gba:flex gba:items-center gba:gap-1 gba:text-muted-foreground gba:text-xs gba:truncate">
+          {isOutgoing ? (
+            <PhoneOutgoing className="gba:size-4 gba:flex-shrink-0" weight="regular" />
+          ) : (
+            <PhoneIncoming className="gba:size-4 gba:flex-shrink-0" weight="regular" />
+          )}
+          <span>{directionLabel}</span>
+          {!direct && hostName && !isOutgoing && (
+            <>
+              <span>·</span>
+              <span>{t('chat-callHistoryWhoInvited', { name: hostName })}</span>
+            </>
+          )}
+          {duration && (
+            <>
+              <span>·</span>
+              <span>{duration}</span>
+            </>
+          )}
         </div>
       </div>
-      <span className="gba:text-muted-foreground gba:text-sm gba:flex-shrink-0 gba:whitespace-nowrap">
+      <span className="gba:text-muted-foreground gba:text-xs gba:flex-shrink-0 gba:whitespace-nowrap gba:pt-px">
         {rightLabel}
       </span>
     </button>
@@ -136,6 +183,8 @@ export function CallHistoryItemJoined({
 export interface CallHistoryItemOutcomeProps {
   item: CallInviteOutcomeItem
   avatarMap?: Map<string, string>
+  /** Presence for the inviter (other user); used for status on avatar. */
+  otherUserPresence?: UserPresence
   onOpenConversation: (conversationId: string) => void
   t: (key: string, params?: Record<string, unknown>) => string
 }
@@ -143,18 +192,21 @@ export interface CallHistoryItemOutcomeProps {
 export function CallHistoryItemOutcome({
   item,
   avatarMap = new Map(),
+  otherUserPresence,
   onOpenConversation,
   t
 }: Readonly<CallHistoryItemOutcomeProps>) {
   const inviterName = getInviterDisplayName(item.inviter)
   const callName = item.conversation?.name || inviterName || t('chat-callHistoryGroupCall')
   const callType = (item.callType ?? 'direct').toLowerCase()
-  const titleKey = getCallHistoryTitleKey(callType)
+  const direct = isDirectCall(callType)
+  const meeting = isMeetingCall(callType)
   const inviterId = item.inviterId ?? item.inviter?.id
   const inviterFromApi = item.inviter as { avatarUrl?: string; avatar_url?: string } | undefined
   const inviterAvatarUrl =
     inviterFromApi?.avatarUrl ?? inviterFromApi?.avatar_url ?? (inviterId ? avatarMap.get(inviterId) : undefined)
   const rightLabel = formatCallDate(item.callEndedAt ?? item.invitedAt)
+  const displayTitle = direct ? inviterName || callName : callName
 
   const outcomeLabel = getOutcomeLabel(item.outcome, t)
   const isMissedOrNotAnswered = item.outcome === 'missed' || item.outcome === 'not_answered'
@@ -163,25 +215,55 @@ export function CallHistoryItemOutcome({
     <button
       type="button"
       onClick={() => onOpenConversation(item.conversationId)}
-      className="gba:flex gba:items-center gba:gap-3 gba:w-full gba:px-3 gba:py-3 gba:border-b gba:border-border gba:text-left hover:gba:bg-accent/50 gba:transition-colors"
+      className="gba:flex gba:items-center gba:gap-3 gba:w-full gba:px-3 gba:py-2.5 gba:border-b gba:border-border gba:text-left hover:gba:bg-accent/50 gba:transition-colors"
       data-testid="chat-callHistory-item-outcome"
     >
-      <Avatar className="gba:h-10 gba:w-10 gba:flex-shrink-0">
-        {inviterAvatarUrl && <AvatarImage src={inviterAvatarUrl} alt={inviterName} />}
-        <AvatarFallback className="gba:text-sm gba:font-medium">{getInitials(inviterName || callName)}</AvatarFallback>
-      </Avatar>
-      <div className="gba:min-w-24 gba:flex-1 gba:overflow-hidden">
-        <div className="gba:font-medium gba:text-foreground gba:truncate">{t(titleKey, { name: callName })}</div>
+      {direct ? (
+        <div className="gba:relative gba:flex-shrink-0">
+          <Avatar className="gba:h-10 gba:w-10 gba:ring-2 gba:ring-background">
+            {inviterAvatarUrl && <AvatarImage src={inviterAvatarUrl} alt={inviterName} />}
+            <AvatarFallback className="gba:text-sm gba:font-medium">
+              {getInitials(inviterName || callName)}
+            </AvatarFallback>
+          </Avatar>
+          {otherUserPresence?.userStatus ? (
+            <UserStatusIndicator
+              status={otherUserPresence.userStatus}
+              size="sm"
+              className="gba:absolute gba:bottom-0 gba:right-0"
+            />
+          ) : otherUserPresence ? (
+            <span
+              className={`gba:absolute gba:bottom-0 gba:right-0 gba:block gba:h-3 gba:w-3 gba:rounded-full gba:border-2 gba:border-background ${
+                otherUserPresence.state === 'online' ? 'gba:bg-success' : 'gba:bg-muted-foreground'
+              }`}
+              title={otherUserPresence.state === 'online' ? t('chat-statusOnline') : t('chat-statusOffline')}
+            />
+          ) : null}
+        </div>
+      ) : (
+        <div className="gba:flex gba:h-10 gba:w-10 gba:flex-shrink-0 gba:items-center gba:justify-center gba:rounded-full gba:bg-muted gba:text-muted-foreground">
+          {meeting ? <CalendarIcon className="gba:size-5" /> : <UsersIcon className="gba:size-5" />}
+        </div>
+      )}
+      <div className="gba:min-w-0 gba:flex-1 gba:flex gba:flex-col gba:gap-px gba:overflow-hidden">
+        <div className="gba:font-medium gba:text-foreground gba:text-sm gba:truncate">{displayTitle}</div>
         <div
-          className={`gba:text-sm gba:mt-0.5 gba:min-h-5 gba:truncate ${
+          className={`gba:flex gba:items-center gba:gap-1 gba:text-xs gba:truncate ${
             isMissedOrNotAnswered ? 'gba:text-destructive' : 'gba:text-muted-foreground'
           }`}
         >
-          {t('chat-callHistoryIncoming')} · {outcomeLabel}
-          {inviterName && <> · {t('chat-callHistoryWhoInvited', { name: inviterName })}</>}
+          <PhoneSlash className="gba:size-4 gba:flex-shrink-0" weight="regular" />
+          <span>{outcomeLabel}</span>
+          {!direct && inviterName && (
+            <>
+              <span>·</span>
+              <span>{t('chat-callHistoryWhoInvited', { name: inviterName })}</span>
+            </>
+          )}
         </div>
       </div>
-      <span className="gba:text-muted-foreground gba:text-sm gba:flex-shrink-0 gba:whitespace-nowrap">
+      <span className="gba:text-muted-foreground gba:text-xs gba:flex-shrink-0 gba:whitespace-nowrap gba:pt-px">
         {rightLabel}
       </span>
     </button>

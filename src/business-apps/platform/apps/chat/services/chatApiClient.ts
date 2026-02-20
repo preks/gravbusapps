@@ -421,11 +421,12 @@ export class ChatApiClient {
     status: import('../components/CallHistory/CallHistoryTypes').CallHistoryFilter
     callType: import('../components/CallHistory/CallHistoryTypes').CallHistoryTypeFilter
     limit?: number
+    offset?: number
   }): Promise<import('../components/CallHistory/CallHistoryTypes').CallHistoryEntry[]> {
-    const { status, callType, limit = 50 } = params
+    const { status, callType, limit = 50, offset = 0 } = params
     const response = await this.client.get<Array<{ type: 'joined' | 'outcome'; [key: string]: unknown }>>(
       '/call-history',
-      { params: { status, callType, limit } }
+      { params: { status, callType, limit, offset } }
     )
     const data = Array.isArray(response.data) ? response.data : []
     return data.map(entry => {

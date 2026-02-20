@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo, memo } from 'react'
+import React, { useState, useEffect, useRef, useMemo, useCallback, memo } from 'react'
 import { Alert, AlertDescription, Spinner, Toaster } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useChatClient } from './hooks/useChatClient'
@@ -65,7 +65,11 @@ const ChatInner: React.FC<ChatProps> = memo(
     const containerRef = useRef<HTMLDivElement>(null)
     const chatViewRef = useRef<HTMLDivElement>(null)
     const [showConversationList, setShowConversationList] = useState(!initialOpenWithUser)
-    const [showCallHistory, setShowCallHistory] = useState(false)
+    const getShowCallHistoryFromUrl = useCallback((): boolean => {
+      if (typeof window === 'undefined') return false
+      return new URLSearchParams(window.location.search).get('view') === 'call-history'
+    }, [])
+    const [showCallHistory, setShowCallHistory] = useState(getShowCallHistoryFromUrl)
     const [missedCallsCount, setMissedCallsCount] = useState(0)
     const [callHistoryRefreshTrigger, setCallHistoryRefreshTrigger] = useState(0)
     const [showCreateGroupModal, setShowCreateGroupModal] = useState(false)
@@ -287,6 +291,23 @@ const ChatInner: React.FC<ChatProps> = memo(
 
       prevRenderDataRef.current = currentData
     }
+
+    // Sync call history view with URL (bookmarkable; pushState on open so back closes panel)
+    const updateCallHistoryUrl = useCallback((show: boolean, push = false) => {
+      if (typeof window === 'undefined') return
+      const urlParams = new URLSearchParams(window.location.search)
+      if (show) urlParams.set('view', 'call-history')
+      else urlParams.delete('view')
+      const query = urlParams.toString()
+      const newUrl = query ? `${window.location.pathname}?${query}` : window.location.pathname
+      if (push) window.history.pushState({}, '', newUrl)
+      else window.history.replaceState({}, '', newUrl)
+    }, [])
+    useEffect(() => {
+      const handlePopState = () => setShowCallHistory(getShowCallHistoryFromUrl())
+      window.addEventListener('popstate', handlePopState)
+      return () => window.removeEventListener('popstate', handlePopState)
+    }, [getShowCallHistoryFromUrl])
 
     // Track active conversation changes
     useEffect(() => {
@@ -914,6 +935,7 @@ const ChatInner: React.FC<ChatProps> = memo(
                   onOpenCallHistory={() => {
                     setShowCallHistory(true)
                     setShowConversationList(false)
+                    updateCallHistoryUrl(true, true)
                     if (apiClient) {
                       apiClient.markCallHistorySeen().catch(() => {})
                       setMissedCallsCount(0)
@@ -927,10 +949,13 @@ const ChatInner: React.FC<ChatProps> = memo(
                     apiClient={apiClient}
                     accessToken={accessToken}
                     currentUserId={currentUser.id}
+                    showBackButton={isSingleViewMode}
                     refreshTrigger={callHistoryRefreshTrigger}
+                    presenceMap={presenceMap}
                     onBack={() => {
                       setShowCallHistory(false)
                       setShowConversationList(true)
+                      updateCallHistoryUrl(false)
                       if (apiClient) {
                         apiClient
                           .getMissedCallsCount()
@@ -953,6 +978,7 @@ const ChatInner: React.FC<ChatProps> = memo(
                           .catch(() => {})
                       }
                       setShowCallHistory(false)
+                      updateCallHistoryUrl(false)
                     }}
                   />
                 ) : (
