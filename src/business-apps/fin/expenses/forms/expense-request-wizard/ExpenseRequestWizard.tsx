@@ -56,6 +56,13 @@ const ExpenseRequestWizardContent: React.FC<BusinessAppContextProps> = ({ access
   const [showCustomFooter, setShowCustomFooter] = useState<boolean>(false)
   const [itemsCount, setItemsCount] = useState<number>(0)
 
+  /**
+   * Sync header title from server only when the loaded request changes (by id).
+   * This prevents refetches or context updates for the same request from overwriting
+   * a title the user has already edited and confirmed (checkmark) before Save.
+   */
+  const lastTitleSyncRequestIdRef = React.useRef<string | null>(null)
+
   const isTrip = expenseRequestData?.ExpenseRequestByPk?.requestTypeRef?.toLowerCase().includes(REQUEST_TYPES.TRIP)
 
   const handleCancel = useMemo(() => {
@@ -83,10 +90,15 @@ const ExpenseRequestWizardContent: React.FC<BusinessAppContextProps> = ({ access
       })
     }
   }, [expenseRequestData?.ExpenseRequestByPk])
+
+  // Single source of truth for "when to overwrite title from server": only when request id changes
   useEffect(() => {
-    if (expenseRequestData?.ExpenseRequestByPk) {
-      setCurrentTitle(expenseRequestData.ExpenseRequestByPk.title || '')
-      setTitleValue(expenseRequestData.ExpenseRequestByPk.title || '')
+    const requestId = expenseRequestData?.ExpenseRequestByPk?.id ?? null
+    if (requestId && requestId !== lastTitleSyncRequestIdRef.current) {
+      lastTitleSyncRequestIdRef.current = requestId
+      const initialTitle = expenseRequestData.ExpenseRequestByPk.title || ''
+      setCurrentTitle(initialTitle)
+      setTitleValue(initialTitle)
     }
   }, [expenseRequestData, setCurrentTitle, additionalData])
 
@@ -169,16 +181,8 @@ const ExpenseRequestWizardContent: React.FC<BusinessAppContextProps> = ({ access
     setTitleError('')
   }
 
-  useEffect(() => {
-    if (expenseRequestData?.ExpenseRequestByPk) {
-      const initialTitle = expenseRequestData.ExpenseRequestByPk.title || ''
-      setCurrentTitle(initialTitle)
-      setTitleValue(initialTitle)
-    }
-  }, [expenseRequestData, setCurrentTitle, additionalData])
-
   const saveTitle = () => {
-    setCurrentTitle(titleValue)
+    setCurrentTitle(titleValue.trim())
     setIsEditingTitle(false)
   }
 
@@ -670,20 +674,25 @@ const ExpenseRequestWizardContent: React.FC<BusinessAppContextProps> = ({ access
                   data-testid="expense-request-wizard-save-button"
                   disabled={currentScreen === SCREEN_NAMES_ENUM.ITEMS_TAB && !isTrip && itemsCount === 0}
                   onClick={() => {
-                    if (currentScreen === SCREEN_NAMES_ENUM.TRIPS_TAB) {
-                      const saveEvent = new CustomEvent('expense-request-save-trip')
-                      document.dispatchEvent(saveEvent)
-                    } else if (currentScreen === SCREEN_NAMES_ENUM.ITEMS_TAB) {
-                      const saveEvent = new CustomEvent('expense-request-save-items')
-                      document.dispatchEvent(saveEvent)
-                    } else if (currentScreen === SCREEN_NAMES_ENUM.ALLOWANCE_TAB) {
-                      const saveEvent = new CustomEvent('expense-request-save-allowance')
-                      document.dispatchEvent(saveEvent)
-                    } else if (currentScreen === SCREEN_NAMES_ENUM.SUMMARY_TAB) {
-                      const saveEvent = new CustomEvent('expense-request-save-summary')
-                      document.dispatchEvent(saveEvent)
+                    if (titleValue.trim()) {
+                      setCurrentTitle(titleValue.trim())
+                      setIsEditingTitle(false)
+                    }
+                    const dispatchSave = () => {
+                      if (currentScreen === SCREEN_NAMES_ENUM.TRIPS_TAB) {
+                        document.dispatchEvent(new CustomEvent('expense-request-save-trip'))
+                      } else if (currentScreen === SCREEN_NAMES_ENUM.ITEMS_TAB) {
+                        document.dispatchEvent(new CustomEvent('expense-request-save-items'))
+                      } else if (currentScreen === SCREEN_NAMES_ENUM.ALLOWANCE_TAB) {
+                        document.dispatchEvent(new CustomEvent('expense-request-save-allowance'))
+                      } else if (currentScreen === SCREEN_NAMES_ENUM.SUMMARY_TAB) {
+                        document.dispatchEvent(new CustomEvent('expense-request-save-summary'))
+                      }
+                    }
+                    if (titleValue.trim()) {
+                      setTimeout(dispatchSave, 0)
                     } else {
-                      // Default save action for other screens
+                      dispatchSave()
                     }
                   }}
                 >

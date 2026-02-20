@@ -78,6 +78,7 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
   const {
     expenseRequestData,
     employeeRuleId,
+    currentTitle,
     submitActionTripData,
     setEmployeeRuleId,
     updateTripFormValidation,
@@ -1099,7 +1100,15 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
     return () => {
       document.removeEventListener('expense-request-save-trip', saveEventHandler)
     }
-  }, [startLocation, destinations, endLocation, expenseRulesData, showOvernightAccommodation, overnightAccommodation])
+  }, [
+    startLocation,
+    destinations,
+    endLocation,
+    expenseRulesData,
+    showOvernightAccommodation,
+    overnightAccommodation,
+    currentTitle
+  ])
 
   useEffect(() => {
     const nextEventHandler = () => {
@@ -1116,7 +1125,8 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
     expenseRulesData,
     validateTripForm,
     showOvernightAccommodation,
-    overnightAccommodation
+    overnightAccommodation,
+    currentTitle
   ])
 
   if (!expenseRequestData) {
