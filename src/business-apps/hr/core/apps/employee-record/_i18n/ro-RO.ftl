@@ -461,7 +461,7 @@ feedback-pagination-per-page = / pagină
 employee-record-tab-compensation = Compensații
 employee-record-tab-time-tracking = Pontaj
 employee-record-tab-absences = Absențe
-employee-record-tab-assets = Mijloace
+employee-record-tab-assets = Echipamente
 employee-record-tab-service-requests = Cereri servicii
 
 # Profile Header - Detail labels
