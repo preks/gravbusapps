@@ -17,7 +17,11 @@ import dayjs from 'dayjs'
 import { formatTableCell } from '../../../../../utils/valueDisplayUtils'
 import { useAnalyticsTableExport } from '../../../../../hooks/useAnalyticsTableExport'
 import { useChartTableSelection } from '../../../../../hooks/useChartTableSelection'
-import AnalyticsDataTable, { DIFFERENT_BADGE, DIFFERENT_PERCENTAGE_BADGE } from '../../../../shared/AnalyticsDataTable'
+import AnalyticsDataTable, {
+  DIFFERENT_BADGE,
+  DIFFERENT_PERCENTAGE_BADGE,
+  HIGHLIGHT_BADGE
+} from '../../../../shared/AnalyticsDataTable'
 
 const { Title, Text } = Typography
 
@@ -200,7 +204,10 @@ export const SalaryForecasting: React.FC<SalaryForecastingProps> = props => {
         department: department.name,
         value: department.salary,
         percentage: `${department.percent.toFixed(1)}%`,
-        change: department.change
+        change:
+          department.change != null && Number.isFinite(department.change)
+            ? Number(department.change).toFixed(2)
+            : department.change
       }))
     )
   }
@@ -269,7 +276,7 @@ export const SalaryForecasting: React.FC<SalaryForecastingProps> = props => {
         { key: 'period', header: t('hr-analytics-month') },
         { key: 'department', header: t('hr-analytics-department') },
         { key: 'value', header: t('hr-analytics-value') },
-        { key: 'percentage', header: t('hr-analytics-percentage') },
+        { key: 'percentage', header: t('hr-analytics-percentage'), badge: HIGHLIGHT_BADGE },
         { key: 'change', header: t('hr-analytics-change'), badge: DIFFERENT_BADGE }
       ]
     },
@@ -283,7 +290,7 @@ export const SalaryForecasting: React.FC<SalaryForecastingProps> = props => {
         { key: 'department', header: t('hr-analytics-department') },
         { key: 'value', header: t('hr-analytics-value') },
         { key: 'period', header: t('hr-analytics-period') },
-        { key: 'percentage', header: t('hr-analytics-percentage') },
+        { key: 'percentage', header: t('hr-analytics-percentage'), badge: HIGHLIGHT_BADGE },
         { key: 'growth', header: t('hr-analytics-change'), badge: DIFFERENT_PERCENTAGE_BADGE }
       ]
     }

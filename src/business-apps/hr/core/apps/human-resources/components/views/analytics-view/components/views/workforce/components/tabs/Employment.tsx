@@ -1,5 +1,5 @@
 import React from 'react'
-import { Card, CardContent, useTranslation } from '@newwork/nw-design-system'
+import { useTranslation } from '@newwork/nw-design-system'
 import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useEmploymentTypeDistribution } from '../../../../../hooks/useEmploymentTypeDistribution'
@@ -20,13 +20,10 @@ import EmploymentTypePieChart from '../charts/EmploymentTypePieChart'
 import ContractTypePieChart from '../charts/ContractTypePieChart'
 import GapRateByOrgUnitChart from '../charts/GapRateByOrgUnitChart'
 import ProbationRateByOrgUnitChart from '../charts/ProbationRateByOrgUnitChart'
-import AnalyticsDataTable from '../../../../shared/AnalyticsDataTable'
-
-interface TableData {
-  period: string
-  value: number | string
-  change?: number
-}
+import type { AnalyticsTableData } from '../../../../shared/analyticsTabTypes'
+import { HIGHLIGHT_BADGE } from '../../../../shared/AnalyticsDataTable'
+import AnalyticsTabErrorCard from '../../../../shared/AnalyticsTabErrorCard'
+import AnalyticsTableSection from '../../../../shared/AnalyticsTableSection'
 
 /**
  * Employment tab component displaying key employment metrics and distributions
@@ -90,35 +87,35 @@ const Employment: React.FC<BusinessAppContextProps> = context => {
   } = useTenureByOrgUnit(context, structureId ?? undefined)
 
   // Transform data functions for tables
-  const transformEmploymentTypeData = (): TableData[] => {
+  const transformEmploymentTypeData = (): AnalyticsTableData[] => {
     return employmentTypeDistribution.map(item => ({
       period: item.name,
       value: item.count
     }))
   }
 
-  const transformContractTypeData = (): TableData[] => {
+  const transformContractTypeData = (): AnalyticsTableData[] => {
     return contractTypeDistribution.map(item => ({
       period: item.name,
       value: item.count
     }))
   }
 
-  const transformGapRateByOrgUnitData = (): TableData[] => {
+  const transformGapRateByOrgUnitData = (): AnalyticsTableData[] => {
     return gapRateByOrgUnit.map((item: any) => ({
       period: item.name,
       value: `${item.gapRate.toFixed(1)}%`
     }))
   }
 
-  const transformProbationRateByOrgUnitData = (): TableData[] => {
+  const transformProbationRateByOrgUnitData = (): AnalyticsTableData[] => {
     return probationRateByOrgUnit.map((item: any) => ({
       period: item.name,
       value: `${item.probationRate.toFixed(1)}%`
     }))
   }
 
-  const transformTenureHeatmapData = (): TableData[] => {
+  const transformTenureHeatmapData = (): AnalyticsTableData[] => {
     return tenureDistribution.map(item => ({
       period: `${item.orgUnitName} - ${tenureRanges.find(r => r.id === item.tenureRangeId)?.label || 'Unknown'}`,
       value: item.count
@@ -128,6 +125,10 @@ const Employment: React.FC<BusinessAppContextProps> = context => {
   const exportColumnsPeriodValue = [
     { key: 'period', header: t('hr-analytics-period') },
     { key: 'value', header: t('hr-analytics-value') }
+  ]
+  const exportColumnsPeriodValuePercentage = [
+    { key: 'period', header: t('hr-analytics-period') },
+    { key: 'value', header: t('hr-analytics-percentage'), badge: HIGHLIGHT_BADGE }
   ]
 
   // Chart configurations
@@ -157,7 +158,7 @@ const Employment: React.FC<BusinessAppContextProps> = context => {
       testId: 'gap-rate-org-unit-chart',
       tag: t('hr-analytics-position-gaps'),
       description: t('hr-analytics-gap-rate-description'),
-      exportColumns: exportColumnsPeriodValue
+      exportColumns: exportColumnsPeriodValuePercentage
     },
     {
       title: t('hr-analytics-probation-rate-by-organizational-unit'),
@@ -166,7 +167,7 @@ const Employment: React.FC<BusinessAppContextProps> = context => {
       testId: 'probation-rate-org-unit-chart',
       tag: t('hr-analytics-probation-status'),
       description: t('hr-analytics-probation-rate-description'),
-      exportColumns: exportColumnsPeriodValue
+      exportColumns: exportColumnsPeriodValuePercentage
     },
     {
       title: t('hr-analytics-tenure-distribution-by-organizational-unit'),
@@ -199,24 +200,15 @@ const Employment: React.FC<BusinessAppContextProps> = context => {
 
   const selectedConfig = chartConfigs.find(config => config.testId === selectedChart)
 
-  // Handle error state
   if (hasError) {
     return (
-      <div data-testid={`${prefixDataTestId}-tab`} className="gba:p-4">
-        <Card className="gba:border-destructive-secondary">
-          <CardContent className="gba:p-6">
-            <div className="gba:text-center">
-              <p className="gba:text-destructive gba:mb-4">{t('hr-analytics-employment-error')}</p>
-              <button
-                onClick={() => window.location.reload()}
-                className="gba:px-4 gba:py-2 gba:bg-destructive gba:text-primary-foreground gba:rounded gba:hover:bg-destructive"
-              >
-                {t('common-retry')}
-              </button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <AnalyticsTabErrorCard
+        dataTestId={`${prefixDataTestId}-tab`}
+        message={t('hr-analytics-employment-error')}
+        retryLabel={t('common-retry')}
+        onRetry={() => window.location.reload()}
+        variant="centered"
+      />
     )
   }
 
@@ -337,72 +329,53 @@ const Employment: React.FC<BusinessAppContextProps> = context => {
       </div>
 
       {/* Interactive Data Table */}
-      <div ref={tableRef}>
-        {selectedConfig && (
-          <AnalyticsDataTable
-            dataTestId={`${selectedConfig.testId}-table`}
-            className="gba:mt-6"
-            title={t('hr-analytics-data-table', { title: selectedConfig.title })}
-            description={selectedConfig.description}
-            entriesText={t('hr-analytics-total-entries', { count: selectedConfig.tableData.length })}
-            columns={selectedConfig.exportColumns}
-            rows={selectedConfig.tableData}
-            exportingFormat={resolveExportingFormat(selectedConfig.testId)}
-            exportExcelLabel={t('common-export-excel')}
-            exportPdfLabel={t('common-export-pdf')}
-            onExport={format =>
-              handleExport(
-                format,
-                selectedConfig.testId,
-                selectedConfig.title,
-                selectedConfig.exportColumns,
-                selectedConfig.tableData as unknown as Record<string, unknown>[]
-              )
-            }
-            getRowKey={(_, index) => `${selectedConfig.testId}-${index}`}
-            renderCell={(item, col) => {
-              if (col.key === 'period') return <span className="gba:font-medium">{item.period}</span>
-              return typeof item.value === 'number' ? item.value.toLocaleString() : item.value
-            }}
-            footer={
-              <div className="gba:mt-4 gba:pt-4 gba:border-t gba:bg-muted gba:rounded gba:p-3">
-                <div className="gba:flex gba:justify-between gba:text-sm">
-                  <span className="gba:text-muted-foreground">
-                    {t('hr-analytics-total-entries', { count: selectedConfig.tableData.length })}
-                  </span>
-                  <span className="gba:text-muted-foreground">
-                    {t('hr-analytics-total-label')}{' '}
-                    {selectedConfig.testId.includes('rate')
-                      ? t('hr-analytics-total-average')
-                      : t('hr-analytics-total-count')}
-                    :{' '}
-                    {selectedConfig.testId.includes('rate')
-                      ? `${(
-                          selectedConfig.tableData.reduce((sum, item) => {
-                            const numValue =
-                              typeof item.value === 'string' ? parseFloat(item.value.replace('%', '')) : item.value
-                            return sum + (isNaN(numValue) ? 0 : numValue)
-                          }, 0) / selectedConfig.tableData.length
-                        ).toFixed(1)}%`
-                      : selectedConfig.tableData
-                          .reduce((sum, item) => {
-                            const numValue = typeof item.value === 'number' ? item.value : 0
-                            return sum + numValue
-                          }, 0)
-                          .toLocaleString()}
-                  </span>
-                </div>
+      <AnalyticsTableSection<AnalyticsTableData>
+        tableRef={tableRef}
+        selectedConfig={selectedConfig}
+        resolveExportingFormat={resolveExportingFormat}
+        handleExport={handleExport}
+        exportExcelLabel={t('common-export-excel')}
+        exportPdfLabel={t('common-export-pdf')}
+        tableTitle={selectedConfig ? t('hr-analytics-data-table', { title: selectedConfig.title }) : ''}
+        entriesText={selectedConfig ? t('hr-analytics-total-entries', { count: selectedConfig.tableData.length }) : ''}
+        clickToViewMessage={t('hr-analytics-click-to-view-table')}
+        renderCell={(item, col) => {
+          if (col.key === 'period') return <span className="gba:font-medium">{item.period}</span>
+          return typeof item.value === 'number' ? item.value.toLocaleString() : item.value
+        }}
+        footer={
+          selectedConfig ? (
+            <div className="gba:mt-4 gba:pt-4 gba:border-t gba:bg-muted gba:rounded gba:p-3">
+              <div className="gba:flex gba:justify-between gba:text-sm">
+                <span className="gba:text-muted-foreground">
+                  {t('hr-analytics-total-entries', { count: selectedConfig.tableData.length })}
+                </span>
+                <span className="gba:text-muted-foreground">
+                  {t('hr-analytics-total-label')}{' '}
+                  {selectedConfig.testId.includes('rate')
+                    ? t('hr-analytics-total-average')
+                    : t('hr-analytics-total-count')}
+                  :{' '}
+                  {selectedConfig.testId.includes('rate')
+                    ? `${(
+                        selectedConfig.tableData.reduce((sum, item) => {
+                          const numValue =
+                            typeof item.value === 'string' ? parseFloat(item.value.replace('%', '')) : item.value
+                          return sum + (isNaN(numValue) ? 0 : numValue)
+                        }, 0) / selectedConfig.tableData.length
+                      ).toFixed(1)}%`
+                    : selectedConfig.tableData
+                        .reduce((sum, item) => {
+                          const numValue = typeof item.value === 'number' ? item.value : 0
+                          return sum + numValue
+                        }, 0)
+                        .toLocaleString()}
+                </span>
               </div>
-            }
-          />
-        )}
-
-        {!selectedConfig && (
-          <div className="gba:text-center gba:py-8">
-            <p className="gba:text-muted-foreground">{t('hr-analytics-click-to-view-table')}</p>
-          </div>
-        )}
-      </div>
+            </div>
+          ) : undefined
+        }
+      />
     </div>
   )
 }
