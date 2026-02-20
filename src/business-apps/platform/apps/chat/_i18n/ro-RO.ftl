@@ -45,6 +45,13 @@ chat-nudgeCooldown = Vă rugăm să așteptați {$seconds} secunde înainte de a
 # Messages
 chat-noMessages = Încă nu există mesaje. Începe conversația!
 chat-loadOlderMessages = Încarcă mesaje mai vechi
+
+# Message search (in-conversation)
+chat-searchInConversation = Caută în conversație
+chat-searchMessagesPlaceholder = Caută mesaje…
+chat-searchNoResults = Niciun rezultat
+chat-searchSearching = Se caută…
+chat-searchClear = Șterge
 common-loading = Se încarcă...
 chat-preview-open = Deschide previzualizarea
 chat-preview-unsupported = Previzualizare indisponibilă.

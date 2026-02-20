@@ -10,6 +10,17 @@ function safeString(value: unknown): string {
   return ''
 }
 
+/** Normalize sender from API (snake_case → camelCase) so avatarUrl is available. */
+function normalizeSender(sender: unknown): Message['sender'] | undefined {
+  if (sender == null || typeof sender !== 'object') return undefined
+  const s = sender as Record<string, unknown>
+  const avatarUrl = (s.avatar_url ?? s.avatarUrl) as string | undefined
+  return {
+    ...s,
+    avatarUrl: avatarUrl ?? (s.avatarUrl as string | undefined)
+  } as Message['sender']
+}
+
 /** Backend returns lastMessage with snake_case; normalize to camelCase for frontend. */
 function normalizeLastMessage(lastMessage: unknown): Message | undefined {
   if (lastMessage == null || typeof lastMessage !== 'object') return undefined
@@ -28,7 +39,41 @@ function normalizeLastMessage(lastMessage: unknown): Message | undefined {
     isDeleted: Boolean(m.is_deleted ?? m.isDeleted),
     createdAt: createdAt ?? updatedAt ?? new Date().toISOString(),
     updatedAt: updatedAt ?? createdAt ?? new Date().toISOString(),
-    sender: (m.sender as Message['sender']) ?? undefined,
+    sender: normalizeSender(m.sender),
+    reactions: (m.reactions as Message['reactions']) ?? undefined,
+    status: (m.status as Message['status']) ?? undefined
+  } as Message
+}
+
+/** Normalize a search result message so sender.avatarUrl and other fields are camelCase. */
+function normalizeSearchMessage(raw: unknown): Message {
+  if (raw == null || typeof raw !== 'object') {
+    return {
+      id: '',
+      conversationId: '',
+      senderId: null,
+      type: 'text',
+      content: '',
+      createdAt: '',
+      updatedAt: ''
+    } as Message
+  }
+  const m = raw as Record<string, unknown>
+  const createdAt = (m.created_at ?? m.createdAt) as string | undefined
+  const updatedAt = (m.updated_at ?? m.updatedAt ?? m.created_at ?? m.createdAt) as string | undefined
+  return {
+    id: safeString(m.id),
+    conversationId: safeString(m.conversation_id ?? m.conversationId),
+    senderId: (m.sender_id ?? m.senderId) as string | null,
+    type: (m.type ?? 'text') as Message['type'],
+    content: safeString(m.content),
+    metadata: (m.metadata as Message['metadata']) ?? undefined,
+    parentId: (m.reply_to_id ?? m.parentId ?? m.replyToId) as string | undefined,
+    isEdited: Boolean(m.is_edited ?? m.isEdited),
+    isDeleted: Boolean(m.is_deleted ?? m.isDeleted),
+    createdAt: createdAt ?? updatedAt ?? new Date().toISOString(),
+    updatedAt: updatedAt ?? createdAt ?? new Date().toISOString(),
+    sender: normalizeSender(m.sender),
     reactions: (m.reactions as Message['reactions']) ?? undefined,
     status: (m.status as Message['status']) ?? undefined
   } as Message
@@ -309,6 +354,33 @@ export class ChatApiClient {
       }
     }
     return response.data
+  }
+
+  async searchMessages(
+    conversationId: string,
+    query: string,
+    options?: { page?: number; limit?: number }
+  ): Promise<{ data: Message[]; total: number; page: number; limit: number; totalPages: number }> {
+    const page = options?.page ?? 1
+    const limit = options?.limit ?? 20
+    const response = await this.client.get<{
+      messages: unknown[]
+      total: number
+      page: number
+      limit: number
+      totalPages: number
+    }>('/messages/search', {
+      params: { query: query.trim(), conversationId, page, limit }
+    })
+    const data = response.data
+    const rawMessages = data.messages ?? []
+    return {
+      data: rawMessages.map(normalizeSearchMessage),
+      total: data.total ?? 0,
+      page: data.page ?? page,
+      limit: data.limit ?? limit,
+      totalPages: data.totalPages ?? Math.ceil((data.total ?? 0) / limit)
+    }
   }
 
   async sendMessage(
