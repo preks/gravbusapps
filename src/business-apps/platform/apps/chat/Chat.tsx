@@ -165,6 +165,7 @@ const ChatInner: React.FC<ChatProps> = memo(
       loadMoreMessages,
       loadMoreConversations,
       refreshConversations,
+      updateConversation,
       updateMessage,
       startTyping,
       stopTyping,
@@ -609,6 +610,39 @@ const ChatInner: React.FC<ChatProps> = memo(
       NUDGE_COOLDOWN_MS
     })
 
+    const handlePinConversation = useCallback(() => {
+      const id = activeConversationId
+      if (!id || !apiClient || !updateConversation) return
+      const currentlyPinned = activeConversation?.isPinned ?? false
+      apiClient
+        .updateConversationPreferences(id, {
+          isPinned: !currentlyPinned,
+          pinnedOrder: currentlyPinned ? null : undefined
+        })
+        .then(prefs => {
+          updateConversation(id, {
+            isPinned: prefs.isPinned,
+            pinnedOrder: prefs.pinnedOrder
+          })
+          refreshConversations?.()
+        })
+        .catch(() => {})
+    }, [activeConversationId, activeConversation?.isPinned, apiClient, updateConversation, refreshConversations])
+
+    const handleMuteConversation = useCallback(
+      (muted: boolean) => {
+        const id = activeConversationId
+        if (!id || !apiClient || !updateConversation) return
+        apiClient
+          .updateConversationPreferences(id, { isMuted: muted })
+          .then(prefs => {
+            updateConversation(id, { isMuted: prefs.isMuted })
+          })
+          .catch(() => {})
+      },
+      [activeConversationId, apiClient, updateConversation]
+    )
+
     // Keep ref in sync with activeConversationId for stable callbacks
     useEffect(() => {
       activeConversationIdRef.current = activeConversationId
@@ -986,6 +1020,10 @@ const ChatInner: React.FC<ChatProps> = memo(
                   <ChatConversationView
                     prefixDataTestId={prefixDataTestId}
                     stableActiveConversation={stableActiveConversation}
+                    isPinned={stableActiveConversation?.isPinned}
+                    isMuted={stableActiveConversation?.isMuted}
+                    onPin={handlePinConversation}
+                    onMute={handleMuteConversation}
                     isSingleViewMode={isSingleViewMode}
                     viewMode={viewMode}
                     onBack={handleBack}

@@ -40,7 +40,7 @@ import {
   ChatTextIcon,
   MagnifyingGlassIcon
 } from '@phosphor-icons/react'
-import { UserIcon, Phone, Video, PhoneCall, UserPlus, Bell, CalendarIcon } from 'lucide-react'
+import { UserIcon, Phone, Video, PhoneCall, UserPlus, Bell, BellOff, CalendarIcon, Pin, PinOff } from 'lucide-react'
 import type { Conversation, UserStatus, Message } from '../types'
 import { UserPresenceStatus, SystemPresenceStatus } from '../types'
 import type { UserPresence } from '../hooks/usePresence'
@@ -82,6 +82,10 @@ interface ConversationHeaderProps {
   searchLoading?: boolean
   onSearchResultSelect?: (messageId: string) => void
   onSearchClear?: () => void
+  isMuted?: boolean
+  isPinned?: boolean
+  onMute?: (muted: boolean) => void
+  onPin?: () => void
 }
 
 /** Format a date as relative time (e.g. "just now", "5 min ago") or absolute date. */
@@ -278,7 +282,11 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
   searchResultAvatarMap,
   searchLoading = false,
   onSearchResultSelect,
-  onSearchClear
+  onSearchClear,
+  isMuted = false,
+  isPinned = false,
+  onMute,
+  onPin
 }) => {
   const searchInputRef = useRef<HTMLInputElement>(null)
   useEffect(() => {
@@ -491,11 +499,21 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
             </div>
 
             <div className="gba:flex-1 gba:min-w-0">
-              <h2
-                className={`gba:font-semibold gba:truncate gba:text-foreground ${compact ? 'gba:text-sm' : 'gba:text-base'}`}
-              >
-                {name}
-              </h2>
+              <div className="gba:flex gba:items-center gba:gap-1.5 gba:min-w-0">
+                <h2
+                  className={`gba:font-semibold gba:truncate gba:text-foreground ${compact ? 'gba:text-sm' : 'gba:text-base'}`}
+                >
+                  {name}
+                </h2>
+                {isMuted && (
+                  <span
+                    className="gba:flex gba:flex-shrink-0 gba:rounded-full gba:p-0.5 gba:bg-muted gba:text-muted-foreground"
+                    title={t('chat-muteConversation')}
+                  >
+                    <BellOff className="gba:w-4 gba:h-4" aria-hidden />
+                  </span>
+                )}
+              </div>
               {(() => {
                 if (
                   isDirectChat &&
@@ -642,7 +660,7 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
             </Button>
           )}
 
-          {(onRemove || (isGroupChat && (onGroupSettings || onAddExpert))) && (
+          {(onRemove || (isGroupChat && (onGroupSettings || onAddExpert)) || onPin || onMute) && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -655,6 +673,42 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                {onPin && (
+                  <DropdownMenuItem
+                    onClick={onPin}
+                    data-testid={isPinned ? 'conversation-header-unpin-button' : 'conversation-header-pin-button'}
+                  >
+                    {isPinned ? (
+                      <>
+                        <PinOff className="gba:w-4 gba:h-4 gba:mr-2" />
+                        {t('chat-unpinConversation')}
+                      </>
+                    ) : (
+                      <>
+                        <Pin className="gba:w-4 gba:h-4 gba:mr-2" />
+                        {t('chat-pinConversation')}
+                      </>
+                    )}
+                  </DropdownMenuItem>
+                )}
+                {onMute && (
+                  <DropdownMenuItem
+                    onClick={() => onMute(!isMuted)}
+                    data-testid={isMuted ? 'conversation-header-unmute-button' : 'conversation-header-mute-button'}
+                  >
+                    {isMuted ? (
+                      <>
+                        <Bell className="gba:w-4 gba:h-4 gba:mr-2" />
+                        {t('chat-unmuteConversation')}
+                      </>
+                    ) : (
+                      <>
+                        <BellOff className="gba:w-4 gba:h-4 gba:mr-2" />
+                        {t('chat-muteConversation')}
+                      </>
+                    )}
+                  </DropdownMenuItem>
+                )}
                 {isGroupChat && onAddExpert && (
                   <DropdownMenuItem onClick={onAddExpert} data-testid="conversation-add-expert-button">
                     <UserPlus className="gba:w-4 gba:h-4 gba:mr-2" />

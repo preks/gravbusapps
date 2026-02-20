@@ -19,6 +19,10 @@ import type { ChatApiClient } from '../services/chatApiClient'
 export interface ChatConversationViewProps {
   prefixDataTestId: string
   stableActiveConversation: Conversation | null
+  isPinned?: boolean
+  isMuted?: boolean
+  onPin?: () => void
+  onMute?: (muted: boolean) => void
   isSingleViewMode: boolean
   viewMode: 'full' | 'compact' | 'mobile'
   onBack: () => void
@@ -68,6 +72,10 @@ export interface ChatConversationViewProps {
 export function ChatConversationView({
   prefixDataTestId,
   stableActiveConversation,
+  isPinned,
+  isMuted,
+  onPin,
+  onMute,
   isSingleViewMode,
   viewMode,
   onBack,
@@ -169,6 +177,10 @@ export function ChatConversationView({
           onGroupSettings={onShowGroupSettings}
           onAddExpert={stableActiveConversation.type === 'group' ? onShowExpertSelector : undefined}
           onNudge={stableActiveConversation.type === 'direct' ? onNudge : undefined}
+          isPinned={isPinned}
+          isMuted={isMuted}
+          onPin={onPin}
+          onMute={onMute}
           onAudioCall={onAudioCall}
           onVideoCall={onVideoCall}
           onJoinCall={onJoinCall}

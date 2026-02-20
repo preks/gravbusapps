@@ -335,6 +335,18 @@ export class ChatApiClient {
     return response.data
   }
 
+  async updateConversationPreferences(
+    conversationId: string,
+    data: { isMuted?: boolean; isPinned?: boolean; pinnedOrder?: number | null }
+  ): Promise<{ isMuted: boolean; isPinned: boolean; pinnedOrder: number | null }> {
+    const response = await this.client.patch<{
+      isMuted: boolean
+      isPinned: boolean
+      pinnedOrder: number | null
+    }>(`/conversations/${conversationId}/me/preferences`, data)
+    return response.data
+  }
+
   // Message endpoints
   async getMessages(conversationId: string, page: number = 1, limit: number = 100) {
     const response = await this.client.get<

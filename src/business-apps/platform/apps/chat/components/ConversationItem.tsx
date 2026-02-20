@@ -14,7 +14,7 @@ import {
 import { ChatTextIcon, SignOutIcon } from '@phosphor-icons/react'
 import type { Conversation } from '../types'
 import type { UserPresence } from '../hooks/usePresence'
-import { UserIcon, UsersIcon, Sparkles, CalendarIcon, PhoneCall } from 'lucide-react'
+import { UserIcon, UsersIcon, Sparkles, CalendarIcon, PhoneCall, Pin } from 'lucide-react'
 import { UserStatusIndicator } from './UserStatusIndicator'
 
 interface ConversationItemProps {
@@ -26,6 +26,8 @@ interface ConversationItemProps {
   compact?: boolean
   otherUserPresence?: UserPresence
   activeExpertCount?: number
+  isPinned?: boolean
+  isMuted?: boolean
   t: (key: string, params?: Record<string, any>) => string
 }
 
@@ -96,6 +98,8 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
   compact = false,
   otherUserPresence,
   activeExpertCount = 0,
+  isPinned = false,
+  isMuted = false,
   t
 }) => {
   const name = getConversationName(conversation, currentUserId, t)
@@ -204,7 +208,13 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
             // Direct chat without avatar
             <IconAvatar className={avatarSize} label={name} icon={UserIcon} />
           )}
-          {showPresence && userStatus ? (
+          {isMuted ? (
+            <span
+              className="gba:absolute gba:bottom-0 gba:right-0 gba:w-3 gba:h-3 gba:rounded-full gba:border-2 gba:border-background gba:bg-destructive"
+              title={t('chat-muteConversation')}
+              data-testid={`conversation-item-muted-indicator-${conversation.id}`}
+            />
+          ) : showPresence && userStatus ? (
             <UserStatusIndicator status={userStatus} size="sm" className="gba:absolute gba:bottom-0 gba:right-0" />
           ) : showPresence ? (
             <PresenceIndicator status={presenceStatus} t={t} />
@@ -218,6 +228,13 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
             >
               {name}
             </span>
+            {isPinned && (
+              <Pin
+                className="gba:w-3.5 gba:h-3.5 gba:text-muted-foreground gba:flex-shrink-0"
+                aria-hidden
+                data-testid={`conversation-item-pinned-icon-${conversation.id}`}
+              />
+            )}
             {hasActiveCall && (
               <span className="gba:flex gba:items-center gba:text-success" title={t(getCallMessageKey())}>
                 <PhoneCall className="gba:w-4 gba:h-4" />
