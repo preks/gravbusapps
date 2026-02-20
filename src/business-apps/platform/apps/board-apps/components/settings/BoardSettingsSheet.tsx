@@ -102,7 +102,7 @@ export const BoardSettingsSheet: React.FC<BoardSettingsSheetProps> = ({
         const result = await BoardApiService.syncFromGraphQL(board.id, activeSheet.id, {
           entity: dataSource.entityType,
           limit: syncLimit,
-          mode: dataSource.syncMode || 'replace',
+          mode: 'replace',
           autoColumns: true
         })
         if (!result) {

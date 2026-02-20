@@ -238,6 +238,7 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
     void (async () => {
       try {
         const { BoardApiService } = await import('./services/BoardApiService')
+        const dsLimit = ds.limit != null ? (ds.limit as number) : 200
         if (ds.mergeStrategy === 'populateOptions' && ds.populateTargetCol && ds.populateSourceField) {
           await BoardApiService.populateColumnOptions(
             board.id,
@@ -245,13 +246,13 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
             ds.entityType as string,
             ds.populateSourceField as string,
             ds.populateTargetCol as string,
-            (ds.limit as number) || 200
+            dsLimit
           )
         } else {
           await BoardApiService.syncFromGraphQL(board.id, activeSheet.id, {
             entity: ds.entityType as string,
-            limit: (ds.limit as number) || 200,
-            mode: (ds.syncMode as 'replace' | 'append' | 'merge') || 'replace',
+            limit: dsLimit,
+            mode: 'replace',
             autoColumns: true
           })
         }

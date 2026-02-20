@@ -18,6 +18,7 @@ import {
 } from '../queries/entityQueries'
 import { getCurrentActiveStructureId } from '@/common/utils/windowUtils'
 import { resilientGraphQLRequest } from '../queries/resilientQuery'
+import { smartSyncRows } from './smartSync'
 
 const API_URL = getDocumentServiceApiUrl()
 
@@ -263,24 +264,6 @@ function flattenRecord(record: Record<string, unknown>): Record<string, unknown>
 }
 
 const API_PAGE_LIMIT = 500
-
-async function deleteAllRows(boardId: string, sheetId: string): Promise<number> {
-  let deleted = 0
-  let hasMore = true
-  while (hasMore) {
-    const page = await BoardApiService.getRows(boardId, sheetId, { limit: API_PAGE_LIMIT })
-    if (page.items.length === 0) break
-    await Promise.all(
-      page.items.map(row =>
-        BoardApiService.deleteRow(boardId, sheetId, row.id).then(ok => {
-          if (ok) deleted++
-        })
-      )
-    )
-    hasMore = page.items.length === API_PAGE_LIMIT
-  }
-  return deleted
-}
 
 export const BoardApiService = {
   async listBoards(options?: {
@@ -717,6 +700,8 @@ export const BoardApiService = {
         const defaultWhere = buildEntityDefaultWhere(dto.entity, structureId)
         let currentFields = dto.fieldDefs ?? def.fields
 
+        console.log(`[BoardSync] Fetching entity=${dto.entity}, limit=${dto.limit ?? 'ALL'}, where=`, defaultWhere)
+
         const PAGE_SIZE = 200
         const requestedLimit = dto.limit && dto.limit > 0 ? dto.limit : 0
         let totalFetched = 0
@@ -741,8 +726,14 @@ export const BoardApiService = {
           totalFetched += pageRecords.length
           offset += pageRecords.length
 
+          console.log(
+            `[BoardSync] Page fetched: ${pageRecords.length} records (total so far: ${totalFetched}, offset: ${offset})`
+          )
+
           hasMore = pageRecords.length === pageLimit && (requestedLimit === 0 || totalFetched < requestedLimit)
         }
+
+        console.log(`[BoardSync] Fetch complete: ${records.length} total records for ${dto.entity}`)
       }
 
       if (records.length === 0) return { synced: 0, deleted: 0, fetched: 0 }
@@ -750,24 +741,25 @@ export const BoardApiService = {
       if (dto.autoColumns) {
         const newColumns = inferColumnsFromRecords(records)
         if (newColumns.length > 0) {
-          if (dto.mode === 'replace') {
-            await BoardApiService.updateSheet(boardId, sheetId, { columns: newColumns })
-          } else {
-            const currentSheet = await BoardApiService.getSheet(boardId, sheetId)
-            const existingNames = new Set((currentSheet?.columns ?? []).map(c => c.name))
-            const merged = [...(currentSheet?.columns ?? []), ...newColumns.filter(c => !existingNames.has(c.name))]
-            await BoardApiService.updateSheet(boardId, sheetId, { columns: merged })
+          const currentSheet = await BoardApiService.getSheet(boardId, sheetId)
+          const existingNames = new Set((currentSheet?.columns ?? []).map(c => c.name))
+          const merged = [...(currentSheet?.columns ?? []), ...newColumns.filter(c => !existingNames.has(c.name))]
+          if (merged.length > (currentSheet?.columns ?? []).length || dto.mode === 'replace') {
+            await BoardApiService.updateSheet(boardId, sheetId, { columns: merged.length > 0 ? merged : newColumns })
           }
         }
       }
 
-      let deleted = 0
+      const flat = records.map(flattenRecord)
+
       if (dto.mode === 'replace') {
-        deleted = await deleteAllRows(boardId, sheetId)
+        const result = await smartSyncRows(BoardApiService, boardId, sheetId, flat)
+        console.log(`[BoardSync] Done: synced=${result.synced}, deleted=${result.deleted}, fetched=${records.length}`)
+        return { synced: result.synced, deleted: result.deleted, fetched: records.length }
       }
 
-      const flat = records.map(flattenRecord)
       let synced = 0
+      const deleted = 0
 
       if ((dto.mergeStrategy === 'addColumns' || dto.mergeStrategy === 'hybrid') && dto.joinKey) {
         const existingPage = await BoardApiService.getRows(boardId, sheetId, { limit: API_PAGE_LIMIT })
@@ -809,8 +801,10 @@ export const BoardApiService = {
         }
       }
 
+      console.log(`[BoardSync] Done: synced=${synced}, deleted=${deleted}, fetched=${records.length}`)
       return { synced, deleted, fetched: records.length }
-    } catch {
+    } catch (err) {
+      console.error(`[BoardSync] FAILED for entity=${dto.entity}:`, err instanceof Error ? err.message : err)
       return null
     }
   }

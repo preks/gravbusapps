@@ -41,6 +41,10 @@ export async function wireDataSources(
         }
       }
 
+      console.log(
+        `[wireDS] Primary source: ${primarySource.entityType}, importLimit=${importLimit}, fieldDefs=${fieldDefs?.length ?? 'all'}`
+      )
+
       const syncResult = await BoardApiService.syncFromGraphQL(board.id, sheetId, {
         entity: primarySource.entityType,
         limit: importLimit,
