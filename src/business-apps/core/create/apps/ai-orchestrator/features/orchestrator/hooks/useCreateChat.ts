@@ -151,8 +151,9 @@ export function useCreateChat({
 
   const handleSend = useCallback(
     (content: string) => {
-      const messageType: ChatMessageType =
-        viewStateRef.current === 'review' ? 'refinement' : viewStateRef.current === 'complete' ? 'fix' : 'general'
+      let messageType: ChatMessageType = 'general'
+      if (viewStateRef.current === 'review') messageType = 'refinement'
+      else if (viewStateRef.current === 'complete') messageType = 'fix'
 
       appendMessage({ role: 'user', content, messageType })
 

@@ -18,7 +18,6 @@ export interface BuildingViewProps {
   phaseMessage: string | null
   isBuilding: boolean
   tiles: TileState
-  onCancel?: () => void // Made optional since it's in header now
 }
 
 export const BuildingView: React.FC<BuildingViewProps> = ({

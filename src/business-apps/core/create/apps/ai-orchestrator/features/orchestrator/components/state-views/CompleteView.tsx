@@ -19,7 +19,6 @@ export interface CompleteViewProps {
   userInfo?: any
   /** Incremented by the chat panel when an AI fix modifies screen code */
   previewRefreshToken?: number
-  onReset?: () => void // Made optional since it's now in header
 }
 
 function firstScreenWithSession(components: ComponentSpec[]): ComponentSpec | null {

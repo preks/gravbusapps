@@ -5,8 +5,7 @@
 
 import type { ComponentSpec, BuildStatus } from './components'
 
-// Re-export BuildStatus
-export type { BuildStatus }
+export type { BuildStatus } from './components'
 
 // Current phase of the build process
 export type BuildPhase = 'discovery' | 'building' | 'wiring' | 'complete'

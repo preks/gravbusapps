@@ -100,8 +100,9 @@ export const IdleCanvas: React.FC<IdleCanvasProps> = ({
           loop
           muted
           playsInline
+          tabIndex={-1}
           className="gba:absolute gba:inset-0 gba:pointer-events-none gba:w-full gba:h-full gba:object-cover"
-          aria-hidden
+          aria-hidden="true"
           data-testid={`${testId}-hero-video`}
         />
 
