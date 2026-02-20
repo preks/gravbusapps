@@ -97,6 +97,14 @@ export const DistributionChartStateContent: React.FC<{
   return <>{children}</>
 }
 
+function DistributionTooltipContent(props: React.ComponentProps<typeof DistributionTooltip>): React.ReactElement {
+  return <DistributionTooltip {...props} />
+}
+
+function legendFormatter(value: string, entry: { color?: string }): React.ReactElement {
+  return <span style={{ color: entry.color ?? 'inherit' }}>{value}</span>
+}
+
 export const DistributionPieChartView: React.FC<{
   chartData: Array<{ name: string; value: number; percentage: number; fill: string }>
 }> = ({ chartData }) => (
@@ -113,14 +121,8 @@ export const DistributionPieChartView: React.FC<{
           dataKey="value"
           label={renderDistributionPieLabel}
         />
-        <Tooltip content={props => <DistributionTooltip {...props} />} />
-        <Legend
-          verticalAlign="bottom"
-          height={36}
-          formatter={(value: string, entry: { color?: string }) => (
-            <span style={{ color: entry.color ?? 'inherit' }}>{value}</span>
-          )}
-        />
+        <Tooltip content={DistributionTooltipContent} />
+        <Legend verticalAlign="bottom" height={36} formatter={legendFormatter} />
       </PieChart>
     </ResponsiveContainer>
   </div>

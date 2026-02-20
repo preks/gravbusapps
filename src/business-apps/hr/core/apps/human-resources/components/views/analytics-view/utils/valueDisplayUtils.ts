@@ -21,6 +21,7 @@ export function toDisplayString(value: unknown): string {
       return NULLISH_PLACEHOLDER
     }
   }
+  if (typeof value === 'object' && value !== null) return NULLISH_PLACEHOLDER
   return String(value)
 }
 

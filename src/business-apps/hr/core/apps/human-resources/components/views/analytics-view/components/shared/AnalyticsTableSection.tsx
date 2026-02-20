@@ -56,7 +56,7 @@ function AnalyticsTableSection<T>({
   footerVariant,
   simpleFooterCountText,
   simpleFooterTitle
-}: AnalyticsTableSectionProps<T>) {
+}: Readonly<AnalyticsTableSectionProps<T>>) {
   const resolvedFooter =
     footerVariant === 'simple' && simpleFooterCountText != null && simpleFooterTitle != null ? (
       <div className="gba:mt-4 gba:p-3 gba:bg-muted gba:rounded-md gba:flex gba:justify-between gba:items-center">

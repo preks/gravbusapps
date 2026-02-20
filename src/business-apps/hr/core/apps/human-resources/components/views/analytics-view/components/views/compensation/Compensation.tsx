@@ -201,7 +201,7 @@ export const Compensation: React.FC<CompensationProps> = ({ accessToken, prefixD
         message={t('hr-analytics-compensation-error')}
         detail={error instanceof Error ? error.message : String(error)}
         retryLabel={t('common-retry')}
-        onRetry={() => window.location.reload()}
+        onRetry={() => globalThis.location.reload()}
         variant="row"
         className="gba:p-6"
       />

@@ -19,15 +19,13 @@ const SelectableChartTile: React.FC<SelectableChartTileProps> = ({
   selectedLabel,
   children
 }) => (
-  <div
+  <button
+    type="button"
     data-testid={`${testId}-card`}
-    className={`gba:relative gba:cursor-pointer gba:transition-all gba:duration-200 gba:rounded-lg ${
+    className={`gba:relative gba:cursor-pointer gba:transition-all gba:duration-200 gba:rounded-lg gba:w-full gba:text-left gba:border-0 gba:bg-transparent gba:p-0 ${
       isSelected ? 'gba:ring-2 gba:ring-info gba:shadow-lg' : 'gba:hover:shadow-lg'
     }`}
     onClick={onSelect}
-    onKeyDown={e => e.key === 'Enter' && onSelect()}
-    role="button"
-    tabIndex={0}
   >
     {children}
     {isSelected && (
@@ -35,7 +33,7 @@ const SelectableChartTile: React.FC<SelectableChartTileProps> = ({
         ✓ {selectedLabel}
       </div>
     )}
-  </div>
+  </button>
 )
 
 export default SelectableChartTile

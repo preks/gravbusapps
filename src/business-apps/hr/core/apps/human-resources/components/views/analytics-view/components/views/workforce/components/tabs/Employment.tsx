@@ -208,7 +208,7 @@ const Employment: React.FC<BusinessAppContextProps> = context => {
         dataTestId={`${prefixDataTestId}-tab`}
         message={t('hr-analytics-employment-error')}
         retryLabel={t('common-retry')}
-        onRetry={() => window.location.reload()}
+        onRetry={() => globalThis.location.reload()}
         variant="centered"
       />
     )
