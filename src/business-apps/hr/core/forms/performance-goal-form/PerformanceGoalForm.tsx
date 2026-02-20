@@ -50,6 +50,8 @@ const PerformanceGoalFormContent: React.FC<PerformanceGoalFormProps> = ({
 }) => {
   const { t } = useTranslation()
   const isEditMode = !!additionalData?.goalId
+  const cycleStartDate = additionalData?.cycleStartDate as string | undefined
+  const cycleEndDate = additionalData?.cycleEndDate as string | undefined
 
   // Helper function to safely convert date strings to Date objects
   const safeDateConversion = (dateString: string | undefined): Date => {
@@ -63,14 +65,24 @@ const PerformanceGoalFormContent: React.FC<PerformanceGoalFormProps> = ({
     }
   }
 
+  const clampDateToCycle = (date: Date): Date => {
+    const start = cycleStartDate ? dayjs(cycleStartDate).startOf('day') : null
+    const end = cycleEndDate ? dayjs(cycleEndDate).startOf('day') : null
+    const current = dayjs(date).startOf('day')
+
+    if (start && current.isBefore(start)) return start.toDate()
+    if (end && current.isAfter(end)) return end.toDate()
+    return current.toDate()
+  }
+
   // Prepare initial form data
   const getInitialFormData = (): PerformanceGoalFormData => {
     if (additionalData) {
       const dueDate = dayjs(additionalData.dueDate as string).add(5, 'day')
       return {
         title: (additionalData.title as string) || '',
-        startDate: safeDateConversion(additionalData.startDate as string),
-        dueDate: safeDateConversion((additionalData.dueDate as string) || dueDate.toISOString()),
+        startDate: clampDateToCycle(safeDateConversion(additionalData.startDate as string)),
+        dueDate: clampDateToCycle(safeDateConversion((additionalData.dueDate as string) || dueDate.toISOString())),
         status: (additionalData.status as string) || 'ON_TRACK',
         progressPercent: (additionalData.progressPercent as number) || 0,
         completionDate: additionalData.completionDate
@@ -83,8 +95,8 @@ const PerformanceGoalFormContent: React.FC<PerformanceGoalFormProps> = ({
       const dueDate = today.add(5, 'day')
       return {
         title: '',
-        startDate: today.toDate(),
-        dueDate: dueDate.toDate(),
+        startDate: clampDateToCycle(today.toDate()),
+        dueDate: clampDateToCycle(dueDate.toDate()),
         status: 'ON_TRACK',
         progressPercent: 0
       }
@@ -205,6 +217,8 @@ const PerformanceGoalFormContent: React.FC<PerformanceGoalFormProps> = ({
             prefixDataTestId={prefixDataTestId}
             dataTestId={`${prefixDataTestId}-form`}
             form={form}
+            cycleStartDate={cycleStartDate}
+            cycleEndDate={cycleEndDate}
           />
         </AppActionForm>
       </div>
