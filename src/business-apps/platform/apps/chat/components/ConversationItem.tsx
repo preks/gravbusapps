@@ -14,7 +14,7 @@ import {
 import { ChatTextIcon, SignOutIcon } from '@phosphor-icons/react'
 import type { Conversation } from '../types'
 import type { UserPresence } from '../hooks/usePresence'
-import { UserIcon, UsersIcon, Sparkles, CalendarIcon, PhoneCall, Pin } from 'lucide-react'
+import { UserIcon, UsersIcon, SparklesIcon, CalendarIcon, PhoneCallIcon, PinIcon, BellOffIcon } from 'lucide-react'
 import { UserStatusIndicator } from './UserStatusIndicator'
 
 interface ConversationItemProps {
@@ -195,7 +195,7 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
               />
               {hasActiveExperts && (
                 <div className="gba:absolute gba:-bottom-1 gba:-right-1 gba:w-4 gba:h-4 gba:rounded-full gba:bg-gradient-to-br gba:from-primary gba:to-accent gba:flex gba:items-center gba:justify-center gba:border-2 gba:border-background gba:shadow-md">
-                  <Sparkles className="gba:w-2.5 gba:h-2.5 gba:text-primary-foreground" />
+                  <SparklesIcon className="gba:w-2.5 gba:h-2.5 gba:text-primary-foreground" />
                 </div>
               )}
             </div>
@@ -208,13 +208,7 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
             // Direct chat without avatar
             <IconAvatar className={avatarSize} label={name} icon={UserIcon} />
           )}
-          {isMuted ? (
-            <span
-              className="gba:absolute gba:bottom-0 gba:right-0 gba:w-3 gba:h-3 gba:rounded-full gba:border-2 gba:border-background gba:bg-destructive"
-              title={t('chat-muteConversation')}
-              data-testid={`conversation-item-muted-indicator-${conversation.id}`}
-            />
-          ) : showPresence && userStatus ? (
+          {showPresence && userStatus ? (
             <UserStatusIndicator status={userStatus} size="sm" className="gba:absolute gba:bottom-0 gba:right-0" />
           ) : showPresence ? (
             <PresenceIndicator status={presenceStatus} t={t} />
@@ -223,13 +217,22 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
 
         <div className="gba:flex-1 gba:min-w-0 gba:flex gba:flex-col gba:gap-0.5">
           <div className="gba:flex gba:items-center gba:gap-2">
+            {isMuted && (
+              <span
+                className="gba:flex gba:flex-shrink-0"
+                title={t('chat-muteConversation')}
+                data-testid={`conversation-item-muted-indicator-${conversation.id}`}
+              >
+                <BellOffIcon className="gba:w-4 gba:h-4 gba:text-muted-foreground" aria-hidden />
+              </span>
+            )}
             <span
               className={`gba:font-medium gba:truncate ${compact ? 'gba:text-sm' : 'gba:text-sm'} ${isActive ? 'gba:text-primary' : 'gba:text-foreground'}`}
             >
               {name}
             </span>
             {isPinned && (
-              <Pin
+              <PinIcon
                 className="gba:w-3.5 gba:h-3.5 gba:text-muted-foreground gba:flex-shrink-0"
                 aria-hidden
                 data-testid={`conversation-item-pinned-icon-${conversation.id}`}
@@ -237,7 +240,7 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
             )}
             {hasActiveCall && (
               <span className="gba:flex gba:items-center gba:text-success" title={t(getCallMessageKey())}>
-                <PhoneCall className="gba:w-4 gba:h-4" />
+                <PhoneCallIcon className="gba:w-4 gba:h-4" />
               </span>
             )}
             {unreadCount > 0 && (
