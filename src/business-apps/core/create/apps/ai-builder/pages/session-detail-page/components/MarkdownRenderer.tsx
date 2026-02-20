@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { Copy, Check } from 'lucide-react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getSafeHref } from '../../../utils/helpers'
 
 interface MarkdownRendererProps {
   content: string
@@ -149,31 +150,74 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content: raw
     })
   }
 
-  // Render **bold** and *italic*
-  const renderInlineFormatting = (text: string) => {
-    // Handle **bold**
-    const result: React.ReactNode[] = []
-    let lastIndex = 0
+  const renderBoldSegments = (segment: string, keyPrefix: string): React.ReactNode[] => {
     const boldRegex = /\*\*([^*]+)\*\*/g
+    const nodes: React.ReactNode[] = []
+    let lastIndex = 0
+    let match: RegExpExecArray | null
+    let boldIndex = 0
 
-    text.replaceAll(boldRegex, (match, content, offset) => {
-      if (offset > lastIndex) {
-        result.push(text.slice(lastIndex, offset))
+    while ((match = boldRegex.exec(segment)) !== null) {
+      const [fullMatch, boldText] = match
+      const start = match.index
+      if (start > lastIndex) {
+        nodes.push(segment.slice(lastIndex, start))
       }
-      result.push(
-        <strong key={`bold-${offset}`} className="gba:font-semibold">
-          {content}
+      nodes.push(
+        <strong key={`${keyPrefix}-bold-${boldIndex}`} className="gba:font-semibold">
+          {boldText}
         </strong>
       )
-      lastIndex = offset + match.length
-      return match
-    })
-
-    if (lastIndex < text.length) {
-      result.push(text.slice(lastIndex))
+      lastIndex = start + fullMatch.length
+      boldIndex += 1
     }
 
-    return result.length > 0 ? result : text
+    if (lastIndex < segment.length) {
+      nodes.push(segment.slice(lastIndex))
+    }
+
+    return nodes.length > 0 ? nodes : [segment]
+  }
+
+  // Render **bold** and [links](url)
+  const renderInlineFormatting = (text: string) => {
+    const linkRegex = /\[([^\]]+)\]\(([^)\s]+)\)/g
+    const nodes: React.ReactNode[] = []
+    let lastIndex = 0
+    let match: RegExpExecArray | null
+    let linkIndex = 0
+
+    while ((match = linkRegex.exec(text)) !== null) {
+      const [fullMatch, label, url] = match
+      const start = match.index
+      if (start > lastIndex) {
+        nodes.push(...renderBoldSegments(text.slice(lastIndex, start), `pre-${start}`))
+      }
+      const safeHref = getSafeHref(url)
+      if (safeHref === '#') {
+        nodes.push(...renderBoldSegments(label, `link-${start}-${linkIndex}`))
+      } else {
+        nodes.push(
+          <a
+            key={`link-${start}-${linkIndex}`}
+            href={safeHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="gba:text-primary gba:underline"
+          >
+            {renderBoldSegments(label, `link-label-${start}-${linkIndex}`)}
+          </a>
+        )
+      }
+      lastIndex = start + fullMatch.length
+      linkIndex += 1
+    }
+
+    if (lastIndex < text.length) {
+      nodes.push(...renderBoldSegments(text.slice(lastIndex), `tail-${lastIndex}`))
+    }
+
+    return nodes.length > 0 ? nodes : text
   }
 
   return (

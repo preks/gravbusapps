@@ -84,8 +84,13 @@ export const EmailComposer: React.FC<EmailComposerProps> = ({
     }
   }, [signatureHtml])
 
-  // Populate fields based on mode and replyToMessage
+  // Populate fields based on mode and replyToMessage.
+  // `isOpen` is included so the reset re-runs every time the composer opens,
+  // even when mode/replyToMessage haven't changed (e.g. composing two new
+  // emails in a row).
   useEffect(() => {
+    if (!isOpen) return
+
     hasStartedComposingRef.current = false
 
     if (!replyToMessage) {
@@ -94,6 +99,7 @@ export const EmailComposer: React.FC<EmailComposerProps> = ({
       setBccRecipients([])
       setSubject('')
       setBody('')
+      setShowCcBcc(false)
       clearAttachments()
       return
     }
@@ -117,7 +123,7 @@ export const EmailComposer: React.FC<EmailComposerProps> = ({
       setToRecipients([])
       setBody(quoted)
     }
-  }, [replyToMessage, mode, clearAttachments])
+  }, [isOpen, replyToMessage, mode, clearAttachments])
 
   const handleSend = useCallback(async () => {
     if (toRecipients.length === 0) {

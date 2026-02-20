@@ -234,6 +234,9 @@ request-benefit-review-additional-info = Informații suplimentare
 request-benefit-review-justification = Justificare
 request-benefit-review-financial-details = Detalii financiare
 request-benefit-review-employee-contributions = Contribuții angajat
+request-benefit-review-comments = Comentariu
+request-benefit-review-comments-placeholder = Vă rugăm să introduceți
+request-benefit-review-comments-required = Comentariile sunt obligatorii
 request-benefit-review-approve = Aprobă
 request-benefit-review-reject = Respinge
 request-benefit-review-loading = Se încarcă datele despre beneficiu...
@@ -280,6 +283,7 @@ adjust-salary-pending-status = În așteptare
 
 # Update Working Conditions Form
 working-conditions-probation-period = Perioadă de probă
+working-conditions-probation-end-before-start = Data de încheiere a perioadei de probă trebuie să fie la sau după data de începere.
 working-conditions-probation-exception-warning = Ați modificat manual data de încheiere a perioadei de probă față de valoarea din contract. Vă rugăm să verificați.
 working-conditions-unit-day = { $count ->
     [one] Zi

@@ -36,7 +36,6 @@ import {
 
 function mapApiConfigToAdmin(api: ApiAutoInitConfig): AutoInitConfig {
   const source = api.url.includes('bitbucket') ? 'bitbucket' : 'github'
-  const extended = api as ApiAutoInitConfig & Partial<AutoInitConfig>
   return {
     id: api.id,
     url: api.url,
@@ -46,30 +45,14 @@ function mapApiConfigToAdmin(api: ApiAutoInitConfig): AutoInitConfig {
     name: api.name,
     repoId: api.repoId ?? null,
     enabled: api.enabled,
-    autoInitOnStartup: extended.autoInitOnStartup ?? false,
-    blockedBranches: extended.blockedBranches ?? [],
-    supportsPublish: extended.supportsPublish ?? false,
-    publishBasePath: extended.publishBasePath ?? null,
-    publishAssetsPath: extended.publishAssetsPath ?? null,
-    publishAzureEnabled: extended.publishAzureEnabled ?? false,
+    autoInitOnStartup: api.autoInitOnStartup ?? false,
+    blockedBranches: api.blockedBranches ?? [],
+    supportsPublish: api.supportsPublish ?? false,
+    publishBasePath: api.publishBasePath ?? null,
+    publishAssetsPath: api.publishAssetsPath ?? null,
+    publishAzureEnabled: api.publishAzureEnabled ?? false,
     createdAt: api.createdAt,
     updatedAt: api.updatedAt
-  }
-}
-
-function parseOwnerAndNameFromUrl(url: string): { owner: string; name: string } {
-  try {
-    const u = new URL(url)
-    const pathParts = u.pathname
-      .replace(/^\//, '')
-      .replace(/\.git$/, '')
-      .split('/')
-      .filter(Boolean)
-    const name = pathParts.pop() ?? 'repo'
-    const owner = pathParts.pop() ?? 'owner'
-    return { owner, name }
-  } catch {
-    return { owner: 'owner', name: 'repo' }
   }
 }
 
@@ -240,19 +223,16 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
         .split(',')
         .map(b => b.trim())
         .filter(Boolean)
-      const { owner, name } = parseOwnerAndNameFromUrl(newConfig.url)
       const apiRequest: ApiCreateAutoInitConfigRequest = {
         url: newConfig.url,
-        owner,
-        name,
         branch: newConfig.branch,
         enabled: newConfig.enabled ?? true,
-        ...(newConfig.autoInitOnStartup !== undefined && { autoInitOnStartup: newConfig.autoInitOnStartup }),
+        autoInitOnStartup: newConfig.autoInitOnStartup,
         ...(blockedBranches.length > 0 && { blockedBranches }),
-        ...(newConfig.supportsPublish !== undefined && { supportsPublish: newConfig.supportsPublish }),
+        supportsPublish: newConfig.supportsPublish,
         ...(newConfig.publishBasePath && { publishBasePath: newConfig.publishBasePath }),
         ...(newConfig.publishAssetsPath && { publishAssetsPath: newConfig.publishAssetsPath }),
-        ...(newConfig.publishAzureEnabled !== undefined && { publishAzureEnabled: newConfig.publishAzureEnabled })
+        publishAzureEnabled: newConfig.publishAzureEnabled
       }
       await builderClient.createAutoInitConfig(apiRequest)
       setSuccess(

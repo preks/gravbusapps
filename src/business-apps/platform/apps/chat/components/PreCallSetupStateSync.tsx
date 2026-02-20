@@ -50,11 +50,18 @@ export const PreCallSetupStateSync: React.FC<PreCallSetupStateSyncProps> = ({
         ? globalCallData.callState.isMinimized
         : groupCallState.isMinimized
     const hasIncomingInvite = !!incomingGroupCallInvite
+    // CallDialog (GroupCallModalRtk) only renders when globalCallManager has realtimeKitMeeting.
+    // Keep PreCallSetup visible until then so there is no frame with neither UI.
+    const isCallUiReady = !!globalCallData.realtimeKitMeeting
 
-    // Show ONLY during setup/joining for outbound calls. Avoid using "connected but not joined" here:
-    // during teardown/unmount `meeting` can be undefined while status is still 'connected', which can
-    // incorrectly re-open the dialog after ending a call.
-    const shouldShow = isOutboundHost && (isSetup || isJoining) && !isMinimized && !hasIncomingInvite
+    // Show during setup/joining, or when connected but call UI not yet ready (avoids blank frame).
+    // Avoid "connected but not joined" for teardown: meeting can be undefined while status is
+    // still 'connected', which could incorrectly re-open the dialog after ending a call.
+    const shouldShow =
+      isOutboundHost &&
+      (isSetup || isJoining || (groupCallState.status === 'connected' && !isCallUiReady)) &&
+      !isMinimized &&
+      !hasIncomingInvite
 
     const currentSourceOwner = globalPreCallSetupManager.getSourceOwnerId()
     const isSourceOwner = currentSourceOwner === instanceId
@@ -91,18 +98,21 @@ export const PreCallSetupStateSync: React.FC<PreCallSetupStateSyncProps> = ({
       // FIXED: Always show the CURRENT USER's avatar
       const userAvatarUrl = currentUserAsParticipant?.avatarUrl
 
-      // Update global state (EXACT ORIGINAL LOGIC)
+      // Meeting chats: metadata.type === 'meeting' or metadata.meetingId → send 'meeting' so backend shows "Meeting started/ended"
+      const isMeetingConversation =
+        activeConversation?.metadata?.type === 'meeting' || Boolean(activeConversation?.metadata?.meetingId)
+      const conversationType: 'direct' | 'group' | 'meeting' = isMeetingConversation
+        ? 'meeting'
+        : ((activeConversation?.type as 'direct' | 'group' | 'meeting') ?? 'group')
+
       globalPreCallSetupManager.setStateFrom(instanceId, {
         isOpen: true,
         callType: groupCallState.callType,
-        conversationName:
-          activeConversation?.type === 'direct'
-            ? undefined // For direct calls, don't pass conversation name (will show "Call")
-            : activeConversation?.name, // For group/meeting, use conversation name
+        conversationName: activeConversation?.name,
         participantCount: groupParticipants.length,
         userName,
         userAvatarUrl,
-        conversationType: activeConversation?.type as 'direct' | 'group' | 'meeting'
+        conversationType
       })
 
       return
@@ -119,8 +129,10 @@ export const PreCallSetupStateSync: React.FC<PreCallSetupStateSyncProps> = ({
     instanceId,
     groupCallState.status,
     groupCallState.callType,
+    groupCallState.hostId,
     groupCallState.hasBeenMinimized,
     groupCallState.isMinimized,
+    realtimeKitGroupCall.meeting,
     realtimeKitGroupCall.meeting?.self?.roomState,
     realtimeKitGroupCall.confirmStartCall,
     realtimeKitGroupCall.cancelSetup,

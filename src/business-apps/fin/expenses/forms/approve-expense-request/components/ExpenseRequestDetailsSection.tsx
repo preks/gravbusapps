@@ -116,7 +116,7 @@ const ExpenseRequestDetailsSection: React.FC<ExpenseRequestDetailsSectionProps> 
             <div>
               <Label className="gba:text-sm gba:text-muted-foreground">{t('label-employee-comment')}</Label>
               <p
-                className="gba:text-sm gba:text-muted-foreground gba:whitespace-pre-wrap"
+                className="gba:text-sm gba:font-medium gba:whitespace-pre-wrap"
                 data-testid={`${prefixDataTestId}-employee-comment`}
               >
                 {employeeCommentText}
@@ -132,7 +132,7 @@ const ExpenseRequestDetailsSection: React.FC<ExpenseRequestDetailsSectionProps> 
             <div>
               <Label className="gba:text-sm gba:text-muted-foreground">{t('label-comment')}</Label>
               <p
-                className="gba:text-sm gba:text-muted-foreground gba:whitespace-pre-wrap"
+                className="gba:text-sm gba:font-medium gba:whitespace-pre-wrap"
                 data-testid={`${prefixDataTestId}-request-description`}
               >
                 {descriptionText}

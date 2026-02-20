@@ -86,6 +86,11 @@ export interface ChatMessage {
   content: string
   toolCalls?: ToolCall[]
   thinkingLog?: string
+  createdBy?: string
+  editHistory?: Array<{
+    userId: string
+    editedAt: string
+  }>
   messageId?: string
   createdAt?: string
   serverCreatedAt?: string
@@ -98,6 +103,12 @@ export interface AutoInitConfig {
   name: string
   branch: string
   enabled: boolean
+  autoInitOnStartup: boolean
+  supportsPublish: boolean
+  publishBasePath: string | null
+  publishAssetsPath: string | null
+  publishAzureEnabled: boolean
+  blockedBranches: string[]
   repoId: string | null
   indexStatus: string | null
   createdAt: string
@@ -106,18 +117,25 @@ export interface AutoInitConfig {
 
 export interface CreateAutoInitConfigRequest {
   url: string
-  owner: string
-  name: string
   branch: string
+  autoInitOnStartup?: boolean
+  blockedBranches?: string[]
   enabled?: boolean
+  supportsPublish?: boolean
+  publishBasePath?: string
+  publishAssetsPath?: string
+  publishAzureEnabled?: boolean
 }
 
 export interface UpdateAutoInitConfigRequest {
-  url?: string
-  owner?: string
-  name?: string
   branch?: string
+  autoInitOnStartup?: boolean
+  blockedBranches?: string[]
   enabled?: boolean
+  supportsPublish?: boolean
+  publishBasePath?: string
+  publishAssetsPath?: string
+  publishAzureEnabled?: boolean
 }
 
 export interface IndexProgress {
@@ -196,6 +214,75 @@ export class BuilderClient {
     }
 
     return headers
+  }
+
+  private truncateText(value: unknown, maxChars: number): string | undefined {
+    if (typeof value !== 'string') return undefined
+    const normalized = value.trim()
+    if (!normalized) return undefined
+    if (normalized.length <= maxChars) return normalized
+    return `${normalized.slice(0, maxChars)}\n\n... (truncated)`
+  }
+
+  private compactChatHistoryForSave(
+    messages: ChatMessage[],
+    options?: {
+      maxMessages?: number
+      maxTotalChars?: number
+      maxContentChars?: number
+      maxThinkingChars?: number
+      maxToolCallsPerMessage?: number
+      maxToolArgsChars?: number
+      maxToolResultChars?: number
+    }
+  ): ChatMessage[] {
+    const maxMessages = options?.maxMessages ?? 100
+    const maxTotalChars = options?.maxTotalChars ?? 120_000
+    const maxContentChars = options?.maxContentChars ?? 6_000
+    const maxThinkingChars = options?.maxThinkingChars ?? 2_500
+    const maxToolCallsPerMessage = options?.maxToolCallsPerMessage ?? 8
+    const maxToolArgsChars = options?.maxToolArgsChars ?? 1_200
+    const maxToolResultChars = options?.maxToolResultChars ?? 2_000
+
+    const source = Array.isArray(messages) ? messages.slice(-maxMessages) : []
+    const compacted: ChatMessage[] = source.map(message => {
+      const compactToolCalls =
+        Array.isArray(message.toolCalls) && message.toolCalls.length > 0
+          ? message.toolCalls.slice(-maxToolCallsPerMessage).map(
+              (call): ToolCall => ({
+                tool: String(call.tool || 'unknown'),
+                status: call.status === 'running' ? 'running' : 'complete',
+                id: String(call.id || ''),
+                args: this.truncateText(call.args, maxToolArgsChars),
+                result: this.truncateText(call.result, maxToolResultChars)
+              })
+            )
+          : undefined
+
+      return {
+        role: message.role,
+        content: this.truncateText(message.content, maxContentChars) ?? '',
+        toolCalls: compactToolCalls,
+        thinkingLog: this.truncateText(message.thinkingLog, maxThinkingChars),
+        messageId: message.messageId,
+        createdAt: message.createdAt,
+        serverCreatedAt: message.serverCreatedAt
+      }
+    })
+
+    let totalChars = 0
+    const bounded: ChatMessage[] = []
+    for (let i = compacted.length - 1; i >= 0; i -= 1) {
+      const message = compacted[i]
+      const toolChars =
+        message.toolCalls?.reduce((acc, call) => acc + (call.args?.length ?? 0) + (call.result?.length ?? 0), 0) ?? 0
+      const messageChars = (message.content?.length ?? 0) + (message.thinkingLog?.length ?? 0) + toolChars
+      if (bounded.length > 0 && totalChars + messageChars > maxTotalChars) break
+      bounded.unshift(message)
+      totalChars += messageChars
+    }
+
+    return bounded
   }
 
   // ============================================================================
@@ -308,15 +395,38 @@ export class BuilderClient {
    */
   async saveChatHistory(repoId: string, sessionId: string, messages: ChatMessage[]): Promise<boolean> {
     try {
-      const response = await fetch(`${this.baseUrl}/chat/history`, {
+      const compactMessages = this.compactChatHistoryForSave(messages)
+      let response = await fetch(`${this.baseUrl}/chat/history`, {
         method: 'POST',
         headers: this.getHeaders(true),
         body: JSON.stringify({
           repoId,
           sessionId,
-          messages
+          messages: compactMessages
         })
       })
+
+      // Retry once with an even smaller payload if upstream rejects body size.
+      if (response.status === 413) {
+        const aggressiveMessages = this.compactChatHistoryForSave(messages, {
+          maxMessages: 40,
+          maxTotalChars: 35_000,
+          maxContentChars: 2_000,
+          maxThinkingChars: 800,
+          maxToolCallsPerMessage: 4,
+          maxToolArgsChars: 400,
+          maxToolResultChars: 700
+        })
+        response = await fetch(`${this.baseUrl}/chat/history`, {
+          method: 'POST',
+          headers: this.getHeaders(true),
+          body: JSON.stringify({
+            repoId,
+            sessionId,
+            messages: aggressiveMessages
+          })
+        })
+      }
 
       return response.ok
     } catch {
@@ -367,6 +477,34 @@ export class BuilderClient {
 
     if (!response.ok) {
       throw new Error(data.error || data.message || 'Failed to restore message')
+    }
+  }
+
+  /**
+   * Restore session files and chat to initial state
+   */
+  async restoreToInitial(params: {
+    repoId: string
+    sessionId: string
+    targetPath: string
+    restoreChat?: boolean
+  }): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/versions/restore/initial`, {
+      method: 'POST',
+      headers: this.getHeaders(true),
+      body: JSON.stringify({
+        repoId: params.repoId,
+        sessionId: params.sessionId,
+        targetPath: params.targetPath,
+        applyToCache: true,
+        restoreChat: params.restoreChat !== false
+      })
+    })
+
+    const data = await response.json()
+
+    if (!response.ok) {
+      throw new Error(data.error || data.message || 'Failed to restore initial state')
     }
   }
 
@@ -767,6 +905,31 @@ export class BuilderClient {
   // Code Query & Analysis
   // ============================================================================
 
+  private async parseQueryCodeError(response: Response): Promise<string> {
+    const fallback = `Failed to query code (${response.status})`
+    try {
+      const errorData = (await response.json()) as {
+        message?: string
+        error?: string
+        details?: string
+        errors?: Array<{ detail?: string; message?: string }>
+      }
+      if (Array.isArray(errorData.errors) && errorData.errors.length > 0) {
+        const firstError = errorData.errors[0]
+        return firstError?.detail ?? firstError?.message ?? errorData.message ?? errorData.error ?? fallback
+      }
+      return errorData.message ?? errorData.error ?? errorData.details ?? fallback
+    } catch {
+      try {
+        const text = await response.text()
+        if (text) return text
+      } catch {
+        // Keep fallback message
+      }
+    }
+    return fallback
+  }
+
   /**
    * Query code using AI
    */
@@ -794,6 +957,33 @@ export class BuilderClient {
     customSystemPrompt?: string
   ): Promise<ReadableStream> {
     const endpoint = useAgenticMode ? '/analyze/query-agentic' : '/analyze/query'
+    const MAX_MESSAGES = 10
+    const MAX_SINGLE_MESSAGE_CHARS = 3000
+    const MAX_TOTAL_CHARS = 20000
+
+    const compactHistory = conversationHistory.slice(-MAX_MESSAGES).map(message => {
+      const rawContent = typeof message.content === 'string' ? message.content : JSON.stringify(message.content ?? '')
+      const normalizedContent = rawContent.trim()
+      const content =
+        normalizedContent.length > MAX_SINGLE_MESSAGE_CHARS
+          ? `${normalizedContent.slice(0, MAX_SINGLE_MESSAGE_CHARS)}\n\n... (history message truncated)`
+          : normalizedContent
+      return {
+        role: message.role,
+        content
+      }
+    })
+
+    let totalChars = 0
+    const boundedHistory: Array<{ role: 'user' | 'assistant'; content: string }> = []
+    for (let i = compactHistory.length - 1; i >= 0; i -= 1) {
+      const item = compactHistory[i]
+      if (!item.content) continue
+      const nextTotal = totalChars + item.content.length
+      if (nextTotal > MAX_TOTAL_CHARS) break
+      boundedHistory.unshift(item)
+      totalChars = nextTotal
+    }
 
     const response = await fetch(`${this.baseUrl}${endpoint}`, {
       method: 'POST',
@@ -802,7 +992,7 @@ export class BuilderClient {
         repoId,
         query,
         stream: true,
-        conversationHistory,
+        conversationHistory: boundedHistory,
         buildEnabled,
         sessionId,
         llmProvider,
@@ -810,8 +1000,12 @@ export class BuilderClient {
       })
     })
 
-    if (!response.ok || !response.body) {
-      throw new Error('Failed to query code')
+    if (!response.ok) {
+      throw new Error(await this.parseQueryCodeError(response))
+    }
+
+    if (!response.body) {
+      throw new Error('Failed to query code: response stream is not available')
     }
 
     return response.body
@@ -919,8 +1113,16 @@ export class BuilderClient {
   /**
    * Get preview file URL. Endpoint: /previews/{sessionId}/{fileName}
    */
-  getPreviewFileUrl(sessionId: string, fileName: string): string {
-    return `${this.baseUrl}/previews/${encodeURIComponent(sessionId)}/${encodeURIComponent(fileName)}`
+  getPreviewFileUrl(sessionId: string, fileName: string, query?: Record<string, string | number | boolean>): string {
+    const base = `${this.baseUrl}/previews/${encodeURIComponent(sessionId)}/${encodeURIComponent(fileName)}`
+    if (!query || Object.keys(query).length === 0) {
+      return base
+    }
+    const searchParams = new URLSearchParams()
+    for (const [key, value] of Object.entries(query)) {
+      searchParams.set(key, String(value))
+    }
+    return `${base}?${searchParams.toString()}`
   }
 
   /**

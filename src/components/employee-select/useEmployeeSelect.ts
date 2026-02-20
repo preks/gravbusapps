@@ -233,20 +233,27 @@ export const useEmployeeSelect = ({
     return [effectiveInitialEmployee, ...employees]
   }, [employees, effectiveInitialEmployee, value])
 
-  // Trigger initial search - ONLY ONCE and NOT when there's an error
-  useEffect(() => {
-    if (onSearch && employees.length === 0 && !hookError && !initialSearchDone.current && !hookLoading) {
-      initialSearchDone.current = true
-      onSearch('')
-    }
-  }, [onSearch, employees.length, hookError, hookLoading])
-
-  // Reset initial search flag when error is cleared or token changes
+  // Reset initial search flag when error is cleared or when value changes (e.g. open another company so we may need to load again)
+  // NOTE: this effect must be defined BEFORE the trigger effect below so that on mount React runs it first,
+  // ensuring initialSearchDone.current is false before the trigger sets it to true (effects run in definition order).
   useEffect(() => {
     if (hookError) {
       initialSearchDone.current = false
     }
   }, [hookError])
+  useEffect(() => {
+    initialSearchDone.current = false
+  }, [value])
+
+  // Trigger initial search - when list is empty, or when only one item (e.g. director prepended) so we load the rest
+  const shouldTriggerInitialSearch =
+    employees.length === 0 || (employees.length === 1 && value != null && employees.some(emp => emp.id === value))
+  useEffect(() => {
+    if (onSearch && shouldTriggerInitialSearch && !hookError && !initialSearchDone.current && !hookLoading) {
+      initialSearchDone.current = true
+      onSearch('')
+    }
+  }, [onSearch, shouldTriggerInitialSearch, hookError, hookLoading])
 
   return {
     employees,

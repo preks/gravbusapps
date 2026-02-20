@@ -9,6 +9,9 @@ file-select-label = Select CSV File
 # File Info
 file-loaded-text = File loaded: { $fileName } ({ $fileSize } KB)
 
+# Campaign
+campaign-id-label = Campaign (Optional)
+
 # Button Labels
 analyze-button = Analyze with AI Agent
 analyzing-button = Analyzing with AI...

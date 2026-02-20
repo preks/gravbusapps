@@ -32,6 +32,9 @@ import { useRestClient } from '@/common/network/rest/useRestClient'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { GET_ENTITLEMENTS_SNAPSHOT_FOR_YEAR } from '@/business-apps/hr/absences/apps/personal-absences/queries/graphql'
 import { fetchHolidayDates } from './utils/fetchHolidayDates'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
+import { GET_ABSENCE_DAILY_FACTS } from '../../queries/queries'
+import { useEmployeeWeeklySchedule } from '../../hooks/useEmployeeWeeklySchedule'
 
 const AbsencesTab: React.FC<AbsencesTabProps> = ({
   employee,
@@ -54,6 +57,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
   const [hasHrBackoffice, setHasHrBackoffice] = useState<boolean>(false)
   const [isFetchingGroups, setIsFetchingGroups] = useState<boolean>(true)
   const [holidayDates, setHolidayDates] = useState<string[]>([])
+  const [effectiveDates, setEffectiveDates] = useState<Set<string> | null>(null)
   const graphqlClient = useGraphQLClient(accessToken)
   const A001_TYPE_REF = 'AbsenceType:v1:A001'
   const [annualLeaveOverride, setAnnualLeaveOverride] = useState<{
@@ -65,6 +69,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
   const [snapshotByType, setSnapshotByType] = useState<
     Record<string, { total: number; usedApproved: number; usedPending: number; remaining: number }>
   >({})
+  const [refreshTick, setRefreshTick] = useState(0)
 
   const startDateFormatted = selectedStartDate?.format('YYYY-MM-DD') ?? ''
   const endDateFormatted = selectedEndDate?.format('YYYY-MM-DD') ?? ''
@@ -79,6 +84,14 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
     accessToken,
     employeeAbsenceEntitlement
   )
+
+  // Refresh tab data and snapshot when a related process completes successfully
+  useProcessCompletion({
+    onSuccess: () => {
+      refetch?.()
+      setRefreshTick(t => t + 1)
+    }
+  })
 
   useEffect(() => {
     const checkLocale = () => {
@@ -166,7 +179,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
     }
 
     fetchAnnualLeaveSnapshot()
-  }, [graphqlClient, employee?.id, currentDate])
+  }, [graphqlClient, employee?.id, currentDate, refreshTick])
 
   useEffect(() => {
     const fetchUserGroups = async () => {
@@ -196,27 +209,33 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
     }
   }, [shownTab])
 
-  useEffect(() => {
-    const lastRefetchAt = { current: 0 } as { current: number }
+  // Debounce timestamp for process completion handling
+  const lastRefetchAt = React.useRef(0)
 
-    const handler = (event: any) => {
+  // Determine if an incoming event represents a successful process completion
+  const isProcessSuccessEvent = (event: any): boolean => {
+    const resolution = event?.detail?.resolution || event?.detail?.response?.detail?.resolution
+    const hasAbsencePayload = !!(event?.detail?.response?.employeeAbsence || event?.detail?.payload?.employeeAbsence)
+    return resolution === 'success' || hasAbsencePayload
+  }
+
+  // Stable handler to avoid deep nesting in effects
+  const handleProcessEvent = React.useCallback(
+    (event: any) => {
       try {
-        const resolution = event?.detail?.resolution || event?.detail?.response?.detail?.resolution
-        const isSuccess = resolution === 'success'
-        const hasAbsencePayload = !!(
-          event?.detail?.response?.employeeAbsence || event?.detail?.payload?.employeeAbsence
-        )
-        if (isSuccess || hasAbsencePayload) {
-          const now = Date.now()
-          if (now - lastRefetchAt.current < 2000) {
-            return
-          }
-          lastRefetchAt.current = now
-          refetch?.()
-        }
+        if (!isProcessSuccessEvent(event)) return
+        const now = Date.now()
+        if (now - lastRefetchAt.current < 2000) return
+        lastRefetchAt.current = now
+        refetch?.()
+        // Also bump refreshTick so Annual Leave snapshot useEffect re-runs
+        setRefreshTick(t => t + 1)
       } catch {}
-    }
+    },
+    [refetch]
+  )
 
+  useEffect(() => {
     const eventNames = [
       'com.newwork.process.taskCompletion',
       'com.newwork.process.completion',
@@ -230,11 +249,31 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
       'process-completion'
     ]
 
-    eventNames.forEach(name => window.addEventListener(name, handler))
-    return () => {
-      eventNames.forEach(name => window.removeEventListener(name, handler))
+    // Resolve targets using globalThis.window to satisfy static analysis
+    const targets: Window[] = []
+    const win = (globalThis as any).window as Window | undefined
+    if (win) {
+      targets.push(win)
+      try {
+        const parent = win.parent && win.parent !== win ? win.parent : undefined
+        const top = win.top && win.top !== win && win.top !== parent ? win.top : undefined
+        if (parent) targets.push(parent)
+        if (top) targets.push(top)
+      } catch {
+        // ignore cross-origin access errors
+      }
     }
-  }, [refetch])
+
+    targets.forEach(t => {
+      eventNames.forEach(name => t.addEventListener(name, handleProcessEvent as EventListener))
+    })
+
+    return () => {
+      targets.forEach(t => {
+        eventNames.forEach(name => t.removeEventListener(name, handleProcessEvent as EventListener))
+      })
+    }
+  }, [handleProcessEvent])
 
   // Merge Annual Leave snapshot override (A001) into entitlements without affecting other types
   const ANNUAL_LABEL_HINTS = ['annual', 'vacation', 'holiday'] as const
@@ -282,6 +321,9 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
     return withTypeIdApplied
   }, [entitlements, annualLeaveOverride, snapshotByType])
 
+  const [allowWeekendPaintingInFallback, setAllowWeekendPaintingInFallback] = useState(false)
+  const nonWorkingDates = useEmployeeWeeklySchedule(accessToken, employee?.id, currentDate)
+
   const tabsItems = [
     {
       key: 'calendar',
@@ -303,6 +345,9 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
             employeeAbsenceEntitlement={employeeAbsenceEntitlement}
             employee={employee}
             accessToken={accessToken}
+            effectiveDates={effectiveDates ?? undefined}
+            allowWeekendPaintingInFallback={allowWeekendPaintingInFallback}
+            nonWorkingDates={!effectiveDates ? (nonWorkingDates ?? undefined) : undefined}
           />
         </div>
       )
@@ -347,6 +392,69 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
     }
     loadHolidays()
   }, [employee?.id, accessToken, graphqlClient, currentDate])
+
+  // Fetch BE-provided daily absence facts for the visible month to paint only effective working days
+  useEffect(() => {
+    const loadDailyFacts = async () => {
+      try {
+        if (!graphqlClient || !employee?.id) {
+          setEffectiveDates(null)
+          return
+        }
+        const from = currentDate.startOf('month').format('YYYY-MM-DD')
+        const to = currentDate.endOf('month').format('YYYY-MM-DD')
+        const res: any = await graphqlClient.request(GET_ABSENCE_DAILY_FACTS, {
+          employeeId: employee.id,
+          from,
+          to
+        })
+        const facts: Array<{
+          dayDate?: string
+          day_date?: string
+          dayFraction?: number | string | null
+          day_fraction?: number | string | null
+        }> = res?.DailyAbsenceFactView || res?.daily_absence_fact_view || []
+        const set = new Set<string>()
+        let anyDefinedFraction = false
+        let weekendEffective = false
+        facts.forEach(f => {
+          const rawDate = (f.dayDate ?? (f as any).day_date) as string | undefined
+          const rawFrac = (f.dayFraction ?? (f as any).day_fraction) as number | string | null | undefined
+          if (rawFrac === null || rawFrac === undefined) {
+            // null/undefined means BE didn’t compute effectiveness for that day
+            return
+          }
+          anyDefinedFraction = true
+          const frac = typeof rawFrac === 'number' ? rawFrac : Number(rawFrac)
+          if (frac > 0 && rawDate) {
+            set.add(rawDate)
+            const d = dayjs(rawDate)
+            if (d.day() === 0 || d.day() === 6) weekendEffective = true
+          }
+        })
+        // Selection rules:
+        // - No facts: fallback to range shading (null) so absences remain visible.
+        // - Facts with defined fractions: use set (may be empty to intentionally suppress painting when all 0).
+        // - Facts all null/undefined: treat as incomplete -> fallback to range shading (null).
+        if (facts.length === 0) {
+          setEffectiveDates(null)
+          setAllowWeekendPaintingInFallback(false)
+        } else if (!anyDefinedFraction) {
+          setEffectiveDates(null)
+          setAllowWeekendPaintingInFallback(false)
+        } else {
+          setEffectiveDates(set)
+          setAllowWeekendPaintingInFallback(weekendEffective)
+        }
+      } catch {
+        // Non-fatal; fall back to shading full ranges
+        setEffectiveDates(null)
+      }
+    }
+    loadDailyFacts()
+  }, [graphqlClient, employee?.id, currentDate])
+
+  // Non-working dates derived from weekly schedule are now provided by useEmployeeWeeklySchedule
 
   return (
     <div className="gba:absences-tab gba:space-y-8">
@@ -462,8 +570,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
             <Tabs value={activeTab} onValueChange={onTabChange} className="gba:w-full">
               <TabsList className="gba:w-full gba:justify-start">
                 {tabsItems.map(item => (
-                  <TabsTrigger key={item.key} value={item.key} className="gba:gap-2">
-                    {item.icon}
+                  <TabsTrigger key={item.key} value={item.key} startIcon={item.icon} className="gba:text-sm">
                     {item.label}
                   </TabsTrigger>
                 ))}

@@ -14,8 +14,7 @@ import {
 import { ChatTextIcon, SignOutIcon } from '@phosphor-icons/react'
 import type { Conversation } from '../types'
 import type { UserPresence } from '../hooks/usePresence'
-import { UserIcon, UsersIcon, Sparkles, CalendarIcon } from 'lucide-react'
-import { rtkDebug } from '../utils/rtkDebug'
+import { UserIcon, UsersIcon, Sparkles, CalendarIcon, PhoneCall } from 'lucide-react'
 import { UserStatusIndicator } from './UserStatusIndicator'
 
 interface ConversationItemProps {
@@ -220,7 +219,9 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
               {name}
             </span>
             {hasActiveCall && (
-              <span className="gba:text-[10px] gba:text-success gba:uppercase">{t(getCallMessageKey())}</span>
+              <span className="gba:flex gba:items-center gba:text-success" title={t(getCallMessageKey())}>
+                <PhoneCall className="gba:w-4 gba:h-4" />
+              </span>
             )}
             {unreadCount > 0 && (
               <Badge
@@ -243,11 +244,6 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
               {(() => {
                 try {
                   const lastSeenDate = new Date(otherUserPresence.lastSeen)
-                  rtkDebug.log('[ConversationItem] 📅 Calculating last seen:', {
-                    lastSeenString: otherUserPresence.lastSeen,
-                    lastSeenDate,
-                    isValidDate: !isNaN(lastSeenDate.getTime())
-                  })
 
                   // Check if date is valid
                   if (isNaN(lastSeenDate.getTime())) {
@@ -257,13 +253,6 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
 
                   const now = new Date()
                   const diffMs = now.getTime() - lastSeenDate.getTime()
-
-                  rtkDebug.log('[ConversationItem] ⏱️ Time difference:', {
-                    now: now.toISOString(),
-                    lastSeen: lastSeenDate.toISOString(),
-                    diffMs,
-                    diffMinutes: Math.floor(diffMs / (1000 * 60))
-                  })
 
                   // Check for negative or invalid differences
                   if (diffMs < 0 || isNaN(diffMs)) {
@@ -286,7 +275,6 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
                     lastSeenText = t('chat-lastSeenLongAgo')
                   }
 
-                  rtkDebug.log('[ConversationItem] ✅ Last seen text generated:', lastSeenText)
                   return lastSeenText
                 } catch (error) {
                   console.error('[ConversationItem] ❌ Error calculating last seen time:', error)

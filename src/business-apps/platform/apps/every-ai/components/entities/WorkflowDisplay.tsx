@@ -11,6 +11,7 @@ interface WorkflowDisplayProps {
   flowProposal?: string
   textTitle?: string
   tool?: string
+  link?: string
 }
 
 export const WorkflowDisplay: React.FC<WorkflowDisplayProps> = ({
@@ -20,7 +21,8 @@ export const WorkflowDisplay: React.FC<WorkflowDisplayProps> = ({
   operation,
   flowProposal,
   textTitle,
-  tool
+  tool,
+  link
 }) => {
   const operationBadge = getOperationBadge(operation)
   const isBlink = tool === 'create_blink_task'
@@ -52,6 +54,14 @@ export const WorkflowDisplay: React.FC<WorkflowDisplayProps> = ({
       return
     }
 
+    // Prefer backend-provided link (draft handoff, special routes, etc.)
+    if (link) {
+      // Draft handoff: the link contains `draftId` so it can be copy/pasted across browsers.
+      navigateTo(link, { forceReload: true })
+      return
+    }
+
+    // workflowId is the template_id
     const workflowUrl = buildPlatformUrl('/platform/apps/flow/apps/creator', {
       templateId: workflowId
     })
@@ -59,6 +69,11 @@ export const WorkflowDisplay: React.FC<WorkflowDisplayProps> = ({
   }
 
   const title = textTitle || formatWorkflowName(workflowId)
+  const isDraft =
+    tool === 'create_workflow_draft' ||
+    tool === 'refine_workflow_draft' ||
+    Boolean(link?.includes('/flow/draft')) ||
+    Boolean(link?.includes('draftId='))
   const subtitle = isBlink ? 'Blink Task' : 'Workflow Template'
 
   return (
@@ -72,12 +87,14 @@ export const WorkflowDisplay: React.FC<WorkflowDisplayProps> = ({
       fields={
         isBlink
           ? [{ label: 'Task ID', value: workflowId }]
-          : flowProposal
-            ? [
-                { label: 'Template ID', value: workflowId },
-                { label: 'Flow Proposal', value: flowProposal.slice(0, 8) + '...' }
-              ]
-            : [{ label: 'Template ID', value: workflowId }]
+          : isDraft
+            ? [{ label: 'Draft ID', value: workflowId }]
+            : flowProposal
+              ? [
+                  { label: 'Template ID', value: workflowId },
+                  { label: 'Flow Proposal', value: flowProposal.slice(0, 8) + '...' }
+                ]
+              : [{ label: 'Template ID', value: workflowId }]
       }
       onClick={handleClick}
     />

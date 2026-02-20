@@ -3,13 +3,14 @@ import type { Conversation, Message, ConversationParticipant } from '../types'
 import { ChatApiClient } from '../services/chatApiClient'
 import { useUserManagementClient } from './useUserManagementClient'
 import { useEmployeeAvatarsCache } from './useEmployeeAvatarsCache'
-import { rtkDebug } from '../utils/rtkDebug'
 
 interface UseConversationsOptions {
   apiClient: ChatApiClient | null | undefined
   accessToken: string
   enabled?: boolean
 }
+
+export type ConversationFilterKind = 'all' | 'direct' | 'group' | 'meeting'
 
 export function useConversations({ apiClient, accessToken, enabled = true }: UseConversationsOptions) {
   const [conversations, setConversations] = useState<Conversation[]>([])
@@ -22,6 +23,20 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false)
   const loadConversationsPromiseRef = useRef<Promise<void> | null>(null)
   const LIMIT = 20
+
+  const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [filterKind, setFilterKind] = useState<ConversationFilterKind>('all')
+  const [unreadOnly, setUnreadOnly] = useState(false)
+
+  useEffect(() => {
+    if (!search.trim()) {
+      setDebouncedSearch('')
+      return
+    }
+    const timer = setTimeout(() => setDebouncedSearch(search.trim()), 350)
+    return () => clearTimeout(timer)
+  }, [search])
 
   // Use user management client to fetch real user data
   const { getUsersByIds } = useUserManagementClient(accessToken)
@@ -181,26 +196,14 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
         setError(null)
         setCurrentPage(1)
 
-        const response = await apiClient.getConversations(1, LIMIT)
+        const response = await apiClient.getConversations(1, LIMIT, {
+          search: debouncedSearch || undefined,
+          filter: filterKind,
+          unreadOnly: unreadOnly || undefined
+        })
         // Handle both response structures: { data: [...] } or { conversations: [...] }
         const conversationsData = response.data || (response as any).conversations || []
         const total = response.total || 0
-
-        // Log backend response for debugging sorting issues
-        if (process.env.NODE_ENV === 'development') {
-          rtkDebug.debug(
-            '[useConversations] Backend returned conversations:',
-            conversationsData.slice(0, 3).map((c: any) => ({
-              id: c.id?.substring(0, 8),
-              hasLastMessage: !!c.lastMessage,
-              lastMessageCreatedAt: c.lastMessage?.createdAt,
-              lastReadAt: c.lastReadAt,
-              unreadCount: c.unreadCount,
-              updatedAt: c.updatedAt,
-              createdAt: c.createdAt
-            }))
-          )
-        }
 
         // Check if there are more conversations to load
         setHasMore(conversationsData.length === LIMIT && conversationsData.length < total)
@@ -211,18 +214,6 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
         const enrichedConversations = !hasLoadedOnce
           ? enrichConversationsWithAvatarsOnly(conversationsData)
           : await enrichConversations(conversationsData)
-
-        // Debug: Log after enrichment to verify data preservation
-        if (process.env.NODE_ENV === 'development') {
-          rtkDebug.debug(
-            '[useConversations] After enrichment:',
-            enrichedConversations.slice(0, 3).map((c: any) => ({
-              id: c.id?.substring(0, 8),
-              lastReadAt: c.lastReadAt,
-              unreadCount: c.unreadCount
-            }))
-          )
-        }
 
         // Sort by most recent activity
         // Priority: lastMessage.createdAt > lastMessageAt > updatedAt > createdAt
@@ -255,16 +246,32 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
     // Store the promise for deduplication
     loadConversationsPromiseRef.current = loadPromise
     return loadPromise
-  }, [apiClient, accessToken, enabled, enrichConversations, enrichConversationsWithAvatarsOnly, hasLoadedOnce, LIMIT])
+  }, [
+    apiClient,
+    accessToken,
+    enabled,
+    enrichConversations,
+    enrichConversationsWithAvatarsOnly,
+    hasLoadedOnce,
+    LIMIT,
+    debouncedSearch,
+    filterKind,
+    unreadOnly
+  ])
 
   const loadMoreConversations = useCallback(async () => {
     if (!enabled || isLoadingMore || !hasMore || !apiClient) return
 
     try {
+      setError(null)
       setIsLoadingMore(true)
       const nextPage = currentPage + 1
 
-      const response = await apiClient.getConversations(nextPage, LIMIT)
+      const response = await apiClient.getConversations(nextPage, LIMIT, {
+        search: debouncedSearch || undefined,
+        filter: filterKind,
+        unreadOnly: unreadOnly || undefined
+      })
       const conversationsData = response.data || (response as any).conversations || []
       const total = response.total || 0
 
@@ -281,12 +288,24 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
         return [...prev, ...newConversations]
       })
       setCurrentPage(nextPage)
-    } catch {
-      // Error loading more conversations
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error('Failed to load more conversations'))
     } finally {
       setIsLoadingMore(false)
     }
-  }, [apiClient, enabled, isLoadingMore, hasMore, currentPage, conversations.length, enrichConversations, LIMIT])
+  }, [
+    apiClient,
+    enabled,
+    isLoadingMore,
+    hasMore,
+    currentPage,
+    conversations.length,
+    enrichConversations,
+    LIMIT,
+    debouncedSearch,
+    filterKind,
+    unreadOnly
+  ])
 
   const updateConversation = useCallback((conversationId: string, updates: Partial<Conversation>) => {
     setConversations(prev => {
@@ -340,9 +359,15 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
           // Trigger async fetch of the missing conversation
           // This happens when a message arrives for a conversation that's not in the paginated list
           if (apiClient) {
+            if (process.env.NODE_ENV === 'development') {
+              console.log('[useConversations] Conversation not in list, fetching by id', { conversationId })
+            }
             apiClient
               .getConversationById(conversationId)
               .then(async conversation => {
+                if (process.env.NODE_ENV === 'development') {
+                  console.log('[useConversations] Fetched missing conversation, adding to list', { conversationId })
+                }
                 // Enrich before adding
                 const enriched = await enrichConversations([conversation])
                 const enrichedConv = enriched[0] || conversation
@@ -358,9 +383,16 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
                   })
                 })
               })
-              .catch(() => {
-                // Failed to fetch missing conversation
+              .catch(err => {
+                console.error('[useConversations] Failed to fetch missing conversation', {
+                  conversationId,
+                  message: err instanceof Error ? err.message : String(err)
+                })
               })
+          } else if (process.env.NODE_ENV === 'development') {
+            console.log('[useConversations] Conversation not in list but apiClient is null, skipping fetch', {
+              conversationId
+            })
           }
 
           return prev
@@ -475,7 +507,13 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
       incrementUnreadCount,
       removeConversation,
       enrichConversations, // Export for use in websocket handlers (full enrichment with user data fetch)
-      enrichConversationsWithAvatarsOnly // Export for fast enrichment (avatars only, no blocking)
+      enrichConversationsWithAvatarsOnly, // Export for fast enrichment (avatars only, no blocking)
+      search,
+      filterKind,
+      unreadOnly,
+      setSearch,
+      setFilterKind,
+      setUnreadOnly
     }),
     [
       conversations,
@@ -492,7 +530,10 @@ export function useConversations({ apiClient, accessToken, enabled = true }: Use
       incrementUnreadCount,
       removeConversation,
       enrichConversations,
-      enrichConversationsWithAvatarsOnly
+      enrichConversationsWithAvatarsOnly,
+      search,
+      filterKind,
+      unreadOnly
     ]
   )
 }
