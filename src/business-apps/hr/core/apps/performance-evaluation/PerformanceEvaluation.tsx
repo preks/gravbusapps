@@ -39,6 +39,15 @@ function makeId(prefix: string) {
   return `${prefix}_${Math.random().toString(36).slice(2, 9)}`
 }
 
+/** Returns true if [startA, endA] and [startB, endB] overlap (inclusive). Dates in YYYY-MM-DD or parseable by Date. */
+function doDateRangesOverlap(startA: string, endA: string, startB: string, endB: string): boolean {
+  const aStart = new Date(startA).getTime()
+  const aEnd = new Date(endA).getTime()
+  const bStart = new Date(startB).getTime()
+  const bEnd = new Date(endB).getTime()
+  return aStart <= bEnd && aEnd >= bStart
+}
+
 enum PerformanceTabEnum {
   Cycles = 'cycles',
   RatingScales = 'rating-scales',
@@ -123,6 +132,16 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
   const pageSubtitle = t('subtitle')
 
   const handleSaveFromModal = async (values: CycleEditorValues) => {
+    const otherCycles = cycles.filter(c => c.id !== values.id)
+    const overlaps = otherCycles.some(c =>
+      doDateRangesOverlap(values.startDate, values.endDate, c.startDate, c.endDate)
+    )
+    if (overlaps) {
+      const err = new Error(t('cycles-error-dates-overlap')) as Error & { code?: string }
+      err.code = 'DATES_OVERLAP'
+      throw err
+    }
+
     if (accessToken) {
       try {
         await savePerformanceCycle(values)

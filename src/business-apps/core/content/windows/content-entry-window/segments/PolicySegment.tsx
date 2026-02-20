@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react'
 import { Control } from 'react-hook-form'
 import {
+  DateInput,
   FormControl,
   FormField,
   FormFieldGroup,
@@ -338,10 +339,11 @@ export const PolicySegment: React.FC<PolicySegmentProps> = ({
                 <FormItem className="gba:flex-1">
                   <FormLabel>{t('policy-valid-from') || 'Valid From'}</FormLabel>
                   <FormControl>
-                    <Input
-                      {...field}
-                      type="datetime-local"
-                      value={field.value || ''}
+                    <DateInput
+                      type="date"
+                      value={field.value ?? ''}
+                      onChange={value => field.onChange(value == null || value === '' ? null : value)}
+                      outputFormat="iso"
                       data-testid="content-entry-window-start-date-input"
                     />
                   </FormControl>
@@ -357,10 +359,11 @@ export const PolicySegment: React.FC<PolicySegmentProps> = ({
                 <FormItem className="gba:flex-1">
                   <FormLabel>{t('policy-valid-to') || 'Valid To'}</FormLabel>
                   <FormControl>
-                    <Input
-                      {...field}
-                      type="datetime-local"
-                      value={field.value || ''}
+                    <DateInput
+                      type="date"
+                      value={field.value ?? ''}
+                      onChange={value => field.onChange(value == null || value === '' ? null : value)}
+                      outputFormat="iso"
                       data-testid="content-entry-window-end-date-input"
                     />
                   </FormControl>

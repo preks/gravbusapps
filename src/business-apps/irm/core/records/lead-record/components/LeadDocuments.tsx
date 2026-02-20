@@ -4,6 +4,8 @@ import { DocumentSection } from '@/components/document-section'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { useInvestmentDocuments } from '@/common/data/investment/hooks/useInvestmentDocuments'
 import { getIrmDocumentApiConfig, useGetIrmDocuments } from '@/business-apps/irm/common/utils/documentUtils'
+import { useRestClient } from '@/common/network/rest/useRestClient'
+import { env } from '@/common/env/EnvUtils'
 
 interface LeadDocumentsProps {
   leadId: string
@@ -20,6 +22,9 @@ const LeadDocuments: React.FC<LeadDocumentsProps> = ({ leadId, context }) => {
     context,
     fetchDocuments
   })
+
+  // REST client for document operations (IRM uses Kogito processes)
+  const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'))
 
   // Memoized action props for document operations
   const documentCreateFolderActionProps = useMemo(
@@ -71,6 +76,7 @@ const LeadDocuments: React.FC<LeadDocumentsProps> = ({ leadId, context }) => {
       error={error}
       onRefresh={refetch}
       apiConfig={getIrmDocumentApiConfig('lead')}
+      restClient={restClient}
       createFolderActionProps={documentCreateFolderActionProps}
       uploadActionProps={documentUploadActionProps}
       updateActionProps={documentUpdateActionProps}

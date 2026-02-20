@@ -77,7 +77,7 @@ export async function runJoinCall(ctx: JoinCallContext, params: RunJoinCallParam
         mediaConfiguration: {
           audio: {
             echoCancellation: DEFAULT_AUDIO_CONSTRAINTS.echoCancellation,
-            noiseSupression: DEFAULT_AUDIO_CONSTRAINTS.noiseSuppression,
+            noiseSuppression: DEFAULT_AUDIO_CONSTRAINTS.noiseSuppression,
             autoGainControl: DEFAULT_AUDIO_CONSTRAINTS.autoGainControl
           }
         }

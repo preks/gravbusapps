@@ -18,21 +18,6 @@ export interface PreCallMediaPreferences {
   videoInputDeviceId?: string | null
 }
 
-const isDebugEnabled = (): boolean => {
-  if (typeof globalThis.window === 'undefined') return false
-  try {
-    return localStorage.getItem('RTK_DEBUG') === 'true'
-  } catch {
-    return false
-  }
-}
-
-const debug = (...args: unknown[]) => {
-  if (isDebugEnabled()) {
-    console.debug('[GlobalPreCallSetupManager]', ...args)
-  }
-}
-
 // Extend Window interface for TypeScript
 declare global {
   interface Window {
@@ -79,8 +64,6 @@ class GlobalPreCallSetupManager {
   private sourceOwnerId: string | null = null
 
   constructor() {
-    debug('Constructor called')
-
     // Initialize UI owner ID from window if it exists
     if (typeof globalThis.window !== 'undefined') {
       if (!globalThis.window.__GLOBAL_PRE_CALL_SETUP_UI_OWNER_ID__) {
@@ -103,7 +86,6 @@ class GlobalPreCallSetupManager {
       ...this.data.state,
       ...state
     }
-    debug('State updated:', this.data.state)
     this.notifyListeners()
   }
 
@@ -113,7 +95,6 @@ class GlobalPreCallSetupManager {
   setCallbacks(onStart: ((preferences: PreCallMediaPreferences) => void) | null, onCancel: (() => void) | null): void {
     this.data.onStart = onStart
     this.data.onCancel = onCancel
-    debug('Callbacks updated:', { hasOnStart: !!onStart, hasOnCancel: !!onCancel })
   }
 
   /**
@@ -141,7 +122,6 @@ class GlobalPreCallSetupManager {
     this.data.onStart = null
     this.data.onCancel = null
     this.sourceOwnerId = null
-    debug('State cleared')
     if (typeof globalThis.window !== 'undefined') {
       globalThis.window.__GLOBAL_PRE_CALL_SETUP_SOURCE_OWNER_ID__ = null
     }
@@ -160,10 +140,8 @@ class GlobalPreCallSetupManager {
    */
   subscribe(listener: () => void): () => void {
     this.listeners.add(listener)
-    debug('Listener added, total listeners:', this.listeners.size)
     return () => {
       this.listeners.delete(listener)
-      debug('Listener removed, total listeners:', this.listeners.size)
     }
   }
 
@@ -171,7 +149,6 @@ class GlobalPreCallSetupManager {
    * Notify all listeners of state change
    */
   private notifyListeners(): void {
-    debug('Notifying', this.listeners.size, 'listeners')
     this.listeners.forEach(listener => {
       try {
         listener()
@@ -205,11 +182,9 @@ class GlobalPreCallSetupManager {
       if (typeof globalThis.window !== 'undefined') {
         globalThis.window.__GLOBAL_PRE_CALL_SETUP_UI_OWNER_ID__ = instanceId
       }
-      debug('✅ UI Ownership claimed by:', instanceId)
       this.notifyListeners() // Notify listeners of ownership change
       return true
     }
-    debug('❌ UI Ownership NOT claimed by:', instanceId, 'Owner:', this.uiOwnerId)
     return false
   }
 
@@ -223,7 +198,6 @@ class GlobalPreCallSetupManager {
       if (typeof globalThis.window !== 'undefined') {
         globalThis.window.__GLOBAL_PRE_CALL_SETUP_UI_OWNER_ID__ = null
       }
-      debug('🗑️ UI Ownership released by:', instanceId)
       this.notifyListeners() // Notify listeners of ownership change
       return true
     }
@@ -248,11 +222,9 @@ class GlobalPreCallSetupManager {
       if (typeof globalThis.window !== 'undefined') {
         globalThis.window.__GLOBAL_PRE_CALL_SETUP_SOURCE_OWNER_ID__ = instanceId
       }
-      debug('✅ SOURCE Ownership claimed by:', instanceId)
       this.notifyListeners()
       return true
     }
-    debug('❌ SOURCE Ownership NOT claimed by:', instanceId, 'Owner:', this.sourceOwnerId)
     return false
   }
 
@@ -266,7 +238,6 @@ class GlobalPreCallSetupManager {
       if (typeof globalThis.window !== 'undefined') {
         globalThis.window.__GLOBAL_PRE_CALL_SETUP_SOURCE_OWNER_ID__ = null
       }
-      debug('🗑️ SOURCE Ownership released by:', instanceId)
       this.notifyListeners()
       return true
     }
@@ -284,7 +255,6 @@ class GlobalPreCallSetupManager {
       ...this.data.state,
       ...state
     }
-    debug('State updated from:', instanceId, this.data.state)
     this.notifyListeners()
   }
 
@@ -301,7 +271,6 @@ class GlobalPreCallSetupManager {
     }
     this.data.onStart = onStart
     this.data.onCancel = onCancel
-    debug('Callbacks updated from:', instanceId, { hasOnStart: !!onStart, hasOnCancel: !!onCancel })
   }
 }
 
@@ -313,7 +282,6 @@ const getGlobalPreCallSetupManager = (): GlobalPreCallSetupManager => {
   }
 
   if (!globalThis.window.__GLOBAL_PRE_CALL_SETUP_MANAGER__) {
-    debug('Creating new instance on window')
     globalThis.window.__GLOBAL_PRE_CALL_SETUP_MANAGER__ = new GlobalPreCallSetupManager()
   }
 
