@@ -113,5 +113,6 @@ start-confirm-button = Start Evaluation
 values-error-cannot-deactivate-active-cycle = Cannot deactivate value while it is used in an active cycle.
 cycles-error-no-rating-scales = At least one rating scale is required to create a cycle.
 cycles-error-no-company-values = At least one company value is required to create a cycle.
+cycles-error-dates-overlap = Cycle dates cannot overlap with an existing cycle. Please choose a start date after the end of existing cycles.
 error-activate-out-of-period = Cannot activate cycle. Today's date is outside the cycle period.
 
