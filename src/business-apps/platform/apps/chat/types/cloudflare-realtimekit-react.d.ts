@@ -74,6 +74,13 @@ declare module '@cloudflare/realtimekit-react' {
     defaults?: {
       audio?: boolean
       video?: boolean
+      mediaConfiguration?: {
+        audio?: {
+          echoCancellation?: boolean
+          noiseSuppression?: boolean
+          autoGainControl?: boolean
+        }
+      }
     }
     overrides?: {
       simulcastConfig?: {

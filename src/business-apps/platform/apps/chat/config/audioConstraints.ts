@@ -7,7 +7,7 @@
  * WHY THESE SETTINGS:
  * - echoCancellation: true - Prevents feedback loops and echo, essential for calls
  * - autoGainControl: true - CRITICAL for volume normalization (fixes low audio issues)
- * - noiseSuppression: false - We use RNNoise AI middleware instead (better quality)
+ * - noiseSuppression: true - Browser built-in noise suppression (RNNoise can be used on top if enabled)
  *
  * IMPORTANT: All audio constraint objects in the chat module should use these
  * functions to ensure consistency across all implementations.
@@ -24,7 +24,7 @@
 export const DEFAULT_AUDIO_CONSTRAINTS = {
   echoCancellation: true, // Prevents feedback and echo
   autoGainControl: true, // Normalizes microphone volume automatically
-  noiseSuppression: false // Handled by RNNoise AI middleware
+  noiseSuppression: true // Browser built-in; RNNoise can be enabled on top
 } as const
 
 /**
