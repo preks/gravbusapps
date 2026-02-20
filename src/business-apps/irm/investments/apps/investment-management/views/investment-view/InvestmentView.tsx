@@ -387,9 +387,35 @@ export const InvestmentView: React.FC<InvestmentViewProps> = context => {
     []
   )
 
+  // Count refetch map by section (only refetch active section count on process completion)
+  const countRefetchBySection = useMemo(() => {
+    const sectionMap: Record<string, (() => Promise<void>) | undefined> = {
+      overview: overviewCount.refetch
+    }
+    if (group0TabId) sectionMap[group0TabId] = groupCount0.refetch
+    if (group1TabId) sectionMap[group1TabId] = groupCount1.refetch
+    if (group2TabId) sectionMap[group2TabId] = groupCount2.refetch
+    if (group3TabId) sectionMap[group3TabId] = groupCount3.refetch
+    if (group4TabId) sectionMap[group4TabId] = groupCount4.refetch
+    return sectionMap
+  }, [
+    overviewCount,
+    group0TabId,
+    group1TabId,
+    group2TabId,
+    group3TabId,
+    group4TabId,
+    groupCount0,
+    groupCount1,
+    groupCount2,
+    groupCount3,
+    groupCount4
+  ])
+
   // Listen for process completion
   useProcessCompletion({
     onSuccess: () => {
+      countRefetchBySection[currentSection]?.()
       overviewKPIs.refetch()
       Object.values(dynamicKPIs).forEach(kpi => kpi?.refetch?.())
       if (currentSection === 'overview') {
