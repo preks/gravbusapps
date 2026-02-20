@@ -950,6 +950,7 @@ const ChatInner: React.FC<ChatProps> = memo(
                     accessToken={accessToken}
                     currentUserId={currentUser.id}
                     showBackButton={isSingleViewMode}
+                    iconOnlyFilters={isSingleViewMode}
                     refreshTrigger={callHistoryRefreshTrigger}
                     presenceMap={presenceMap}
                     onBack={() => {

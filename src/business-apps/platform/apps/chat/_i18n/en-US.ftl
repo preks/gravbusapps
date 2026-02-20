@@ -557,7 +557,7 @@ calendar-agendaAssignedTo = Assigned to {$name}
 calendar-noAgenda = No agenda items
 
 # Call History
-chat-callHistory = Call history
+chat-callHistory = Call History
 chat-callHistoryAll = All
 chat-callHistoryJoined = Joined
 chat-callHistoryMissed = Missed

@@ -60,6 +60,8 @@ interface CallHistoryProps {
   onOpenConversation: (conversationId: string) => void
   /** When true show back arrow (mobile/compact); when false show close X (larger screens). Same as ConversationHeader. */
   showBackButton?: boolean
+  /** When true, filter chips show icons only (no text). Use true for mobile/compact so labels never show. */
+  iconOnlyFilters?: boolean
   /** When this value changes, list is refetched with current filters preserved. */
   refreshTrigger?: number
   /** Map of userId -> presence for showing status on direct-call avatars. */
@@ -73,6 +75,7 @@ export const CallHistory: React.FC<CallHistoryProps> = ({
   onBack,
   onOpenConversation,
   showBackButton = true,
+  iconOnlyFilters = false,
   refreshTrigger = 0,
   presenceMap
 }) => {
@@ -190,9 +193,10 @@ export const CallHistory: React.FC<CallHistoryProps> = ({
   ]
 
   const BUFFER_PX = 16
+  const displayFilterLabels = !iconOnlyFilters && showFilterLabels
 
   useLayoutEffect(() => {
-    if (showBackButton) {
+    if (showBackButton || iconOnlyFilters) {
       setShowFilterLabels(false)
       return
     }
@@ -224,7 +228,7 @@ export const CallHistory: React.FC<CallHistoryProps> = ({
       ro.disconnect()
       window.removeEventListener('resize', onResize)
     }
-  }, [showBackButton])
+  }, [showBackButton, iconOnlyFilters])
 
   return (
     <div
@@ -255,7 +259,7 @@ export const CallHistory: React.FC<CallHistoryProps> = ({
           className="gba:flex-[7] gba:flex gba:items-center gba:justify-end gba:gap-2 gba:min-w-0 gba:overflow-x-auto"
         >
           {/* Hidden rulers to measure filter width with/without labels (only when not mobile/compact) */}
-          {!showBackButton && (
+          {!showBackButton && !iconOnlyFilters && (
             <div
               ref={rulerWithLabelsRef}
               className="gba:absolute gba:left-0 gba:top-0 gba:invisible gba:pointer-events-none gba:flex gba:items-center gba:gap-2 gba:whitespace-nowrap"
@@ -286,7 +290,7 @@ export const CallHistory: React.FC<CallHistoryProps> = ({
               </div>
             </div>
           )}
-          {!showBackButton && (
+          {!showBackButton && !iconOnlyFilters && (
             <div
               ref={rulerWithoutLabelsRef}
               className="gba:absolute gba:left-0 gba:top-0 gba:invisible gba:pointer-events-none gba:flex gba:items-center gba:gap-2 gba:whitespace-nowrap"
@@ -325,7 +329,7 @@ export const CallHistory: React.FC<CallHistoryProps> = ({
                 onClick={() => setFilter(filter === f ? 'all' : f)}
                 data-testid={`chat-callHistory-filter-${f}`}
                 className={`gba:flex gba:items-center gba:justify-center gba:rounded-md gba:p-2 gba:transition-colors gba:transition-shadow ${
-                  showFilterLabels ? 'gba:gap-1.5' : ''
+                  displayFilterLabels ? 'gba:gap-1.5' : ''
                 } ${
                   filter === f
                     ? 'gba:bg-background gba:text-foreground gba:shadow-sm'
@@ -333,7 +337,7 @@ export const CallHistory: React.FC<CallHistoryProps> = ({
                 }`}
               >
                 {icon}
-                {showFilterLabels && <span className="gba:text-sm gba:whitespace-nowrap">{label}</span>}
+                {displayFilterLabels && <span className="gba:text-sm gba:whitespace-nowrap">{label}</span>}
               </button>
             ))}
           </div>
@@ -354,7 +358,7 @@ export const CallHistory: React.FC<CallHistoryProps> = ({
                 onClick={() => setCallTypeFilter(callTypeFilter === f ? 'all' : f)}
                 data-testid={`chat-callHistory-typeFilter-${f}`}
                 className={`gba:flex gba:items-center gba:justify-center gba:rounded-md gba:p-2 gba:transition-colors gba:transition-shadow ${
-                  showFilterLabels ? 'gba:gap-1.5' : ''
+                  displayFilterLabels ? 'gba:gap-1.5' : ''
                 } ${
                   callTypeFilter === f
                     ? 'gba:bg-background gba:text-foreground gba:shadow-sm'
@@ -362,7 +366,7 @@ export const CallHistory: React.FC<CallHistoryProps> = ({
                 }`}
               >
                 {icon}
-                {showFilterLabels && <span className="gba:text-sm gba:whitespace-nowrap">{label}</span>}
+                {displayFilterLabels && <span className="gba:text-sm gba:whitespace-nowrap">{label}</span>}
               </button>
             ))}
           </div>
