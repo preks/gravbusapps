@@ -39,27 +39,28 @@ import { handleDocumentClick } from '@/common/utils/documentClickHandler'
 
 export interface DocumentSectionActionsConfig {
   /**
-   * Domain for process execution (e.g., 'customer-relations', 'investment-relations', 'hr', 'finance')
+   * Domain for process execution (e.g., 'customer-relations', 'investment-relations', 'hr', 'finance', 'mdm')
    */
   domain: string
 
   /**
-   * Document field name in payload (e.g., 'crmDocument', 'investmentDocument', 'hrDocument')
+   * Document field name in payload (e.g., 'crmDocument', 'investmentDocument', 'hrDocument', 'companyDocument')
    */
   documentFieldName: string
 
   /**
-   * Entity type (e.g., 'lead', 'account', 'employee', 'expense')
+   * Entity type (e.g., 'lead', 'account', 'employee', 'expense', 'company')
    */
   entityType: string
 
   /**
-   * Update process name (e.g., 'updateCrmDocument', 'updateInvestmentDocument')
+   * Update process name (e.g., 'updateCrmDocument', 'updateInvestmentDocument', 'updateCompanyDocument')
    */
   updateProcessName: string
 
   /**
-   * Delete API endpoint (e.g., '/customer-relations/deleteCrmDocument')
+   * Delete API endpoint (e.g., '/customer-relations/deleteCrmDocument', '/mdm/deleteCompanyDocument')
+   * For MDM, this will be converted to use updateCompany endpoint with changeMode: 'DELETE'
    */
   deleteEndpoint: string
 
@@ -70,6 +71,18 @@ export interface DocumentSectionActionsConfig {
    * @returns Translated text or fallback
    */
   getTranslation?: (key: string, fallback: string) => string
+
+  /**
+   * Optional custom delete handler for MDM
+   * When provided, this will be used instead of the default apiEndpoint approach
+   */
+  customDeleteHandler?: (documentId: string, document: any, entityId: string, accessToken?: string) => Promise<void>
+
+  /**
+   * Optional custom update handler for MDM
+   * When provided, this will be used instead of the default startProcess approach
+   */
+  customUpdateHandler?: (documentId: string, document: any, entityId: string) => void
 }
 
 /**
@@ -140,58 +153,67 @@ export function createDocumentSectionActions(config: DocumentSectionActionsConfi
       key: 'update',
       label: getTranslation('document.action.update', 'Update'),
       icon: <Edit className="gba:h-4 gba:w-4" />,
-      onClick: (documentId: string, document: any, entityId: string) => {
-        // Pass the complete document object to pre-fill the form
-        startProcess({
-          domain,
-          processName: updateProcessName,
-          payload: {
-            documentId,
-            [`${entityType}Id`]: entityId,
-            [documentFieldName]: {
-              // Core document fields
-              id: documentId,
-              version: document.version,
-              name: document.name,
-              description: document.description,
-              folder: document.folder || false,
-              parentDocument: document.parentDocument,
-              format: document.format,
+      onClick:
+        config.customUpdateHandler ??
+        ((documentId: string, document: any, entityId: string) => {
+          // Pass the complete document object to pre-fill the form
+          startProcess({
+            domain,
+            processName: updateProcessName,
+            payload: {
+              documentId,
+              [`${entityType}Id`]: entityId,
+              [documentFieldName]: {
+                // Core document fields
+                id: documentId,
+                version: document.version,
+                name: document.name,
+                description: document.description,
+                folder: document.folder || false,
+                parentDocument: document.parentDocument,
+                format: document.format,
 
-              // Catalog references
-              documentGroupRef: document.documentGroup?.id,
-              documentTypeRef: document.documentType?.id,
+                // Catalog references
+                documentGroupRef: document.documentGroup?.id,
+                documentTypeRef: document.documentType?.id,
 
-              // File information (essential for update mode)
-              file: document.file,
-              fileInfo: document.fileInfo,
-              fileSize: document.fileSize,
-              mimeType: document.mimeType,
+                // File information (essential for update mode)
+                file: document.file,
+                fileInfo: document.fileInfo,
+                fileSize: document.fileSize,
+                mimeType: document.mimeType,
 
-              // Date fields
-              expirationDate: document.expirationDate,
-              createdAt: document.createdAt,
+                // Date fields
+                expirationDate: document.expirationDate,
+                createdAt: document.createdAt,
 
-              // Additional metadata
-              verified: document.verified,
-              verificationDate: document.verificationDate,
-              authenticated: document.authenticated,
-              authenticationDate: document.authenticationDate,
-              mandatory: document.mandatory,
+                // Additional metadata
+                verified: document.verified,
+                verificationDate: document.verificationDate,
+                authenticated: document.authenticated,
+                authenticationDate: document.authenticationDate,
+                mandatory: document.mandatory,
 
-              // Entity relationship
-              [entityType]: entityId
-            }
-          },
-          builderType: 'NATIVE_SCREEN'
+                // Entity relationship
+                [entityType]: entityId
+              }
+            },
+            builderType: 'NATIVE_SCREEN'
+          })
         })
-      }
     },
     {
       key: 'delete',
       label: getTranslation('document.action.delete', 'Delete'),
       icon: <Trash2 className="gba:h-4 gba:w-4" />,
-      apiEndpoint: deleteEndpoint,
+      // Use custom delete handler if provided (for MDM), otherwise use apiEndpoint
+      ...(config.customDeleteHandler
+        ? {
+            onClick: config.customDeleteHandler
+          }
+        : {
+            apiEndpoint: deleteEndpoint
+          }),
       confirmMessage: getTranslation(
         'document.confirm.delete',
         'Are you sure you want to delete this document? This action cannot be undone.'
