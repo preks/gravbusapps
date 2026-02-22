@@ -13,23 +13,6 @@ import React, { useState, useEffect } from 'react'
 import { Users, Minimize2, MessageSquare, LayoutGrid } from 'lucide-react'
 import { formatDuration } from '../../utils/callUtils'
 
-/**
- * Parse direct call meeting name format: "Call {Name A} | {Name B}"
- * For direct calls, strip the participant names and return just "Call"
- */
-const parseDirectCallTitle = (conversationName?: string, conversationType?: string): string | undefined => {
-  if (!conversationName || conversationType !== 'direct') return conversationName
-
-  // Check if it matches the format "Call {Name A} | {Name B}"
-  const match = conversationName.match(/^Call\s+(.+?)\s+\|\s+(.+)$/)
-  if (match) {
-    // For direct calls in the active call modal, just return "Call" (strip the participant names)
-    return 'Call'
-  }
-
-  return conversationName
-}
-
 export interface CallHeaderProps {
   /** Call title or conversation name */
   conversationName?: string
@@ -108,28 +91,18 @@ export const CallHeader: React.FC<CallHeaderProps> = ({
     return () => clearInterval(timer)
   }, [callStartTime])
 
-  // Determine the call title based on conversation type
+  // Use backend-generated call name when provided; otherwise fallback by conversation type
   const getCallTitle = (): string => {
-    // Parse the conversationName to strip participant names for direct calls
-    // This handles the "Call {Name A} | {Name B}" format from the backend
-    const parsedName = parseDirectCallTitle(conversationName, conversationType)
-
-    // If conversationName is explicitly provided (after parsing), use it
-    if (parsedName) {
-      return parsedName
+    if (conversationName?.trim()) {
+      return conversationName
     }
-
-    // Otherwise, use appropriate default based on conversation type
     switch (conversationType) {
       case 'direct':
-        // 1-on-1 call
         return t('chat-directCall') || 'Call'
       case 'meeting':
-        // Calendar meeting
         return t('chat-meeting') || 'Meeting'
       case 'group':
       default:
-        // Group call
         return t('groupCall-title') || 'Group Call'
     }
   }

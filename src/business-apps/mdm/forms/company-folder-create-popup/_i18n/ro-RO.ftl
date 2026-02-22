@@ -2,6 +2,7 @@
 
 # Modal
 modal-title = Creează dosar
+modal-title-update = Actualizează dosar
 
 # Labels
 label-name = Nume dosar
@@ -18,6 +19,8 @@ placeholder-no-parent = Fără dosar părinte (nivel principal)
 button-cancel = Anulează
 button-create = Creează
 button-creating = Se creează...
+button-update = Actualizează
+button-updating = Se actualizează...
 
 # Messages
 message-required-field = *
@@ -25,3 +28,4 @@ message-required-field = *
 # Errors
 error-name-required = Numele dosarului este obligatoriu
 error-create-failed = Eroare la crearea dosarului
+error-update-failed = Eroare la actualizarea dosarului

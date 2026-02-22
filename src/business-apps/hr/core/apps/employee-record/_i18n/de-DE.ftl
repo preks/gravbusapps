@@ -696,5 +696,5 @@ service-requests-status-completed = Abgeschlossen
 service-requests-status-canceled = Abgebrochen
 
 # Change Personal Data - Pending state (aligns with notification-personal-data-updated-success)
-change-personal-data-pending-message = Änderungen an den persönlichen Daten wurden bereits zur Genehmigung an die Personalabteilung gesendet. Bitte warten Sie die Freigabe ab, bevor Sie weitere Änderungen vornehmen.
+change-personal-data-pending-message = Ihre Personalabteilung prüft derzeit Ihre letzten Änderungen. Sobald die Freigabe erfolgt ist, können Sie weitere Anpassungen vornehmen.
 change-personal-data-pending-ok = OK

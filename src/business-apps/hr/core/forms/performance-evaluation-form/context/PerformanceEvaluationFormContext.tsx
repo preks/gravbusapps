@@ -5,6 +5,7 @@ import { useStructureEmployees } from '../hooks/useStructureEmployees'
 import { useEmployeeDetails } from '../hooks/useEmployeeDetails'
 import { useEmployeeByUserId } from '../hooks/useEmployeeByUserId'
 import { useEmployeeSkills } from '../hooks/useEmployeeSkills'
+import { useTextTransformation } from '@/business-apps/hr/core/forms/feedback-form/hooks/useTextTransformation'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 
 /** Rating scale value for UI: { label, value } */
@@ -95,6 +96,15 @@ interface PerformanceEvaluationFormContextType {
   ratingScaleValues: Array<{ label: string; value: number }>
   ratingScaleLoading: boolean
   employeeSkillsLoading: boolean
+  /** Transform comment text (Formalize / Translate / Shorten). Returns transformed text or null on error. */
+  transformCommentText: (
+    text: string,
+    type: 'formalize' | 'translate' | 'shorten',
+    targetLanguage?: string
+  ) => Promise<string | null>
+  textTransformationLoading: boolean
+  textTransformationError: string | null
+  clearTextTransformationError: () => void
 }
 
 const PerformanceEvaluationFormContext = createContext<PerformanceEvaluationFormContextType | undefined>(undefined)
@@ -120,6 +130,30 @@ export const PerformanceEvaluationFormProvider: React.FC<PerformanceEvaluationFo
 }) => {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const {
+    transformText: apiTransformText,
+    isLoading: textTransformationLoading,
+    error: textTransformationError,
+    clearError: clearTextTransformationError
+  } = useTextTransformation(businessAppContext.accessToken ?? '')
+
+  const transformCommentText = useCallback(
+    async (
+      text: string,
+      type: 'formalize' | 'translate' | 'shorten',
+      targetLanguage?: string
+    ): Promise<string | null> => {
+      if (!text.trim()) return null
+      try {
+        const result = await apiTransformText({ text, transformationType: type, targetLanguage })
+        return result?.transformedText ?? null
+      } catch {
+        return null
+      }
+    },
+    [apiTransformText]
+  )
 
   // Extract employee ID from task payload (for manager reviews - to show employee's skills, not manager's)
   const employeeIdFromTaskPayload = (businessAppContext?.additionalData as any)?.psi_taskPayload
@@ -482,7 +516,11 @@ export const PerformanceEvaluationFormProvider: React.FC<PerformanceEvaluationFo
     isRequestedEvaluationFlow,
     ratingScaleValues,
     ratingScaleLoading: false,
-    employeeSkillsLoading
+    employeeSkillsLoading,
+    transformCommentText,
+    textTransformationLoading,
+    textTransformationError,
+    clearTextTransformationError
   }
 
   return (

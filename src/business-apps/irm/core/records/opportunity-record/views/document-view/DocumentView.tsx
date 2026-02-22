@@ -5,6 +5,8 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { useInvestmentDocuments } from '@/common/data/investment/hooks/useInvestmentDocuments'
 import { getIrmDocumentApiConfig, useGetIrmDocuments } from '@/business-apps/irm/common/utils/documentUtils'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { useRestClient } from '@/common/network/rest/useRestClient'
+import { env } from '@/common/env/EnvUtils'
 
 interface DocumentViewProps {
   opportunityId: string
@@ -22,6 +24,9 @@ const DocumentView: React.FC<DocumentViewProps> = ({ opportunityId, context }) =
     fetchDocuments,
     errorMessage: getTranslationFromI18nKeyAndLabel('error.loading.documents', 'Failed to load documents')
   })
+
+  // REST client for document operations (IRM uses Kogito processes)
+  const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'))
 
   // Memoized action props for document operations
   const documentCreateFolderActionProps = useMemo(
@@ -73,6 +78,7 @@ const DocumentView: React.FC<DocumentViewProps> = ({ opportunityId, context }) =
       error={error}
       onRefresh={refetch}
       apiConfig={getIrmDocumentApiConfig('opportunity')}
+      restClient={restClient}
       createFolderActionProps={documentCreateFolderActionProps}
       uploadActionProps={documentUploadActionProps}
       updateActionProps={documentUpdateActionProps}
