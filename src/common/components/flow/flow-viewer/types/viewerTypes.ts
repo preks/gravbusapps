@@ -96,10 +96,8 @@ export interface FlowCanvasViewProps {
   definition: FlowGraphDefinition
   /** Optional pre-resolved theme colors for Background/Controls/MiniMap (else resolved from gba: classes) */
   themeColors?: FlowCanvasThemeColors
-  /** Options for fitView (padding, minZoom, maxZoom). Used when runFitAfterLayout is true or as initial fitView. */
+  /** Options for fitView (padding, minZoom, maxZoom). Used for initial fit when nodes are initialized (orgchart-style). */
   fitViewOptions?: { padding?: number; minZoom?: number; maxZoom?: number }
-  /** When true, fitView is run after ELK layout completes (in addition to initial fit). */
-  runFitAfterLayout?: boolean
   /** When true, only forward edges are used for ELK layer ranking (backward/rework edges do not affect layout). */
   useForwardEdgesOnlyForRanking?: boolean
   /** Optional content rendered in React Flow Panel (center-right). Use for detail/sidebar. */

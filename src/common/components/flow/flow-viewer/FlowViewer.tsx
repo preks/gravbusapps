@@ -9,6 +9,8 @@ import ReactFlow, {
   Panel,
   useNodesState,
   useEdgesState,
+  useNodesInitialized,
+  useReactFlow,
   ConnectionMode
 } from 'reactflow'
 import 'reactflow/dist/style.css'
@@ -113,7 +115,6 @@ export const FlowCanvas: React.FC<FlowCanvasViewProps> = ({
   definition,
   themeColors: themeColorsProp,
   fitViewOptions: fitViewOptionsProp,
-  runFitAfterLayout = false,
   useForwardEdgesOnlyForRanking = false,
   rightPanel,
   onConnect,
@@ -136,6 +137,9 @@ export const FlowCanvas: React.FC<FlowCanvasViewProps> = ({
   const [layoutReady, setLayoutReady] = useState(false)
   const [layoutNodes, setLayoutNodes] = useState<Record<string, { x: number; y: number }>>({})
   const [layoutEdgePoints, setLayoutEdgePoints] = useState<Record<string, Array<{ x: number; y: number }>>>({})
+  const [wasInitiallyCentered, setWasInitiallyCentered] = useState(false)
+  const nodesInitialized = useNodesInitialized()
+  const { fitView } = useReactFlow()
   const [resolvedThemeColors, setResolvedThemeColors] = useState<FlowCanvasThemeColors | null>(null)
 
   const nodeTypes = useMemo(
@@ -235,6 +239,7 @@ export const FlowCanvas: React.FC<FlowCanvasViewProps> = ({
     setLayoutNodes({})
     setLayoutEdgePoints({})
     setLayoutReady(false)
+    setWasInitiallyCentered(false)
 
     const runLayout = async () => {
       try {
@@ -252,21 +257,6 @@ export const FlowCanvas: React.FC<FlowCanvasViewProps> = ({
         setLayoutNodes(nextNodes)
         setLayoutEdgePoints(nextPoints)
         setLayoutReady(true)
-
-        if (runFitAfterLayout && reactFlowInstanceRef.current) {
-          requestAnimationFrame(() => {
-            try {
-              reactFlowInstanceRef.current?.fitView({
-                padding: fitViewOptions.padding,
-                minZoom: fitViewOptions.minZoom,
-                maxZoom: fitViewOptions.maxZoom,
-                duration: 200
-              })
-            } catch {
-              // ignore
-            }
-          })
-        }
       } catch (err) {
         console.error('ELK layout failed, using fallback', err)
         const fallback: Record<string, { x: number; y: number }> = {}
@@ -283,10 +273,32 @@ export const FlowCanvas: React.FC<FlowCanvasViewProps> = ({
     return () => {
       cancelled = true
     }
+  }, [definition, useForwardEdgesOnlyForRanking])
+
+  // Fit view once when layout is ready and nodes are initialized (orgchart pattern: no defaultViewport, explicit fitView after nodesInitialized)
+  useEffect(() => {
+    if (!wasInitiallyCentered && layoutReady && definition.nodes.length > 0 && nodesInitialized) {
+      const timer = setTimeout(() => {
+        try {
+          fitView({
+            padding: fitViewOptions.padding,
+            minZoom: fitViewOptions.minZoom,
+            maxZoom: fitViewOptions.maxZoom,
+            duration: 300
+          })
+        } catch {
+          // ignore
+        }
+        setWasInitiallyCentered(true)
+      }, 100)
+      return () => clearTimeout(timer)
+    }
   }, [
-    definition,
-    runFitAfterLayout,
-    useForwardEdgesOnlyForRanking,
+    wasInitiallyCentered,
+    layoutReady,
+    definition.nodes.length,
+    nodesInitialized,
+    fitView,
     fitViewOptions.padding,
     fitViewOptions.minZoom,
     fitViewOptions.maxZoom
@@ -366,7 +378,6 @@ export const FlowCanvas: React.FC<FlowCanvasViewProps> = ({
         connectionMode={ConnectionMode.Strict}
         fitView
         fitViewOptions={fitViewOptions}
-        defaultViewport={{ x: 0, y: 0, zoom: 0.8 }}
         attributionPosition="bottom-left"
         proOptions={{ hideAttribution: true }}
         nodesDraggable={nodesDraggable}

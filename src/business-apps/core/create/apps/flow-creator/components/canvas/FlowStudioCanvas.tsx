@@ -210,7 +210,6 @@ export const FlowStudioCanvas: React.FC<FlowStudioCanvasProps> = ({
             onPaneClick={onPaneClick}
             getEdgeActions={getEdgeActions}
             nodesConnectable={true}
-            runFitAfterLayout={true}
             useForwardEdgesOnlyForRanking={true}
             fitViewOptions={{ padding: 0.26, minZoom: 0.65, maxZoom: 0.95 }}
             data-testid={`${testId}-canvas`}
