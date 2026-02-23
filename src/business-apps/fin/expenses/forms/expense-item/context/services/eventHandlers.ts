@@ -262,11 +262,13 @@ export const handleSubmit = async (
   setLoading: (loading: boolean) => void,
   t: (key: string, fallback: string) => string,
   fileList?: any[],
+  supportingFileList?: any[],
   accessToken?: string,
   employeeId?: string,
   additionalData?: any,
   userInfo?: any,
   itemValues?: { id: string; version: string | number },
+  setSupportingFileList?: (files: any[]) => void,
   getIsProcessEventDispatched?: () => boolean,
   dispatchProcessContinueEventIfEnabled?: (event: string, payload: any) => boolean
 ) => {
@@ -280,9 +282,15 @@ export const handleSubmit = async (
     const coerceRequestId = (id?: string) => (id && id !== '0' ? id : undefined)
     const normalizedExpenseRequestId = coerceRequestId(rawExpenseRequestId)
 
-    let uploadedFiles: Array<{ fileType: string; fileUrl: string; fileName: string }> = []
-    if (fileList && fileList.length > 0 && accessToken && employeeId) {
-      uploadedFiles = await uploadDocuments(fileList, accessToken, employeeId, t)
+    let receiptUploadedFiles: Array<{ fileType: string; fileUrl: string; fileName: string }> = []
+    let supportingUploadedFiles: Array<{ fileType: string; fileUrl: string; fileName: string }> = []
+    if (accessToken && employeeId) {
+      if (fileList && fileList.length > 0) {
+        receiptUploadedFiles = await uploadDocuments(fileList, accessToken, employeeId, t)
+      }
+      if (supportingFileList && supportingFileList.length > 0) {
+        supportingUploadedFiles = await uploadDocuments(supportingFileList, accessToken, employeeId, t)
+      }
     }
 
     // Check if we have an expense request from either the wizard or task payload
@@ -387,7 +395,19 @@ export const handleSubmit = async (
         expensePositions: formattedPositions
       },
       expenseItemFiles: {
-        expenseFiles: uploadedFiles.map(element => ({
+        expenseFiles: [
+          ...receiptUploadedFiles.map(element => ({
+            fileType: element.fileType,
+            fileUrl: element.fileUrl,
+            fileName: element.fileName
+          })),
+          ...supportingUploadedFiles.map(element => ({
+            // Explicit marker so backend/parser can treat this as non-receipt attachment.
+            fileType: 'SUPPORTING_DOCUMENT',
+            fileUrl: element.fileUrl,
+            fileName: element.fileName
+          }))
+        ].map(element => ({
           fileType: element.fileType,
           fileUrl: element.fileUrl,
           fileName: element.fileName
@@ -437,6 +457,9 @@ export const handleSubmit = async (
       form.resetFields()
       setPositions([DEFAULT_POSITION])
       setFileList([])
+      if (setSupportingFileList) {
+        setSupportingFileList([])
+      }
       setCurrentStep(FORM_STEPS.START)
     }
   } catch {

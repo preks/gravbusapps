@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useMemo } from 'react'
 import { Button, DateInputField, Divider, InputField, SelectField, Switch } from '@newwork/gravity-ui-catalog'
-import { Form, Row, Col, Alert } from 'antd'
+import { Form, Row, Col, Alert, Upload } from 'antd'
 import { Badge } from '@newwork/nw-design-system'
 import { ExpensePosition, ExpenseGroup, ExpenseType, CostCenter, Currency, CustomField } from '../../types'
 import UploadComponent from '../UploadComponent'
@@ -14,6 +14,7 @@ import {
   getTranslationFromI18nKeyAndLabel
 } from '../../../../../../../common/utils/windowUtils'
 import { ICONS } from '@/business-apps/fin/expenses/utils/icons'
+import { showToast } from '@/business-apps/fin/expenses/utils/notificationUtils'
 import { DEFAULT_CURRENCY_ID } from '../../constants/constants'
 
 interface FormScreenComponentProps {
@@ -65,6 +66,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
   calculateTotal
 }) => {
   const t = getTranslationFromI18nKeyAndLabel
+  const ALLOWED_FILE_TYPES = ['.pdf', '.PDF', '.jpg', '.JPG', '.jpeg', '.JPEG', '.png', '.PNG']
   const {
     isProcessingFiles,
     isFormDisabled,
@@ -74,7 +76,10 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
     hasLinkedExpenseRequest,
     handleCurrencyChange,
     isEditMode,
-    additionalData
+    additionalData,
+    supportingFileList,
+    setSupportingFileList,
+    requiredAttachmentInstructions
   } = useExpenseItem()
 
   // Calculate isEmbeddedInRequestWizard from additionalData
@@ -84,6 +89,47 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
   const hadBackendRequestRef = useRef(false)
   const prevPositionsLengthRef = useRef(positions.length)
   const lastPositionCardRef = useRef<HTMLDivElement | null>(null)
+  const requiresSupportingDocument = requiredAttachmentInstructions.length > 0
+
+  const validateSupportingFileType = (file: File) => {
+    const isValidType = ALLOWED_FILE_TYPES.some(type => {
+      const extension = `.${file.name.split('.').pop()}`
+      return type.toLowerCase() === extension.toLowerCase()
+    })
+
+    if (!isValidType) {
+      showToast(
+        t(
+          'lowcoder:create_expense_type_item.error_file_type_message',
+          'File type not supported. Please upload PDF, JPG, JPEG, or PNG files only.'
+        ),
+        'error'
+      )
+    }
+
+    return isValidType
+  }
+
+  const handleSupportingBeforeUpload = (file: File) => {
+    if (!validateSupportingFileType(file)) {
+      return Upload.LIST_IGNORE
+    }
+
+    setSupportingFileList([
+      ...supportingFileList,
+      {
+        uid: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        name: file.name,
+        status: 'done',
+        originFileObj: file
+      }
+    ])
+    return false
+  }
+
+  const handleSupportingRemove = (file: any) => {
+    setSupportingFileList(supportingFileList.filter(item => item.uid !== file.uid))
+  }
 
   useEffect(() => {
     if (hadBackendRequestRef.current || !isEditMode) {
@@ -185,6 +231,17 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
           return
         }
 
+        if (requiresSupportingDocument && supportingFileList.length === 0) {
+          showToast(
+            t(
+              'lowcoder:create_expense_item.missing_additional_attachment',
+              'Please upload the required supporting document.'
+            ),
+            'error'
+          )
+          return
+        }
+
         await handleSubmit()
       } catch (errorInfo: any) {
         // Handle form validation errors - scroll to first invalid field
@@ -198,7 +255,7 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
         // Currency/submission errors are already handled by context with toast
       }
     },
-    [form, expenseRuleError, handleSubmit]
+    [form, expenseRuleError, handleSubmit, requiresSupportingDocument, supportingFileList.length]
   )
 
   return (
@@ -216,6 +273,35 @@ export const FormScreenComponent: React.FC<FormScreenComponentProps> = ({
       <div className="gba:m-0 gba:mb-[30px]" data-testid="form-upload-container">
         <UploadComponent fileList={fileList} setFileList={setFileList} />
       </div>
+
+      {requiresSupportingDocument && (
+        <div className="gba:mb-4" data-testid="supporting-document-container">
+          {requiredAttachmentInstructions.map(instruction => (
+            <Alert
+              key={instruction}
+              message={instruction}
+              type="info"
+              showIcon
+              className="gba:mb-2"
+              data-testid="supporting-document-instruction"
+            />
+          ))}
+          <Upload
+            listType="text"
+            fileList={supportingFileList}
+            beforeUpload={handleSupportingBeforeUpload}
+            onRemove={handleSupportingRemove}
+            multiple={true}
+            accept="application/pdf,image/jpeg,image/png,.pdf,.jpg,.jpeg,.png,.PDF,.JPG,.JPEG,.PNG"
+            disabled={isProcessingFiles || isFormDisabled}
+            data-testid="supporting-document-upload"
+          >
+            <Button variant="secondary" data-testid="supporting-document-upload-button">
+              {t('lowcoder:create_expense_item.attach_supporting_document', 'Attach Supporting Document')}
+            </Button>
+          </Upload>
+        </div>
+      )}
 
       {receiptCurrencyError && fileList && fileList.length > 0 && (
         <div
