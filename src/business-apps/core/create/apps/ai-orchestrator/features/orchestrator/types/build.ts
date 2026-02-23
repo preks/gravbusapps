@@ -46,6 +46,10 @@ export interface AppMetadata {
   name: string
   icon: string
   description: string
+  longDescription?: string
+  category?: string
+  tags?: string[]
+  version?: string
 }
 
 // Complete build plan
