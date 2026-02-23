@@ -4,10 +4,18 @@ import { useResizablePanel } from '@/common/hooks/useResizablePanel'
 interface CreateLayoutProps {
   chatPanel: React.ReactNode
   canvasPanel: React.ReactNode
+  sidebar?: React.ReactNode
+  sidebarOpen?: boolean
   testId?: string
 }
 
-export const CreateLayout = ({ chatPanel, canvasPanel, testId = 'create-orchestrator' }: CreateLayoutProps) => {
+export const CreateLayout = ({
+  chatPanel,
+  canvasPanel,
+  sidebar,
+  sidebarOpen,
+  testId = 'create-orchestrator'
+}: CreateLayoutProps) => {
   const { panelWidth, isDragging, containerRef, handleMouseDown } = useResizablePanel()
 
   const handleResizeKeyDown = (e: React.KeyboardEvent) => {
@@ -28,7 +36,7 @@ export const CreateLayout = ({ chatPanel, canvasPanel, testId = 'create-orchestr
         style={{ width: panelWidth, opacity: 1 }}
         data-testid={`${testId}-chat-panel`}
       >
-        {chatPanel}
+        {sidebarOpen && sidebar ? sidebar : chatPanel}
       </div>
 
       {/* Resize Handle - Overlays the border */}

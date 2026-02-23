@@ -16,7 +16,9 @@ import { useBuilderClient } from '@/common/network/ai/builder/useBuilderClient'
 import { IdleCanvas } from '../components/layouts'
 import { CreateLayout } from '../components/layouts/CreateLayout'
 import { CreateAgentChat } from '../components/chat/CreateAgentChat'
+import { CreateSessionSidebar } from '../components/chat/CreateSessionSidebar'
 import { OrchestratorCanvasContent } from './OrchestratorCanvasContent.tsx'
+import { useListPlans } from '../hooks/useListPlans'
 
 export interface OrchestratorViewConversationalProps {
   accessToken: string
@@ -229,6 +231,26 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
     lastChatStateRef.current = null
   }, [chat, handlers, state])
 
+  // --- Session history sidebar ---
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const {
+    data: plans,
+    loading: plansLoading,
+    refetch: refetchPlans
+  } = useListPlans({
+    accessToken,
+    enabled: sidebarOpen
+  })
+
+  const handleOpenHistory = useCallback(() => {
+    setSidebarOpen(true)
+    refetchPlans()
+  }, [refetchPlans])
+
+  const handleSelectSession = useCallback(() => {
+    setSidebarOpen(false)
+  }, [])
+
   // --- Idle: full-screen (square top so banner has no top border radius) ---
   if (!state.chatActive && state.viewState === 'idle') {
     return (
@@ -245,6 +267,16 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
   return (
     <div className="gba:h-full gba:w-full gba:overflow-hidden gba:bg-background" data-testid={testId}>
       <CreateLayout
+        sidebarOpen={sidebarOpen}
+        sidebar={
+          <CreateSessionSidebar
+            plans={plans}
+            currentPlanId={orchestratorClient.currentPlan?.jobId}
+            loading={plansLoading}
+            onSelectSession={handleSelectSession}
+            onClose={() => setSidebarOpen(false)}
+          />
+        }
         chatPanel={
           <CreateAgentChat
             messages={chat.messages}
@@ -256,6 +288,7 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
             }
             onSend={chat.handleSend}
             onNewSession={handleNewSession}
+            onOpenHistory={handleOpenHistory}
           />
         }
         canvasPanel={
