@@ -2,7 +2,15 @@ import React, { createContext, useContext, useState, useCallback, useMemo, React
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { PerformanceEvaluationPeerFormValues, EmployeeOption } from '../types'
 import { useStructureEmployees } from '../hooks/useStructureEmployees'
+import { useEmployeeById } from '@/common/data/employee/hooks/useEmployeeById'
 import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
+
+export interface EmployeeForHeader {
+  firstName: string
+  lastName: string
+  pictureThumbnail?: string
+  jobTitle?: string
+}
 
 interface PerformanceEvaluationPeerFormContextType {
   formValues: PerformanceEvaluationPeerFormValues
@@ -18,6 +26,9 @@ interface PerformanceEvaluationPeerFormContextType {
   employeesError: string | null
   searchEmployees: (search: string) => Promise<void>
   getEmployeeById: (employeeId: string) => EmployeeOption | undefined
+  /** Employee being evaluated (from task payload) for header display */
+  employeeForHeader: EmployeeForHeader | null
+  employeeForHeaderLoading: boolean
 }
 
 const PerformanceEvaluationPeerFormContext = createContext<PerformanceEvaluationPeerFormContextType | undefined>(
@@ -55,6 +66,38 @@ export const PerformanceEvaluationPeerFormProvider: React.FC<PerformanceEvaluati
     fetchStructureEmployees,
     getEmployeeById
   } = useStructureEmployees(businessAppContext.accessToken, true, currentUserEmployeeId)
+
+  const ad = businessAppContext?.additionalData as Record<string, unknown> | undefined
+  const taskPayload = ad?.psi_taskPayload as Record<string, unknown> | undefined
+  const processInputs = (ad?.psi_processMetadata as Record<string, unknown> | undefined)?.inputs as
+    | Record<string, unknown>
+    | undefined
+  const empEvalFromTask = taskPayload?.employeePerformanceEvaluation as Record<string, unknown> | undefined
+  const empEvalFromInputs = processInputs?.employeePerformanceEvaluation as Record<string, unknown> | undefined
+  const initialParams = taskPayload?.psi_initialParameters as Record<string, unknown> | undefined
+  // Employee being evaluated: from task/process payload, or current user (Select Peers is assigned to the employee)
+  const employeeIdFromPayload =
+    (empEvalFromTask?.employee as string | undefined) ??
+    (empEvalFromInputs?.employee as string | undefined) ??
+    (initialParams?.employeeId as string | undefined) ??
+    (taskPayload?.employeeId as string | undefined) ??
+    (ad?.employeeId as string | undefined) ??
+    ((ad?.flowContext as Record<string, unknown> | undefined)?.employeeId as string | undefined) ??
+    ((ad?.contextData as Record<string, unknown> | undefined)?.employeeId as string | undefined) ??
+    currentUserEmployeeId
+  const { employee: employeeById, loading: employeeForHeaderLoading } = useEmployeeById({
+    accessToken: businessAppContext.accessToken ?? '',
+    employeeId: employeeIdFromPayload ?? undefined
+  })
+  const employeeForHeader = useMemo((): EmployeeForHeader | null => {
+    if (!employeeById) return null
+    return {
+      firstName: employeeById.firstName ?? '',
+      lastName: employeeById.lastName ?? '',
+      pictureThumbnail: employeeById.employee?.pictureThumbnail ?? undefined,
+      jobTitle: employeeById.jobPosition?.name ?? undefined
+    }
+  }, [employeeById])
 
   const searchEmployees = useCallback(
     async (search: string) => {
@@ -113,7 +156,9 @@ export const PerformanceEvaluationPeerFormProvider: React.FC<PerformanceEvaluati
       employeesLoading,
       employeesError,
       searchEmployees,
-      getEmployeeById
+      getEmployeeById,
+      employeeForHeader,
+      employeeForHeaderLoading
     }),
     [
       formValues,
@@ -128,7 +173,9 @@ export const PerformanceEvaluationPeerFormProvider: React.FC<PerformanceEvaluati
       employeesLoading,
       employeesError,
       searchEmployees,
-      getEmployeeById
+      getEmployeeById,
+      employeeForHeader,
+      employeeForHeaderLoading
     ]
   )
 
