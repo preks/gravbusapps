@@ -1,12 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react'
 import { Button, Input, Spinner, Popover, PopoverContent, PopoverTrigger, Badge } from '@newwork/nw-design-system'
-import {
-  PlusIcon,
-  MagnifyingGlassIcon,
-  UserIcon,
-  UsersThreeIcon,
-  ClockCounterClockwiseIcon
-} from '@phosphor-icons/react'
+import { PlusIcon, MagnifyingGlassIcon, UserIcon, UsersThreeIcon } from '@phosphor-icons/react'
+import { PhoneMissedIcon } from 'lucide-react'
 import { ConversationItem } from './ConversationItem'
 import { UserSearch } from './UserSearch'
 import { UserStatusDropdown } from './UserStatusDropdown'
@@ -231,7 +226,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
               aria-label={t('chat-callHistory')}
               data-testid="chat-openCallHistory"
             >
-              <ClockCounterClockwiseIcon className="gba:w-4 gba:h-4" weight="regular" />
+              <PhoneMissedIcon className="gba:w-4 gba:h-4" />
             </Button>
             {missedCallsCount > 0 && (
               <Badge

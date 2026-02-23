@@ -6,6 +6,7 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 interface ExpenseRequestTableActionsProps {
   record: ExpenseData
   accessToken: string
+  transferInProgress?: boolean
   onNavigateToExpenseRequest: (record: ExpenseData) => void
   onDownloadAccountingNote: (record: ExpenseData) => void
   onTriggerCSV: (record: ExpenseData) => void
@@ -16,6 +17,7 @@ interface ExpenseRequestTableActionsProps {
 const ExpenseRequestTableActions: React.FC<ExpenseRequestTableActionsProps> = ({
   record,
   accessToken,
+  transferInProgress = false,
   onNavigateToExpenseRequest,
   onDownloadAccountingNote,
   onTriggerCSV,
@@ -82,12 +84,21 @@ const ExpenseRequestTableActions: React.FC<ExpenseRequestTableActionsProps> = ({
                 {
                   category: getTranslationFromI18nKeyAndLabel('lowcoder:employee_list.flows_button.actions', 'Actions'),
                   key: 'transfer-payment',
-                  label: getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:transfer_expense_request.info_message_container.transfer_payment',
-                    'Transfer Payment'
-                  ),
+                  label: transferInProgress
+                    ? getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:transfer_expense_request.in_progress',
+                        'Transfer in Progress'
+                      )
+                    : getTranslationFromI18nKeyAndLabel(
+                        'lowcoder:transfer_expense_request.info_message_container.transfer_payment',
+                        'Transfer Payment'
+                      ),
+                  disabled: transferInProgress,
                   onClick: (e?: React.MouseEvent) => {
                     e?.stopPropagation()
+                    if (transferInProgress) {
+                      return
+                    }
                     onTransferPayment(record)
                   }
                 }

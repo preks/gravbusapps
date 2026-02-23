@@ -5,9 +5,10 @@
  */
 
 import React from 'react'
-import { Sparkles, Plus, FileText, Loader2 } from 'lucide-react'
+import { Sparkles, Plus, Loader2 } from 'lucide-react'
 import { Button, Card } from '@newwork/nw-design-system'
 import { useListPlans } from '../../features/orchestrator/hooks'
+import { AppIconBadge } from '../../features/orchestrator/components/ui/AppIconBadge'
 
 export interface OverviewPageProps {
   accessToken: string
@@ -77,9 +78,11 @@ export const OverviewPage: React.FC<OverviewPageProps> = ({ accessToken, onNewPl
                     data-testid={`ai-orchestrator-plan-${plan.jobId}`}
                   >
                     <div className="gba:flex gba:items-center gba:gap-3 gba:p-4">
-                      <FileText className="gba:w-5 gba:h-5 gba:text-muted-foreground gba:shrink-0" />
+                      <AppIconBadge iconName={plan.appMetadata?.icon} size="sm" />
                       <div className="gba:min-w-0 gba:flex-1">
-                        <p className="gba:font-medium gba:text-foreground gba:truncate">{planTitle(plan)}</p>
+                        <p className="gba:font-medium gba:text-foreground gba:truncate">
+                          {plan.appMetadata?.name || planTitle(plan)}
+                        </p>
                         <p className="gba:text-sm gba:text-muted-foreground">
                           {plan.status} · {plan.createdAt ? new Date(plan.createdAt).toLocaleDateString() : ''}
                         </p>

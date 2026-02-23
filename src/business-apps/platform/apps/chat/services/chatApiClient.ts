@@ -21,32 +21,8 @@ function normalizeSender(sender: unknown): Message['sender'] | undefined {
   } as Message['sender']
 }
 
-/** Backend returns lastMessage with snake_case; normalize to camelCase for frontend. */
-function normalizeLastMessage(lastMessage: unknown): Message | undefined {
-  if (lastMessage == null || typeof lastMessage !== 'object') return undefined
-  const m = lastMessage as Record<string, unknown>
-  const createdAt = (m.created_at ?? m.createdAt) as string | undefined
-  const updatedAt = (m.updated_at ?? m.updatedAt ?? m.created_at ?? m.createdAt) as string | undefined
-  return {
-    id: safeString(m.id),
-    conversationId: safeString(m.conversation_id ?? m.conversationId),
-    senderId: (m.sender_id ?? m.senderId) as string | null,
-    type: (m.type ?? 'text') as Message['type'],
-    content: safeString(m.content),
-    metadata: (m.metadata as Message['metadata']) ?? undefined,
-    parentId: (m.reply_to_id ?? m.parentId ?? m.replyToId) as string | undefined,
-    isEdited: Boolean(m.is_edited ?? m.isEdited),
-    isDeleted: Boolean(m.is_deleted ?? m.isDeleted),
-    createdAt: createdAt ?? updatedAt ?? new Date().toISOString(),
-    updatedAt: updatedAt ?? createdAt ?? new Date().toISOString(),
-    sender: normalizeSender(m.sender),
-    reactions: (m.reactions as Message['reactions']) ?? undefined,
-    status: (m.status as Message['status']) ?? undefined
-  } as Message
-}
-
-/** Normalize a search result message so sender.avatarUrl and other fields are camelCase. */
-function normalizeSearchMessage(raw: unknown): Message {
+/** Normalize a message from API (snake_case, quotedMessage). Used for list, search, new_message, reactions. */
+export function normalizeMessage(raw: unknown): Message {
   if (raw == null || typeof raw !== 'object') {
     return {
       id: '',
@@ -61,6 +37,26 @@ function normalizeSearchMessage(raw: unknown): Message {
   const m = raw as Record<string, unknown>
   const createdAt = (m.created_at ?? m.createdAt) as string | undefined
   const updatedAt = (m.updated_at ?? m.updatedAt ?? m.created_at ?? m.createdAt) as string | undefined
+  const editedAt = (m.edited_at ?? m.editedAt) as string | undefined
+  const quotedMessageId = (m.quoted_message_id ?? m.quotedMessageId) as string | undefined
+  const quotedMessageRaw = m.quotedMessage ?? m.quoted_message
+  const quotedMessage =
+    quotedMessageRaw != null && typeof quotedMessageRaw === 'object' ? normalizeMessage(quotedMessageRaw) : undefined
+  const quotedSnapshotRaw = m.quoted_message_snapshot ?? m.quotedMessageSnapshot
+  const quotedMessageSnapshot =
+    quotedSnapshotRaw != null &&
+    typeof quotedSnapshotRaw === 'object' &&
+    typeof (quotedSnapshotRaw as any).content === 'string'
+      ? {
+          content: String((quotedSnapshotRaw as any).content),
+          ...((quotedSnapshotRaw as any).createdAt != null && {
+            createdAt: String((quotedSnapshotRaw as any).createdAt)
+          }),
+          ...((quotedSnapshotRaw as any).senderDisplayName != null && {
+            senderDisplayName: String((quotedSnapshotRaw as any).senderDisplayName)
+          })
+        }
+      : undefined
   return {
     id: safeString(m.id),
     conversationId: safeString(m.conversation_id ?? m.conversationId),
@@ -71,12 +67,27 @@ function normalizeSearchMessage(raw: unknown): Message {
     parentId: (m.reply_to_id ?? m.parentId ?? m.replyToId) as string | undefined,
     isEdited: Boolean(m.is_edited ?? m.isEdited),
     isDeleted: Boolean(m.is_deleted ?? m.isDeleted),
+    ...(editedAt && { editedAt }),
     createdAt: createdAt ?? updatedAt ?? new Date().toISOString(),
     updatedAt: updatedAt ?? createdAt ?? new Date().toISOString(),
     sender: normalizeSender(m.sender),
     reactions: (m.reactions as Message['reactions']) ?? undefined,
-    status: (m.status as Message['status']) ?? undefined
+    status: (m.status as Message['status']) ?? undefined,
+    ...(quotedMessageId && { quotedMessageId }),
+    ...(quotedMessage && { quotedMessage }),
+    ...(quotedMessageSnapshot && { quotedMessageSnapshot })
   } as Message
+}
+
+/** Backend returns lastMessage with snake_case; normalize to camelCase for frontend. */
+function normalizeLastMessage(lastMessage: unknown): Message | undefined {
+  if (lastMessage == null || typeof lastMessage !== 'object') return undefined
+  return normalizeMessage(lastMessage)
+}
+
+/** Alias for list/search; same shape as normalizeMessage. */
+function normalizeSearchMessage(raw: unknown): Message {
+  return normalizeMessage(raw)
 }
 
 /** Apply lastMessage normalization to a conversation from the API. */
@@ -348,17 +359,25 @@ export class ChatApiClient {
   }
 
   // Message endpoints
-  async getMessages(conversationId: string, page: number = 1, limit: number = 100) {
+  async getMessage(messageId: string): Promise<Message> {
+    const response = await this.client.get<unknown>(`/messages/${messageId}`)
+    return normalizeMessage(response.data)
+  }
+
+  async getMessages(conversationId: string, page: number = 1, limit: number = 100, before?: string) {
+    const params: Record<string, string | number> = { page, limit }
+    if (before) params.before = before
     const response = await this.client.get<
       | PaginatedResponse<Message>
       | { messages: Message[]; total: number; page: number; limit: number; totalPages: number }
     >(`/messages/conversation/${conversationId}`, {
-      params: { page, limit }
+      params
     })
     // Backend returns { messages: [...] } but we expect { data: [...] }
     if ('messages' in response.data) {
+      const messages = (response.data as { messages: unknown[] }).messages ?? []
       return {
-        data: response.data.messages,
+        data: messages.map(normalizeMessage),
         total: response.data.total,
         page: response.data.page,
         limit: response.data.limit,
@@ -400,23 +419,25 @@ export class ChatApiClient {
     content: string,
     senderId: string,
     parentId?: string,
-    metadata?: Record<string, any>
-  ) {
+    metadata?: Record<string, any>,
+    quotedMessageId?: string
+  ): Promise<Message> {
     const payload = {
       conversationId,
       content,
       senderId,
       ...(parentId && { parentId }),
-      ...(metadata && { metadata })
+      ...(metadata && { metadata }),
+      ...(quotedMessageId && { quotedMessageId })
     }
 
-    const response = await this.client.post<Message>('/messages', payload)
-    return response.data
+    const response = await this.client.post<unknown>('/messages', payload)
+    return normalizeMessage(response.data)
   }
 
-  async updateMessage(messageId: string, content: string) {
-    const response = await this.client.patch<Message>(`/messages/${messageId}`, { content })
-    return response.data
+  async updateMessage(messageId: string, content: string): Promise<Message> {
+    const response = await this.client.patch<unknown>(`/messages/${messageId}`, { content })
+    return normalizeMessage(response.data)
   }
 
   async deleteMessage(messageId: string) {
@@ -424,14 +445,14 @@ export class ChatApiClient {
   }
 
   async addReaction(messageId: string, emoji: string): Promise<Message> {
-    const response = await this.client.post<Message>(`/messages/${messageId}/reactions`, { emoji })
-    return response.data
+    const response = await this.client.post<unknown>(`/messages/${messageId}/reactions`, { emoji })
+    return normalizeMessage(response.data)
   }
 
   async removeReaction(messageId: string, emoji: string): Promise<Message> {
     const encodedEmoji = encodeURIComponent(emoji)
-    const response = await this.client.delete<Message>(`/messages/${messageId}/reactions/${encodedEmoji}`)
-    return response.data
+    const response = await this.client.delete<unknown>(`/messages/${messageId}/reactions/${encodedEmoji}`)
+    return normalizeMessage(response.data)
   }
 
   async markAsRead(conversationId: string) {
