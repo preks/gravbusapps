@@ -150,7 +150,8 @@ export const useAssetService = (context: BusinessAppContextProps) => {
         totalAssets: result.totalAssets.aggregate.count,
         allocatedAssets: result.allocatedAssets.aggregate.count,
         availableAssets: result.availableAssets.aggregate.count,
-        underRepairAssets: result.underRepairAssets.aggregate.count
+        underRepairAssets: result.underRepairAssets.aggregate.count,
+        retiredAssets: result.retiredAssets.aggregate.count
       } as AssetStatistics
     } catch (error) {
       console.error('Error fetching asset statistics:', error)
