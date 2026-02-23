@@ -41,6 +41,13 @@ export interface UserSummary {
   estimatedTime: string
 }
 
+// App-level identity metadata
+export interface AppMetadata {
+  name: string
+  icon: string
+  description: string
+}
+
 // Complete build plan
 export interface BuildPlan {
   jobId: string
@@ -52,4 +59,5 @@ export interface BuildPlan {
   estimatedDurationSeconds: number
   createdAt: string
   status: BuildStatus
+  appMetadata?: AppMetadata
 }
