@@ -111,6 +111,12 @@ export interface Message {
   /** Reply with quote on main timeline */
   quotedMessageId?: string
   quotedMessage?: Message
+  /** Snapshot of quoted message at reply time (content, date, sender name) so edits to source don't change the quote */
+  quotedMessageSnapshot?: {
+    content: string
+    createdAt?: string
+    senderDisplayName?: string
+  }
 }
 
 export interface MessageReaction {

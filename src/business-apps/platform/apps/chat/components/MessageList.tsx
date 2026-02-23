@@ -31,6 +31,7 @@ interface MessageListProps {
   onScrollToMessageDone?: () => void
   highlightedMessageId?: string | null
   onReplyWithQuote?: (message: Message) => void
+  onNavigateToQuotedMessage?: (quotedMessageId: string) => void
 }
 
 /**
@@ -65,7 +66,8 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
     scrollToMessageId,
     onScrollToMessageDone,
     highlightedMessageId,
-    onReplyWithQuote
+    onReplyWithQuote,
+    onNavigateToQuotedMessage
   }) => {
     // OPTIMIZATION: Call useTranslation once and memoize the result
     const t = useChatTranslation()
@@ -379,16 +381,31 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
       }
     }, [])
 
-    // Scroll to a specific message (e.g. from search result)
+    // Scroll to a specific message (e.g. from search result or quoted message). Retries once if
+    // the element isn't in the DOM yet (e.g. message was just loaded and React hasn't committed).
     useEffect(() => {
       if (!scrollToMessageId || !containerRef.current) return
-      const el = containerRef.current.querySelector(`[data-message-id="${scrollToMessageId}"]`)
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-        const t = setTimeout(() => onScrollToMessageDone?.(), 500)
-        return () => clearTimeout(t)
+      const tryScroll = (): (() => void) | null => {
+        const el = containerRef.current?.querySelector(`[data-message-id="${scrollToMessageId}"]`)
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+          const t = setTimeout(() => onScrollToMessageDone?.(), 500)
+          return () => clearTimeout(t)
+        }
+        return null
       }
-      onScrollToMessageDone?.()
+      const cleanup = tryScroll()
+      if (cleanup) return cleanup
+      const retryId = setTimeout(() => {
+        const el = containerRef.current?.querySelector(`[data-message-id="${scrollToMessageId}"]`)
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+          setTimeout(() => onScrollToMessageDone?.(), 500)
+        } else {
+          onScrollToMessageDone?.()
+        }
+      }, 150)
+      return () => clearTimeout(retryId)
     }, [scrollToMessageId, onScrollToMessageDone])
 
     // Handle click on "new messages" banner
@@ -488,7 +505,14 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
                 {(() => {
                   // DEFENSIVE: Filter messages to only show those matching current conversation
                   // Prevents race conditions when switching conversations quickly
-                  const filteredMessages = messages.filter(m => m.conversationId === conversationId)
+                  const filteredByConversation = messages.filter(m => m.conversationId === conversationId)
+                  // DEFENSIVE: Dedupe by id so React keys are unique (avoids "two children with the same key")
+                  const seenIds = new Set<string>()
+                  const filteredMessages = filteredByConversation.filter(m => {
+                    if (seenIds.has(m.id)) return false
+                    seenIds.add(m.id)
+                    return true
+                  })
 
                   return filteredMessages.map((message, index) => {
                     // Show sender name for first message or when sender changes
@@ -544,6 +568,7 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
                           apiClient={apiClient}
                           onUpdateMessage={onUpdateMessage}
                           onReplyWithQuote={onReplyWithQuote}
+                          onNavigateToQuotedMessage={onNavigateToQuotedMessage}
                         />
                       </div>
                     )

@@ -48,6 +48,7 @@ interface MessageItemProps {
   apiClient?: ChatApiClient | null // For transcript/meeting minutes functionality
   onUpdateMessage?: (messageId: string, updates: Partial<Message>) => void
   onReplyWithQuote?: (message: Message) => void
+  onNavigateToQuotedMessage?: (quotedMessageId: string) => void
 }
 
 /**
@@ -90,6 +91,16 @@ const formatTime = (date: Date | string): string => {
   return `${month} ${day}, ${hours}:${mins}`
 }
 
+const formatQuotedMessageDate = (date: Date | string): string => {
+  const d = new Date(date)
+  const day = d.getDate()
+  const month = d.getMonth() + 1
+  const year = d.getFullYear()
+  const hours = d.getHours().toString().padStart(2, '0')
+  const mins = d.getMinutes().toString().padStart(2, '0')
+  return `${day}. ${month}. ${year}. ${hours}:${mins}`
+}
+
 export const MessageItem: React.FC<MessageItemProps> = React.memo(
   ({
     message,
@@ -106,7 +117,8 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(
     compact = false,
     apiClient = null,
     onUpdateMessage,
-    onReplyWithQuote
+    onReplyWithQuote,
+    onNavigateToQuotedMessage
   }) => {
     const t = useChatTranslation()
     const isAIResponse = message.metadata?.isAIResponse === true
@@ -637,35 +649,77 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(
                     </div>
                   )}
 
-                  {/* Quoted message block */}
-                  {(message.quotedMessage || message.quotedMessageId) && (
-                    <div
-                      className="gba:mb-2 gba:border-l-2 gba:border-muted-foreground/40 gba:pl-2 gba:py-0.5 gba:text-xs gba:text-muted-foreground"
-                      data-testid={`message-quoted-block-${message.id}`}
-                    >
-                      {message.quotedMessage ? (
+                  {/* Quoted message block - use snapshot when present so edits to source don't change the quote */}
+                  {(message.quotedMessage || message.quotedMessageId) &&
+                    (() => {
+                      const quoteClassName = `gba:mb-2 gba:border-l-2 gba:pl-2 gba:py-0.5 gba:text-xs gba:text-left gba:w-full ${
+                        isOwnMessage
+                          ? 'gba:border-primary-foreground/60 gba:text-primary-foreground gba:opacity-95'
+                          : 'gba:border-muted-foreground/60 gba:text-muted-foreground'
+                      } ${message.quotedMessageId && onNavigateToQuotedMessage ? 'gba:cursor-pointer gba:hover:opacity-90' : ''}`
+                      const content = (
                         <>
-                          <span className="gba:font-medium gba:text-foreground/80">
-                            {message.quotedMessage.sender?.displayName ||
-                              [message.quotedMessage.sender?.firstName, message.quotedMessage.sender?.lastName]
-                                .filter(Boolean)
-                                .join(' ') ||
-                              message.quotedMessage.sender?.username ||
-                              t('chat-user')}
-                          </span>
-                          <div className="gba:truncate gba:max-w-full">
-                            {message.quotedMessage.content
-                              ? message.quotedMessage.content.length > 100
-                                ? `${message.quotedMessage.content.slice(0, 100)}…`
-                                : message.quotedMessage.content
-                              : null}
-                          </div>
+                          {message.quotedMessageSnapshot || message.quotedMessage ? (
+                            <>
+                              <div className="gba:flex gba:flex-wrap gba:items-baseline gba:gap-1.5 gba:mb-0.5">
+                                <span
+                                  className={
+                                    isOwnMessage
+                                      ? 'gba:font-medium gba:text-primary-foreground'
+                                      : 'gba:font-medium gba:text-foreground/90'
+                                  }
+                                >
+                                  {message.quotedMessageSnapshot?.senderDisplayName ||
+                                    message.quotedMessage?.sender?.displayName ||
+                                    (message.quotedMessage?.sender &&
+                                      [message.quotedMessage.sender.firstName, message.quotedMessage.sender.lastName]
+                                        .filter(Boolean)
+                                        .join(' ')) ||
+                                    (message.quotedMessage?.sender as { username?: string })?.username ||
+                                    t('chat-user')}
+                                </span>
+                                {(message.quotedMessageSnapshot?.createdAt ?? message.quotedMessage?.createdAt) && (
+                                  <span
+                                    className={
+                                      isOwnMessage
+                                        ? 'gba:text-primary-foreground gba:opacity-75'
+                                        : 'gba:text-muted-foreground'
+                                    }
+                                  >
+                                    {formatQuotedMessageDate(
+                                      message.quotedMessageSnapshot?.createdAt ?? message.quotedMessage?.createdAt ?? ''
+                                    )}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="gba:truncate gba:max-w-full">
+                                {(() => {
+                                  const raw =
+                                    message.quotedMessageSnapshot?.content ?? message.quotedMessage?.content ?? ''
+                                  return raw.length > 100 ? `${raw.slice(0, 100)}…` : raw || null
+                                })()}
+                              </div>
+                            </>
+                          ) : (
+                            <span className="gba:italic">{t('chat-quoted-message-unavailable')}</span>
+                          )}
                         </>
+                      )
+                      return message.quotedMessageId && onNavigateToQuotedMessage ? (
+                        <button
+                          type="button"
+                          className={quoteClassName}
+                          onClick={() => onNavigateToQuotedMessage(message.quotedMessageId!)}
+                          data-testid={`message-quoted-block-${message.id}`}
+                        >
+                          {content}
+                        </button>
                       ) : (
-                        <span className="gba:italic">{t('chat-quoted-message-unavailable')}</span>
-                      )}
-                    </div>
-                  )}
+                        <div className={quoteClassName} data-testid={`message-quoted-block-${message.id}`}>
+                          {content}
+                        </div>
+                      )
+                    })()}
 
                   {/* Text content or inline edit */}
                   {isEditing ? (

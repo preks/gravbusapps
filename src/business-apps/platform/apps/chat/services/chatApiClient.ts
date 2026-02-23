@@ -42,6 +42,21 @@ export function normalizeMessage(raw: unknown): Message {
   const quotedMessageRaw = m.quotedMessage ?? m.quoted_message
   const quotedMessage =
     quotedMessageRaw != null && typeof quotedMessageRaw === 'object' ? normalizeMessage(quotedMessageRaw) : undefined
+  const quotedSnapshotRaw = m.quoted_message_snapshot ?? m.quotedMessageSnapshot
+  const quotedMessageSnapshot =
+    quotedSnapshotRaw != null &&
+    typeof quotedSnapshotRaw === 'object' &&
+    typeof (quotedSnapshotRaw as any).content === 'string'
+      ? {
+          content: String((quotedSnapshotRaw as any).content),
+          ...((quotedSnapshotRaw as any).createdAt != null && {
+            createdAt: String((quotedSnapshotRaw as any).createdAt)
+          }),
+          ...((quotedSnapshotRaw as any).senderDisplayName != null && {
+            senderDisplayName: String((quotedSnapshotRaw as any).senderDisplayName)
+          })
+        }
+      : undefined
   return {
     id: safeString(m.id),
     conversationId: safeString(m.conversation_id ?? m.conversationId),
@@ -59,7 +74,8 @@ export function normalizeMessage(raw: unknown): Message {
     reactions: (m.reactions as Message['reactions']) ?? undefined,
     status: (m.status as Message['status']) ?? undefined,
     ...(quotedMessageId && { quotedMessageId }),
-    ...(quotedMessage && { quotedMessage })
+    ...(quotedMessage && { quotedMessage }),
+    ...(quotedMessageSnapshot && { quotedMessageSnapshot })
   } as Message
 }
 
@@ -343,12 +359,19 @@ export class ChatApiClient {
   }
 
   // Message endpoints
-  async getMessages(conversationId: string, page: number = 1, limit: number = 100) {
+  async getMessage(messageId: string): Promise<Message> {
+    const response = await this.client.get<unknown>(`/messages/${messageId}`)
+    return normalizeMessage(response.data)
+  }
+
+  async getMessages(conversationId: string, page: number = 1, limit: number = 100, before?: string) {
+    const params: Record<string, string | number> = { page, limit }
+    if (before) params.before = before
     const response = await this.client.get<
       | PaginatedResponse<Message>
       | { messages: Message[]; total: number; page: number; limit: number; totalPages: number }
     >(`/messages/conversation/${conversationId}`, {
-      params: { page, limit }
+      params
     })
     // Backend returns { messages: [...] } but we expect { data: [...] }
     if ('messages' in response.data) {
