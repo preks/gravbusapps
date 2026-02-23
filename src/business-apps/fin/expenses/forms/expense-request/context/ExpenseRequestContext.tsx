@@ -138,6 +138,7 @@ export const ExpenseRequestProvider: React.FC<BusinessAppContextProps & { childr
         ),
         'error'
       )
+      setExpenseCatalogueData({ expenseRequestType: [], ExpensePlan: [] })
     } finally {
       setLoading(false)
     }

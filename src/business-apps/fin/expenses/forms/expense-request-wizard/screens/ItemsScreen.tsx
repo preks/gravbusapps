@@ -17,6 +17,17 @@ import RejectionComment from '../components/RejectionComment'
 import { getLatestRejectComment } from '../utils/tripScreenUtils'
 import { REQUEST_STATUS, DEFAULT_ITEM_LIST_LIMIT, DEFAULT_CURRENCY_FALLBACK } from '../constants/constants'
 
+function getItemCurrencyForFetch(
+  currentCurrency: string | null,
+  expenseRequestData: { ExpenseItem?: Array<{ currencyRef?: string }> } | null,
+  expenseItems: Array<{ currencyRef?: string }>
+): string | null {
+  if (currentCurrency) return currentCurrency
+  if (expenseRequestData?.ExpenseItem?.length) return expenseRequestData.ExpenseItem[0].currencyRef ?? null
+  if (expenseItems?.length) return expenseItems[0].currencyRef || null
+  return null
+}
+
 interface ItemsScreenProps extends BusinessAppContextProps {
   additionalData?: {
     mdi_modulePayload?: {
@@ -50,6 +61,8 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
   const [selectedItemsToInitial, setSelectedItemsToInitial] = useState<any[]>([])
   const [totalItems, setTotalItems] = useState<number>(0)
   const [selectedItemIdsForSelection, setSelectedItemIdsForSelection] = useState<string[]>([])
+  /** Cache of full item objects for selected IDs across pages (so confirm has all items, not only current page) */
+  const selectedItemsMapRef = React.useRef<Map<string, any>>(new Map())
   const [initialCurrentPage, setInitialCurrentPage] = useState<number>(1)
   const [searchQuery, setSearchQuery] = useState<string>('')
   const [expenseTotals, setExpenseTotals] = useState<{ currency: string; amount: number }[]>([])
@@ -119,22 +132,17 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
       // API should also exclude payload items and locally deleted items to prevent duplicates
       const excludedIdsForApi = [...excludedIdsBase, ...payloadItemIds, ...deletedItems.map((d: any) => d.id)]
 
-      let itemCurrency = null
-      if (currentCurrency) {
-        itemCurrency = currentCurrency
-      } else if (expenseRequestData.ExpenseItem && expenseRequestData.ExpenseItem.length > 0) {
-        itemCurrency = expenseRequestData.ExpenseItem[0].currencyRef
-      } else if (expenseItems && expenseItems.length > 0) {
-        itemCurrency = expenseItems[0].currencyRef || ''
-      }
+      const itemCurrency = getItemCurrencyForFetch(currentCurrency, expenseRequestData, expenseItems ?? [])
 
       const userLocale = getCurrentActiveUserLocale()
+      const ruleIdForFilter = typeof employeeRuleId === 'string' && employeeRuleId ? employeeRuleId : null
       const countVariables = {
         employeeId,
         status: REQUEST_STATUS.CREATED,
         activeUserLocale: userLocale,
         idsArray: excludedIdsForApi,
-        itemCurrency: itemCurrency
+        itemCurrency: itemCurrency,
+        expenseRuleId: ruleIdForFilter
       }
 
       const countResponse = await graphQLClient.request(fetchEmployeeExpenseItems, {
@@ -211,6 +219,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
     currentPage,
     deletedItems,
     employeeId,
+    employeeRuleId,
     expenseRequestData?.ExpenseItem,
     graphQLClient,
     itemListLimit,
@@ -255,6 +264,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
     if (newShowSelectItems) {
       setCurrentPage(1)
       setSelectedItemIdsForSelection([])
+      selectedItemsMapRef.current.clear()
       const event = new CustomEvent('expense-wizard-update-footer', {
         detail: {
           showCustomFooter: true,
@@ -272,8 +282,10 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
 
   const handleConfirmSelection = useCallback(() => {
     if (selectedItemIdsForSelection.length > 0) {
-      const selectedItems = selectItemsList
-        .filter((item: any) => selectedItemIdsForSelection.includes(item.id))
+      // Resolve full item objects from cache (includes items from all pages, not only current)
+      const selectedItems = selectedItemIdsForSelection
+        .map((id: string) => selectedItemsMapRef.current.get(id))
+        .filter(Boolean)
         .map((item: any) => ({
           ...item,
           isManuallySelected: true
@@ -306,6 +318,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
 
       setDeletedItems(deletedItems.filter((item: any) => !selectedItemIdsForSelection.includes(item.id)))
       setSelectedItemIdsForSelection([])
+      selectedItemsMapRef.current.clear()
     }
 
     setSearchQuery('')
@@ -316,10 +329,11 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
       detail: { showCustomFooter: false }
     })
     document.dispatchEvent(footerEvent)
-  }, [expenseRequestData, selectItemsList, selectedItemIdsForSelection])
+  }, [expenseRequestData, selectedItemIdsForSelection, deletedItems])
 
   const handleCancelSelection = useCallback(() => {
     setSelectedItemIdsForSelection([])
+    selectedItemsMapRef.current.clear()
 
     setSearchQuery('')
     setCurrentPage(1)
@@ -408,12 +422,14 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
    */
   const fetchAndAddPayloadItems = async (newItemIds: string[], itemCurrency: string): Promise<void> => {
     const userLocale = getCurrentActiveUserLocale()
+    const ruleIdForFilter = typeof employeeRuleId === 'string' && employeeRuleId ? employeeRuleId : null
     const variables = {
       employeeId,
       status: REQUEST_STATUS.CREATED,
       activeUserLocale: userLocale,
       idsArray: newItemIds,
-      itemCurrency: itemCurrency
+      itemCurrency: itemCurrency,
+      expenseRuleId: ruleIdForFilter
     }
 
     const response = await graphQLClient.request(fetchEmployeeExpenseItemsFromPayload, variables)
@@ -515,6 +531,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
     // Reset selection/search/page/showSelectItems on external reset
     const handleReset = () => {
       setSelectedItemIdsForSelection([])
+      selectedItemsMapRef.current.clear()
       setSearchQuery('')
       setCurrentPage(1)
       setShowSelectItems(false)
@@ -560,7 +577,10 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
   const toggleItemSelection = (itemId: string) => {
     if (selectedItemIdsForSelection.includes(itemId)) {
       setSelectedItemIdsForSelection((prevSelected: string[]) => prevSelected.filter((id: string) => id !== itemId))
+      selectedItemsMapRef.current.delete(itemId)
     } else {
+      const item = selectItemsList.find((i: any) => i.id === itemId)
+      if (item) selectedItemsMapRef.current.set(itemId, item)
       setSelectedItemIdsForSelection((prevSelected: string[]) => [...prevSelected, itemId])
     }
   }

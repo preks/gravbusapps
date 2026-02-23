@@ -7,3 +7,6 @@ travel-order-fallback-file-name = Reiseanordnung.pdf
 # Advance Payment Details
 expense-plan-code = Spesenplan-Code
 
+# Expense Requests Tab
+personal-expenses-update-request-action = Anfrage aktualisieren
+
