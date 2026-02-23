@@ -8,11 +8,15 @@ import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
-  TooltipTrigger
+  TooltipTrigger,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { Search, Plus, FileText, FileSpreadsheet, StickyNote, Presentation, X, ArrowRight, Clock } from 'lucide-react'
 import type { ContentItem } from '../hooks/useDeskData'
 import { useDocumentPresence } from '../hooks/useDocumentPresence'
+import deskTranslations from '../_i18n'
+
+type TranslateFn = (key: string, vars?: Record<string, string | number>) => string
 
 interface QuickActionsProps {
   searchQuery: string
@@ -28,37 +32,38 @@ interface QuickActionsProps {
   'data-testid'?: string
 }
 
-const typeConfig = {
-  document: {
-    icon: FileText,
-    color: 'gba:text-sky-600',
-    bg: 'gba:bg-sky-500/10',
-    label: 'Document'
-  },
-  spreadsheet: {
-    icon: FileSpreadsheet,
-    color: 'gba:text-teal-600',
-    bg: 'gba:bg-teal-500/10',
-    label: 'Spreadsheet'
-  },
-  note: {
-    icon: StickyNote,
-    color: 'gba:text-amber-600',
-    bg: 'gba:bg-amber-500/10',
-    label: 'Note'
-  },
-  slide: {
-    icon: Presentation,
-    color: 'gba:text-info',
-    bg: 'gba:bg-info/10',
-    label: 'Presentation'
-  }
-}
+const getTypeConfig = (t: TranslateFn) =>
+  ({
+    document: {
+      icon: FileText,
+      color: 'gba:text-sky-600',
+      bg: 'gba:bg-sky-500/10',
+      label: t('type-document')
+    },
+    spreadsheet: {
+      icon: FileSpreadsheet,
+      color: 'gba:text-teal-600',
+      bg: 'gba:bg-teal-500/10',
+      label: t('type-spreadsheet')
+    },
+    note: {
+      icon: StickyNote,
+      color: 'gba:text-amber-600',
+      bg: 'gba:bg-amber-500/10',
+      label: t('type-note')
+    },
+    slide: {
+      icon: Presentation,
+      color: 'gba:text-info',
+      bg: 'gba:bg-info/10',
+      label: t('type-presentation')
+    }
+  }) as const
 
 /**
- * Format relative time
+ * Format relative time using translations
  */
-function formatRelativeTime(dateString: string): string {
+function formatRelativeTime(dateString: string, t: TranslateFn): string {
   const date = new Date(dateString)
   const now = new Date()
   const diffMs = now.getTime() - date.getTime()
@@ -66,11 +71,11 @@ function formatRelativeTime(dateString: string): string {
   const diffHours = Math.floor(diffMins / 60)
   const diffDays = Math.floor(diffHours / 24)
 
-  if (diffMins < 1) return 'Just now'
-  if (diffMins < 60) return `${diffMins}m ago`
-  if (diffHours < 24) return `${diffHours}h ago`
-  if (diffDays === 1) return 'Yesterday'
-  if (diffDays < 7) return `${diffDays}d ago`
+  if (diffMins < 1) return t('time-just-now')
+  if (diffMins < 60) return t('time-minutes-ago', { count: diffMins })
+  if (diffHours < 24) return t('time-hours-ago', { count: diffHours })
+  if (diffDays === 1) return t('time-yesterday')
+  if (diffDays < 7) return t('time-days-ago', { count: diffDays })
   return date.toLocaleDateString()
 }
 
@@ -123,7 +128,10 @@ interface PresenceParticipant {
 /**
  * Mini presence display for search results
  */
-const MiniPresence: React.FC<{ participants: PresenceParticipant[] }> = ({ participants }) => {
+const MiniPresence: React.FC<{
+  participants: PresenceParticipant[]
+  t: TranslateFn
+}> = ({ participants, t }) => {
   if (participants.length === 0) return null
 
   const displayCount = Math.min(participants.length, 3) // Show up to 3 avatars
@@ -164,13 +172,13 @@ const MiniPresence: React.FC<{ participants: PresenceParticipant[] }> = ({ parti
             </div>
             {/* "is/are there" text */}
             <span className="gba:text-xs gba:font-medium gba:text-success gba:whitespace-nowrap">
-              {isPlural ? 'are' : 'is'} there
+              {isPlural ? t('presence-are-there') : t('presence-is-there')}
             </span>
           </div>
         </TooltipTrigger>
         <TooltipContent side="left">
           <div className="gba:flex gba:flex-col gba:gap-2">
-            <span className="gba:text-xs gba:font-medium">Currently active:</span>
+            <span className="gba:text-xs gba:font-medium">{t('presence-currently-active')}</span>
             {participants.map(p => (
               <div key={p.odId} className="gba:flex gba:items-center gba:gap-2">
                 <Avatar className="gba:w-6 gba:h-6">
@@ -206,6 +214,7 @@ export const QuickActions: React.FC<QuickActionsProps> = ({
   accessToken,
   'data-testid': testId = 'desk-quick-actions'
 }) => {
+  const { t } = useTranslation(deskTranslations)
   const [isFocused, setIsFocused] = useState(false)
   const [selectedIndex, setSelectedIndex] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -246,6 +255,8 @@ export const QuickActions: React.FC<QuickActionsProps> = ({
       fetchPresence(entities)
     }
   }, [entityListKey, isConnected, fetchPresence, limitedResults])
+
+  const typeConfig = useMemo(() => getTypeConfig(t), [t])
 
   // Group results by type
   const groupedResults = useMemo(() => {
@@ -365,7 +376,7 @@ export const QuickActions: React.FC<QuickActionsProps> = ({
                 onChange={e => onSearchChange(e.target.value)}
                 onFocus={() => setIsFocused(true)}
                 onBlur={() => setTimeout(() => setIsFocused(false), 150)}
-                placeholder="Search your documents, spreadsheets, and notes..."
+                placeholder={t('search-placeholder')}
                 className="gba:pl-10 gba:pr-12 gba:border-0 gba:bg-transparent gba:text-base focus:gba:ring-0"
                 data-testid={`${testId}-search-input`}
               />
@@ -402,7 +413,7 @@ export const QuickActions: React.FC<QuickActionsProps> = ({
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>Create Document</p>
+                    <p>{t('search-create-document')}</p>
                   </TooltipContent>
                 </Tooltip>
 
@@ -420,7 +431,7 @@ export const QuickActions: React.FC<QuickActionsProps> = ({
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>Create Spreadsheet</p>
+                    <p>{t('search-create-spreadsheet')}</p>
                   </TooltipContent>
                 </Tooltip>
 
@@ -438,7 +449,7 @@ export const QuickActions: React.FC<QuickActionsProps> = ({
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>Create Note</p>
+                    <p>{t('search-create-note')}</p>
                   </TooltipContent>
                 </Tooltip>
 
@@ -456,7 +467,7 @@ export const QuickActions: React.FC<QuickActionsProps> = ({
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>Create Presentation</p>
+                    <p>{t('search-create-presentation')}</p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
@@ -481,13 +492,15 @@ export const QuickActions: React.FC<QuickActionsProps> = ({
                 <div className="gba:px-4 gba:py-8 gba:text-center">
                   <div className="gba:inline-flex gba:items-center gba:gap-2 gba:text-muted-foreground">
                     <div className="gba:w-4 gba:h-4 gba:border-2 gba:border-border gba:border-t-primary gba:rounded-full gba:animate-spin" />
-                    <span className="gba:text-sm">Searching...</span>
+                    <span className="gba:text-sm">{t('search-searching')}</span>
                   </div>
                 </div>
               ) : limitedResults.length === 0 ? (
                 <div className="gba:px-4 gba:py-8 gba:text-center">
                   <Search className="gba:w-6 gba:h-6 gba:text-muted-foreground/40 gba:mx-auto gba:mb-2" />
-                  <p className="gba:text-sm gba:text-muted-foreground">No results for "{searchQuery}"</p>
+                  <p className="gba:text-sm gba:text-muted-foreground">
+                    {t('search-no-results', { query: searchQuery })}
+                  </p>
                 </div>
               ) : (
                 <>
@@ -511,7 +524,7 @@ export const QuickActions: React.FC<QuickActionsProps> = ({
                             <div className="gba:flex gba:items-center gba:gap-2">
                               <GroupIcon className={`gba:w-3.5 gba:h-3.5 ${config.color}`} />
                               <span className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wide">
-                                {config.label}s
+                                {t(group.type === 'slide' ? 'type-slides' : `type-${group.type}s`)}
                               </span>
                               <span className="gba:ml-auto gba:text-xs gba:text-muted-foreground/60">
                                 {group.items.length}
@@ -547,17 +560,17 @@ export const QuickActions: React.FC<QuickActionsProps> = ({
                                 {/* Content */}
                                 <div className="gba:flex-1 gba:min-w-0">
                                   <h4 className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate">
-                                    <HighlightedText text={item.title || 'Untitled'} query={searchQuery} />
+                                    <HighlightedText text={item.title || t('untitled')} query={searchQuery} />
                                   </h4>
                                   <div className="gba:flex gba:items-center gba:gap-1.5 gba:mt-0.5">
                                     <Clock className="gba:w-3 gba:h-3 gba:text-muted-foreground/50" />
                                     <span className="gba:text-xs gba:text-muted-foreground">
-                                      {formatRelativeTime(item.updatedAt)}
+                                      {formatRelativeTime(item.updatedAt, t)}
                                     </span>
                                     {item.isShared && (
                                       <>
                                         <span className="gba:text-muted-foreground/30">·</span>
-                                        <span className="gba:text-xs gba:text-muted-foreground">Shared</span>
+                                        <span className="gba:text-xs gba:text-muted-foreground">{t('shared')}</span>
                                       </>
                                     )}
                                   </div>
@@ -565,7 +578,7 @@ export const QuickActions: React.FC<QuickActionsProps> = ({
 
                                 {/* Presence indicator - shows who's currently in the document */}
                                 {hasActiveUsers(item.type, item.id) && (
-                                  <MiniPresence participants={getPresence(item.type, item.id)} />
+                                  <MiniPresence participants={getPresence(item.type, item.id)} t={t} />
                                 )}
 
                                 {/* Arrow */}
@@ -593,23 +606,23 @@ export const QuickActions: React.FC<QuickActionsProps> = ({
                         <kbd className="gba:px-1 gba:py-0.5 gba:rounded gba:bg-background gba:text-[10px] gba:border gba:border-border/50">
                           ↑↓
                         </kbd>
-                        navigate
+                        {t('search-navigate')}
                       </span>
                       <span className="gba:flex gba:items-center gba:gap-1">
                         <kbd className="gba:px-1.5 gba:py-0.5 gba:rounded gba:bg-background gba:text-[10px] gba:border gba:border-border/50">
                           ↵
                         </kbd>
-                        open
+                        {t('search-open')}
                       </span>
                       <span className="gba:flex gba:items-center gba:gap-1">
                         <kbd className="gba:px-1.5 gba:py-0.5 gba:rounded gba:bg-background gba:text-[10px] gba:border gba:border-border/50">
                           esc
                         </kbd>
-                        close
+                        {t('search-close')}
                       </span>
                     </div>
                     <span className="gba:text-xs gba:text-muted-foreground">
-                      {searchResults.length} {searchResults.length === 1 ? 'result' : 'results'}
+                      {t('search-results-count', { count: searchResults.length })}
                     </span>
                   </div>
                 </>
@@ -621,8 +634,9 @@ export const QuickActions: React.FC<QuickActionsProps> = ({
         {/* Hint text - only show when not searching */}
         {!showResults && (
           <p className="gba:text-center gba:text-xs gba:text-muted-foreground gba:mt-3">
-            Press <kbd className="gba:px-1.5 gba:py-0.5 gba:rounded gba:bg-muted gba:font-mono gba:text-[10px]">⌘K</kbd>{' '}
-            to search or create something new
+            {t('search-hint').split('⌘K')[0]}
+            <kbd className="gba:px-1.5 gba:py-0.5 gba:rounded gba:bg-muted gba:font-mono gba:text-[10px]">⌘K</kbd>
+            {t('search-hint').split('⌘K')[1]}
           </p>
         )}
       </div>

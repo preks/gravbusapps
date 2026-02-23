@@ -1,86 +1,86 @@
-sidebar-back-to-desk = Back to Desk
-sidebar-expand = Expand sidebar
-sidebar-collapse = Collapse sidebar
-sidebar-brand-title = Slides
+sidebar-back-to-desk = Zurück zum Schreibtisch
+sidebar-expand = Seitenleiste erweitern
+sidebar-collapse = Seitenleiste einklappen
+sidebar-brand-title = Folien
 sidebar-brand-subtitle = NEWWORK Apps
-sidebar-new = New
-sidebar-home = Home
-sidebar-my-items = My Slides
-sidebar-shared = Shared with me
-sidebar-favorites = Favorites
-sidebar-recent = Recent
-sidebar-archived = Archived
-sidebar-storage = Storage
-sidebar-storage-cloud = Cloud storage
-sidebar-storage-slides = { $count } slides
+sidebar-new = Neu
+sidebar-home = Startseite
+sidebar-my-items = Meine Folien
+sidebar-shared = Mit mir geteilt
+sidebar-favorites = Favoriten
+sidebar-recent = Zuletzt verwendet
+sidebar-archived = Archiviert
+sidebar-storage = Speicher
+sidebar-storage-cloud = Cloud-Speicher
+sidebar-storage-slides = { $count } Folien
 
-menu-new-blank-title = Blank Slide
-menu-new-blank-description = Start from scratch
-menu-new-template-title = From Template
-menu-new-template-description = Choose a template
-menu-new-import-title = Import PowerPoint
-menu-new-import-description = Upload .pptx file
+menu-new-blank-title = Leere Folie
+menu-new-blank-description = Von Grund auf beginnen
+menu-new-template-title = Aus Vorlage
+menu-new-template-description = Vorlage auswählen
+menu-new-import-title = PowerPoint importieren
+menu-new-import-description = .pptx-Datei hochladen
 
-header-sort = Sort
-header-search-placeholder = Search...
+header-sort = Sortieren
+header-search-placeholder = Suchen...
 sort-name = Name
-sort-modified = Modified
-sort-created = Created
-table-owner = Owner
+sort-modified = Geändert
+sort-created = Erstellt
+table-owner = Besitzer
 
-empty-favorites-title = No favorites yet
-empty-favorites-description = Star your frequently used slides to see them here.
-empty-shared-title = Nothing shared with you
-empty-shared-description = When someone shares a slide with you, it will appear here.
-empty-archived-title = No archived slides
-empty-archived-description = Archived slides will appear here.
-empty-default-title = No slides yet
-empty-default-description = Create your first slide to get started.
-empty-create-slide = Create Slide
+empty-favorites-title = Noch keine Favoriten
+empty-favorites-description = Markieren Sie häufig verwendete Folien mit einem Stern.
+empty-shared-title = Nichts mit Ihnen geteilt
+empty-shared-description = Geteilte Folien erscheinen hier.
+empty-archived-title = Keine archivierten Folien
+empty-archived-description = Archivierte Folien erscheinen hier.
+empty-default-title = Noch keine Folien
+empty-default-description = Erstellen Sie Ihre erste Folie.
+empty-create-slide = Folie erstellen
 
-menu-open = Open
-menu-share = Share
-menu-manage-sharing = Manage sharing
-menu-copy-link = Copy link
-menu-duplicate = Duplicate
-menu-remove-favorite = Remove from favorites
-menu-add-favorite = Add to favorites
-menu-delete = Delete
+menu-open = Öffnen
+menu-share = Teilen
+menu-manage-sharing = Freigabe verwalten
+menu-copy-link = Link kopieren
+menu-duplicate = Duplizieren
+menu-remove-favorite = Aus Favoriten entfernen
+menu-add-favorite = Zu Favoriten hinzufügen
+menu-delete = Löschen
 
-label-shared = Shared
-owner-you = You
-owner-unknown = Unknown
-title-untitled = Untitled
-title-untitled-slide = Untitled Slide
-shared-with-count = Shared with { $count } { $count ->
-  [one] person
- *[other] people
+label-shared = Geteilt
+owner-you = Sie
+owner-unknown = Unbekannt
+title-untitled = Unbenannt
+title-untitled-slide = Unbenannte Folie
+shared-with-count = Geteilt mit { $count } { $count ->
+  [one] Person
+ *[other] Personen
 }
-shared-click-manage = Click to manage
+shared-click-manage = Klicken zum Verwalten
 
-confirm-delete = Are you sure you want to delete this slide?
-toast-slide-duplicated = Slide duplicated
-toast-link-copied = Link copied to clipboard
-toast-favorite-removed = Removed from favorites
-toast-favorite-added = Added to favorites
-toast-imported-slides = Imported { $count } slides
-toast-import-failed = Failed to import PowerPoint
+confirm-delete = Möchten Sie diese Folie wirklich löschen?
+toast-slide-duplicated = Folie dupliziert
+toast-link-copied = Link in Zwischenablage kopiert
+toast-favorite-removed = Aus Favoriten entfernt
+toast-favorite-added = Zu Favoriten hinzugefügt
+toast-imported-slides = { $count } Folien importiert
+toast-import-failed = PowerPoint-Import fehlgeschlagen
 
 # Editor
-editor-slide-saved = Slide saved
-editor-save-failed = Failed to save
-editor-added-element = Added { $type }
-editor-element-deleted = Element deleted
-editor-element-duplicated = Element duplicated
-editor-slide-added = Slide added
-editor-delete-last-slide-error = Cannot delete the last slide
-editor-delete-slide-confirm = Delete this slide?
-editor-slide-deleted = Slide deleted
-editor-title-empty = Title cannot be empty
-editor-presentation-renamed = Presentation renamed
-editor-rename-failed = Failed to rename presentation
-editor-export-pptx-success = Exported to PowerPoint
-editor-export-failed = Export failed
+editor-slide-saved = Folie gespeichert
+editor-save-failed = Speichern fehlgeschlagen
+editor-added-element = { $type } hinzugefügt
+editor-element-deleted = Element gelöscht
+editor-element-duplicated = Element dupliziert
+editor-slide-added = Folie hinzugefügt
+editor-delete-last-slide-error = Letzte Folie kann nicht gelöscht werden
+editor-delete-slide-confirm = Diese Folie löschen?
+editor-slide-deleted = Folie gelöscht
+editor-title-empty = Titel darf nicht leer sein
+editor-presentation-renamed = Präsentation umbenannt
+editor-rename-failed = Umbenennung fehlgeschlagen
+editor-export-pptx-success = Als PowerPoint exportiert
+editor-export-failed = Export fehlgeschlagen
 
 # Relative time & formatting
 time-just-now = Gerade eben
@@ -450,6 +450,6 @@ theme-minimal = Minimal
 theme-gradient = Verlauf Lila
 
 # Synced missing keys
-editor-export-pdf = Export as PDF
-version-load-failed = Failed to load versions
+editor-export-pdf = Als PDF exportieren
+version-load-failed = Versionen konnten nicht geladen werden
 version-number = Version { $number }

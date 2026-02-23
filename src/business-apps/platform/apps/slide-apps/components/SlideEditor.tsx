@@ -308,8 +308,8 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
 
   // Always render from collaboration state (it is seeded immediately from initial content).
   const slides = useMemo(() => {
-    return collaborativeSlides?.length ? collaborativeSlides : [DEFAULT_SLIDE]
-  }, [collaborativeSlides])
+    return collaborativeSlides?.length ? collaborativeSlides : [defaultSlide]
+  }, [collaborativeSlides, defaultSlide])
 
   const currentTheme = useMemo(() => {
     return collaborativeThemeId ? getThemeById(collaborativeThemeId) : SLIDE_THEMES[0]

@@ -4,15 +4,15 @@
  */
 
 import React from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import { Layers } from 'lucide-react'
 import { SpaceHeroBackground } from '@/business-apps/platform/apps/spaces/components/SpaceHeroBackground'
+import deskTranslations from '../_i18n'
 
-const deskHostedVideoUrl =
-  typeof import.meta !== 'undefined' && import.meta.env?.VITE_SPACE_HERO_VIDEO_URL
+const deskHostedVideoUrl = typeof import.meta !== 'undefined' && import.meta.env?.VITE_SPACE_HERO_VIDEO_URL
 const deskLocalVideoUrl = '/space-hero-background.mp4'
 const deskUseVideo =
-  deskHostedVideoUrl ||
-  (typeof import.meta !== 'undefined' && import.meta.env?.DEV && deskLocalVideoUrl)
+  deskHostedVideoUrl || (typeof import.meta !== 'undefined' && import.meta.env?.DEV && deskLocalVideoUrl)
 const deskVideoSrc = deskHostedVideoUrl || deskLocalVideoUrl
 
 interface HeroSectionProps {
@@ -20,11 +20,9 @@ interface HeroSectionProps {
 }
 
 export const HeroSection: React.FC<HeroSectionProps> = ({ 'data-testid': testId = 'desk-hero' }) => {
+  const { t } = useTranslation(deskTranslations)
   return (
-    <section
-      className="gba:relative gba:overflow-hidden gba:min-h-96"
-      data-testid={testId}
-    >
+    <section className="gba:relative gba:overflow-hidden gba:min-h-96" data-testid={testId}>
       {/* Same background as Space detail – video or canvas */}
       {deskUseVideo ? (
         <video
@@ -61,23 +59,23 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ 'data-testid': testId 
               </div>
             </div>
             <span className="gba:text-xs gba:font-medium gba:tracking-[0.4em] gba:text-white/60 gba:uppercase gba:mt-4">
-              NEWWORK
+              {t('hero-brand')}
             </span>
             <h1 className="gba:font-funnel-display gba:text-5xl gba:sm:text-6xl gba:lg:text-7xl gba:tracking-tight gba:text-white gba:font-semibold">
-              Every <span className="gba:text-white/90">Office</span>
+              {t('hero-title')}
             </h1>
           </div>
         </div>
 
         <div className="gba:flex gba:items-center gba:justify-center gba:gap-3 gba:mb-5">
           <span className="gba:inline-flex gba:items-center gba:gap-1.5 gba:px-3 gba:py-1 gba:rounded-full gba:bg-white/10 gba:text-white/90 gba:text-xs gba:font-medium gba:border gba:border-white/20">
-            Documents
+            {t('hero-tag-documents')}
           </span>
           <span className="gba:inline-flex gba:items-center gba:gap-1.5 gba:px-3 gba:py-1 gba:rounded-full gba:bg-white/10 gba:text-white/90 gba:text-xs gba:font-medium gba:border gba:border-white/20">
-            Spreadsheets
+            {t('hero-tag-spreadsheets')}
           </span>
           <span className="gba:inline-flex gba:items-center gba:gap-1.5 gba:px-3 gba:py-1 gba:rounded-full gba:bg-white/10 gba:text-white/90 gba:text-xs gba:font-medium gba:border gba:border-white/20">
-            Notes
+            {t('hero-tag-notes')}
           </span>
         </div>
 
@@ -85,14 +83,14 @@ export const HeroSection: React.FC<HeroSectionProps> = ({ 'data-testid': testId 
           className="gba:text-2xl gba:sm:text-3xl gba:font-semibold gba:tracking-tight gba:text-white gba:mb-3"
           data-testid={`${testId}-headline`}
         >
-          Your content. <span className="gba:text-white/80">Unified.</span>
+          {t('hero-headline')}
         </h2>
 
         <p
           className="gba:text-base gba:text-white/70 gba:max-w-xl gba:mx-auto gba:leading-relaxed"
           data-testid={`${testId}-subtitle`}
         >
-          Create documents, build spreadsheets, and capture notes. All in one seamless workspace.
+          {t('hero-subtitle')}
         </p>
       </div>
     </section>

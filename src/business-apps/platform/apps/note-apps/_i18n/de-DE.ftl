@@ -1,264 +1,264 @@
-sidebar-back-to-desk = Back to Desk
-sidebar-expand = Expand sidebar
-sidebar-collapse = Collapse sidebar
-sidebar-brand-title = Notes
+sidebar-back-to-desk = Zurück zum Schreibtisch
+sidebar-expand = Seitenleiste erweitern
+sidebar-collapse = Seitenleiste einklappen
+sidebar-brand-title = Notizen
 sidebar-brand-subtitle = NEWWORK Apps
-sidebar-new = New
-sidebar-home = Home
-sidebar-my-items = My Notes
-sidebar-shared = Shared with me
-sidebar-pinned = Pinned
-sidebar-recent = Recent
-sidebar-archived = Archived
-sidebar-storage = Storage
-sidebar-storage-cloud = Cloud storage
-sidebar-storage-notes = { $count } notes
+sidebar-new = Neu
+sidebar-home = Startseite
+sidebar-my-items = Meine Notizen
+sidebar-shared = Mit mir geteilt
+sidebar-pinned = Angeheftet
+sidebar-recent = Zuletzt verwendet
+sidebar-archived = Archiviert
+sidebar-storage = Speicher
+sidebar-storage-cloud = Cloud-Speicher
+sidebar-storage-notes = { $count } Notizen
 
-menu-new-text-title = Text Note
-menu-new-text-description = Type with keyboard
-menu-new-handwriting-title = Handwriting Note
-menu-new-handwriting-description = Write with Apple Pencil
-menu-new-template-title = From Template
-menu-new-template-description = Choose a template
+menu-new-text-title = Textnotiz
+menu-new-text-description = Mit Tastatur eingeben
+menu-new-handwriting-title = Handschriftliche Notiz
+menu-new-handwriting-description = Mit Apple Pencil schreiben
+menu-new-template-title = Aus Vorlage
+menu-new-template-description = Vorlage auswählen
 
-header-sort = Sort
-header-search-placeholder = Search...
+header-sort = Sortieren
+header-search-placeholder = Suchen...
 sort-name = Name
-sort-modified = Modified
-sort-created = Created
-table-owner = Owner
+sort-modified = Geändert
+sort-created = Erstellt
+table-owner = Besitzer
 
-empty-pinned-title = No pinned notes
-empty-pinned-description = Pin your important notes to access them quickly.
-empty-shared-title = Nothing shared with you
-empty-shared-description = When someone shares a note with you, it will appear here.
-empty-archived-title = No archived notes
-empty-archived-description = Archived notes will appear here.
-empty-default-title = No notes yet
-empty-default-description = Create your first note to get started.
-empty-create-note = Create Note
+empty-pinned-title = Keine angehefteten Notizen
+empty-pinned-description = Heften Sie wichtige Notizen an für schnellen Zugriff.
+empty-shared-title = Nichts mit Ihnen geteilt
+empty-shared-description = Geteilte Notizen erscheinen hier.
+empty-archived-title = Keine archivierten Notizen
+empty-archived-description = Archivierte Notizen erscheinen hier.
+empty-default-title = Noch keine Notizen
+empty-default-description = Erstellen Sie Ihre erste Notiz.
+empty-create-note = Notiz erstellen
 
-menu-open = Open
-menu-share = Share
-menu-copy-link = Copy link
-menu-duplicate = Duplicate
-menu-pin = Pin
-menu-unpin = Unpin
-menu-remove-favorite = Remove from favorites
-menu-add-favorite = Add to favorites
-menu-archive = Archive
-menu-delete = Delete
+menu-open = Öffnen
+menu-share = Teilen
+menu-copy-link = Link kopieren
+menu-duplicate = Duplizieren
+menu-pin = Anheften
+menu-unpin = Loslösen
+menu-remove-favorite = Aus Favoriten entfernen
+menu-add-favorite = Zu Favoriten hinzufügen
+menu-archive = Archivieren
+menu-delete = Löschen
 
-owner-you = You
-owner-unknown = Unknown
-title-untitled-note = Untitled Note
-title-untitled = Untitled
-label-shared = Shared
-shared-with-count = Shared with { $count } { $count ->
-  [one] person
- *[other] people
+owner-you = Sie
+owner-unknown = Unbekannt
+title-untitled-note = Unbenannte Notiz
+title-untitled = Unbenannt
+label-shared = Geteilt
+shared-with-count = Geteilt mit { $count } { $count ->
+  [one] Person
+ *[other] Personen
 }
-shared-click-manage = Click to manage
+shared-click-manage = Klicken zum Verwalten
 
-confirm-delete = Are you sure you want to delete this note?
-toast-note-duplicated = Note duplicated
-toast-note-unpinned = Note unpinned
-toast-note-pinned = Note pinned
-toast-note-archived = Note archived
-toast-link-copied = Link copied to clipboard
-toast-favorite-removed = Removed from favorites
-toast-favorite-added = Added to favorites
-toast-text-note-created = Text note created
+confirm-delete = Möchten Sie diese Notiz wirklich löschen?
+toast-note-duplicated = Notiz dupliziert
+toast-note-unpinned = Notiz gelöst
+toast-note-pinned = Notiz angeheftet
+toast-note-archived = Notiz archiviert
+toast-link-copied = Link in Zwischenablage kopiert
+toast-favorite-removed = Aus Favoriten entfernt
+toast-favorite-added = Zu Favoriten hinzugefügt
+toast-text-note-created = Textnotiz erstellt
 
 # Relative time
-time-just-now = Just now
-time-yesterday = Yesterday
-time-minutes-ago = { $count }m ago
-time-hours-ago = { $count }h ago
-time-days-ago = { $count }d ago
-time-days-ago-plural = { $count } days ago
+time-just-now = Gerade eben
+time-yesterday = Gestern
+time-minutes-ago = Vor { $count } Min.
+time-hours-ago = Vor { $count } Std.
+time-days-ago = Vor { $count } Tagen
+time-days-ago-plural = Vor { $count } Tagen
 
 # FolderTreeSidebar
-folder-add-note-inside = Add Note Inside
-folder-rename = Rename
-folder-move-to = Move to...
-folder-folders = Folders
-folder-new-note = New Note
-folder-collapse-sidebar = Collapse Sidebar
-folder-all-notes = All Notes
-folder-favorites = Favorites
-folder-archive = Archive
-folder-no-folders = No folders yet
-folder-create-to-start = Create a note to get started
-folder-settings = Settings
+folder-add-note-inside = Notiz hier hinzufügen
+folder-rename = Umbenennen
+folder-move-to = Verschieben nach...
+folder-folders = Ordner
+folder-new-note = Neue Notiz
+folder-collapse-sidebar = Seitenleiste einklappen
+folder-all-notes = Alle Notizen
+folder-favorites = Favoriten
+folder-archive = Archiv
+folder-no-folders = Noch keine Ordner
+folder-create-to-start = Erstellen Sie eine Notiz zum Start
+folder-settings = Einstellungen
 
 # ShareNoteDialog
-share-title = Share "{ $title }"
-share-description = Share this note with team members. They'll be able to collaborate in real-time.
-share-add-people = Add People
-share-search-placeholder = Search by name or email...
-share-searching = Searching...
-share-sharing = Sharing...
-share-no-users = No users found
-share-selected-count = Selected ({ $count })
-share-permission-label = Permission:
-share-permission-view = Can View
-share-permission-view-desc = Can view but not make changes
-share-permission-comment = Can Comment
-share-permission-comment-desc = Can view and add comments
-share-permission-edit = Can Edit
-share-permission-edit-desc = Can view and edit content
-share-permission-owner = Owner
-share-permission-owner-desc = Full access including sharing
-share-success-blink = Shared successfully! Blink notifications sent.
-share-share-with = Share with { $count } { $count ->
-  [one] person
- *[other] people
+share-title = „{ $title }" teilen
+share-description = Diese Notiz mit Teammitgliedern teilen. Echtzeit-Zusammenarbeit möglich.
+share-add-people = Personen hinzufügen
+share-search-placeholder = Nach Name oder E-Mail suchen...
+share-searching = Suche...
+share-sharing = Wird geteilt...
+share-no-users = Keine Benutzer gefunden
+share-selected-count = Ausgewählt ({ $count })
+share-permission-label = Berechtigung:
+share-permission-view = Kann ansehen
+share-permission-view-desc = Kann ansehen, aber nicht ändern
+share-permission-comment = Kann kommentieren
+share-permission-comment-desc = Kann ansehen und kommentieren
+share-permission-edit = Kann bearbeiten
+share-permission-edit-desc = Kann ansehen und bearbeiten
+share-permission-owner = Besitzer
+share-permission-owner-desc = Vollzugriff inkl. Freigabe
+share-success-blink = Erfolgreich geteilt! Blink-Benachrichtigungen gesendet.
+share-share-with = Geteilt mit { $count } { $count ->
+  [one] Person
+ *[other] Personen
 }
-share-people-with-access = People with access
-share-label-owner = Owner
-share-not-shared = Not shared with anyone yet
-share-add-above = Add people above to share this note
-share-done = Done
-share-error-select = Please select at least one user to share with
-share-error-failed = Failed to share note. Please try again.
-share-toast-success = Shared "{ $title }" with { $count } { $count ->
-  [one] person
- *[other] people
-}!
+share-people-with-access = Personen mit Zugriff
+share-label-owner = Besitzer
+share-not-shared = Noch mit niemandem geteilt
+share-add-above = Personen oben hinzufügen zum Teilen
+share-done = Fertig
+share-error-select = Bitte mindestens einen Benutzer auswählen
+share-error-failed = Notiz konnte nicht geteilt werden. Bitte erneut versuchen.
+share-toast-success = „{ $title }" mit { $count } { $count ->
+  [one] Person
+ *[other] Personen
+} geteilt!
 
 # ManageSharesDialog
-manage-title = Manage Sharing
-manage-description = Manage who has access to "{ $title }"
-manage-retry = Retry
-manage-load-failed = Failed to load sharing information
-manage-people-tab = People ({ $count })
-manage-links-tab = Share Links ({ $count })
-manage-not-shared = This note hasn't been shared with anyone yet.
-manage-shared-at = Shared { $date }
-manage-create-link = Create Share Link
-manage-permission = Permission
-manage-expires-optional = Expires (optional)
-manage-permission-view-label = View
-manage-permission-comment-label = Comment
-manage-permission-edit-label = Edit
-manage-can-view = Can view
-manage-can-comment = Can comment
-manage-can-edit = Can edit
-manage-creating = Creating...
-manage-create-link-btn = Create Link
-manage-no-links = No share links created yet.
-manage-active = Active
-manage-inactive = Inactive
-manage-created-at = Created { $date }
-manage-expires-at = Expires { $date }
-manage-uses-count = { $count } uses
-manage-toast-permission = Permission updated
-manage-toast-revoked = Access revoked
-manage-toast-link-created = Link created and copied to clipboard!
-manage-toast-link-copied = Link copied to clipboard!
-manage-toast-link-deactivated = Link deactivated
-manage-toast-link-deleted = Link deleted
+manage-title = Freigabe verwalten
+manage-description = Verwalten, wer Zugriff auf „{ $title }" hat
+manage-retry = Erneut versuchen
+manage-load-failed = Freigabeinformationen konnten nicht geladen werden
+manage-people-tab = Personen ({ $count })
+manage-links-tab = Freigabe-Links ({ $count })
+manage-not-shared = Diese Notiz wurde noch mit niemandem geteilt.
+manage-shared-at = Geteilt { $date }
+manage-create-link = Freigabe-Link erstellen
+manage-permission = Berechtigung
+manage-expires-optional = Läuft ab (optional)
+manage-permission-view-label = Ansehen
+manage-permission-comment-label = Kommentieren
+manage-permission-edit-label = Bearbeiten
+manage-can-view = Kann ansehen
+manage-can-comment = Kann kommentieren
+manage-can-edit = Kann bearbeiten
+manage-creating = Wird erstellt...
+manage-create-link-btn = Link erstellen
+manage-no-links = Noch keine Freigabe-Links erstellt.
+manage-active = Aktiv
+manage-inactive = Inaktiv
+manage-created-at = Erstellt { $date }
+manage-expires-at = Läuft ab { $date }
+manage-uses-count = { $count } Nutzungen
+manage-toast-permission = Berechtigung aktualisiert
+manage-toast-revoked = Zugriff wurde widerrufen
+manage-toast-link-created = Link erstellt und in Zwischenablage kopiert!
+manage-toast-link-copied = Link in Zwischenablage kopiert!
+manage-toast-link-deactivated = Link deaktiviert
+manage-toast-link-deleted = Link gelöscht
 
 # SearchCommand
-search-placeholder = Search notes or type a command...
-search-to-close = to close
-search-searching = Searching...
-search-no-results = No results found for "{ $query }"
-search-try-different = Try a different search term
-search-start-typing = Start typing to search notes
-search-category-recent = Recent
-search-category-notes = Notes
-search-category-actions = Quick Actions
-search-category-create = Create
-search-new-note = New Note
-search-new-note-desc = Create a blank note
-search-new-folder = New Folder
-search-new-folder-desc = Create a new folder
-search-go-pinned = Go to Pinned
-search-go-pinned-desc = View pinned notes
-search-go-archive = Go to Archive
-search-go-archive-desc = View archived notes
-search-go-shared = Go to Shared
-search-go-shared-desc = View shared notes
-search-to-navigate = to navigate
+search-placeholder = Notizen suchen oder Befehl eingeben...
+search-to-close = zum Schließen
+search-searching = Suche...
+search-no-results = Keine Ergebnisse für „{ $query }"
+search-try-different = Anderen Suchbegriff versuchen
+search-start-typing = Tippen zum Suchen
+search-category-recent = Zuletzt
+search-category-notes = Notizen
+search-category-actions = Schnellaktionen
+search-category-create = Erstellen
+search-new-note = Neue Notiz
+search-new-note-desc = Leere Notiz erstellen
+search-new-folder = Neuer Ordner
+search-new-folder-desc = Neuen Ordner erstellen
+search-go-pinned = Zu Angehefteten
+search-go-pinned-desc = Angeheftete Notizen anzeigen
+search-go-archive = Zum Archiv
+search-go-archive-desc = Archivierte Notizen anzeigen
+search-go-shared = Zu Geteilten
+search-go-shared-desc = Geteilte Notizen anzeigen
+search-to-navigate = zum Navigieren
 search-to-select = zum Auswählen
 search-k-to-open = K zum Öffnen
 search-key-esc = Esc
 
 # NotePreviewCard
-preview-shared-by = Shared by { $name }
+preview-shared-by = Geteilt von { $name }
 preview-notes-count = { $count } { $count ->
-  [one] note
- *[other] notes
+  [one] Notiz
+ *[other] Notizen
 }
-preview-menu-edit = Edit
-preview-menu-move-to = Move to...
-preview-menu-manage-shares = Manage Shares
+preview-menu-edit = Bearbeiten
+preview-menu-move-to = Verschieben nach...
+preview-menu-manage-shares = Freigaben verwalten
 
 # ActionItemsModal
-action-items-title = Action Items
-action-items-desc = Assign action items to team members. Selected items will be sent as blinks.
-action-items-tip = Tip: edit wording, remove items you don't want, then assign.
-action-items-add = Add
-action-items-assign-all = Assign all
-action-items-assign-all-desc = Apply one assignee to all action items (you can still change per item).
-action-items-assign-all-to = Assign all to…
-action-items-search = Search employees...
-action-items-no-employees = No employees found
-action-items-load-more = Load more
-action-items-loading = Loading...
-action-items-cancel = Cancel
-action-items-no-items = No action items found
-action-items-empty = Empty action item
-action-items-placeholder = Write an action item...
-action-items-save = Save
-action-items-assign-to = Assign to...
-action-items-sending = Sending...
-action-items-send-blinks = Send { $count } Blink{ $count ->
+action-items-title = Aktionspunkte
+action-items-desc = Aktionspunkte an Teammitglieder zuweisen. Ausgewählte werden als Blinks gesendet.
+action-items-tip = Tipp: Formulierung anpassen, unerwünschte entfernen, dann zuweisen.
+action-items-add = Hinzufügen
+action-items-assign-all = Alle zuweisen
+action-items-assign-all-desc = Einen Verantwortlichen für alle Aktionspunkte (pro Punkt änderbar).
+action-items-assign-all-to = Alle zuweisen an…
+action-items-search = Mitarbeiter suchen...
+action-items-no-employees = Keine Mitarbeiter gefunden
+action-items-load-more = Mehr laden
+action-items-loading = Wird geladen...
+action-items-cancel = Abbrechen
+action-items-no-items = Keine Aktionspunkte gefunden
+action-items-empty = Leerer Aktionspunkt
+action-items-placeholder = Aktionspunkt schreiben...
+action-items-save = Speichern
+action-items-assign-to = Zuweisen an...
+action-items-sending = Wird gesendet...
+action-items-send-blinks = { $count } Blink{ $count ->
   [one]
  *[other] s
-}
-action-items-clear-all = Clear all assignees
-action-items-toast-select = Select at least one action item with text + assignee
-action-items-toast-sent = Sent { $count } action item{ $count ->
+} senden
+action-items-clear-all = Alle Zuweisungen aufheben
+action-items-toast-select = Mindestens einen Aktionspunkt mit Text und Verantwortlichem auswählen
+action-items-toast-sent = { $count } Aktionspunkt{ $count ->
   [one]
- *[other] s
-} as blinks
-action-items-toast-failed-single = Failed to send { $count } action item
-action-items-toast-failed-plural = Failed to send { $count } action items
+ *[other] e
+} als Blinks gesendet
+action-items-toast-failed-single = Konnte { $count } Aktionspunkt nicht senden
+action-items-toast-failed-plural = Konnte { $count } Aktionspunkte nicht senden
 action-items-toast-error = Fehler beim Senden der Aktionspunkte
 action-items-blink-failed = Blink konnte nicht gesendet werden
 
 # TransformMenu
-transform-label = Transform
-transform-copy-text = Copy as Text
-transform-copy-text-desc = Extract and copy text
-transform-to-text = Convert to Text
-transform-to-text-desc = Replace with typed text
-transform-create-text-note = Create Text Note
-transform-create-text-note-desc = New note with text
-transform-summarize = Summarize
-transform-summarize-desc = AI summary of content
-transform-action-items = Extract Action Items
-transform-action-items-desc = Find tasks and to-dos
-transform-translate = Translate
-transform-translate-desc = Choose target language
+transform-label = Umwandeln
+transform-copy-text = Als Text kopieren
+transform-copy-text-desc = Text extrahieren und kopieren
+transform-to-text = In Text umwandeln
+transform-to-text-desc = Durch getippten Text ersetzen
+transform-create-text-note = Textnotiz erstellen
+transform-create-text-note-desc = Neue Notiz mit Text
+transform-summarize = Zusammenfassen
+transform-summarize-desc = KI-Zusammenfassung des Inhalts
+transform-action-items = Aktionspunkte extrahieren
+transform-action-items-desc = Aufgaben und To-dos finden
+transform-translate = Übersetzen
+transform-translate-desc = Zielsprache wählen
 
 # SummaryPanel
-summary-title = AI Summary
-summary-copy-aria = Copy summary
-summary-delete-aria = Delete summary
-summary-collapse-aria = Collapse summary
-summary-expand-aria = Expand summary
+summary-title = KI-Zusammenfassung
+summary-copy-aria = Zusammenfassung kopieren
+summary-delete-aria = Zusammenfassung löschen
+summary-collapse-aria = Zusammenfassung einklappen
+summary-expand-aria = Zusammenfassung erweitern
 
 # TranslationPanel
-translation-title = Translation
-translation-to = to { $language }
-translation-copy-aria = Copy translation
-translation-delete-aria = Delete translation
-translation-collapse-aria = Collapse translation
-translation-expand-aria = Expand translation
+translation-title = Übersetzung
+translation-to = nach { $language }
+translation-copy-aria = Übersetzung kopieren
+translation-delete-aria = Übersetzung löschen
+translation-collapse-aria = Übersetzung einklappen
+translation-expand-aria = Übersetzung erweitern
 
 # Kanban
 kanban-placeholder-enter-content = Karteninhalt eingeben...
@@ -283,15 +283,15 @@ kanban-color-pink = Pink
 kanban-column-todo = Zu erledigen
 kanban-column-in-progress = In Arbeit
 kanban-column-done = Erledigt
-kanban-filter-all = Show all cards
+kanban-filter-all = Alle Karten anzeigen
 
 # TemplateGallery
-template-title = Choose a Template
-template-description = Start with a pre-built template to save time
-template-search-placeholder = Search templates...
-template-tab-all = All
-template-no-templates = No templates found
-template-try-different = Try a different search term
+template-title = Vorlage auswählen
+template-description = Beginnen Sie mit einer Vorlage, um Zeit zu sparen
+template-search-placeholder = Vorlagen suchen...
+template-tab-all = Alle
+template-no-templates = Keine Vorlagen gefunden
+template-try-different = Anderen Suchbegriff versuchen
 template-category-meetings = Meetings
 template-category-projects = Projekte
 template-category-personal = Persönlich
@@ -486,30 +486,30 @@ handwriting-action-items-desc = Status der aus dieser Notiz erstellten Blinks.
 handwriting-clear-confirm = Gesamte Handschrift löschen?
 
 # HandwritingToolbar
-toolbar-color = Color:
-toolbar-size = Size:
-toolbar-paper = Paper:
-toolbar-undo = Undo last stroke
-toolbar-clear = Clear all
-toolbar-pen-black = Black
-toolbar-pen-blue = Blue
-toolbar-pen-red = Red
-toolbar-pen-green = Green
-toolbar-pen-purple = Purple
-toolbar-pen-fine = Fine
-toolbar-pen-medium = Medium
-toolbar-pen-bold = Bold
-toolbar-paper-lined = Lined
-toolbar-paper-grid = Grid
-toolbar-paper-dotted = Dotted
-toolbar-paper-plain = Plain
+toolbar-color = Farbe:
+toolbar-size = Größe:
+toolbar-paper = Papier:
+toolbar-undo = Letzten Strich rückgängig
+toolbar-clear = Alles löschen
+toolbar-pen-black = Schwarz
+toolbar-pen-blue = Blau
+toolbar-pen-red = Rot
+toolbar-pen-green = Grün
+toolbar-pen-purple = Lila
+toolbar-pen-fine = Fein
+toolbar-pen-medium = Mittel
+toolbar-pen-bold = Fett
+toolbar-paper-lined = Liniert
+toolbar-paper-grid = Karo
+toolbar-paper-dotted = Gepunktet
+toolbar-paper-plain = Blank
 
 # ActionItemsList
-action-items-list-empty = No action items yet. Use "Transform → Extract Action Items" to create blinks.
-action-items-status-completed = Completed
-action-items-status-in-progress = In progress
-action-items-status-failed = Failed
-action-items-status-canceled = Canceled
-action-items-status-unknown = Unknown
-action-items-sent = Sent: { $date }
-action-items-completed = Completed: { $date }
+action-items-list-empty = Noch keine Aktionspunkte. „Umwandeln → Aktionspunkte extrahieren" für Blinks verwenden.
+action-items-status-completed = Erledigt
+action-items-status-in-progress = In Bearbeitung
+action-items-status-failed = Fehlgeschlagen
+action-items-status-canceled = Abgebrochen
+action-items-status-unknown = Unbekannt
+action-items-sent = Gesendet: { $date }
+action-items-completed = Erledigt: { $date }

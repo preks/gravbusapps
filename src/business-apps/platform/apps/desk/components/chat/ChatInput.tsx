@@ -1,6 +1,7 @@
 import React, { useState, KeyboardEvent } from 'react'
-import { Button, Input } from '@newwork/nw-design-system'
+import { Button, Input, useTranslation } from '@newwork/nw-design-system'
 import { Send } from 'lucide-react'
+import deskTranslations from '../../_i18n'
 
 interface ChatInputProps {
   onSend: (message: string) => void
@@ -8,12 +9,10 @@ interface ChatInputProps {
   placeholder?: string
 }
 
-export const ChatInput: React.FC<ChatInputProps> = ({
-  onSend,
-  disabled = false,
-  placeholder = 'Ask a question about your documents...'
-}) => {
+export const ChatInput: React.FC<ChatInputProps> = ({ onSend, disabled = false, placeholder }) => {
+  const { t } = useTranslation(deskTranslations)
   const [message, setMessage] = useState('')
+  const resolvedPlaceholder = placeholder ?? t('chat-placeholder-default')
 
   const handleSend = () => {
     if (message.trim() && !disabled) {
@@ -36,7 +35,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           value={message}
           onChange={e => setMessage(e.target.value)}
           onKeyPress={handleKeyPress}
-          placeholder={placeholder}
+          placeholder={resolvedPlaceholder}
           disabled={disabled}
           className="gba:w-full"
           data-testid="chat-input-field"

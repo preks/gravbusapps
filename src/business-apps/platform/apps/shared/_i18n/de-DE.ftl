@@ -62,7 +62,7 @@ version-history-loading = Versionen werden geladen...
 version-history-no-history = Noch kein Versionsverlauf
 version-history-version = Version
 version-history-current = Aktuell
-version-history-checkpoint = Checkpoint
+version-history-checkpoint = Prüfpunkt
 version-history-autosave = Auto-Speichern
 version-history-restore-title = Diese Version wiederherstellen
 version-history-select-to-compare = Wählen Sie zwei Versionen zum Vergleichen. Klicken Sie auf eine Version zur Auswahl.
@@ -143,16 +143,16 @@ dimension-location = Standort
 dimension-legal-entity = Rechtsform
 dimension-capability = Fähigkeit
 
-# Synced missing keys
-status-badge-archived = Arhivat
-status-badge-draft = Ciornă
-status-badge-in-review = În revizuire
-status-badge-published = Publicat
+# StatusBadge
+status-badge-archived = Archiviert
+status-badge-draft = Entwurf
+status-badge-in-review = In Überprüfung
+status-badge-published = Veröffentlicht
 
 # Pagination labels
-pagination-prev = Previous
-pagination-next = Next
-pagination-range = Showing { $start }–{ $end } of { $total }
+pagination-prev = Zurück
+pagination-next = Weiter
+pagination-range = { $start }–{ $end } von { $total } angezeigt
 
 # Shared hook fallback errors
 shared-error-load-versions = Versionen konnten nicht geladen werden

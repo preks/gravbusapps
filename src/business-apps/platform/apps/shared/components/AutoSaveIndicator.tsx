@@ -60,8 +60,7 @@ export const AutoSaveIndicator: React.FC<AutoSaveIndicatorProps> = ({
     unsavedChanges: t('autosave-unsaved'),
     notSaved: t('autosave-not-saved'),
     versionHistory: t('autosave-version-history'),
-    saveCheckpoint: t('autosave-save-checkpoint'),
-    savedAgo: t('autosave-saved-ago')
+    saveCheckpoint: t('autosave-save-checkpoint')
   }
   const messages = { ...defaultAutoSaveMessages, ...messagesProp }
   const isVersionLabel = showVersionOnly || currentVersion != null

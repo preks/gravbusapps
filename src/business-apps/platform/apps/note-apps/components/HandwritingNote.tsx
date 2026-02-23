@@ -103,8 +103,8 @@ export const HandwritingNote: React.FC<HandwritingNoteProps> = ({
   const summaryRef = useRef<string | null>(initialSummary)
 
   // Translation history (persisted in note)
-  const [translations, setTranslations] = useState<NoteTranslation[]>(initialTranslations)
-  const translationsRef = useRef<NoteTranslation[]>(initialTranslations)
+  const [noteTranslations, setNoteTranslations] = useState<NoteTranslation[]>(initialTranslations)
+  const noteTranslationsRef = useRef<NoteTranslation[]>(initialTranslations)
 
   // Action items modal state
   const [actionItemsModalOpen, setActionItemsModalOpen] = useState(false)
@@ -138,8 +138,8 @@ export const HandwritingNote: React.FC<HandwritingNoteProps> = ({
   }, [currentSummary])
 
   useEffect(() => {
-    translationsRef.current = translations
-  }, [translations])
+    noteTranslationsRef.current = noteTranslations
+  }, [noteTranslations])
 
   useEffect(() => {
     actionItemFlowsRef.current = actionItemFlows
@@ -159,7 +159,7 @@ export const HandwritingNote: React.FC<HandwritingNoteProps> = ({
   const buildPersistSignature = useCallback((): string => {
     const summarySig = summaryRef.current ? summaryRef.current.slice(0, 80) : ''
     const flowsSig = actionItemFlowsRef.current.map(f => `${f.workflowId}:${f.status}:${f.completedAt || ''}`).join('|')
-    const translationsSig = translationsRef.current.map(t => `${t.id}:${t.targetLanguage}`).join('|')
+    const translationsSig = noteTranslationsRef.current.map(t => `${t.id}:${t.targetLanguage}`).join('|')
     return [noteTitle, paperStyleRef.current, strokesRef.current.length, summarySig, flowsSig, translationsSig].join(
       '::'
     )
@@ -183,7 +183,7 @@ export const HandwritingNote: React.FC<HandwritingNoteProps> = ({
           strokes: strokesRef.current,
           paperStyle: paperStyleRef.current,
           summary: summaryRef.current,
-          translations: translationsRef.current,
+          translations: noteTranslationsRef.current,
           actionItemFlows: actionItemFlowsRef.current
         })
         lastPersistSignatureRef.current = signature
@@ -233,7 +233,7 @@ export const HandwritingNote: React.FC<HandwritingNoteProps> = ({
 
   useEffect(() => {
     queuePersist(800)
-  }, [queuePersist, translations])
+  }, [queuePersist, noteTranslations])
 
   useEffect(() => {
     // Status polling updates will also flow through here
@@ -306,9 +306,9 @@ export const HandwritingNote: React.FC<HandwritingNoteProps> = ({
 
   const handleDeleteTranslation = useCallback(
     (id: string) => {
-      setTranslations(prev => {
+      setNoteTranslations(prev => {
         const next = prev.filter(t => t.id !== id)
-        translationsRef.current = next
+        noteTranslationsRef.current = next
         return next
       })
       queuePersist(0)
@@ -436,7 +436,7 @@ export const HandwritingNote: React.FC<HandwritingNoteProps> = ({
             break
 
           case 'translate':
-            setTranslations(prev => {
+            setNoteTranslations(prev => {
               const targetLang = (options?.targetLanguage || 'en') as TranslationLanguage
               const targetLanguageName = t(`translation-language-${targetLang}`)
               const entry: NoteTranslation = {
@@ -447,7 +447,7 @@ export const HandwritingNote: React.FC<HandwritingNoteProps> = ({
                 createdAt: new Date().toISOString()
               }
               const next = [entry, ...prev]
-              translationsRef.current = next
+              noteTranslationsRef.current = next
               return next
             })
             queuePersist(0)
@@ -574,7 +574,7 @@ export const HandwritingNote: React.FC<HandwritingNoteProps> = ({
       </div>
 
       {/* AI results (below title): summary + translations */}
-      {(currentSummary || translations.length > 0) && (
+      {(currentSummary || noteTranslations.length > 0) && (
         <div className="gba:px-4 gba:pb-4 gba:border-b gba:bg-card gba:space-y-3">
           {currentSummary && (
             <SummaryPanel
@@ -583,9 +583,9 @@ export const HandwritingNote: React.FC<HandwritingNoteProps> = ({
               data-testid={`${testId}-summary-panel`}
             />
           )}
-          {translations.length > 0 && (
+          {noteTranslations.length > 0 && (
             <div className="gba:space-y-3" data-testid={`${testId}-translations`}>
-              {translations.map(t => (
+              {noteTranslations.map(t => (
                 <TranslationPanel
                   key={t.id}
                   translation={t}

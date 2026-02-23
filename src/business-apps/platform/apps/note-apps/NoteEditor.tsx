@@ -683,14 +683,19 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
     return createMentionSuggestion(accessToken)
   }, [accessToken])
 
+  const isCollaborationMode = Boolean(note.id)
+
   // Initialize TipTap editor
   const editor = useEditor(
     {
       extensions: [
         StarterKit.configure({
           heading: { levels: [1, 2, 3] },
-          // Disable history when using Yjs collaboration (Yjs provides its own history)
-          ...(note.id ? { history: false } : {})
+          // Disable local history/undo-redo in collaboration mode (Yjs provides this).
+          ...(isCollaborationMode ? { history: false, undoRedo: false } : {}),
+          // Avoid duplicate names when Link/Underline are configured explicitly below.
+          link: false,
+          underline: false
         } as any),
         Placeholder.configure({
           placeholder: t('editor-placeholder')
@@ -835,7 +840,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
         }
       }
     },
-    [note.id, note.content, ydoc, isReadOnly, mentionSuggestion]
+    [note.id, note.content, ydoc, isReadOnly, mentionSuggestion, isCollaborationMode]
   )
 
   useEffect(() => {

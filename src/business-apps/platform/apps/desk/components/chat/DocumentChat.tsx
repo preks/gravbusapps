@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Card, CardContent, Alert, AlertDescription } from '@newwork/nw-design-system'
+import { Card, CardContent, Alert, AlertDescription, useTranslation } from '@newwork/nw-design-system'
 import { Loader2, MessageSquare } from 'lucide-react'
 import { ChatMessage } from './ChatMessage'
 import { ChatInput } from './ChatInput'
@@ -10,6 +10,7 @@ import { DocumentChatHeader } from './DocumentChatHeader'
 import { useCurrentUserAvatar } from './useCurrentUserAvatar'
 import { useChatSessions } from './useChatSessions'
 import { env } from '@/common/env/EnvUtils'
+import deskTranslations from '../../_i18n'
 
 interface Space {
   id: string
@@ -41,6 +42,7 @@ export const DocumentChat: React.FC<DocumentChatProps> = ({
   onSpaceChange,
   onClose
 }) => {
+  const { t } = useTranslation(deskTranslations)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const providerStorageKey = useMemo(() => `desk-document-chat:llm-provider:${userId}`, [userId])
   const [llmProvider, setLlmProvider] = useState<string | undefined>(() => {
@@ -201,7 +203,7 @@ export const DocumentChat: React.FC<DocumentChatProps> = ({
             {!isConnected && (
               <Alert className="gba:m-4 gba:rounded-xl">
                 <Loader2 className="gba:h-4 gba:w-4 gba:animate-spin" />
-                <AlertDescription>Connecting to chat service...</AlertDescription>
+                <AlertDescription>{t('chat-connecting')}</AlertDescription>
               </Alert>
             )}
 
@@ -225,11 +227,9 @@ export const DocumentChat: React.FC<DocumentChatProps> = ({
                       <MessageSquare className="gba:h-7 gba:w-7 gba:text-primary/70" />
                     </div>
                   </div>
-                  <h4 className="gba:text-sm gba:font-medium gba:text-foreground gba:mb-2">
-                    Ask anything about your content
-                  </h4>
+                  <h4 className="gba:text-sm gba:font-medium gba:text-foreground gba:mb-2">{t('chat-ask-anything')}</h4>
                   <p className="gba:text-xs gba:text-muted-foreground gba:leading-relaxed gba:max-w-[240px]">
-                    Ask questions like “What did we decide about X?” or “Summarize my notes about Y”.
+                    {t('chat-placeholder-example')}
                   </p>
                 </div>
               )}
@@ -269,7 +269,11 @@ export const DocumentChat: React.FC<DocumentChatProps> = ({
               onSend={handleSendMessage}
               disabled={!isConnected || isStreaming || !currentSession}
               placeholder={
-                !isConnected ? 'Connecting...' : isStreaming ? 'Waiting for response...' : 'Ask a question...'
+                !isConnected
+                  ? t('chat-placeholder-connecting')
+                  : isStreaming
+                    ? t('chat-placeholder-waiting')
+                    : t('chat-placeholder-ask')
               }
             />
           </CardContent>

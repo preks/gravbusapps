@@ -1,8 +1,11 @@
 import React from 'react'
-import { Card, CardContent, Button, Spinner } from '@newwork/nw-design-system'
+import { Card, CardContent, Button, Spinner, useTranslation } from '@newwork/nw-design-system'
 import { FileText, FileSpreadsheet, StickyNote, Presentation, ArrowRight, Inbox, FileType } from 'lucide-react'
 import type { ContentItem } from '../hooks/useDeskData'
 import { DESK_TYPE_COLOR_MAP } from '../constants/deskColors'
+import deskTranslations from '../_i18n'
+
+type TranslateFn = (key: string, vars?: Record<string, string | number>) => string
 
 interface RecentItemsProps {
   items: ContentItem[]
@@ -15,17 +18,18 @@ interface RecentItemsProps {
   'data-testid'?: string
 }
 
-const typeConfig = {
-  document: { icon: FileText, label: 'Document' },
-  spreadsheet: { icon: FileSpreadsheet, label: 'Spreadsheet' },
-  note: { icon: StickyNote, label: 'Note' },
-  slide: { icon: Presentation, label: 'Presentation' }
-} as const
+const getTypeConfig = (t: TranslateFn) =>
+  ({
+    document: { icon: FileText, label: t('type-document') },
+    spreadsheet: { icon: FileSpreadsheet, label: t('type-spreadsheet') },
+    note: { icon: StickyNote, label: t('type-note') },
+    slide: { icon: Presentation, label: t('type-presentation') }
+  }) as const
 
 /**
- * Format relative time
+ * Format relative time using translations
  */
-function formatRelativeTime(dateString: string): string {
+function formatRelativeTime(dateString: string, t: TranslateFn): string {
   const date = new Date(dateString)
   const now = new Date()
   const diffMs = now.getTime() - date.getTime()
@@ -33,11 +37,11 @@ function formatRelativeTime(dateString: string): string {
   const diffHours = Math.floor(diffMins / 60)
   const diffDays = Math.floor(diffHours / 24)
 
-  if (diffMins < 1) return 'Just now'
-  if (diffMins < 60) return `${diffMins}m ago`
-  if (diffHours < 24) return `${diffHours}h ago`
-  if (diffDays === 1) return 'Yesterday'
-  if (diffDays < 7) return `${diffDays}d ago`
+  if (diffMins < 1) return t('time-just-now')
+  if (diffMins < 60) return t('time-minutes-ago', { count: diffMins })
+  if (diffHours < 24) return t('time-hours-ago', { count: diffHours })
+  if (diffDays === 1) return t('time-yesterday')
+  if (diffDays < 7) return t('time-days-ago', { count: diffDays })
   return date.toLocaleDateString()
 }
 
@@ -77,6 +81,8 @@ export const RecentItems: React.FC<RecentItemsProps> = ({
   onCreateNote,
   'data-testid': testId = 'desk-recent'
 }) => {
+  const { t } = useTranslation(deskTranslations)
+  const typeConfig = React.useMemo(() => getTypeConfig(t), [t])
   const isSearchMode = Boolean(searchQuery.trim())
 
   return (
@@ -92,16 +98,16 @@ export const RecentItems: React.FC<RecentItemsProps> = ({
             <h2 className="desk-section-title gba:text-2xl gba:sm:text-3xl gba:font-semibold gba:mb-2">
               {isSearchMode ? (
                 <>
-                  Results for <span className="gba:text-primary">"{searchQuery}"</span>
+                  {t('results-for-prefix')} <span className="gba:text-primary">&quot;{searchQuery}&quot;</span>
                 </>
               ) : (
-                'Pick up where you left off'
+                t('pick-up-where')
               )}
             </h2>
           </div>
           {isSearchMode && items.length > 0 && (
             <span className="gba:inline-flex gba:items-center gba:px-2 gba:py-0.5 gba:rounded-full gba:bg-desk-badge-golden gba:text-desk-badge-golden-foreground gba:text-sm gba:font-medium">
-              {items.length} {items.length === 1 ? 'result' : 'results'}
+              {t('search-results-count', { count: items.length })}
             </span>
           )}
         </div>
@@ -119,26 +125,24 @@ export const RecentItems: React.FC<RecentItemsProps> = ({
                   <Inbox className="gba:w-8 gba:h-8 gba:text-muted-foreground" />
                 </div>
                 <h3 className="gba:text-lg gba:font-medium gba:text-foreground gba:mb-2">
-                  {searchQuery ? 'No items match your search' : 'No recent items yet'}
+                  {searchQuery ? t('empty-search-title') : t('empty-default-title')}
                 </h3>
                 <p className="gba:text-muted-foreground gba:mb-6">
-                  {searchQuery
-                    ? 'Try a different search term'
-                    : 'Create your first document, spreadsheet, or note to get started'}
+                  {searchQuery ? t('empty-search-description') : t('empty-default-description')}
                 </p>
                 {!searchQuery && (
                   <div className="gba:flex gba:justify-center gba:gap-3">
                     <Button variant="outline" size="sm" onClick={onCreateDocument} className="gba:gap-2">
                       <FileText className="gba:w-4 gba:h-4" />
-                      Document
+                      {t('type-document')}
                     </Button>
                     <Button variant="outline" size="sm" onClick={onCreateSpreadsheet} className="gba:gap-2">
                       <FileSpreadsheet className="gba:w-4 gba:h-4" />
-                      Spreadsheet
+                      {t('type-spreadsheet')}
                     </Button>
                     <Button variant="outline" size="sm" onClick={onCreateNote} className="gba:gap-2">
                       <StickyNote className="gba:w-4 gba:h-4" />
-                      Note
+                      {t('type-note')}
                     </Button>
                   </div>
                 )}
@@ -180,19 +184,19 @@ export const RecentItems: React.FC<RecentItemsProps> = ({
 
                   <div className="gba:flex-1 gba:min-w-0">
                     <h4 className="gba:font-medium gba:text-foreground gba:truncate gba:text-sm gba:leading-tight">
-                      <HighlightedText text={item.title || 'Untitled'} query={searchQuery} />
+                      <HighlightedText text={item.title || t('untitled')} query={searchQuery} />
                     </h4>
                     <div className="gba:flex gba:items-center gba:gap-1.5 gba:mt-0.5">
                       <span className="gba:text-[11px] gba:text-muted-foreground">{config.label}</span>
                       <span className="gba:text-muted-foreground/60">·</span>
                       <span className="gba:text-[11px] gba:text-muted-foreground">
-                        {formatRelativeTime(item.updatedAt)}
+                        {formatRelativeTime(item.updatedAt, t)}
                       </span>
                       {item.isShared && (
                         <>
                           <span className="gba:text-muted-foreground/60">·</span>
                           <span className="gba:inline-flex gba:items-center gba:px-1.5 gba:py-0 gba:rounded-full gba:bg-desk-badge-golden gba:text-desk-badge-golden-foreground gba:text-[10px] gba:font-medium">
-                            Shared
+                            {t('shared')}
                           </span>
                         </>
                       )}

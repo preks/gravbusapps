@@ -1,264 +1,264 @@
-sidebar-back-to-desk = Back to Desk
-sidebar-expand = Expand sidebar
-sidebar-collapse = Collapse sidebar
-sidebar-brand-title = Notes
+sidebar-back-to-desk = Înapoi la birou
+sidebar-expand = Extinde panoul lateral
+sidebar-collapse = Restrânge panoul lateral
+sidebar-brand-title = Note
 sidebar-brand-subtitle = NEWWORK Apps
-sidebar-new = New
-sidebar-home = Home
-sidebar-my-items = My Notes
-sidebar-shared = Shared with me
-sidebar-pinned = Pinned
-sidebar-recent = Recent
-sidebar-archived = Archived
-sidebar-storage = Storage
-sidebar-storage-cloud = Cloud storage
-sidebar-storage-notes = { $count } notes
+sidebar-new = Nou
+sidebar-home = Acasă
+sidebar-my-items = Notele mele
+sidebar-shared = Partajat cu mine
+sidebar-pinned = Fixate
+sidebar-recent = Recente
+sidebar-archived = Arhivate
+sidebar-storage = Depozitare
+sidebar-storage-cloud = Depozitare cloud
+sidebar-storage-notes = { $count } note
 
-menu-new-text-title = Text Note
-menu-new-text-description = Type with keyboard
-menu-new-handwriting-title = Handwriting Note
-menu-new-handwriting-description = Write with Apple Pencil
-menu-new-template-title = From Template
-menu-new-template-description = Choose a template
+menu-new-text-title = Notă text
+menu-new-text-description = Tastați cu tastatura
+menu-new-handwriting-title = Notă manuscrisă
+menu-new-handwriting-description = Scrieți cu Apple Pencil
+menu-new-template-title = Din șablon
+menu-new-template-description = Alegeți un șablon
 
-header-sort = Sort
-header-search-placeholder = Search...
-sort-name = Name
-sort-modified = Modified
-sort-created = Created
-table-owner = Owner
+header-sort = Sortare
+header-search-placeholder = Căutare...
+sort-name = Nume
+sort-modified = Modificat
+sort-created = Creat
+table-owner = Proprietar
 
-empty-pinned-title = No pinned notes
-empty-pinned-description = Pin your important notes to access them quickly.
-empty-shared-title = Nothing shared with you
-empty-shared-description = When someone shares a note with you, it will appear here.
-empty-archived-title = No archived notes
-empty-archived-description = Archived notes will appear here.
-empty-default-title = No notes yet
-empty-default-description = Create your first note to get started.
-empty-create-note = Create Note
+empty-pinned-title = Nu există note fixate
+empty-pinned-description = Fixați notele importante pentru acces rapid.
+empty-shared-title = Nimic partajat cu dvs.
+empty-shared-description = Notele partajate vor apărea aici.
+empty-archived-title = Nu există note arhivate
+empty-archived-description = Notele arhivate vor apărea aici.
+empty-default-title = Încă nu există note
+empty-default-description = Creați prima notă.
+empty-create-note = Creați notă
 
-menu-open = Open
-menu-share = Share
-menu-copy-link = Copy link
-menu-duplicate = Duplicate
-menu-pin = Pin
-menu-unpin = Unpin
-menu-remove-favorite = Remove from favorites
-menu-add-favorite = Add to favorites
-menu-archive = Archive
-menu-delete = Delete
+menu-open = Deschide
+menu-share = Partajare
+menu-copy-link = Copiază link
+menu-duplicate = Duplicare
+menu-pin = Fixare
+menu-unpin = Defixare
+menu-remove-favorite = Eliminați din favorite
+menu-add-favorite = Adăugați la favorite
+menu-archive = Arhivare
+menu-delete = Ștergere
 
-owner-you = You
-owner-unknown = Unknown
-title-untitled-note = Untitled Note
-title-untitled = Untitled
-label-shared = Shared
-shared-with-count = Shared with { $count } { $count ->
-  [one] person
- *[other] people
+owner-you = Dvs.
+owner-unknown = Necunoscut
+title-untitled-note = Notă fără titlu
+title-untitled = Fără titlu
+label-shared = Partajat
+shared-with-count = Partajat cu { $count } { $count ->
+  [one] persoană
+ *[other] persoane
 }
-shared-click-manage = Click to manage
+shared-click-manage = Apăsați pentru gestionare
 
-confirm-delete = Are you sure you want to delete this note?
-toast-note-duplicated = Note duplicated
-toast-note-unpinned = Note unpinned
-toast-note-pinned = Note pinned
-toast-note-archived = Note archived
-toast-link-copied = Link copied to clipboard
-toast-favorite-removed = Removed from favorites
-toast-favorite-added = Added to favorites
-toast-text-note-created = Text note created
+confirm-delete = Sunteți sigur că doriți să ștergeți această notă?
+toast-note-duplicated = Notă duplicată
+toast-note-unpinned = Notă defixată
+toast-note-pinned = Notă fixată
+toast-note-archived = Notă arhivată
+toast-link-copied = Link copiat în clipboard
+toast-favorite-removed = Eliminat din favorite
+toast-favorite-added = Adăugat la favorite
+toast-text-note-created = Notă text creată
 
 # Relative time
-time-just-now = Just now
-time-yesterday = Yesterday
-time-minutes-ago = { $count }m ago
-time-hours-ago = { $count }h ago
-time-days-ago = { $count }d ago
-time-days-ago-plural = { $count } days ago
+time-just-now = Acum
+time-yesterday = Ieri
+time-minutes-ago = acum { $count } min
+time-hours-ago = acum { $count } h
+time-days-ago = acum { $count } zile
+time-days-ago-plural = acum { $count } zile
 
 # FolderTreeSidebar
-folder-add-note-inside = Add Note Inside
-folder-rename = Rename
-folder-move-to = Move to...
-folder-folders = Folders
-folder-new-note = New Note
-folder-collapse-sidebar = Collapse Sidebar
-folder-all-notes = All Notes
-folder-favorites = Favorites
-folder-archive = Archive
-folder-no-folders = No folders yet
-folder-create-to-start = Create a note to get started
-folder-settings = Settings
+folder-add-note-inside = Adăugați notă aici
+folder-rename = Redenumire
+folder-move-to = Mutați la...
+folder-folders = Foldere
+folder-new-note = Notă nouă
+folder-collapse-sidebar = Restrânge panoul lateral
+folder-all-notes = Toate notele
+folder-favorites = Favorite
+folder-archive = Arhivă
+folder-no-folders = Încă nu există foldere
+folder-create-to-start = Creați o notă pentru a începe
+folder-settings = Setări
 
 # ShareNoteDialog
-share-title = Share "{ $title }"
-share-description = Share this note with team members. They'll be able to collaborate in real-time.
-share-add-people = Add People
-share-search-placeholder = Search by name or email...
-share-searching = Searching...
-share-sharing = Sharing...
-share-no-users = No users found
-share-selected-count = Selected ({ $count })
-share-permission-label = Permission:
-share-permission-view = Can View
-share-permission-view-desc = Can view but not make changes
-share-permission-comment = Can Comment
-share-permission-comment-desc = Can view and add comments
-share-permission-edit = Can Edit
-share-permission-edit-desc = Can view and edit content
-share-permission-owner = Owner
-share-permission-owner-desc = Full access including sharing
-share-success-blink = Shared successfully! Blink notifications sent.
-share-share-with = Share with { $count } { $count ->
-  [one] person
- *[other] people
+share-title = Partajați „{ $title }"
+share-description = Partajați această notă cu membrii echipei. Colaborare în timp real.
+share-add-people = Adăugați persoane
+share-search-placeholder = Căutați după nume sau e-mail...
+share-searching = Căutare...
+share-sharing = Se partajează...
+share-no-users = Nu s-au găsit utilizatori
+share-selected-count = Selectate ({ $count })
+share-permission-label = Permisiune:
+share-permission-view = Poate vizualiza
+share-permission-view-desc = Poate vizualiza dar nu modifica
+share-permission-comment = Poate comenta
+share-permission-comment-desc = Poate vizualiza și adăuga comentarii
+share-permission-edit = Poate edita
+share-permission-edit-desc = Poate vizualiza și edita
+share-permission-owner = Proprietar
+share-permission-owner-desc = Acces complet inclusiv partajare
+share-success-blink = Partajat cu succes! Notificări Blink trimise.
+share-share-with = Partajat cu { $count } { $count ->
+  [one] persoană
+ *[other] persoane
 }
-share-people-with-access = People with access
-share-label-owner = Owner
-share-not-shared = Not shared with anyone yet
-share-add-above = Add people above to share this note
-share-done = Done
-share-error-select = Please select at least one user to share with
-share-error-failed = Failed to share note. Please try again.
-share-toast-success = Shared "{ $title }" with { $count } { $count ->
-  [one] person
- *[other] people
+share-people-with-access = Persoane cu acces
+share-label-owner = Proprietar
+share-not-shared = Încă nu e partajat cu nimeni
+share-add-above = Adăugați persoane mai sus pentru partajare
+share-done = Gata
+share-error-select = Selectați cel puțin un utilizator pentru partajare
+share-error-failed = Partajarea notei a eșuat. Încercați din nou.
+share-toast-success = „{ $title }" partajat cu { $count } { $count ->
+  [one] persoană
+ *[other] persoane
 }!
 
 # ManageSharesDialog
-manage-title = Manage Sharing
-manage-description = Manage who has access to "{ $title }"
-manage-retry = Retry
-manage-load-failed = Failed to load sharing information
-manage-people-tab = People ({ $count })
-manage-links-tab = Share Links ({ $count })
-manage-not-shared = This note hasn't been shared with anyone yet.
-manage-shared-at = Shared { $date }
-manage-create-link = Create Share Link
-manage-permission = Permission
-manage-expires-optional = Expires (optional)
-manage-permission-view-label = View
-manage-permission-comment-label = Comment
-manage-permission-edit-label = Edit
-manage-can-view = Can view
-manage-can-comment = Can comment
-manage-can-edit = Can edit
-manage-creating = Creating...
-manage-create-link-btn = Create Link
-manage-no-links = No share links created yet.
-manage-active = Active
-manage-inactive = Inactive
-manage-created-at = Created { $date }
-manage-expires-at = Expires { $date }
-manage-uses-count = { $count } uses
-manage-toast-permission = Permission updated
-manage-toast-revoked = Access revoked
-manage-toast-link-created = Link created and copied to clipboard!
-manage-toast-link-copied = Link copied to clipboard!
-manage-toast-link-deactivated = Link deactivated
-manage-toast-link-deleted = Link deleted
+manage-title = Gestionați partajarea
+manage-description = Gestionați cine are acces la „{ $title }"
+manage-retry = Încercați din nou
+manage-load-failed = Nu s-au putut încărca informațiile de partajare
+manage-people-tab = Persoane ({ $count })
+manage-links-tab = Linkuri partajare ({ $count })
+manage-not-shared = Această notă nu a fost partajată încă cu nimeni.
+manage-shared-at = Partajat { $date }
+manage-create-link = Creați link partajare
+manage-permission = Permisiune
+manage-expires-optional = Expiră (opțional)
+manage-permission-view-label = Vizualizare
+manage-permission-comment-label = Comentariu
+manage-permission-edit-label = Editare
+manage-can-view = Poate vizualiza
+manage-can-comment = Poate comenta
+manage-can-edit = Poate edita
+manage-creating = Se creează...
+manage-create-link-btn = Creați link
+manage-no-links = Încă nu există linkuri de partajare.
+manage-active = Activ
+manage-inactive = Inactiv
+manage-created-at = Creat { $date }
+manage-expires-at = Expiră { $date }
+manage-uses-count = { $count } utilizări
+manage-toast-permission = Permisiune actualizată
+manage-toast-revoked = Acces revocat
+manage-toast-link-created = Link creat și copiat în clipboard!
+manage-toast-link-copied = Link copiat în clipboard!
+manage-toast-link-deactivated = Link dezactivat
+manage-toast-link-deleted = Link șters
 
 # SearchCommand
-search-placeholder = Search notes or type a command...
-search-to-close = to close
-search-searching = Searching...
-search-no-results = No results found for "{ $query }"
-search-try-different = Try a different search term
-search-start-typing = Start typing to search notes
-search-category-recent = Recent
-search-category-notes = Notes
-search-category-actions = Quick Actions
-search-category-create = Create
-search-new-note = New Note
-search-new-note-desc = Create a blank note
-search-new-folder = New Folder
-search-new-folder-desc = Create a new folder
-search-go-pinned = Go to Pinned
-search-go-pinned-desc = View pinned notes
-search-go-archive = Go to Archive
-search-go-archive-desc = View archived notes
-search-go-shared = Go to Shared
-search-go-shared-desc = View shared notes
-search-to-navigate = to navigate
+search-placeholder = Căutați note sau tastați o comandă...
+search-to-close = pentru închidere
+search-searching = Căutare...
+search-no-results = Nu s-au găsit rezultate pentru „{ $query }"
+search-try-different = Încercați alt termen de căutare
+search-start-typing = Tastați pentru a căuta
+search-category-recent = Recente
+search-category-notes = Note
+search-category-actions = Acțiuni rapide
+search-category-create = Creați
+search-new-note = Notă nouă
+search-new-note-desc = Creați o notă goală
+search-new-folder = Folder nou
+search-new-folder-desc = Creați un folder nou
+search-go-pinned = Mergi la fixate
+search-go-pinned-desc = Vizualizați notele fixate
+search-go-archive = Mergi la arhivă
+search-go-archive-desc = Vizualizați notele arhivate
+search-go-shared = Mergi la partajate
+search-go-shared-desc = Vizualizați notele partajate
+search-to-navigate = pentru navigare
 search-to-select = pentru selectare
 search-k-to-open = K pentru deschidere
 search-key-esc = Esc
 
 # NotePreviewCard
-preview-shared-by = Shared by { $name }
+preview-shared-by = Partajat de { $name }
 preview-notes-count = { $count } { $count ->
-  [one] note
- *[other] notes
+  [one] notă
+ *[other] note
 }
-preview-menu-edit = Edit
-preview-menu-move-to = Move to...
-preview-menu-manage-shares = Manage Shares
+preview-menu-edit = Editează
+preview-menu-move-to = Mută la...
+preview-menu-manage-shares = Gestionați partajările
 
 # ActionItemsModal
-action-items-title = Action Items
-action-items-desc = Assign action items to team members. Selected items will be sent as blinks.
-action-items-tip = Tip: edit wording, remove items you don't want, then assign.
-action-items-add = Add
-action-items-assign-all = Assign all
-action-items-assign-all-desc = Apply one assignee to all action items (you can still change per item).
-action-items-assign-all-to = Assign all to…
-action-items-search = Search employees...
-action-items-no-employees = No employees found
-action-items-load-more = Load more
-action-items-loading = Loading...
-action-items-cancel = Cancel
-action-items-no-items = No action items found
-action-items-empty = Empty action item
-action-items-placeholder = Write an action item...
-action-items-save = Save
-action-items-assign-to = Assign to...
-action-items-sending = Sending...
-action-items-send-blinks = Send { $count } Blink{ $count ->
+action-items-title = Elemente de acțiune
+action-items-desc = Atribuiți elemente de acțiune membrilor echipei. Elementele selectate vor fi trimise ca blink-uri.
+action-items-tip = Sfat: editați formularea, eliminați ce nu vă interesează, apoi atribuiți.
+action-items-add = Adaugă
+action-items-assign-all = Atribuiți toate
+action-items-assign-all-desc = Aplicați un responsabil la toate elementele (încă puteți schimba per element).
+action-items-assign-all-to = Atribuiți toate la…
+action-items-search = Căutați angajați...
+action-items-no-employees = Nu s-au găsit angajați
+action-items-load-more = Încarcă mai multe
+action-items-loading = Se încarcă...
+action-items-cancel = Anulare
+action-items-no-items = Nu s-au găsit elemente de acțiune
+action-items-empty = Element de acțiune gol
+action-items-placeholder = Scrieți un element de acțiune...
+action-items-save = Salvare
+action-items-assign-to = Atribuiți la...
+action-items-sending = Se trimite...
+action-items-send-blinks = Trimite { $count } Blink{ $count ->
   [one]
  *[other] s
 }
-action-items-clear-all = Clear all assignees
-action-items-toast-select = Select at least one action item with text + assignee
-action-items-toast-sent = Sent { $count } action item{ $count ->
+action-items-clear-all = Ștergeți toate atribuirile
+action-items-toast-select = Selectați cel puțin un element cu text și responsabil
+action-items-toast-sent = Trimise { $count } element{ $count ->
   [one]
- *[other] s
-} as blinks
-action-items-toast-failed-single = Failed to send { $count } action item
-action-items-toast-failed-plural = Failed to send { $count } action items
+ *[other] e
+} de acțiune ca blink-uri
+action-items-toast-failed-single = Nu s-a putut trimite { $count } element
+action-items-toast-failed-plural = Nu s-au putut trimite { $count } elemente
 action-items-toast-error = Nu s-au putut trimite elementele de acțiune
 action-items-blink-failed = Nu s-a putut trimite blink-ul
 
 # TransformMenu
-transform-label = Transform
-transform-copy-text = Copy as Text
-transform-copy-text-desc = Extract and copy text
-transform-to-text = Convert to Text
-transform-to-text-desc = Replace with typed text
-transform-create-text-note = Create Text Note
-transform-create-text-note-desc = New note with text
-transform-summarize = Summarize
-transform-summarize-desc = AI summary of content
-transform-action-items = Extract Action Items
-transform-action-items-desc = Find tasks and to-dos
-transform-translate = Translate
-transform-translate-desc = Choose target language
+transform-label = Transformare
+transform-copy-text = Copiați ca text
+transform-copy-text-desc = Extrageți și copiați textul
+transform-to-text = Convertiți în text
+transform-to-text-desc = Înlocuiți cu text tastat
+transform-create-text-note = Creați notă text
+transform-create-text-note-desc = Notă nouă cu text
+transform-summarize = Rezumat
+transform-summarize-desc = Rezumat AI al conținutului
+transform-action-items = Extrageți elemente de acțiune
+transform-action-items-desc = Găsiți sarcini și de făcut
+transform-translate = Traducere
+transform-translate-desc = Alegeți limba țintă
 
 # SummaryPanel
-summary-title = AI Summary
-summary-copy-aria = Copy summary
-summary-delete-aria = Delete summary
-summary-collapse-aria = Collapse summary
-summary-expand-aria = Expand summary
+summary-title = Rezumat AI
+summary-copy-aria = Copiați rezumatul
+summary-delete-aria = Ștergeți rezumatul
+summary-collapse-aria = Restrângeți rezumatul
+summary-expand-aria = Extindeți rezumatul
 
 # TranslationPanel
-translation-title = Translation
-translation-to = to { $language }
-translation-copy-aria = Copy translation
-translation-delete-aria = Delete translation
-translation-collapse-aria = Collapse translation
-translation-expand-aria = Expand translation
+translation-title = Traducere
+translation-to = în { $language }
+translation-copy-aria = Copiați traducerea
+translation-delete-aria = Ștergeți traducerea
+translation-collapse-aria = Restrângeți traducerea
+translation-expand-aria = Extindeți traducerea
 
 # Kanban
 kanban-placeholder-enter-content = Introduceți conținutul cardului...
@@ -283,15 +283,15 @@ kanban-color-pink = Roz
 kanban-column-todo = De făcut
 kanban-column-in-progress = În desfășurare
 kanban-column-done = Finalizat
-kanban-filter-all = Show all cards
+kanban-filter-all = Arătați toate cardurile
 
 # TemplateGallery
-template-title = Choose a Template
-template-description = Start with a pre-built template to save time
-template-search-placeholder = Search templates...
-template-tab-all = All
-template-no-templates = No templates found
-template-try-different = Try a different search term
+template-title = Alegeți un șablon
+template-description = Începeți cu un șablon pregătit pentru a economisi timp
+template-search-placeholder = Căutați șabloane...
+template-tab-all = Toate
+template-no-templates = Nu s-au găsit șabloane
+template-try-different = Încercați alt termen de căutare
 template-category-meetings = Întâlniri
 template-category-projects = Proiecte
 template-category-personal = Personal
@@ -326,8 +326,8 @@ editor-color-blue = Albastru
 editor-color-purple = Mov
 editor-color-pink = Roz
 editor-color-gray = Gri
-editor-format-bold = Bold (⌘B)
-editor-format-italic = Italic (⌘I)
+editor-format-bold = Îngroșat (⌘B)
+editor-format-italic = Cursiv (⌘I)
 editor-format-underline = Subliniat (⌘U)
 editor-format-strikethrough = Tăiat
 editor-format-heading-1 = Titlu 1
@@ -364,7 +364,7 @@ editor-unlock-note = Deblocare notă
 editor-lock-note = Blocare notă
 editor-publish = Publicare…
 editor-duplicate = Duplicare
-editor-export = Export
+editor-export = Exportă
 editor-archive = Arhivare
 editor-delete = Ștergere
 editor-toast-not-authenticated = Neautentificat
@@ -438,7 +438,7 @@ template-desc-bug-report = Documentați defecțiunile cu pași de reproducere ș
 
 # Translation language names
 translation-language-en = Engleză
-translation-language-de = Germana
+translation-language-de = Germană
 translation-language-es = Spaniolă
 translation-language-fr = Franceză
 translation-language-it = Italiană
@@ -466,44 +466,44 @@ handwriting-action-items-desc = Starea blink-urilor create din această notă.
 handwriting-clear-confirm = Șterge toată manuscrisul?
 
 # HandwritingToolbar
-toolbar-color = Color:
-toolbar-size = Size:
-toolbar-paper = Paper:
-toolbar-undo = Undo last stroke
-toolbar-clear = Clear all
-toolbar-pen-black = Black
-toolbar-pen-blue = Blue
-toolbar-pen-red = Red
-toolbar-pen-green = Green
-toolbar-pen-purple = Purple
-toolbar-pen-fine = Fine
-toolbar-pen-medium = Medium
-toolbar-pen-bold = Bold
-toolbar-paper-lined = Lined
-toolbar-paper-grid = Grid
-toolbar-paper-dotted = Dotted
-toolbar-paper-plain = Plain
+toolbar-color = Culoare:
+toolbar-size = Dimensiune:
+toolbar-paper = Hârtie:
+toolbar-undo = Revine la ultima linie
+toolbar-clear = Ștergeți totul
+toolbar-pen-black = Negru
+toolbar-pen-blue = Albastru
+toolbar-pen-red = Roșu
+toolbar-pen-green = Verde
+toolbar-pen-purple = Mov
+toolbar-pen-fine = Fin
+toolbar-pen-medium = Mediu
+toolbar-pen-bold = Îngroșat
+toolbar-paper-lined = Liniat
+toolbar-paper-grid = Caroiaj
+toolbar-paper-dotted = Punctat
+toolbar-paper-plain = Alb
 
 # ActionItemsList
-action-items-list-empty = No action items yet. Use "Transform → Extract Action Items" to create blinks.
-action-items-status-completed = Completed
-action-items-status-in-progress = In progress
-action-items-status-failed = Failed
-action-items-status-canceled = Canceled
-action-items-status-unknown = Unknown
-action-items-sent = Sent: { $date }
-action-items-completed = Completed: { $date }
+action-items-list-empty = Încă nu există elemente. Folosiți „Transformare → Extrage elemente" pentru blink-uri.
+action-items-status-completed = Finalizat
+action-items-status-in-progress = În curs
+action-items-status-failed = Eșuat
+action-items-status-canceled = Anulat
+action-items-status-unknown = Necunoscut
+action-items-sent = Trimis: { $date }
+action-items-completed = Finalizat: { $date }
 
 # Synced missing keys
-handwriting-not-authenticated = Not authenticated
-handwriting-no-content = No handwriting to transform
-handwriting-transform-failed = Transform failed
-handwriting-copied = ✓ Copied to clipboard!
-handwriting-converted = ✓ Converted to text!
-handwriting-text-extracted = ✓ Text extracted!
-handwriting-note-created = ✓ Text note created!
-handwriting-copied-not-available = ✓ Copied (note creation not available)
-handwriting-summary-generated = ✓ Summary generated!
+handwriting-not-authenticated = Nu sunteți autentificat
+handwriting-no-content = Nicio manuscris de transformat
+handwriting-transform-failed = Transformare eșuată
+handwriting-copied = ✓ Copiat în clipboard!
+handwriting-converted = ✓ Convertit în text!
+handwriting-text-extracted = ✓ Text extras!
+handwriting-note-created = ✓ Notă text creată!
+handwriting-copied-not-available = ✓ Copiat (crearea notei nu este disponibilă)
+handwriting-summary-generated = ✓ Rezumat generat!
 handwriting-action-items-found = ✓ Găsite { $count } element{ $count ->
   [one]
  *[other] e

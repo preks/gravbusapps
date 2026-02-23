@@ -545,6 +545,8 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       }
     }, [document?.id, document?.title, currentUserId, currentUserName, currentUserAvatar, isReadOnly, t])
 
+    const isCollaborationMode = Boolean(document?.id)
+
     // Initialize TipTap editor
     const editor = useEditor(
       {
@@ -553,8 +555,11 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
             heading: {
               levels: [1, 2, 3, 4, 5, 6]
             },
-            // Disable history when using Collaboration (Yjs provides its own history)
-            history: document?.id ? false : {}
+            // Disable local history/undo-redo in collaboration mode (Yjs provides this).
+            ...(isCollaborationMode ? { history: false, undoRedo: false } : {}),
+            // Avoid duplicate names when Link/Underline are configured explicitly below.
+            link: false,
+            underline: false
           }),
           Placeholder.configure({
             placeholder: t('editor-content-placeholder')
@@ -618,7 +623,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           }
         }
       },
-      [document?.id, ydoc, editorContent, editorEditable, t]
+      [document?.id, ydoc, editorContent, editorEditable, isCollaborationMode, t]
     )
 
     // Inject collaboration cursor styles once on mount

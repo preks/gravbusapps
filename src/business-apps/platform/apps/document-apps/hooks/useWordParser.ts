@@ -6,8 +6,10 @@
  */
 
 import { useState, useCallback } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import mammoth from 'mammoth'
 import type { ParsedWordDocument, WordParserMessage, WordImage } from '../types'
+import translations from '../_i18n'
 
 interface UseWordParserState {
   isLoading: boolean

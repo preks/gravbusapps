@@ -21,7 +21,8 @@ import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
-  TooltipTrigger
+  TooltipTrigger,
+  useTranslation
 } from '@newwork/nw-design-system'
 import {
   FileText,

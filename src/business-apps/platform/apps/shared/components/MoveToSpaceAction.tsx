@@ -113,8 +113,6 @@ export const MoveToSpaceDialog: React.FC<MoveToSpaceDialogProps> = ({
   const { t } = useTranslation(sharedTranslations)
   const defaultMoveToSpaceMessages = {
     title: t('move-to-space-title'),
-    descriptionWithName: t('move-to-space-description-with-name'),
-    descriptionGeneric: t('move-to-space-description-generic'),
     searchPlaceholder: t('move-to-space-search-placeholder'),
     noMatching: t('move-to-space-no-matching'),
     noSpaces: t('move-to-space-no-spaces'),
@@ -229,8 +227,12 @@ export const MoveToSpaceDialog: React.FC<MoveToSpaceDialogProps> = ({
             </DialogTitle>
             <DialogDescription className="gba:text-muted-foreground">
               {contentName
-                ? messages.descriptionWithName.replace(/{name}/g, contentName).replace(/{[^}]*name[^}]*}/g, contentName)
-                : messages.descriptionGeneric.replace(/{[^}]*type[^}]*}/g, t('move-to-space-type-' + contentType))}
+                ? (messages.descriptionWithName
+                    ?.replace(/{name}/g, contentName)
+                    .replace(/{[^}]*name[^}]*}/g, contentName) ??
+                  t('move-to-space-description-with-name', { name: contentName }))
+                : (messages.descriptionGeneric?.replace(/{[^}]*type[^}]*}/g, t('move-to-space-type-' + contentType)) ??
+                  t('move-to-space-description-generic', { type: t('move-to-space-type-' + contentType) }))}
             </DialogDescription>
           </DialogHeader>
 

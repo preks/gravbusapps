@@ -62,7 +62,7 @@ version-history-loading = Se încarcă versiunile...
 version-history-no-history = Încă nu există istoric versiuni
 version-history-version = Versiune
 version-history-current = Curentă
-version-history-checkpoint = Checkpoint
+version-history-checkpoint = Punct de verificare
 version-history-autosave = Salvare automată
 version-history-restore-title = Restaurați această versiune
 version-history-select-to-compare = Selectați două versiuni pentru comparație. Dați clic pe o versiune pentru a o selecta.
@@ -121,27 +121,27 @@ publish-dialog-entity-document = document
 publish-dialog-entity-note = notă
 publish-dialog-entity-spreadsheet = aplicație tabel
 
-# Synced missing keys
-dimension-select-type-prompt = Select a group type to create your space from
-dimension-select-from = Select from
-dimension-search-placeholder = Search...
-dimension-no-results = No results found
-dimension-no-available = No dimensions available
-dimension-members-to-add = Members to add
-dimension-no-members-found = No members found
-dimension-cannot-create-empty = Cannot create with no members
-dimension-step-type = 1. Type
-dimension-step-group = 2. Group
-dimension-step-confirm = 3. Confirm
-dimension-cancel = Cancel
-dimension-back = Back
-dimension-continue = Continue
-dimension-available = available
-dimension-organization-unit = Organization Unit
-dimension-matrix-team = Matrix Team
-dimension-location = Location
-dimension-legal-entity = Legal Entity
-dimension-capability = Capability
+# DimensionPicker
+dimension-select-type-prompt = Selectați un tip de grup pentru a crea space-ul
+dimension-select-from = Selectați din
+dimension-search-placeholder = Căutare...
+dimension-no-results = Nu s-au găsit rezultate
+dimension-no-available = Nu există dimensiuni disponibile
+dimension-members-to-add = Membri de adăugat
+dimension-no-members-found = Nu s-au găsit membri
+dimension-cannot-create-empty = Nu se poate crea fără membri
+dimension-step-type = 1. Tip
+dimension-step-group = 2. Grup
+dimension-step-confirm = 3. Confirmare
+dimension-cancel = Anulare
+dimension-back = Înapoi
+dimension-continue = Continuare
+dimension-available = disponibil
+dimension-organization-unit = Unitate organizațională
+dimension-matrix-team = Echipă matricială
+dimension-location = Locație
+dimension-legal-entity = Entitate juridică
+dimension-capability = Capacitate
 
 # StatusBadge
 status-badge-draft = Ciornă
@@ -150,9 +150,9 @@ status-badge-published = Publicat
 status-badge-archived = Arhivat
 
 # Pagination labels
-pagination-prev = Previous
-pagination-next = Next
-pagination-range = Showing { $start }–{ $end } of { $total }
+pagination-prev = Anterior
+pagination-next = Următorul
+pagination-range = Afișare { $start }–{ $end } din { $total }
 
 # Shared hook fallback errors
 shared-error-load-versions = Nu s-au putut încărca versiunile

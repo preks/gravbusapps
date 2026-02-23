@@ -9,8 +9,10 @@
 
 import { useState, useCallback, useEffect } from 'react'
 import { toast } from 'sonner'
+import { useTranslation } from '@newwork/nw-design-system'
 import { DocumentApiService } from '../services/DocumentApiService'
 import type { Document, DocumentSummary, ApprovalWorkflowConfig, DocumentApprovalRequest } from '../types'
+import translations from '../_i18n'
 
 interface UseDocumentAppsState {
   documents: DocumentSummary[]
