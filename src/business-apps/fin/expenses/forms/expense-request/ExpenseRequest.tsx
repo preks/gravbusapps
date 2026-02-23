@@ -1,6 +1,7 @@
 import React from 'react'
 import { Divider, Typography, Form } from 'antd'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { Spinner } from '@newwork/nw-design-system'
 import { ICONS } from '../../utils/icons'
 import { Button } from '@newwork/gravity-ui-catalog'
 import { ExpenseRequestProvider, useExpenseRequestContext } from './context/ExpenseRequestContext'
@@ -13,8 +14,7 @@ import { formatDateToISO, getTranslationFromI18nKeyAndLabel } from '@/common/uti
 import { showToast } from '../../utils/notificationUtils'
 import { FORM_STEPS, REQUEST_TYPES, REQUEST_STATUS, DISABLED_FLAG, PLAN_TYPE_ENUM } from './constants/constants'
 import { EVENTS } from '../../utils/constants'
-
-const { Title } = Typography
+import { FormHeaderTitle } from './components'
 
 interface ExpenseRequestContentProps {
   accessToken?: string
@@ -86,6 +86,20 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
     const tripType = getCatalogTypeTransformer(REQUEST_TYPES.TRIP, expenseCatalogueData)
     return tripType?.additionalValue1 === DISABLED_FLAG
   }, [expenseCatalogueData])
+
+  /** Show loader on START until catalogue is loaded so request-type visibility (e.g. hide expense for Selgros) is known and no flicker */
+  const isStartStepConditionsLoading = React.useMemo(
+    () =>
+      step === FORM_STEPS.START &&
+      (loading || (expenseCatalogueData == null && Boolean(userInfo?.employeeDetails?.employeeId))),
+    [step, loading, expenseCatalogueData, userInfo?.employeeDetails?.employeeId]
+  )
+
+  /** Stable title for start step so memoized header does not re-render when context updates. */
+  const expenseRequestStartTitle = React.useMemo(
+    () => getTranslationFromI18nKeyAndLabel('lowcoder:create_expense_request.initiate_title_header', 'Expense Request'),
+    []
+  )
 
   const handleExpenseClick = () => {
     setStep(FORM_STEPS.EXPENSE)
@@ -375,29 +389,14 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
                 data-testid="expense-form-back-icon"
               />
             </Button>
-            <div
-              className="gba:flex-1"
-              style={{
-                position: 'absolute',
-                left: 0,
-                right: 0,
-                display: 'flex',
-                justifyContent: 'center',
-                pointerEvents: 'none'
-              }}
-              data-testid="expense-form-title-container"
-            >
-              <Title
-                level={4}
-                style={{ margin: 0, textAlign: 'center', fontFamily: "'Roboto', sans-serif", pointerEvents: 'auto' }}
-                data-testid="expense-form-header-title"
-              >
-                {step == FORM_STEPS.PLAN
+            <FormHeaderTitle
+              title={
+                step === FORM_STEPS.PLAN
                   ? getTranslationFromI18nKeyAndLabel(
                       'lowcoder:create_expense_request.initial_expense_plan_select_placeholder',
                       'Select Expense Plan'
                     )
-                  : step == REQUEST_TYPES.EXPENSE
+                  : step === REQUEST_TYPES.EXPENSE
                     ? getTranslationFromI18nKeyAndLabel(
                         'lowcoder:create_expense_request.expense_request_container.create_expense_header',
                         'New Expense Request'
@@ -405,9 +404,11 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
                     : getTranslationFromI18nKeyAndLabel(
                         'lowcoder:create_expense_request.expense_request_container.create_expense_header_trip',
                         'New Expense Request for Trip'
-                      )}
-              </Title>
-            </div>
+                      )
+              }
+              titleContainerTestId="expense-form-title-container"
+              headerTitleTestId="expense-form-header-title"
+            />
           </div>
           <Divider style={{ margin: '0 0 30px 0' }} data-testid="expense-form-header-divider" />
 
@@ -489,180 +490,50 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
             }}
             data-testid="expense-request-header-container"
           >
-            <div
-              className="gba:flex-1"
-              style={{
-                position: 'absolute',
-                left: 0,
-                right: 0,
-                display: 'flex',
-                justifyContent: 'center',
-                pointerEvents: 'none'
-              }}
-              data-testid="expense-request-title-container"
-            >
-              <Title
-                level={4}
-                style={{ margin: 0, textAlign: 'center', fontFamily: "'Roboto', sans-serif", pointerEvents: 'auto' }}
-                data-testid="expense-request-header-title"
-              >
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:create_expense_request.initiate_title_header',
-                  'Expense Request'
-                )}
-              </Title>
-            </div>
+            <FormHeaderTitle
+              title={expenseRequestStartTitle}
+              titleContainerTestId="expense-request-title-container"
+              headerTitleTestId="expense-request-header-title"
+            />
           </div>
           <Divider style={{ margin: '0 0 30px 0' }} data-testid="expense-request-header-divider" />
 
           <div className="gba:flex gba:flex-col gba:flex-grow" data-testid="expense-request-start-content">
-            <Form
-              form={form}
-              layout="vertical"
-              data-testid="expense-request-form"
-              className="gba:flex gba:flex-col gba:flex-grow"
-            >
-              {/* Without Plan Section */}
-              <div data-testid="expense-request-without-plan-section">
-                <p
-                  style={{
-                    fontFamily: "'Roboto', sans-serif",
-                    fontSize: '14px',
-                    lineHeight: '16px',
-                    fontWeight: 600,
-                    marginBottom: '16px'
-                  }}
-                  data-testid="expense-request-without-plan-title"
-                >
-                  {getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:create_expense_request.not_based_plan_text',
-                    'Without Plan'
-                  )}
-                </p>
-
-                {/* Expense Button - Only show if not disabled */}
-                {!isExpenseDisabled && (
-                  <div className="gba:bg-muted gba:rounded gba:mb-4">
-                    <Button
-                      variant="ghost"
-                      style={{
-                        height: '96px',
-                        width: '100%',
-                        padding: '0 24px'
-                      }}
-                      data-testid="expense-request-expense-button"
-                      onClick={handleExpenseClick}
-                    >
-                      <div className="gba:flex gba:justify-between gba:items-center" style={{ width: '100%' }}>
-                        <div className="gba:flex gba:items-center">
-                          <img
-                            src={ICONS.RECEIPT_ICON}
-                            alt="Receipt"
-                            style={{ marginRight: '16px' }}
-                            width="32"
-                            height="32"
-                            data-testid="expense-request-receipt-icon"
-                          />
-                          <span
-                            style={{
-                              fontFamily: "'Roboto', sans-serif",
-                              fontSize: '18px',
-                              lineHeight: '20px',
-                              fontWeight: 600
-                            }}
-                            data-testid="expense-request-expense-text"
-                          >
-                            {getTranslationFromI18nKeyAndLabel(
-                              'lowcoder:create_expense_request.expense_select_button',
-                              'Expense'
-                            )}
-                          </span>
-                        </div>
-                        <img
-                          src={ICONS.RIGHT_ARROW}
-                          alt="Arrow"
-                          style={{ width: '24px', height: '24px' }}
-                          data-testid="expense-request-expense-arrow"
-                        />
-                      </div>
-                    </Button>
-                  </div>
-                )}
-
-                {/* Trip Button - Only show if not disabled */}
-                {!isTripDisabled && (
-                  <div className="gba:bg-muted gba:rounded gba:mb-4">
-                    <Button
-                      variant="ghost"
-                      style={{
-                        height: '96px',
-                        width: '100%',
-                        padding: '0 24px'
-                      }}
-                      data-testid="expense-request-trip-button"
-                      onClick={handleTripClick}
-                    >
-                      <div className="gba:flex gba:justify-between gba:items-center" style={{ width: '100%' }}>
-                        <div className="gba:flex gba:items-center">
-                          <img
-                            src={ICONS.TRIP_ICON}
-                            alt="Trip"
-                            style={{ marginRight: '16px' }}
-                            width="32"
-                            height="32"
-                            data-testid="expense-request-trip-icon"
-                          />
-                          <span
-                            style={{
-                              fontFamily: "'Roboto', sans-serif",
-                              fontSize: '18px',
-                              lineHeight: '20px',
-                              fontWeight: 600
-                            }}
-                            data-testid="expense-request-trip-text"
-                          >
-                            {getTranslationFromI18nKeyAndLabel(
-                              'lowcoder:create_expense_request.trip_select_button',
-                              'Trip'
-                            )}
-                          </span>
-                        </div>
-                        <img
-                          src={ICONS.RIGHT_ARROW}
-                          alt="Arrow"
-                          style={{ width: '24px', height: '24px' }}
-                          data-testid="expense-request-trip-arrow"
-                        />
-                      </div>
-                    </Button>
-                  </div>
-                )}
+            {isStartStepConditionsLoading ? (
+              <div
+                className="gba:flex gba:items-center gba:justify-center gba:flex-grow"
+                style={{ minHeight: '200px' }}
+                data-testid="expense-request-start-loading"
+              >
+                <Spinner size="lg" />
               </div>
+            ) : (
+              <Form
+                form={form}
+                layout="vertical"
+                data-testid="expense-request-form"
+                className="gba:flex gba:flex-col gba:flex-grow"
+              >
+                {/* Without Plan Section */}
+                <div data-testid="expense-request-without-plan-section">
+                  <p
+                    style={{
+                      fontFamily: "'Roboto', sans-serif",
+                      fontSize: '14px',
+                      lineHeight: '16px',
+                      fontWeight: 600,
+                      marginBottom: '16px'
+                    }}
+                    data-testid="expense-request-without-plan-title"
+                  >
+                    {getTranslationFromI18nKeyAndLabel(
+                      'lowcoder:create_expense_request.not_based_plan_text',
+                      'Without Plan'
+                    )}
+                  </p>
 
-              {/* Based on Plan Section - Only show if there are plans */}
-              {expenseCatalogueData?.ExpensePlan?.length > 0 && (
-                <>
-                  {/* Divider */}
-                  <Divider style={{ margin: '40px 0px 52px 0px' }} data-testid="expense-request-middle-divider" />
-
-                  <div data-testid="expense-request-with-plan-section">
-                    <p
-                      style={{
-                        fontFamily: "'Roboto', sans-serif",
-                        fontSize: '14px',
-                        lineHeight: '16px',
-                        fontWeight: 600,
-                        marginBottom: '16px'
-                      }}
-                      data-testid="expense-request-with-plan-title"
-                    >
-                      {getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:create_expense_request.based_plan_text',
-                        'Based on Plan'
-                      )}
-                    </p>
-
-                    {/* Plan Button */}
+                  {/* Expense Button - Only show if not disabled */}
+                  {!isExpenseDisabled && (
                     <div className="gba:bg-muted gba:rounded gba:mb-4">
                       <Button
                         variant="ghost"
@@ -671,18 +542,18 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
                           width: '100%',
                           padding: '0 24px'
                         }}
-                        data-testid="expense-request-plan-button"
-                        onClick={handlePlanClick}
+                        data-testid="expense-request-expense-button"
+                        onClick={handleExpenseClick}
                       >
                         <div className="gba:flex gba:justify-between gba:items-center" style={{ width: '100%' }}>
                           <div className="gba:flex gba:items-center">
                             <img
-                              src={ICONS.PLAN_ICON}
-                              alt="Plan"
+                              src={ICONS.RECEIPT_ICON}
+                              alt="Receipt"
                               style={{ marginRight: '16px' }}
                               width="32"
                               height="32"
-                              data-testid="expense-request-plan-icon"
+                              data-testid="expense-request-receipt-icon"
                             />
                             <span
                               style={{
@@ -691,31 +562,153 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
                                 lineHeight: '20px',
                                 fontWeight: 600
                               }}
-                              data-testid="expense-request-plan-text"
+                              data-testid="expense-request-expense-text"
                             >
                               {getTranslationFromI18nKeyAndLabel(
-                                'lowcoder:create_expense_request.plan_select_button',
-                                'My expense plans'
-                              )}{' '}
-                              ({expenseCatalogueData?.ExpensePlan?.length})
+                                'lowcoder:create_expense_request.expense_select_button',
+                                'Expense'
+                              )}
                             </span>
                           </div>
                           <img
                             src={ICONS.RIGHT_ARROW}
                             alt="Arrow"
                             style={{ width: '24px', height: '24px' }}
-                            data-testid="expense-request-plan-arrow"
+                            data-testid="expense-request-expense-arrow"
                           />
                         </div>
                       </Button>
                     </div>
-                  </div>
-                </>
-              )}
+                  )}
 
-              {/* Spacer to push content to the top */}
-              <div className="gba:flex-grow" data-testid="expense-request-spacer" />
-            </Form>
+                  {/* Trip Button - Only show if not disabled */}
+                  {!isTripDisabled && (
+                    <div className="gba:bg-muted gba:rounded gba:mb-4">
+                      <Button
+                        variant="ghost"
+                        style={{
+                          height: '96px',
+                          width: '100%',
+                          padding: '0 24px'
+                        }}
+                        data-testid="expense-request-trip-button"
+                        onClick={handleTripClick}
+                      >
+                        <div className="gba:flex gba:justify-between gba:items-center" style={{ width: '100%' }}>
+                          <div className="gba:flex gba:items-center">
+                            <img
+                              src={ICONS.TRIP_ICON}
+                              alt="Trip"
+                              style={{ marginRight: '16px' }}
+                              width="32"
+                              height="32"
+                              data-testid="expense-request-trip-icon"
+                            />
+                            <span
+                              style={{
+                                fontFamily: "'Roboto', sans-serif",
+                                fontSize: '18px',
+                                lineHeight: '20px',
+                                fontWeight: 600
+                              }}
+                              data-testid="expense-request-trip-text"
+                            >
+                              {getTranslationFromI18nKeyAndLabel(
+                                'lowcoder:create_expense_request.trip_select_button',
+                                'Trip'
+                              )}
+                            </span>
+                          </div>
+                          <img
+                            src={ICONS.RIGHT_ARROW}
+                            alt="Arrow"
+                            style={{ width: '24px', height: '24px' }}
+                            data-testid="expense-request-trip-arrow"
+                          />
+                        </div>
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Based on Plan Section - Only show if there are plans */}
+                {expenseCatalogueData?.ExpensePlan?.length > 0 && (
+                  <>
+                    {/* Divider */}
+                    <Divider style={{ margin: '40px 0px 52px 0px' }} data-testid="expense-request-middle-divider" />
+
+                    <div data-testid="expense-request-with-plan-section">
+                      <p
+                        style={{
+                          fontFamily: "'Roboto', sans-serif",
+                          fontSize: '14px',
+                          lineHeight: '16px',
+                          fontWeight: 600,
+                          marginBottom: '16px'
+                        }}
+                        data-testid="expense-request-with-plan-title"
+                      >
+                        {getTranslationFromI18nKeyAndLabel(
+                          'lowcoder:create_expense_request.based_plan_text',
+                          'Based on Plan'
+                        )}
+                      </p>
+
+                      {/* Plan Button */}
+                      <div className="gba:bg-muted gba:rounded gba:mb-4">
+                        <Button
+                          variant="ghost"
+                          style={{
+                            height: '96px',
+                            width: '100%',
+                            padding: '0 24px'
+                          }}
+                          data-testid="expense-request-plan-button"
+                          onClick={handlePlanClick}
+                        >
+                          <div className="gba:flex gba:justify-between gba:items-center" style={{ width: '100%' }}>
+                            <div className="gba:flex gba:items-center">
+                              <img
+                                src={ICONS.PLAN_ICON}
+                                alt="Plan"
+                                style={{ marginRight: '16px' }}
+                                width="32"
+                                height="32"
+                                data-testid="expense-request-plan-icon"
+                              />
+                              <span
+                                style={{
+                                  fontFamily: "'Roboto', sans-serif",
+                                  fontSize: '18px',
+                                  lineHeight: '20px',
+                                  fontWeight: 600
+                                }}
+                                data-testid="expense-request-plan-text"
+                              >
+                                {getTranslationFromI18nKeyAndLabel(
+                                  'lowcoder:create_expense_request.plan_select_button',
+                                  'My expense plans'
+                                )}{' '}
+                                ({expenseCatalogueData?.ExpensePlan?.length})
+                              </span>
+                            </div>
+                            <img
+                              src={ICONS.RIGHT_ARROW}
+                              alt="Arrow"
+                              style={{ width: '24px', height: '24px' }}
+                              data-testid="expense-request-plan-arrow"
+                            />
+                          </div>
+                        </Button>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* Spacer to push content to the top */}
+                <div className="gba:flex-grow" data-testid="expense-request-spacer" />
+              </Form>
+            )}
           </div>
 
           {/* Footer with divider and action buttons */}
