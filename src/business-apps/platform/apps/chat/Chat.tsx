@@ -759,7 +759,9 @@ const ChatInner: React.FC<ChatProps> = memo(
         if (currentUser?.id) saveMarkedAsUnreadToStorage(currentUser.id, next)
         return next
       })
-      markAsUnread(activeConversationId).catch(() => {})
+      markAsUnread(activeConversationId).catch(err => {
+        console.error('[Chat] markAsUnread failed (backend may not have been updated):', err?.message ?? err)
+      })
     }, [activeConversationId, markAsUnread, currentUser?.id])
 
     const handleMarkAsUnreadFromList = useCallback(
@@ -769,7 +771,9 @@ const ChatInner: React.FC<ChatProps> = memo(
           if (currentUser?.id) saveMarkedAsUnreadToStorage(currentUser.id, next)
           return next
         })
-        markAsUnread?.(conversationId).catch(() => {})
+        markAsUnread?.(conversationId).catch(err => {
+          console.error('[Chat] markAsUnread failed (backend may not have been updated):', err?.message ?? err)
+        })
       },
       [markAsUnread, currentUser?.id]
     )

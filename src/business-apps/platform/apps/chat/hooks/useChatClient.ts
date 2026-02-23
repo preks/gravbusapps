@@ -1148,7 +1148,11 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
   const markAsUnread = useCallback(
     async (conversationId: string) => {
       const api = apiClientRef.current
-      if (!api) return
+      if (!api) {
+        const err = new Error('Chat API client not ready')
+        console.error('[markAsUnread] API client not ready', { conversationId })
+        throw err
+      }
       await api.markAsUnread(conversationId)
       if (wsClientRef.current && isConnected) {
         wsClientRef.current.markConversationAsUnread(conversationId)

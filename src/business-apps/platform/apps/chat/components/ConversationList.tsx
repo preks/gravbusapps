@@ -125,6 +125,13 @@ export const ConversationList: React.FC<ConversationListProps> = ({
     return [...filtered].sort(sortConversationsPinThenTime)
   }, [conversations])
 
+  // When Unread filter is on, show conversations with unread messages or marked-as-unread (dot)
+  const displayedConversations = useMemo(() => {
+    if (!unreadOnly) return uniqueConversations
+    const marked = markedAsUnreadConversationIds ?? new Set<string>()
+    return uniqueConversations.filter(c => (c.unreadCount ?? 0) > 0 || marked.has(c.id))
+  }, [unreadOnly, uniqueConversations, markedAsUnreadConversationIds])
+
   const hasActiveFilters = (search?.trim()?.length ?? 0) > 0 || filterKind !== 'all' || unreadOnly
 
   const handleKindChipClick = (kind: 'direct' | 'group' | 'meeting') => {
@@ -332,7 +339,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
             )
           }
 
-          if (uniqueConversations.length === 0) {
+          if (displayedConversations.length === 0) {
             return (
               <div className="gba:p-6 gba:text-center">
                 <p className="gba:text-sm gba:text-muted-foreground">
@@ -345,7 +352,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
           return (
             <>
               <div className="gba:py-1">
-                {uniqueConversations.map(conversation => {
+                {displayedConversations.map(conversation => {
                   const otherUserId = getOtherParticipantUserId(conversation, currentUserId)
                   // GOLD STANDARD: Direct map lookup - zero function calls, maximum performance ✅
                   const otherUserPresence = otherUserId ? presenceMap.get(otherUserId) : undefined
