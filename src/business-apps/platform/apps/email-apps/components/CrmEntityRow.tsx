@@ -262,28 +262,26 @@ export const CrmEntityRow: React.FC<CrmEntityRowProps> = ({
                   disabled={ctx.isProcessing || recorded || ctx.isLoading || summarizing}
                   data-testid={`${testId}-book-${entity.id}`}
                 >
-                  {summarizing ? (
-                    <Spinner size="sm" />
-                  ) : ctx.isProcessing ? (
-                    <Spinner size="sm" />
-                  ) : recorded ? (
-                    <>
-                      <CheckIcon className="gba:w-3.5 gba:h-3.5 gba:mr-1" weight="bold" />
-                      {t('crm-recorded')}
-                    </>
-                  ) : ctx.isLoading ? (
-                    <Spinner size="sm" />
-                  ) : (
-                    t('crm-record')
-                  )}
+                  {(() => {
+                    if (summarizing || ctx.isProcessing || ctx.isLoading) return <Spinner size="sm" />
+                    if (recorded) {
+                      return (
+                        <>
+                          <CheckIcon className="gba:w-3.5 gba:h-3.5 gba:mr-1" weight="bold" />
+                          {t('crm-recorded')}
+                        </>
+                      )
+                    }
+                    return t('crm-record')
+                  })()}
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
-                {summarizing
-                  ? t('crm-tooltip-summarizing')
-                  : recorded
-                    ? t('crm-tooltip-recorded')
-                    : t('crm-tooltip-record', { name: entity.name })}
+                {(() => {
+                  if (summarizing) return t('crm-tooltip-summarizing')
+                  if (recorded) return t('crm-tooltip-recorded')
+                  return t('crm-tooltip-record', { name: entity.name })
+                })()}
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>

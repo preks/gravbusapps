@@ -564,6 +564,20 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
     }
   }
 
+  const getEmptyStateTitle = () => {
+    if (activeSection === 'favorites') return t('empty-favorites-title')
+    if (activeSection === 'shared') return t('empty-shared-title')
+    if (activeSection === 'archived') return t('empty-archived-title')
+    return t('empty-default-title')
+  }
+
+  const getEmptyStateDescription = () => {
+    if (activeSection === 'favorites') return t('empty-favorites-description')
+    if (activeSection === 'shared') return t('empty-shared-description')
+    if (activeSection === 'archived') return t('empty-archived-description')
+    return t('empty-default-description')
+  }
+
   // Render editor view
   if (currentView === 'editor') {
     return (
@@ -1175,23 +1189,9 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                   <div className="gba:w-24 gba:h-24 gba:rounded-3xl gba:bg-gradient-to-br gba:from-blue-500/20 gba:to-indigo-500/20 gba:flex gba:items-center gba:justify-center gba:mb-6">
                     <FileText className="gba:w-12 gba:h-12 gba:text-blue-500" />
                   </div>
-                  <h3 className="gba:text-xl gba:font-semibold gba:text-foreground gba:mb-2">
-                    {activeSection === 'favorites'
-                      ? t('empty-favorites-title')
-                      : activeSection === 'shared'
-                        ? t('empty-shared-title')
-                        : activeSection === 'archived'
-                          ? t('empty-archived-title')
-                          : t('empty-default-title')}
-                  </h3>
+                  <h3 className="gba:text-xl gba:font-semibold gba:text-foreground gba:mb-2">{getEmptyStateTitle()}</h3>
                   <p className="gba:text-muted-foreground gba:text-center gba:max-w-md gba:mb-6">
-                    {activeSection === 'favorites'
-                      ? t('empty-favorites-description')
-                      : activeSection === 'shared'
-                        ? t('empty-shared-description')
-                        : activeSection === 'archived'
-                          ? t('empty-archived-description')
-                          : t('empty-default-description')}
+                    {getEmptyStateDescription()}
                   </p>
                   {activeSection !== 'favorites' && activeSection !== 'shared' && activeSection !== 'archived' && (
                     <div className="gba:flex gba:gap-3">

@@ -161,6 +161,12 @@ export const AccountSetupDialog: React.FC<AccountSetupDialogProps> = ({
     hasValue(googleSettings.publicConfig?.clientId as string) &&
     hasValue(googleSettings.publicConfig?.scopes as string)
 
+  const resolveOAuthErrorMessage = (err: unknown, fallbackKey: string): string => {
+    if (err instanceof OAuthConfigError) return t(err.code)
+    if (err instanceof Error) return err.message
+    return t(fallbackKey)
+  }
+
   const handleMicrosoftOAuth = useCallback(async () => {
     try {
       setStep('testing')
@@ -192,16 +198,11 @@ export const AccountSetupDialog: React.FC<AccountSetupDialogProps> = ({
       // Redirect flow — callback page completes the code exchange.
       await MicrosoftOAuthService.startAuth(config)
     } catch (err) {
-      const msg =
-        err instanceof OAuthConfigError
-          ? t(err.code)
-          : err instanceof Error
-            ? err.message
-            : t('account-setup-toast-connect-ms-failed')
+      const msg = resolveOAuthErrorMessage(err, 'account-setup-toast-connect-ms-failed')
       toast.error(msg)
       setStep('provider')
     }
-  }, [providerSettingsLoaded, isLoadingProviderSettings, msSettings, t])
+  }, [providerSettingsLoaded, isLoadingProviderSettings, msSettings, resolveOAuthErrorMessage, t])
 
   const handleGoogleOAuth = useCallback(async () => {
     try {
@@ -230,16 +231,11 @@ export const AccountSetupDialog: React.FC<AccountSetupDialogProps> = ({
       // Redirect flow — callback page completes the code exchange.
       await GoogleOAuthService.startAuth(config)
     } catch (err) {
-      const msg =
-        err instanceof OAuthConfigError
-          ? t(err.code)
-          : err instanceof Error
-            ? err.message
-            : t('account-setup-toast-connect-google-failed')
+      const msg = resolveOAuthErrorMessage(err, 'account-setup-toast-connect-google-failed')
       toast.error(msg)
       setStep('provider')
     }
-  }, [providerSettingsLoaded, isLoadingProviderSettings, googleSettings, t])
+  }, [providerSettingsLoaded, isLoadingProviderSettings, googleSettings, resolveOAuthErrorMessage, t])
 
   const handleProviderSelect = async (provider: ProviderOption) => {
     if (provider.id === 'microsoft') {
@@ -333,6 +329,11 @@ export const AccountSetupDialog: React.FC<AccountSetupDialogProps> = ({
   }
 
   const msConfigured = msReady
+  const getMicrosoftOauthBadgeLabel = () => {
+    if (msConfigured) return t('account-setup-oauth')
+    if (isLoadingProviderSettings) return t('account-setup-oauth-loading')
+    return t('account-setup-oauth-needs-setup')
+  }
 
   return (
     <Dialog
@@ -383,11 +384,7 @@ export const AccountSetupDialog: React.FC<AccountSetupDialogProps> = ({
                   </div>
                   {provider.id === 'microsoft' && (
                     <span className="gba:text-xs gba:bg-primary/10 gba:text-primary gba:px-2 gba:py-1 gba:rounded">
-                      {msConfigured
-                        ? t('account-setup-oauth')
-                        : isLoadingProviderSettings
-                          ? t('account-setup-oauth-loading')
-                          : t('account-setup-oauth-needs-setup')}
+                      {getMicrosoftOauthBadgeLabel()}
                     </span>
                   )}
                 </button>
