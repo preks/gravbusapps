@@ -12,18 +12,76 @@ import {
   FolderKanban,
   Package,
   ArrowRight,
-  Sparkles,
+  Blocks,
   Loader2,
   History
 } from 'lucide-react'
-import { Button, Textarea } from '@newwork/nw-design-system'
+import { Button } from '@newwork/nw-design-system'
 import { SpaceHeroBackground } from '@/business-apps/platform/apps/spaces/components/SpaceHeroBackground'
+import { AppIconBadge } from '../ui/AppIconBadge'
+import type { BuildPlan } from '../../types'
+
+const gradientBorderStyles = `
+  @property --idle-angle {
+    syntax: '<angle>';
+    initial-value: 0deg;
+    inherits: false;
+  }
+
+  @keyframes idle-border-spin {
+    to { --idle-angle: 360deg; }
+  }
+
+  .idle-gradient-border {
+    position: relative;
+    border-radius: 0.75rem;
+  }
+
+  .idle-gradient-border::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 0.75rem;
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  .idle-gradient-border::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: calc(0.75rem + 1px);
+    padding: 1px;
+    background: conic-gradient(
+      from var(--idle-angle),
+      transparent 0%,
+      transparent 40%,
+      #818cf8 55%,
+      #a78bfa 62%,
+      #c4b5fd 66%,
+      #a78bfa 70%,
+      #818cf8 76%,
+      transparent 88%,
+      transparent 100%
+    );
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    animation: idle-border-spin 6s linear infinite;
+    pointer-events: none;
+    z-index: 3;
+  }
+`
 
 const HERO_VIDEO_URL = import.meta.env?.VITE_SPACE_HERO_VIDEO_URL || ''
 
 export interface IdleCanvasProps {
   onSubmit?: (prompt: string) => void
   onOpenHistory?: () => void
+  onSelectSession?: (jobId: string) => void
+  recentPlans?: BuildPlan[]
   isLoading?: boolean
   'data-testid'?: string
 }
@@ -61,6 +119,8 @@ const suggestions: Suggestion[] = [
 export const IdleCanvas: React.FC<IdleCanvasProps> = ({
   onSubmit,
   onOpenHistory,
+  onSelectSession,
+  recentPlans,
   isLoading = false,
   'data-testid': testId = 'idle-canvas'
 }) => {
@@ -115,7 +175,7 @@ export const IdleCanvas: React.FC<IdleCanvasProps> = ({
           {/* Icon + wordmark */}
           <div className="gba:inline-flex gba:flex-col gba:items-center gba:gap-2 gba:mb-6">
             <div className="gba:w-16 gba:h-16 gba:rounded-2xl gba:bg-white/10 gba:border gba:border-white/20 gba:flex gba:items-center gba:justify-center">
-              <Sparkles className="gba:w-8 gba:h-8 gba:text-white" />
+              <Blocks className="gba:w-8 gba:h-8 gba:text-white" strokeWidth={1.25} />
             </div>
             <span className="gba:text-xs gba:font-medium gba:tracking-[0.4em] gba:text-white/60 gba:uppercase gba:mt-2">
               NEWWORK
@@ -151,55 +211,74 @@ export const IdleCanvas: React.FC<IdleCanvasProps> = ({
       </section>
 
       {/* Prompt input area */}
-      <div className="gba:flex-1 gba:flex gba:flex-col gba:items-center gba:justify-center gba:px-8 gba:py-10">
-        <div className="gba:w-full gba:max-w-2xl gba:flex gba:flex-col gba:items-center gba:space-y-3">
-          <Textarea
-            value={inputValue}
-            onChange={e => setInputValue(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Describe your application idea... e.g., Create an HR dashboard with employee profiles, time tracking, and leave management"
-            disabled={isLoading}
-            rows={6}
-            className="gba:w-full gba:resize-y gba:min-h-36 gba:rounded-xl gba:border gba:border-primary gba:bg-muted/40 gba:px-4 gba:py-3 gba:text-sm gba:text-foreground gba:placeholder-muted-foreground/50 gba:leading-relaxed gba:transition-all gba:duration-200 gba:disabled:opacity-50 gba:disabled:cursor-not-allowed"
-            data-testid={`${testId}-input`}
-          />
-
-          <div className="gba:w-full gba:flex gba:items-center gba:justify-between">
-            <p className="gba:text-xs gba:text-muted-foreground/60">Press Enter to submit, Shift+Enter for new line</p>
-            <Button
-              onClick={handleSubmit}
-              disabled={!inputValue.trim() || isLoading}
-              className="gba:gap-2 gba:rounded-2xl gba:bg-linear-to-r gba:from-sky-500 gba:to-indigo-600 gba:text-white gba:border-0 gba:px-5 gba:font-semibold gba:hover:opacity-90"
-              data-testid={`${testId}-submit`}
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="gba:w-4 gba:h-4 gba:animate-spin" />
-                  Analyzing...
-                </>
-              ) : (
-                <>
-                  Analyze & Build
-                  <ArrowRight className="gba:w-4 gba:h-4" />
-                </>
-              )}
-            </Button>
+      <div className="gba:flex-1 gba:flex gba:flex-col gba:items-center gba:justify-start gba:px-8 gba:pt-6 gba:pb-4 gba:overflow-y-auto">
+        <style>{gradientBorderStyles}</style>
+        <div className="gba:w-full gba:max-w-2xl gba:flex gba:flex-col gba:items-center gba:gap-4">
+          {/* Input card with button inside */}
+          <div className="idle-gradient-border gba:w-full">
+            <textarea
+              value={inputValue}
+              onChange={e => setInputValue(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Describe your application idea... e.g., Create an HR dashboard with employee profiles, time tracking, and leave management"
+              disabled={isLoading}
+              rows={4}
+              className="gba:w-full gba:resize-none gba:min-h-24 gba:rounded-t-xl gba:bg-muted/40 gba:px-4 gba:pt-3 gba:pb-2 gba:text-sm gba:text-foreground gba:placeholder-muted-foreground/50 gba:leading-relaxed gba:transition-colors gba:duration-200 gba:disabled:opacity-50 gba:disabled:cursor-not-allowed gba:block"
+              style={{ border: 'none', outline: 'none', boxShadow: 'none' }}
+              data-testid={`${testId}-input`}
+            />
+            {/* Toolbar row inside the card */}
+            <div className="gba:flex gba:items-center gba:justify-between gba:px-3 gba:py-2 gba:bg-muted/40 gba:rounded-b-xl">
+              <div className="gba:flex gba:items-center gba:gap-2">
+                {onOpenHistory && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={onOpenHistory}
+                    className="gba:h-7 gba:w-7 gba:text-muted-foreground/60 gba:hover:text-foreground"
+                    data-testid={`${testId}-history-btn`}
+                  >
+                    <History className="gba:w-3.5 gba:h-3.5" />
+                  </Button>
+                )}
+                <span className="gba:text-[10px] gba:text-muted-foreground/50">
+                  Enter to submit, Shift+Enter for new line
+                </span>
+              </div>
+              <Button
+                onClick={handleSubmit}
+                disabled={!inputValue.trim() || isLoading}
+                size="sm"
+                className="gba:gap-1.5 gba:rounded-xl gba:bg-linear-to-r gba:from-sky-500 gba:to-indigo-600 gba:text-white gba:border-0 gba:px-4 gba:font-semibold gba:hover:opacity-90 gba:text-xs"
+                data-testid={`${testId}-submit`}
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="gba:w-3.5 gba:h-3.5 gba:animate-spin" />
+                    Analyzing...
+                  </>
+                ) : (
+                  <>
+                    Analyze & Build
+                    <ArrowRight className="gba:w-3.5 gba:h-3.5" />
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
 
           {/* Example suggestions */}
-          <div className="gba:mt-8 gba:w-full gba:space-y-2">
-            <div className="gba:flex gba:items-center gba:gap-2">
-              <div className="gba:h-px gba:flex-1 gba:bg-border" />
-              <span className="gba:text-[11px] gba:text-muted-foreground/50">Or try an example</span>
-              <div className="gba:h-px gba:flex-1 gba:bg-border" />
-            </div>
-            <div className="gba:flex gba:flex-wrap gba:justify-center gba:gap-x-4 gba:gap-y-1">
+          <div className="gba:w-full gba:space-y-3 gba:mt-4">
+            <span className="gba:text-[11px] gba:font-medium gba:text-muted-foreground/50 gba:uppercase gba:tracking-wider">
+              Or try an example
+            </span>
+            <div className="gba:flex gba:flex-wrap gba:gap-x-4 gba:gap-y-2">
               {suggestions.map(suggestion => (
                 <button
                   key={suggestion.title}
                   onClick={() => handleSuggestionClick(suggestion.prompt)}
                   disabled={isLoading}
-                  className="gba:flex gba:items-center gba:gap-1.5 gba:py-1.5 gba:bg-transparent gba:text-muted-foreground hover:gba:text-primary gba:transition-colors gba:duration-200 gba:disabled:opacity-50 gba:disabled:cursor-not-allowed gba:group"
+                  className="gba:flex gba:items-center gba:gap-1.5 gba:py-1.5 gba:bg-transparent gba:text-muted-foreground hover:gba:text-primary gba:transition-colors gba:duration-200 gba:disabled:opacity-50 gba:disabled:cursor-not-allowed"
                   data-testid={`${testId}-suggestion-${suggestion.title.toLowerCase().replace(/\s+/g, '-')}`}
                 >
                   <suggestion.icon className="gba:h-3.5 gba:w-3.5 gba:shrink-0" />
@@ -209,19 +288,52 @@ export const IdleCanvas: React.FC<IdleCanvasProps> = ({
             </div>
           </div>
 
-          {/* Session history link */}
-          {onOpenHistory && (
-            <div className="gba:mt-6 gba:flex gba:justify-center">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={onOpenHistory}
-                className="gba:gap-2 gba:text-muted-foreground gba:hover:text-foreground"
-                data-testid={`${testId}-history-btn`}
-              >
-                <History className="gba:w-3.5 gba:h-3.5" />
-                View session history
-              </Button>
+          {/* Recent apps grid */}
+          {recentPlans && recentPlans.length > 0 && (
+            <div className="gba:w-full gba:mt-6">
+              <span className="gba:text-[11px] gba:font-semibold gba:text-muted-foreground gba:uppercase gba:tracking-wider">
+                Recent Apps
+              </span>
+              <div className="gba:grid gba:grid-cols-8 gba:gap-x-4 gba:gap-y-4 gba:justify-items-center gba:mt-4">
+                {recentPlans.slice(0, 15).map(plan => {
+                  const name = plan.appMetadata?.name ?? plan.userSummary?.title ?? 'Untitled'
+                  return (
+                    <button
+                      key={plan.jobId}
+                      onClick={() => onSelectSession?.(plan.jobId)}
+                      disabled={isLoading}
+                      className="gba:flex gba:flex-col gba:items-center gba:gap-1.5 gba:bg-transparent gba:group gba:disabled:opacity-50 gba:disabled:cursor-not-allowed gba:w-full"
+                      data-testid={`${testId}-recent-${plan.jobId}`}
+                    >
+                      <div className="gba:transition-transform gba:duration-200 gba:group-hover:scale-105">
+                        <AppIconBadge
+                          iconName={plan.appMetadata?.icon}
+                          size="lg"
+                          className="gba:w-12 gba:h-12 gba:rounded-xl"
+                        />
+                      </div>
+                      <span className="gba:text-[9px] gba:text-muted-foreground gba:group-hover:text-foreground gba:transition-colors gba:duration-200 gba:text-center gba:leading-tight gba:max-w-full gba:truncate gba:w-full">
+                        {name}
+                      </span>
+                    </button>
+                  )
+                })}
+                {/* History button — last slot in the grid */}
+                {onOpenHistory && (
+                  <button
+                    onClick={onOpenHistory}
+                    className="gba:flex gba:flex-col gba:items-center gba:gap-1.5 gba:bg-transparent gba:group gba:w-full"
+                    data-testid={`${testId}-history-grid-btn`}
+                  >
+                    <div className="gba:transition-transform gba:duration-200 gba:group-hover:scale-105 gba:w-12 gba:h-12 gba:rounded-xl gba:bg-muted gba:flex gba:items-center gba:justify-center gba:border gba:border-border/50">
+                      <History className="gba:w-5 gba:h-5 gba:text-muted-foreground gba:group-hover:text-foreground gba:transition-colors gba:duration-200" />
+                    </div>
+                    <span className="gba:text-[9px] gba:text-muted-foreground gba:group-hover:text-foreground gba:transition-colors gba:duration-200 gba:text-center gba:leading-tight">
+                      History
+                    </span>
+                  </button>
+                )}
+              </div>
             </div>
           )}
         </div>
