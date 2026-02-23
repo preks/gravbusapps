@@ -4,6 +4,7 @@
  */
 
 import React from 'react'
+import { Sparkles } from 'lucide-react'
 import { Button } from '@newwork/nw-design-system'
 import type { OrchestratorState } from '../hooks/useOrchestratorState'
 import type { UseOrchestratorClientResult } from '../hooks/useOrchestratorClient'
@@ -134,6 +135,9 @@ export const OrchestratorCanvasContent: React.FC<OrchestratorCanvasContentProps>
             previewRefreshToken={previewRefreshToken}
             onReset={handlers.handleReset}
             appMetadata={orchestratorClient.currentPlan.appMetadata}
+            analysis={orchestratorClient.currentPlan.analysis}
+            userSummary={orchestratorClient.currentPlan.userSummary}
+            createdAt={orchestratorClient.currentPlan.createdAt}
             isPublishing={orchestratorClient.isPublishing}
             publishSuccess={orchestratorClient.publishSuccess}
             publishError={orchestratorClient.publishError}
@@ -157,6 +161,21 @@ export const OrchestratorCanvasContent: React.FC<OrchestratorCanvasContentProps>
             onRetry={handlers.handleRetry}
             onModifyPlan={() => state.setViewState('review')}
           />
+        )
+
+      case 'idle':
+        return (
+          <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:h-full gba:gap-4 gba:text-center gba:px-8">
+            <div className="gba:w-14 gba:h-14 gba:rounded-2xl gba:bg-primary/10 gba:flex gba:items-center gba:justify-center">
+              <Sparkles className="gba:w-7 gba:h-7 gba:text-primary" />
+            </div>
+            <div className="gba:space-y-1.5">
+              <p className="gba:text-base gba:font-semibold gba:text-foreground">SELECT A SESSION</p>
+              <p className="gba:text-sm gba:text-muted-foreground gba:max-w-xs gba:leading-relaxed">
+                Choose a previous session from the list to view its build results and preview.
+              </p>
+            </div>
+          </div>
         )
 
       default:

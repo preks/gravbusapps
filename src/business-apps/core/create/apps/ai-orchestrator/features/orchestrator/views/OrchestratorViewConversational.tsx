@@ -243,22 +243,52 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
   })
 
   const handleOpenHistory = useCallback(() => {
+    // If called from the idle screen, transition to the chat layout first
+    if (!state.chatActive) {
+      state.setChatActive(true)
+    }
     setSidebarOpen(true)
     refetchPlans()
-  }, [refetchPlans])
+  }, [refetchPlans, state])
 
-  const handleSelectSession = useCallback(() => {
-    setSidebarOpen(false)
-  }, [])
+  const handleSelectSession = useCallback(
+    async (jobId: string) => {
+      setSidebarOpen(false)
+      chat.resetMessages()
+      lastChatStateRef.current = null
+
+      const plan = await orchestratorClient.refreshPlan(jobId)
+      if (!plan) return
+
+      const alreadyBuilt =
+        plan.status === 'completed' || plan.components.some(c => c.status === 'completed' || c.status === 'reused')
+
+      if (alreadyBuilt) {
+        const firstWithSession = plan.components.find(c => c.metadata?.sessionId && c.metadata?.repoId)
+        orchestratorClient.setSessionFromBuild(
+          firstWithSession?.metadata?.sessionId,
+          firstWithSession?.metadata?.repoId
+        )
+      }
+
+      state.setChatActive(true)
+      state.setViewState(alreadyBuilt ? 'complete' : 'review')
+    },
+    [chat, orchestratorClient, state]
+  )
 
   // --- Idle: full-screen (square top so banner has no top border radius) ---
-  if (!state.chatActive && state.viewState === 'idle') {
+  if (!state.chatActive && state.viewState === 'idle' && !sidebarOpen) {
     return (
       <div
         className="gba:h-full gba:w-full gba:overflow-hidden gba:bg-background gba:rounded-t-none"
         data-testid={testId}
       >
-        <IdleCanvas onSubmit={handleIdleSubmit} isLoading={orchestratorClient.isAnalyzing} />
+        <IdleCanvas
+          onSubmit={handleIdleSubmit}
+          isLoading={orchestratorClient.isAnalyzing}
+          onOpenHistory={handleOpenHistory}
+        />
       </div>
     )
   }
@@ -274,7 +304,13 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
             currentPlanId={orchestratorClient.currentPlan?.jobId}
             loading={plansLoading}
             onSelectSession={handleSelectSession}
-            onClose={() => setSidebarOpen(false)}
+            onClose={() => {
+              setSidebarOpen(false)
+              // Return to idle if no conversation has started yet
+              if (chat.messages.length === 0) {
+                state.setChatActive(false)
+              }
+            }}
           />
         }
         chatPanel={
