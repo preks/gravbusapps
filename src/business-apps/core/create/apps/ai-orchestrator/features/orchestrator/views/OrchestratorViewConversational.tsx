@@ -226,10 +226,27 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
 
   const handleNewSession = useCallback(() => {
     chat.resetMessages()
-    handlers.handleReset()
+    buildProgress.resetProgress()
+    orchestratorClient.clearPlan()
+    state.setViewState('idle')
     state.setChatActive(false)
+    state.setUserPrompt('')
+    state.setBuildLogs([])
+    state.setThinkingSteps([])
+    state.setBuildDuration(0)
+    state.setCapturedBuildError(null)
+    state.loggedPhasesRef.current.clear()
+    state.lastCompletedCountRef.current = 0
+    state.hasTriggeredInitialAnalysis.current = false
     lastChatStateRef.current = null
-  }, [chat, handlers, state])
+  }, [chat, buildProgress, orchestratorClient, state])
+
+  // --- Recent plans for idle screen ---
+  const { data: recentPlans } = useListPlans({
+    accessToken,
+    params: { limit: 8, offset: 0, sort: '-createdAt' },
+    enabled: !!accessToken
+  })
 
   // --- Session history sidebar ---
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -288,6 +305,8 @@ export const OrchestratorViewConversational: React.FC<OrchestratorViewConversati
           onSubmit={handleIdleSubmit}
           isLoading={orchestratorClient.isAnalyzing}
           onOpenHistory={handleOpenHistory}
+          recentPlans={recentPlans}
+          onSelectSession={handleSelectSession}
         />
       </div>
     )
