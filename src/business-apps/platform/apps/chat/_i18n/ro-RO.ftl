@@ -432,6 +432,7 @@ chat-transcript-ready = Transcriere gata: { $sessionName }
 chat-transcript-view = Vezi transcrierea
 chat-transcript-saved = Transcrierea întâlnirii a fost salvată
 chat-transcript-create-minutes-description = Creează notițe de întâlnire din transcrierea apelului în notițe
+chat-transcript-minutes-automatic = Notițele de întâlnire se creează automat.
 chat-transcript-create-minutes-button = Creează notițe de întâlnire
 chat-transcript-generating-minutes = Se generează notițele de întâlnire...
 chat-transcript-generating-minutes-status = Se generează notițele de întâlnire...

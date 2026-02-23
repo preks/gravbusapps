@@ -15,7 +15,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger
 } from '@newwork/nw-design-system'
-import { useCreateMeetingMinutes } from '../hooks/useCreateMeetingMinutes'
 import { ArrowBendUpLeftIcon, DotsThreeIcon, PencilSimpleIcon } from '@phosphor-icons/react'
 import { renderContentWithReferences } from './EntityReferenceBadge'
 import { EveryAIMessageRenderer } from './EveryAIMessageRenderer'
@@ -178,8 +177,6 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(
       },
       []
     )
-
-    const { createMeetingMinutes, isCreating, error } = useCreateMeetingMinutes(apiClient)
 
     const openPreview = async (att: MessageAttachment) => {
       try {
@@ -414,16 +411,7 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(
     })()
 
     if (message.type === 'system' && message.metadata?.transcriptReady) {
-      return (
-        <TranscriptReadyBlock
-          message={message}
-          formattedTime={formattedTime}
-          createMeetingMinutes={createMeetingMinutes}
-          isCreating={isCreating}
-          error={error}
-          t={t}
-        />
-      )
+      return <TranscriptReadyBlock message={message} formattedTime={formattedTime} t={t} />
     }
     if (message.type === 'system' && message.metadata?.type === 'meeting_minutes_ready') {
       return <MeetingMinutesReadyBlock message={message} formattedTime={formattedTime} navigateTo={navigateTo} />

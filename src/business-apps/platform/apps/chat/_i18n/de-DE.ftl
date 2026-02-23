@@ -432,6 +432,7 @@ chat-transcript-ready = Transkript bereit: { $sessionName }
 chat-transcript-view = Transkript anzeigen
 chat-transcript-saved = Ihr Meeting-Transkript wurde gespeichert
 chat-transcript-create-minutes-description = Erstellen Sie Besprechungsnotizen aus dem Anruftranskript in Notizen
+chat-transcript-minutes-automatic = Besprechungsnotizen werden automatisch erstellt.
 chat-transcript-create-minutes-button = Besprechungsnotizen erstellen
 chat-transcript-generating-minutes = Besprechungsnotizen werden erstellt...
 chat-transcript-generating-minutes-status = Besprechungsnotizen werden erstellt...

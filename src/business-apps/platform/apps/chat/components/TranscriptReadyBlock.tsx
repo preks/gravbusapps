@@ -1,30 +1,19 @@
 /**
- * Transcript-ready system message with meeting minutes creation.
+ * Transcript-ready system message. Meeting minutes are created automatically by the backend.
  */
 
 import React from 'react'
-import { Button, Spinner, Alert, AlertDescription } from '@newwork/nw-design-system'
+import { Spinner } from '@newwork/nw-design-system'
 import type { Message } from '../types'
 
 export interface TranscriptReadyBlockProps {
   message: Message
   formattedTime: string
-  createMeetingMinutes: (sessionId: string) => void
-  isCreating: boolean
-  error: string | null
   t: (key: string, opts?: { sessionName?: string }) => string
 }
 
-export const TranscriptReadyBlock: React.FC<TranscriptReadyBlockProps> = ({
-  message,
-  formattedTime,
-  createMeetingMinutes,
-  isCreating,
-  error,
-  t
-}) => {
+export const TranscriptReadyBlock: React.FC<TranscriptReadyBlockProps> = ({ message, formattedTime, t }) => {
   const sessionName = message.metadata?.sessionName
-  const sessionId = message.metadata?.sessionId
   const transcriptionStatus = message.metadata?.transcriptionStatus
   const effectiveStatus = transcriptionStatus ?? 'ready'
 
@@ -38,65 +27,18 @@ export const TranscriptReadyBlock: React.FC<TranscriptReadyBlockProps> = ({
           </span>
         </div>
         <p className="gba:text-xs gba:text-muted-foreground gba:text-center">
-          {t('chat-transcript-create-minutes-description')}
+          {effectiveStatus === 'ready' && t('chat-transcript-minutes-automatic')}
+          {effectiveStatus === 'PROCESSING' && t('chat-transcript-generating-minutes-status')}
+          {effectiveStatus === 'FAILED' && t('chat-transcript-failed-create-minutes')}
+          {!['ready', 'PROCESSING', 'FAILED'].includes(effectiveStatus) &&
+            t('chat-transcript-create-minutes-description')}
         </p>
 
-        <div className="gba:flex gba:flex-col gba:gap-2 gba:w-full">
-          {effectiveStatus === 'ready' && (
-            <Button
-              variant="default"
-              size="sm"
-              onClick={() => {
-                if (sessionId) createMeetingMinutes(sessionId)
-              }}
-              disabled={isCreating || !sessionId}
-              data-testid={`transcript-create-minutes-btn-${message.id}`}
-            >
-              {isCreating ? (
-                <>
-                  <Spinner className="gba:mr-2 gba:h-4 gba:w-4" />
-                  {t('chat-transcript-generating-minutes')}
-                </>
-              ) : (
-                t('chat-transcript-create-minutes-button')
-              )}
-            </Button>
-          )}
-
-          {effectiveStatus === 'PROCESSING' && !isCreating && (
-            <div className="gba:text-sm gba:text-muted-foreground gba:text-center gba:py-2">
-              <Spinner className="gba:inline gba:mr-2 gba:h-4 gba:w-4" />
-              {t('chat-transcript-generating-minutes-status')}
-            </div>
-          )}
-
-          {effectiveStatus === 'FAILED' && (
-            <>
-              <Alert variant="destructive" data-testid={`transcript-error-${message.id}`}>
-                <AlertDescription className="gba:text-xs">
-                  {t('chat-transcript-failed-create-minutes')}
-                </AlertDescription>
-              </Alert>
-              <Button
-                variant="default"
-                size="sm"
-                onClick={() => {
-                  if (sessionId) createMeetingMinutes(sessionId)
-                }}
-                disabled={isCreating || !sessionId}
-                data-testid={`transcript-retry-btn-${message.id}`}
-              >
-                {t('chat-transcript-retry')}
-              </Button>
-            </>
-          )}
-
-          {error && (
-            <Alert variant="destructive">
-              <AlertDescription className="gba:text-xs">{error}</AlertDescription>
-            </Alert>
-          )}
-        </div>
+        {effectiveStatus === 'PROCESSING' && (
+          <div className="gba:flex gba:items-center gba:gap-2 gba:py-1">
+            <Spinner className="gba:h-4 gba:w-4" />
+          </div>
+        )}
 
         <span className="gba:text-xs gba:text-muted-foreground">{formattedTime}</span>
       </div>
