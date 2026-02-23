@@ -48,6 +48,10 @@ export interface OrchestratorState {
   skippedCount: number
   setSkippedCount: (count: number) => void
 
+  // Chat active (switches from full-screen idle to chat+canvas layout)
+  chatActive: boolean
+  setChatActive: (active: boolean) => void
+
   // Refs for tracking
   hasTriggeredInitialAnalysis: React.MutableRefObject<boolean>
   loggedPhasesRef: React.MutableRefObject<Set<string>>
@@ -74,6 +78,7 @@ export function useOrchestratorState({ initialPrompt = '' }: UseOrchestratorStat
   const [editError, setEditError] = useState<string | null>(null)
   const [capturedBuildError, setCapturedBuildError] = useState<string | null>(null)
   const [skippedCount, setSkippedCount] = useState(0)
+  const [chatActive, setChatActive] = useState(!!initialPrompt)
 
   const hasTriggeredInitialAnalysis = useRef(false)
   const loggedPhasesRef = useRef(new Set<string>())
@@ -104,6 +109,8 @@ export function useOrchestratorState({ initialPrompt = '' }: UseOrchestratorStat
     setCapturedBuildError,
     skippedCount,
     setSkippedCount,
+    chatActive,
+    setChatActive,
     hasTriggeredInitialAnalysis,
     loggedPhasesRef,
     lastCompletedCountRef
