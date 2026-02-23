@@ -26,6 +26,7 @@ import {
 import { InterventionsTable } from '@/business-apps/hr/core/apps/employee-record/components/tabs/components/InterventionsTable'
 import HeroLiveClock from './HeroLiveClock'
 import timeTrackingTranslations from '../_i18n'
+import { useEmployeeWorkingHours } from '../utils/useEmployeeWorkingHours'
 
 interface TimeTrackingProps {
   employee: any
@@ -35,30 +36,7 @@ interface TimeTrackingProps {
 }
 
 const TimeTracking: React.FC<TimeTrackingProps> = ({ employee, employeeId, accessToken, isSelfView }) => {
-  const wh = employee?.workingHours?.[0]
-  const workingHours = React.useMemo(
-    () =>
-      wh
-        ? {
-            sundayHours: wh.sundayHours,
-            mondayHours: wh.mondayHours,
-            tuesdayHours: wh.tuesdayHours,
-            wednesdayHours: wh.wednesdayHours,
-            thursdayHours: wh.thursdayHours,
-            fridayHours: wh.fridayHours,
-            saturdayHours: wh.saturdayHours
-          }
-        : undefined,
-    [
-      wh?.sundayHours,
-      wh?.mondayHours,
-      wh?.tuesdayHours,
-      wh?.wednesdayHours,
-      wh?.thursdayHours,
-      wh?.fridayHours,
-      wh?.saturdayHours
-    ]
-  )
+  const workingHours = useEmployeeWorkingHours(employee)
 
   const {
     isClockedIn,

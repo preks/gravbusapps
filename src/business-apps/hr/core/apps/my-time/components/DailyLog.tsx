@@ -7,6 +7,7 @@ import { useTimeTrackingData } from '../../employee-record/components/tabs/hooks
 import { useAbsenceData } from '../../employee-record/hooks/useAbsenceData'
 import AbsenceCalendar from '../../employee-record/components/tabs/components/AbsenceCalendar'
 import type { AbsenceListCardAbsence } from '../../employee-record/queries/types'
+import { useEmployeeWorkingHours } from '../utils/useEmployeeWorkingHours'
 import dayjs, { Dayjs } from 'dayjs'
 import weekday from 'dayjs/plugin/weekday'
 import localeData from 'dayjs/plugin/localeData'
@@ -29,31 +30,7 @@ const DailyLog: React.FC<DailyLogProps> = ({ employeeId, employee, accessToken }
 
   const { absenceList } = useAbsenceData(employeeId, accessToken, EMPTY_ABSENCE_ENTITLEMENTS)
 
-  const wh = employee?.workingHours?.[0]
-  const workingHours = React.useMemo(
-    () =>
-      wh
-        ? {
-            sundayHours: wh.sundayHours,
-            mondayHours: wh.mondayHours,
-            tuesdayHours: wh.tuesdayHours,
-            wednesdayHours: wh.wednesdayHours,
-            thursdayHours: wh.thursdayHours,
-            fridayHours: wh.fridayHours,
-            saturdayHours: wh.saturdayHours
-          }
-        : undefined,
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [
-      wh?.sundayHours,
-      wh?.mondayHours,
-      wh?.tuesdayHours,
-      wh?.wednesdayHours,
-      wh?.thursdayHours,
-      wh?.fridayHours,
-      wh?.saturdayHours
-    ]
-  )
+  const workingHours = useEmployeeWorkingHours(employee)
 
   const {
     allMonthEntries,
