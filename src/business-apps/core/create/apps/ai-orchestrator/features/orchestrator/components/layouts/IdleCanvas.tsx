@@ -5,7 +5,17 @@
  */
 
 import React, { useState } from 'react'
-import { Users, Receipt, MessageSquare, FolderKanban, Package, ArrowRight, Sparkles, Loader2 } from 'lucide-react'
+import {
+  Users,
+  Receipt,
+  MessageSquare,
+  FolderKanban,
+  Package,
+  ArrowRight,
+  Sparkles,
+  Loader2,
+  History
+} from 'lucide-react'
 import { Button, Textarea } from '@newwork/nw-design-system'
 import { SpaceHeroBackground } from '@/business-apps/platform/apps/spaces/components/SpaceHeroBackground'
 
@@ -13,6 +23,7 @@ const HERO_VIDEO_URL = import.meta.env?.VITE_SPACE_HERO_VIDEO_URL || ''
 
 export interface IdleCanvasProps {
   onSubmit?: (prompt: string) => void
+  onOpenHistory?: () => void
   isLoading?: boolean
   'data-testid'?: string
 }
@@ -49,6 +60,7 @@ const suggestions: Suggestion[] = [
 
 export const IdleCanvas: React.FC<IdleCanvasProps> = ({
   onSubmit,
+  onOpenHistory,
   isLoading = false,
   'data-testid': testId = 'idle-canvas'
 }) => {
@@ -196,6 +208,22 @@ export const IdleCanvas: React.FC<IdleCanvasProps> = ({
               ))}
             </div>
           </div>
+
+          {/* Session history link */}
+          {onOpenHistory && (
+            <div className="gba:mt-6 gba:flex gba:justify-center">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onOpenHistory}
+                className="gba:gap-2 gba:text-muted-foreground gba:hover:text-foreground"
+                data-testid={`${testId}-history-btn`}
+              >
+                <History className="gba:w-3.5 gba:h-3.5" />
+                View session history
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     </div>

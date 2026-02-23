@@ -5,7 +5,7 @@
 
 import React from 'react'
 import { cn } from '@newwork/nw-design-system'
-import { Monitor, Database, Code2, Bot, Workflow } from 'lucide-react'
+import { Monitor, Database, Code2, Bot, Workflow, Info } from 'lucide-react'
 import type { CanvasTab } from '../../types/chat'
 import { CANVAS_TABS } from '../../types/chat'
 
@@ -20,7 +20,8 @@ const TAB_ICONS: Record<CanvasTab, React.ElementType> = {
   'data-model': Database,
   functions: Code2,
   'task-expert': Bot,
-  flow: Workflow
+  flow: Workflow,
+  about: Info
 }
 
 export const CanvasTabHeader: React.FC<CanvasTabHeaderProps> = ({
