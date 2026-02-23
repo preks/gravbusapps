@@ -27,7 +27,7 @@ export const ScreenPreview: React.FC<ScreenPreviewProps> = ({
 
   useEffect(() => {
     if (!refreshToken) return
-    previewRef.current?.reload({ forceRebuild: true })
+    previewRef.current?.reload()
   }, [refreshToken])
 
   // Loading state
@@ -57,13 +57,11 @@ export const ScreenPreview: React.FC<ScreenPreviewProps> = ({
   }
 
   return (
-    <div className="gba:h-full gba:min-h-[600px] gba:flex gba:flex-col gba:p-3">
+    <div className="gba:h-full gba:min-h-[600px] gba:flex gba:flex-col">
       <div
         className={cn(
-          'gba:flex-1 gba:min-h-0 gba:rounded-xl gba:border gba:bg-card/30 gba:overflow-hidden gba:transition-all gba:duration-300',
-          isFixWorking
-            ? 'gba:border-blue-400/80 dark:gba:border-blue-400/60 gba:shadow-[0_0_0_1px_rgba(96,165,250,0.5),0_0_20px_rgba(59,130,246,0.35),0_10px_28px_rgba(37,99,235,0.18)] gba:animate-pulse'
-            : 'gba:border-blue-300/70 dark:gba:border-blue-500/40 gba:shadow-[0_0_0_1px_rgba(147,197,253,0.25),0_10px_28px_rgba(37,99,235,0.12)]'
+          'gba:flex-1 gba:min-h-0 gba:bg-card gba:overflow-hidden gba:transition-opacity gba:duration-300',
+          isFixWorking && 'gba:opacity-70'
         )}
       >
         <PreviewSandbox

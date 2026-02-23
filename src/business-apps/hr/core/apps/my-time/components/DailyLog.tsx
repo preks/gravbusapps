@@ -7,6 +7,7 @@ import { useTimeTrackingData } from '../../employee-record/components/tabs/hooks
 import { useAbsenceData } from '../../employee-record/hooks/useAbsenceData'
 import AbsenceCalendar from '../../employee-record/components/tabs/components/AbsenceCalendar'
 import type { AbsenceListCardAbsence } from '../../employee-record/queries/types'
+import { useEmployeeWorkingHours } from '../utils/useEmployeeWorkingHours'
 import dayjs, { Dayjs } from 'dayjs'
 import weekday from 'dayjs/plugin/weekday'
 import localeData from 'dayjs/plugin/localeData'
@@ -20,12 +21,16 @@ interface DailyLogProps {
   employee: any
 }
 
+const EMPTY_ABSENCE_ENTITLEMENTS: never[] = []
+
 const DailyLog: React.FC<DailyLogProps> = ({ employeeId, employee, accessToken }) => {
   const [currentDate, setCurrentDate] = React.useState<Dayjs>(dayjs())
   const [selectedStartDate, setSelectedStartDate] = React.useState<any>(null)
   const [selectedEndDate, setSelectedEndDate] = React.useState<any>(null)
 
-  const { absenceList } = useAbsenceData(employeeId, accessToken, [])
+  const { absenceList } = useAbsenceData(employeeId, accessToken, EMPTY_ABSENCE_ENTITLEMENTS)
+
+  const workingHours = useEmployeeWorkingHours(employee)
 
   const {
     allMonthEntries,
@@ -39,7 +44,7 @@ const DailyLog: React.FC<DailyLogProps> = ({ employeeId, employee, accessToken }
   } = useTimeTrackingData({
     employeeId,
     accessToken,
-    workingHours: employee?.workingHours?.[0]
+    workingHours
   })
 
   const calendarAbsences = React.useMemo<AbsenceListCardAbsence[]>(() => {

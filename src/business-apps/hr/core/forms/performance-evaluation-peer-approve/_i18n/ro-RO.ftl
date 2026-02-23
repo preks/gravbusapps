@@ -1,5 +1,6 @@
 # Performance Evaluation Peer Approve
 
+header-title = Evaluare performanță
 title = Aprobare colegi nominalizați
 peers-label = Colegi nominalizați
 no-peers = Niciun coleg nominalizat de afișat.

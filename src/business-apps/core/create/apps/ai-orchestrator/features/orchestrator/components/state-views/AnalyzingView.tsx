@@ -9,7 +9,7 @@ export interface AnalyzingViewProps {
 
 export const AnalyzingView: React.FC<AnalyzingViewProps> = ({ thinkingSteps, analysisProgress }) => {
   return (
-    <Canvas title="Analyzing" subtitle="Planning your solution">
+    <Canvas>
       <ThinkingSteps
         steps={thinkingSteps}
         progress={analysisProgress}

@@ -45,3 +45,7 @@ export type { AgentToolUpdate, FlowStepUpdate, FlowUpdate, ScreenUpdate, WiringP
 
 // UI state types
 export type { OrchestratorViewState, ComponentTileInfo, TileState } from './ui'
+
+// Chat types
+export type { ChatMessageRole, ChatMessageType, CreateChatMessage, CanvasTab, CanvasTabInfo } from './chat'
+export { CANVAS_TABS } from './chat'
