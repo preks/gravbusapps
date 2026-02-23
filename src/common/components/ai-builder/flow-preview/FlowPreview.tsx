@@ -1,16 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardContent,
-  Spinner,
-  Alert,
-  AlertDescription,
-  Badge,
-  Button
-} from '@newwork/nw-design-system'
-import { Workflow, Play, X, Flag, CircleDot } from 'lucide-react'
+import { Card, CardHeader, CardTitle, Spinner, Alert, AlertDescription, Badge, Button } from '@newwork/nw-design-system'
+import { Workflow, Play, X } from 'lucide-react'
 import { useFlowTemplateClient } from '@/common/network/flows/useFlowTemplateClient'
 import { FlowCanvasProvider, FlowCanvas } from '@/common/components/flow'
 import { templateToFlowGraphDefinition, flowNodeIdToStepIndex } from '@/common/data/flow/templateToFlowGraph'
@@ -139,67 +129,58 @@ export const FlowPreview: React.FC<FlowPreviewProps> = ({
           definition={definition}
           rightPanel={
             selectedNodeId === START_NODE_ID ? (
-              <div className="gba:w-[320px] gba:h-full gba:flex gba:flex-col gba:bg-card gba:border-l gba:border-border gba:overflow-auto">
-                <Card
-                  className="gba:border-0 gba:rounded-none gba:flex-1 gba:flex gba:flex-col"
-                  data-testid={`${testId}-start-panel`}
-                >
-                  <CardHeader className="gba:shrink-0 gba:border-b gba:border-border gba:flex gba:flex-row gba:items-center gba:justify-between gba:gap-2">
-                    <div className="gba:flex gba:items-center gba:gap-2">
-                      <div className="gba:flex gba:h-9 gba:w-9 gba:shrink-0 gba:items-center gba:justify-center gba:rounded-lg gba:bg-primary/10 gba:text-primary">
-                        <CircleDot className="gba:h-5 gba:w-5" />
-                      </div>
-                      <CardTitle className="gba:text-base">Start</CardTitle>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setSelectedNodeId(null)}
-                      aria-label="Close"
-                      data-testid={`${testId}-start-panel-close`}
-                    >
-                      <X className="gba:h-4 gba:w-4" />
-                    </Button>
-                  </CardHeader>
-                  <CardContent className="gba:pt-4">
-                    <p className="gba:text-sm gba:text-muted-foreground">
-                      Workflow entry point. Triggers defined in the template.
-                    </p>
-                  </CardContent>
-                </Card>
+              <div
+                className="gba:h-full gba:min-h-0 gba:flex gba:flex-col gba:border-l gba:border-border gba:shadow-sm"
+                style={{ width: 320, minWidth: 320 }}
+                data-testid={`${testId}-start-panel`}
+              >
+                <div className="gba:flex gba:shrink-0 gba:items-center gba:justify-between gba:px-5 gba:py-3 gba:border-b gba:border-border">
+                  <span className="gba:text-sm gba:font-semibold gba:text-foreground">Start</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSelectedNodeId(null)}
+                    aria-label="Close"
+                    data-testid={`${testId}-start-panel-close`}
+                  >
+                    <X className="gba:h-4 gba:w-4" />
+                  </Button>
+                </div>
+                <div className="gba:flex-1 gba:min-h-0 gba:overflow-y-auto gba:px-5 gba:pt-4">
+                  <p className="gba:text-sm gba:text-muted-foreground">
+                    Workflow entry point. Triggers defined in the template.
+                  </p>
+                </div>
               </div>
             ) : selectedNodeId === END_NODE_ID ? (
-              <div className="gba:w-[320px] gba:h-full gba:flex gba:flex-col gba:bg-card gba:border-l gba:border-border gba:overflow-auto">
-                <Card
-                  className="gba:border-0 gba:rounded-none gba:flex-1 gba:flex gba:flex-col"
-                  data-testid={`${testId}-end-panel`}
-                >
-                  <CardHeader className="gba:shrink-0 gba:border-b gba:border-border gba:flex gba:flex-row gba:items-center gba:justify-between gba:gap-2">
-                    <div className="gba:flex gba:items-center gba:gap-2">
-                      <div className="gba:flex gba:h-9 gba:w-9 gba:shrink-0 gba:items-center gba:justify-center gba:rounded-lg gba:bg-primary/10 gba:text-primary">
-                        <Flag className="gba:h-5 gba:w-5" />
-                      </div>
-                      <CardTitle className="gba:text-base">Workflow Summary</CardTitle>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setSelectedNodeId(null)}
-                      aria-label="Close"
-                      data-testid={`${testId}-end-panel-close`}
-                    >
-                      <X className="gba:h-4 gba:w-4" />
-                    </Button>
-                  </CardHeader>
-                  <CardContent className="gba:pt-4">
-                    <p className="gba:text-sm gba:text-muted-foreground">
-                      Final step. Summary fields are shown when the workflow completes.
-                    </p>
-                  </CardContent>
-                </Card>
+              <div
+                className="gba:h-full gba:min-h-0 gba:flex gba:flex-col gba:border-l gba:border-border gba:shadow-sm"
+                style={{ width: 320, minWidth: 320 }}
+                data-testid={`${testId}-end-panel`}
+              >
+                <div className="gba:flex gba:shrink-0 gba:items-center gba:justify-between gba:px-5 gba:py-3 gba:border-b gba:border-border">
+                  <span className="gba:text-sm gba:font-semibold gba:text-foreground">Workflow Summary</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSelectedNodeId(null)}
+                    aria-label="Close"
+                    data-testid={`${testId}-end-panel-close`}
+                  >
+                    <X className="gba:h-4 gba:w-4" />
+                  </Button>
+                </div>
+                <div className="gba:flex-1 gba:min-h-0 gba:overflow-y-auto gba:px-5 gba:pt-4">
+                  <p className="gba:text-sm gba:text-muted-foreground">
+                    Final step. Summary fields are shown when the workflow completes.
+                  </p>
+                </div>
               </div>
             ) : selectedStep != null && selectedIndex != null ? (
-              <div className="gba:w-[320px] gba:h-full gba:flex gba:flex-col gba:bg-card gba:border-l gba:border-border gba:overflow-auto">
+              <div
+                className="gba:h-full gba:min-h-0 gba:flex gba:flex-col gba:border-l gba:border-border gba:shadow-sm"
+                style={{ width: 320, minWidth: 320 }}
+              >
                 <FlowPreviewStepPanel
                   step={selectedStep}
                   index={selectedIndex}

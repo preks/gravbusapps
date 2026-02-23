@@ -38,6 +38,31 @@ const localVideoUrl = '/space-hero-background.mp4'
 const useVideo = hostedVideoUrl || (typeof import.meta !== 'undefined' && import.meta.env?.DEV && localVideoUrl)
 const HERO_VIDEO_SRC = hostedVideoUrl || localVideoUrl
 
+const FLOW_ID_PARAM = 'flowId'
+
+function getFlowIdFromUrl(): string | null {
+  if (typeof window === 'undefined') return null
+  const urlParams = new URLSearchParams(window.location.search)
+  const id = urlParams.get(FLOW_ID_PARAM)
+  return id && id.trim() ? id.trim() : null
+}
+
+function updateUrlWithFlowId(flowId: string | null, push = false): void {
+  if (typeof window === 'undefined') return
+  const urlParams = new URLSearchParams(window.location.search)
+  if (flowId) {
+    urlParams.set(FLOW_ID_PARAM, flowId)
+  } else {
+    urlParams.delete(FLOW_ID_PARAM)
+  }
+  const newUrl = `${window.location.pathname}?${urlParams.toString()}${window.location.hash}`
+  if (push) {
+    window.history.pushState({}, '', newUrl)
+  } else {
+    window.history.replaceState({}, '', newUrl)
+  }
+}
+
 interface FlowStudioProps extends BusinessAppContextProps {
   /** Optional template ID to load for editing */
   templateId?: string
@@ -70,7 +95,8 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
   const selectEdge = useFlowStudioStore(s => s.selectEdge)
 
   const { loadFlow, isLoading: isLoadingTemplate } = useFlowStudioClient(accessToken)
-  const [view, setView] = useState<'list' | 'designer'>(templateId ? 'designer' : 'list')
+  const urlFlowIdOnMount = getFlowIdFromUrl()
+  const [view, setView] = useState<'list' | 'designer'>(templateId || urlFlowIdOnMount ? 'designer' : 'list')
   const [labelsOpen, setLabelsOpen] = useState(false)
   const [discardOpen, setDiscardOpen] = useState(false)
 
@@ -119,6 +145,7 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
 
   const openTemplateFromList = useCallback(
     async (id: string) => {
+      updateUrlWithFlowId(id, true)
       setView('designer')
       try {
         await loadFlow(id)
@@ -130,11 +157,13 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
   )
 
   const createNewFlow = useCallback(() => {
+    updateUrlWithFlowId(null)
     resetStore()
     setView('designer')
   }, [resetStore])
 
   const backToList = useCallback(() => {
+    updateUrlWithFlowId(null)
     selectNode(null)
     selectEdge(null)
     setView('list')
@@ -159,11 +188,34 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
     backToList()
   }, [backToList, mode, resetStore, setMode])
 
+  // Load flow when templateId prop is set (parent control)
   useEffect(() => {
     if (!templateId) return
     setView('designer')
     loadFlow(templateId).catch(() => undefined)
   }, [loadFlow, templateId])
+
+  // Load flow from URL on mount when no templateId prop (direct link / bookmark)
+  useEffect(() => {
+    if (templateId || !urlFlowIdOnMount) return
+    setView('designer')
+    loadFlow(urlFlowIdOnMount).catch(() => updateUrlWithFlowId(null))
+  }, [loadFlow, templateId, urlFlowIdOnMount])
+
+  // React to browser back/forward (URL change)
+  useEffect(() => {
+    const handlePopState = () => {
+      const id = getFlowIdFromUrl()
+      if (id) {
+        setView('designer')
+        loadFlow(id).catch(() => updateUrlWithFlowId(null))
+      } else {
+        setView('list')
+      }
+    }
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [loadFlow])
 
   return (
     <div className="gba:flex gba:flex-col gba:h-full gba:w-full gba:bg-background" data-testid={testId}>
@@ -326,7 +378,7 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
       </div>
 
       {/* Main content area */}
-      <div className="gba:flex gba:flex-1 gba:overflow-hidden">
+      <div className="gba:flex gba:flex-1 gba:min-h-0 gba:overflow-hidden">
         {view === 'list' ? (
           <FlowStudioListView
             accessToken={accessToken}
@@ -339,7 +391,6 @@ export const FlowStudio: React.FC<FlowStudioProps> = ({
             userInfo={userInfo}
             mode={mode}
             onModeChange={handleModeChange}
-            onBackToList={requestCloseToList}
             data-testid={`${testId}-canvas`}
           />
         )}

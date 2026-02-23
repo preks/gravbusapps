@@ -2,6 +2,7 @@ import React from 'react'
 import { Handle, Position } from 'reactflow'
 import { Badge } from '@newwork/nw-design-system'
 import { CheckCircle, BarChart3 } from 'lucide-react'
+import { HANDLE_OFFSET } from './nodeDimensions'
 import type { StepStatus } from '../types/viewerTypes'
 
 interface EndNodeData {
@@ -42,7 +43,14 @@ export const EndNode: React.FC<{ data: EndNodeData }> = ({ data }) => {
       <Handle
         type="target"
         position={Position.Top}
-        style={{ visibility: 'hidden', width: 10, height: 10, top: '20%', left: '50%', transform: 'translateX(-50%)' }}
+        style={{
+          visibility: 'hidden',
+          width: 10,
+          height: 10,
+          top: `calc(20% - ${HANDLE_OFFSET}px)`,
+          left: '50%',
+          transform: 'translateX(-50%)'
+        }}
       />
 
       <div

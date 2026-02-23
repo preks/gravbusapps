@@ -2,6 +2,7 @@ import React from 'react'
 import { Handle, Position } from 'reactflow'
 import { Badge } from '@newwork/nw-design-system'
 import { Merge } from 'lucide-react'
+import { HANDLE_OFFSET } from './nodeDimensions'
 import type { StepStatus } from '../types/viewerTypes'
 
 interface JoinNodeData {
@@ -42,19 +43,40 @@ export const JoinNode: React.FC<{ data: JoinNodeData }> = ({ data }) => {
       <Handle
         type="target"
         position={Position.Top}
-        style={{ visibility: 'hidden', width: 10, height: 10, left: '50%', transform: 'translateX(-50%)' }}
+        style={{
+          visibility: 'hidden',
+          width: 10,
+          height: 10,
+          left: '50%',
+          top: -HANDLE_OFFSET,
+          transform: 'translateX(-50%)'
+        }}
       />
       <Handle
         type="target"
         position={Position.Left}
         id="left"
-        style={{ visibility: 'hidden', width: 10, height: 10 }}
+        style={{
+          visibility: 'hidden',
+          width: 10,
+          height: 10,
+          left: -HANDLE_OFFSET,
+          top: '50%',
+          transform: 'translateY(-50%)'
+        }}
       />
       <Handle
         type="target"
         position={Position.Right}
         id="right"
-        style={{ visibility: 'hidden', width: 10, height: 10 }}
+        style={{
+          visibility: 'hidden',
+          width: 10,
+          height: 10,
+          right: -HANDLE_OFFSET,
+          top: '50%',
+          transform: 'translateY(-50%)'
+        }}
       />
 
       <div
@@ -70,7 +92,14 @@ export const JoinNode: React.FC<{ data: JoinNodeData }> = ({ data }) => {
       <Handle
         type="source"
         position={Position.Bottom}
-        style={{ visibility: 'hidden', width: 10, height: 10, left: '50%', transform: 'translateX(-50%)' }}
+        style={{
+          visibility: 'hidden',
+          width: 10,
+          height: 10,
+          left: '50%',
+          bottom: -HANDLE_OFFSET,
+          transform: 'translateX(-50%)'
+        }}
       />
     </button>
   )

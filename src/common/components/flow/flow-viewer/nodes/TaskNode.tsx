@@ -14,6 +14,7 @@ import {
   UserPlus,
   Zap
 } from 'lucide-react'
+import { TASK_NODE_WIDTH, TASK_NODE_HEIGHT, HANDLE_OFFSET } from './nodeDimensions'
 import type { TaskVariant, StepStatus } from '../types/viewerTypes'
 
 interface TaskNodeData {
@@ -75,26 +76,48 @@ export const TaskNode: React.FC<{ data: TaskNodeData }> = ({ data }) => {
   return (
     <button
       type="button"
-      className={`nopan nodrag gba:relative gba:border-2 gba:rounded-lg gba:p-3 gba:w-[260px] gba:min-h-[100px] gba:transition-all gba:duration-200 gba:shadow-sm gba:cursor-pointer ${borderClass} ${bgClass}`}
+      className={`nopan nodrag gba:border-2 gba:rounded-lg gba:p-3 gba:transition-all gba:duration-200 gba:shadow-sm gba:cursor-pointer ${borderClass} ${bgClass}`}
+      style={{ width: TASK_NODE_WIDTH, height: TASK_NODE_HEIGHT }}
       onClick={() => data.onSelect?.()}
       data-testid={data.testId ?? 'flow-viewer-task-node'}
     >
       <Handle
         type="target"
         position={Position.Top}
-        style={{ visibility: 'hidden', width: 10, height: 10, left: '50%', transform: 'translateX(-50%)' }}
+        style={{
+          visibility: 'hidden',
+          width: 10,
+          height: 10,
+          left: '50%',
+          top: -HANDLE_OFFSET,
+          transform: 'translateX(-50%)'
+        }}
       />
       {/* Left target handle for send-back edges (avoids overlapping the "+" on the main lane) */}
       <Handle
         type="target"
         position={Position.Left}
         id="left"
-        style={{ visibility: 'hidden', width: 10, height: 10, left: 0, top: '50%', transform: 'translateY(-50%)' }}
+        style={{
+          visibility: 'hidden',
+          width: 10,
+          height: 10,
+          left: -HANDLE_OFFSET,
+          top: '50%',
+          transform: 'translateY(-50%)'
+        }}
       />
       <Handle
         type="source"
         position={Position.Bottom}
-        style={{ visibility: 'hidden', width: 10, height: 10, left: '50%', transform: 'translateX(-50%)' }}
+        style={{
+          visibility: 'hidden',
+          width: 10,
+          height: 10,
+          left: '50%',
+          bottom: -HANDLE_OFFSET,
+          transform: 'translateX(-50%)'
+        }}
       />
 
       {/* Header */}
@@ -159,10 +182,10 @@ export const TaskNode: React.FC<{ data: TaskNodeData }> = ({ data }) => {
         </div>
       )}
 
-      {/* Step number */}
+      {/* Step number (inside node so it is not clipped by wrapper overflow) */}
       {data.stepNumber != null && (
         <div
-          className={`gba:absolute gba:-top-2.5 gba:-left-2.5 gba:w-6 gba:h-6 gba:rounded-full gba:flex gba:items-center gba:justify-center gba:text-xs gba:font-bold gba:text-primary-foreground ${
+          className={`gba:absolute gba:top-2 gba:left-2 gba:w-6 gba:h-6 gba:rounded-full gba:flex gba:items-center gba:justify-center gba:text-xs gba:font-bold gba:text-primary-foreground ${
             data.isSelected
               ? 'gba:bg-primary'
               : data.status === 'completed'

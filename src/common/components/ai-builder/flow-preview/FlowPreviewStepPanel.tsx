@@ -1,5 +1,5 @@
 import React from 'react'
-import { Card, CardContent, CardHeader, CardTitle, Button, Badge, ScrollArea } from '@newwork/nw-design-system'
+import { Button, Badge, ScrollArea } from '@newwork/nw-design-system'
 import { X } from 'lucide-react'
 import type { FlowPreviewStep, FlowPreviewInputBlock } from './flowPreviewTypes'
 
@@ -52,30 +52,28 @@ export const FlowPreviewStepPanel: React.FC<FlowPreviewStepPanelProps> = ({
     const branches = step.branches ?? []
     const defaultNext = step.defaultNextStep
     return (
-      <Card className="gba:border-border gba:h-full gba:flex gba:flex-col" data-testid={`${testId}-step-config`}>
-        <CardHeader className="gba:shrink-0 gba:border-b gba:border-border gba:flex gba:flex-row gba:items-start gba:justify-between gba:gap-2">
+      <>
+        <div className="gba:flex gba:shrink-0 gba:items-center gba:justify-between gba:px-5 gba:py-3 gba:border-b gba:border-border">
           <div className="gba:flex gba:items-center gba:gap-2">
-            <div className="gba:flex gba:h-9 gba:w-9 gba:shrink-0 gba:items-center gba:justify-center gba:rounded-lg gba:bg-primary/10 gba:text-primary gba:font-semibold gba:text-sm">
-              {index + 1}
-            </div>
-            <div>
-              <CardTitle className="gba:text-base">Branch (Gateway)</CardTitle>
-              <Badge variant="secondary" className="gba:mt-1">
-                Conditional paths
-              </Badge>
-            </div>
+            <span className="gba:text-sm gba:font-semibold gba:text-foreground">
+              Step {index + 1}: Branch (Gateway)
+            </span>
+            <Badge variant="secondary">Conditional paths</Badge>
           </div>
           <Button
             variant="ghost"
-            size="icon"
+            size="sm"
             onClick={onClose}
             aria-label="Close"
             data-testid={`${testId}-step-config-close`}
           >
             <X className="gba:h-4 gba:w-4" />
           </Button>
-        </CardHeader>
-        <CardContent className="gba:flex-1 gba:min-h-0 gba:pt-4">
+        </div>
+        <div
+          className="gba:flex-1 gba:min-h-0 gba:overflow-y-auto gba:px-5 gba:pt-4"
+          data-testid={`${testId}-step-config`}
+        >
           <ScrollArea className="gba:h-full">
             <div className="gba:space-y-4 gba:pr-2">
               {branches.length > 0 && (
@@ -96,36 +94,34 @@ export const FlowPreviewStepPanel: React.FC<FlowPreviewStepPanelProps> = ({
               )}
             </div>
           </ScrollArea>
-        </CardContent>
-      </Card>
+        </div>
+      </>
     )
   }
 
   return (
-    <Card className="gba:border-border gba:h-full gba:flex gba:flex-col" data-testid={`${testId}-step-config`}>
-      <CardHeader className="gba:shrink-0 gba:border-b gba:border-border gba:flex gba:flex-row gba:items-start gba:justify-between gba:gap-2">
+    <>
+      <div className="gba:flex gba:shrink-0 gba:items-center gba:justify-between gba:px-5 gba:py-3 gba:border-b gba:border-border">
         <div className="gba:flex gba:items-center gba:gap-2">
-          <div className="gba:flex gba:h-9 gba:w-9 gba:shrink-0 gba:items-center gba:justify-center gba:rounded-lg gba:bg-primary/10 gba:text-primary gba:font-semibold gba:text-sm">
-            {index + 1}
-          </div>
-          <div>
-            <CardTitle className="gba:text-base">{step.title || 'Untitled step'}</CardTitle>
-            <Badge variant="secondary" className="gba:mt-1">
-              {String(step.type ?? 'TASK').replace(/_/g, ' ')}
-            </Badge>
-          </div>
+          <span className="gba:text-sm gba:font-semibold gba:text-foreground">
+            Step {index + 1}: {step.title || 'Untitled step'}
+          </span>
+          <Badge variant="secondary">{String(step.type ?? 'TASK').replace(/_/g, ' ')}</Badge>
         </div>
         <Button
           variant="ghost"
-          size="icon"
+          size="sm"
           onClick={onClose}
           aria-label="Close"
           data-testid={`${testId}-step-config-close`}
         >
           <X className="gba:h-4 gba:w-4" />
         </Button>
-      </CardHeader>
-      <CardContent className="gba:flex-1 gba:min-h-0 gba:pt-4">
+      </div>
+      <div
+        className="gba:flex-1 gba:min-h-0 gba:overflow-y-auto gba:px-5 gba:pt-4"
+        data-testid={`${testId}-step-config`}
+      >
         <ScrollArea className="gba:h-full">
           <div className="gba:space-y-4 gba:pr-2">
             {step.message && (
@@ -185,7 +181,7 @@ export const FlowPreviewStepPanel: React.FC<FlowPreviewStepPanelProps> = ({
             )}
           </div>
         </ScrollArea>
-      </CardContent>
-    </Card>
+      </div>
+    </>
   )
 }

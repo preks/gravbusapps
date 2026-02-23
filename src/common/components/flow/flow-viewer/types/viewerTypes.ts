@@ -84,6 +84,12 @@ export interface FlowExecutionState {
   iterations?: Record<string, number>
 }
 
+/** Edge actions for edit mode: insert node on edge, open insert panel. */
+export interface FlowCanvasEdgeActions {
+  onInsert?: (type: 'task' | 'decision' | 'fork', taskStepType?: unknown) => void
+  onOpenInsertPanel?: () => void
+}
+
 /** Props for FlowCanvas when used inside FlowCanvasProvider. */
 export interface FlowCanvasViewProps {
   /** The graph definition to render */
@@ -98,6 +104,27 @@ export interface FlowCanvasViewProps {
   useForwardEdgesOnlyForRanking?: boolean
   /** Optional content rendered in React Flow Panel (center-right). Use for detail/sidebar. */
   rightPanel?: ReactNode
+  /** Optional: called when a new connection is created (edit mode). */
+  onConnect?: (connection: {
+    source: string
+    target: string
+    sourceHandle?: string | null
+    targetHandle?: string | null
+  }) => void
+  /** Optional: node click handler (edit mode). When not set, uses provider selectNode when isInteractive. */
+  onNodeClick?: (event: React.MouseEvent, node: { id: string }) => void
+  /** Optional: edge click handler (edit mode). When not set, uses provider selectEdge when isInteractive. */
+  onEdgeClick?: (event: React.MouseEvent, edge: { id: string }) => void
+  /** Optional: pane click handler (edit mode). When not set, clears selection via provider when isInteractive. */
+  onPaneClick?: () => void
+  /** Optional: per-edge actions for insert UI (edit mode). Merged into edge data. */
+  getEdgeActions?: (edgeId: string) => FlowCanvasEdgeActions
+  /** When true, nodes can be connected with new edges (edit mode). Default false. */
+  nodesConnectable?: boolean
+  /** When true, nodes are draggable. Default false. */
+  nodesDraggable?: boolean
+  /** When true, nodes and edges are selectable. Default from provider isInteractive when no edit callbacks. */
+  elementsSelectable?: boolean
   /** Test ID for automated testing */
   'data-testid'?: string
 }

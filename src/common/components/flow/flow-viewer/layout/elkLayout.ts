@@ -5,6 +5,15 @@
  */
 
 import ELK, { type ElkNode, type ElkExtendedEdge } from 'elkjs/lib/elk.bundled.js'
+import {
+  getNodeDimensions,
+  CIRCULAR_NODE_SIZE,
+  DECISION_NODE_SIZE,
+  TASK_NODE_WIDTH,
+  TASK_NODE_HEIGHT,
+  BAR_NODE_WIDTH,
+  BAR_NODE_HEIGHT
+} from '../nodes/nodeDimensions'
 import type { FlowGraphDefinition } from '../types/viewerTypes'
 
 const elk = new ELK()
@@ -34,19 +43,19 @@ export interface LayoutOptions {
   barHeight?: number
 }
 
-const DEFAULT_OPTIONS: Required<LayoutOptions> = {
+export const DEFAULT_LAYOUT_OPTIONS: Required<LayoutOptions> = {
   direction: 'TB',
   useForwardEdgesOnlyForRanking: false,
   nodeSpacing: 60,
   layerSpacing: 100,
   edgeNodeSpacing: 24,
   edgeEdgeSpacing: 16,
-  nodeWidth: 260,
-  nodeHeight: 100,
-  circularNodeSize: 140,
-  decisionNodeSize: 170,
-  barWidth: 200,
-  barHeight: 40
+  nodeWidth: TASK_NODE_WIDTH,
+  nodeHeight: TASK_NODE_HEIGHT,
+  circularNodeSize: CIRCULAR_NODE_SIZE,
+  decisionNodeSize: DECISION_NODE_SIZE,
+  barWidth: BAR_NODE_WIDTH,
+  barHeight: BAR_NODE_HEIGHT
 }
 
 export interface LayoutResult {
@@ -57,26 +66,11 @@ export interface LayoutResult {
   }>
 }
 
-function getNodeDimensions(nodeType: string, opts: Required<LayoutOptions>): { width: number; height: number } {
-  switch (nodeType) {
-    case 'start':
-    case 'end':
-      return { width: opts.circularNodeSize, height: opts.circularNodeSize }
-    case 'decision':
-      return { width: opts.decisionNodeSize, height: opts.decisionNodeSize }
-    case 'fork':
-    case 'join':
-      return { width: opts.barWidth, height: opts.barHeight }
-    default:
-      return { width: opts.nodeWidth, height: opts.nodeHeight }
-  }
-}
-
 export async function computeLayout(definition: FlowGraphDefinition, options?: LayoutOptions): Promise<LayoutResult> {
-  const opts = { ...DEFAULT_OPTIONS, ...options }
+  const opts = { ...DEFAULT_LAYOUT_OPTIONS, ...options }
 
   const elkChildren: ElkNode[] = definition.nodes.map(node => {
-    const dims = getNodeDimensions(node.type, opts)
+    const dims = getNodeDimensions(node.type)
     return {
       id: node.id,
       width: dims.width,

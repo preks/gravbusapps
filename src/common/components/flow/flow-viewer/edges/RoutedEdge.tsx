@@ -1,6 +1,8 @@
 import React, { useCallback, useState } from 'react'
 import { BaseEdge, EdgeLabelRenderer, type EdgeProps, MarkerType, getStraightPath } from 'reactflow'
 import { GitBranch, Plus, SplitSquareHorizontal, UserCheck } from 'lucide-react'
+import { HANDLE_OFFSET } from '../nodes/nodeDimensions'
+import { extendEdgePointsByHandleOffset } from './edgePathUtils'
 
 /* ─── helpers ──────────────────────────────────────────────────────── */
 
@@ -53,6 +55,8 @@ export const RoutedEdge: React.FC<EdgeProps> = ({ id, sourceX, sourceY, targetX,
   // The design system uses HSL tokens, so we read the computed value at runtime.
   const strokeDefault = 'hsl(215 16% 75%)'
   const strokeSelected = 'hsl(215 76% 56%)'
+  // Keep markerEnd unchanged: BaseEdge passes it to SVG path; only url(#id) is valid there.
+  // Switching to an object when selected would make the arrow disappear.
 
   const [menuOpen, setMenuOpen] = useState(false)
 
@@ -167,9 +171,9 @@ export const RoutedEdge: React.FC<EdgeProps> = ({ id, sourceX, sourceY, targetX,
 
   // If ELK provided routed points, build an SVG path from them
   if (points && points.length >= 2) {
-    // Pure ELK routing (do not adjust endpoints).
-    const edgePath = points.map((p, i) => (i === 0 ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`)).join(' ')
-    const mid = midpointOfPolyline(points)
+    const adjustedPoints = extendEdgePointsByHandleOffset(points, HANDLE_OFFSET)
+    const edgePath = adjustedPoints.map((p, i) => (i === 0 ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`)).join(' ')
+    const mid = midpointOfPolyline(adjustedPoints)
     return (
       <>
         <BaseEdge
@@ -213,8 +217,16 @@ export const RoutedEdge: React.FC<EdgeProps> = ({ id, sourceX, sourceY, targetX,
 
 RoutedEdge.displayName = 'RoutedEdge'
 
+const STROKE_SELECTED = 'hsl(215 76% 56%)'
+
 /** Default marker for forward edges */
 export const FORWARD_MARKER = {
   type: MarkerType.ArrowClosed,
   color: 'hsl(215 16% 75%)'
+}
+
+/** Marker for forward edges when selected (arrow matches stroke) */
+export const FORWARD_MARKER_SELECTED = {
+  type: MarkerType.ArrowClosed,
+  color: STROKE_SELECTED
 }

@@ -3,8 +3,9 @@
  * Slides in from the right when a node is selected, disappears when deselected.
  */
 
-import React from 'react'
+import React, { useRef } from 'react'
 import { X } from 'lucide-react'
+import { useRightPanelExiting } from '@/common/components/flow'
 import { Button } from '@newwork/nw-design-system'
 import { useFlowStudioStore } from '../../hooks/useFlowStudioStore'
 import { StartConfigPanel } from './StartConfigPanel'
@@ -25,10 +26,14 @@ import type {
 } from '../../types/studioTypes'
 import type { FlowStudioData } from '../../hooks/useFlowStudioData'
 
+const DEFAULT_PANEL_WIDTH = 520
+
 interface ConfigPanelContainerProps {
   mode: DesignerMode
   accessToken: string
   studioData: FlowStudioData
+  /** Panel width in px; consumer-defined. Default 520. */
+  width?: number
   'data-testid'?: string
 }
 
@@ -36,6 +41,7 @@ export const ConfigPanelContainer: React.FC<ConfigPanelContainerProps> = ({
   mode,
   accessToken,
   studioData,
+  width = DEFAULT_PANEL_WIDTH,
   'data-testid': testId = 'flow-studio-config-panel'
 }) => {
   const selectedNodeId = useFlowStudioStore(s => s.selectedNodeId)
@@ -46,8 +52,14 @@ export const ConfigPanelContainer: React.FC<ConfigPanelContainerProps> = ({
   const selectEdge = useFlowStudioStore(s => s.selectEdge)
 
   const selectedNode = selectedNodeId ? nodes.find(n => n.id === selectedNodeId) : null
+  const isExiting = useRightPanelExiting()
+  const lastContentRef = useRef<React.ReactNode>(null)
 
-  if (!selectedNode && !selectedEdgeId) return null
+  const hasSelection = !!selectedNode || !!selectedEdgeId
+  if (!hasSelection && !isExiting) return null
+  if (!hasSelection && isExiting && lastContentRef.current != null) {
+    return lastContentRef.current
+  }
 
   const renderPanel = () => {
     if (!selectedNode) {
@@ -94,12 +106,13 @@ export const ConfigPanelContainer: React.FC<ConfigPanelContainerProps> = ({
     }
   }
 
-  return (
+  const content = (
     <div
-      className="gba:w-[520px] gba:min-w-[520px] gba:h-full gba:border-l gba:border-border gba:bg-background gba:flex gba:flex-col gba:animate-in gba:slide-in-from-right gba:shadow-sm"
+      className="gba:h-full gba:min-h-0 gba:flex gba:flex-col gba:border-l gba:border-border gba:shadow-sm"
+      style={{ width, minWidth: width }}
       data-testid={testId}
     >
-      <div className="gba:flex gba:items-center gba:justify-between gba:px-5 gba:py-3 gba:border-b gba:border-border gba:bg-background">
+      <div className="gba:flex gba:shrink-0 gba:items-center gba:justify-between gba:px-5 gba:py-3 gba:border-b gba:border-border">
         <span className="gba:text-sm gba:font-semibold gba:text-foreground">
           {selectedNode?.label ?? (selectedEdgePanel === 'insert' ? 'Add step' : 'Edge')}
         </span>
@@ -116,7 +129,9 @@ export const ConfigPanelContainer: React.FC<ConfigPanelContainerProps> = ({
         </Button>
       </div>
 
-      <div className="gba:flex-1 gba:overflow-hidden gba:bg-background">{renderPanel()}</div>
+      <div className="gba:flex-1 gba:min-h-0 gba:overflow-y-auto">{renderPanel()}</div>
     </div>
   )
+  lastContentRef.current = content
+  return content
 }

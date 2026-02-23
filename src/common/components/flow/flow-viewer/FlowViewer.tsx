@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect, useState, useRef } from 'react'
+import React, { createContext, useMemo, useEffect, useState, useRef, useContext } from 'react'
 import ReactFlow, {
   type Node,
   type Edge,
@@ -14,15 +14,20 @@ import ReactFlow, {
 import 'reactflow/dist/style.css'
 
 import { useFlowCanvasContext } from './FlowViewerProvider'
+
+/** When true, the right panel is playing its close animation; panel content should render last cached content instead of null. */
+const RightPanelExitingContext = createContext(false)
+export const useRightPanelExiting = (): boolean => useContext(RightPanelExitingContext)
 import { StartNode } from './nodes/StartNode'
 import { TaskNode } from './nodes/TaskNode'
 import { DecisionNode } from './nodes/DecisionNode'
 import { ForkNode } from './nodes/ForkNode'
 import { JoinNode } from './nodes/JoinNode'
 import { EndNode } from './nodes/EndNode'
-import { RoutedEdge, FORWARD_MARKER } from './edges/RoutedEdge'
-import { BackwardEdge, BACKWARD_MARKER } from './edges/BackwardEdge'
+import { RoutedEdge, FORWARD_MARKER, FORWARD_MARKER_SELECTED } from './edges/RoutedEdge'
+import { BackwardEdge, BACKWARD_MARKER, BACKWARD_MARKER_SELECTED } from './edges/BackwardEdge'
 import { computeLayout } from './layout/elkLayout'
+import { getNodeDimensions } from './nodes/nodeDimensions'
 import { resolveFlowCanvasThemeColors, DEFAULT_FLOW_CANVAS_THEME_COLORS } from './utils/themeColors'
 import type {
   FlowCanvasViewProps,
@@ -32,38 +37,7 @@ import type {
   FlowCanvasThemeColors
 } from './types/viewerTypes'
 
-// ---- Node type registry (memoized outside component) ----
-
-const NODE_TYPES = {
-  start: StartNode,
-  task: TaskNode,
-  decision: DecisionNode,
-  fork: ForkNode,
-  join: JoinNode,
-  end: EndNode
-} as const
-
-const EDGE_TYPES = {
-  routed: RoutedEdge,
-  backward: BackwardEdge
-} as const
-
 // ---- Conversion helpers ----
-
-function getNodeDimensions(type: string): { width: number; height: number } {
-  switch (type) {
-    case 'start':
-    case 'end':
-      return { width: 140, height: 140 }
-    case 'decision':
-      return { width: 120, height: 120 }
-    case 'fork':
-    case 'join':
-      return { width: 200, height: 40 }
-    default:
-      return { width: 260, height: 100 }
-  }
-}
 
 function buildNodeData(
   node: FlowGraphNode,
@@ -98,8 +72,7 @@ function buildNodeData(
     case 'decision':
       return {
         ...base,
-        decisionMode: meta.decisionMode,
-        branchCount: meta.branchCount
+        decisionMode: meta.decisionMode
       }
     case 'fork':
       return { ...base, branchCount: meta.branchCount }
@@ -143,15 +116,46 @@ export const FlowCanvas: React.FC<FlowCanvasViewProps> = ({
   runFitAfterLayout = false,
   useForwardEdgesOnlyForRanking = false,
   rightPanel,
+  onConnect,
+  onNodeClick,
+  onEdgeClick,
+  onPaneClick,
+  getEdgeActions,
+  nodesConnectable = false,
+  nodesDraggable = false,
+  elementsSelectable: elementsSelectableProp,
   'data-testid': testId = 'flow-viewer'
 }) => {
   const { selectedNodeId, selectedEdgeId, executionState, selectNode, selectEdge, isInteractive } =
     useFlowCanvasContext()
   const reactFlowInstanceRef = useRef<ReactFlowInstance | null>(null)
+  const prevPanelContentRef = useRef<React.ReactNode>(null)
+  const hasRightPanelEverRef = useRef(false)
+  const [, setPanelKey] = useState(0)
+  const [panelOpenTransition, setPanelOpenTransition] = useState(false)
   const [layoutReady, setLayoutReady] = useState(false)
   const [layoutNodes, setLayoutNodes] = useState<Record<string, { x: number; y: number }>>({})
   const [layoutEdgePoints, setLayoutEdgePoints] = useState<Record<string, Array<{ x: number; y: number }>>>({})
   const [resolvedThemeColors, setResolvedThemeColors] = useState<FlowCanvasThemeColors | null>(null)
+
+  const nodeTypes = useMemo(
+    () => ({
+      start: StartNode,
+      task: TaskNode,
+      decision: DecisionNode,
+      fork: ForkNode,
+      join: JoinNode,
+      end: EndNode
+    }),
+    []
+  )
+  const edgeTypes = useMemo(
+    () => ({
+      routed: RoutedEdge,
+      backward: BackwardEdge
+    }),
+    []
+  )
 
   useEffect(() => {
     if (themeColorsProp) return
@@ -160,6 +164,7 @@ export const FlowCanvas: React.FC<FlowCanvasViewProps> = ({
 
   const uiColors = themeColorsProp ?? resolvedThemeColors ?? DEFAULT_FLOW_CANVAS_THEME_COLORS
   const fitViewOptions = { ...DEFAULT_FIT_VIEW_OPTIONS, ...fitViewOptionsProp }
+  const elementsSelectable = elementsSelectableProp ?? isInteractive
 
   // Build ReactFlow nodes (positions from layout state, like FlowStudioCanvas)
   const rfNodes = useMemo<Node[]>(() => {
@@ -186,7 +191,7 @@ export const FlowCanvas: React.FC<FlowCanvasViewProps> = ({
     })
   }, [definition.nodes, selectedNodeId, executionState, selectNode, layoutNodes])
 
-  // Build ReactFlow edges (points from layout state)
+  // Build ReactFlow edges (points from layout state; merge getEdgeActions when provided)
   const rfEdges = useMemo<Edge[]>(() => {
     const nodesById = new Map(definition.nodes.map(n => [n.id, n] as const))
     return definition.edges.map(edge => {
@@ -205,15 +210,21 @@ export const FlowCanvas: React.FC<FlowCanvasViewProps> = ({
         else base = toReactFlowEdge(edge, undefined, targetHandle)
       }
       const points = layoutEdgePoints[edge.id]
+      const edgeActions = getEdgeActions?.(edge.id) ?? {}
       const edgeData = {
         ...base.data,
         ...(points?.length ? { points } : {}),
         isSelected: selectedEdgeId === edge.id,
-        onSelect: () => selectEdge(edge.id)
+        onSelect: () => selectEdge(edge.id),
+        ...(edgeActions.onInsert != null ? { onInsert: edgeActions.onInsert } : {}),
+        ...(edgeActions.onOpenInsertPanel != null ? { onOpenInsertPanel: edgeActions.onOpenInsertPanel } : {})
       }
-      return { ...base, data: edgeData }
+      const isSelected = selectedEdgeId === edge.id
+      const isBackward = edge.direction === 'backward'
+      const markerEnd = isSelected ? (isBackward ? BACKWARD_MARKER_SELECTED : FORWARD_MARKER_SELECTED) : base.markerEnd
+      return { ...base, data: edgeData, markerEnd }
     })
-  }, [definition.edges, definition.nodes, layoutEdgePoints, selectedEdgeId, selectEdge])
+  }, [definition.edges, definition.nodes, layoutEdgePoints, selectedEdgeId, selectEdge, getEdgeActions])
 
   const [flowNodes, setNodes, onNodesChange] = useNodesState(rfNodes)
   const [flowEdges, setEdges, onEdgesChange] = useEdgesState(rfEdges)
@@ -290,78 +301,145 @@ export const FlowCanvas: React.FC<FlowCanvasViewProps> = ({
     setEdges(rfEdges)
   }, [rfEdges, setEdges])
 
+  // Right panel: like orgchart – Panel always mounted once used, visibility via translate on Panel (whole box moves off-screen when closed)
+  if (rightPanel != null) {
+    prevPanelContentRef.current = rightPanel
+    hasRightPanelEverRef.current = true
+  }
+  useEffect(() => {
+    if (rightPanel != null) {
+      setPanelOpenTransition(false)
+      const raf = requestAnimationFrame(() => {
+        setPanelOpenTransition(true)
+      })
+      return () => cancelAnimationFrame(raf)
+    }
+    setPanelOpenTransition(false)
+    if (rightPanel == null && prevPanelContentRef.current != null) {
+      const t = setTimeout(() => {
+        prevPanelContentRef.current = null
+        setPanelKey(k => k + 1)
+      }, 300)
+      return () => clearTimeout(t)
+    }
+  }, [rightPanel])
+
+  const showRightPanel = hasRightPanelEverRef.current
+  const panelContent = rightPanel ?? prevPanelContentRef.current
+  const panelVisible = rightPanel != null && panelOpenTransition
+
+  const handlePanelTransitionEnd = () => {
+    if (rightPanel == null && prevPanelContentRef.current != null) {
+      prevPanelContentRef.current = null
+      setPanelKey(k => k + 1)
+    }
+  }
+
   return (
-    <div className="gba:flex gba:flex-1 gba:min-h-0 gba:overflow-hidden" data-testid={testId}>
-      <div className="gba:flex-1 gba:relative gba:min-h-0 gba:w-full gba:overflow-hidden">
-        <ReactFlow
-          data-testid={`${testId}-surface`}
-          style={{ opacity: layoutReady ? 1 : 0, transition: 'opacity 200ms' }}
-          nodes={flowNodes}
-          edges={flowEdges}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          onInit={instance => {
-            reactFlowInstanceRef.current = instance
-          }}
-          nodeTypes={NODE_TYPES}
-          edgeTypes={EDGE_TYPES}
-          connectionMode={ConnectionMode.Strict}
-          fitView
-          fitViewOptions={fitViewOptions}
-          defaultViewport={{ x: 0, y: 0, zoom: 0.8 }}
-          attributionPosition="bottom-left"
-          proOptions={{ hideAttribution: true }}
-          nodesDraggable={false}
-          nodesConnectable={false}
-          elementsSelectable={isInteractive}
-          panOnDrag={true}
-          zoomOnScroll={true}
-          zoomOnPinch={true}
-          onNodeClick={(_, node) => {
+    <div className="gba:flex gba:flex-1 gba:relative gba:min-h-0 gba:w-full gba:overflow-hidden" data-testid={testId}>
+      <ReactFlow
+        data-testid={`${testId}-surface`}
+        style={{ opacity: layoutReady ? 1 : 0, transition: 'opacity 200ms' }}
+        nodes={flowNodes}
+        edges={flowEdges}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        onConnect={
+          onConnect
+            ? connection => {
+                if (connection.source != null && connection.target != null) {
+                  onConnect({
+                    source: connection.source,
+                    target: connection.target,
+                    sourceHandle: connection.sourceHandle ?? undefined,
+                    targetHandle: connection.targetHandle ?? undefined
+                  })
+                }
+              }
+            : undefined
+        }
+        onInit={instance => {
+          reactFlowInstanceRef.current = instance
+        }}
+        nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
+        connectionMode={ConnectionMode.Strict}
+        fitView
+        fitViewOptions={fitViewOptions}
+        defaultViewport={{ x: 0, y: 0, zoom: 0.8 }}
+        attributionPosition="bottom-left"
+        proOptions={{ hideAttribution: true }}
+        nodesDraggable={nodesDraggable}
+        nodesConnectable={nodesConnectable}
+        elementsSelectable={elementsSelectable}
+        panOnDrag={true}
+        zoomOnScroll={true}
+        zoomOnPinch={true}
+        onNodeClick={
+          onNodeClick ??
+          ((_, node) => {
             if (isInteractive) selectNode(node.id)
-          }}
-          onEdgeClick={(_, edge) => {
+          })
+        }
+        onEdgeClick={
+          onEdgeClick ??
+          ((_, edge) => {
             if (isInteractive) selectEdge(edge.id)
-          }}
-          onPaneClick={() => {
+          })
+        }
+        onPaneClick={
+          onPaneClick ??
+          (() => {
             if (isInteractive) {
               selectNode(null)
               selectEdge(null)
             }
+          })
+        }
+      >
+        <Background color={uiColors.border} gap={16} size={1} />
+        <Controls
+          showZoom={true}
+          showFitView={true}
+          showInteractive={false}
+          style={{
+            backgroundColor: uiColors.surface,
+            border: uiColors.border ? `1px solid ${uiColors.border}` : undefined,
+            borderRadius: '8px'
           }}
-        >
-          <Background color={uiColors.border} gap={16} size={1} />
-          <Controls
-            showZoom={true}
-            showFitView={true}
-            showInteractive={false}
-            style={{
-              backgroundColor: uiColors.surface,
-              border: uiColors.border ? `1px solid ${uiColors.border}` : undefined,
-              borderRadius: '8px'
+        />
+        <MiniMap
+          position="bottom-left"
+          nodeStrokeWidth={3}
+          pannable
+          zoomable
+          maskColor={uiColors.mask}
+          style={{
+            backgroundColor: uiColors.surface,
+            border: uiColors.border ? `1px solid ${uiColors.border}` : undefined,
+            borderRadius: '8px'
+          }}
+          nodeColor={() => uiColors.minimapNode}
+          nodeStrokeColor={() => uiColors.minimapStroke}
+        />
+        {showRightPanel ? (
+          <Panel
+            position="top-right"
+            className={`gba:!m-0 gba:h-full gba:flex gba:flex-col gba:overflow-hidden gba:transition-transform gba:duration-300 gba:ease-in-out ${
+              panelVisible ? 'gba:translate-x-0' : 'gba:translate-x-full'
+            }`}
+            onTransitionEnd={(e: React.TransitionEvent) => {
+              if (e.propertyName === 'transform') handlePanelTransitionEnd()
             }}
-          />
-          <MiniMap
-            position="bottom-left"
-            nodeStrokeWidth={3}
-            pannable
-            zoomable
-            maskColor={uiColors.mask}
-            style={{
-              backgroundColor: uiColors.surface,
-              border: uiColors.border ? `1px solid ${uiColors.border}` : undefined,
-              borderRadius: '8px'
-            }}
-            nodeColor={() => uiColors.minimapNode}
-            nodeStrokeColor={() => uiColors.minimapStroke}
-          />
-          {rightPanel != null ? (
-            <Panel position="top-right" className="gba:h-full gba:flex gba:items-stretch gba:justify-end">
-              {rightPanel}
-            </Panel>
-          ) : null}
-        </ReactFlow>
-      </div>
+          >
+            <div className="gba:h-full gba:min-h-0 gba:flex gba:flex-col gba:bg-sidebar">
+              <RightPanelExitingContext.Provider value={rightPanel == null && showRightPanel}>
+                {panelContent}
+              </RightPanelExitingContext.Provider>
+            </div>
+          </Panel>
+        ) : null}
+      </ReactFlow>
     </div>
   )
 }

@@ -11,11 +11,12 @@ export type { FlowListProps } from './FlowList'
 export type { FlowManagementProps } from './FlowManagement'
 
 // Graph viewer (start, task, decision, end with ELK layout)
-export { FlowCanvas, FlowViewer } from './flow-viewer/FlowViewer'
+export { FlowCanvas, FlowViewer, useRightPanelExiting } from './flow-viewer/FlowViewer'
 export { FlowCanvasProvider, useFlowCanvasContext } from './flow-viewer/FlowViewerProvider'
 export type {
   FlowGraphDefinition,
   FlowCanvasViewProps,
+  FlowCanvasEdgeActions,
   FlowCanvasProps,
   FlowViewerProps,
   FlowCanvasThemeColors

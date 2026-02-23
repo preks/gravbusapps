@@ -2,6 +2,7 @@ import React from 'react'
 import { Handle, Position } from 'reactflow'
 import { Badge } from '@newwork/nw-design-system'
 import { Play, Zap, Calendar, Link as LinkIcon } from 'lucide-react'
+import { HANDLE_OFFSET } from './nodeDimensions'
 import type { TriggerType, StepStatus } from '../types/viewerTypes'
 
 interface StartNodeData {
@@ -51,7 +52,14 @@ export const StartNode: React.FC<{ data: StartNodeData }> = ({ data }) => {
       <Handle
         type="source"
         position={Position.Bottom}
-        style={{ visibility: 'hidden', width: 10, height: 10, left: '50%', transform: 'translateX(-50%)' }}
+        style={{
+          visibility: 'hidden',
+          width: 10,
+          height: 10,
+          left: '50%',
+          bottom: -HANDLE_OFFSET,
+          transform: 'translateX(-50%)'
+        }}
       />
 
       <div

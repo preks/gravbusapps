@@ -2,12 +2,12 @@ import React from 'react'
 import { Handle, Position } from 'reactflow'
 import { Badge } from '@newwork/nw-design-system'
 import { GitBranch, User, Bot, Calculator } from 'lucide-react'
+import { HANDLE_OFFSET } from './nodeDimensions'
 import type { DecisionMode, StepStatus } from '../types/viewerTypes'
 
 interface DecisionNodeData {
   label: string
   decisionMode?: DecisionMode
-  branchCount?: number
   isSelected?: boolean
   status?: StepStatus
   onSelect?: () => void
@@ -65,24 +65,52 @@ export const DecisionNode: React.FC<{ data: DecisionNodeData }> = ({ data }) => 
       <Handle
         type="target"
         position={Position.Top}
-        style={{ visibility: 'hidden', width: 10, height: 10, left: '50%', top: 0, transform: 'translateX(-50%)' }}
+        style={{
+          visibility: 'hidden',
+          width: 10,
+          height: 10,
+          left: '50%',
+          top: -HANDLE_OFFSET,
+          transform: 'translateX(-50%)'
+        }}
       />
       <Handle
         type="source"
         position={Position.Bottom}
-        style={{ visibility: 'hidden', width: 10, height: 10, left: '50%', bottom: 0, transform: 'translateX(-50%)' }}
+        style={{
+          visibility: 'hidden',
+          width: 10,
+          height: 10,
+          left: '50%',
+          bottom: -HANDLE_OFFSET,
+          transform: 'translateX(-50%)'
+        }}
       />
       <Handle
         type="source"
         position={Position.Left}
         id="left"
-        style={{ visibility: 'hidden', width: 10, height: 10, left: 0, top: '50%', transform: 'translateY(-50%)' }}
+        style={{
+          visibility: 'hidden',
+          width: 10,
+          height: 10,
+          left: -HANDLE_OFFSET,
+          top: '50%',
+          transform: 'translateY(-50%)'
+        }}
       />
       <Handle
         type="source"
         position={Position.Right}
         id="right"
-        style={{ visibility: 'hidden', width: 10, height: 10, right: 0, top: '50%', transform: 'translateY(-50%)' }}
+        style={{
+          visibility: 'hidden',
+          width: 10,
+          height: 10,
+          right: -HANDLE_OFFSET,
+          top: '50%',
+          transform: 'translateY(-50%)'
+        }}
       />
 
       {/* Diamond shape centered in the visual bounding box */}
@@ -105,18 +133,6 @@ export const DecisionNode: React.FC<{ data: DecisionNodeData }> = ({ data }) => 
           </div>
         </div>
       </div>
-
-      {/* Branch count badge */}
-      {data.branchCount != null && data.branchCount > 0 && (
-        <div className="gba:absolute gba:-top-2 gba:-right-2">
-          <Badge
-            variant="outline"
-            className="gba:text-xs gba:bg-muted gba:text-foreground gba:border-border gba:px-1.5 gba:py-0"
-          >
-            {data.branchCount}
-          </Badge>
-        </div>
-      )}
     </button>
   )
 }

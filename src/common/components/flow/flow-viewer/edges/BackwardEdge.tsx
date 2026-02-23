@@ -1,5 +1,7 @@
 import React from 'react'
 import { BaseEdge, type EdgeProps, EdgeLabelRenderer, MarkerType } from 'reactflow'
+import { HANDLE_OFFSET } from '../nodes/nodeDimensions'
+import { extendEdgePointsByHandleOffset } from './edgePathUtils'
 
 /**
  * Dashed backward edge for rework / go-back loops.
@@ -17,16 +19,21 @@ export const BackwardEdge: React.FC<EdgeProps> = ({
   markerEnd
 }) => {
   const label = data?.label as string | undefined
+  const isSelected = Boolean(data?.isSelected)
   const points: Array<{ x: number; y: number }> = data?.points
+  const strokeDefault = 'hsl(215 16% 65%)'
+  const strokeSelected = 'hsl(215 76% 56%)'
+  // Keep markerEnd unchanged: BaseEdge passes it to SVG path; only url(#id) is valid there.
+  // Switching to an object when selected would make the arrow disappear.
 
   let edgePath: string
   let labelX: number
   let labelY: number
 
   if (points && points.length >= 2) {
-    // Pure ELK routing (do not adjust endpoints).
-    edgePath = points.map((p, i) => (i === 0 ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`)).join(' ')
-    const mid = points[Math.floor(points.length / 2)]
+    const adjustedPoints = extendEdgePointsByHandleOffset(points, HANDLE_OFFSET)
+    edgePath = adjustedPoints.map((p, i) => (i === 0 ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`)).join(' ')
+    const mid = adjustedPoints[Math.floor(adjustedPoints.length / 2)]
     labelX = mid.x
     labelY = mid.y
   } else {
@@ -51,8 +58,8 @@ export const BackwardEdge: React.FC<EdgeProps> = ({
         id={id}
         path={edgePath}
         style={{
-          strokeWidth: 1.5,
-          stroke: 'hsl(215 16% 65%)',
+          strokeWidth: isSelected ? 2.5 : 1.5,
+          stroke: isSelected ? strokeSelected : strokeDefault,
           strokeDasharray: '6 4',
           ...style
         }}
@@ -76,8 +83,16 @@ export const BackwardEdge: React.FC<EdgeProps> = ({
 
 BackwardEdge.displayName = 'BackwardEdge'
 
+const STROKE_SELECTED = 'hsl(215 76% 56%)'
+
 /** Default marker for backward edges */
 export const BACKWARD_MARKER = {
   type: MarkerType.ArrowClosed,
   color: 'hsl(215 16% 65%)'
+}
+
+/** Marker for backward edges when selected (arrow matches stroke) */
+export const BACKWARD_MARKER_SELECTED = {
+  type: MarkerType.ArrowClosed,
+  color: STROKE_SELECTED
 }
