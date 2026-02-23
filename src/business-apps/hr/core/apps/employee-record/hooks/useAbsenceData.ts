@@ -58,7 +58,8 @@ export const useAbsenceData = (
 
   useEffect(() => {
     fetchData()
-  }, [employeeId, accessToken, employeeAbsenceEntitlement, client, currentLocale])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [employeeId, accessToken, currentLocale])
 
   return {
     absenceList,

@@ -7,7 +7,5 @@ export type {
   ColumnConfig
 } from './useReportFilters'
 
-export { useReportTabCounts } from './useReportTabCounts'
-
 // Note: useUniversalInvestmentReportsAnalytics has been removed
 // All report views now use useGetInvestmentReports from @/common/data/investment-report/hooks directly

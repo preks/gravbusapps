@@ -234,6 +234,9 @@ request-benefit-review-additional-info = Zusätzliche Informationen
 request-benefit-review-justification = Begründung
 request-benefit-review-financial-details = Finanzielle Details
 request-benefit-review-employee-contributions = Mitarbeiterbeiträge
+request-benefit-review-comments = Kommentar
+request-benefit-review-comments-placeholder = Bitte eingeben
+request-benefit-review-comments-required = Kommentare sind erforderlich
 request-benefit-review-approve = Genehmigen
 request-benefit-review-reject = Ablehnen
 request-benefit-review-loading = Lade Zusatzleistungsdaten...
@@ -280,6 +283,7 @@ adjust-salary-pending-status = Ausstehend
 
 # Update Working Conditions Form
 working-conditions-probation-period = Probezeit
+working-conditions-probation-end-before-start = Das Ende der Probezeit muss am Startdatum oder danach liegen.
 working-conditions-probation-exception-warning = Sie haben das Enddatum der Probezeit manuell vom Vertragswert geändert. Bitte überprüfen.
 working-conditions-unit-day = { $count ->
     [one] Tag

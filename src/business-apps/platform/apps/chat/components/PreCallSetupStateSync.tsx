@@ -12,6 +12,19 @@ import type { GroupCallUIState, UseGroupCallReturn } from '../services/callTypes
 import type { CallParticipant } from '../services/webrtcClient'
 import type { Conversation } from '../types'
 
+function getOtherParticipantDisplayName(
+  conversation: Conversation | null,
+  currentUserId: string | undefined
+): string | undefined {
+  if (!conversation?.participants?.length || !currentUserId) return undefined
+  const other = conversation.participants.find(p => (p.user?.id ?? p.userId) !== currentUserId)
+  const user = other?.user
+  if (!user) return undefined
+  return (
+    user.displayName || [user.firstName, user.lastName].filter(Boolean).join(' ').trim() || user.username || undefined
+  )
+}
+
 interface PreCallSetupStateSyncProps {
   groupCallState: GroupCallUIState
   realtimeKitGroupCall: UseGroupCallReturn
@@ -90,26 +103,36 @@ export const PreCallSetupStateSync: React.FC<PreCallSetupStateSyncProps> = ({
         }
       )
 
-      // FIXED: Always show the CURRENT USER's name and avatar in pre-call setup
-      // The pre-call setup is for the person STARTING the call to configure their settings
-      // The conversation name/title will show who they're calling
+      // Current user's name and avatar for the preview section (camera-off placeholder)
       const userName = currentUserAsParticipant?.odName
-
-      // FIXED: Always show the CURRENT USER's avatar
       const userAvatarUrl = currentUserAsParticipant?.avatarUrl
 
-      // Update global state (EXACT ORIGINAL LOGIC)
+      // For direct (1-on-1) calls, "Call with ..." must show the OTHER participant's name
+      const isMeetingConversation =
+        activeConversation?.metadata?.type === 'meeting' || Boolean(activeConversation?.metadata?.meetingId)
+      const conversationType: 'direct' | 'group' | 'meeting' = isMeetingConversation
+        ? 'meeting'
+        : ((activeConversation?.type as 'direct' | 'group' | 'meeting') ?? 'group')
+      const otherParticipant =
+        conversationType === 'direct' && currentUser?.id
+          ? groupParticipants.find((p: { id?: string }) => p.id !== currentUser.id)
+          : undefined
+      const otherParticipantName =
+        conversationType === 'direct'
+          ? ((otherParticipant as { odName?: string } | undefined)?.odName ??
+            activeConversation?.name ??
+            getOtherParticipantDisplayName(activeConversation, currentUser?.id))
+          : undefined
+
       globalPreCallSetupManager.setStateFrom(instanceId, {
         isOpen: true,
         callType: groupCallState.callType,
-        conversationName:
-          activeConversation?.type === 'direct'
-            ? undefined // For direct calls, don't pass conversation name (will show "Call")
-            : activeConversation?.name, // For group/meeting, use conversation name
+        conversationName: activeConversation?.name,
         participantCount: groupParticipants.length,
         userName,
         userAvatarUrl,
-        conversationType: activeConversation?.type as 'direct' | 'group' | 'meeting'
+        conversationType,
+        otherParticipantName
       })
 
       return

@@ -26,12 +26,14 @@ export const sanitizeInvestmentReport = (
 
   // Convert investmentTypeId back to group/type/liquidFundType for payload
   const investmentTypeId: string | null = formData.investment?.investmentTypeId ?? null
+  const investmentGroupRefFromForm =
+    typeof formData.investment?.investmentGroupRef === 'string' ? formData.investment.investmentGroupRef : null
   const { groupId, typeId, liquidFundTypeId } = mapFromSingleInvestmentTypeId(investmentTypeId, getPathByType)
 
   // Remove investmentTypeId from payload (not part of API)
   delete (mergedData as any).investmentTypeId
   // Add group/type/liquidFundType for payload
-  mergedData.investmentGroupRef = groupId ?? undefined
+  mergedData.investmentGroupRef = groupId ?? investmentGroupRefFromForm ?? undefined
   mergedData.investmentTypeRef = typeId ?? undefined
 
   // Get report-specific fields directly from formData (no fallbacks)
@@ -54,9 +56,12 @@ export const sanitizeInvestmentReport = (
   delete (mergedData as any).version
   const { investmentRole, ...investmentDataWithoutSubGroups } = mergedData
 
-  // Determine which sub-investment type is active based on investment group
-  // Only save the sub-investment report that matches the current investment group
-  const groupCode = groupId?.includes(':') ? groupId.split(':').pop() : groupId
+  // Determine group code for optional subtype tie-breaking when multiple subtype objects are present.
+  const resolvedGroupId = mergedData.investmentGroupRef
+  const groupCode =
+    typeof resolvedGroupId === 'string' && resolvedGroupId.includes(':')
+      ? resolvedGroupId.split(':').pop()
+      : (resolvedGroupId as string | undefined)
 
   const reportPayload: Partial<InvestmentReport> = {
     ...investmentDataWithoutSubGroups,
@@ -73,9 +78,29 @@ export const sanitizeInvestmentReport = (
     })
   }
 
-  // Map Sub-Groups (from Layout) to Report field names (with "Report")
-  // Only include the sub-investment that matches the current investment group
-  if (groupCode === 'EQUITY' && formData.equityInvestment) {
+  // Map subtype objects to report subtype payloads.
+  // Keep this presence-driven (same principle as investment-form) so generic/custom groups are supported.
+  const hasEquity = Boolean(formData.equityInvestment)
+  const hasLiquidFund = Boolean(formData.liquidFundInvestment)
+  const hasRealEstate = Boolean(formData.realEstateInvestment)
+
+  const preferredSubtypeByGroupCode: Record<string, 'equity' | 'liquidFund' | 'realEstate'> = {
+    EQUITY: 'equity',
+    LIQUID_FUND: 'liquidFund',
+    REAL_ESTATE: 'realEstate'
+  }
+
+  const presentSubtypes: Array<'equity' | 'liquidFund' | 'realEstate'> = [
+    ...(hasEquity ? (['equity'] as const) : []),
+    ...(hasLiquidFund ? (['liquidFund'] as const) : []),
+    ...(hasRealEstate ? (['realEstate'] as const) : [])
+  ]
+
+  const preferredSubtype = groupCode ? preferredSubtypeByGroupCode[groupCode] : undefined
+  const selectedSubtype =
+    preferredSubtype && presentSubtypes.includes(preferredSubtype) ? preferredSubtype : presentSubtypes[0]
+
+  if (selectedSubtype === 'equity' && formData.equityInvestment) {
     reportPayload.equityInvestmentReport = [
       {
         ...formData.equityInvestment,
@@ -83,7 +108,7 @@ export const sanitizeInvestmentReport = (
         scope: reportScope as ReportScope | undefined
       }
     ] as any[]
-  } else if (groupCode === 'LIQUID_FUND' && formData.liquidFundInvestment) {
+  } else if (selectedSubtype === 'liquidFund' && formData.liquidFundInvestment) {
     reportPayload.liquidFundInvestmentReport = [
       {
         ...formData.liquidFundInvestment,
@@ -93,7 +118,7 @@ export const sanitizeInvestmentReport = (
         ...(liquidFundTypeId ? { investmentLiquidFundTypeRef: liquidFundTypeId } : {})
       } as any
     ]
-  } else if (groupCode === 'REAL_ESTATE' && formData.realEstateInvestment) {
+  } else if (selectedSubtype === 'realEstate' && formData.realEstateInvestment) {
     reportPayload.realEstateInvestmentReport = [
       {
         ...formData.realEstateInvestment,

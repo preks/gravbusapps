@@ -54,6 +54,7 @@ export const PerformanceCycles: React.FC<PerformanceCyclesProps> = ({
   const { t } = useTranslation(translations)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editing, setEditing] = useState<PerformanceCycle | null>(null)
+  const [dateOverlapError, setDateOverlapError] = useState<string | null>(null)
 
   const isDateWithinCyclePeriod = (cycle: PerformanceCycle): boolean => {
     const today = new Date()
@@ -83,6 +84,7 @@ export const PerformanceCycles: React.FC<PerformanceCyclesProps> = ({
   }
 
   const handleEdit = (cycle: PerformanceCycle) => {
+    setDateOverlapError(null)
     setEditing(cycle)
     setIsModalOpen(true)
   }
@@ -94,15 +96,26 @@ export const PerformanceCycles: React.FC<PerformanceCyclesProps> = ({
         className: 'gba:text-base',
         icon: <WarningIcon size={18} weight="fill" className="gba:text-warning" />
       })
+      return
     }
+    setDateOverlapError(null)
     setEditing(null)
     setIsModalOpen(true)
   }
 
   const handleSaveFromModal = async (values: CycleEditorValues) => {
-    await onSaveFromModal(values)
-    setEditing(null)
-    setIsModalOpen(false)
+    try {
+      setDateOverlapError(null)
+      await onSaveFromModal(values)
+      setEditing(null)
+      setIsModalOpen(false)
+    } catch (err) {
+      const isOverlap = err instanceof Error && (err as Error & { code?: string }).code === 'DATES_OVERLAP'
+      if (isOverlap) {
+        setDateOverlapError(err instanceof Error ? err.message : t('cycles-error-dates-overlap'))
+      }
+      throw err
+    }
   }
 
   return (
@@ -243,8 +256,13 @@ export const PerformanceCycles: React.FC<PerformanceCyclesProps> = ({
       </Card>
       <CycleEditorModal
         open={isModalOpen}
-        onOpenChange={open => setIsModalOpen(open)}
+        onOpenChange={open => {
+          if (!open) setDateOverlapError(null)
+          setIsModalOpen(open)
+        }}
         onSave={handleSaveFromModal}
+        dateOverlapError={dateOverlapError}
+        onClearDateError={() => setDateOverlapError(null)}
         availableValues={valuesStore}
         availableRatingScales={ratingScales}
         initialValues={

@@ -15,9 +15,9 @@ import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 export interface PublishDialogFileSummary {
   totalUniqueFiles: number
-  created: number
-  modified: number
-  deleted: number
+  createCount: number
+  modifyCount: number
+  deleteCount: number
   files: Array<{
     path: string
     type: 'create' | 'modify' | 'delete'
@@ -89,24 +89,24 @@ export const PublishDialog: React.FC<PublishDialogProps> = ({
             </h4>
             <div className="gba:bg-muted gba:rounded-lg gba:p-3 gba:space-y-2">
               <div className="gba:flex gba:items-center gba:gap-3 gba:text-xs gba:text-muted-foreground">
-                {uniqueFileSummary && uniqueFileSummary.created > 0 && (
+                {uniqueFileSummary && uniqueFileSummary.createCount > 0 && (
                   <span className="gba:flex gba:items-center gba:gap-1">
                     <span className="gba:w-1.5 gba:h-1.5 gba:rounded-full gba:bg-success" />
-                    {uniqueFileSummary.created}{' '}
+                    {uniqueFileSummary.createCount}{' '}
                     {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.created', 'created')}
                   </span>
                 )}
-                {uniqueFileSummary && uniqueFileSummary.modified > 0 && (
+                {uniqueFileSummary && uniqueFileSummary.modifyCount > 0 && (
                   <span className="gba:flex gba:items-center gba:gap-1">
                     <span className="gba:w-1.5 gba:h-1.5 gba:rounded-full gba:bg-warning" />
-                    {uniqueFileSummary.modified}{' '}
+                    {uniqueFileSummary.modifyCount}{' '}
                     {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.modified', 'modified')}
                   </span>
                 )}
-                {uniqueFileSummary && uniqueFileSummary.deleted > 0 && (
+                {uniqueFileSummary && uniqueFileSummary.deleteCount > 0 && (
                   <span className="gba:flex gba:items-center gba:gap-1">
                     <span className="gba:w-1.5 gba:h-1.5 gba:rounded-full gba:bg-destructive" />
-                    {uniqueFileSummary.deleted}{' '}
+                    {uniqueFileSummary.deleteCount}{' '}
                     {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.deleted', 'deleted')}
                   </span>
                 )}

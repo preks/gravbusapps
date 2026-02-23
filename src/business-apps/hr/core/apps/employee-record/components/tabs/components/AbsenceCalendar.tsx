@@ -27,10 +27,27 @@ import 'dayjs/locale/de'
 dayjs.extend(isBetween)
 
 // Function to generate tooltip content for absence segments
-const getAbsenceTooltipContent = (absence: any, opts?: { showStatus?: boolean; showDuration?: boolean }) => {
+const getAbsenceTooltipContent = (
+  absence: any,
+  opts?: { showStatus?: boolean; showDuration?: boolean; computedEffectiveDays?: number | null }
+) => {
   const startDate = dayjs(absence.startDate)
   const endDate = dayjs(absence.endDate)
-  const duration = endDate.diff(startDate, 'day') + 1
+  // Prefer business days for display
+  const toFiniteNumber = (v: any): number | null => {
+    if (typeof v === 'number') return Number.isFinite(v) ? v : null
+    if (typeof v === 'string' && v.trim() !== '') {
+      const n = Number(v)
+      return Number.isFinite(n) ? n : null
+    }
+    return null
+  }
+  const providedEff = toFiniteNumber(absence?.effectiveDays)
+  const providedWork = toFiniteNumber(absence?.workingDays)
+  const computed = toFiniteNumber(opts?.computedEffectiveDays)
+  const businessDays = providedEff ?? providedWork ?? computed
+  // Fallback to calendar span only if no business-days info is available
+  const duration = businessDays ?? endDate.diff(startDate, 'day') + 1
   const status = absence.originalStatus || absence.status
 
   return (
@@ -92,7 +109,13 @@ const getAbsenceTooltipContent = (absence: any, opts?: { showStatus?: boolean; s
   )
 }
 
-const AbsenceCalendar: React.FC<CalendarProps & { effectiveDates?: Set<string> }> = ({
+const AbsenceCalendar: React.FC<
+  CalendarProps & {
+    effectiveDates?: Set<string>
+    allowWeekendPaintingInFallback?: boolean
+    nonWorkingDates?: Set<string>
+  }
+> = ({
   absenceList,
   loading,
   error,
@@ -112,7 +135,9 @@ const AbsenceCalendar: React.FC<CalendarProps & { effectiveDates?: Set<string> }
   holidayDates,
   employee,
   onAbsenceTypeSelect,
-  effectiveDates
+  effectiveDates,
+  allowWeekendPaintingInFallback,
+  nonWorkingDates
 }) => {
   const { t } = useTranslation(translations)
   const [contextMenuOpen, setContextMenuOpen] = useState(false)
@@ -413,8 +438,11 @@ const AbsenceCalendar: React.FC<CalendarProps & { effectiveDates?: Set<string> }
               const daysToSubtract = firstDayOfWeek === 0 ? 6 : firstDayOfWeek - 1 // Convert Sunday (0) to 6, others to day-1
               const startOfCalendar = firstDayOfMonth.subtract(daysToSubtract, 'day')
 
-              // Calculate how many days to display (either 35 or 42 depending on the month)
-              const daysToDisplay = Math.ceil((daysInMonth + firstDayOfMonth.day()) / 7) * 7
+              // Calculate how many days to display for a Monday-first grid.
+              // We must use the Monday-based leading offset (`daysToSubtract`),
+              // not dayjs Sunday-based `day()`, otherwise months starting on Sunday
+              // can lose their final week.
+              const daysToDisplay = Math.ceil((daysInMonth + daysToSubtract) / 7) * 7
 
               return Array.from({ length: daysToDisplay }).map((_, idx) => {
                 // Create a new dayjs object for each day to avoid mutation issues
@@ -431,6 +459,7 @@ const AbsenceCalendar: React.FC<CalendarProps & { effectiveDates?: Set<string> }
                     ? currentDay.isAfter(selectedStartDate, 'day') && currentDay.isBefore(selectedEndDate, 'day')
                     : false
                 const isHolidayDay = isHoliday(holidayDates, currentDay)
+                const isWeekend = currentDay.day() === 0 || currentDay.day() === 6
 
                 const handleDayClick = () => {
                   if (!enableSelection) return
@@ -493,7 +522,7 @@ const AbsenceCalendar: React.FC<CalendarProps & { effectiveDates?: Set<string> }
                       {isCurrentMonth && isHolidayDay && (
                         <div className="gba:flex gba:gap-1 gba:mt-1">
                           <div className="gba:flex gba:items-center gba:justify-center gba:rounded-full gba:min-h-4 gba:px-1 gba:w-full gba:bg-background">
-                            <span className="gba:text-xs gba:font-medium gba:text-info-on-card gba:truncate gba:leading-none">
+                            <span className="gba:text-xs gba:font-medium gba:text-info-secondary-foreground gba:truncate gba:leading-none">
                               {t('holiday')}
                             </span>
                           </div>
@@ -510,12 +539,16 @@ const AbsenceCalendar: React.FC<CalendarProps & { effectiveDates?: Set<string> }
                       )}
                       {isCurrentMonth &&
                         (() => {
-                          // When effectiveDates are provided by caller, only render absence segments
-                          // for days that are explicitly marked effective by BE daily facts.
-                          if (effectiveDates && !effectiveDates.has(dayKey)) return null
-                          // Avoid visual overlap with holidays in fallback mode. If it's a holiday and we don't
-                          // have an effectiveDates hit for this day, skip absence segments so only holiday shows.
-                          if (isHolidayDay && !(effectiveDates && effectiveDates.has(dayKey))) return null
+                          // Rendering rules:
+                          // - If effectiveDates present: paint only days explicitly marked effective by BE.
+                          // - If no effectiveDates (fallback): do not paint holidays, dates in nonWorkingDates, and paint weekends only if parent allowed it
+                          if (effectiveDates) {
+                            if (!effectiveDates.has(dayKey)) return null
+                          } else {
+                            if (isHolidayDay) return null
+                            if (nonWorkingDates && nonWorkingDates.has(dayKey)) return null
+                            if (isWeekend && !allowWeekendPaintingInFallback) return null
+                          }
                           const overlappingAbsences = absenceList.filter((absence: any) => {
                             const absenceStart = dayjs(absence.startDate)
                             const absenceEnd = dayjs(absence.endDate)
@@ -528,16 +561,8 @@ const AbsenceCalendar: React.FC<CalendarProps & { effectiveDates?: Set<string> }
                           const maxSegments = 3
                           const segments = overlappingAbsences.slice(0, maxSegments)
 
-                          const resolveSegmentTextClass = (a: any): string => {
-                            // When consumer provides planned/effective minutes (e.g., DailyLog)
-                            if (typeof a?.plannedMinutes === 'number' && typeof a?.effectiveMinutes === 'number') {
-                              if (a.effectiveMinutes >= a.plannedMinutes) {
-                                return 'gba:text-success-on-card'
-                              }
-                              return 'gba:text-warning-on-card'
-                            }
-                            return getAbsenceStatusTextClass(a.originalStatus || a.status)
-                          }
+                          const resolveSegmentTextClass = (a: any): string =>
+                            getAbsenceStatusTextClass(a.originalStatus || a.status)
 
                           const segmentWidth = `${100 / segments.length}%`
 
@@ -564,7 +589,33 @@ const AbsenceCalendar: React.FC<CalendarProps & { effectiveDates?: Set<string> }
                                   <TooltipContent side="top" className="gba:max-w-xs gba:z-[9999]">
                                     {getAbsenceTooltipContent(a, {
                                       showStatus: showStatusInTooltip,
-                                      showDuration: showDurationInTooltip
+                                      showDuration: showDurationInTooltip,
+                                      computedEffectiveDays: (() => {
+                                        // Compute effective count for this absence when not provided by BE
+                                        const s = dayjs(a.startDate)
+                                        const e = dayjs(a.endDate)
+                                        let count = 0
+                                        let d = s
+                                        while (d.isBefore(e) || d.isSame(e, 'day')) {
+                                          const key = d.format('YYYY-MM-DD')
+                                          if (effectiveDates) {
+                                            if (effectiveDates.has(key)) count += 1
+                                          } else {
+                                            const isHol = isHoliday(holidayDates, d)
+                                            const isWknd = d.day() === 0 || d.day() === 6
+                                            const isNonWorking = !!(nonWorkingDates && nonWorkingDates.has(key))
+                                            if (
+                                              !isHol &&
+                                              !isNonWorking &&
+                                              (!isWknd || allowWeekendPaintingInFallback)
+                                            ) {
+                                              count += 1
+                                            }
+                                          }
+                                          d = d.add(1, 'day')
+                                        }
+                                        return count
+                                      })()
                                     })}
                                   </TooltipContent>
                                 </Tooltip>

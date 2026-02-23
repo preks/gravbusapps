@@ -128,6 +128,7 @@ export interface EmployeeBenefit {
   status: CompensationStatus | string // Approval status: CompensationStatus enum
   benefitStatus: BenefitStatus | string // Benefit status: ACTIVE_BENEFIT, INACTIVE_BENEFIT
   notes: string
+  comments?: string // Rejection/approval reason (e.g. from benefit review decision)
   createdAt?: string // Timestamp when benefit was created
   updatedAt?: string // Timestamp when benefit was last updated
 }

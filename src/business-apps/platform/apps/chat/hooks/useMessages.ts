@@ -140,6 +140,14 @@ export function useMessages({
     [calculateMessageStatus]
   )
 
+  /** Dedupe by id (first occurrence wins), sort by createdAt ascending. Ensures unique React keys. */
+  const dedupeMessagesById = useCallback((msgs: Message[]): Message[] => {
+    const byId = new Map(msgs.map(m => [m.id, m]))
+    const out = Array.from(byId.values())
+    out.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+    return out
+  }, [])
+
   /**
    * Load messages for the current conversation
    */
@@ -179,7 +187,7 @@ export function useMessages({
 
           // PERFORMANCE FIX: Apply cached data synchronously WITHOUT loading state
           // Cache should be instant - no spinner, no delays, just immediate display
-          const processedMessages = processMessages(cached.messages)
+          const processedMessages = dedupeMessagesById(processMessages(cached.messages))
           setMessages(processedMessages)
           setCurrentPage(cached.page)
           setHasMore(cached.hasMore)
@@ -201,8 +209,6 @@ export function useMessages({
 
       abortControllerRef.current = new AbortController()
       const requestConversationId = conversationId
-
-      // Start performance tracking
 
       try {
         isLoadingRef.current = true
@@ -241,12 +247,12 @@ export function useMessages({
         // Include isLoading in the batch to prevent extra render
         startTransition(() => {
           if (page === 1) {
-            setMessages(processedMessages)
+            setMessages(dedupeMessagesById(processedMessages))
             // Mark this conversation as successfully loaded (prevents duplicate loads)
             lastLoadedConversationRef.current = conversationId
           } else {
-            // Load more - prepend older messages
-            setMessages(prev => [...processedMessages, ...prev])
+            // Load more - prepend older messages, dedupe by id to avoid duplicate React keys
+            setMessages(prev => dedupeMessagesById([...processedMessages, ...prev]))
           }
           setCurrentPage(newPage)
           setHasMore(newHasMore)
@@ -281,6 +287,81 @@ export function useMessages({
       loadMessages(currentPage + 1)
     }
   }, [hasMore, isLoading, currentPage, loadMessages])
+
+  /**
+   * Load one page of messages before a given date (cursor-based). Merges into state only; does not update cache.
+   * Returns the loaded batch and whether more older messages exist.
+   */
+  const loadMessagesBefore = useCallback(
+    async (beforeIso: string): Promise<{ loaded: Message[]; hasMore: boolean }> => {
+      if (!conversationId || !apiClient) {
+        return { loaded: [], hasMore: false }
+      }
+      const response = await apiClient.getMessages(conversationId, 1, 100, beforeIso)
+      const loadedMessages = response.data ?? []
+      const processedMessages = processMessages(loadedMessages)
+      const newHasMore = response.page < response.totalPages
+
+      startTransition(() => {
+        setMessages(prev => {
+          const combined = [...processedMessages, ...prev]
+          const byId = new Map(combined.map(m => [m.id, m]))
+          const deduped = Array.from(byId.values())
+          deduped.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+          return deduped
+        })
+        setHasMore(prev => prev || newHasMore)
+      })
+
+      return { loaded: processedMessages, hasMore: newHasMore }
+    },
+    [apiClient, conversationId, processMessages]
+  )
+
+  const MAX_ENSURE_MESSAGE_ITERATIONS = 10
+
+  /**
+   * Ensure a message is in the current conversation's list (for scroll-to-message).
+   * Loads pages backward from the target until the target is in a batch; each batch is merged.
+   * Does not preload "pages in between" the target and current view—user sees the target quickly,
+   * and scrolling toward the view triggers the existing "load more" to fill the gap. Does not write to cache.
+   */
+  const ensureMessageInList = useCallback(
+    async (messageId: string): Promise<boolean> => {
+      if (!conversationId || !apiClient) return false
+
+      const inList = () => messages.some(m => m.id === messageId)
+      if (inList()) return true
+
+      let message: Message
+      try {
+        message = await apiClient.getMessage(messageId)
+      } catch {
+        return false
+      }
+      if (message.conversationId !== conversationId) return false
+
+      let cursorBefore = new Date(new Date(message.createdAt).getTime() + 1).toISOString()
+      let hasMore = true
+      let iterations = 0
+
+      while (hasMore && iterations < MAX_ENSURE_MESSAGE_ITERATIONS) {
+        const { loaded, hasMore: more } = await loadMessagesBefore(cursorBefore)
+        hasMore = more
+        iterations++
+        if (loaded.some(m => m.id === messageId)) return true
+        if (loaded.length === 0) break
+        const oldest = loaded.reduce(
+          (a, b) => (new Date(a.createdAt).getTime() < new Date(b.createdAt).getTime() ? a : b),
+          loaded[0]
+        )
+        cursorBefore = new Date(oldest.createdAt).toISOString()
+      }
+
+      return false
+    },
+    [apiClient, conversationId, messages, loadMessagesBefore]
+  )
 
   /**
    * Add a new message with optimistic update support
@@ -345,11 +426,27 @@ export function useMessages({
    */
   const updateMessage = useCallback(
     (messageId: string, updates: Partial<Message>) => {
-      setMessages(prev => prev.map(m => (m.id === messageId ? { ...m, ...updates } : m)))
+      const statusRank = (s: string | undefined) => ({ sending: 0, sent: 1, delivered: 2, read: 3 })[s ?? ''] ?? -1
+      setMessages(prev =>
+        prev.map(m => {
+          if (m.id !== messageId) return m
+          const merged = { ...m, ...updates }
+          const incoming = updates.status ?? m.status
+          const current = m.status
+          if (statusRank(current) > statusRank(incoming)) merged.status = current
+          return merged
+        })
+      )
 
-      // Update cache
+      // Update cache (never downgrade status: keep read over sent/delivered)
       if (conversationId) {
-        cache.updateCachedMessage(conversationId, messageId, msg => ({ ...msg, ...updates }))
+        cache.updateCachedMessage(conversationId, messageId, msg => {
+          const merged = { ...msg, ...updates }
+          const incoming = updates.status ?? msg.status
+          const current = msg.status
+          if (statusRank(current) > statusRank(incoming)) merged.status = current
+          return merged
+        })
       }
     },
     [conversationId, cache]
@@ -431,7 +528,8 @@ export function useMessages({
   useEffect(() => {
     if (conversationId) {
       // Check if we're actually switching to a different conversation
-      const isSwitchingConversation = displayedConversationIdRef.current !== conversationId
+      const displayed = displayedConversationIdRef.current
+      const isSwitchingConversation = displayed !== conversationId
 
       if (isSwitchingConversation) {
         // Reset the last loaded conversation so loadMessages can proceed
@@ -459,6 +557,8 @@ export function useMessages({
         abortControllerRef.current.abort()
         abortControllerRef.current = null
       }
+      // Reset so the next effect run can start loadMessages(1) (prevents "skip concurrent request" after abort)
+      isLoadingRef.current = false
     }
   }, [conversationId]) // CRITICAL: Only conversationId, not loadMessages or cache
 
@@ -471,6 +571,8 @@ export function useMessages({
       error,
       hasMore,
       loadMore,
+      loadMessagesBefore,
+      ensureMessageInList,
       addMessage,
       updateMessage,
       deleteMessage,
@@ -484,6 +586,8 @@ export function useMessages({
       error,
       hasMore,
       loadMore,
+      loadMessagesBefore,
+      ensureMessageInList,
       addMessage,
       updateMessage,
       deleteMessage,

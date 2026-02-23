@@ -6,6 +6,8 @@ import { getIrmDocumentApiConfig } from '@/business-apps/irm/common/utils/docume
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useInvestmentDocuments } from '@/common/data/investment/hooks/useInvestmentDocuments'
+import { useRestClient } from '@/common/network/rest/useRestClient'
+import { env } from '@/common/env/EnvUtils'
 
 interface InvestmentPortalDocumentsProps {
   investmentId: string
@@ -35,6 +37,9 @@ const InvestmentPortalDocuments: React.FC<InvestmentPortalDocumentsProps> = ({ i
     fetchOptions: { createdBy: currentUserId }, // 🔑 KEY: Server-side user filtering
     errorMessage: getTranslationFromI18nKeyAndLabel('error.loading.documents', 'Failed to load documents')
   })
+
+  // REST client for document operations (IRM uses Kogito processes)
+  const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'))
 
   // Configure upload action button
   const documentUploadActionProps = useMemo(
@@ -90,6 +95,7 @@ const InvestmentPortalDocuments: React.FC<InvestmentPortalDocumentsProps> = ({ i
       error={error}
       onRefresh={refetch}
       apiConfig={apiConfig}
+      restClient={restClient}
       createFolderActionProps={documentCreateFolderActionProps}
       uploadActionProps={documentUploadActionProps}
       updateActionProps={documentUpdateActionProps}

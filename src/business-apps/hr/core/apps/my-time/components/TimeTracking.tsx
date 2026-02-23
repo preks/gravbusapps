@@ -26,6 +26,7 @@ import {
 import { InterventionsTable } from '@/business-apps/hr/core/apps/employee-record/components/tabs/components/InterventionsTable'
 import HeroLiveClock from './HeroLiveClock'
 import timeTrackingTranslations from '../_i18n'
+import { useEmployeeWorkingHours } from '../utils/useEmployeeWorkingHours'
 
 interface TimeTrackingProps {
   employee: any
@@ -35,6 +36,8 @@ interface TimeTrackingProps {
 }
 
 const TimeTracking: React.FC<TimeTrackingProps> = ({ employee, employeeId, accessToken, isSelfView }) => {
+  const workingHours = useEmployeeWorkingHours(employee)
+
   const {
     isClockedIn,
     clockInSince,
@@ -50,7 +53,7 @@ const TimeTracking: React.FC<TimeTrackingProps> = ({ employee, employeeId, acces
     isNearHome,
     isNearOffice,
     updateLocationSelection
-  } = useTimeTrackingData({ employeeId, accessToken, workingHours: employee?.workingHours?.[0] })
+  } = useTimeTrackingData({ employeeId, accessToken, workingHours })
 
   const { t } = useTranslation(timeTrackingTranslations)
 

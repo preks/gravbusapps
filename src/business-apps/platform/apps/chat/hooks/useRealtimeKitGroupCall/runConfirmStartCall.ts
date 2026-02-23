@@ -193,30 +193,23 @@ export async function runConfirmStartCall(
 
     if (calendarMeetingId) {
       const resolveWithRetry = async (retries = 3, delayMs = 2000, initialDelayMs = 3000) => {
-        if (!options.calendarApiClient) return false
+        if (!options.calendarApiClient) return
         await new Promise(resolve => setTimeout(resolve, initialDelayMs))
         try {
           const checkResponse = await options.calendarApiClient.getMeeting(calendarMeetingId)
           const callSession = checkResponse.meeting?.callSessions?.[0]
-          if (callSession?.cloudflareSessionId) return true
+          if (callSession?.cloudflareSessionId) return
         } catch {
           // Continue to backup method
         }
         for (let i = 0; i < retries; i++) {
           try {
-            const { sessionId: resolvedSessionId } =
-              await options.calendarApiClient.resolveAndLinkSession(calendarMeetingId)
-            if (resolvedSessionId) {
-              refs.sessionIdRef.current = resolvedSessionId
-              setCallState((prev: any) => ({ ...prev, sessionId: resolvedSessionId }))
-              return true
-            }
-            if (i < retries - 1) await new Promise(r => setTimeout(r, delayMs))
+            await options.calendarApiClient.resolveAndLinkSession(calendarMeetingId)
+            return
           } catch {
             if (i < retries - 1) await new Promise(r => setTimeout(r, delayMs))
           }
         }
-        return false
       }
       resolveWithRetry()
     }
@@ -298,10 +291,11 @@ export async function runConfirmStartCall(
     }
 
     if (wsClient?.getSocket()) {
+      const sessionIdToEmit = sessionId
       wsClient.getSocket()?.emit('rtk-group-call:joined', {
         conversationId,
         meetingId,
-        sessionId,
+        sessionId: sessionIdToEmit,
         isMeeting: !!calendarMeetingId,
         participant: {
           id: currentUser.id,

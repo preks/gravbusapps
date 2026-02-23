@@ -1,12 +1,15 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react'
-import { Button, Input, Spinner, Popover, PopoverContent, PopoverTrigger } from '@newwork/nw-design-system'
-import { Plus, MagnifyingGlass, User, UsersThree } from '@phosphor-icons/react'
+import { Button, Input, Spinner, Popover, PopoverContent, PopoverTrigger, Badge } from '@newwork/nw-design-system'
+import { PlusIcon, MagnifyingGlassIcon, UserIcon, UsersThreeIcon } from '@phosphor-icons/react'
+import { PhoneMissedIcon } from 'lucide-react'
 import { ConversationItem } from './ConversationItem'
 import { UserSearch } from './UserSearch'
 import { UserStatusDropdown } from './UserStatusDropdown'
 import type { Conversation } from '../types'
 import type { ChatWebSocketClient } from '../services/chatWebSocketClient'
 import type { PresenceData } from '../hooks/usePresence'
+import type { ConversationFilterKind } from '../hooks/useConversations'
+import { sortConversationsPinThenTime } from '../utils/conversationSort'
 import { useChatTranslation } from '../contexts/TranslationContext'
 
 interface ConversationListProps {
@@ -14,6 +17,12 @@ interface ConversationListProps {
   activeConversationId: string | null
   onConversationSelect: (conversation: Conversation) => void
   onRemoveConversation?: (conversationId: string) => void
+  onPinChange?: (conversationId: string, isPinned: boolean) => void
+  onMuteChange?: (conversationId: string, isMuted: boolean) => void
+  onNudge?: (conversationId: string, toUserId: string) => void
+  onStartAudioCall?: (conversation: Conversation) => void
+  onStartVideoCall?: (conversation: Conversation) => void
+  isCallEnabled?: boolean
   onCreateConversation?: (user: any) => void
   onCreateGroup?: () => void
   isLoading?: boolean
@@ -28,6 +37,16 @@ interface ConversationListProps {
   conversationExpertCounts?: Map<string, number>
   wsClient?: ChatWebSocketClient | null
   isConnected?: boolean
+  search?: string
+  filterKind?: ConversationFilterKind
+  unreadOnly?: boolean
+  onSearchChange?: (value: string) => void
+  onFilterKindChange?: (kind: ConversationFilterKind) => void
+  onUnreadOnlyChange?: (value: boolean) => void
+  onOpenCallHistory?: () => void
+  missedCallsCount?: number
+  onMarkAsUnread?: (conversationId: string) => void
+  markedAsUnreadConversationIds?: Set<string>
 }
 
 // Helper to get the other participant's user ID from a direct conversation
@@ -46,6 +65,12 @@ export const ConversationList: React.FC<ConversationListProps> = ({
   activeConversationId,
   onConversationSelect,
   onRemoveConversation,
+  onPinChange,
+  onMuteChange,
+  onNudge,
+  onStartAudioCall,
+  onStartVideoCall,
+  isCallEnabled = false,
   onCreateConversation,
   onCreateGroup,
   isLoading = false,
@@ -59,18 +84,27 @@ export const ConversationList: React.FC<ConversationListProps> = ({
   presenceVersion,
   conversationExpertCounts,
   wsClient = null,
-  isConnected = false
+  isConnected = false,
+  search = '',
+  filterKind = 'all',
+  unreadOnly = false,
+  onSearchChange,
+  onFilterKindChange,
+  onUnreadOnlyChange,
+  onOpenCallHistory,
+  missedCallsCount = 0,
+  onMarkAsUnread,
+  markedAsUnreadConversationIds
 }) => {
   const t = useChatTranslation()
   // Force re-render when presenceVersion changes
   void presenceVersion
 
-  const [searchQuery, setSearchQuery] = useState('')
   const [showUserSearch, setShowUserSearch] = useState(false)
   const [showNewChatMenu, setShowNewChatMenu] = useState(false)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
 
-  // Deduplicate conversations by ID (defensive programming - duplicates should be rare after fixes)
+  // Deduplicate and sort: pinned first (by pinnedOrder), then unpinned by lastMessageAt
   const uniqueConversations = useMemo(() => {
     const seen = new Set<string>()
     const duplicates: string[] = []
@@ -84,47 +118,30 @@ export const ConversationList: React.FC<ConversationListProps> = ({
       return true
     })
 
-    // Only log in development if duplicates are found (should be rare now)
     if (duplicates.length > 0 && process.env.NODE_ENV === 'development') {
       console.debug('[ConversationList] Filtered out duplicate conversations:', duplicates)
     }
 
-    return filtered
+    return [...filtered].sort(sortConversationsPinThenTime)
   }, [conversations])
 
-  const filteredConversations = uniqueConversations.filter(conv => {
-    if (!searchQuery.trim()) return true
+  // When Unread filter is on, show conversations with unread messages or marked-as-unread (dot)
+  const displayedConversations = useMemo(() => {
+    if (!unreadOnly) return uniqueConversations
+    const marked = markedAsUnreadConversationIds ?? new Set<string>()
+    return uniqueConversations.filter(c => (c.unreadCount ?? 0) > 0 || marked.has(c.id))
+  }, [unreadOnly, uniqueConversations, markedAsUnreadConversationIds])
 
-    const query = searchQuery.toLowerCase()
+  const hasActiveFilters = (search?.trim()?.length ?? 0) > 0 || filterKind !== 'all' || unreadOnly
 
-    // Search in conversation name (for group chats)
-    if (conv.name?.toLowerCase().includes(query)) {
-      return true
+  const handleKindChipClick = (kind: 'direct' | 'group' | 'meeting') => {
+    if (!onFilterKindChange) return
+    if (filterKind === kind) {
+      onFilterKindChange('all')
+    } else {
+      onFilterKindChange(kind)
     }
-
-    // Search in participant names (for direct chats)
-    const participantMatch = conv.participants?.some(p => {
-      if (!p.user) return false
-
-      const firstName = p.user.firstName?.toLowerCase() || ''
-      const lastName = p.user.lastName?.toLowerCase() || ''
-      const username = p.user.username?.toLowerCase() || ''
-      const email = p.user.email?.toLowerCase() || ''
-
-      return firstName.includes(query) || lastName.includes(query) || username.includes(query) || email.includes(query)
-    })
-
-    if (participantMatch) {
-      return true
-    }
-
-    // Search in last message content
-    if (conv.lastMessage?.content.toLowerCase().includes(query)) {
-      return true
-    }
-
-    return false
-  })
+  }
 
   const handleUserSelect = async (user: any) => {
     if (onCreateConversation) {
@@ -132,6 +149,50 @@ export const ConversationList: React.FC<ConversationListProps> = ({
     }
     setShowUserSearch(false)
   }
+
+  const renderFilterChips = () => (
+    <div
+      className="gba:flex gba:items-center gba:gap-1.5 gba:overflow-x-auto gba:flex-nowrap gba:w-full gba:min-w-0"
+      data-testid="conversation-filters"
+    >
+      <Button
+        variant={unreadOnly ? 'default' : 'outline'}
+        size="sm"
+        className="gba:h-7 gba:text-xs gba:flex-shrink-0"
+        onClick={() => onUnreadOnlyChange?.(!unreadOnly)}
+        data-testid="conversation-filter-unread"
+      >
+        {t('chat-filterUnreadOnly')}
+      </Button>
+      <Button
+        variant={filterKind === 'direct' ? 'default' : 'outline'}
+        size="sm"
+        className="gba:h-7 gba:text-xs gba:flex-shrink-0"
+        onClick={() => handleKindChipClick('direct')}
+        data-testid="conversation-filter-direct"
+      >
+        {t('chat-filterDirect')}
+      </Button>
+      <Button
+        variant={filterKind === 'group' ? 'default' : 'outline'}
+        size="sm"
+        className="gba:h-7 gba:text-xs gba:flex-shrink-0"
+        onClick={() => handleKindChipClick('group')}
+        data-testid="conversation-filter-group"
+      >
+        {t('chat-filterGroup')}
+      </Button>
+      <Button
+        variant={filterKind === 'meeting' ? 'default' : 'outline'}
+        size="sm"
+        className="gba:h-7 gba:text-xs gba:flex-shrink-0"
+        onClick={() => handleKindChipClick('meeting')}
+        data-testid="conversation-filter-meeting"
+      >
+        {t('chat-filterMeetingChats')}
+      </Button>
+    </div>
+  )
 
   // Handle scroll to load more conversations
   useEffect(() => {
@@ -178,6 +239,29 @@ export const ConversationList: React.FC<ConversationListProps> = ({
           </div>
         )}
 
+        {onOpenCallHistory && (
+          <div className="gba:relative gba:flex-shrink-0">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="gba:h-8 gba:w-8"
+              onClick={onOpenCallHistory}
+              aria-label={t('chat-callHistory')}
+              data-testid="chat-openCallHistory"
+            >
+              <PhoneMissedIcon className="gba:w-4 gba:h-4" />
+            </Button>
+            {missedCallsCount > 0 && (
+              <Badge
+                variant="destructive"
+                className="gba:absolute gba:-top-1 gba:-right-1 gba:min-w-[1.25rem] gba:h-5 gba:px-1 gba:text-xs gba:flex gba:items-center gba:justify-center"
+                data-testid="chat-missedCallsBadge"
+              >
+                {missedCallsCount > 99 ? '99+' : missedCallsCount}
+              </Badge>
+            )}
+          </div>
+        )}
         <Popover open={showNewChatMenu} onOpenChange={setShowNewChatMenu}>
           <PopoverTrigger asChild>
             <Button
@@ -186,7 +270,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
               className="gba:h-8 gba:w-8 gba:flex-shrink-0"
               data-testid="new-conversation-button"
             >
-              <Plus className="gba:w-4 gba:h-4" />
+              <PlusIcon className="gba:w-4 gba:h-4" />
             </Button>
           </PopoverTrigger>
           <PopoverContent align="end" className="gba:w-52 gba:p-1">
@@ -199,7 +283,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
               data-testid="new-direct-message-option"
             >
               <div className="gba:p-1.5 gba:rounded-md gba:bg-primary/10">
-                <User className="gba:w-4 gba:h-4 gba:text-primary" weight="fill" />
+                <UserIcon className="gba:w-4 gba:h-4 gba:text-primary" weight="fill" />
               </div>
               <span className="gba:text-sm gba:font-medium">{t('chat-directMessage')}</span>
             </button>
@@ -214,7 +298,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
                 data-testid="new-group-chat-option"
               >
                 <div className="gba:p-1.5 gba:rounded-md gba:bg-muted">
-                  <UsersThree className="gba:w-4 gba:h-4 gba:text-muted-foreground" weight="fill" />
+                  <UsersThreeIcon className="gba:w-4 gba:h-4 gba:text-muted-foreground" weight="fill" />
                 </div>
                 <span className="gba:text-sm gba:font-medium">{t('chat-groupChat')}</span>
               </button>
@@ -226,15 +310,22 @@ export const ConversationList: React.FC<ConversationListProps> = ({
       {/* Search */}
       <div className={`gba:border-b gba:border-border/50 ${compact ? 'gba:px-3 gba:py-2' : 'gba:p-3'}`}>
         <div className="gba:relative">
-          <MagnifyingGlass className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:w-4 gba:h-4 gba:text-muted-foreground gba:pointer-events-none gba:z-10" />
+          <MagnifyingGlassIcon className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:w-4 gba:h-4 gba:text-muted-foreground gba:pointer-events-none gba:z-10" />
           <Input
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
+            value={search}
+            onChange={e => onSearchChange?.(e.target.value)}
             placeholder={t('chat-searchConversations')}
             className="gba:h-8 gba:text-sm gba:!pl-10 gba:bg-background/50"
             data-testid="conversation-search-input"
           />
         </div>
+      </div>
+
+      {/* Filters: single scrollable row */}
+      <div
+        className={`gba:flex gba:items-center gba:border-b gba:border-border/50 gba:min-h-0 gba:min-w-0 ${compact ? 'gba:px-3 gba:py-2' : 'gba:px-3 gba:pb-2'}`}
+      >
+        {renderFilterChips()}
       </div>
 
       {/* Conversations */}
@@ -248,11 +339,11 @@ export const ConversationList: React.FC<ConversationListProps> = ({
             )
           }
 
-          if (filteredConversations.length === 0) {
+          if (displayedConversations.length === 0) {
             return (
               <div className="gba:p-6 gba:text-center">
                 <p className="gba:text-sm gba:text-muted-foreground">
-                  {searchQuery.trim() ? t('chat-noConversationsFound') : t('chat-noConversationsYet')}
+                  {hasActiveFilters ? t('chat-noConversationsFound') : t('chat-noConversationsYet')}
                 </p>
               </div>
             )
@@ -261,7 +352,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
           return (
             <>
               <div className="gba:py-1">
-                {filteredConversations.map(conversation => {
+                {displayedConversations.map(conversation => {
                   const otherUserId = getOtherParticipantUserId(conversation, currentUserId)
                   // GOLD STANDARD: Direct map lookup - zero function calls, maximum performance ✅
                   const otherUserPresence = otherUserId ? presenceMap.get(otherUserId) : undefined
@@ -273,11 +364,21 @@ export const ConversationList: React.FC<ConversationListProps> = ({
                       conversation={conversation}
                       onClick={() => onConversationSelect(conversation)}
                       onRemove={onRemoveConversation}
+                      onPinChange={onPinChange}
+                      onMuteChange={onMuteChange}
+                      onNudge={onNudge}
+                      onStartAudioCall={onStartAudioCall}
+                      onStartVideoCall={onStartVideoCall}
+                      isCallEnabled={isCallEnabled}
+                      onMarkAsUnread={onMarkAsUnread}
+                      isMarkedAsUnread={markedAsUnreadConversationIds?.has(conversation.id)}
                       isActive={conversation.id === activeConversationId}
                       currentUserId={currentUserId}
                       compact={compact}
                       otherUserPresence={otherUserPresence}
                       activeExpertCount={activeExpertCount}
+                      isPinned={conversation.isPinned}
+                      isMuted={conversation.isMuted}
                       t={t}
                     />
                   )

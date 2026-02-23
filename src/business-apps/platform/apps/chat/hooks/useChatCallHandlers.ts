@@ -16,7 +16,7 @@ export interface UseChatCallHandlersParams {
         participants: CallParticipant[],
         conversationName?: string,
         calendarMeetingId?: string | null,
-        conversationType?: 'direct' | 'group'
+        conversationType?: 'direct' | 'group' | 'meeting'
       ) => void)
     | null
   joinGroupCall?:
@@ -75,13 +75,15 @@ export function useChatCallHandlers({
               }
             }) ?? []
         const calendarMeetingId = activeConversation.metadata?.meetingId ?? null
+        const isMeetingConversation = activeConversation.metadata?.type === 'meeting' || Boolean(calendarMeetingId)
+        const conversationType: 'group' | 'meeting' = isMeetingConversation ? 'meeting' : 'group'
         initiateGroupCall?.(
           activeConversation.id,
           callType,
           callParticipants,
           activeConversation.name,
           calendarMeetingId,
-          'group'
+          conversationType
         )
       }
     },

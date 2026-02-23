@@ -248,12 +248,12 @@ const DetailsTab: React.FC<DetailsTabProps> = ({
           className="gba:flex gba:flex-col gba:py-1 gba:px-2 gba:hover:bg-muted gba:rounded-md gba:transition-colors"
           data-testid={`details-item-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
         >
-          <span className="gba:text-sm gba:text-muted-foreground gba:mb-0.5">{item.label}</span>
-          <span className="gba:font-medium gba:text-foreground">
+          <span className="gba:text-xs gba:text-muted-foreground gba:mb-0.5">{item.label}</span>
+          <span className="gba:font-medium gba:text-sm gba:text-foreground">
             {item.sectionKey ? getMaskedValue(item.value, item.sectionKey) : item.value || '-'}
           </span>
           {item.secondary ? (
-            <span className="gba:font-medium gba:text-foreground gba:mt-1">
+            <span className="gba:font-medium gba:text-sm gba:text-foreground gba:mt-1">
               {item.sectionKey ? getMaskedValue(item.secondary, item.sectionKey) : item.secondary}
             </span>
           ) : null}
@@ -279,7 +279,7 @@ const DetailsTab: React.FC<DetailsTabProps> = ({
         <Card data-testid="details-section-personal">
           <CardContent className="gba:p-4">
             <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
-              <h3 className="gba:text-xl gba:font-semibold">{t('details-personal-data')}</h3>
+              <h3 className="gba:text-lg gba:font-semibold">{t('details-personal-data')}</h3>
               <AppAction
                 variant="update-secondary"
                 data-testid="personal-data-action-button"
@@ -300,7 +300,7 @@ const DetailsTab: React.FC<DetailsTabProps> = ({
         <Card data-testid="details-section-address">
           <CardContent className="gba:p-4">
             <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
-              <h3 className="gba:text-xl gba:font-semibold">{t('details-address')}</h3>
+              <h3 className="gba:text-lg gba:font-semibold">{t('details-address')}</h3>
               <AppAction
                 variant="update-secondary"
                 data-testid="employee-address-action-button"
@@ -320,7 +320,7 @@ const DetailsTab: React.FC<DetailsTabProps> = ({
         <Card data-testid="details-section-bank">
           <CardContent className="gba:p-4">
             <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
-              <h3 className="gba:text-xl gba:font-semibold">{t('details-bank-account')}</h3>
+              <h3 className="gba:text-lg gba:font-semibold">{t('details-bank-account')}</h3>
               <AppAction
                 variant="update-secondary"
                 data-testid="bank-account-action-button"
@@ -340,7 +340,7 @@ const DetailsTab: React.FC<DetailsTabProps> = ({
         <Card data-testid="details-section-communication">
           <CardContent className="gba:p-4">
             <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
-              <h3 className="gba:text-xl gba:font-semibold">{t('details-private-communication')}</h3>
+              <h3 className="gba:text-lg gba:font-semibold">{t('details-private-communication')}</h3>
               <AppAction
                 variant="update-secondary"
                 data-testid="private-communication-action-button"
@@ -362,7 +362,7 @@ const DetailsTab: React.FC<DetailsTabProps> = ({
         <Card data-testid="details-section-emergency">
           <CardContent className="gba:p-4">
             <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
-              <h3 className="gba:text-xl gba:font-semibold">{t('details-emergency-contact')}</h3>
+              <h3 className="gba:text-lg gba:font-semibold">{t('details-emergency-contact')}</h3>
               <AppAction
                 variant="update-secondary"
                 data-testid="emergency-contact-action-button"
@@ -404,7 +404,7 @@ const DetailsTab: React.FC<DetailsTabProps> = ({
             <Card data-testid="details-section-additional-attributes">
               <CardContent className="gba:p-4">
                 <div className="gba:mb-6 gba:border-b gba:border-border gba:pb-2 gba:flex gba:justify-between gba:items-center">
-                  <h3 className="gba:text-xl gba:font-semibold">{t('details-additional-attributes')}</h3>
+                  <h3 className="gba:text-lg gba:font-semibold">{t('details-additional-attributes')}</h3>
                   <AppAction
                     variant="update-secondary"
                     data-testid="additional-attributes-action-button"

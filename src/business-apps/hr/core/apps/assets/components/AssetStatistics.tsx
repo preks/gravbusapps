@@ -2,7 +2,7 @@ import React, { useCallback, useMemo, memo } from 'react'
 import { WidgetGroup, WidgetItem } from '@/components/widget-group'
 import { AssetStatistics as Stats } from '../types'
 import { AssetStatus } from '../types'
-import { DesktopIcon, CheckCircleIcon, UsersIcon, WrenchIcon } from '@phosphor-icons/react'
+import { DesktopIcon, CheckCircleIcon, UsersIcon, WrenchIcon, ArchiveBoxIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 
 const ASSET_COLORS = {
@@ -59,6 +59,9 @@ const AssetStatisticsComponent: React.FC<AssetStatisticsProps> = ({
           break
         case 'under-repair-assets':
           handleCardClick(AssetStatus.UNDER_REPAIR)
+          break
+        case 'retired-assets':
+          handleCardClick(AssetStatus.RETIRED)
           break
         default:
           break
@@ -124,6 +127,20 @@ const AssetStatisticsComponent: React.FC<AssetStatisticsProps> = ({
         ),
         onClick: onStatusFilterChange ? () => handleCardClick(AssetStatus.UNDER_REPAIR) : undefined,
         active: activeStatusFilter === AssetStatus.UNDER_REPAIR
+      },
+      {
+        key: 'retired-assets',
+        title: getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.statistics_retired_assets', 'Retired Assets'),
+        value: statistics.retiredAssets,
+        prefix: <ArchiveBoxIcon size={24} />,
+        color: ASSET_COLORS.RETIRED,
+        span: { xs: 24, sm: 12, lg: 6 },
+        description: getTranslationFromI18nKeyAndLabel(
+          'lowcoder:hr_assets.statistics_retired_assets_description',
+          'No longer in use'
+        ),
+        onClick: onStatusFilterChange ? () => handleCardClick(AssetStatus.RETIRED) : undefined,
+        active: activeStatusFilter === AssetStatus.RETIRED
       }
     ],
     [statistics, activeStatusFilter, handleCardClick, onStatusFilterChange]
@@ -137,7 +154,8 @@ const AssetStatisticsComponent: React.FC<AssetStatisticsProps> = ({
         error={error}
         onRetry={onRetry}
         onWidgetClick={onStatusFilterChange ? handleWidgetClick : undefined}
-        skeletonCount={4}
+        skeletonCount={5}
+        cardsClassName="gba:lg:grid-cols-5"
         emptyText={getTranslationFromI18nKeyAndLabel(
           'lowcoder:hr_assets.statistics_empty',
           'No asset statistics available.'
@@ -154,6 +172,7 @@ export const AssetStatistics = memo(AssetStatisticsComponent, (prevProps, nextPr
     prevProps.statistics.allocatedAssets === nextProps.statistics.allocatedAssets &&
     prevProps.statistics.availableAssets === nextProps.statistics.availableAssets &&
     prevProps.statistics.underRepairAssets === nextProps.statistics.underRepairAssets &&
+    prevProps.statistics.retiredAssets === nextProps.statistics.retiredAssets &&
     prevProps.isLoading === nextProps.isLoading &&
     prevProps.error === nextProps.error &&
     prevProps.activeStatusFilter === nextProps.activeStatusFilter &&

@@ -1,5 +1,5 @@
 /**
- * Outer chat layout: container, PerformanceMonitor, OfflineBanner, error Alert,
+ * Outer chat layout: PerformanceMonitor, OfflineBanner, error Alert,
  * and flex slots for conversation list and chat view.
  */
 
@@ -8,7 +8,6 @@ import { Alert, AlertDescription } from '@newwork/nw-design-system'
 import { PerformanceMonitor } from './PerformanceMonitor'
 
 export interface ChatLayoutProps {
-  containerRef: RefObject<HTMLDivElement | null>
   prefixDataTestId: string
   errorMessage: string | null
   onDismissError: () => void
@@ -19,13 +18,12 @@ export interface ChatLayoutProps {
   showListView: boolean
   showChatView: boolean
   isSingleViewMode: boolean
-  chatViewRef?: RefObject<HTMLDivElement | null>
+  chatViewRef?: RefObject<HTMLDivElement>
   listSlot: React.ReactNode
   chatViewSlot: React.ReactNode
 }
 
 export function ChatLayout({
-  containerRef,
   prefixDataTestId,
   errorMessage,
   onDismissError,
@@ -42,7 +40,6 @@ export function ChatLayout({
 }: Readonly<ChatLayoutProps>) {
   return (
     <div
-      ref={containerRef}
       className="gba:h-full gba:flex gba:flex-col gba:bg-background gba:overflow-hidden"
       data-testid={prefixDataTestId}
     >
@@ -73,7 +70,7 @@ export function ChatLayout({
         {showListView && (
           <div
             className={`gba:flex gba:flex-col gba:h-full gba:border-r gba:border-border/50 gba:bg-muted/30 ${
-              isSingleViewMode ? 'gba:w-full' : 'gba:w-72 gba:flex-shrink-0'
+              isSingleViewMode ? 'gba:w-full' : 'gba:w-[350px] gba:flex-shrink-0'
             }`}
           >
             {listSlot}

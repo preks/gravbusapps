@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { PageLayout, useTranslation, toast, Spinner } from '@newwork/nw-design-system'
+import { PageLayout, useTranslation, toast, Spinner, Toaster } from '@newwork/nw-design-system'
 import { ListChecks } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { MODULE_COLORS } from '@/common/constants/ui'
@@ -39,13 +39,22 @@ function makeId(prefix: string) {
   return `${prefix}_${Math.random().toString(36).slice(2, 9)}`
 }
 
+/** Returns true if [startA, endA] and [startB, endB] overlap (inclusive). Dates in YYYY-MM-DD or parseable by Date. */
+function doDateRangesOverlap(startA: string, endA: string, startB: string, endB: string): boolean {
+  const aStart = new Date(startA).getTime()
+  const aEnd = new Date(endA).getTime()
+  const bStart = new Date(startB).getTime()
+  const bEnd = new Date(endB).getTime()
+  return aStart <= bEnd && aEnd >= bStart
+}
+
 enum PerformanceTabEnum {
   Cycles = 'cycles',
   RatingScales = 'rating-scales',
   Values = 'values'
 }
 
-export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
+export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo }) => {
   const devFeatureFlag = useFeature(Feature.Dev.Enabled.Key)
   const { t } = useTranslation(translations)
   const {
@@ -92,7 +101,7 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
   const [cycles, setCycles] = useState<PerformanceCycle[]>([])
   const [ratingScales, setRatingScales] = useState<RatingScale[]>([])
   const [valuesStore, setValuesStore] = useState<ValueItemStored[]>([])
-  const [activeTab, setActiveTab] = useState<PerformanceTabEnum>(PerformanceTabEnum.Cycles)
+  const [activeTab, setActiveTab] = useState<PerformanceTabEnum>(PerformanceTabEnum.RatingScales)
   const [startingCycleId, setStartingCycleId] = useState<string | null>(null)
   const handleTabChange = (value: string) => setActiveTab(value as PerformanceTabEnum)
 
@@ -123,6 +132,16 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
   const pageSubtitle = t('subtitle')
 
   const handleSaveFromModal = async (values: CycleEditorValues) => {
+    const otherCycles = cycles.filter(c => c.id !== values.id)
+    const overlaps = otherCycles.some(c =>
+      doDateRangesOverlap(values.startDate, values.endDate, c.startDate, c.endDate)
+    )
+    if (overlaps) {
+      const err = new Error(t('cycles-error-dates-overlap')) as Error & { code?: string }
+      err.code = 'DATES_OVERLAP'
+      throw err
+    }
+
     if (accessToken) {
       try {
         await savePerformanceCycle(values)
@@ -249,29 +268,14 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
     }
 
     try {
-      // Convert dates to ISO 8601 format with timestamp
-      const toISOString = (dateStr: string): string => {
-        const date = new Date(dateStr)
-        return date.toISOString()
-      }
-
       // Build the payload according to the API specification
       const payload = {
         employeePerformanceEvaluation: {
-          version: 0,
-          businessKey: `eval-${cycle.id}-${platformContext.employeeId}`,
-          activeTo: toISOString(cycle.endDate),
-          startDate: toISOString(cycle.startDate),
-          targetCompletionDate: toISOString(cycle.endDate),
-          actualCompletionDate: toISOString(cycle.endDate),
           employee: platformContext.employeeId,
-          performanceCycle: cycle.id,
-          organizationalUnitIds: selectedTeamIds
+          performanceCycle: cycle.id
         },
         managerUserId: managerUserId || '',
-        employeeUserId: currentEmployeeUserId || '',
-        selectedTeams: selectedTeamIds,
-        runFor
+        employeeUserId: userInfo?.id || currentEmployeeUserId || ''
       }
 
       // Start the Kogito process
@@ -415,12 +419,13 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
     )
   }
 
-  if (!hrBackoffice.hasPermission) {
-    return null
-  }
+  // if (!hrBackoffice.hasPermission) {
+  //   return null
+  // }
 
   return (
     <div data-testid="performance-evaluation-container">
+      <Toaster position="bottom-right" />
       <PageLayout
         headerIcon={ListChecks}
         headerTitle={pageTitle}
@@ -429,9 +434,9 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
           value: activeTab,
           onValueChange: handleTabChange,
           items: [
-            { value: PerformanceTabEnum.Cycles, label: t('tab-cycles') },
             { value: PerformanceTabEnum.RatingScales, label: t('tab-rating-scales') },
-            { value: PerformanceTabEnum.Values, label: t('tab-values') }
+            { value: PerformanceTabEnum.Values, label: t('tab-values') },
+            { value: PerformanceTabEnum.Cycles, label: t('tab-cycles') }
           ]
         }}
         variant={MODULE_COLORS.HR}

@@ -5,7 +5,7 @@
 
 import { createPortal } from 'react-dom'
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@newwork/nw-design-system'
-import { Monitor, Maximize2 } from 'lucide-react'
+import { Monitor, Maximize2, ArrowLeftRight } from 'lucide-react'
 import { CallHeader } from './CallHeader'
 import { ScreenShareView } from './ScreenShareView'
 import { CallControlsBar } from './CallControlsBar'
@@ -15,7 +15,6 @@ import { MemoizedParticipantVideoTile } from './ParticipantVideoTile'
 import { VideoGrid } from './VideoGrid'
 import { HorizontalFilmstrip } from './HorizontalFilmstrip'
 import { AudioSettingsModal } from './AudioSettingsModal'
-import { getOptimalAspectRatio } from '../../utils/groupCallModalUtils'
 import type { GroupCallModalRtkProps } from './groupCallModalTypes'
 import type { GroupCallModalRtkState } from '../../hooks/useGroupCallModalRtkState'
 
@@ -114,6 +113,9 @@ export function GroupCallModalRtkFullView({ props: p, state }: GroupCallModalRtk
               onToggleChat={state.handleToggleChat}
               onToggleMinimize={onToggleMinimize}
               onClose={onEndCall}
+              showLargeGalleryControl={state.stableRemotePeers.length + 1 > 10}
+              gallerySize={state.gallerySize}
+              onToggleGallerySize={() => state.setGallerySize(prev => (prev === 'default' ? 'large' : 'default'))}
               prefixDataTestId={prefixDataTestId}
               t={state.t}
             />
@@ -131,7 +133,11 @@ export function GroupCallModalRtkFullView({ props: p, state }: GroupCallModalRtk
             <div className="gba:flex gba:flex-col gba:gap-4 gba:p-4 gba:min-h-0 gba:overflow-hidden">
               {state.focusedScreenShare ? (
                 <>
-                  <div className="gba:flex-[3] gba:min-h-0 gba:rounded-lg gba:overflow-hidden gba:bg-black gba:relative">
+                  <div
+                    className={`gba:min-h-0 gba:rounded-lg gba:overflow-hidden gba:bg-black gba:relative ${
+                      state.contentProminentWhenSharing ? 'gba:flex-[3]' : 'gba:flex-[1]'
+                    }`}
+                  >
                     <video
                       ref={el => {
                         if (el && state.focusedScreenShare) {
@@ -148,12 +154,13 @@ export function GroupCallModalRtkFullView({ props: p, state }: GroupCallModalRtk
                       {state.focusedScreenShare.peerName}'s screen
                     </div>
                     <button
-                      onClick={() => state.setFocusedScreenShareId(null)}
-                      className="gba:absolute gba:top-3 gba:right-3 gba:p-2 gba:bg-black/70 hover:gba:bg-black/90 gba:rounded-md gba:text-white gba:transition-colors"
-                      data-testid={`${prefixDataTestId}-exit-screen-share-focus-btn`}
-                      aria-label={state.t('groupCall-exitScreenShareFocus') || 'Exit screen share focus'}
+                      onClick={() => state.setContentProminentWhenSharing(prev => !prev)}
+                      className="gba:absolute gba:top-3 gba:right-28 gba:p-2 gba:bg-black/70 hover:gba:bg-black/90 gba:rounded-md gba:text-white gba:transition-colors"
+                      data-testid={`${prefixDataTestId}-swap-content-people-btn`}
+                      aria-label={state.t('groupCall-swapLayout') || 'Swap layout'}
+                      title={state.t('groupCall-swapLayout') || 'Swap layout'}
                     >
-                      <Monitor className="gba:w-5 gba:h-5" />
+                      <ArrowLeftRight className="gba:w-5 gba:h-5" />
                     </button>
                     <button
                       onClick={() => {
@@ -172,79 +179,186 @@ export function GroupCallModalRtkFullView({ props: p, state }: GroupCallModalRtk
                     >
                       <Maximize2 className="gba:w-5 gba:h-5" />
                     </button>
+                    <button
+                      onClick={() => state.setFocusedScreenShareId(null)}
+                      className="gba:absolute gba:top-3 gba:right-3 gba:p-2 gba:bg-black/70 hover:gba:bg-black/90 gba:rounded-md gba:text-white gba:transition-colors"
+                      data-testid={`${prefixDataTestId}-exit-screen-share-focus-btn`}
+                      aria-label={state.t('groupCall-exitScreenShareFocus') || 'Exit screen share focus'}
+                    >
+                      <Monitor className="gba:w-5 gba:h-5" />
+                    </button>
                   </div>
-                  <div className="gba:flex-[1] gba:min-h-0 gba:border-t gba:border-border">
-                    <HorizontalFilmstrip
-                      participants={
-                        state.gridItems
-                          .filter(
-                            item =>
-                              item.type === 'video' ||
-                              item.type === 'avatar' ||
-                              (item.type === 'screen-share' && !item.isFocusedScreenShare)
-                          )
-                          .map(item => ({
-                            id: item.id,
-                            peerId: item.peerId,
-                            peerName: item.peerName,
-                            avatarUrl: item.avatarUrl,
-                            userId: item.userId,
-                            customParticipantId: item.customParticipantId,
-                            isLocal: item.isLocal,
-                            isMuted: item.isMuted,
-                            hasVideoTrack: item.hasVideoTrack || false,
-                            hasAudioTrack: item.hasAudioTrack || false,
-                            type: item.type,
-                            screenShareTrack: item.screenShareTrack,
-                            isHandRaised: hideReactionsAndHandRaise
-                              ? false
-                              : state.isParticipantHandRaised(item.peerId, item.userId, item.customParticipantId),
-                            handRaisedOrderNumber: hideReactionsAndHandRaise
-                              ? undefined
-                              : state.getHandRaisedOrderNumber(item.peerId, item.userId, item.customParticipantId),
-                            isActiveSpeaker: item.isActiveSpeaker
-                          })) as any
-                      }
-                      videoRefCallback={(peerId: string, isLocal: boolean) =>
-                        state.getVideoRefCallback(peerId, '', isLocal)
-                      }
-                      screenShareVideoRefCallback={(peerId: string) => (el: HTMLVideoElement | null) => {
-                        if (el) {
-                          state.screenShareVideoRefs.current.set(peerId, el)
-                        } else {
-                          state.screenShareVideoRefs.current.delete(peerId)
+                  <div
+                    className={`gba:min-h-0 gba:border-t gba:border-border ${
+                      state.contentProminentWhenSharing ? 'gba:flex-[1]' : 'gba:flex-[3]'
+                    }`}
+                  >
+                    {state.contentProminentWhenSharing ? (
+                      <HorizontalFilmstrip
+                        participants={
+                          state.gridItems
+                            .filter(
+                              item =>
+                                item.type === 'video' ||
+                                item.type === 'avatar' ||
+                                (item.type === 'screen-share' && !item.isFocusedScreenShare)
+                            )
+                            .map(item => ({
+                              id: item.id,
+                              peerId: item.peerId,
+                              peerName: item.peerName,
+                              avatarUrl: item.avatarUrl,
+                              userId: item.userId,
+                              customParticipantId: item.customParticipantId,
+                              isLocal: item.isLocal,
+                              isMuted: item.isMuted,
+                              hasVideoTrack: item.hasVideoTrack || false,
+                              hasAudioTrack: item.hasAudioTrack || false,
+                              type: item.type,
+                              screenShareTrack: item.screenShareTrack,
+                              isHandRaised: hideReactionsAndHandRaise
+                                ? false
+                                : state.isParticipantHandRaised(item.peerId, item.userId, item.customParticipantId),
+                              handRaisedOrderNumber: hideReactionsAndHandRaise
+                                ? undefined
+                                : state.getHandRaisedOrderNumber(item.peerId, item.userId, item.customParticipantId),
+                              isActiveSpeaker: item.isActiveSpeaker
+                            })) as any
                         }
-                      }}
-                      onScreenShareClick={(peerId: string) => {
-                        state.setFocusedScreenShareId(peerId)
-                      }}
-                      activeSpeakerId={activeSpeakerId}
-                      reactions={hideReactionsAndHandRaise ? [] : state.activeReactions}
-                      t={state.t}
-                      prefixDataTestId={`${prefixDataTestId}-filmstrip`}
-                      isMinimized={callState.isMinimized}
-                    />
+                        videoRefCallback={(peerId: string, isLocal: boolean) =>
+                          state.getVideoRefCallback(peerId, '', isLocal)
+                        }
+                        screenShareVideoRefCallback={(peerId: string) => (el: HTMLVideoElement | null) => {
+                          if (el) {
+                            state.screenShareVideoRefs.current.set(peerId, el)
+                          } else {
+                            state.screenShareVideoRefs.current.delete(peerId)
+                          }
+                        }}
+                        onScreenShareClick={(peerId: string) => {
+                          state.setFocusedScreenShareId(peerId)
+                        }}
+                        activeSpeakerId={activeSpeakerId}
+                        reactions={hideReactionsAndHandRaise ? [] : state.activeReactions}
+                        t={state.t}
+                        prefixDataTestId={`${prefixDataTestId}-filmstrip`}
+                        isMinimized={callState.isMinimized}
+                      />
+                    ) : (
+                      (() => {
+                        const peopleOnlyItems = state.gridItems.filter(
+                          item =>
+                            item.type === 'video' ||
+                            item.type === 'avatar' ||
+                            (item.type === 'screen-share' && !item.isFocusedScreenShare)
+                        )
+                        const perPage =
+                          state.paginatedGridItems.totalPages > 0
+                            ? Math.ceil(state.paginatedGridItems.totalItems / state.paginatedGridItems.totalPages)
+                            : 12
+                        const peopleTotalPages = Math.ceil(peopleOnlyItems.length / perPage) || 1
+                        const effectivePage = Math.min(state.currentPage, Math.max(0, peopleTotalPages - 1))
+                        const peoplePageItems = peopleOnlyItems.slice(
+                          effectivePage * perPage,
+                          (effectivePage + 1) * perPage
+                        )
+                        return (
+                          <VideoGrid
+                            mode="auto-fit"
+                            minTileSize={state.minTileSize}
+                            gridItems={peoplePageItems.map(item => {
+                              const hasVideoOrShare = item.hasVideoTrack || !!item.screenShareTrack
+                              const tileBg = hasVideoOrShare ? 'gba:bg-black' : 'gba:bg-muted'
+                              const tile = (
+                                <MemoizedParticipantVideoTile
+                                  peerId={item.peerId}
+                                  peerName={item.peerName}
+                                  avatarUrl={item.avatarUrl}
+                                  userId={item.userId}
+                                  customParticipantId={item.customParticipantId}
+                                  isLocal={item.isLocal}
+                                  isMuted={item.isMuted}
+                                  hasVideoTrack={item.hasVideoTrack || false}
+                                  hasAudioTrack={item.hasAudioTrack || false}
+                                  screenShareTrack={item.screenShareTrack}
+                                  isFocusedScreenShare={false}
+                                  totalScreenShares={state.allScreenShares.length}
+                                  isHandRaised={
+                                    hideReactionsAndHandRaise
+                                      ? false
+                                      : state.isParticipantHandRaised(
+                                          item.peerId,
+                                          item.userId,
+                                          item.customParticipantId
+                                        )
+                                  }
+                                  handRaisedOrderNumber={
+                                    hideReactionsAndHandRaise
+                                      ? undefined
+                                      : state.getHandRaisedOrderNumber(
+                                          item.peerId,
+                                          item.userId,
+                                          item.customParticipantId
+                                        )
+                                  }
+                                  isActiveSpeaker={item.isActiveSpeaker}
+                                  reactions={hideReactionsAndHandRaise ? [] : state.activeReactions}
+                                  isMinimized={callState.isMinimized}
+                                  onScreenShareClick={() => {
+                                    if (item.screenShareTrack) {
+                                      state.setFocusedScreenShareId(item.peerId)
+                                    }
+                                  }}
+                                  onScreenShareFocus={() => {
+                                    state.setFocusedScreenShareId(item.peerId)
+                                  }}
+                                  videoRef={state.getVideoRefCallback(item.peerId, item.peerName, item.isLocal)}
+                                  screenShareVideoRef={
+                                    item.screenShareTrack
+                                      ? el => {
+                                          if (el) {
+                                            state.screenShareVideoRefs.current.set(item.peerId, el)
+                                          } else {
+                                            state.screenShareVideoRefs.current.delete(item.peerId)
+                                          }
+                                        }
+                                      : undefined
+                                  }
+                                  prefixDataTestId={prefixDataTestId}
+                                  t={state.t}
+                                />
+                              )
+                              return (
+                                <div
+                                  key={item.id}
+                                  className={`gba:w-full gba:min-w-0 gba:aspect-video gba:rounded-lg gba:overflow-hidden ${tileBg}`}
+                                  data-testid={`${prefixDataTestId}-grid-item-${item.id}`}
+                                >
+                                  {tile}
+                                </div>
+                              )
+                            })}
+                            currentPage={effectivePage}
+                            totalPages={peopleTotalPages}
+                            totalItems={peopleOnlyItems.length}
+                            onPageChange={state.setCurrentPage}
+                            isEmpty={peopleOnlyItems.length === 0}
+                            prefixDataTestId={prefixDataTestId}
+                            t={state.t}
+                          />
+                        )
+                      })()
+                    )}
                   </div>
                 </>
               ) : (
                 <VideoGrid
                   mode="auto-fit"
                   minTileSize={state.minTileSize}
-                  maxTileSize={state.responsiveConfig.maxTileSize}
-                  gridItems={state.paginatedGridItems.items.map(item => (
-                    <div
-                      key={item.id}
-                      className="gba:relative gba:w-full gba:h-full gba:rounded-lg gba:overflow-hidden gba:bg-muted"
-                      style={{
-                        aspectRatio: getOptimalAspectRatio(
-                          globalThis.window.innerWidth,
-                          state.paginatedGridItems.items.length,
-                          item.type === 'screen-share',
-                          state.sidebarView !== 'closed'
-                        )
-                      }}
-                      data-testid={`${prefixDataTestId}-grid-item-${item.id}`}
-                    >
+                  gridItems={state.paginatedGridItems.items.map(item => {
+                    const hasVideoOrShare = item.hasVideoTrack || !!item.screenShareTrack
+                    const tileBg = hasVideoOrShare ? 'gba:bg-black' : 'gba:bg-muted'
+                    const tile = (
                       <MemoizedParticipantVideoTile
                         peerId={item.peerId}
                         peerName={item.peerName}
@@ -294,8 +408,17 @@ export function GroupCallModalRtkFullView({ props: p, state }: GroupCallModalRtk
                         prefixDataTestId={prefixDataTestId}
                         t={state.t}
                       />
-                    </div>
-                  ))}
+                    )
+                    return (
+                      <div
+                        key={item.id}
+                        className={`gba:w-full gba:min-w-0 gba:aspect-video gba:rounded-lg gba:overflow-hidden ${tileBg}`}
+                        data-testid={`${prefixDataTestId}-grid-item-${item.id}`}
+                      >
+                        {tile}
+                      </div>
+                    )
+                  })}
                   currentPage={state.currentPage}
                   totalPages={state.paginatedGridItems.totalPages}
                   totalItems={state.paginatedGridItems.totalItems}

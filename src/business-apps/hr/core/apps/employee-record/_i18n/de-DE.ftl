@@ -73,14 +73,17 @@ benefits-catalog-no-results-description = Keine Zusatzleistungen entsprechen Ihr
 benefits-catalog-clear-search = Suche löschen
 benefits-active-section-title = Aktive Zusatzleistungen ({ $count })
 benefits-scheduled-section-title = Geplante Zusatzleistungen ({ $count })
+benefits-not-approved-section-title = Nicht genehmigte Zusatzleistungen ({ $count })
 benefits-available-section-title = Verfügbare Zusatzleistungen ({ $count })
 
 # Benefit Card
 benefit-status-active = Aktiv
 benefit-status-scheduled = Geplant
 benefit-status-pending = Ausstehend
+benefit-status-not-approved = Nicht genehmigt
 benefit-status-available = Verfügbar
 benefit-request-button = Anfordern
+benefit-request-again = Erneut anfordern
 benefit-pending-request-info = Sie haben diese Zusatzleistung bereits angefordert. Sie können nur eine aktive Anfrage gleichzeitig haben. Die Anfrage wartet auf Genehmigung.
 benefit-pending-request-notice = Eine Anfrage für diese Zusatzleistung wartet derzeit auf Genehmigung
 benefit-request-employee-id-missing = Mitarbeiter-ID nicht verfügbar. Kann Leistungsanfrage nicht initiieren.
@@ -105,6 +108,7 @@ benefit-details-type = Typ
 benefit-details-category = Kategorie
 benefit-details-provider-info = Anbieterinformationen
 benefit-details-provider = Anbieter
+benefit-details-comments = Kommentare
 benefit-details-value-info = Wertinformationen
 benefit-details-yearly-value = Jahreswert
 benefit-details-monthly-value = Monatswert
@@ -690,3 +694,7 @@ service-requests-status-open = Offen
 service-requests-status-in-progress = In Bearbeitung
 service-requests-status-completed = Abgeschlossen
 service-requests-status-canceled = Abgebrochen
+
+# Change Personal Data - Pending state (aligns with notification-personal-data-updated-success)
+change-personal-data-pending-message = Ihre Personalabteilung prüft derzeit Ihre letzten Änderungen. Sobald die Freigabe erfolgt ist, können Sie weitere Anpassungen vornehmen.
+change-personal-data-pending-ok = OK

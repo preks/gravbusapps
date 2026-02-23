@@ -5,6 +5,8 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useGetCrmDocuments, getCrmDocumentApiConfig } from '@/business-apps/crm/common/utils/documentUtils'
 import { useCrmDocuments } from '@/business-apps/crm/common/hooks/useCrmDocuments'
+import { useRestClient } from '@/common/network/rest/useRestClient'
+import { env } from '@/common/env/EnvUtils'
 
 interface DocumentViewProps extends BusinessAppContextProps {
   contactId: string
@@ -19,6 +21,9 @@ export const DocumentView: React.FC<DocumentViewProps> = ({ contactId, ...contex
     fetchDocuments,
     errorMessage: getTranslationFromI18nKeyAndLabel('error.loading.documents', 'Failed to load documents')
   })
+
+  // REST client for document operations (CRM uses Kogito processes)
+  const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'))
 
   const documentCreateFolderActionProps = useMemo(
     () => ({
@@ -70,6 +75,7 @@ export const DocumentView: React.FC<DocumentViewProps> = ({ contactId, ...contex
         error={error}
         onRefresh={refetch}
         apiConfig={getCrmDocumentApiConfig('contact')}
+        restClient={restClient}
         createFolderActionProps={documentCreateFolderActionProps}
         uploadActionProps={documentUploadActionProps}
         updateActionProps={documentUpdateActionProps}
