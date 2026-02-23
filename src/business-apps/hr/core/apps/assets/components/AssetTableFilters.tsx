@@ -86,13 +86,11 @@ export const AssetTableFilters: React.FC<AssetTableFiltersProps> = ({
           <SelectItem value="all">
             {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.all_statuses', 'All Statuses')}
           </SelectItem>
-          {Object.values(AssetStatus)
-            .filter(status => status !== AssetStatus.RETIRED)
-            .map(status => (
-              <SelectItem key={status} value={status}>
-                {formatStatus(status)}
-              </SelectItem>
-            ))}
+          {Object.values(AssetStatus).map(status => (
+            <SelectItem key={status} value={status}>
+              {formatStatus(status)}
+            </SelectItem>
+          ))}
         </SelectContent>
       </Select>
     </div>

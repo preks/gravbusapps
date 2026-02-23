@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { InvestmentLayout, InvestmentFormValues } from '@/common/components/investment/form-layouts/investment-layout'
 import { useTranslation, Skeleton } from '@newwork/nw-design-system'
@@ -126,13 +126,43 @@ export const InvestmentReportForm: React.FC<InvestmentReportFormProps> = ({
     mode: 'onSubmit',
     reValidateMode: 'onSubmit'
   })
+  const lastHydratedKeyRef = useRef<string | null>(null)
+
+  // Reset form only when source hydration key changes to avoid clobbering user edits.
+  const hydrationKey = useMemo(
+    () =>
+      [investmentReportId || 'create', investmentId || '', fetchedReport?.id || '', fetchedInvestment?.id || ''].join(
+        '|'
+      ),
+    [investmentReportId, investmentId, fetchedReport?.id, fetchedInvestment?.id]
+  )
 
   // Reset form when initial values change
   useEffect(() => {
-    if (transformedInitialValues) {
-      form.reset(transformedInitialValues as any)
+    if (!transformedInitialValues) return
+    if (lastHydratedKeyRef.current === hydrationKey) return
+
+    const getValueUnsafe = form.getValues as (name: string) => unknown
+    const currentTypeId = getValueUnsafe('investment.investmentTypeId')
+    const currentGroupRef = getValueUnsafe('investment.investmentGroupRef')
+    const shouldPreserveCurrentSelection = !investmentReportId
+
+    const nextValues: Partial<
+      InvestmentFormValues & { investmentReportDate?: string; investmentReportScope?: string }
+    > = {
+      ...transformedInitialValues,
+      investment: {
+        ...(transformedInitialValues.investment || {}),
+        ...(shouldPreserveCurrentSelection && {
+          investmentTypeId: transformedInitialValues.investment?.investmentTypeId ?? (currentTypeId as any),
+          investmentGroupRef: transformedInitialValues.investment?.investmentGroupRef ?? (currentGroupRef as any)
+        })
+      }
     }
-  }, [transformedInitialValues, form])
+
+    form.reset(nextValues as any)
+    lastHydratedKeyRef.current = hydrationKey
+  }, [transformedInitialValues, form, hydrationKey, investmentReportId])
 
   // Get current form values using useWatch - watch all values at once to avoid type instantiation issues
   const formValues = useWatch({ control: form.control }) as InvestmentFormValues & {
@@ -230,26 +260,6 @@ export const InvestmentReportForm: React.FC<InvestmentReportFormProps> = ({
   // Show investment select only if no initialInvestmentId was provided
   const showInvestmentSelect = !initialInvestmentId
 
-  // Map investment data to form values when investment is loaded
-  // Only run this in Fall 3 (no investmentReportId, but investmentId exists)
-  // In Fall 2, values come from transformedInitialValues (based on fetchedReport)
-  useEffect(() => {
-    // Skip if we have a investmentReportId (Fall 2) - values come from transformedInitialValues
-    if (investmentReportId) {
-      return
-    }
-
-    if (currentFetchedInvestment && !investmentLoading && investmentId) {
-      // Use transformInvestment to transform the investment
-      const transformed = transformInvestment(currentFetchedInvestment, investmentId, getPathByType)
-
-      // Update form values using reset to avoid complex type issues
-      form.reset(
-        transformed as Partial<InvestmentFormValues & { investmentReportDate?: string; investmentReportScope?: string }>
-      )
-    }
-  }, [currentFetchedInvestment, investmentLoading, investmentId, form, investmentReportId, getPathByType])
-
   // Handle investment selection change - update investmentId state
   const handleInvestmentChange = useCallback((newInvestmentId: string) => {
     setInvestmentId(newInvestmentId)
@@ -258,7 +268,10 @@ export const InvestmentReportForm: React.FC<InvestmentReportFormProps> = ({
   // Determine if this is an update
   // For reports: check investmentReportId OR investment.investmentId (reference to investment)
   // For investment-form: would check investment.id (the investment entity ID)
-  const isUpdate = Boolean(investmentReportId || formValues.investment.id || formValues.investment.investmentId)
+  const investmentValues = formValues.investment as Partial<InvestmentFormValues['investment']> & {
+    investmentId?: string
+  }
+  const isUpdate = Boolean(investmentReportId || investmentValues.id || investmentValues.investmentId)
 
   // Translation hook
   const { t } = useTranslation(translations)

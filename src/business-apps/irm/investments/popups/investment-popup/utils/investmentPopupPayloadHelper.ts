@@ -3,10 +3,11 @@
  * Reduces code duplication by centralizing payload building logic
  */
 
-import { Investment } from '@/common/data/investment/types'
+import { Investment } from '@/common/data/investment/types/investmentTypes'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { buildInvestmentPayload } from '@/common/data/investment/payloads/investmentPayloads'
-import { generateBusinessKey, getInvestmentGroupType } from './investmentPopupUtils'
+import { generateBusinessKey, getActiveSubtypeEntity } from './investmentPopupUtils'
+import { getInvestmentUiSubtypeFromData } from '@/common/data/investment/utils/investmentGroupRouting'
 
 /**
  * Creates an investment update payload for popup components that only update additionalProperties
@@ -100,7 +101,7 @@ export const buildInvestmentSubtypePayload = (params: {
   const { investment, updatedSubtypeAdditionalProperties, businessAppContext, businessKeyPrefix, businessKeySuffix } =
     params
 
-  const groupType = getInvestmentGroupType(investment)
+  const investmentSubtype = getInvestmentUiSubtypeFromData(investment)
 
   // Spread the entire investment
   const investmentFormData: any = {
@@ -110,26 +111,20 @@ export const buildInvestmentSubtypePayload = (params: {
   }
 
   // Update the appropriate subtype with new additionalProperties
-  if (groupType === 'EQUITY') {
-    const existingEquity = Array.isArray((investment as any).equityInvestment)
-      ? (investment as any).equityInvestment[0]
-      : (investment as any).equityInvestment
+  if (investmentSubtype === 'equity') {
+    const existingEquity = getActiveSubtypeEntity(investment) || {}
     investmentFormData.equityInvestment = {
       ...existingEquity,
       additionalProperties: updatedSubtypeAdditionalProperties
     }
-  } else if (groupType === 'REAL_ESTATE') {
-    const existingRealEstate = Array.isArray((investment as any).realEstateInvestment)
-      ? (investment as any).realEstateInvestment[0]
-      : (investment as any).realEstateInvestment
+  } else if (investmentSubtype === 'real_estate') {
+    const existingRealEstate = getActiveSubtypeEntity(investment) || {}
     investmentFormData.realEstateInvestment = {
       ...existingRealEstate,
       additionalProperties: updatedSubtypeAdditionalProperties
     }
-  } else if (groupType === 'LIQUID_FUND') {
-    const existingLiquidFund = Array.isArray((investment as any).liquidFundInvestment)
-      ? (investment as any).liquidFundInvestment[0]
-      : (investment as any).liquidFundInvestment
+  } else if (investmentSubtype === 'liquid_fund') {
+    const existingLiquidFund = getActiveSubtypeEntity(investment) || {}
     investmentFormData.liquidFundInvestment = {
       ...existingLiquidFund,
       additionalProperties: updatedSubtypeAdditionalProperties

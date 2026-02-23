@@ -11,17 +11,18 @@ import {
   Label,
   DateInput,
   Combobox,
-  Button
+  Button,
+  Spinner
 } from '@newwork/nw-design-system'
-import { TrendUpIcon, BuildingsIcon, ChartPieIcon, FunnelIcon, XIcon } from '@phosphor-icons/react'
+import { FunnelIcon, XIcon } from '@phosphor-icons/react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { buildPlatformUrl } from '@/common/utils/navigationUtils'
-import { LiquidFundReport } from './tabs/liquid-fund-report-tab/LiquidFundReport'
-import { RealEstateReport } from './tabs/real-estate-report-tab/RealEstateReport'
-import { EquityReport } from './tabs/equity-report-tab/EquityReport'
 import { useReportFilters } from './hooks'
 import { useAvailableCurrencies } from '@/common/data/common/hooks/useAvailableCurrencies'
 import { useGetInvestmentCatalogData } from '@/common/data/investment/hooks/useInvestmentCatalogs'
+import { useInvestmentGroups } from '../investment-view/hooks/useInvestmentGroups'
+import { getIconForGroup } from './utils/reportViewHelpers'
+import { GenericReportTab } from './components/GenericReportTab'
 import dayjs from 'dayjs'
 
 export interface ReportViewProps extends BusinessAppContextProps {
@@ -35,15 +36,47 @@ export const ReportView: React.FC<ReportViewProps> = ({
   initialSubTab = 'liquid-fund',
   onSubTabChange
 }) => {
-  const [activeSubTab, setActiveSubTab] = useState(initialSubTab)
+  // Fetch investment groups from catalog dynamically
+  const { investmentGroups, isLoading: groupsLoading } = useInvestmentGroups(accessToken || '')
+
+  // Normalize active tab against dynamic groups
+  const normalizeTab = useCallback(
+    (val?: string) => {
+      if (!val) return investmentGroups[0]?.tabId || 'liquid-fund'
+      const validTabs = investmentGroups.map(g => g.tabId)
+      return validTabs.includes(val) ? val : investmentGroups[0]?.tabId || 'liquid-fund'
+    },
+    [investmentGroups]
+  )
+
+  const [activeSubTab, setActiveSubTab] = useState(() => normalizeTab(initialSubTab))
+
+  // Update active tab when groups load and current tab is invalid
+  useEffect(() => {
+    if (investmentGroups.length > 0) {
+      const normalized = normalizeTab(activeSubTab)
+      if (normalized !== activeSubTab) {
+        setActiveSubTab(normalized)
+      }
+    }
+  }, [investmentGroups, activeSubTab, normalizeTab])
 
   // Shared filter state for all tabs (date range is shared)
   const reportFilters = useReportFilters()
 
-  // Tab-specific currency filters
-  const [liquidFundCurrencies, setLiquidFundCurrencies] = useState<string[]>([])
-  const [realEstateCurrencies, setRealEstateCurrencies] = useState<string[]>([])
-  const [equityCurrencies, setEquityCurrencies] = useState<string[]>([])
+  // Dynamic per-tab currency filters (map of tabId -> currency array)
+  const [currenciesByTab, setCurrenciesByTab] = useState<Record<string, string[]>>({})
+
+  // Initialize currency state for all groups when they load
+  useEffect(() => {
+    if (investmentGroups.length > 0 && Object.keys(currenciesByTab).length === 0) {
+      const initial: Record<string, string[]> = {}
+      investmentGroups.forEach(group => {
+        initial[group.tabId] = []
+      })
+      setCurrenciesByTab(initial)
+    }
+  }, [investmentGroups, currenciesByTab])
 
   // Fetch investment catalog data ONCE for all tabs (shared across Equity, Real Estate, Liquid Fund)
   const { fetchInvestmentCatalogData } = useGetInvestmentCatalogData({ accessToken, userInfo })
@@ -106,17 +139,8 @@ export const ReportView: React.FC<ReportViewProps> = ({
 
   // Get current tab's currency state
   const selectedCurrencies = useMemo(() => {
-    switch (activeSubTab) {
-      case 'liquid-fund':
-        return liquidFundCurrencies
-      case 'real-estate':
-        return realEstateCurrencies
-      case 'equity':
-        return equityCurrencies
-      default:
-        return []
-    }
-  }, [activeSubTab, liquidFundCurrencies, realEstateCurrencies, equityCurrencies])
+    return currenciesByTab[activeSubTab] || []
+  }, [activeSubTab, currenciesByTab])
 
   // Transform currency options from hook to combobox format
   const currencyComboboxOptions = useMemo(() => {
@@ -133,17 +157,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
   const handleCurrencyChange = useCallback(
     (currencies: string[]) => {
       // Update only the current tab's currency filter
-      switch (activeSubTab) {
-        case 'liquid-fund':
-          setLiquidFundCurrencies(currencies)
-          break
-        case 'real-estate':
-          setRealEstateCurrencies(currencies)
-          break
-        case 'equity':
-          setEquityCurrencies(currencies)
-          break
-      }
+      setCurrenciesByTab(prev => ({ ...prev, [activeSubTab]: currencies }))
     },
     [activeSubTab]
   )
@@ -153,17 +167,7 @@ export const ReportView: React.FC<ReportViewProps> = ({
     reportFilters.handleStartDateChange(null)
     reportFilters.handleEndDateChange(null)
     // Clear only current tab's currency filter
-    switch (activeSubTab) {
-      case 'liquid-fund':
-        setLiquidFundCurrencies([])
-        break
-      case 'real-estate':
-        setRealEstateCurrencies([])
-        break
-      case 'equity':
-        setEquityCurrencies([])
-        break
-    }
+    setCurrenciesByTab(prev => ({ ...prev, [activeSubTab]: [] }))
   }, [reportFilters, activeSubTab])
 
   // Update URL when tab changes using safe navigation
@@ -206,45 +210,46 @@ export const ReportView: React.FC<ReportViewProps> = ({
     setActiveSubTab(tabValue)
   }
 
-  // Create tab-specific filter objects with their own currency states
-  const liquidFundFilters = useMemo(
-    () => ({
-      ...reportFilters,
-      selectedCurrencies: liquidFundCurrencies,
-      computedFilters: {
-        ...reportFilters.computedFilters,
-        currencyIds: liquidFundCurrencies
-      },
-      handleCurrencyChange: setLiquidFundCurrencies
-    }),
-    [reportFilters, liquidFundCurrencies]
+  // Helper to get filters for any tab (dynamic)
+  const getFiltersForTab = useCallback(
+    (tabId: string) => {
+      const currencies = currenciesByTab[tabId] || []
+      return {
+        ...reportFilters,
+        selectedCurrencies: currencies,
+        computedFilters: {
+          ...reportFilters.computedFilters,
+          currencyIds: currencies
+        },
+        handleCurrencyChange: (newCurrencies: string[]) => {
+          setCurrenciesByTab(prev => ({ ...prev, [tabId]: newCurrencies }))
+        }
+      }
+    },
+    [reportFilters, currenciesByTab]
   )
 
-  const realEstateFilters = useMemo(
-    () => ({
-      ...reportFilters,
-      selectedCurrencies: realEstateCurrencies,
-      computedFilters: {
-        ...reportFilters.computedFilters,
-        currencyIds: realEstateCurrencies
-      },
-      handleCurrencyChange: setRealEstateCurrencies
-    }),
-    [reportFilters, realEstateCurrencies]
-  )
+  // Show loading state while groups are being fetched
+  if (groupsLoading) {
+    return (
+      <div className="gba:flex gba:justify-center gba:items-center gba:min-h-[400px]">
+        <Spinner data-testid="report-view-loading-spinner" />
+      </div>
+    )
+  }
 
-  const equityFilters = useMemo(
-    () => ({
-      ...reportFilters,
-      selectedCurrencies: equityCurrencies,
-      computedFilters: {
-        ...reportFilters.computedFilters,
-        currencyIds: equityCurrencies
-      },
-      handleCurrencyChange: setEquityCurrencies
-    }),
-    [reportFilters, equityCurrencies]
-  )
+  // Show error state if no groups found
+  if (investmentGroups.length === 0) {
+    return (
+      <div className="gba:flex gba:justify-center gba:items-center gba:min-h-[400px]">
+        <Card className="gba:max-w-md">
+          <CardContent className="gba:p-8 gba:text-center">
+            <p className="gba:text-muted-foreground">No investment groups found in catalog.</p>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
 
   return (
     <div data-testid="analytics-container" className="gba:h-full gba:flex gba:flex-col">
@@ -314,53 +319,39 @@ export const ReportView: React.FC<ReportViewProps> = ({
       </Card>
 
       <Tabs value={activeSubTab} onValueChange={handleTabChange} className="gba:h-full gba:flex gba:flex-col">
-        <TabsList className="gba:grid gba:w-full gba:grid-cols-3 gba:mb-4">
-          <TabsTrigger value="liquid-fund" startIcon={<TrendUpIcon />} data-testid="liquid-fund-analytics-tab">
-            Liquid Fund
-          </TabsTrigger>
-          <TabsTrigger value="real-estate" startIcon={<BuildingsIcon />} data-testid="real-estate-analytics-tab">
-            Real Estate
-          </TabsTrigger>
-          <TabsTrigger value="equity" startIcon={<ChartPieIcon />} data-testid="equity-analytics-tab">
-            Equity
-          </TabsTrigger>
+        {/* Dynamic TabsList based on catalog groups */}
+        <TabsList
+          className="gba:grid gba:w-full gba:mb-4"
+          style={{ gridTemplateColumns: `repeat(${investmentGroups.length}, 1fr)` }}
+        >
+          {investmentGroups.map(group => (
+            <TabsTrigger
+              key={group.tabId}
+              value={group.tabId}
+              startIcon={getIconForGroup(group.code)}
+              data-testid={`${group.tabId}-analytics-tab`}
+            >
+              {group.label}
+            </TabsTrigger>
+          ))}
         </TabsList>
 
-        <TabsContent value="liquid-fund" className="gba:flex-1 gba:overflow-auto gba:mt-0">
-          <LiquidFundReport
-            accessToken={accessToken}
-            userInfo={userInfo}
-            data-testid="liquid-fund-analytics"
-            reportFilters={liquidFundFilters}
-            onCurrenciesUpdate={handleCurrenciesUpdate}
-            catalogData={catalogData}
-            enabled={activeSubTab === 'liquid-fund'}
-          />
-        </TabsContent>
-
-        <TabsContent value="real-estate" className="gba:flex-1 gba:overflow-auto gba:mt-0">
-          <RealEstateReport
-            accessToken={accessToken}
-            userInfo={userInfo}
-            data-testid="real-estate-analytics"
-            reportFilters={realEstateFilters}
-            onCurrenciesUpdate={handleCurrenciesUpdate}
-            catalogData={catalogData}
-            enabled={activeSubTab === 'real-estate'}
-          />
-        </TabsContent>
-
-        <TabsContent value="equity" className="gba:flex-1 gba:overflow-auto gba:mt-0">
-          <EquityReport
-            accessToken={accessToken}
-            userInfo={userInfo}
-            data-testid="equity-analytics"
-            reportFilters={equityFilters}
-            onCurrenciesUpdate={handleCurrenciesUpdate}
-            catalogData={catalogData}
-            enabled={activeSubTab === 'equity'}
-          />
-        </TabsContent>
+        {/* Dynamic TabsContent based on catalog groups - all use GenericReportTab */}
+        {investmentGroups.map(group => (
+          <TabsContent key={group.tabId} value={group.tabId} className="gba:flex-1 gba:overflow-auto gba:mt-0">
+            <GenericReportTab
+              investmentGroup={group.code}
+              groupLabel={group.label}
+              accessToken={accessToken}
+              userInfo={userInfo}
+              data-testid={`${group.tabId}-analytics`}
+              reportFilters={getFiltersForTab(group.tabId)}
+              onCurrenciesUpdate={handleCurrenciesUpdate}
+              catalogData={catalogData}
+              enabled={activeSubTab === group.tabId}
+            />
+          </TabsContent>
+        ))}
       </Tabs>
     </div>
   )
