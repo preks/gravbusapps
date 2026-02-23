@@ -112,13 +112,23 @@ export const DEMO_COMPONENTS: ComponentSpec[] = [
       description: 'Qualifies sales leads and recommends next steps based on company and industry context.',
       systemPrompt:
         'You are an expert B2B sales assistant. Given a lead, analyze their fit based on company, industry, and provided notes. Return a qualification score from 1–10, a short summary of key insights, and 2–3 concrete recommended next steps. Be concise and actionable.',
-      userPromptTemplate: 'Lead name: {lead_name}\nCompany: {company}\nIndustry: {industry}\nNotes: {notes}',
+      userPromptTemplate:
+        'Lead name: {lead_name}\nCompany: {company}\nIndustry: {industry}\nNotes: {notes}\nAdditional context: {context}',
       tools: [],
       agentType: 'everyai',
       specialty: 'Lead qualification and B2B sales strategy',
       responseStyle: 'conversational',
       citationMode: 'never',
-      tags: ['sales', 'crm', 'leads', 'qualification']
+      tags: ['sales', 'crm', 'leads', 'qualification'],
+      responseSchema: {
+        type: 'object',
+        properties: {
+          score: { type: 'number', description: 'Qualification score from 1 to 10' },
+          insights: { type: 'string', description: 'Key insights about the lead' },
+          nextSteps: { type: 'array', items: { type: 'string' }, description: 'Recommended next steps' }
+        },
+        required: ['score', 'insights', 'nextSteps']
+      }
     }
   },
   {
@@ -133,11 +143,10 @@ export const DEMO_COMPONENTS: ComponentSpec[] = [
     functionSpec: {
       name: 'sendNotification',
       description: 'Sends a notification payload to a configured channel.',
-      sourceCode: `export async function main(args: { channel: string; message: string }) {
-  const { channel, message } = args;
-  // In production: call notification API
+      sourceCode: `module.exports.handler = async (event) => {
+  const { channel, message } = event;
   return { ok: true, channel, message, sentAt: new Date().toISOString() };
-}`,
+};`,
       inputSchema: {
         type: 'object',
         properties: {

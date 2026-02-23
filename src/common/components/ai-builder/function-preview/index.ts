@@ -1,2 +1,2 @@
 export { FunctionPreview } from './FunctionPreview'
-export type { FunctionPreviewMock } from './FunctionPreview'
+export type { FunctionDefinition, FunctionPreviewItem } from './FunctionPreview'

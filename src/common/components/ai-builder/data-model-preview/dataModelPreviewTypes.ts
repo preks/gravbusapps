@@ -4,6 +4,7 @@ export interface DataModelPreviewColumn {
   label: string
   type: string
   required?: boolean
+  options?: { value: string; label: string }[]
 }
 
 export interface DataModelPreviewDefinition {

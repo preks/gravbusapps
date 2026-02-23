@@ -4,36 +4,77 @@ import { Workflow, Play, X } from 'lucide-react'
 import { useFlowTemplateClient } from '@/common/network/flows/useFlowTemplateClient'
 import { FlowCanvasProvider, FlowCanvas } from '@/common/components/flow'
 import { templateToFlowGraphDefinition, flowNodeIdToStepIndex } from '@/common/data/flow/templateToFlowGraph'
+import { PreviewTemplate } from '../preview-template'
 import { FlowPreviewStepPanel } from './FlowPreviewStepPanel'
 import type { FlowPreviewTemplate } from './flowPreviewTypes'
 
 const START_NODE_ID = 'start'
 const END_NODE_ID = 'end'
 
+export interface FlowPreviewItem {
+  id: string
+  label: string
+  template: FlowPreviewTemplate
+}
+
 export interface FlowPreviewProps {
   accessToken: string
-  /** Preloaded template (e.g. demo). When provided, flowId is ignored. */
+  /** Multiple preloaded templates with switcher. */
+  items?: FlowPreviewItem[]
+  /** Single preloaded template (no switcher). */
   template?: FlowPreviewTemplate | null
-  /** When template is not provided, fetch by this id. */
+  /** Fetch a single template by id (no switcher). */
   flowId?: string
   'data-testid'?: string
 }
 
 export const FlowPreview: React.FC<FlowPreviewProps> = ({
   accessToken,
+  items,
   template: templateProp,
   flowId,
   'data-testid': testId = 'flow-preview'
 }) => {
+  if (items && items.length > 0) {
+    return (
+      <PreviewTemplate items={items} data-testid={testId}>
+        {selectedId => {
+          const active = items.find(i => i.id === selectedId) ?? items[0]
+          return (
+            <FlowPreviewSingle accessToken={accessToken} template={active.template} testId={`${testId}-${active.id}`} />
+          )
+        }}
+      </PreviewTemplate>
+    )
+  }
+  return <FlowPreviewSingle accessToken={accessToken} templateProp={templateProp} flowId={flowId} testId={testId} />
+}
+
+interface FlowPreviewSingleProps {
+  accessToken: string
+  template?: FlowPreviewTemplate | null
+  templateProp?: FlowPreviewTemplate | null
+  flowId?: string
+  testId: string
+}
+
+const FlowPreviewSingle: React.FC<FlowPreviewSingleProps> = ({
+  accessToken,
+  template: templateDirect,
+  templateProp,
+  flowId,
+  testId
+}) => {
+  const resolvedTemplateProp = templateDirect ?? templateProp ?? null
   const client = useFlowTemplateClient(accessToken)
-  const [template, setTemplate] = useState<FlowPreviewTemplate | null>(templateProp ?? null)
-  const [loading, setLoading] = useState(templateProp == null && !!flowId)
+  const [template, setTemplate] = useState<FlowPreviewTemplate | null>(resolvedTemplateProp)
+  const [loading, setLoading] = useState(resolvedTemplateProp == null && !!flowId)
   const [error, setError] = useState<string | null>(null)
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
 
   useEffect(() => {
-    if (templateProp != null) {
-      setTemplate(templateProp)
+    if (resolvedTemplateProp != null) {
+      setTemplate(resolvedTemplateProp)
       setLoading(false)
       setError(null)
       return
@@ -59,7 +100,7 @@ export const FlowPreview: React.FC<FlowPreviewProps> = ({
     return () => {
       cancelled = true
     }
-  }, [client, flowId, accessToken, templateProp])
+  }, [client, flowId, accessToken, resolvedTemplateProp])
 
   const steps = template?.steps ?? []
   const definition = useMemo(

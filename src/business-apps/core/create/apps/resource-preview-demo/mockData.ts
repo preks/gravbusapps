@@ -1,13 +1,13 @@
 import type { FlowPreviewTemplate, FlowPreviewStep } from '@/common/components/ai-builder/flow-preview'
 import type { PromptODM } from '@/common/network/ai/prompt-manager/PromptManagerClient'
-import type { FunctionPreviewMock } from '@/common/components/ai-builder/function-preview'
+import type { FunctionDefinition } from '@/common/components/ai-builder/function-preview'
 import type { DataModelPreviewDefinition } from '@/common/components/ai-builder/data-model-preview'
 import type { ComponentSpec } from '../ai-orchestrator/features/orchestrator/types'
 
 export interface DemoMockResult {
   flow?: FlowPreviewTemplate
   agent?: { prompt: PromptODM; paramKeys: string[] }
-  function?: FunctionPreviewMock
+  function?: FunctionDefinition
   data_model?: DataModelPreviewDefinition
 }
 
@@ -79,13 +79,14 @@ export function buildMockForComponent(component: ComponentSpec): DemoMockResult 
       description: spec.description,
       user_content: { template: spec.userPromptTemplate, parameters: paramKeys },
       system_content: spec.systemPrompt ? { template: spec.systemPrompt, parameters: [] } : null,
-      model: { id: spec.modelId ?? 'mock', collection: 'models' },
+      model: { id: spec.modelId ?? '', collection: 'models' },
       version: 1,
       workspace: { id: 'mock', collection: 'workspaces' },
       specialty: spec.specialty,
       response_style: spec.responseStyle,
       citation_mode: spec.citationMode,
-      agent_type: spec.agentType
+      agent_type: spec.agentType,
+      response_schema: spec.responseSchema ?? null
     }
     return { agent: { prompt, paramKeys } }
   }
@@ -107,7 +108,9 @@ export function buildMockForComponent(component: ComponentSpec): DemoMockResult 
         outputSchema:
           spec.outputSchema && typeof spec.outputSchema === 'object'
             ? (spec.outputSchema as Record<string, unknown>)
-            : undefined
+            : undefined,
+        agentEnabled: spec.agentEnabled,
+        workflowEnabled: spec.workflowEnabled
       }
     }
   }
@@ -117,7 +120,8 @@ export function buildMockForComponent(component: ComponentSpec): DemoMockResult 
       name: f.name,
       label: f.label,
       type: fieldTypeLabel(f.type),
-      required: f.required
+      required: f.required,
+      options: (f as { options?: { value: string; label: string }[] }).options
     }))
     const definition: DataModelPreviewDefinition = {
       key: spec.identifier ?? spec.name.toLowerCase().replace(/\s+/g, '_'),
