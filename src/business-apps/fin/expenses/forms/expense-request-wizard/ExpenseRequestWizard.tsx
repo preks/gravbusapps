@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { Typography, Input } from 'antd'
 import { Button } from '@newwork/gravity-ui-catalog'
+import { Spinner } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProcessEventState'
@@ -55,6 +56,8 @@ const ExpenseRequestWizardContent: React.FC<BusinessAppContextProps> = ({ access
   const [titleError, setTitleError] = useState<string>('')
   const [showCustomFooter, setShowCustomFooter] = useState<boolean>(false)
   const [itemsCount, setItemsCount] = useState<number>(0)
+  const [isNextLoading, setIsNextLoading] = useState<boolean>(false)
+  const previousScreenRef = React.useRef<string>(currentScreen)
 
   /**
    * Sync header title from server only when the loaded request changes (by id).
@@ -194,6 +197,21 @@ const ExpenseRequestWizardContent: React.FC<BusinessAppContextProps> = ({ access
       hasInitializedRef.current = true
     }
   }, [loading, expenseRequestData])
+
+  // Clear next-button loading when screen actually changes (data loaded and navigated)
+  useEffect(() => {
+    if (previousScreenRef.current !== currentScreen && isNextLoading) {
+      setIsNextLoading(false)
+    }
+    previousScreenRef.current = currentScreen
+  }, [currentScreen, isNextLoading])
+
+  // Safety: clear next loading after 30s in case the action fails and screen never changes
+  useEffect(() => {
+    if (!isNextLoading) return
+    const timeoutId = window.setTimeout(() => setIsNextLoading(false), 30000)
+    return () => window.clearTimeout(timeoutId)
+  }, [isNextLoading])
 
   // Listen for process events (Next/Back button clicks) to navigate
   useEffect(() => {
@@ -712,35 +730,45 @@ const ExpenseRequestWizardContent: React.FC<BusinessAppContextProps> = ({ access
                   }}
                   data-testid="expense-request-wizard-next-button"
                   disabled={
+                    isNextLoading ||
                     (currentScreen === SCREEN_NAMES_ENUM.TRIPS_TAB && !isFormValid) ||
                     (currentScreen === SCREEN_NAMES_ENUM.ALLOWANCE_TAB && !isFormValid) ||
                     (currentScreen === SCREEN_NAMES_ENUM.ITEMS_TAB && !isTrip && itemsCount === 0) ||
                     (currentScreen === SCREEN_NAMES_ENUM.SUMMARY_TAB && hasFutureDates)
                   }
                   onClick={() => {
+                    const isNextScreen =
+                      currentScreen === SCREEN_NAMES_ENUM.TRIPS_TAB ||
+                      currentScreen === SCREEN_NAMES_ENUM.ITEMS_TAB ||
+                      currentScreen === SCREEN_NAMES_ENUM.ALLOWANCE_TAB
+                    if (isNextScreen) {
+                      setIsNextLoading(true)
+                    }
                     if (currentScreen === SCREEN_NAMES_ENUM.TRIPS_TAB) {
                       const nextEvent = new CustomEvent('expense-request-next-trip')
                       document.dispatchEvent(nextEvent)
-                      // navigateToNextScreen()
                     } else if (currentScreen === SCREEN_NAMES_ENUM.ITEMS_TAB) {
                       const nextEvent = new CustomEvent('expense-request-next-items')
                       document.dispatchEvent(nextEvent)
-                      // navigateToNextScreen()
                     } else if (currentScreen === SCREEN_NAMES_ENUM.ALLOWANCE_TAB) {
                       const nextEvent = new CustomEvent('expense-request-next-allowance')
                       document.dispatchEvent(nextEvent)
-                      // navigateToNextScreen()
                     } else if (currentScreen === SCREEN_NAMES_ENUM.SUMMARY_TAB) {
                       const submitEvent = new CustomEvent('expense-request-submit-summary')
                       document.dispatchEvent(submitEvent)
-                    } else {
-                      // navigateToNextScreen()
                     }
                   }}
                 >
-                  {currentScreen === SCREEN_NAMES_ENUM.SUMMARY_TAB
-                    ? getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_request.btn_submit', 'Submit')
-                    : getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.submit_button', 'Next')}
+                  {isNextLoading ? (
+                    <span className="gba:inline-flex gba:items-center gba:gap-2">
+                      <Spinner size="sm" />
+                      {getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.submit_button', 'Next')}
+                    </span>
+                  ) : currentScreen === SCREEN_NAMES_ENUM.SUMMARY_TAB ? (
+                    getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_request.btn_submit', 'Submit')
+                  ) : (
+                    getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.submit_button', 'Next')
+                  )}
                 </Button>
               </div>
             </>
