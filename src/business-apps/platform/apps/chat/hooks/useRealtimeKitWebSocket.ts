@@ -9,7 +9,6 @@ import React, { useCallback, useEffect, useState, useRef } from 'react'
 import { toast } from '@newwork/nw-design-system'
 import type { ChatWebSocketClient } from '../services/chatWebSocketClient'
 import type { CallParticipant } from '../services/webrtcClient'
-import { rtkDebug } from '../utils/rtkDebug'
 
 export interface UseRealtimeKitWebSocketOptions {
   wsClient: ChatWebSocketClient | null
@@ -21,6 +20,10 @@ export interface UseRealtimeKitWebSocketOptions {
   onReactionReceived?: (reaction: { participantId: string; participantName: string; emoji: string }) => void
   onMuteRequested?: (requestedByName: string) => void
   translate?: (key: string, params?: Record<string, any>) => string
+  // Initial state for restoring from globalCallManager after minimize/maximize
+  initialHandRaised?: boolean
+  initialRemoteHandsRaised?: Record<string, boolean>
+  initialHandRaisedOrder?: Record<string, { order: number; timestamp: number }>
 }
 
 export interface UseRealtimeKitWebSocketReturn {
@@ -58,12 +61,26 @@ export const useRealtimeKitWebSocket = ({
   onHandUpdate,
   onReactionReceived,
   onMuteRequested,
-  translate
+  translate,
+  initialHandRaised = false,
+  initialRemoteHandsRaised = {},
+  initialHandRaisedOrder = {}
 }: UseRealtimeKitWebSocketOptions): UseRealtimeKitWebSocketReturn => {
   // Track hand raised states and order
-  const [handRaised, setHandRaised] = useState(false)
-  const [remoteHandsRaised, setRemoteHandsRaised] = useState<Record<string, boolean>>({})
-  const [handRaisedOrder, setHandRaisedOrder] = useState<Record<string, { order: number; timestamp: number }>>({})
+  // CRITICAL: Prioritize SDK state over restored state (SDK is source of truth for active calls)
+  // Restored state is only used as fallback when SDK is not available yet
+  const [handRaised, setHandRaised] = useState(() => {
+    // If SDK is available and has hand state, use it (highest priority)
+    if (meeting?.self?.handRaised !== undefined) {
+      return meeting.self.handRaised
+    }
+    // Otherwise use restored state if available
+    return initialHandRaised
+  })
+
+  const [remoteHandsRaised, setRemoteHandsRaised] = useState<Record<string, boolean>>(initialRemoteHandsRaised)
+  const [handRaisedOrder, setHandRaisedOrder] =
+    useState<Record<string, { order: number; timestamp: number }>>(initialHandRaisedOrder)
 
   // Track if user has intentionally toggled their hand (to ignore spurious events on join)
   const userIntentionallyToggledRef = useRef(false)
@@ -78,8 +95,6 @@ export const useRealtimeKitWebSocket = ({
       const socket = wsClient?.getSocket()
       if (socket) {
         socket.emit(event, data)
-      } else {
-        rtkDebug.warn('[RTK] Cannot emit socket event: socket not available', { event, data })
       }
     },
     [wsClient]
@@ -94,18 +109,7 @@ export const useRealtimeKitWebSocket = ({
    */
   const toggleRaiseHand = useCallback(
     async (currentHandRaised: boolean): Promise<boolean> => {
-      rtkDebug.log('[RTK] 🖐️ toggleRaiseHand called', {
-        roomId,
-        meetingId,
-        userId: currentUser?.id,
-        currentHandRaised
-      })
-
       if (!meetingId || !currentUser) {
-        rtkDebug.warn('[RTK] ⚠️ Cannot toggle raise hand: missing meetingId or currentUser', {
-          hasMeetingId: !!meetingId,
-          hasCurrentUser: !!currentUser
-        })
         return currentHandRaised
       }
 
@@ -114,12 +118,6 @@ export const useRealtimeKitWebSocket = ({
 
         // Mark that user intentionally toggled their hand
         userIntentionallyToggledRef.current = true
-
-        rtkDebug.log('[RTK] ✋ Emitting raise-hand WebSocket event', {
-          roomId: meetingId,
-          participantId: currentUser.id,
-          handRaised: newHandRaisedState
-        })
 
         // Send WebSocket event to broadcast raise hand state
         // CRITICAL: Must match the backend listener event name 'group-call:raise-hand'
@@ -133,8 +131,7 @@ export const useRealtimeKitWebSocket = ({
 
         // Return new state (actual state will be updated via WebSocket event listener)
         return newHandRaisedState
-      } catch (error) {
-        rtkDebug.error('[RTK] ❌ Failed to toggle raise hand:', error)
+      } catch {
         return currentHandRaised
       }
     },
@@ -149,29 +146,11 @@ export const useRealtimeKitWebSocket = ({
    */
   const sendReaction = useCallback(
     async (emoji: string): Promise<void> => {
-      rtkDebug.log('[RTK] 😊 sendReaction called', {
-        emoji,
-        roomId,
-        meetingId,
-        userId: currentUser?.id
-      })
-
       if (!meetingId || !currentUser) {
-        rtkDebug.warn('[RTK] ⚠️ Cannot send reaction: missing meetingId or currentUser', {
-          hasMeetingId: !!meetingId,
-          hasCurrentUser: !!currentUser
-        })
         return
       }
 
       try {
-        rtkDebug.log('[RTK] 😊 Emitting send-reaction WebSocket event', {
-          roomId: meetingId,
-          participantId: currentUser.id,
-          participantName: currentUser.odName,
-          emoji
-        })
-
         // Send WebSocket event to broadcast reaction
         // CRITICAL: Must use meetingId (not conversationId) to match the Socket.IO room clients are joined to
         emitSocketEvent('group-call:send-reaction', {
@@ -180,10 +159,8 @@ export const useRealtimeKitWebSocket = ({
           participantName: currentUser.odName,
           emoji
         })
-
-        rtkDebug.log('[RTK] ✅ Reaction sent successfully')
-      } catch (error) {
-        rtkDebug.error('[RTK] ❌ Failed to send reaction:', error)
+      } catch {
+        // Best-effort; no replacement logging per plan
       }
     },
     [meetingId, currentUser, emitSocketEvent]
@@ -199,8 +176,6 @@ export const useRealtimeKitWebSocket = ({
     // Record join time
     joinTimeRef.current = Date.now()
     userIntentionallyToggledRef.current = false
-
-    rtkDebug.log('[RTK] 🚫 Just joined - will ignore spurious hand-raised events for 500ms')
 
     return () => {
       joinTimeRef.current = 0
@@ -225,8 +200,6 @@ export const useRealtimeKitWebSocket = ({
 
     // Handle raise hand state updates
     const handleHandUpdate = (data: { participantId: string; handRaised: boolean; timestamp?: number }) => {
-      rtkDebug.log('[RTK] ✋ Received hand-update event:', data)
-
       // CRITICAL: Prevent spurious hand-raised events on join (only for local user)
       // If local user hasn't explicitly toggled their hand AND it's within 500ms of joining,
       // AND the event is trying to raise their hand → ignore it (likely backend sending stale state)
@@ -235,7 +208,6 @@ export const useRealtimeKitWebSocket = ({
       const hasNotToggledYet = !userIntentionallyToggledRef.current
 
       if (isLocalUser && data.handRaised && isWithinGracePeriod && hasNotToggledYet) {
-        rtkDebug.warn('[RTK] 🚫 Ignoring spurious hand-raised event on join (within 500ms grace period):', data)
         return
       }
 
@@ -268,29 +240,13 @@ export const useRealtimeKitWebSocket = ({
       }
 
       if (data.participantId === currentUser.id) {
-        // Update local user's hand state
-        rtkDebug.log('[RTK] ✋ Updating own hand raise state:', {
-          handRaised: data.handRaised,
-          participantId: data.participantId
-        })
         setHandRaised(data.handRaised)
       } else {
-        // Update remote participant's hand state
-        rtkDebug.log('[RTK] ✋ Updating remote participant hand state:', {
-          participantId: data.participantId,
-          handRaised: data.handRaised,
-          localUserId: currentUser.id,
-          resolvedIds: { peerId: participantPeerId, userId: participantUserId, customId: participantCustomId }
-        })
-
         setRemoteHandsRaised(prev => {
           const updated = { ...prev }
-          // Store under ALL possible keys (same approach as reactions filtering)
           if (participantPeerId) updated[participantPeerId] = data.handRaised
           if (participantUserId) updated[participantUserId] = data.handRaised
           if (participantCustomId) updated[participantCustomId] = data.handRaised
-
-          rtkDebug.log('[RTK] ✋ Remote hands raised state after update:', updated)
           return updated
         })
       }
@@ -298,41 +254,15 @@ export const useRealtimeKitWebSocket = ({
       // Update hand raise order tracking (store under all IDs like remoteHandsRaised)
       setHandRaisedOrder(prev => {
         if (data.handRaised) {
-          // Hand raised - first remove any existing entries for this participant to avoid duplicates
           const updated = { ...prev }
-
-          rtkDebug.log('[RTK] 🔍 BEFORE deletion:', {
-            prevKeys: Object.keys(prev),
-            prevEntries: prev,
-            willDelete: { participantPeerId, participantUserId, participantCustomId }
-          })
-
           if (participantPeerId) delete updated[participantPeerId]
           if (participantUserId) delete updated[participantUserId]
           if (participantCustomId) delete updated[participantCustomId]
 
-          rtkDebug.log('[RTK] 🔍 AFTER deletion:', {
-            updatedKeys: Object.keys(updated),
-            updatedEntries: updated
-          })
-
-          // Get all unique timestamps from remaining participants
           const allTimestamps = new Set<number>()
           Object.values(updated).forEach(entry => allTimestamps.add(entry.timestamp))
-
-          // Sort timestamps to get order (oldest = 1, newest = N)
           const sortedTimestamps = Array.from(allTimestamps).sort((a, b) => a - b)
-
-          // Calculate order for this new timestamp (position + 1)
           const order = sortedTimestamps.length + 1
-
-          rtkDebug.log('[RTK] ✋ Assigning hand raise order:', {
-            participantId: data.participantId,
-            timestamp,
-            order,
-            existingCount: sortedTimestamps.length,
-            allTimestamps: Array.from(allTimestamps)
-          })
 
           const orderData = { order, timestamp }
           if (participantPeerId) updated[participantPeerId] = orderData
@@ -340,25 +270,11 @@ export const useRealtimeKitWebSocket = ({
           if (participantCustomId) updated[participantCustomId] = orderData
           return updated
         } else {
-          // Hand lowered - remove from tracking and recalculate order numbers
           const updated = { ...prev }
-
-          rtkDebug.log('[RTK] 🔍 RECALC BEFORE deletion:', {
-            prevKeys: Object.keys(prev),
-            prevEntries: prev,
-            willDelete: { participantPeerId, participantUserId, participantCustomId }
-          })
-
           if (participantPeerId) delete updated[participantPeerId]
           if (participantUserId) delete updated[participantUserId]
           if (participantCustomId) delete updated[participantCustomId]
 
-          rtkDebug.log('[RTK] 🔍 RECALC AFTER deletion:', {
-            updatedKeys: Object.keys(updated),
-            updatedEntries: updated
-          })
-
-          // Recalculate order numbers for remaining hands (preserve timestamp order)
           const uniqueEntries = new Map<number, { order: number; timestamp: number }>()
           Object.values(updated).forEach(entry => {
             if (!uniqueEntries.has(entry.timestamp)) {
@@ -366,33 +282,14 @@ export const useRealtimeKitWebSocket = ({
             }
           })
 
-          rtkDebug.log('[RTK] 🔍 RECALC unique timestamps:', {
-            uniqueCount: uniqueEntries.size,
-            timestamps: Array.from(uniqueEntries.keys())
-          })
-
-          // Sort by timestamp and reassign sequential order numbers
           const sortedEntries = Array.from(uniqueEntries.entries()).sort((a, b) => a[0] - b[0])
-          sortedEntries.forEach(([timestamp], index) => {
+          sortedEntries.forEach(([ts], index) => {
             const newOrder = index + 1
-            // Update all entries with this timestamp
             Object.keys(updated).forEach(key => {
-              if (updated[key].timestamp === timestamp) {
-                rtkDebug.log('[RTK] 🔍 RECALC updating key:', {
-                  key,
-                  timestamp,
-                  newOrder,
-                  oldOrder: updated[key].order
-                })
+              if (updated[key].timestamp === ts) {
                 updated[key] = { ...updated[key], order: newOrder }
               }
             })
-          })
-
-          rtkDebug.log('[RTK] ✋ Recalculated order after hand lowered:', {
-            participantId: data.participantId,
-            remainingCount: uniqueEntries.size,
-            finalEntries: updated
           })
 
           return updated
@@ -408,21 +305,20 @@ export const useRealtimeKitWebSocket = ({
       roomId: string
       participantStates: Array<{ participantId: string; handRaised: boolean }>
     }) => {
-      rtkDebug.log('[RTK] 🔄 Received initial participant states sync:', data)
-
       if (!currentUser) {
-        rtkDebug.warn('[RTK] Cannot sync participant states - no current user')
         return
       }
 
       const newRemoteHandsRaised: Record<string, boolean> = {}
       const newHandRaisedOrder: Record<string, { order: number; timestamp: number }> = {}
-      const timestamp = Date.now()
+      const baseTimestamp = Date.now()
+
+      let newLocalHandRaised: boolean | undefined
 
       data.participantStates.forEach((state, index) => {
-        if (state.participantId === currentUser.id) {
-          // Skip own state - it will be managed by our own toggles
-          return
+        const isLocal = state.participantId === currentUser.id
+        if (isLocal) {
+          newLocalHandRaised = state.handRaised
         }
 
         // Resolve ALL possible IDs for this participant (same logic as handleHandUpdate)
@@ -430,7 +326,11 @@ export const useRealtimeKitWebSocket = ({
         let participantUserId: string | undefined
         let participantCustomId: string | undefined = state.participantId
 
-        if (meeting?.participants?.joined) {
+        if (isLocal) {
+          participantPeerId = meeting?.self?.id
+          participantUserId = meeting?.self?.userId
+          participantCustomId = meeting?.self?.customParticipantId || currentUser.id
+        } else if (meeting?.participants?.joined) {
           const joined = Array.from(meeting.participants.joined.values())
           const matchingPeer: any = joined.find(
             (p: any) =>
@@ -445,37 +345,37 @@ export const useRealtimeKitWebSocket = ({
           }
         }
 
-        // Store hand raised state under all possible keys
-        if (participantPeerId) newRemoteHandsRaised[participantPeerId] = state.handRaised
-        if (participantUserId) newRemoteHandsRaised[participantUserId] = state.handRaised
-        if (participantCustomId) newRemoteHandsRaised[participantCustomId] = state.handRaised
+        // Store hand raised state under all possible keys (remote only)
+        if (!isLocal) {
+          if (participantPeerId) newRemoteHandsRaised[participantPeerId] = state.handRaised
+          if (participantUserId) newRemoteHandsRaised[participantUserId] = state.handRaised
+          if (participantCustomId) newRemoteHandsRaised[participantCustomId] = state.handRaised
+        }
 
-        // Store hand raised order (index + 1 for 1-based order)
+        // Store hand raised order (index + 1 for 1-based order) for ALL participants (including local)
         if (state.handRaised) {
-          const orderData = { order: index + 1, timestamp: timestamp + index }
+          const orderData = { order: index + 1, timestamp: baseTimestamp + index }
           if (participantPeerId) newHandRaisedOrder[participantPeerId] = orderData
           if (participantUserId) newHandRaisedOrder[participantUserId] = orderData
           if (participantCustomId) newHandRaisedOrder[participantCustomId] = orderData
         }
       })
 
-      rtkDebug.log('[RTK] 🔄 Synced remote hands raised:', newRemoteHandsRaised)
-      rtkDebug.log('[RTK] 🔄 Synced hand raised order:', newHandRaisedOrder)
-
-      // Update state with synced data
-      setRemoteHandsRaised(prev => ({ ...prev, ...newRemoteHandsRaised }))
-      setHandRaisedOrder(prev => ({ ...prev, ...newHandRaisedOrder }))
+      // Update state with synced data (authoritative replace)
+      if (newLocalHandRaised !== undefined) {
+        setHandRaised(newLocalHandRaised)
+      }
+      setRemoteHandsRaised(newRemoteHandsRaised)
+      setHandRaisedOrder(newHandRaisedOrder)
     }
 
     // Listen for events
     socket.on('group-call:hand-update', handleHandUpdate)
     socket.on('group-call:sync-participant-states', handleSyncParticipantStates)
-    rtkDebug.log('[RTK] ✅ WebSocket listeners attached for raise hand and state sync')
 
     return () => {
       socket.off('group-call:hand-update', handleHandUpdate)
       socket.off('group-call:sync-participant-states', handleSyncParticipantStates)
-      rtkDebug.log('[RTK] WebSocket listeners removed for raise hand and state sync')
     }
   }, [wsClient, meetingId, currentUser, meeting, onHandUpdate])
 
@@ -494,7 +394,6 @@ export const useRealtimeKitWebSocket = ({
       emoji: string
       timestamp: number
     }) => {
-      rtkDebug.log('[RTK] 😊 Received reaction event:', data)
       onReactionReceived({
         participantId: data.participantId,
         participantName: data.participantName,
@@ -503,11 +402,9 @@ export const useRealtimeKitWebSocket = ({
     }
 
     socket.on('group-call:reaction-received', handleReactionReceived)
-    rtkDebug.log('[RTK] ✅ WebSocket listener attached for reactions')
 
     return () => {
       socket.off('group-call:reaction-received', handleReactionReceived)
-      rtkDebug.log('[RTK] WebSocket listener removed for reactions')
     }
   }, [wsClient, meetingId, onReactionReceived])
 
@@ -520,31 +417,15 @@ export const useRealtimeKitWebSocket = ({
       return
     }
 
-    rtkDebug.log('[RTK] Mute listener useEffect triggered', {
-      hasSocket: !!wsClient?.getSocket(),
-      hasMeetingId: !!meetingId,
-      hasMeeting: !!meeting,
-      hasMeetingSelf: !!meeting?.self,
-      hasDisableAudio: !!meeting?.self?.disableAudio
-    })
-
     const socket = wsClient?.getSocket()
     if (!socket || !meetingId) {
-      rtkDebug.log('[RTK] Cannot attach mute listener yet', {
-        hasSocket: !!socket,
-        hasMeetingId: !!meetingId
-      })
       return
     }
 
     const handleMuteRequested = (data: { requestedBy: string; requestedByName: string }) => {
-      rtkDebug.log('[RTK] 🔇 Received mute request from:', data.requestedByName)
-
       try {
-        // Auto-mute self via RTK
         if (meeting?.self?.disableAudio) {
           meeting.self.disableAudio()
-          rtkDebug.log('[RTK] ✅ Auto-muted self via RTK')
 
           // Show toast notification
           const message = translate
@@ -553,14 +434,10 @@ export const useRealtimeKitWebSocket = ({
           toast.info(message, {
             duration: 3000
           })
-        } else {
-          rtkDebug.error('[RTK] ❌ meeting.self.disableAudio not available')
         }
 
-        // Notify via callback if provided
         onMuteRequested?.(data.requestedByName)
-      } catch (error) {
-        rtkDebug.error('[RTK] ❌ Failed to auto-mute:', error)
+      } catch {
         const errorMessage = translate ? translate('participants-mute-failed') : 'Failed to mute your microphone'
         toast.error(errorMessage, {
           duration: 3000
@@ -569,11 +446,9 @@ export const useRealtimeKitWebSocket = ({
     }
 
     socket.on('group-call:mute-requested', handleMuteRequested)
-    rtkDebug.log('[RTK] ✅ WebSocket listener attached for mute requests')
 
     return () => {
       socket.off('group-call:mute-requested', handleMuteRequested)
-      rtkDebug.log('[RTK] WebSocket listener removed for mute requests')
     }
   }, [wsClient, meetingId, meeting, onMuteRequested, translate])
 
@@ -589,10 +464,6 @@ export const useRealtimeKitWebSocket = ({
 
     const socket = wsClient?.getSocket()
     if (!socket || !meetingId) {
-      rtkDebug.log('[RTK] Cannot attach mute-all listener yet', {
-        hasSocket: !!socket,
-        hasMeetingId: !!meetingId
-      })
       return
     }
 
@@ -602,15 +473,12 @@ export const useRealtimeKitWebSocket = ({
       conversationId: string
       meetingId: string
     }) => {
-      rtkDebug.log('[RTK] 🔇 Received mute-all request from:', data.requestedByName)
-
       // Note: Backend already excludes the moderator from receiving this event via .except()
       // So if we're here, we're NOT the moderator who requested it
       try {
         // Auto-mute self via RTK
         if (meeting?.self?.disableAudio) {
           meeting.self.disableAudio()
-          rtkDebug.log('[RTK] ✅ Auto-muted self via RTK (mute-all)')
 
           const message = translate
             ? translate('participants-muted-by-all', { name: data.requestedByName })
@@ -618,14 +486,10 @@ export const useRealtimeKitWebSocket = ({
           toast.info(message, {
             duration: 3000
           })
-        } else {
-          rtkDebug.error('[RTK] ❌ meeting.self.disableAudio not available')
         }
 
-        // Notify via callback if provided
         onMuteRequested?.(data.requestedByName)
-      } catch (error) {
-        rtkDebug.error('[RTK] ❌ Failed to auto-mute (mute-all):', error)
+      } catch {
         const errorMessage = translate ? translate('participants-mute-failed') : 'Failed to mute your microphone'
         toast.error(errorMessage, {
           duration: 3000
@@ -634,11 +498,9 @@ export const useRealtimeKitWebSocket = ({
     }
 
     socket.on('group-call:mute-all-requested', handleMuteAllRequested)
-    rtkDebug.log('[RTK] ✅ WebSocket listener attached for mute-all requests')
 
     return () => {
       socket.off('group-call:mute-all-requested', handleMuteAllRequested)
-      rtkDebug.log('[RTK] WebSocket listener removed for mute-all requests')
     }
   }, [wsClient, meetingId, meeting, onMuteRequested, currentUser, translate])
 
@@ -663,11 +525,6 @@ export const useRealtimeKitWebSocket = ({
         return
       }
 
-      rtkDebug.log('[RTK] 👋 Participant left, cleaning up raised hand state:', {
-        participantId: data.participantId,
-        roomId: data.roomId
-      })
-
       // Resolve ALL possible IDs for the leaving participant
       let participantPeerId: string | undefined
       let participantUserId: string | undefined
@@ -691,43 +548,24 @@ export const useRealtimeKitWebSocket = ({
       // Clean up remoteHandsRaised state
       setRemoteHandsRaised(prev => {
         const updated = { ...prev }
-        let hadRaisedHand = false
 
         // Remove all entries for this participant
         if (participantPeerId && updated[participantPeerId]) {
           delete updated[participantPeerId]
-          hadRaisedHand = true
         }
         if (participantUserId && updated[participantUserId]) {
           delete updated[participantUserId]
-          hadRaisedHand = true
         }
         if (participantCustomId && updated[participantCustomId]) {
           delete updated[participantCustomId]
-          hadRaisedHand = true
-        }
-
-        if (hadRaisedHand) {
-          rtkDebug.log('[RTK] 🧹 Removed raised hand state for leaving participant:', {
-            participantId: data.participantId,
-            removedIds: { peerId: participantPeerId, userId: participantUserId, customId: participantCustomId },
-            remainingHandsRaised: updated
-          })
         }
 
         return updated
       })
 
-      // Clean up handRaisedOrder state and recalculate order numbers
       setHandRaisedOrder(prev => {
         const updated = { ...prev }
         let hadRaisedHand = false
-
-        rtkDebug.log('[RTK] 🔍 CLEANUP BEFORE deletion:', {
-          prevKeys: Object.keys(prev),
-          prevEntries: prev,
-          willDelete: { participantPeerId, participantUserId, participantCustomId }
-        })
 
         // Remove all entries for this participant
         if (participantPeerId && updated[participantPeerId]) {
@@ -744,16 +582,9 @@ export const useRealtimeKitWebSocket = ({
         }
 
         if (!hadRaisedHand) {
-          // Participant didn't have a raised hand, no need to recalculate
           return updated
         }
 
-        rtkDebug.log('[RTK] 🔍 CLEANUP AFTER deletion:', {
-          updatedKeys: Object.keys(updated),
-          updatedEntries: updated
-        })
-
-        // Recalculate order numbers for remaining hands (preserve timestamp order)
         const uniqueEntries = new Map<number, { order: number; timestamp: number }>()
         Object.values(updated).forEach(entry => {
           if (!uniqueEntries.has(entry.timestamp)) {
@@ -761,33 +592,14 @@ export const useRealtimeKitWebSocket = ({
           }
         })
 
-        rtkDebug.log('[RTK] 🔍 CLEANUP unique timestamps:', {
-          uniqueCount: uniqueEntries.size,
-          timestamps: Array.from(uniqueEntries.keys())
-        })
-
-        // Sort by timestamp and reassign sequential order numbers
         const sortedEntries = Array.from(uniqueEntries.entries()).sort((a, b) => a[0] - b[0])
         sortedEntries.forEach(([timestamp], index) => {
           const newOrder = index + 1
-          // Update all entries with this timestamp
           Object.keys(updated).forEach(key => {
             if (updated[key].timestamp === timestamp) {
-              rtkDebug.log('[RTK] 🔍 CLEANUP updating key:', {
-                key,
-                timestamp,
-                newOrder,
-                oldOrder: updated[key].order
-              })
               updated[key] = { ...updated[key], order: newOrder }
             }
           })
-        })
-
-        rtkDebug.log('[RTK] 🧹 Recalculated order after participant left:', {
-          participantId: data.participantId,
-          remainingCount: uniqueEntries.size,
-          finalEntries: updated
         })
 
         return updated
@@ -795,11 +607,9 @@ export const useRealtimeKitWebSocket = ({
     }
 
     socket.on('group-call:participant-left', handleParticipantLeft)
-    rtkDebug.log('[RTK] ✅ WebSocket listener attached for participant left')
 
     return () => {
       socket.off('group-call:participant-left', handleParticipantLeft)
-      rtkDebug.log('[RTK] WebSocket listener removed for participant left')
     }
   }, [wsClient, meetingId, meeting])
 
@@ -808,10 +618,6 @@ export const useRealtimeKitWebSocket = ({
   React.useEffect(() => {
     // If roomId changed from a previous value, clear stale hand raise state
     if (prevRoomIdRef.current !== null && prevRoomIdRef.current !== roomId) {
-      rtkDebug.log('[RTK] 🧹 Clearing hand raise state - new call starting', {
-        prevRoomId: prevRoomIdRef.current,
-        newRoomId: roomId
-      })
       setHandRaised(false)
       setRemoteHandsRaised({})
       setHandRaisedOrder({})
@@ -844,12 +650,6 @@ export const useRealtimeKitWebSocket = ({
       })
     })
 
-    rtkDebug.log('[RTK] 🔢 Calculated order from unique timestamps:', {
-      uniqueTimestamps: sortedTimestamps.length,
-      totalKeys: Object.keys(handRaisedOrder).length,
-      orderMap
-    })
-
     return orderMap
   }, [handRaisedOrder])
 
@@ -862,54 +662,28 @@ export const useRealtimeKitWebSocket = ({
    * @param userId - RTK user ID
    */
   const cleanupParticipantHandState = useCallback((participantId: string, peerId?: string, userId?: string) => {
-    rtkDebug.log('[RTK] 🧹 Cleaning up hand state for departed participant:', {
-      participantId,
-      peerId,
-      userId
-    })
-
     // Clean up remoteHandsRaised state
     setRemoteHandsRaised(prev => {
       const updated = { ...prev }
-      let hadRaisedHand = false
 
       // Remove all entries for this participant
       if (peerId && updated[peerId]) {
         delete updated[peerId]
-        hadRaisedHand = true
       }
       if (userId && updated[userId]) {
         delete updated[userId]
-        hadRaisedHand = true
       }
       if (updated[participantId]) {
         delete updated[participantId]
-        hadRaisedHand = true
-      }
-
-      if (hadRaisedHand) {
-        rtkDebug.log('[RTK] 🧹 Removed raised hand state:', {
-          participantId,
-          removedIds: { peerId, userId, customId: participantId },
-          remainingHandsRaised: updated
-        })
       }
 
       return updated
     })
 
-    // Clean up handRaisedOrder state and recalculate order numbers
     setHandRaisedOrder(prev => {
       const updated = { ...prev }
       let hadRaisedHand = false
 
-      rtkDebug.log('[RTK] 🔍 CLEANUP BEFORE deletion:', {
-        prevKeys: Object.keys(prev),
-        prevEntries: prev,
-        willDelete: { peerId, userId, customId: participantId }
-      })
-
-      // Remove all entries for this participant
       if (peerId && updated[peerId]) {
         delete updated[peerId]
         hadRaisedHand = true
@@ -924,16 +698,9 @@ export const useRealtimeKitWebSocket = ({
       }
 
       if (!hadRaisedHand) {
-        // Participant didn't have a raised hand, no need to recalculate
         return updated
       }
 
-      rtkDebug.log('[RTK] 🔍 CLEANUP AFTER deletion:', {
-        updatedKeys: Object.keys(updated),
-        updatedEntries: updated
-      })
-
-      // Recalculate order numbers for remaining hands (preserve timestamp order)
       const uniqueEntries = new Map<number, { order: number; timestamp: number }>()
       Object.values(updated).forEach(entry => {
         if (!uniqueEntries.has(entry.timestamp)) {
@@ -941,33 +708,14 @@ export const useRealtimeKitWebSocket = ({
         }
       })
 
-      rtkDebug.log('[RTK] 🔍 CLEANUP unique timestamps:', {
-        uniqueCount: uniqueEntries.size,
-        timestamps: Array.from(uniqueEntries.keys())
-      })
-
-      // Sort by timestamp and reassign sequential order numbers
       const sortedEntries = Array.from(uniqueEntries.entries()).sort((a, b) => a[0] - b[0])
       sortedEntries.forEach(([timestamp], index) => {
         const newOrder = index + 1
-        // Update all entries with this timestamp
         Object.keys(updated).forEach(key => {
           if (updated[key].timestamp === timestamp) {
-            rtkDebug.log('[RTK] 🔍 CLEANUP updating key:', {
-              key,
-              timestamp,
-              newOrder,
-              oldOrder: updated[key].order
-            })
             updated[key] = { ...updated[key], order: newOrder }
           }
         })
-      })
-
-      rtkDebug.log('[RTK] 🧹 Recalculated order after participant left:', {
-        participantId,
-        remainingCount: uniqueEntries.size,
-        finalEntries: updated
       })
 
       return updated

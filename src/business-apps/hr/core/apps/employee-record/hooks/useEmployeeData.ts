@@ -63,6 +63,16 @@ export const GET_EMPLOYEE_DATA = /*sql*/ `
         id
         name
       }
+      jobProfile {
+        name
+        jobProfileSkills {
+          skill {
+            id
+            name
+          }
+          requiredLevel
+        }
+      }
     }
     jobPositionId
     siteLocation {
@@ -106,13 +116,24 @@ export const GET_EMPLOYEE_DATA = /*sql*/ `
       userId
       additionalProperties
       skills(where: {isDeleted: {_eq: false}}) {
+        id
         level
         isDeleted
+        recordState
+        processInstanceId
+        verificationDocumentId
+        additionalProperties
         synchronizedAt
+        validFrom
+        validTo
+        createdAt
+        updatedAt
         skill {
+          id
           updatedAt
           createdAt
           name
+          additionalProperties
         }
       }
         
@@ -160,6 +181,7 @@ export const GET_EMPLOYEE_DATA = /*sql*/ `
         locality
         type
         country {
+          id
           code
           value
         }
@@ -322,6 +344,9 @@ export const GET_EMPLOYEE_DATA = /*sql*/ `
     title
     progressPercent
     version
+    createdAt
+    updatedAt
+    additionalProperties
   }
 }
  
@@ -446,15 +471,25 @@ export interface EmployeeData {
 }
 
 interface EmployeeSkill {
+  id: string
   level: string | null
   isDeleted: boolean
+  recordState?: string | null
+  processInstanceId?: string | null
+  verificationDocumentId?: string | null
+  acl?: unknown
+  additionalProperties?: unknown
   synchronizedAt: string | null
+  validFrom?: string | null
+  validTo?: string | null
+  createdAt?: string | null
+  updatedAt?: string | null
   skill: {
     id: string
     name: string
     updatedAt: string | null
     createdAt: string | null
-    additionalProperties?: any
+    additionalProperties?: unknown
   }
 }
 
@@ -533,6 +568,13 @@ interface EmployeePosition {
     jobLevel?: {
       id: string
       name: string
+    }
+    jobProfile?: {
+      name: string
+      jobProfileSkills?: Array<{
+        skill: { id: string; name: string }
+        requiredLevel?: number | null
+      }>
     }
   }
   jobPositionId: string
@@ -735,10 +777,29 @@ export interface EmployeeAbsenceEntitlement {
 }
 
 export interface EmployeePerformanceGoal {
+  id?: string
+  employeeId?: string
   dueDate: string
   completionDate: string
   startDate: string
   status: string
   title: string
   progressPercent: number
+  version?: number
+  createdAt?: string
+  updatedAt?: string
+  additionalProperties?: {
+    goalType?: 'PERCENTAGE' | 'NUMERIC' | 'MILESTONE'
+    numeric?: {
+      target?: number
+      current?: number
+      unit?: string
+    }
+    milestones?: Array<{
+      id: string
+      title: string
+      done: boolean
+      doneAt?: string
+    }>
+  }
 }

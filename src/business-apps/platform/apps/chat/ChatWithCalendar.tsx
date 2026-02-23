@@ -173,7 +173,39 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
   const isCompactMode = isInSidepanel || isNarrowViewport
 
   const effectiveDefaultTab = isCompactMode ? 'everyai' : defaultTab
-  const [activeTab, setActiveTab] = useState<TabValue>(effectiveDefaultTab)
+
+  const [chatInitState] = useState<{
+    tab: TabValue
+    pending: { userId: string; userName?: string; prefilledMessage?: string; metadata?: Record<string, unknown> } | null
+  }>(() => {
+    try {
+      if (typeof window === 'undefined') return { tab: effectiveDefaultTab, pending: null }
+      const raw = sessionStorage.getItem('chatPendingOpenWithUser')
+      if (raw) {
+        sessionStorage.removeItem('chatPendingOpenWithUser')
+        const pending = JSON.parse(raw) as {
+          userId: string
+          userName?: string
+          prefilledMessage?: string
+          metadata?: Record<string, unknown>
+        }
+        return { tab: 'chat', pending }
+      }
+    } catch {
+      // ignore
+    }
+    return { tab: effectiveDefaultTab, pending: null }
+  })
+  const [activeTab, setActiveTab] = useState<TabValue>(chatInitState.tab)
+  const pendingOpenWithUser = chatInitState.pending
+
+  useEffect(() => {
+    if (pendingOpenWithUser) {
+      const url = new URL(window.location.href)
+      url.searchParams.set('view', 'chat')
+      window.history.replaceState({}, '', url.toString())
+    }
+  }, [pendingOpenWithUser])
 
   const openFullscreen = useCallback(() => {
     // Preserve the current tab when going fullscreen
@@ -183,6 +215,7 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
 
   // Handle URL parameter for initial tab
   useEffect(() => {
+    if (pendingOpenWithUser) return
     const urlParams = new URLSearchParams(window.location.search)
     const viewParam = urlParams.get('view')
 
@@ -203,7 +236,7 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
     } else if (viewParam === 'reminders') {
       setActiveTab('reminders')
     }
-  }, [isCompactMode, isInSidepanel])
+  }, [isCompactMode, isInSidepanel, pendingOpenWithUser])
 
   // In fullscreen, EveryAI tab is not available; ensure we never stay on it
   useEffect(() => {
@@ -295,56 +328,54 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
         <div
           className={`gba:flex gba:bg-card ${isCompactMode ? 'gba:justify-start gba:px-2 gba:py-1' : 'gba:justify-start gba:px-6 gba:py-2'}`}
         >
-          <div className={isCompactMode ? 'gba:scale-95 gba:origin-left' : ''}>
-            <TabSwitchList>
-              {!isCompactMode && (
-                <TabSwitchTrigger
-                  value="dashboard"
-                  startIcon={<LayoutDashboard className="gba:h-4 gba:w-4" />}
-                  data-testid={`${prefixDataTestId}-dashboard-tab`}
-                >
-                  Dashboard
-                </TabSwitchTrigger>
-              )}
-              {isInSidepanel && (
-                <TabSwitchTrigger
-                  value="everyai"
-                  startIcon={<Sparkles className="gba:h-4 gba:w-4" />}
-                  data-testid={`${prefixDataTestId}-everyai-tab`}
-                >
-                  {t('chat-tab-everyai')}
-                </TabSwitchTrigger>
-              )}
+          <TabSwitchList className="gba:overflow-x-auto gba:scrollbar-hide">
+            {!isCompactMode && (
               <TabSwitchTrigger
-                value="chat"
-                startIcon={<MessageSquare className="gba:h-4 gba:w-4" />}
-                data-testid={`${prefixDataTestId}-chat-tab`}
+                value="dashboard"
+                startIcon={<LayoutDashboard className="gba:h-4 gba:w-4" />}
+                data-testid={`${prefixDataTestId}-dashboard-tab`}
               >
-                {t('chat-tab-chat')}
+                Dashboard
               </TabSwitchTrigger>
+            )}
+            {isInSidepanel && (
               <TabSwitchTrigger
-                value="calendar"
-                startIcon={<CalendarIcon className="gba:h-4 gba:w-4" />}
-                data-testid={`${prefixDataTestId}-calendar-tab`}
+                value="everyai"
+                startIcon={<Sparkles className="gba:h-4 gba:w-4" />}
+                data-testid={`${prefixDataTestId}-everyai-tab`}
               >
-                {t('chat-tab-calendar')}
+                {t('chat-tab-everyai')}
               </TabSwitchTrigger>
-              <TabSwitchTrigger
-                value="reminders"
-                startIcon={<Bell className="gba:h-4 gba:w-4" />}
-                endAdornment={
-                  overdueRemindersCount > 0 ? (
-                    <TabSwitchBadge variant="destructive" size="sm">
-                      {overdueRemindersCount}
-                    </TabSwitchBadge>
-                  ) : undefined
-                }
-                data-testid={`${prefixDataTestId}-reminders-tab`}
-              >
-                {t('chat-tab-reminders')}
-              </TabSwitchTrigger>
-            </TabSwitchList>
-          </div>
+            )}
+            <TabSwitchTrigger
+              value="chat"
+              startIcon={<MessageSquare className="gba:h-4 gba:w-4" />}
+              data-testid={`${prefixDataTestId}-chat-tab`}
+            >
+              {t('chat-tab-chat')}
+            </TabSwitchTrigger>
+            <TabSwitchTrigger
+              value="calendar"
+              startIcon={<CalendarIcon className="gba:h-4 gba:w-4" />}
+              data-testid={`${prefixDataTestId}-calendar-tab`}
+            >
+              {t('chat-tab-calendar')}
+            </TabSwitchTrigger>
+            <TabSwitchTrigger
+              value="reminders"
+              startIcon={<Bell className="gba:h-4 gba:w-4" />}
+              endAdornment={
+                overdueRemindersCount > 0 ? (
+                  <TabSwitchBadge variant="destructive" size="sm">
+                    {overdueRemindersCount}
+                  </TabSwitchBadge>
+                ) : undefined
+              }
+              data-testid={`${prefixDataTestId}-reminders-tab`}
+            >
+              {t('chat-tab-reminders')}
+            </TabSwitchTrigger>
+          </TabSwitchList>
         </div>
 
         {/* Use forceMount to keep all tabs mounted for call persistence */}
@@ -423,6 +454,7 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
             prefixDataTestId={`${prefixDataTestId}-chat`}
             onPresenceMapChange={setPresenceMap}
             onActiveCallsChange={setActiveCalls}
+            initialOpenWithUser={pendingOpenWithUser}
             {...props}
           />
         </TabSwitchContent>
@@ -438,6 +470,12 @@ const ChatWithCalendarInner: React.FC<ChatWithCalendarProps> = ({
             prefixDataTestId={`${prefixDataTestId}-calendar`}
             activeCalls={activeCalls}
             externalCalendarEvents={externalCalendarEvents}
+            onOpenChat={conversationId => {
+              setActiveTab('chat')
+              setTimeout(() => {
+                globalThis.dispatchEvent(new CustomEvent('chat:open-with-conversation', { detail: { conversationId } }))
+              }, 100)
+            }}
             {...props}
           />
         </TabSwitchContent>

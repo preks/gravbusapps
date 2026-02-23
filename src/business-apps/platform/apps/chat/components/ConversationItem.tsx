@@ -11,11 +11,10 @@ import {
   DialogHeader,
   DialogTitle
 } from '@newwork/nw-design-system'
+import { ChatTextIcon, SignOutIcon } from '@phosphor-icons/react'
 import type { Conversation } from '../types'
 import type { UserPresence } from '../hooks/usePresence'
-import { UserIcon, UsersIcon, Sparkles, CalendarIcon } from 'lucide-react'
-import { rtkDebug } from '../utils/rtkDebug'
-import { SignOut } from '@phosphor-icons/react'
+import { UserIcon, UsersIcon, SparklesIcon, CalendarIcon, PhoneCallIcon, PinIcon, BellOffIcon } from 'lucide-react'
 import { UserStatusIndicator } from './UserStatusIndicator'
 
 interface ConversationItemProps {
@@ -27,6 +26,8 @@ interface ConversationItemProps {
   compact?: boolean
   otherUserPresence?: UserPresence
   activeExpertCount?: number
+  isPinned?: boolean
+  isMuted?: boolean
   t: (key: string, params?: Record<string, any>) => string
 }
 
@@ -97,6 +98,8 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
   compact = false,
   otherUserPresence,
   activeExpertCount = 0,
+  isPinned = false,
+  isMuted = false,
   t
 }) => {
   const name = getConversationName(conversation, currentUserId, t)
@@ -121,34 +124,24 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
   const showPresence = conversation.type === 'direct'
   const rawPresenceStatus = otherUserPresence?.state || 'offline'
   const presenceStatus: 'online' | 'offline' = rawPresenceStatus === 'online' ? 'online' : 'offline'
-  const hasActiveCall = conversation.type === 'group' && !!conversation.activeCall
+  const hasActiveCall = !!conversation.activeCall
+  const isDirectChat = conversation.type === 'direct'
+  const isGroupChat = conversation.type === 'group'
 
   // Use enhanced status if available
   const userStatus = otherUserPresence?.userStatus
 
-  // Get names of participants currently in the call
-  const getParticipantsInCall = (): string[] => {
-    if (!hasActiveCall || !conversation.activeCall?.participantIds || !conversation.participants) {
-      return []
+  // Determine call message key based on call type
+  const getCallMessageKey = (): string => {
+    if (conversation.metadata?.type === 'meeting') {
+      return 'chat-activeCallMeeting'
+    } else if (isDirectChat) {
+      return 'chat-activeCallDirect'
+    } else if (isGroupChat) {
+      return 'chat-activeCallGroup'
     }
-
-    const participantIds = conversation.activeCall.participantIds
-    return conversation.participants
-      .filter(p => {
-        const odId = p.userId || p.user?.id
-        return odId && participantIds.includes(odId)
-      })
-      .map(p => {
-        const user = p.user
-        if (!user) return 'Unknown'
-        const firstName = user.firstName || ''
-        const lastName = user.lastName || ''
-        const fullName = `${firstName} ${lastName}`.trim()
-        return fullName || user.displayName || user.username || 'Unknown'
-      })
+    return 'chat-activeCallInGroup' // fallback
   }
-
-  const participantsInCall = hasActiveCall ? getParticipantsInCall() : []
 
   const handleRemoveClick = (e: React.MouseEvent) => {
     e.stopPropagation() // Prevent conversation selection
@@ -202,7 +195,7 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
               />
               {hasActiveExperts && (
                 <div className="gba:absolute gba:-bottom-1 gba:-right-1 gba:w-4 gba:h-4 gba:rounded-full gba:bg-gradient-to-br gba:from-primary gba:to-accent gba:flex gba:items-center gba:justify-center gba:border-2 gba:border-background gba:shadow-md">
-                  <Sparkles className="gba:w-2.5 gba:h-2.5 gba:text-primary-foreground" />
+                  <SparklesIcon className="gba:w-2.5 gba:h-2.5 gba:text-primary-foreground" />
                 </div>
               )}
             </div>
@@ -224,13 +217,31 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
 
         <div className="gba:flex-1 gba:min-w-0 gba:flex gba:flex-col gba:gap-0.5">
           <div className="gba:flex gba:items-center gba:gap-2">
+            {isMuted && (
+              <span
+                className="gba:flex gba:flex-shrink-0"
+                title={t('chat-muteConversation')}
+                data-testid={`conversation-item-muted-indicator-${conversation.id}`}
+              >
+                <BellOffIcon className="gba:w-4 gba:h-4 gba:text-muted-foreground" aria-hidden />
+              </span>
+            )}
             <span
               className={`gba:font-medium gba:truncate ${compact ? 'gba:text-sm' : 'gba:text-sm'} ${isActive ? 'gba:text-primary' : 'gba:text-foreground'}`}
             >
               {name}
             </span>
+            {isPinned && (
+              <PinIcon
+                className="gba:w-3.5 gba:h-3.5 gba:text-muted-foreground gba:flex-shrink-0"
+                aria-hidden
+                data-testid={`conversation-item-pinned-icon-${conversation.id}`}
+              />
+            )}
             {hasActiveCall && (
-              <span className="gba:text-[10px] gba:text-success gba:uppercase">{t('chat-activeCallShort')}</span>
+              <span className="gba:flex gba:items-center gba:text-success" title={t(getCallMessageKey())}>
+                <PhoneCallIcon className="gba:w-4 gba:h-4" />
+              </span>
             )}
             {unreadCount > 0 && (
               <Badge
@@ -242,20 +253,17 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
               </Badge>
             )}
           </div>
-          {hasActiveCall && participantsInCall.length > 0 && !compact ? (
-            <p className="gba:text-xs gba:text-success gba:truncate gba:max-w-[180px]">
-              {participantsInCall.join(', ')}
-            </p>
+          {/* Show status message for online users in direct chats */}
+          {showPresence && userStatus?.statusMessage && presenceStatus !== 'offline' ? (
+            <div className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:text-muted-foreground gba:truncate gba:max-w-[180px]">
+              <ChatTextIcon size={12} weight="duotone" className="gba:flex-shrink-0" />
+              <span className="gba:italic gba:truncate">{userStatus.statusMessage}</span>
+            </div>
           ) : showPresence && otherUserPresence?.lastSeen && presenceStatus === 'offline' ? (
             <p className="gba:text-xs gba:text-muted-foreground gba:truncate gba:max-w-[180px]">
               {(() => {
                 try {
                   const lastSeenDate = new Date(otherUserPresence.lastSeen)
-                  rtkDebug.log('[ConversationItem] 📅 Calculating last seen:', {
-                    lastSeenString: otherUserPresence.lastSeen,
-                    lastSeenDate,
-                    isValidDate: !isNaN(lastSeenDate.getTime())
-                  })
 
                   // Check if date is valid
                   if (isNaN(lastSeenDate.getTime())) {
@@ -265,13 +273,6 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
 
                   const now = new Date()
                   const diffMs = now.getTime() - lastSeenDate.getTime()
-
-                  rtkDebug.log('[ConversationItem] ⏱️ Time difference:', {
-                    now: now.toISOString(),
-                    lastSeen: lastSeenDate.toISOString(),
-                    diffMs,
-                    diffMinutes: Math.floor(diffMs / (1000 * 60))
-                  })
 
                   // Check for negative or invalid differences
                   if (diffMs < 0 || isNaN(diffMs)) {
@@ -294,7 +295,6 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
                     lastSeenText = t('chat-lastSeenLongAgo')
                   }
 
-                  rtkDebug.log('[ConversationItem] ✅ Last seen text generated:', lastSeenText)
                   return lastSeenText
                 } catch (error) {
                   console.error('[ConversationItem] ❌ Error calculating last seen time:', error)
@@ -319,7 +319,7 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
               data-testid={`conversation-item-remove-${conversation.id}`}
               title={conversation.type === 'group' ? t('chat-leaveConversation') : t('chat-removeConversation')}
             >
-              <SignOut className="gba:w-3.5 gba:h-3.5" />
+              <SignOutIcon className="gba:w-3.5 gba:h-3.5" />
             </Button>
           )}
         </div>

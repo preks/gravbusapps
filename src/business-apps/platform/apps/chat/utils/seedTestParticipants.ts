@@ -42,6 +42,7 @@ function createMockTrack(kind: 'video' | 'audio'): MediaStreamTrack {
     id: `mock-${kind}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     kind,
     label: `Mock ${kind} Track`,
+    contentHint: '',
     enabled: true,
     muted: false,
     readyState: 'live' as MediaStreamTrackState,
@@ -83,7 +84,6 @@ function createMockParticipant(
     id: baseId,
     odId: `od-${baseId}`,
     odName: participantName,
-    name: participantName, // Also set 'name' for SDK compatibility
     displayName: participantName, // Fallback for display
     userId: baseId, // Use same as id for test participants
     customParticipantId: baseId, // Use same as id for test participants
@@ -100,7 +100,7 @@ function createMockParticipant(
     audioTrack: hasAudio ? createMockTrack('audio') : undefined,
     videoEnabled: hasVideo,
     audioEnabled: hasAudio && !isMuted
-  }
+  } as GroupCallParticipant
 }
 
 /**

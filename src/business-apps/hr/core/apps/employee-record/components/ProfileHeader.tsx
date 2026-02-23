@@ -13,7 +13,8 @@ import {
   GlobeHemisphereWestIcon,
   BookmarksIcon,
   ChatCircleIcon,
-  VideoCameraIcon
+  VideoCameraIcon,
+  UsersThreeIcon
 } from '@phosphor-icons/react'
 import { Employee } from '../hooks/useEmployeeData'
 import { formatPhoneNumber } from '../utils/formatters'
@@ -30,7 +31,6 @@ import {
 } from '@newwork/nw-design-system'
 import translations from '../_i18n'
 import { StarIcon } from 'lucide-react'
-import { TeamOutlined } from '@ant-design/icons'
 
 // Team item type
 interface MatrixUnitEmployee {
@@ -203,11 +203,12 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
   const notAssigned = t('employee-record-not-assigned')
   const na = t('profile-header-na')
 
-  // Build detail groups for HeaderSlot
+  // Build a single detail group to avoid large separator gaps
+  // between blocks in vertical HeaderSlot mode.
   const detailGroups: HeaderSlotItemGroup[] = useMemo(() => {
     return [
       {
-        id: 'contact',
+        id: 'profile-details',
         items: [
           {
             id: 'email',
@@ -222,12 +223,7 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
             value: employeePhone ? formatPhoneNumber(employeePhone) : na,
             icon: PhoneIcon,
             href: employeePhone ? `tel:${employeePhone}` : undefined
-          }
-        ]
-      },
-      {
-        id: 'organizational',
-        items: [
+          },
           {
             id: 'organization',
             label: t('profile-header-organization'),
@@ -245,12 +241,7 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
             href: employee.employeePosition?.siteLocation?.id
               ? `/platform/orgchart/active/location?siteLocationId=${employee.employeePosition.siteLocation.id}`
               : undefined
-          }
-        ]
-      },
-      {
-        id: 'employment',
-        items: [
+          },
           {
             id: 'manager',
             label: t('profile-header-manager'),
@@ -302,18 +293,18 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
       <HeaderSlot headerSlotItemGroups={detailGroups} orientation="vertical" />
 
       {/* Teams, Capabilities and Skills */}
-      <div className="gba:w-full gba:mt-6" data-testid="skills-capabilities-container">
+      <div className="gba:w-full gba:mt-4 gba:flex gba:flex-col gba:gap-3" data-testid="skills-capabilities-container">
         {/* Teams Section - if available */}
         {employee.employeePosition?.matrixUnitEmployees && employee.employeePosition.matrixUnitEmployees.length > 0 && (
-          <div className="gba:mb-4">
-            <div className="gba:text-sm gba:font-semibold gba:text-foreground gba:mb-2">
+          <div>
+            <div className="gba:text-sm gba:font-semibold gba:text-foreground gba:mb-1">
               {t('profile-header-teams')}
             </div>
             <div className="gba:flex gba:flex-wrap gba:gap-2">
               {employee.employeePosition.matrixUnitEmployees.map((teamItem: MatrixUnitEmployee, index: number) => (
                 <TagItem
                   key={teamItem.matrixUnit?.id || `team-${index}`}
-                  icon={<TeamOutlined className="gba:h-4 gba:w-4 gba:text-muted-foreground" />}
+                  icon={<UsersThreeIcon className="gba:h-4 gba:w-4 gba:text-muted-foreground" />}
                   label={teamItem.matrixUnit.name}
                   bgColorClass="gba:bg-info-secondary"
                   textColorClass="gba:text-info"
@@ -325,8 +316,8 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
         )}
 
         {/* Capabilities Section - always displayed */}
-        <div className="gba:mb-4" data-testid="capabilities-section">
-          <div className="gba:text-sm gba:font-semibold gba:text-foreground gba:mb-2">
+        <div data-testid="capabilities-section">
+          <div className="gba:text-sm gba:font-semibold gba:text-foreground gba:mb-1">
             {t('profile-header-capabilities')}
           </div>
           <div className="gba:flex gba:flex-wrap gba:gap-2">
@@ -352,8 +343,8 @@ const ProfileHeader: React.FC<BusinessAppContextProps & ProfileHeaderProps> = ({
         </div>
 
         {/* Skills Section - always displayed */}
-        <div className="gba:mb-4" data-testid="skills-section">
-          <div className="gba:text-sm gba:font-semibold gba:text-foreground gba:mb-2">{t('profile-header-skills')}</div>
+        <div data-testid="skills-section">
+          <div className="gba:text-sm gba:font-semibold gba:text-foreground gba:mb-1">{t('profile-header-skills')}</div>
           <div className="gba:flex gba:flex-wrap gba:gap-2">
             {employee.skills?.filter(skill => skill.skill).length > 0 ? (
               employee.skills

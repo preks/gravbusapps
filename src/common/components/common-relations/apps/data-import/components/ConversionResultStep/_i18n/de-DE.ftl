@@ -1,7 +1,7 @@
 # Conversion Result Step Translations (German - Germany)
 
 # Step Header
-step-title = Schritt 3: Konvertierungsergebnis
+conversion-result-step-title = Schritt 3: Konvertierungsergebnis
 
 # Action Buttons
 download-json-button = JSON herunterladen
@@ -13,6 +13,9 @@ done-button = Fertig
 import-success-title = Import erfolgreich!
 import-success-message = Erfolgreich { $count } { $entityType } in CRM importiert
 conversion-success-message = Erfolgreich { $count } { $entityType } konvertiert
+
+# Campaign
+campaign-label = Kampagne: { $name }
 
 # Preview Section
 preview-title = Vorschau (Erste { $count } { $entityType })

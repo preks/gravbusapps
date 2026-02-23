@@ -17,6 +17,7 @@ export interface AllowanceCodeFormValues {
   secondAllowanceRegionRulePercent?: number
   firstWageCode?: string
   travelLocation?: string
+  additionalProperties?: Record<string, unknown>
   activeFrom: string
   activeTo?: string
 }
@@ -72,7 +73,7 @@ export const transformAllowanceCodeForUnrestrictedUpdate = (
     version: editingItem.version,
     expenseRuleId: ruleId,
     businessKey: editingItem.businessKey,
-    additionalProperties: editingItem.additionalProperties || {},
+    additionalProperties: formValues.additionalProperties ?? editingItem.additionalProperties ?? {},
     codeOrder: editingItem.codeOrder,
     travelLocation: formValues.travelLocation || editingItem.travelLocation,
     secondWageCode: editingItem.secondWageCode || null,
@@ -105,7 +106,7 @@ export const transformAllowanceCodeForRestrictedUpdate = (
     version: editingItem.version,
     expenseRuleId: ruleId,
     businessKey: editingItem.businessKey,
-    additionalProperties: editingItem.additionalProperties || {},
+    additionalProperties: formValues.additionalProperties ?? editingItem.additionalProperties ?? {},
     codeOrder: editingItem.codeOrder,
     travelLocation: formValues.travelLocation || editingItem.travelLocation,
     secondWageCode: editingItem.secondWageCode || null,
@@ -147,6 +148,7 @@ export const transformAllowanceCodeForCreate = (
     firstWageCode: formValues.firstWageCode || null,
     secondWageCode: null,
     travelLocation: formValues.travelLocation || null,
+    additionalProperties: formValues.additionalProperties || {},
     activeFrom: formatActiveFrom(formValues.activeFrom),
     activeTo: formatActiveTo(formValues.activeTo)
   }

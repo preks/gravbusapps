@@ -191,7 +191,10 @@ is_screen_specific() {
 # - Global shared code (src/* except business-apps)
 # - Module-level shared code (business-apps/**/hooks/, components/, etc. - NOT in screens itself)
 has_package_changes=$(grep -qE '^(package\.json)' "$temp_all_changes" 2>/dev/null && echo "yes" || echo "no")
-has_global_shared=$(grep -E '^src/' "$temp_all_changes" 2>/dev/null | grep -vE '^src/business-apps/' | grep -q . && echo "yes" || echo "no")
+# Dev-only files that live in src/ but are never imported by published screens.
+# Excluding them prevents a full rebuild being triggered when only these files change.
+DEV_ONLY_GLOBAL_FILES='src/BusinessAppIDE.tsx'
+has_global_shared=$(grep -E '^src/' "$temp_all_changes" 2>/dev/null | grep -vE '^src/business-apps/' | grep -vF "$DEV_ONLY_GLOBAL_FILES" | grep -q . && echo "yes" || echo "no")
 
 # Check for module-level shared code (in business-apps but NOT in screens)
 module_shared_changes=""

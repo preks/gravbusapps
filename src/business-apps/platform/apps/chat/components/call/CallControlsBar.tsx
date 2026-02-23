@@ -1,68 +1,64 @@
 /**
  * CallControlsBar Component
  *
- * Bottom control bar for group calls with:
- * - Media controls (mute, video)
- * - Sharing & effects (screen share, background)
- * - Interaction (raise hand, reactions)
- * - End call button
- *
- * Responsive behavior:
- * - Desktop: All buttons visible
- * - Mobile: Primary controls visible, secondary in "More" menu
+ * Bottom control bar for group calls: media, sharing, reactions, end call.
+ * Desktop: all buttons visible. Mobile: primary + "More" menu for secondary.
  */
 
 import React, { useState, useEffect } from 'react'
 import {
-  Microphone,
-  MicrophoneSlash,
-  VideoCamera,
-  VideoCameraSlash,
-  Monitor,
-  Image,
-  PhoneDisconnect,
-  Smiley,
-  HandIcon,
-  DotsThree
+  MicrophoneIcon,
+  MicrophoneSlashIcon,
+  VideoCameraIcon,
+  VideoCameraSlashIcon,
+  PhoneDisconnectIcon,
+  CaretDownIcon
 } from '@phosphor-icons/react'
-import { Popover, PopoverContent, PopoverTrigger } from '@newwork/nw-design-system'
+import { DropdownMenu, DropdownMenuTrigger } from '@newwork/nw-design-system'
+import { useMediaDevices } from '../../hooks/useMediaDevices'
+import { useCallControlsLayout } from './useCallControlsLayout'
+import { ControlBarButton } from './ControlBarButton'
+import { AudioDeviceDropdownContent } from './AudioDeviceDropdownContent'
+import { CallControlsCenterSection } from './CallControlsCenterSection'
+import { CameraDeviceDropdownContent } from './CameraDeviceDropdownContent'
+import type { MediaDeviceInfo } from '../../hooks/useMediaDevices'
 
 export interface CallControlsBarProps {
-  /** Call type (audio or video) */
   callType: 'audio' | 'video'
-  /** Whether local mic is muted */
   isMuted: boolean
-  /** Whether local video is enabled */
   isVideoEnabled: boolean
-  /** Whether screen sharing is active */
   isScreenSharing: boolean
-  /** Whether virtual background is enabled */
   backgroundEnabled: boolean
-  /** Whether hand is raised */
   handRaised: boolean
-  /** Whether transcription is active */
   transcriptionActive?: boolean
-  /** Callback to toggle mute */
   onToggleMute: () => void
-  /** Callback to toggle video */
   onToggleVideo: () => void
-  /** Callback to toggle screen share */
   onToggleScreenShare?: () => void
-  /** Callback to toggle background */
   onToggleBackground?: () => void
-  /** Callback to toggle raise hand */
   onToggleRaiseHand?: () => void
-  /** Callback to send reaction */
   onSendReaction?: (emoji: string) => void
-  /** Callback to end call */
   onEndCall: () => void
-  /** Data test ID prefix */
+  onMicDeviceChange?: (deviceId: string) => void
+  onCameraDeviceChange?: (deviceId: string) => void
+  onSpeakerDeviceChange?: (deviceId: string) => void
+  onToggleAudioSettings?: () => void
+  sharedDeviceState?: {
+    audioInputDevices: MediaDeviceInfo[]
+    audioOutputDevices: MediaDeviceInfo[]
+    videoInputDevices: MediaDeviceInfo[]
+    selectedAudioInputId: string | null
+    selectedAudioOutputId: string | null
+    selectedVideoInputId: string | null
+    setSelectedAudioInputId: (id: string | null) => void
+    setSelectedAudioOutputId: (id: string | null) => void
+    setSelectedVideoInputId: (id: string | null) => void
+    canSelectAudioOutput: boolean
+  }
   prefixDataTestId?: string
-  /** Translation function */
   t?: (key: string) => string
 }
 
-const REACTIONS = ['👍', '❤️', '😂', '👏', '🎉']
+const defaultT = (key: string) => key
 
 export const CallControlsBar: React.FC<CallControlsBarProps> = ({
   callType,
@@ -79,37 +75,73 @@ export const CallControlsBar: React.FC<CallControlsBarProps> = ({
   onToggleRaiseHand,
   onSendReaction,
   onEndCall,
+  onMicDeviceChange,
+  onCameraDeviceChange,
+  onSpeakerDeviceChange,
+  onToggleAudioSettings,
+  sharedDeviceState,
   prefixDataTestId = 'rtk-group-call',
-  t = (key: string) => key
+  t = defaultT
 }) => {
   const [reactionsOpen, setReactionsOpen] = useState(false)
   const [moreMenuOpen, setMoreMenuOpen] = useState(false)
+  const [audioDropdownOpen, setAudioDropdownOpen] = useState(false)
 
-  // Track window size for responsive layout (matches GroupCallModalRtk pattern)
-  const [windowWidth, setWindowWidth] = useState(window.innerWidth)
+  const localDeviceState = useMediaDevices({ enabled: !sharedDeviceState })
+  const {
+    audioInputDevices: localAudioInputDevices,
+    audioOutputDevices: localAudioOutputDevices,
+    videoInputDevices: localVideoInputDevices,
+    selectedAudioInputId: localSelectedAudioInputId,
+    selectedAudioOutputId: localSelectedAudioOutputId,
+    selectedVideoInputId: localSelectedVideoInputId,
+    setSelectedAudioInputId: localSetSelectedAudioInputId,
+    setSelectedAudioOutputId: localSetSelectedAudioOutputId,
+    setSelectedVideoInputId: localSetSelectedVideoInputId,
+    refreshDevices,
+    isEnumerating,
+    canSelectAudioOutput: localCanSelectAudioOutput
+  } = localDeviceState
+
+  const audioInputDevices = sharedDeviceState?.audioInputDevices ?? localAudioInputDevices
+  const audioOutputDevices = sharedDeviceState?.audioOutputDevices ?? localAudioOutputDevices
+  const videoInputDevices = sharedDeviceState?.videoInputDevices ?? localVideoInputDevices
+  const selectedAudioInputId = sharedDeviceState?.selectedAudioInputId ?? localSelectedAudioInputId
+  const selectedAudioOutputId = sharedDeviceState?.selectedAudioOutputId ?? localSelectedAudioOutputId
+  const selectedVideoInputId = sharedDeviceState?.selectedVideoInputId ?? localSelectedVideoInputId
+  const setSelectedAudioInputId = sharedDeviceState?.setSelectedAudioInputId || localSetSelectedAudioInputId
+  const setSelectedAudioOutputId = sharedDeviceState?.setSelectedAudioOutputId || localSetSelectedAudioOutputId
+  const setSelectedVideoInputId = sharedDeviceState?.setSelectedVideoInputId || localSetSelectedVideoInputId
+  const canSelectAudioOutput = sharedDeviceState?.canSelectAudioOutput ?? localCanSelectAudioOutput
 
   useEffect(() => {
-    const handleResize = () => {
-      setWindowWidth(window.innerWidth)
+    if (!sharedDeviceState) {
+      refreshDevices({ requestAudio: true, requestVideo: callType === 'video' })
     }
+  }, [refreshDevices, callType, sharedDeviceState])
 
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [])
+  const handleMicDeviceChange = (deviceId: string) => {
+    setSelectedAudioInputId(deviceId)
+    onMicDeviceChange?.(deviceId)
+  }
+  const handleCameraDeviceChange = (deviceId: string) => {
+    setSelectedVideoInputId(deviceId)
+    onCameraDeviceChange?.(deviceId)
+  }
+  const handleSpeakerDeviceChange = (deviceId: string) => {
+    setSelectedAudioOutputId(deviceId)
+    onSpeakerDeviceChange?.(deviceId)
+  }
 
-  // Determine if we should show desktop or mobile layout
-  // Desktop layout at >= 1024px matches dialog maxWidth breakpoint
-  const showDesktopLayout = windowWidth >= 1024
+  const { showDesktopLayout, showMoreMenu, mobileMenuOptionCount } = useCallControlsLayout({
+    callType,
+    onToggleBackground,
+    onToggleRaiseHand,
+    onSendReaction
+  })
 
-  // Count available mobile menu options to determine if we should show "More" menu
-  // Only show "More" menu if we have 2 or more options, otherwise show the single option directly
-  const mobileMenuOptionCount = [
-    onToggleBackground && callType === 'video', // Background effect
-    onToggleRaiseHand, // Raise hand
-    onSendReaction // Reactions
-  ].filter(Boolean).length
-
-  const showMoreMenu = !showDesktopLayout && mobileMenuOptionCount >= 2
+  const size = showDesktopLayout ? 'desktop' : 'mobile'
+  const iconSize = showDesktopLayout ? 'gba:w-5 gba:h-5' : 'gba:w-4 gba:h-4'
 
   return (
     <div className="gba:flex-shrink-0">
@@ -118,373 +150,152 @@ export const CallControlsBar: React.FC<CallControlsBarProps> = ({
           showDesktopLayout ? 'gba:gap-3 gba:px-4 gba:py-3' : 'gba:gap-2 gba:px-2 gba:py-2'
         }`}
       >
-        {/* Left: Media Controls Group */}
+        {/* Left: Media controls */}
         <div className={`gba:flex gba:items-center ${showDesktopLayout ? 'gba:gap-3' : 'gba:gap-2'}`}>
-          {/* Transcription indicator - desktop only */}
           {transcriptionActive && showDesktopLayout && (
             <div className="gba:flex gba:items-center gba:gap-2 gba:px-3 gba:py-1 gba:rounded-full gba:bg-destructive/10 gba:text-destructive">
-              <Microphone className="gba:w-4 gba:h-4 gba:animate-pulse" weight="fill" />
+              <MicrophoneIcon className="gba:w-4 gba:h-4 gba:animate-pulse" weight="fill" />
               <span className="gba:text-xs gba:font-semibold">{t('chat-call-recording')}</span>
             </div>
           )}
 
-          {/* Mute button */}
-          <button
-            onClick={onToggleMute}
-            className={`${showDesktopLayout ? 'gba:p-3' : 'gba:p-2.5'} gba:rounded-full gba:transition-all ${
-              isMuted
-                ? 'gba:bg-destructive gba:text-destructive-foreground hover:gba:bg-destructive/90'
-                : 'gba:bg-accent gba:text-accent-foreground hover:gba:bg-accent/90'
-            }`}
-            data-testid={`${prefixDataTestId}-mute-btn`}
-            aria-label={isMuted ? t('groupCall-unmute') : t('groupCall-mute')}
-            title={isMuted ? t('groupCall-unmute') : t('groupCall-mute')}
-          >
-            {isMuted ? (
-              <MicrophoneSlash className={showDesktopLayout ? 'gba:w-5 gba:h-5' : 'gba:w-4 gba:h-4'} weight="fill" />
-            ) : (
-              <Microphone className={showDesktopLayout ? 'gba:w-5 gba:h-5' : 'gba:w-4 gba:h-4'} weight="fill" />
-            )}
-          </button>
+          <div className="gba:flex gba:items-stretch gba:gap-0">
+            <ControlBarButton
+              variant={isMuted ? 'destructive' : 'accent'}
+              size={size}
+              icon={
+                isMuted ? (
+                  <MicrophoneSlashIcon className={iconSize} weight="fill" />
+                ) : (
+                  <MicrophoneIcon className={iconSize} weight="fill" />
+                )
+              }
+              onClick={onToggleMute}
+              aria-label={isMuted ? t('groupCall-unmute') : t('groupCall-mute')}
+              title={isMuted ? t('groupCall-unmute') : t('groupCall-mute')}
+              data-testid={`${prefixDataTestId}-mute-btn`}
+              className="gba:rounded-l-full gba:rounded-r-none"
+            />
+            <DropdownMenu open={audioDropdownOpen} onOpenChange={setAudioDropdownOpen}>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  disabled={isEnumerating}
+                  className={`${size === 'desktop' ? 'gba:px-2 gba:py-3' : 'gba:px-1.5 gba:py-2.5'} gba:rounded-r-full gba:rounded-l-none gba:transition-all gba:outline-none gba:focus-visible:ring-2 gba:focus-visible:ring-primary gba:focus-visible:ring-offset-2 gba:border-l gba:border-white/20 ${
+                    isMuted
+                      ? 'gba:bg-destructive gba:text-destructive-foreground hover:gba:bg-destructive/90'
+                      : 'gba:bg-accent gba:text-accent-foreground hover:gba:bg-accent/90'
+                  } disabled:gba:opacity-50 disabled:gba:cursor-not-allowed`}
+                  data-testid={`${prefixDataTestId}-mic-settings`}
+                  aria-label={t('call-audioSettings')}
+                >
+                  <CaretDownIcon className="gba:w-3 gba:h-3" weight="bold" />
+                </button>
+              </DropdownMenuTrigger>
+              <AudioDeviceDropdownContent
+                audioInputDevices={audioInputDevices}
+                audioOutputDevices={audioOutputDevices}
+                selectedAudioInputId={selectedAudioInputId}
+                selectedAudioOutputId={selectedAudioOutputId}
+                onMicChange={handleMicDeviceChange}
+                onSpeakerChange={handleSpeakerDeviceChange}
+                canSelectAudioOutput={canSelectAudioOutput}
+                onMoreSettings={onToggleAudioSettings}
+                onOpenChange={setAudioDropdownOpen}
+                t={t}
+                prefixDataTestId={prefixDataTestId}
+              />
+            </DropdownMenu>
+          </div>
 
-          {/* Video toggle button */}
           {callType === 'video' && (
-            <button
-              onClick={onToggleVideo}
-              className={`${showDesktopLayout ? 'gba:p-3' : 'gba:p-2.5'} gba:rounded-full gba:transition-all ${
-                !isVideoEnabled
-                  ? 'gba:bg-destructive gba:text-destructive-foreground hover:gba:bg-destructive/90'
-                  : 'gba:bg-accent gba:text-accent-foreground hover:gba:bg-accent/90'
-              }`}
-              data-testid={`${prefixDataTestId}-video-btn`}
-              aria-label={isVideoEnabled ? t('groupCall-turnOffVideo') : t('groupCall-turnOnVideo')}
-              title={isVideoEnabled ? t('groupCall-turnOffVideo') : t('groupCall-turnOnVideo')}
-            >
-              {isVideoEnabled ? (
-                <VideoCamera className={showDesktopLayout ? 'gba:w-5 gba:h-5' : 'gba:w-4 gba:h-4'} weight="fill" />
-              ) : (
-                <VideoCameraSlash className={showDesktopLayout ? 'gba:w-5 gba:h-5' : 'gba:w-4 gba:h-4'} weight="fill" />
-              )}
-            </button>
+            <div className="gba:flex gba:items-stretch gba:gap-0">
+              <ControlBarButton
+                variant={isVideoEnabled ? 'accent' : 'destructive'}
+                size={size}
+                icon={
+                  isVideoEnabled ? (
+                    <VideoCameraIcon className={iconSize} weight="fill" />
+                  ) : (
+                    <VideoCameraSlashIcon className={iconSize} weight="fill" />
+                  )
+                }
+                onClick={onToggleVideo}
+                aria-label={isVideoEnabled ? t('groupCall-turnOffVideo') : t('groupCall-turnOnVideo')}
+                title={isVideoEnabled ? t('groupCall-turnOffVideo') : t('groupCall-turnOnVideo')}
+                data-testid={`${prefixDataTestId}-video-btn`}
+                className="gba:rounded-l-full gba:rounded-r-none"
+              />
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    disabled={isEnumerating}
+                    className={`${size === 'desktop' ? 'gba:px-2 gba:py-3' : 'gba:px-1.5 gba:py-2.5'} gba:rounded-r-full gba:rounded-l-none gba:transition-all gba:outline-none gba:focus-visible:ring-2 gba:focus-visible:ring-primary gba:focus-visible:ring-offset-2 gba:border-l gba:border-white/20 ${
+                      isVideoEnabled
+                        ? 'gba:bg-accent gba:text-accent-foreground hover:gba:bg-accent/90'
+                        : 'gba:bg-destructive gba:text-destructive-foreground hover:gba:bg-destructive/90'
+                    } disabled:gba:opacity-50 disabled:gba:cursor-not-allowed`}
+                    data-testid={`${prefixDataTestId}-camera-settings`}
+                    aria-label={t('call-videoSettings')}
+                  >
+                    <CaretDownIcon className="gba:w-3 gba:h-3" weight="bold" />
+                  </button>
+                </DropdownMenuTrigger>
+                <CameraDeviceDropdownContent
+                  videoInputDevices={videoInputDevices}
+                  selectedVideoInputId={selectedVideoInputId}
+                  onSelect={handleCameraDeviceChange}
+                  t={t}
+                />
+              </DropdownMenu>
+            </div>
           )}
         </div>
 
-        {/* Separator - desktop only */}
         {showDesktopLayout && <div className="gba:h-6 gba:w-px gba:bg-border/50" />}
 
-        {/* Center: Sharing & Effects Controls Group */}
-        <div className={`gba:flex gba:items-center ${showDesktopLayout ? 'gba:gap-3' : 'gba:gap-2'}`}>
-          {/* Screen share button - always visible */}
-          {onToggleScreenShare && (
-            <button
-              onClick={onToggleScreenShare}
-              className={`${showDesktopLayout ? 'gba:p-3' : 'gba:p-2.5'} gba:rounded-full gba:transition-all ${
-                isScreenSharing
-                  ? 'gba:bg-primary gba:text-primary-foreground hover:gba:bg-primary/90'
-                  : 'gba:bg-accent hover:gba:bg-accent/90'
-              }`}
-              data-testid={`${prefixDataTestId}-screen-share-btn`}
-              aria-label={
-                isScreenSharing ? t('chat-stopSharing') || 'Stop sharing' : t('chat-shareScreen') || 'Share screen'
-              }
-              title={
-                isScreenSharing ? t('chat-stopSharing') || 'Stop sharing' : t('chat-shareScreen') || 'Share screen'
-              }
-            >
-              <Monitor className={showDesktopLayout ? 'gba:w-5 gba:h-5' : 'gba:w-4 gba:h-4'} weight="fill" />
-            </button>
-          )}
+        <CallControlsCenterSection
+          callType={callType}
+          isScreenSharing={isScreenSharing}
+          backgroundEnabled={backgroundEnabled}
+          handRaised={handRaised}
+          showDesktopLayout={showDesktopLayout}
+          showMoreMenu={showMoreMenu}
+          mobileMenuOptionCount={mobileMenuOptionCount}
+          reactionsOpen={reactionsOpen}
+          setReactionsOpen={setReactionsOpen}
+          moreMenuOpen={moreMenuOpen}
+          setMoreMenuOpen={setMoreMenuOpen}
+          onToggleScreenShare={onToggleScreenShare}
+          onToggleBackground={onToggleBackground}
+          onToggleRaiseHand={onToggleRaiseHand}
+          onSendReaction={onSendReaction}
+          prefixDataTestId={prefixDataTestId}
+          t={t}
+        />
 
-          {/* Desktop: Individual buttons for secondary controls */}
-          {showDesktopLayout && (
-            <div className="gba:flex gba:items-center gba:gap-2">
-              {/* Background effect button */}
-              {onToggleBackground && callType === 'video' && (
-                <button
-                  onClick={onToggleBackground}
-                  className={`gba:p-3 gba:rounded-full gba:transition-all ${
-                    backgroundEnabled
-                      ? 'gba:bg-primary gba:text-primary-foreground hover:gba:bg-primary/90'
-                      : 'gba:bg-accent hover:gba:bg-accent/90'
-                  }`}
-                  data-testid={`${prefixDataTestId}-background-btn`}
-                  aria-label={
-                    backgroundEnabled
-                      ? t('groupCall-disableBackground') || 'Disable background'
-                      : t('groupCall-enableBackground') || 'Enable background'
-                  }
-                  title={
-                    backgroundEnabled
-                      ? t('groupCall-disableBackground') || 'Disable background'
-                      : t('groupCall-enableBackground') || 'Enable background'
-                  }
-                >
-                  <Image className="gba:w-5 gba:h-5" weight="fill" />
-                </button>
-              )}
-
-              {/* Raise hand button */}
-              {onToggleRaiseHand && (
-                <button
-                  onClick={onToggleRaiseHand}
-                  className={`gba:p-3 gba:rounded-full gba:transition-all ${
-                    handRaised
-                      ? 'gba:bg-warning gba:text-warning-foreground hover:gba:bg-warning/90'
-                      : 'gba:bg-accent hover:gba:bg-accent/90'
-                  }`}
-                  data-testid={`${prefixDataTestId}-raise-hand-btn`}
-                  aria-label={handRaised ? 'Lower hand' : 'Raise hand'}
-                  title={handRaised ? 'Lower hand' : 'Raise hand'}
-                >
-                  <HandIcon className="gba:w-5 gba:h-5" weight="fill" />
-                </button>
-              )}
-
-              {/* Reactions popover button */}
-              {onSendReaction && (
-                <Popover open={reactionsOpen} onOpenChange={setReactionsOpen}>
-                  <PopoverTrigger asChild>
-                    <button
-                      className="gba:p-3 gba:rounded-full gba:bg-accent hover:gba:bg-accent/90 gba:transition-all"
-                      data-testid={`${prefixDataTestId}-reactions-btn`}
-                      aria-label="Send reaction"
-                      title="Send reaction"
-                    >
-                      <Smiley className="gba:w-5 gba:h-5" weight="fill" />
-                    </button>
-                  </PopoverTrigger>
-                  <PopoverContent
-                    className="gba:w-auto gba:p-2"
-                    side="top"
-                    data-testid={`${prefixDataTestId}-reactions-popover`}
-                  >
-                    <div className="gba:flex gba:gap-1">
-                      {REACTIONS.map(emoji => (
-                        <button
-                          key={emoji}
-                          onClick={() => {
-                            onSendReaction(emoji)
-                            setReactionsOpen(false)
-                          }}
-                          className="gba:p-2 gba:rounded-lg hover:gba:bg-accent gba:transition-all gba:text-2xl"
-                          title={`Send ${emoji}`}
-                          data-testid={`${prefixDataTestId}-reaction-${emoji}`}
-                          aria-label={`Send ${emoji} reaction`}
-                        >
-                          {emoji}
-                        </button>
-                      ))}
-                    </div>
-                  </PopoverContent>
-                </Popover>
-              )}
-            </div>
-          )}
-
-          {/* Mobile: Single option shown as direct button */}
-          {!showDesktopLayout && mobileMenuOptionCount === 1 && (
-            <div className="gba:flex gba:items-center gba:gap-1">
-              {/* Background effect button */}
-              {onToggleBackground && callType === 'video' && (
-                <button
-                  onClick={onToggleBackground}
-                  className={`gba:p-2.5 gba:rounded-full gba:transition-all ${
-                    backgroundEnabled
-                      ? 'gba:bg-primary gba:text-primary-foreground hover:gba:bg-primary/90'
-                      : 'gba:bg-accent hover:gba:bg-accent/90'
-                  }`}
-                  data-testid={`${prefixDataTestId}-background-btn-mobile`}
-                  aria-label={
-                    backgroundEnabled
-                      ? t('groupCall-disableBackground') || 'Disable background'
-                      : t('groupCall-enableBackground') || 'Enable background'
-                  }
-                  title={
-                    backgroundEnabled
-                      ? t('groupCall-disableBackground') || 'Disable background'
-                      : t('groupCall-enableBackground') || 'Enable background'
-                  }
-                >
-                  <Image className="gba:w-4 gba:h-4" weight="fill" />
-                </button>
-              )}
-
-              {/* Raise hand button */}
-              {onToggleRaiseHand && (
-                <button
-                  onClick={onToggleRaiseHand}
-                  className={`gba:p-2.5 gba:rounded-full gba:transition-all ${
-                    handRaised
-                      ? 'gba:bg-warning gba:text-warning-foreground hover:gba:bg-warning/90'
-                      : 'gba:bg-accent hover:gba:bg-accent/90'
-                  }`}
-                  data-testid={`${prefixDataTestId}-raise-hand-btn-mobile`}
-                  aria-label={handRaised ? 'Lower hand' : 'Raise hand'}
-                  title={handRaised ? 'Lower hand' : 'Raise hand'}
-                >
-                  <HandIcon className="gba:w-4 gba:h-4" weight="fill" />
-                </button>
-              )}
-
-              {/* Reactions popover button */}
-              {onSendReaction && (
-                <Popover open={reactionsOpen} onOpenChange={setReactionsOpen}>
-                  <PopoverTrigger asChild>
-                    <button
-                      className="gba:p-2.5 gba:rounded-full gba:bg-accent hover:gba:bg-accent/90 gba:transition-all"
-                      data-testid={`${prefixDataTestId}-reactions-btn-mobile`}
-                      aria-label="Send reaction"
-                      title="Send reaction"
-                    >
-                      <Smiley className="gba:w-4 gba:h-4" weight="fill" />
-                    </button>
-                  </PopoverTrigger>
-                  <PopoverContent
-                    className="gba:w-auto gba:p-2"
-                    side="top"
-                    data-testid={`${prefixDataTestId}-reactions-popover-mobile`}
-                  >
-                    <div className="gba:flex gba:gap-1">
-                      {REACTIONS.map(emoji => (
-                        <button
-                          key={emoji}
-                          onClick={() => {
-                            onSendReaction(emoji)
-                            setReactionsOpen(false)
-                          }}
-                          className="gba:p-2 gba:rounded-lg hover:gba:bg-accent gba:transition-all gba:text-2xl"
-                          title={`Send ${emoji}`}
-                          data-testid={`${prefixDataTestId}-reaction-${emoji}-mobile`}
-                          aria-label={`Send ${emoji} reaction`}
-                        >
-                          {emoji}
-                        </button>
-                      ))}
-                    </div>
-                  </PopoverContent>
-                </Popover>
-              )}
-            </div>
-          )}
-
-          {/* Mobile: "More" menu for secondary controls (only when 2+ options) */}
-          {showMoreMenu && (
-            <Popover open={moreMenuOpen} onOpenChange={setMoreMenuOpen}>
-              <PopoverTrigger asChild>
-                <button
-                  className="gba:p-2.5 gba:rounded-full gba:bg-accent hover:gba:bg-accent/90 gba:transition-all"
-                  data-testid={`${prefixDataTestId}-more-btn`}
-                  aria-label="More options"
-                  title="More options"
-                >
-                  <DotsThree className="gba:w-4 gba:h-4" weight="fill" />
-                </button>
-              </PopoverTrigger>
-              <PopoverContent
-                className="gba:w-64 gba:p-3"
-                side="top"
-                align="end"
-                data-testid={`${prefixDataTestId}-more-menu`}
-              >
-                <div className="gba:flex gba:flex-col gba:gap-2">
-                  {/* Background effect option */}
-                  {onToggleBackground && callType === 'video' && (
-                    <button
-                      onClick={() => {
-                        onToggleBackground()
-                        setMoreMenuOpen(false)
-                      }}
-                      className={`gba:flex gba:items-center gba:gap-3 gba:px-4 gba:py-3 gba:rounded-xl hover:gba:bg-accent gba:transition-all gba:text-left gba:w-full ${
-                        backgroundEnabled ? 'gba:bg-primary/10 gba:ring-1 gba:ring-primary/20' : ''
-                      }`}
-                      data-testid={`${prefixDataTestId}-background-btn-mobile`}
-                    >
-                      <div
-                        className={`gba:p-2 gba:rounded-lg ${backgroundEnabled ? 'gba:bg-primary gba:text-primary-foreground' : 'gba:bg-accent'}`}
-                      >
-                        <Image className="gba:w-5 gba:h-5" weight="fill" />
-                      </div>
-                      <span className="gba:text-sm gba:font-medium">
-                        {backgroundEnabled
-                          ? t('groupCall-disableBackground') || 'Disable background effect'
-                          : t('groupCall-enableBackground') || 'Enable background effect'}
-                      </span>
-                    </button>
-                  )}
-
-                  {/* Raise hand option */}
-                  {onToggleRaiseHand && (
-                    <button
-                      onClick={() => {
-                        onToggleRaiseHand()
-                        setMoreMenuOpen(false)
-                      }}
-                      className={`gba:flex gba:items-center gba:gap-3 gba:px-4 gba:py-3 gba:rounded-xl hover:gba:bg-accent gba:transition-all gba:text-left gba:w-full ${
-                        handRaised ? 'gba:bg-warning/10 gba:ring-1 gba:ring-warning/20' : ''
-                      }`}
-                      data-testid={`${prefixDataTestId}-raise-hand-btn-mobile`}
-                    >
-                      <div
-                        className={`gba:p-2 gba:rounded-lg ${handRaised ? 'gba:bg-warning gba:text-warning-foreground' : 'gba:bg-accent'}`}
-                      >
-                        <HandIcon className="gba:w-5 gba:h-5" weight="fill" />
-                      </div>
-                      <span className="gba:text-sm gba:font-medium">{handRaised ? 'Lower hand' : 'Raise hand'}</span>
-                    </button>
-                  )}
-
-                  {/* Reactions section */}
-                  {onSendReaction && (
-                    <>
-                      {(onToggleBackground || onToggleRaiseHand) && <div className="gba:h-px gba:bg-border gba:my-1" />}
-                      <div className="gba:px-1 gba:py-1">
-                        <span className="gba:text-xs gba:text-muted-foreground gba:font-semibold gba:uppercase gba:tracking-wide">
-                          Reactions
-                        </span>
-                      </div>
-                      <div className="gba:grid gba:grid-cols-5 gba:gap-2 gba:px-1 gba:py-2">
-                        {REACTIONS.map(emoji => (
-                          <button
-                            key={emoji}
-                            onClick={() => {
-                              onSendReaction(emoji)
-                              setMoreMenuOpen(false)
-                            }}
-                            className="gba:aspect-square gba:p-3 gba:rounded-xl hover:gba:bg-accent gba:transition-all gba:text-2xl gba:flex gba:items-center gba:justify-center hover:gba:scale-110 active:gba:scale-95"
-                            title={`Send ${emoji}`}
-                            data-testid={`${prefixDataTestId}-reaction-${emoji}-mobile`}
-                            aria-label={`Send ${emoji} reaction`}
-                          >
-                            {emoji}
-                          </button>
-                        ))}
-                      </div>
-                    </>
-                  )}
-                </div>
-              </PopoverContent>
-            </Popover>
-          )}
-        </div>
-
-        {/* Separator - hidden on mobile */}
         {showDesktopLayout && <div className="gba:h-6 gba:w-px gba:bg-border/50" />}
 
-        {/* Right: End Call Button */}
-        <button
+        <ControlBarButton
+          variant="destructive"
+          size={size}
+          icon={
+            <PhoneDisconnectIcon
+              className={showDesktopLayout ? 'gba:w-4 gba:h-4' : 'gba:w-3.5 gba:h-3.5'}
+              weight="fill"
+            />
+          }
           onClick={onEndCall}
-          className={`${
-            showDesktopLayout ? 'gba:px-5 gba:py-2.5 gba:gap-2' : 'gba:px-4 gba:py-2 gba:gap-1.5'
-          } gba:rounded-full gba:bg-destructive gba:text-destructive-foreground hover:gba:bg-destructive/90 gba:transition-all gba:font-medium gba:flex gba:items-center`}
-          data-testid={`${prefixDataTestId}-end-btn`}
           aria-label={t('groupCall-endCall')}
           title={t('groupCall-endCall')}
+          data-testid={`${prefixDataTestId}-end-btn`}
+          className={showDesktopLayout ? 'gba:px-5 gba:py-2.5 gba:gap-2' : 'gba:px-4 gba:py-2 gba:gap-1.5'}
         >
-          <PhoneDisconnect className={showDesktopLayout ? 'gba:w-4 gba:h-4' : 'gba:w-3.5 gba:h-3.5'} weight="fill" />
           <span className={showDesktopLayout ? 'gba:text-sm' : 'gba:text-xs'}>
             {t('groupCall-endCall') || 'End call'}
           </span>
-        </button>
+        </ControlBarButton>
       </div>
     </div>
   )

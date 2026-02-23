@@ -9,7 +9,7 @@
  * - Participant status indicators (muted, video, hand raised, screen share)
  */
 
-import React, { useState } from 'react'
+import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react'
 import {
   MagnifyingGlassIcon,
   MicrophoneIcon,
@@ -20,7 +20,8 @@ import {
   MonitorIcon,
   PhoneIcon,
   DotsThreeVerticalIcon,
-  SpeakerXIcon
+  SpeakerXIcon,
+  XIcon
 } from '@phosphor-icons/react'
 import {
   Avatar,
@@ -41,13 +42,14 @@ import {
 } from '@newwork/nw-design-system'
 import { useRealtimeKitSelector } from '@cloudflare/realtimekit-react'
 import { getInitials } from '../../utils/callUtils'
-import { rtkDebug } from '../../utils/rtkDebug'
-import type { PendingInvite } from '../../hooks/useGroupCall'
+import type { PendingInvite } from '../../services/callTypes'
+import { createEmployeeSearchService } from '../../calendar/services/employeeSearchService'
 
 export interface AvailableParticipant {
   id: string
   odId: string
   odName: string
+  avatarUrl?: string
 }
 
 export interface CallParticipant {
@@ -89,6 +91,8 @@ export interface ParticipantsPanelProps {
   t?: (key: string) => string
   /** Active conversation for avatar URLs */
   activeConversation?: any
+  /** Access token for employee search (add user to call) */
+  accessToken?: string | null
 }
 
 export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
@@ -107,12 +111,74 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
   activeSpeakerId,
   activeSpeakerHistory = [],
   t = (key: string) => key,
-  activeConversation
+  activeConversation,
+  accessToken
 }) => {
   const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<AvailableParticipant[]>([])
+  const [isSearching, setIsSearching] = useState(false)
   const [invitingParticipantIds, setInvitingParticipantIds] = useState<Set<string>>(new Set())
   const [showMuteAllConfirm, setShowMuteAllConfirm] = useState(false)
   const inviteTimeoutsRef = React.useRef<Map<string, NodeJS.Timeout>>(new Map())
+  const searchDebounceRef = useRef<NodeJS.Timeout | null>(null)
+
+  const employeeSearchService = useMemo(
+    () => (accessToken ? createEmployeeSearchService(accessToken) : null),
+    [accessToken]
+  )
+
+  const runEmployeeSearch = useCallback(
+    async (query: string) => {
+      if (!query.trim() || !employeeSearchService) {
+        setSearchResults([])
+        setIsSearching(false)
+        return
+      }
+      setIsSearching(true)
+      try {
+        const employees = await employeeSearchService.searchEmployees(query, 10)
+        const mapped: AvailableParticipant[] = employees.map(e => ({
+          id: e.userId || e.id,
+          odId: e.userId || e.id,
+          odName: e.displayName || 'Unknown',
+          avatarUrl: e.pictureThumbnail
+        }))
+        setSearchResults(mapped)
+      } catch (err) {
+        console.error('Employee search failed:', err)
+        setSearchResults([])
+      } finally {
+        setIsSearching(false)
+      }
+    },
+    [employeeSearchService]
+  )
+
+  useEffect(() => {
+    if (searchDebounceRef.current) {
+      clearTimeout(searchDebounceRef.current)
+      searchDebounceRef.current = null
+    }
+    if (!searchQuery.trim() || !accessToken) {
+      setSearchResults([])
+      setIsSearching(false)
+      return
+    }
+    if (searchQuery.trim().length < 2) {
+      setSearchResults([])
+      return
+    }
+    searchDebounceRef.current = setTimeout(() => {
+      searchDebounceRef.current = null
+      runEmployeeSearch(searchQuery)
+    }, 300)
+    return () => {
+      if (searchDebounceRef.current) {
+        clearTimeout(searchDebounceRef.current)
+        searchDebounceRef.current = null
+      }
+    }
+  }, [searchQuery, accessToken, runEmployeeSearch])
 
   // Handler to mute all participants with confirmation
   const handleMuteAllClick = () => {
@@ -152,16 +218,6 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
   // Handler for inviting a participant with loading state - supports multiple simultaneous invites
   const handleInviteClick = async (participant: CallParticipant) => {
     if (!onInviteParticipant || invitingParticipantIds.has(participant.odId)) return
-
-    // [DEBUG] Log participant data being sent to backend AND current stored data
-    rtkDebug.log('[ParticipantsPanel] 📤 Inviting participant:', {
-      id: participant.id,
-      odId: participant.odId,
-      odName: participant.odName,
-      fullParticipant: participant,
-      allSeenParticipantsKeys: Array.from(allSeenParticipantsRef.current.keys()),
-      allSeenParticipantsValues: Array.from(allSeenParticipantsRef.current.values())
-    })
 
     // Add to inviting set
     setInvitingParticipantIds(prev => new Set([...prev, participant.odId]))
@@ -342,23 +398,6 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
       })
     }
 
-    rtkDebug.log('[ParticipantsPanel] 🔍 Matching SDK participants to conversation participants:', {
-      activeParticipantsCount: activeParticipants.length,
-      availableParticipantsCount: availableParticipants.length,
-      conversationParticipantsCount: conversationParticipants.length,
-      activeParticipants: activeParticipants.map((p: any) => ({
-        userId: p.userId,
-        customParticipantId: p.customParticipantId,
-        id: p.id,
-        name: p.name
-      })),
-      conversationParticipants: conversationParticipants.map((p: any) => ({
-        id: p.id,
-        odId: p.odId,
-        odName: p.odName
-      }))
-    })
-
     activeParticipants.forEach((sdkParticipant: any) => {
       // CRITICAL FIX: Match SDK participant to conversation participant to get the REAL user ID
       // The SDK uses internal IDs which don't match our database user IDs
@@ -369,23 +408,6 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
           cp.id === sdkParticipant.userId ||
           cp.odName?.toLowerCase() === sdkParticipant.name?.toLowerCase()
       )
-
-      rtkDebug.log('[ParticipantsPanel] 🔎 Matching result for participant:', {
-        sdkParticipant: {
-          userId: sdkParticipant.userId,
-          customParticipantId: sdkParticipant.customParticipantId,
-          id: sdkParticipant.id,
-          name: sdkParticipant.name
-        },
-        conversationParticipant: conversationParticipant
-          ? {
-              id: conversationParticipant.id,
-              odId: conversationParticipant.odId,
-              odName: conversationParticipant.odName
-            }
-          : null,
-        foundMatch: !!conversationParticipant
-      })
 
       // Use the conversation participant's ID if found, otherwise fall back to SDK IDs
       // CRITICAL: customParticipantId is the REAL user ID set by us, userId is SDK's internal ID
@@ -409,31 +431,10 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
           const sdkIds = [sdkParticipant.userId, sdkParticipant.customParticipantId, sdkParticipant.id]
           sdkIds.forEach(sdkId => {
             if (sdkId && sdkId !== realUserId && allSeenParticipantsRef.current.has(sdkId)) {
-              rtkDebug.log('[ParticipantsPanel] 🧹 Cleaning up old SDK ID:', {
-                sdkId,
-                realUserId,
-                participantName: conversationParticipant.odName
-              })
               allSeenParticipantsRef.current.delete(sdkId)
             }
           })
         }
-
-        const isNewEntry = !allSeenParticipantsRef.current.has(realUserId)
-
-        // [DEBUG] Log when adding/updating seen participants
-        rtkDebug.log(
-          isNewEntry
-            ? '[ParticipantsPanel] 👀 Adding to allSeenParticipants:'
-            : '[ParticipantsPanel] 🔄 Updating allSeenParticipants:',
-          {
-            key: realUserId,
-            participantData,
-            rawSdkParticipant: sdkParticipant,
-            matchedConversationParticipant: conversationParticipant,
-            isNewEntry
-          }
-        )
 
         allSeenParticipantsRef.current.set(realUserId, participantData)
       }
@@ -451,6 +452,10 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
     if (p.userId) activeParticipantIds.add(p.userId)
     if (p.name) activeParticipantNames.add(p.name.toLowerCase())
   })
+
+  const notInMeetingResults = searchResults.filter(
+    r => !activeParticipantIds.has(r.odId) && !activeParticipantIds.has(r.id) && !pendingInvites?.has(r.odId)
+  )
 
   // Build a unified participant list from multiple sources
   // Priority: Show SDK active participants + pending invites + conversation participants + previously seen participants
@@ -614,19 +619,6 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
   )
   const filteredAvailableParticipants = filteredAllParticipants.filter(p => p.status === 'available')
 
-  // [DEBUG] Log participant lists for debugging
-  rtkDebug.log('[ParticipantsPanel] 📊 Participant lists:', {
-    allSeenCount: allSeenParticipantsRef.current.size,
-    allSeenKeys: Array.from(allSeenParticipantsRef.current.keys()),
-    allSeenValues: Array.from(allSeenParticipantsRef.current.values()),
-    previouslySeenEntriesCount: previouslySeenEntries.length,
-    previouslySeenEntries,
-    activeCount: filteredActiveParticipants.length,
-    invitedCount: filteredInvitedParticipants.length,
-    availableCount: filteredAvailableParticipants.length,
-    allParticipantsCount: allParticipantsWithStatus.length
-  })
-
   if (!isOpen) return null
 
   return (
@@ -662,16 +654,27 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
             placeholder={t('chat-searchPeople')}
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            className="gba:w-full gba:pl-10 gba:pr-3 gba:py-2 gba:rounded gba:border gba:bg-background"
+            className="gba:w-full gba:pl-10 gba:pr-10 gba:py-2 gba:rounded gba:border gba:bg-background"
             data-testid={`${prefixDataTestId}-participants-search`}
           />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              className="gba:absolute gba:right-2.5 gba:top-2.5 gba:p-0.5 gba:rounded hover:gba:bg-muted gba:text-muted-foreground"
+              aria-label={t('participants-clear-search')}
+              data-testid={`${prefixDataTestId}-participants-search-clear`}
+            >
+              <XIcon className="gba:h-4 gba:w-4" weight="bold" />
+            </button>
+          )}
         </div>
       </div>
 
       {/* Participants List */}
       <div className="gba:overflow-y-auto gba:flex-1 gba:min-h-0">
-        {/* No Results */}
-        {filteredAllParticipants.length === 0 ? (
+        {/* No Results (only when not showing "Not in this meeting" search) */}
+        {filteredAllParticipants.length === 0 && searchQuery.trim().length < 2 ? (
           <div className="gba:p-8 gba:text-center">
             {searchQuery ? (
               // No search results
@@ -914,7 +917,71 @@ export const ParticipantsPanel: React.FC<ParticipantsPanelProps> = ({
               </div>
             )}
 
-            {/* Section 3: Available (Not in Call) */}
+            {/* Section 3: Not in this meeting (employee search results) */}
+            {searchQuery.trim().length >= 2 && (
+              <div>
+                <div className="gba:px-3 gba:py-2 gba:bg-muted/30 gba:text-xs gba:font-semibold gba:text-muted-foreground gba:uppercase">
+                  {t('participants-not-in-this-meeting')}
+                </div>
+                {isSearching ? (
+                  <div className="gba:p-4 gba:flex gba:justify-center">
+                    <Spinner className="gba:h-6 gba:w-6" />
+                  </div>
+                ) : notInMeetingResults.length === 0 ? (
+                  <div className="gba:px-3 gba:py-4 gba:text-sm gba:text-muted-foreground">
+                    {t('participants-no-results-found')}
+                  </div>
+                ) : (
+                  notInMeetingResults.map(p => (
+                    <div
+                      key={p.odId}
+                      className="gba:p-3 gba:flex gba:items-center gba:justify-between hover:gba:bg-muted/50 gba:border-b gba:transition-colors"
+                      data-testid={`${prefixDataTestId}-participant-not-in-meeting-${p.odId}`}
+                    >
+                      <div className="gba:flex gba:items-center gba:gap-3 gba:flex-1 gba:min-w-0">
+                        <Avatar className="gba:h-8 gba:w-8 gba:flex-shrink-0">
+                          {p.avatarUrl && <AvatarImage src={p.avatarUrl} alt={p.odName || t('participants-unknown')} />}
+                          <AvatarFallback className="gba:text-xs">
+                            {getInitials(p.odName || t('participants-unknown'))}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="gba:flex-1 gba:min-w-0">
+                          <p className="gba:text-sm gba:font-medium gba:truncate">
+                            {p.odName || t('participants-unknown')}
+                          </p>
+                          <p className="gba:text-xs gba:text-muted-foreground">
+                            {t('participants-available-to-invite')}
+                          </p>
+                        </div>
+                      </div>
+                      {onInviteParticipant && (
+                        <button
+                          onClick={() => handleInviteClick(p)}
+                          disabled={invitingParticipantIds.has(p.odId)}
+                          className="gba:px-3 gba:py-1.5 gba:bg-primary gba:text-primary-foreground hover:gba:bg-primary/90 disabled:gba:bg-primary/60 disabled:gba:cursor-not-allowed gba:rounded gba:flex gba:items-center gba:gap-2 gba:text-xs gba:font-medium gba:transition-colors gba:flex-shrink-0"
+                          aria-label={`${t('participants-invite')} ${p.odName}`}
+                          data-testid={`${prefixDataTestId}-invite-btn-not-in-meeting-${p.odId}`}
+                        >
+                          {invitingParticipantIds.has(p.odId) ? (
+                            <>
+                              <Spinner className="gba:h-3 gba:w-3" />
+                              {t('participants-inviting')}
+                            </>
+                          ) : (
+                            <>
+                              <PhoneIcon className="gba:h-3 gba:w-3" weight="fill" />
+                              {t('participants-invite')}
+                            </>
+                          )}
+                        </button>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+
+            {/* Section 4: Available (Not in Call) */}
             {filteredAvailableParticipants.length > 0 && (
               <div>
                 <div className="gba:px-3 gba:py-2 gba:bg-muted/30 gba:text-xs gba:font-semibold gba:text-muted-foreground gba:uppercase gba:sticky gba:top-0">

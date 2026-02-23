@@ -6,6 +6,7 @@ knowledge = Knowledge
 documents = Documents
 questions = Questions
 glossary = Glossary
+policies = Policies
 
 # Greetings
 greeting-morning = Good Morning
@@ -20,6 +21,8 @@ news-welcome-title = News
 news-welcome-subtitle = Stay up to date
 knowledge-welcome-title = Knowledge Base
 knowledge-welcome-subtitle = Share and discover knowledge
+policies-welcome-title = Policies
+policies-welcome-subtitle = Operational policies you can acknowledge, operationalize, and monitor
 document-welcome-title = Documents
 document-welcome-subtitle = Find important resources
 question-welcome-title = Q&A Forum
@@ -32,6 +35,7 @@ search_articles = Search articles...
 search_intranet = Search Intranet...
 search_news = Search News...
 search_knowledge = Search Knowledge...
+search_policies = Search policies...
 search_documents = Search Areas...
 search_questions = Search Questions...
 
@@ -48,11 +52,26 @@ recent_articles = Recent Articles
 more_articles = More Articles
 recent_news_articles = Recent News Articles
 recent_knowledge_articles = Recent Knowledge Articles
+pinned_policies = Pinned policies
 recently_uploaded_documents = Recently Uploaded Documents
 unanswered_questions = Unanswered Questions
 
+# Policy filters
+policies_filter_status = Status
+policies_filter_status_all = All
+policies_filter_status_active = Active
+policies_filter_status_draft = Draft
+policies_filter_category = Domain / category
+policies_filter_owner = Owner
+policies_filter_last_updated = Last updated
+policies_filter_any = Any
+policies_filter_last_updated_7d = Last 7 days
+policies_filter_last_updated_30d = Last 30 days
+policies_filter_last_updated_90d = Last 90 days
+
 # Buttons
 create_article = Create Article
+create_policy = Create Policy
 publish_news = Publish News
 create_document = Create Document
 create_area = Create Area
@@ -78,6 +97,13 @@ no_more_articles = No more articles
 no_intranet_found = No intranet content found
 no_news_found = No news found
 no_knowledge_found = No knowledge articles found
+no_policies_found = No policies found
+
+# Policy table columns
+policies_col_title = Title
+policies_col_owner = Owner
+policies_col_status = Status
+policies_col_updated = Last updated
 no_documents_found = No documents found
 no_questions_found = No questions yet. Be the first to ask!
 

@@ -1,3 +1,7 @@
+import type { AssetSummaryData } from '../components/displays/asset-summary'
+import type { TeamAvailabilityData } from '../components/displays/team-availability'
+import type { CrmFunnelData } from '../components/displays/crm-funnel'
+
 /**
  * AI Assistant Models and Types
  * Based on gravity-platform's EveryChat implementation
@@ -132,7 +136,7 @@ export type CalendarEvent = {
 
 export type CalendarViewData = {
   type: 'calendar'
-  view: 'year' | 'month' | 'week'
+  view: 'year' | 'month' | 'week' | 'day'
   startDate: string
   events: CalendarEvent[]
   title: string
@@ -146,6 +150,8 @@ export type NavigationData = {
   reason: string
 }
 
+export type { AssetSummaryData, TeamAvailabilityData }
+export type { CrmFunnelData }
 export type DisplayData =
   | TextBlockData
   | TableData
@@ -156,6 +162,9 @@ export type DisplayData =
   | CalendarViewData
   | NavigationData
   | ReminderData
+  | CrmFunnelData
+  | AssetSummaryData
+  | TeamAvailabilityData
 
 export type NextStepProposal = {
   heading: string
@@ -225,6 +234,7 @@ export type Mention = {
   data?: any
 }
 
+// Legacy fallback for historical turns. New turns carry mention links directly in `text`.
 export type UserTurn = { side: 'user'; text: string; files?: FileMeta[]; mentions?: Mention[] }
 export type AgentTurn = { side: 'agent'; outputs: OutputItem[] }
 export type ConversationTurn = UserTurn | AgentTurn

@@ -13,7 +13,7 @@ export interface AbsenceListCardAbsence {
   endDate: string
   duration: string
   description: string
-  icon: React.ReactNode
+  icon: React.ElementType | React.ReactNode
   typeColor: string
   statusColor: string
   requestDate: string
@@ -30,7 +30,7 @@ export interface Entitlement {
   total: number
   pending: number
   available: number
-  icon: React.ReactNode
+  icon: React.ElementType | React.ReactNode
   checkEntitlement?: boolean
 }
 

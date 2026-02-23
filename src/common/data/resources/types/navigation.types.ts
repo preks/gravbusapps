@@ -6,8 +6,8 @@ export interface NavigationDTO {
   code: string
   name: string
   url: string
-  roles?: string[]
-  features?: string[]
+  roles?: { name: string }[]
+  features?: { name: string }[]
   name_i18n?: Record<string, string>
   description?: string
   description_i18n?: Record<string, string>

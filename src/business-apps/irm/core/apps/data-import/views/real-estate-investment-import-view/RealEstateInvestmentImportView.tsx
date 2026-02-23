@@ -33,7 +33,6 @@ export const RealEstateInvestmentImportView: React.FC<RealEstateInvestmentImport
   // Main import hook
   const {
     file,
-    parsedData,
     agentResponse,
     convertedEntities: convertedRealEstateInvestments,
     step,
@@ -62,8 +61,8 @@ export const RealEstateInvestmentImportView: React.FC<RealEstateInvestmentImport
   }, [agentResponse, setMappings])
 
   // Handle conversion with current mappings and transformation function
-  const handleConvert = () => {
-    baseConvertData(mappings, convertToNestedRealEstateInvestment)
+  const handleConvert = async () => {
+    await baseConvertData(mappings, convertToNestedRealEstateInvestment)
   }
 
   return (
@@ -100,7 +99,6 @@ export const RealEstateInvestmentImportView: React.FC<RealEstateInvestmentImport
           agentResponse={agentResponse}
           mappings={mappings}
           targetFieldsConfig={realEstateInvestmentImportConfig.targetFields}
-          parsedDataCount={parsedData.length}
           entityType={t('entity-type')}
           isLoading={isLoading}
           onUpdateMapping={updateMapping}

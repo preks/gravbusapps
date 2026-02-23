@@ -2,8 +2,7 @@
 
 import React, { useCallback } from 'react'
 import dayjs from 'dayjs'
-import { Button, Avatar, Alert } from '@newwork/gravity-ui-catalog'
-import { useOpenChat } from '@/modules/chat-sidebar/utils/hooks/useOpenChat'
+import { postToPlatform } from '@/common/utils/postToPlatform'
 import { AppAction } from '@/components/app-action'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
@@ -21,7 +20,15 @@ import {
 } from 'react-icons/pi'
 import { useEmployeeDetailsData } from './hooks/useEmployeeDetailsData'
 import { getCatalogValue, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
-import { useTranslation } from '@newwork/nw-design-system'
+import {
+  useTranslation,
+  Button,
+  Avatar,
+  AvatarImage,
+  AvatarFallback,
+  Alert,
+  AlertDescription
+} from '@newwork/nw-design-system'
 import employeeDetailsTranslations from './_i18n'
 import { MatrixUnitEmployee, EmployeeCapability, EmployeeSkill } from './types'
 
@@ -36,6 +43,124 @@ interface ProfileInfoItemProps {
   value: string
   linkTo?: string
   onClick?: () => void
+}
+
+const extractWorkEmail = (communications: any[] | null | undefined): string | undefined => {
+  if (!communications || !Array.isArray(communications)) {
+    return undefined
+  }
+
+  const emailComm = communications.find((c: any) => {
+    if (!c.value || c.value.trim() === '') return false
+    const channelValue = c.channel?.value?.toLowerCase() || ''
+    return channelValue.includes('email')
+  })
+
+  return emailComm?.value?.trim() || undefined
+}
+
+const getBusinessEmail = (employeeData: any) => extractWorkEmail(employeeData?.communication) || ''
+
+const getBusinessPhone = (employeeData: any) => {
+  const phone = employeeData?.communication?.find(
+    (c: any) => (c?.channel?.code === 'Mobile' || c?.channel?.code === 'Phone') && !c?.isDeleted && c?.value
+  )?.value
+  return phone || employeeData?.additionalProperties?.phone || ''
+}
+
+const formatPhoneNumber = (phone: string) => {
+  if (!phone) return ''
+  return phone.replace(/(\d{3})(\d{3})(\d{4})/, '$1-$2-$3')
+}
+
+const calculateTimeSince = (employeeData: any, t: (key: string) => string) => {
+  const hireDate = employeeData?.workingCondition?.[0]?.hireDate
+  if (!hireDate) return ''
+
+  const hire = dayjs(hireDate)
+  const now = dayjs()
+
+  const years = now.diff(hire, 'year')
+  const months = now.diff(hire, 'month') % 12
+  let result = ''
+
+  if (years > 0) {
+    result += `${years} ${years === 1 ? t('employee-details-year') : t('employee-details-years')}`
+  }
+
+  if (months > 0 || years === 0) {
+    if (years > 0) result += ' '
+    result += `${months} ${months === 1 ? t('employee-details-month') : t('employee-details-months')}`
+  }
+
+  return result
+}
+
+const formatDateLocalized = (isoDate: string) => {
+  const locale = getCurrentActiveUserLocale?.() || 'en-US'
+  try {
+    return new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric', year: 'numeric' }).format(
+      new Date(isoDate)
+    )
+  } catch {
+    return dayjs(isoDate).format('MMM D, YYYY')
+  }
+}
+
+const getManagerName = (employeeData: any, t: (key: string) => string) => {
+  const supervisor = employeeData?.employeePosition?.supervisor
+  if (!supervisor || supervisor.id === employeeData?.id) return t('employee-details-no-manager')
+
+  return (
+    supervisor.displayName ||
+    `${supervisor.firstName} ${supervisor.lastName}`.trim() ||
+    t('employee-details-not-assigned')
+  )
+}
+
+const getManagerClickHandler = (employeeData: any): (() => void) | undefined => {
+  const supervisorId = employeeData?.employeePosition?.supervisor?.id
+  if (!supervisorId || supervisorId === employeeData?.id) {
+    return undefined
+  }
+
+  return () => {
+    const url = new URL(globalThis.location.href)
+    url.searchParams.set('employeeId', supervisorId)
+    globalThis.history.pushState({}, '', url.toString())
+  }
+}
+
+const openChatWithUser = (userId: string | undefined, displayName: string) => {
+  if (!userId) {
+    return
+  }
+
+  postToPlatform({
+    type: 'OPEN_CHAT_WITH_USER',
+    payload: { userId, userName: displayName || userId }
+  })
+}
+
+const startUserCall = (
+  userId: string | undefined,
+  displayName: string,
+  pictureThumbnail: string | undefined,
+  callType: 'audio' | 'video'
+) => {
+  if (!userId) {
+    return
+  }
+
+  postToPlatform({
+    type: 'START_CALL_WITH_USER',
+    payload: {
+      userId,
+      displayName: displayName || userId,
+      avatarUrl: pictureThumbnail ? `data:image/gif;base64,${pictureThumbnail}` : undefined,
+      callType
+    }
+  })
 }
 
 const ProfileInfoItem: React.FC<ProfileInfoItemProps> = ({ icon, label, value, linkTo, onClick }) => {
@@ -92,166 +217,33 @@ const ProfileInfoItem: React.FC<ProfileInfoItemProps> = ({ icon, label, value, l
   )
 }
 
-/**
- * Self-contained Employee Details component that fetches its own data
- * @returns {JSX.Element}
- */
-export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
-  const { employeeId, accessToken, employeeData: propEmployeeData } = context
-  const { t } = useTranslation(employeeDetailsTranslations)
+interface EmployeeDetailsContentProps {
+  employeeData: any
+  accessToken?: string
+  userId?: string
+  businessEmail: string
+  businessPhone: string
+  managerName: string
+  managerClickHandler?: () => void
+  t: (key: string) => string
+  onChat: () => void
+  onCall: () => void
+  onVideoCall: () => void
+}
 
-  // Only fetch data if not provided as prop
-  const {
-    employeeData: fetchedData,
-    isLoading,
-    error,
-    refetch
-  } = useEmployeeDetailsData({
-    employeeId,
-    context,
-    skipFetch: !!propEmployeeData // Skip fetching if data provided as prop
-  })
-
-  // Use prop data if available, otherwise use fetched data
-  const employeeData = propEmployeeData || fetchedData
-
-  const { openChatWithUser, openAudioConferenceWithUser, openVideoConferenceWithUser } = useOpenChat()
-
-  // Handler functions for actions
-  const handleChat = useCallback(() => {
-    if (employeeData?.additionalProperties?.userId) {
-      openChatWithUser(employeeData.additionalProperties.userId)
-    }
-  }, [employeeData?.additionalProperties?.userId, openChatWithUser])
-
-  const handleCall = useCallback(() => {
-    if (employeeData?.additionalProperties?.userId) {
-      openAudioConferenceWithUser(employeeData.additionalProperties.userId)
-    }
-  }, [employeeData?.additionalProperties?.userId, openAudioConferenceWithUser])
-
-  const handleVideoCall = useCallback(() => {
-    if (employeeData?.additionalProperties?.userId) {
-      openVideoConferenceWithUser(employeeData.additionalProperties.userId)
-    }
-  }, [employeeData?.additionalProperties?.userId, openVideoConferenceWithUser])
-
-  // Helper functions
-  const getManagerName = () => {
-    const supervisor = employeeData?.employeePosition?.supervisor
-    if (!supervisor || supervisor.id === employeeData?.id) return t('employee-details-no-manager')
-    return (
-      supervisor.displayName ||
-      `${supervisor.firstName} ${supervisor.lastName}`.trim() ||
-      t('employee-details-not-assigned')
-    )
-  }
-
-  const extractWorkEmail = (communications: any[] | null | undefined): string | undefined => {
-    if (!communications || !Array.isArray(communications)) {
-      return undefined
-    }
-
-    const emailComm = communications.find((c: any) => {
-      if (!c.value || c.value.trim() === '') return false
-      const channelValue = c.channel?.value?.toLowerCase() || ''
-      return channelValue.includes('email')
-    })
-
-    return emailComm?.value?.trim() || undefined
-  }
-
-  const getBusinessEmail = () => {
-    // Use the same extraction logic as in EmployeeCard
-    const email = extractWorkEmail(employeeData?.communication)
-    return email || ''
-  }
-
-  const hasWorkEmail = !!getBusinessEmail()
-
-  const getBusinessPhone = () => {
-    const phone = employeeData?.communication?.find(
-      (c: any) => (c?.channel?.code === 'Mobile' || c?.channel?.code === 'Phone') && !c?.isDeleted && c?.value
-    )?.value
-    return phone || employeeData?.additionalProperties?.phone || ''
-  }
-
-  const formatPhoneNumber = (phone: string) => {
-    if (!phone) return ''
-    // Simple phone number formatting
-    return phone.replace(/(\d{3})(\d{3})(\d{4})/, '$1-$2-$3')
-  }
-
-  const calculateTimeSince = () => {
-    const hireDate = employeeData?.workingCondition?.[0]?.hireDate
-    if (!hireDate) return ''
-
-    const hire = dayjs(hireDate)
-    const now = dayjs()
-
-    const years = now.diff(hire, 'year')
-    const months = now.diff(hire, 'month') % 12
-
-    let result = ''
-
-    if (years > 0) {
-      result += `${years} ${years === 1 ? t('employee-details-year') : t('employee-details-years')}`
-    }
-
-    if (months > 0 || years === 0) {
-      if (years > 0) result += ' '
-      result += `${months} ${months === 1 ? t('employee-details-month') : t('employee-details-months')}`
-    }
-
-    return result
-  }
-
-  const formatDateLocalized = (isoDate: string) => {
-    const locale = getCurrentActiveUserLocale?.() || 'en-US'
-    try {
-      return new Intl.DateTimeFormat(locale, { month: 'short', day: 'numeric', year: 'numeric' }).format(
-        new Date(isoDate)
-      )
-    } catch {
-      // Fallback to dayjs if Intl fails for any reason
-      return dayjs(isoDate).format('MMM D, YYYY')
-    }
-  }
-
-  // Error state (only when there's an actual error and not loading)
-  if (!propEmployeeData && error && !isLoading) {
-    return (
-      <div className="gba:bg-white gba:h-full gba:p-6">
-        <Alert
-          message={t('employee-details-error-loading')}
-          description={error}
-          type="error"
-          showIcon
-          action={
-            <Button size="small" onClick={refetch}>
-              {t('employee-details-retry')}
-            </Button>
-          }
-        />
-      </div>
-    )
-  }
-
-  // Don't render anything if we're still loading or don't have data yet
-  if (!propEmployeeData && (isLoading || !employeeData)) {
-    return null
-  }
-
-  // If using prop data but it's missing, show minimal error
-  if (propEmployeeData && !employeeData) {
-    return (
-      <div className="gba:bg-white gba:h-full gba:p-6">
-        <div className="gba:text-center gba:text-muted-foreground">{t('employee-details-not-available')}</div>
-      </div>
-    )
-  }
-
-  // Phosphor icons
+const EmployeeDetailsContent: React.FC<EmployeeDetailsContentProps> = ({
+  employeeData,
+  accessToken,
+  userId,
+  businessEmail,
+  businessPhone,
+  managerName,
+  managerClickHandler,
+  t,
+  onChat,
+  onCall,
+  onVideoCall
+}) => {
   const ChatIcon = PiChat
   const CallIcon = PiPhone
   const VideoCallIcon = PiVideoCamera
@@ -259,7 +251,6 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
   return (
     <div className="gba:bg-white gba:h-full gba:overflow-auto">
       <div className="gba:p-6 gba:relative">
-        {/* Action button in top right corner with absolute positioning */}
         {accessToken && (
           <div className="gba:absolute gba:top-4 gba:right-2" onClick={e => e.stopPropagation()}>
             <AppAction
@@ -280,24 +271,17 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
 
         <div className="gba:space-y-6">
           <div className="gba:flex gba:flex-col gba:items-center gba:mb-4 gba:animate-fade-in">
-            <Avatar
-              src={employeeData.pictureThumbnail ? `data:image/gif;base64,${employeeData.pictureThumbnail}` : undefined}
-              initials={
-                employeeData.pictureThumbnail
-                  ? undefined
-                  : `${employeeData.firstName?.[0] || ''}${employeeData.lastName?.[0] || ''}`.toUpperCase()
-              }
-              // @ts-expect-error - Type issue in gravity-ui-catalog for contentType
-              contentType={employeeData.pictureThumbnail ? 'image' : 'initials'}
-              alt={`${employeeData.firstName} ${employeeData.lastName}`}
-              // @ts-expect-error - There is a type definition issue in gravity-ui-catalog@7.8.5 where AvatarSize is not correctly exported.
-              size="xl"
-              // @ts-expect-error - There is a type definition issue in gravity-ui-catalog@7.8.5 where AvatarSize is not correctly exported.
-              shape="circle"
-              // @ts-expect-error - There is a type definition issue in gravity-ui-catalog@7.8.5 where AvatarSize is not correctly exported.
-              appearance="gradient"
-              style={{ width: '100px', height: '100px', fontSize: '3rem' }}
-            />
+            <Avatar size="xl" className="gba:h-24 gba:w-24 gba:text-3xl">
+              <AvatarImage
+                src={
+                  employeeData.pictureThumbnail ? `data:image/gif;base64,${employeeData.pictureThumbnail}` : undefined
+                }
+                alt={`${employeeData.firstName} ${employeeData.lastName}`}
+              />
+              <AvatarFallback>
+                {`${employeeData.firstName?.[0] || ''}${employeeData.lastName?.[0] || ''}`.toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
             <a
               href={`/platform/employee-record?employeeId=${employeeData.id}`}
               className="gba:flex gba:items-center gba:justify-center gba:w-full"
@@ -315,52 +299,53 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
               {employeeData.employeePosition?.jobPosition?.name || t('employee-details-not-assigned')}
             </p>
 
-            {/* Chat actions directly under the name */}
             <div className="gba:flex gba:gap-2">
               <Button
                 variant="secondary"
                 size="lg"
-                onClick={handleChat}
-                icon={<ChatIcon />}
+                onClick={onChat}
                 className="gba:rounded-3xl gba:aspect-square gba:p-2"
                 data-testid="employee-details-chat-button"
-                disabled={!hasWorkEmail}
-              />
+                disabled={!userId}
+              >
+                <ChatIcon />
+              </Button>
               <Button
                 variant="secondary"
                 size="lg"
-                onClick={handleVideoCall}
-                icon={<VideoCallIcon />}
+                onClick={onVideoCall}
                 className="gba:rounded-3xl gba:aspect-square gba:p-2"
                 data-testid="employee-details-video-button"
-                disabled={!hasWorkEmail}
-              />
+                disabled={!userId}
+              >
+                <VideoCallIcon />
+              </Button>
               <Button
                 variant="secondary"
                 size="lg"
-                onClick={handleCall}
-                icon={<CallIcon />}
+                onClick={onCall}
                 className="gba:rounded-3xl gba:aspect-square gba:p-2"
                 data-testid="employee-details-audio-button"
-                disabled={!hasWorkEmail}
-              />
+                disabled={!userId}
+              >
+                <CallIcon />
+              </Button>
             </div>
           </div>
 
           <div className="gba:border-t gba:border-border gba:pt-4">
-            {/* Contact Information */}
             <div className="gba:mb-6">
               <h4 className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-4">
                 {t('employee-details-contact-information')}
               </h4>
               <div className="gba:space-y-2">
-                {getBusinessEmail() ? (
+                {businessEmail ? (
                   <a
-                    href={`mailto:${getBusinessEmail()}`}
+                    href={`mailto:${businessEmail}`}
                     className="gba:inline-flex gba:items-center gba:text-info gba:hover:text-info-secondary-foreground gba:transition-colors gba:text-sm"
                   >
                     <PiEnvelopeSimple className="gba:mr-2 gba:h-4 gba:w-4" />
-                    {getBusinessEmail()}
+                    {businessEmail}
                   </a>
                 ) : (
                   <div className="gba:inline-flex gba:items-center gba:text-muted-foreground gba:text-sm">
@@ -369,13 +354,13 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
                   </div>
                 )}
 
-                {getBusinessPhone() ? (
+                {businessPhone ? (
                   <a
-                    href={`tel:${getBusinessPhone()}`}
+                    href={`tel:${businessPhone}`}
                     className="gba:inline-flex gba:items-center gba:text-info gba:hover:text-info-secondary-foreground gba:transition-colors gba:text-sm"
                   >
                     <PiPhone className="gba:mr-2 gba:h-4 gba:w-4" />
-                    {formatPhoneNumber(getBusinessPhone())}
+                    {formatPhoneNumber(businessPhone)}
                   </a>
                 ) : (
                   <div className="gba:inline-flex gba:items-center gba:text-muted-foreground gba:text-sm">
@@ -391,7 +376,6 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
             </h4>
 
             <div className="gba:space-y-1">
-              {/* Organization */}
               <ProfileInfoItem
                 icon={<PiBuildings className="gba:h-4 gba:w-4" />}
                 label={t('employee-details-organization')}
@@ -403,31 +387,19 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
                 }
               />
 
-              {/* Manager */}
               <ProfileInfoItem
                 icon={<PiUser className="gba:h-4 gba:w-4" />}
                 label={t('employee-details-manager')}
-                value={getManagerName()}
-                onClick={
-                  employeeData.employeePosition?.supervisor?.id &&
-                  employeeData.employeePosition.supervisor.id !== employeeData.id
-                    ? () => {
-                        const url = new URL(window.location.href)
-                        url.searchParams.set('employeeId', employeeData.employeePosition?.supervisor?.id || '')
-                        window.history.pushState({}, '', url.toString())
-                      }
-                    : undefined
-                }
+                value={managerName}
+                onClick={managerClickHandler}
               />
 
-              {/* Job Position */}
               <ProfileInfoItem
                 icon={<PiMapPin className="gba:h-4 gba:w-4" />}
                 label={t('employee-details-job-position')}
                 value={employeeData.employeePosition?.jobPosition?.name || t('employee-details-not-assigned')}
               />
 
-              {/* Cost Center */}
               <ProfileInfoItem
                 icon={<PiCurrencyDollar className="gba:h-4 gba:w-4" />}
                 label={t('employee-details-cost-center')}
@@ -439,18 +411,16 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
                 }
               />
 
-              {/* Hire Date */}
               <ProfileInfoItem
                 icon={<PiCalendar className="gba:h-4 gba:w-4" />}
                 label={t('employee-details-hire-date')}
                 value={
                   employeeData.workingCondition?.[0]?.hireDate
-                    ? `${formatDateLocalized(employeeData.workingCondition[0].hireDate)} - ${calculateTimeSince()}`
+                    ? `${formatDateLocalized(employeeData.workingCondition[0].hireDate)} - ${calculateTimeSince(employeeData, t)}`
                     : t('employee-details-not-available')
                 }
               />
 
-              {/* Employment Type */}
               <ProfileInfoItem
                 icon={<PiUser className="gba:h-4 gba:w-4" />}
                 label={t('employee-details-employment-type')}
@@ -460,7 +430,6 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
                 }
               />
 
-              {/* Contract Type */}
               <ProfileInfoItem
                 icon={<PiUser className="gba:h-4 gba:w-4" />}
                 label={t('employee-details-contract-type')}
@@ -471,7 +440,6 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
               />
             </div>
 
-            {/* Teams Section */}
             <div className="gba:mt-6">
               <h4 className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-2">
                 {t('employee-details-teams')}
@@ -499,7 +467,6 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
               </div>
             </div>
 
-            {/* Capabilities Section */}
             <div className="gba:mt-6">
               <h4 className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-2">
                 {t('employee-details-capabilities')}
@@ -527,7 +494,6 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
               </div>
             </div>
 
-            {/* Skills Section */}
             <div className="gba:mt-6">
               <h4 className="gba:text-sm gba:font-medium gba:text-muted-foreground gba:mb-2">
                 {t('employee-details-skills')}
@@ -563,6 +529,96 @@ export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
         </div>
       </div>
     </div>
+  )
+}
+
+/**
+ * Self-contained Employee Details component that fetches its own data
+ * @returns {JSX.Element}
+ */
+export const EmployeeDetails: React.FC<EmployeeDetailsProps> = context => {
+  const { employeeId, accessToken, employeeData: propEmployeeData } = context
+  const { t } = useTranslation(employeeDetailsTranslations)
+
+  // Only fetch data if not provided as prop
+  const {
+    employeeData: fetchedData,
+    isLoading,
+    error,
+    refetch
+  } = useEmployeeDetailsData({
+    employeeId,
+    context,
+    skipFetch: !!propEmployeeData // Skip fetching if data provided as prop
+  })
+
+  // Use prop data if available, otherwise use fetched data
+  const employeeData = propEmployeeData || fetchedData
+
+  const displayName =
+    employeeData?.displayName || `${employeeData?.firstName ?? ''} ${employeeData?.lastName ?? ''}`.trim() || ''
+  const userId = employeeData?.additionalProperties?.userId
+  const businessEmail = getBusinessEmail(employeeData)
+  const businessPhone = getBusinessPhone(employeeData)
+  const managerName = getManagerName(employeeData, t)
+  const managerClickHandler = getManagerClickHandler(employeeData)
+
+  const handleChat = useCallback(() => {
+    openChatWithUser(userId, displayName)
+  }, [userId, displayName])
+
+  const handleCall = useCallback(() => {
+    startUserCall(userId, displayName, employeeData?.pictureThumbnail, 'audio')
+  }, [userId, displayName, employeeData?.pictureThumbnail])
+
+  const handleVideoCall = useCallback(() => {
+    startUserCall(userId, displayName, employeeData?.pictureThumbnail, 'video')
+  }, [userId, displayName, employeeData?.pictureThumbnail])
+
+  // Error state (only when there's an actual error and not loading)
+  if (!propEmployeeData && error && !isLoading) {
+    return (
+      <div className="gba:bg-white gba:h-full gba:p-6">
+        <Alert variant="destructive">
+          <AlertDescription className="gba:flex gba:items-center gba:justify-between gba:gap-3">
+            <span>{`${t('employee-details-error-loading')}: ${String(error)}`}</span>
+            <Button size="sm" variant="outline" onClick={refetch}>
+              {t('employee-details-retry')}
+            </Button>
+          </AlertDescription>
+        </Alert>
+      </div>
+    )
+  }
+
+  // Don't render anything if we're still loading or don't have data yet
+  if (!propEmployeeData && (isLoading || !employeeData)) {
+    return null
+  }
+
+  // If using prop data but it's missing, show minimal error
+  if (propEmployeeData && !employeeData) {
+    return (
+      <div className="gba:bg-white gba:h-full gba:p-6">
+        <div className="gba:text-center gba:text-muted-foreground">{t('employee-details-not-available')}</div>
+      </div>
+    )
+  }
+
+  return (
+    <EmployeeDetailsContent
+      employeeData={employeeData}
+      accessToken={accessToken}
+      userId={userId}
+      businessEmail={businessEmail}
+      businessPhone={businessPhone}
+      managerName={managerName}
+      managerClickHandler={managerClickHandler}
+      t={t}
+      onChat={handleChat}
+      onCall={handleCall}
+      onVideoCall={handleVideoCall}
+    />
   )
 }
 

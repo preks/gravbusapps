@@ -237,6 +237,9 @@ request-benefit-review-additional-info = Additional Information
 request-benefit-review-justification = Justification
 request-benefit-review-financial-details = Financial Details
 request-benefit-review-employee-contributions = Employee Contributions
+request-benefit-review-comments = Comment
+request-benefit-review-comments-placeholder = Please Enter
+request-benefit-review-comments-required = Comments are required
 request-benefit-review-approve = Approve
 request-benefit-review-reject = Reject
 request-benefit-review-loading = Loading benefit review data...
@@ -283,6 +286,7 @@ adjust-salary-pending-status = Pending
 
 # Update Working Conditions Form
 working-conditions-probation-period = Probation Period
+working-conditions-probation-end-before-start = Probation end date must be on or after the start date.
 working-conditions-probation-exception-warning = You've manually changed the probation period end date from the contract value. Please review.
 working-conditions-unit-day = { $count ->
     [one] Day

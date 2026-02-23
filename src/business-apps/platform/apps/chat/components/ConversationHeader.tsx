@@ -1,8 +1,9 @@
-import React, { useState } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import {
   Button,
   IconAvatar,
   Avatar,
+  Input,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -12,14 +13,38 @@ import {
   DialogDescription,
   DialogFooter,
   DialogHeader,
-  DialogTitle
+  DialogTitle,
+  Popover,
+  PopoverContent,
+  PopoverAnchor,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger
 } from '@newwork/nw-design-system'
-import { ArrowLeft, DotsThreeVertical, SignOut, X, Info, Users } from '@phosphor-icons/react'
-import { UserIcon, Phone, Video, PhoneCall, UserPlus, Bell, CalendarIcon } from 'lucide-react'
-import type { Conversation } from '../types'
+import {
+  ArrowLeftIcon,
+  DotsThreeVerticalIcon,
+  SignOutIcon,
+  XIcon,
+  InfoIcon,
+  UsersIcon,
+  CheckIcon as PhosphorCheckIcon,
+  MinusIcon,
+  ProhibitInsetIcon,
+  ClockIcon,
+  MoonStarsIcon,
+  EyeSlashIcon,
+  PhoneCallIcon,
+  PresentationChartIcon,
+  ChatTextIcon,
+  MagnifyingGlassIcon
+} from '@phosphor-icons/react'
+import { UserIcon, Phone, Video, PhoneCall, UserPlus, Bell, BellOff, CalendarIcon, Pin, PinOff } from 'lucide-react'
+import type { Conversation, UserStatus, Message } from '../types'
+import { UserPresenceStatus, SystemPresenceStatus } from '../types'
 import type { UserPresence } from '../hooks/usePresence'
 import { navigateTo } from '@/common/utils/navigationUtils'
-import { UserStatusIndicator } from './UserStatusIndicator'
 
 export interface ActiveCallInfo {
   roomId: string
@@ -48,6 +73,77 @@ interface ConversationHeaderProps {
   isStartingCall?: boolean
   activeCall?: ActiveCallInfo | null
   t: (key: string, params?: Record<string, any>) => string
+  isSearchOpen?: boolean
+  onSearchOpenChange?: (open: boolean) => void
+  searchQuery?: string
+  onSearchQueryChange?: (value: string) => void
+  searchResults?: Message[]
+  searchResultAvatarMap?: Map<string, string> | null
+  searchLoading?: boolean
+  onSearchResultSelect?: (messageId: string) => void
+  onSearchClear?: () => void
+  isMuted?: boolean
+  isPinned?: boolean
+  onMute?: (muted: boolean) => void
+  onPin?: () => void
+}
+
+/** Format a date as relative time (e.g. "just now", "5 min ago") or absolute date. */
+function formatRelativeTime(
+  dateInput: string | Date,
+  t: (key: string, params?: Record<string, unknown>) => string,
+  variant: 'message' | 'lastSeen'
+): string | null {
+  try {
+    const d = typeof dateInput === 'string' ? new Date(dateInput) : dateInput
+    if (Number.isNaN(d.getTime())) return variant === 'message' ? '' : null
+    const now = new Date()
+    const diffMs = now.getTime() - d.getTime()
+    if (diffMs < 0 || Number.isNaN(diffMs)) return variant === 'message' ? '' : null
+    const diffMinutes = Math.floor(diffMs / (1000 * 60))
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+    if (diffMinutes < 1) return variant === 'lastSeen' ? 'Last seen just now' : t('chat-time-justNow')
+    if (diffMinutes < 60)
+      return variant === 'lastSeen'
+        ? t('chat-lastSeenMinutes', { minutes: diffMinutes })
+        : t('chat-time-minutesAgo', { minutes: diffMinutes })
+    if (diffHours < 24)
+      return variant === 'lastSeen'
+        ? t('chat-lastSeenHours', { hours: diffHours })
+        : t('chat-time-hoursAgo', { hours: diffHours })
+    if (diffDays < 7)
+      return variant === 'lastSeen'
+        ? t('chat-lastSeenDays', { days: diffDays })
+        : t('chat-time-daysAgo', { days: diffDays })
+    return variant === 'lastSeen' ? t('chat-lastSeenLongAgo') : d.toLocaleDateString()
+  } catch {
+    return variant === 'message' ? '' : null
+  }
+}
+
+/** Split text by query (case-insensitive) and wrap matches in highlight spans. */
+function highlightSearchInText(text: string, query: string): React.ReactNode {
+  if (!text) return null
+  const q = query.trim()
+  if (!q) return text
+  const specials = String.raw`[.*+?^\${\}()|[\]\\]`
+  const escaped = q.replace(new RegExp(specials, 'g'), String.raw`\$&`)
+  const re = new RegExp(`(${escaped})`, 'gi')
+  const parts = text.split(re)
+  if (parts.length <= 1) return text
+  return parts.map((part, i) =>
+    i % 2 === 1 ? (
+      <span
+        key={`hl-${i}-${part}`}
+        className="gba:bg-accent gba:text-accent-foreground gba:rounded-sm gba:px-0.5 gba:font-medium"
+      >
+        {part}
+      </span>
+    ) : (
+      part
+    )
+  )
 }
 
 const getOtherParticipant = (conversation: Conversation, currentUserId?: string | null) => {
@@ -90,89 +186,72 @@ const getConversationAvatarUrl = (conversation: Conversation, currentUserId?: st
   return otherParticipant?.user?.avatarUrl
 }
 
-// Presence status indicator component - only shows for online, not offline/away
-const PresenceIndicator: React.FC<{
-  status: 'online' | 'away' | 'offline'
+// Status badge component - shows user status icon (Available/Busy/etc) on avatar
+const StatusBadge: React.FC<{
+  status?: UserStatus | string
   size?: 'sm' | 'md'
-  t?: (key: string) => string
-}> = ({ status, size = 'md', t }) => {
-  // Don't show indicator for offline or away status
-  if (status === 'offline' || status === 'away') return null
+}> = ({ status, size = 'md' }) => {
+  if (!status) return null
 
-  const statusColors = {
-    online: 'gba:bg-success',
-    away: 'gba:bg-warning',
-    offline: 'gba:bg-muted-foreground'
-  }
+  // Get status string from UserStatus object or use as string
+  const statusString = typeof status === 'object' ? status.status : status
 
-  const getStatusTitle = (status: 'online' | 'away' | 'offline'): string => {
-    if (!t) {
-      if (status === 'online') return 'Online'
-      if (status === 'away') return 'Away'
-      return 'Offline'
+  // Status colors and icons for avatar badge
+  const STATUS_STYLES: Record<string, { bgColor: string; icon: React.ReactNode }> = {
+    [UserPresenceStatus.AVAILABLE]: {
+      bgColor: 'gba:bg-success',
+      icon: <PhosphorCheckIcon size={size === 'sm' ? 8 : 10} weight="bold" className="gba:text-white" />
+    },
+    [UserPresenceStatus.BUSY]: {
+      bgColor: 'gba:bg-destructive',
+      icon: <MinusIcon size={size === 'sm' ? 8 : 10} weight="bold" className="gba:text-white" />
+    },
+    [UserPresenceStatus.DO_NOT_DISTURB]: {
+      bgColor: 'gba:bg-destructive',
+      icon: <ProhibitInsetIcon size={size === 'sm' ? 8 : 10} weight="bold" className="gba:text-white" />
+    },
+    [UserPresenceStatus.BE_RIGHT_BACK]: {
+      bgColor: 'gba:bg-warning-secondary',
+      icon: <ClockIcon size={size === 'sm' ? 8 : 10} weight="bold" className="gba:text-white" />
+    },
+    [UserPresenceStatus.APPEAR_AWAY]: {
+      bgColor: 'gba:bg-warning',
+      icon: <MoonStarsIcon size={size === 'sm' ? 8 : 10} weight="bold" className="gba:text-white" />
+    },
+    [UserPresenceStatus.APPEAR_OFFLINE]: {
+      bgColor: 'gba:bg-muted-foreground',
+      icon: <EyeSlashIcon size={size === 'sm' ? 8 : 10} weight="bold" className="gba:text-white" />
+    },
+    [SystemPresenceStatus.IN_MEETING]: {
+      bgColor: 'gba:bg-info',
+      icon: <UsersIcon size={size === 'sm' ? 8 : 10} weight="bold" className="gba:text-white" />
+    },
+    [SystemPresenceStatus.IN_CALL]: {
+      bgColor: 'gba:bg-info',
+      icon: <PhoneCallIcon size={size === 'sm' ? 8 : 10} weight="bold" className="gba:text-white" />
+    },
+    [SystemPresenceStatus.PRESENTING]: {
+      bgColor: 'gba:bg-info',
+      icon: <PresentationChartIcon size={size === 'sm' ? 8 : 10} weight="bold" className="gba:text-white" />
+    },
+    offline: {
+      bgColor: 'gba:bg-muted-foreground',
+      icon: <EyeSlashIcon size={size === 'sm' ? 8 : 10} weight="bold" className="gba:text-white" />
     }
-    if (status === 'online') return t('chat-statusOnline')
-    if (status === 'away') return t('chat-statusAway')
-    return t('chat-statusOffline')
   }
 
-  const sizeClasses = size === 'sm' ? 'gba:w-2.5 gba:h-2.5' : 'gba:w-3 gba:h-3'
+  const config = statusString ? STATUS_STYLES[statusString] : STATUS_STYLES['offline']
+  if (!config) return null
+
+  const circleSize = size === 'sm' ? 'gba:w-3 gba:h-3' : 'gba:w-4 gba:h-4'
 
   return (
-    <span
-      className={`gba:absolute gba:bottom-0 gba:right-0 gba:rounded-full gba:border-2 gba:border-background ${statusColors[status]} ${sizeClasses}`}
-      title={getStatusTitle(status)}
-    />
+    <div
+      className={`gba:absolute gba:bottom-0 gba:right-0 gba:rounded-full gba:border-2 gba:border-background ${config.bgColor} ${circleSize} gba:flex gba:items-center gba:justify-center gba:flex-shrink-0`}
+    >
+      {config.icon}
+    </div>
   )
-}
-
-// Get presence status text for display
-const getPresenceStatusText = (presence?: UserPresence, t?: (key: string, params?: any) => string): string | null => {
-  if (!presence || !t) return null
-
-  // If user has detailed status, don't show basic presence text
-  if (presence.userStatus) return null
-
-  if (presence.state === 'online') return t('chat-statusOnline')
-  if (presence.state === 'away') return t('chat-statusAway')
-
-  // For offline status, show last seen if available
-  if (presence.state === 'offline' && presence.lastSeen) {
-    try {
-      const lastSeenDate = new Date(presence.lastSeen)
-      // Check if date is valid
-      if (isNaN(lastSeenDate.getTime())) {
-        return null
-      }
-
-      const now = new Date()
-      const diffMs = now.getTime() - lastSeenDate.getTime()
-
-      // Check for negative or invalid differences
-      if (diffMs < 0 || isNaN(diffMs)) {
-        return null
-      }
-
-      const diffMinutes = Math.floor(diffMs / (1000 * 60))
-      const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
-      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
-
-      if (diffMinutes < 60) {
-        return t('chat-lastSeenMinutes', { minutes: diffMinutes })
-      } else if (diffHours < 24) {
-        return t('chat-lastSeenHours', { hours: diffHours })
-      } else if (diffDays < 7) {
-        return t('chat-lastSeenDays', { days: diffDays })
-      } else {
-        return t('chat-lastSeenLongAgo')
-      }
-    } catch (error) {
-      console.error('Error calculating last seen time:', error)
-      return null
-    }
-  }
-
-  return null
 }
 
 export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
@@ -194,8 +273,25 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
   isInCall = false,
   isStartingCall = false,
   activeCall = null,
-  t
+  t,
+  isSearchOpen = false,
+  onSearchOpenChange,
+  searchQuery = '',
+  onSearchQueryChange,
+  searchResults = [],
+  searchResultAvatarMap,
+  searchLoading = false,
+  onSearchResultSelect,
+  onSearchClear,
+  isMuted = false,
+  isPinned = false,
+  onMute,
+  onPin
 }) => {
+  const searchInputRef = useRef<HTMLInputElement>(null)
+  useEffect(() => {
+    if (isSearchOpen) searchInputRef.current?.focus()
+  }, [isSearchOpen])
   const name = getConversationName(conversation, currentUserId, t)
   const avatarUrl = getConversationAvatarUrl(conversation, currentUserId)
   const [showRemoveDialog, setShowRemoveDialog] = useState(false)
@@ -211,9 +307,19 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
     }
   }
   const presenceStatus = otherUserPresence?.state || 'offline'
-  const presenceStatusText = isDirectChat ? getPresenceStatusText(otherUserPresence, t) : null
   // Check for active call from prop or conversation object (applies to both group and direct chats)
   const hasActiveCall = !!activeCall || !!conversation.activeCall
+  // Determine call message key based on call type
+  const getCallMessageKey = (): string => {
+    if (conversation.metadata?.type === 'meeting') {
+      return 'chat-activeCallMeeting'
+    } else if (isDirectChat) {
+      return 'chat-activeCallDirect'
+    } else if (isGroupChat) {
+      return 'chat-activeCallGroup'
+    }
+    return 'chat-activeCallInGroup' // fallback
+  }
 
   const handleRemoveClick = () => {
     setShowRemoveDialog(true)
@@ -242,98 +348,244 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
             className="gba:h-8 gba:w-8 gba:flex-shrink-0"
             data-testid="conversation-back-button"
           >
-            <ArrowLeft className="gba:w-4 gba:h-4" />
+            <ArrowLeftIcon className="gba:w-4 gba:h-4" />
           </Button>
         )}
 
-        <div
-          className={`gba:relative gba:flex-shrink-0 ${isDirectChat && otherEmployeeId ? 'gba:cursor-pointer hover:gba:opacity-80 gba:transition-opacity' : ''}`}
-          onClick={isDirectChat && otherEmployeeId ? handleAvatarClick : undefined}
-          title={isDirectChat && otherEmployeeId ? t('chat-viewProfile') : undefined}
-        >
-          {avatarUrl ? (
-            <Avatar className={avatarSize}>
-              <img src={avatarUrl} alt={name} className="gba:w-full gba:h-full gba:object-cover gba:rounded-full" />
-            </Avatar>
-          ) : (
-            <IconAvatar
-              className={avatarSize}
-              label={name}
-              icon={isGroupChat ? (conversation.metadata?.type === 'meeting' ? CalendarIcon : Users) : UserIcon}
-            />
-          )}
-          {isDirectChat && <PresenceIndicator status={presenceStatus} size={compact ? 'sm' : 'md'} t={t} />}
-        </div>
-
-        <div className="gba:flex-1 gba:min-w-0">
-          <h2
-            className={`gba:font-semibold gba:truncate gba:text-foreground ${compact ? 'gba:text-sm' : 'gba:text-base'}`}
-          >
-            {name}
-          </h2>
-          {/* Show user status for direct chats */}
-          {isDirectChat && !compact && otherUserPresence?.userStatus && (
-            <div className="gba:flex gba:items-center gba:gap-1.5">
-              <UserStatusIndicator status={otherUserPresence.userStatus} showLabel={true} size="sm" />
-            </div>
-          )}
-          {/* Show "Last seen" for offline users */}
-          {isDirectChat && otherUserPresence?.lastSeen && presenceStatus === 'offline' && (
-            <p className="gba:text-xs gba:text-muted-foreground">
-              {(() => {
-                try {
-                  const lastSeenDate = new Date(otherUserPresence.lastSeen)
-                  if (isNaN(lastSeenDate.getTime())) return null
-
-                  const now = new Date()
-                  const diffMs = now.getTime() - lastSeenDate.getTime()
-                  if (diffMs < 0 || isNaN(diffMs)) return null
-
-                  const diffMinutes = Math.floor(diffMs / (1000 * 60))
-                  const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
-                  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
-
-                  if (diffMinutes < 1) {
-                    return 'Last seen just now'
-                  } else if (diffMinutes < 60) {
-                    return t('chat-lastSeenMinutes', { minutes: diffMinutes })
-                  } else if (diffHours < 24) {
-                    return t('chat-lastSeenHours', { hours: diffHours })
-                  } else if (diffDays < 7) {
-                    return t('chat-lastSeenDays', { days: diffDays })
-                  } else {
-                    return t('chat-lastSeenLongAgo')
+        {isSearchOpen ? (
+          <Popover open={isSearchOpen && searchQuery.trim().length >= 2}>
+            <PopoverAnchor asChild>
+              <div className="gba:flex-1 gba:min-w-0 gba:flex gba:items-center gba:gap-2 gba:transition-all gba:duration-200">
+                <div className="gba:relative gba:flex-1 gba:min-w-0">
+                  <MagnifyingGlassIcon
+                    className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:w-4 gba:h-4 gba:text-muted-foreground gba:pointer-events-none"
+                    weight="regular"
+                  />
+                  <Input
+                    ref={searchInputRef}
+                    type="text"
+                    value={searchQuery}
+                    onChange={e => onSearchQueryChange?.(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Escape') {
+                        onSearchOpenChange?.(false)
+                        onSearchClear?.()
+                      }
+                    }}
+                    placeholder={t('chat-searchMessagesPlaceholder')}
+                    className="gba:pl-9 gba:pr-14 gba:h-8 gba:bg-muted/50"
+                    data-testid="conversation-search-input"
+                  />
+                  {searchQuery.trim() ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="gba:absolute gba:right-1.5 gba:top-1/2 gba:-translate-y-1/2 gba:h-6 gba:px-2 gba:text-xs gba:text-muted-foreground gba:hover:text-foreground"
+                      onClick={e => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        onSearchClear?.()
+                        searchInputRef.current?.focus()
+                      }}
+                      data-testid="conversation-search-clear"
+                    >
+                      {t('chat-searchClear')}
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
+            </PopoverAnchor>
+            <PopoverContent
+              className="gba:w-[var(--radix-popover-trigger-width)] gba:max-h-72 gba:overflow-y-auto gba:rounded-lg gba:border gba:border-border gba:bg-popover gba:p-0"
+              align="start"
+              side="bottom"
+              sideOffset={6}
+              onOpenAutoFocus={e => e.preventDefault()}
+            >
+              <div className="gba:py-1.5 gba:pb-2" data-testid="conversation-search-results">
+                {(() => {
+                  if (searchLoading) {
+                    return (
+                      <div className="gba:px-4 gba:py-6 gba:text-sm gba:text-muted-foreground gba:text-center">
+                        {t('chat-searchSearching')}
+                      </div>
+                    )
                   }
-                } catch (error) {
-                  console.error('Error calculating last seen time in header:', error)
-                  return null
-                }
-              })()}
-            </p>
-          )}
-          {/* Fallback: Show basic presence status if no detailed status */}
-          {isDirectChat &&
-            !compact &&
-            !otherUserPresence?.userStatus &&
-            !otherUserPresence?.lastSeen &&
-            presenceStatusText &&
-            (() => {
-              let statusColorClass = 'gba:text-muted-foreground'
-              if (presenceStatus === 'online') statusColorClass = 'gba:text-success'
-              else if (presenceStatus === 'away') statusColorClass = 'gba:text-warning'
+                  if (searchResults.length === 0) {
+                    return (
+                      <div className="gba:px-4 gba:py-6 gba:text-sm gba:text-muted-foreground gba:text-center">
+                        {t('chat-searchNoResults')}
+                      </div>
+                    )
+                  }
+                  return searchResults.map((msg, idx) => {
+                    const snippet = (msg.content || '').slice(0, 60)
+                    const sender = msg.sender
+                    let senderName = ''
+                    if (sender) {
+                      senderName =
+                        [sender.firstName, sender.lastName].filter(Boolean).join(' ') || sender.username || ''
+                    }
+                    const avatarLabel = senderName || sender?.username || '?'
+                    const createdAt = msg.createdAt ? (formatRelativeTime(msg.createdAt, t, 'message') ?? '') : ''
+                    const isLast = idx === searchResults.length - 1
+                    const resultAvatarUrl =
+                      (msg.senderId && searchResultAvatarMap?.get(msg.senderId)) ?? sender?.avatarUrl
+                    return (
+                      <button
+                        key={msg.id}
+                        type="button"
+                        className={`gba:w-full gba:flex gba:items-start gba:gap-3 gba:px-4 gba:py-2.5 gba:text-left gba:transition-colors gba:hover:bg-accent gba:focus:bg-accent gba:focus:outline-none gba:focus-visible:ring-2 gba:focus-visible:ring-ring gba:focus-visible:ring-offset-0 ${isLast ? '' : 'gba:border-b gba:border-border/50'}`}
+                        onClick={() => onSearchResultSelect?.(msg.id)}
+                        data-testid={`conversation-search-result-${msg.id}`}
+                      >
+                        <div className="gba:flex-shrink-0 gba:mt-0.5">
+                          {resultAvatarUrl ? (
+                            <Avatar className="gba:h-8 gba:w-8">
+                              <img
+                                src={resultAvatarUrl}
+                                alt={avatarLabel}
+                                className="gba:h-full gba:w-full gba:object-cover gba:rounded-full"
+                              />
+                            </Avatar>
+                          ) : (
+                            <IconAvatar className="gba:h-8 gba:w-8" label={avatarLabel} icon={UserIcon} />
+                          )}
+                        </div>
+                        <div className="gba:flex-1 gba:min-w-0 gba:flex gba:flex-col gba:gap-0.5">
+                          <div className="gba:flex gba:items-center gba:justify-between gba:gap-2">
+                            {senderName ? (
+                              <span className="gba:font-medium gba:text-foreground gba:text-sm gba:truncate">
+                                {senderName}
+                              </span>
+                            ) : null}
+                            {createdAt ? (
+                              <span className="gba:text-xs gba:text-muted-foreground gba:flex-shrink-0">
+                                {createdAt}
+                              </span>
+                            ) : null}
+                          </div>
+                          <span className="gba:text-sm gba:text-muted-foreground gba:line-clamp-2 gba:break-words">
+                            {snippet ? highlightSearchInText(snippet, searchQuery ?? '') || '—' : '—'}
+                          </span>
+                        </div>
+                      </button>
+                    )
+                  })
+                })()}
+              </div>
+            </PopoverContent>
+          </Popover>
+        ) : (
+          <>
+            <div
+              className={`gba:relative gba:flex-shrink-0 ${isDirectChat && otherEmployeeId ? 'gba:cursor-pointer hover:gba:opacity-80 gba:transition-opacity' : ''}`}
+              onClick={isDirectChat && otherEmployeeId ? handleAvatarClick : undefined}
+              title={isDirectChat && otherEmployeeId ? t('chat-viewProfile') : undefined}
+            >
+              {avatarUrl ? (
+                <Avatar className={avatarSize}>
+                  <img src={avatarUrl} alt={name} className="gba:w-full gba:h-full gba:object-cover gba:rounded-full" />
+                </Avatar>
+              ) : (
+                <IconAvatar
+                  className={avatarSize}
+                  label={name}
+                  icon={isGroupChat ? (conversation.metadata?.type === 'meeting' ? CalendarIcon : UsersIcon) : UserIcon}
+                />
+              )}
+              {isDirectChat && <StatusBadge status={otherUserPresence?.userStatus} size={compact ? 'sm' : 'md'} />}
+            </div>
 
-              return <p className={`gba:text-xs ${statusColorClass}`}>{presenceStatusText}</p>
-            })()}
-          {/* Show participant count for group chats */}
-          {isGroupChat && conversation.participants && !compact && (
-            <p className="gba:text-xs gba:text-muted-foreground">
-              {t('chat-participantsCount', { count: conversation.participants.length.toString() })}
-            </p>
-          )}
-          {hasActiveCall && !compact && <p className="gba:text-xs gba:text-success">{t('chat-activeCallInGroup')}</p>}
-        </div>
+            <div className="gba:flex-1 gba:min-w-0">
+              <div className="gba:flex gba:items-center gba:gap-1.5 gba:min-w-0">
+                <h2
+                  className={`gba:font-semibold gba:truncate gba:text-foreground ${compact ? 'gba:text-sm' : 'gba:text-base'}`}
+                >
+                  {name}
+                </h2>
+                {isMuted && (
+                  <span
+                    className="gba:flex gba:flex-shrink-0 gba:rounded-full gba:p-0.5 gba:bg-muted gba:text-muted-foreground"
+                    title={t('chat-muteConversation')}
+                  >
+                    <BellOff className="gba:w-4 gba:h-4" aria-hidden />
+                  </span>
+                )}
+              </div>
+              {(() => {
+                if (
+                  isDirectChat &&
+                  !compact &&
+                  otherUserPresence?.userStatus?.statusMessage &&
+                  presenceStatus !== 'offline'
+                ) {
+                  return (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="gba:flex gba:items-center gba:gap-1.5 gba:cursor-default">
+                            <ChatTextIcon
+                              size={14}
+                              weight="duotone"
+                              className="gba:text-muted-foreground gba:flex-shrink-0"
+                            />
+                            <p className="gba:text-xs gba:text-muted-foreground gba:truncate gba:italic">
+                              {otherUserPresence.userStatus.statusMessage}
+                            </p>
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom" align="start">
+                          <p className="gba:max-w-xs gba:break-words">{otherUserPresence.userStatus.statusMessage}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )
+                }
+                if (isDirectChat && !compact && otherUserPresence?.lastSeen && presenceStatus === 'offline') {
+                  const lastSeenText = formatRelativeTime(otherUserPresence.lastSeen, t, 'lastSeen')
+                  return lastSeenText ? <p className="gba:text-xs gba:text-muted-foreground">{lastSeenText}</p> : null
+                }
+                if (hasActiveCall && !compact) {
+                  return <p className="gba:text-xs gba:text-success">{t(getCallMessageKey())}</p>
+                }
+                return null
+              })()}
+              {isGroupChat && conversation.participants && !compact && (
+                <p className="gba:text-xs gba:text-muted-foreground">
+                  {t('chat-participantsCount', { count: conversation.participants.length.toString() })}
+                </p>
+              )}
+            </div>
+          </>
+        )}
 
         <div className="gba:flex gba:items-center gba:gap-1">
+          {isSearchOpen && onSearchOpenChange ? (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="gba:h-8 gba:w-8 gba:flex-shrink-0"
+              onClick={() => onSearchOpenChange(false)}
+              data-testid="conversation-search-close-button"
+              title={t('chat-searchClear')}
+            >
+              <XIcon className="gba:w-4 gba:h-4" />
+            </Button>
+          ) : null}
+          {!isSearchOpen && onSearchOpenChange ? (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => onSearchOpenChange(true)}
+              className="gba:h-8 gba:w-8 gba:flex-shrink-0"
+              data-testid="conversation-search-button"
+              title={t('chat-searchInConversation')}
+            >
+              <MagnifyingGlassIcon className="gba:w-4 gba:h-4" weight="regular" />
+            </Button>
+          ) : null}
           {/* Nudge button - only for direct chats */}
           {isDirectChat && onNudge && (
             <Button
@@ -404,11 +656,11 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
               data-testid="conversation-close-button"
               title={t('chat-closeConversation')}
             >
-              <X className="gba:w-4 gba:h-4" />
+              <XIcon className="gba:w-4 gba:h-4" />
             </Button>
           )}
 
-          {(onRemove || (isGroupChat && (onGroupSettings || onAddExpert))) && (
+          {(onRemove || (isGroupChat && (onGroupSettings || onAddExpert)) || onPin || onMute) && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -417,10 +669,46 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
                   className="gba:h-8 gba:w-8 gba:flex-shrink-0"
                   data-testid="conversation-menu-button"
                 >
-                  <DotsThreeVertical className="gba:w-4 gba:h-4" />
+                  <DotsThreeVerticalIcon className="gba:w-4 gba:h-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                {onPin && (
+                  <DropdownMenuItem
+                    onClick={onPin}
+                    data-testid={isPinned ? 'conversation-header-unpin-button' : 'conversation-header-pin-button'}
+                  >
+                    {isPinned ? (
+                      <>
+                        <PinOff className="gba:w-4 gba:h-4 gba:mr-2" />
+                        {t('chat-unpinConversation')}
+                      </>
+                    ) : (
+                      <>
+                        <Pin className="gba:w-4 gba:h-4 gba:mr-2" />
+                        {t('chat-pinConversation')}
+                      </>
+                    )}
+                  </DropdownMenuItem>
+                )}
+                {onMute && (
+                  <DropdownMenuItem
+                    onClick={() => onMute(!isMuted)}
+                    data-testid={isMuted ? 'conversation-header-unmute-button' : 'conversation-header-mute-button'}
+                  >
+                    {isMuted ? (
+                      <>
+                        <Bell className="gba:w-4 gba:h-4 gba:mr-2" />
+                        {t('chat-unmuteConversation')}
+                      </>
+                    ) : (
+                      <>
+                        <BellOff className="gba:w-4 gba:h-4 gba:mr-2" />
+                        {t('chat-muteConversation')}
+                      </>
+                    )}
+                  </DropdownMenuItem>
+                )}
                 {isGroupChat && onAddExpert && (
                   <DropdownMenuItem onClick={onAddExpert} data-testid="conversation-add-expert-button">
                     <UserPlus className="gba:w-4 gba:h-4 gba:mr-2" />
@@ -429,13 +717,13 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
                 )}
                 {isGroupChat && onGroupSettings && (
                   <DropdownMenuItem onClick={onGroupSettings} data-testid="conversation-group-settings-button">
-                    <Info className="gba:w-4 gba:h-4 gba:mr-2" />
+                    <InfoIcon className="gba:w-4 gba:h-4 gba:mr-2" />
                     {t('chat-groupSettings')}
                   </DropdownMenuItem>
                 )}
                 {onRemove && (
                   <DropdownMenuItem onClick={handleRemoveClick} data-testid="conversation-remove-button">
-                    <SignOut className="gba:w-4 gba:h-4 gba:mr-2" />
+                    <SignOutIcon className="gba:w-4 gba:h-4 gba:mr-2" />
                     {isGroupChat ? t('chat-leaveConversation') : t('chat-removeConversation')}
                   </DropdownMenuItem>
                 )}

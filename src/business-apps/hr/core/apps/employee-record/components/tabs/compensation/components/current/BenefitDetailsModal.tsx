@@ -75,6 +75,7 @@ const BenefitDetailsModal: React.FC<BenefitDetailsModalProps> = ({
 
   // Determine if we should show full benefit details (active or scheduled)
   const showFullDetails = benefit.isActive || benefit.isScheduled
+  const showCancelledDetails = benefit.isCancelled
 
   return (
     <Sheet
@@ -107,6 +108,28 @@ const BenefitDetailsModal: React.FC<BenefitDetailsModalProps> = ({
                 catalogValue={catalogValue}
                 title={title}
               />
+            ) : showCancelledDetails ? (
+              <>
+                <AvailableBenefitContent
+                  benefit={benefit}
+                  t={t}
+                  currencyCode={currencyCode}
+                  locale={locale}
+                  benefitDetails={benefitDetails}
+                />
+                {/* Comments (rejection reason) for not approved benefits */}
+                <div className="gba:space-y-3 gba:pt-4 gba:border-t">
+                  <h3 className="gba:text-sm gba:font-semibold gba:text-foreground gba:uppercase gba:tracking-wide">
+                    {t('benefit-details-comments')}
+                  </h3>
+                  <div
+                    className="gba:text-sm gba:text-foreground gba:whitespace-pre-wrap"
+                    data-testid="benefit-details-comments-value"
+                  >
+                    {benefit.comments || '-'}
+                  </div>
+                </div>
+              </>
             ) : (
               <AvailableBenefitContent
                 benefit={benefit}

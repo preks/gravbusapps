@@ -14,25 +14,6 @@ import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/u
 
 const API_URL = getDocumentServiceApiUrl()
 
-const getAuthToken = (): string | null => {
-  try {
-    const ideToken = localStorage.getItem('business-app-ide-access-token')
-    if (ideToken) return ideToken
-    const authData = localStorage.getItem('keycloak-token')
-    if (authData) {
-      try {
-        const parsed = JSON.parse(authData)
-        return parsed.token || parsed.access_token || null
-      } catch {
-        return null
-      }
-    }
-    return null
-  } catch {
-    return null
-  }
-}
-
 // Get user ID from token (JWT decode)
 const getUserIdFromToken = (token: string): string | null => {
   try {
@@ -59,7 +40,10 @@ export interface UseAvailableContentResult {
   refresh: () => Promise<void>
 }
 
-export function useAvailableContent(excludeSpaceId?: string): UseAvailableContentResult {
+export function useAvailableContent(
+  accessToken: string | undefined,
+  excludeSpaceId?: string
+): UseAvailableContentResult {
   const [documents, setDocuments] = useState<AvailableContentItem[]>([])
   const [notes, setNotes] = useState<AvailableContentItem[]>([])
   const [spreadsheets, setSpreadsheets] = useState<AvailableContentItem[]>([])
@@ -73,15 +57,14 @@ export function useAvailableContent(excludeSpaceId?: string): UseAvailableConten
 
   const fetchContent = useCallback(
     async (query: string = '') => {
-      const token = getAuthToken()
-      if (!token) {
+      if (!accessToken) {
         setError('Not authenticated')
         setIsLoading(false)
         return
       }
 
       // Get current user ID to filter only owned content
-      const currentUserId = getUserIdFromToken(token)
+      const currentUserId = getUserIdFromToken(accessToken)
 
       // Increment request ID
       const currentRequestId = ++requestIdRef.current
@@ -96,13 +79,13 @@ export function useAvailableContent(excludeSpaceId?: string): UseAvailableConten
         // Fetch user's owned content with optional search
         const [docsRes, notesRes, sheetsRes] = await Promise.all([
           fetch(`${API_URL}/documents${searchParams}`, {
-            headers: { Authorization: `Bearer ${token}` }
+            headers: { Authorization: `Bearer ${accessToken}` }
           }),
           fetch(`${API_URL}/notes${searchParams}`, {
-            headers: { Authorization: `Bearer ${token}` }
+            headers: { Authorization: `Bearer ${accessToken}` }
           }),
           fetch(`${API_URL}/spreadsheets${searchParams}`, {
-            headers: { Authorization: `Bearer ${token}` }
+            headers: { Authorization: `Bearer ${accessToken}` }
           })
         ])
 
@@ -165,7 +148,7 @@ export function useAvailableContent(excludeSpaceId?: string): UseAvailableConten
         }
       }
     },
-    [excludeSpaceId]
+    [accessToken, excludeSpaceId]
   )
 
   // Search with debounce

@@ -85,6 +85,7 @@ import { useVersioning } from '../shared/hooks/useVersioning'
 import { useFileLock } from '../shared/hooks/useFileLock'
 import { useComments } from '../shared/hooks/useComments'
 import { usePublishing } from '../shared/hooks/usePublishing'
+import { useEditorKeyboardIsolation } from '../shared/hooks/useEditorKeyboardIsolation'
 import { emitDocumentActivity, emitDocumentActivityEnd } from '../spaces/hooks/useSpaceDocumentActivity'
 import { VersionHistory } from '../shared/components/VersionHistory'
 import { CheckpointDialog } from '../shared/components/CheckpointDialog'
@@ -362,46 +363,8 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
   }, [])
 
   // Get access token for GraphQL - must be before effects that use it
-  // In published platform screens, the token may live under different storage keys.
-  const accessToken = React.useMemo(() => {
-    const direct = accessTokenProp || (note as any).accessToken
-    if (direct) return direct as string
-    if (typeof window === 'undefined') return ''
-
-    try {
-      const ideToken = window.localStorage.getItem('business-app-ide-access-token')
-      if (ideToken) return ideToken
-    } catch {
-      // ignore
-    }
-
-    try {
-      const authData = window.localStorage.getItem('keycloak-token')
-      if (authData) {
-        try {
-          const parsed = JSON.parse(authData)
-          return (parsed.token || parsed.access_token || '') as string
-        } catch {
-          return authData
-        }
-      }
-    } catch {
-      // ignore
-    }
-
-    return ''
-  }, [accessTokenProp, note.id])
+  const accessToken = accessTokenProp || ''
   const graphqlClient = useGraphQLClient(accessToken)
-
-  // Persist token for NoteApiService (it reads from localStorage).
-  useEffect(() => {
-    if (!accessToken) return
-    try {
-      localStorage.setItem('business-app-ide-access-token', accessToken)
-    } catch {
-      // ignore
-    }
-  }, [accessToken])
 
   // Fill missing avatar/name for older flows
   useActionItemAssigneeEnrichment({
@@ -460,6 +423,8 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
     currentStatus: note.publishMetadata?.status || 'draft',
     apiService: NoteApiService
   })
+
+  useEditorKeyboardIsolation(editorContainerRef)
 
   useEffect(() => {
     if (!rawParticipants.length) {
@@ -657,23 +622,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
           setCurrentUserName(contextUserName)
         }
 
-        const token =
-          accessToken ||
-          localStorage.getItem('business-app-ide-access-token') ||
-          (() => {
-            try {
-              const authData = localStorage.getItem('keycloak-token')
-              if (!authData) return null
-              try {
-                const parsed = JSON.parse(authData)
-                return parsed.token || parsed.access_token || null
-              } catch {
-                return authData
-              }
-            } catch {
-              return null
-            }
-          })()
+        const token = accessToken || null
         if (token) {
           const base64Url = token.split('.')[1]
           if (!base64Url) return

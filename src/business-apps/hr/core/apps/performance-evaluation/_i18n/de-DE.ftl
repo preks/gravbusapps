@@ -96,8 +96,24 @@ values-modal-title-add = Wert hinzufügen
 values-modal-title-edit = Wert bearbeiten
 values-modal-description = Firmenwert und Beschreibung definieren.
 
+# Bestätigungsdialog „Zyklus starten“
+start-confirm-title = Leistungsbeurteilung starten
+start-confirm-description-with-cycle = Möchten Sie die Leistungsbeurteilung für „{ $name }“ wirklich starten? Damit wird der Bewertungsablauf eingeleitet.
+start-confirm-description-generic = Möchten Sie diese Leistungsbeurteilung wirklich starten?
+start-confirm-run-for-label = Bewertung starten für
+start-confirm-run-for-self = Mich
+start-confirm-run-for-team = Team
+start-confirm-select-teams = Teams auswählen *
+start-confirm-placeholder-loading = Teams werden geladen...
+start-confirm-placeholder-teams = Teams für die Bewertung auswählen
+start-confirm-search-teams = Teams suchen...
+start-confirm-empty-teams = Keine Teams gefunden
+start-confirm-button = Bewertung starten
+
 # Fehler
 values-error-cannot-deactivate-active-cycle = Wert kann nicht deaktiviert werden, solange er in einem aktiven Zyklus verwendet wird.
 cycles-error-no-rating-scales = Mindestens eine Bewertungsskala wird für das Erstellen eines Zyklus benötigt.
+cycles-error-no-company-values = Mindestens ein Unternehmenswert wird für das Erstellen eines Zyklus benötigt.
+cycles-error-dates-overlap = Die Zyklusdaten dürfen sich nicht mit einem bestehenden Zyklus überschneiden. Bitte wählen Sie ein Startdatum nach dem Ende bestehender Zyklen.
 error-activate-out-of-period = Zyklus kann nicht aktiviert werden. Das heutige Datum liegt außerhalb des Zykluszeitraums.
 

@@ -30,6 +30,7 @@ import { useEmployeeData } from '@/business-apps/hr/core/apps/employee-record/ho
 import { AbsenceList } from './components/absence-list-table'
 import { useAbsenceTypeCatalog } from './hooks/useAbsenceTypeCatalog'
 import { useEntitlementSnapshot } from './hooks/useEntitlementSnapshot'
+import { useProcessCompletion } from '@/common/hooks/useProcessCompletion'
 
 const statusToColor = (status?: string): string => {
   switch ((status || '').toLowerCase()) {
@@ -67,6 +68,7 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
   const [pageSize] = useState(10)
   const [absenceGroups, setAbsenceGroups] = useState<any[]>([])
   const [loadingAbsenceGroups, setLoadingAbsenceGroups] = useState(false)
+  const [refreshTick, setRefreshTick] = useState(0)
 
   const { accessToken, userInfo } = props
   const employeeId = userInfo?.employeeDetails?.employeeId
@@ -77,17 +79,26 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
   // Catalog mapping for labels/colors
   const { mapType } = useAbsenceTypeCatalog(accessToken)
   // Snapshot entitlements (enriched via mapper)
-  const { entitlements: snapshotEntitlements, stats: snapshotStats } = useEntitlementSnapshot(
-    accessToken,
-    employeeId || '',
-    mapType
-  )
+  const {
+    entitlements: snapshotEntitlements,
+    stats: snapshotStats,
+    refetch: refetchSnapshot
+  } = useEntitlementSnapshot(accessToken, employeeId || '', mapType)
 
   const {
     loading: employeeLoading,
     employee,
-    absenceEntitlements
-  } = useEmployeeData(accessToken, structureId, employeeId || '')
+    absenceEntitlements,
+    refetch: refetchEmployeeData
+  } = useEmployeeData(accessToken || '', structureId, employeeId || '')
+
+  useProcessCompletion({
+    onSuccess: () => {
+      if (refetchSnapshot) refetchSnapshot()
+      if (refetchEmployeeData) refetchEmployeeData()
+      setRefreshTick(t => t + 1)
+    }
+  })
 
   useEffect(() => {
     const fetchAbsenceGroups = async () => {
@@ -137,14 +148,7 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
             endDate: absence.endDate,
             duration: absence.workingDays ? `${absence.workingDays} ${absence.workingDays === 1 ? 'day' : 'days'}` : '',
             description: absence.description || '',
-            icon: (
-              <Paperclip
-                className="gba:w-4 gba:h-4"
-                style={{
-                  color: absence.type?.objectValue?.color ? `#${absence.type.objectValue.color}` : 'var(--nw-chart-4)'
-                }}
-              />
-            ),
+            icon: Paperclip,
             typeColor: absence.type?.objectValue?.color ? absence.type.objectValue.color : 'blue',
             statusColor: statusToColor(absence.status),
             requestDate: absence.createdAt
@@ -157,7 +161,7 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
             .map((a: any, idx: number) => ({
               id: a.id || idx,
               type: a.type ? getCatalogValue(a.type) || '' : '',
-              icon: <Paperclip className="gba:w-4 gba:h-4" style={{ color: 'var(--nw-chart-4)' }} />,
+              icon: Paperclip,
               dates: `${dayjs(a.startDate).format('MM/DD/YYYY')} - ${dayjs(a.endDate).format('MM/DD/YYYY')}`,
               description: a.description,
               timeUntil: timeUntil(a.startDate),
@@ -169,7 +173,7 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
       })
       .catch(() => setError('Failed to load absence data.'))
       .finally(() => setLoading(false))
-  }, [employeeId, accessToken])
+  }, [employeeId, accessToken, refreshTick])
 
   // Reflect snapshot entitlements/stats into component state while preserving visuals (icons/colors)
   useEffect(() => {
@@ -182,7 +186,7 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
           total: ent.total,
           pending: ent.pending,
           available: ent.available,
-          icon: <Paperclip className="gba:w-4 gba:h-4" style={{ color: ent.color || 'var(--nw-chart-4)' }} />,
+          icon: Paperclip,
           checkEntitlement: undefined
         }))
       )
@@ -191,7 +195,7 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
       setStats(
         snapshotStats.map(s => ({
           ...s,
-          icon: <Paperclip className="gba:w-4 gba:h-4" style={{ color: s.color || 'var(--nw-chart-4)' }} />
+          icon: Paperclip
         })) as any
       )
     }
@@ -293,17 +297,17 @@ export const PersonalAbsences = (props: BusinessAppContextProps) => {
   const viewOptions = [
     {
       key: 'calendar',
-      icon: <Calendar className="gba:w-4 gba:h-4" />,
+      icon: <Calendar className="w-5 h-5" />,
       label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.calendar', 'Calendar')
     },
     {
       key: 'absence-list',
-      icon: <List className="gba:w-4 gba:h-4" />,
+      icon: <List className="w-5 h-5" />,
       label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.absence_list', 'Absence List')
     },
     {
       key: 'entitlements',
-      icon: <Paperclip className="gba:w-4 gba:h-4" />,
+      icon: <Paperclip className="w-5 h-5" />,
       label: getTranslationFromI18nKeyAndLabel('lowcoder:absence_hub.entitlements', 'Entitlements')
     }
   ]

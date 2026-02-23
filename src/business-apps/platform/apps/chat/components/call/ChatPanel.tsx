@@ -15,7 +15,6 @@ import type { ChatApiClient } from '../../services/chatApiClient'
 import type { ChatWebSocketClient } from '../../services/chatWebSocketClient'
 import type { Conversation, MessageEntityReference } from '../../types'
 import type { ActiveExpert } from '../../hooks/useConversationExperts'
-import { rtkDebug } from '../../utils/rtkDebug'
 
 export interface ChatPanelProps {
   /** Current conversation */
@@ -119,14 +118,6 @@ const ChatPanelComponent: React.FC<ChatPanelProps> = ({
           metadata.attachments = attachments
         }
 
-        rtkDebug.log('[ChatPanel] Sending message:', {
-          conversationId: conversation.id,
-          contentLength: content.trim().length,
-          senderId: currentUserId,
-          hasMetadata: Object.keys(metadata).length > 0,
-          viaWebSocket: !!wsClient
-        })
-
         // Send via WebSocket for real-time delivery (preferred)
         if (wsClient) {
           wsClient.sendMessage(
@@ -149,8 +140,6 @@ const ChatPanelComponent: React.FC<ChatPanelProps> = ({
 
         // Check for @Every AI mention
         if (hasEveryMention(entityReferences)) {
-          rtkDebug.log('[ChatPanel] @Every mention detected, processing AI request')
-
           // Build conversation context
           const participants = conversation.participants
             ?.filter(p => p.userId || p.user)

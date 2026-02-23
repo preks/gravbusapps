@@ -290,8 +290,11 @@ export const buildInvestmentPayload = (
     // Extract ID from investmentOpportunity object (backend expects UUID string, not object)
     ...(investment.investmentOpportunity && typeof investment.investmentOpportunity === 'string'
       ? { investmentOpportunity: investment.investmentOpportunity }
-      : investment.investmentOpportunity?.id
-        ? { investmentOpportunity: investment.investmentOpportunity.id }
+      : typeof investment.investmentOpportunity === 'object' &&
+          investment.investmentOpportunity !== null &&
+          'id' in investment.investmentOpportunity &&
+          (investment.investmentOpportunity as { id?: string }).id
+        ? { investmentOpportunity: (investment.investmentOpportunity as { id: string }).id }
         : {}),
     ...(investment.loanRecipientInvestmentAccount?.id && {
       loanRecipientInvestmentAccount: investment.loanRecipientInvestmentAccount.id
@@ -494,7 +497,9 @@ export const buildInvestmentPayload = (
       break
 
     default:
-      throw new Error(`Unknown investment group type: ${groupType}`)
+      // Generic/non-core groups: keep base investment payload only.
+      // Subtype-specific section is not required for these group types.
+      break
   }
 
   // Return the properly wrapped payload
