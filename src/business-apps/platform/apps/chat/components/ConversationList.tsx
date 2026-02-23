@@ -1,12 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react'
 import { Button, Input, Spinner, Popover, PopoverContent, PopoverTrigger, Badge } from '@newwork/nw-design-system'
-import {
-  PlusIcon,
-  MagnifyingGlassIcon,
-  UserIcon,
-  UsersThreeIcon,
-  ClockCounterClockwiseIcon
-} from '@phosphor-icons/react'
+import { PlusIcon, MagnifyingGlassIcon, UserIcon, UsersThreeIcon } from '@phosphor-icons/react'
+import { PhoneMissedIcon } from 'lucide-react'
 import { ConversationItem } from './ConversationItem'
 import { UserSearch } from './UserSearch'
 import { UserStatusDropdown } from './UserStatusDropdown'
@@ -14,6 +9,7 @@ import type { Conversation } from '../types'
 import type { ChatWebSocketClient } from '../services/chatWebSocketClient'
 import type { PresenceData } from '../hooks/usePresence'
 import type { ConversationFilterKind } from '../hooks/useConversations'
+import { sortConversationsPinThenTime } from '../utils/conversationSort'
 import { useChatTranslation } from '../contexts/TranslationContext'
 
 interface ConversationListProps {
@@ -92,8 +88,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
   const [showNewChatMenu, setShowNewChatMenu] = useState(false)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
 
-  // Deduplicate conversations by ID (defensive programming - duplicates should be rare after fixes)
-  // List is backend-filtered; no client-side search/filter
+  // Deduplicate and sort: pinned first (by pinnedOrder), then unpinned by lastMessageAt
   const uniqueConversations = useMemo(() => {
     const seen = new Set<string>()
     const duplicates: string[] = []
@@ -111,7 +106,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
       console.debug('[ConversationList] Filtered out duplicate conversations:', duplicates)
     }
 
-    return filtered
+    return [...filtered].sort(sortConversationsPinThenTime)
   }, [conversations])
 
   const hasActiveFilters = (search?.trim()?.length ?? 0) > 0 || filterKind !== 'all' || unreadOnly
@@ -231,7 +226,7 @@ export const ConversationList: React.FC<ConversationListProps> = ({
               aria-label={t('chat-callHistory')}
               data-testid="chat-openCallHistory"
             >
-              <ClockCounterClockwiseIcon className="gba:w-4 gba:h-4" weight="regular" />
+              <PhoneMissedIcon className="gba:w-4 gba:h-4" />
             </Button>
             {missedCallsCount > 0 && (
               <Badge
@@ -351,6 +346,8 @@ export const ConversationList: React.FC<ConversationListProps> = ({
                       compact={compact}
                       otherUserPresence={otherUserPresence}
                       activeExpertCount={activeExpertCount}
+                      isPinned={conversation.isPinned}
+                      isMuted={conversation.isMuted}
                       t={t}
                     />
                   )

@@ -45,6 +45,13 @@ chat-nudgeCooldown = Please wait {$seconds} seconds before sending another nudge
 # Messages
 chat-noMessages = No messages yet. Start the conversation!
 chat-loadOlderMessages = Load older messages
+
+# Message search (in-conversation)
+chat-searchInConversation = Search in conversation
+chat-searchMessagesPlaceholder = Search messages…
+chat-searchNoResults = No results
+chat-searchSearching = Searching…
+chat-searchClear = Clear
 common-loading = Loading...
 chat-preview-open = Open preview
 chat-preview-unsupported = Preview not available.
@@ -68,6 +75,25 @@ chat-input-attach = Attach file
 chat-input-emoji = Add emoji
 chat-attach = Attach file
 chat-mention = Mention entity
+
+# Quoted messages (reply = reply with quote)
+chat-reply = Reply
+chat-reply-with-quote = Reply with quote
+chat-quoting-name = Quoting {$name}
+chat-cancel-quote = Cancel quote
+chat-quoted-message-unavailable = Message unavailable
+
+# Edit message
+chat-edit-message = Edit message
+chat-save = Save
+chat-cancel = Cancel
+chat-edited = Edited
+chat-edited-at = Edited at { $time }
+
+# Reactions
+chat-reaction-picker-full = Pick a reaction
+chat-reaction-search-placeholder = Search emoji…
+chat-react-with-emoji = React with {$emoji}
 
 # Typing Indicator
 chat-someone = Someone
@@ -202,6 +228,10 @@ chat-groupCall = Group Call
 chat-endCall = End Call
 chat-mute = Mute
 chat-unmute = Unmute
+chat-pinConversation = Pin conversation
+chat-unpinConversation = Unpin conversation
+chat-muteConversation = Mute conversation
+chat-unmuteConversation = Unmute conversation
 chat-startVideo = Start Video
 chat-stopVideo = Stop Video
 chat-turnOnCamera = Turn on camera
@@ -302,6 +332,12 @@ call-rnnoiseWarning = Using a headset can improve mic quality.
 # Call Settings
 call-video = video
 call-audio = audio
+call-typeLabelDirectVideo = 1-on-1 video call
+call-typeLabelDirectAudio = 1-on-1 audio call
+call-typeLabelGroupVideo = Group video call
+call-typeLabelGroupAudio = Group audio call
+call-typeLabelMeetingVideo = Meeting video call
+call-typeLabelMeetingAudio = Meeting audio call
 call-videoQuality = Video Quality
 call-highQuality = High Quality
 call-highQualityDesc = 720p, 30fps - Best for fast connections
@@ -551,7 +587,7 @@ calendar-agendaAssignedTo = Assigned to {$name}
 calendar-noAgenda = No agenda items
 
 # Call History
-chat-callHistory = Call history
+chat-callHistory = Call History
 chat-callHistoryAll = All
 chat-callHistoryJoined = Joined
 chat-callHistoryMissed = Missed
@@ -567,11 +603,15 @@ chat-callHistoryDeclinedFrom = Declined call from {$name}
 chat-callHistoryNotAnsweredFrom = Not answered call from {$name}
 chat-callHistoryDuration = {$minutes} min
 chat-callHistoryBack = Back
+chat-callHistoryFilterStatus = Status
+chat-callHistoryFilterType = Type
+chat-callHistoryLoadMore = Load more
 chat-callHistoryCallName = Call: {$name}
 chat-callHistoryGroupCallName = Group Call: {$name}
 chat-callHistoryMeetingName = Meeting: {$name}
 chat-callHistoryIncoming = Incoming
 chat-callHistoryOutgoing = Outgoing
+chat-callHistoryMissedIncoming = Missed incoming
 chat-callHistoryAllTypes = All types
 chat-callHistoryTypeDirect = Direct
 chat-callHistoryTypeGroup = Group

@@ -424,88 +424,100 @@ export const AssetDetailPanel: React.FC<AssetDetailPanelProps> = ({
                   </p>
                 ) : (
                   <div className="gba:space-y-4">
-                    {sortedAllocations.map((allocation, index) => (
-                      <div key={allocation.id} data-testid={`allocation-history-item-${allocation.id}`}>
-                        <div className="gba:flex gba:items-start gba:gap-3">
-                          <div className="gba:flex gba:flex-col gba:items-center gba:pt-1">
-                            <div
-                              className={`gba:w-3 gba:h-3 gba:rounded-full ${
-                                allocation.endDate ? 'gba:bg-muted' : 'gba:bg-success'
-                              }`}
-                            />
-                            {index < sortedAllocations.length - 1 && (
-                              <div className="gba:w-0.5 gba:h-16 gba:bg-border gba:my-1" />
-                            )}
-                          </div>
-
-                          <div className="gba:flex-1 gba:pb-4">
-                            <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
-                              <p
-                                className="gba:text-sm gba:font-medium"
-                                data-testid={`allocation-employee-${allocation.id}`}
-                              >
-                                {allocation.employee?.displayName ||
-                                  `${allocation.employee?.firstName || ''} ${allocation.employee?.lastName || ''}`.trim() ||
-                                  getTranslationFromI18nKeyAndLabel(
-                                    'lowcoder:hr_assets.unknown_employee',
-                                    'Unknown Employee'
-                                  )}
-                              </p>
-                              {!allocation.endDate && (
-                                <Badge variant="success" data-testid={`allocation-status-${allocation.id}`}>
-                                  {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.current', 'Current')}
-                                </Badge>
+                    {sortedAllocations.map((allocation, index) => {
+                      const effectivelyEnded = !!allocation.endDate || (isRetired && !allocation.endDate)
+                      const showCurrentBadge = !allocation.endDate && !isRetired
+                      const endLabel = allocation.endDate
+                        ? formatDate(allocation.endDate) || allocation.endDate
+                        : isRetired
+                          ? t('asset-retired')
+                          : getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.present', 'Present')
+                      return (
+                        <div key={allocation.id} data-testid={`allocation-history-item-${allocation.id}`}>
+                          <div className="gba:flex gba:items-start gba:gap-3">
+                            <div className="gba:flex gba:flex-col gba:items-center gba:pt-1">
+                              <div
+                                className={`gba:w-3 gba:h-3 gba:rounded-full ${
+                                  effectivelyEnded ? 'gba:bg-muted' : 'gba:bg-success'
+                                }`}
+                              />
+                              {index < sortedAllocations.length - 1 && (
+                                <div className="gba:w-0.5 gba:h-16 gba:bg-border gba:my-1" />
                               )}
                             </div>
 
-                            <p
-                              className="gba:text-xs gba:text-muted-foreground"
-                              data-testid={`allocation-dates-${allocation.id}`}
-                            >
-                              {formatDate(allocation.startDate) || allocation.startDate}
-                              {' → '}
-                              {allocation.endDate
-                                ? formatDate(allocation.endDate) || allocation.endDate
-                                : getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.present', 'Present')}
-                            </p>
-
-                            {allocation.startAssetCondition && (
-                              <p
-                                className="gba:text-xs gba:text-muted-foreground gba:mt-1"
-                                data-testid={`allocation-condition-start-${allocation.id}`}
-                              >
-                                {getTranslationFromI18nKeyAndLabel(
-                                  'lowcoder:hr_assets.condition_at_handover',
-                                  'Condition at handover'
+                            <div className="gba:flex-1 gba:pb-4">
+                              <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
+                                <p
+                                  className="gba:text-sm gba:font-medium"
+                                  data-testid={`allocation-employee-${allocation.id}`}
+                                >
+                                  {allocation.employee?.displayName ||
+                                    `${allocation.employee?.firstName || ''} ${allocation.employee?.lastName || ''}`.trim() ||
+                                    getTranslationFromI18nKeyAndLabel(
+                                      'lowcoder:hr_assets.unknown_employee',
+                                      'Unknown Employee'
+                                    )}
+                                </p>
+                                {showCurrentBadge && (
+                                  <Badge variant="success" data-testid={`allocation-status-${allocation.id}`}>
+                                    {getTranslationFromI18nKeyAndLabel('lowcoder:hr_assets.current', 'Current')}
+                                  </Badge>
                                 )}
-                                :{' '}
-                                {getConditionDisplayValue(
-                                  allocation.startAssetConditionRef,
-                                  allocation.startAssetCondition.value
+                                {isRetired && !allocation.endDate && (
+                                  <Badge variant="default" data-testid={`allocation-status-ended-${allocation.id}`}>
+                                    {t('ended-asset-retired')}
+                                  </Badge>
                                 )}
-                              </p>
-                            )}
+                              </div>
 
-                            {allocation.endDate && allocation.endAssetCondition && (
                               <p
                                 className="gba:text-xs gba:text-muted-foreground"
-                                data-testid={`allocation-condition-end-${allocation.id}`}
+                                data-testid={`allocation-dates-${allocation.id}`}
                               >
-                                {getTranslationFromI18nKeyAndLabel(
-                                  'lowcoder:hr_assets.condition_at_return',
-                                  'Condition at return'
-                                )}
-                                :{' '}
-                                {getConditionDisplayValue(
-                                  allocation.endAssetConditionRef,
-                                  allocation.endAssetCondition.value
-                                )}
+                                {formatDate(allocation.startDate) || allocation.startDate}
+                                {' → '}
+                                {endLabel}
                               </p>
-                            )}
+
+                              {allocation.startAssetCondition && (
+                                <p
+                                  className="gba:text-xs gba:text-muted-foreground gba:mt-1"
+                                  data-testid={`allocation-condition-start-${allocation.id}`}
+                                >
+                                  {getTranslationFromI18nKeyAndLabel(
+                                    'lowcoder:hr_assets.condition_at_handover',
+                                    'Condition at handover'
+                                  )}
+                                  :{' '}
+                                  {getConditionDisplayValue(
+                                    allocation.startAssetConditionRef,
+                                    allocation.startAssetCondition.value
+                                  )}
+                                </p>
+                              )}
+
+                              {allocation.endDate && allocation.endAssetCondition && (
+                                <p
+                                  className="gba:text-xs gba:text-muted-foreground"
+                                  data-testid={`allocation-condition-end-${allocation.id}`}
+                                >
+                                  {getTranslationFromI18nKeyAndLabel(
+                                    'lowcoder:hr_assets.condition_at_return',
+                                    'Condition at return'
+                                  )}
+                                  :{' '}
+                                  {getConditionDisplayValue(
+                                    allocation.endAssetConditionRef,
+                                    allocation.endAssetCondition.value
+                                  )}
+                                </p>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 )}
               </CardContent>

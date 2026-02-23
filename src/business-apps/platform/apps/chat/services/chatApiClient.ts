@@ -10,12 +10,53 @@ function safeString(value: unknown): string {
   return ''
 }
 
-/** Backend returns lastMessage with snake_case; normalize to camelCase for frontend. */
-function normalizeLastMessage(lastMessage: unknown): Message | undefined {
-  if (lastMessage == null || typeof lastMessage !== 'object') return undefined
-  const m = lastMessage as Record<string, unknown>
+/** Normalize sender from API (snake_case → camelCase) so avatarUrl is available. */
+function normalizeSender(sender: unknown): Message['sender'] | undefined {
+  if (sender == null || typeof sender !== 'object') return undefined
+  const s = sender as Record<string, unknown>
+  const avatarUrl = (s.avatar_url ?? s.avatarUrl) as string | undefined
+  return {
+    ...s,
+    avatarUrl: avatarUrl ?? (s.avatarUrl as string | undefined)
+  } as Message['sender']
+}
+
+/** Normalize a message from API (snake_case, quotedMessage). Used for list, search, new_message, reactions. */
+export function normalizeMessage(raw: unknown): Message {
+  if (raw == null || typeof raw !== 'object') {
+    return {
+      id: '',
+      conversationId: '',
+      senderId: null,
+      type: 'text',
+      content: '',
+      createdAt: '',
+      updatedAt: ''
+    } as Message
+  }
+  const m = raw as Record<string, unknown>
   const createdAt = (m.created_at ?? m.createdAt) as string | undefined
   const updatedAt = (m.updated_at ?? m.updatedAt ?? m.created_at ?? m.createdAt) as string | undefined
+  const editedAt = (m.edited_at ?? m.editedAt) as string | undefined
+  const quotedMessageId = (m.quoted_message_id ?? m.quotedMessageId) as string | undefined
+  const quotedMessageRaw = m.quotedMessage ?? m.quoted_message
+  const quotedMessage =
+    quotedMessageRaw != null && typeof quotedMessageRaw === 'object' ? normalizeMessage(quotedMessageRaw) : undefined
+  const quotedSnapshotRaw = m.quoted_message_snapshot ?? m.quotedMessageSnapshot
+  const quotedMessageSnapshot =
+    quotedSnapshotRaw != null &&
+    typeof quotedSnapshotRaw === 'object' &&
+    typeof (quotedSnapshotRaw as any).content === 'string'
+      ? {
+          content: String((quotedSnapshotRaw as any).content),
+          ...((quotedSnapshotRaw as any).createdAt != null && {
+            createdAt: String((quotedSnapshotRaw as any).createdAt)
+          }),
+          ...((quotedSnapshotRaw as any).senderDisplayName != null && {
+            senderDisplayName: String((quotedSnapshotRaw as any).senderDisplayName)
+          })
+        }
+      : undefined
   return {
     id: safeString(m.id),
     conversationId: safeString(m.conversation_id ?? m.conversationId),
@@ -26,12 +67,27 @@ function normalizeLastMessage(lastMessage: unknown): Message | undefined {
     parentId: (m.reply_to_id ?? m.parentId ?? m.replyToId) as string | undefined,
     isEdited: Boolean(m.is_edited ?? m.isEdited),
     isDeleted: Boolean(m.is_deleted ?? m.isDeleted),
+    ...(editedAt && { editedAt }),
     createdAt: createdAt ?? updatedAt ?? new Date().toISOString(),
     updatedAt: updatedAt ?? createdAt ?? new Date().toISOString(),
-    sender: (m.sender as Message['sender']) ?? undefined,
+    sender: normalizeSender(m.sender),
     reactions: (m.reactions as Message['reactions']) ?? undefined,
-    status: (m.status as Message['status']) ?? undefined
+    status: (m.status as Message['status']) ?? undefined,
+    ...(quotedMessageId && { quotedMessageId }),
+    ...(quotedMessage && { quotedMessage }),
+    ...(quotedMessageSnapshot && { quotedMessageSnapshot })
   } as Message
+}
+
+/** Backend returns lastMessage with snake_case; normalize to camelCase for frontend. */
+function normalizeLastMessage(lastMessage: unknown): Message | undefined {
+  if (lastMessage == null || typeof lastMessage !== 'object') return undefined
+  return normalizeMessage(lastMessage)
+}
+
+/** Alias for list/search; same shape as normalizeMessage. */
+function normalizeSearchMessage(raw: unknown): Message {
+  return normalizeMessage(raw)
 }
 
 /** Apply lastMessage normalization to a conversation from the API. */
@@ -290,18 +346,38 @@ export class ChatApiClient {
     return response.data
   }
 
+  async updateConversationPreferences(
+    conversationId: string,
+    data: { isMuted?: boolean; isPinned?: boolean; pinnedOrder?: number | null }
+  ): Promise<{ isMuted: boolean; isPinned: boolean; pinnedOrder: number | null }> {
+    const response = await this.client.patch<{
+      isMuted: boolean
+      isPinned: boolean
+      pinnedOrder: number | null
+    }>(`/conversations/${conversationId}/me/preferences`, data)
+    return response.data
+  }
+
   // Message endpoints
-  async getMessages(conversationId: string, page: number = 1, limit: number = 100) {
+  async getMessage(messageId: string): Promise<Message> {
+    const response = await this.client.get<unknown>(`/messages/${messageId}`)
+    return normalizeMessage(response.data)
+  }
+
+  async getMessages(conversationId: string, page: number = 1, limit: number = 100, before?: string) {
+    const params: Record<string, string | number> = { page, limit }
+    if (before) params.before = before
     const response = await this.client.get<
       | PaginatedResponse<Message>
       | { messages: Message[]; total: number; page: number; limit: number; totalPages: number }
     >(`/messages/conversation/${conversationId}`, {
-      params: { page, limit }
+      params
     })
     // Backend returns { messages: [...] } but we expect { data: [...] }
     if ('messages' in response.data) {
+      const messages = (response.data as { messages: unknown[] }).messages ?? []
       return {
-        data: response.data.messages,
+        data: messages.map(normalizeMessage),
         total: response.data.total,
         page: response.data.page,
         limit: response.data.limit,
@@ -311,28 +387,57 @@ export class ChatApiClient {
     return response.data
   }
 
+  async searchMessages(
+    conversationId: string,
+    query: string,
+    options?: { page?: number; limit?: number }
+  ): Promise<{ data: Message[]; total: number; page: number; limit: number; totalPages: number }> {
+    const page = options?.page ?? 1
+    const limit = options?.limit ?? 20
+    const response = await this.client.get<{
+      messages: unknown[]
+      total: number
+      page: number
+      limit: number
+      totalPages: number
+    }>('/messages/search', {
+      params: { query: query.trim(), conversationId, page, limit }
+    })
+    const data = response.data
+    const rawMessages = data.messages ?? []
+    return {
+      data: rawMessages.map(normalizeSearchMessage),
+      total: data.total ?? 0,
+      page: data.page ?? page,
+      limit: data.limit ?? limit,
+      totalPages: data.totalPages ?? Math.ceil((data.total ?? 0) / limit)
+    }
+  }
+
   async sendMessage(
     conversationId: string,
     content: string,
     senderId: string,
     parentId?: string,
-    metadata?: Record<string, any>
-  ) {
+    metadata?: Record<string, any>,
+    quotedMessageId?: string
+  ): Promise<Message> {
     const payload = {
       conversationId,
       content,
       senderId,
       ...(parentId && { parentId }),
-      ...(metadata && { metadata })
+      ...(metadata && { metadata }),
+      ...(quotedMessageId && { quotedMessageId })
     }
 
-    const response = await this.client.post<Message>('/messages', payload)
-    return response.data
+    const response = await this.client.post<unknown>('/messages', payload)
+    return normalizeMessage(response.data)
   }
 
-  async updateMessage(messageId: string, content: string) {
-    const response = await this.client.patch<Message>(`/messages/${messageId}`, { content })
-    return response.data
+  async updateMessage(messageId: string, content: string): Promise<Message> {
+    const response = await this.client.patch<unknown>(`/messages/${messageId}`, { content })
+    return normalizeMessage(response.data)
   }
 
   async deleteMessage(messageId: string) {
@@ -340,14 +445,14 @@ export class ChatApiClient {
   }
 
   async addReaction(messageId: string, emoji: string): Promise<Message> {
-    const response = await this.client.post<Message>(`/messages/${messageId}/reactions`, { emoji })
-    return response.data
+    const response = await this.client.post<unknown>(`/messages/${messageId}/reactions`, { emoji })
+    return normalizeMessage(response.data)
   }
 
   async removeReaction(messageId: string, emoji: string): Promise<Message> {
     const encodedEmoji = encodeURIComponent(emoji)
-    const response = await this.client.delete<Message>(`/messages/${messageId}/reactions/${encodedEmoji}`)
-    return response.data
+    const response = await this.client.delete<unknown>(`/messages/${messageId}/reactions/${encodedEmoji}`)
+    return normalizeMessage(response.data)
   }
 
   async markAsRead(conversationId: string) {
@@ -421,11 +526,12 @@ export class ChatApiClient {
     status: import('../components/CallHistory/CallHistoryTypes').CallHistoryFilter
     callType: import('../components/CallHistory/CallHistoryTypes').CallHistoryTypeFilter
     limit?: number
+    offset?: number
   }): Promise<import('../components/CallHistory/CallHistoryTypes').CallHistoryEntry[]> {
-    const { status, callType, limit = 50 } = params
+    const { status, callType, limit = 50, offset = 0 } = params
     const response = await this.client.get<Array<{ type: 'joined' | 'outcome'; [key: string]: unknown }>>(
       '/call-history',
-      { params: { status, callType, limit } }
+      { params: { status, callType, limit, offset } }
     )
     const data = Array.isArray(response.data) ? response.data : []
     return data.map(entry => {

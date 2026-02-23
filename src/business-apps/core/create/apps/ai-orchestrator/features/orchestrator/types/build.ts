@@ -5,6 +5,8 @@
 
 import type { ComponentSpec, BuildStatus } from './components'
 
+export type { BuildStatus } from './components'
+
 // Current phase of the build process
 export type BuildPhase = 'discovery' | 'building' | 'wiring' | 'complete'
 
@@ -39,6 +41,17 @@ export interface UserSummary {
   estimatedTime: string
 }
 
+// App-level identity metadata
+export interface AppMetadata {
+  name: string
+  icon: string
+  description: string
+  longDescription?: string
+  category?: string
+  tags?: string[]
+  version?: string
+}
+
 // Complete build plan
 export interface BuildPlan {
   jobId: string
@@ -50,4 +63,5 @@ export interface BuildPlan {
   estimatedDurationSeconds: number
   createdAt: string
   status: BuildStatus
+  appMetadata?: AppMetadata
 }

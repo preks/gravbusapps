@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo, memo } from 'react'
+import React, { useState, useEffect, useRef, useMemo, useCallback, memo } from 'react'
 import { Alert, AlertDescription, Spinner, Toaster } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useChatClient } from './hooks/useChatClient'
@@ -65,7 +65,11 @@ const ChatInner: React.FC<ChatProps> = memo(
     const containerRef = useRef<HTMLDivElement>(null)
     const chatViewRef = useRef<HTMLDivElement>(null)
     const [showConversationList, setShowConversationList] = useState(!initialOpenWithUser)
-    const [showCallHistory, setShowCallHistory] = useState(false)
+    const getShowCallHistoryFromUrl = useCallback((): boolean => {
+      if (typeof globalThis.window === 'undefined') return false
+      return new URLSearchParams(globalThis.window.location.search).get('view') === 'call-history'
+    }, [])
+    const [showCallHistory, setShowCallHistory] = useState(getShowCallHistoryFromUrl)
     const [missedCallsCount, setMissedCallsCount] = useState(0)
     const [callHistoryRefreshTrigger, setCallHistoryRefreshTrigger] = useState(0)
     const [showCreateGroupModal, setShowCreateGroupModal] = useState(false)
@@ -94,7 +98,7 @@ const ChatInner: React.FC<ChatProps> = memo(
     // Reset URL processing refs on mount to allow restoration after hard refresh
     useEffect(() => {
       // Only reset if there's a conversationId in URL (user refreshed with a conversation open)
-      const urlParams = new URLSearchParams(window.location.search)
+      const urlParams = new URLSearchParams(globalThis.window.location.search)
       if (urlParams.get('conversationId')) {
         conversationIdFromUrlProcessed.current = false
       }
@@ -161,7 +165,9 @@ const ChatInner: React.FC<ChatProps> = memo(
       loadMoreMessages,
       loadMoreConversations,
       refreshConversations,
+      updateConversation,
       updateMessage,
+      ensureMessageInList,
       startTyping,
       stopTyping,
       sendNudge,
@@ -287,6 +293,23 @@ const ChatInner: React.FC<ChatProps> = memo(
 
       prevRenderDataRef.current = currentData
     }
+
+    // Sync call history view with URL (bookmarkable; pushState on open so back closes panel)
+    const updateCallHistoryUrl = useCallback((show: boolean, push = false) => {
+      if (typeof globalThis.window === 'undefined') return
+      const urlParams = new URLSearchParams(globalThis.window.location.search)
+      if (show) urlParams.set('view', 'call-history')
+      else urlParams.delete('view')
+      const query = urlParams.toString()
+      const newUrl = query ? `${globalThis.window.location.pathname}?${query}` : globalThis.window.location.pathname
+      if (push) globalThis.window.history.pushState({}, '', newUrl)
+      else globalThis.window.history.replaceState({}, '', newUrl)
+    }, [])
+    useEffect(() => {
+      const handlePopState = () => setShowCallHistory(getShowCallHistoryFromUrl())
+      globalThis.window.addEventListener('popstate', handlePopState)
+      return () => globalThis.window.removeEventListener('popstate', handlePopState)
+    }, [getShowCallHistoryFromUrl])
 
     // Track active conversation changes
     useEffect(() => {
@@ -587,6 +610,39 @@ const ChatInner: React.FC<ChatProps> = memo(
       lastNudgeTimeRef,
       NUDGE_COOLDOWN_MS
     })
+
+    const handlePinConversation = useCallback(() => {
+      const id = activeConversationId
+      if (!id || !apiClient || !updateConversation) return
+      const currentlyPinned = activeConversation?.isPinned ?? false
+      apiClient
+        .updateConversationPreferences(id, {
+          isPinned: !currentlyPinned,
+          pinnedOrder: currentlyPinned ? null : undefined
+        })
+        .then(prefs => {
+          updateConversation(id, {
+            isPinned: prefs.isPinned,
+            pinnedOrder: prefs.pinnedOrder
+          })
+          refreshConversations?.()
+        })
+        .catch(() => {})
+    }, [activeConversationId, activeConversation?.isPinned, apiClient, updateConversation, refreshConversations])
+
+    const handleMuteConversation = useCallback(
+      (muted: boolean) => {
+        const id = activeConversationId
+        if (!id || !apiClient || !updateConversation) return
+        apiClient
+          .updateConversationPreferences(id, { isMuted: muted })
+          .then(prefs => {
+            updateConversation(id, { isMuted: prefs.isMuted })
+          })
+          .catch(() => {})
+      },
+      [activeConversationId, apiClient, updateConversation]
+    )
 
     // Keep ref in sync with activeConversationId for stable callbacks
     useEffect(() => {
@@ -914,6 +970,7 @@ const ChatInner: React.FC<ChatProps> = memo(
                   onOpenCallHistory={() => {
                     setShowCallHistory(true)
                     setShowConversationList(false)
+                    updateCallHistoryUrl(true, true)
                     if (apiClient) {
                       apiClient.markCallHistorySeen().catch(() => {})
                       setMissedCallsCount(0)
@@ -927,10 +984,14 @@ const ChatInner: React.FC<ChatProps> = memo(
                     apiClient={apiClient}
                     accessToken={accessToken}
                     currentUserId={currentUser.id}
+                    showBackButton={isSingleViewMode}
+                    iconOnlyFilters={isSingleViewMode}
                     refreshTrigger={callHistoryRefreshTrigger}
+                    presenceMap={presenceMap}
                     onBack={() => {
                       setShowCallHistory(false)
                       setShowConversationList(true)
+                      updateCallHistoryUrl(false)
                       if (apiClient) {
                         apiClient
                           .getMissedCallsCount()
@@ -953,12 +1014,17 @@ const ChatInner: React.FC<ChatProps> = memo(
                           .catch(() => {})
                       }
                       setShowCallHistory(false)
+                      updateCallHistoryUrl(false)
                     }}
                   />
                 ) : (
                   <ChatConversationView
                     prefixDataTestId={prefixDataTestId}
                     stableActiveConversation={stableActiveConversation}
+                    isPinned={stableActiveConversation?.isPinned}
+                    isMuted={stableActiveConversation?.isMuted}
+                    onPin={handlePinConversation}
+                    onMute={handleMuteConversation}
                     isSingleViewMode={isSingleViewMode}
                     viewMode={viewMode}
                     onBack={handleBack}
@@ -990,6 +1056,7 @@ const ChatInner: React.FC<ChatProps> = memo(
                     onSendMessage={handleAISendMessage}
                     apiClient={apiClient}
                     onUpdateMessage={updateMessage}
+                    ensureMessageInList={ensureMessageInList}
                     isAIProcessing={isAIProcessing}
                     aiStreamingText={aiStreamingText}
                     isExpertProcessing={isExpertProcessing}

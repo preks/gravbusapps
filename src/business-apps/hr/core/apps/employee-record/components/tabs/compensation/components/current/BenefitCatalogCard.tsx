@@ -113,10 +113,10 @@ const BenefitCatalogCard: React.FC<BenefitCatalogCardProps> = ({
     }
 
     if (benefit.isCancelled) {
-      return `${baseClasses} gba:border-border gba:bg-muted/30`
+      return `${baseClasses} gba:border-border gba:bg-background`
     }
 
-    return `${baseClasses} gba:border-border gba:hover:border-accent`
+    return `${baseClasses} gba:border-border gba:bg-background gba:hover:border-accent`
   }
 
   const valueDisplay = benefit.isActive || benefit.isScheduled ? getBenefitValueDisplay() : null

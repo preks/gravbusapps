@@ -64,6 +64,9 @@ export interface Conversation {
   lastMessageAt?: Date | string // Timestamp of the last message (from backend)
   lastReadAt?: Date | string // Timestamp when current user last read this conversation (from backend)
   unreadCount?: number
+  isMuted?: boolean
+  isPinned?: boolean
+  pinnedOrder?: number | null
   activeCall?: ActiveCall | null
   activeExperts?: string[] // Array of Every Expert prompt IDs
   metadata?: {
@@ -81,6 +84,9 @@ export interface ConversationParticipant {
   role: 'admin' | 'member'
   joinedAt: Date | string
   lastReadAt?: Date | string
+  isMuted?: boolean
+  isPinned?: boolean
+  pinnedOrder?: number | null
   user?: User
 }
 
@@ -93,6 +99,7 @@ export interface Message {
   metadata?: Record<string, any>
   parentId?: string
   isEdited: boolean
+  editedAt?: Date | string
   isDeleted: boolean
   createdAt: Date | string
   updatedAt: Date | string
@@ -101,6 +108,15 @@ export interface Message {
   reactions?: Record<string, string[]>
   replies?: Message[]
   status?: 'sending' | 'sent' | 'delivered' | 'read'
+  /** Reply with quote on main timeline */
+  quotedMessageId?: string
+  quotedMessage?: Message
+  /** Snapshot of quoted message at reply time (content, date, sender name) so edits to source don't change the quote */
+  quotedMessageSnapshot?: {
+    content: string
+    createdAt?: string
+    senderDisplayName?: string
+  }
 }
 
 export interface MessageReaction {

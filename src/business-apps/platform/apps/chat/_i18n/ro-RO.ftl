@@ -45,6 +45,13 @@ chat-nudgeCooldown = Vă rugăm să așteptați {$seconds} secunde înainte de a
 # Messages
 chat-noMessages = Încă nu există mesaje. Începe conversația!
 chat-loadOlderMessages = Încarcă mesaje mai vechi
+
+# Message search (in-conversation)
+chat-searchInConversation = Caută în conversație
+chat-searchMessagesPlaceholder = Caută mesaje…
+chat-searchNoResults = Niciun rezultat
+chat-searchSearching = Se caută…
+chat-searchClear = Șterge
 common-loading = Se încarcă...
 chat-preview-open = Deschide previzualizarea
 chat-preview-unsupported = Previzualizare indisponibilă.
@@ -68,6 +75,25 @@ chat-input-attach = Atașează fișier
 chat-input-emoji = Adaugă emoji
 chat-attach = Atașează fișier
 chat-mention = Menționează pe cineva
+
+# Quoted messages (reply = reply with quote)
+chat-reply = Răspunde
+chat-reply-with-quote = Răspunde cu citat
+chat-quoting-name = Citat de la {$name}
+chat-cancel-quote = Anulează citatul
+chat-quoted-message-unavailable = Mesaj indisponibil
+
+# Edit message
+chat-edit-message = Editează mesajul
+chat-save = Salvează
+chat-cancel = Anulează
+chat-edited = Editat
+chat-edited-at = Editat la { $time }
+
+# Reactions
+chat-reaction-picker-full = Alege o reacție
+chat-reaction-search-placeholder = Caută emoji…
+chat-react-with-emoji = Reacționează cu {$emoji}
 
 # Typing Indicator
 chat-someone = Cineva
@@ -302,6 +328,12 @@ call-rnnoiseWarning = Folosirea unui headset poate îmbunătăți calitatea micr
 # Call Settings
 call-video = video
 call-audio = audio
+call-typeLabelDirectVideo = Apel video 1 la 1
+call-typeLabelDirectAudio = Apel audio 1 la 1
+call-typeLabelGroupVideo = Apel video de grup
+call-typeLabelGroupAudio = Apel audio de grup
+call-typeLabelMeetingVideo = Apel video de meeting
+call-typeLabelMeetingAudio = Apel audio de meeting
 call-videoQuality = Calitate Video
 call-highQuality = Calitate Înaltă
 call-highQualityDesc = 720p, 30fps - Optimal pentru conexiuni rapide
@@ -564,11 +596,15 @@ chat-callHistoryDeclinedFrom = Apel refuzat de la {$name}
 chat-callHistoryNotAnsweredFrom = Apel fără răspuns de la {$name}
 chat-callHistoryDuration = {$minutes} min
 chat-callHistoryBack = Înapoi
+chat-callHistoryFilterStatus = Status
+chat-callHistoryFilterType = Tip
+chat-callHistoryLoadMore = Încarcă mai multe
 chat-callHistoryCallName = Apel: {$name}
 chat-callHistoryGroupCallName = Apel de grup: {$name}
 chat-callHistoryMeetingName = Întâlnire: {$name}
 chat-callHistoryIncoming = Primite
 chat-callHistoryOutgoing = Efectuate
+chat-callHistoryMissedIncoming = Ratat primit
 chat-callHistoryAllTypes = Toate tipurile
 chat-callHistoryTypeDirect = Direct
 chat-callHistoryTypeGroup = Grup

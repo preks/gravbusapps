@@ -7,3 +7,6 @@ travel-order-fallback-file-name = Travel order.pdf
 # Advance Payment Details
 expense-plan-code = Expense Plan Code
 
+# Expense Requests Tab
+personal-expenses-update-request-action = Update Request
+

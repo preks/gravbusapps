@@ -94,8 +94,6 @@ export const transformFormFieldsToTableColumns = (
 
   // Transform each field to a table column
   allFields.forEach(field => {
-    const currencyCode = extractCurrencyCode(defaultCurrency)
-
     // Special handling: Interest rate fields should always be formatted as percentages
     // even if catalog incorrectly defines them as AMOUNT
     const effectiveFieldType = field.property.toLowerCase().includes('interestrate') ? 'PERCENTAGE' : field.type
@@ -107,12 +105,19 @@ export const transformFormFieldsToTableColumns = (
       property: field.property,
       displayOrder: Number.parseFloat(field.displayOrder || '999'),
       getValue: (row: any) => {
+        const rowCurrencyCode = extractCurrencyCode(
+          row?.currency?.code ||
+            row?.currencyRef ||
+            row?.originalCurrency ||
+            row?.investment?.currency?.code ||
+            defaultCurrency
+        )
         const prop = field.property
 
         if (prop === 'investment.totalInvestmentAmount') {
           // Use row.totalInvestmentAmount directly = InvestmentReport.totalInvestmentAmount
           const value = row.totalInvestmentAmount
-          return formatFieldValueForTable(value, effectiveFieldType, currencyCode)
+          return formatFieldValueForTable(value, effectiveFieldType, rowCurrencyCode)
         }
 
         let value = getValueByPath(row, prop)
@@ -139,10 +144,10 @@ export const transformFormFieldsToTableColumns = (
           }
         }
 
-        return formatFieldValueForTable(value, effectiveFieldType, currencyCode)
+        return formatFieldValueForTable(value, effectiveFieldType, rowCurrencyCode)
       },
       className: getColumnClassName(effectiveFieldType),
-      width: getColumnWidth(effectiveFieldType)
+      width: getColumnWidth(effectiveFieldType, field.label)
     })
   })
 
@@ -169,22 +174,35 @@ const getColumnClassName = (fieldType: string): string => {
 
 /**
  * Get appropriate width for column types
+ * Dynamically calculates width based on label length to prevent truncation
  */
-const getColumnWidth = (fieldType: string): string => {
+const getColumnWidth = (fieldType: string, label?: string): string => {
+  // Base width from field type
+  let baseWidth = 150
   switch (fieldType) {
     case 'DATE':
     case 'DATETIME':
-      return '120px'
+      baseWidth = 120
+      break
     case 'AMOUNT':
-      return '140px'
+      baseWidth = 140
+      break
     case 'PERCENTAGE':
     case 'NUMBER':
-      return '100px'
+      baseWidth = 100
+      break
     case 'TEXT':
-      return '180px'
-    default:
-      return '150px'
+      baseWidth = 180
+      break
   }
+
+  // If label provided, calculate width needed (roughly 8px per character + padding)
+  if (label) {
+    const labelWidth = Math.ceil(label.length * 8) + 32 // 32px for padding/icons
+    return `${Math.max(baseWidth, labelWidth)}px`
+  }
+
+  return `${baseWidth}px`
 }
 
 // Note: getDynamicColumnsForType functionality is now provided by useInvestmentLiquidFundReportCatalog hook

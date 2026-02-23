@@ -34,6 +34,7 @@ export * from './useChatExperts'
 
 // Core implementations (optimized for performance)
 export * from './useMessages'
+export * from './useMessageSearch'
 export * from './useCache'
 export * from './usePresence'
 export * from './useUserStatus'

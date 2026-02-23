@@ -1,7 +1,9 @@
-import React, { useState, useMemo, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Button, Alert, Label, AlertDescription, useTranslation } from '@newwork/nw-design-system'
 import { usePerformanceEvaluationPeerForm } from '../context/PerformanceEvaluationPeerFormContext'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
+import FormHeader from '../../components/FormHeader'
+import flowIconUrl from '@/assets/icons/flowSmall.svg'
 import MultiEmployeeSelectionModal, {
   MultiEmployeeOption
 } from '../../feedback-request-form/components/MultiEmployeeSelectionModal'
@@ -21,7 +23,9 @@ const PerformanceEvaluationPeerFormComponent: React.FC = () => {
     employeesError,
     searchEmployees,
     onSubmit,
-    onCancel
+    onCancel,
+    employeeForHeader,
+    employeeForHeaderLoading
   } = usePerformanceEvaluationPeerForm()
 
   useEffect(() => {
@@ -45,21 +49,20 @@ const PerformanceEvaluationPeerFormComponent: React.FC = () => {
   const hasPeers = (formValues.peerEmployeeIds?.length ?? 0) > 0
   const isSubmitDisabled = isLoading || !hasPeers
 
-  const peersPreview = useMemo(() => {
-    const names = formValues.peerEmployeeNames ?? []
-    if (names.length === 0) return ''
-    const shown = names.slice(0, 3).join(', ')
-    const extra = names.length > 3 ? ` +${names.length - 3}` : ''
-    return `${shown}${extra}`
-  }, [formValues.peerEmployeeNames])
+  const peerNames = formValues.peerEmployeeNames ?? []
+  const peerIds = formValues.peerEmployeeIds ?? []
 
   return (
     <div
-      className="gba:flex gba:flex-col gba:h-full gba:w-full gba:bg-background"
+      className="gba:flex gba:flex-col gba:h-full gba:w-full gba:bg-white"
       data-testid={formatDataTestId(prefixDataTestId, 'Container')}
     >
-      <div className="gba:flex-shrink-0 gba:px-6 gba:py-4 gba:border-b gba:border-border">
-        <h2 className="gba:text-lg gba:font-semibold gba:text-foreground">{t('title')}</h2>
+      <div className="gba:flex-shrink-0">
+        <FormHeader
+          title={t('header-title')}
+          flowIconUrl={flowIconUrl}
+          employee={employeeForHeaderLoading ? null : (employeeForHeader ?? undefined)}
+        />
       </div>
 
       <div className="gba:flex-1 gba:px-6 gba:py-6 gba:space-y-4">
@@ -70,13 +73,10 @@ const PerformanceEvaluationPeerFormComponent: React.FC = () => {
         )}
 
         <div className="gba:space-y-2">
-          <Label className="gba:block gba:text-sm gba:font-medium">
-            {t('peers-label')} <span className="gba:text-destructive">*</span>
-          </Label>
           <div className="gba:flex gba:items-center gba:justify-between gba:gap-2">
-            <div className="gba:text-sm gba:text-muted-foreground gba:min-w-0 gba:truncate">
-              {peersPreview || t('select-peers-placeholder')}
-            </div>
+            <Label className="gba:block gba:text-sm gba:font-medium">
+              {t('peers-label')} <span className="gba:text-destructive">*</span>
+            </Label>
             <Button
               variant="outline"
               type="button"
@@ -86,6 +86,21 @@ const PerformanceEvaluationPeerFormComponent: React.FC = () => {
               {t('select-peers')}
             </Button>
           </div>
+          {peerNames.length > 0 ? (
+            <ul className="gba:space-y-2 gba:list-none gba:p-0 gba:m-0">
+              {peerNames.map((name, index) => (
+                <li
+                  key={peerIds[index] ?? index}
+                  className="gba:py-2 gba:px-3 gba:rounded-md gba:bg-muted/50 gba:border gba:border-border gba:text-base gba:font-medium"
+                  data-testid={formatDataTestId(prefixDataTestId, 'PeerItem')}
+                >
+                  {name}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="gba:text-sm gba:text-muted-foreground">{t('select-peers-placeholder')}</p>
+          )}
         </div>
       </div>
 
