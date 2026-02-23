@@ -148,7 +148,9 @@ export class OrchestratorClient {
   private parseSseLine(line: string, onEvent: (event: BuildProgressEvent) => void) {
     if (!line.startsWith('data:')) return
     const data = line.slice(5).trim()
-    if (!data) return
+    // Skip empty data and SSE comment content that infrastructure (nginx/ingress) may
+    // send as "data: :ping" instead of a proper SSE comment line ":ping".
+    if (!data || data.startsWith(':')) return
     try {
       const raw = JSON.parse(data) as Record<string, unknown>
       const event = normalizeProgressEvent(raw)
