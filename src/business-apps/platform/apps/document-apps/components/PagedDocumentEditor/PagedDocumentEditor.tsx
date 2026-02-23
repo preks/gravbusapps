@@ -1347,7 +1347,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
               Number.isFinite(latestUpdatedAtMs) &&
               latestUpdatedAtMs > baselineUpdatedAtMs
             const hasContentChange = !areHtmlSemanticallyEquivalent(latest.content, baselineHtml)
-            const shouldApply = Number.isFinite(baselineUpdatedAtMs) ? hasNewerVersionByTimestamp : hasContentChange
+            const shouldApply = hasNewerVersionByTimestamp || hasContentChange
             if (!shouldApply) continue
 
             const applied = await applyLatestDocumentContent(latest.content, latest.updatedAt)
