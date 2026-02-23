@@ -7,6 +7,7 @@ import { useFeature } from '@/common/hooks/useFeature'
 import { Feature } from '@/common/types/constants/FeatureHub'
 import { useScopePermissionCheck } from '@/common/hooks/useScopePermissionCheck'
 import { startProcess, getPlatformContext } from '@/common/utils/start-process'
+import { OrgDirectoryClient } from '@/common/network/org-directory/OrgDirectoryClient'
 import { usePerformanceCycles } from './hooks/usePerformanceCycles'
 import { useRatingScales } from './hooks/useRatingScales'
 import { useCompanyValues } from './hooks/useCompanyValues'
@@ -54,7 +55,7 @@ enum PerformanceTabEnum {
   Values = 'values'
 }
 
-export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo }) => {
+export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
   const devFeatureFlag = useFeature(Feature.Dev.Enabled.Key)
   const { t } = useTranslation(translations)
   const {
@@ -251,7 +252,7 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
     setStartingCycleId(cycleId)
   }
 
-  const handleConfirmStartCycle = (options: { runFor: 'self' | 'team'; teamIds: string[] }) => {
+  const handleConfirmStartCycle = async (options: { runFor: 'self' | 'team'; teamIds: string[] }) => {
     if (!startingCycleId) return
 
     const cycle = cycles.find(c => c.id === startingCycleId)
@@ -267,22 +268,64 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
       return
     }
 
-    try {
-      // Build the payload according to the API specification
-      const payload = {
-        employeePerformanceEvaluation: {
-          employee: platformContext.employeeId,
-          performanceCycle: cycle.id
-        },
-        managerUserId: managerUserId || '',
-        employeeUserId: userInfo?.id || currentEmployeeUserId || ''
-      }
-      // Start the Kogito process
-      startProcess({
-        domain: 'employee',
-        processName: 'performanceEvaluation',
-        payload
+    if (runFor === 'team' && !accessToken) {
+      toast.error('Unable to start evaluation: not authenticated', {
+        position: 'bottom-right',
+        className: 'gba:text-base'
       })
+      return
+    }
+
+    try {
+      if (runFor === 'self') {
+        const payload = {
+          employeePerformanceEvaluation: {
+            employee: platformContext.employeeId,
+            performanceCycle: cycle.id
+          },
+          managerUserId: managerUserId || '',
+          employeeUserId: currentEmployeeUserId || '',
+          performanceCycleId: cycle.id
+        }
+        startProcess({
+          domain: 'employee',
+          processName: 'performanceEvaluation',
+          payload
+        })
+      } else {
+        const orgClient = new OrgDirectoryClient(accessToken!)
+        for (const teamId of selectedTeamIds) {
+          // Team dropdown uses OrganizationalUnit ids (TEAM/DEPARTMENT/UNIT), not MatrixUnit ids
+          const [users, teamManagerUserId] = await Promise.all([
+            orgClient.getUsersByOrganizationalUnit(teamId),
+            orgClient.getTeamManagerUserId(teamId)
+          ])
+          const employeeUserIds = users.map(u => u.id).filter(Boolean)
+          if (employeeUserIds.length === 0) {
+            toast.warning('Team has no members with user accounts; skipping.', {
+              position: 'bottom-right',
+              className: 'gba:text-base'
+            })
+            continue
+          }
+          const payload = {
+            employeePerformanceEvaluation: {
+              employee: platformContext.employeeId,
+              performanceCycle: cycle.id
+            },
+            employeeUserId: currentEmployeeUserId || '',
+            performanceCycleId: cycle.id,
+            teamId: '',
+            employeeUserIds,
+            managerUserId: teamManagerUserId ?? '' // Team manager's userId (from org unit supervisor)
+          }
+          startProcess({
+            domain: 'employee',
+            processName: 'teamPerformanceEvaluation',
+            payload
+          })
+        }
+      }
 
       const message =
         runFor === 'self'
