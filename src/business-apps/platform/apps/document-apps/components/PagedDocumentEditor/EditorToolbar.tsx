@@ -227,11 +227,9 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   'data-testid': testId = 'editor-toolbar'
 }) => {
   const { t } = useTranslation(translations)
-  if (!editor) {
-    return null
-  }
 
   const setLink = useCallback(() => {
+    if (!editor) return
     const previousUrl = editor.getAttributes('link').href
     const url = window.prompt(t('editor-toolbar-link-prompt'), previousUrl)
 
@@ -248,6 +246,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   }, [editor, t])
 
   const addImage = useCallback(() => {
+    if (!editor) return
     const url = window.prompt(t('editor-toolbar-image-prompt'))
 
     if (url) {
@@ -256,16 +255,22 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   }, [editor, t])
 
   const insertTable = useCallback(() => {
+    if (!editor) return
     editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()
   }, [editor])
 
   const getCurrentHeading = () => {
+    if (!editor) return t('editor-heading-normal')
     for (let i = 1; i <= 6; i++) {
       if (editor.isActive('heading', { level: i })) {
         return t(`editor-heading-${i}`)
       }
     }
     return t('editor-heading-normal')
+  }
+
+  if (!editor) {
+    return null
   }
 
   return (
