@@ -209,7 +209,7 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(
     }
 
     const startEditing = () => {
-      setEditDraft((message.content ?? '').replace(/\n/g, ' '))
+      setEditDraft((message.content ?? '').split('\n').join(' '))
       setIsEditing(true)
       setEditError(null)
     }
@@ -219,7 +219,7 @@ export const MessageItem: React.FC<MessageItemProps> = React.memo(
       setEditError(null)
     }
 
-    const normalizedOriginal = (message.content ?? '').replace(/\n/g, ' ').trim()
+    const normalizedOriginal = (message.content ?? '').split('\n').join(' ').trim()
 
     const saveEditing = async () => {
       if (!apiClient || !onUpdateMessage) return

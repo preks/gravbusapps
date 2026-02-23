@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useLayoutEffect, useCallback, memo } from 'react'
 import { Button, Input } from '@newwork/nw-design-system'
-import { PaperPlaneTilt, Paperclip, At, X, File } from '@phosphor-icons/react'
+import { PaperPlaneTilt, Paperclip, At, XIcon, File } from '@phosphor-icons/react'
 import { useEntityMentions, type EntityReference, type MessageEntityReference } from '@/common/hooks/useEntityMentions'
 import { EntityMentionPopover } from '@/common/components/entity-mentions'
 import type { ActiveExpert } from '../hooks/useConversationExperts'
@@ -1018,7 +1018,7 @@ export const MessageInput: React.FC<MessageInputProps> = memo(
               aria-label={t('chat-cancel-quote')}
               data-testid="message-input-quoting-cancel"
             >
-              <X className="gba:w-3.5 gba:h-3.5" />
+              <XIcon className="gba:w-3.5 gba:h-3.5" />
             </Button>
           </div>
         )}

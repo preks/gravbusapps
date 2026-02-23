@@ -102,6 +102,8 @@ export const MessageReactionBar: React.FC<MessageReactionBarProps> = ({
       <>
         {showFloatingBar && (
           <div
+            role="group"
+            aria-label="Message reactions and actions"
             className={`gba:absolute gba:bottom-full gba:mb-1 gba:rounded-lg gba:border gba:border-border gba:bg-muted gba:z-20 gba:flex gba:items-center gba:py-0.5 gba:px-1 ${isOwnMessage ? 'gba:right-0' : 'gba:left-0'}`}
             data-testid={`message-reaction-picker-bar-${message.id}`}
             onMouseEnter={floatingBarOnMouseEnter}
@@ -127,10 +129,9 @@ export const MessageReactionBar: React.FC<MessageReactionBarProps> = ({
                 </button>
               </PopoverTrigger>
             </div>
-            <span
-              className="gba:h-4 gba:w-px gba:min-w-px gba:flex-shrink-0 gba:mx-1.5 gba:bg-muted-foreground gba:opacity-60 gba:rounded-full"
+            <hr
+              className="gba:h-4 gba:w-px gba:min-w-px gba:flex-shrink-0 gba:mx-1.5 gba:border-0 gba:bg-muted-foreground gba:opacity-60 gba:rounded-full"
               aria-hidden
-              role="separator"
             />
             <div className="gba:flex gba:items-center gba:gap-0.5" aria-label="Message actions">
               {rightSlot}

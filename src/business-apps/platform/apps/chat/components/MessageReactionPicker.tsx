@@ -27,7 +27,7 @@ export const MessageReactionPicker: React.FC<MessageReactionPickerProps> = ({
   prefixDataTestId = 'chat-message',
   limit
 }) => {
-  const emojis = limit != null ? MESSAGE_REACTION_EMOJIS.slice(0, limit) : MESSAGE_REACTION_EMOJIS
+  const emojis = limit == null ? MESSAGE_REACTION_EMOJIS : MESSAGE_REACTION_EMOJIS.slice(0, limit)
   return (
     <div
       className="gba:flex gba:gap-1 gba:p-1"

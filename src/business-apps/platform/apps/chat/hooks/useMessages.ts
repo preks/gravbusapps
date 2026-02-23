@@ -351,8 +351,9 @@ export function useMessages({
         iterations++
         if (loaded.some(m => m.id === messageId)) return true
         if (loaded.length === 0) break
-        const oldest = loaded.reduce((a, b) =>
-          new Date(a.createdAt).getTime() < new Date(b.createdAt).getTime() ? a : b
+        const oldest = loaded.reduce(
+          (a, b) => (new Date(a.createdAt).getTime() < new Date(b.createdAt).getTime() ? a : b),
+          loaded[0]
         )
         cursorBefore = new Date(oldest.createdAt).toISOString()
       }

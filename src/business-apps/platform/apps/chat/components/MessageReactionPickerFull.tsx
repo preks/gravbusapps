@@ -38,9 +38,9 @@ export const MessageReactionPickerFull: React.FC<MessageReactionPickerFullProps>
   }, [search])
 
   return (
-    <div
-      className="gba:flex gba:flex-col gba:w-72 gba:max-h-80"
-      role="dialog"
+    <dialog
+      open
+      className="gba:flex gba:flex-col gba:w-72 gba:max-h-80 gba:border gba:border-border gba:rounded-lg gba:bg-background gba:p-0 gba:m-0"
       aria-label={t('chat-reaction-picker-full')}
       data-testid={`${prefixDataTestId}-reaction-picker-full`}
     >
@@ -70,6 +70,6 @@ export const MessageReactionPickerFull: React.FC<MessageReactionPickerFullProps>
           </button>
         ))}
       </div>
-    </div>
+    </dialog>
   )
 }
