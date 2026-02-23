@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo, memo } from 'react'
+import React, { useState, useEffect, useRef, useMemo, useCallback, memo } from 'react'
 import { Alert, AlertDescription, Spinner, Toaster } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useChatClient } from './hooks/useChatClient'
@@ -9,6 +9,7 @@ import { useChatMessageHandlers, type UseChatMessageHandlersParams } from './hoo
 import { useChatPresenceSync } from './hooks/useChatPresenceSync'
 import { useChatRejoinCall } from './hooks/useChatRejoinCall'
 import { useChatViewMode } from './hooks/useChatViewMode'
+import type { Conversation, User } from './types'
 import type { UserPresence } from './hooks/usePresence'
 import { useRealtimeKitGroupCall } from './hooks/useRealtimeKitGroupCall'
 import { useEveryAIChat } from './hooks/useEveryAIChat'
@@ -19,10 +20,10 @@ import { useEmployeeAvatars } from './hooks/useEmployeeAvatars'
 import { ChatConversationView } from './components/ChatConversationView'
 import { ChatLayout } from './components/ChatLayout'
 import { ConversationList } from './components/ConversationList'
+import { CallHistory } from './components/CallHistory/CallHistory'
 import { ChatModals } from './components/ChatModals'
 import { playNudgeSound, applyShakeAnimation, injectNudgeStyles } from './utils/nudgeUtils'
 // import { initGlobalMinimizedCallRenderer } from './components/GlobalMinimizedCall'
-import type { User } from './types'
 import type { CallParticipant } from './services/webrtcClient'
 import type { GroupCallParticipant } from './services/groupWebrtcClient'
 import { TranslationProvider, useChatTranslation } from './contexts/TranslationContext'
@@ -50,6 +51,36 @@ interface ChatProps extends BusinessAppContextProps {
   initialOpenWithUser?: InitialOpenWithUserPayload | null
 }
 
+const MARKED_AS_UNREAD_STORAGE_KEY_PREFIX = 'gba-chat-marked-as-unread'
+
+function getMarkedAsUnreadStorageKey(userId: string): string {
+  return `${MARKED_AS_UNREAD_STORAGE_KEY_PREFIX}-${userId}`
+}
+
+function loadMarkedAsUnreadFromStorage(userId: string): Set<string> {
+  try {
+    const raw =
+      globalThis.localStorage === undefined
+        ? null
+        : globalThis.localStorage.getItem(getMarkedAsUnreadStorageKey(userId))
+    if (!raw) return new Set()
+    const arr = JSON.parse(raw) as unknown
+    return Array.isArray(arr) ? new Set(arr.filter((id): id is string => typeof id === 'string')) : new Set()
+  } catch {
+    return new Set()
+  }
+}
+
+function saveMarkedAsUnreadToStorage(userId: string, ids: Set<string>): void {
+  try {
+    if (globalThis.localStorage !== undefined) {
+      globalThis.localStorage.setItem(getMarkedAsUnreadStorageKey(userId), JSON.stringify([...ids]))
+    }
+  } catch {
+    // ignore
+  }
+}
+
 const ChatInner: React.FC<ChatProps> = memo(
   ({
     accessToken: accessTokenProp,
@@ -64,6 +95,13 @@ const ChatInner: React.FC<ChatProps> = memo(
     const containerRef = useRef<HTMLDivElement>(null)
     const chatViewRef = useRef<HTMLDivElement>(null)
     const [showConversationList, setShowConversationList] = useState(!initialOpenWithUser)
+    const getShowCallHistoryFromUrl = useCallback((): boolean => {
+      if (typeof globalThis.window === 'undefined') return false
+      return new URLSearchParams(globalThis.window.location.search).get('view') === 'call-history'
+    }, [])
+    const [showCallHistory, setShowCallHistory] = useState(getShowCallHistoryFromUrl)
+    const [missedCallsCount, setMissedCallsCount] = useState(0)
+    const [callHistoryRefreshTrigger, setCallHistoryRefreshTrigger] = useState(0)
     const [showCreateGroupModal, setShowCreateGroupModal] = useState(false)
     const [showGroupSettingsModal, setShowGroupSettingsModal] = useState(false)
     const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -71,6 +109,7 @@ const ChatInner: React.FC<ChatProps> = memo(
     const [isExpertProcessing, setIsExpertProcessing] = useState(false)
     const [processingExpert, setProcessingExpert] = useState<{ name: string; color?: string } | null>(null)
     const [isStartingCall, setIsStartingCall] = useState(false)
+    const [markedAsUnreadIds, setMarkedAsUnreadIds] = useState<Set<string>>(() => new Set())
     const registerMentionEntityRef = useRef<((entity: any, text: string, startIndex: number) => any) | null>(null)
     const focusInputRef = useRef<(() => void) | null>(null)
     const urlContextProcessed = useRef(false)
@@ -80,6 +119,7 @@ const ChatInner: React.FC<ChatProps> = memo(
     const presenceInitializedUsersRef = useRef<Set<string>>(new Set())
     const lastNudgeTimeRef = useRef<number>(0)
     const NUDGE_COOLDOWN_MS = 30000 // 30 seconds
+    const pendingCallFromListRef = useRef<{ conversationId: string; type: 'audio' | 'video' } | null>(null)
     const isEmbeddedMobile = additionalData?.__mobile === true
 
     // Inject nudge animation styles on mount
@@ -90,7 +130,7 @@ const ChatInner: React.FC<ChatProps> = memo(
     // Reset URL processing refs on mount to allow restoration after hard refresh
     useEffect(() => {
       // Only reset if there's a conversationId in URL (user refreshed with a conversation open)
-      const urlParams = new URLSearchParams(window.location.search)
+      const urlParams = new URLSearchParams(globalThis.window.location.search)
       if (urlParams.get('conversationId')) {
         conversationIdFromUrlProcessed.current = false
       }
@@ -157,14 +197,59 @@ const ChatInner: React.FC<ChatProps> = memo(
       loadMoreMessages,
       loadMoreConversations,
       refreshConversations,
+      updateConversation,
+      updateMessage,
+      ensureMessageInList,
       startTyping,
       stopTyping,
       sendNudge,
       registerNudgeCallback,
+      markAsUnread,
       apiClient,
-      wsClient
+      wsClient,
+      conversationSearch,
+      conversationFilterKind,
+      conversationUnreadOnly,
+      setConversationSearch,
+      setConversationFilterKind,
+      setConversationUnreadOnly
       // Note: activeCalls is now provided by useRealtimeKitGroupCall hook as activeConversationCalls
     } = chatClient
+
+    // Fetch unseen missed-calls count for badge (when user and apiClient available)
+    useEffect(() => {
+      if (!apiClient || !currentUser?.id) return
+      apiClient
+        .getMissedCallsCount()
+        .then(setMissedCallsCount)
+        .catch(() => setMissedCallsCount(0))
+    }, [apiClient, currentUser?.id])
+
+    const markedAsUnreadHydratedRef = useRef(false)
+    useEffect(() => {
+      if (currentUser?.id && !markedAsUnreadHydratedRef.current) {
+        markedAsUnreadHydratedRef.current = true
+        setMarkedAsUnreadIds(loadMarkedAsUnreadFromStorage(currentUser.id))
+      }
+    }, [currentUser?.id])
+
+    // Subscribe to real-time missed-count updates from WebSocket
+    useEffect(() => {
+      if (!wsClient) return
+      const unsubscribe = wsClient.onCallHistoryMissedCount((data: { count: number }) => {
+        setMissedCallsCount(data.count)
+        setCallHistoryRefreshTrigger(prev => prev + 1)
+      })
+      return unsubscribe
+    }, [wsClient])
+
+    // Refresh call history list when a call ends (outcomes may have been recorded)
+    useEffect(() => {
+      if (!wsClient) return
+      wsClient.onConversationCallEnded(() => {
+        setCallHistoryRefreshTrigger(prev => prev + 1)
+      })
+    }, [wsClient])
 
     useChatPresenceSync({
       presenceMap,
@@ -232,7 +317,7 @@ const ChatInner: React.FC<ChatProps> = memo(
       containerRef,
       isEmbeddedMobile,
       showConversationList,
-      hasConversation: !!stableActiveConversation
+      hasConversation: !!stableActiveConversation || showCallHistory
     })
 
     // Render tracking (after stableActiveConversation is defined)
@@ -249,6 +334,23 @@ const ChatInner: React.FC<ChatProps> = memo(
 
       prevRenderDataRef.current = currentData
     }
+
+    // Sync call history view with URL (bookmarkable; pushState on open so back closes panel)
+    const updateCallHistoryUrl = useCallback((show: boolean, push = false) => {
+      if (typeof globalThis.window === 'undefined') return
+      const urlParams = new URLSearchParams(globalThis.window.location.search)
+      if (show) urlParams.set('view', 'call-history')
+      else urlParams.delete('view')
+      const query = urlParams.toString()
+      const newUrl = query ? `${globalThis.window.location.pathname}?${query}` : globalThis.window.location.pathname
+      if (push) globalThis.window.history.pushState({}, '', newUrl)
+      else globalThis.window.history.replaceState({}, '', newUrl)
+    }, [])
+    useEffect(() => {
+      const handlePopState = () => setShowCallHistory(getShowCallHistoryFromUrl())
+      globalThis.window.addEventListener('popstate', handlePopState)
+      return () => globalThis.window.removeEventListener('popstate', handlePopState)
+    }, [getShowCallHistoryFromUrl])
 
     // Track active conversation changes
     useEffect(() => {
@@ -550,10 +652,172 @@ const ChatInner: React.FC<ChatProps> = memo(
       NUDGE_COOLDOWN_MS
     })
 
+    const handlePinConversation = useCallback(() => {
+      const id = activeConversationId
+      if (!id || !apiClient || !updateConversation) return
+      const currentlyPinned = activeConversation?.isPinned ?? false
+      apiClient
+        .updateConversationPreferences(id, {
+          isPinned: !currentlyPinned,
+          pinnedOrder: currentlyPinned ? null : undefined
+        })
+        .then(prefs => {
+          updateConversation(id, {
+            isPinned: prefs.isPinned,
+            pinnedOrder: prefs.pinnedOrder
+          })
+          refreshConversations?.()
+        })
+        .catch(() => {})
+    }, [activeConversationId, activeConversation?.isPinned, apiClient, updateConversation, refreshConversations])
+
+    const handleMuteConversation = useCallback(
+      (muted: boolean) => {
+        const id = activeConversationId
+        if (!id || !apiClient || !updateConversation) return
+        apiClient
+          .updateConversationPreferences(id, { isMuted: muted })
+          .then(prefs => {
+            updateConversation(id, { isMuted: prefs.isMuted })
+          })
+          .catch(() => {})
+      },
+      [activeConversationId, apiClient, updateConversation]
+    )
+
+    const handlePinChangeFromList = useCallback(
+      (conversationId: string, isPinned: boolean) => {
+        if (!apiClient || !updateConversation) return
+        apiClient
+          .updateConversationPreferences(conversationId, {
+            isPinned,
+            pinnedOrder: isPinned ? undefined : null
+          })
+          .then(prefs => {
+            updateConversation(conversationId, {
+              isPinned: prefs.isPinned,
+              pinnedOrder: prefs.pinnedOrder
+            })
+            refreshConversations?.()
+          })
+          .catch(() => {})
+      },
+      [apiClient, updateConversation, refreshConversations]
+    )
+
+    const handleMuteChangeFromList = useCallback(
+      (conversationId: string, isMuted: boolean) => {
+        if (!apiClient || !updateConversation) return
+        apiClient
+          .updateConversationPreferences(conversationId, { isMuted })
+          .then(prefs => {
+            updateConversation(conversationId, { isMuted: prefs.isMuted })
+          })
+          .catch(() => {})
+      },
+      [apiClient, updateConversation]
+    )
+
+    const handleNudgeFromList = useCallback(
+      (conversationId: string, toUserId: string) => {
+        if (!sendNudge) return
+        const now = Date.now()
+        const timeSinceLastNudge = now - lastNudgeTimeRef.current
+        if (timeSinceLastNudge < NUDGE_COOLDOWN_MS) {
+          const secondsRemaining = Math.ceil((NUDGE_COOLDOWN_MS - timeSinceLastNudge) / 1000)
+          setErrorMessage(t('chat-nudgeCooldown', { seconds: secondsRemaining }))
+          setTimeout(() => setErrorMessage(null), 3000)
+          return
+        }
+        const success = sendNudge(conversationId, toUserId)
+        if (success) lastNudgeTimeRef.current = now
+      },
+      [sendNudge, setErrorMessage, t, NUDGE_COOLDOWN_MS]
+    )
+
+    const handleStartAudioCallFromList = useCallback(
+      (conversation: Conversation) => {
+        setActiveConversation(conversation)
+        pendingCallFromListRef.current = { conversationId: conversation.id, type: 'audio' }
+      },
+      [setActiveConversation]
+    )
+
+    const handleStartVideoCallFromList = useCallback(
+      (conversation: Conversation) => {
+        setActiveConversation(conversation)
+        pendingCallFromListRef.current = { conversationId: conversation.id, type: 'video' }
+      },
+      [setActiveConversation]
+    )
+
+    const handleMarkAsUnread = useCallback(() => {
+      if (!activeConversationId || !markAsUnread) return
+      setMarkedAsUnreadIds(prev => {
+        const next = new Set(prev).add(activeConversationId)
+        if (currentUser?.id) saveMarkedAsUnreadToStorage(currentUser.id, next)
+        return next
+      })
+      markAsUnread(activeConversationId).catch(err => {
+        console.error('[Chat] markAsUnread failed (backend may not have been updated):', err?.message ?? err)
+      })
+    }, [activeConversationId, markAsUnread, currentUser?.id])
+
+    const handleMarkAsUnreadFromList = useCallback(
+      (conversationId: string) => {
+        setMarkedAsUnreadIds(prev => {
+          const next = new Set(prev).add(conversationId)
+          if (currentUser?.id) saveMarkedAsUnreadToStorage(currentUser.id, next)
+          return next
+        })
+        markAsUnread?.(conversationId).catch(err => {
+          console.error('[Chat] markAsUnread failed (backend may not have been updated):', err?.message ?? err)
+        })
+      },
+      [markAsUnread, currentUser?.id]
+    )
+
+    const clearMarkedAsUnread = useCallback(
+      (conversationId: string) => {
+        setMarkedAsUnreadIds(prev => {
+          const next = new Set(prev)
+          next.delete(conversationId)
+          if (currentUser?.id) saveMarkedAsUnreadToStorage(currentUser.id, next)
+          return next
+        })
+      },
+      [currentUser?.id]
+    )
+
     // Keep ref in sync with activeConversationId for stable callbacks
     useEffect(() => {
       activeConversationIdRef.current = activeConversationId
     }, [activeConversationId])
+
+    // Clear "marked as unread" dot when user opens that conversation (e.g. from URL or list)
+    useEffect(() => {
+      const conversationId = activeConversationId
+      if (!conversationId || !currentUser?.id) return
+      setMarkedAsUnreadIds(prev => {
+        if (!prev.has(conversationId)) return prev
+        const next = new Set(prev)
+        next.delete(conversationId)
+        saveMarkedAsUnreadToStorage(currentUser.id, next)
+        return next
+      })
+    }, [activeConversationId, currentUser?.id])
+
+    // Start call when active conversation was set from list context menu (audio/video)
+    useEffect(() => {
+      const pending = pendingCallFromListRef.current
+      if (!pending || !activeConversationId || activeConversationId !== pending.conversationId) return
+      pendingCallFromListRef.current = null
+      if (pending.type === 'audio') {
+        handleAudioCall()
+      } else {
+        handleVideoCall()
+      }
+    }, [activeConversationId, handleAudioCall, handleVideoCall])
 
     // Restore active conversation from URL parameter (for panel reopen persistence)
     useEffect(() => {
@@ -598,6 +862,80 @@ const ChatInner: React.FC<ChatProps> = memo(
           })
       }
     }, [conversations, setActiveConversation, activeConversationId, apiClient, conversationsLoading])
+
+    // Handle in-app "open chat with conversation" (e.g. from calendar meeting "Open Chat" - same as dashboard)
+    useEffect(() => {
+      const handleOpenWithConversation = async (event: Event) => {
+        const customEvent = event as CustomEvent<{ conversationId: string }>
+        const conversationIdParam = customEvent.detail?.conversationId
+        if (!conversationIdParam) return
+
+        const conversation = conversations.find(c => c.id === conversationIdParam)
+        if (conversation) {
+          setActiveConversation(conversation)
+          setShowConversationList(false)
+          try {
+            globalThis.dispatchEvent(new CustomEvent('chat:conversation-ready'))
+            const g = globalThis as unknown as Window
+            if (g.parent !== g) {
+              g.parent.postMessage({ type: 'CHAT_CONVERSATION_READY' }, '*')
+            }
+          } catch {
+            // ignore
+          }
+          return
+        }
+
+        if (apiClient) {
+          try {
+            const fetchedConversation = await apiClient.getConversationById(conversationIdParam)
+            if (fetchedConversation) {
+              setActiveConversation(fetchedConversation)
+              setShowConversationList(false)
+              try {
+                globalThis.dispatchEvent(new CustomEvent('chat:conversation-ready'))
+                const g = globalThis as unknown as Window
+                if (g.parent !== g) {
+                  g.parent.postMessage({ type: 'CHAT_CONVERSATION_READY' }, '*')
+                }
+              } catch {
+                // ignore
+              }
+            }
+          } catch {
+            // ignore
+          }
+        }
+      }
+
+      globalThis.addEventListener('chat:open-with-conversation', handleOpenWithConversation)
+      return () => {
+        globalThis.removeEventListener('chat:open-with-conversation', handleOpenWithConversation)
+      }
+    }, [conversations, setActiveConversation, setShowConversationList, apiClient])
+
+    // Notify calendar to refresh when a meeting is created (so other participants see it without reload)
+    useEffect(() => {
+      const socket = wsClient?.getSocket()
+      if (!socket) return
+      const onMeetingCreated = () => {
+        globalThis.dispatchEvent(new CustomEvent('calendar:refresh'))
+      }
+      const onMeetingUpdated = () => {
+        globalThis.dispatchEvent(new CustomEvent('calendar:refresh'))
+      }
+      const onMeetingDeleted = () => {
+        globalThis.dispatchEvent(new CustomEvent('calendar:refresh'))
+      }
+      socket.on('meeting_created', onMeetingCreated)
+      socket.on('meeting_updated', onMeetingUpdated)
+      socket.on('meeting_deleted', onMeetingDeleted)
+      return () => {
+        socket.off('meeting_created', onMeetingCreated)
+        socket.off('meeting_updated', onMeetingUpdated)
+        socket.off('meeting_deleted', onMeetingDeleted)
+      }
+    }, [wsClient])
 
     // Handle URL parameters for context and AI agent conversations (only once)
     useEffect(() => {
@@ -703,208 +1041,277 @@ const ChatInner: React.FC<ChatProps> = memo(
       currentUserId: currentUser?.id ?? null
     })
 
-    // Error state
-    if (error) {
-      const getErrorMessage = () => {
-        const errorKey = error.name || 'chat.connectionError'
-        const errorMessages: Record<string, string> = {
-          'chat.serviceUnavailable': t('chat-serviceUnavailable'),
-          'chat.serviceNotFound': t('chat-serviceNotFound'),
-          'chat.authenticationFailed': t('chat-authenticationFailed'),
-          'chat.connectionError': t('chat-connectionError')
-        }
-        return errorMessages[errorKey] || errorMessages['chat.connectionError']
-      }
+    const connectionError = error
+    const isLoading = !isConnected && conversationsLoading
 
-      return (
-        <div
-          ref={containerRef}
-          className="gba:h-full gba:flex gba:items-center gba:justify-center gba:p-4 gba:bg-background"
-          data-testid={`${prefixDataTestId}-error`}
-        >
-          <Alert variant="destructive" className="gba:max-w-sm">
-            <AlertDescription>{getErrorMessage()}</AlertDescription>
-          </Alert>
-        </div>
-      )
-    }
-
-    // Loading state
-    if (!isConnected && conversationsLoading) {
-      return (
-        <div
-          ref={containerRef}
-          className="gba:h-full gba:flex gba:flex-col gba:items-center gba:justify-center gba:gap-3 gba:bg-background"
-          data-testid={`${prefixDataTestId}-loading`}
-        >
-          <Spinner size="lg" />
-          <span className="gba:text-sm gba:text-muted-foreground">{t('chat-connecting')}</span>
-        </div>
-      )
+    const getConnectionErrorLabel = (name: string): string => {
+      if (name === 'chat.serviceUnavailable') return t('chat-serviceUnavailable')
+      if (name === 'chat.serviceNotFound') return t('chat-serviceNotFound')
+      if (name === 'chat.authenticationFailed') return t('chat-authenticationFailed')
+      return t('chat-connectionError')
     }
 
     return (
-      <>
-        <ChatLayout
-          containerRef={containerRef}
-          prefixDataTestId={prefixDataTestId}
-          errorMessage={errorMessage}
-          onDismissError={() => setErrorMessage(null)}
-          isOffline={isOffline}
-          offlineLabel={t('chat-offline')}
-          conversationId={activeConversationId}
-          messageCount={messages.length}
-          showListView={showListView}
-          showChatView={showChatView}
-          isSingleViewMode={isSingleViewMode}
-          chatViewRef={chatViewRef}
-          listSlot={
-            <ConversationList
-              conversations={conversations}
-              activeConversationId={activeConversationId}
-              onConversationSelect={handleConversationSelect}
-              onRemoveConversation={async conversationId => {
-                try {
-                  setErrorMessage(null)
-                  await closeConversation(conversationId)
-                } catch (error: any) {
-                  const errorMsg = error?.response?.data?.message || error?.message || ''
-                  if (errorMsg.toLowerCase().includes('last owner')) {
-                    setErrorMessage(t('chat-cannotLeaveAsLastOwner'))
-                    // Select the conversation and open group settings
-                    const conv = conversations.find(c => c.id === conversationId)
-                    if (conv) {
-                      handleConversationSelect(conv)
-                      setShowGroupSettingsModal(true)
-                    }
-                  } else {
-                    setErrorMessage(t('chat-failedToLeave'))
-                  }
-                }
-              }}
-              onCreateConversation={handleCreateConversation}
-              onCreateGroup={handleCreateGroup}
-              isLoading={conversationsLoading}
-              isLoadingMore={conversationsLoadingMore}
-              hasMore={conversationsHasMore}
-              onLoadMore={loadMoreConversations}
-              currentUserId={currentUser?.id || null}
-              accessToken={accessToken}
-              compact={viewMode === 'compact'}
-              presenceMap={presenceMap}
-              presenceVersion={presenceVersion}
-              conversationExpertCounts={conversationExpertCounts}
-              wsClient={wsClient}
-              isConnected={isConnected}
-            />
-          }
-          chatViewSlot={
-            <ChatConversationView
+      <div
+        ref={containerRef}
+        className="gba:h-full gba:flex gba:flex-col gba:bg-background gba:overflow-hidden"
+        data-testid={`${prefixDataTestId}-container`}
+      >
+        {connectionError && (
+          <div
+            className="gba:h-full gba:flex gba:items-center gba:justify-center gba:p-4 gba:bg-background"
+            data-testid={`${prefixDataTestId}-error`}
+          >
+            <Alert variant="destructive" className="gba:max-w-sm">
+              <AlertDescription>{getConnectionErrorLabel(connectionError.name)}</AlertDescription>
+            </Alert>
+          </div>
+        )}
+        {!connectionError && isLoading && (
+          <div
+            className="gba:h-full gba:flex gba:flex-col gba:items-center gba:justify-center gba:gap-3 gba:bg-background"
+            data-testid={`${prefixDataTestId}-loading`}
+          >
+            <Spinner size="lg" />
+            <span className="gba:text-sm gba:text-muted-foreground">{t('chat-connecting')}</span>
+          </div>
+        )}
+        {!connectionError && !isLoading && (
+          <>
+            <ChatLayout
               prefixDataTestId={prefixDataTestId}
-              stableActiveConversation={stableActiveConversation}
+              errorMessage={errorMessage}
+              onDismissError={() => setErrorMessage(null)}
+              isOffline={isOffline}
+              offlineLabel={t('chat-offline')}
+              conversationId={activeConversationId}
+              messageCount={messages.length}
+              showListView={showListView}
+              showChatView={showChatView}
               isSingleViewMode={isSingleViewMode}
-              viewMode={viewMode}
-              onBack={handleBack}
-              onCloseConversation={handleCloseConversation}
-              onRemoveConversation={handleRemoveConversation}
-              onShowGroupSettings={handleShowGroupSettings}
-              onShowExpertSelector={() => setShowExpertSelector(true)}
-              onNudge={handleNudge}
-              onAudioCall={handleAudioCall}
-              onVideoCall={handleVideoCall}
-              onJoinCall={handleJoinActiveCall}
-              currentUserId={currentUser?.id || null}
-              otherUserPresence={otherUserPresence as UserPresence | undefined}
-              isCallEnabled={isConnected}
-              isInCall={isInAnyCall}
-              isStartingCall={isStartingCall}
-              activeCall={activeCallInfo}
-              t={t}
-              activeExperts={activeExperts}
-              onRemoveExpert={expertId => removeExpert(expertId, sendMessageVoid)}
-              messages={messages}
-              messagesLoading={messagesLoading}
-              hasMoreMessages={hasMoreMessages}
-              onLoadMoreMessages={loadMoreMessages}
-              activeConversationId={activeConversationId}
-              typingUsers={Object.values(typingUsers || {}).flat()}
-              onReplyToAI={handleReplyToAI}
-              accessToken={accessToken}
-              onSendMessage={handleAISendMessage}
-              apiClient={apiClient}
-              isAIProcessing={isAIProcessing}
-              aiStreamingText={aiStreamingText}
-              isExpertProcessing={isExpertProcessing}
-              processingExpert={processingExpert}
-              onSendMessageInput={handleSendMessage as (content: string, ...args: unknown[]) => Promise<void>}
-              onTypingStart={handleTypingStart}
-              onTypingStop={handleTypingStop}
-              draftMessage={draftMessage}
-              onDraftChange={setDraftMessage}
-              onRegisterMentionReady={fn => {
-                registerMentionEntityRef.current = fn
-              }}
-              onFocusReady={fn => {
-                focusInputRef.current = fn
-              }}
+              chatViewRef={chatViewRef}
+              listSlot={
+                <ConversationList
+                  conversations={conversations}
+                  activeConversationId={activeConversationId}
+                  onConversationSelect={conv => {
+                    setShowCallHistory(false)
+                    clearMarkedAsUnread(conv.id)
+                    handleConversationSelect(conv)
+                  }}
+                  onRemoveConversation={async conversationId => {
+                    try {
+                      setErrorMessage(null)
+                      await closeConversation(conversationId)
+                    } catch (error: any) {
+                      const errorMsg = error?.response?.data?.message || error?.message || ''
+                      if (errorMsg.toLowerCase().includes('last owner')) {
+                        setErrorMessage(t('chat-cannotLeaveAsLastOwner'))
+                        const conv = conversations.find(c => c.id === conversationId)
+                        if (conv) {
+                          handleConversationSelect(conv)
+                          setShowGroupSettingsModal(true)
+                        }
+                      } else {
+                        setErrorMessage(t('chat-failedToLeave'))
+                      }
+                    }
+                  }}
+                  onPinChange={handlePinChangeFromList}
+                  onMuteChange={handleMuteChangeFromList}
+                  onNudge={handleNudgeFromList}
+                  onStartAudioCall={handleStartAudioCallFromList}
+                  onStartVideoCall={handleStartVideoCallFromList}
+                  isCallEnabled={isConnected}
+                  onMarkAsUnread={handleMarkAsUnreadFromList}
+                  markedAsUnreadConversationIds={markedAsUnreadIds}
+                  onCreateConversation={handleCreateConversation}
+                  onCreateGroup={handleCreateGroup}
+                  isLoading={conversationsLoading}
+                  isLoadingMore={conversationsLoadingMore}
+                  hasMore={conversationsHasMore}
+                  onLoadMore={loadMoreConversations}
+                  currentUserId={currentUser?.id || null}
+                  accessToken={accessToken}
+                  compact={viewMode !== 'full'}
+                  presenceMap={presenceMap}
+                  presenceVersion={presenceVersion}
+                  conversationExpertCounts={conversationExpertCounts}
+                  wsClient={wsClient}
+                  isConnected={isConnected}
+                  search={conversationSearch}
+                  filterKind={conversationFilterKind}
+                  unreadOnly={conversationUnreadOnly}
+                  onSearchChange={setConversationSearch}
+                  onFilterKindChange={setConversationFilterKind}
+                  onUnreadOnlyChange={setConversationUnreadOnly}
+                  missedCallsCount={missedCallsCount}
+                  onOpenCallHistory={() => {
+                    setShowCallHistory(true)
+                    setShowConversationList(false)
+                    updateCallHistoryUrl(true, true)
+                    if (apiClient) {
+                      apiClient.markCallHistorySeen().catch(() => {})
+                      setMissedCallsCount(0)
+                    }
+                  }}
+                />
+              }
+              chatViewSlot={
+                showCallHistory && apiClient && currentUser ? (
+                  <CallHistory
+                    apiClient={apiClient}
+                    accessToken={accessToken}
+                    currentUserId={currentUser.id}
+                    showBackButton={isSingleViewMode}
+                    iconOnlyFilters={isSingleViewMode}
+                    refreshTrigger={callHistoryRefreshTrigger}
+                    presenceMap={presenceMap}
+                    onBack={() => {
+                      setShowCallHistory(false)
+                      setShowConversationList(true)
+                      updateCallHistoryUrl(false)
+                      if (apiClient) {
+                        apiClient
+                          .getMissedCallsCount()
+                          .then(setMissedCallsCount)
+                          .catch(() => {})
+                      }
+                    }}
+                    onOpenConversation={conversationId => {
+                      const conv = conversations.find(c => c.id === conversationId)
+                      if (conv) {
+                        setActiveConversation(conv)
+                        setShowConversationList(false)
+                      } else {
+                        apiClient
+                          .getConversationById(conversationId)
+                          .then((c: any) => {
+                            setActiveConversation(c)
+                            setShowConversationList(false)
+                          })
+                          .catch(() => {})
+                      }
+                      setShowCallHistory(false)
+                      updateCallHistoryUrl(false)
+                    }}
+                  />
+                ) : (
+                  <ChatConversationView
+                    prefixDataTestId={prefixDataTestId}
+                    stableActiveConversation={stableActiveConversation}
+                    isPinned={stableActiveConversation?.isPinned}
+                    isMuted={stableActiveConversation?.isMuted}
+                    onPin={handlePinConversation}
+                    onMute={handleMuteConversation}
+                    onMarkAsUnread={handleMarkAsUnread}
+                    isSingleViewMode={isSingleViewMode}
+                    viewMode={viewMode}
+                    onBack={handleBack}
+                    onCloseConversation={handleCloseConversation}
+                    onRemoveConversation={handleRemoveConversation}
+                    onShowGroupSettings={handleShowGroupSettings}
+                    onShowExpertSelector={() => setShowExpertSelector(true)}
+                    onNudge={handleNudge}
+                    onAudioCall={handleAudioCall}
+                    onVideoCall={handleVideoCall}
+                    onJoinCall={handleJoinActiveCall}
+                    currentUserId={currentUser?.id || null}
+                    otherUserPresence={otherUserPresence as UserPresence | undefined}
+                    isCallEnabled={isConnected}
+                    isInCall={isInAnyCall}
+                    isStartingCall={isStartingCall}
+                    activeCall={activeCallInfo}
+                    t={t}
+                    activeExperts={activeExperts}
+                    onRemoveExpert={expertId => removeExpert(expertId, sendMessageVoid)}
+                    messages={messages}
+                    messagesLoading={messagesLoading}
+                    hasMoreMessages={hasMoreMessages}
+                    onLoadMoreMessages={loadMoreMessages}
+                    activeConversationId={activeConversationId}
+                    typingUsers={Object.values(typingUsers || {}).flat()}
+                    onReplyToAI={handleReplyToAI}
+                    accessToken={accessToken}
+                    onSendMessage={handleAISendMessage}
+                    apiClient={apiClient}
+                    onUpdateMessage={updateMessage}
+                    ensureMessageInList={ensureMessageInList}
+                    isAIProcessing={isAIProcessing}
+                    aiStreamingText={aiStreamingText}
+                    isExpertProcessing={isExpertProcessing}
+                    processingExpert={processingExpert}
+                    onSendMessageInput={handleSendMessage as (content: string, ...args: unknown[]) => Promise<void>}
+                    onTypingStart={handleTypingStart}
+                    onTypingStop={handleTypingStop}
+                    draftMessage={draftMessage}
+                    onDraftChange={setDraftMessage}
+                    onRegisterMentionReady={fn => {
+                      registerMentionEntityRef.current = fn
+                    }}
+                    onFocusReady={fn => {
+                      focusInputRef.current = fn
+                    }}
+                  />
+                )
+              }
             />
-          }
-        />
-
-        <ChatModals
-          prefixDataTestId={prefixDataTestId}
-          accessToken={accessToken}
-          apiClient={apiClient}
-          currentUserId={currentUser?.id || null}
-          currentUser={currentUser}
-          activeConversation={activeConversation}
-          showCreateGroupModal={showCreateGroupModal}
-          onCloseCreateGroupModal={() => setShowCreateGroupModal(false)}
-          onCreateGroup={
-            handleCreateGroupSubmit as (
-              name: string,
-              participantIds: string[],
-              description?: string,
-              dimensionContext?: unknown
-            ) => Promise<void>
-          }
-          showGroupSettingsModal={showGroupSettingsModal}
-          onCloseGroupSettingsModal={handleCloseGroupSettings}
-          onRefreshConversations={refreshConversations}
-          showExpertSelector={showExpertSelector}
-          onCloseExpertSelector={() => setShowExpertSelector(false)}
-          availableExperts={availableExperts}
-          expertsLoading={expertsLoading}
-          activeExperts={activeExperts}
-          onAddExpert={(expert, sendMessageVoid) =>
-            addExpert(
-              expert as never,
-              sendMessageVoid as (
-                conversationId: string,
-                content: string,
-                metadata?: Record<string, unknown>
-              ) => Promise<void>
-            )
-          }
-          sendMessageVoid={
-            sendMessageVoid as (
-              conversationId: string,
-              content: string,
-              metadata?: Record<string, unknown>
-            ) => void | Promise<void>
-          }
-          incomingGroupCallInvite={incomingGroupCallInvite}
-          currentUserAsParticipant={currentUserAsParticipant}
-          onAcceptGroupInvite={acceptGroupInvite}
-          onDeclineGroupInvite={declineGroupInvite}
-          rejoinModalState={rejoinModalState}
-          onRejoinWithPreferences={handleRejoinWithPreferences}
-          onRejoinCancel={handleRejoinCancel}
-          groupCallState={groupCallState}
-          realtimeKitGroupCall={realtimeKitGroupCall}
-          groupParticipants={groupParticipants}
-        />
-      </>
+            <ChatModals
+              prefixDataTestId={prefixDataTestId}
+              accessToken={accessToken}
+              apiClient={apiClient}
+              currentUserId={currentUser?.id || null}
+              currentUser={currentUser}
+              activeConversation={activeConversation}
+              showCreateGroupModal={showCreateGroupModal}
+              onCloseCreateGroupModal={() => setShowCreateGroupModal(false)}
+              onCreateGroup={
+                handleCreateGroupSubmit as (
+                  name: string,
+                  participantIds: string[],
+                  description?: string,
+                  dimensionContext?: unknown
+                ) => Promise<void>
+              }
+              showGroupSettingsModal={showGroupSettingsModal}
+              onCloseGroupSettingsModal={handleCloseGroupSettings}
+              onRefreshConversations={refreshConversations}
+              showExpertSelector={showExpertSelector}
+              onCloseExpertSelector={() => setShowExpertSelector(false)}
+              availableExperts={availableExperts}
+              expertsLoading={expertsLoading}
+              activeExperts={activeExperts}
+              onAddExpert={(expert, sendMessageVoid) =>
+                addExpert(
+                  expert as never,
+                  sendMessageVoid as (
+                    conversationId: string,
+                    content: string,
+                    metadata?: Record<string, unknown>
+                  ) => Promise<void>
+                )
+              }
+              sendMessageVoid={
+                sendMessageVoid as (
+                  conversationId: string,
+                  content: string,
+                  metadata?: Record<string, unknown>
+                ) => void | Promise<void>
+              }
+              incomingGroupCallInvite={incomingGroupCallInvite}
+              currentUserAsParticipant={currentUserAsParticipant}
+              onAcceptGroupInvite={acceptGroupInvite}
+              onDeclineGroupInvite={declineGroupInvite}
+              rejoinModalState={rejoinModalState}
+              onRejoinWithPreferences={handleRejoinWithPreferences}
+              onRejoinCancel={handleRejoinCancel}
+              groupCallState={groupCallState}
+              realtimeKitGroupCall={realtimeKitGroupCall}
+              groupParticipants={groupParticipants}
+            />
+          </>
+        )}
+      </div>
     )
   },
   (prevProps, nextProps) => {

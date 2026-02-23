@@ -590,8 +590,7 @@ const AbsencesTab: React.FC<AbsencesTabProps> = ({
             <Tabs value={activeTab} onValueChange={onTabChange} className="gba:w-full">
               <TabsList className="gba:w-full gba:justify-start">
                 {tabsItems.map(item => (
-                  <TabsTrigger key={item.key} value={item.key} className="gba:gap-2">
-                    {item.icon}
+                  <TabsTrigger key={item.key} value={item.key} startIcon={item.icon} className="gba:text-sm">
                     {item.label}
                   </TabsTrigger>
                 ))}

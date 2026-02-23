@@ -160,6 +160,23 @@ export function useRealtimeKitInviteListeners(params: UseRealtimeKitInviteListen
       }
     }
 
+    const handleInviteAcceptedByYou = (data: { meetingId: string; conversationId: string }) => {
+      if (
+        refs.incomingInviteRef.current?.roomId === data.meetingId &&
+        refs.incomingInviteRef.current?.conversationId === data.conversationId
+      ) {
+        try {
+          media.stopAllTracks()
+        } catch {
+          // Best-effort
+        }
+        refs.startTimeRef.current = null
+        clearRingingLeader(data.meetingId, data.conversationId)
+        setRingingLeader(false)
+        setIncomingInvite(null)
+      }
+    }
+
     const handleConversationCallStarted = (data: {
       conversationId: string
       roomId: string
@@ -168,6 +185,7 @@ export function useRealtimeKitInviteListeners(params: UseRealtimeKitInviteListen
       participantIds: string[]
       startedAt?: Date | string
       conversationName?: string
+      conversationType?: 'direct' | 'group' | 'meeting'
     }) => {
       setActiveConversationCalls(prev => {
         const newMap = new Map(prev)
@@ -177,7 +195,8 @@ export function useRealtimeKitInviteListeners(params: UseRealtimeKitInviteListen
           participantIds: data.participantIds,
           startedBy: data.startedBy.id,
           startedAt: data.startedAt,
-          conversationName: data.conversationName
+          conversationName: data.conversationName,
+          conversationType: data.conversationType
         })
         return newMap
       })
@@ -251,7 +270,8 @@ export function useRealtimeKitInviteListeners(params: UseRealtimeKitInviteListen
             participantIds: call.participantIds || [],
             startedBy: call.startedBy?.id || existing?.startedBy || '',
             startedAt: call.startedAt,
-            conversationName: existing?.conversationName
+            conversationName: existing?.conversationName ?? call.conversationName,
+            conversationType: call.conversationType ?? existing?.conversationType
           })
         })
         for (const conversationId of Array.from(next.keys())) {
@@ -329,12 +349,14 @@ export function useRealtimeKitInviteListeners(params: UseRealtimeKitInviteListen
     socket.off('rtk-group-call:invite')
     socket.off('rtk-group-call:ended')
     socket.off('rtk-group-call:cancelled')
+    socket.off('rtk-group-call:invite-accepted-by-you')
     socket.off('rtk-group-call:declined')
     socket.off('rtk-group-call:not-answered')
 
     socket.on('rtk-group-call:invite', handleInvite)
     socket.on('rtk-group-call:ended', handleCallEnded)
     socket.on('rtk-group-call:cancelled', handleCallCancelled)
+    socket.on('rtk-group-call:invite-accepted-by-you', handleInviteAcceptedByYou)
     socket.on('rtk-group-call:declined', handleDeclined)
     socket.on('rtk-group-call:not-answered', handleNotAnswered)
     socket.on('conversation:call-started', handleConversationCallStarted)
@@ -347,6 +369,7 @@ export function useRealtimeKitInviteListeners(params: UseRealtimeKitInviteListen
       socket.off('rtk-group-call:invite', handleInvite)
       socket.off('rtk-group-call:ended', handleCallEnded)
       socket.off('rtk-group-call:cancelled', handleCallCancelled)
+      socket.off('rtk-group-call:invite-accepted-by-you', handleInviteAcceptedByYou)
       socket.off('rtk-group-call:declined', handleDeclined)
       socket.off('rtk-group-call:not-answered', handleNotAnswered)
       socket.off('conversation:call-started', handleConversationCallStarted)

@@ -11,6 +11,7 @@ import {
   Button,
   Input,
   Avatar,
+  useTranslation,
   AvatarImage,
   AvatarFallback,
   Tooltip,
@@ -23,17 +24,18 @@ import {
 import { Plus, GripVertical, X, User, Link2 } from 'lucide-react'
 import type { KanbanData, KanbanCardColor, KanbanParticipant } from '../../shared/extensions/Kanban'
 import { KanbanAssigneeFilter } from './kanban/KanbanAssigneeFilter'
+import translations from '../_i18n'
 
-// Card color definitions with design system tokens
-const CARD_COLORS: { id: KanbanCardColor; bg: string; border: string; label: string }[] = [
-  { id: 'default', bg: 'gba:bg-card', border: 'gba:border-border/50', label: 'Default' },
-  { id: 'red', bg: 'gba:bg-destructive-secondary', border: 'gba:border-destructive/30', label: 'Red' },
-  { id: 'orange', bg: 'gba:bg-warning-secondary', border: 'gba:border-warning/30', label: 'Orange' },
-  { id: 'yellow', bg: 'gba:bg-warning-secondary/60', border: 'gba:border-warning/20', label: 'Yellow' },
-  { id: 'green', bg: 'gba:bg-success-secondary', border: 'gba:border-success/30', label: 'Green' },
-  { id: 'blue', bg: 'gba:bg-info-secondary', border: 'gba:border-info/30', label: 'Blue' },
-  { id: 'purple', bg: 'gba:bg-primary/10', border: 'gba:border-primary/30', label: 'Purple' },
-  { id: 'pink', bg: 'gba:bg-destructive-secondary/60', border: 'gba:border-destructive/20', label: 'Pink' }
+// Card color definitions with design system tokens (labels via i18n key kanban-color-{id})
+const CARD_COLORS: { id: KanbanCardColor; bg: string; border: string }[] = [
+  { id: 'default', bg: 'gba:bg-card', border: 'gba:border-border/50' },
+  { id: 'red', bg: 'gba:bg-destructive-secondary', border: 'gba:border-destructive/30' },
+  { id: 'orange', bg: 'gba:bg-warning-secondary', border: 'gba:border-warning/30' },
+  { id: 'yellow', bg: 'gba:bg-warning-secondary/60', border: 'gba:border-warning/20' },
+  { id: 'green', bg: 'gba:bg-success-secondary', border: 'gba:border-success/30' },
+  { id: 'blue', bg: 'gba:bg-info-secondary', border: 'gba:border-info/30' },
+  { id: 'purple', bg: 'gba:bg-primary/10', border: 'gba:border-primary/30' },
+  { id: 'pink', bg: 'gba:bg-destructive-secondary/60', border: 'gba:border-destructive/20' }
 ]
 
 const getCardColorClasses = (color?: KanbanCardColor) => {
@@ -59,6 +61,7 @@ interface KanbanBoardProps {
 }
 
 export const KanbanBoard: React.FC<KanbanBoardProps> = ({ node, updateAttributes, extension, editor }) => {
+  const { t } = useTranslation(translations)
   const kanbanId = node.attrs.id as string
   const [availableParticipants, setAvailableParticipants] = useState<KanbanParticipant[]>(
     () => extension?.storage?.participants || []
@@ -121,9 +124,9 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ node, updateAttributes
     return {
       id: kanbanId,
       columns: [
-        { id: 'todo', title: 'To Do', cards: [] },
-        { id: 'in-progress', title: 'In Progress', cards: [] },
-        { id: 'done', title: 'Done', cards: [] }
+        { id: 'todo', title: t('kanban-column-todo'), cards: [] },
+        { id: 'in-progress', title: t('kanban-column-in-progress'), cards: [] },
+        { id: 'done', title: t('kanban-column-done'), cards: [] }
       ]
     }
   })()
@@ -434,7 +437,8 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ node, updateAttributes
 
   const handleAddColumn = useCallback(() => {
     const newColumnId = `column-${Date.now()}`
-    const newColumns = [...data.columns, { id: newColumnId, title: 'New Column', cards: [] }]
+    const newColumnTitle = t('kanban-new-column')
+    const newColumns = [...data.columns, { id: newColumnId, title: newColumnTitle, cards: [] }]
 
     persistData({
       ...data,
@@ -442,8 +446,8 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ node, updateAttributes
     })
 
     setEditingColumnTitle({ ...editingColumnTitle, [newColumnId]: true })
-    setColumnTitleInput({ ...columnTitleInput, [newColumnId]: 'New Column' })
-  }, [data, editingColumnTitle, columnTitleInput, persistData])
+    setColumnTitleInput({ ...columnTitleInput, [newColumnId]: newColumnTitle })
+  }, [data, editingColumnTitle, columnTitleInput, persistData, t])
 
   const handleDeleteColumn = useCallback(
     (columnId: string) => {
@@ -569,7 +573,8 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ node, updateAttributes
                       : card.assigneeId
                         ? {
                             userId: card.assigneeId,
-                            userName: card.assigneeName || `User ${card.assigneeId.slice(0, 8)}`,
+                            userName:
+                              card.assigneeName || t('kanban-user-fallback', { id: card.assigneeId.slice(0, 8) }),
                             userAvatar: undefined,
                             userColor: undefined
                           }
@@ -625,7 +630,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ node, updateAttributes
                                     setEditingCard(null)
                                   }
                                 }}
-                                placeholder="Enter card content..."
+                                placeholder={t('kanban-placeholder-enter-content')}
                                 className="gba:text-sm gba:h-7"
                                 autoFocus
                               />
@@ -648,7 +653,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ node, updateAttributes
                                         e.stopPropagation()
                                         setOpenAssigneePopover(openAssigneePopover === card.id ? null : card.id)
                                       }}
-                                      title={assignee ? assignee.userName : 'Assign & customize'}
+                                      title={assignee ? assignee.userName : t('kanban-assign-customize')}
                                     >
                                       {card.assigneeId ? (
                                         <div
@@ -690,7 +695,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ node, updateAttributes
                                         draggable={false}
                                       >
                                         <X className="gba:w-3 gba:h-3" />
-                                        Unassign
+                                        {t('kanban-unassign')}
                                       </button>
                                     )}
                                     {availableParticipants.map(p => (
@@ -717,14 +722,14 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ node, updateAttributes
                                     ))}
                                     {availableParticipants.length === 0 && (
                                       <div className="gba:px-2 gba:py-1 gba:text-[10px] gba:text-muted-foreground">
-                                        No participants
+                                        {t('kanban-no-participants')}
                                       </div>
                                     )}
 
                                     {/* Color picker section */}
                                     <div className="gba:border-t gba:border-border/50 gba:mt-1.5 gba:pt-1.5">
                                       <div className="gba:text-[10px] gba:font-medium gba:text-muted-foreground gba:px-1 gba:pb-1">
-                                        Card color
+                                        {t('kanban-card-color')}
                                       </div>
                                       <div className="gba:grid gba:grid-cols-4 gba:gap-1 gba:px-1">
                                         {CARD_COLORS.map(c => (
@@ -743,7 +748,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ node, updateAttributes
                                               />
                                             </TooltipTrigger>
                                             <TooltipContent side="top" className="gba:text-[10px]">
-                                              {c.label}
+                                              {t(`kanban-color-${c.id}`)}
                                             </TooltipContent>
                                           </Tooltip>
                                         ))}
@@ -761,7 +766,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ node, updateAttributes
                                       </div>
                                     </TooltipTrigger>
                                     <TooltipContent side="top" className="gba:text-[10px]">
-                                      Linked to task item
+                                      {t('kanban-linked-to-task')}
                                     </TooltipContent>
                                   </Tooltip>
                                 )}
@@ -774,7 +779,9 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ node, updateAttributes
                                     setNewCardContent({ ...newCardContent, [card.id]: card.content })
                                   }}
                                 >
-                                  {card.content || <span className="gba:text-muted-foreground gba:italic">Empty</span>}
+                                  {card.content || (
+                                    <span className="gba:text-muted-foreground gba:italic">{t('kanban-empty')}</span>
+                                  )}
                                 </div>
 
                                 {/* Delete button */}
@@ -804,7 +811,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ node, updateAttributes
                 onClick={() => handleAddCard(column.id)}
               >
                 <Plus className="gba:w-2.5 gba:h-2.5 gba:mr-1" />
-                Add
+                {t('kanban-add')}
               </Button>
             </div>
           ))}
@@ -818,7 +825,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({ node, updateAttributes
               onClick={handleAddColumn}
             >
               <Plus className="gba:w-2.5 gba:h-2.5 gba:mr-1" />
-              Column
+              {t('kanban-column')}
             </Button>
           </div>
         </div>

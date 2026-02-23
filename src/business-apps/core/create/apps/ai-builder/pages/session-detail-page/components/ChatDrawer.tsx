@@ -1,19 +1,45 @@
-import React, { useState, useRef, useEffect } from 'react'
-import { Button, Avatar, AvatarImage, AvatarFallback } from '@newwork/nw-design-system'
+import React, { useState, useRef, useEffect, useMemo } from 'react'
+import {
+  Button,
+  Avatar,
+  AvatarImage,
+  AvatarFallback,
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+  TooltipProvider,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  Textarea
+} from '@newwork/nw-design-system'
 import {
   Bot,
   Sparkles,
   Loader2,
+  Square,
   Copy,
   Check,
   ChevronDown,
   ChevronRight,
   Upload,
   Brain,
-  MoreVertical
+  PanelLeft,
+  PanelLeftClose,
+  FileCode,
+  Plus,
+  FileEdit,
+  Trash2,
+  RotateCcw,
+  Pencil
 } from 'lucide-react'
 import { MarkdownRenderer } from './MarkdownRenderer'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { UniqueFileSummary } from '../../../types/session'
+import { useEmployeeAvatarsBatch } from '@/business-apps/core/every/apps/every-box/hooks/useEmployeeAvatarsBatch'
 
 interface ToolCall {
   tool: string
@@ -29,6 +55,11 @@ interface Message {
   toolCalls?: ToolCall[]
   thinkingLog?: string
   thinkingCollapsed?: boolean
+  createdBy?: string
+  editHistory?: Array<{
+    userId: string
+    editedAt: string
+  }>
   messageId?: string
   createdAt?: string
   serverCreatedAt?: string
@@ -45,7 +76,12 @@ interface ChatDrawerProps {
   input: string
   onInputChange: (value: string) => void
   onSendMessage: () => void
+  onStopMessage?: () => void
+  onQueueFollowUp?: () => void
+  onSendQueuedFollowUpNow?: () => void
+  onDeleteQueuedFollowUp?: () => void
   isProcessing: boolean
+  queuedFollowUpPrompt?: string | null
   thinking?: boolean
   userName?: string
   userAvatar?: string
@@ -53,25 +89,42 @@ interface ChatDrawerProps {
   onAttachFile?: () => void
   onToggleThinking?: (messageIndex: number) => void
   onRestoreMessage?: (message: Message) => void
+  onEditMessage?: (message: Message, nextContent: string) => void
   isRestoringMessageId?: string | null
+  currentUserId?: string
+  accessToken?: string
   examplePrompts?: string[]
   inputPlaceholder?: string
   analyzingRequestText?: string
   tipText?: string
   sendButtonLabel?: string
-  buildingLabel?: string
   emptyTitle?: string
   emptyDescription?: string
   className?: string
   style?: React.CSSProperties
+  showFileExplorer?: boolean
+  onToggleFileExplorer?: () => void
+  usage?: {
+    totalInputTokens: number
+    totalOutputTokens: number
+    totalCost: number
+  }
+  uniqueFileSummary?: UniqueFileSummary | null
 }
+
+const UNKNOWN_AUTHOR_ID = 'unknown-user'
 
 export const ChatDrawer: React.FC<ChatDrawerProps> = ({
   messages,
   input,
   onInputChange,
   onSendMessage,
+  onStopMessage,
+  onQueueFollowUp,
+  onSendQueuedFollowUpNow,
+  onDeleteQueuedFollowUp,
   isProcessing,
+  queuedFollowUpPrompt,
   thinking = false,
   userName = 'You',
   userAvatar,
@@ -79,21 +132,30 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
   onAttachFile,
   onToggleThinking,
   onRestoreMessage,
+  onEditMessage,
   isRestoringMessageId,
+  currentUserId,
+  accessToken,
   examplePrompts,
   inputPlaceholder,
   analyzingRequestText,
   tipText,
   sendButtonLabel,
-  buildingLabel,
   emptyTitle,
   emptyDescription,
   className,
-  style
+  style,
+  showFileExplorer,
+  onToggleFileExplorer,
+  usage,
+  uniqueFileSummary
 }) => {
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null)
+  const [filesExpanded, setFilesExpanded] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const [editingMessage, setEditingMessage] = useState<Message | null>(null)
+  const [editingContent, setEditingContent] = useState('')
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -106,7 +168,10 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
-      if (!isProcessing && input.trim()) {
+      if (!input.trim()) return
+      if (isProcessing && onQueueFollowUp) {
+        onQueueFollowUp()
+      } else if (!isProcessing) {
         onSendMessage()
       }
     }
@@ -116,6 +181,114 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
     navigator.clipboard.writeText(content)
     setCopiedMessageId(messageId)
     setTimeout(() => setCopiedMessageId(null), 2000)
+  }
+
+  const openEditDialog = (message: Message) => {
+    setEditingMessage(message)
+    setEditingContent(message.content)
+  }
+
+  const closeEditDialog = () => {
+    setEditingMessage(null)
+    setEditingContent('')
+  }
+
+  const confirmEditDialog = () => {
+    if (!editingMessage) return
+    const nextContent = editingContent.trim()
+    if (!nextContent) return
+    onEditMessage?.(editingMessage, nextContent)
+    closeEditDialog()
+  }
+
+  const userIds = useMemo(() => {
+    const ids = messages.flatMap(message => {
+      if (message.role !== 'user') return []
+      const historyIds = message.editHistory?.map(entry => entry.userId) ?? []
+      return [message.createdBy, ...historyIds].filter(Boolean)
+    })
+    const filtered = ids.filter((id): id is string => !!id && id !== UNKNOWN_AUTHOR_ID)
+    return Array.from(new Set(filtered))
+  }, [messages])
+
+  const { employeeMap } = useEmployeeAvatarsBatch(accessToken ?? '', userIds)
+
+  const toDataUrl = (base64Data?: string): string | undefined => {
+    if (!base64Data) return undefined
+    if (base64Data.startsWith('data:')) return base64Data
+    return `data:image/jpeg;base64,${base64Data}`
+  }
+
+  const getInitials = (name?: string): string => {
+    const trimmed = name?.trim()
+    if (!trimmed) return '??'
+    const parts = trimmed.split(/\s+/).filter(Boolean)
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
+    return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
+  }
+
+  const getDisplayNameForUserId = (userId?: string): string => {
+    if (userId && userId === currentUserId) {
+      return userName
+    }
+    if (userId) {
+      const employee = employeeMap.get(userId)
+      if (employee?.displayName) return employee.displayName
+      const fallbackName = `${employee?.firstName ?? ''} ${employee?.lastName ?? ''}`.trim()
+      if (fallbackName) return fallbackName
+    }
+    return getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.user', 'User')
+  }
+
+  const getAvatarForUserId = (userId?: string): string | undefined => {
+    if (userId && userId === currentUserId) {
+      return userAvatar
+    }
+    if (userId) {
+      const employee = employeeMap.get(userId)
+      return employee?.avatarUrl ?? toDataUrl(employee?.pictureThumbnail)
+    }
+    return undefined
+  }
+
+  const getOrderedEditorIds = (message: Message): string[] => {
+    const ids: string[] = []
+    if (message.createdBy) ids.push(message.createdBy)
+    if (message.editHistory) {
+      message.editHistory.forEach(entry => {
+        if (entry.userId) ids.push(entry.userId)
+      })
+    }
+    const unique: string[] = []
+    const seen = new Set<string>()
+    ids.forEach(id => {
+      if (!id || seen.has(id)) return
+      seen.add(id)
+      unique.push(id)
+    })
+    return unique
+  }
+
+  const renderEditorAvatars = (message: Message) => {
+    const ids = getOrderedEditorIds(message)
+    if (ids.length === 0) return null
+    return (
+      <div className="gba:flex gba:items-center gba:-space-x-2">
+        {ids.map(userId => {
+          const displayName = getDisplayNameForUserId(userId)
+          const avatarSrc = getAvatarForUserId(userId)
+          return (
+            <Avatar key={userId} className="gba:w-6 gba:h-6 gba:border gba:border-background gba:shadow-sm">
+              {avatarSrc ? (
+                <AvatarImage src={avatarSrc} alt={displayName} />
+              ) : (
+                <AvatarFallback className="gba:text-[10px]">{getInitials(displayName)}</AvatarFallback>
+              )}
+            </Avatar>
+          )
+        })}
+      </div>
+    )
   }
 
   const renderToolCalls = (toolCalls: ToolCall[]) => {
@@ -185,14 +358,52 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
       style={style}
     >
       {/* Header */}
-      <div className="gba:flex-shrink-0 gba:px-6 gba:py-3 gba:border-b gba:border-border gba:flex gba:items-center gba:gap-3">
-        <div className="gba:w-8 gba:h-8 gba:rounded-full gba:bg-gradient-to-br gba:from-purple-500 gba:to-blue-500 gba:flex gba:items-center gba:justify-center">
-          <Bot className="gba:w-5 gba:h-5 gba:text-white" />
+      <div className="gba:flex-shrink-0 gba:px-6 gba:py-3 gba:border-b gba:border-border gba:flex gba:items-center gba:justify-between gba:gap-3">
+        <div className="gba:flex gba:items-center gba:gap-3">
+          {onToggleFileExplorer && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    className="gba:w-8 gba:h-8 gba:cursor-pointer gba:group"
+                    onClick={onToggleFileExplorer}
+                  >
+                    {/* Show avatar by default */}
+                    <div className="gba:w-8 gba:h-8 gba:rounded-full gba:bg-gradient-to-br gba:from-purple-500 gba:to-blue-500 gba:flex gba:items-center gba:justify-center gba:group-hover:hidden">
+                      <Bot className="gba:w-5 gba:h-5 gba:text-white" />
+                    </div>
+                    {/* Show button on hover */}
+                    <div className="gba:hidden gba:group-hover:flex gba:w-8 gba:h-8 gba:items-center gba:justify-center gba:rounded-md gba:bg-muted hover:gba:bg-muted/80 gba:transition-colors">
+                      {showFileExplorer ? (
+                        <PanelLeftClose className="gba:w-4 gba:h-4 gba:text-foreground" />
+                      ) : (
+                        <PanelLeft className="gba:w-4 gba:h-4 gba:text-foreground" />
+                      )}
+                    </div>
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {showFileExplorer
+                    ? getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.hide_file_explorer', 'Hide file explorer')
+                    : getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.show_file_explorer', 'Show file explorer')}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+          <div>
+            <h3 className="gba:text-sm gba:font-semibold">AI Assistant</h3>
+            <p className="gba:text-xs gba:text-muted-foreground">{isProcessing ? 'Thinking...' : 'Ready to help'}</p>
+          </div>
         </div>
-        <div>
-          <h3 className="gba:text-sm gba:font-semibold">AI Assistant</h3>
-          <p className="gba:text-xs gba:text-muted-foreground">{isProcessing ? 'Thinking...' : 'Ready to help'}</p>
-        </div>
+
+        {usage && usage.totalCost > 0 && (
+          <div className="gba:text-xs gba:text-muted-foreground gba:flex gba:items-center gba:gap-1">
+            <span>{(usage.totalInputTokens / 1000).toFixed(1)}K</span>
+            <span className="gba:text-muted-foreground/50">/</span>
+            <span className="gba:font-medium gba:text-success">${usage.totalCost.toFixed(4)}</span>
+          </div>
+        )}
       </div>
 
       {/* Messages Area */}
@@ -232,6 +443,7 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
             {messages.map((message, idx) => {
               const canRestore =
                 !!onRestoreMessage && message.role === 'assistant' && !!message.messageId && !message.localOnly
+              const canEdit = !!onEditMessage && message.role === 'user' && !!message.messageId && !message.localOnly
               return (
                 <div
                   key={message.messageId ?? `${message.role}-${idx}-${message.content.length}`}
@@ -253,9 +465,26 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
                           disabled={isRestoringMessageId === message.messageId}
                           className="gba:h-7 gba:px-2 gba:text-xs gba:gap-1"
                         >
-                          <MoreVertical className="gba:w-3 gba:h-3" />
+                          <RotateCcw className="gba:w-3 gba:h-3" />
                           Restore
                         </Button>
+                      </div>
+                    )}
+                    {(canEdit || message.editHistory?.length || message.createdBy) && (
+                      <div className="gba:flex gba:justify-end gba:items-center gba:gap-2 gba:mb-1">
+                        {renderEditorAvatars(message)}
+                        {canEdit && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => openEditDialog(message)}
+                            disabled={isRestoringMessageId === message.messageId}
+                            className="gba:h-7 gba:px-2 gba:text-xs gba:gap-1"
+                          >
+                            <Pencil className="gba:w-3 gba:h-3" />
+                            Edit
+                          </Button>
+                        )}
                       </div>
                     )}
                     {message.role === 'user' ? (
@@ -329,16 +558,6 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
                       </div>
                     )}
                   </div>
-
-                  {message.role === 'user' && (
-                    <Avatar className="gba:w-8 gba:h-8 gba:shrink-0">
-                      {userAvatar ? (
-                        <AvatarImage src={userAvatar} alt={userName} />
-                      ) : (
-                        <AvatarFallback>{userName.slice(0, 2).toUpperCase()}</AvatarFallback>
-                      )}
-                    </Avatar>
-                  )}
                 </div>
               )
             })}
@@ -346,60 +565,197 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
           </>
         )}
       </div>
-
       {/* Input Area */}
-      <div className="gba:flex-shrink-0 gba:border-t gba:border-border gba:p-4 gba:bg-background">
-        <div className="gba:flex gba:gap-2 gba:items-end">
-          {onAttachFile && (
-            <Button type="button" variant="ghost" size="icon" onClick={onAttachFile} disabled={isProcessing}>
-              <Upload className="gba:w-4 gba:h-4" />
-            </Button>
-          )}
-          <div className="gba:flex-1 gba:relative">
-            <textarea
-              ref={textareaRef}
-              value={input}
-              onChange={e => onInputChange(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder={inputPlaceholder ?? 'Describe what you want to build...'}
-              disabled={isProcessing}
-              className="gba:w-full gba:px-4 gba:py-3 gba:pr-12 gba:border gba:border-border gba:rounded-lg gba:bg-background gba:text-sm gba:resize-none focus:gba:outline-none focus:gba:ring-2 focus:gba:ring-primary focus:gba:border-transparent disabled:gba:opacity-50 disabled:gba:cursor-not-allowed"
-              rows={3}
-              data-testid="ai-builder-input"
-            />
-          </div>
-          <Button
-            onClick={onSendMessage}
-            disabled={isProcessing || !input.trim()}
-            size="icon"
-            className="gba:shrink-0"
-            data-testid="ai-builder-send-button"
-            title={isProcessing ? (buildingLabel ?? undefined) : (sendButtonLabel ?? undefined)}
-          >
-            {isProcessing ? (
-              <Loader2 className="gba:w-4 gba:h-4 gba:animate-spin" />
-            ) : (
-              <Sparkles className="gba:w-4 gba:h-4" />
+      <div className="gba:flex-shrink-0 gba:border-t gba:border-border gba:bg-background">
+        {/* File Changes Banner */}
+        {uniqueFileSummary && uniqueFileSummary.totalUniqueFiles > 0 && (
+          <div className="gba:border-b gba:border-border gba:bg-muted/30">
+            {/* Summary Header - Clickable */}
+            <button
+              onClick={() => setFilesExpanded(!filesExpanded)}
+              className="gba:w-full gba:px-4 gba:py-2 gba:flex gba:items-center gba:gap-2 gba:text-xs hover:gba:bg-muted/50 gba:transition-colors"
+            >
+              {filesExpanded ? (
+                <ChevronDown className="gba:w-3.5 gba:h-3.5 gba:text-muted-foreground gba:flex-shrink-0" />
+              ) : (
+                <ChevronRight className="gba:w-3.5 gba:h-3.5 gba:text-muted-foreground gba:flex-shrink-0" />
+              )}
+              <FileCode className="gba:w-3.5 gba:h-3.5 gba:text-primary gba:flex-shrink-0" />
+              <span className="gba:text-muted-foreground">
+                {getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.files_changed', 'Files changed')}{' '}
+                {uniqueFileSummary.totalUniqueFiles}
+              </span>
+              <div className="gba:flex gba:flex-wrap gba:gap-1.5">
+                {uniqueFileSummary.createCount > 0 && (
+                  <span className="gba:inline-flex gba:items-center gba:gap-1 gba:px-1.5 gba:py-0.5 gba:rounded gba:bg-green-500/10 gba:text-green-600 dark:gba:text-green-400">
+                    <Plus className="gba:w-3 gba:h-3" />
+                    {uniqueFileSummary.createCount}
+                  </span>
+                )}
+                {uniqueFileSummary.modifyCount > 0 && (
+                  <span className="gba:inline-flex gba:items-center gba:gap-1 gba:px-1.5 gba:py-0.5 gba:rounded gba:bg-blue-500/10 gba:text-blue-600 dark:gba:text-blue-400">
+                    <FileEdit className="gba:w-3 gba:h-3" />
+                    {uniqueFileSummary.modifyCount}
+                  </span>
+                )}
+                {uniqueFileSummary.deleteCount > 0 && (
+                  <span className="gba:inline-flex gba:items-center gba:gap-1 gba:px-1.5 gba:py-0.5 gba:rounded gba:bg-red-500/10 gba:text-red-600 dark:gba:text-red-400">
+                    <Trash2 className="gba:w-3 gba:h-3" />
+                    {uniqueFileSummary.deleteCount}
+                  </span>
+                )}
+              </div>
+            </button>
+
+            {/* Expanded File List */}
+            {filesExpanded && (
+              <div className="gba:px-4 gba:pb-2 gba:max-h-48 gba:overflow-y-auto">
+                <div className="gba:space-y-1">
+                  {uniqueFileSummary.files.map(file => (
+                    <div
+                      key={file.path}
+                      className="gba:flex gba:items-center gba:gap-2 gba:text-xs gba:py-1 gba:px-2 gba:rounded gba:bg-muted/50"
+                    >
+                      {file.type === 'create' && (
+                        <Plus className="gba:w-3 gba:h-3 gba:text-green-600 dark:gba:text-green-400 gba:flex-shrink-0" />
+                      )}
+                      {file.type === 'modify' && (
+                        <FileEdit className="gba:w-3 gba:h-3 gba:text-blue-600 dark:gba:text-blue-400 gba:flex-shrink-0" />
+                      )}
+                      {file.type === 'delete' && (
+                        <Trash2 className="gba:w-3 gba:h-3 gba:text-red-600 dark:gba:text-red-400 gba:flex-shrink-0" />
+                      )}
+                      <span className="gba:text-muted-foreground gba:truncate" title={file.path}>
+                        {file.path}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
-          </Button>
-        </div>
-        {analyzingRequestText && isProcessing && (
-          <div className="gba:text-center gba:text-sm gba:text-muted-foreground gba:flex gba:items-center gba:justify-center gba:gap-2 gba:mt-2">
-            <Loader2 className="gba:w-4 gba:h-4 gba:animate-spin" />
-            <span>{analyzingRequestText}</span>
           </div>
         )}
-        {tipText && !isProcessing && input.trim() && (
-          <p className="gba:text-xs gba:text-muted-foreground gba:text-center gba:mt-2">{tipText}</p>
-        )}
-        {onClearChat && messages.length > 0 && (
-          <div className="gba:mt-2 gba:flex gba:justify-end">
-            <Button variant="ghost" size="sm" onClick={onClearChat} className="gba:text-xs gba:text-muted-foreground">
-              Clear chat
+
+        <div className="gba:p-4">
+          <div className="gba:flex gba:gap-2 gba:items-end">
+            {onAttachFile && (
+              <Button type="button" variant="ghost" size="icon" onClick={onAttachFile} disabled={isProcessing}>
+                <Upload className="gba:w-4 gba:h-4" />
+              </Button>
+            )}
+            <div className="gba:flex-1 gba:relative">
+              <textarea
+                ref={textareaRef}
+                value={input}
+                onChange={e => onInputChange(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder={inputPlaceholder ?? 'Describe what you want to build...'}
+                className="gba:w-full gba:px-4 gba:py-3 gba:pr-12 gba:border gba:border-border gba:rounded-lg gba:bg-background gba:text-sm gba:resize-none focus:gba:outline-none focus:gba:ring-2 focus:gba:ring-primary focus:gba:border-transparent disabled:gba:opacity-50 disabled:gba:cursor-not-allowed"
+                rows={3}
+                data-testid="ai-builder-input"
+              />
+            </div>
+            {isProcessing && input.trim() && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onQueueFollowUp}
+                disabled={!onQueueFollowUp}
+                className="gba:shrink-0"
+                data-testid="ai-builder-queue-followup-button"
+                title="Queue follow-up prompt"
+              >
+                Queue
+              </Button>
+            )}
+            <Button
+              onClick={isProcessing ? onStopMessage : onSendMessage}
+              disabled={isProcessing ? !onStopMessage : !input.trim()}
+              size="icon"
+              className="gba:shrink-0"
+              data-testid="ai-builder-send-button"
+              title={
+                isProcessing
+                  ? getTranslationFromI18nKeyAndLabel('lowcoder:ai_builder.stop_generation', 'Stop generation')
+                  : (sendButtonLabel ?? undefined)
+              }
+            >
+              {isProcessing ? <Square className="gba:w-4 gba:h-4" /> : <Sparkles className="gba:w-4 gba:h-4" />}
             </Button>
           </div>
-        )}
+          {queuedFollowUpPrompt && (
+            <div className="gba:mt-2 gba:rounded-md gba:border gba:bg-muted/40 gba:p-2">
+              <p className="gba:text-xs gba:text-muted-foreground">
+                Queued follow-up (will send automatically after current response):
+              </p>
+              <p className="gba:text-sm gba:mt-1 gba:line-clamp-2">{queuedFollowUpPrompt}</p>
+              <div className="gba:mt-2 gba:flex gba:gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="default"
+                  onClick={onSendQueuedFollowUpNow}
+                  disabled={!onSendQueuedFollowUpNow}
+                  data-testid="ai-builder-send-followup-now-button"
+                >
+                  Send now
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={onDeleteQueuedFollowUp}
+                  disabled={!onDeleteQueuedFollowUp}
+                  data-testid="ai-builder-delete-followup-button"
+                >
+                  Delete
+                </Button>
+              </div>
+            </div>
+          )}
+          {analyzingRequestText && isProcessing && (
+            <div className="gba:text-center gba:text-sm gba:text-muted-foreground gba:flex gba:items-center gba:justify-center gba:gap-2 gba:mt-2">
+              <Loader2 className="gba:w-4 gba:h-4 gba:animate-spin" />
+              <span>{analyzingRequestText}</span>
+            </div>
+          )}
+          {tipText && !isProcessing && input.trim() && (
+            <p className="gba:text-xs gba:text-muted-foreground gba:text-center gba:mt-2">{tipText}</p>
+          )}
+          {onClearChat && messages.length > 0 && (
+            <div className="gba:mt-2 gba:flex gba:justify-end">
+              <Button variant="ghost" size="sm" onClick={onClearChat} className="gba:text-xs gba:text-muted-foreground">
+                Clear chat
+              </Button>
+            </div>
+          )}
+        </div>
       </div>
+
+      <Dialog open={!!editingMessage} onOpenChange={open => (!open ? closeEditDialog() : null)}>
+        <DialogContent className="gba:max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Edit prompt</DialogTitle>
+            <DialogDescription>
+              This will restore the state before the prompt and re-run the AI with your changes.
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            value={editingContent}
+            onChange={e => setEditingContent(e.target.value)}
+            rows={6}
+            className="gba:mt-2"
+          />
+          <DialogFooter className="gba:gap-2">
+            <Button variant="ghost" onClick={closeEditDialog}>
+              Cancel
+            </Button>
+            <Button onClick={confirmEditDialog} disabled={!editingContent.trim()}>
+              Save & Re-run
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

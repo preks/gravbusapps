@@ -28,6 +28,9 @@ export interface OdfParseResult {
   messages: OdfParserMessage[]
 }
 
+/** Translation function for user-facing messages */
+export type OdfParserTranslate = (key: string, vars?: Record<string, string>) => string
+
 /** Map of automatic style names to their formatting properties */
 interface StyleProperties {
   bold?: boolean
@@ -43,10 +46,25 @@ interface StyleProperties {
 
 /**
  * Parse an ODF (.odt) file and convert its content to HTML.
+ * @param arrayBuffer - The ODF file contents
+ * @param t - Optional translation function for user-facing messages
  */
-export async function parseOdfToHtml(arrayBuffer: ArrayBuffer): Promise<OdfParseResult> {
+export async function parseOdfToHtml(arrayBuffer: ArrayBuffer, t?: OdfParserTranslate): Promise<OdfParseResult> {
   const messages: OdfParserMessage[] = []
   const images: OdfImage[] = []
+  const msg = (key: string, vars?: Record<string, string>) => (t ? t(key, vars) : fallbackOdfMsg(key, vars))
+
+  function fallbackOdfMsg(key: string, vars?: Record<string, string>): string {
+    const map: Record<string, string> = {
+      'odf-parse-message-unexpected-mimetype': `Unexpected mimetype: ${vars?.mimetype ?? ''}`,
+      'odf-parse-error-missing-content': 'Invalid ODF file: missing content.xml',
+      'odf-parse-error-content-xml': `Failed to parse content.xml: ${vars?.detail ?? ''}`,
+      'odf-parse-error-missing-body': 'Invalid ODF file: missing office:body',
+      'odf-parse-error-missing-text': 'Invalid ODF file: missing office:text',
+      'odf-parse-image-alt': 'Document image'
+    }
+    return map[key] ?? key
+  }
 
   // Unzip the ODF archive
   const zip = await JSZip.loadAsync(arrayBuffer)
@@ -56,14 +74,17 @@ export async function parseOdfToHtml(arrayBuffer: ArrayBuffer): Promise<OdfParse
   if (mimetypeFile) {
     const mimetype = await mimetypeFile.async('text')
     if (!mimetype.startsWith('application/vnd.oasis.opendocument')) {
-      messages.push({ type: 'warning', message: `Unexpected mimetype: ${mimetype.trim()}` })
+      messages.push({
+        type: 'warning',
+        message: msg('odf-parse-message-unexpected-mimetype', { mimetype: mimetype.trim() })
+      })
     }
   }
 
   // Read content.xml (required)
   const contentFile = zip.file('content.xml')
   if (!contentFile) {
-    throw new Error('Invalid ODF file: missing content.xml')
+    throw new Error(msg('odf-parse-error-missing-content'))
   }
   const contentXml = await contentFile.async('text')
 
@@ -103,7 +124,7 @@ export async function parseOdfToHtml(arrayBuffer: ArrayBuffer): Promise<OdfParse
   // Check for parse errors
   const parseError = doc.querySelector('parsererror')
   if (parseError) {
-    throw new Error('Failed to parse content.xml: ' + parseError.textContent)
+    throw new Error(msg('odf-parse-error-content-xml', { detail: parseError.textContent ?? '' }))
   }
 
   // Parse automatic styles from both content.xml and styles.xml
@@ -121,12 +142,12 @@ export async function parseOdfToHtml(arrayBuffer: ArrayBuffer): Promise<OdfParse
   // Find the document body
   const body = doc.getElementsByTagNameNS('urn:oasis:names:tc:opendocument:xmlns:office:1.0', 'body')[0]
   if (!body) {
-    throw new Error('Invalid ODF file: missing office:body')
+    throw new Error(msg('odf-parse-error-missing-body'))
   }
 
   const textBody = body.getElementsByTagNameNS('urn:oasis:names:tc:opendocument:xmlns:office:1.0', 'text')[0]
   if (!textBody) {
-    throw new Error('Invalid ODF file: missing office:text')
+    throw new Error(msg('odf-parse-error-missing-text'))
   }
 
   // Convert ODF elements to HTML
@@ -138,7 +159,7 @@ export async function parseOdfToHtml(arrayBuffer: ArrayBuffer): Promise<OdfParse
     imageMap.set(img.path, img)
   }
 
-  convertChildElements(textBody, htmlParts, textParts, styleMap, imageMap)
+  convertChildElements(textBody, htmlParts, textParts, styleMap, imageMap, msg('odf-parse-image-alt'))
 
   const html = htmlParts.join('\n')
   const plainText = textParts
@@ -218,7 +239,8 @@ function convertChildElements(
   htmlParts: string[],
   textParts: string[],
   styleMap: Map<string, StyleProperties>,
-  imageMap: Map<string, OdfImage>
+  imageMap: Map<string, OdfImage>,
+  imageAlt: string
 ): void {
   for (let i = 0; i < node.childNodes.length; i++) {
     const child = node.childNodes[i]
@@ -230,7 +252,7 @@ function convertChildElements(
 
     // text:p - paragraph
     if (localName === 'p' && isTextNs(namespaceURI)) {
-      const content = convertInlineContent(element, styleMap, imageMap)
+      const content = convertInlineContent(element, styleMap, imageMap, imageAlt)
       htmlParts.push(`<p>${content}</p>`)
       textParts.push(extractPlainText(element))
     }
@@ -238,32 +260,32 @@ function convertChildElements(
     else if (localName === 'h' && isTextNs(namespaceURI)) {
       const level = element.getAttributeNS(isTextNs(namespaceURI) ? namespaceURI! : '', 'outline-level') || '1'
       const headingLevel = Math.min(Math.max(parseInt(level, 10) || 1, 1), 6)
-      const content = convertInlineContent(element, styleMap, imageMap)
+      const content = convertInlineContent(element, styleMap, imageMap, imageAlt)
       htmlParts.push(`<h${headingLevel}>${content}</h${headingLevel}>`)
       textParts.push(extractPlainText(element))
     }
     // text:list - list
     else if (localName === 'list' && isTextNs(namespaceURI)) {
-      convertList(element, htmlParts, textParts, styleMap, imageMap)
+      convertList(element, htmlParts, textParts, styleMap, imageMap, imageAlt)
     }
     // table:table - table
     else if (localName === 'table' && isTableNs(namespaceURI)) {
-      convertTable(element, htmlParts, textParts, styleMap, imageMap)
+      convertTable(element, htmlParts, textParts, styleMap, imageMap, imageAlt)
     }
     // text:section - just recurse into it
     else if (localName === 'section' && isTextNs(namespaceURI)) {
-      convertChildElements(element, htmlParts, textParts, styleMap, imageMap)
+      convertChildElements(element, htmlParts, textParts, styleMap, imageMap, imageAlt)
     }
     // draw:frame - image or other embedded object
     else if (localName === 'frame' && isDrawNs(namespaceURI)) {
-      const imgHtml = convertDrawFrame(element, imageMap)
+      const imgHtml = convertDrawFrame(element, imageMap, imageAlt)
       if (imgHtml) {
         htmlParts.push(imgHtml)
       }
     }
     // Fallback: try to recurse
     else {
-      convertChildElements(element, htmlParts, textParts, styleMap, imageMap)
+      convertChildElements(element, htmlParts, textParts, styleMap, imageMap, imageAlt)
     }
   }
 }
@@ -298,7 +320,7 @@ function convertInlineContent(
       // text:a - hyperlink
       else if (localName === 'a' && isTextNs(el.namespaceURI)) {
         const href = el.getAttributeNS('http://www.w3.org/1999/xlink', 'href') || el.getAttribute('xlink:href') || ''
-        const innerContent = convertInlineContent(el, styleMap, imageMap)
+        const innerContent = convertInlineContent(el, styleMap, imageMap, imageAlt)
         html += `<a href="${escapeAttr(href)}">${innerContent}</a>`
       }
       // text:line-break
@@ -316,12 +338,12 @@ function convertInlineContent(
       }
       // draw:frame - inline image
       else if (localName === 'frame' && isDrawNs(el.namespaceURI)) {
-        const imgHtml = convertDrawFrame(el, imageMap)
+        const imgHtml = convertDrawFrame(el, imageMap, imageAlt)
         if (imgHtml) html += imgHtml
       }
       // Fallback: recurse into unknown inline elements
       else {
-        html += convertInlineContent(el, styleMap, imageMap)
+        html += convertInlineContent(el, styleMap, imageMap, imageAlt)
       }
     }
   }
@@ -353,7 +375,8 @@ function convertList(
   htmlParts: string[],
   textParts: string[],
   styleMap: Map<string, StyleProperties>,
-  imageMap: Map<string, OdfImage>
+  imageMap: Map<string, OdfImage>,
+  imageAlt: string
 ): void {
   // Determine list type by checking if items have numbered style
   const isOrdered = isOrderedList(listElement)
@@ -376,12 +399,12 @@ function convertList(
         const itemEl = itemChild as Element
 
         if (itemEl.localName === 'p' && isTextNs(itemEl.namespaceURI)) {
-          itemContent.push(convertInlineContent(itemEl, styleMap, imageMap))
+          itemContent.push(convertInlineContent(itemEl, styleMap, imageMap, imageAlt))
           itemText.push(extractPlainText(itemEl))
         } else if (itemEl.localName === 'list' && isTextNs(itemEl.namespaceURI)) {
           // Nested list
           const nestedParts: string[] = []
-          convertList(itemEl, nestedParts, itemText, styleMap, imageMap)
+          convertList(itemEl, nestedParts, itemText, styleMap, imageMap, imageAlt)
           itemContent.push(nestedParts.join('\n'))
         }
       }
@@ -417,7 +440,8 @@ function convertTable(
   htmlParts: string[],
   textParts: string[],
   styleMap: Map<string, StyleProperties>,
-  imageMap: Map<string, OdfImage>
+  imageMap: Map<string, OdfImage>,
+  imageAlt: string
 ): void {
   const rows: string[] = []
   let isFirstRow = true
@@ -434,7 +458,7 @@ function convertTable(
         if (headerChild.nodeType === Node.ELEMENT_NODE) {
           const headerEl = headerChild as Element
           if (headerEl.localName === 'table-row') {
-            rows.push(convertTableRow(headerEl, true, styleMap, imageMap, textParts))
+            rows.push(convertTableRow(headerEl, true, styleMap, imageMap, textParts, imageAlt))
           }
         }
       }
@@ -442,7 +466,7 @@ function convertTable(
     }
     // table:table-row
     else if (el.localName === 'table-row' && isTableNs(el.namespaceURI)) {
-      rows.push(convertTableRow(el, isFirstRow, styleMap, imageMap, textParts))
+      rows.push(convertTableRow(el, isFirstRow, styleMap, imageMap, textParts, imageAlt))
       isFirstRow = false
     }
   }
@@ -458,7 +482,8 @@ function convertTableRow(
   isHeader: boolean,
   styleMap: Map<string, StyleProperties>,
   imageMap: Map<string, OdfImage>,
-  textParts: string[]
+  textParts: string[],
+  imageAlt: string
 ): string {
   const cellTag = isHeader ? 'th' : 'td'
   const cells: string[] = []
@@ -481,7 +506,7 @@ function convertTableRow(
         const cellEl = cellChild as Element
 
         if (cellEl.localName === 'p' && isTextNs(cellEl.namespaceURI)) {
-          cellContent.push(convertInlineContent(cellEl, styleMap, imageMap))
+          cellContent.push(convertInlineContent(cellEl, styleMap, imageMap, imageAlt))
           textParts.push(extractPlainText(cellEl))
         }
       }
@@ -505,7 +530,7 @@ function convertTableRow(
 /**
  * Convert a draw:frame element to an HTML img tag.
  */
-function convertDrawFrame(frameElement: Element, imageMap: Map<string, OdfImage>): string | null {
+function convertDrawFrame(frameElement: Element, imageMap: Map<string, OdfImage>, imageAlt: string): string | null {
   const drawNs = 'urn:oasis:names:tc:opendocument:xmlns:drawing:1.0'
 
   const imageElements = frameElement.getElementsByTagNameNS(drawNs, 'image')
@@ -520,12 +545,12 @@ function convertDrawFrame(frameElement: Element, imageMap: Map<string, OdfImage>
   // Look up the image in our extracted images
   const image = imageMap.get(href)
   if (image) {
-    return `<img src="data:${image.contentType};base64,${image.base64}" alt="Document image">`
+    return `<img src="data:${image.contentType};base64,${image.base64}" alt="${escapeAttr(imageAlt)}">`
   }
 
   // External image reference
   if (href.startsWith('http://') || href.startsWith('https://')) {
-    return `<img src="${escapeAttr(href)}" alt="Document image">`
+    return `<img src="${escapeAttr(href)}" alt="${escapeAttr(imageAlt)}">`
   }
 
   return null

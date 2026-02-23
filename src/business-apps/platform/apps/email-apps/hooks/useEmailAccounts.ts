@@ -2,7 +2,13 @@ import { useState, useEffect, useCallback } from 'react'
 import { EmailApiService } from '../services/EmailApiService'
 import type { EmailAccount, CreateEmailAccountRequest } from '../types'
 
-export function useEmailAccounts(accessToken: string) {
+export interface UseEmailAccountsOptions {
+  /** Translation function for user-facing error messages */
+  t?: (key: string, vars?: Record<string, string | number>) => string
+}
+
+export function useEmailAccounts(accessToken: string, options: UseEmailAccountsOptions = {}) {
+  const { t } = options
   const [accounts, setAccounts] = useState<EmailAccount[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -18,11 +24,11 @@ export function useEmailAccounts(accessToken: string) {
       const data = await EmailApiService.listAccounts()
       setAccounts(data)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load accounts')
+      setError(t ? t('account-load-failed') : err instanceof Error ? err.message : String(err))
     } finally {
       setIsLoading(false)
     }
-  }, [])
+  }, [t])
 
   useEffect(() => {
     if (accessToken) loadAccounts()

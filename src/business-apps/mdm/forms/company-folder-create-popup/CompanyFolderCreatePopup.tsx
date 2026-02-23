@@ -7,7 +7,6 @@ import {
   DialogFooter,
   Button,
   Input,
-  Textarea,
   Alert,
   AlertDescription,
   Spinner,
@@ -31,11 +30,12 @@ export interface CompanyFolderCreatePopupProps {
   parentFolderId?: string // Optional parent folder ID
   onClose: () => void
   onSuccess: () => void
+  mode?: 'create' | 'update' // Default to 'create'
+  folder?: any // Existing folder for update mode
 }
 
 interface FormState {
   name: string
-  description: string
   parentDocumentId: string
 }
 
@@ -45,13 +45,14 @@ const CompanyFolderCreatePopup: React.FC<CompanyFolderCreatePopupProps> = ({
   accessToken,
   parentFolderId,
   onClose,
-  onSuccess
+  onSuccess,
+  mode = 'create',
+  folder
 }) => {
   const { t } = useTranslation(translations)
   const companyId = company.id
   const [formState, setFormState] = useState<FormState>({
     name: '',
-    description: '',
     parentDocumentId: parentFolderId || ''
   })
 
@@ -62,6 +63,16 @@ const CompanyFolderCreatePopup: React.FC<CompanyFolderCreatePopupProps> = ({
 
   const restClient = useRestClient(env('NEXT_PUBLIC_ORGCHART_API_URL'))
   const graphqlClient = useGraphQLClient(accessToken)
+
+  // Pre-fill form in update mode
+  useEffect(() => {
+    if (mode === 'update' && folder && open) {
+      setFormState({
+        name: folder.name || '',
+        parentDocumentId: folder.parentDocument || ''
+      })
+    }
+  }, [mode, folder, open])
 
   // Load existing folders for parent selection
   useEffect(() => {
@@ -120,18 +131,23 @@ const CompanyFolderCreatePopup: React.FC<CompanyFolderCreatePopupProps> = ({
 
   /**
    * Build folder payload with form data
+   * Only sends fields with actual values (matches API specification)
    */
   const buildFolderPayload = (): any => {
     const newFolder: any = {
       companyId: companyId,
       name: formState.name.trim(),
-      folder: true
+      folder: true,
+      changeMode: 'UPSERT' // Required for updateCompany endpoint
     }
 
-    // Add optional fields only if they have values
-    if (formState.description.trim()) {
-      newFolder.description = formState.description.trim()
+    // In update mode, add folder ID (required for updates)
+    // Do NOT include version - backend manages this
+    if (mode === 'update' && folder) {
+      newFolder.id = folder.id
     }
+
+    // Add parent folder only if selected (null/undefined = root level)
     if (formState.parentDocumentId) {
       newFolder.parentDocumentId = formState.parentDocumentId
     }
@@ -140,36 +156,17 @@ const CompanyFolderCreatePopup: React.FC<CompanyFolderCreatePopupProps> = ({
   }
 
   /**
-   * Build complete company payload with existing fields and new folder
+   * Build minimal company payload with only the new folder
+   * Uses changeMode: 'UPSERT' approach - only send the document being created
    */
   const buildCompanyPayloadWithFolder = (newFolder: any): any => {
     const payload: any = {
-      id: company.id,
-      code: company.code, // Required
-      name: company.name, // Required
-      structureId: company.structureId // Required
+      structureId: company.structureId, // Required
+      code: company.code // Required
     }
 
-    // Include all optional fields that exist in the company
-    if (company.description) payload.description = company.description
-    if (company.directorId) payload.directorId = company.directorId
-    if (company.commercialRegistrationNumber)
-      payload.commercialRegistrationNumber = company.commercialRegistrationNumber
-    if (company.taxIdentificationNumber) payload.taxIdentificationNumber = company.taxIdentificationNumber
-    if (company.taxNumber) payload.taxNumber = company.taxNumber
-    if (company.valueAddedTaxNumber) payload.valueAddedTaxNumber = company.valueAddedTaxNumber
-    if (company.currencyRef) payload.currencyRef = company.currencyRef
-    if (company.additionalProperties) payload.additionalProperties = company.additionalProperties
-    if (company.picture) payload.picture = company.picture
-    if (company.pictureThumbnail) payload.pictureThumbnail = company.pictureThumbnail
-
-    // Include addresses if they exist
-    if (company.addresses && company.addresses.length > 0) {
-      payload.addresses = company.addresses
-    }
-
-    // Add new folder to existing documents array
-    payload.documents = [...(company.documents || []), newFolder]
+    // Only send the new folder in documents array
+    payload.documents = [newFolder]
 
     return payload
   }
@@ -197,7 +194,8 @@ const CompanyFolderCreatePopup: React.FC<CompanyFolderCreatePopupProps> = ({
       // Success
       onSuccess()
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : t('error-create-failed')
+      const errorKey = mode === 'update' ? 'error-update-failed' : 'error-create-failed'
+      const errorMessage = err instanceof Error ? err.message : t(errorKey)
       setError(errorMessage)
     } finally {
       setLoading(false)
@@ -207,7 +205,6 @@ const CompanyFolderCreatePopup: React.FC<CompanyFolderCreatePopupProps> = ({
   const handleClose = () => {
     setFormState({
       name: '',
-      description: '',
       parentDocumentId: parentFolderId || ''
     })
     setError(null)
@@ -216,6 +213,15 @@ const CompanyFolderCreatePopup: React.FC<CompanyFolderCreatePopupProps> = ({
 
   const isFormValid = formState.name.trim().length > 0
 
+  // Extract button text logic to avoid nested ternary
+  const submitButtonText = loading
+    ? mode === 'update'
+      ? t('button-updating')
+      : t('button-creating')
+    : mode === 'update'
+      ? t('button-update')
+      : t('button-create')
+
   return (
     <Dialog open={open} onOpenChange={open => !open && handleClose()}>
       <DialogContent
@@ -223,7 +229,9 @@ const CompanyFolderCreatePopup: React.FC<CompanyFolderCreatePopupProps> = ({
         data-testid="company-folder-create-popup"
       >
         <DialogHeader>
-          <DialogTitle data-testid="company-folder-create-title">{t('modal-title')}</DialogTitle>
+          <DialogTitle data-testid="company-folder-create-title">
+            {mode === 'update' ? t('modal-title-update') : t('modal-title')}
+          </DialogTitle>
         </DialogHeader>
 
         <div className="gba:space-y-4">
@@ -248,42 +256,29 @@ const CompanyFolderCreatePopup: React.FC<CompanyFolderCreatePopupProps> = ({
             />
           </div>
 
-          {/* Description */}
+          {/* Parent Folder - Always visible with Root Level option */}
           <div>
-            <label className="gba:block gba:text-sm gba:font-medium gba:mb-2">{t('label-description')}</label>
-            <Textarea
-              value={formState.description}
-              onChange={e => handleFieldChange('description', e.target.value)}
-              rows={3}
-              placeholder={t('placeholder-description')}
-              data-testid="company-folder-description-input"
-            />
+            <label className="gba:block gba:text-sm gba:font-medium gba:mb-2">{t('label-parent')}</label>
+            <Select
+              value={formState.parentDocumentId || 'root'}
+              onValueChange={value => handleFieldChange('parentDocumentId', value === 'root' ? '' : value)}
+              disabled={loadingFolders}
+            >
+              <SelectTrigger data-testid="company-folder-parent-select">
+                <SelectValue
+                  placeholder={loadingFolders ? t('placeholder-loading-folders') : t('placeholder-root-level')}
+                />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="root">{t('option-root-level')}</SelectItem>
+                {folders.map(folder => (
+                  <SelectItem key={folder.id} value={folder.id}>
+                    {folder.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-
-          {/* Parent Folder */}
-          {folders.length > 0 && (
-            <div>
-              <label className="gba:block gba:text-sm gba:font-medium gba:mb-2">{t('label-parent')}</label>
-              <Select
-                value={formState.parentDocumentId}
-                onValueChange={value => handleFieldChange('parentDocumentId', value)}
-                disabled={loadingFolders}
-              >
-                <SelectTrigger data-testid="company-folder-parent-select">
-                  <SelectValue
-                    placeholder={loadingFolders ? t('placeholder-loading-folders') : t('placeholder-no-parent')}
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  {folders.map(folder => (
-                    <SelectItem key={folder.id} value={folder.id}>
-                      {folder.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
         </div>
 
         <DialogFooter className="gba:mt-6">
@@ -299,10 +294,10 @@ const CompanyFolderCreatePopup: React.FC<CompanyFolderCreatePopupProps> = ({
             {loading ? (
               <>
                 <Spinner size="sm" className="gba:mr-2" />
-                {t('button-creating')}
+                {submitButtonText}
               </>
             ) : (
-              t('button-create')
+              submitButtonText
             )}
           </Button>
         </DialogFooter>

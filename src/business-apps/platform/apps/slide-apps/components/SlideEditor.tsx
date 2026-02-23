@@ -20,7 +20,8 @@ import {
   Input,
   Textarea,
   Badge,
-  Label
+  Label,
+  useTranslation
 } from '@newwork/nw-design-system'
 import {
   ArrowLeft,
@@ -82,6 +83,7 @@ import {
 import { GradientBuilder } from './GradientBuilder'
 import { GeneratePresentationButton } from './GeneratePresentationButton'
 import { exportToPptx } from '../utils/exportUtils'
+import translations from '../_i18n'
 
 export interface SlideEditorProps extends BusinessAppContextProps {
   slideId: string
@@ -91,30 +93,32 @@ export interface SlideEditorProps extends BusinessAppContextProps {
   'data-testid'?: string
 }
 
-const DEFAULT_SLIDE: SlideData = {
-  id: 'slide-1',
-  elements: [
-    createTextElement({
-      id: 'title-1',
-      content: 'Click to add title',
-      position: { x: 80, y: 80 },
-      size: { width: 1120, height: 100 },
-      fontSize: 64,
-      fontWeight: 'bold',
-      textAlign: 'center',
-      color: '#1e293b'
-    }),
-    createTextElement({
-      id: 'subtitle-1',
-      content: 'Click to add subtitle',
-      position: { x: 80, y: 200 },
-      size: { width: 1120, height: 60 },
-      fontSize: 32,
-      textAlign: 'center',
-      color: '#64748b'
-    })
-  ],
-  background: { type: 'solid', color: '#ffffff' }
+function createDefaultSlide(t: (k: string) => string): SlideData {
+  return {
+    id: 'slide-1',
+    elements: [
+      createTextElement({
+        id: 'title-1',
+        content: t('editor-placeholder-title'),
+        position: { x: 80, y: 80 },
+        size: { width: 1120, height: 100 },
+        fontSize: 64,
+        fontWeight: 'bold',
+        textAlign: 'center',
+        color: '#1e293b'
+      }),
+      createTextElement({
+        id: 'subtitle-1',
+        content: t('editor-placeholder-subtitle'),
+        position: { x: 80, y: 200 },
+        size: { width: 1120, height: 60 },
+        fontSize: 32,
+        textAlign: 'center',
+        color: '#64748b'
+      })
+    ],
+    background: { type: 'solid', color: '#ffffff' }
+  }
 }
 
 export const SlideEditor: React.FC<SlideEditorProps> = ({
@@ -126,6 +130,9 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   userInfo,
   'data-testid': testId = 'slide-editor'
 }) => {
+  const { t } = useTranslation(translations)
+  const defaultSlide = useMemo(() => createDefaultSlide(t), [t])
+
   // Snapshot persistence (REST) MUST be driven by LOCAL changes only.
   // This is declared BEFORE initializing collaboration so we can pass a stable callback.
   const latestSlidesRef = useRef<SlideData[]>([])
@@ -154,16 +161,16 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     const first = userInfo?.givenName || userInfo?.employeeDetails?.firstName
     const last = userInfo?.familyName || userInfo?.employeeDetails?.lastName
     const full = [first, last].filter(Boolean).join(' ').trim()
-    return full || userInfo?.userName || currentUserId || 'User'
-  }, [currentUserId, userInfo])
+    return full || userInfo?.userName || currentUserId || t('editor-user-fallback')
+  }, [currentUserId, userInfo, t])
 
   const graphqlClient = useGraphQLClient(accessToken || '')
   const [currentUserAvatar, setCurrentUserAvatar] = useState<string | undefined>(undefined)
 
   // Prepare initial data from slide prop (used for bootstrap initializer / pre-sync rendering).
   const initialSlides = useMemo(
-    () => (slide.contentJson?.slides as SlideData[] | undefined) || [DEFAULT_SLIDE],
-    [slide.id]
+    () => (slide.contentJson?.slides as SlideData[] | undefined) || [defaultSlide],
+    [slide.id, defaultSlide]
   )
   const initialThemeId = useMemo(
     () => (slide.contentJson?.themeId as string | undefined) || SLIDE_THEMES[0].id,
@@ -301,14 +308,14 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
 
   // Always render from collaboration state (it is seeded immediately from initial content).
   const slides = useMemo(() => {
-    return collaborativeSlides?.length ? collaborativeSlides : [DEFAULT_SLIDE]
-  }, [collaborativeSlides])
+    return collaborativeSlides?.length ? collaborativeSlides : [defaultSlide]
+  }, [collaborativeSlides, defaultSlide])
 
   const currentTheme = useMemo(() => {
     return collaborativeThemeId ? getThemeById(collaborativeThemeId) : SLIDE_THEMES[0]
   }, [collaborativeThemeId])
 
-  const currentSlideRaw = slides[currentSlideIndex] || DEFAULT_SLIDE
+  const currentSlideRaw = slides[currentSlideIndex] || defaultSlide
   // Ensure elements array always exists
   const currentSlide: SlideData = {
     ...currentSlideRaw,
@@ -336,15 +343,15 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       try {
         const contentJson = { slides, themeId: collaborativeThemeId }
         await SlidesApiService.updateSlide(slideId, { contentJson })
-        if (!silent) toast.success('Slide saved')
+        if (!silent) toast.success(t('editor-slide-saved'))
       } catch (err) {
         console.error('[SlideEditor] Save error:', err)
-        if (!silent) toast.error('Failed to save')
+        if (!silent) toast.error(t('editor-save-failed'))
       } finally {
         if (!silent) setIsSaving(false)
       }
     },
-    [slideId, slides, collaborativeThemeId]
+    [slideId, slides, collaborativeThemeId, t]
   )
 
   const canEdit = isSynced && isInitialized
@@ -371,17 +378,17 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       const newElement = { ...element, zIndex: maxZIndex + 1 }
       updateSlide({ elements: [...currentSlide.elements, newElement] })
       setSelectedElementId(newElement.id)
-      toast.success(`Added ${element.type}`)
+      toast.success(t('editor-added-element', { type: element.type }))
     },
-    [currentSlide.elements, updateSlide]
+    [currentSlide.elements, updateSlide, t]
   )
 
   const deleteElement = useCallback(() => {
     if (!selectedElementId) return
     updateSlide({ elements: currentSlide.elements.filter(e => e.id !== selectedElementId) })
     setSelectedElementId(null)
-    toast.success('Element deleted')
-  }, [selectedElementId, currentSlide.elements, updateSlide])
+    toast.success(t('editor-element-deleted'))
+  }, [selectedElementId, currentSlide.elements, updateSlide, t])
 
   const duplicateElement = useCallback(() => {
     if (!selectedElement) return
@@ -391,8 +398,8 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       position: { x: selectedElement.position.x + 20, y: selectedElement.position.y + 20 }
     }
     addElement(copy)
-    toast.success('Element duplicated')
-  }, [selectedElement, addElement])
+    toast.success(t('editor-element-duplicated'))
+  }, [selectedElement, addElement, t])
 
   const bringForward = useCallback(() => {
     if (!selectedElementId) return
@@ -425,7 +432,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       elements: [
         createTextElement({
           id: `title-${Date.now()}`,
-          content: 'New Slide',
+          content: t('editor-new-slide'),
           position: { x: 80, y: 280 },
           size: { width: 1120, height: 100 },
           fontSize: 64,
@@ -441,22 +448,22 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     }
     setCurrentSlideIndex(currentSlideIndex + 1)
     setSelectedElementId(null)
-    toast.success('Slide added')
-  }, [currentSlideIndex, isSynced, addCollaborativeSlide])
+    toast.success(t('editor-slide-added'))
+  }, [currentSlideIndex, isSynced, addCollaborativeSlide, t])
 
   const deleteSlide = useCallback(() => {
     if (slides.length <= 1) {
-      toast.error('Cannot delete the last slide')
+      toast.error(t('editor-delete-last-slide-error'))
       return
     }
-    if (!window.confirm('Delete this slide?')) return
+    if (!window.confirm(t('editor-delete-slide-confirm'))) return
     if (isSynced) {
       removeCollaborativeSlide(currentSlideIndex)
     }
     setCurrentSlideIndex(Math.max(0, currentSlideIndex - 1))
     setSelectedElementId(null)
-    toast.success('Slide deleted')
-  }, [slides.length, currentSlideIndex, isSynced, removeCollaborativeSlide])
+    toast.success(t('editor-slide-deleted'))
+  }, [slides.length, currentSlideIndex, isSynced, removeCollaborativeSlide, t])
 
   const duplicateSlide = useCallback(() => {
     const copy = {
@@ -471,8 +478,8 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       addCollaborativeSlide(copy, currentSlideIndex + 1)
     }
     setCurrentSlideIndex(currentSlideIndex + 1)
-    toast.success('Slide duplicated')
-  }, [currentSlide, currentSlideIndex, isSynced, addCollaborativeSlide])
+    toast.success(t('toast-slide-duplicated'))
+  }, [currentSlide, currentSlideIndex, isSynced, addCollaborativeSlide, t])
 
   // Handle AI-generated slides
   const handleGeneratedSlides = useCallback(
@@ -600,22 +607,22 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
   // Rename presentation
   const handleRename = useCallback(async () => {
     if (!newTitle.trim()) {
-      toast.error('Title cannot be empty')
+      toast.error(t('editor-title-empty'))
       return
     }
     try {
       await SlidesApiService.updateSlide(slideId, { title: newTitle.trim() })
       setPresentationTitle(newTitle.trim())
       setShowRenameDialog(false)
-      toast.success('Presentation renamed')
+      toast.success(t('editor-presentation-renamed'))
       if (onSlideUpdated) {
         onSlideUpdated({ ...slide, title: newTitle.trim() })
       }
     } catch (err) {
       console.error('[SlideEditor] Rename error:', err)
-      toast.error('Failed to rename presentation')
+      toast.error(t('editor-rename-failed'))
     }
-  }, [slideId, newTitle, slide, onSlideUpdated])
+  }, [slideId, newTitle, slide, onSlideUpdated, t])
 
   const openRenameDialog = useCallback(() => {
     setNewTitle(presentationTitle)
@@ -627,15 +634,15 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     try {
       const success = await exportToPptx(slides, currentTheme, presentationTitle)
       if (success) {
-        toast.success('Exported to PowerPoint')
+        toast.success(t('editor-export-pptx-success'))
       } else {
-        toast.error('Export failed')
+        toast.error(t('editor-export-failed'))
       }
     } catch (err) {
       console.error('[SlideEditor] Export error:', err)
-      toast.error('Export failed')
+      toast.error(t('editor-export-failed'))
     }
-  }, [slides, currentTheme, presentationTitle])
+  }, [slides, currentTheme, presentationTitle, t])
 
   // Present Mode
   if (isPresentMode) {
@@ -673,7 +680,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
             disabled={currentSlideIndex === 0}
             className="gba:text-white"
           >
-            ← Previous
+            {t('editor-previous')}
           </Button>
           <span className="gba:text-sm gba:text-white">
             {currentSlideIndex + 1} / {slides.length}
@@ -685,7 +692,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
             disabled={currentSlideIndex === slides.length - 1}
             className="gba:text-white"
           >
-            Next →
+            {t('editor-next')}
           </Button>
           <div className="gba:w-px gba:h-6 gba:bg-white/30 gba:mx-2" />
           <Button
@@ -696,7 +703,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
             data-testid={`${testId}-present-exit-bottom`}
           >
             <X className="gba:w-4 gba:h-4 gba:mr-1.5" />
-            Exit
+            {t('editor-exit')}
           </Button>
         </div>
       </div>
@@ -711,7 +718,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
           <div className="gba:flex gba:items-center gba:justify-between">
             {/* Left side - Back button and title */}
             <div className="gba:flex gba:items-center gba:gap-4">
-              <Button variant="ghost" size="icon" onClick={onBack} title="Back to slides">
+              <Button variant="ghost" size="icon" onClick={onBack} title={t('editor-back-to-slides')}>
                 <ArrowLeft className="gba:w-5 gba:h-5" />
               </Button>
 
@@ -723,7 +730,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                   <button
                     onClick={openRenameDialog}
                     className="gba:flex gba:items-center gba:gap-2 gba:group gba:cursor-pointer hover:gba:opacity-80 gba:transition-opacity gba:text-left"
-                    title="Click to rename"
+                    title={t('editor-click-to-rename')}
                   >
                     <span className="gba:text-lg gba:font-semibold gba:text-foreground gba:truncate gba:max-w-md">
                       {presentationTitle}
@@ -731,13 +738,9 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                     <Pencil className="gba:w-4 gba:h-4 gba:text-muted-foreground gba:opacity-0 group-hover:gba:opacity-100 gba:transition-opacity" />
                   </button>
                   <div className="gba:flex gba:items-center gba:gap-3 gba:text-xs gba:text-muted-foreground">
-                    <span>
-                      {slides.length} {slides.length === 1 ? 'slide' : 'slides'}
-                    </span>
+                    <span>{t('editor-slide-count', { count: slides.length })}</span>
                     <span>•</span>
-                    <span>
-                      Slide {currentSlideIndex + 1} of {slides.length}
-                    </span>
+                    <span>{t('editor-slide-of', { current: currentSlideIndex + 1, total: slides.length })}</span>
                   </div>
                 </div>
               </div>
@@ -778,17 +781,17 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                 {isSaving ? (
                   <Badge variant="secondary" className="gba:gap-1">
                     <Clock className="gba:w-3 gba:h-3 gba:animate-spin" />
-                    Saving...
+                    {t('editor-saving')}
                   </Badge>
                 ) : isSynced ? (
                   <span className="gba:text-xs gba:text-muted-foreground gba:flex gba:items-center gba:gap-1">
                     <CheckCircle className="gba:w-3 gba:h-3 gba:text-success" />
-                    Synced
+                    {t('editor-synced')}
                   </span>
                 ) : (
                   <span className="gba:text-xs gba:text-muted-foreground gba:flex gba:items-center gba:gap-1">
                     <Clock className="gba:w-3 gba:h-3 gba:animate-spin" />
-                    Connecting...
+                    {t('editor-connecting')}
                   </span>
                 )}
               </div>
@@ -801,7 +804,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                   variant="ghost"
                   size="icon"
                   onClick={() => setCanvasScale(Math.max(0.25, canvasScale - 0.1))}
-                  title="Zoom Out"
+                  title={t('editor-zoom-out')}
                   className="gba:h-8 gba:w-8"
                 >
                   <ZoomOut className="gba:w-4 gba:h-4" />
@@ -818,7 +821,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                   variant="ghost"
                   size="icon"
                   onClick={() => setCanvasScale(Math.min(1.5, canvasScale + 0.1))}
-                  title="Zoom In"
+                  title={t('editor-zoom-in')}
                   className="gba:h-8 gba:w-8"
                 >
                   <ZoomIn className="gba:w-4 gba:h-4" />
@@ -830,7 +833,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
               {/* Present button */}
               <Button variant="default" size="sm" onClick={() => setIsPresentMode(true)}>
                 <Play className="gba:w-4 gba:h-4 gba:mr-2" />
-                Present
+                {t('editor-present')}
               </Button>
 
               {/* Export dropdown */}
@@ -838,22 +841,22 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm">
                     <Download className="gba:w-4 gba:h-4 gba:mr-2" />
-                    Export
+                    {t('editor-export')}
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem onClick={() => handleSave(false)}>
                     <Save className="gba:w-4 gba:h-4 gba:mr-2" />
-                    Save Now
+                    {t('editor-save-now')}
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleExportToPptx}>
                     <FileDown className="gba:w-4 gba:h-4 gba:mr-2" />
-                    Export as PowerPoint
+                    {t('editor-export-pptx')}
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => toast.info('PDF export coming soon')}>
+                  <DropdownMenuItem onClick={() => toast.info(t('editor-export-pdf-coming'))}>
                     <FileDown className="gba:w-4 gba:h-4 gba:mr-2" />
-                    Export as PDF
+                    {t('editor-export-pdf')}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -873,7 +876,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       {/* Toolbar - Insert & Formatting Tools */}
       <div className="gba:flex gba:items-center gba:gap-1 gba:px-4 gba:py-2 gba:border-b gba:bg-card gba:flex-wrap">
         {/* Insert Group */}
-        <span className="gba:text-xs gba:text-muted-foreground gba:mr-2">Insert:</span>
+        <span className="gba:text-xs gba:text-muted-foreground gba:mr-2">{t('editor-insert')}</span>
 
         {/* Add Text */}
         <Button
@@ -882,7 +885,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
           onClick={() => addElement(createTextElement({ position: { x: 100, y: 300 } }))}
         >
           <Type className="gba:w-4 gba:h-4 gba:mr-1" />
-          Text
+          {t('editor-text')}
         </Button>
 
         {/* Add Shape */}
@@ -890,51 +893,51 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="sm">
               <Square className="gba:w-4 gba:h-4 gba:mr-1" />
-              Shapes
+              {t('editor-shapes')}
               <ChevronDown className="gba:w-3 gba:h-3 gba:ml-1" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent className="gba:w-48">
             <DropdownMenuItem onClick={() => addElement(createShapeElement('rectangle'))}>
               <Square className="gba:w-4 gba:h-4 gba:mr-2" />
-              Rectangle
+              {t('editor-rectangle')}
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => addElement(createShapeElement('rounded-rectangle'))}>
               <Square className="gba:w-4 gba:h-4 gba:mr-2 gba:rounded" />
-              Rounded Rectangle
+              {t('editor-rounded-rectangle')}
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => addElement(createShapeElement('circle'))}>
               <Circle className="gba:w-4 gba:h-4 gba:mr-2" />
-              Circle
+              {t('editor-circle')}
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => addElement(createShapeElement('triangle'))}>
               <Triangle className="gba:w-4 gba:h-4 gba:mr-2" />
-              Triangle
+              {t('editor-triangle')}
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => addElement(createShapeElement('diamond'))}>
               <Diamond className="gba:w-4 gba:h-4 gba:mr-2" />
-              Diamond
+              {t('editor-diamond')}
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => addElement(createShapeElement('star'))}>
               <Star className="gba:w-4 gba:h-4 gba:mr-2" />
-              Star
+              {t('editor-star')}
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => addElement(createShapeElement('hexagon'))}>
               <Hexagon className="gba:w-4 gba:h-4 gba:mr-2" />
-              Hexagon
+              {t('editor-hexagon')}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => addElement(createShapeElement('arrow-right'))}>
               <ArrowRight className="gba:w-4 gba:h-4 gba:mr-2" />
-              Arrow Right
+              {t('editor-arrow-right')}
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => addElement(createShapeElement('line'))}>
               <Minus className="gba:w-4 gba:h-4 gba:mr-2" />
-              Line
+              {t('editor-line')}
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => addElement(createShapeElement('callout'))}>
               <MessageSquare className="gba:w-4 gba:h-4 gba:mr-2" />
-              Callout
+              {t('editor-callout')}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -942,34 +945,30 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
         {/* Add Image */}
         <Button variant="ghost" size="sm" onClick={() => setShowImageDialog(true)}>
           <ImageIcon className="gba:w-4 gba:h-4 gba:mr-1" />
-          Image
+          {t('editor-image')}
         </Button>
 
         {/* Add Code */}
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => addElement(createCodeElement('// Your code here\nconst hello = "world";'))}
-        >
+        <Button variant="ghost" size="sm" onClick={() => addElement(createCodeElement(t('editor-code-placeholder')))}>
           <Code className="gba:w-4 gba:h-4 gba:mr-1" />
-          Code
+          {t('editor-code')}
         </Button>
 
         {/* Add Video */}
         <Button variant="ghost" size="sm" onClick={() => setShowVideoDialog(true)}>
           <Video className="gba:w-4 gba:h-4 gba:mr-1" />
-          Video
+          {t('editor-video')}
         </Button>
 
         <Separator orientation="vertical" className="gba:h-6 gba:mx-2" />
 
         {/* Design Group */}
-        <span className="gba:text-xs gba:text-muted-foreground gba:mr-2">Design:</span>
+        <span className="gba:text-xs gba:text-muted-foreground gba:mr-2">{t('editor-design')}</span>
 
         {/* Background */}
         <Button variant="ghost" size="sm" onClick={() => setShowBackgroundDialog(true)}>
           <Palette className="gba:w-4 gba:h-4 gba:mr-1" />
-          Background
+          {t('editor-background')}
         </Button>
 
         {/* Theme */}
@@ -977,7 +976,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="sm">
               <Grid3X3 className="gba:w-4 gba:h-4 gba:mr-1" />
-              Theme
+              {t('editor-theme')}
               <ChevronDown className="gba:w-3 gba:h-3 gba:ml-1" />
             </Button>
           </DropdownMenuTrigger>
@@ -989,11 +988,11 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                     <div className="gba:w-4 gba:h-4 gba:rounded" style={{ backgroundColor: theme.preview.primary }} />
                     <div className="gba:w-4 gba:h-4 gba:rounded" style={{ backgroundColor: theme.preview.secondary }} />
                   </div>
-                  <span>{theme.name}</span>
+                  <span>{t(`theme-${theme.id}`)}</span>
                 </div>
                 {currentTheme.id === theme.id && (
                   <Badge variant="secondary" className="gba:text-xs">
-                    Active
+                    {t('editor-theme-active')}
                   </Badge>
                 )}
               </DropdownMenuItem>
@@ -1004,16 +1003,16 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
         <Separator orientation="vertical" className="gba:h-6 gba:mx-2" />
 
         {/* Slide Actions */}
-        <span className="gba:text-xs gba:text-muted-foreground gba:mr-2">Slides:</span>
+        <span className="gba:text-xs gba:text-muted-foreground gba:mr-2">{t('editor-slides-label')}</span>
         <Button variant="ghost" size="sm" onClick={addSlide}>
           <Plus className="gba:w-4 gba:h-4 gba:mr-1" />
-          Add
+          {t('editor-add')}
         </Button>
         <Button
           variant="ghost"
           size="icon"
           onClick={duplicateSlide}
-          title="Duplicate slide"
+          title={t('editor-duplicate-slide')}
           className="gba:h-8 gba:w-8"
         >
           <Copy className="gba:w-4 gba:h-4" />
@@ -1022,7 +1021,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
           variant="ghost"
           size="icon"
           onClick={deleteSlide}
-          title="Delete slide"
+          title={t('editor-delete-slide')}
           className="gba:h-8 gba:w-8 gba:text-destructive"
         >
           <Trash2 className="gba:w-4 gba:h-4" />
@@ -1142,7 +1141,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
         {/* Property Panel */}
         <div className="gba:w-72 gba:border-l gba:bg-card gba:overflow-y-auto">
           <div className="gba:p-3 gba:border-b">
-            <h3 className="gba:font-semibold gba:text-sm">Properties</h3>
+            <h3 className="gba:font-semibold gba:text-sm">{t('editor-properties')}</h3>
           </div>
           <PropertyPanel
             element={selectedElement}
@@ -1159,7 +1158,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       <Dialog open={editingTextId !== null} onOpenChange={open => !open && finishTextEditing()}>
         <DialogContent className="gba:max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Edit Text</DialogTitle>
+            <DialogTitle>{t('editor-edit-text')}</DialogTitle>
           </DialogHeader>
           <Textarea
             value={(currentSlide.elements.find(e => e.id === editingTextId) as any)?.content || ''}
@@ -1169,7 +1168,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
           />
           <div className="gba:flex gba:justify-end gba:gap-2">
             <Button variant="default" onClick={finishTextEditing}>
-              Done
+              {t('editor-done')}
             </Button>
           </div>
         </DialogContent>
@@ -1179,11 +1178,11 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       <Dialog open={showImageDialog} onOpenChange={setShowImageDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add Image</DialogTitle>
+            <DialogTitle>{t('editor-add-image')}</DialogTitle>
           </DialogHeader>
           <div className="gba:space-y-4">
             <div>
-              <Label>Upload from computer</Label>
+              <Label>{t('editor-upload-from-computer')}</Label>
               <input
                 ref={fileInputRef}
                 type="file"
@@ -1194,15 +1193,15 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
             </div>
             <Separator />
             <div>
-              <Label>Or paste image URL</Label>
+              <Label>{t('editor-paste-image-url')}</Label>
               <div className="gba:flex gba:gap-2 gba:mt-2">
                 <Input
                   value={imageUrl}
                   onChange={e => setImageUrl(e.target.value)}
-                  placeholder="https://example.com/image.jpg"
+                  placeholder={t('editor-image-url-placeholder')}
                 />
                 <Button onClick={handleImageUrl} disabled={!imageUrl.trim()}>
-                  Add
+                  {t('editor-add-button')}
                 </Button>
               </div>
             </div>
@@ -1214,15 +1213,15 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       <Dialog open={showRenameDialog} onOpenChange={setShowRenameDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Rename Presentation</DialogTitle>
+            <DialogTitle>{t('editor-rename-presentation')}</DialogTitle>
           </DialogHeader>
           <div className="gba:space-y-4">
             <div>
-              <Label>Presentation Title</Label>
+              <Label>{t('editor-presentation-title')}</Label>
               <Input
                 value={newTitle}
                 onChange={e => setNewTitle(e.target.value)}
-                placeholder="Enter presentation title"
+                placeholder={t('editor-enter-title-placeholder')}
                 className="gba:mt-2"
                 autoFocus
                 onKeyDown={e => {
@@ -1234,10 +1233,10 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
             </div>
             <div className="gba:flex gba:justify-end gba:gap-2">
               <Button variant="outline" onClick={() => setShowRenameDialog(false)}>
-                Cancel
+                {t('editor-cancel')}
               </Button>
               <Button onClick={handleRename} disabled={!newTitle.trim()}>
-                Rename
+                {t('editor-rename')}
               </Button>
             </div>
           </div>
@@ -1248,11 +1247,11 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       <Dialog open={showVideoDialog} onOpenChange={setShowVideoDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add Video</DialogTitle>
+            <DialogTitle>{t('editor-add-video')}</DialogTitle>
           </DialogHeader>
           <div className="gba:space-y-4">
             <div>
-              <Label>Upload from computer</Label>
+              <Label>{t('editor-upload-from-computer')}</Label>
               <input
                 ref={videoInputRef}
                 type="file"
@@ -1263,20 +1262,18 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
             </div>
             <Separator />
             <div>
-              <Label>Or paste video URL</Label>
+              <Label>{t('editor-paste-video-url')}</Label>
               <div className="gba:flex gba:gap-2 gba:mt-2">
                 <Input
                   value={videoUrl}
                   onChange={e => setVideoUrl(e.target.value)}
-                  placeholder="https://example.com/video.mp4"
+                  placeholder={t('editor-video-url-placeholder')}
                 />
                 <Button onClick={handleVideoUrl} disabled={!videoUrl.trim()}>
-                  Add
+                  {t('editor-add-button')}
                 </Button>
               </div>
-              <p className="gba:text-xs gba:text-muted-foreground gba:mt-2">
-                Supports MP4, WebM, and other video formats
-              </p>
+              <p className="gba:text-xs gba:text-muted-foreground gba:mt-2">{t('editor-video-formats')}</p>
             </div>
           </div>
         </DialogContent>
@@ -1286,12 +1283,14 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
       <Dialog open={showBackgroundDialog} onOpenChange={setShowBackgroundDialog}>
         <DialogContent className="gba:max-w-xl">
           <DialogHeader>
-            <DialogTitle>Slide Background</DialogTitle>
+            <DialogTitle>{t('editor-slide-background')}</DialogTitle>
           </DialogHeader>
           <div className="gba:space-y-4">
             {/* Current Background Preview */}
             <div>
-              <Label className="gba:text-xs gba:font-semibold gba:mb-2 gba:block">Current Background</Label>
+              <Label className="gba:text-xs gba:font-semibold gba:mb-2 gba:block">
+                {t('editor-current-background')}
+              </Label>
               <div
                 className="gba:h-24 gba:rounded-lg gba:border gba:shadow-inner gba:relative gba:overflow-hidden"
                 style={{
@@ -1318,7 +1317,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
 
             {/* Solid Colors */}
             <div>
-              <Label className="gba:text-xs gba:font-semibold gba:mb-2 gba:block">Solid Colors</Label>
+              <Label className="gba:text-xs gba:font-semibold gba:mb-2 gba:block">{t('editor-solid-colors')}</Label>
               <div className="gba:flex gba:flex-wrap gba:gap-2">
                 {COLOR_PRESETS.map(color => (
                   <button
@@ -1335,7 +1334,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
 
             {/* Gradient Presets */}
             <div>
-              <Label className="gba:text-xs gba:font-semibold gba:mb-2 gba:block">Gradient Presets</Label>
+              <Label className="gba:text-xs gba:font-semibold gba:mb-2 gba:block">{t('editor-gradient-presets')}</Label>
               <div className="gba:flex gba:flex-wrap gba:gap-2 gba:mb-4">
                 {PRESET_GRADIENTS.map(preset => (
                   <button
@@ -1350,7 +1349,9 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
 
               {/* Custom Gradient Builder */}
               <div className="gba:p-4 gba:border gba:rounded-lg gba:bg-muted/30">
-                <Label className="gba:text-xs gba:font-semibold gba:mb-3 gba:block">🎨 Create Custom Gradient</Label>
+                <Label className="gba:text-xs gba:font-semibold gba:mb-3 gba:block">
+                  🎨 {t('editor-create-custom-gradient')}
+                </Label>
                 <GradientBuilder
                   gradient={currentSlide.background.type === 'gradient' ? currentSlide.background.gradient : undefined}
                   onChange={gradient => {
@@ -1366,10 +1367,12 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
 
             {/* Video Background */}
             <div>
-              <Label className="gba:text-xs gba:font-semibold gba:mb-2 gba:block">🎬 Video Background</Label>
+              <Label className="gba:text-xs gba:font-semibold gba:mb-2 gba:block">
+                🎬 {t('editor-video-background')}
+              </Label>
               <div className="gba:flex gba:gap-2">
                 <Input
-                  placeholder="Paste video URL (MP4)"
+                  placeholder={t('editor-video-url-placeholder')}
                   onChange={e => {
                     if (e.target.value) {
                       handleVideoBackground(e.target.value)
@@ -1378,14 +1381,12 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
                   className="gba:flex-1"
                 />
               </div>
-              <p className="gba:text-xs gba:text-muted-foreground gba:mt-2">
-                Video backgrounds loop automatically and play muted
-              </p>
+              <p className="gba:text-xs gba:text-muted-foreground gba:mt-2">{t('editor-video-backgrounds-note')}</p>
             </div>
 
             <div className="gba:flex gba:justify-end gba:pt-2">
               <Button variant="outline" onClick={() => setShowBackgroundDialog(false)}>
-                Done
+                {t('editor-done')}
               </Button>
             </div>
           </div>

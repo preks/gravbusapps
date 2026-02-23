@@ -156,20 +156,19 @@ export function getBadgeVariantBackgroundClass(variant: BadgeProps['variant']): 
 }
 
 /**
- * Get the Tailwind text color class for a Badge variant using -on-card colors
- * These are meant to be used on white/light backgrounds for better readability
+ * Get the Tailwind text color class for a Badge variant using secondary foreground colors
+ * This keeps text aligned with the secondary status color palette.
  * @param variant - The Badge variant
  * @returns Tailwind text color class name
  */
 export function getBadgeVariantTextClass(variant: BadgeProps['variant']): string {
   if (!variant) return 'gba:text-muted-foreground'
 
-  // Use -on-card colors for text on white backgrounds
-  if (variant === 'success') return 'gba:text-success-on-card'
-  if (variant === 'warning') return 'gba:text-warning-on-card'
-  if (variant === 'destructive') return 'gba:text-destructive-on-card'
-  if (variant === 'info') return 'gba:text-info-on-card'
-  if (variant === 'offline') return 'gba:text-offline-on-card'
+  if (variant === 'success') return 'gba:text-success-secondary-foreground'
+  if (variant === 'warning') return 'gba:text-warning-secondary-foreground'
+  if (variant === 'destructive') return 'gba:text-destructive-secondary-foreground'
+  if (variant === 'info') return 'gba:text-info-secondary-foreground'
+  if (variant === 'offline') return 'gba:text-offline-secondary-foreground'
 
   // For other variants, use muted-foreground
   return 'gba:text-muted-foreground'
@@ -190,7 +189,7 @@ export function getAbsenceStatusBackgroundClass(status?: string): string {
  * Get the Tailwind text color class directly from absence status (convenience function)
  * Combines getAbsenceStatusBadgeVariant and getBadgeVariantTextClass
  * @param status - The absence status
- * @returns Tailwind text color class name using -on-card colors
+ * @returns Tailwind text color class name using secondary foreground colors
  */
 export function getAbsenceStatusTextClass(status?: string): string {
   const variant = getAbsenceStatusBadgeVariant(status)

@@ -15,6 +15,7 @@ import type { DocumentParticipant, DocumentOperation } from '../../shared/servic
 import type { FortuneSheetOp } from '../types/fortuneSheet'
 import { convertToFortuneSheet, createConversionContext, HEADER_ROW_OFFSET } from '../utils/fortuneSheetConverter'
 import { useFortuneSheetCollaboration, useFortuneSheetCursorTracking } from '../hooks/useFortuneSheetCollaboration'
+import { useEditorKeyboardIsolation } from '../../shared/hooks/useEditorKeyboardIsolation'
 
 export interface FortuneSheetGridProps {
   /** Current sheet configuration */
@@ -121,10 +122,13 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
     const prevColHiddenRef = useRef<Record<string, number>>({})
 
     const workbookRef = useRef<WorkbookInstance | null>(null)
+    const sheetContainerRef = useRef<HTMLDivElement>(null)
     const presenceUsersRef = useRef<Map<string, { username: string; userId?: string }>>(new Map())
     /** Track last applied remote cell to suppress duplicate apply to adjacent column (G6 value appearing in H6) */
     const lastRemoteAppliedRef = useRef<{ row: number; col: number; value: unknown; at: number } | null>(null)
     const REMOTE_APPLY_DEDUPE_MS = 150
+
+    useEditorKeyboardIsolation(sheetContainerRef)
 
     // Create conversion context
     const context = useMemo(() => {
@@ -792,7 +796,7 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
     }
 
     return (
-      <div className="gba:absolute gba:inset-0 gba:w-full gba:h-full gba:overflow-hidden">
+      <div ref={sheetContainerRef} className="gba:absolute gba:inset-0 gba:w-full gba:h-full gba:overflow-hidden">
         <div className="fortunesheet-container">
           <Workbook
             ref={ref => {

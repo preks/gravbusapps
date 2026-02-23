@@ -528,8 +528,8 @@ export const MeetingDetailModal: React.FC<MeetingDetailModalProps> = ({
               </Button>
             )}
 
-            {/* Open chat button */}
-            {event.conversationId && onOpenChat && (
+            {/* Open chat button - show for internal meetings when handler is provided (conversationId or meeting id) */}
+            {onOpenChat && (event.conversationId || (event.id && !isExternal)) && (
               <Button variant="outline" onClick={onOpenChat}>
                 <MessageSquare className="gba:h-4 gba:w-4 gba:mr-1" />
                 {t('calendar-chat')}

@@ -9,6 +9,9 @@ file-select-label = Selectați fișier CSV
 # File Info
 file-loaded-text = Fișier încărcat: { $fileName } ({ $fileSize } KB)
 
+# Campaign
+campaign-id-label = Campanie (Opțional)
+
 # Button Labels
 analyze-button = Analizare cu Agent AI
 analyzing-button = Se analizează cu AI...

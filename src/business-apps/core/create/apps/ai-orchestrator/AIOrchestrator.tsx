@@ -1,0 +1,40 @@
+/**
+ * AI Orchestrator app: always renders the plan detail flow (with IdleCanvas as the landing state).
+ * The old OverviewPage is no longer used — the IdleCanvas serves as the entry point.
+ */
+
+import React from 'react'
+import { BusinessAppContextProps } from '@/common/BusinessAppContext'
+import { PlanDetailPage } from './pages/plan-detail-page/PlanDetailPage'
+
+const JOB_ID_PARAM = 'jobId'
+const PROMPT_PARAM = 'prompt'
+
+function getQueryParams(): { jobId: string | null; initialPrompt: string | null } {
+  if (typeof globalThis.window === 'undefined') {
+    return { jobId: null, initialPrompt: null }
+  }
+  const params = new URLSearchParams(globalThis.location.search)
+  return {
+    jobId: params.get(JOB_ID_PARAM),
+    initialPrompt: params.get(PROMPT_PARAM)
+  }
+}
+
+export const AIOrchestrator: React.FC<BusinessAppContextProps> = context => {
+  const { jobId, initialPrompt } = getQueryParams()
+
+  return (
+    <div className="gba:h-full gba:w-full">
+      <PlanDetailPage
+        accessToken={context.accessToken ?? ''}
+        userInfo={context.userInfo}
+        jobId={jobId}
+        initialPrompt={initialPrompt ?? undefined}
+        onBack={() => {}}
+      />
+    </div>
+  )
+}
+
+export default AIOrchestrator

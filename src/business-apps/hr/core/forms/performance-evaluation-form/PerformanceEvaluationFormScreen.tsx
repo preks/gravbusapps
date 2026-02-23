@@ -14,8 +14,19 @@ const PerformanceEvaluationFormScreen: React.FC<PerformanceEvaluationFormScreenP
   additionalData,
   preSelectedEmployeeId
 }) => {
-  // Extract employeeId from task payload (for performance evaluation flow)
-  const employeeIdFromTaskPayload = (additionalData as any)?.psi_taskPayload?.employeePerformanceEvaluation?.employee
+  const taskPayload = (additionalData as any)?.psi_taskPayload
+  const taskName = taskPayload?.TaskName
+  const isPeerEvaluation = taskName === 'peerEvaluation'
+  const creatorUserId = taskPayload?.creatorUserId
+
+  // For peer evaluation step: employee comes from creatorUserId (resolve to employeeId)
+  const { employeeId: creatorEmployeeId } = useEmployeeByUserId({
+    accessToken,
+    userId: isPeerEvaluation ? creatorUserId : undefined
+  })
+
+  // Extract employeeId from task payload (for manager/other flows)
+  const employeeIdFromTaskPayload = taskPayload?.employeePerformanceEvaluation?.employee
 
   // Extract employeeId with priority to task payload
   const employeeId =
@@ -30,14 +41,14 @@ const PerformanceEvaluationFormScreen: React.FC<PerformanceEvaluationFormScreenP
   const receiverId =
     additionalData?.psi_taskPayload?.receiverId || additionalData?.psi_taskPayload?.psi_initialParameters?.receiverId
 
-  // Use the new hook to map receiverId (userId) to employeeId
+  // Use the hook to map receiverId (userId) to employeeId when not in peer evaluation
   const { employeeId: mappedEmployeeId } = useEmployeeByUserId({
     accessToken,
-    userId: receiverId
+    userId: !isPeerEvaluation ? receiverId : undefined
   })
 
-  // Use mapped employeeId if available, otherwise fall back to the existing employeeId logic
-  const finalEmployeeId = mappedEmployeeId || employeeId
+  // Peer evaluation: use creatorUserId (resolved to employeeId). Otherwise use mapped receiverId or other fallbacks.
+  const finalEmployeeId = isPeerEvaluation ? creatorEmployeeId || employeeId : mappedEmployeeId || employeeId
 
   const handleSubmitEvaluation = async () => {
     // Evaluation submission is now handled by Kogito process via dispatchProcessContinueEvent

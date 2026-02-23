@@ -1,17 +1,31 @@
 import React, { useMemo } from 'react'
-import { Button, Input, Label, Spinner, Alert, AlertDescription } from '@newwork/nw-design-system'
-import { StarFilled, StarOutlined } from '@ant-design/icons'
+import {
+  Button,
+  Label,
+  Spinner,
+  Alert,
+  AlertDescription,
+  Textarea,
+  useTranslation,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
+} from '@newwork/nw-design-system'
+import { StarFilled, StarOutlined, DownOutlined } from '@ant-design/icons'
 import { usePerformanceEvaluationForm } from '../context/PerformanceEvaluationFormContext'
-import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { EmployeeSelect } from '@/components/employee-select'
 import FormHeader from '../../components/FormHeader'
 import flowIconUrl from '@/assets/icons/flowSmall.svg'
 import type { Employee } from '@/common/data/employee/types/employeeBaseTypes'
+import { PERFORMANCE_VALIDATION } from '@/business-apps/hr/core/apps/performance-evaluation/constants/validationConstants'
+import translations from '../_i18n'
 
 const prefixDataTestId = 'PerformanceEvaluationForm'
 
 const PerformanceEvaluationFormComponent: React.FC = () => {
+  const { t } = useTranslation(translations)
   const {
     formValues,
     setFormValues,
@@ -32,7 +46,11 @@ const PerformanceEvaluationFormComponent: React.FC = () => {
     isRequestedEvaluationFlow,
     ratingScaleValues,
     ratingScaleLoading,
-    employeeSkillsLoading
+    employeeSkillsLoading,
+    transformCommentText,
+    textTransformationLoading,
+    textTransformationError,
+    clearTextTransformationError
   } = usePerformanceEvaluationForm()
 
   const handleEmployeeChange = (employeeId: string) => {
@@ -49,9 +67,12 @@ const PerformanceEvaluationFormComponent: React.FC = () => {
     await onSubmit()
   }
 
-  // Check if form is valid - all topics must have ratings and employee must be selected
+  // Check if form is valid: employee (selected or pre-selected in task flow) and all topics have a rating
+  const hasEmployee = formValues.employeeId || hasPreSelectedEmployee
   const isFormValid =
-    formValues.employeeId && formValues.topics.every(topic => topic.rating !== undefined && topic.rating > 0)
+    hasEmployee &&
+    formValues.topics.length > 0 &&
+    formValues.topics.every(topic => topic.rating !== undefined && topic.rating > 0)
 
   // Parse employee name for FormHeader (firstName lastName)
   // Always show in header when pre-selected (even if current user)
@@ -86,11 +107,6 @@ const PerformanceEvaluationFormComponent: React.FC = () => {
   if (isRequestedEvaluationFlow && !formValues.employeeId) {
     return null
   }
-
-  const title = getTranslationFromI18nKeyAndLabel(
-    'lowcoder:performance_evaluation_form.title',
-    'Performance Evaluation'
-  )
 
   // Rating component for a specific topic using rating scale values
   const renderTopicRating = (topicId: string, currentRating?: number) => {
@@ -151,7 +167,7 @@ const PerformanceEvaluationFormComponent: React.FC = () => {
     >
       {/* Header - Fixed */}
       <div className="gba:flex-shrink-0">
-        <FormHeader title={title} flowIconUrl={flowIconUrl} employee={employeeForHeader} />
+        <FormHeader title={t('title')} flowIconUrl={flowIconUrl} employee={employeeForHeader} />
       </div>
 
       {/* Content */}
@@ -160,12 +176,7 @@ const PerformanceEvaluationFormComponent: React.FC = () => {
         {hasPreSelectedEmployee && preSelectedEmployeeLoading && (
           <div className="gba:flex gba:items-center gba:gap-3 gba:p-3 gba:bg-muted gba:rounded-lg">
             <Spinner size="sm" />
-            <span className="gba:text-sm gba:text-muted-foreground">
-              {getTranslationFromI18nKeyAndLabel(
-                'lowcoder:performance_evaluation_form.employee.loading',
-                'Loading employee details...'
-              )}
-            </span>
+            <span className="gba:text-sm gba:text-muted-foreground">{t('employee-loading')}</span>
           </div>
         )}
 
@@ -180,7 +191,7 @@ const PerformanceEvaluationFormComponent: React.FC = () => {
         {!hasPreSelectedEmployee && !preSelectedEmployeeLoading && (
           <div className="gba:space-y-2">
             <Label htmlFor="employee-select" className="gba:text-sm gba:font-medium">
-              {getTranslationFromI18nKeyAndLabel('lowcoder:performance_evaluation_form.employee.label', 'Employee')} *
+              {t('employee-label')} *
             </Label>
             <EmployeeSelect
               value={formValues.employeeId || null}
@@ -191,10 +202,7 @@ const PerformanceEvaluationFormComponent: React.FC = () => {
                   setFormValues({ employeeId: undefined, employeeName: undefined })
                 }
               }}
-              placeholder={getTranslationFromI18nKeyAndLabel(
-                'lowcoder:performance_evaluation_form.employee.placeholder',
-                'Select an employee...'
-              )}
+              placeholder={t('employee-placeholder')}
               employees={
                 employees.map(emp => ({
                   id: emp.id,
@@ -226,12 +234,13 @@ const PerformanceEvaluationFormComponent: React.FC = () => {
               className="gba:space-y-3 gba:p-4 gba:border gba:border-border gba:rounded-lg"
               data-testid={formatDataTestId(prefixDataTestId, `Topic-${topic.id}`)}
             >
-              {/* Topic Header */}
+              {/* Topic Header: show topic name (skill/value name) and category in parentheses */}
               <div className="gba:flex gba:items-center gba:gap-2">
                 <Label className="gba:text-base gba:font-semibold">
-                  {topic.name}
+                  {topic.name ||
+                    (topic.category === 'skill' ? t('topic-category-skill') : t('topic-category-company-value'))}
                   <span className="gba:text-xs gba:font-normal gba:text-muted-foreground gba:ml-2">
-                    ({topic.category === 'skill' ? 'Skill' : 'Company Value'})
+                    ({topic.category === 'skill' ? t('topic-category-skill') : t('topic-category-company-value')})
                   </span>
                 </Label>
               </div>
@@ -239,32 +248,75 @@ const PerformanceEvaluationFormComponent: React.FC = () => {
               {/* Rating Section */}
               <div className="gba:space-y-2">
                 {renderTopicRating(topic.id, topic.rating)}
-                {!topic.rating && (
-                  <p className="gba:text-xs gba:text-muted-foreground">
-                    {getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:performance_evaluation_form.topic.rating.helper',
-                      'Please select a rating'
-                    )}
-                  </p>
-                )}
+                {!topic.rating && <p className="gba:text-xs gba:text-muted-foreground">{t('topic-rating-helper')}</p>}
               </div>
 
               {/* Comment Section */}
               <div className="gba:space-y-2">
                 <Label htmlFor={`${topic.id}-comment`} className="gba:text-sm gba:font-medium">
-                  {getTranslationFromI18nKeyAndLabel('lowcoder:performance_evaluation_form.topic.comment', 'Comment')}
+                  {t('topic-comment')}
                 </Label>
-                <Input
+                <Textarea
                   id={`${topic.id}-comment`}
                   value={topic.comment}
-                  onChange={e => updateTopic(topic.id, { comment: e.target.value })}
-                  placeholder={getTranslationFromI18nKeyAndLabel(
-                    'lowcoder:performance_evaluation_form.topic.comment.placeholder',
-                    'Add a comment...'
-                  )}
+                  onChange={e => {
+                    updateTopic(topic.id, { comment: e.target.value })
+                    clearTextTransformationError()
+                  }}
+                  placeholder={t('topic-comment-placeholder')}
+                  maxLength={PERFORMANCE_VALIDATION.COMMENT_MAX_LENGTH}
                   data-testid={formatDataTestId(prefixDataTestId, `${topic.id}-CommentInput`)}
-                  className="gba:w-full"
+                  className="gba:min-h-[80px] gba:w-full gba:resize-y"
                 />
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="default"
+                      disabled={!topic.comment?.trim() || textTransformationLoading}
+                      className="gba:w-full gba:justify-between gba:bg-destructive hover:gba:bg-destructive gba:text-primary-foreground gba:border-destructive"
+                      data-testid={formatDataTestId(prefixDataTestId, `${topic.id}-TextTool`)}
+                    >
+                      <span>
+                        {textTransformationLoading ? (
+                          <Spinner size="sm" />
+                        ) : (
+                          t('text-tool', { defaultValue: 'Text Tool' })
+                        )}
+                      </span>
+                      <DownOutlined className="gba:h-4 gba:w-4 gba:opacity-50" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="gba:w-full gba:bg-primary-foreground gba:border-border gba:rounded-lg gba:shadow-lg">
+                    <DropdownMenuItem
+                      className="gba:px-3 gba:py-2 gba:hover:bg-accent gba:cursor-pointer"
+                      onClick={async () => {
+                        const result = await transformCommentText(topic.comment ?? '', 'formalize')
+                        if (result != null) updateTopic(topic.id, { comment: result })
+                      }}
+                    >
+                      {t('text-tool-formalize', { defaultValue: 'Formalize' })}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="gba:px-3 gba:py-2 gba:hover:bg-accent gba:cursor-pointer"
+                      onClick={async () => {
+                        const result = await transformCommentText(topic.comment ?? '', 'translate', 'en')
+                        if (result != null) updateTopic(topic.id, { comment: result })
+                      }}
+                    >
+                      {t('text-tool-translate', { defaultValue: 'Translate' })}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="gba:px-3 gba:py-2 gba:hover:bg-accent gba:cursor-pointer"
+                      onClick={async () => {
+                        const result = await transformCommentText(topic.comment ?? '', 'shorten')
+                        if (result != null) updateTopic(topic.id, { comment: result })
+                      }}
+                    >
+                      {t('text-tool-shorten', { defaultValue: 'Shorten' })}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </div>
           ))}
@@ -276,20 +328,84 @@ const PerformanceEvaluationFormComponent: React.FC = () => {
               data-testid={formatDataTestId(prefixDataTestId, 'SkillsLoading')}
             >
               <Spinner className="gba:h-5 gba:w-5" />
-              <span className="gba:text-sm gba:text-muted-foreground">
-                {getTranslationFromI18nKeyAndLabel(
-                  'lowcoder:performance_evaluation_form.skills.loading',
-                  'Loading employee skills...'
-                )}
-              </span>
+              <span className="gba:text-sm gba:text-muted-foreground">{t('skills-loading')}</span>
             </div>
           )}
+        </div>
+
+        {/* General Comments */}
+        <div className="gba:space-y-2">
+          <Label htmlFor="general-comments" className="gba:text-sm gba:font-medium">
+            {t('general-comments-label')}
+          </Label>
+          <Textarea
+            id="general-comments"
+            value={formValues.comments ?? ''}
+            onChange={e => {
+              setFormValues({ comments: e.target.value })
+              clearTextTransformationError()
+            }}
+            placeholder={t('general-comments-placeholder')}
+            maxLength={PERFORMANCE_VALIDATION.COMMENT_MAX_LENGTH}
+            className="gba:min-h-[120px] gba:w-full gba:resize-y"
+            data-testid={formatDataTestId(prefixDataTestId, 'GeneralComments')}
+          />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                variant="default"
+                disabled={!(formValues.comments ?? '').trim() || textTransformationLoading}
+                className="gba:w-full gba:justify-between gba:bg-destructive hover:gba:bg-destructive gba:text-primary-foreground gba:border-destructive"
+                data-testid={formatDataTestId(prefixDataTestId, 'GeneralCommentsTextTool')}
+              >
+                <span>
+                  {textTransformationLoading ? <Spinner size="sm" /> : t('text-tool', { defaultValue: 'Text Tool' })}
+                </span>
+                <DownOutlined className="gba:h-4 gba:w-4 gba:opacity-50" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="gba:w-full gba:bg-primary-foreground gba:border-border gba:rounded-lg gba:shadow-lg">
+              <DropdownMenuItem
+                className="gba:px-3 gba:py-2 gba:hover:bg-accent gba:cursor-pointer"
+                onClick={async () => {
+                  const result = await transformCommentText(formValues.comments ?? '', 'formalize')
+                  if (result != null) setFormValues({ comments: result })
+                }}
+              >
+                {t('text-tool-formalize', { defaultValue: 'Formalize' })}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="gba:px-3 gba:py-2 gba:hover:bg-accent gba:cursor-pointer"
+                onClick={async () => {
+                  const result = await transformCommentText(formValues.comments ?? '', 'translate', 'en')
+                  if (result != null) setFormValues({ comments: result })
+                }}
+              >
+                {t('text-tool-translate', { defaultValue: 'Translate' })}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="gba:px-3 gba:py-2 gba:hover:bg-accent gba:cursor-pointer"
+                onClick={async () => {
+                  const result = await transformCommentText(formValues.comments ?? '', 'shorten')
+                  if (result != null) setFormValues({ comments: result })
+                }}
+              >
+                {t('text-tool-shorten', { defaultValue: 'Shorten' })}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         {/* Error Display */}
         {error && (
           <Alert variant="destructive" data-testid={formatDataTestId(prefixDataTestId, 'ErrorAlert')}>
             <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+        {textTransformationError && (
+          <Alert variant="destructive" data-testid={formatDataTestId(prefixDataTestId, 'TextTransformationErrorAlert')}>
+            <AlertDescription>{textTransformationError}</AlertDescription>
           </Alert>
         )}
       </div>
@@ -303,7 +419,7 @@ const PerformanceEvaluationFormComponent: React.FC = () => {
             onClick={onCancel}
             data-testid={formatDataTestId(prefixDataTestId, 'CancelButton')}
           >
-            {getTranslationFromI18nKeyAndLabel('lowcoder:performance_evaluation_form.cancel', 'Cancel')}
+            {t('cancel-button')}
           </Button>
         )}
         <Button
@@ -315,7 +431,7 @@ const PerformanceEvaluationFormComponent: React.FC = () => {
           data-testid={formatDataTestId(prefixDataTestId, 'SubmitButton')}
         >
           {isLoading && <Spinner size="sm" className="gba:mr-2" />}
-          {getTranslationFromI18nKeyAndLabel('lowcoder:performance_evaluation_form.submit', 'Submit')}
+          {t('submit-button')}
         </Button>
       </div>
     </div>

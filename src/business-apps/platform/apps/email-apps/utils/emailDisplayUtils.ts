@@ -27,7 +27,10 @@ export function formatFullDate(dateString: string): string {
   })
 }
 
-/** Format a relative timestamp like "5m ago", "2h ago", "3d ago". */
+/**
+ * Format a relative timestamp like "5m ago", "2h ago", "3d ago".
+ * @deprecated Use formatRelativeTimeWithT with a translation function for localized output.
+ */
 export function formatRelativeTime(dateString?: string | null): string {
   if (!dateString) return 'Never synced'
   const date = new Date(dateString)
@@ -41,6 +44,25 @@ export function formatRelativeTime(dateString?: string | null): string {
   if (diffHours < 24) return `${diffHours}h ago`
   const diffDays = Math.floor(diffHours / 24)
   return `${diffDays}d ago`
+}
+
+/** Format relative time using i18n translation function. */
+export function formatRelativeTimeWithT(
+  dateString: string | undefined | null,
+  t: (key: string, vars?: Record<string, string | number>) => string
+): string {
+  if (!dateString) return t('time-never-synced')
+  const date = new Date(dateString)
+  const now = new Date()
+  const diffMs = now.getTime() - date.getTime()
+  const diffMins = Math.floor(diffMs / 60000)
+
+  if (diffMins < 1) return t('time-just-now')
+  if (diffMins < 60) return t('time-minutes-ago', { count: diffMins })
+  const diffHours = Math.floor(diffMins / 60)
+  if (diffHours < 24) return t('time-hours-ago', { count: diffHours })
+  const diffDays = Math.floor(diffHours / 24)
+  return t('time-days-ago', { count: diffDays })
 }
 
 /** Format a compact date for list views. */

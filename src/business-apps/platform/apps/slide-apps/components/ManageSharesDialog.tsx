@@ -28,11 +28,13 @@ import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
-  TooltipTrigger
+  TooltipTrigger,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { Users, Eye, Pencil, MessageSquare, Trash2, AlertCircle, UserPlus } from 'lucide-react'
 import { toast } from 'sonner'
 import { SlidesApiService } from '../services/SlidesApiService'
+import translations from '../_i18n'
 import { useGraphQLClient } from '@/common/network/graphql/useGraphQLClient'
 import { GET_EMPLOYEE_LIGHT_BY_USER_ID } from '@/common/data/employee/queries/employeeQueries'
 
@@ -73,25 +75,23 @@ const getInitials = (name: string): string => {
     .slice(0, 2)
 }
 
-/**
- * Format date to relative time
- */
-const formatRelativeDate = (dateString: string): string => {
-  const date = new Date(dateString)
-  const now = new Date()
-  const diffMs = now.getTime() - date.getTime()
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+/** Create relative date formatter using t */
+function createFormatRelativeDate(t: (key: string, vars?: Record<string, unknown>) => string) {
+  return (dateString: string): string => {
+    const date = new Date(dateString)
+    const now = new Date()
+    const diffMs = now.getTime() - date.getTime()
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
 
-  if (diffDays === 0) {
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
-    if (diffHours === 0) {
-      return 'Just now'
+    if (diffDays === 0) {
+      const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
+      if (diffHours === 0) return t('time-just-now')
+      return t('time-hours-ago', { count: diffHours })
     }
-    return `${diffHours}h ago`
+    if (diffDays === 1) return t('time-yesterday')
+    if (diffDays < 7) return t('time-days-short-ago', { count: diffDays })
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
   }
-  if (diffDays === 1) return 'Yesterday'
-  if (diffDays < 7) return `${diffDays}d ago`
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
 /**
@@ -107,6 +107,8 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
   onAddMoreUsers,
   'data-testid': testId = 'manage-shares-dialog'
 }) => {
+  const { t } = useTranslation(translations)
+  const formatRelativeDate = createFormatRelativeDate(t)
   const [shares, setShares] = useState<ShareWithUserInfo[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -189,11 +191,11 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
       }
     } catch (err) {
       console.error('[ManageSharesDialog] Failed to load shares:', err)
-      setError(err instanceof Error ? err.message : 'Failed to load shares')
+      setError(err instanceof Error ? err.message : t('manage-load-failed'))
     } finally {
       setIsLoading(false)
     }
-  }, [slideId, graphqlClient])
+  }, [slideId, graphqlClient, t])
 
   useEffect(() => {
     if (open && slideId) {
@@ -207,44 +209,44 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
       try {
         const ok = await SlidesApiService.updateSharePermission?.(slideId, shareId, newPermission)
         if (!ok) {
-          throw new Error('Failed to update permission')
+          throw new Error(t('manage-permission-update-failed'))
         }
 
         setShares(prev => prev.map(s => (s.id === shareId ? { ...s, permission: newPermission } : s)))
-        toast.success('Permission updated')
+        toast.success(t('manage-permission-updated'))
         onSharesChanged?.()
       } catch (err) {
         console.error('[ManageSharesDialog] Failed to update permission:', err)
-        toast.error('Failed to update permission')
+        toast.error(t('manage-permission-update-failed'))
       } finally {
         setUpdatingShareId(null)
       }
     },
-    [slideId, onSharesChanged]
+    [slideId, onSharesChanged, t]
   )
 
   const handleRemoveShare = useCallback(
     async (shareId: string) => {
-      if (!window.confirm('Remove access for this user?')) return
+      if (!window.confirm(t('manage-confirm-remove'))) return
 
       setRemovingShareId(shareId)
       try {
         const ok = await SlidesApiService.revokeShareById?.(slideId, shareId)
         if (!ok) {
-          throw new Error('Failed to remove share')
+          throw new Error(t('manage-remove-failed'))
         }
 
         setShares(prev => prev.filter(s => s.id !== shareId))
-        toast.success('User removed')
+        toast.success(t('manage-user-removed'))
         onSharesChanged?.()
       } catch (err) {
         console.error('[ManageSharesDialog] Failed to remove share:', err)
-        toast.error('Failed to remove user')
+        toast.error(t('manage-remove-failed'))
       } finally {
         setRemovingShareId(null)
       }
     },
-    [slideId, onSharesChanged]
+    [slideId, onSharesChanged, t]
   )
 
   return (
@@ -253,9 +255,9 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
         <DialogHeader>
           <DialogTitle className="gba:flex gba:items-center gba:gap-2">
             <Users className="gba:w-5 gba:h-5" />
-            Manage shares
+            {t('manage-title')}
           </DialogTitle>
-          <DialogDescription>Manage who can access "{slideTitle}"</DialogDescription>
+          <DialogDescription>{t('manage-description', { title: slideTitle })}</DialogDescription>
         </DialogHeader>
 
         <div className="gba:py-4">
@@ -273,8 +275,8 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
           ) : shares.length === 0 ? (
             <div className="gba:flex gba:flex-col gba:items-center gba:justify-center gba:py-12 gba:text-center">
               <Users className="gba:w-12 gba:h-12 gba:text-muted-foreground gba:mb-4" />
-              <p className="gba:text-muted-foreground gba:mb-2">Not shared with anyone yet</p>
-              <p className="gba:text-sm gba:text-muted-foreground">Click "Add users" to share this presentation</p>
+              <p className="gba:text-muted-foreground gba:mb-2">{t('manage-not-shared')}</p>
+              <p className="gba:text-sm gba:text-muted-foreground">{t('manage-add-users-hint')}</p>
             </div>
           ) : (
             <div className="gba:space-y-2 gba:max-h-96 gba:overflow-y-auto">
@@ -297,7 +299,9 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
                     <p className="gba:text-sm gba:font-medium gba:truncate">
                       {share.userName || `User ${share.userId.slice(0, 8)}`}
                     </p>
-                    <p className="gba:text-xs gba:text-muted-foreground">Shared {formatRelativeDate(share.sharedAt)}</p>
+                    <p className="gba:text-xs gba:text-muted-foreground">
+                      {t('manage-shared-at', { time: formatRelativeDate(share.sharedAt) })}
+                    </p>
                   </div>
 
                   <div className="gba:flex gba:items-center gba:gap-2">
@@ -313,19 +317,19 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
                         <SelectItem value="view">
                           <div className="gba:flex gba:items-center gba:gap-2">
                             <Eye className="gba:w-3 gba:h-3" />
-                            Can view
+                            {t('manage-can-view')}
                           </div>
                         </SelectItem>
                         <SelectItem value="comment">
                           <div className="gba:flex gba:items-center gba:gap-2">
                             <MessageSquare className="gba:w-3 gba:h-3" />
-                            Can comment
+                            {t('manage-can-comment')}
                           </div>
                         </SelectItem>
                         <SelectItem value="edit">
                           <div className="gba:flex gba:items-center gba:gap-2">
                             <Pencil className="gba:w-3 gba:h-3" />
-                            Can edit
+                            {t('manage-can-edit')}
                           </div>
                         </SelectItem>
                       </SelectContent>
@@ -348,7 +352,7 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
                             )}
                           </Button>
                         </TooltipTrigger>
-                        <TooltipContent>Remove user</TooltipContent>
+                        <TooltipContent>{t('manage-remove-user')}</TooltipContent>
                       </Tooltip>
                     </TooltipProvider>
                   </div>
@@ -362,11 +366,11 @@ export const ManageSharesDialog: React.FC<ManageSharesDialogProps> = ({
           {onAddMoreUsers && (
             <Button variant="outlined" onClick={onAddMoreUsers} data-testid={`${testId}-add-users`}>
               <UserPlus className="gba:w-4 gba:h-4 gba:mr-2" />
-              Add users
+              {t('manage-add-users')}
             </Button>
           )}
           <Button variant="default" onClick={() => onOpenChange(false)}>
-            Done
+            {t('manage-done')}
           </Button>
         </DialogFooter>
       </DialogContent>

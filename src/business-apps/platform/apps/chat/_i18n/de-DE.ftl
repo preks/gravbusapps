@@ -17,6 +17,13 @@ chat-offline = Verbindung wird wiederhergestellt...
 chat-selectConversation = Wählen Sie eine Unterhaltung aus, um zu chatten
 chat-noConversationsFound = Keine Unterhaltungen gefunden
 chat-noConversationsYet = Noch keine Unterhaltungen
+chat-filters = Filter
+chat-filterDirect = Direkt
+chat-filterGroup = Gruppe
+chat-filterMeetingChats = Meeting
+chat-filterUnreadOnly = Ungelesen
+chat-filtersCollapse = Filter einklappen
+chat-filtersExpand = Alle Filter anzeigen
 chat-searchForUsers = Benutzer suchen...
 chat-noUsersFound = Keine Benutzer gefunden
 chat-noUsersAvailable = Keine Benutzer verfügbar
@@ -48,6 +55,13 @@ chat-user = Benutzer
 chat-everyAI = Every AI
 chat-replyToEvery = An Every antworten
 
+# Message search (in-conversation)
+chat-searchInConversation = In Unterhaltung suchen
+chat-searchMessagesPlaceholder = Nachrichten suchen…
+chat-searchNoResults = Keine Ergebnisse
+chat-searchSearching = Suche…
+chat-searchClear = Löschen
+
 # Message Time
 chat-time-justNow = Gerade eben
 chat-time-minutesAgo = vor {$minutes}m
@@ -61,6 +75,25 @@ chat-input-attach = Datei anhängen
 chat-input-emoji = Emoji hinzufügen
 chat-attach = Datei anhängen
 chat-mention = Jemanden erwähnen
+
+# Quoted messages (reply = reply with quote)
+chat-reply = Antworten
+chat-reply-with-quote = Mit Zitat antworten
+chat-quoting-name = Zitat von {$name}
+chat-cancel-quote = Zitat abbrechen
+chat-quoted-message-unavailable = Nachricht nicht verfügbar
+
+# Edit message
+chat-edit-message = Nachricht bearbeiten
+chat-save = Speichern
+chat-cancel = Abbrechen
+chat-edited = Bearbeitet
+chat-edited-at = Bearbeitet um { $time }
+
+# Reactions
+chat-reaction-picker-full = Reaktion wählen
+chat-reaction-search-placeholder = Emoji suchen…
+chat-react-with-emoji = Reagieren mit {$emoji}
 
 # Typing Indicator
 chat-someone = Jemand
@@ -195,6 +228,11 @@ chat-groupCall = Gruppenanruf
 chat-endCall = Anruf beenden
 chat-mute = Stummschalten
 chat-unmute = Stummschaltung aufheben
+chat-pinConversation = Unterhaltung anheften
+chat-unpinConversation = Unterhaltung ablösen
+chat-muteConversation = Unterhaltung stummschalten
+chat-unmuteConversation = Stummschaltung der Unterhaltung aufheben
+chat-markAsUnread = Als ungelesen markieren
 chat-startVideo = Video starten
 chat-stopVideo = Video stoppen
 chat-turnOnCamera = Kamera einschalten
@@ -295,6 +333,12 @@ call-rnnoiseWarning = Ein Headset kann die Mikrofonqualität verbessern.
 # Call Settings
 call-video = Video
 call-audio = Audio
+call-typeLabelDirectVideo = 1:1-Videoanruf
+call-typeLabelDirectAudio = 1:1-Audioanruf
+call-typeLabelGroupVideo = Gruppen-Videoanruf
+call-typeLabelGroupAudio = Gruppen-Audioanruf
+call-typeLabelMeetingVideo = Meeting-Videoanruf
+call-typeLabelMeetingAudio = Meeting-Audioanruf
 call-videoQuality = Videoqualität
 call-highQuality = Hohe Qualität
 call-highQualityDesc = 720p, 30fps - Optimal für schnelle Verbindungen
@@ -422,6 +466,7 @@ calendar-today = Heute
 calendar-viewDay = Tag
 calendar-viewWeek = Woche
 calendar-viewMonth = Monat
+calendar-refresh = Kalender aktualisieren
 
 # Calendar - CreateMeetingModal
 calendar-scheduleMeeting = Termin planen
@@ -539,3 +584,36 @@ calendar-agendaItems = {$count ->
 calendar-agendaTotalDuration = Gesamt: {$minutes} Min
 calendar-agendaAssignedTo = Zugewiesen an {$name}
 calendar-noAgenda = Keine Agendapunkte
+
+chat-callHistory = Anrufverlauf
+chat-callHistoryAll = Alle
+chat-callHistoryJoined = Teilgenommen
+chat-callHistoryMissed = Verpasst
+chat-callHistoryDeclined = Abgelehnt
+chat-callHistoryNotAnswered = Nicht geantwortet
+chat-callHistoryOpenConversation = Unterhaltung öffnen
+chat-callHistoryCallBack = Rückruf
+chat-callHistoryGroupCall = Gruppenanruf
+chat-callHistoryNoCalls = Noch keine Anrufe
+chat-callHistoryNoCallsFiltered = Keine Anrufe entsprechen diesem Filter
+chat-callHistoryMissedFrom = Sie haben einen Anruf von {$name} verpasst
+chat-callHistoryDeclinedFrom = Anruf von {$name} abgelehnt
+chat-callHistoryNotAnsweredFrom = Anruf von {$name} nicht beantwortet
+chat-callHistoryDuration = {$minutes} Min
+chat-callHistoryBack = Zurück
+chat-callHistoryFilterStatus = Status
+chat-callHistoryFilterType = Typ
+chat-callHistoryLoadMore = Mehr laden
+chat-callHistoryCallName = Anruf: {$name}
+chat-callHistoryGroupCallName = Gruppenanruf: {$name}
+chat-callHistoryMeetingName = Meeting: {$name}
+chat-callHistoryIncoming = Eingehend
+chat-callHistoryOutgoing = Ausgehend
+chat-callHistoryMissedIncoming = Verpasst eingehend
+chat-callHistoryAllTypes = Alle Typen
+chat-callHistoryTypeDirect = Direkt
+chat-callHistoryTypeGroup = Gruppe
+chat-callHistoryTypeMeeting = Meeting
+chat-callHistoryStartedAt = Begonnen {$time}
+chat-callHistoryInvitedAt = Einladung {$time}
+chat-callHistoryWhoInvited = {$name} hat Sie eingeladen

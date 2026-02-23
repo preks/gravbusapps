@@ -4,7 +4,7 @@
  * Functions for exporting notes to various formats (Markdown, PDF, HTML, TXT)
  */
 
-import type { Note, NoteExportFormat, NoteExportOptions } from '../types'
+import type { Note, NoteExportOptions } from '../types'
 
 /**
  * Convert HTML content to Markdown
@@ -146,13 +146,17 @@ export function htmlToPlainText(html: string): string {
   return text.trim()
 }
 
+const DEFAULT_UNTITLED = 'Untitled'
+const DEFAULT_UNTITLED_FILENAME = 'untitled'
+
 /**
  * Generate metadata header for export
  */
-function generateMetadataHeader(note: Note): string {
+function generateMetadataHeader(note: Note, labelUntitled?: string): string {
+  const untitled = labelUntitled ?? DEFAULT_UNTITLED
   const lines = [
     '---',
-    `title: ${note.title || 'Untitled'}`,
+    `title: ${note.title || untitled}`,
     `created: ${new Date(note.createdAt).toISOString()}`,
     `updated: ${new Date(note.updatedAt).toISOString()}`
   ]
@@ -178,19 +182,20 @@ function generateMetadataHeader(note: Note): string {
  * Export note to specified format
  */
 export function exportNote(note: Note, options: NoteExportOptions): string {
-  const { format, includeMetadata = false } = options
+  const { format, includeMetadata = false, labelUntitled } = options
   const content = note.content || ''
+  const untitled = labelUntitled ?? DEFAULT_UNTITLED
 
   let output = ''
 
   // Add metadata if requested
   if (includeMetadata && format !== 'html') {
-    output += generateMetadataHeader(note)
+    output += generateMetadataHeader(note, untitled)
   }
 
   switch (format) {
     case 'markdown':
-      output += `# ${note.title || 'Untitled'}\n\n`
+      output += `# ${note.title || untitled}\n\n`
       output += htmlToMarkdown(content)
       break
 
@@ -201,7 +206,7 @@ export function exportNote(note: Note, options: NoteExportOptions): string {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${note.title || 'Untitled'}</title>
+    <title>${note.title || untitled}</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -218,7 +223,7 @@ export function exportNote(note: Note, options: NoteExportOptions): string {
     </style>
 </head>
 <body>
-    <h1>${note.title || 'Untitled'}</h1>
+    <h1>${note.title || untitled}</h1>
     ${content}
 </body>
 </html>`
@@ -228,7 +233,8 @@ export function exportNote(note: Note, options: NoteExportOptions): string {
       break
 
     case 'txt':
-      output += `${note.title || 'Untitled'}\n${'='.repeat((note.title || 'Untitled').length)}\n\n`
+      const txtTitle = note.title || untitled
+      output += `${txtTitle}\n${'='.repeat(txtTitle.length)}\n\n`
       output += htmlToPlainText(content)
       break
 
@@ -238,7 +244,7 @@ export function exportNote(note: Note, options: NoteExportOptions): string {
       output = `<!DOCTYPE html>
 <html>
 <head>
-    <title>${note.title || 'Untitled'}</title>
+    <title>${note.title || untitled}</title>
     <style>
         @page { margin: 2cm; }
         body {
@@ -252,7 +258,7 @@ export function exportNote(note: Note, options: NoteExportOptions): string {
     </style>
 </head>
 <body>
-    <h1>${note.title || 'Untitled'}</h1>
+    <h1>${note.title || untitled}</h1>
     ${content}
 </body>
 </html>`
@@ -267,7 +273,8 @@ export function exportNote(note: Note, options: NoteExportOptions): string {
  */
 export function downloadNote(note: Note, options: NoteExportOptions): void {
   const content = exportNote(note, options)
-  const filename = `${(note.title || 'untitled').replace(/[^a-z0-9]/gi, '_').toLowerCase()}`
+  const filenameUntitled = options.filenameUntitled ?? DEFAULT_UNTITLED_FILENAME
+  const filename = `${(note.title || filenameUntitled).replace(/[^a-z0-9]/gi, '_').toLowerCase()}`
 
   let mimeType: string
   let extension: string

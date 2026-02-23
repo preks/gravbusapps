@@ -157,6 +157,10 @@ export const transformInvestmentReport = (
     if (investmentTypeId && mappedValues.investment) {
       ;(mappedValues.investment as any).investmentTypeId = investmentTypeId
     }
+
+    if (groupId && mappedValues.investment) {
+      ;(mappedValues.investment as any).investmentGroupRef = groupId
+    }
   }
 
   // Step 7: Set IDs
