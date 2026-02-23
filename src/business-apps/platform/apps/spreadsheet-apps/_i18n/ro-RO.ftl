@@ -39,6 +39,11 @@ section-spreadsheets = Foi de calcul
 upload-cancel = Anulare
 upload-title = Încarcă fișier Excel
 upload-subtitle = Transformă foaia de calcul într-o aplicație puternică cu AI
+upload-mode-label = Mod de încărcare
+upload-mode-simple-title = Încărcare simplă
+upload-mode-simple-desc = Importă fișierul și creează direct aplicația de foaie de calcul, fără analiză.
+upload-mode-create-app-title = Flux creare aplicație
+upload-mode-create-app-desc = Analizează mai întâi fișierul, apoi verifică și confirmă structura aplicației generate.
 upload-analyzing = Se analizează foaia de calcul...
 upload-analyzing-desc = AI detectează tipurile de coloane și sugerează cea mai bună structură
 
@@ -57,6 +62,9 @@ action-sort-name = Nume
 action-sort-modified = Modificat
 action-sort-created = Creat
 action-search-placeholder = Caută...
+action-refresh = Reîmprospătează lista
+action-refresh-sheet = Reîmprospătează datele foii de calcul
+status-saving = Se salvează...
 
 # List view - table headers
 table-modified-by = Modificat de
@@ -94,6 +102,7 @@ menu-save-checkpoint = Salvează checkpoint
 menu-lock-spreadsheet = Blochează foaia
 menu-unlock-spreadsheet = Deblochează foaia
 menu-publish = Publicare...
+menu-share = Distribuie
 menu-export-to-excel = Exportă în Excel
 menu-add-column = Adaugă coloană
 menu-manage-columns = Gestionează coloanele

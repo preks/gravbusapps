@@ -21,6 +21,7 @@ import {
   Save,
   Lock,
   Unlock,
+  Share2,
   Upload,
   Download,
   Plus,
@@ -45,6 +46,7 @@ export interface SpreadsheetActionsMenuProps {
 
   // Other actions
   onOpenAutomations: () => void
+  onShare?: () => void
   onEdit?: () => void
   allowExport?: boolean
   onExportToExcel?: () => void
@@ -63,6 +65,7 @@ export const SpreadsheetActionsMenu: React.FC<SpreadsheetActionsMenuProps> = ({
   onAddColumn,
   onManageColumns,
   onOpenAutomations,
+  onShare,
   onEdit,
   allowExport,
   onExportToExcel,
@@ -105,6 +108,12 @@ export const SpreadsheetActionsMenu: React.FC<SpreadsheetActionsMenuProps> = ({
             <Upload className="gba:w-4 gba:h-4 gba:mr-2" />
             {t('menu-publish')}
           </DropdownMenuItem>
+          {onShare && (
+            <DropdownMenuItem onClick={onShare} data-testid={`${testId}-share`}>
+              <Share2 className="gba:w-4 gba:h-4 gba:mr-2" />
+              {t('menu-share')}
+            </DropdownMenuItem>
+          )}
           {allowExport && onExportToExcel && (
             <DropdownMenuItem onClick={onExportToExcel} data-testid={`${testId}-export-excel`}>
               <Download className="gba:w-4 gba:h-4 gba:mr-2" />

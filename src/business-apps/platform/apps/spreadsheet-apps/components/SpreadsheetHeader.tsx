@@ -6,7 +6,18 @@
  */
 
 import React, { memo, useState, useEffect, useCallback } from 'react'
-import { Button, AiButton, Badge, Input, Spinner, useTranslation } from '@newwork/nw-design-system'
+import {
+  Button,
+  AiButton,
+  Badge,
+  Input,
+  Spinner,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+  useTranslation
+} from '@newwork/nw-design-system'
 import {
   ChevronRight,
   Eye,
@@ -16,7 +27,9 @@ import {
   Lock,
   Send,
   Sparkles,
-  CheckCircle2
+  CheckCircle2,
+  RefreshCw,
+  Loader2
 } from 'lucide-react'
 import { getIconByName } from '../utils/appIcons'
 import { StatusIndicators } from './StatusIndicators'
@@ -76,11 +89,16 @@ export interface SpreadsheetHeaderProps {
   onAddColumn: () => void
   onManageColumns: () => void
   onOpenAutomations: () => void
+  onShare?: () => void
   onEdit?: () => void
 
   /** When provided and canEdit, the app name is editable (rename). Same pattern as document-apps. */
   onRename?: (newName: string) => void
   onExportToExcel?: () => void
+  /** Refresh spreadsheet data from server (reload app) */
+  onRefreshSpreadsheet?: () => void
+  /** Whether cell data is being saved (PATCH in progress) - show prominent indicator */
+  isCellDataSaving?: boolean
 
   /** Excel Collection: Show Submit button when viewing a collection copy */
   isCollectionCopy?: boolean
@@ -118,9 +136,12 @@ export const SpreadsheetHeader: React.FC<SpreadsheetHeaderProps> = memo(function
   onAddColumn,
   onManageColumns,
   onOpenAutomations,
+  onShare,
   onEdit,
   onRename,
   onExportToExcel,
+  onRefreshSpreadsheet,
+  isCellDataSaving = false,
   isCollectionCopy,
   onSubmitCollection,
   collectionSubmittedAt,
@@ -222,6 +243,41 @@ export const SpreadsheetHeader: React.FC<SpreadsheetHeaderProps> = memo(function
 
         {/* Right: Status & Quick Actions */}
         <div className="gba:flex gba:items-center gba:gap-3 gba:flex-shrink-0">
+          {/* Cell data saving indicator - prominent when PATCH in progress */}
+          {isCellDataSaving && (
+            <Badge
+              variant="secondary"
+              className="gba:flex gba:items-center gba:gap-1.5 gba:animate-pulse"
+              data-testid="spreadsheet-cell-saving-indicator"
+            >
+              <Loader2 className="gba:w-3.5 gba:h-3.5 gba:animate-spin" />
+              {t('status-saving')}
+            </Badge>
+          )}
+
+          {/* Refresh spreadsheet data */}
+          {onRefreshSpreadsheet && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={onRefreshSpreadsheet}
+                    disabled={versioning.isSaving}
+                    className="gba:h-8 gba:px-2"
+                    data-testid="spreadsheet-refresh-button"
+                  >
+                    <RefreshCw className="gba:w-4 gba:h-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{t('action-refresh-sheet')}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+
           {/* Live Status Indicators */}
           <StatusIndicators
             headerParticipants={headerParticipants}
@@ -344,6 +400,7 @@ export const SpreadsheetHeader: React.FC<SpreadsheetHeaderProps> = memo(function
             onAddColumn={onAddColumn}
             onManageColumns={onManageColumns}
             onOpenAutomations={onOpenAutomations}
+            onShare={onShare}
             onEdit={onEdit}
             allowExport={activeSheet.settings.allowExport}
             onExportToExcel={onExportToExcel}

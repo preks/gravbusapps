@@ -80,7 +80,6 @@ export function useSpreadsheetViewerCollaboration({
     onErrorRef.current?.(error)
   }, [])
 
-  // Base collaboration hook
   const {
     participants: rawParticipants,
     isConnected: isCollaborationConnected,
@@ -94,6 +93,15 @@ export function useSpreadsheetViewerCollaboration({
     onOperationReceived: onOperationReceivedStable,
     onError: onErrorCallback
   })
+
+  // Debug: log collaboration state changes
+  useEffect(() => {
+    console.log('[SpreadsheetViewerCollaboration] State:', {
+      appId,
+      isCollaborationConnected,
+      participantsCount: rawParticipants.length
+    })
+  }, [appId, isCollaborationConnected, rawParticipants.length])
 
   // GraphQL client for avatar fetching
   const graphqlClient = useGraphQLClient(accessToken)

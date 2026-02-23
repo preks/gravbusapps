@@ -10,7 +10,7 @@ import { DynamicFormGenerator } from '@/business-apps/ser/components/DynamicForm
 import type { DynamicFormField } from '@/business-apps/ser/types/flowTemplate'
 import type { SpreadsheetColumn } from '../types'
 import { ManageColumnsDialog } from './ManageColumnsDialog'
-import { VersionHistory } from '../../shared/components/VersionHistory'
+import { VersionHistory, type VersionUserDisplay } from '../../shared/components/VersionHistory'
 import translations from '../_i18n'
 import { CheckpointDialog } from '../../shared/components/CheckpointDialog'
 import { PublishDialog } from '../../shared/components/PublishDialog'
@@ -36,6 +36,7 @@ export interface SpreadsheetDialogsSectionProps {
   // Version History
   showVersionHistory: boolean
   setShowVersionHistory: (show: boolean) => void
+  versionUserDisplayMap?: Record<string, VersionUserDisplay>
   versioning: {
     versions: unknown[]
     isLoading: boolean
@@ -97,6 +98,7 @@ export const SpreadsheetDialogsSection: React.FC<SpreadsheetDialogsSectionProps>
     onSaveColumns,
     showVersionHistory,
     setShowVersionHistory,
+    versionUserDisplayMap,
     versioning,
     handleRestoreVersion,
     showCheckpointDialog,
@@ -159,6 +161,7 @@ export const SpreadsheetDialogsSection: React.FC<SpreadsheetDialogsSectionProps>
             onClose={() => setShowVersionHistory(false)}
             currentVersion={versioning.currentVersion?.version}
             showAutoSaves={false}
+            userDisplayMap={versionUserDisplayMap}
             messages={{
               title: t('version-history-title'),
               compareMode: t('version-history-compare-mode'),

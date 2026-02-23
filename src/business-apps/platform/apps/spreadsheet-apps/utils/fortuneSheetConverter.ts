@@ -64,6 +64,7 @@ export function createConversionContext(
 ): ConversionContext {
   const columnIdToIndex = new Map<string, number>()
   const columnIndexToId = new Map<number, string>()
+  const columnIdToName = new Map<string, string>()
   const rowIdToIndex = new Map<string, number>()
   const rowIndexToId = new Map<number, string>()
   const excelColToIndex = new Map<string, number>()
@@ -73,6 +74,7 @@ export function createConversionContext(
   columns.forEach((col, index) => {
     columnIdToIndex.set(col.id, index)
     columnIndexToId.set(index, col.id)
+    columnIdToName.set(col.id, col.name ?? col.id)
     const excelCol = indexToExcelColumn(index)
     excelColToIndex.set(excelCol, index)
     indexToExcelCol.set(index, excelCol)
@@ -88,6 +90,7 @@ export function createConversionContext(
   return {
     columnIdToIndex,
     columnIndexToId,
+    columnIdToName,
     rowIdToIndex,
     rowIndexToId,
     excelColToIndex,
@@ -122,9 +125,21 @@ function getCellValue(row: Record<string, unknown>, column: SpreadsheetColumn): 
       return value
     }
     if ('v' in valueObject) {
-      const hasFormattingMetadata = ['bg', 'fc', 'bl', 'it', 'vt', 'ht', 'tb', 'ff', 'fs', 'cl', 'ul', 'strike'].some(
-        key => key in valueObject
-      )
+      const hasFormattingMetadata = [
+        'bg',
+        'fc',
+        'bl',
+        'it',
+        'vt',
+        'ht',
+        'tb',
+        'ff',
+        'fs',
+        'cl',
+        'ul',
+        'strike',
+        'mc'
+      ].some(key => key in valueObject)
 
       if (hasFormattingMetadata) {
         return value
@@ -237,6 +252,7 @@ export function convertToFortuneSheet(
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const context = createConversionContext(columns, data)
   const celldata: Array<{ r: number; c: number; v: FortuneSheetCell }> = []
+  const mergeConfig: Record<string, { r: number; c: number; rs: number; cs: number }> = {}
 
   // Excel-like dimensions: many columns and rows available
   // Excel 2007+ has 16,384 columns (A-XFD) and 1,048,576 rows
@@ -268,6 +284,14 @@ export function convertToFortuneSheet(
       let cell: FortuneSheetCell
       if (isFortuneSheetCellValue(value)) {
         cell = { ...value, tb: value.tb ?? 2 }
+        if (cell.mc) {
+          const adjustedMerge = {
+            ...cell.mc,
+            r: cell.mc.r + HEADER_ROW_OFFSET
+          }
+          cell.mc = adjustedMerge
+          mergeConfig[`${adjustedMerge.r}_${adjustedMerge.c}`] = adjustedMerge
+        }
         celldata.push({
           r: rowIndex + HEADER_ROW_OFFSET,
           c: colIndex,
@@ -468,7 +492,7 @@ export function convertToFortuneSheet(
 
   // Ensure config is always a valid object (FortuneSheet expects `{}` not null/undefined)
   const safeConfig: NonNullable<FortuneSheetConfig['config']> = {
-    merge: {},
+    merge: Object.keys(mergeConfig).length > 0 ? mergeConfig : {},
     rowlen: Object.keys(rowlen).length > 0 ? rowlen : {},
     columnlen: {},
     rowhidden: sheet.settings?.fortuneSheetFilterState?.rowhidden ?? {},

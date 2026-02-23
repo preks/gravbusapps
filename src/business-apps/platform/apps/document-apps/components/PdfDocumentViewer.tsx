@@ -138,9 +138,7 @@ export const PdfDocumentViewer: React.FC<PdfDocumentViewerProps> = ({
                 <Badge variant="secondary" className="gba:text-xs">
                   PDF
                 </Badge>
-                {document.sourceFile?.fileSize && (
-                  <span>{formatFileSize(document.sourceFile.fileSize)}</span>
-                )}
+                {document.sourceFile?.fileSize && <span>{formatFileSize(document.sourceFile.fileSize)}</span>}
                 {document.sourceFile?.pageCount && <span>{document.sourceFile.pageCount} pages</span>}
               </div>
             </div>

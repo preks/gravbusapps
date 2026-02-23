@@ -59,6 +59,41 @@ export function generateAppSchema(
 }
 
 /**
+ * Generate a complete SpreadsheetApp directly from parsed file data without AI analysis.
+ */
+export function generateAppSchemaFromParsedFile(
+  parsedFile: ParsedExcelFile,
+  userId: string,
+  fileInfo?: { fileId: string; uploadedAt: string }
+): Omit<SpreadsheetApp, 'id' | 'createdAt' | 'updatedAt'> {
+  const sheets = parsedFile.sheets.map(parsedSheet => generateSheetSchemaFromParsedSheet(parsedSheet))
+
+  const sourceFile: SpreadsheetFileInfo = {
+    fileId: fileInfo?.fileId || `local_${Date.now()}`,
+    fileName: parsedFile.fileName,
+    fileSize: parsedFile.fileSize,
+    uploadedAt: fileInfo?.uploadedAt || new Date().toISOString(),
+    mimeType: getMimeType(parsedFile.fileName)
+  }
+
+  return {
+    name:
+      parsedFile.fileName
+        .replace(/\.[^.]+$/, '')
+        .replace(/[_-]/g, ' ')
+        .trim() || 'Imported Spreadsheet',
+    description: 'Imported from spreadsheet file',
+    icon: undefined,
+    sourceFile,
+    sheets,
+    relationships: [],
+    createdBy: userId,
+    status: 'file_based',
+    settings: generateAppSettings()
+  }
+}
+
+/**
  * Generate an empty SpreadsheetApp schema (no Excel file required)
  */
 export function generateEmptyAppSchema(
@@ -191,6 +226,65 @@ function generateSheetSchema(analysis: SheetAnalysis, parsedSheet: ParsedSheet):
     data,
     chartConfigs,
     settings: generateSheetSettings(analysis)
+  }
+}
+
+function generateSheetSchemaFromParsedSheet(parsedSheet: ParsedSheet): SpreadsheetSheet {
+  const columns: SpreadsheetColumn[] = parsedSheet.columns.map((column, index) => {
+    const inferredType = inferParsedColumnType(column.sampleValues, column.formula)
+    const selectOptions = inferredType === 'select' ? createSelectOptions(column.sampleValues) : undefined
+
+    return {
+      id: generateId('col'),
+      name: column.name,
+      label: formatColumnLabel(column.name),
+      type: inferredType,
+      width: column.width ?? 160,
+      isVisible: true,
+      isEditable: inferredType !== 'calculated',
+      isRequired: false,
+      isUnique: false,
+      defaultValue: getDefaultValue(inferredType),
+      selectOptions,
+      formula: column.formula,
+      order: index
+    }
+  })
+
+  const defaultView: SheetView = {
+    id: generateId('view'),
+    name: 'All Data',
+    type: 'table',
+    isDefault: true,
+    config: {
+      type: 'table',
+      columns: columns.map(column => column.id)
+    }
+  }
+
+  const data = parsedSheet.rows.map((row, index) => ({
+    _id: generateId('row'),
+    _index: index,
+    ...row
+  }))
+
+  return {
+    id: generateId('sheet'),
+    name: parsedSheet.name,
+    description: '',
+    viewType: 'table',
+    columns,
+    views: [defaultView],
+    data,
+    settings: {
+      allowAdd: true,
+      allowEdit: true,
+      allowDelete: true,
+      allowExport: true,
+      allowImport: true,
+      rowsPerPage: 25,
+      showRowNumbers: true
+    }
   }
 }
 
@@ -454,6 +548,51 @@ function getDefaultValue(type: string): unknown {
     default:
       return null
   }
+}
+
+function inferParsedColumnType(sampleValues: unknown[], formula?: string): SpreadsheetColumn['type'] {
+  if (formula) return 'calculated'
+
+  const nonNullValues = sampleValues.filter(value => value !== null && value !== undefined && value !== '')
+  if (nonNullValues.length === 0) return 'text'
+
+  const allNumbers = nonNullValues.every(value => !isNaN(Number(value)))
+  if (allNumbers) return 'number'
+
+  const allBooleans = nonNullValues.every(value => {
+    const normalized = String(value).toLowerCase()
+    return ['true', 'false', 'yes', 'no', '1', '0'].includes(normalized)
+  })
+  if (allBooleans) return 'boolean'
+
+  const allDates = nonNullValues.every(value => !isNaN(Date.parse(String(value))))
+  if (allDates) return 'date'
+
+  const uniqueValues = new Set(nonNullValues.map(value => String(value)))
+  if (uniqueValues.size > 0 && uniqueValues.size <= 20 && uniqueValues.size < nonNullValues.length * 0.7) {
+    return 'select'
+  }
+
+  return 'text'
+}
+
+function createSelectOptions(sampleValues: unknown[]): SelectOption[] | undefined {
+  const optionValues = Array.from(
+    new Set(
+      sampleValues
+        .filter(value => value !== null && value !== undefined && value !== '')
+        .map(value => String(value).trim())
+        .filter(Boolean)
+    )
+  )
+
+  if (optionValues.length === 0 || optionValues.length > 20) return undefined
+
+  return optionValues.map(option => ({
+    value: option.toLowerCase().replace(/\s+/g, '_'),
+    label: option,
+    color: generateColorForOption(option)
+  }))
 }
 
 /**

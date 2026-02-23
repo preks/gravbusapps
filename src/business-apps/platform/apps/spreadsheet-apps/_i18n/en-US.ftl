@@ -39,6 +39,11 @@ section-spreadsheets = Spreadsheets
 upload-cancel = Cancel
 upload-title = Upload Excel File
 upload-subtitle = Transform your spreadsheet into a powerful app with AI
+upload-mode-label = Upload mode
+upload-mode-simple-title = Simple upload
+upload-mode-simple-desc = Import and create the spreadsheet app directly from your file without analysis.
+upload-mode-create-app-title = Create app flow
+upload-mode-create-app-desc = Analyze your file first, then review and confirm the generated app structure.
 upload-analyzing = Analyzing your spreadsheet...
 upload-analyzing-desc = AI is detecting column types and suggesting the best structure
 
@@ -57,6 +62,9 @@ action-sort-name = Name
 action-sort-modified = Modified
 action-sort-created = Created
 action-search-placeholder = Search...
+action-refresh = Refresh list
+action-refresh-sheet = Refresh spreadsheet data
+status-saving = Saving...
 
 # List view - table headers
 table-modified-by = Modified By
@@ -94,6 +102,7 @@ menu-save-checkpoint = Save Checkpoint
 menu-lock-spreadsheet = Lock Spreadsheet
 menu-unlock-spreadsheet = Unlock Spreadsheet
 menu-publish = Publish...
+menu-share = Share
 menu-export-to-excel = Export to Excel
 menu-add-column = Add Column
 menu-manage-columns = Manage Columns

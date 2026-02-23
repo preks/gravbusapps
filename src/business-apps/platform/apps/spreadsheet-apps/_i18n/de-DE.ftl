@@ -39,6 +39,11 @@ section-spreadsheets = Tabellen
 upload-cancel = Abbrechen
 upload-title = Excel-Datei hochladen
 upload-subtitle = Verwandle deine Tabelle mit KI in eine leistungsstarke App
+upload-mode-label = Upload-Modus
+upload-mode-simple-title = Einfacher Upload
+upload-mode-simple-desc = Importiere die Datei und erstelle die Tabellen-App direkt ohne Analyse.
+upload-mode-create-app-title = App-Erstellungsfluss
+upload-mode-create-app-desc = Analysiere die Datei zuerst und bestätige danach die erzeugte App-Struktur.
 upload-analyzing = Tabelle wird analysiert...
 upload-analyzing-desc = KI erkennt Spaltentypen und schlägt die beste Struktur vor
 
@@ -57,6 +62,9 @@ action-sort-name = Name
 action-sort-modified = Geändert
 action-sort-created = Erstellt
 action-search-placeholder = Suchen...
+action-refresh = Liste aktualisieren
+action-refresh-sheet = Tabellendaten aktualisieren
+status-saving = Wird gespeichert...
 
 # List view - table headers
 table-modified-by = Geändert von
@@ -94,6 +102,7 @@ menu-save-checkpoint = Checkpoint speichern
 menu-lock-spreadsheet = Tabelle sperren
 menu-unlock-spreadsheet = Tabelle entsperren
 menu-publish = Veröffentlichen...
+menu-share = Teilen
 menu-export-to-excel = Nach Excel exportieren
 menu-add-column = Spalte hinzufügen
 menu-manage-columns = Spalten verwalten

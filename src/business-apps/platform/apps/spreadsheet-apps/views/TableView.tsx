@@ -46,8 +46,10 @@ export interface TableViewProps {
   onRemoteChangeApplied?: () => void
   /** Key to force grid refresh when remote data arrives */
   remoteUpdateKey?: number
-  /** Remote operation to apply (from viewer's WebSocket) */
-  receivedOperation?: { operation: any; timestamp: number } | null
+  /** Queue of remote operations to apply (from viewer's WebSocket) */
+  receivedOpsQueueRef?: React.MutableRefObject<any[]>
+  /** Trigger to process queued operations */
+  processOpsTrigger?: number
   /** Called when FortuneSheet filter state changes (for persistence) */
   onFilterStateChange?: (filterState: {
     filter?: Record<string, unknown> | null
@@ -87,7 +89,8 @@ export const TableView = memo<TableViewProps>(function TableView({
   gridRef,
   onRemoteChangeApplied,
   remoteUpdateKey,
-  receivedOperation,
+  receivedOpsQueueRef,
+  processOpsTrigger,
   onFilterStateChange
 }) {
   const handleCellChange = useCallback(
@@ -132,7 +135,8 @@ export const TableView = memo<TableViewProps>(function TableView({
         collaborationEnabled={collaborationEnabled}
         onRemoteChangeApplied={onRemoteChangeApplied}
         remoteUpdateKey={remoteUpdateKey}
-        receivedOperation={receivedOperation}
+        receivedOpsQueueRef={receivedOpsQueueRef}
+        processOpsTrigger={processOpsTrigger}
         onFilterStateChange={onFilterStateChange}
         height="100%"
         width="100%"

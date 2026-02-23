@@ -97,7 +97,7 @@ import { useHubPagination } from '../shared/hooks/useHubPagination'
 import { HubPaginationFooter } from '../shared/components/HubPaginationFooter'
 
 // Services
-import { generateAppSchema, generateEmptyAppSchema } from './services/SchemaGenerator'
+import { generateAppSchema, generateAppSchemaFromParsedFile, generateEmptyAppSchema } from './services/SchemaGenerator'
 import { setSpreadsheetApiAuthTokenProvider, SpreadsheetApiService } from './services/SpreadsheetApiService'
 import { exportAppToExcel } from './utils/exportUtils'
 
@@ -111,6 +111,7 @@ export interface SpreadsheetAppsHubProps extends BusinessAppContextProps {
 
 type HubView = 'list' | 'upload' | 'analysis' | 'viewer' | 'editor'
 type SidebarSection = 'home' | 'my-files' | 'shared' | 'favorites' | 'recent' | 'automations' | 'tasks' | 'trash'
+type UploadMode = 'simple' | 'create-app'
 
 /** Get initials from a name */
 function getInitials(name: string): string {
@@ -209,6 +210,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
   const [viewLayout, setViewLayout] = useState<'grid' | 'list'>('list')
   const [searchQuery, setSearchQuery] = useState('')
   const [taskStatusFilter, setTaskStatusFilter] = useState<'pending' | 'completed'>('pending')
+  const [uploadMode, setUploadMode] = useState<UploadMode>('simple')
 
   // Clear space return URL if not opened from a space
   useEffect(() => {
@@ -398,8 +400,41 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     }
   }, [refreshApps, selectedAppForManageShares, invalidateSharedUsersForApp])
 
+  const finishCreatedAppNavigation = useCallback(
+    async (createdApp: SpreadsheetApp, preferredView: 'viewer' | 'editor' = 'editor') => {
+      const loadedApp = await loadApp(createdApp.id)
+      if (loadedApp) {
+        setSelectedAppId(loadedApp.id)
+        setCurrentView(preferredView)
+        updateUrl(loadedApp.id, preferredView, loadedApp.filePath ?? createdApp.filePath)
+      } else {
+        setSelectedAppId(createdApp.id)
+        setCurrentView('viewer')
+        updateUrl(createdApp.id, 'viewer', createdApp.filePath)
+      }
+      setParsedFile(null)
+      setAnalysis(null)
+      resetAI()
+    },
+    [loadApp, resetAI, updateUrl]
+  )
+
   const handleFileParsed = useCallback(
     async (file: ParsedExcelFile) => {
+      if (!userInfo) return
+
+      if (uploadMode === 'simple') {
+        const appSchema = generateAppSchemaFromParsedFile(
+          file,
+          userInfo.id || userInfo?.employeeDetails?.employeeId || 'unknown'
+        )
+        const createdApp = await createApp(appSchema)
+        if (createdApp) {
+          await finishCreatedAppNavigation(createdApp, 'viewer')
+        }
+        return
+      }
+
       setParsedFile(file)
       const analysisResult = await analyzeSpreadsheet(file)
       if (analysisResult) {
@@ -407,7 +442,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
         setCurrentView('analysis')
       }
     },
-    [analyzeSpreadsheet]
+    [analyzeSpreadsheet, createApp, finishCreatedAppNavigation, uploadMode, userInfo]
   )
 
   const handleAnalysisConfirm = useCallback(
@@ -423,22 +458,10 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
       const createdApp = await createApp(appSchema)
 
       if (createdApp) {
-        const loadedApp = await loadApp(createdApp.id)
-        if (loadedApp) {
-          setSelectedAppId(loadedApp.id)
-          setCurrentView('editor')
-          updateUrl(loadedApp.id, 'editor', loadedApp.filePath ?? createdApp.filePath)
-        } else {
-          setSelectedAppId(createdApp.id)
-          setCurrentView('viewer')
-          updateUrl(createdApp.id, 'viewer', createdApp.filePath)
-        }
-        setParsedFile(null)
-        setAnalysis(null)
-        resetAI()
+        await finishCreatedAppNavigation(createdApp)
       }
     },
-    [parsedFile, userInfo, createApp, loadApp, resetAI, updateUrl]
+    [createApp, finishCreatedAppNavigation, parsedFile, userInfo]
   )
 
   const handleReanalyze = useCallback(async () => {
@@ -671,14 +694,43 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
 
   const handleShareApp = useCallback(
     async (id: string) => {
-      const app = apps.find(a => a.id === id)
-      if (app) {
-        setSelectedAppForShare(app)
+      const fromList = apps.find(a => a.id === id)
+      const fromCurrent =
+        currentApp && currentApp.id === id
+          ? {
+              id: currentApp.id,
+              name: currentApp.name,
+              description: currentApp.description,
+              icon: currentApp.icon,
+              sheetCount: currentApp.sheets.length,
+              rowCount: currentApp.sheets.reduce((sum, sheet) => sum + (sheet.data?.length || 0), 0),
+              status: currentApp.status,
+              createdAt: currentApp.createdAt,
+              updatedAt: currentApp.updatedAt,
+              createdBy: currentApp.createdBy,
+              filePath: currentApp.filePath,
+              isShared: currentApp.isShared,
+              isOwner: currentApp.permission === 'owner' || currentApp.permission === 'admin' || !currentApp.permission,
+              permission: currentApp.permission,
+              sharedBy: currentApp.sharedBy,
+              settings: currentApp.settings as Record<string, unknown>
+            }
+          : null
+
+      const targetApp = fromList || fromCurrent
+      if (!targetApp) return
+
+      // Open dialog immediately so the user gets instant feedback.
+      setSelectedAppForShare(targetApp)
+      setShareDialogOpen(true)
+
+      try {
         await fetchAndEnrichShares(id)
-        setShareDialogOpen(true)
+      } catch (error) {
+        console.warn('[SpreadsheetAppsHub] Failed to preload shares:', error)
       }
     },
-    [apps, fetchAndEnrichShares]
+    [apps, currentApp, fetchAndEnrichShares]
   )
 
   const handleShare = useCallback(
@@ -772,6 +824,7 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
   const handleStartUpload = useCallback(() => {
     setParsedFile(null)
     setAnalysis(null)
+    setUploadMode('simple')
     resetAI()
     setCurrentView('upload')
   }, [resetAI])
@@ -853,60 +906,87 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
     const canEdit = currentAppPermission === 'owner' || currentAppPermission === 'edit'
 
     return (
-      <SpreadsheetAppViewer
-        app={currentApp}
-        onBack={handleBack}
-        onEdit={
-          canEdit
-            ? () => {
-                setCurrentView('editor')
-                updateUrl(currentApp.id, 'editor', currentApp.filePath)
-              }
-            : undefined
-        }
-        onAppUpdate={canEdit ? updatedApp => updateApp(updatedApp.id, updatedApp) : undefined}
-        onAppRefreshNeeded={
-          canEdit
-            ? async (appId: string, newSheetId?: string) => {
-                const maxAttempts = 5
-                const retryDelayMs = 400
+      <>
+        <SpreadsheetAppViewer
+          app={currentApp}
+          onBack={handleBack}
+          onShare={() => handleShareApp(currentApp.id)}
+          onEdit={
+            canEdit
+              ? () => {
+                  setCurrentView('editor')
+                  updateUrl(currentApp.id, 'editor', currentApp.filePath)
+                }
+              : undefined
+          }
+          onAppUpdate={canEdit ? updatedApp => updateApp(updatedApp.id, updatedApp) : undefined}
+          onAppRefreshNeeded={
+            canEdit
+              ? async (appId: string, newSheetId?: string) => {
+                  const maxAttempts = 5
+                  const retryDelayMs = 400
 
-                for (let attempt = 0; attempt < maxAttempts; attempt++) {
-                  const refreshed = await loadApp(appId)
+                  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+                    const refreshed = await loadApp(appId)
 
-                  // If no target sheet is provided, a single successful refresh is enough.
-                  if (!newSheetId) return
+                    // If no target sheet is provided, a single successful refresh is enough.
+                    if (!newSheetId) return
 
-                  const targetSheet = refreshed?.sheets?.find(s => s.id === newSheetId)
-                  if (targetSheet && (targetSheet.data?.length ?? 0) > 0) {
-                    return
-                  }
+                    const targetSheet = refreshed?.sheets?.find(s => s.id === newSheetId)
+                    if (targetSheet && (targetSheet.data?.length ?? 0) > 0) {
+                      return
+                    }
 
-                  // Wait briefly and retry to handle eventual consistency after row creation.
-                  if (attempt < maxAttempts - 1) {
-                    await new Promise(resolve => setTimeout(resolve, retryDelayMs))
+                    // Wait briefly and retry to handle eventual consistency after row creation.
+                    if (attempt < maxAttempts - 1) {
+                      await new Promise(resolve => setTimeout(resolve, retryDelayMs))
+                    }
                   }
                 }
-              }
-            : undefined
-        }
-        onSheetUpdate={canEdit ? updateSheet : undefined}
-        onRowAdd={canEdit ? addRow : undefined}
-        onRowUpdate={canEdit ? updateRow : undefined}
-        onDataChange={
-          canEdit
-            ? (sheetId, data) => {
-                const latestApp = currentAppRef.current
-                if (!latestApp) return
-                updateSheetData(latestApp.id, sheetId, data)
-              }
-            : undefined
-        }
-        isEditing={canEdit}
-        accessToken={accessToken}
-        userId={currentUserId}
-        data-testid={`${testId}-viewer`}
-      />
+              : undefined
+          }
+          onSheetUpdate={canEdit ? updateSheet : undefined}
+          onRowAdd={canEdit ? addRow : undefined}
+          onRowUpdate={canEdit ? updateRow : undefined}
+          onDataChange={
+            canEdit
+              ? (sheetId, data) => {
+                  const latestApp = currentAppRef.current
+                  if (!latestApp) return
+                  updateSheetData(latestApp.id, sheetId, data)
+                }
+              : undefined
+          }
+          isEditing={canEdit}
+          accessToken={accessToken}
+          userId={currentUserId}
+          data-testid={`${testId}-viewer`}
+        />
+
+        {selectedAppForShare && (
+          <ShareAppDialog
+            open={shareDialogOpen}
+            onOpenChange={setShareDialogOpen}
+            appId={selectedAppForShare.id}
+            appName={selectedAppForShare.name}
+            appFilePath={selectedAppForShare.filePath || ''}
+            accessToken={accessToken || ''}
+            currentUserId={currentUserId}
+            currentUserName={
+              userInfo?.employeeDetails?.firstName && userInfo?.employeeDetails?.lastName
+                ? `${userInfo.employeeDetails.firstName} ${userInfo.employeeDetails.lastName}`
+                : userInfo?.givenName && userInfo?.familyName
+                  ? `${userInfo.givenName} ${userInfo.familyName}`
+                  : userInfo?.nickName || userInfo?.userName || undefined
+            }
+            isOwner={selectedAppForShare.isOwner !== false}
+            sharedUsers={sharedUsers}
+            onShare={handleShare}
+            onUnshare={handleUnshare}
+            onRefreshShares={handleRefreshShares}
+          />
+        )}
+      </>
     )
   }
 
@@ -1276,7 +1356,27 @@ export const SpreadsheetAppsHub: React.FC<SpreadsheetAppsHubProps> = ({
                 <p className="gba:text-muted-foreground">{t('upload-subtitle')}</p>
               </div>
 
+              <Card className="gba:p-4">
+                <div className="gba:flex gba:flex-col gba:gap-3">
+                  <p className="gba:text-sm gba:font-medium gba:text-foreground">{t('upload-mode-label')}</p>
+                  <Tabs value={uploadMode} onValueChange={value => setUploadMode(value as UploadMode)}>
+                    <TabsList className="gba:grid gba:grid-cols-2 gba:w-full">
+                      <TabsTrigger value="simple" data-testid={`${testId}-upload-mode-simple`}>
+                        {t('upload-mode-simple-title')}
+                      </TabsTrigger>
+                      <TabsTrigger value="create-app" data-testid={`${testId}-upload-mode-create-app`}>
+                        {t('upload-mode-create-app-title')}
+                      </TabsTrigger>
+                    </TabsList>
+                  </Tabs>
+                  <p className="gba:text-xs gba:text-muted-foreground">
+                    {uploadMode === 'simple' ? t('upload-mode-simple-desc') : t('upload-mode-create-app-desc')}
+                  </p>
+                </div>
+              </Card>
+
               <ExcelUploader
+                parseMode={uploadMode === 'simple' ? 'preserve-format' : 'structured'}
                 onFileParsed={handleFileParsed}
                 onError={error => console.error(error)}
                 data-testid={`${testId}-uploader`}

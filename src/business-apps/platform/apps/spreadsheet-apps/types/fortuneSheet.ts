@@ -192,6 +192,8 @@ export interface ConversionContext {
   columnIdToIndex: Map<string, number>
   /** Column index to ID mapping */
   columnIndexToId: Map<number, string>
+  /** Column ID to name mapping (row data is keyed by column name) */
+  columnIdToName: Map<string, string>
   /** Row ID to index mapping */
   rowIdToIndex: Map<string, number>
   /** Row index to ID mapping */

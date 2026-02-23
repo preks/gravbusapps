@@ -17,7 +17,7 @@ export interface UseExcelParserState {
 }
 
 export interface UseExcelParserResult extends UseExcelParserState {
-  parseFile: (file: File) => Promise<ParsedExcelFile | null>
+  parseFile: (file: File, options?: { mode?: 'structured' | 'preserve-format' }) => Promise<ParsedExcelFile | null>
   parseFromUrl: (url: string) => Promise<ParsedExcelFile | null>
   reset: () => void
 }
@@ -44,6 +44,31 @@ function extractCellBackgroundHex(cell: ExcelJS.Cell): string | null {
   if (!fill || fill.type !== 'pattern' || fill.pattern !== 'solid') return null
   if (!('fgColor' in fill)) return null
   return normalizeColorToHex(fill.fgColor)
+}
+
+function extractCellFontColorHex(cell: ExcelJS.Cell): string | null {
+  const color = cell.font?.color
+  return normalizeColorToHex(color)
+}
+
+function mapHorizontalAlign(value: ExcelJS.Alignment['horizontal']): 0 | 1 | 2 | undefined {
+  if (value === 'center' || value === 'centerContinuous' || value === 'distributed') return 1
+  if (value === 'right' || value === 'fill' || value === 'justify') return 2
+  if (value === 'left') return 0
+  return undefined
+}
+
+function mapVerticalAlign(value: ExcelJS.Alignment['vertical']): 0 | 1 | 2 | undefined {
+  if (value === 'middle' || value === 'distributed' || value === 'justify') return 1
+  if (value === 'bottom') return 2
+  if (value === 'top') return 0
+  return undefined
+}
+
+function toPixelWidth(width: number | undefined): number | undefined {
+  if (typeof width !== 'number' || Number.isNaN(width) || width <= 0) return undefined
+  // Approximate conversion from Excel column width units to px.
+  return Math.round(width * 7 + 5)
 }
 
 function normalizeExcelJsCellValue(value: unknown): NormalizedCellValue {
@@ -126,8 +151,9 @@ function buildParsedSheetFromAoa(params: {
   dataRows: unknown[][]
   formulaByColumnIndex?: Record<number, string | undefined>
   backgroundByCell?: Record<string, string | undefined>
+  columnWidthByIndex?: Record<number, number | undefined>
 }): ParsedSheet {
-  const { name, index, headers, dataRows, formulaByColumnIndex, backgroundByCell } = params
+  const { name, index, headers, dataRows, formulaByColumnIndex, backgroundByCell, columnWidthByIndex } = params
 
   const isEmpty = headers.length === 0 || (dataRows.length === 0 && headers.every(h => !h))
   if (isEmpty) {
@@ -163,7 +189,8 @@ function buildParsedSheetFromAoa(params: {
       index: colIndex,
       sampleValues,
       hasFormula,
-      formula
+      formula,
+      width: columnWidthByIndex?.[colIndex]
     }
   })
 
@@ -173,10 +200,14 @@ function buildParsedSheetFromAoa(params: {
       const value = row?.[i] ?? null
       const backgroundHex = backgroundByCell?.[`${rowIndex}:${i}`]
       if (backgroundHex) {
-        rowObj[header] = {
-          v: value,
-          m: value === null || value === undefined ? '' : String(value),
-          bg: backgroundHex
+        if (isRecord(value) && ('v' in value || 'f' in value)) {
+          rowObj[header] = { ...value, bg: backgroundHex }
+        } else {
+          rowObj[header] = {
+            v: value,
+            m: value === null || value === undefined ? '' : String(value),
+            bg: backgroundHex
+          }
         }
       } else {
         rowObj[header] = value
@@ -195,7 +226,51 @@ function buildParsedSheetFromAoa(params: {
   }
 }
 
-async function parseXlsxArrayBuffer(arrayBuffer: ArrayBuffer): Promise<{
+function buildStyledCellValue(cell: ExcelJS.Cell): unknown {
+  const normalizedValue = normalizeExcelJsCellValue(cell.value)
+  const styleCell: Record<string, unknown> = {}
+
+  const backgroundHex = extractCellBackgroundHex(cell)
+  if (backgroundHex) styleCell.bg = backgroundHex
+
+  const fontColorHex = extractCellFontColorHex(cell)
+  if (fontColorHex) styleCell.fc = fontColorHex
+
+  if (cell.font?.bold) styleCell.bl = 1
+  if (cell.font?.italic) styleCell.it = 1
+  if (typeof cell.font?.name === 'string' && cell.font.name.trim()) styleCell.ff = cell.font.name
+  if (typeof cell.font?.size === 'number') styleCell.fs = cell.font.size
+
+  const ht = mapHorizontalAlign(cell.alignment?.horizontal)
+  if (ht !== undefined) styleCell.ht = ht
+
+  const vt = mapVerticalAlign(cell.alignment?.vertical)
+  if (vt !== undefined) styleCell.vt = vt
+
+  if (cell.alignment?.wrapText) styleCell.tb = 2
+
+  if (
+    cell.value &&
+    typeof cell.value === 'object' &&
+    'formula' in cell.value &&
+    typeof cell.value.formula === 'string'
+  ) {
+    styleCell.f = cell.value.formula.startsWith('=') ? cell.value.formula : `=${cell.value.formula}`
+  }
+
+  if (Object.keys(styleCell).length === 0 && normalizedValue !== null && normalizedValue !== undefined) {
+    return normalizedValue
+  }
+
+  styleCell.v = normalizedValue
+  styleCell.m = normalizedValue === null || normalizedValue === undefined ? '' : String(normalizedValue)
+  return styleCell
+}
+
+async function parseXlsxArrayBufferWithMode(
+  arrayBuffer: ArrayBuffer,
+  mode: 'structured' | 'preserve-format'
+): Promise<{
   sheets: ParsedSheet[]
   metadata: ExcelMetadata
 }> {
@@ -217,16 +292,28 @@ async function parseXlsxArrayBuffer(arrayBuffer: ArrayBuffer): Promise<{
       }
     }
 
-    const headers: string[] = []
+    const columnWidthByIndex: Record<number, number | undefined> = {}
     for (let col = 1; col <= maxColumns; col++) {
-      const headerValue = headerRow.getCell(col).value
-      const headerStr = extractHeaderString(headerValue)
-      headers[col - 1] = headerStr || `Column_${col}`
+      const width = worksheet.getColumn(col).width
+      columnWidthByIndex[col - 1] = toPixelWidth(width)
+    }
+
+    const headers: string[] = []
+    if (mode === 'preserve-format') {
+      for (let col = 1; col <= maxColumns; col++) {
+        headers[col - 1] = `Column_${col}`
+      }
+    } else {
+      for (let col = 1; col <= maxColumns; col++) {
+        const headerValue = headerRow.getCell(col).value
+        const headerStr = extractHeaderString(headerValue)
+        headers[col - 1] = headerStr || `Column_${col}`
+      }
     }
 
     const dataRows: unknown[][] = []
     const backgroundByCell: Record<string, string | undefined> = {}
-    const startRow = 2
+    const startRow = mode === 'preserve-format' ? 1 : 2
     const endRow = worksheet.actualRowCount > 0 ? worksheet.actualRowCount : worksheet.rowCount
 
     for (let rowNum = startRow; rowNum <= endRow; rowNum++) {
@@ -235,8 +322,11 @@ async function parseXlsxArrayBuffer(arrayBuffer: ArrayBuffer): Promise<{
       const rowBackgrounds: Array<string | undefined> = []
       for (let col = 1; col <= maxColumns; col++) {
         const cell = row.getCell(col)
-        rowValues[col - 1] = normalizeExcelJsCellValue(cell.value)
-        rowBackgrounds[col - 1] = extractCellBackgroundHex(cell) ?? undefined
+        rowValues[col - 1] =
+          mode === 'preserve-format' ? buildStyledCellValue(cell) : normalizeExcelJsCellValue(cell.value)
+        if (mode !== 'preserve-format') {
+          rowBackgrounds[col - 1] = extractCellBackgroundHex(cell) ?? undefined
+        }
       }
 
       const hasData = rowValues.some(v => v !== null && v !== undefined && v !== '')
@@ -266,7 +356,8 @@ async function parseXlsxArrayBuffer(arrayBuffer: ArrayBuffer): Promise<{
       headers,
       dataRows,
       formulaByColumnIndex,
-      backgroundByCell
+      backgroundByCell,
+      columnWidthByIndex
     })
   })
 
@@ -294,84 +385,88 @@ export function useExcelParser(): UseExcelParserResult {
   /**
    * Parse an Excel file from a File object
    */
-  const parseFile = useCallback(async (file: File): Promise<ParsedExcelFile | null> => {
-    setState(prev => ({ ...prev, isLoading: true, error: null, progress: 0 }))
+  const parseFile = useCallback(
+    async (file: File, options?: { mode?: 'structured' | 'preserve-format' }): Promise<ParsedExcelFile | null> => {
+      const mode = options?.mode ?? 'structured'
+      setState(prev => ({ ...prev, isLoading: true, error: null, progress: 0 }))
 
-    try {
-      // Validate file type
-      const validTypes = [
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
-        'text/csv', // .csv
-        'application/csv'
-      ]
-
-      const isValidType = validTypes.includes(file.type) || /\.(xlsx|csv)$/i.test(file.name)
-
-      if (!isValidType) {
-        throw new Error('Invalid file type. Please upload an Excel (.xlsx) or CSV file.')
-      }
-
-      setState(prev => ({ ...prev, progress: 10 }))
-
-      const fileNameLower = file.name.toLowerCase()
-      const isCsv = file.type === 'text/csv' || file.type === 'application/csv' || fileNameLower.endsWith('.csv')
-
-      setState(prev => ({ ...prev, progress: 30 }))
-
-      let sheets: ParsedSheet[]
-      let metadata: ExcelMetadata
-
-      setState(prev => ({ ...prev, progress: 60 }))
-
-      if (isCsv) {
-        const content = await file.text()
-        const { headers, dataRows } = parseCSVContent(content)
-        sheets = [
-          buildParsedSheetFromAoa({
-            name: 'Sheet1',
-            index: 0,
-            headers,
-            dataRows
-          })
+      try {
+        // Validate file type
+        const validTypes = [
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+          'text/csv', // .csv
+          'application/csv'
         ]
-        metadata = { sheetCount: 1 }
-        setState(prev => ({ ...prev, progress: 95 }))
-      } else {
-        const arrayBuffer = await file.arrayBuffer()
-        setState(prev => ({ ...prev, progress: 50 }))
 
-        const parsed = await parseXlsxArrayBuffer(arrayBuffer)
-        sheets = parsed.sheets
-        metadata = parsed.metadata
-        setState(prev => ({ ...prev, progress: 95 }))
+        const isValidType = validTypes.includes(file.type) || /\.(xlsx|csv)$/i.test(file.name)
+
+        if (!isValidType) {
+          throw new Error('Invalid file type. Please upload an Excel (.xlsx) or CSV file.')
+        }
+
+        setState(prev => ({ ...prev, progress: 10 }))
+
+        const fileNameLower = file.name.toLowerCase()
+        const isCsv = file.type === 'text/csv' || file.type === 'application/csv' || fileNameLower.endsWith('.csv')
+
+        setState(prev => ({ ...prev, progress: 30 }))
+
+        let sheets: ParsedSheet[]
+        let metadata: ExcelMetadata
+
+        setState(prev => ({ ...prev, progress: 60 }))
+
+        if (isCsv) {
+          const content = await file.text()
+          const { headers, dataRows } = parseCSVContent(content)
+          sheets = [
+            buildParsedSheetFromAoa({
+              name: 'Sheet1',
+              index: 0,
+              headers,
+              dataRows
+            })
+          ]
+          metadata = { sheetCount: 1 }
+          setState(prev => ({ ...prev, progress: 95 }))
+        } else {
+          const arrayBuffer = await file.arrayBuffer()
+          setState(prev => ({ ...prev, progress: 50 }))
+
+          const parsed = await parseXlsxArrayBufferWithMode(arrayBuffer, mode)
+          sheets = parsed.sheets
+          metadata = parsed.metadata
+          setState(prev => ({ ...prev, progress: 95 }))
+        }
+
+        const parsedFile: ParsedExcelFile = {
+          fileName: file.name,
+          fileSize: file.size,
+          sheets,
+          metadata
+        }
+
+        setState(prev => ({
+          ...prev,
+          isLoading: false,
+          parsedFile,
+          progress: 100
+        }))
+
+        return parsedFile
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Failed to parse Excel file'
+        setState(prev => ({
+          ...prev,
+          isLoading: false,
+          error: errorMessage,
+          progress: 0
+        }))
+        return null
       }
-
-      const parsedFile: ParsedExcelFile = {
-        fileName: file.name,
-        fileSize: file.size,
-        sheets,
-        metadata
-      }
-
-      setState(prev => ({
-        ...prev,
-        isLoading: false,
-        parsedFile,
-        progress: 100
-      }))
-
-      return parsedFile
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to parse Excel file'
-      setState(prev => ({
-        ...prev,
-        isLoading: false,
-        error: errorMessage,
-        progress: 0
-      }))
-      return null
-    }
-  }, [])
+    },
+    []
+  )
 
   /**
    * Parse an Excel file from a URL

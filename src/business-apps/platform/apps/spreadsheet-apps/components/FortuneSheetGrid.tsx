@@ -530,13 +530,54 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
         symbolElement.textContent = '€'
       }
 
+      const applySortMenuIcons = () => {
+        const menuLines = document.body.querySelectorAll<HTMLElement>(
+          '.fortune-toolbar-select .fortune-toolbar-menu-line'
+        )
+        menuLines.forEach(line => {
+          const text = (line.textContent || '').toLowerCase().trim()
+          const isAscendingLine = text.startsWith('ascending')
+          const isDescendingLine = text.startsWith('descending')
+          if (!isAscendingLine && !isDescendingLine) return
+
+          const arrow = isAscendingLine ? '↓' : '↑'
+          const existingSvg = line.querySelector('svg')
+          if (existingSvg) {
+            existingSvg.remove()
+          }
+
+          let customArrow = line.querySelector<HTMLElement>('.nw-sort-arrow')
+          if (!customArrow) {
+            customArrow = document.createElement('span')
+            customArrow.className = 'nw-sort-arrow'
+            customArrow.setAttribute('aria-hidden', 'true')
+            customArrow.style.marginLeft = '8px'
+            customArrow.style.fontSize = '20px'
+            customArrow.style.lineHeight = '1'
+            customArrow.style.fontWeight = '700'
+            line.appendChild(customArrow)
+          }
+          customArrow.textContent = arrow
+        })
+      }
+
       applyEuroToToolbar()
       const observer = new MutationObserver(() => {
         applyEuroToToolbar()
       })
       observer.observe(container, { childList: true, subtree: true, characterData: true })
 
-      return () => observer.disconnect()
+      // Keep sort icon patch lightweight: only run after toolbar interactions,
+      // instead of observing the entire document continuously.
+      const handleToolbarInteraction = () => {
+        setTimeout(() => applySortMenuIcons(), 0)
+      }
+      container.addEventListener('click', handleToolbarInteraction, true)
+
+      return () => {
+        observer.disconnect()
+        container.removeEventListener('click', handleToolbarInteraction, true)
+      }
     }, [])
 
     // Handle pointer release on View Response / copy_link cells - open URL
@@ -1114,6 +1155,21 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
           return
         }
 
+        const hasFilterOrSortOp = ops.some(op => {
+          const pathSegments = Array.isArray(op.path) ? op.path.map(p => String(p).toLowerCase()) : []
+          const pathText = pathSegments.join('.')
+          return (
+            pathSegments[0] === 'filter' ||
+            pathSegments[0] === 'filter_select' ||
+            pathText.includes('sort') ||
+            (op.op === 'replace' && pathSegments[0] === 'config')
+          )
+        })
+        const hasDataAdd = ops.some(op => op.op === 'add' && op.path?.[0] === 'data')
+        const hasDataRemove = ops.some(op => op.op === 'remove' && op.path?.[0] === 'data')
+        const isLikelyDataReorderBatch = hasDataAdd && hasDataRemove && ops.length >= 6
+        const shouldSkipCellPersistenceForBatch = hasFilterOrSortOp || isLikelyDataReorderBatch
+
         const cellsToWrap: Array<{ row: number; col: number; text: string }> = []
 
         // Process each operation
@@ -1134,6 +1190,12 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
             op.path.length >= 3 &&
             op.path[0] === 'data'
           ) {
+            // Sorting/filtering can emit data add/remove operations for row reordering.
+            // Persisting those as normal cell edits can wipe/misplace values.
+            if (shouldSkipCellPersistenceForBatch) {
+              return
+            }
+
             // Ignore most deep nested property ops (e.g. ['data', r, c, 'ct', 's']).
             // Keep background-color updates even when emitted as nested paths
             // (e.g. ['data', r, c, 'v', 'bg']) so fill/highlight survives refresh.
@@ -1930,7 +1992,6 @@ export const FortuneSheetGrid = forwardRef<FortuneSheetGridHandle, FortuneSheetG
               'number-increase',
               '|',
               'freeze',
-              'sort',
               'filter',
               '|',
               'quick-formula'

@@ -16,6 +16,7 @@ export interface ExcelUploaderProps {
   onFileParsed: (parsedFile: ParsedExcelFile) => void
   onError?: (error: string) => void
   maxFileSize?: number // in MB, default 10MB
+  parseMode?: 'structured' | 'preserve-format'
   'data-testid'?: string
 }
 
@@ -35,6 +36,7 @@ export const ExcelUploader: React.FC<ExcelUploaderProps> = ({
   onFileParsed,
   onError,
   maxFileSize = 10,
+  parseMode = 'structured',
   'data-testid': testId = 'excel-uploader'
 }) => {
   const { t } = useTranslation(translations)
@@ -59,14 +61,14 @@ export const ExcelUploader: React.FC<ExcelUploaderProps> = ({
 
       setSelectedFile(file)
 
-      const result = await parseFile(file)
+      const result = await parseFile(file, { mode: parseMode })
       if (result) {
         onFileParsed(result)
       } else if (error) {
         onError?.(error)
       }
     },
-    [maxFileSize, parseFile, onFileParsed, onError, error]
+    [maxFileSize, onError, onFileParsed, parseFile, parseMode, error]
   )
 
   /**

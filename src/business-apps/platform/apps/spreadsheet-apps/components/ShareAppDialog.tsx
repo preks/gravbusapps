@@ -67,8 +67,8 @@ export interface ShareAppDialogProps {
 const PERMISSION_CONFIG: Record<SharePermission, { icon: React.ElementType; label: string; description: string }> = {
   view: {
     icon: Eye,
-    label: 'Can View',
-    description: 'Can view data but not make changes'
+    label: 'View only',
+    description: 'Read-only access (cannot edit or manage sharing)'
   },
   edit: {
     icon: Pencil,
@@ -564,7 +564,7 @@ export const ShareAppDialog: React.FC<ShareAppDialogProps> = ({
                           onValueChange={val => updateUserPermission(user.userId, val as SharePermission)}
                         >
                           <SelectTrigger
-                            className="gba:w-32 gba:h-8"
+                            className="gba:w-36 gba:h-8"
                             data-testid={`share-user-permission-select-${user.userId}`}
                           >
                             <SelectValue />

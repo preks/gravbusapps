@@ -142,6 +142,10 @@ export class CollaborationClient {
       console.error('[CollaborationClient] Error:', error)
     })
 
+    this.socket.io.on('reconnect', () => {
+      console.log('[CollaborationClient] Reconnected after disconnect, socketId:', this.socket?.id)
+    })
+
     this.socket.io.on('reconnect_failed', () => {
       console.error('[CollaborationClient] Reconnection failed after all attempts')
     })
@@ -198,15 +202,47 @@ export class CollaborationClient {
     entityId: string,
     onParticipantsReceived?: (participants: any[]) => void
   ) {
-    console.log('[CollaborationClient] Joining document:', { entityType, entityId })
-    this.socket?.emit('join_document', { entityType, entityId }, (response: any) => {
-      console.log('[CollaborationClient] Join document response:', response)
+    const joinStartedAt = Date.now()
+    const room = `${entityType}:${entityId}`
 
-      // Call callback with participants list
+    if (!this.socket?.connected) {
+      console.error('[CollaborationClient] join_document called but socket not connected', { room })
+      return
+    }
+
+    console.log('[CollaborationClient] Joining document (emit):', { entityType, entityId, socketId: this.socket?.id })
+
+    let callbackFired = false
+    this.socket.emit('join_document', { entityType, entityId }, (response: any) => {
+      callbackFired = true
+      const elapsed = Date.now() - joinStartedAt
+      console.log('[CollaborationClient] Join document response:', {
+        success: response?.success,
+        participantsCount: response?.participants?.length ?? 0,
+        elapsedMs: elapsed,
+        room
+      })
+
       if (response?.success && response?.participants) {
         onParticipantsReceived?.(response.participants)
+      } else if (response?.success === false) {
+        console.warn('[CollaborationClient] join_document failed:', response?.error ?? 'unknown')
+      } else if (!response) {
+        console.warn('[CollaborationClient] join_document callback received null/undefined response')
       }
     })
+
+    // Warn if callback doesn't fire within 5s (indicates server/network issue)
+    setTimeout(() => {
+      if (!callbackFired) {
+        console.warn(
+          '[CollaborationClient] join_document callback NOT received after 5s - possible timeout/lost response',
+          {
+            room
+          }
+        )
+      }
+    }, 5000)
   }
 
   /**
@@ -230,7 +266,7 @@ export class CollaborationClient {
       return
     }
 
-    console.log('[CollaborationClient] Sending operation:', { entityType, entityId, operation })
+    console.log('[CollaborationClient] Sending operation:', { entityType, entityId, type: operation.type })
     this.socket.emit(
       'document_operation',
       {
@@ -239,7 +275,14 @@ export class CollaborationClient {
         operation
       },
       (response: any) => {
-        console.log('[CollaborationClient] Operation response:', response)
+        if (response?.success === false) {
+          console.warn('[CollaborationClient] document_operation failed:', response?.error ?? response)
+        } else {
+          console.log('[CollaborationClient] Operation response:', {
+            success: response?.success,
+            version: response?.version
+          })
+        }
       }
     )
   }

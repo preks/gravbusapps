@@ -49,6 +49,7 @@ export interface ParsedColumn {
   sampleValues: unknown[]
   hasFormula: boolean
   formula?: string
+  width?: number
 }
 
 /**
@@ -469,6 +470,7 @@ export interface SpreadsheetAppViewerProps {
     updates: Partial<SpreadsheetSheet>
   ) => Promise<SpreadsheetSheet | null>
   onBack?: () => void
+  onShare?: () => void
   onEdit?: () => void
   isEditing?: boolean
   accessToken?: string

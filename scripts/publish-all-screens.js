@@ -9,7 +9,10 @@
 import path from 'node:path'
 import fs from 'node:fs'
 import { execSync } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
 import { getScreenDirectories } from './utils/screenDiscovery.js'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 async function findAllScreenDirectories() {
   const uniqueDirs = new Set()

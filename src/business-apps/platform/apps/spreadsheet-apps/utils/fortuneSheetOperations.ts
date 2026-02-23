@@ -7,7 +7,7 @@
 
 import type { FortuneSheetOp, ConversionContext, CellReference } from '../types/fortuneSheet'
 import type { DocumentOperation } from '../../shared/services/CollaborationClient'
-import { parseCellReferenceFromPath, buildOperationPath } from './fortuneSheetConverter'
+import { parseCellReferenceFromPath, HEADER_ROW_OFFSET } from './fortuneSheetConverter'
 
 /**
  * Convert FortuneSheet operation to our DocumentOperation format
@@ -28,6 +28,7 @@ export function convertFortuneSheetOpToDocumentOp(
       // Detect which property is being changed (e.g., 'v', 'f', 'm')
       // Path format: ['data', rowIndex, colIndex, property?]
       const property = fortuneOp.path.length >= 4 ? String(fortuneOp.path[3]) : 'v'
+      const columnName = context.columnIdToName.get(cellRef.columnId) ?? cellRef.columnId
 
       return {
         type: 'cell_change',
@@ -35,6 +36,7 @@ export function convertFortuneSheetOpToDocumentOp(
           sheetId,
           rowId: cellRef.rowId,
           columnId: cellRef.columnId,
+          column: columnName, // Row data is keyed by column name for correct persistence
           rowIndex: cellRef.rowIndex,
           columnIndex: cellRef.columnIndex,
           value: fortuneOp.value,
@@ -104,12 +106,14 @@ export function convertFortuneSheetOpToDocumentOp(
       // Generic add operation (cell addition)
       const cellRef = parseCellReferenceFromPath(fortuneOp.path, context)
       if (cellRef) {
+        const columnName = context.columnIdToName.get(cellRef.columnId) ?? cellRef.columnId
         return {
           type: 'cell_change',
           data: {
             sheetId,
             rowId: cellRef.rowId,
             columnId: cellRef.columnId,
+            column: columnName, // Row data is keyed by column name for correct persistence
             rowIndex: cellRef.rowIndex,
             columnIndex: cellRef.columnIndex,
             value: fortuneOp.value,
@@ -121,15 +125,17 @@ export function convertFortuneSheetOpToDocumentOp(
     }
 
     case 'remove': {
-      // Cell removal (set to null/empty)
+      // Cell removal (set to null/empty) - e.g. multi-cell backspace/delete
       const cellRef = parseCellReferenceFromPath(fortuneOp.path, context)
       if (cellRef) {
+        const columnName = context.columnIdToName.get(cellRef.columnId) ?? cellRef.columnId
         return {
           type: 'cell_change',
           data: {
             sheetId,
             rowId: cellRef.rowId,
             columnId: cellRef.columnId,
+            column: columnName, // Row data is keyed by column name for correct persistence
             rowIndex: cellRef.rowIndex,
             columnIndex: cellRef.columnIndex,
             value: null,
@@ -184,11 +190,11 @@ export function convertDocumentOpToFortuneSheetOp(
       const isFullCellObject = value && typeof value === 'object' && ('f' in value || ('v' in value && 'ct' in value))
 
       if (isFullCellObject) {
-        // Replace entire cell - path without property suffix
+        const fortuneSheetRow = cellRef.rowIndex + HEADER_ROW_OFFSET
         return {
           op: 'replace',
           id: sheetId,
-          path: ['data', cellRef.rowIndex, cellRef.columnIndex],
+          path: ['data', fortuneSheetRow, cellRef.columnIndex],
           value
         }
       }
@@ -197,10 +203,12 @@ export function convertDocumentOpToFortuneSheetOp(
       // Default to 'v' for backwards compatibility
       const targetProperty = property || 'v'
 
+      // Path must use FortuneSheet row index (row 0=header, 1+=data) for applyOp compatibility
+      const fortuneSheetRow = cellRef.rowIndex + HEADER_ROW_OFFSET
       return {
         op: 'replace',
         id: sheetId,
-        path: buildOperationPath(cellRef, targetProperty),
+        path: ['data', fortuneSheetRow, cellRef.columnIndex, targetProperty],
         value
       }
     }
@@ -297,10 +305,12 @@ export function batchConvertDocumentOps(
 
 /**
  * Check if operation should be debounced
- * Rapid cell edits should be debounced to avoid flooding the network
+ * Rapid cell edits should be debounced to avoid flooding the network.
+ * remove ops are NOT debounced so multi-cell delete (5x5, etc.) reliably persists all cells -
+ * FortuneSheet may emit remove ops in async batches; immediate emit avoids dropping any.
  */
 export function shouldDebounceOperation(op: FortuneSheetOp): boolean {
-  // Debounce cell changes (replace operations)
+  // Debounce cell edits (replace, add). Don't debounce remove - emit immediately.
   // Don't debounce structural changes (row/column add/delete)
   return op.op === 'replace' || op.op === 'add'
 }
@@ -337,19 +347,15 @@ export function mergeConflictingOperations(localOp: DocumentOperation, remoteOp:
 /**
  * Validate operation before applying
  */
-export function validateOperation(op: DocumentOperation, context: ConversionContext): boolean {
+export function validateOperation(op: DocumentOperation): boolean {
   const opData = op.data as any
 
   switch (op.type) {
     case 'cell_change': {
       const { rowIndex, columnIndex } = opData
-      // Check if row and column indices are within bounds
-      return (
-        rowIndex !== undefined &&
-        columnIndex !== undefined &&
-        context.rowIndexToId.has(rowIndex) &&
-        context.columnIndexToId.has(columnIndex)
-      )
+      // Accept if indices are valid numbers - don't require context to have them
+      // (context can lag when remote user adds rows/cols before we've applied structural ops)
+      return typeof rowIndex === 'number' && typeof columnIndex === 'number' && rowIndex >= 0 && columnIndex >= 0
     }
 
     case 'row_add':
