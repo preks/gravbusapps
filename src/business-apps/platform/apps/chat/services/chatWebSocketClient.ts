@@ -292,7 +292,7 @@ export class ChatWebSocketClient {
   }
 
   markConversationAsUnread(conversationId: string) {
-    if (!this.socket || !this.socket.connected) {
+    if (!this.socket?.connected) {
       return
     }
 

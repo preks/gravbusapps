@@ -9,7 +9,7 @@ import { useChatMessageHandlers, type UseChatMessageHandlersParams } from './hoo
 import { useChatPresenceSync } from './hooks/useChatPresenceSync'
 import { useChatRejoinCall } from './hooks/useChatRejoinCall'
 import { useChatViewMode } from './hooks/useChatViewMode'
-import type { Conversation } from './types'
+import type { Conversation, User } from './types'
 import type { UserPresence } from './hooks/usePresence'
 import { useRealtimeKitGroupCall } from './hooks/useRealtimeKitGroupCall'
 import { useEveryAIChat } from './hooks/useEveryAIChat'
@@ -24,7 +24,6 @@ import { CallHistory } from './components/CallHistory/CallHistory'
 import { ChatModals } from './components/ChatModals'
 import { playNudgeSound, applyShakeAnimation, injectNudgeStyles } from './utils/nudgeUtils'
 // import { initGlobalMinimizedCallRenderer } from './components/GlobalMinimizedCall'
-import type { User } from './types'
 import type { CallParticipant } from './services/webrtcClient'
 import type { GroupCallParticipant } from './services/groupWebrtcClient'
 import { TranslationProvider, useChatTranslation } from './contexts/TranslationContext'
@@ -61,9 +60,9 @@ function getMarkedAsUnreadStorageKey(userId: string): string {
 function loadMarkedAsUnreadFromStorage(userId: string): Set<string> {
   try {
     const raw =
-      typeof globalThis.localStorage !== 'undefined'
-        ? globalThis.localStorage.getItem(getMarkedAsUnreadStorageKey(userId))
-        : null
+      globalThis.localStorage === undefined
+        ? null
+        : globalThis.localStorage.getItem(getMarkedAsUnreadStorageKey(userId))
     if (!raw) return new Set()
     const arr = JSON.parse(raw) as unknown
     return Array.isArray(arr) ? new Set(arr.filter((id): id is string => typeof id === 'string')) : new Set()
@@ -74,7 +73,7 @@ function loadMarkedAsUnreadFromStorage(userId: string): Set<string> {
 
 function saveMarkedAsUnreadToStorage(userId: string, ids: Set<string>): void {
   try {
-    if (typeof globalThis.localStorage !== 'undefined') {
+    if (globalThis.localStorage !== undefined) {
       globalThis.localStorage.setItem(getMarkedAsUnreadStorageKey(userId), JSON.stringify([...ids]))
     }
   } catch {
@@ -797,15 +796,15 @@ const ChatInner: React.FC<ChatProps> = memo(
 
     // Clear "marked as unread" dot when user opens that conversation (e.g. from URL or list)
     useEffect(() => {
-      if (activeConversationId && currentUser?.id) {
-        setMarkedAsUnreadIds(prev => {
-          if (!prev.has(activeConversationId!)) return prev
-          const next = new Set(prev)
-          next.delete(activeConversationId!)
-          saveMarkedAsUnreadToStorage(currentUser.id, next)
-          return next
-        })
-      }
+      const conversationId = activeConversationId
+      if (!conversationId || !currentUser?.id) return
+      setMarkedAsUnreadIds(prev => {
+        if (!prev.has(conversationId)) return prev
+        const next = new Set(prev)
+        next.delete(conversationId)
+        saveMarkedAsUnreadToStorage(currentUser.id, next)
+        return next
+      })
     }, [activeConversationId, currentUser?.id])
 
     // Start call when active conversation was set from list context menu (audio/video)
