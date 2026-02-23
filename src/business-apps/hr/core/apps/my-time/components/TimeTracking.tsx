@@ -35,6 +35,31 @@ interface TimeTrackingProps {
 }
 
 const TimeTracking: React.FC<TimeTrackingProps> = ({ employee, employeeId, accessToken, isSelfView }) => {
+  const wh = employee?.workingHours?.[0]
+  const workingHours = React.useMemo(
+    () =>
+      wh
+        ? {
+            sundayHours: wh.sundayHours,
+            mondayHours: wh.mondayHours,
+            tuesdayHours: wh.tuesdayHours,
+            wednesdayHours: wh.wednesdayHours,
+            thursdayHours: wh.thursdayHours,
+            fridayHours: wh.fridayHours,
+            saturdayHours: wh.saturdayHours
+          }
+        : undefined,
+    [
+      wh?.sundayHours,
+      wh?.mondayHours,
+      wh?.tuesdayHours,
+      wh?.wednesdayHours,
+      wh?.thursdayHours,
+      wh?.fridayHours,
+      wh?.saturdayHours
+    ]
+  )
+
   const {
     isClockedIn,
     clockInSince,
@@ -50,7 +75,7 @@ const TimeTracking: React.FC<TimeTrackingProps> = ({ employee, employeeId, acces
     isNearHome,
     isNearOffice,
     updateLocationSelection
-  } = useTimeTrackingData({ employeeId, accessToken, workingHours: employee?.workingHours?.[0] })
+  } = useTimeTrackingData({ employeeId, accessToken, workingHours })
 
   const { t } = useTranslation(timeTrackingTranslations)
 
