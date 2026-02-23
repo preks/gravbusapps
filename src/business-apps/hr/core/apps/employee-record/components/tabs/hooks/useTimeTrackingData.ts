@@ -73,7 +73,9 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
   const [pageSize, setPageSize] = useState(10)
   const [entries, setEntries] = useState<TimeEntry[]>([])
   const [allEntries, setAllEntries] = useState<TimeEntry[]>([])
+  const [allMonthEntries, setAllMonthEntries] = useState<TimeEntry[]>([])
   const [totalCount, setTotalCount] = useState(0)
+  const [holidayDates, setHolidayDates] = useState<string[]>([])
   // monthly totals (minutes)
   const [monthlyRequiredMinutes, setMonthlyRequiredMinutes] = useState(0)
   const [monthlyRequiredUntilYesterdayMinutes, setMonthlyRequiredUntilYesterdayMinutes] = useState(0)
@@ -317,6 +319,7 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
       // ignore holiday fetch errors for now
       console.error(e)
     }
+    setHolidayDates(Array.from(holidayDateSet))
 
     // Compute monthly required totals based on working hours pattern, excluding holidays
     const computeRequiredMinutesForRange = (from: Date, to: Date) => {
@@ -351,6 +354,7 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
       dateTo: toDateString(monthEnd)
     })
     const allRows: any[] = allRes?.EmployeeAttendance ?? []
+    setAllMonthEntries(allRows.map(mapAttendanceToEntry))
     // Use today's local date as the upper bound and exclude it (strictly <)
     const todayLocal = new Date()
     const untilDay = `${todayLocal.getFullYear()}-${String(todayLocal.getMonth() + 1).padStart(2, '0')}-${String(
@@ -617,6 +621,8 @@ export const useTimeTrackingData = ({ employeeId, accessToken, workingHours }: U
     isNearOffice,
     hasTodayAttendanceRecord,
     entries,
+    allMonthEntries,
+    holidayDates,
     totalCount,
     page,
     pageSize,
