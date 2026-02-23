@@ -33,6 +33,7 @@ import { combineDateTimeToISOString } from '../utils/locationTimeUtils'
 import RejectionComment from '../components/RejectionComment'
 import { EVENTS } from '../../../utils/constants'
 import { mergeUniqueById } from '../../../utils/functionUtils'
+import { toSortedCacheKey } from '../utils/cacheKeyUtils'
 import { getLatestRejectComment, setByExternalCustomComponent, setLocalitiesDefault } from '../utils/tripScreenUtils'
 import expenseRequestWizardTranslations from '../_i18n'
 
@@ -227,9 +228,7 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
             requestRule: ExpenseRuleByPk(id: $requestRuleId) { code name }
             planRule: ExpenseRuleByPk(id: $planRuleId) { code name }
           }`
-        const ruleDetailsCacheKey = `ruleDetailsPlan:${[newRuleId, planValue.expenseRuleId]
-          .sort((a, b) => String(a).localeCompare(String(b)))
-          .join(':')}`
+        const ruleDetailsCacheKey = `ruleDetailsPlan:${toSortedCacheKey([newRuleId, planValue.expenseRuleId], ':')}`
         const ruleDetails = await getCachedOrFetch(ruleDetailsCacheKey, () =>
           graphqlClient.request(getRuleDetailsQuery, {
             requestRuleId: newRuleId,
@@ -275,9 +274,7 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
             requestRule: ExpenseRuleByPk(id: $requestRuleId) { code name }
             itemRule: ExpenseRuleByPk(id: $itemRuleId) { code name }
           }`
-        const ruleDetailsCacheKey = `ruleDetailsItem:${[newRuleId, mismatchedItem.ruleId]
-          .sort((a, b) => String(a).localeCompare(String(b)))
-          .join(':')}`
+        const ruleDetailsCacheKey = `ruleDetailsItem:${toSortedCacheKey([newRuleId, mismatchedItem.ruleId], ':')}`
         const ruleDetails = await getCachedOrFetch(ruleDetailsCacheKey, () =>
           graphqlClient.request(getRuleDetailsItemQuery, {
             requestRuleId: newRuleId,
@@ -323,9 +320,7 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
             requestRule: ExpenseRuleByPk(id: $requestRuleId) { code name }
             employeeRule: ExpenseRuleByPk(id: $employeeRuleId) { code name }
           }`
-        const ruleDetailsCacheKey = `ruleDetailsRequestVsEmployee:${[requestStoredRuleId, newRuleId]
-          .sort((a, b) => String(a).localeCompare(String(b)))
-          .join(':')}`
+        const ruleDetailsCacheKey = `ruleDetailsRequestVsEmployee:${toSortedCacheKey([requestStoredRuleId, newRuleId], ':')}`
         const ruleDetails = await getCachedOrFetch(ruleDetailsCacheKey, () =>
           graphqlClient.request(getRuleDetailsQuery, {
             requestRuleId: requestStoredRuleId,

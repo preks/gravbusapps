@@ -19,6 +19,7 @@ import {
   DEFAULT_ITEM_LIST_LIMIT
 } from '../constants/constants'
 import { getAllowanceItemsFunction } from '../utils/itemsScreenUtils'
+import { toSortedCacheKey } from '../utils/cacheKeyUtils'
 import { createAllowanceScreenLogObject } from '../utils/allowanceScreenUtils'
 import { EVENTS } from '../../../utils/constants'
 import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProcessEventState'
@@ -344,10 +345,7 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = props => {
     }
 
     try {
-      const normalized = [...structureIds]
-        .filter(Boolean)
-        .sort((a, b) => String(a).localeCompare(String(b)))
-        .join(',')
+      const normalized = toSortedCacheKey(structureIds, ',')
       const projectsCacheKey = `userProjects:${normalized}`
       const projectsResponse = await getCachedOrFetch(projectsCacheKey, () =>
         graphQLClient.request(getUserProjects, {

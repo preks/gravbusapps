@@ -14,6 +14,7 @@ import {
   getExpenseRulePkData,
   getExpenseRulesDataQuery
 } from '../ExpenseRequestWizardQueries'
+import { toSortedCacheKey } from '../utils/cacheKeyUtils'
 import { handleTripSubmitAction } from '../utils/tripScreenUtils'
 import { LocationData } from '../utils/types'
 import { getCurrencyWithFallback } from '../utils/currencyUtils'
@@ -233,10 +234,7 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
 
   const getUserProjectsCached = useCallback(
     async (structureIdArray: string[]) => {
-      const normalized = [...(structureIdArray || [])]
-        .filter(Boolean)
-        .sort((a, b) => String(a).localeCompare(String(b)))
-        .join(',')
+      const normalized = toSortedCacheKey(structureIdArray || [], ',')
       const cacheKey = `userProjects:${normalized}`
       return await getCachedOrFetch(cacheKey, () =>
         graphqlClient.request(getUserProjects, {
