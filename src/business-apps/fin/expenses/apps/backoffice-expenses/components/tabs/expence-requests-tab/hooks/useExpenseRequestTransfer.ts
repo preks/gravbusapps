@@ -27,24 +27,6 @@ export const useExpenseRequestTransfer = (
         return
       }
       if (transferInProgressIdsRef.current.has(requestId) || isBulkTransferInProgressRef.current) {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            runId: 'post-fix',
-            hypothesisId: 'H16',
-            location: 'useExpenseRequestTransfer.ts:handleTransferPayment:guard',
-            message: 'Single transfer blocked because transfer is already running',
-            data: {
-              requestId,
-              alreadyInProgress: transferInProgressIdsRef.current.has(requestId),
-              bulkInProgress: isBulkTransferInProgressRef.current
-            },
-            timestamp: Date.now()
-          })
-        }).catch(() => {})
-        // #endregion
         return
       }
       transferInProgressIdsRef.current.add(requestId)
@@ -53,20 +35,6 @@ export const useExpenseRequestTransfer = (
         next.add(requestId)
         return next
       })
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          runId: 'post-fix',
-          hypothesisId: 'H16',
-          location: 'useExpenseRequestTransfer.ts:handleTransferPayment:start',
-          message: 'Single transfer started',
-          data: { requestId },
-          timestamp: Date.now()
-        })
-      }).catch(() => {})
-      // #endregion
       try {
         const expenseRequests = [
           {
@@ -113,20 +81,6 @@ export const useExpenseRequestTransfer = (
           next.delete(requestId)
           return next
         })
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            runId: 'post-fix',
-            hypothesisId: 'H16',
-            location: 'useExpenseRequestTransfer.ts:handleTransferPayment:finish',
-            message: 'Single transfer finished',
-            data: { requestId },
-            timestamp: Date.now()
-          })
-        }).catch(() => {})
-        // #endregion
       }
     },
     [flowClient, refetchData, clearSelection]
@@ -136,23 +90,9 @@ export const useExpenseRequestTransfer = (
     async (records: ExpenseData[]) => {
       const startedAt = Date.now()
       if (isBulkTransferInProgressRef.current) {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            runId: 'post-fix',
-            hypothesisId: 'H17',
-            location: 'useExpenseRequestTransfer.ts:handleBulkTransferPayment:guard',
-            message: 'Bulk transfer blocked because another bulk transfer is running',
-            data: { recordsCount: Array.isArray(records) ? records.length : 0 },
-            timestamp: Date.now()
-          })
-        }).catch(() => {})
-        // #endregion
         return
       }
-      const requestIds = records.map(record => record.id).filter(Boolean) as string[]
+      const requestIds = records.map(record => record.id).filter((id): id is string => Boolean(id))
       if (requestIds.length === 0) {
         return
       }
@@ -164,20 +104,6 @@ export const useExpenseRequestTransfer = (
         requestIds.forEach(id => next.add(id))
         return next
       })
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          runId: 'post-fix',
-          hypothesisId: 'H17',
-          location: 'useExpenseRequestTransfer.ts:handleBulkTransferPayment:start',
-          message: 'Bulk transfer started',
-          data: { recordsCount: records.length, requestIdsCount: requestIds.length },
-          timestamp: Date.now()
-        })
-      }).catch(() => {})
-      // #endregion
       try {
         const expenseRequests = records.map(record => ({
           id: record.id || '',
@@ -225,23 +151,9 @@ export const useExpenseRequestTransfer = (
           requestIds.forEach(id => next.delete(id))
           return next
         })
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/ed611493-841a-49f3-bdb3-51459a47d6c7', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            runId: 'post-fix',
-            hypothesisId: 'H17',
-            location: 'useExpenseRequestTransfer.ts:handleBulkTransferPayment:finish',
-            message: 'Bulk transfer finished',
-            data: { requestIdsCount: requestIds.length },
-            timestamp: Date.now()
-          })
-        }).catch(() => {})
-        // #endregion
       }
     },
-    [flowClient, refetchData, clearSelection, isBulkTransferInProgress]
+    [flowClient, refetchData, clearSelection]
   )
 
   const isTransferInProgress = useCallback(
