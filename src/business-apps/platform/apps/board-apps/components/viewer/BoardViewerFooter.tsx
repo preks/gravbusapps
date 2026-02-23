@@ -13,6 +13,8 @@ export interface BoardViewerFooterProps {
   onPrevPage: () => void
   onNextPage: () => void
   onAddRow?: () => void
+  hidePagination?: boolean
+  loadedRows?: number
   testId: string
 }
 
@@ -26,6 +28,8 @@ export const BoardViewerFooter: React.FC<BoardViewerFooterProps> = ({
   onPrevPage,
   onNextPage,
   onAddRow,
+  hidePagination,
+  loadedRows,
   testId
 }) => {
   return (
@@ -49,11 +53,12 @@ export const BoardViewerFooter: React.FC<BoardViewerFooterProps> = ({
 
       <div className="gba:flex gba:items-center gba:gap-2">
         <span className="gba:text-xs gba:text-muted-foreground">
-          {rowsTotal} {rowsTotal === 1 ? 'row' : 'rows'}
-          {totalPages > 1 && ` | Page ${page} of ${totalPages}`}
+          {hidePagination && loadedRows != null
+            ? `${loadedRows} of ${rowsTotal} ${rowsTotal === 1 ? 'row' : 'rows'}`
+            : `${rowsTotal} ${rowsTotal === 1 ? 'row' : 'rows'}${totalPages > 1 ? ` | Page ${page} of ${totalPages}` : ''}`}
         </span>
 
-        {totalPages > 1 && (
+        {!hidePagination && totalPages > 1 && (
           <div className="gba:flex gba:gap-0.5">
             <Button
               variant="ghost"

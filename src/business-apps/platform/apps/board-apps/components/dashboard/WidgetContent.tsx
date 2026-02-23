@@ -1,18 +1,38 @@
 /**
- * WidgetContent - routes DashboardWidget to the correct renderer (KPI, Chart, Table).
+ * WidgetContent - routes DashboardWidget to the correct renderer.
+ * Supports legacy (kpi/chart/table) and v2 (multi_chart/timeseries/scatter/histogram) types.
  */
 
-import React, { useMemo } from 'react'
+import React, { useMemo, lazy, Suspense } from 'react'
 import type {
   BoardRow,
   BoardColumn,
   KpiWidgetConfig,
   ChartWidgetConfig,
   TableWidgetConfig,
+  MultiSeriesChartWidgetConfig,
+  TimeSeriesWidgetConfig,
+  ScatterWidgetConfig,
+  HistogramWidgetConfig,
   DashboardWidget
 } from '../../types'
 import { ChartWidget } from './ChartWidget'
 import { TableWidget } from './TableWidget'
+import { normalizeWidgetType } from '../../services/analyticsAggregators'
+import { applyWidgetFilters } from './widgetFieldHelpers'
+
+const MultiSeriesChartWidget = lazy(() =>
+  import('./MultiSeriesChartWidget').then(m => ({ default: m.MultiSeriesChartWidget }))
+)
+const TimeSeriesWidget = lazy(() => import('./TimeSeriesWidget').then(m => ({ default: m.TimeSeriesWidget })))
+const ScatterWidget = lazy(() => import('./ScatterWidget').then(m => ({ default: m.ScatterWidget })))
+const HistogramWidget = lazy(() => import('./HistogramWidget').then(m => ({ default: m.HistogramWidget })))
+
+const LazyFallback = () => (
+  <div className="gba:flex gba:items-center gba:justify-center gba:h-full gba:text-xs gba:text-muted-foreground">
+    Loading...
+  </div>
+)
 
 export interface WidgetContentProps {
   widget: DashboardWidget
@@ -21,19 +41,28 @@ export interface WidgetContentProps {
   testId: string
 }
 
+const CHART_SUBTYPES = new Set(['bar', 'line', 'pie', 'donut', 'area'])
+
 export const WidgetContent: React.FC<WidgetContentProps> = ({ widget, columns, rows, testId }) => {
-  const widgetType = widget.config.type || widget.type
+  const filteredRows = useMemo(() => applyWidgetFilters(rows, widget.filters), [rows, widget.filters])
+
+  const rawType = String(widget.config.type || widget.type || '')
+  const widgetType = normalizeWidgetType(rawType)
 
   if (widgetType === 'kpi') {
-    return <KpiContent config={{ ...widget.config, type: 'kpi' } as KpiWidgetConfig} columns={columns} rows={rows} />
+    return (
+      <KpiContent config={{ ...widget.config, type: 'kpi' } as KpiWidgetConfig} columns={columns} rows={filteredRows} />
+    )
   }
 
   if (widgetType === 'chart') {
+    const rawLower = rawType.toLowerCase().replace(/[-_\s]chart$/, '')
+    const chartType = (widget.config as any).chartType || (CHART_SUBTYPES.has(rawLower) ? rawLower : 'bar')
     return (
       <ChartWidget
-        config={{ ...widget.config, type: 'chart' } as ChartWidgetConfig}
+        config={{ ...widget.config, type: 'chart', chartType } as ChartWidgetConfig}
         columns={columns}
-        rows={rows}
+        rows={filteredRows}
         testId={testId}
       />
     )
@@ -44,13 +73,81 @@ export const WidgetContent: React.FC<WidgetContentProps> = ({ widget, columns, r
       <TableWidget
         config={{ ...widget.config, type: 'table' } as TableWidgetConfig}
         columns={columns}
-        rows={rows}
+        rows={filteredRows}
         testId={testId}
       />
     )
   }
 
-  return <p className="gba:text-xs gba:text-muted-foreground">Unknown widget type</p>
+  if (widgetType === 'multi_chart') {
+    return (
+      <Suspense fallback={<LazyFallback />}>
+        <MultiSeriesChartWidget
+          config={widget.config as MultiSeriesChartWidgetConfig}
+          columns={columns}
+          rows={filteredRows}
+          testId={testId}
+        />
+      </Suspense>
+    )
+  }
+
+  if (widgetType === 'timeseries') {
+    return (
+      <Suspense fallback={<LazyFallback />}>
+        <TimeSeriesWidget
+          config={widget.config as TimeSeriesWidgetConfig}
+          columns={columns}
+          rows={filteredRows}
+          testId={testId}
+        />
+      </Suspense>
+    )
+  }
+
+  if (widgetType === 'scatter') {
+    return (
+      <Suspense fallback={<LazyFallback />}>
+        <ScatterWidget
+          config={widget.config as ScatterWidgetConfig}
+          columns={columns}
+          rows={filteredRows}
+          testId={testId}
+        />
+      </Suspense>
+    )
+  }
+
+  if (widgetType === 'histogram') {
+    return (
+      <Suspense fallback={<LazyFallback />}>
+        <HistogramWidget
+          config={widget.config as HistogramWidgetConfig}
+          columns={columns}
+          rows={filteredRows}
+          testId={testId}
+        />
+      </Suspense>
+    )
+  }
+
+  console.warn(
+    `[WidgetContent] Unrecognised widget type "${rawType}" (normalised: "${widgetType}"). Attempting chart fallback.`
+  )
+
+  const cfg = widget.config as any
+  if (cfg.xAxis || cfg.yAxis || cfg.column) {
+    return (
+      <ChartWidget
+        config={{ ...cfg, type: 'chart', chartType: cfg.chartType || 'bar' } as ChartWidgetConfig}
+        columns={columns}
+        rows={filteredRows}
+        testId={testId}
+      />
+    )
+  }
+
+  return <p className="gba:text-xs gba:text-muted-foreground">Unsupported widget type: {widgetType}</p>
 }
 
 interface KpiContentProps {

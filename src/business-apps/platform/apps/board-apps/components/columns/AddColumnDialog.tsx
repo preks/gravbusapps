@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Button,
   Dialog,
@@ -15,6 +15,10 @@ import {
   SelectItem
 } from '@newwork/nw-design-system'
 import type { BoardColumn, BoardColumnType } from '../../types'
+import { ALL_CREATABLE_TYPES } from './columnTypeDefs'
+import { ColumnTypeIcon } from '../table/ColumnTypeIcon'
+import { BoardApiService } from '../../services/BoardApiService'
+import { RelationFields, MirrorFields, RollupFields } from './AddColumnConfigFields'
 
 export interface AddColumnDialogProps {
   open: boolean
@@ -22,8 +26,15 @@ export interface AddColumnDialogProps {
   existingColumns: BoardColumn[]
   currentBoardId: string
   currentSheetId: string
+  preSelectedType?: BoardColumnType
   onCreate: (column: BoardColumn) => Promise<void>
   'data-testid'?: string
+}
+
+interface BoardInfo {
+  id: string
+  name: string
+  sheets: Array<{ id: string; name: string; columns: Array<{ id: string; name: string; label: string }> }>
 }
 
 function createId(): string {
@@ -42,8 +53,7 @@ function toSafeName(label: string): string {
     .replace(/\s+/g, '_')
     .replace(/_+/g, '_')
     .replace(/^_+|_+$/g, '')
-  const startsOk = /^[a-z_]/.test(cleaned)
-  return startsOk ? cleaned : `col_${cleaned || 'field'}`
+  return /^[a-z_]/.test(cleaned) ? cleaned : `col_${cleaned || 'field'}`
 }
 
 function ensureUnique(base: string, used: Set<string>): string {
@@ -61,64 +71,124 @@ export const AddColumnDialog: React.FC<AddColumnDialogProps> = ({
   existingColumns,
   currentBoardId,
   currentSheetId,
+  preSelectedType,
   onCreate,
   'data-testid': testId = 'add-column-dialog'
 }) => {
   const [label, setLabel] = useState('')
-  const [type, setType] = useState<BoardColumnType>('text')
-  const [mirrorRelationColumnId, setMirrorRelationColumnId] = useState('')
-  const [mirrorTargetColumnId, setMirrorTargetColumnId] = useState('')
-  const [rollupRelationColumnId, setRollupRelationColumnId] = useState('')
-  const [rollupTargetColumnId, setRollupTargetColumnId] = useState('')
+  const [type, setType] = useState<BoardColumnType>(preSelectedType || 'text')
+
+  const [relBoardId, setRelBoardId] = useState(currentBoardId)
+  const [relSheetId, setRelSheetId] = useState(currentSheetId)
+  const [relDisplayCol, setRelDisplayCol] = useState('')
+  const [relCardinality, setRelCardinality] = useState<'one-to-one' | 'one-to-many' | 'many-to-many'>('many-to-many')
+
+  const [mirrorRelColId, setMirrorRelColId] = useState('')
+  const [mirrorTargetColId, setMirrorTargetColId] = useState('')
+
+  const [rollupRelColId, setRollupRelColId] = useState('')
+  const [rollupTargetColId, setRollupTargetColId] = useState('')
   const [rollupAgg, setRollupAgg] = useState<'count' | 'sum' | 'avg' | 'min' | 'max'>('count')
 
+  const [boards, setBoards] = useState<BoardInfo[]>([])
+  const [loadingBoards, setLoadingBoards] = useState(false)
+
   const usedNames = useMemo(() => new Set(existingColumns.map(c => c.name)), [existingColumns])
-
-  const suggestedName = useMemo(() => {
-    const base = toSafeName(label || 'field')
-    return ensureUnique(base, usedNames)
-  }, [label, usedNames])
-
+  const suggestedName = useMemo(() => ensureUnique(toSafeName(label || 'field'), usedNames), [label, usedNames])
   const relationColumns = useMemo(() => existingColumns.filter(c => c.type === 'relation'), [existingColumns])
-  const nonComputedColumns = useMemo(
-    () => existingColumns.filter(c => c.type !== 'mirror' && c.type !== 'rollup'),
-    [existingColumns]
-  )
+
+  useEffect(() => {
+    if (open && preSelectedType) setType(preSelectedType)
+  }, [open, preSelectedType])
+
+  useEffect(() => {
+    if (!open) return
+    if (type !== 'relation' && type !== 'mirror' && type !== 'rollup') return
+    if (boards.length > 0) return
+    let cancelled = false
+    setLoadingBoards(true)
+    void (async () => {
+      try {
+        const boardList = await BoardApiService.listBoards({ limit: 50 })
+        if (cancelled || !boardList?.length) return
+        const loaded: BoardInfo[] = []
+        for (const b of boardList) {
+          try {
+            const full = await BoardApiService.getBoard(b.id)
+            if (full)
+              loaded.push({
+                id: full.id,
+                name: full.name,
+                sheets: (full.sheets || []).map(s => ({
+                  id: s.id,
+                  name: s.name,
+                  columns: (s.columns || []).map(c => ({ id: c.id, name: c.name, label: c.label }))
+                }))
+              })
+          } catch {
+            /* skip */
+          }
+        }
+        if (!cancelled) setBoards(loaded)
+      } catch {
+        /* ignore */
+      } finally {
+        if (!cancelled) setLoadingBoards(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [open, type, boards.length])
+
+  const targetSheets = boards.find(b => b.id === relBoardId)?.sheets || []
+  const targetColumns = targetSheets.find(s => s.id === relSheetId)?.columns || []
+
+  const mirrorRelCol = existingColumns.find(c => c.id === mirrorRelColId)
+  const mirrorTargetCols = useMemo(() => {
+    if (!mirrorRelCol?.relationConfig) return []
+    const b = boards.find(x => x.id === mirrorRelCol.relationConfig!.targetAppId)
+    return b?.sheets.find(s => s.id === mirrorRelCol.relationConfig!.targetSheetId)?.columns || []
+  }, [mirrorRelCol, boards])
+
+  const rollupRelCol = existingColumns.find(c => c.id === rollupRelColId)
+  const rollupTargetCols = useMemo(() => {
+    if (!rollupRelCol?.relationConfig) return []
+    const b = boards.find(x => x.id === rollupRelCol.relationConfig!.targetAppId)
+    return b?.sheets.find(s => s.id === rollupRelCol.relationConfig!.targetSheetId)?.columns || []
+  }, [rollupRelCol, boards])
 
   const canCreate = useMemo(() => {
     if (!label.trim()) return false
-    if (type === 'mirror') return Boolean(mirrorRelationColumnId && mirrorTargetColumnId)
-    if (type === 'rollup') return Boolean(rollupRelationColumnId && rollupTargetColumnId && rollupAgg)
+    if (type === 'relation') return Boolean(relBoardId && relSheetId)
+    if (type === 'mirror') return Boolean(mirrorRelColId && mirrorTargetColId)
+    if (type === 'rollup') return Boolean(rollupRelColId && rollupTargetColId && rollupAgg)
     return true
   }, [
     label,
     type,
-    mirrorRelationColumnId,
-    mirrorTargetColumnId,
-    rollupRelationColumnId,
-    rollupTargetColumnId,
+    relBoardId,
+    relSheetId,
+    mirrorRelColId,
+    mirrorTargetColId,
+    rollupRelColId,
+    rollupTargetColId,
     rollupAgg
   ])
 
-  const handleTypeChange = useCallback(
-    (next: BoardColumnType) => {
-      setType(next)
-      if (next === 'mirror') {
-        setMirrorRelationColumnId(prev => prev || relationColumns[0]?.id || '')
-        setMirrorTargetColumnId(
-          prev => prev || nonComputedColumns.find(c => c.type !== 'relation')?.id || nonComputedColumns[0]?.id || ''
-        )
-      }
-      if (next === 'rollup') {
-        setRollupRelationColumnId(prev => prev || relationColumns[0]?.id || '')
-        setRollupTargetColumnId(
-          prev => prev || nonComputedColumns.find(c => c.type !== 'relation')?.id || nonComputedColumns[0]?.id || ''
-        )
-        setRollupAgg(prev => prev || 'count')
-      }
-    },
-    [relationColumns, nonComputedColumns]
-  )
+  const resetState = useCallback(() => {
+    setLabel('')
+    setType('text')
+    setRelBoardId(currentBoardId)
+    setRelSheetId(currentSheetId)
+    setRelDisplayCol('')
+    setRelCardinality('many-to-many')
+    setMirrorRelColId('')
+    setMirrorTargetColId('')
+    setRollupRelColId('')
+    setRollupTargetColId('')
+    setRollupAgg('count')
+  }, [currentBoardId, currentSheetId])
 
   const handleCreate = useCallback(async () => {
     if (!canCreate) return
@@ -137,26 +207,21 @@ export const AddColumnDialog: React.FC<AddColumnDialogProps> = ({
       ...(type === 'relation'
         ? {
             relationConfig: {
-              targetAppId: currentBoardId,
-              targetSheetId: currentSheetId,
-              cardinality: 'many-to-many' as const,
-              displayColumn: 'name'
+              targetAppId: relBoardId,
+              targetSheetId: relSheetId,
+              cardinality: relCardinality,
+              displayColumn: relDisplayCol || undefined
             }
           }
         : null),
       ...(type === 'mirror'
-        ? {
-            mirrorConfig: {
-              relationColumnId: mirrorRelationColumnId,
-              targetColumnId: mirrorTargetColumnId
-            }
-          }
+        ? { mirrorConfig: { relationColumnId: mirrorRelColId, targetColumnId: mirrorTargetColId } }
         : null),
       ...(type === 'rollup'
         ? {
             rollupConfig: {
-              relationColumnId: rollupRelationColumnId,
-              targetColumnId: rollupTargetColumnId,
+              relationColumnId: rollupRelColId,
+              targetColumnId: rollupTargetColId,
               aggregation: rollupAgg
             }
           }
@@ -170,21 +235,11 @@ export const AddColumnDialog: React.FC<AddColumnDialogProps> = ({
             ]
           }
         : null),
-      ...(type === 'select' || type === 'multiselect'
-        ? {
-            selectOptions: []
-          }
-        : null)
+      ...(type === 'select' || type === 'multiselect' ? { selectOptions: [] } : null)
     }
 
     await onCreate(column)
-    setLabel('')
-    setType('text')
-    setMirrorRelationColumnId('')
-    setMirrorTargetColumnId('')
-    setRollupRelationColumnId('')
-    setRollupTargetColumnId('')
-    setRollupAgg('count')
+    resetState()
     onOpenChange(false)
   }, [
     canCreate,
@@ -192,25 +247,35 @@ export const AddColumnDialog: React.FC<AddColumnDialogProps> = ({
     label,
     suggestedName,
     type,
-    currentBoardId,
-    currentSheetId,
-    mirrorRelationColumnId,
-    mirrorTargetColumnId,
-    rollupRelationColumnId,
-    rollupTargetColumnId,
+    relBoardId,
+    relSheetId,
+    relCardinality,
+    relDisplayCol,
+    mirrorRelColId,
+    mirrorTargetColId,
+    rollupRelColId,
+    rollupTargetColId,
     rollupAgg,
     onCreate,
-    onOpenChange
+    onOpenChange,
+    resetState
   ])
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={v => {
+        if (!v) {
+          resetState()
+          onOpenChange(false)
+        }
+      }}
+    >
       <DialogContent className="gba:max-w-sm" data-testid={testId}>
         <DialogHeader>
           <DialogTitle>Add column</DialogTitle>
         </DialogHeader>
-
-        <div className="gba:space-y-3">
+        <div className="gba:space-y-3 gba:max-h-96 gba:overflow-y-auto gba:pr-1">
           <div>
             <Label className="gba:text-xs" htmlFor={`${testId}-label`}>
               Label
@@ -224,131 +289,90 @@ export const AddColumnDialog: React.FC<AddColumnDialogProps> = ({
               autoFocus
               data-testid={`${testId}-input-label`}
             />
-            <div className="gba:mt-1 gba:text-[10px] gba:text-muted-foreground" data-testid={`${testId}-name-preview`}>
+            <div className="gba:mt-1 gba:text-[10px] gba:text-muted-foreground">
               Key: <span className="gba:font-mono">{suggestedName}</span>
             </div>
           </div>
-
           <div>
             <Label className="gba:text-xs">Type</Label>
-            <Select value={type} onValueChange={v => handleTypeChange(v as BoardColumnType)}>
+            <Select value={type} onValueChange={v => setType(v as BoardColumnType)}>
               <SelectTrigger className="gba:h-8 gba:text-xs" data-testid={`${testId}-type`}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="text">Text</SelectItem>
-                <SelectItem value="number">Number</SelectItem>
-                <SelectItem value="date">Date</SelectItem>
-                <SelectItem value="datetime">Date & time</SelectItem>
-                <SelectItem value="status">Status</SelectItem>
-                <SelectItem value="select">Select</SelectItem>
-                <SelectItem value="multiselect">Multi-select</SelectItem>
-                <SelectItem value="boolean">Checkbox</SelectItem>
-                <SelectItem value="people">People</SelectItem>
-                <SelectItem value="relation">Relation</SelectItem>
-                <SelectItem value="mirror">Mirror</SelectItem>
-                <SelectItem value="rollup">Rollup</SelectItem>
-                <SelectItem value="url">URL</SelectItem>
-                <SelectItem value="email">Email</SelectItem>
-                <SelectItem value="phone">Phone</SelectItem>
+                {ALL_CREATABLE_TYPES.map(t => (
+                  <SelectItem key={t.type} value={t.type}>
+                    <span className="gba:flex gba:items-center gba:gap-1.5">
+                      <ColumnTypeIcon type={t.type} />
+                      {t.label}
+                    </span>
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
 
-          {type === 'mirror' && (
-            <div className="gba:space-y-2">
-              <div>
-                <Label className="gba:text-xs">Relation column</Label>
-                <Select value={mirrorRelationColumnId} onValueChange={setMirrorRelationColumnId}>
-                  <SelectTrigger className="gba:h-8 gba:text-xs" data-testid={`${testId}-mirror-relation`}>
-                    <SelectValue
-                      placeholder={relationColumns.length ? 'Pick relation' : 'Add a relation column first'}
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {relationColumns.map(c => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label className="gba:text-xs">Target column</Label>
-                <Select value={mirrorTargetColumnId} onValueChange={setMirrorTargetColumnId}>
-                  <SelectTrigger className="gba:h-8 gba:text-xs" data-testid={`${testId}-mirror-target`}>
-                    <SelectValue placeholder="Pick column" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {nonComputedColumns.map(c => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+          {type === 'relation' && (
+            <RelationFields
+              boards={boards}
+              loading={loadingBoards}
+              boardId={relBoardId}
+              sheetId={relSheetId}
+              displayCol={relDisplayCol}
+              cardinality={relCardinality}
+              targetSheets={targetSheets}
+              targetColumns={targetColumns}
+              onBoardChange={v => {
+                setRelBoardId(v)
+                setRelSheetId('')
+                setRelDisplayCol('')
+              }}
+              onSheetChange={v => {
+                setRelSheetId(v)
+                setRelDisplayCol('')
+              }}
+              onDisplayColChange={setRelDisplayCol}
+              onCardinalityChange={v => setRelCardinality(v as any)}
+              testId={testId}
+            />
           )}
-
+          {type === 'mirror' && (
+            <MirrorFields
+              relationColumns={relationColumns}
+              mirrorRelColId={mirrorRelColId}
+              mirrorTargetColId={mirrorTargetColId}
+              mirrorTargetCols={mirrorTargetCols}
+              loading={loadingBoards}
+              onRelChange={setMirrorRelColId}
+              onTargetChange={setMirrorTargetColId}
+              testId={testId}
+            />
+          )}
           {type === 'rollup' && (
-            <div className="gba:space-y-2">
-              <div className="gba:grid gba:grid-cols-2 gba:gap-2">
-                <div>
-                  <Label className="gba:text-xs">Aggregation</Label>
-                  <Select value={rollupAgg} onValueChange={v => setRollupAgg(v as any)}>
-                    <SelectTrigger className="gba:h-8 gba:text-xs" data-testid={`${testId}-rollup-agg`}>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="count">Count</SelectItem>
-                      <SelectItem value="sum">Sum</SelectItem>
-                      <SelectItem value="avg">Average</SelectItem>
-                      <SelectItem value="min">Min</SelectItem>
-                      <SelectItem value="max">Max</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label className="gba:text-xs">Target column</Label>
-                  <Select value={rollupTargetColumnId} onValueChange={setRollupTargetColumnId}>
-                    <SelectTrigger className="gba:h-8 gba:text-xs" data-testid={`${testId}-rollup-target`}>
-                      <SelectValue placeholder="Pick column" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {nonComputedColumns.map(c => (
-                        <SelectItem key={c.id} value={c.id}>
-                          {c.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div>
-                <Label className="gba:text-xs">Relation column</Label>
-                <Select value={rollupRelationColumnId} onValueChange={setRollupRelationColumnId}>
-                  <SelectTrigger className="gba:h-8 gba:text-xs" data-testid={`${testId}-rollup-relation`}>
-                    <SelectValue
-                      placeholder={relationColumns.length ? 'Pick relation' : 'Add a relation column first'}
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {relationColumns.map(c => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+            <RollupFields
+              relationColumns={relationColumns}
+              rollupRelColId={rollupRelColId}
+              rollupTargetColId={rollupTargetColId}
+              rollupAgg={rollupAgg}
+              rollupTargetCols={rollupTargetCols}
+              loading={loadingBoards}
+              onRelChange={setRollupRelColId}
+              onTargetChange={setRollupTargetColId}
+              onAggChange={v => setRollupAgg(v as any)}
+              testId={testId}
+            />
           )}
         </div>
-
         <DialogFooter>
-          <Button variant="outline" size="sm" onClick={() => onOpenChange(false)} data-testid={`${testId}-cancel`}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              resetState()
+              onOpenChange(false)
+            }}
+            data-testid={`${testId}-cancel`}
+          >
             Cancel
           </Button>
           <Button size="sm" onClick={handleCreate} disabled={!canCreate} data-testid={`${testId}-create`}>

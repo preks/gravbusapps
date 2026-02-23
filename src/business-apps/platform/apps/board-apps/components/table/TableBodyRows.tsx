@@ -13,6 +13,8 @@ import { CellEditor } from './CellEditor'
 import { CellContextMenu } from './CellContextMenu'
 
 export interface TableBodyRowsProps {
+  boardId: string
+  sheetId: string
   displayRows: BoardRow[]
   totalRows: number
   columns: BoardColumn[]
@@ -22,7 +24,12 @@ export interface TableBodyRowsProps {
   editInitialKey?: string
   onCellClick: (rowIndex: number, colIndex: number) => void
   onStartEdit: (rowId: string, colName: string, currentValue: unknown, initial?: string) => void
-  onUpdateCell?: (rowId: string, columnName: string, value: unknown) => Promise<void>
+  onUpdateCell?: (
+    rowId: string,
+    columnName: string,
+    value: unknown,
+    extraData?: Record<string, unknown>
+  ) => Promise<void>
   onDeleteRow?: (rowId: string) => void
   onRowClick?: (row: BoardRow) => void
   onSaveEdit: (rowId: string, colName: string, newValue: unknown) => void
@@ -33,6 +40,8 @@ export interface TableBodyRowsProps {
 }
 
 export const TableBodyRows: React.FC<TableBodyRowsProps> = ({
+  boardId,
+  sheetId,
   displayRows,
   totalRows,
   columns,
@@ -91,9 +100,9 @@ export const TableBodyRows: React.FC<TableBodyRowsProps> = ({
                             ? ((row.data[col.name] as unknown[]).filter(x => typeof x === 'string') as string[])
                             : []
                         }
-                        onChange={async ids => {
+                        onChange={async (ids, labels) => {
                           try {
-                            await onUpdateCell(row.id, col.name, ids)
+                            await onUpdateCell(row.id, col.name, ids, { [`_rel_${col.name}`]: labels })
                           } catch {
                             toast.error('Failed to save')
                           }
@@ -106,6 +115,8 @@ export const TableBodyRows: React.FC<TableBodyRowsProps> = ({
                         column={col}
                         value={row.data[col.name]}
                         initialKey={editInitialKey}
+                        boardId={boardId}
+                        sheetId={sheetId}
                         onSave={async newValue => {
                           onSaveEdit(row.id, col.name, newValue)
                         }}
@@ -119,6 +130,7 @@ export const TableBodyRows: React.FC<TableBodyRowsProps> = ({
                         <CellRenderer
                           value={row.data[col.name]}
                           type={col.type}
+                          columnName={col.name}
                           options={col.selectOptions}
                           isPrimary={!!col.isPrimary}
                           rowData={row.data}

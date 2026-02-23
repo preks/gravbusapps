@@ -106,7 +106,7 @@ function buildViews(
 
   const valid = views
     .filter(v => {
-      const t = (v.type as string) || ''
+      const t = ((v.type as string) || '').toLowerCase()
       if (!SUPPORTED_VIEW_TYPES.has(t)) return false
       if (typeof v.name !== 'string' || !v.name.trim()) return false
       if (t === 'kanban' && !hasStatusCol) return false
@@ -115,7 +115,7 @@ function buildViews(
       return true
     })
     .map((v, vi) => {
-      const t = v.type as string
+      const t = ((v.type as string) || '').toLowerCase()
       let config = (v.config || { type: t }) as Record<string, unknown>
 
       if (t === 'kanban' && firstStatusCol) {

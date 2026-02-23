@@ -5,6 +5,7 @@ import { ExternalLink, Mail, Phone, Star, Link2, FileText, Copy, Calculator } fr
 export interface CellRendererProps {
   value: unknown
   type: string
+  columnName?: string
   options?: Array<{ value: string; label: string; colorToken?: string }>
   isPrimary?: boolean
   rowData?: Record<string, unknown>
@@ -28,7 +29,7 @@ function getInitials(name: string): string {
     .join('')
 }
 
-export const CellRenderer: React.FC<CellRendererProps> = ({ value, type, options, isPrimary, rowData }) => {
+export const CellRenderer: React.FC<CellRendererProps> = ({ value, type, columnName, options, isPrimary, rowData }) => {
   if (value === null || value === undefined || value === '') {
     return <span className="gba:text-muted-foreground/30">--</span>
   }
@@ -227,20 +228,41 @@ export const CellRenderer: React.FC<CellRendererProps> = ({ value, type, options
       )
     }
 
-    case 'relation':
-      if (Array.isArray(value)) {
+    case 'relation': {
+      const relIds = Array.isArray(value) ? value : typeof value === 'string' && value ? [value] : []
+      if (relIds.length === 0) {
         return (
-          <span className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:text-muted-foreground">
+          <span className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:text-muted-foreground/30 gba:group-hover:text-muted-foreground/60 gba:transition-colors">
             <Link2 className="gba:w-3 gba:h-3" />
-            {value.length} linked
+            <span className="gba:hidden gba:group-hover:inline">Link...</span>
+          </span>
+        )
+      }
+      const relLabels = columnName && rowData?.[`_rel_${columnName}`]
+      const labels: string[] = Array.isArray(relLabels) ? relLabels.map(String) : []
+      if (labels.length > 0) {
+        return (
+          <span className="gba:flex gba:flex-wrap gba:items-center gba:gap-0.5">
+            <Link2 className="gba:w-3 gba:h-3 gba:text-muted-foreground/40 gba:shrink-0" />
+            {labels.slice(0, 3).map((label, i) => (
+              <span
+                key={i}
+                className="gba:inline-block gba:px-1.5 gba:py-0 gba:rounded gba:text-xs gba:bg-primary/10 gba:text-primary"
+              >
+                {label}
+              </span>
+            ))}
+            {labels.length > 3 && <span className="gba:text-xs gba:text-muted-foreground">+{labels.length - 3}</span>}
           </span>
         )
       }
       return (
         <span className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:text-muted-foreground">
-          <Link2 className="gba:w-3 gba:h-3" />1 linked
+          <Link2 className="gba:w-3 gba:h-3" />
+          {relIds.length} linked
         </span>
       )
+    }
 
     case 'mirror':
       return (

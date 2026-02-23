@@ -1,43 +1,18 @@
-import React, { useCallback, useMemo } from 'react'
+import React, { useCallback, useMemo, useState } from 'react'
 import { Popover, PopoverContent, PopoverTrigger } from '@newwork/nw-design-system'
-import {
-  Type,
-  Hash,
-  CalendarDays,
-  CheckSquare,
-  ListChecks,
-  Users,
-  Link2,
-  Mail,
-  Phone,
-  Globe,
-  Copy,
-  Calculator
-} from 'lucide-react'
 import type { BoardColumn, BoardColumnType } from '../../types'
+import { QUICK_ADD_TYPES, CONFIG_REQUIRED_TYPES } from './columnTypeDefs'
+import { ColumnTypeIcon } from '../table/ColumnTypeIcon'
+import { AddColumnDialog } from './AddColumnDialog'
 
 export interface AddColumnPopoverProps {
   existingColumns: BoardColumn[]
+  boardId?: string
+  sheetId?: string
   onAdd: (column: BoardColumn) => void
   children: React.ReactNode
   'data-testid'?: string
 }
-
-const COLUMN_TYPES: Array<{ type: BoardColumnType; label: string; icon: React.ReactNode }> = [
-  { type: 'text', label: 'Text', icon: <Type className="gba:w-3.5 gba:h-3.5" /> },
-  { type: 'number', label: 'Number', icon: <Hash className="gba:w-3.5 gba:h-3.5" /> },
-  { type: 'status', label: 'Status', icon: <ListChecks className="gba:w-3.5 gba:h-3.5" /> },
-  { type: 'date', label: 'Date', icon: <CalendarDays className="gba:w-3.5 gba:h-3.5" /> },
-  { type: 'select', label: 'Select', icon: <CheckSquare className="gba:w-3.5 gba:h-3.5" /> },
-  { type: 'boolean', label: 'Checkbox', icon: <CheckSquare className="gba:w-3.5 gba:h-3.5" /> },
-  { type: 'people', label: 'People', icon: <Users className="gba:w-3.5 gba:h-3.5" /> },
-  { type: 'relation', label: 'Relation', icon: <Link2 className="gba:w-3.5 gba:h-3.5" /> },
-  { type: 'mirror', label: 'Mirror', icon: <Copy className="gba:w-3.5 gba:h-3.5" /> },
-  { type: 'rollup', label: 'Rollup', icon: <Calculator className="gba:w-3.5 gba:h-3.5" /> },
-  { type: 'email', label: 'Email', icon: <Mail className="gba:w-3.5 gba:h-3.5" /> },
-  { type: 'phone', label: 'Phone', icon: <Phone className="gba:w-3.5 gba:h-3.5" /> },
-  { type: 'url', label: 'URL', icon: <Globe className="gba:w-3.5 gba:h-3.5" /> }
-]
 
 function createId(): string {
   try {
@@ -59,11 +34,14 @@ function nextColumnName(existing: BoardColumn[]): { name: string; label: string 
 
 export const AddColumnPopover: React.FC<AddColumnPopoverProps> = ({
   existingColumns,
+  boardId = '',
+  sheetId = '',
   onAdd,
   children,
   'data-testid': testId = 'add-column-popover'
 }) => {
   const [open, setOpen] = React.useState(false)
+  const [dialogType, setDialogType] = useState<BoardColumnType | null>(null)
 
   const nextOrder = useMemo(
     () => (existingColumns.length ? Math.max(...existingColumns.map(c => c.order || 0)) + 1 : 0),
@@ -72,6 +50,12 @@ export const AddColumnPopover: React.FC<AddColumnPopoverProps> = ({
 
   const handlePick = useCallback(
     (type: BoardColumnType) => {
+      if (CONFIG_REQUIRED_TYPES.has(type)) {
+        setOpen(false)
+        setDialogType(type)
+        return
+      }
+
       const { name, label } = nextColumnName(existingColumns)
 
       const column: BoardColumn = {
@@ -80,7 +64,7 @@ export const AddColumnPopover: React.FC<AddColumnPopoverProps> = ({
         label,
         type,
         isVisible: true,
-        isEditable: type !== 'mirror' && type !== 'rollup',
+        isEditable: true,
         isRequired: false,
         isUnique: false,
         order: nextOrder,
@@ -93,11 +77,7 @@ export const AddColumnPopover: React.FC<AddColumnPopoverProps> = ({
               ]
             }
           : null),
-        ...(type === 'select' || type === 'multiselect'
-          ? {
-              selectOptions: []
-            }
-          : null)
+        ...(type === 'select' || type === 'multiselect' ? { selectOptions: [] } : null)
       }
 
       onAdd(column)
@@ -107,21 +87,40 @@ export const AddColumnPopover: React.FC<AddColumnPopoverProps> = ({
   )
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>{children}</PopoverTrigger>
-      <PopoverContent align="start" className="gba:w-44 gba:p-1" data-testid={testId}>
-        {COLUMN_TYPES.map(ct => (
-          <button
-            key={ct.type}
-            onClick={() => handlePick(ct.type)}
-            className="gba:w-full gba:flex gba:items-center gba:gap-2 gba:px-2 gba:py-1.5 gba:text-xs gba:text-foreground gba:rounded gba:hover:bg-muted/60 gba:transition-colors"
-            data-testid={`${testId}-${ct.type}`}
-          >
-            {ct.icon}
-            {ct.label}
-          </button>
-        ))}
-      </PopoverContent>
-    </Popover>
+    <>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>{children}</PopoverTrigger>
+        <PopoverContent align="start" className="gba:w-48 gba:p-1 gba:max-h-80 gba:overflow-auto" data-testid={testId}>
+          {QUICK_ADD_TYPES.map(ct => (
+            <button
+              key={ct.type}
+              onClick={() => handlePick(ct.type)}
+              className="gba:w-full gba:flex gba:items-center gba:gap-2 gba:px-2 gba:py-1.5 gba:text-xs gba:text-foreground gba:rounded gba:hover:bg-muted/60 gba:transition-colors"
+              data-testid={`${testId}-${ct.type}`}
+            >
+              <ColumnTypeIcon type={ct.type} />
+              {ct.label}
+              {ct.needsConfig && <span className="gba:ml-auto gba:text-[9px] gba:text-muted-foreground">⚙</span>}
+            </button>
+          ))}
+        </PopoverContent>
+      </Popover>
+
+      <AddColumnDialog
+        open={dialogType !== null}
+        onOpenChange={isOpen => {
+          if (!isOpen) setDialogType(null)
+        }}
+        existingColumns={existingColumns}
+        currentBoardId={boardId}
+        currentSheetId={sheetId}
+        preSelectedType={dialogType || undefined}
+        onCreate={async col => {
+          onAdd(col)
+          setDialogType(null)
+        }}
+        data-testid={`${testId}-config-dialog`}
+      />
+    </>
   )
 }

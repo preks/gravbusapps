@@ -3,6 +3,7 @@
  */
 
 import React, { useMemo, useRef, useState, useCallback, useEffect } from 'react'
+import { Spinner } from '@newwork/nw-design-system'
 import { toast } from '@newwork/nw-design-system'
 import type { BoardRow, BoardColumn, ViewFilter, ViewSort, FilterConnector } from '../types'
 import { ColumnSettingsSheet } from '../components/columns/ColumnSettingsSheet'
@@ -20,7 +21,12 @@ export interface BoardTableViewProps {
   highlightedRowId?: string | null
   onClearHighlight?: () => void
   onAddRow?: (data: Record<string, unknown>) => Promise<void>
-  onUpdateCell?: (rowId: string, columnName: string, value: unknown) => Promise<void>
+  onUpdateCell?: (
+    rowId: string,
+    columnName: string,
+    value: unknown,
+    extraData?: Record<string, unknown>
+  ) => Promise<void>
   onDeleteRow?: (rowId: string) => void
   onRowClick?: (row: BoardRow) => void
   onAddColumn?: (column: BoardColumn) => void
@@ -31,6 +37,8 @@ export interface BoardTableViewProps {
   initialConnector?: FilterConnector
   onServerFilterChange?: (params: ServerFilterParams) => void
   rowsTotal?: number
+  onLoadMore?: () => void
+  rowsLoading?: boolean
   testId: string
 }
 
@@ -53,10 +61,30 @@ export const BoardTableView: React.FC<BoardTableViewProps> = ({
   initialConnector,
   onServerFilterChange,
   rowsTotal: rowsTotalProp,
+  onLoadMore,
+  rowsLoading,
   testId
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null)
+  const loadMoreSentinelRef = useRef<HTMLDivElement>(null)
   const [settingsColumn, setSettingsColumn] = useState<BoardColumn | null>(null)
+
+  useEffect(() => {
+    if (!onLoadMore || rowsLoading || !rowsTotalProp) return
+    const hasMore = rows.length < rowsTotalProp
+    if (!hasMore) return
+    const el = loadMoreSentinelRef.current
+    if (!el) return
+    const root = containerRef.current
+    const observer = new IntersectionObserver(
+      entries => {
+        if (entries[0]?.isIntersecting) onLoadMore()
+      },
+      { root: root ?? undefined, rootMargin: '200px', threshold: 0 }
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [onLoadMore, rows.length, rowsTotalProp, rowsLoading])
 
   const fs = useTableFilterSort(rows, columns, {
     initialFilters,
@@ -173,7 +201,17 @@ export const BoardTableView: React.FC<BoardTableViewProps> = ({
     [selectedCell, editingCell, moveSelection, displayRows, columns, handleStartEdit]
   )
 
-  const CLICK_TO_EDIT_TYPES = new Set(['status', 'select', 'multiselect', 'boolean', 'date', 'datetime'])
+  const CLICK_TO_EDIT_TYPES = new Set([
+    'status',
+    'select',
+    'multiselect',
+    'boolean',
+    'date',
+    'datetime',
+    'relation',
+    'rating',
+    'tags'
+  ])
 
   const handleCellClick = useCallback(
     (rowIndex: number, colIndex: number) => {
@@ -266,6 +304,8 @@ export const BoardTableView: React.FC<BoardTableViewProps> = ({
         <table className="gba:w-max gba:min-w-full gba:border-collapse gba:text-xs gba:table-fixed">
           <TableHeader
             columns={columns}
+            boardId={boardId}
+            sheetId={sheetId}
             sortMap={sortMap}
             sortCount={fs.sorts.length}
             onToggleSort={fs.toggleColumnSort}
@@ -280,6 +320,8 @@ export const BoardTableView: React.FC<BoardTableViewProps> = ({
             testId={testId}
           />
           <TableBodyRows
+            boardId={boardId}
+            sheetId={sheetId}
             displayRows={displayRows}
             totalRows={rows.length}
             columns={columns}
@@ -299,6 +341,19 @@ export const BoardTableView: React.FC<BoardTableViewProps> = ({
             testId={testId}
           />
         </table>
+        {onLoadMore && rowsTotalProp != null && rows.length < rowsTotalProp && (
+          <div
+            ref={loadMoreSentinelRef}
+            className="gba:flex gba:items-center gba:justify-center gba:py-4 gba:w-full"
+            data-testid={`${testId}-load-more-sentinel`}
+          >
+            {rowsLoading ? (
+              <Spinner size="sm" />
+            ) : (
+              <span className="gba:text-xs gba:text-muted-foreground">Scroll for more</span>
+            )}
+          </div>
+        )}
       </div>
 
       {settingsColumn && onUpdateColumn && (

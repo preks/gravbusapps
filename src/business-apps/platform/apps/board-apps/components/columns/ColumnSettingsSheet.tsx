@@ -16,27 +16,11 @@ import {
   SelectItem
 } from '@newwork/nw-design-system'
 import type { BoardColumn, BoardColumnType } from '../../types'
+import { CHANGEABLE_TYPES, CONFIG_REQUIRED_TYPES, getTypeLabel } from './columnTypeDefs'
+import { ColumnTypeIcon } from '../table/ColumnTypeIcon'
 import { SelectOptionsEditor } from './SelectOptionsEditor'
 import { RelationConfigSection } from './RelationConfigSection'
 import { BoardApiService } from '../../services/BoardApiService'
-
-const CHANGEABLE_TYPES: { value: BoardColumnType; label: string }[] = [
-  { value: 'text', label: 'Text' },
-  { value: 'number', label: 'Number' },
-  { value: 'date', label: 'Date' },
-  { value: 'datetime', label: 'Date & Time' },
-  { value: 'email', label: 'Email' },
-  { value: 'url', label: 'URL' },
-  { value: 'phone', label: 'Phone' },
-  { value: 'boolean', label: 'Checkbox' },
-  { value: 'select', label: 'Single Select' },
-  { value: 'multiselect', label: 'Multi Select' },
-  { value: 'status', label: 'Status' },
-  { value: 'currency', label: 'Currency' },
-  { value: 'percentage', label: 'Percentage' },
-  { value: 'rating', label: 'Rating' },
-  { value: 'progress', label: 'Progress' }
-]
 
 export interface ColumnSettingsSheetProps {
   open: boolean
@@ -66,6 +50,8 @@ export const ColumnSettingsSheet: React.FC<ColumnSettingsSheetProps> = ({
   const [draft, setDraft] = useState<BoardColumn>({ ...column })
   const [boards, setBoards] = useState<BoardInfo[]>([])
 
+  const isComputedType = CONFIG_REQUIRED_TYPES.has(draft.type)
+
   useEffect(() => {
     if (!open) return
     setDraft({ ...column })
@@ -76,10 +62,10 @@ export const ColumnSettingsSheet: React.FC<ColumnSettingsSheetProps> = ({
     if (draft.type !== 'relation' && draft.type !== 'mirror' && draft.type !== 'rollup') return
     void (async () => {
       try {
-        const res = await BoardApiService.listBoards({ limit: 50 })
-        if (!res?.items) return
+        const boardList = await BoardApiService.listBoards({ limit: 50 })
+        if (!boardList?.length) return
         const loaded: BoardInfo[] = []
-        for (const b of res.items) {
+        for (const b of boardList) {
           try {
             const full = await BoardApiService.getBoard(b.id)
             if (full) {
@@ -121,21 +107,38 @@ export const ColumnSettingsSheet: React.FC<ColumnSettingsSheetProps> = ({
         </SheetHeader>
 
         <div className="gba:px-4 gba:pb-4 gba:space-y-4 gba:overflow-y-auto gba:flex-1">
-          <div>
-            <Label className="gba:text-xs">Column type</Label>
-            <Select value={draft.type} onValueChange={v => patch({ type: v as BoardColumnType })}>
-              <SelectTrigger className="gba:h-8 gba:text-xs" data-testid={`${testId}-type`}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {CHANGEABLE_TYPES.map(t => (
-                  <SelectItem key={t.value} value={t.value}>
-                    {t.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {isComputedType ? (
+            <div>
+              <Label className="gba:text-xs">Column type</Label>
+              <div
+                className="gba:flex gba:items-center gba:gap-2 gba:h-8 gba:px-3 gba:border gba:rounded-md gba:bg-muted/30"
+                data-testid={`${testId}-type-readonly`}
+              >
+                <ColumnTypeIcon type={draft.type} />
+                <span className="gba:text-xs">{getTypeLabel(draft.type)}</span>
+                <span className="gba:text-[10px] gba:text-muted-foreground gba:ml-auto">cannot change type</span>
+              </div>
+            </div>
+          ) : (
+            <div>
+              <Label className="gba:text-xs">Column type</Label>
+              <Select value={draft.type} onValueChange={v => patch({ type: v as BoardColumnType })}>
+                <SelectTrigger className="gba:h-8 gba:text-xs" data-testid={`${testId}-type`}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {CHANGEABLE_TYPES.map(t => (
+                    <SelectItem key={t.type} value={t.type}>
+                      <span className="gba:flex gba:items-center gba:gap-1.5">
+                        <ColumnTypeIcon type={t.type} />
+                        {t.label}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           <div>
             <Label className="gba:text-xs">Label</Label>

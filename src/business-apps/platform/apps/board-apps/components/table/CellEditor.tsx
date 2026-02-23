@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Input, Checkbox, Popover, PopoverTrigger, PopoverContent } from '@newwork/nw-design-system'
 import { Check, ChevronDown, Search } from 'lucide-react'
 import type { BoardColumn } from '../../types'
+import { RatingEditor, TagsEditor, DateEditor, DateTimeEditor } from './CellEditorSpecialized'
 
 export interface CellEditorProps {
   column: BoardColumn
@@ -10,9 +11,20 @@ export interface CellEditorProps {
   onCancel: () => void
   onMoveNext?: () => void
   initialKey?: string
+  boardId?: string
+  sheetId?: string
 }
 
-export const CellEditor: React.FC<CellEditorProps> = ({ column, value, onSave, onCancel, onMoveNext, initialKey }) => {
+export const CellEditor: React.FC<CellEditorProps> = ({
+  column,
+  value,
+  onSave,
+  onCancel,
+  onMoveNext,
+  initialKey,
+  boardId,
+  sheetId
+}) => {
   switch (column.type) {
     case 'boolean':
       return <BooleanEditor value={value} onSave={onSave} onCancel={onCancel} />
@@ -21,8 +33,21 @@ export const CellEditor: React.FC<CellEditorProps> = ({ column, value, onSave, o
     case 'people':
       return <SelectEditor column={column} value={value} onSave={onSave} onCancel={onCancel} />
     case 'multiselect':
-    case 'tags':
       return <MultiSelectEditor column={column} value={value} onSave={onSave} onCancel={onCancel} />
+    case 'tags':
+      return (
+        <TagsEditor
+          value={value}
+          onSave={onSave}
+          onCancel={onCancel}
+          boardId={boardId}
+          sheetId={sheetId}
+          columnName={column.name}
+          initialKey={initialKey}
+        />
+      )
+    case 'rating':
+      return <RatingEditor value={value} onSave={onSave} onCancel={onCancel} />
     case 'date':
       return <DateEditor value={value} onSave={onSave} onCancel={onCancel} />
     case 'datetime':
@@ -31,7 +56,6 @@ export const CellEditor: React.FC<CellEditorProps> = ({ column, value, onSave, o
     case 'currency':
     case 'percentage':
     case 'progress':
-    case 'rating':
       return (
         <NumberEditor
           value={value}
@@ -335,106 +359,5 @@ const MultiSelectEditor: React.FC<{
         </div>
       </PopoverContent>
     </Popover>
-  )
-}
-
-const DateEditor: React.FC<{
-  value: unknown
-  onSave: (v: unknown) => void
-  onCancel: () => void
-}> = ({ value, onSave, onCancel }) => {
-  const initial = (() => {
-    if (!value) return ''
-    try {
-      const d = new Date(String(value))
-      if (!isNaN(d.getTime())) return d.toISOString().split('T')[0]
-    } catch {
-      /* ignore */
-    }
-    return String(value)
-  })()
-
-  const [text, setText] = useState(initial)
-  const inputRef = useRef<HTMLInputElement>(null)
-  useEffect(() => {
-    inputRef.current?.focus()
-  }, [])
-
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === 'Enter') {
-        e.preventDefault()
-        onSave(text)
-      }
-      if (e.key === 'Escape') {
-        e.preventDefault()
-        onCancel()
-      }
-    },
-    [text, onSave, onCancel]
-  )
-
-  return (
-    <Input
-      ref={inputRef}
-      type="date"
-      value={text}
-      onChange={e => {
-        setText(e.target.value)
-        onSave(e.target.value)
-      }}
-      onBlur={() => onSave(text)}
-      onKeyDown={handleKeyDown}
-      className="gba:h-6 gba:text-xs gba:px-1 gba:py-0"
-    />
-  )
-}
-
-const DateTimeEditor: React.FC<{
-  value: unknown
-  onSave: (v: unknown) => void
-  onCancel: () => void
-}> = ({ value, onSave, onCancel }) => {
-  const initial = (() => {
-    if (!value) return ''
-    try {
-      const d = new Date(String(value))
-      if (!isNaN(d.getTime())) return d.toISOString().slice(0, 16)
-    } catch {
-      /* ignore */
-    }
-    return String(value)
-  })()
-
-  const [text, setText] = useState(initial)
-  const inputRef = useRef<HTMLInputElement>(null)
-  useEffect(() => {
-    inputRef.current?.focus()
-  }, [])
-
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === 'Enter') {
-        e.preventDefault()
-        onSave(text)
-      }
-      if (e.key === 'Escape') {
-        e.preventDefault()
-        onCancel()
-      }
-    },
-    [text, onSave, onCancel]
-  )
-
-  return (
-    <Input
-      ref={inputRef}
-      type="datetime-local"
-      value={text}
-      onChange={e => setText(e.target.value)}
-      onBlur={() => onSave(text)}
-      onKeyDown={handleKeyDown}
-      className="gba:h-6 gba:text-xs gba:px-1 gba:py-0"
-    />
   )
 }

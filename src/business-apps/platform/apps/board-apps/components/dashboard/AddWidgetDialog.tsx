@@ -1,5 +1,5 @@
 /**
- * AddWidgetDialog - create or edit KPI, chart, and table widgets.
+ * AddWidgetDialog - create or edit dashboard widgets with a live preview.
  */
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
@@ -16,15 +16,22 @@ import {
   SelectTrigger,
   SelectValue,
   SelectContent,
-  SelectItem,
-  Checkbox
+  SelectItem
 } from '@newwork/nw-design-system'
-import type { BoardColumn, DashboardWidget, KpiWidgetConfig, ChartWidgetConfig, TableWidgetConfig } from '../../types'
+import type { BoardColumn, BoardRow, DashboardWidget, ViewFilter, FilterConnector } from '../../types'
+import { MultiChartFields, TimeSeriesFields, ScatterFields, HistogramFields } from './AddWidgetV2Fields'
+import { KpiFields, ChartFields, TableFields } from './AddWidgetLegacyFields'
+import { WidgetFilterFields } from './WidgetFilterFields'
+import { useWidgetV2State } from '../../hooks/useWidgetFormState'
+import { useWidgetLegacyState } from '../../hooks/useWidgetLegacyState'
+import { WidgetPreviewPanel } from './WidgetPreviewPanel'
+import { Hint, HINTS } from './widgetFieldHelpers'
 
 export interface AddWidgetDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   columns: BoardColumn[]
+  rows?: BoardRow[]
   onAdd: (widget: DashboardWidget) => void
   editWidget?: DashboardWidget | null
   'data-testid'?: string
@@ -38,36 +45,25 @@ function createId(): string {
   }
 }
 
-type WidgetType = 'kpi' | 'chart' | 'table'
+type WidgetType = 'kpi' | 'chart' | 'table' | 'multi_chart' | 'timeseries' | 'scatter' | 'histogram'
 
 export const AddWidgetDialog: React.FC<AddWidgetDialogProps> = ({
   open,
   onOpenChange,
   columns,
+  rows = [],
   onAdd,
   editWidget,
   'data-testid': testId = 'add-widget-dialog'
 }) => {
   const [widgetType, setWidgetType] = useState<WidgetType>('kpi')
   const [title, setTitle] = useState('')
-
-  // KPI fields
-  const [kpiColumn, setKpiColumn] = useState('')
-  const [aggregation, setAggregation] = useState<'count' | 'sum' | 'avg' | 'min' | 'max'>('count')
-  const [format, setFormat] = useState<'number' | 'currency' | 'percentage'>('number')
-
-  // Chart fields
-  const [chartType, setChartType] = useState<'bar' | 'line' | 'pie' | 'donut' | 'area'>('bar')
-  const [xAxis, setXAxis] = useState('')
-  const [yAxis, setYAxis] = useState('')
-  const [chartAgg, setChartAgg] = useState<'sum' | 'avg' | 'count'>('count')
-
-  // Table fields
-  const [tableColumns, setTableColumns] = useState<string[]>([])
-  const [tableLimit, setTableLimit] = useState(10)
-
-  // Size
   const [widgetWidth, setWidgetWidth] = useState(1)
+  const [widgetFilters, setWidgetFilters] = useState<ViewFilter[]>([])
+  const [filterConnector, setFilterConnector] = useState<FilterConnector>('and')
+
+  const legacy = useWidgetLegacyState()
+  const v2 = useWidgetV2State()
 
   useEffect(() => {
     if (!open) return
@@ -75,325 +71,268 @@ export const AddWidgetDialog: React.FC<AddWidgetDialogProps> = ({
       setTitle(editWidget.title)
       setWidgetType(editWidget.config.type as WidgetType)
       setWidgetWidth(editWidget.position.w)
-
-      if (editWidget.config.type === 'kpi') {
-        const c = editWidget.config as KpiWidgetConfig
-        setKpiColumn(c.column)
-        setAggregation(c.aggregation)
-        setFormat(c.format || 'number')
-      } else if (editWidget.config.type === 'chart') {
-        const c = editWidget.config as ChartWidgetConfig
-        setChartType(c.chartType)
-        setXAxis(c.xAxis)
-        setYAxis(c.yAxis)
-        setChartAgg(c.aggregation || 'count')
-      } else if (editWidget.config.type === 'table') {
-        const c = editWidget.config as TableWidgetConfig
-        setTableColumns(c.columns)
-        setTableLimit(c.limit || 10)
-      }
+      setWidgetFilters(editWidget.filters?.filters ?? [])
+      setFilterConnector(editWidget.filters?.connector ?? 'and')
+      legacy.populateFromWidget(editWidget)
+      v2.populateFromWidget(editWidget)
     } else {
-      resetForm()
+      setTitle('')
+      setWidgetType('kpi')
+      setWidgetWidth(1)
+      setWidgetFilters([])
+      setFilterConnector('and')
+      legacy.reset()
+      v2.resetV2()
     }
   }, [open, editWidget])
 
-  const resetForm = () => {
-    setTitle('')
-    setWidgetType('kpi')
-    setKpiColumn('')
-    setAggregation('count')
-    setFormat('number')
-    setChartType('bar')
-    setXAxis('')
-    setYAxis('')
-    setChartAgg('count')
-    setTableColumns([])
-    setTableLimit(10)
-    setWidgetWidth(1)
-  }
-
-  const numericColumns = useMemo(
-    () => columns.filter(c => c.type === 'number' || c.type === 'currency' || c.type === 'percentage'),
-    [columns]
-  )
-  const kpiTargetColumns = aggregation === 'count' ? columns : numericColumns
+  const buildConfig = useCallback((): DashboardWidget['config'] | null => {
+    return legacy.buildConfig(widgetType) ?? v2.buildV2Config(widgetType)
+  }, [widgetType, legacy, v2])
 
   const canCreate = useMemo(() => {
     if (!title.trim()) return false
-    switch (widgetType) {
-      case 'kpi':
-        return Boolean(kpiColumn)
-      case 'chart':
-        return Boolean(xAxis && yAxis)
-      case 'table':
-        return tableColumns.length > 0
-      default:
-        return false
+    const legacyResult = legacy.canCreate(widgetType)
+    if (legacyResult !== null) return legacyResult
+    return v2.canCreateV2(widgetType) ?? false
+  }, [title, widgetType, legacy, v2])
+
+  const activeFilterGroup = useMemo(() => {
+    const valid = widgetFilters.filter(f => f.column)
+    return valid.length > 0 ? { connector: filterConnector, filters: valid } : undefined
+  }, [widgetFilters, filterConnector])
+
+  const previewWidget = useMemo((): DashboardWidget | null => {
+    const config = buildConfig()
+    if (!config) return null
+    return {
+      id: 'preview',
+      type: widgetType,
+      title: title || '(untitled)',
+      config,
+      position: { x: 0, y: 0, w: widgetWidth, h: 1 },
+      filters: activeFilterGroup
     }
-  }, [title, widgetType, kpiColumn, xAxis, yAxis, tableColumns])
+  }, [buildConfig, widgetType, title, widgetWidth, activeFilterGroup])
 
   const handleCreate = useCallback(() => {
     if (!canCreate) return
-
-    let config: KpiWidgetConfig | ChartWidgetConfig | TableWidgetConfig
-    switch (widgetType) {
-      case 'kpi':
-        config = { type: 'kpi', column: kpiColumn, aggregation, format }
-        break
-      case 'chart':
-        config = { type: 'chart', chartType, xAxis, yAxis, aggregation: chartAgg }
-        break
-      case 'table':
-        config = { type: 'table', columns: tableColumns, limit: tableLimit }
-        break
-    }
-
+    const config = buildConfig()
+    if (!config) return
     const widget: DashboardWidget = {
       id: editWidget?.id || createId(),
       type: widgetType,
       title: title.trim(),
       config,
-      position: { x: 0, y: 0, w: widgetWidth, h: 1 }
+      position: { x: 0, y: 0, w: widgetWidth, h: 1 },
+      filters: activeFilterGroup
     }
-
     onAdd(widget)
-    resetForm()
+    setTitle('')
+    setWidgetType('kpi')
+    setWidgetWidth(1)
+    setWidgetFilters([])
+    setFilterConnector('and')
+    legacy.reset()
+    v2.resetV2()
     onOpenChange(false)
   }, [
     canCreate,
+    buildConfig,
     widgetType,
     title,
-    kpiColumn,
-    aggregation,
-    format,
-    chartType,
-    xAxis,
-    yAxis,
-    chartAgg,
-    tableColumns,
-    tableLimit,
     widgetWidth,
+    activeFilterGroup,
     editWidget,
     onAdd,
-    onOpenChange
+    onOpenChange,
+    legacy,
+    v2
   ])
-
-  const toggleTableColumn = (colName: string) => {
-    setTableColumns(prev => (prev.includes(colName) ? prev.filter(c => c !== colName) : [...prev, colName]))
-  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="gba:max-w-md" data-testid={testId}>
+      <DialogContent className="gba:max-w-3xl" data-testid={testId}>
         <DialogHeader>
           <DialogTitle>{editWidget ? 'Edit widget' : 'Add widget'}</DialogTitle>
         </DialogHeader>
 
-        <div className="gba:space-y-3">
-          {/* Widget type selector */}
-          <div>
-            <Label className="gba:text-xs">Widget type</Label>
-            <Select value={widgetType} onValueChange={v => setWidgetType(v as WidgetType)}>
-              <SelectTrigger className="gba:h-8 gba:text-xs" data-testid={`${testId}-type`}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="kpi">KPI / Number</SelectItem>
-                <SelectItem value="chart">Chart</SelectItem>
-                <SelectItem value="table">Table</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+        <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:gap-4 gba:min-h-[360px]">
+          <div className="gba:space-y-3 gba:overflow-y-auto gba:max-h-[460px] gba:pr-1">
+            <div>
+              <Label className="gba:text-xs">Widget type</Label>
+              <Select value={widgetType} onValueChange={v => setWidgetType(v as WidgetType)}>
+                <SelectTrigger className="gba:h-8 gba:text-xs" data-testid={`${testId}-type`}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="kpi">KPI / Number</SelectItem>
+                  <SelectItem value="chart">Chart</SelectItem>
+                  <SelectItem value="multi_chart">Multi-Series Chart</SelectItem>
+                  <SelectItem value="timeseries">Time Series</SelectItem>
+                  <SelectItem value="scatter">Scatter Plot</SelectItem>
+                  <SelectItem value="histogram">Histogram</SelectItem>
+                  <SelectItem value="table">Table</SelectItem>
+                </SelectContent>
+              </Select>
+              <Hint>{HINTS.widgetType}</Hint>
+            </div>
 
-          {/* Title */}
-          <div>
-            <Label className="gba:text-xs" htmlFor={`${testId}-title`}>
-              Title
-            </Label>
-            <Input
-              id={`${testId}-title`}
-              value={title}
-              onChange={e => setTitle(e.target.value)}
-              placeholder={
-                widgetType === 'kpi'
-                  ? 'e.g. Total Revenue'
-                  : widgetType === 'chart'
-                    ? 'e.g. Sales by Region'
-                    : 'e.g. Top 10 Items'
-              }
-              className="gba:h-8 gba:text-xs"
-              autoFocus
-              data-testid={`${testId}-input-title`}
+            <div>
+              <Label className="gba:text-xs" htmlFor={`${testId}-title`}>
+                Title
+              </Label>
+              <Input
+                id={`${testId}-title`}
+                value={title}
+                onChange={e => setTitle(e.target.value)}
+                placeholder={
+                  widgetType === 'kpi'
+                    ? 'e.g. Total Revenue'
+                    : widgetType === 'chart'
+                      ? 'e.g. Sales by Region'
+                      : 'e.g. Top 10 Items'
+                }
+                className="gba:h-8 gba:text-xs"
+                autoFocus
+                data-testid={`${testId}-input-title`}
+              />
+              <Hint>{HINTS.title}</Hint>
+            </div>
+
+            <WidgetFilterFields
+              columns={columns}
+              filters={widgetFilters}
+              onFiltersChange={setWidgetFilters}
+              connector={filterConnector}
+              onConnectorChange={setFilterConnector}
+              testId={testId}
             />
+
+            {widgetType === 'kpi' && (
+              <KpiFields
+                columns={columns}
+                aggregation={legacy.kpi.aggregation}
+                onAggregationChange={v => legacy.kpi.setAggregation(v as any)}
+                format={legacy.kpi.format}
+                onFormatChange={v => legacy.kpi.setFormat(v as any)}
+                kpiColumn={legacy.kpi.column}
+                onKpiColumnChange={legacy.kpi.setColumn}
+                testId={testId}
+              />
+            )}
+            {widgetType === 'chart' && (
+              <ChartFields
+                columns={columns}
+                chartType={legacy.chart.type}
+                onChartTypeChange={v => legacy.chart.setType(v as any)}
+                xAxis={legacy.chart.xAxis}
+                onXAxisChange={legacy.chart.setXAxis}
+                yAxis={legacy.chart.yAxis}
+                onYAxisChange={legacy.chart.setYAxis}
+                chartAgg={legacy.chart.agg}
+                onChartAggChange={v => legacy.chart.setAgg(v as any)}
+                sortDir={legacy.chart.sortDir}
+                onSortDirChange={legacy.chart.setSortDir}
+                limit={legacy.chart.limit}
+                onLimitChange={legacy.chart.setLimit}
+                testId={testId}
+              />
+            )}
+            {widgetType === 'table' && (
+              <TableFields
+                columns={columns}
+                tableColumns={legacy.table.columns}
+                onToggleTableColumn={legacy.table.toggleColumn}
+                tableLimit={legacy.table.limit}
+                onTableLimitChange={legacy.table.setLimit}
+                sortBy={legacy.table.sortBy}
+                onSortByChange={legacy.table.setSortBy}
+                sortDir={legacy.table.sortDir}
+                onSortDirChange={legacy.table.setSortDir}
+                testId={testId}
+              />
+            )}
+            {widgetType === 'multi_chart' && (
+              <MultiChartFields
+                columns={columns}
+                groupBy={v2.mc.groupBy}
+                onGroupByChange={v2.mc.setGroupBy}
+                chartType={v2.mc.chartType}
+                onChartTypeChange={v2.mc.setChartType}
+                series={v2.mc.series}
+                onSeriesChange={v2.mc.setSeries}
+                breakdown={v2.mc.breakdown}
+                onBreakdownChange={v2.mc.setBreakdown}
+                timeBucket={v2.mc.timeBucket}
+                onTimeBucketChange={v2.mc.setTimeBucket}
+                sortDir={v2.mc.sortDir}
+                onSortDirChange={v2.mc.setSortDir}
+                limit={v2.mc.limit}
+                onLimitChange={v2.mc.setLimit}
+                testId={testId}
+              />
+            )}
+            {widgetType === 'timeseries' && (
+              <TimeSeriesFields
+                columns={columns}
+                dateColumn={v2.ts.dateCol}
+                onDateColumnChange={v2.ts.setDateCol}
+                bucket={v2.ts.bucket}
+                onBucketChange={v2.ts.setBucket}
+                chartType={v2.ts.chartType}
+                onChartTypeChange={v2.ts.setChartType}
+                series={v2.ts.series}
+                onSeriesChange={v2.ts.setSeries}
+                testId={testId}
+              />
+            )}
+            {widgetType === 'scatter' && (
+              <ScatterFields
+                columns={columns}
+                xColumn={v2.scatter.x}
+                onXColumnChange={v2.scatter.setX}
+                yColumn={v2.scatter.y}
+                onYColumnChange={v2.scatter.setY}
+                labelColumn={v2.scatter.label}
+                onLabelColumnChange={v2.scatter.setLabel}
+                sizeColumn={v2.scatter.size}
+                onSizeColumnChange={v2.scatter.setSize}
+                colorColumn={v2.scatter.color}
+                onColorColumnChange={v2.scatter.setColor}
+                testId={testId}
+              />
+            )}
+            {widgetType === 'histogram' && (
+              <HistogramFields
+                columns={columns}
+                column={v2.hist.col}
+                onColumnChange={v2.hist.setCol}
+                bins={v2.hist.bins}
+                onBinsChange={v2.hist.setBins}
+                testId={testId}
+              />
+            )}
+
+            <div>
+              <Label className="gba:text-xs">Widget width</Label>
+              <Select value={String(widgetWidth)} onValueChange={v => setWidgetWidth(Number(v))}>
+                <SelectTrigger className="gba:h-8 gba:text-xs gba:w-24" data-testid={`${testId}-width`}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">1 col</SelectItem>
+                  <SelectItem value="2">2 cols</SelectItem>
+                  <SelectItem value="3">3 cols</SelectItem>
+                  <SelectItem value="4">4 cols</SelectItem>
+                </SelectContent>
+              </Select>
+              <Hint>{HINTS.width}</Hint>
+            </div>
           </div>
 
-          {/* KPI-specific fields */}
-          {widgetType === 'kpi' && (
-            <>
-              <div className="gba:grid gba:grid-cols-2 gba:gap-2">
-                <div>
-                  <Label className="gba:text-xs">Aggregation</Label>
-                  <Select value={aggregation} onValueChange={v => setAggregation(v as any)}>
-                    <SelectTrigger className="gba:h-8 gba:text-xs" data-testid={`${testId}-aggregation`}>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="count">Count</SelectItem>
-                      <SelectItem value="sum">Sum</SelectItem>
-                      <SelectItem value="avg">Average</SelectItem>
-                      <SelectItem value="min">Min</SelectItem>
-                      <SelectItem value="max">Max</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label className="gba:text-xs">Format</Label>
-                  <Select value={format} onValueChange={v => setFormat(v as any)}>
-                    <SelectTrigger className="gba:h-8 gba:text-xs" data-testid={`${testId}-format`}>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="number">Number</SelectItem>
-                      <SelectItem value="currency">Currency</SelectItem>
-                      <SelectItem value="percentage">Percentage</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div>
-                <Label className="gba:text-xs">Column</Label>
-                <Select value={kpiColumn} onValueChange={setKpiColumn}>
-                  <SelectTrigger className="gba:h-8 gba:text-xs" data-testid={`${testId}-column`}>
-                    <SelectValue placeholder="Pick column" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {kpiTargetColumns.map(c => (
-                      <SelectItem key={c.id || c.name} value={c.name}>
-                        {c.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </>
-          )}
-
-          {/* Chart-specific fields */}
-          {widgetType === 'chart' && (
-            <>
-              <div>
-                <Label className="gba:text-xs">Chart type</Label>
-                <Select value={chartType} onValueChange={v => setChartType(v as any)}>
-                  <SelectTrigger className="gba:h-8 gba:text-xs" data-testid={`${testId}-chart-type`}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="bar">Bar</SelectItem>
-                    <SelectItem value="line">Line</SelectItem>
-                    <SelectItem value="area">Area</SelectItem>
-                    <SelectItem value="pie">Pie</SelectItem>
-                    <SelectItem value="donut">Donut</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="gba:grid gba:grid-cols-2 gba:gap-2">
-                <div>
-                  <Label className="gba:text-xs">Group by (X axis)</Label>
-                  <Select value={xAxis} onValueChange={setXAxis}>
-                    <SelectTrigger className="gba:h-8 gba:text-xs" data-testid={`${testId}-x-axis`}>
-                      <SelectValue placeholder="Pick column" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {columns.map(c => (
-                        <SelectItem key={c.id || c.name} value={c.name}>
-                          {c.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label className="gba:text-xs">Value (Y axis)</Label>
-                  <Select value={yAxis} onValueChange={setYAxis}>
-                    <SelectTrigger className="gba:h-8 gba:text-xs" data-testid={`${testId}-y-axis`}>
-                      <SelectValue placeholder="Pick column" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {columns.map(c => (
-                        <SelectItem key={c.id || c.name} value={c.name}>
-                          {c.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div>
-                <Label className="gba:text-xs">Aggregation</Label>
-                <Select value={chartAgg} onValueChange={v => setChartAgg(v as any)}>
-                  <SelectTrigger className="gba:h-8 gba:text-xs" data-testid={`${testId}-chart-agg`}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="count">Count</SelectItem>
-                    <SelectItem value="sum">Sum</SelectItem>
-                    <SelectItem value="avg">Average</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </>
-          )}
-
-          {/* Table-specific fields */}
-          {widgetType === 'table' && (
-            <>
-              <div>
-                <Label className="gba:text-xs gba:mb-1 gba:block">Columns to show</Label>
-                <div className="gba:max-h-32 gba:overflow-auto gba:space-y-1 gba:border gba:rounded gba:p-2 gba:border-border">
-                  {columns.map(c => (
-                    <label
-                      key={c.id || c.name}
-                      className="gba:flex gba:items-center gba:gap-2 gba:text-xs gba:cursor-pointer"
-                    >
-                      <Checkbox
-                        checked={tableColumns.includes(c.name)}
-                        onCheckedChange={() => toggleTableColumn(c.name)}
-                        data-testid={`${testId}-table-col-${c.name}`}
-                      />
-                      {c.label}
-                    </label>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <Label className="gba:text-xs">Max rows</Label>
-                <Input
-                  type="number"
-                  value={tableLimit}
-                  onChange={e => setTableLimit(Math.max(1, Number(e.target.value) || 10))}
-                  className="gba:h-8 gba:text-xs gba:w-20"
-                  min={1}
-                  max={100}
-                  data-testid={`${testId}-table-limit`}
-                />
-              </div>
-            </>
-          )}
-
-          {/* Width selector */}
-          <div>
-            <Label className="gba:text-xs">Widget width</Label>
-            <Select value={String(widgetWidth)} onValueChange={v => setWidgetWidth(Number(v))}>
-              <SelectTrigger className="gba:h-8 gba:text-xs gba:w-24" data-testid={`${testId}-width`}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="1">1 col</SelectItem>
-                <SelectItem value="2">2 cols</SelectItem>
-                <SelectItem value="3">3 cols</SelectItem>
-                <SelectItem value="4">4 cols</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="gba:min-h-[280px] gba:hidden gba:md:block">
+            <WidgetPreviewPanel widget={previewWidget} columns={columns} rows={rows} isReady={canCreate} />
           </div>
         </div>
 

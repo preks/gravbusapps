@@ -9,7 +9,10 @@ export type {
   BoardRelationship,
   BoardSummary,
   ChartConfig,
-  EntityDataSource
+  EntityDataSource,
+  MyWorkItem,
+  MyWorkResponse,
+  BoardStatsResponse
 } from './board'
 
 export type {
@@ -43,9 +46,31 @@ export type {
   KpiWidgetConfig,
   ChartWidgetConfig,
   TableWidgetConfig,
+  MultiSeriesChartWidgetConfig,
+  TimeSeriesWidgetConfig,
+  ScatterWidgetConfig,
+  HistogramWidgetConfig,
   ViewFilter,
   ViewFilterOperator,
   FilterConnector,
   ViewFilterGroup,
   ViewSort
 } from './views'
+
+export type {
+  AggregationFn,
+  TimeBucket,
+  MetricDef,
+  AggregateQuery,
+  TimeSeriesQuery,
+  ScatterQuery,
+  HistogramQuery,
+  AnalyticsQuery,
+  AggregateRow,
+  TimeSeriesRow,
+  ScatterPoint,
+  HistogramBin,
+  AnalyticsResult,
+  ColumnProfile,
+  DataProfile
+} from './analytics'

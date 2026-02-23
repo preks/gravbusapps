@@ -28,9 +28,23 @@ export const TableWidget: React.FC<TableWidgetProps> = ({ config, columns, rows,
   }, [config.columns, columns])
 
   const displayRows = useMemo(() => {
-    const limit = config.limit || 10
-    return rows.slice(0, limit)
-  }, [rows, config.limit])
+    const sorted = [...rows]
+    if (config.sortBy) {
+      const col = columns.find(c => c.name === config.sortBy)
+      const isNumeric = col && ['number', 'currency', 'percentage'].includes(col.type)
+      sorted.sort((a, b) => {
+        const aVal = a.data[config.sortBy!]
+        const bVal = b.data[config.sortBy!]
+        if (isNumeric) {
+          const diff = (Number(aVal) || 0) - (Number(bVal) || 0)
+          return config.sortDirection === 'desc' ? -diff : diff
+        }
+        const cmp = String(aVal ?? '').localeCompare(String(bVal ?? ''))
+        return config.sortDirection === 'desc' ? -cmp : cmp
+      })
+    }
+    return sorted.slice(0, config.limit || 10)
+  }, [rows, columns, config.limit, config.sortBy, config.sortDirection])
 
   if (displayColumns.length === 0) {
     return (

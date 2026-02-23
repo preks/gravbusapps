@@ -19,6 +19,7 @@ import { BoardViewerFooter } from './components/viewer/BoardViewerFooter'
 import { BoardViewerOverlays } from './components/viewer/BoardViewerOverlays'
 import { SystemDataSheet } from './components/system-data/SystemDataSheet'
 import { BoardApiService } from './services/BoardApiService'
+import { useDashboardData } from './hooks/useDashboardData'
 
 export interface BoardViewerHandle {
   openSearch: () => void
@@ -56,6 +57,7 @@ export interface BoardViewerProps {
       filters?: string
       filterConnector?: 'and' | 'or'
       sorts?: string
+      append?: boolean
     }
   ) => Promise<void>
   onCreateRow?: (boardId: string, sheetId: string, data: Record<string, unknown>) => Promise<BoardRow | null>
@@ -129,46 +131,11 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
   const [isAddViewOpen, setIsAddViewOpen] = useState(false)
   const [isSystemDataOpen, setIsSystemDataOpen] = useState(false)
   const [highlightedRowId, setHighlightedRowId] = useState<string | null>(null)
-
-  const navigateToRow = useCallback(
-    (targetSheetId: string, rowId: string, position?: number) => {
-      const effectiveSheetId = targetSheetId || activeSheetId
-
-      if (effectiveSheetId && effectiveSheetId !== activeSheetId) {
-        setActiveSheetId(effectiveSheetId)
-        setActiveViewId('')
-        setPage(1)
-      }
-
-      const tableSheet = board.sheets.find(s => s.id === effectiveSheetId) || board.sheets[0]
-      const rpp = tableSheet?.settings.rowsPerPage || 50
-
-      void (async () => {
-        const located = await BoardApiService.locateRow(board.id, effectiveSheetId, rowId)
-        if (located) {
-          const targetPage = Math.floor(located.rowIndex / rpp) + 1
-          setPage(targetPage)
-        } else if (position !== undefined && position >= 0) {
-          // Fallback only: "position" may contain gaps, so rowIndex is preferred when available.
-          const targetPage = Math.floor(position / rpp) + 1
-          setPage(targetPage)
-        }
-        setHighlightedRowId(rowId)
-      })()
-    },
-    [activeSheetId, board.id, board.sheets]
-  )
-
-  useImperativeHandle(
-    ref,
-    () => ({
-      openSearch: () => setIsSearchOpen(true),
-      openSettings: () => setIsSettingsOpen(true),
-      openSystemData: () => setIsSystemDataOpen(true),
-      navigateToRow
-    }),
-    [navigateToRow]
-  )
+  const tableNextPageRef = useRef(1)
+  const kanbanNextPageRef = useRef(1)
+  const serverFilterRef = useRef<{ filters?: string; filterConnector?: 'and' | 'or'; sorts?: string }>({})
+  const navigateLoadingRef = useRef(false)
+  const KANBAN_BATCH = 500
 
   const DEFAULT_TABLE_VIEW: import('./types').BoardView = useMemo(
     () => ({
@@ -198,20 +165,115 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
     return activeSheet.views.find(v => v.isDefault) || activeSheet.views[0]
   }, [activeSheet, activeViewId])
 
+  const navigateToRow = useCallback(
+    (targetSheetId: string, rowId: string, position?: number) => {
+      const effectiveSheetId = targetSheetId || activeSheetId
+      const rowInMemory = rows.some(r => r.id === rowId)
+      const isKanban = activeView?.type === 'kanban'
+
+      if (!rowInMemory && isKanban) {
+        navigateLoadingRef.current = true
+      }
+
+      if (effectiveSheetId && effectiveSheetId !== activeSheetId) {
+        setActiveSheetId(effectiveSheetId)
+        setActiveViewId('')
+        setPage(1)
+      }
+
+      setHighlightedRowId(rowId)
+      if (rowInMemory) return
+
+      const sheet = board.sheets.find(s => s.id === effectiveSheetId) || board.sheets[0]
+      const rpp = sheet?.settings.rowsPerPage || 50
+
+      void (async () => {
+        const located = await BoardApiService.locateRow(board.id, effectiveSheetId, rowId)
+        const rowIndex = located?.rowIndex ?? position ?? -1
+        if (rowIndex < 0) {
+          navigateLoadingRef.current = false
+          return
+        }
+
+        const targetPage = Math.floor(rowIndex / rpp) + 1
+
+        if (isKanban) {
+          try {
+            const limit = Math.min(rowsTotal, rowIndex + 1, 500)
+            await onLoadRows(board.id, effectiveSheetId, {
+              page: 1,
+              limit,
+              ...serverFilterRef.current
+            })
+            kanbanNextPageRef.current = Math.ceil(limit / KANBAN_BATCH) + 1
+          } finally {
+            navigateLoadingRef.current = false
+          }
+        } else {
+          const neededLimit = rowIndex + rpp
+          if (neededLimit <= 500) {
+            await onLoadRows(board.id, effectiveSheetId, {
+              page: 1,
+              limit: neededLimit,
+              ...serverFilterRef.current
+            })
+            tableNextPageRef.current = Math.ceil(neededLimit / rpp) + 1
+          } else {
+            await onLoadRows(board.id, effectiveSheetId, {
+              page: targetPage,
+              limit: rpp,
+              ...serverFilterRef.current
+            })
+            tableNextPageRef.current = targetPage + 1
+          }
+        }
+      })()
+    },
+    [activeSheetId, activeView?.type, board.id, board.sheets, onLoadRows, rows, rowsTotal]
+  )
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      openSearch: () => setIsSearchOpen(true),
+      openSettings: () => setIsSettingsOpen(true),
+      openSystemData: () => setIsSystemDataOpen(true),
+      navigateToRow
+    }),
+    [navigateToRow]
+  )
+
   useEffect(() => {
     if (!activeSheet) return
     const defaultView = activeSheet.views.find(v => v.isDefault) || activeSheet.views[0]
     if (defaultView && !activeViewId) setActiveViewId(defaultView.id)
   }, [activeSheet, activeViewId])
 
+  const viewType = activeView?.type || 'table'
+  const isKanbanView = viewType === 'kanban'
+
   useEffect(() => {
-    if (!activeSheet) return
+    if (!activeSheet || navigateLoadingRef.current) return
+    if (!isKanbanView) return
+    const opts = { ...serverFilterRef.current }
+    kanbanNextPageRef.current = 2
+    void onLoadRows(board.id, activeSheet.id, { page: 1, limit: KANBAN_BATCH, ...opts })
+  }, [board.id, activeSheet, isKanbanView, onLoadRows])
+
+  useEffect(() => {
+    if (!activeSheet || !isKanbanView || rowsLoading) return
+    if (rows.length >= rowsTotal || rowsTotal <= 0) return
+    const targetPage = Math.ceil(rows.length / KANBAN_BATCH) + 1
+    const totalPages = Math.ceil(rowsTotal / KANBAN_BATCH)
+    if (targetPage > totalPages) return
+    kanbanNextPageRef.current = targetPage + 1
     void onLoadRows(board.id, activeSheet.id, {
-      page,
-      limit: activeSheet.settings.rowsPerPage || 50,
+      page: targetPage,
+      limit: KANBAN_BATCH,
+      append: true,
       ...serverFilterRef.current
     })
-  }, [board.id, activeSheet, page, onLoadRows])
+  }, [activeSheet, board.id, isKanbanView, onLoadRows, rows.length, rowsTotal])
 
   const liveEnabled = Boolean((board.settings as any)?.liveUpdatesEnabled)
   useBoardRealtime({
@@ -221,11 +283,18 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
     onEvent: event => {
       if (!activeSheet) return
       if (event.sheetId && event.sheetId !== activeSheet.id) return
-      void onLoadRows(board.id, activeSheet.id, {
-        page,
-        limit: activeSheet.settings.rowsPerPage || 50,
-        ...serverFilterRef.current
-      })
+      const opts = { ...serverFilterRef.current }
+      if (isKanbanView) {
+        kanbanNextPageRef.current = 2
+        void onLoadRows(board.id, activeSheet.id, { page: 1, limit: KANBAN_BATCH, ...opts })
+      } else {
+        tableNextPageRef.current = 2
+        void onLoadRows(board.id, activeSheet.id, {
+          page: 1,
+          limit: activeSheet.settings.rowsPerPage || 50,
+          ...opts
+        })
+      }
     }
   })
 
@@ -257,12 +326,20 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
           })
         }
         void onReloadBoard?.(board.id)
-        void onLoadRows(board.id, activeSheet.id, { page, limit: activeSheet.settings.rowsPerPage || 50 })
+        const rpp = activeSheet.settings.rowsPerPage || 50
+        const opts = { ...serverFilterRef.current }
+        if (isKanbanView) {
+          kanbanNextPageRef.current = 2
+          void onLoadRows(board.id, activeSheet.id, { page: 1, limit: KANBAN_BATCH, ...opts })
+        } else {
+          tableNextPageRef.current = 2
+          void onLoadRows(board.id, activeSheet.id, { page: 1, limit: rpp, ...opts })
+        }
       } catch {
         /* silent */
       }
     })()
-  }, [activeSheet, board.id, page, onReloadBoard, onLoadRows])
+  }, [activeSheet, board.id, isKanbanView, onReloadBoard, onLoadRows])
 
   useEffect(() => {
     setActiveRow(null)
@@ -277,34 +354,62 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
     await onCreateRow(board.id, activeSheet.id, emptyData)
   }, [board.id, activeSheet, onCreateRow])
 
-  const serverFilterRef = useRef<{ filters?: string; filterConnector?: 'and' | 'or'; sorts?: string }>({})
+  const isDashboardView = activeView?.type === 'dashboard'
+  const dashboardData = useDashboardData(
+    board.id,
+    activeSheet?.id || '',
+    isDashboardView,
+    serverFilterRef.current,
+    activeSheet?.entityDataSource
+  )
 
   const handleServerFilterChange = useCallback(
     (params: { filters?: string; filterConnector?: 'and' | 'or'; sorts?: string }) => {
       serverFilterRef.current = params
       if (!activeSheet) return
-      void onLoadRows(board.id, activeSheet.id, {
-        page: 1,
-        limit: activeSheet.settings.rowsPerPage || 50,
-        ...params
-      })
-      setPage(1)
+      const rpp = activeSheet.settings.rowsPerPage || 50
+      if (isKanbanView) {
+        kanbanNextPageRef.current = 2
+        void onLoadRows(board.id, activeSheet.id, { page: 1, limit: KANBAN_BATCH, ...params })
+      } else {
+        tableNextPageRef.current = 2
+        void onLoadRows(board.id, activeSheet.id, { page: 1, limit: rpp, ...params })
+      }
     },
-    [activeSheet, board.id, onLoadRows, setPage]
+    [activeSheet, board.id, isKanbanView, onLoadRows]
   )
 
   const handleRowOpen = useCallback((row: BoardRow) => {
     setActiveRow(row)
   }, [])
 
-  const handlePageCreated = useCallback(() => {
-    if (!activeSheet) return
+  const handleTableLoadMore = useCallback(() => {
+    if (!activeSheet || isKanbanView || rowsLoading) return
+    const rpp = activeSheet.settings.rowsPerPage || 50
+    const nextPage = tableNextPageRef.current
+    const totalPages = Math.ceil(rowsTotal / rpp)
+    if (nextPage > totalPages) return
+    tableNextPageRef.current = nextPage + 1
     void onLoadRows(board.id, activeSheet.id, {
-      page,
-      limit: activeSheet.settings.rowsPerPage || 50,
+      page: nextPage,
+      limit: rpp,
+      append: true,
       ...serverFilterRef.current
     })
-  }, [activeSheet, board.id, page, onLoadRows])
+  }, [activeSheet, board.id, isKanbanView, onLoadRows, rowsLoading, rowsTotal])
+
+  const handlePageCreated = useCallback(() => {
+    if (!activeSheet) return
+    const rpp = activeSheet.settings.rowsPerPage || 50
+    const opts = { ...serverFilterRef.current }
+    if (isKanbanView) {
+      kanbanNextPageRef.current = 2
+      void onLoadRows(board.id, activeSheet.id, { page: 1, limit: KANBAN_BATCH, ...opts })
+    } else {
+      tableNextPageRef.current = 2
+      void onLoadRows(board.id, activeSheet.id, { page: 1, limit: rpp, ...opts })
+    }
+  }, [activeSheet, board.id, isKanbanView, onLoadRows])
 
   const handleSheetChange = useCallback((sheetId: string) => {
     setActiveSheetId(sheetId)
@@ -312,8 +417,12 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
     setPage(1)
   }, [])
 
-  const viewType = activeView?.type || 'table'
   const totalPages = Math.ceil(rowsTotal / (activeSheet?.settings.rowsPerPage || 50))
+
+  const [scrollParent, setScrollParent] = useState<HTMLDivElement | null>(null)
+  const scrollRefCallback = useCallback((el: HTMLDivElement | null) => {
+    if (el) setScrollParent(el)
+  }, [])
 
   return (
     <div className="gba:flex gba:flex-col gba:flex-1 gba:min-h-0 gba:min-w-0 gba:overflow-hidden" data-testid={testId}>
@@ -344,6 +453,8 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
               : undefined
           }
           existingColumns={activeSheet.columns}
+          boardId={board.id}
+          sheetId={activeSheet.id}
           onAddColumn={column => {
             if (!onSheetUpdate) return
             const nextColumns = [...activeSheet.columns, column].map((c, i) => ({ ...c, order: c.order ?? i }))
@@ -355,7 +466,7 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
       )}
 
       <div className="gba:flex-1 gba:relative gba:min-h-0 gba:min-w-0 gba:overflow-hidden">
-        <div className="gba:absolute gba:inset-0 gba:overflow-auto">
+        <div ref={scrollRefCallback} className="gba:absolute gba:inset-0 gba:overflow-auto">
           {rowsLoading && rows.length === 0 ? (
             <div className="gba:flex gba:items-center gba:justify-center gba:py-16">
               <Spinner size="lg" />
@@ -369,6 +480,7 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
           ) : (
             <>
               <BoardViewContent
+                scrollParent={isKanbanView ? scrollParent : undefined}
                 view={activeView}
                 sheet={activeSheet!}
                 rows={rows}
@@ -387,8 +499,8 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
                 }
                 onUpdateCell={
                   onUpdateRow
-                    ? async (rowId, colName, value) => {
-                        await onUpdateRow(board.id, activeSheet!.id, rowId, { [colName]: value })
+                    ? async (rowId, colName, value, extraData) => {
+                        await onUpdateRow(board.id, activeSheet!.id, rowId, { [colName]: value, ...extraData })
                       }
                     : undefined
                 }
@@ -446,8 +558,25 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
                       }
                     : undefined
                 }
+                onUpdateView={
+                  onSheetUpdate && activeView
+                    ? (viewId, config) => {
+                        const updatedViews = activeSheet!.views.map(v =>
+                          v.id === viewId ? { ...v, config: { ...v.config, ...config } } : v
+                        )
+                        void onSheetUpdate(board.id, activeSheet!.id, { views: updatedViews } as any)
+                      }
+                    : undefined
+                }
                 onServerFilterChange={handleServerFilterChange}
                 rowsTotal={rowsTotal}
+                dashboardRows={dashboardData.allRows}
+                dashboardLoading={dashboardData.isLoading}
+                dashboardSampled={dashboardData.isSampled}
+                dashboardTotalRows={dashboardData.totalRows}
+                dashboardLoadedRows={dashboardData.loadedRows}
+                onTableLoadMore={!isKanbanView ? handleTableLoadMore : undefined}
+                rowsLoading={rowsLoading}
                 testId={`${testId}-${viewType}`}
               />
 
@@ -474,9 +603,11 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
         rowsTotal={rowsTotal}
         page={page}
         totalPages={totalPages}
-        onPrevPage={() => setPage(p => p - 1)}
-        onNextPage={() => setPage(p => p + 1)}
+        onPrevPage={() => setPage(p => Math.max(1, p - 1))}
+        onNextPage={() => setPage(p => Math.min(totalPages, p + 1))}
         onAddRow={onCreateRow ? handleAddRow : undefined}
+        hidePagination
+        loadedRows={rows.length}
         testId={testId}
       />
 
@@ -521,7 +652,15 @@ export const BoardViewer = forwardRef<BoardViewerHandle, BoardViewerProps>(funct
           }
           onAfterImport={() => {
             void onReloadBoard?.(board.id)
-            void onLoadRows(board.id, activeSheet.id, { page, limit: activeSheet.settings.rowsPerPage || 50 })
+            const rpp = activeSheet.settings.rowsPerPage || 50
+            const opts = { ...serverFilterRef.current }
+            if (isKanbanView) {
+              kanbanNextPageRef.current = 2
+              void onLoadRows(board.id, activeSheet.id, { page: 1, limit: KANBAN_BATCH, ...opts })
+            } else {
+              tableNextPageRef.current = 2
+              void onLoadRows(board.id, activeSheet.id, { page: 1, limit: rpp, ...opts })
+            }
           }}
           data-testid={`${testId}-system-data-sheet`}
         />

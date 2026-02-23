@@ -6,7 +6,15 @@
  * isolated by app_kind='board' and served by a dedicated controller.
  */
 
-import type { Board, BoardSummary, BoardSheet, BoardRow, BoardStatus } from '../types'
+import type {
+  Board,
+  BoardSummary,
+  BoardSheet,
+  BoardRow,
+  BoardStatus,
+  BoardStatsResponse,
+  MyWorkResponse
+} from '../types'
 import type { BoardColumn, BoardColumnType } from '../types/columns'
 import { getDocumentServiceApiUrl } from '@/business-apps/platform/apps/shared/utils/documentServiceUrl'
 import { graphQLClient } from '@/common/network/graphql/GraphQLClient'
@@ -298,6 +306,29 @@ export const BoardApiService = {
         sharedBy: app.sharedBy as string | undefined
       }
     })
+  },
+
+  async getBoardStats(): Promise<BoardStatsResponse> {
+    try {
+      return await apiRequest<BoardStatsResponse>('/boards/stats')
+    } catch {
+      return {
+        totalBoards: 0,
+        totalRows: 0,
+        sharedBoards: 0,
+        activeThisWeek: 0,
+        overdueItems: 0,
+        boardsByStatus: { draft: 0, promoted: 0, archived: 0 }
+      }
+    }
+  },
+
+  async getMyWork(): Promise<MyWorkResponse> {
+    try {
+      return await apiRequest<MyWorkResponse>('/boards/my-work')
+    } catch {
+      return { overdue: [], dueToday: [], dueThisWeek: [], blocked: [], recentlyCompleted: [], totalAssigned: 0 }
+    }
   },
 
   async getBoard(id: string): Promise<Board | null> {
@@ -650,6 +681,26 @@ export const BoardApiService = {
       return { optionCount: newOptions.length }
     } catch {
       return null
+    }
+  },
+
+  async getColumnTags(
+    boardId: string,
+    sheetId: string,
+    columnName: string,
+    options?: { search?: string; limit?: number }
+  ): Promise<string[]> {
+    try {
+      const params = new URLSearchParams()
+      if (options?.search) params.set('search', options.search)
+      if (options?.limit) params.set('limit', String(options.limit))
+      const qs = params.toString()
+      const result = await apiRequest<{ tags: string[] }>(
+        `/boards/${boardId}/sheets/${sheetId}/columns/${encodeURIComponent(columnName)}/tags${qs ? `?${qs}` : ''}`
+      )
+      return result.tags ?? []
+    } catch {
+      return []
     }
   },
 

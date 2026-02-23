@@ -11,6 +11,8 @@ import { SortIndicator } from './SortRow'
 
 interface TableHeaderProps {
   columns: BoardColumn[]
+  boardId: string
+  sheetId: string
   sortMap: Map<string, { direction: 'asc' | 'desc'; priority: number }>
   sortCount: number
   onToggleSort: (colName: string) => void
@@ -23,6 +25,8 @@ interface TableHeaderProps {
 
 export const TableHeader: React.FC<TableHeaderProps> = ({
   columns,
+  boardId,
+  sheetId,
   sortMap,
   sortCount,
   onToggleSort,
@@ -80,7 +84,13 @@ export const TableHeader: React.FC<TableHeaderProps> = ({
         })}
         {onAddColumn && (
           <th className="gba:px-1 gba:py-1.5 gba:border-b gba:w-10">
-            <AddColumnPopover existingColumns={columns} onAdd={onAddColumn} data-testid={`${testId}-add-col-popover`}>
+            <AddColumnPopover
+              existingColumns={columns}
+              boardId={boardId}
+              sheetId={sheetId}
+              onAdd={onAddColumn}
+              data-testid={`${testId}-add-col-popover`}
+            >
               <button
                 className="gba:w-7 gba:h-7 gba:flex gba:items-center gba:justify-center gba:rounded gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-muted/60 gba:transition-colors"
                 data-testid={`${testId}-add-col`}

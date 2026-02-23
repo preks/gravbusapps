@@ -40,6 +40,7 @@ export interface KanbanViewConfig {
   titleColumn: string
   descriptionColumn?: string
   coverImageColumn?: string
+  cardFields?: string[]
 }
 
 export interface CalendarViewConfig {
@@ -72,12 +73,22 @@ export interface DashboardViewConfig {
   widgets: DashboardWidget[]
 }
 
+export type WidgetConfigType =
+  | KpiWidgetConfig
+  | ChartWidgetConfig
+  | TableWidgetConfig
+  | MultiSeriesChartWidgetConfig
+  | TimeSeriesWidgetConfig
+  | ScatterWidgetConfig
+  | HistogramWidgetConfig
+
 export interface DashboardWidget {
   id: string
-  type: 'kpi' | 'chart' | 'table'
+  type: 'kpi' | 'chart' | 'table' | 'multi_chart' | 'timeseries' | 'scatter' | 'histogram'
   title: string
-  config: KpiWidgetConfig | ChartWidgetConfig | TableWidgetConfig
+  config: WidgetConfigType
   position: { x: number; y: number; w: number; h: number }
+  filters?: ViewFilterGroup
 }
 
 export interface KpiWidgetConfig {
@@ -85,6 +96,8 @@ export interface KpiWidgetConfig {
   column: string
   aggregation: 'sum' | 'avg' | 'count' | 'min' | 'max'
   format?: 'number' | 'currency' | 'percentage'
+  compareTo?: { mode: 'previousPeriod' | 'target'; target?: number; dateColumn?: string }
+  sparkline?: { dateColumn: string; bucket: 'day' | 'week' | 'month' }
 }
 
 export interface ChartWidgetConfig {
@@ -92,13 +105,54 @@ export interface ChartWidgetConfig {
   chartType: 'bar' | 'line' | 'pie' | 'donut' | 'area'
   xAxis: string
   yAxis: string
-  aggregation?: 'sum' | 'avg' | 'count'
+  aggregation?: 'sum' | 'avg' | 'count' | 'min' | 'max'
+  sortBy?: 'value' | 'label'
+  sortDirection?: 'asc' | 'desc'
+  limit?: number
+}
+
+export interface MultiSeriesChartWidgetConfig {
+  type: 'multi_chart'
+  chartType: 'bar' | 'line' | 'area' | 'stacked_bar' | 'stacked_area'
+  groupBy: string
+  series: Array<{ column: string; aggregation: 'sum' | 'avg' | 'count' | 'min' | 'max'; label?: string }>
+  breakdown?: string
+  timeBucket?: 'day' | 'week' | 'month' | 'quarter' | 'year'
+  sortBy?: string
+  sortDirection?: 'asc' | 'desc'
+  limit?: number
+}
+
+export interface TimeSeriesWidgetConfig {
+  type: 'timeseries'
+  dateColumn: string
+  bucket: 'day' | 'week' | 'month' | 'quarter' | 'year'
+  series: Array<{ column: string; aggregation: 'sum' | 'avg' | 'count' | 'min' | 'max'; label?: string }>
+  chartType?: 'line' | 'area' | 'bar'
+  breakdown?: string
+}
+
+export interface ScatterWidgetConfig {
+  type: 'scatter'
+  xColumn: string
+  yColumn: string
+  labelColumn?: string
+  sizeColumn?: string
+  colorColumn?: string
+}
+
+export interface HistogramWidgetConfig {
+  type: 'histogram'
+  column: string
+  bins?: number
 }
 
 export interface TableWidgetConfig {
   type: 'table'
   columns: string[]
   limit?: number
+  sortBy?: string
+  sortDirection?: 'asc' | 'desc'
 }
 
 export interface ViewFilter {

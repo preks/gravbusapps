@@ -14,7 +14,13 @@ import {
   Calculator,
   Star,
   Percent,
-  DollarSign
+  DollarSign,
+  BarChart3,
+  Tags,
+  GanttChart,
+  FileText,
+  Paperclip,
+  MousePointerClick
 } from 'lucide-react'
 
 const CLS = 'gba:w-3 gba:h-3 gba:text-muted-foreground/60 gba:flex-shrink-0'
@@ -55,6 +61,18 @@ export const ColumnTypeIcon: React.FC<{ type: string }> = ({ type }) => {
       return <Calculator className={CLS} />
     case 'rating':
       return <Star className={CLS} />
+    case 'progress':
+      return <BarChart3 className={CLS} />
+    case 'tags':
+      return <Tags className={CLS} />
+    case 'timeline':
+      return <GanttChart className={CLS} />
+    case 'formula':
+      return <FileText className={CLS} />
+    case 'attachment':
+      return <Paperclip className={CLS} />
+    case 'button':
+      return <MousePointerClick className={CLS} />
     default:
       return null
   }

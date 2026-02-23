@@ -3,12 +3,13 @@
  */
 
 import React, { useState, useCallback, useRef, useMemo } from 'react'
-import { Button } from '@newwork/nw-design-system'
-import { Plus, Sparkles } from 'lucide-react'
+import { Button, Spinner } from '@newwork/nw-design-system'
+import { Plus, AlertTriangle } from 'lucide-react'
 import type { BoardRow, BoardColumn, DashboardViewConfig, DashboardWidget } from '../types'
 import { AddWidgetDialog } from '../components/dashboard/AddWidgetDialog'
 import { WidgetCardWrapper } from '../components/dashboard/WidgetCardWrapper'
 import { WidgetContent } from '../components/dashboard/WidgetContent'
+import { AskDashboardInput } from '../components/dashboard/AskDashboardInput'
 
 type RenderItem =
   | { type: 'widget'; widget: DashboardWidget }
@@ -20,6 +21,10 @@ export interface BoardDashboardViewProps {
   viewConfig: DashboardViewConfig
   onUpdateWidgets?: (widgets: DashboardWidget[]) => void
   accessToken?: string
+  isLoading?: boolean
+  isSampled?: boolean
+  totalRows?: number
+  loadedRows?: number
   'data-testid'?: string
 }
 
@@ -29,12 +34,15 @@ export const BoardDashboardView: React.FC<BoardDashboardViewProps> = ({
   viewConfig,
   onUpdateWidgets,
   accessToken,
+  isLoading: dashboardLoading,
+  isSampled,
+  totalRows: dashTotalRows,
+  loadedRows,
   'data-testid': testId = 'board-dashboard'
 }) => {
   const widgets = viewConfig.widgets || []
   const [isAddOpen, setIsAddOpen] = useState(false)
   const [editingWidget, setEditingWidget] = useState<DashboardWidget | null>(null)
-  const [isAISuggestOpen, setIsAISuggestOpen] = useState(false)
   const [dragWidgetId, setDragWidgetId] = useState<string | null>(null)
   const [dragOverTarget, setDragOverTarget] = useState<string | null>(null)
   const dragCounter = useRef<Map<string, number>>(new Map())
@@ -224,13 +232,10 @@ export const BoardDashboardView: React.FC<BoardDashboardViewProps> = ({
     [resolveDropTarget, handleDragEnd]
   )
 
-  const openAISuggest = async () => {
-    setIsAISuggestOpen(true)
-    const { AISuggestWidgetsDialog } = await import('../components/dashboard/AISuggestWidgetsDialog')
-    setAISuggestComponent(() => AISuggestWidgetsDialog)
-  }
-
-  const [AISuggestComponent, setAISuggestComponent] = useState<React.FC<any> | null>(null)
+  const handleAddWidgets = useCallback(
+    (newWidgets: DashboardWidget[]) => onUpdateWidgets?.([...widgets, ...newWidgets]),
+    [widgets, onUpdateWidgets]
+  )
 
   const colSpanClass = (w: number) => {
     switch (w) {
@@ -260,52 +265,40 @@ export const BoardDashboardView: React.FC<BoardDashboardViewProps> = ({
             <Plus className="gba:w-3.5 gba:h-3.5" /> Add widget
           </Button>
           {accessToken && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="gba:gap-1.5"
-              onClick={openAISuggest}
-              data-testid={`${testId}-ai-suggest`}
-            >
-              <Sparkles className="gba:w-3.5 gba:h-3.5" /> Suggest with AI
-            </Button>
+            <AskDashboardInput
+              columns={columns}
+              rows={rows}
+              accessToken={accessToken}
+              onAddWidget={handleAddWidget}
+              onAddWidgets={handleAddWidgets}
+              testId={testId}
+            />
           )}
         </div>
         <AddWidgetDialog
           open={isAddOpen}
           onOpenChange={setIsAddOpen}
           columns={columns}
+          rows={rows}
           onAdd={handleAddWidget}
           data-testid={`${testId}-add-widget-dialog`}
         />
-        {AISuggestComponent && accessToken && (
-          <AISuggestComponent
-            open={isAISuggestOpen}
-            onOpenChange={setIsAISuggestOpen}
-            columns={columns}
-            rows={rows}
-            accessToken={accessToken}
-            onAddWidgets={(newWidgets: DashboardWidget[]) => onUpdateWidgets?.([...widgets, ...newWidgets])}
-            data-testid={`${testId}-ai-suggest-dialog`}
-          />
-        )}
       </div>
     )
   }
 
   return (
     <div className="gba:p-4" data-testid={testId}>
-      <div className="gba:flex gba:justify-end gba:mb-3 gba:gap-2">
+      <div className="gba:flex gba:items-center gba:justify-end gba:mb-3 gba:gap-2">
         {accessToken && (
-          <Button
-            size="sm"
-            variant="outline"
-            className="gba:gap-1.5 gba:h-7 gba:text-xs"
-            onClick={openAISuggest}
-            data-testid={`${testId}-ai-suggest`}
-          >
-            <Sparkles className="gba:w-3 gba:h-3" /> Suggest with AI
-          </Button>
+          <AskDashboardInput
+            columns={columns}
+            rows={rows}
+            accessToken={accessToken}
+            onAddWidget={handleAddWidget}
+            onAddWidgets={handleAddWidgets}
+            testId={testId}
+          />
         )}
         <Button
           size="sm"
@@ -320,6 +313,26 @@ export const BoardDashboardView: React.FC<BoardDashboardViewProps> = ({
           <Plus className="gba:w-3 gba:h-3" /> Add widget
         </Button>
       </div>
+      {(dashboardLoading || isSampled) && (
+        <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2 gba:px-1" data-testid={`${testId}-status`}>
+          {dashboardLoading && (
+            <>
+              <Spinner className="gba:w-3 gba:h-3" />
+              <span className="gba:text-xs gba:text-muted-foreground">
+                Loading data{loadedRows ? ` (${loadedRows}${dashTotalRows ? `/${dashTotalRows}` : ''} rows)` : ''}...
+              </span>
+            </>
+          )}
+          {!dashboardLoading && isSampled && (
+            <>
+              <AlertTriangle className="gba:w-3 gba:h-3 gba:text-warning" />
+              <span className="gba:text-xs gba:text-muted-foreground">
+                Showing sampled data ({loadedRows?.toLocaleString()} of {dashTotalRows?.toLocaleString()} rows)
+              </span>
+            </>
+          )}
+        </div>
+      )}
       <div
         className="gba:grid gba:grid-cols-2 gba:md:grid-cols-3 gba:lg:grid-cols-4 gba:gap-3"
         onDragOver={handleGridDragOver}
@@ -380,22 +393,11 @@ export const BoardDashboardView: React.FC<BoardDashboardViewProps> = ({
           }
         }}
         columns={columns}
+        rows={rows}
         onAdd={editingWidget ? handleEditWidget : handleAddWidget}
         editWidget={editingWidget}
         data-testid={`${testId}-add-widget-dialog`}
       />
-
-      {AISuggestComponent && accessToken && (
-        <AISuggestComponent
-          open={isAISuggestOpen}
-          onOpenChange={setIsAISuggestOpen}
-          columns={columns}
-          rows={rows}
-          accessToken={accessToken}
-          onAddWidgets={(newWidgets: DashboardWidget[]) => onUpdateWidgets?.([...widgets, ...newWidgets])}
-          data-testid={`${testId}-ai-suggest-dialog`}
-        />
-      )}
     </div>
   )
 }

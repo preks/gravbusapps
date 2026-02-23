@@ -36,6 +36,7 @@ export interface UseBoardAppsReturn {
       filters?: string
       filterConnector?: 'and' | 'or'
       sorts?: string
+      append?: boolean
     }
   ) => Promise<void>
   createRow: (boardId: string, sheetId: string, data: Record<string, unknown>) => Promise<BoardRow | null>
@@ -169,12 +170,21 @@ export function useBoardApps(accessToken: string): UseBoardAppsReturn {
         filters?: string
         filterConnector?: 'and' | 'or'
         sorts?: string
+        append?: boolean
       }
     ) => {
       setRowsLoading(true)
       try {
         const result = await BoardApiService.getRows(boardId, sheetId, options)
-        setRows(result.items)
+        if (options?.append) {
+          setRows(prev => {
+            const existingIds = new Set(prev.map(r => r.id))
+            const newItems = result.items.filter(r => !existingIds.has(r.id))
+            return newItems.length > 0 ? [...prev, ...newItems] : prev
+          })
+        } else {
+          setRows(result.items)
+        }
         setRowsTotal(result.total)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load rows')
@@ -203,7 +213,7 @@ export function useBoardApps(accessToken: string): UseBoardAppsReturn {
     async (boardId: string, sheetId: string, rowId: string, data: Record<string, unknown>) => {
       try {
         const updated = await BoardApiService.updateRow(boardId, sheetId, rowId, data)
-        setRows(prev => prev.map(r => (r.id === rowId ? updated : r)))
+        setRows(prev => prev.map(r => (r.id !== rowId ? r : updated)))
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to update row')
       }

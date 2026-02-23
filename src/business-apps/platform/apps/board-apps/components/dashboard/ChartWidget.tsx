@@ -38,7 +38,9 @@ function aggregateData(
   rows: BoardRow[],
   xAxis: string,
   yAxis: string,
-  aggregation: 'sum' | 'avg' | 'count'
+  aggregation: string,
+  sortDirection?: string,
+  limit?: number
 ): Array<{ name: string; value: number }> {
   const groups = new Map<string, number[]>()
 
@@ -50,7 +52,7 @@ function aggregateData(
     else groups.get(xVal)!.push(0)
   }
 
-  return [...groups.entries()].map(([name, values]) => {
+  let result = [...groups.entries()].map(([name, values]) => {
     let value: number
     switch (aggregation) {
       case 'sum':
@@ -58,6 +60,12 @@ function aggregateData(
         break
       case 'avg':
         value = values.length > 0 ? values.reduce((a, b) => a + b, 0) / values.length : 0
+        break
+      case 'min':
+        value = values.length > 0 ? Math.min(...values) : 0
+        break
+      case 'max':
+        value = values.length > 0 ? Math.max(...values) : 0
         break
       case 'count':
         value = values.length
@@ -67,6 +75,13 @@ function aggregateData(
     }
     return { name, value: Math.round(value * 100) / 100 }
   })
+
+  if (sortDirection === 'asc') result.sort((a, b) => a.value - b.value)
+  else if (sortDirection === 'desc') result.sort((a, b) => b.value - a.value)
+
+  if (limit && limit > 0) result = result.slice(0, limit)
+
+  return result
 }
 
 function resolveColName(columns: BoardColumn[], ref: string): string {
@@ -89,8 +104,16 @@ export const ChartWidget: React.FC<ChartWidgetProps> = ({ config, columns, rows,
   const yAxisResolved = useMemo(() => resolveColName(columns, config.yAxis), [columns, config.yAxis])
 
   const data = useMemo(
-    () => aggregateData(rows, xAxisResolved, yAxisResolved, config.aggregation || 'count'),
-    [rows, xAxisResolved, yAxisResolved, config.aggregation]
+    () =>
+      aggregateData(
+        rows,
+        xAxisResolved,
+        yAxisResolved,
+        config.aggregation || 'count',
+        config.sortDirection,
+        config.limit
+      ),
+    [rows, xAxisResolved, yAxisResolved, config.aggregation, config.sortDirection, config.limit]
   )
 
   const yCol = columns.find(c => c.name === yAxisResolved)

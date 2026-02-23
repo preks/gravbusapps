@@ -113,4 +113,36 @@ export interface BoardSummary {
   sharedBy?: string
 }
 
+export interface MyWorkItem {
+  rowId: string
+  boardId: string
+  boardName: string
+  boardIcon?: string
+  sheetId: string
+  sheetName: string
+  title: string
+  status?: string
+  statusColor?: string
+  deadline?: string
+  updatedAt: string
+}
+
+export interface MyWorkResponse {
+  overdue: MyWorkItem[]
+  dueToday: MyWorkItem[]
+  dueThisWeek: MyWorkItem[]
+  blocked: MyWorkItem[]
+  recentlyCompleted: MyWorkItem[]
+  totalAssigned: number
+}
+
+export interface BoardStatsResponse {
+  totalBoards: number
+  totalRows: number
+  sharedBoards: number
+  activeThisWeek: number
+  overdueItems: number
+  boardsByStatus: { draft: number; promoted: number; archived: number }
+}
+
 export type { EntityDataSource }

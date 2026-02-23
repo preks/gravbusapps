@@ -19,6 +19,8 @@ export interface BoardViewerTabsProps {
   onDeleteView?: (viewId: string) => void
   onReorderViews?: (reordered: BoardView[]) => void
   existingColumns: BoardColumn[]
+  boardId: string
+  sheetId: string
   onAddColumn: (column: BoardColumn) => void
   onAddView: () => void
   testId: string
@@ -31,6 +33,8 @@ export const BoardViewerTabs: React.FC<BoardViewerTabsProps> = ({
   onDeleteView,
   onReorderViews,
   existingColumns,
+  boardId,
+  sheetId,
   onAddColumn,
   onAddView,
   testId
@@ -162,6 +166,8 @@ export const BoardViewerTabs: React.FC<BoardViewerTabsProps> = ({
 
       <AddColumnPopover
         existingColumns={existingColumns}
+        boardId={boardId}
+        sheetId={sheetId}
         onAdd={onAddColumn}
         data-testid={`${testId}-add-column-popover`}
       >

@@ -2,106 +2,76 @@
 
 import { useState, useCallback } from 'react'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
-import type { BoardSheet, BoardColumn, BoardView, BoardGroup, DashboardWidget } from '../types'
+import type { BoardSheet, DashboardWidget } from '../types'
 import {
   BOARD_CREATOR_SYSTEM,
   BOARD_CREATOR_WITH_DATASOURCES_SYSTEM,
   WIDGET_SUGGEST_SYSTEM,
   MERGE_ANALYZER_SYSTEM,
   BOARD_QUERY_SYSTEM,
-  DATA_SOURCE_ANALYZER_SYSTEM
+  DATA_SOURCE_ANALYZER_SYSTEM,
+  DASHBOARD_QUESTION_SYSTEM
 } from './boardAIPrompts'
+import type { DataProfile } from '../types/analytics'
+import type {
+  BoardAIPlan,
+  WidgetSuggestion,
+  BoardQueryPlan,
+  EnrichmentPlan,
+  AutomationRecipe,
+  MergePlan,
+  DataSourceSuggestion,
+  DataSourceAnalysis,
+  UseBoardAIReturn
+} from './boardAITypes'
 
-export interface BoardAIPlan {
-  sheets: Array<{
-    name: string
-    columns: Partial<BoardColumn>[]
-    views: Partial<BoardView>[]
-    groups?: Partial<BoardGroup>[]
-  }>
-  suggestedName: string
-  confidence: number
-  sampleRows?: Record<string, unknown>[]
+export type {
+  BoardAIPlan,
+  WidgetSuggestion,
+  BoardQueryPlan,
+  EnrichmentPlan,
+  AutomationRecipe,
+  MergePlan,
+  DataSourceSuggestion,
+  DataSourceAnalysis,
+  UseBoardAIReturn
 }
 
-export interface WidgetSuggestion {
-  widgets: Array<Partial<DashboardWidget>>
-  explanation: string
-}
+function serializeProfile(profile: DataProfile): string {
+  const lines: string[] = [`Total rows: ${profile.totalRows}`]
 
-export interface BoardQueryPlan {
-  filters?: Array<{ column: string; operator: string; value: unknown }>
-  sorts?: Array<{ column: string; direction: 'asc' | 'desc' }>
-  groupBy?: string
-  viewName?: string
-  explanation: string
-}
+  if (profile.suggestedDateColumn) lines.push(`Suggested date column: ${profile.suggestedDateColumn}`)
+  if (profile.suggestedMetricColumns.length) lines.push(`Metric columns: ${profile.suggestedMetricColumns.join(', ')}`)
+  if (profile.suggestedCategoryColumns.length)
+    lines.push(`Category columns: ${profile.suggestedCategoryColumns.join(', ')}`)
 
-export interface EnrichmentPlan {
-  targetColumn: string
-  operation: 'categorize' | 'extract' | 'summarize' | 'normalize' | 'dedupe'
-  outputColumn?: string
-  explanation: string
-}
+  for (const cp of profile.columnProfiles) {
+    const parts = [
+      `${cp.column} (${cp.type}): ${cp.nonNullCount}/${cp.nonNullCount + cp.nullCount} filled, ${cp.uniqueCount} unique`
+    ]
+    if (cp.numericStats) {
+      const s = cp.numericStats
+      parts.push(`min=${s.min}, max=${s.max}, mean=${s.mean}, median=${s.median}, stddev=${s.stddev}`)
+    }
+    if (cp.dateRange) parts.push(`range: ${cp.dateRange.min} to ${cp.dateRange.max}`)
+    if (cp.topValues?.length)
+      parts.push(
+        `top: ${cp.topValues
+          .slice(0, 5)
+          .map(v => `${v.value}(${v.count})`)
+          .join(', ')}`
+      )
+    lines.push(`  ${parts.join(' | ')}`)
+  }
 
-export interface AutomationRecipe {
-  name: string
-  trigger: string
-  actions: Array<{ type: string; config: Record<string, unknown> }>
-  explanation: string
-}
+  if (profile.correlations?.length) {
+    lines.push('Correlations:')
+    for (const c of profile.correlations) {
+      lines.push(`  ${c.col1} ~ ${c.col2}: r=${c.r}`)
+    }
+  }
 
-export interface MergePlan {
-  strategy: 'addRows' | 'addColumns' | 'hybrid' | 'populateOptions'
-  joinKey?: { existingColumn: string; newColumn: string }
-  populateConfig?: { targetColumn: string; sourceField: string }
-  explanation: string
-  confidence: number
-  columnMapping?: Array<{ from: string; to: string; action: 'map' | 'new' }>
-}
-
-export interface DataSourceSuggestion {
-  entityType: string
-  purpose: string
-  importMode: 'rows' | 'selectOptions'
-  /** 'primary' = main row data for the board; 'auxiliary' = populates select/dropdown columns */
-  role: 'primary' | 'auxiliary'
-  suggestedFields: string[]
-  targetColumn?: string
-  sourceField?: string
-  confidence: number
-  explanation: string
-}
-
-export interface DataSourceAnalysis {
-  suggestions: DataSourceSuggestion[]
-  summary: string
-}
-
-export interface UseBoardAIReturn {
-  isProcessing: boolean
-  error: string | null
-  createBoardFromPrompt: (
-    prompt: string,
-    includeSampleData?: boolean,
-    dataSources?: DataSourceSuggestion[]
-  ) => Promise<BoardAIPlan | null>
-  queryBoardFromPrompt: (prompt: string, sheet: BoardSheet) => Promise<BoardQueryPlan | null>
-  enrichColumn: (prompt: string, sheet: BoardSheet, columnId: string) => Promise<EnrichmentPlan | null>
-  generateAutomation: (prompt: string, sheet: BoardSheet) => Promise<AutomationRecipe | null>
-  suggestWidgets: (
-    columns: Array<{ name: string; type: string; label: string }>,
-    sampleRows: Record<string, unknown>[]
-  ) => Promise<WidgetSuggestion | null>
-  analyzeMerge: (
-    existingColumns: Array<{ name: string; type: string; label: string }>,
-    existingRowSample: Record<string, unknown>[],
-    newEntityName: string,
-    newFields: Array<{ key: string; label: string; type: string }>,
-    newRecordSample: Record<string, unknown>[]
-  ) => Promise<MergePlan | null>
-  analyzeDataSources: (prompt: string, registryCatalog: string) => Promise<DataSourceAnalysis | null>
-  reset: () => void
+  return lines.join('\n')
 }
 
 export function useBoardAI(accessToken: string): UseBoardAIReturn {
@@ -236,15 +206,44 @@ export function useBoardAI(accessToken: string): UseBoardAIReturn {
   const suggestWidgets = useCallback(
     async (
       columns: Array<{ name: string; type: string; label: string }>,
-      sampleRows: Record<string, unknown>[]
+      sampleRows: Record<string, unknown>[],
+      profile?: DataProfile
     ): Promise<WidgetSuggestion | null> => {
       const schemaDesc = columns.map(c => `${c.name} (${c.type}, label: "${c.label}")`).join(', ')
-      const sample = JSON.stringify(sampleRows.slice(0, 5))
+
+      let profileDesc = ''
+      if (profile) {
+        profileDesc = serializeProfile(profile)
+      } else {
+        profileDesc = `Sample rows (first 5): ${JSON.stringify(sampleRows.slice(0, 5))}`
+      }
+
       const result = await executePrompt(
         WIDGET_SUGGEST_SYSTEM,
-        `Board columns: ${schemaDesc}\nSample rows: ${sample}\nSuggest 3-6 useful dashboard widgets. Return JSON: { widgets: [...], explanation }`
+        `Board columns: ${schemaDesc}\n\nDATA PROFILE:\n${profileDesc}\n\nSuggest 6-10 insightful dashboard widgets. Return JSON: { widgets: [...], explanation }`
       )
       return result as WidgetSuggestion | null
+    },
+    [executePrompt]
+  )
+
+  const askDashboardQuestion = useCallback(
+    async (
+      question: string,
+      columns: Array<{ name: string; type: string; label: string }>,
+      profile: DataProfile
+    ): Promise<WidgetSuggestion | null> => {
+      const schemaDesc = columns.map(c => `${c.name} (${c.type}, label: "${c.label}")`).join(', ')
+      const profileDesc = serializeProfile(profile)
+
+      const result = await executePrompt(
+        DASHBOARD_QUESTION_SYSTEM,
+        `Board columns: ${schemaDesc}\n\nDATA PROFILE:\n${profileDesc}\n\nQuestion: "${question}"`
+      )
+      if (!result) return null
+      const parsed = result as { widget?: Partial<DashboardWidget>; explanation?: string }
+      if (!parsed.widget) return { widgets: [], explanation: parsed.explanation || 'Could not answer that question' }
+      return { widgets: [parsed.widget], explanation: parsed.explanation || '' }
     },
     [executePrompt]
   )
@@ -295,6 +294,7 @@ export function useBoardAI(accessToken: string): UseBoardAIReturn {
     enrichColumn,
     generateAutomation,
     suggestWidgets,
+    askDashboardQuestion,
     analyzeMerge,
     analyzeDataSources,
     reset

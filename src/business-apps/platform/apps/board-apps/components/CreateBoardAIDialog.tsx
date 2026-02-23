@@ -254,9 +254,15 @@ export const CreateBoardAIDialog: React.FC<CreateBoardAIDialogProps> = ({
             prompt={prompt}
             onPromptChange={setPrompt}
             includeSampleData={includeSampleData}
-            onIncludeSampleDataChange={setIncludeSampleData}
+            onIncludeSampleDataChange={v => {
+              setIncludeSampleData(v)
+              if (v) setSuggestDataSources(false)
+            }}
             suggestDataSources={suggestDataSources}
-            onSuggestDataSourcesChange={setSuggestDataSources}
+            onSuggestDataSourcesChange={v => {
+              setSuggestDataSources(v)
+              if (v) setIncludeSampleData(false)
+            }}
             error={error}
             busy={busy}
             testId={testId}

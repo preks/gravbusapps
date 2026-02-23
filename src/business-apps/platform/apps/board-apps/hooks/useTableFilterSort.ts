@@ -149,20 +149,52 @@ export function useTableFilterSort(
     return params
   }, [filters, connector, sorts])
 
-  const onServerParamsChange = options?.onServerParamsChange
+  const onServerParamsChangeRef = useRef(options?.onServerParamsChange)
+  onServerParamsChangeRef.current = options?.onServerParamsChange
   const prevParamsRef = useRef<string>('')
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const isInitialRef = useRef(true)
+  const DEBOUNCE_MS = 350
 
   useEffect(() => {
     const key = JSON.stringify(serverParams)
     if (key === prevParamsRef.current) return
     prevParamsRef.current = key
-    onServerParamsChange?.(serverParams)
-  }, [serverParams, onServerParamsChange])
+
+    const fire = () => {
+      onServerParamsChangeRef.current?.(serverParams)
+    }
+
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+
+    if (isInitialRef.current) {
+      isInitialRef.current = false
+      fire()
+    } else {
+      debounceRef.current = setTimeout(() => {
+        debounceRef.current = null
+        fire()
+      }, DEBOUNCE_MS)
+    }
+
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+    }
+  }, [serverParams])
 
   const filteredRows = useMemo(() => {
     if (!quickSearch.trim()) return rows
     const q = quickSearch.trim().toLowerCase()
-    return rows.filter(row => columns.some(col => normalizeStr(row.data[col.name]).includes(q)))
+    return rows.filter(row =>
+      columns.some(col => {
+        if (normalizeStr(row.data[col.name]).includes(q)) return true
+        if (col.type === 'relation') {
+          const labels = row.data[`_rel_${col.name}`]
+          if (Array.isArray(labels)) return labels.some(l => normalizeStr(l).includes(q))
+        }
+        return false
+      })
+    )
   }, [rows, quickSearch, columns])
 
   const addFilter = useCallback((f: ViewFilter) => setFiltersRaw(prev => [...prev, f]), [])

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useMemo, useState, useEffect, useCallback } from 'react'
 import { Button } from '@newwork/nw-design-system'
 import { Eye } from 'lucide-react'
 import type {
@@ -18,6 +18,7 @@ import { BoardKanbanView, BoardCalendarView, BoardTimelineView, BoardFormView, B
 import { BoardTableView } from '../views/BoardTableView'
 
 export interface BoardViewContentProps {
+  scrollParent?: HTMLDivElement | null
   view: BoardView | null
   sheet: BoardSheet
   rows: BoardRow[]
@@ -25,7 +26,12 @@ export interface BoardViewContentProps {
   onClearHighlight?: () => void
   onRowClick?: (row: BoardRow) => void
   onAddRow?: (data: Record<string, unknown>) => Promise<void>
-  onUpdateCell?: (rowId: string, columnName: string, value: unknown) => Promise<void>
+  onUpdateCell?: (
+    rowId: string,
+    columnName: string,
+    value: unknown,
+    extraData?: Record<string, unknown>
+  ) => Promise<void>
   onDeleteRow?: (rowId: string) => void
   onSubmitRow?: (data: Record<string, unknown>) => Promise<void>
   onUpdateDashboardWidgets?: (widgets: DashboardWidget[]) => void
@@ -33,14 +39,23 @@ export interface BoardViewContentProps {
   onUpdateColumn?: (updated: import('../types').BoardColumn) => void
   onDeleteColumn?: (columnId: string) => void
   onServerFilterChange?: (params: import('../hooks/useTableFilterSort').ServerFilterParams) => void
+  onUpdateView?: (viewId: string, config: Partial<import('../types').ViewConfig>) => void
   rowsTotal?: number
   accessToken?: string
   boardId: string
   sheetId: string
+  dashboardRows?: BoardRow[]
+  dashboardLoading?: boolean
+  dashboardSampled?: boolean
+  dashboardTotalRows?: number
+  dashboardLoadedRows?: number
+  onTableLoadMore?: () => void
+  rowsLoading?: boolean
   testId: string
 }
 
 export const BoardViewContent: React.FC<BoardViewContentProps> = ({
+  scrollParent,
   view,
   sheet,
   rows,
@@ -56,16 +71,43 @@ export const BoardViewContent: React.FC<BoardViewContentProps> = ({
   onUpdateColumn,
   onDeleteColumn,
   onServerFilterChange,
+  onUpdateView,
   rowsTotal,
   accessToken,
   boardId,
   sheetId,
+  dashboardRows,
+  dashboardLoading,
+  dashboardSampled,
+  dashboardTotalRows,
+  dashboardLoadedRows,
+  onTableLoadMore,
+  rowsLoading,
   testId
 }) => {
   const [kanbanGroupColumn, setKanbanGroupColumn] = useState<string | null>(null)
   const [kanbanCardFields, setKanbanCardFields] = useState<string[]>([])
 
   const viewType: BoardViewType = view?.type || 'table'
+
+  useEffect(() => {
+    if (view?.type === 'kanban') {
+      const kc = view.config as KanbanViewConfig
+      setKanbanCardFields(kc.cardFields ?? [])
+    } else {
+      setKanbanCardFields([])
+    }
+  }, [view?.id, view?.type, view?.config])
+
+  const handleCardFieldsChange = useCallback(
+    (fields: string[]) => {
+      setKanbanCardFields(fields)
+      if (view && onUpdateView) {
+        onUpdateView(view.id, { cardFields: fields })
+      }
+    },
+    [view, onUpdateView]
+  )
   const viewConfig = view?.config
 
   const visibleColumns = sheet.columns.filter(c => c.isVisible)
@@ -118,6 +160,8 @@ export const BoardViewContent: React.FC<BoardViewContentProps> = ({
             onDeleteColumn={onDeleteColumn}
             onServerFilterChange={onServerFilterChange}
             rowsTotal={rowsTotal}
+            onLoadMore={onTableLoadMore}
+            rowsLoading={rowsLoading}
             testId={testId}
           />
         </>
@@ -130,6 +174,7 @@ export const BoardViewContent: React.FC<BoardViewContentProps> = ({
       const effectiveStatusCol = kanbanGroupColumn || kc.statusColumn || autoStatusName
       return (
         <BoardKanbanView
+          scrollParent={scrollParent}
           columns={visibleColumns}
           rows={rows}
           viewConfig={{
@@ -144,7 +189,9 @@ export const BoardViewContent: React.FC<BoardViewContentProps> = ({
           }
           onStatusColumnChange={setKanbanGroupColumn}
           cardFields={kanbanCardFields}
-          onCardFieldsChange={setKanbanCardFields}
+          onCardFieldsChange={handleCardFieldsChange}
+          highlightedRowId={highlightedRowId}
+          onClearHighlight={onClearHighlight}
           data-testid={testId}
         />
       )
@@ -200,10 +247,14 @@ export const BoardViewContent: React.FC<BoardViewContentProps> = ({
       return (
         <BoardDashboardView
           columns={visibleColumns}
-          rows={rows}
+          rows={dashboardRows && dashboardRows.length > 0 ? dashboardRows : rows}
           viewConfig={(viewConfig || { type: 'dashboard', widgets: [] }) as DashboardViewConfig}
           onUpdateWidgets={onUpdateDashboardWidgets}
           accessToken={accessToken}
+          isLoading={dashboardLoading}
+          isSampled={dashboardSampled}
+          totalRows={dashboardTotalRows}
+          loadedRows={dashboardLoadedRows}
           data-testid={testId}
         />
       )
