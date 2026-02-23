@@ -308,6 +308,7 @@ export const GET_EMPLOYEE_DATA = /*sql*/ `
     senderEmployee {
       firstName
       lastName
+      displayName
       employeePosition {
         employee {
           pictureThumbnail
@@ -742,6 +743,7 @@ export interface EmployeeFeedback {
   senderEmployee: {
     firstName: string
     lastName: string
+    displayName?: string | null
     employeePosition: {
       employee: {
         pictureThumbnail: string

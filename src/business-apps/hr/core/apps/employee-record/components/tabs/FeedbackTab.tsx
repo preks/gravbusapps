@@ -25,7 +25,11 @@ import {
   EMPLOYEE_FEEDBACK_REQUESTS_QUERY_PAGED_WITH_COUNT,
   EMPLOYEE_FEEDBACK_REQUESTS_SENT_QUERY_PAGED_WITH_COUNT
 } from './queries/EmployeeFeedbackRequestQueries'
-import { employeeFeedbackQuery, employeeFeedbackGivenQuery } from '../../queries/feedbackQueries'
+import {
+  employeeFeedbackListQuery,
+  employeeFeedbackInsightsQuery,
+  FEEDBACK_LIST_LIMIT
+} from '../../queries/feedbackQueries'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { formatDate, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
@@ -53,13 +57,7 @@ type FeedbackHubTab = 'received' | 'given' | 'requests' | 'insights'
  * Feedback Tab Component
  * Displays feedback for the employee
  */
-const FeedbackTab: React.FC<FeedbackTabProps> = ({
-  employee,
-  accessToken,
-  userInfo,
-  employeeFeedback = [],
-  isSelfView = false
-}) => {
+const FeedbackTab: React.FC<FeedbackTabProps> = ({ employee, accessToken, userInfo, isSelfView = false }) => {
   const { t } = useTranslation(translations)
   const currentUserEmployeeId = userInfo?.employeeDetails?.employeeId ?? employee?.id ?? ''
 
@@ -78,6 +76,18 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
   /** Feedback given by current user (sender_employee_id = currentUser). */
   const [givenFeedback, setGivenFeedback] = useState<ExtendedEmployeeFeedback[]>([])
   const [givenLoading, setGivenLoading] = useState(false)
+  const [receivedTotal, setReceivedTotal] = useState(0)
+  const [givenTotal, setGivenTotal] = useState(0)
+  const [receivedPage, setReceivedPage] = useState(1)
+  const [givenPage, setGivenPage] = useState(1)
+  const [insightsRows, setInsightsRows] = useState<ExtendedEmployeeFeedback[]>([])
+  const [insightsDistinctSenderRows, setInsightsDistinctSenderRows] = useState<
+    Array<{ senderEmployeeId?: string | null }>
+  >([])
+  const [insightsAggregateTotal, setInsightsAggregateTotal] = useState(0)
+  const [insightsAggregatePublic, setInsightsAggregatePublic] = useState(0)
+  const [insightsAggregatePrivate, setInsightsAggregatePrivate] = useState(0)
+  const [insightsLoading, setInsightsLoading] = useState(false)
   /** Requests received (employee_id = currentUser) from GraphQL. */
   const [requestsReceivedList, setRequestsReceivedList] = useState<FeedbackRequestRow[]>([])
   const [requestsReceivedTotal, setRequestsReceivedTotal] = useState(0)
@@ -93,47 +103,168 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
 
   const graphQLClient = useGraphqlClient(accessToken)
 
-  // Fetch feedback data
-  const fetchFeedbackData = async () => {
+  const buildFeedbackWhere = useCallback(
+    (mode: 'received' | 'given') => {
+      const andClauses: any[] = [{ isDeleted: { _neq: true } }]
+
+      if (mode === 'received') {
+        andClauses.push({ employeeId: { _eq: employee?.id } })
+      } else {
+        andClauses.push({ senderEmployeeId: { _eq: currentUserEmployeeId } })
+      }
+
+      // Non-self profiles can only see public feedback.
+      if (!isSelfView || filterType === 'public') {
+        andClauses.push({ feedbackPublic: { _eq: true } })
+      } else if (filterType === 'private') {
+        andClauses.push({ feedbackPublic: { _eq: false } })
+      }
+
+      if (dateFrom) {
+        andClauses.push({
+          _or: [
+            { feedbackDate: { _gte: dateFrom } },
+            { _and: [{ feedbackDate: { _isNull: true } }, { createdAt: { _gte: `${dateFrom}T00:00:00` } }] }
+          ]
+        })
+      }
+
+      if (dateTo) {
+        andClauses.push({
+          _or: [
+            { feedbackDate: { _lte: dateTo } },
+            { _and: [{ feedbackDate: { _isNull: true } }, { createdAt: { _lte: `${dateTo}T23:59:59` } }] }
+          ]
+        })
+      }
+
+      if (searchTerm.trim()) {
+        const pattern = `%${searchTerm.trim()}%`
+        andClauses.push({
+          _or: [
+            { feedback: { _ilike: pattern } },
+            { typeRef: { _ilike: pattern } },
+            { senderEmployee: { firstName: { _ilike: pattern } } },
+            { senderEmployee: { lastName: { _ilike: pattern } } },
+            { senderEmployee: { displayName: { _ilike: pattern } } },
+            { employee: { firstName: { _ilike: pattern } } },
+            { employee: { lastName: { _ilike: pattern } } },
+            { employee: { displayName: { _ilike: pattern } } },
+            { type: { value: { _ilike: pattern } } },
+            { type: { translations: { value: { _ilike: pattern } } } }
+          ]
+        })
+      }
+
+      if (senderFilter !== 'all') {
+        const senderPattern = `%${senderFilter.trim()}%`
+        andClauses.push({
+          _or: [
+            { senderEmployee: { firstName: { _ilike: senderPattern } } },
+            { senderEmployee: { lastName: { _ilike: senderPattern } } },
+            { senderEmployee: { displayName: { _ilike: senderPattern } } },
+            { employee: { firstName: { _ilike: senderPattern } } },
+            { employee: { lastName: { _ilike: senderPattern } } },
+            { employee: { displayName: { _ilike: senderPattern } } }
+          ]
+        })
+      }
+
+      if (typeFilter !== 'all') {
+        const isOtherTypeFilter = typeFilter === t('feedback-hub-type-other')
+        if (isOtherTypeFilter) {
+          // "Other" means there is no explicit type reference.
+          andClauses.push({ typeRef: { _isNull: true } })
+        } else {
+          andClauses.push({
+            _or: [
+              { typeRef: { _eq: typeFilter } },
+              { type: { value: { _eq: typeFilter } } },
+              { type: { translations: { value: { _eq: typeFilter } } } }
+            ]
+          })
+        }
+      }
+
+      return { _and: andClauses }
+    },
+    [
+      employee?.id,
+      currentUserEmployeeId,
+      isSelfView,
+      filterType,
+      dateFrom,
+      dateTo,
+      searchTerm,
+      senderFilter,
+      typeFilter,
+      t
+    ]
+  )
+
+  const fetchFeedbackData = useCallback(async () => {
     if (!employee?.id) return
 
     try {
       setLoading(true)
       setError(null)
 
-      const response = await graphQLClient.request(employeeFeedbackQuery, {
-        employeeId: employee.id,
+      const response = await graphQLClient.request<any>(employeeFeedbackListQuery, {
+        where: buildFeedbackWhere('received'),
+        limit: FEEDBACK_LIST_LIMIT,
+        offset: (receivedPage - 1) * FEEDBACK_LIST_LIMIT,
         activeUserLocale: getCurrentActiveUserLocale()
       })
 
-      if (response) {
-        const feedbackData = response.EmployeeFeedback || []
-        setLocalFeedback(feedbackData)
-      }
+      setLocalFeedback((response?.EmployeeFeedback ?? []) as ExtendedEmployeeFeedback[])
+      setReceivedTotal(response?.EmployeeFeedbackAggregate?.aggregate?.count ?? 0)
     } catch (err) {
       console.error('Error fetching feedback data:', err)
       setError('Failed to load feedback data')
     } finally {
       setLoading(false)
     }
-  }
+  }, [employee?.id, graphQLClient, buildFeedbackWhere, receivedPage])
 
   const fetchGivenFeedback = useCallback(async () => {
     if (!currentUserEmployeeId) return
     try {
       setGivenLoading(true)
-      const response = await graphQLClient.request(employeeFeedbackGivenQuery, {
-        senderEmployeeId: currentUserEmployeeId,
+      const response = await graphQLClient.request<any>(employeeFeedbackListQuery, {
+        where: buildFeedbackWhere('given'),
+        limit: FEEDBACK_LIST_LIMIT,
+        offset: (givenPage - 1) * FEEDBACK_LIST_LIMIT,
         activeUserLocale: getCurrentActiveUserLocale()
       })
-      const data = (response?.EmployeeFeedback ?? []) as ExtendedEmployeeFeedback[]
-      setGivenFeedback(data)
+      setGivenFeedback((response?.EmployeeFeedback ?? []) as ExtendedEmployeeFeedback[])
+      setGivenTotal(response?.EmployeeFeedbackAggregate?.aggregate?.count ?? 0)
     } catch (err) {
       console.error('Error fetching given feedback:', err)
     } finally {
       setGivenLoading(false)
     }
-  }, [currentUserEmployeeId, graphQLClient])
+  }, [currentUserEmployeeId, graphQLClient, buildFeedbackWhere, givenPage])
+
+  const fetchInsightsData = useCallback(async () => {
+    if (!employee?.id || !currentUserEmployeeId) return
+    try {
+      setInsightsLoading(true)
+      const response = await graphQLClient.request<any>(employeeFeedbackInsightsQuery, {
+        employeeId: employee.id,
+        senderEmployeeId: currentUserEmployeeId,
+        activeUserLocale: getCurrentActiveUserLocale()
+      })
+      setInsightsRows((response?.insightsRows ?? []) as ExtendedEmployeeFeedback[])
+      setInsightsDistinctSenderRows(response?.receivedSenderRows ?? [])
+      setInsightsAggregateTotal(response?.totalRows?.aggregate?.count ?? 0)
+      setInsightsAggregatePublic(response?.publicRows?.aggregate?.count ?? 0)
+      setInsightsAggregatePrivate(response?.privateRows?.aggregate?.count ?? 0)
+    } catch (err) {
+      console.error('Error fetching insights feedback data:', err)
+    } finally {
+      setInsightsLoading(false)
+    }
+  }, [employee?.id, currentUserEmployeeId, graphQLClient])
 
   const fetchRequestsReceived = useCallback(async () => {
     if (!currentUserEmployeeId) return
@@ -176,16 +307,17 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
   }, [currentUserEmployeeId, sentReqPage, sentReqPageSize, graphQLClient])
 
   useEffect(() => {
-    if (employeeFeedback?.length) {
-      setLocalFeedback(employeeFeedback as ExtendedEmployeeFeedback[])
-    } else {
-      fetchFeedbackData()
-    }
-  }, [employee?.id, accessToken])
+    if (!employee?.id) return
+    if (!isSelfView || activeHubTab === 'received') fetchFeedbackData()
+  }, [employee?.id, isSelfView, activeHubTab, fetchFeedbackData])
 
   useEffect(() => {
     if (isSelfView && activeHubTab === 'given') fetchGivenFeedback()
   }, [isSelfView, activeHubTab, fetchGivenFeedback])
+
+  useEffect(() => {
+    if (isSelfView && activeHubTab === 'insights') fetchInsightsData()
+  }, [isSelfView, activeHubTab, fetchInsightsData])
 
   useEffect(() => {
     if (isSelfView && activeHubTab === 'requests') {
@@ -202,6 +334,8 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
     setDateTo('')
     setSenderFilter('all')
     setTypeFilter('all')
+    setReceivedPage(1)
+    setGivenPage(1)
   }, [activeHubTab])
 
   const handleRespondToRequest = useCallback(
@@ -225,7 +359,12 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
 
     return localFeedback.map(feedback => {
       const timestamp = feedback.feedbackDate ? Date.parse((feedback as any).feedbackDate) : 0
-      const sender = `${feedback.senderEmployee?.firstName ?? ''} ${feedback.senderEmployee?.lastName ?? ''}`.trim()
+      const se = feedback.senderEmployee as { firstName?: string; lastName?: string; displayName?: string } | undefined
+      const firstName = se?.firstName ?? ''
+      const lastName = se?.lastName ?? ''
+      const sender =
+        (se?.displayName ?? (firstName || lastName ? `${firstName} ${lastName}`.trim() : '')) ||
+        t('feedback-hub-unknown-sender')
       const date = feedback.feedbackDate
         ? (formatDate(feedback.feedbackDate, 'date.short') ?? '')
         : (feedback as any).createdAt
@@ -234,12 +373,9 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
       const rawDate = feedback.feedbackDate ?? (feedback as any).createdAt ?? undefined
       const content = feedback.feedback ?? ''
       const avatar = feedback.senderEmployee?.employeePosition?.employee?.pictureThumbnail ?? null
-      const firstName = feedback.senderEmployee?.firstName ?? ''
-      const lastName = feedback.senderEmployee?.lastName ?? ''
-      const displaySender = sender.trim() || t('feedback-hub-unknown-sender')
       return {
         id: feedback.id,
-        sender: displaySender,
+        sender,
         date,
         rawDate,
         content,
@@ -311,41 +447,21 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
     [activeFeedbackList]
   )
 
-  const isPrivateFeedback = (value: unknown): boolean =>
-    value === false || value === 'false' || value === 0 || value === '0'
-
-  const formattedFilteredFeedback = useMemo(() => {
-    return activeFeedbackList
-      .filter(f => {
-        const matchesSearch =
-          searchTerm === '' ||
-          f.content.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          f.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          f.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          f.sender.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (f.type || '').toLowerCase().includes(searchTerm.toLowerCase())
-        const isPrivate = isPrivateFeedback(f.feedbackPublic)
-        if (!isSelfView && isPrivate) return false
-        const matchesFilter =
-          filterType === 'all' || (filterType === 'private' && isPrivate) || (filterType === 'public' && !isPrivate)
-        const matchesSender = senderFilter === 'all' || f.sender === senderFilter
-        const matchesType = typeFilter === 'all' || (f.type || '') === typeFilter
-        const ts = f.timestamp ?? 0
-        const fromMs = dateFrom ? new Date(`${dateFrom}T00:00:00`).getTime() : null
-        const toMs = dateTo ? new Date(`${dateTo}T23:59:59`).getTime() : null
-        const matchesFrom = fromMs == null || ts >= fromMs
-        const matchesTo = toMs == null || ts <= toMs
-        return matchesSearch && matchesFilter && matchesSender && matchesType && matchesFrom && matchesTo
-      })
-      .sort((a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0))
-  }, [activeFeedbackList, searchTerm, filterType, isSelfView, senderFilter, typeFilter, dateFrom, dateTo])
+  const formattedFilteredFeedback = useMemo(
+    () => [...activeFeedbackList].sort((a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0)),
+    [activeFeedbackList]
+  )
 
   const insightsFromFeedback = useMemo(() => {
-    const list = [...(localFeedback ?? []), ...(givenFeedback ?? [])]
-    const total = list.length
-    const publicCount = list.filter((f: any) => f.feedbackPublic !== false).length
-    const privateCount = total - publicCount
-    const senderIds = new Set((localFeedback ?? []).map((f: any) => f.senderEmployeeId).filter(Boolean))
+    const list = isSelfView ? insightsRows : [...(localFeedback ?? []), ...(givenFeedback ?? [])]
+    const total = isSelfView ? insightsAggregateTotal : list.length
+    const publicCount = isSelfView
+      ? insightsAggregatePublic
+      : list.filter((f: any) => f.feedbackPublic !== false).length
+    const privateCount = isSelfView ? insightsAggregatePrivate : total - publicCount
+    const senderIds = isSelfView
+      ? new Set(insightsDistinctSenderRows.map(row => row?.senderEmployeeId).filter(Boolean))
+      : new Set((localFeedback ?? []).map((f: any) => f.senderEmployeeId).filter(Boolean))
     const byType: Record<string, number> = {}
     const countOverTime: Record<string, number> = {}
     const byTagOrSkill: Record<string, number> = {}
@@ -370,7 +486,17 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
       }
     })
     return { total, distinctSenders: senderIds.size, publicCount, privateCount, byType, countOverTime, byTagOrSkill }
-  }, [localFeedback, givenFeedback, t])
+  }, [
+    isSelfView,
+    insightsRows,
+    insightsAggregateTotal,
+    insightsAggregatePublic,
+    insightsAggregatePrivate,
+    insightsDistinctSenderRows,
+    localFeedback,
+    givenFeedback,
+    t
+  ])
 
   if (loading && !allFormattedFeedback.length && !isSelfView) {
     return (
@@ -472,6 +598,32 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
               )}
             </>
           )}
+          {receivedTotal > FEEDBACK_LIST_LIMIT && (
+            <div className="gba:mt-4 gba:flex gba:justify-end">
+              <Pagination>
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious
+                      onClick={() => setReceivedPage(p => Math.max(1, p - 1))}
+                      className={receivedPage === 1 ? 'gba:pointer-events-none gba:opacity-50' : 'gba:cursor-pointer'}
+                    />
+                  </PaginationItem>
+                  <PaginationItem>
+                    <PaginationNext
+                      onClick={() =>
+                        setReceivedPage(p => Math.min(Math.ceil(receivedTotal / FEEDBACK_LIST_LIMIT), p + 1))
+                      }
+                      className={
+                        receivedPage >= Math.ceil(receivedTotal / FEEDBACK_LIST_LIMIT)
+                          ? 'gba:pointer-events-none gba:opacity-50'
+                          : 'gba:cursor-pointer'
+                      }
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            </div>
+          )}
         </div>
       ) : (
         <Tabs value={activeHubTab} onValueChange={v => setActiveHubTab(v as FeedbackHubTab)} className="gba:w-full">
@@ -542,6 +694,32 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
             ) : (
               <EmptyState title={t('feedback-hub-no-feedback')} data-testid="feedback-empty" />
             )}
+            {receivedTotal > FEEDBACK_LIST_LIMIT && (
+              <div className="gba:mt-4 gba:flex gba:justify-end">
+                <Pagination>
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious
+                        onClick={() => setReceivedPage(p => Math.max(1, p - 1))}
+                        className={receivedPage === 1 ? 'gba:pointer-events-none gba:opacity-50' : 'gba:cursor-pointer'}
+                      />
+                    </PaginationItem>
+                    <PaginationItem>
+                      <PaginationNext
+                        onClick={() =>
+                          setReceivedPage(p => Math.min(Math.ceil(receivedTotal / FEEDBACK_LIST_LIMIT), p + 1))
+                        }
+                        className={
+                          receivedPage >= Math.ceil(receivedTotal / FEEDBACK_LIST_LIMIT)
+                            ? 'gba:pointer-events-none gba:opacity-50'
+                            : 'gba:cursor-pointer'
+                        }
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="given" className="gba:mt-4">
@@ -583,6 +761,30 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
               />
             ) : (
               <EmptyState title={t('feedback-hub-no-feedback')} data-testid="feedback-empty-given" />
+            )}
+            {givenTotal > FEEDBACK_LIST_LIMIT && (
+              <div className="gba:mt-4 gba:flex gba:justify-end">
+                <Pagination>
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious
+                        onClick={() => setGivenPage(p => Math.max(1, p - 1))}
+                        className={givenPage === 1 ? 'gba:pointer-events-none gba:opacity-50' : 'gba:cursor-pointer'}
+                      />
+                    </PaginationItem>
+                    <PaginationItem>
+                      <PaginationNext
+                        onClick={() => setGivenPage(p => Math.min(Math.ceil(givenTotal / FEEDBACK_LIST_LIMIT), p + 1))}
+                        className={
+                          givenPage >= Math.ceil(givenTotal / FEEDBACK_LIST_LIMIT)
+                            ? 'gba:pointer-events-none gba:opacity-50'
+                            : 'gba:cursor-pointer'
+                        }
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              </div>
             )}
           </TabsContent>
 
@@ -745,6 +947,11 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
           </TabsContent>
 
           <TabsContent value="insights" className="gba:mt-4 gba:space-y-8">
+            {insightsLoading && (
+              <div className="gba:flex gba:justify-center gba:items-center gba:h-32">
+                <Spinner size="lg" />
+              </div>
+            )}
             <div>
               <h3 className="gba:text-lg gba:font-semibold gba:mb-1">{t('feedback-hub-insights-feedback-title')}</h3>
               <p className="gba:text-muted-foreground gba:text-sm gba:mb-4">
