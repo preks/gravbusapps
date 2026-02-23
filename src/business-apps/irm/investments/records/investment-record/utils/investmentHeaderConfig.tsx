@@ -21,7 +21,6 @@
  */
 
 // Investment Header Configuration Utilities
-import React from 'react'
 import { Badge } from '@newwork/nw-design-system'
 import { formatCurrency, extractCurrencyCode } from '@/common/utils/numberFormatter'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
@@ -31,6 +30,7 @@ import { FormFieldsDefinition, FormFieldDefinition } from '@/common/data/investm
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { CalendarIcon, FlagIcon } from '@phosphor-icons/react'
+import { getInvestmentUiSubtypeFromData } from '@/common/data/investment/utils/investmentGroupRouting'
 
 /**
  * Format date helper
@@ -497,7 +497,7 @@ export const createHeaderMeta = (
           getTranslationFromI18nKeyAndLabel('investment.type.default', 'Investment')}
       </Badge>
       {/* Liquid Fund Type Badge - ONLY for liquid funds */}
-      {investment?.investmentGroup?.code?.includes('LIQUID_FUND') &&
+      {getInvestmentUiSubtypeFromData(investment) === 'liquid_fund' &&
         typeSpecificData?.liquidFundInvestment?.investmentLiquidFundType && (
           <Badge
             variant={getLiquidFundTypeBadgeVariant(typeSpecificData.liquidFundInvestment.investmentLiquidFundType)}
@@ -798,13 +798,23 @@ const getGenericDetailGroups = (investment: any, currencyCode: string) => {
 /**
  * Helper: Find form fields definition from catalog data
  */
-const findFormFieldsDefinition = (
-  investment: any,
-  typeSpecificData: any,
+export const findFormFieldsDefinition = ({
+  investment,
+  typeSpecificData,
+  catalogData,
+  investmentTypeCode,
+  liquidFundTypeCode,
+  investmentGroupCode
+}: {
+  investment?: any
+  typeSpecificData?: any
   catalogData: any
-): FormFieldsDefinition | null => {
+  investmentTypeCode?: string
+  liquidFundTypeCode?: string
+  investmentGroupCode?: string
+}): FormFieldsDefinition | null => {
   const investmentGroups = catalogData.investmentGroups || []
-  const groupCode = investment.investmentGroup?.code
+  const groupCode = investmentGroupCode || investment?.investmentGroup?.code
 
   // PRIORITY 1: For groups with no child types - use group's objectValue directly
   // This handles generic groups like PRIVATE_EQUITY, TEST, etc.
@@ -816,19 +826,17 @@ const findFormFieldsDefinition = (
   }
 
   // PRIORITY 2: For liquid funds with liquid fund type - use liquid fund type fields
-  if (
-    investment.investmentGroup?.code?.includes('LIQUID_FUND') &&
-    typeSpecificData?.liquidFundInvestment?.investmentLiquidFundType?.code
-  ) {
-    return getLiquidFundTypeFieldDefinition(
-      typeSpecificData.liquidFundInvestment.investmentLiquidFundType.code,
-      catalogData
-    )
+  const resolvedLiquidFundTypeCode =
+    liquidFundTypeCode || typeSpecificData?.liquidFundInvestment?.investmentLiquidFundType?.code
+  const isLiquidFundGroup = groupCode === 'LIQUID_FUND' || getInvestmentUiSubtypeFromData(investment) === 'liquid_fund'
+  if (isLiquidFundGroup && resolvedLiquidFundTypeCode) {
+    return getLiquidFundTypeFieldDefinition(resolvedLiquidFundTypeCode, catalogData)
   }
 
   // PRIORITY 3: Fallback to investment type fields (if type exists)
-  if (investment?.investmentType?.code) {
-    return getInvestmentTypeFieldDefinition(investment.investmentType.code, catalogData)
+  const resolvedInvestmentTypeCode = investmentTypeCode || investment?.investmentType?.code
+  if (resolvedInvestmentTypeCode) {
+    return getInvestmentTypeFieldDefinition(resolvedInvestmentTypeCode, catalogData)
   }
 
   return null
@@ -879,7 +887,7 @@ export const getTypeSpecificDetailGroups = (
 
   // Try dynamic fields first if catalog data is available
   if (catalogData) {
-    const formFieldsDefinition = findFormFieldsDefinition(investment, typeSpecificData, catalogData)
+    const formFieldsDefinition = findFormFieldsDefinition({ investment, typeSpecificData, catalogData })
 
     if (formFieldsDefinition) {
       const dynamicItems = buildDynamicHeaderItems(formFieldsDefinition, investment, typeSpecificData)
@@ -890,13 +898,13 @@ export const getTypeSpecificDetailGroups = (
   }
 
   // Fallback to static field configurations based on investment group
-  const group = investment?.investmentGroup?.code || ''
+  const resolvedSubtype = getInvestmentUiSubtypeFromData(investment)
 
-  if ((group.includes('EQUITY') && !group.includes('PRIVATE_EQUITY')) || investmentType === 'equity') {
+  if (resolvedSubtype === 'equity' || investmentType === 'equity') {
     return getEquityDetailGroups(investment, typeSpecificData, currencyCode)
-  } else if (group.includes('REAL_ESTATE') || investmentType === 'real_estate') {
+  } else if (resolvedSubtype === 'real_estate' || investmentType === 'real_estate') {
     return getRealEstateDetailGroups(typeSpecificData, currencyCode)
-  } else if (group.includes('LIQUID_FUND') || investmentType === 'liquid_fund') {
+  } else if (resolvedSubtype === 'liquid_fund' || investmentType === 'liquid_fund') {
     return getLiquidFundDetailGroups(investment, typeSpecificData, currencyCode)
   } else {
     return getGenericDetailGroups(investment, currencyCode)

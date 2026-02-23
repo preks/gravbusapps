@@ -55,6 +55,13 @@ chat-user = Benutzer
 chat-everyAI = Every AI
 chat-replyToEvery = An Every antworten
 
+# Message search (in-conversation)
+chat-searchInConversation = In Unterhaltung suchen
+chat-searchMessagesPlaceholder = Nachrichten suchen…
+chat-searchNoResults = Keine Ergebnisse
+chat-searchSearching = Suche…
+chat-searchClear = Löschen
+
 # Message Time
 chat-time-justNow = Gerade eben
 chat-time-minutesAgo = vor {$minutes}m
@@ -202,6 +209,10 @@ chat-groupCall = Gruppenanruf
 chat-endCall = Anruf beenden
 chat-mute = Stummschalten
 chat-unmute = Stummschaltung aufheben
+chat-pinConversation = Unterhaltung anheften
+chat-unpinConversation = Unterhaltung ablösen
+chat-muteConversation = Unterhaltung stummschalten
+chat-unmuteConversation = Stummschaltung der Unterhaltung aufheben
 chat-startVideo = Video starten
 chat-stopVideo = Video stoppen
 chat-turnOnCamera = Kamera einschalten
@@ -302,6 +313,12 @@ call-rnnoiseWarning = Ein Headset kann die Mikrofonqualität verbessern.
 # Call Settings
 call-video = Video
 call-audio = Audio
+call-typeLabelDirectVideo = 1:1-Videoanruf
+call-typeLabelDirectAudio = 1:1-Audioanruf
+call-typeLabelGroupVideo = Gruppen-Videoanruf
+call-typeLabelGroupAudio = Gruppen-Audioanruf
+call-typeLabelMeetingVideo = Meeting-Videoanruf
+call-typeLabelMeetingAudio = Meeting-Audioanruf
 call-videoQuality = Videoqualität
 call-highQuality = Hohe Qualität
 call-highQualityDesc = 720p, 30fps - Optimal für schnelle Verbindungen
@@ -564,11 +581,15 @@ chat-callHistoryDeclinedFrom = Anruf von {$name} abgelehnt
 chat-callHistoryNotAnsweredFrom = Anruf von {$name} nicht beantwortet
 chat-callHistoryDuration = {$minutes} Min
 chat-callHistoryBack = Zurück
+chat-callHistoryFilterStatus = Status
+chat-callHistoryFilterType = Typ
+chat-callHistoryLoadMore = Mehr laden
 chat-callHistoryCallName = Anruf: {$name}
 chat-callHistoryGroupCallName = Gruppenanruf: {$name}
 chat-callHistoryMeetingName = Meeting: {$name}
 chat-callHistoryIncoming = Eingehend
 chat-callHistoryOutgoing = Ausgehend
+chat-callHistoryMissedIncoming = Verpasst eingehend
 chat-callHistoryAllTypes = Alle Typen
 chat-callHistoryTypeDirect = Direkt
 chat-callHistoryTypeGroup = Gruppe

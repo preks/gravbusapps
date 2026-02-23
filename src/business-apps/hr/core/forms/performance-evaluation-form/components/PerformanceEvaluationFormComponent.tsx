@@ -1,21 +1,25 @@
 import React, { useMemo } from 'react'
 import {
   Button,
-  Input,
   Label,
   Spinner,
   Alert,
   AlertDescription,
   Textarea,
-  useTranslation
+  useTranslation,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
 } from '@newwork/nw-design-system'
-import { StarFilled, StarOutlined } from '@ant-design/icons'
+import { StarFilled, StarOutlined, DownOutlined } from '@ant-design/icons'
 import { usePerformanceEvaluationForm } from '../context/PerformanceEvaluationFormContext'
 import { formatDataTestId } from '@/common/utils/formatDataTestId'
 import { EmployeeSelect } from '@/components/employee-select'
 import FormHeader from '../../components/FormHeader'
 import flowIconUrl from '@/assets/icons/flowSmall.svg'
 import type { Employee } from '@/common/data/employee/types/employeeBaseTypes'
+import { PERFORMANCE_VALIDATION } from '@/business-apps/hr/core/apps/performance-evaluation/constants/validationConstants'
 import translations from '../_i18n'
 
 const prefixDataTestId = 'PerformanceEvaluationForm'
@@ -42,7 +46,11 @@ const PerformanceEvaluationFormComponent: React.FC = () => {
     isRequestedEvaluationFlow,
     ratingScaleValues,
     ratingScaleLoading,
-    employeeSkillsLoading
+    employeeSkillsLoading,
+    transformCommentText,
+    textTransformationLoading,
+    textTransformationError,
+    clearTextTransformationError
   } = usePerformanceEvaluationForm()
 
   const handleEmployeeChange = (employeeId: string) => {
@@ -248,14 +256,67 @@ const PerformanceEvaluationFormComponent: React.FC = () => {
                 <Label htmlFor={`${topic.id}-comment`} className="gba:text-sm gba:font-medium">
                   {t('topic-comment')}
                 </Label>
-                <Input
+                <Textarea
                   id={`${topic.id}-comment`}
                   value={topic.comment}
-                  onChange={e => updateTopic(topic.id, { comment: e.target.value })}
+                  onChange={e => {
+                    updateTopic(topic.id, { comment: e.target.value })
+                    clearTextTransformationError()
+                  }}
                   placeholder={t('topic-comment-placeholder')}
+                  maxLength={PERFORMANCE_VALIDATION.COMMENT_MAX_LENGTH}
                   data-testid={formatDataTestId(prefixDataTestId, `${topic.id}-CommentInput`)}
-                  className="gba:w-full"
+                  className="gba:min-h-[80px] gba:w-full gba:resize-y"
                 />
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="default"
+                      disabled={!topic.comment?.trim() || textTransformationLoading}
+                      className="gba:w-full gba:justify-between gba:bg-destructive hover:gba:bg-destructive gba:text-primary-foreground gba:border-destructive"
+                      data-testid={formatDataTestId(prefixDataTestId, `${topic.id}-TextTool`)}
+                    >
+                      <span>
+                        {textTransformationLoading ? (
+                          <Spinner size="sm" />
+                        ) : (
+                          t('text-tool', { defaultValue: 'Text Tool' })
+                        )}
+                      </span>
+                      <DownOutlined className="gba:h-4 gba:w-4 gba:opacity-50" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="gba:w-full gba:bg-primary-foreground gba:border-border gba:rounded-lg gba:shadow-lg">
+                    <DropdownMenuItem
+                      className="gba:px-3 gba:py-2 gba:hover:bg-accent gba:cursor-pointer"
+                      onClick={async () => {
+                        const result = await transformCommentText(topic.comment ?? '', 'formalize')
+                        if (result != null) updateTopic(topic.id, { comment: result })
+                      }}
+                    >
+                      {t('text-tool-formalize', { defaultValue: 'Formalize' })}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="gba:px-3 gba:py-2 gba:hover:bg-accent gba:cursor-pointer"
+                      onClick={async () => {
+                        const result = await transformCommentText(topic.comment ?? '', 'translate', 'en')
+                        if (result != null) updateTopic(topic.id, { comment: result })
+                      }}
+                    >
+                      {t('text-tool-translate', { defaultValue: 'Translate' })}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="gba:px-3 gba:py-2 gba:hover:bg-accent gba:cursor-pointer"
+                      onClick={async () => {
+                        const result = await transformCommentText(topic.comment ?? '', 'shorten')
+                        if (result != null) updateTopic(topic.id, { comment: result })
+                      }}
+                    >
+                      {t('text-tool-shorten', { defaultValue: 'Shorten' })}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </div>
           ))}
@@ -280,17 +341,71 @@ const PerformanceEvaluationFormComponent: React.FC = () => {
           <Textarea
             id="general-comments"
             value={formValues.comments ?? ''}
-            onChange={e => setFormValues({ comments: e.target.value })}
+            onChange={e => {
+              setFormValues({ comments: e.target.value })
+              clearTextTransformationError()
+            }}
             placeholder={t('general-comments-placeholder')}
-            className="gba:min-h-[80px] gba:w-full"
+            maxLength={PERFORMANCE_VALIDATION.COMMENT_MAX_LENGTH}
+            className="gba:min-h-[120px] gba:w-full gba:resize-y"
             data-testid={formatDataTestId(prefixDataTestId, 'GeneralComments')}
           />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                variant="default"
+                disabled={!(formValues.comments ?? '').trim() || textTransformationLoading}
+                className="gba:w-full gba:justify-between gba:bg-destructive hover:gba:bg-destructive gba:text-primary-foreground gba:border-destructive"
+                data-testid={formatDataTestId(prefixDataTestId, 'GeneralCommentsTextTool')}
+              >
+                <span>
+                  {textTransformationLoading ? <Spinner size="sm" /> : t('text-tool', { defaultValue: 'Text Tool' })}
+                </span>
+                <DownOutlined className="gba:h-4 gba:w-4 gba:opacity-50" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="gba:w-full gba:bg-primary-foreground gba:border-border gba:rounded-lg gba:shadow-lg">
+              <DropdownMenuItem
+                className="gba:px-3 gba:py-2 gba:hover:bg-accent gba:cursor-pointer"
+                onClick={async () => {
+                  const result = await transformCommentText(formValues.comments ?? '', 'formalize')
+                  if (result != null) setFormValues({ comments: result })
+                }}
+              >
+                {t('text-tool-formalize', { defaultValue: 'Formalize' })}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="gba:px-3 gba:py-2 gba:hover:bg-accent gba:cursor-pointer"
+                onClick={async () => {
+                  const result = await transformCommentText(formValues.comments ?? '', 'translate', 'en')
+                  if (result != null) setFormValues({ comments: result })
+                }}
+              >
+                {t('text-tool-translate', { defaultValue: 'Translate' })}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="gba:px-3 gba:py-2 gba:hover:bg-accent gba:cursor-pointer"
+                onClick={async () => {
+                  const result = await transformCommentText(formValues.comments ?? '', 'shorten')
+                  if (result != null) setFormValues({ comments: result })
+                }}
+              >
+                {t('text-tool-shorten', { defaultValue: 'Shorten' })}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         {/* Error Display */}
         {error && (
           <Alert variant="destructive" data-testid={formatDataTestId(prefixDataTestId, 'ErrorAlert')}>
             <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+        {textTransformationError && (
+          <Alert variant="destructive" data-testid={formatDataTestId(prefixDataTestId, 'TextTransformationErrorAlert')}>
+            <AlertDescription>{textTransformationError}</AlertDescription>
           </Alert>
         )}
       </div>

@@ -344,6 +344,9 @@ export const GET_EMPLOYEE_DATA = /*sql*/ `
     title
     progressPercent
     version
+    createdAt
+    updatedAt
+    additionalProperties
   }
 }
  
@@ -774,10 +777,29 @@ export interface EmployeeAbsenceEntitlement {
 }
 
 export interface EmployeePerformanceGoal {
+  id?: string
+  employeeId?: string
   dueDate: string
   completionDate: string
   startDate: string
   status: string
   title: string
   progressPercent: number
+  version?: number
+  createdAt?: string
+  updatedAt?: string
+  additionalProperties?: {
+    goalType?: 'PERCENTAGE' | 'NUMERIC' | 'MILESTONE'
+    numeric?: {
+      target?: number
+      current?: number
+      unit?: string
+    }
+    milestones?: Array<{
+      id: string
+      title: string
+      done: boolean
+      doneAt?: string
+    }>
+  }
 }

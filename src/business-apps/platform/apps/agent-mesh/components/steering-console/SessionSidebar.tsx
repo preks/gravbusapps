@@ -36,7 +36,7 @@ export const SessionSidebar = ({
   return (
     <div className="gba:flex gba:flex-col gba:h-full" data-testid="session-sidebar">
       {/* Header */}
-      <div className="gba:flex gba:items-center gba:justify-between gba:px-4 gba:py-3 gba:border-b gba:border-border">
+      <div className="gba:flex gba:items-center gba:justify-between gba:px-4 gba:h-11 gba:flex-shrink-0 gba:border-b gba:border-border">
         <h2 className="gba:text-sm gba:font-bold gba:text-foreground gba:tracking-tight">Session History</h2>
         {onClose && (
           <Button
