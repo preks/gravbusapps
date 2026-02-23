@@ -17,6 +17,8 @@ export const employeePerformanceQuery = `
       employeeId
       createdAt
       updatedAt
+      version
+      additionalProperties
     }
     
     EmployeeFeedback(where: {

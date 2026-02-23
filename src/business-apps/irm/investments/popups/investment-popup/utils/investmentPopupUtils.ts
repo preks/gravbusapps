@@ -4,6 +4,7 @@
  */
 
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
+import { getInvestmentUiSubtypeFromData } from '@/common/data/investment/utils/investmentGroupRouting'
 
 /**
  * Common error messages
@@ -87,4 +88,34 @@ export const generateBusinessKey = (prefix: string, suffix?: string): string => 
 export const getInvestmentGroupType = (investment: any): string => {
   const groupRef = investment.investmentGroup?.id || ''
   return groupRef.split(':').pop() || ''
+}
+
+const getSubtypeEntity = (investment: any, subtype: 'equity' | 'real_estate' | 'liquid_fund') => {
+  const subtypeKeyMap = {
+    equity: 'equityInvestment',
+    real_estate: 'realEstateInvestment',
+    liquid_fund: 'liquidFundInvestment'
+  } as const
+
+  const rawSubtypeData = investment?.[subtypeKeyMap[subtype]]
+  if (Array.isArray(rawSubtypeData)) {
+    return rawSubtypeData[0]
+  }
+  return rawSubtypeData
+}
+
+export const getActiveSubtypeEntity = (investment: any): any => {
+  const subtype = getInvestmentUiSubtypeFromData(investment)
+  if (subtype === 'generic') return null
+  return getSubtypeEntity(investment, subtype)
+}
+
+export const getSubtypeOrInvestmentAdditionalProperties = (investment: any): Record<string, any> => {
+  const subtypeEntity = getActiveSubtypeEntity(investment)
+  const subtypeAdditionalProperties = parseAdditionalProperties(subtypeEntity?.additionalProperties)
+  if (Object.keys(subtypeAdditionalProperties).length > 0) {
+    return subtypeAdditionalProperties
+  }
+
+  return parseAdditionalProperties(investment?.additionalProperties)
 }
