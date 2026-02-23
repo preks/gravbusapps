@@ -72,9 +72,10 @@ export const CreateSessionSidebar = ({
             const isActive = plan.jobId === currentPlanId
 
             return (
-              <div
+              <button
                 key={plan.jobId}
-                className={`gba:flex gba:items-start gba:gap-2.5 gba:rounded-xl gba:px-2.5 gba:py-2 gba:cursor-pointer gba:group gba:transition-all gba:duration-150 ${
+                type="button"
+                className={`gba:w-full gba:text-left gba:flex gba:items-start gba:gap-2.5 gba:rounded-xl gba:px-2.5 gba:py-2 gba:cursor-pointer gba:group gba:transition-all gba:duration-150 ${
                   isActive ? 'gba:bg-accent gba:text-accent-foreground' : 'gba:hover:bg-muted/70'
                 }`}
                 onClick={() => onSelectSession(plan.jobId)}
@@ -92,7 +93,7 @@ export const CreateSessionSidebar = ({
                     {formatRelativeTime(plan.createdAt)}
                   </span>
                 </div>
-              </div>
+              </button>
             )
           })}
       </div>
