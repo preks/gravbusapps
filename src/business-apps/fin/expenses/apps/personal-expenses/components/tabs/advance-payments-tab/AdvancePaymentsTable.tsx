@@ -1101,6 +1101,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
 
       <GenerateDocumentDialog
         open={generateDocOpen}
+        accessToken={contextProps.accessToken}
         onOpenChange={open => {
           setGenerateDocOpen(open)
           if (!open) {
@@ -1120,7 +1121,7 @@ const AdvancePaymentsTable = React.forwardRef<HTMLDivElement, AdvancePaymentsTab
           if (!contextProps.accessToken) return
           DocumentApiService.setAccessToken(contextProps.accessToken)
           try {
-            const doc = await DocumentApiService.getDocument(documentId)
+            const doc = await DocumentApiService.getDocument(documentId, contextProps.accessToken)
             if (doc?.content != null) {
               await exportToWord(doc.title || 'Document', doc.content)
               toast.success('Document downloaded')

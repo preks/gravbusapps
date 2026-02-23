@@ -32,6 +32,7 @@ import type { TemplateSummary } from '../types'
 export interface GenerateDocumentDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  accessToken?: string
   /**
    * Map of entity key -> data for resolving placeholders (e.g. job_candidate, company, company_address).
    * All {{entityKey.fieldPath}} placeholders are replaced when the entity is in this map.
@@ -49,6 +50,7 @@ export interface GenerateDocumentDialogProps {
 export const GenerateDocumentDialog: React.FC<GenerateDocumentDialogProps> = ({
   open,
   onOpenChange,
+  accessToken,
   entityDataMap,
   entityDataLoading = false,
   defaultTitle = 'Generated Document',
@@ -82,7 +84,7 @@ export const GenerateDocumentDialog: React.FC<GenerateDocumentDialogProps> = ({
     }
     let cancelled = false
     setLoadingTemplateContent(true)
-    DocumentApiService.getTemplate(selectedTemplateId)
+    DocumentApiService.getTemplate(selectedTemplateId, accessToken)
       .then(t => {
         if (!cancelled && t?.content) setSelectedTemplateContent(t.content)
         else if (!cancelled) setSelectedTemplateContent(null)
@@ -96,7 +98,7 @@ export const GenerateDocumentDialog: React.FC<GenerateDocumentDialogProps> = ({
     return () => {
       cancelled = true
     }
-  }, [selectedTemplateId, open])
+  }, [selectedTemplateId, open, accessToken])
 
   /**
    * Placeholder data status: when a template is selected, show only entities referenced in that template;
@@ -129,7 +131,7 @@ export const GenerateDocumentDialog: React.FC<GenerateDocumentDialogProps> = ({
     setLoading(true)
     setError(null)
     try {
-      const list = await DocumentApiService.listTemplates({ includePublic: true })
+      const list = await DocumentApiService.listTemplates({ includePublic: true }, accessToken)
       setTemplates(list)
       if (list.length > 0 && !selectedTemplateId) {
         setSelectedTemplateId(list[0].id)
@@ -140,7 +142,7 @@ export const GenerateDocumentDialog: React.FC<GenerateDocumentDialogProps> = ({
     } finally {
       setLoading(false)
     }
-  }, [selectedTemplateId])
+  }, [selectedTemplateId, accessToken])
 
   useEffect(() => {
     if (open) {
@@ -155,7 +157,7 @@ export const GenerateDocumentDialog: React.FC<GenerateDocumentDialogProps> = ({
     }
     setGenerating(true)
     try {
-      const template = await DocumentApiService.getTemplate(selectedTemplateId)
+      const template = await DocumentApiService.getTemplate(selectedTemplateId, accessToken)
       if (!template?.content) {
         toast.error('Template has no content')
         setGenerating(false)
@@ -163,12 +165,17 @@ export const GenerateDocumentDialog: React.FC<GenerateDocumentDialogProps> = ({
       }
       const resolvedContent = resolvePlaceholders(template.content, entityDataMap)
       const title = template.name ? `${template.name} - ${defaultTitle}` : defaultTitle
-      const doc = await DocumentApiService.createDocumentFromTemplate(selectedTemplateId, title)
+      const doc = await DocumentApiService.createDocumentFromTemplate(selectedTemplateId, title, accessToken)
       if (doc?.id) {
-        await DocumentApiService.updateDocument(doc.id, {
-          content: resolvedContent,
-          ...({ contentJson: {} } as { contentJson?: unknown })
-        })
+        await DocumentApiService.updateDocument(
+          doc.id,
+          {
+            content: resolvedContent,
+            ...({ contentJson: {} } as { contentJson?: unknown })
+          },
+          undefined,
+          accessToken
+        )
         toast.success('Document created')
         onOpenChange(false)
         onSuccess?.(doc.id)
@@ -181,7 +188,7 @@ export const GenerateDocumentDialog: React.FC<GenerateDocumentDialogProps> = ({
     } finally {
       setGenerating(false)
     }
-  }, [selectedTemplateId, entityDataMap, defaultTitle, onOpenChange, onSuccess])
+  }, [selectedTemplateId, entityDataMap, defaultTitle, onOpenChange, onSuccess, accessToken])
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange} data-testid={testId}>
