@@ -79,7 +79,7 @@ export function buildMockForComponent(component: ComponentSpec): DemoMockResult 
       description: spec.description,
       user_content: { template: spec.userPromptTemplate, parameters: paramKeys },
       system_content: spec.systemPrompt ? { template: spec.systemPrompt, parameters: [] } : null,
-      model: { id: 'mock', collection: 'models' },
+      model: { id: spec.modelId ?? 'mock', collection: 'models' },
       version: 1,
       workspace: { id: 'mock', collection: 'workspaces' },
       specialty: spec.specialty,

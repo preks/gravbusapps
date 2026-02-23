@@ -1,5 +1,5 @@
 import React from 'react'
-import { BaseEdge, type EdgeProps, EdgeLabelRenderer, MarkerType } from 'reactflow'
+import { BaseEdge, type EdgeProps, EdgeLabelRenderer, MarkerType } from '@xyflow/react'
 import { HANDLE_OFFSET } from '../nodes/nodeDimensions'
 import { extendEdgePointsByHandleOffset } from './edgePathUtils'
 

@@ -1,5 +1,5 @@
 import React from 'react'
-import { Handle, Position } from 'reactflow'
+import { Handle, Position } from '@xyflow/react'
 import { Badge } from '@newwork/nw-design-system'
 import { GitBranch, User, Bot, Calculator } from 'lucide-react'
 import { HANDLE_OFFSET } from './nodeDimensions'

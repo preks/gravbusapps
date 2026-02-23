@@ -1,9 +1,9 @@
 import React, { createContext, useMemo, useEffect, useState, useRef, useContext } from 'react'
-import ReactFlow, {
+import {
+  ReactFlow,
   type Node,
   type Edge,
   type ReactFlowInstance,
-  Controls,
   Background,
   MiniMap,
   Panel,
@@ -12,10 +12,12 @@ import ReactFlow, {
   useNodesInitialized,
   useReactFlow,
   ConnectionMode
-} from 'reactflow'
-import 'reactflow/dist/style.css'
+} from '@xyflow/react'
+import '@xyflow/react/dist/style.css'
 
 import { useFlowCanvasContext } from './FlowViewerProvider'
+import { useFlowExport } from './controls/useFlowExport'
+import { FlowCanvasControls } from './controls/FlowCanvasControls'
 
 /** When true, the right panel is playing its close animation; panel content should render last cached content instead of null. */
 const RightPanelExitingContext = createContext(false)
@@ -140,6 +142,7 @@ export const FlowCanvas: React.FC<FlowCanvasViewProps> = ({
   const [wasInitiallyCentered, setWasInitiallyCentered] = useState(false)
   const nodesInitialized = useNodesInitialized()
   const { fitView } = useReactFlow()
+  const { exportPng, isExporting } = useFlowExport()
   const [resolvedThemeColors, setResolvedThemeColors] = useState<FlowCanvasThemeColors | null>(null)
 
   const nodeTypes = useMemo(
@@ -409,15 +412,11 @@ export const FlowCanvas: React.FC<FlowCanvasViewProps> = ({
         }
       >
         <Background color={uiColors.border} gap={16} size={1} />
-        <Controls
-          showZoom={true}
-          showFitView={true}
-          showInteractive={false}
-          style={{
-            backgroundColor: uiColors.surface,
-            border: uiColors.border ? `1px solid ${uiColors.border}` : undefined,
-            borderRadius: '8px'
-          }}
+        <FlowCanvasControls
+          uiColors={uiColors}
+          onExport={exportPng}
+          isExporting={isExporting}
+          data-testid={`${testId}-controls`}
         />
         <MiniMap
           position="bottom-left"
@@ -426,6 +425,9 @@ export const FlowCanvas: React.FC<FlowCanvasViewProps> = ({
           zoomable
           maskColor={uiColors.mask}
           style={{
+            marginBottom: '62px',
+            width: 220,
+            height: 150,
             backgroundColor: uiColors.surface,
             border: uiColors.border ? `1px solid ${uiColors.border}` : undefined,
             borderRadius: '8px'

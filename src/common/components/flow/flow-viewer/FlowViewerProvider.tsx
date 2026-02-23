@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useMemo } from 'react'
-import { ReactFlowProvider } from 'reactflow'
+import { ReactFlowProvider } from '@xyflow/react'
 import type { FlowCanvasContextValue, FlowExecutionState } from './types/viewerTypes'
 
 const FlowCanvasContext = createContext<FlowCanvasContextValue | null>(null)

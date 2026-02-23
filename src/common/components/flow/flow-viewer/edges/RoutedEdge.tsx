@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react'
-import { BaseEdge, EdgeLabelRenderer, type EdgeProps, MarkerType, getStraightPath } from 'reactflow'
+import { BaseEdge, EdgeLabelRenderer, type EdgeProps, MarkerType, getStraightPath } from '@xyflow/react'
 import { GitBranch, Plus, SplitSquareHorizontal, UserCheck } from 'lucide-react'
 import { HANDLE_OFFSET } from '../nodes/nodeDimensions'
 import { extendEdgePointsByHandleOffset } from './edgePathUtils'

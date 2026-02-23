@@ -9,6 +9,8 @@ import {
   AlertDescription,
   Button,
   Textarea,
+  Input,
+  Label,
   ScrollArea
 } from '@newwork/nw-design-system'
 import { Bot, Send, MessageSquare } from 'lucide-react'
@@ -27,11 +29,18 @@ export interface AgentPreviewProps {
 
 type ChatMessage = { role: 'user' | 'assistant'; content: string }
 
-const DEMO_MOCK_REPLY = 'Demo mode: chat is not executed.'
+const MOCK_MODEL_ID = 'mock'
 
 function friendlyLabel(key: string): string {
   const lower = key.toLowerCase().replace(/_/g, ' ')
   return lower.charAt(0).toUpperCase() + lower.slice(1)
+}
+
+function formatUserMessage(paramValues: Record<string, string>, paramKeys: string[]): string {
+  if (paramKeys.length <= 1) {
+    return paramValues[paramKeys[0]] ?? paramValues['message'] ?? ''
+  }
+  return paramKeys.map(k => `${friendlyLabel(k)}: ${paramValues[k] ?? ''}`).join('\n')
 }
 
 export const AgentPreview: React.FC<AgentPreviewProps> = ({
@@ -46,12 +55,12 @@ export const AgentPreview: React.FC<AgentPreviewProps> = ({
   const [paramKeys, setParamKeys] = useState<string[]>(paramKeysProp ?? [])
   const [loading, setLoading] = useState(promptProp == null && !!agentId)
   const [error, setError] = useState<string | null>(null)
-  const [chatInput, setChatInput] = useState('')
+  const [paramValues, setParamValues] = useState<Record<string, string>>({})
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [sending, setSending] = useState(false)
   const [sendError, setSendError] = useState<string | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
-  const isMock = !!promptProp
+  const isMock = !!promptProp && promptProp.model.id === MOCK_MODEL_ID
 
   useEffect(() => {
     if (promptProp != null) {
@@ -93,38 +102,56 @@ export const AgentPreview: React.FC<AgentPreviewProps> = ({
     scrollRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
+  const effectiveParamKeys = paramKeys.length > 0 ? paramKeys : ['message']
+  const isMultiParam = effectiveParamKeys.length > 1
+
+  const canSend = !sending && effectiveParamKeys.every(k => (paramValues[k] ?? '').trim().length > 0)
+
+  const setParamValue = useCallback((key: string, value: string) => {
+    setParamValues(prev => ({ ...prev, [key]: value }))
+  }, [])
+
   const sendMessage = useCallback(async () => {
-    const text = chatInput.trim()
-    if (!text) return
-    setChatInput('')
+    if (!canSend) return
+    const userParams: Record<string, string> = {}
+    effectiveParamKeys.forEach(k => {
+      userParams[k] = (paramValues[k] ?? '').trim()
+    })
+
+    const userMessageText = formatUserMessage(userParams, effectiveParamKeys)
+    setMessages(prev => [...prev, { role: 'user', content: userMessageText }])
     setSendError(null)
-    setMessages(prev => [...prev, { role: 'user', content: text }])
     setSending(true)
+
     if (isMock) {
       setTimeout(() => {
-        setMessages(prev => [...prev, { role: 'assistant', content: DEMO_MOCK_REPLY }])
+        setMessages(prev => [...prev, { role: 'assistant', content: 'Demo mode: chat is not executed.' }])
         setSending(false)
       }, 400)
       return
     }
-    if (!agentId || !accessToken) {
+
+    const fd = new FormData()
+    fd.append('user_params', JSON.stringify(userParams))
+    fd.append('context', JSON.stringify({ executionMode: 'test' }))
+
+    if (promptProp && !agentId) {
+      fd.append('model_id', promptProp.model.id)
+      fd.append('user_content', promptProp.user_content.template ?? '')
+      if (promptProp.system_content?.template) fd.append('system_content', promptProp.system_content.template)
+      if (promptProp.tools) fd.append('tools', promptProp.tools)
+      if (promptProp.model_settings && Object.keys(promptProp.model_settings).length > 0) {
+        fd.append('model_settings', JSON.stringify(promptProp.model_settings))
+      }
+    }
+
+    if (!promptProp && !agentId) {
       setSending(false)
       return
     }
+
     try {
-      const fd = new FormData()
-      const params: Record<string, string> = {}
-      if (paramKeys.length > 0) {
-        params[paramKeys[0]] = text
-        paramKeys.forEach(k => {
-          if (k !== paramKeys[0] && !(k in params)) params[k] = ''
-        })
-      } else {
-        params['message'] = text
-      }
-      if (Object.keys(params).length > 0) fd.append('user_params', JSON.stringify(params))
-      fd.append('context', JSON.stringify({ executionMode: 'test' }))
-      const res = await client.executePromptById(agentId, fd)
+      const res = promptProp && !agentId ? await client.executePrompt(fd) : await client.executePromptById(agentId!, fd)
       const content =
         typeof res.content === 'string' ? res.content : res.content != null ? JSON.stringify(res.content) : ''
       setMessages(prev => [...prev, { role: 'assistant', content: content || '(No response)' }])
@@ -134,7 +161,7 @@ export const AgentPreview: React.FC<AgentPreviewProps> = ({
     } finally {
       setSending(false)
     }
-  }, [client, agentId, accessToken, paramKeys, chatInput, isMock])
+  }, [client, agentId, promptProp, paramValues, effectiveParamKeys, canSend, isMock])
 
   if (loading)
     return (
@@ -155,13 +182,6 @@ export const AgentPreview: React.FC<AgentPreviewProps> = ({
       </div>
     )
 
-  const inputDescription =
-    paramKeys.length === 0
-      ? 'You can send a message or question in your own words.'
-      : paramKeys.length === 1
-        ? `You provide: ${friendlyLabel(paramKeys[0])}.`
-        : `You provide: ${paramKeys.map(k => friendlyLabel(k)).join(', ')}.`
-
   return (
     <div className="gba:flex gba:flex-col gba:h-full gba:min-h-0" data-testid={testId}>
       <Card className="gba:shrink-0 gba:border-border">
@@ -171,7 +191,7 @@ export const AgentPreview: React.FC<AgentPreviewProps> = ({
               <Bot className="gba:h-8 gba:w-8 gba:text-primary" />
             </div>
             <div className="gba:flex-1 gba:min-w-0">
-              <CardTitle className="gba:text-lg">Meet {prompt.name}</CardTitle>
+              <CardTitle className="gba:text-lg">{prompt.name}</CardTitle>
               {prompt.description && (
                 <p className="gba:text-sm gba:text-muted-foreground gba:mt-1">{prompt.description}</p>
               )}
@@ -181,24 +201,21 @@ export const AgentPreview: React.FC<AgentPreviewProps> = ({
             </div>
           </div>
         </CardHeader>
-        <CardContent className="gba:pt-4">
-          <p className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-1">Input</p>
-          <p className="gba:text-sm gba:text-foreground">{inputDescription}</p>
-          <p className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:mt-3 gba:mb-1">Output</p>
-          <p className="gba:text-sm gba:text-foreground">The expert returns a text answer based on your message.</p>
-        </CardContent>
       </Card>
+
       <Card className="gba:flex-1 gba:min-h-0 gba:flex gba:flex-col gba:border-border gba:mt-4">
-        <CardHeader className="gba:shrink-0">
+        <CardHeader className="gba:shrink-0 gba:border-b gba:border-border">
           <CardTitle className="gba:flex gba:items-center gba:gap-2 gba:text-base">
-            <MessageSquare className="gba:h-4 gba:w-4" /> Chat with {prompt.name}
+            <MessageSquare className="gba:h-4 gba:w-4" /> Try it out
           </CardTitle>
         </CardHeader>
-        <CardContent className="gba:flex-1 gba:min-h-0 gba:flex gba:flex-col gba:pt-0">
-          <ScrollArea className="gba:flex-1 gba:min-h-[200px] gba:rounded-md gba:border gba:border-border gba:p-3">
+        <CardContent className="gba:flex-1 gba:min-h-0 gba:flex gba:flex-col gba:pt-4 gba:gap-4">
+          <ScrollArea className="gba:flex-1 gba:min-h-[120px] gba:rounded-md gba:border gba:border-border gba:p-3">
             <div className="gba:space-y-3">
               {messages.length === 0 ? (
-                <p className="gba:text-sm gba:text-muted-foreground">Send a message below to start the conversation.</p>
+                <p className="gba:text-sm gba:text-muted-foreground">
+                  Fill in the fields below and run the agent to see the response.
+                </p>
               ) : (
                 messages.map((m, i) => (
                   <div
@@ -207,7 +224,7 @@ export const AgentPreview: React.FC<AgentPreviewProps> = ({
                     data-testid={`${testId}-msg-${i}`}
                   >
                     <div
-                      className={`gba:max-w-[85%] gba:rounded-lg gba:px-3 gba:py-2 gba:text-sm ${m.role === 'user' ? 'gba:bg-primary gba:text-primary-foreground' : 'gba:bg-muted gba:text-foreground'}`}
+                      className={`gba:max-w-[85%] gba:rounded-lg gba:px-3 gba:py-2 gba:text-sm gba:whitespace-pre-wrap ${m.role === 'user' ? 'gba:bg-primary gba:text-primary-foreground' : 'gba:bg-muted gba:text-foreground'}`}
                     >
                       {m.content}
                     </div>
@@ -222,36 +239,85 @@ export const AgentPreview: React.FC<AgentPreviewProps> = ({
               <div ref={scrollRef} />
             </div>
           </ScrollArea>
+
           {sendError && (
-            <Alert variant="destructive" className="gba:mt-2">
+            <Alert variant="destructive">
               <AlertDescription>{sendError}</AlertDescription>
             </Alert>
           )}
-          <div className="gba:flex gba:gap-2 gba:mt-3">
-            <Textarea
-              value={chatInput}
-              onChange={e => setChatInput(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault()
-                  sendMessage()
-                }
-              }}
-              placeholder="Type your message..."
-              rows={2}
-              className="gba:resize-none gba:flex-1"
-              disabled={sending}
-              data-testid={`${testId}-chat-input`}
-            />
-            <Button
-              variant="default"
-              size="icon"
-              onClick={sendMessage}
-              disabled={sending || !chatInput.trim()}
-              data-testid={`${testId}-send`}
-            >
-              <Send className="gba:h-4 gba:w-4" />
-            </Button>
+
+          <div className="gba:shrink-0 gba:flex gba:flex-col gba:gap-3">
+            {isMultiParam ? (
+              <>
+                <div className="gba:grid gba:grid-cols-2 gba:gap-3">
+                  {effectiveParamKeys.map(key => (
+                    <div key={key} className="gba:flex gba:flex-col gba:gap-1">
+                      <Label className="gba:text-xs gba:font-medium gba:text-muted-foreground">
+                        {friendlyLabel(key)}
+                      </Label>
+                      <Input
+                        value={paramValues[key] ?? ''}
+                        onChange={e => setParamValue(key, e.target.value)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault()
+                            sendMessage()
+                          }
+                        }}
+                        placeholder={friendlyLabel(key)}
+                        disabled={sending}
+                        data-testid={`${testId}-input-${key}`}
+                      />
+                    </div>
+                  ))}
+                </div>
+                <Button
+                  variant="default"
+                  onClick={sendMessage}
+                  disabled={!canSend}
+                  className="gba:self-end"
+                  data-testid={`${testId}-send`}
+                >
+                  <Send className="gba:h-4 gba:w-4 gba:mr-2" />
+                  Run
+                </Button>
+              </>
+            ) : (
+              <div className="gba:flex gba:gap-2">
+                <div className="gba:flex gba:flex-col gba:gap-1 gba:flex-1">
+                  {effectiveParamKeys[0] !== 'message' && (
+                    <Label className="gba:text-xs gba:font-medium gba:text-muted-foreground">
+                      {friendlyLabel(effectiveParamKeys[0])}
+                    </Label>
+                  )}
+                  <Textarea
+                    value={paramValues[effectiveParamKeys[0]] ?? ''}
+                    onChange={e => setParamValue(effectiveParamKeys[0], e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault()
+                        sendMessage()
+                      }
+                    }}
+                    placeholder="Type your message..."
+                    rows={2}
+                    className="gba:resize-none"
+                    disabled={sending}
+                    data-testid={`${testId}-chat-input`}
+                  />
+                </div>
+                <Button
+                  variant="default"
+                  size="icon"
+                  onClick={sendMessage}
+                  disabled={!canSend}
+                  className="gba:self-end"
+                  data-testid={`${testId}-send`}
+                >
+                  <Send className="gba:h-4 gba:w-4" />
+                </Button>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

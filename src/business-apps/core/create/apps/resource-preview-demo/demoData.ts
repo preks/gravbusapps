@@ -101,23 +101,24 @@ export const DEMO_COMPONENTS: ComponentSpec[] = [
   {
     id: 'comp-agent',
     type: 'agent',
-    name: 'Sales Assistant',
-    description: 'Task expert for lead qualification and CRM updates.',
-    userFriendlyDescription: 'Helps qualify leads and update CRM records.',
+    name: 'Lead Qualifier',
+    description: 'Qualifies sales leads and recommends next steps based on company and industry context.',
+    userFriendlyDescription: 'Analyze leads and get actionable qualification insights.',
     status: 'completed',
     dependencies: [],
     createdId: DEMO_AGENT_ID,
     agentSpec: {
-      name: 'Sales Assistant',
-      description: 'Task expert for lead qualification and CRM updates.',
-      systemPrompt: 'You are a sales assistant. Qualify leads and suggest CRM updates.',
-      userPromptTemplate: 'Please help with: {query}',
-      tools: ['create_lead', 'update_lead'],
+      name: 'Lead Qualifier',
+      description: 'Qualifies sales leads and recommends next steps based on company and industry context.',
+      systemPrompt:
+        'You are an expert B2B sales assistant. Given a lead, analyze their fit based on company, industry, and provided notes. Return a qualification score from 1–10, a short summary of key insights, and 2–3 concrete recommended next steps. Be concise and actionable.',
+      userPromptTemplate: 'Lead name: {lead_name}\nCompany: {company}\nIndustry: {industry}\nNotes: {notes}',
+      tools: [],
       agentType: 'everyai',
-      specialty: 'Lead qualification and CRM',
+      specialty: 'Lead qualification and B2B sales strategy',
       responseStyle: 'conversational',
-      citationMode: 'when_needed',
-      tags: ['sales', 'crm', 'leads']
+      citationMode: 'never',
+      tags: ['sales', 'crm', 'leads', 'qualification']
     }
   },
   {
