@@ -20,12 +20,40 @@ interface DailyLogProps {
   employee: any
 }
 
+const EMPTY_ABSENCE_ENTITLEMENTS: never[] = []
+
 const DailyLog: React.FC<DailyLogProps> = ({ employeeId, employee, accessToken }) => {
   const [currentDate, setCurrentDate] = React.useState<Dayjs>(dayjs())
   const [selectedStartDate, setSelectedStartDate] = React.useState<any>(null)
   const [selectedEndDate, setSelectedEndDate] = React.useState<any>(null)
 
-  const { absenceList } = useAbsenceData(employeeId, accessToken, [])
+  const { absenceList } = useAbsenceData(employeeId, accessToken, EMPTY_ABSENCE_ENTITLEMENTS)
+
+  const wh = employee?.workingHours?.[0]
+  const workingHours = React.useMemo(
+    () =>
+      wh
+        ? {
+            sundayHours: wh.sundayHours,
+            mondayHours: wh.mondayHours,
+            tuesdayHours: wh.tuesdayHours,
+            wednesdayHours: wh.wednesdayHours,
+            thursdayHours: wh.thursdayHours,
+            fridayHours: wh.fridayHours,
+            saturdayHours: wh.saturdayHours
+          }
+        : undefined,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [
+      wh?.sundayHours,
+      wh?.mondayHours,
+      wh?.tuesdayHours,
+      wh?.wednesdayHours,
+      wh?.thursdayHours,
+      wh?.fridayHours,
+      wh?.saturdayHours
+    ]
+  )
 
   const {
     allMonthEntries,
@@ -39,7 +67,7 @@ const DailyLog: React.FC<DailyLogProps> = ({ employeeId, employee, accessToken }
   } = useTimeTrackingData({
     employeeId,
     accessToken,
-    workingHours: employee?.workingHours?.[0]
+    workingHours
   })
 
   const calendarAbsences = React.useMemo<AbsenceListCardAbsence[]>(() => {
