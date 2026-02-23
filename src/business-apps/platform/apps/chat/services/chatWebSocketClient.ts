@@ -244,6 +244,10 @@ export class ChatWebSocketClient {
     this.socket?.on('conversation:read', handler)
   }
 
+  onConversationUnread(handler: (data: { conversationId: string; userId: string }) => void) {
+    this.socket?.on('conversation:unread', handler)
+  }
+
   onConversationCallStarted(handler: (data: ActiveCall) => void) {
     this.socket?.on('conversation:call-started', handler)
   }
@@ -285,6 +289,14 @@ export class ChatWebSocketClient {
     }
 
     this.socket.emit('conversation:mark-read', { conversationId })
+  }
+
+  markConversationAsUnread(conversationId: string) {
+    if (!this.socket?.connected) {
+      return
+    }
+
+    this.socket.emit('conversation:mark-unread', { conversationId })
   }
 
   sendMessage(

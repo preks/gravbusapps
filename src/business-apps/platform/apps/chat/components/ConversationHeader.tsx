@@ -40,7 +40,19 @@ import {
   ChatTextIcon,
   MagnifyingGlassIcon
 } from '@phosphor-icons/react'
-import { UserIcon, Phone, Video, PhoneCall, UserPlus, Bell, BellOff, CalendarIcon, Pin, PinOff } from 'lucide-react'
+import {
+  UserIcon,
+  Phone,
+  Video,
+  PhoneCall,
+  UserPlus,
+  Bell,
+  BellOff,
+  CalendarIcon,
+  Pin,
+  PinOff,
+  Mail
+} from 'lucide-react'
 import type { Conversation, UserStatus, Message } from '../types'
 import { UserPresenceStatus, SystemPresenceStatus } from '../types'
 import type { UserPresence } from '../hooks/usePresence'
@@ -86,6 +98,7 @@ interface ConversationHeaderProps {
   isPinned?: boolean
   onMute?: (muted: boolean) => void
   onPin?: () => void
+  onMarkAsUnread?: () => void
 }
 
 /** Format a date as relative time (e.g. "just now", "5 min ago") or absolute date. */
@@ -286,7 +299,8 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
   isMuted = false,
   isPinned = false,
   onMute,
-  onPin
+  onPin,
+  onMarkAsUnread
 }) => {
   const searchInputRef = useRef<HTMLInputElement>(null)
   useEffect(() => {
@@ -397,9 +411,9 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
               </div>
             </PopoverAnchor>
             <PopoverContent
-              className="gba:w-[var(--radix-popover-trigger-width)] gba:max-h-72 gba:overflow-y-auto gba:rounded-lg gba:border gba:border-border gba:bg-popover gba:p-0"
+              className={`gba:w-[var(--radix-popover-trigger-width)] gba:overflow-y-auto gba:rounded-lg gba:border gba:border-border gba:bg-popover gba:p-0 ${compact ? 'gba:max-h-32' : 'gba:max-h-72'}`}
               align="start"
-              side="bottom"
+              side={compact ? 'top' : 'bottom'}
               sideOffset={6}
               onOpenAutoFocus={e => e.preventDefault()}
             >
@@ -660,7 +674,7 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
             </Button>
           )}
 
-          {(onRemove || (isGroupChat && (onGroupSettings || onAddExpert)) || onPin || onMute) && (
+          {(onRemove || (isGroupChat && (onGroupSettings || onAddExpert)) || onPin || onMute || onMarkAsUnread) && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -689,6 +703,12 @@ export const ConversationHeader: React.FC<ConversationHeaderProps> = ({
                         {t('chat-pinConversation')}
                       </>
                     )}
+                  </DropdownMenuItem>
+                )}
+                {onMarkAsUnread && (
+                  <DropdownMenuItem onClick={onMarkAsUnread} data-testid="conversation-header-mark-unread-button">
+                    <Mail className="gba:w-4 gba:h-4 gba:mr-2" />
+                    {t('chat-markAsUnread')}
                   </DropdownMenuItem>
                 )}
                 {onMute && (

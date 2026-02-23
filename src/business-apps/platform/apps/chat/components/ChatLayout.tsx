@@ -70,7 +70,7 @@ export function ChatLayout({
         {showListView && (
           <div
             className={`gba:flex gba:flex-col gba:h-full gba:border-r gba:border-border/50 gba:bg-muted/30 ${
-              isSingleViewMode ? 'gba:w-full' : 'gba:w-72 gba:flex-shrink-0'
+              isSingleViewMode ? 'gba:w-full' : 'gba:w-[350px] gba:flex-shrink-0'
             }`}
           >
             {listSlot}

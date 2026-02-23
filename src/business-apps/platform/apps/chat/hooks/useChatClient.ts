@@ -731,6 +731,10 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
       conversationsHookRef.current?.markConversationAsRead(data.conversationId)
     }
 
+    const handleConversationUnread = () => {
+      conversationsHookRef.current?.loadConversations?.()
+    }
+
     const handleNudgeReceived = (data: { conversationId: string; fromUserId: string; fromUserName: string }) => {
       // Trigger nudge notification callback if registered
       if (nudgeCallbackRef.current) {
@@ -749,6 +753,7 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
     wsClient.onConversationCreated(handleConversationCreated)
     wsClient.onParticipantRemoved(handleParticipantRemoved)
     wsClient.onConversationRead(handleConversationRead)
+    wsClient.onConversationUnread(handleConversationUnread)
 
     wsClient.onConversationCallStarted(handleConversationCallStarted)
     wsClient.onConversationCallEnded(handleConversationCallEnded)
@@ -769,6 +774,7 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
       wsClient.off('conversation_created', handleConversationCreated)
       wsClient.off('participant_removed', handleParticipantRemoved)
       wsClient.off('conversation:read', handleConversationRead)
+      wsClient.off('conversation:unread', handleConversationUnread)
       wsClient.off('conversation:call-started', handleConversationCallStarted)
       wsClient.off('conversation:call-ended', handleConversationCallEnded)
       wsClient.off('conversation:active-calls', handleConversationActiveCalls)
@@ -1139,6 +1145,23 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
     []
   )
 
+  const markAsUnread = useCallback(
+    async (conversationId: string) => {
+      const api = apiClientRef.current
+      if (!api) {
+        const err = new Error('Chat API client not ready')
+        console.error('[markAsUnread] API client not ready', { conversationId })
+        throw err
+      }
+      await api.markAsUnread(conversationId)
+      if (wsClientRef.current && isConnected) {
+        wsClientRef.current.markConversationAsUnread(conversationId)
+      }
+      conversationsHook.loadConversations()
+    },
+    [isConnected, conversationsHook]
+  )
+
   /** Clear active call for a conversation when user leaves locally (so "invite to join" does not persist). */
   const clearActiveCallForConversation = useCallback((conversationId: string) => {
     setActiveCalls(prev => {
@@ -1208,6 +1231,7 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
       stopTyping: typingHook.stopTyping,
       sendNudge,
       registerNudgeCallback,
+      markAsUnread,
       clearActiveCallForConversation,
       // Clients (for advanced usage)
       apiClient: apiClientRef.current,
@@ -1264,6 +1288,7 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
       typingHook.stopTyping,
       sendNudge,
       registerNudgeCallback,
+      markAsUnread,
       clearActiveCallForConversation,
       // Clients (refs are stable)
       apiClientRef.current,
