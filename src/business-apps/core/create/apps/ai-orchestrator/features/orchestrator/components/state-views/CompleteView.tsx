@@ -5,10 +5,14 @@
  */
 
 import React, { useMemo, useState } from 'react'
+import { Button } from '@newwork/nw-design-system'
+import { Upload, Loader2, CheckCircle2 } from 'lucide-react'
 import { ScreenPreview } from '../preview/ScreenPreview'
 import { CanvasTabHeader } from '../canvas/CanvasTabHeader'
 import { ComponentPlaceholderList } from './ComponentPlaceholderList'
+import { AppIconBadge } from '../ui/AppIconBadge'
 import type { ComponentSpec, CanvasTab } from '../../types'
+import type { AppMetadata } from '../../types/build'
 
 export interface CompleteViewProps {
   components: ComponentSpec[]
@@ -19,6 +23,12 @@ export interface CompleteViewProps {
   userInfo?: any
   /** Incremented by the chat panel when an AI fix modifies screen code */
   previewRefreshToken?: number
+  appMetadata?: AppMetadata
+  isPublishing?: boolean
+  publishSuccess?: boolean
+  publishError?: string | null
+  onPublish?: () => void
+  onReset?: () => void
 }
 
 function firstScreenWithSession(components: ComponentSpec[]): ComponentSpec | null {
@@ -29,7 +39,12 @@ export const CompleteView: React.FC<CompleteViewProps> = ({
   components,
   accessToken,
   userInfo,
-  previewRefreshToken
+  previewRefreshToken,
+  appMetadata,
+  isPublishing,
+  publishSuccess,
+  publishError,
+  onPublish
 }) => {
   const [activeTab, setActiveTab] = useState<CanvasTab>('screen')
   const previewComponent = useMemo(() => firstScreenWithSession(components), [components])
@@ -96,6 +111,42 @@ export const CompleteView: React.FC<CompleteViewProps> = ({
 
   return (
     <div className="gba:flex gba:flex-col gba:h-full gba:min-h-0">
+      {/* App Identity Banner */}
+      {appMetadata && (
+        <div className="gba:flex gba:items-center gba:gap-3 gba:px-4 gba:py-3 gba:border-b gba:border-border gba:bg-background">
+          <AppIconBadge iconName={appMetadata.icon} size="md" />
+          <div className="gba:min-w-0 gba:flex-1">
+            <p className="gba:font-semibold gba:text-foreground gba:text-base gba:leading-tight">{appMetadata.name}</p>
+            <p className="gba:text-sm gba:text-muted-foreground gba:truncate">{appMetadata.description}</p>
+          </div>
+          {publishSuccess ? (
+            <span className="gba:flex gba:items-center gba:gap-1.5 gba:text-sm gba:text-success gba:font-medium gba:shrink-0">
+              <CheckCircle2 className="gba:w-4 gba:h-4" />
+              Published!
+            </span>
+          ) : (
+            <Button
+              onClick={onPublish}
+              disabled={isPublishing}
+              title={publishError ?? undefined}
+              className="gba:shrink-0 gba:gap-2 gba:rounded-2xl gba:bg-linear-to-r gba:from-blue-500 gba:to-indigo-600 gba:text-white gba:border-0 gba:px-5 gba:font-semibold gba:shadow-none gba:hover:opacity-90"
+            >
+              {isPublishing ? (
+                <>
+                  <Loader2 className="gba:w-4 gba:h-4 gba:animate-spin" />
+                  Publishing...
+                </>
+              ) : (
+                <>
+                  <Upload className="gba:w-4 gba:h-4" />
+                  Publish App
+                </>
+              )}
+            </Button>
+          )}
+        </div>
+      )}
+
       {/* Tab Header */}
       <div className="gba:bg-background gba:border-b gba:border-border">
         <CanvasTabHeader activeTab={activeTab} onTabChange={setActiveTab} />

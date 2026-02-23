@@ -1,5 +1,5 @@
 import { Button } from '@newwork/nw-design-system'
-import { Sparkles, Plus, MessageSquare } from 'lucide-react'
+import { History, Plus, MessageSquare, Sparkles } from 'lucide-react'
 import { useChatScroll } from '../../hooks/useChatScroll'
 import { CreateAgentChatMessage } from './CreateAgentChatMessage'
 import { CreateAgentChatInput } from './CreateAgentChatInput'
@@ -10,6 +10,7 @@ interface CreateAgentChatProps {
   isProcessing: boolean
   onSend: (message: string) => void
   onNewSession: () => void
+  onOpenHistory: () => void
   testId?: string
 }
 
@@ -18,6 +19,7 @@ export const CreateAgentChat = ({
   isProcessing,
   onSend,
   onNewSession,
+  onOpenHistory,
   testId = 'create-agent-chat'
 }: CreateAgentChatProps) => {
   const { messagesEndRef, scrollContainerRef, handleScroll } = useChatScroll(messages.length)
@@ -26,9 +28,15 @@ export const CreateAgentChat = ({
     <div className="gba:flex gba:flex-col gba:h-full gba:min-h-0" data-testid={testId}>
       {/* Header */}
       <div className="gba:flex gba:items-center gba:gap-3 gba:px-4 gba:py-3 gba:border-b gba:border-border gba:shrink-0 gba:h-[56px] gba:-mr-px">
-        <div className="gba:h-8 gba:w-8 gba:rounded-xl gba:bg-primary/10 gba:flex gba:items-center gba:justify-center">
-          <Sparkles className="gba:h-4 gba:w-4 gba:text-primary" />
-        </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="gba:h-8 gba:w-8 gba:rounded-xl gba:hover:bg-muted"
+          onClick={onOpenHistory}
+          data-testid={`${testId}-history-btn`}
+        >
+          <History className="gba:h-4 gba:w-4 gba:text-muted-foreground" />
+        </Button>
         <span className="gba:font-funnel-display gba:text-lg gba:font-semibold gba:text-primary gba:flex-1 gba:truncate">
           CREATE Agent
         </span>

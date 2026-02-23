@@ -68,13 +68,6 @@ export const OrchestratorCanvasContent: React.FC<OrchestratorCanvasContentProps>
         </Button>
       )
     }
-    if (state.viewState === 'complete') {
-      return (
-        <Button variant="ghost" size="sm" onClick={handlers.handleReset}>
-          ← Build Something New
-        </Button>
-      )
-    }
     return null
   }
 
@@ -124,7 +117,7 @@ export const OrchestratorCanvasContent: React.FC<OrchestratorCanvasContentProps>
             phaseMessage={buildProgress.phaseMessage}
             isBuilding={buildProgress.isBuilding}
             tiles={buildProgress.tiles}
-            onCancel={buildProgress.cancelBuild}
+            appMetadata={orchestratorClient.currentPlan?.appMetadata}
           />
         )
 
@@ -140,6 +133,11 @@ export const OrchestratorCanvasContent: React.FC<OrchestratorCanvasContentProps>
             userInfo={userInfo}
             previewRefreshToken={previewRefreshToken}
             onReset={handlers.handleReset}
+            appMetadata={orchestratorClient.currentPlan.appMetadata}
+            isPublishing={orchestratorClient.isPublishing}
+            publishSuccess={orchestratorClient.publishSuccess}
+            publishError={orchestratorClient.publishError}
+            onPublish={orchestratorClient.publishApp}
           />
         )
 
