@@ -3,7 +3,7 @@
  */
 
 export const employeeFeedbackQuery = `
-  query GetEmployeeFeedback($employeeId: uuid!) {
+  query GetEmployeeFeedback($employeeId: uuid!, $activeUserLocale: String!) {
     EmployeeFeedback(where: {
       employeeId: {_eq: $employeeId},
       isDeleted: {_neq: true}
@@ -18,7 +18,15 @@ export const employeeFeedbackQuery = `
       rating
       feedbackPublic
       typeRef
-      type { id code value }
+      type {
+        id
+        value
+        objectValue
+        translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+          localeCode
+          value
+        }
+      }
       additionalProperties
       senderEmployee {
         firstName
@@ -35,7 +43,7 @@ export const employeeFeedbackQuery = `
 
 /** Feedback given by current user (sender_employee_id = currentUser). */
 export const employeeFeedbackGivenQuery = `
-  query GetEmployeeFeedbackGiven($senderEmployeeId: uuid!) {
+  query GetEmployeeFeedbackGiven($senderEmployeeId: uuid!, $activeUserLocale: String!) {
     EmployeeFeedback(
       where: { senderEmployeeId: { _eq: $senderEmployeeId }, isDeleted: { _neq: true } }
       orderBy: { feedbackDate: DESC }
@@ -50,7 +58,15 @@ export const employeeFeedbackGivenQuery = `
       rating
       typeRef
       additionalProperties
-      type { id code value }
+      type {
+        id
+        value
+        objectValue
+        translations(where: {localeCode: {_eq: $activeUserLocale}}) {
+          localeCode
+          value
+        }
+      }
       senderEmployee {
         firstName
         lastName

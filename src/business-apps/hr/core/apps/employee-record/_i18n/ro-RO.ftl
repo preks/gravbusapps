@@ -350,6 +350,7 @@ feedback-hub-filter-date-from = Data de la
 feedback-hub-filter-date-to = Data pana la
 feedback-hub-filter-sender = Toti expeditorii
 feedback-hub-filter-type = Toate tipurile
+feedback-hub-type-other = Altele
 feedback-hub-badge-private = Privat
 feedback-hub-badge-public = Public
 feedback-hub-insights-feedback-title = Analize feedback instant

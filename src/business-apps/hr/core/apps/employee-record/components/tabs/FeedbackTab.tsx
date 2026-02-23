@@ -28,7 +28,8 @@ import {
 import { employeeFeedbackQuery, employeeFeedbackGivenQuery } from '../../queries/feedbackQueries'
 import { AppAction } from '@/components/app-action/AppAction'
 import { FlowContextName } from '@/common/types/FlowRegistryTypes'
-import { formatDate } from '@/common/utils/windowUtils'
+import { formatDate, getCurrentActiveUserLocale } from '@/common/utils/windowUtils'
+import { getTranslatedValue } from '../../utils/formatters'
 import { startProcess } from '@/common/utils/start-process'
 import { UserInfoProps } from '../../../../../../../common/BusinessAppContext'
 import { PiPencilSimple, PiChatCircle, PiPaperPlaneRight, PiList, PiChartBar } from 'react-icons/pi'
@@ -100,7 +101,10 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
       setLoading(true)
       setError(null)
 
-      const response = await graphQLClient.request(employeeFeedbackQuery, { employeeId: employee.id })
+      const response = await graphQLClient.request(employeeFeedbackQuery, {
+        employeeId: employee.id,
+        activeUserLocale: getCurrentActiveUserLocale()
+      })
 
       if (response) {
         const feedbackData = response.EmployeeFeedback || []
@@ -119,7 +123,8 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
     try {
       setGivenLoading(true)
       const response = await graphQLClient.request(employeeFeedbackGivenQuery, {
-        senderEmployeeId: currentUserEmployeeId
+        senderEmployeeId: currentUserEmployeeId,
+        activeUserLocale: getCurrentActiveUserLocale()
       })
       const data = (response?.EmployeeFeedback ?? []) as ExtendedEmployeeFeedback[]
       setGivenFeedback(data)
@@ -245,7 +250,7 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
         rating: feedback.rating,
         private: (feedback as any).feedbackPublic === false,
         feedbackPublic: (feedback as any).feedbackPublic,
-        type: ((feedback as any)?.type?.value as string) || (feedback as any).typeRef,
+        type: getTranslatedValue((feedback as any)?.type) || (feedback as any).typeRef || t('feedback-hub-type-other'),
         timestamp
       }
     })
@@ -280,7 +285,7 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
         rating: fb.rating,
         feedbackPublic: (fb as any).feedbackPublic,
         private: (fb as any).feedbackPublic === false,
-        type: (fb as any)?.type?.value ?? (fb as any).typeRef,
+        type: getTranslatedValue((fb as any)?.type) ?? (fb as any).typeRef ?? t('feedback-hub-type-other'),
         timestamp
       }
     })
@@ -345,7 +350,8 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
     const countOverTime: Record<string, number> = {}
     const byTagOrSkill: Record<string, number> = {}
     list.forEach((f: any) => {
-      const typ = f?.type?.value ?? f?.typeRef ?? 'Other'
+      const rawTyp = getTranslatedValue(f?.type) || f?.typeRef || ''
+      const typ = rawTyp && String(rawTyp).trim() ? rawTyp.trim() : t('feedback-hub-type-other')
       byType[typ] = (byType[typ] ?? 0) + 1
       const date = f?.feedbackDate ?? f?.createdAt
       if (date) {
@@ -364,7 +370,7 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
       }
     })
     return { total, distinctSenders: senderIds.size, publicCount, privateCount, byType, countOverTime, byTagOrSkill }
-  }, [localFeedback, givenFeedback])
+  }, [localFeedback, givenFeedback, t])
 
   if (loading && !allFormattedFeedback.length && !isSelfView) {
     return (
@@ -821,11 +827,13 @@ const FeedbackTab: React.FC<FeedbackTabProps> = ({
                         {t('feedback-hub-insights-by-type-description')}
                       </p>
                       <ul className="gba:space-y-1 gba:text-sm gba:text-muted-foreground">
-                        {Object.entries(insightsFromFeedback.byType).map(([type, count]) => (
-                          <li key={type}>
-                            {type}: {count}
-                          </li>
-                        ))}
+                        {Object.entries(insightsFromFeedback.byType)
+                          .filter(([type]) => type != null && String(type).trim() !== '')
+                          .map(([type, count]) => (
+                            <li key={type}>
+                              {type}: {count}
+                            </li>
+                          ))}
                       </ul>
                     </CardContent>
                   </Card>

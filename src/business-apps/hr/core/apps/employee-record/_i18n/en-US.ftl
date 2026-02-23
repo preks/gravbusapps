@@ -357,6 +357,7 @@ feedback-hub-filter-date-from = From date
 feedback-hub-filter-date-to = To date
 feedback-hub-filter-sender = All senders
 feedback-hub-filter-type = All types
+feedback-hub-type-other = Other
 feedback-hub-badge-private = Private
 feedback-hub-badge-public = Public
 feedback-hub-insights-feedback-title = Instant Feedback Insights
