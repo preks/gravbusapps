@@ -321,6 +321,15 @@ pipelines:
       - step: *publish-changed-prod-screens
 
   custom:
+    # Weekly Snyk Code scan + Claude auto-fix (schedule via Bitbucket UI)
+    weekly-snyk-code-fix:
+      - step:
+          name: Snyk Code Scan & Auto-fix
+          caches:
+            - nodecustom
+          script:
+            - bash scripts/claude/snyk_autofix.sh
+
     dry-run:
       - step: *detect-changed-screens
 
