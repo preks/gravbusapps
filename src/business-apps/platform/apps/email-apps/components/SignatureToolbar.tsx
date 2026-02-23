@@ -5,7 +5,8 @@
 
 import React, { useCallback, useRef } from 'react'
 import { Editor } from '@tiptap/react'
-import { Button } from '@newwork/nw-design-system'
+import { Button, useTranslation } from '@newwork/nw-design-system'
+import translations from '../_i18n'
 import {
   Bold,
   Italic,
@@ -29,18 +30,18 @@ interface SignatureToolbarProps {
 }
 
 const FONT_FAMILIES = [
-  { label: 'Default', value: '' },
-  { label: 'Arial', value: 'Arial, sans-serif' },
-  { label: 'Georgia', value: 'Georgia, serif' },
-  { label: 'Times New Roman', value: '"Times New Roman", serif' },
-  { label: 'Courier New', value: '"Courier New", monospace' },
-  { label: 'Verdana', value: 'Verdana, sans-serif' },
-  { label: 'Trebuchet MS', value: '"Trebuchet MS", sans-serif' },
-  { label: 'Tahoma', value: 'Tahoma, sans-serif' }
+  { labelKey: 'sig-font-default', value: '' },
+  { labelKey: 'sig-font-arial', value: 'Arial, sans-serif' },
+  { labelKey: 'sig-font-georgia', value: 'Georgia, serif' },
+  { labelKey: 'sig-font-times', value: '"Times New Roman", serif' },
+  { labelKey: 'sig-font-courier', value: '"Courier New", monospace' },
+  { labelKey: 'sig-font-verdana', value: 'Verdana, sans-serif' },
+  { labelKey: 'sig-font-trebuchet', value: '"Trebuchet MS", sans-serif' },
+  { labelKey: 'sig-font-tahoma', value: 'Tahoma, sans-serif' }
 ]
 
 const FONT_SIZES = [
-  { label: 'Auto', value: '' },
+  { labelKey: 'sig-size-auto', value: '' },
   { label: '8', value: '8pt' },
   { label: '9', value: '9pt' },
   { label: '10', value: '10pt' },
@@ -92,25 +93,26 @@ export const SignatureToolbar: React.FC<SignatureToolbarProps> = ({
   onFileSelect,
   'data-testid': testId = 'sig-toolbar'
 }) => {
+  const { t } = useTranslation(translations)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const setLink = useCallback(() => {
     const previousUrl = editor.getAttributes('link').href
-    const url = window.prompt('URL', previousUrl)
+    const url = window.prompt(t('sig-url-prompt'), previousUrl)
     if (url === null) return
     if (url === '') {
       editor.chain().focus().extendMarkRange('link').unsetLink().run()
       return
     }
     editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run()
-  }, [editor])
+  }, [editor, t])
 
   const addImageFromUrl = useCallback(() => {
-    const url = window.prompt('Image URL')
+    const url = window.prompt(t('sig-image-url-prompt'))
     if (url) {
       editor.chain().focus().setImage({ src: url }).run()
     }
-  }, [editor])
+  }, [editor, t])
 
   return (
     <>
@@ -163,7 +165,7 @@ export const SignatureToolbar: React.FC<SignatureToolbarProps> = ({
         <ToolbarBtn
           active={editor.isActive('bold')}
           onClick={() => editor.chain().focus().toggleBold().run()}
-          title="Bold"
+          title={t('sig-bold')}
           testId={`${testId}-bold`}
         >
           <Bold className="gba:w-3.5 gba:h-3.5" />
@@ -171,7 +173,7 @@ export const SignatureToolbar: React.FC<SignatureToolbarProps> = ({
         <ToolbarBtn
           active={editor.isActive('italic')}
           onClick={() => editor.chain().focus().toggleItalic().run()}
-          title="Italic"
+          title={t('sig-italic')}
           testId={`${testId}-italic`}
         >
           <Italic className="gba:w-3.5 gba:h-3.5" />
@@ -179,7 +181,7 @@ export const SignatureToolbar: React.FC<SignatureToolbarProps> = ({
         <ToolbarBtn
           active={editor.isActive('underline')}
           onClick={() => editor.chain().focus().toggleUnderline().run()}
-          title="Underline"
+          title={t('sig-underline')}
           testId={`${testId}-underline`}
         >
           <UnderlineIcon className="gba:w-3.5 gba:h-3.5" />
@@ -187,7 +189,7 @@ export const SignatureToolbar: React.FC<SignatureToolbarProps> = ({
         <ToolbarBtn
           active={editor.isActive('strike')}
           onClick={() => editor.chain().focus().toggleStrike().run()}
-          title="Strikethrough"
+          title={t('sig-strike')}
           testId={`${testId}-strike`}
         >
           <Strikethrough className="gba:w-3.5 gba:h-3.5" />
@@ -197,7 +199,7 @@ export const SignatureToolbar: React.FC<SignatureToolbarProps> = ({
 
         {/* Text color */}
         <div className="gba:relative gba:group">
-          <ToolbarBtn active={false} onClick={() => {}} title="Text color" testId={`${testId}-color`}>
+          <ToolbarBtn active={false} onClick={() => {}} title={t('sig-text-color')} testId={`${testId}-color`}>
             <Palette className="gba:w-3.5 gba:h-3.5" />
           </ToolbarBtn>
           <div className="gba:hidden group-hover:gba:block gba:absolute gba:top-full gba:left-0 gba:z-50 gba:p-2 gba:bg-popover gba:border gba:rounded-lg gba:shadow-sm gba:mt-1">
@@ -219,7 +221,7 @@ export const SignatureToolbar: React.FC<SignatureToolbarProps> = ({
         <ToolbarBtn
           active={editor.isActive('highlight')}
           onClick={() => editor.chain().focus().toggleHighlight({ color: '#fef08a' }).run()}
-          title="Highlight"
+          title={t('sig-highlight')}
           testId={`${testId}-highlight`}
         >
           <Highlighter className="gba:w-3.5 gba:h-3.5" />
@@ -231,7 +233,7 @@ export const SignatureToolbar: React.FC<SignatureToolbarProps> = ({
         <ToolbarBtn
           active={editor.isActive({ textAlign: 'left' })}
           onClick={() => editor.chain().focus().setTextAlign('left').run()}
-          title="Align left"
+          title={t('sig-align-left')}
           testId={`${testId}-align-left`}
         >
           <AlignLeft className="gba:w-3.5 gba:h-3.5" />
@@ -239,7 +241,7 @@ export const SignatureToolbar: React.FC<SignatureToolbarProps> = ({
         <ToolbarBtn
           active={editor.isActive({ textAlign: 'center' })}
           onClick={() => editor.chain().focus().setTextAlign('center').run()}
-          title="Align center"
+          title={t('sig-align-center')}
           testId={`${testId}-align-center`}
         >
           <AlignCenter className="gba:w-3.5 gba:h-3.5" />
@@ -247,7 +249,7 @@ export const SignatureToolbar: React.FC<SignatureToolbarProps> = ({
         <ToolbarBtn
           active={editor.isActive({ textAlign: 'right' })}
           onClick={() => editor.chain().focus().setTextAlign('right').run()}
-          title="Align right"
+          title={t('sig-align-right')}
           testId={`${testId}-align-right`}
         >
           <AlignRight className="gba:w-3.5 gba:h-3.5" />
@@ -259,7 +261,7 @@ export const SignatureToolbar: React.FC<SignatureToolbarProps> = ({
         <ToolbarBtn
           active={editor.isActive('bulletList')}
           onClick={() => editor.chain().focus().toggleBulletList().run()}
-          title="Bullet list"
+          title={t('sig-bullet-list')}
           testId={`${testId}-bullet-list`}
         >
           <List className="gba:w-3.5 gba:h-3.5" />
@@ -267,7 +269,7 @@ export const SignatureToolbar: React.FC<SignatureToolbarProps> = ({
         <ToolbarBtn
           active={editor.isActive('orderedList')}
           onClick={() => editor.chain().focus().toggleOrderedList().run()}
-          title="Ordered list"
+          title={t('sig-ordered-list')}
           testId={`${testId}-ordered-list`}
         >
           <ListOrdered className="gba:w-3.5 gba:h-3.5" />
@@ -276,7 +278,12 @@ export const SignatureToolbar: React.FC<SignatureToolbarProps> = ({
         <div className="gba:w-px gba:h-5 gba:bg-border gba:mx-0.5" />
 
         {/* Link */}
-        <ToolbarBtn active={editor.isActive('link')} onClick={setLink} title="Insert link" testId={`${testId}-link`}>
+        <ToolbarBtn
+          active={editor.isActive('link')}
+          onClick={setLink}
+          title={t('sig-insert-link')}
+          testId={`${testId}-link`}
+        >
           <LinkIcon className="gba:w-3.5 gba:h-3.5" />
         </ToolbarBtn>
 
@@ -285,7 +292,7 @@ export const SignatureToolbar: React.FC<SignatureToolbarProps> = ({
           <ToolbarBtn
             active={false}
             onClick={() => fileInputRef.current?.click()}
-            title="Insert image"
+            title={t('sig-insert-image')}
             testId={`${testId}-image`}
           >
             <ImageIcon className="gba:w-3.5 gba:h-3.5" />
@@ -295,13 +302,13 @@ export const SignatureToolbar: React.FC<SignatureToolbarProps> = ({
               onClick={() => fileInputRef.current?.click()}
               className="gba:w-full gba:text-left gba:px-3 gba:py-1.5 gba:text-xs hover:gba:bg-muted gba:text-foreground"
             >
-              Upload from file
+              {t('sig-upload-from-file')}
             </button>
             <button
               onClick={addImageFromUrl}
               className="gba:w-full gba:text-left gba:px-3 gba:py-1.5 gba:text-xs hover:gba:bg-muted gba:text-foreground"
             >
-              Insert from URL
+              {t('sig-insert-from-url')}
             </button>
           </div>
         </div>

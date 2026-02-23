@@ -18,8 +18,10 @@ import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
-  TooltipTrigger
+  TooltipTrigger,
+  useTranslation
 } from '@newwork/nw-design-system'
+import translations from '../../_i18n'
 import {
   Bold,
   Italic,
@@ -57,16 +59,26 @@ interface EditorToolbarProps {
   'data-testid'?: string
 }
 
-// Font families available
+// Font families available (labels via i18n)
+const FONT_FAMILY_KEYS: Record<string, string> = {
+  '': 'editor-font-default',
+  'Arial, sans-serif': 'editor-font-arial',
+  'Times New Roman, serif': 'editor-font-times',
+  'Georgia, serif': 'editor-font-georgia',
+  'Verdana, sans-serif': 'editor-font-verdana',
+  'Courier New, monospace': 'editor-font-courier',
+  'Garamond, serif': 'editor-font-garamond',
+  'Trebuchet MS, sans-serif': 'editor-font-trebuchet'
+}
 const FONT_FAMILIES = [
-  { label: 'Default', value: '' },
-  { label: 'Arial', value: 'Arial, sans-serif' },
-  { label: 'Times New Roman', value: 'Times New Roman, serif' },
-  { label: 'Georgia', value: 'Georgia, serif' },
-  { label: 'Verdana', value: 'Verdana, sans-serif' },
-  { label: 'Courier New', value: 'Courier New, monospace' },
-  { label: 'Garamond', value: 'Garamond, serif' },
-  { label: 'Trebuchet MS', value: 'Trebuchet MS, sans-serif' }
+  { value: '' },
+  { value: 'Arial, sans-serif' },
+  { value: 'Times New Roman, serif' },
+  { value: 'Georgia, serif' },
+  { value: 'Verdana, sans-serif' },
+  { value: 'Courier New, monospace' },
+  { value: 'Garamond, serif' },
+  { value: 'Trebuchet MS, sans-serif' }
 ]
 
 // Font sizes
@@ -214,13 +226,14 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   onInsertPageBreak,
   'data-testid': testId = 'editor-toolbar'
 }) => {
+  const { t } = useTranslation(translations)
   if (!editor) {
     return null
   }
 
   const setLink = useCallback(() => {
     const previousUrl = editor.getAttributes('link').href
-    const url = window.prompt('URL', previousUrl)
+    const url = window.prompt(t('editor-toolbar-link-prompt'), previousUrl)
 
     if (url === null) {
       return
@@ -232,15 +245,15 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
     }
 
     editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run()
-  }, [editor])
+  }, [editor, t])
 
   const addImage = useCallback(() => {
-    const url = window.prompt('Image URL')
+    const url = window.prompt(t('editor-toolbar-image-prompt'))
 
     if (url) {
       editor.chain().focus().setImage({ src: url }).run()
     }
-  }, [editor])
+  }, [editor, t])
 
   const insertTable = useCallback(() => {
     editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()
@@ -249,10 +262,10 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
   const getCurrentHeading = () => {
     for (let i = 1; i <= 6; i++) {
       if (editor.isActive('heading', { level: i })) {
-        return `Heading ${i}`
+        return t(`editor-heading-${i}`)
       }
     }
-    return 'Normal'
+    return t('editor-heading-normal')
   }
 
   return (
@@ -265,14 +278,14 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
         <ToolbarButton
           onClick={() => editor.chain().focus().undo().run()}
           disabled={!editor.can().undo()}
-          tooltip="Undo (Ctrl+Z)"
+          tooltip={t('editor-toolbar-undo')}
         >
           <Undo className="gba:h-4 gba:w-4" />
         </ToolbarButton>
         <ToolbarButton
           onClick={() => editor.chain().focus().redo().run()}
           disabled={!editor.can().redo()}
-          tooltip="Redo (Ctrl+Y)"
+          tooltip={t('editor-toolbar-redo')}
         >
           <Redo className="gba:h-4 gba:w-4" />
         </ToolbarButton>
@@ -304,7 +317,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
                 }
               }}
             >
-              {label}
+              {value === 0 ? t('editor-heading-normal') : t(`editor-heading-${value}`)}
             </DropdownMenuItem>
           ))}
         </DropdownMenuContent>
@@ -315,14 +328,14 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="sm" className="gba:h-8 gba:min-w-[100px] gba:justify-between">
             <Type className="gba:h-3 gba:w-3 gba:mr-1" />
-            <span className="gba:text-xs gba:truncate">Font</span>
+            <span className="gba:text-xs gba:truncate">{t('editor-toolbar-font')}</span>
             <ChevronDown className="gba:h-3 gba:w-3 gba:ml-1" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent>
-          {FONT_FAMILIES.map(({ label, value }) => (
+          {FONT_FAMILIES.map(({ value }) => (
             <DropdownMenuItem
-              key={label}
+              key={value || 'default'}
               onClick={() => {
                 if (value) {
                   editor.chain().focus().setFontFamily(value).run()
@@ -332,7 +345,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
               }}
               style={{ fontFamily: value || 'inherit' }}
             >
-              {label}
+              {t(FONT_FAMILY_KEYS[value] ?? 'editor-font-default')}
             </DropdownMenuItem>
           ))}
         </DropdownMenuContent>
@@ -367,42 +380,42 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleBold().run()}
           isActive={editor.isActive('bold')}
-          tooltip="Bold (Ctrl+B)"
+          tooltip={t('editor-toolbar-bold')}
         >
           <Bold className="gba:h-4 gba:w-4" />
         </ToolbarButton>
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleItalic().run()}
           isActive={editor.isActive('italic')}
-          tooltip="Italic (Ctrl+I)"
+          tooltip={t('editor-toolbar-italic')}
         >
           <Italic className="gba:h-4 gba:w-4" />
         </ToolbarButton>
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleUnderline().run()}
           isActive={editor.isActive('underline')}
-          tooltip="Underline (Ctrl+U)"
+          tooltip={t('editor-toolbar-underline')}
         >
           <Underline className="gba:h-4 gba:w-4" />
         </ToolbarButton>
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleStrike().run()}
           isActive={editor.isActive('strike')}
-          tooltip="Strikethrough"
+          tooltip={t('editor-toolbar-strike')}
         >
           <Strikethrough className="gba:h-4 gba:w-4" />
         </ToolbarButton>
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleSubscript().run()}
           isActive={editor.isActive('subscript')}
-          tooltip="Subscript"
+          tooltip={t('editor-toolbar-subscript')}
         >
           <Subscript className="gba:h-4 gba:w-4" />
         </ToolbarButton>
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleSuperscript().run()}
           isActive={editor.isActive('superscript')}
-          tooltip="Superscript"
+          tooltip={t('editor-toolbar-superscript')}
         >
           <Superscript className="gba:h-4 gba:w-4" />
         </ToolbarButton>
@@ -418,7 +431,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent className="gba:w-64 gba:p-2">
-          <div className="gba:text-xs gba:font-medium gba:mb-2">Text Color</div>
+          <div className="gba:text-xs gba:font-medium gba:mb-2">{t('editor-toolbar-text-color')}</div>
           <div className="gba:grid gba:grid-cols-10 gba:gap-1">
             {COLORS.map(color => (
               <button
@@ -437,7 +450,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
             onClick={() => editor.chain().focus().unsetColor().run()}
             className="gba:w-full gba:text-xs"
           >
-            Remove Color
+            {t('editor-toolbar-remove-color')}
           </Button>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -450,7 +463,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent className="gba:p-2">
-          <div className="gba:text-xs gba:font-medium gba:mb-2">Highlight Color</div>
+          <div className="gba:text-xs gba:font-medium gba:mb-2">{t('editor-toolbar-highlight')}</div>
           <div className="gba:grid gba:grid-cols-4 gba:gap-1">
             {HIGHLIGHT_COLORS.map(color => (
               <button
@@ -469,7 +482,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
             onClick={() => editor.chain().focus().unsetHighlight().run()}
             className="gba:w-full gba:text-xs"
           >
-            Remove Highlight
+            {t('editor-toolbar-remove-highlight')}
           </Button>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -481,28 +494,28 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
         <ToolbarButton
           onClick={() => editor.chain().focus().setTextAlign('left').run()}
           isActive={editor.isActive({ textAlign: 'left' })}
-          tooltip="Align Left"
+          tooltip={t('editor-toolbar-align-left')}
         >
           <AlignLeft className="gba:h-4 gba:w-4" />
         </ToolbarButton>
         <ToolbarButton
           onClick={() => editor.chain().focus().setTextAlign('center').run()}
           isActive={editor.isActive({ textAlign: 'center' })}
-          tooltip="Align Center"
+          tooltip={t('editor-toolbar-align-center')}
         >
           <AlignCenter className="gba:h-4 gba:w-4" />
         </ToolbarButton>
         <ToolbarButton
           onClick={() => editor.chain().focus().setTextAlign('right').run()}
           isActive={editor.isActive({ textAlign: 'right' })}
-          tooltip="Align Right"
+          tooltip={t('editor-toolbar-align-right')}
         >
           <AlignRight className="gba:h-4 gba:w-4" />
         </ToolbarButton>
         <ToolbarButton
           onClick={() => editor.chain().focus().setTextAlign('justify').run()}
           isActive={editor.isActive({ textAlign: 'justify' })}
-          tooltip="Justify"
+          tooltip={t('editor-toolbar-justify')}
         >
           <AlignJustify className="gba:h-4 gba:w-4" />
         </ToolbarButton>
@@ -515,28 +528,28 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleBulletList().run()}
           isActive={editor.isActive('bulletList')}
-          tooltip="Bullet List"
+          tooltip={t('editor-toolbar-bullet-list')}
         >
           <List className="gba:h-4 gba:w-4" />
         </ToolbarButton>
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleOrderedList().run()}
           isActive={editor.isActive('orderedList')}
-          tooltip="Numbered List"
+          tooltip={t('editor-toolbar-numbered-list')}
         >
           <ListOrdered className="gba:h-4 gba:w-4" />
         </ToolbarButton>
         <ToolbarButton
           onClick={() => editor.chain().focus().liftListItem('listItem').run()}
           disabled={!editor.can().liftListItem('listItem')}
-          tooltip="Decrease Indent"
+          tooltip={t('editor-toolbar-decrease-indent')}
         >
           <IndentDecrease className="gba:h-4 gba:w-4" />
         </ToolbarButton>
         <ToolbarButton
           onClick={() => editor.chain().focus().sinkListItem('listItem').run()}
           disabled={!editor.can().sinkListItem('listItem')}
-          tooltip="Increase Indent"
+          tooltip={t('editor-toolbar-increase-indent')}
         >
           <IndentIncrease className="gba:h-4 gba:w-4" />
         </ToolbarButton>
@@ -549,18 +562,21 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleBlockquote().run()}
           isActive={editor.isActive('blockquote')}
-          tooltip="Quote"
+          tooltip={t('editor-toolbar-quote')}
         >
           <Quote className="gba:h-4 gba:w-4" />
         </ToolbarButton>
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleCodeBlock().run()}
           isActive={editor.isActive('codeBlock')}
-          tooltip="Code Block"
+          tooltip={t('editor-toolbar-code-block')}
         >
           <Code className="gba:h-4 gba:w-4" />
         </ToolbarButton>
-        <ToolbarButton onClick={() => editor.chain().focus().setHorizontalRule().run()} tooltip="Horizontal Rule">
+        <ToolbarButton
+          onClick={() => editor.chain().focus().setHorizontalRule().run()}
+          tooltip={t('editor-toolbar-horizontal-rule')}
+        >
           <Minus className="gba:h-4 gba:w-4" />
         </ToolbarButton>
       </div>
@@ -569,13 +585,13 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
 
       {/* Insert Elements */}
       <div className="gba:flex gba:items-center gba:gap-0.5">
-        <ToolbarButton onClick={setLink} isActive={editor.isActive('link')} tooltip="Insert Link">
+        <ToolbarButton onClick={setLink} isActive={editor.isActive('link')} tooltip={t('editor-toolbar-insert-link')}>
           <Link className="gba:h-4 gba:w-4" />
         </ToolbarButton>
-        <ToolbarButton onClick={addImage} tooltip="Insert Image">
+        <ToolbarButton onClick={addImage} tooltip={t('editor-toolbar-insert-image')}>
           <Image className="gba:h-4 gba:w-4" />
         </ToolbarButton>
-        <ToolbarButton onClick={insertTable} tooltip="Insert Table">
+        <ToolbarButton onClick={insertTable} tooltip={t('editor-toolbar-insert-table')}>
           <Table className="gba:h-4 gba:w-4" />
         </ToolbarButton>
       </div>
@@ -588,7 +604,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
           editor.chain().focus().setPageBreak().run()
           onInsertPageBreak?.()
         }}
-        tooltip="Insert Page Break (Ctrl+Enter)"
+        tooltip={t('editor-toolbar-page-break')}
       >
         <SeparatorHorizontal className="gba:h-4 gba:w-4" />
       </ToolbarButton>
@@ -596,7 +612,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({
       {/* Clear Formatting */}
       <ToolbarButton
         onClick={() => editor.chain().focus().clearNodes().unsetAllMarks().run()}
-        tooltip="Clear Formatting"
+        tooltip={t('editor-toolbar-clear-formatting')}
       >
         <RemoveFormatting className="gba:h-4 gba:w-4" />
       </ToolbarButton>

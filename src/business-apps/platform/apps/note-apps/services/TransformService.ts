@@ -21,6 +21,8 @@ interface TransformResult {
 
 export interface TransformOptions {
   targetLanguage?: TranslationLanguage
+  /** Optional i18n translator for user-facing error messages */
+  translate?: (key: string, vars?: Record<string, string>) => string
 }
 
 // Convert stroke points to SVG path
@@ -120,11 +122,12 @@ export class TransformService {
     height: number,
     options?: TransformOptions
   ): Promise<TransformResult> {
+    const t = options?.translate
     if (strokes.length === 0) {
       return {
         success: false,
         transformedContent: '',
-        error: 'No handwriting to transform'
+        error: t ? t('transform-error-no-handwriting') : 'No handwriting to transform'
       }
     }
 
@@ -169,14 +172,16 @@ export class TransformService {
             return {
               success: false,
               transformedContent: '',
-              error: 'OCR service not configured. Please contact administrator to set up OpenAI API key.'
+              error: t
+                ? t('transform-error-ocr-not-configured')
+                : 'OCR service not configured. Please contact administrator to set up OpenAI API key.'
             }
           }
 
           return {
             success: false,
             transformedContent: '',
-            error: `OCR failed: ${errorMessage}`
+            error: t ? t('transform-error-ocr-failed', { message: errorMessage }) : `OCR failed: ${errorMessage}`
           }
         }
       }
@@ -185,7 +190,7 @@ export class TransformService {
         return {
           success: false,
           transformedContent: '',
-          error: 'No text found in drawing'
+          error: t ? t('transform-error-no-text-found') : 'No text found in drawing'
         }
       }
 
@@ -250,7 +255,9 @@ Return them as a list. If no action items are found, return an empty array.`
             const formattedItems =
               actionItems.length > 0
                 ? actionItems.map((item, idx) => `${idx + 1}. ${item}`).join('\n')
-                : 'No action items found in the note.'
+                : t
+                  ? t('transform-error-no-action-items')
+                  : 'No action items found in the note.'
             return {
               success: true,
               transformedContent: formattedItems,
@@ -299,26 +306,38 @@ Provide only the translated text without explanations or additional formatting.`
 
         // If AI fails, return OCR text as fallback for some transforms
         if (type === 'summarize' || type === 'action-items' || type === 'translate') {
+          const hintError = t
+            ? t('transform-error-ai-failed-hint', {
+                message: errorMessage,
+                copyTextAction: t('transform-copy-text')
+              })
+            : `AI transformation failed: ${errorMessage}. Please try again or use "Copy as Text" to get the raw OCR result.`
           return {
             success: false,
             transformedContent: '',
-            error: `AI transformation failed: ${errorMessage}. Please try again or use "Copy as Text" to get the raw OCR result.`
+            error: hintError
           }
         }
 
+        const genericError = t
+          ? t('transform-error-transform-failed-message', { message: errorMessage })
+          : `Transform failed: ${errorMessage}`
         return {
           success: false,
           transformedContent: '',
-          error: `Transform failed: ${errorMessage}`
+          error: genericError
         }
       }
     } catch (error) {
       console.error('[TransformService] Transform failed:', error)
       const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      const t = options?.translate
       return {
         success: false,
         transformedContent: '',
-        error: `Transform failed: ${errorMessage}`
+        error: t
+          ? t('transform-error-transform-failed-message', { message: errorMessage })
+          : `Transform failed: ${errorMessage}`
       }
     }
   }

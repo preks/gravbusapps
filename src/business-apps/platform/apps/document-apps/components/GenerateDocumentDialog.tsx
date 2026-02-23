@@ -21,13 +21,15 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue
+  SelectValue,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { AlertCircle, CheckCircle, Info } from 'lucide-react'
 import { toast } from 'sonner'
 import { DocumentApiService } from '../services/DocumentApiService'
 import { resolvePlaceholders, extractEntityKeysFromContent } from '../utils/templatePlaceholders'
 import type { TemplateSummary } from '../types'
+import translations from '../_i18n'
 
 export interface GenerateDocumentDialogProps {
   open: boolean
@@ -51,10 +53,12 @@ export const GenerateDocumentDialog: React.FC<GenerateDocumentDialogProps> = ({
   onOpenChange,
   entityDataMap,
   entityDataLoading = false,
-  defaultTitle = 'Generated Document',
+  defaultTitle,
   onSuccess,
   'data-testid': testId = 'generate-document-dialog'
 }) => {
+  const { t } = useTranslation(translations)
+  const defaultTitleResolved = defaultTitle ?? t('generate-document-default-title')
   const [templates, setTemplates] = useState<TemplateSummary[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -110,9 +114,7 @@ export const GenerateDocumentDialog: React.FC<GenerateDocumentDialogProps> = ({
       let emptyReason: string | null = null
       if (!hasData) {
         emptyReason =
-          key === 'company_address'
-            ? 'This company has no addresses in the database.'
-            : 'No data provided for this entity.'
+          key === 'company_address' ? t('generate-document-no-company-address') : t('generate-document-no-data')
       }
       return { key, hasData, emptyReason, fieldCount: keys.length }
     }
@@ -123,7 +125,7 @@ export const GenerateDocumentDialog: React.FC<GenerateDocumentDialogProps> = ({
       return entityKeys.map(buildStatus)
     }
     return Object.entries(entityDataMap).map(([key]) => buildStatus(key))
-  }, [entityDataMap, selectedTemplateContent, getEntityDataByKey])
+  }, [entityDataMap, selectedTemplateContent, getEntityDataByKey, t])
 
   const loadTemplates = useCallback(async () => {
     setLoading(true)
@@ -135,12 +137,12 @@ export const GenerateDocumentDialog: React.FC<GenerateDocumentDialogProps> = ({
         setSelectedTemplateId(list[0].id)
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load templates')
+      setError(err instanceof Error ? err.message : t('generate-document-load-failed'))
       setTemplates([])
     } finally {
       setLoading(false)
     }
-  }, [selectedTemplateId])
+  }, [selectedTemplateId, t])
 
   useEffect(() => {
     if (open) {
@@ -150,47 +152,45 @@ export const GenerateDocumentDialog: React.FC<GenerateDocumentDialogProps> = ({
 
   const handleGenerate = useCallback(async () => {
     if (!selectedTemplateId) {
-      toast.error('Please select a template')
+      toast.error(t('generate-document-select-template'))
       return
     }
     setGenerating(true)
     try {
       const template = await DocumentApiService.getTemplate(selectedTemplateId)
       if (!template?.content) {
-        toast.error('Template has no content')
+        toast.error(t('generate-document-no-content'))
         setGenerating(false)
         return
       }
       const resolvedContent = resolvePlaceholders(template.content, entityDataMap)
-      const title = template.name ? `${template.name} - ${defaultTitle}` : defaultTitle
+      const title = template.name ? `${template.name} - ${defaultTitleResolved}` : defaultTitleResolved
       const doc = await DocumentApiService.createDocumentFromTemplate(selectedTemplateId, title)
       if (doc?.id) {
         await DocumentApiService.updateDocument(doc.id, {
           content: resolvedContent,
           ...({ contentJson: {} } as { contentJson?: unknown })
         })
-        toast.success('Document created')
+        toast.success(t('generate-document-created'))
         onOpenChange(false)
         onSuccess?.(doc.id)
       } else {
-        toast.error('Failed to create document')
+        toast.error(t('generate-document-create-failed'))
       }
     } catch (err) {
       console.error('Generate document failed:', err)
-      toast.error(err instanceof Error ? err.message : 'Failed to generate document')
+      toast.error(err instanceof Error ? err.message : t('generate-document-failed'))
     } finally {
       setGenerating(false)
     }
-  }, [selectedTemplateId, entityDataMap, defaultTitle, onOpenChange, onSuccess])
+  }, [selectedTemplateId, entityDataMap, defaultTitleResolved, onOpenChange, onSuccess, t])
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange} data-testid={testId}>
       <DialogContent className="gba:max-w-md">
         <DialogHeader>
-          <DialogTitle>Generate document</DialogTitle>
-          <DialogDescription>
-            Choose a template. Placeholders like will be replaced with the linked entity data.
-          </DialogDescription>
+          <DialogTitle>{t('generate-document-title')}</DialogTitle>
+          <DialogDescription>{t('generate-document-description')}</DialogDescription>
         </DialogHeader>
         <div className="gba:space-y-4 gba:py-2">
           {/* Placeholder data status: check if empty DB is the reason placeholders are not replaced */}
@@ -199,15 +199,17 @@ export const GenerateDocumentDialog: React.FC<GenerateDocumentDialogProps> = ({
               className="gba:rounded-lg gba:border gba:bg-muted/30 gba:px-3 gba:py-2"
               data-testid={`${testId}-entity-data-status`}
             >
-              <p className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-2">Placeholder data status</p>
+              <p className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-2">
+                {t('generate-document-placeholder-status')}
+              </p>
               {loadingTemplateContent && selectedTemplateId && (
                 <p className="gba:text-xs gba:text-muted-foreground gba:italic gba:mb-2">
-                  Loading placeholders for selected template…
+                  {t('generate-document-loading-placeholders')}
                 </p>
               )}
               {entityDataLoading && (
                 <p className="gba:text-xs gba:text-muted-foreground gba:italic gba:mb-2">
-                  Loading candidate and related data (job_request, company)…
+                  {t('generate-document-loading-data')}
                 </p>
               )}
               <ul className="gba:space-y-1.5">
@@ -229,11 +231,15 @@ export const GenerateDocumentDialog: React.FC<GenerateDocumentDialogProps> = ({
                   if (hasData) {
                     statusText = (
                       <span className="gba:ml-1.5 gba:text-muted-foreground">
-                        {fieldCount} field{fieldCount !== 1 ? 's' : ''} available
+                        {t('generate-document-fields-available', { count: fieldCount })}
                       </span>
                     )
                   } else if (showLoading) {
-                    statusText = <span className="gba:ml-1.5 gba:text-muted-foreground gba:italic">Loading…</span>
+                    statusText = (
+                      <span className="gba:ml-1.5 gba:text-muted-foreground gba:italic">
+                        {t('generate-document-loading')}
+                      </span>
+                    )
                   } else if (emptyReason) {
                     statusText = <span className="gba:ml-1.5 gba:text-muted-foreground gba:italic">{emptyReason}</span>
                   }
@@ -268,12 +274,12 @@ export const GenerateDocumentDialog: React.FC<GenerateDocumentDialogProps> = ({
             </div>
           )}
           {!loading && !error && templates.length === 0 && (
-            <p className="gba:text-sm gba:text-muted-foreground">No templates available.</p>
+            <p className="gba:text-sm gba:text-muted-foreground">{t('generate-document-no-templates')}</p>
           )}
           {!loading && !error && templates.length > 0 && (
             <div className="gba:space-y-2">
               <label className="gba:text-sm gba:font-medium" htmlFor={`${testId}-template-select`}>
-                Template
+                {t('generate-document-template-label')}
               </label>
               <Select
                 value={selectedTemplateId ?? ''}
@@ -281,7 +287,7 @@ export const GenerateDocumentDialog: React.FC<GenerateDocumentDialogProps> = ({
                 disabled={loadingTemplateContent}
               >
                 <SelectTrigger id={`${testId}-template-select`} data-testid={`${testId}-template-select`}>
-                  <SelectValue placeholder="Select a template" />
+                  <SelectValue placeholder={t('generate-document-select-placeholder')} />
                 </SelectTrigger>
                 <SelectContent>
                   {templates.map(t => (
@@ -296,7 +302,7 @@ export const GenerateDocumentDialog: React.FC<GenerateDocumentDialogProps> = ({
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={generating}>
-            Cancel
+            {t('common-cancel')}
           </Button>
           <Button
             onClick={handleGenerate}
@@ -306,10 +312,10 @@ export const GenerateDocumentDialog: React.FC<GenerateDocumentDialogProps> = ({
             {generating ? (
               <>
                 <Spinner size="sm" className="gba:mr-2" />
-                Generating...
+                {t('generate-document-generating')}
               </>
             ) : (
-              'Generate document'
+              t('generate-document-generate-button')
             )}
           </Button>
         </DialogFooter>

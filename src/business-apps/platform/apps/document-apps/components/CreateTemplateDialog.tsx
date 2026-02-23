@@ -21,22 +21,24 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Textarea
+  Textarea,
+  useTranslation
 } from '@newwork/nw-design-system'
 import type { DocumentTemplate, TemplateCategory } from '../types'
 import { TEMPLATE_CATEGORY_API_VALUES } from '../types'
 import { TEMPLATE_CONTEXTS, getContextForCategory } from '../entities/templateContextConfig'
+import translations from '../_i18n'
 
-const CATEGORY_LABELS: Record<TemplateCategory, string> = {
-  contracts: 'Contracts',
-  agreements: 'Agreements',
-  letters: 'Letters',
-  reports: 'Reports',
-  proposals: 'Proposals',
-  policies: 'Policies',
-  procedures: 'Procedures',
-  forms: 'Forms',
-  other: 'Other'
+const CATEGORY_KEYS: Record<TemplateCategory, string> = {
+  contracts: 'templates-category-contracts',
+  agreements: 'templates-category-agreements',
+  letters: 'templates-category-letters',
+  reports: 'templates-category-reports',
+  proposals: 'templates-category-proposals',
+  policies: 'templates-category-policies',
+  procedures: 'templates-category-procedures',
+  forms: 'templates-category-forms',
+  other: 'templates-category-other'
 }
 
 export interface CreateTemplateDialogProps {
@@ -59,6 +61,7 @@ export function CreateTemplateDialog({
   onCreated,
   'data-testid': testId = 'create-template-dialog'
 }: Readonly<CreateTemplateDialogProps>) {
+  const { t } = useTranslation(translations)
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [category, setCategory] = useState<TemplateCategory>('other')
@@ -101,30 +104,28 @@ export function CreateTemplateDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent data-testid={testId}>
         <DialogHeader>
-          <DialogTitle>Create template</DialogTitle>
-          <DialogDescription>
-            Enter a name, optional description, and choose a category. You can edit content after creating.
-          </DialogDescription>
+          <DialogTitle>{t('create-template-title')}</DialogTitle>
+          <DialogDescription>{t('create-template-description')}</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="gba:space-y-4">
           <div className="gba:space-y-2">
-            <Label htmlFor="template-name">Name</Label>
+            <Label htmlFor="template-name">{t('create-template-name-label')}</Label>
             <Input
               id="template-name"
               value={name}
               onChange={e => setName(e.target.value)}
-              placeholder="e.g. Offer Letter"
+              placeholder={t('create-template-name-placeholder')}
               required
               data-testid={`${testId}-name`}
             />
           </div>
           <div className="gba:space-y-2">
-            <Label htmlFor="template-description">Description (optional)</Label>
+            <Label htmlFor="template-description">{t('create-template-description-label')}</Label>
             <Textarea
               id="template-description"
               value={description}
               onChange={e => setDescription(e.target.value)}
-              placeholder="Brief description of the template"
+              placeholder={t('create-template-description-placeholder')}
               rows={3}
               className="gba:resize-none"
               data-testid={`${testId}-description`}
@@ -132,7 +133,7 @@ export function CreateTemplateDialog({
           </div>
           <div className="gba:grid gba:grid-cols-2 gba:gap-4">
             <div className="gba:space-y-2">
-              <Label htmlFor="template-category">Category</Label>
+              <Label htmlFor="template-category">{t('create-template-category-label')}</Label>
               <Select value={category} onValueChange={handleCategoryChange}>
                 <SelectTrigger id="template-category" data-testid={`${testId}-category`}>
                   <SelectValue />
@@ -140,14 +141,14 @@ export function CreateTemplateDialog({
                 <SelectContent>
                   {TEMPLATE_CATEGORY_API_VALUES.map(cat => (
                     <SelectItem key={cat} value={cat}>
-                      {CATEGORY_LABELS[cat]}
+                      {t(CATEGORY_KEYS[cat])}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="gba:space-y-2">
-              <Label htmlFor="template-context">Context</Label>
+              <Label htmlFor="template-context">{t('create-template-context-label')}</Label>
               <Select value={context} onValueChange={setContext}>
                 <SelectTrigger id="template-context" data-testid={`${testId}-context`}>
                   <SelectValue />
@@ -164,10 +165,10 @@ export function CreateTemplateDialog({
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
-              Cancel
+              {t('common-cancel')}
             </Button>
             <Button type="submit" disabled={!name.trim() || isSubmitting} data-testid={`${testId}-submit`}>
-              {isSubmitting ? 'Creating…' : 'Create'}
+              {isSubmitting ? t('create-template-creating') : t('create-template-create-button')}
             </Button>
           </DialogFooter>
         </form>

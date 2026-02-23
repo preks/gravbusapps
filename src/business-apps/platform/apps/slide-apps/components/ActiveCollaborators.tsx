@@ -84,7 +84,7 @@ export const ActiveCollaborators: React.FC<ActiveCollaboratorsProps> = ({
               </TooltipTrigger>
               <TooltipContent>
                 <p className="gba:font-medium">{participant.userName}</p>
-                <p className="gba:text-xs gba:text-muted-foreground">Viewing now</p>
+                <p className="gba:text-xs gba:text-muted-foreground">{t('collaborators-viewing-now')}</p>
               </TooltipContent>
             </Tooltip>
           ))}
@@ -97,9 +97,7 @@ export const ActiveCollaborators: React.FC<ActiveCollaboratorsProps> = ({
                 </div>
               </TooltipTrigger>
               <TooltipContent>
-                <p>
-                  +{hiddenCount} more {hiddenCount === 1 ? 'person' : 'people'} viewing
-                </p>
+                <p>{t('collaborators-more-viewing', { count: hiddenCount })}</p>
               </TooltipContent>
             </Tooltip>
           )}

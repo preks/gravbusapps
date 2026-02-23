@@ -7,6 +7,8 @@
 
 import React from 'react'
 import { toast } from 'sonner'
+import { useTranslation } from '@newwork/nw-design-system'
+import translations from '../_i18n'
 import { PagedDocumentEditor } from './PagedDocumentEditor'
 import { PdfDocumentViewer } from './PdfDocumentViewer'
 import { TemplateFieldsPanel } from './TemplateFieldsPanel'
@@ -64,6 +66,7 @@ export function DocumentAppsHubEditorView({
   effectiveEntityContext,
   testId
 }: DocumentAppsHubEditorViewProps): React.ReactElement {
+  const { t } = useTranslation(translations)
   const canEdit = currentDocumentPermission === 'owner' || currentDocumentPermission === 'edit'
 
   if (templateBeingEdited) {
@@ -86,7 +89,7 @@ export function DocumentAppsHubEditorView({
           const updated = await updateTemplate(templateBeingEdited.id, { name: title, content })
           if (updated) {
             setTemplateBeingEdited(updated)
-            toast.success('Template saved')
+            toast.success(t('editor-toast-template-saved'))
           }
         }}
         onBack={() => {
@@ -96,7 +99,7 @@ export function DocumentAppsHubEditorView({
           setActiveSection('templates')
         }}
         onSendForApproval={() => {
-          toast.info('Templates are edited here; use documents for approval workflow.')
+          toast.info(t('editor-toast-templates-info'))
         }}
         accessToken={accessToken}
         userInfo={userInfo}
@@ -132,7 +135,7 @@ export function DocumentAppsHubEditorView({
         }}
         onBack={handleBack}
         onSendForApproval={() => {
-          toast.info('Please save the document first before sending for approval')
+          toast.info(t('editor-toast-save-first'))
         }}
         accessToken={accessToken}
         userInfo={userInfo}
@@ -188,7 +191,7 @@ export function DocumentAppsHubEditorView({
       }}
       onBack={handleBack}
       onSendForApproval={() => {
-        toast.info('Please save the document first before sending for approval')
+        toast.info(t('editor-toast-save-first'))
       }}
       accessToken={accessToken}
       userInfo={userInfo}

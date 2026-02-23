@@ -6,6 +6,8 @@
 
 import React, { useRef, useEffect, useCallback, useState } from 'react'
 import { toast } from 'sonner'
+import { useTranslation } from '@newwork/nw-design-system'
+import translations from '../_i18n'
 import {
   Button,
   Badge,
@@ -65,6 +67,7 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
   onToggleThreadView,
   'data-testid': testId = 'email-reader'
 }) => {
+  const { t } = useTranslation(translations)
   const bodyRef = useRef<HTMLDivElement>(null)
   const [downloadingAttId, setDownloadingAttId] = useState<string | null>(null)
   const [threadMessages, setThreadMessages] = useState<EmailMessage[]>([])
@@ -117,25 +120,28 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
   const showThread =
     threadEnabled && threadMessages.length > 1 && !!message?.threadId && lastThreadIdRef.current === message.threadId
 
-  const handleDownloadAttachment = useCallback(async (messageId: string, attachmentId: string) => {
-    setDownloadingAttId(attachmentId)
-    try {
-      const { url, filename } = await EmailApiService.downloadAttachment(messageId, attachmentId)
-      // Trigger browser download
-      const link = document.createElement('a')
-      link.href = url
-      link.download = filename
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      // Clean up blob URL after a delay
-      setTimeout(() => URL.revokeObjectURL(url), 30000)
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to download attachment')
-    } finally {
-      setDownloadingAttId(null)
-    }
-  }, [])
+  const handleDownloadAttachment = useCallback(
+    async (messageId: string, attachmentId: string) => {
+      setDownloadingAttId(attachmentId)
+      try {
+        const { url, filename } = await EmailApiService.downloadAttachment(messageId, attachmentId)
+        // Trigger browser download
+        const link = document.createElement('a')
+        link.href = url
+        link.download = filename
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        // Clean up blob URL after a delay
+        setTimeout(() => URL.revokeObjectURL(url), 30000)
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : t('reader-toast-download-failed'))
+      } finally {
+        setDownloadingAttId(null)
+      }
+    },
+    [t]
+  )
 
   if (!message) {
     return (
@@ -144,8 +150,8 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
         data-testid={testId}
       >
         <Mail className="gba:w-16 gba:h-16 gba:mb-4 gba:opacity-20" />
-        <p className="gba:text-lg">Select an email to read</p>
-        <p className="gba:text-sm gba:mt-1">Choose from the list on the left</p>
+        <p className="gba:text-lg">{t('reader-select-prompt')}</p>
+        <p className="gba:text-sm gba:mt-1">{t('reader-select-hint')}</p>
       </div>
     )
   }
@@ -169,7 +175,7 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
                 <Reply className="gba:w-4 gba:h-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Reply</TooltipContent>
+            <TooltipContent>{t('reader-reply')}</TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -182,7 +188,7 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
                 <ReplyAll className="gba:w-4 gba:h-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Reply all</TooltipContent>
+            <TooltipContent>{t('reader-reply-all')}</TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -195,7 +201,7 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
                 <Forward className="gba:w-4 gba:h-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Forward</TooltipContent>
+            <TooltipContent>{t('reader-forward')}</TooltipContent>
           </Tooltip>
 
           <div className="gba:w-px gba:h-5 gba:bg-border gba:mx-1" />
@@ -206,7 +212,7 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
                 <Archive className="gba:w-4 gba:h-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Archive</TooltipContent>
+            <TooltipContent>{t('reader-archive')}</TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -214,7 +220,7 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
                 <Trash2 className="gba:w-4 gba:h-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Delete</TooltipContent>
+            <TooltipContent>{t('reader-delete')}</TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -222,7 +228,7 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
                 <Star className={`gba:w-4 gba:h-4 ${message.isStarred ? 'gba:fill-current gba:text-warning' : ''}`} />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>{message.isStarred ? 'Unstar' : 'Star'}</TooltipContent>
+            <TooltipContent>{message.isStarred ? t('reader-unstar') : t('reader-star')}</TooltipContent>
           </Tooltip>
 
           <div className="gba:w-px gba:h-5 gba:bg-border gba:mx-1" />
@@ -238,7 +244,7 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
                 <MessageSquare className="gba:w-4 gba:h-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>{threadEnabled ? 'Conversation view on' : 'Conversation view off'}</TooltipContent>
+            <TooltipContent>{threadEnabled ? t('reader-thread-on') : t('reader-thread-off')}</TooltipContent>
           </Tooltip>
         </TooltipProvider>
       </div>
@@ -248,11 +254,11 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
         {/* Subject */}
         <div className="gba:flex gba:items-start gba:gap-3 gba:mb-4">
           <h2 className="gba:text-xl gba:font-semibold gba:text-foreground gba:flex-1">
-            {message.subject || '(no subject)'}
+            {message.subject || t('reader-no-subject')}
           </h2>
           {message.importance === 'high' && (
             <Badge variant="destructive" className="gba:flex-shrink-0">
-              Important
+              {t('reader-important')}
             </Badge>
           )}
         </div>
@@ -261,7 +267,7 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
         {isLoadingThread && threadEnabled && (
           <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-muted-foreground gba:mb-4">
             <Loader2 className="gba:w-4 gba:h-4 gba:animate-spin" />
-            Loading conversation...
+            {t('reader-loading-thread')}
           </div>
         )}
 
@@ -301,7 +307,7 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
               />
             ) : (
               <div className="gba:whitespace-pre-wrap gba:text-sm gba:text-foreground" data-testid={`${testId}-body`}>
-                {message.textBody || '(empty)'}
+                {message.textBody || t('reader-empty-body')}
               </div>
             )}
 
@@ -313,7 +319,9 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
                   <div className="gba:mt-6 gba:pt-4 gba:border-t">
                     <h3 className="gba:text-sm gba:font-medium gba:text-foreground gba:mb-3 gba:flex gba:items-center gba:gap-2">
                       <Paperclip className="gba:w-4 gba:h-4" />
-                      Attachments{nonInline.length > 0 ? ` (${nonInline.length})` : ''}
+                      {nonInline.length > 0
+                        ? t('reader-attachments-count', { count: nonInline.length })
+                        : t('reader-attachments')}
                     </h3>
                     {nonInline.length > 0 ? (
                       <div className="gba:flex gba:flex-wrap gba:gap-2">
@@ -340,7 +348,7 @@ export const EmailReader: React.FC<EmailReaderProps> = ({
                       </div>
                     ) : (
                       <p className="gba:text-xs gba:text-muted-foreground gba:italic">
-                        Attachment details are being synchronized...
+                        {t('reader-attachments-syncing')}
                       </p>
                     )}
                   </div>

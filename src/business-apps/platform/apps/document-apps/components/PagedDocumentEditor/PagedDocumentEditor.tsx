@@ -38,7 +38,8 @@ import {
   Avatar,
   AvatarImage,
   AvatarFallback,
-  AiButton
+  AiButton,
+  useTranslation
 } from '@newwork/nw-design-system'
 import {
   ArrowLeft,
@@ -92,6 +93,7 @@ import { CommentPanel } from '../../../shared/components/CommentPanel'
 import { InlineCommentPopover } from '../../../shared/components/InlineCommentPopover'
 import { InlineComment as InlineCommentExtension } from '../../../shared/extensions/InlineCommentExtension'
 import { AiEditPanel } from '../AiEditPanel'
+import translations from '../../_i18n'
 import * as Y from 'yjs'
 import { Awareness } from 'y-protocols/awareness'
 
@@ -191,6 +193,7 @@ function getAvatarUrl(picture?: string): string | undefined {
  * ApprovalStatusBadge Component - Shows detailed approval status in header
  */
 const ApprovalStatusBadge: React.FC<{ approvalRequest: DocumentApprovalRequest }> = ({ approvalRequest }) => {
+  const { t } = useTranslation(translations)
   const approvedBy = approvalRequest.approvers?.filter(a => a.status === 'approved') || []
   const pendingApprovers = approvalRequest.approvers?.filter(a => a.status === 'pending') || []
   const rejectedBy = approvalRequest.approvers?.filter(a => a.status === 'rejected') || []
@@ -203,12 +206,15 @@ const ApprovalStatusBadge: React.FC<{ approvalRequest: DocumentApprovalRequest }
       <div className="gba:ml-4 gba:px-3 gba:py-2 gba:rounded-lg gba:bg-warning/10 gba:border gba:border-warning/30">
         <div className="gba:flex gba:items-center gba:gap-2 gba:text-warning">
           <AlertCircle className="gba:w-4 gba:h-4" />
-          <span className="gba:text-sm gba:font-medium">Pending Approval</span>
+          <span className="gba:text-sm gba:font-medium">{t('editor-approval-pending')}</span>
         </div>
         <div className="gba:flex gba:items-center gba:gap-2 gba:mt-2">
           {pendingApprovers.slice(0, 3).map((approver, idx) => (
             <Avatar key={idx} className="gba:w-6 gba:h-6">
-              <AvatarImage src={getAvatarUrl(approver.userPicture)} alt={approver.userName || 'Approver'} />
+              <AvatarImage
+                src={getAvatarUrl(approver.userPicture)}
+                alt={approver.userName || t('editor-approval-approver-alt')}
+              />
               <AvatarFallback className="gba:text-[8px] gba:bg-warning/20 gba:text-warning">
                 {approver.userName ? getInitials(approver.userName) : '?'}
               </AvatarFallback>
@@ -228,11 +234,14 @@ const ApprovalStatusBadge: React.FC<{ approvalRequest: DocumentApprovalRequest }
       <div className="gba:ml-4 gba:px-3 gba:py-2 gba:rounded-lg gba:bg-success/10 gba:border gba:border-success/30">
         <div className="gba:flex gba:items-center gba:gap-2 gba:text-success">
           <CheckCircle className="gba:w-4 gba:h-4" />
-          <span className="gba:text-sm gba:font-medium">Approved</span>
+          <span className="gba:text-sm gba:font-medium">{t('editor-approval-approved')}</span>
         </div>
         <div className="gba:flex gba:items-center gba:gap-2 gba:mt-2">
           <Avatar className="gba:w-6 gba:h-6">
-            <AvatarImage src={getAvatarUrl(lastApproved.userPicture)} alt={lastApproved.userName || 'Approver'} />
+            <AvatarImage
+              src={getAvatarUrl(lastApproved.userPicture)}
+              alt={lastApproved.userName || t('editor-approval-approver-alt')}
+            />
             <AvatarFallback className="gba:text-[8px] gba:bg-success/20 gba:text-success">
               {lastApproved.userName ? getInitials(lastApproved.userName) : <UserCheck className="gba:w-3 gba:h-3" />}
             </AvatarFallback>
@@ -250,7 +259,7 @@ const ApprovalStatusBadge: React.FC<{ approvalRequest: DocumentApprovalRequest }
         </div>
         {approvedBy.length > 1 && (
           <div className="gba:text-xs gba:text-muted-foreground/70 gba:mt-1">
-            +{approvedBy.length - 1} more {approvedBy.length - 1 === 1 ? 'approver' : 'approvers'}
+            {t('editor-approval-more', { count: approvedBy.length - 1 })}
           </div>
         )}
       </div>
@@ -263,11 +272,14 @@ const ApprovalStatusBadge: React.FC<{ approvalRequest: DocumentApprovalRequest }
       <div className="gba:ml-4 gba:px-3 gba:py-2 gba:rounded-lg gba:bg-destructive/10 gba:border gba:border-destructive/30">
         <div className="gba:flex gba:items-center gba:gap-2 gba:text-destructive">
           <XCircle className="gba:w-4 gba:h-4" />
-          <span className="gba:text-sm gba:font-medium">Rejected</span>
+          <span className="gba:text-sm gba:font-medium">{t('editor-approval-rejected')}</span>
         </div>
         <div className="gba:flex gba:items-center gba:gap-2 gba:mt-2">
           <Avatar className="gba:w-6 gba:h-6">
-            <AvatarImage src={getAvatarUrl(lastRejected.userPicture)} alt={lastRejected.userName || 'Rejector'} />
+            <AvatarImage
+              src={getAvatarUrl(lastRejected.userPicture)}
+              alt={lastRejected.userName || t('editor-approval-rejector-alt')}
+            />
             <AvatarFallback className="gba:text-[8px] gba:bg-destructive/20 gba:text-destructive">
               {lastRejected.userName ? getInitials(lastRejected.userName) : '?'}
             </AvatarFallback>
@@ -347,7 +359,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     {
       document,
       initialContent = '',
-      initialTitle = 'Untitled Document',
+      initialTitle,
       onSave,
       onBack,
       onSaveAsTemplate,
@@ -359,8 +371,9 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
     },
     ref
   ) {
+    const { t } = useTranslation(translations)
     // Editor state
-    const [title, setTitle] = useState(document?.title || initialTitle)
+    const [title, setTitle] = useState((document?.title || initialTitle) ?? t('title-untitled-document'))
     const [isSaving, setIsSaving] = useState(false)
     const [lastSaved, setLastSaved] = useState<Date | null>(document ? new Date(document.updatedAt) : null)
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
@@ -484,7 +497,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       awareness.setLocalStateField('user', {
         id: currentUserId,
         userId: currentUserId,
-        name: currentUserName || 'User',
+        name: currentUserName || t('editor-user-fallback'),
         color: participants.find(p => p.userId === currentUserId)?.userColor || '#4ECDC4',
         avatar: currentUserAvatar // Include avatar URL for cursor rendering
       })
@@ -495,14 +508,14 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       if (!document?.id || !currentUserId) return
 
       const activityType = isReadOnly ? 'viewing' : 'editing'
-      const docTitle = document.title || 'Untitled Document'
+      const docTitle = document.title || t('title-untitled-document')
       const urlSpaceId =
         typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('spaceId') : null
 
       // Emit activity when starting
       emitDocumentActivity({
         userId: currentUserId,
-        userName: currentUserName || 'User',
+        userName: currentUserName || t('editor-user-fallback'),
         userAvatar: currentUserAvatar,
         documentId: document.id,
         documentTitle: docTitle,
@@ -515,7 +528,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       const keepAliveInterval = setInterval(() => {
         emitDocumentActivity({
           userId: currentUserId,
-          userName: currentUserName || 'User',
+          userName: currentUserName || t('editor-user-fallback'),
           userAvatar: currentUserAvatar,
           documentId: document.id,
           documentTitle: docTitle,
@@ -530,7 +543,9 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         clearInterval(keepAliveInterval)
         emitDocumentActivityEnd(currentUserId, document.id)
       }
-    }, [document?.id, document?.title, currentUserId, currentUserName, currentUserAvatar, isReadOnly])
+    }, [document?.id, document?.title, currentUserId, currentUserName, currentUserAvatar, isReadOnly, t])
+
+    const isCollaborationMode = Boolean(document?.id)
 
     // Initialize TipTap editor
     const editor = useEditor(
@@ -540,11 +555,14 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
             heading: {
               levels: [1, 2, 3, 4, 5, 6]
             },
-            // Disable history when using Collaboration (Yjs provides its own history)
-            history: document?.id ? false : {}
+            // Disable local history/undo-redo in collaboration mode (Yjs provides this).
+            ...(isCollaborationMode ? { history: false, undoRedo: false } : {}),
+            // Avoid duplicate names when Link/Underline are configured explicitly below.
+            link: false,
+            underline: false
           }),
           Placeholder.configure({
-            placeholder: 'Start writing your document...'
+            placeholder: t('editor-content-placeholder')
           }),
           TextAlign.configure({
             types: ['heading', 'paragraph']
@@ -605,7 +623,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
           }
         }
       },
-      [document?.id, ydoc, editorContent, editorEditable]
+      [document?.id, ydoc, editorContent, editorEditable, isCollaborationMode, t]
     )
 
     // Inject collaboration cursor styles once on mount
@@ -810,16 +828,16 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
 
     // Format last saved time
     const formatLastSaved = (date: Date | null): string => {
-      if (!date) return 'Not saved'
+      if (!date) return t('editor-status-not-saved')
       const now = new Date()
       const diffMs = now.getTime() - date.getTime()
       const diffMinutes = Math.floor(diffMs / 60000)
 
-      if (diffMinutes < 1) return 'Saved just now'
-      if (diffMinutes === 1) return 'Saved 1 minute ago'
-      if (diffMinutes < 60) return `Saved ${diffMinutes} minutes ago`
+      if (diffMinutes < 1) return t('editor-status-saved-now')
+      if (diffMinutes === 1) return t('editor-status-saved-minute')
+      if (diffMinutes < 60) return t('editor-status-saved-minutes', { count: diffMinutes })
 
-      return `Saved at ${date.toLocaleTimeString()}`
+      return t('editor-status-saved-at', { time: date.toLocaleTimeString() })
     }
 
     // Measure header + toolbar height for sidebar alignment
@@ -846,7 +864,13 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
             <div className="gba:flex gba:items-center gba:justify-between gba:gap-4">
               {/* Left side - Back button and title */}
               <div className="gba:flex gba:items-center gba:gap-4 gba:min-w-0 gba:flex-1">
-                <Button variant="ghost" size="icon" onClick={onBack} title="Back to documents" className="gba:shrink-0">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={onBack}
+                  title={t('editor-back-title')}
+                  className="gba:shrink-0"
+                >
                   <ArrowLeft className="gba:w-5 gba:h-5" />
                 </Button>
 
@@ -859,18 +883,16 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
                       ref={titleInputRef}
                       value={title}
                       onChange={handleTitleChange}
-                      placeholder="Document Title"
+                      placeholder={t('editor-title-placeholder')}
                       disabled={isReadOnly}
                       className="gba:text-lg gba:font-semibold gba:border-0 gba:p-0 gba:h-auto gba:min-w-0 gba:w-full gba:bg-transparent focus-visible:gba:ring-0 focus-visible:gba:ring-offset-0"
                     />
                     <div className="gba:flex gba:items-center gba:gap-3 gba:text-xs gba:text-muted-foreground">
-                      <span>{wordCount.toLocaleString()} words</span>
+                      <span>{t('editor-word-count', { count: wordCount })}</span>
                       <span>•</span>
-                      <span>{charCount.toLocaleString()} characters</span>
+                      <span>{t('editor-character-count', { count: charCount })}</span>
                       <span>•</span>
-                      <span>
-                        Page {currentPage} of {pageCount}
-                      </span>
+                      <span>{t('editor-page-of', { current: currentPage, total: pageCount })}</span>
                     </div>
                   </div>
                 </div>
@@ -896,12 +918,12 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
                   {isSaving ? (
                     <Badge variant="secondary" className="gba:gap-1">
                       <Clock className="gba:w-3 gba:h-3 gba:animate-spin" />
-                      Saving...
+                      {t('editor-saving')}
                     </Badge>
                   ) : hasUnsavedChanges ? (
                     <Badge variant="outline" className="gba:gap-1">
                       <Clock className="gba:w-3 gba:h-3" />
-                      Unsaved changes
+                      {t('editor-unsaved')}
                     </Badge>
                   ) : lastSaved ? (
                     <span className="gba:text-xs gba:text-muted-foreground gba:flex gba:items-center gba:gap-1">
@@ -919,7 +941,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
                     variant="ghost"
                     size="icon"
                     onClick={handleZoomOut}
-                    title="Zoom Out"
+                    title={t('editor-zoom-out')}
                     className="gba:h-8 gba:w-8"
                   >
                     <ZoomOut className="gba:w-4 gba:h-4" />
@@ -936,7 +958,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
                     variant="ghost"
                     size="icon"
                     onClick={handleZoomIn}
-                    title="Zoom In"
+                    title={t('editor-zoom-in')}
                     className="gba:h-8 gba:w-8"
                   >
                     <ZoomIn className="gba:w-4 gba:h-4" />
@@ -956,7 +978,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
                     className="gba:bg-primary gba:text-primary-foreground"
                   >
                     <Save className="gba:w-4 gba:h-4 gba:mr-2" />
-                    {isSaving ? 'Saving...' : 'Save Document'}
+                    {isSaving ? t('editor-saving') : t('editor-save-document')}
                   </Button>
                 )}
 
@@ -988,7 +1010,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
                       variant={rightSidebar === 'comments' ? 'default' : 'ghost'}
                       size="sm"
                       onClick={() => setRightSidebar(prev => (prev === 'comments' ? 'closed' : 'comments'))}
-                      title="Comments (Right-click on text to add inline comment)"
+                      title={t('editor-comments-title')}
                       data-testid="comments-button"
                       className="gba:h-8"
                     >
@@ -1004,7 +1026,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
                     {fileLock.lock?.isLocked && fileLock.isLockedByMe && (
                       <Badge variant="default" className="gba:flex gba:items-center gba:gap-1">
                         <Lock className="gba:h-3 gba:w-3" />
-                        Locked
+                        {t('editor-locked')}
                       </Badge>
                     )}
 
@@ -1021,39 +1043,39 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
                     <DropdownMenuTrigger asChild>
                       <Button variant="outline" size="sm">
                         <FileText className="gba:w-4 gba:h-4 gba:mr-2" />
-                        Document
+                        {t('editor-document-menu')}
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem onClick={() => setShowVersionHistory(true)}>
                         <History className="gba:w-4 gba:h-4 gba:mr-2" />
-                        Version History
+                        {t('editor-version-history')}
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => setShowCheckpointDialog(true)}>
                         <Save className="gba:w-4 gba:h-4 gba:mr-2" />
-                        Save Checkpoint
+                        {t('editor-save-checkpoint')}
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       {fileLock.isLockedByMe ? (
                         <DropdownMenuItem onClick={() => fileLock.releaseLock()}>
                           <Unlock className="gba:w-4 gba:h-4 gba:mr-2" />
-                          Unlock Document
+                          {t('editor-unlock-document')}
                         </DropdownMenuItem>
                       ) : (
                         <DropdownMenuItem onClick={() => fileLock.acquireLock()}>
                           <Lock className="gba:w-4 gba:h-4 gba:mr-2" />
-                          Lock Document
+                          {t('editor-lock-document')}
                         </DropdownMenuItem>
                       )}
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={() => setShowPublishDialog(true)}>
                         <Upload className="gba:w-4 gba:h-4 gba:mr-2" />
-                        Publish...
+                        {t('editor-publish')}
                       </DropdownMenuItem>
                       {onSaveAsTemplate && (
                         <DropdownMenuItem onClick={() => editor && onSaveAsTemplate(title, editor.getHTML())}>
                           <BookTemplate className="gba:w-4 gba:h-4 gba:mr-2" />
-                          Save as Template
+                          {t('editor-save-template')}
                         </DropdownMenuItem>
                       )}
                       {onSendForApproval && (
@@ -1061,22 +1083,22 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
                           <DropdownMenuSeparator />
                           <DropdownMenuItem onClick={onSendForApproval}>
                             <Send className="gba:w-4 gba:h-4 gba:mr-2" />
-                            Send for Approval
+                            {t('editor-send-for-approval')}
                           </DropdownMenuItem>
                         </>
                       )}
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={handleExportWord} disabled={isExporting}>
                         <FileDown className="gba:w-4 gba:h-4 gba:mr-2" />
-                        Export as Word (.docx)
+                        {t('editor-export-word')}
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={handleExportPDF} disabled={isExporting}>
                         <FileDown className="gba:w-4 gba:h-4 gba:mr-2" />
-                        Export as PDF
+                        {t('editor-export-pdf')}
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={handlePrint}>
                         <Printer className="gba:w-4 gba:h-4 gba:mr-2" />
-                        Print
+                        {t('editor-print')}
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -1092,7 +1114,7 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
                     onClick={() => setRightSidebar(prev => (prev === 'ai' ? 'closed' : 'ai'))}
                     data-testid="ai-edit-button"
                   >
-                    AI Edit
+                    {t('editor-ai-edit')}
                   </AiButton>
                 )}
               </div>
@@ -1465,6 +1487,34 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         {document?.id && rightSidebar === 'comments' && (
           <CommentPanel
             comments={comments.comments}
+            messages={{
+              title: t('shared-comment-panel-title'),
+              unresolvedCount: t('shared-comment-unresolved'),
+              unresolvedTab: t('shared-comment-unresolved-tab'),
+              resolvedTab: t('shared-comment-resolved-tab'),
+              allCaughtUp: t('shared-comment-all-caught-up'),
+              allResolved: t('shared-comment-all-resolved'),
+              noResolved: t('shared-comment-no-resolved'),
+              resolvedHere: t('shared-comment-resolved-here'),
+              loading: t('shared-comment-loading'),
+              addPlaceholder: t('shared-comment-placeholder')
+            }}
+            threadMessages={{
+              reply: t('shared-comment-reply'),
+              edit: t('shared-comment-edit'),
+              resolve: t('shared-comment-resolve'),
+              delete: t('shared-comment-delete'),
+              resolved: t('shared-comment-resolved'),
+              confirmDelete: t('shared-comment-confirm-delete'),
+              editPlaceholder: t('shared-comment-edit-placeholder'),
+              replyPlaceholder: t('shared-comment-reply-placeholder')
+            }}
+            editorMessages={{
+              cancel: t('shared-comment-cancel'),
+              send: t('shared-comment-send'),
+              sending: t('shared-comment-sending'),
+              sendHint: t('shared-comment-send-hint')
+            }}
             unresolvedCount={comments.unresolvedCount}
             isLoading={comments.isLoading}
             onCreateComment={async (content, parentId) => {
@@ -1520,6 +1570,11 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
         <InlineCommentPopover
           isOpen={showInlineCommentPopover}
           position={inlineCommentPosition}
+          messages={{
+            addComment: t('shared-comment-add'),
+            placeholder: t('shared-comment-placeholder'),
+            comment: t('shared-comment-button')
+          }}
           onSubmit={async content => {
             if (!pendingSelection || !editor) return
 
