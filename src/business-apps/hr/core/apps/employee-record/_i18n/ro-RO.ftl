@@ -461,7 +461,7 @@ feedback-pagination-per-page = / pagină
 employee-record-tab-compensation = Compensații
 employee-record-tab-time-tracking = Pontaj
 employee-record-tab-absences = Absențe
-employee-record-tab-assets = Mijloace
+employee-record-tab-assets = Echipamente
 employee-record-tab-service-requests = Cereri servicii
 
 # Profile Header - Detail labels
@@ -696,5 +696,5 @@ service-requests-status-completed = Finalizat
 service-requests-status-canceled = Anulat
 
 # Change Personal Data - Pending state (aligns with notification-personal-data-updated-success)
-change-personal-data-pending-message = Actualizările datelor personale au fost deja trimise spre aprobare departamentului HR. Vă rugăm așteptați aprobarea înainte de a face alte modificări.
+change-personal-data-pending-message = Departamentul HR examinează în prezent actualizările recente. Veți putea efectua modificări suplimentare imediat ce cererea va fi aprobată.
 change-personal-data-pending-ok = OK

@@ -3,7 +3,10 @@
  * empty state, and message input.
  */
 
+import { useState, useEffect, useRef } from 'react'
 import { ConversationHeader, type ActiveCallInfo } from './ConversationHeader'
+import { useMessageSearch } from '../hooks/useMessageSearch'
+import { useEmployeeAvatars } from '../hooks/useEmployeeAvatars'
 import { ActiveExpertsBar } from './ActiveExpertsBar'
 import { MessageList } from './MessageList'
 import { MessageInput } from './MessageInput'
@@ -16,6 +19,10 @@ import type { ChatApiClient } from '../services/chatApiClient'
 export interface ChatConversationViewProps {
   prefixDataTestId: string
   stableActiveConversation: Conversation | null
+  isPinned?: boolean
+  isMuted?: boolean
+  onPin?: () => void
+  onMute?: (muted: boolean) => void
   isSingleViewMode: boolean
   viewMode: 'full' | 'compact' | 'mobile'
   onBack: () => void
@@ -65,6 +72,10 @@ export interface ChatConversationViewProps {
 export function ChatConversationView({
   prefixDataTestId,
   stableActiveConversation,
+  isPinned,
+  isMuted,
+  onPin,
+  onMute,
   isSingleViewMode,
   viewMode,
   onBack,
@@ -108,6 +119,53 @@ export function ChatConversationView({
   onRegisterMentionReady,
   onFocusReady
 }: Readonly<ChatConversationViewProps>) {
+  const [scrollToMessageId, setScrollToMessageId] = useState<string | null>(null)
+  const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null)
+  const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [isSearchOpen, setIsSearchOpen] = useState(false)
+  const [searchResultAvatarMap, setSearchResultAvatarMap] = useState<Map<string, string>>(new Map())
+  const { fetchAvatars } = useEmployeeAvatars(accessToken ?? '')
+  const messageSearch = useMessageSearch({
+    apiClient,
+    conversationId: activeConversationId,
+    enabled: !!stableActiveConversation
+  })
+
+  useEffect(() => {
+    const results = messageSearch.results
+    if (!accessToken || results.length === 0) {
+      setSearchResultAvatarMap(new Map())
+      return
+    }
+    const senderIds = [...new Set(results.map(m => m.senderId).filter((id): id is string => !!id))]
+    if (senderIds.length === 0) {
+      setSearchResultAvatarMap(new Map())
+      return
+    }
+    let cancelled = false
+    fetchAvatars(senderIds).then(map => {
+      if (!cancelled) setSearchResultAvatarMap(map)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [accessToken, messageSearch.results, fetchAvatars])
+
+  useEffect(() => {
+    setIsSearchOpen(false)
+    setHighlightedMessageId(null)
+    if (highlightTimeoutRef.current) {
+      clearTimeout(highlightTimeoutRef.current)
+      highlightTimeoutRef.current = null
+    }
+  }, [activeConversationId])
+
+  useEffect(() => {
+    return () => {
+      if (highlightTimeoutRef.current) clearTimeout(highlightTimeoutRef.current)
+    }
+  }, [])
+
   if (stableActiveConversation) {
     return (
       <>
@@ -119,6 +177,10 @@ export function ChatConversationView({
           onGroupSettings={onShowGroupSettings}
           onAddExpert={stableActiveConversation.type === 'group' ? onShowExpertSelector : undefined}
           onNudge={stableActiveConversation.type === 'direct' ? onNudge : undefined}
+          isPinned={isPinned}
+          isMuted={isMuted}
+          onPin={onPin}
+          onMute={onMute}
           onAudioCall={onAudioCall}
           onVideoCall={onVideoCall}
           onJoinCall={onJoinCall}
@@ -131,6 +193,26 @@ export function ChatConversationView({
           isStartingCall={isStartingCall}
           activeCall={activeCall}
           t={t}
+          isSearchOpen={isSearchOpen}
+          onSearchOpenChange={open => {
+            setIsSearchOpen(open)
+            if (!open) messageSearch.clearSearch()
+          }}
+          searchQuery={messageSearch.query}
+          onSearchQueryChange={messageSearch.setQuery}
+          searchResults={messageSearch.results}
+          searchResultAvatarMap={searchResultAvatarMap}
+          searchLoading={messageSearch.isLoading}
+          onSearchResultSelect={id => {
+            setScrollToMessageId(id)
+            setHighlightedMessageId(id)
+            if (highlightTimeoutRef.current) clearTimeout(highlightTimeoutRef.current)
+            highlightTimeoutRef.current = setTimeout(() => {
+              setHighlightedMessageId(null)
+              highlightTimeoutRef.current = null
+            }, 5000)
+          }}
+          onSearchClear={messageSearch.clearSearch}
         />
         {activeExperts.length > 0 && (
           <ActiveExpertsBar
@@ -154,6 +236,9 @@ export function ChatConversationView({
           participants={stableActiveConversation.participants}
           apiClient={apiClient}
           onUpdateMessage={onUpdateMessage}
+          scrollToMessageId={scrollToMessageId}
+          onScrollToMessageDone={() => setScrollToMessageId(null)}
+          highlightedMessageId={highlightedMessageId}
         />
         {isAIProcessing && (
           <div className="gba:px-4 gba:py-2 gba:border-t gba:border-border/30 gba:bg-muted/20">

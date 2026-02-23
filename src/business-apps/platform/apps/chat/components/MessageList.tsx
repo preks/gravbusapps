@@ -27,6 +27,9 @@ interface MessageListProps {
   compact?: boolean // Compact mode for in-call chat
   apiClient?: ChatApiClient | null // For transcript/meeting minutes functionality
   onUpdateMessage?: (messageId: string, updates: Partial<Message>) => void
+  scrollToMessageId?: string | null
+  onScrollToMessageDone?: () => void
+  highlightedMessageId?: string | null
 }
 
 /**
@@ -57,7 +60,10 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
     participants,
     compact = false,
     apiClient = null,
-    onUpdateMessage
+    onUpdateMessage,
+    scrollToMessageId,
+    onScrollToMessageDone,
+    highlightedMessageId
   }) => {
     // OPTIMIZATION: Call useTranslation once and memoize the result
     const t = useChatTranslation()
@@ -371,6 +377,18 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
       }
     }, [])
 
+    // Scroll to a specific message (e.g. from search result)
+    useEffect(() => {
+      if (!scrollToMessageId || !containerRef.current) return
+      const el = containerRef.current.querySelector(`[data-message-id="${scrollToMessageId}"]`)
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        const t = setTimeout(() => onScrollToMessageDone?.(), 500)
+        return () => clearTimeout(t)
+      }
+      onScrollToMessageDone?.()
+    }, [scrollToMessageId, onScrollToMessageDone])
+
     // Handle click on "new messages" banner
     const handleScrollToBottom = () => {
       if (messagesEndRef.current) {
@@ -497,24 +515,34 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
                       // Default: undefined (MessageItem will hide forms/entities for safety)
                     }
 
+                    const isHighlighted = message.id === highlightedMessageId
                     return (
-                      <MessageItem
+                      <div
                         key={message.id}
-                        message={message}
-                        currentUserId={currentUserId}
-                        isGroupChat={isGroupChat}
-                        showSender={showSender}
-                        onReplyToAI={message.metadata?.isAIResponse ? onReplyToAI : undefined}
-                        accessToken={accessToken}
-                        onSendMessage={onSendMessage}
-                        participants={participants}
-                        previewLabel={previewLabel}
-                        timestampRefreshKey={timestampRefreshKey}
-                        aiInitiatedByCurrentUser={aiInitiatedByCurrentUser}
-                        compact={compact}
-                        apiClient={apiClient}
-                        onUpdateMessage={onUpdateMessage}
-                      />
+                        data-message-id={message.id}
+                        className={
+                          isHighlighted
+                            ? 'gba:rounded-lg gba:px-1 gba:py-0.5 gba:bg-accent/40 gba:ring-1 gba:ring-accent gba:ring-inset gba:transition-colors gba:duration-300'
+                            : undefined
+                        }
+                      >
+                        <MessageItem
+                          message={message}
+                          currentUserId={currentUserId}
+                          isGroupChat={isGroupChat}
+                          showSender={showSender}
+                          onReplyToAI={message.metadata?.isAIResponse ? onReplyToAI : undefined}
+                          accessToken={accessToken}
+                          onSendMessage={onSendMessage}
+                          participants={participants}
+                          previewLabel={previewLabel}
+                          timestampRefreshKey={timestampRefreshKey}
+                          aiInitiatedByCurrentUser={aiInitiatedByCurrentUser}
+                          compact={compact}
+                          apiClient={apiClient}
+                          onUpdateMessage={onUpdateMessage}
+                        />
+                      </div>
                     )
                   })
                 })()}
@@ -562,6 +590,11 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
 
     // Typing users changed? Check length instead of array reference
     if (prevProps.typingUsers?.length !== nextProps.typingUsers?.length) return false
+
+    // Scroll-to-message request changed
+    if (prevProps.scrollToMessageId !== nextProps.scrollToMessageId) return false
+
+    if (prevProps.highlightedMessageId !== nextProps.highlightedMessageId) return false
 
     // Skip checking: currentUserId, conversationType, hasMore, callbacks, etc.
     // These rarely change and checking them wastes time

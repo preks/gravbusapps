@@ -54,7 +54,7 @@ enum PerformanceTabEnum {
   Values = 'values'
 }
 
-export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ accessToken }) => {
+export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ accessToken, userInfo }) => {
   const devFeatureFlag = useFeature(Feature.Dev.Enabled.Key)
   const { t } = useTranslation(translations)
   const {
@@ -275,7 +275,7 @@ export const PerformanceEvaluation: React.FC<BusinessAppContextProps> = ({ acces
           performanceCycle: cycle.id
         },
         managerUserId: managerUserId || '',
-        employeeUserId: currentEmployeeUserId || ''
+        employeeUserId: userInfo?.id || currentEmployeeUserId || ''
       }
       // Start the Kogito process
       startProcess({
