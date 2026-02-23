@@ -279,7 +279,7 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
                     <PhoneCallIcon className="gba:w-4 gba:h-4" />
                   </span>
                 )}
-                {(unreadCount > 0 || (isMarkedAsUnread && !isActive)) &&
+                {(unreadCount > 0 || isMarkedAsUnread) &&
                   (unreadCount > 0 ? (
                     <Badge
                       variant="default"
