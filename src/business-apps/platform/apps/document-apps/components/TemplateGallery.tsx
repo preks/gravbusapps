@@ -5,8 +5,8 @@
  * for creating new documents.
  */
 
-import React, { useState, useMemo } from 'react'
-import { Card, Badge, Input, Tabs, TabsContent, TabsList, TabsTrigger } from '@newwork/nw-design-system'
+import React, { useState, useMemo, useCallback } from 'react'
+import { Card, Badge, Input, Tabs, TabsContent, TabsList, TabsTrigger, useTranslation } from '@newwork/nw-design-system'
 import {
   FileText,
   Search,
@@ -24,6 +24,7 @@ import {
 } from 'lucide-react'
 import type { TemplateSummary, DocumentTemplate, TemplateCategory } from '../types'
 import { TEMPLATE_CATEGORY_API_VALUES } from '../types'
+import translations from '../_i18n'
 
 export interface TemplateGalleryProps {
   templates: TemplateSummary[]
@@ -32,55 +33,41 @@ export interface TemplateGalleryProps {
   'data-testid'?: string
 }
 
-/**
- * Category configuration with icons and labels
- */
-const CATEGORY_CONFIG: Record<TemplateCategory, { icon: React.ReactNode; label: string; description: string }> = {
-  contracts: {
-    icon: <FileSignature className="gba:w-4 gba:h-4" />,
-    label: 'Contracts',
-    description: 'Legal agreements and contracts'
-  },
-  agreements: {
-    icon: <FileCheck className="gba:w-4 gba:h-4" />,
-    label: 'Agreements',
-    description: 'Business agreements'
-  },
-  letters: {
-    icon: <Mail className="gba:w-4 gba:h-4" />,
-    label: 'Letters',
-    description: 'Business correspondence'
-  },
-  reports: {
-    icon: <ClipboardList className="gba:w-4 gba:h-4" />,
-    label: 'Reports',
-    description: 'Reports and summaries'
-  },
-  proposals: {
-    icon: <Briefcase className="gba:w-4 gba:h-4" />,
-    label: 'Proposals',
-    description: 'Business proposals'
-  },
-  policies: {
-    icon: <ScrollText className="gba:w-4 gba:h-4" />,
-    label: 'Policies',
-    description: 'Company policies'
-  },
-  procedures: {
-    icon: <BookOpen className="gba:w-4 gba:h-4" />,
-    label: 'Procedures',
-    description: 'Standard procedures'
-  },
-  forms: {
-    icon: <FileText className="gba:w-4 gba:h-4" />,
-    label: 'Forms',
-    description: 'Form templates'
-  },
-  other: {
-    icon: <LayoutTemplate className="gba:w-4 gba:h-4" />,
-    label: 'Other',
-    description: 'Other templates'
-  }
+/** Category icon mapping (labels/descriptions come from i18n) */
+const CATEGORY_ICONS: Record<TemplateCategory, React.ReactNode> = {
+  contracts: <FileSignature className="gba:w-4 gba:h-4" />,
+  agreements: <FileCheck className="gba:w-4 gba:h-4" />,
+  letters: <Mail className="gba:w-4 gba:h-4" />,
+  reports: <ClipboardList className="gba:w-4 gba:h-4" />,
+  proposals: <Briefcase className="gba:w-4 gba:h-4" />,
+  policies: <ScrollText className="gba:w-4 gba:h-4" />,
+  procedures: <BookOpen className="gba:w-4 gba:h-4" />,
+  forms: <FileText className="gba:w-4 gba:h-4" />,
+  other: <LayoutTemplate className="gba:w-4 gba:h-4" />
+}
+
+const CATEGORY_LABEL_KEYS: Record<TemplateCategory, string> = {
+  contracts: 'templates-category-contracts',
+  agreements: 'templates-category-agreements',
+  letters: 'templates-category-letters',
+  reports: 'templates-category-reports',
+  proposals: 'templates-category-proposals',
+  policies: 'templates-category-policies',
+  procedures: 'templates-category-procedures',
+  forms: 'templates-category-forms',
+  other: 'templates-category-other'
+}
+
+const CATEGORY_DESC_KEYS: Record<TemplateCategory, string> = {
+  contracts: 'templates-category-contracts-desc',
+  agreements: 'templates-category-agreements-desc',
+  letters: 'templates-category-letters-desc',
+  reports: 'templates-category-reports-desc',
+  proposals: 'templates-category-proposals-desc',
+  policies: 'templates-category-policies-desc',
+  procedures: 'templates-category-procedures-desc',
+  forms: 'templates-category-forms-desc',
+  other: 'templates-category-other-desc'
 }
 
 /**
@@ -91,8 +78,12 @@ const TemplateCard: React.FC<{
   template: TemplateSummary
   onEdit?: (template: TemplateSummary) => void
   testId: string
-}> = ({ template, onEdit, testId }) => {
-  const categoryConfig = CATEGORY_CONFIG[template.category] || CATEGORY_CONFIG.other
+  getCategoryLabel: (cat: TemplateCategory) => string
+  t: (key: string, vars?: Record<string, unknown>) => string
+}> = ({ template, onEdit, testId, getCategoryLabel, t }) => {
+  const category = template.category || 'other'
+  const label = getCategoryLabel(category)
+  const icon = CATEGORY_ICONS[category] || CATEGORY_ICONS.other
   const isBuiltIn = template.createdBy === 'system'
 
   const handleCardClick = () => {
@@ -109,7 +100,7 @@ const TemplateCard: React.FC<{
         {/* Header: icon, title, edit (inside content so it doesn’t overlap edges) */}
         <div className="gba:flex gba:items-start gba:gap-3">
           <div className="gba:w-11 gba:h-11 gba:rounded-xl gba:bg-primary/10 gba:flex gba:items-center gba:justify-center gba:flex-shrink-0 gba:text-primary">
-            {categoryConfig.icon}
+            {icon}
           </div>
           <div className="gba:flex-1 gba:min-w-0">
             <h3 className="gba:font-semibold gba:text-foreground gba:truncate gba:leading-tight">{template.name}</h3>
@@ -122,18 +113,18 @@ const TemplateCard: React.FC<{
         {/* Tags */}
         <div className="gba:flex gba:items-center gba:gap-2 gba:flex-wrap">
           <Badge variant="outline" className="gba:text-xs gba:font-medium">
-            {categoryConfig.label}
+            {label}
           </Badge>
           {isBuiltIn && (
             <Badge variant="secondary" className="gba:text-xs gba:gap-1">
               <Star className="gba:w-3 gba:h-3" />
-              Built-in
+              {t('templates-built-in')}
             </Badge>
           )}
           {template.isPublic && !isBuiltIn && (
             <Badge variant="secondary" className="gba:text-xs gba:gap-1">
               <Users className="gba:w-3 gba:h-3" />
-              Public
+              {t('templates-public')}
             </Badge>
           )}
         </div>
@@ -142,7 +133,7 @@ const TemplateCard: React.FC<{
         {template.usageCount !== undefined && template.usageCount > 0 && (
           <div className="gba:flex gba:items-center gba:gap-1.5 gba:text-xs gba:text-muted-foreground gba:pt-1 gba:border-t gba:border-border/50">
             <Clock className="gba:w-3.5 gba:h-3.5" />
-            <span>Used {template.usageCount} times</span>
+            <span>{t('templates-used-times', { count: template.usageCount })}</span>
           </div>
         )}
       </div>
@@ -158,8 +149,18 @@ export const TemplateGallery: React.FC<TemplateGalleryProps> = ({
   onEditTemplate,
   'data-testid': testId = 'template-gallery'
 }) => {
+  const { t } = useTranslation(translations)
   const [searchQuery, setSearchQuery] = useState('')
   const [activeCategory, setActiveCategory] = useState<'all' | TemplateCategory>('all')
+
+  const getCategoryLabel = useCallback(
+    (cat: TemplateCategory) => t(CATEGORY_LABEL_KEYS[cat] || CATEGORY_LABEL_KEYS.other),
+    [t]
+  )
+  const getCategoryDesc = useCallback(
+    (cat: TemplateCategory) => t(CATEGORY_DESC_KEYS[cat] || CATEGORY_DESC_KEYS.other),
+    [t]
+  )
 
   // Filter templates based on search and category
   const filteredTemplates = useMemo(() => {
@@ -207,15 +208,15 @@ export const TemplateGallery: React.FC<TemplateGalleryProps> = ({
     <div className="gba:space-y-6" data-testid={testId}>
       {/* Header */}
       <div>
-        <h2 className="gba:text-xl gba:font-semibold gba:text-foreground">Template Gallery</h2>
-        <p className="gba:text-sm gba:text-muted-foreground">Start with a template to save time</p>
+        <h2 className="gba:text-xl gba:font-semibold gba:text-foreground">{t('templates-gallery-title')}</h2>
+        <p className="gba:text-sm gba:text-muted-foreground">{t('templates-gallery-subtitle')}</p>
       </div>
 
       {/* Search */}
       <div className="gba:relative gba:max-w-md">
         <Search className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:w-4 gba:h-4 gba:text-muted-foreground" />
         <Input
-          placeholder="Search templates..."
+          placeholder={t('templates-search-placeholder')}
           value={searchQuery}
           onChange={e => setSearchQuery(e.target.value)}
           className="gba:pl-10"
@@ -241,16 +242,16 @@ export const TemplateGallery: React.FC<TemplateGalleryProps> = ({
         {/* All templates view */}
         <TabsContent value="all" className="gba:mt-6">
           {Object.entries(templatesByCategory).map(([category, categoryTemplates]) => {
-            const config = CATEGORY_CONFIG[category as TemplateCategory] || CATEGORY_CONFIG.other
+            const cat = category as TemplateCategory
             return (
               <div key={category} className="gba:mb-8">
                 <div className="gba:flex gba:items-center gba:gap-2 gba:mb-4">
                   <div className="gba:w-8 gba:h-8 gba:rounded-lg gba:bg-primary/10 gba:flex gba:items-center gba:justify-center">
-                    {config.icon}
+                    {CATEGORY_ICONS[cat] || CATEGORY_ICONS.other}
                   </div>
                   <div>
-                    <h3 className="gba:font-semibold gba:text-foreground">{config.label}</h3>
-                    <p className="gba:text-xs gba:text-muted-foreground">{config.description}</p>
+                    <h3 className="gba:font-semibold gba:text-foreground">{getCategoryLabel(cat)}</h3>
+                    <p className="gba:text-xs gba:text-muted-foreground">{getCategoryDesc(cat)}</p>
                   </div>
                 </div>
                 <div className="gba:grid gba:grid-cols-1 gba:md:grid-cols-2 gba:lg:grid-cols-3 gba:xl:grid-cols-4 gba:gap-4">
@@ -260,6 +261,8 @@ export const TemplateGallery: React.FC<TemplateGalleryProps> = ({
                       template={template}
                       onEdit={onEditTemplate}
                       testId={`${testId}-${template.id}`}
+                      getCategoryLabel={getCategoryLabel}
+                      t={t}
                     />
                   ))}
                 </div>
@@ -278,6 +281,8 @@ export const TemplateGallery: React.FC<TemplateGalleryProps> = ({
                   template={template}
                   onEdit={onEditTemplate}
                   testId={`${testId}-${template.id}`}
+                  getCategoryLabel={getCategoryLabel}
+                  t={t}
                 />
               ))}
             </div>
@@ -293,9 +298,9 @@ export const TemplateGallery: React.FC<TemplateGalleryProps> = ({
               <LayoutTemplate className="gba:w-8 gba:h-8 gba:text-muted-foreground" />
             </div>
             <div className="gba:space-y-2">
-              <h3 className="gba:text-lg gba:font-semibold gba:text-foreground">No templates found</h3>
+              <h3 className="gba:text-lg gba:font-semibold gba:text-foreground">{t('templates-empty-title')}</h3>
               <p className="gba:text-muted-foreground">
-                {searchQuery ? 'Try a different search term' : 'No templates available in this category'}
+                {searchQuery ? t('templates-empty-search') : t('templates-empty-category')}
               </p>
             </div>
           </div>

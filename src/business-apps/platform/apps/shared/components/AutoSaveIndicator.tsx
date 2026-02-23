@@ -6,13 +6,23 @@
  */
 
 import React from 'react'
-import { Button, Badge } from '@newwork/nw-design-system'
+import { Button, Badge, useTranslation } from '@newwork/nw-design-system'
 import { Save, Check, Clock, Loader2 } from 'lucide-react'
+import sharedTranslations from '../_i18n'
 import { formatDistanceToNow } from 'date-fns'
 
 export interface VersionLabel {
   version: number
   changeDescription?: string
+}
+
+export interface AutoSaveIndicatorMessages {
+  saving?: string
+  unsavedChanges?: string
+  notSaved?: string
+  savedAgo?: string
+  versionHistory?: string
+  saveCheckpoint?: string
 }
 
 export interface AutoSaveIndicatorProps {
@@ -26,6 +36,7 @@ export interface AutoSaveIndicatorProps {
   showVersionOnly?: boolean
   /** When provided, the version badge is clickable (e.g. to open version history). Only applies when showing a version label. */
   onVersionClick?: () => void
+  messages?: AutoSaveIndicatorMessages
   'data-testid'?: string
 }
 
@@ -40,28 +51,42 @@ export const AutoSaveIndicator: React.FC<AutoSaveIndicatorProps> = ({
   currentVersion,
   showVersionOnly = false,
   onVersionClick,
+  messages: messagesProp,
   'data-testid': testId = 'auto-save-indicator'
 }) => {
+  const { t } = useTranslation(sharedTranslations)
+  const defaultAutoSaveMessages = {
+    saving: t('autosave-saving'),
+    unsavedChanges: t('autosave-unsaved'),
+    notSaved: t('autosave-not-saved'),
+    versionHistory: t('autosave-version-history'),
+    saveCheckpoint: t('autosave-save-checkpoint'),
+    savedAgo: t('autosave-saved-ago')
+  }
+  const messages = { ...defaultAutoSaveMessages, ...messagesProp }
   const isVersionLabel = showVersionOnly || currentVersion != null
   const isVersionClickable = Boolean(onVersionClick && isVersionLabel && !isSaving)
   const getStatusText = () => {
-    if (isSaving) return 'Saving...'
+    if (isSaving) return messages.saving
     if (showVersionOnly) {
       if (currentVersion != null) {
         const label = `v${currentVersion.version}`
         return currentVersion.changeDescription ? `${label} • ${currentVersion.changeDescription}` : label
       }
-      return 'v—'
+      return t('autosave-version-placeholder')
     }
     if (currentVersion != null) {
       const label = `v${currentVersion.version}`
       return currentVersion.changeDescription ? `${label} • ${currentVersion.changeDescription}` : label
     }
-    if (hasUnsavedChanges) return 'Unsaved changes'
+    if (hasUnsavedChanges) return messages.unsavedChanges
     if (lastSaveTime) {
-      return `Saved ${formatDistanceToNow(lastSaveTime, { addSuffix: true })}`
+      const timeStr = formatDistanceToNow(lastSaveTime, { addSuffix: true })
+      return messages.savedAgo
+        ? messages.savedAgo.replace(/{[^}]*time[^}]*}/g, timeStr)
+        : t('autosave-saved-ago', { time: timeStr })
     }
-    return 'Not saved yet'
+    return messages.notSaved
   }
 
   const getStatusIcon = () => {
@@ -91,7 +116,7 @@ export const AutoSaveIndicator: React.FC<AutoSaveIndicatorProps> = ({
         <button
           type="button"
           onClick={onVersionClick}
-          title="Version history"
+          title={messages.versionHistory}
           className="gba:cursor-pointer gba:rounded-md gba:border-0 gba:bg-transparent gba:p-0 gba:inline-flex gba:outline-none gba:focus-visible:ring-2 gba:focus-visible:ring-ring gba:focus-visible:ring-offset-2"
           data-testid={`${testId}-version-button`}
         >
@@ -111,7 +136,7 @@ export const AutoSaveIndicator: React.FC<AutoSaveIndicatorProps> = ({
           size="sm"
           onClick={onManualSave}
           disabled={isSaving}
-          title="Save checkpoint"
+          title={messages.saveCheckpoint}
           data-testid="manual-checkpoint-button"
         >
           <Save className="gba:h-4 gba:w-4" />

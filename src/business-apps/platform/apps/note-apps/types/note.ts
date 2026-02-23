@@ -183,7 +183,11 @@ export interface NoteQueryParams {
 export interface NoteTemplate {
   id: string
   name: string
+  /** i18n key for localized name (when set, prefer t(nameKey) over name in UI) */
+  nameKey?: string
   description?: string
+  /** i18n key for localized description */
+  descriptionKey?: string
   content: string
   contentJson?: Record<string, unknown>
   icon?: string
@@ -249,6 +253,10 @@ export interface NoteExportOptions {
   format: NoteExportFormat
   includeMetadata?: boolean
   includeChildren?: boolean
+  /** Localized label for untitled notes in export content (e.g. from t('export-untitled')) */
+  labelUntitled?: string
+  /** Localized filename for untitled notes (e.g. from t('export-untitled-filename')) */
+  filenameUntitled?: string
 }
 
 /**

@@ -15,11 +15,13 @@ import {
   DropdownMenuSubContent,
   DropdownMenuPortal,
   Spinner,
-  AiButton
+  AiButton,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { Wand2, Copy, FileText, ListTodo, Languages, Sparkles } from 'lucide-react'
 import { TRANSLATION_LANGUAGES } from '../../types/translation'
 import type { TranslationLanguage } from '../../types/translation'
+import translations from '../../_i18n'
 
 export type TransformType =
   | 'copy-text' // Copy extracted text to clipboard
@@ -49,6 +51,7 @@ export const TransformMenu: React.FC<TransformMenuProps> = ({
   disabled = false,
   mode = 'handwriting'
 }) => {
+  const { t } = useTranslation(translations)
   const [open, setOpen] = useState(false)
 
   const handleTransform = (type: TransformType, options?: { targetLanguage?: TranslationLanguage }) => {
@@ -67,7 +70,7 @@ export const TransformMenu: React.FC<TransformMenuProps> = ({
           iconPosition="before"
           data-testid="note-transform-button"
         >
-          Transform
+          {t('transform-label')}
         </AiButton>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="gba:w-56">
@@ -76,24 +79,24 @@ export const TransformMenu: React.FC<TransformMenuProps> = ({
             <DropdownMenuItem onClick={() => handleTransform('copy-text')}>
               <Copy className="gba:w-4 gba:h-4 gba:mr-2" />
               <div>
-                <div className="gba:font-medium">Copy as Text</div>
-                <div className="gba:text-xs gba:text-muted-foreground">Extract and copy text</div>
+                <div className="gba:font-medium">{t('transform-copy-text')}</div>
+                <div className="gba:text-xs gba:text-muted-foreground">{t('transform-copy-text-desc')}</div>
               </div>
             </DropdownMenuItem>
 
             <DropdownMenuItem onClick={() => handleTransform('to-text')}>
               <FileText className="gba:w-4 gba:h-4 gba:mr-2" />
               <div>
-                <div className="gba:font-medium">Convert to Text</div>
-                <div className="gba:text-xs gba:text-muted-foreground">Replace with typed text</div>
+                <div className="gba:font-medium">{t('transform-to-text')}</div>
+                <div className="gba:text-xs gba:text-muted-foreground">{t('transform-to-text-desc')}</div>
               </div>
             </DropdownMenuItem>
 
             <DropdownMenuItem onClick={() => handleTransform('create-text-note')}>
               <FileText className="gba:w-4 gba:h-4 gba:mr-2" />
               <div>
-                <div className="gba:font-medium">Create Text Note</div>
-                <div className="gba:text-xs gba:text-muted-foreground">New note with text</div>
+                <div className="gba:font-medium">{t('transform-create-text-note')}</div>
+                <div className="gba:text-xs gba:text-muted-foreground">{t('transform-create-text-note-desc')}</div>
               </div>
             </DropdownMenuItem>
 
@@ -104,16 +107,16 @@ export const TransformMenu: React.FC<TransformMenuProps> = ({
         <DropdownMenuItem onClick={() => handleTransform('summarize')}>
           <Sparkles className="gba:w-4 gba:h-4 gba:mr-2" />
           <div>
-            <div className="gba:font-medium">Summarize</div>
-            <div className="gba:text-xs gba:text-muted-foreground">AI summary of content</div>
+            <div className="gba:font-medium">{t('transform-summarize')}</div>
+            <div className="gba:text-xs gba:text-muted-foreground">{t('transform-summarize-desc')}</div>
           </div>
         </DropdownMenuItem>
 
         <DropdownMenuItem onClick={() => handleTransform('action-items')}>
           <ListTodo className="gba:w-4 gba:h-4 gba:mr-2" />
           <div>
-            <div className="gba:font-medium">Extract Action Items</div>
-            <div className="gba:text-xs gba:text-muted-foreground">Find tasks and to-dos</div>
+            <div className="gba:font-medium">{t('transform-action-items')}</div>
+            <div className="gba:text-xs gba:text-muted-foreground">{t('transform-action-items-desc')}</div>
           </div>
         </DropdownMenuItem>
 
@@ -121,8 +124,8 @@ export const TransformMenu: React.FC<TransformMenuProps> = ({
           <DropdownMenuSubTrigger className="gba:flex gba:items-center">
             <Languages className="gba:w-4 gba:h-4 gba:mr-2" />
             <div className="gba:flex-1">
-              <div className="gba:font-medium">Translate</div>
-              <div className="gba:text-xs gba:text-muted-foreground">Choose target language</div>
+              <div className="gba:font-medium">{t('transform-translate')}</div>
+              <div className="gba:text-xs gba:text-muted-foreground">{t('transform-translate-desc')}</div>
             </div>
           </DropdownMenuSubTrigger>
           <DropdownMenuPortal>
@@ -134,7 +137,7 @@ export const TransformMenu: React.FC<TransformMenuProps> = ({
                   className="gba:gap-2"
                 >
                   <span className="gba:text-base">{lang.flag}</span>
-                  <span>{lang.name}</span>
+                  <span>{t(`translation-language-${lang.code}`)}</span>
                 </DropdownMenuItem>
               ))}
             </DropdownMenuSubContent>

@@ -5,6 +5,8 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { toast } from 'sonner'
+import { useTranslation } from '@newwork/nw-design-system'
+import translations from '../_i18n'
 import {
   Avatar,
   AvatarImage,
@@ -35,6 +37,7 @@ const ThreadMessage: React.FC<{
   testId: string
   accessToken?: string
 }> = ({ message, isLatest, testId, accessToken }) => {
+  const { t } = useTranslation(translations)
   const [isExpanded, setIsExpanded] = useState(isLatest)
   const [downloadingAttId, setDownloadingAttId] = useState<string | null>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
@@ -58,12 +61,12 @@ const ThreadMessage: React.FC<{
         document.body.removeChild(link)
         setTimeout(() => URL.revokeObjectURL(url), 30000)
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : 'Failed to download')
+        toast.error(err instanceof Error ? err.message : t('reader-download-failed'))
       } finally {
         setDownloadingAttId(null)
       }
     },
-    [message.id]
+    [message.id, t]
   )
 
   const from = message.fromAddress
@@ -99,7 +102,7 @@ const ThreadMessage: React.FC<{
             </span>
             {isLatest && (
               <Badge variant="info" className="gba:text-xs">
-                Latest
+                {t('reader-latest')}
               </Badge>
             )}
             {attachmentCount > 0 && <Paperclip className="gba:w-3 gba:h-3 gba:text-muted-foreground" />}
@@ -129,7 +132,7 @@ const ThreadMessage: React.FC<{
             <div ref={bodyRef} className="gba:prose gba:prose-sm gba:max-w-none gba:text-foreground" />
           ) : (
             <div className="gba:whitespace-pre-wrap gba:text-sm gba:text-foreground">
-              {message.textBody || '(empty)'}
+              {message.textBody || t('reader-empty-body')}
             </div>
           )}
 
@@ -137,7 +140,9 @@ const ThreadMessage: React.FC<{
           {(attachmentCount > 0 || message.hasAttachments) && (
             <div className="gba:mt-4 gba:pt-3 gba:border-t">
               <p className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:mb-2">
-                Attachments{attachmentCount > 0 ? ` (${attachmentCount})` : ''}
+                {attachmentCount > 0
+                  ? t('reader-attachments-count', { count: attachmentCount })
+                  : t('reader-attachments')}
               </p>
               {attachmentCount > 0 ? (
                 <div className="gba:flex gba:flex-wrap gba:gap-2">
@@ -169,9 +174,7 @@ const ThreadMessage: React.FC<{
                     ))}
                 </div>
               ) : (
-                <p className="gba:text-xs gba:text-muted-foreground gba:italic">
-                  Attachment details are being synchronized...
-                </p>
+                <p className="gba:text-xs gba:text-muted-foreground gba:italic">{t('reader-attachments-syncing')}</p>
               )}
             </div>
           )}
@@ -186,6 +189,7 @@ export const EmailThreadView: React.FC<EmailThreadViewProps> = ({
   accessToken,
   'data-testid': testId = 'email-thread'
 }) => {
+  const { t } = useTranslation(translations)
   // Sort messages chronologically (oldest first), latest at bottom
   const sorted = [...messages].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
   const threadId = sorted[0]?.threadId
@@ -198,7 +202,7 @@ export const EmailThreadView: React.FC<EmailThreadViewProps> = ({
       )}
 
       <p className="gba:text-xs gba:text-muted-foreground gba:px-1">
-        {sorted.length} message{sorted.length !== 1 ? 's' : ''} in this conversation
+        {t('reader-thread-messages', { count: sorted.length })}
       </p>
       {sorted.map((msg, idx) => (
         <ThreadMessage

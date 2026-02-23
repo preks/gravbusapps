@@ -1,6 +1,6 @@
 /**
  * EntityMention Component
- * 
+ *
  * Beautiful, clickable entity mention cards for the Note editor.
  * Supports all NEWWORK entity types with proper navigation.
  */
@@ -27,6 +27,8 @@ import {
 } from 'lucide-react'
 import { graphQLClient } from '@/common/network/graphql/GraphQLClient'
 import { navigateTo, buildPlatformUrl } from '@/common/utils/navigationUtils'
+import { useTranslation } from '@newwork/nw-design-system'
+import translations from '../_i18n'
 
 // Entity types (same as chat)
 export type EntityType =
@@ -126,29 +128,101 @@ const ENTITY_QUERY_PARAMS: Record<EntityType, string> = {
 // Entity category colors for visual distinction
 export const ENTITY_COLORS: Record<string, { bg: string; border: string; text: string }> = {
   // CRM entities - Blue theme
-  account: { bg: 'gba:bg-blue-50 dark:gba:bg-blue-950/30', border: 'gba:border-blue-200 dark:gba:border-blue-800', text: 'gba:text-blue-700 dark:gba:text-blue-300' },
-  contact: { bg: 'gba:bg-blue-50 dark:gba:bg-blue-950/30', border: 'gba:border-blue-200 dark:gba:border-blue-800', text: 'gba:text-blue-700 dark:gba:text-blue-300' },
-  lead: { bg: 'gba:bg-blue-50 dark:gba:bg-blue-950/30', border: 'gba:border-blue-200 dark:gba:border-blue-800', text: 'gba:text-blue-700 dark:gba:text-blue-300' },
-  opportunity: { bg: 'gba:bg-blue-50 dark:gba:bg-blue-950/30', border: 'gba:border-blue-200 dark:gba:border-blue-800', text: 'gba:text-blue-700 dark:gba:text-blue-300' },
+  account: {
+    bg: 'gba:bg-blue-50 dark:gba:bg-blue-950/30',
+    border: 'gba:border-blue-200 dark:gba:border-blue-800',
+    text: 'gba:text-blue-700 dark:gba:text-blue-300'
+  },
+  contact: {
+    bg: 'gba:bg-blue-50 dark:gba:bg-blue-950/30',
+    border: 'gba:border-blue-200 dark:gba:border-blue-800',
+    text: 'gba:text-blue-700 dark:gba:text-blue-300'
+  },
+  lead: {
+    bg: 'gba:bg-blue-50 dark:gba:bg-blue-950/30',
+    border: 'gba:border-blue-200 dark:gba:border-blue-800',
+    text: 'gba:text-blue-700 dark:gba:text-blue-300'
+  },
+  opportunity: {
+    bg: 'gba:bg-blue-50 dark:gba:bg-blue-950/30',
+    border: 'gba:border-blue-200 dark:gba:border-blue-800',
+    text: 'gba:text-blue-700 dark:gba:text-blue-300'
+  },
   // IRM entities - Purple theme
-  investment_account: { bg: 'gba:bg-purple-50 dark:gba:bg-purple-950/30', border: 'gba:border-purple-200 dark:gba:border-purple-800', text: 'gba:text-purple-700 dark:gba:text-purple-300' },
-  investment_contact: { bg: 'gba:bg-purple-50 dark:gba:bg-purple-950/30', border: 'gba:border-purple-200 dark:gba:border-purple-800', text: 'gba:text-purple-700 dark:gba:text-purple-300' },
-  investment_lead: { bg: 'gba:bg-purple-50 dark:gba:bg-purple-950/30', border: 'gba:border-purple-200 dark:gba:border-purple-800', text: 'gba:text-purple-700 dark:gba:text-purple-300' },
-  investment_opportunity: { bg: 'gba:bg-purple-50 dark:gba:bg-purple-950/30', border: 'gba:border-purple-200 dark:gba:border-purple-800', text: 'gba:text-purple-700 dark:gba:text-purple-300' },
-  investment: { bg: 'gba:bg-purple-50 dark:gba:bg-purple-950/30', border: 'gba:border-purple-200 dark:gba:border-purple-800', text: 'gba:text-purple-700 dark:gba:text-purple-300' },
+  investment_account: {
+    bg: 'gba:bg-purple-50 dark:gba:bg-purple-950/30',
+    border: 'gba:border-purple-200 dark:gba:border-purple-800',
+    text: 'gba:text-purple-700 dark:gba:text-purple-300'
+  },
+  investment_contact: {
+    bg: 'gba:bg-purple-50 dark:gba:bg-purple-950/30',
+    border: 'gba:border-purple-200 dark:gba:border-purple-800',
+    text: 'gba:text-purple-700 dark:gba:text-purple-300'
+  },
+  investment_lead: {
+    bg: 'gba:bg-purple-50 dark:gba:bg-purple-950/30',
+    border: 'gba:border-purple-200 dark:gba:border-purple-800',
+    text: 'gba:text-purple-700 dark:gba:text-purple-300'
+  },
+  investment_opportunity: {
+    bg: 'gba:bg-purple-50 dark:gba:bg-purple-950/30',
+    border: 'gba:border-purple-200 dark:gba:border-purple-800',
+    text: 'gba:text-purple-700 dark:gba:text-purple-300'
+  },
+  investment: {
+    bg: 'gba:bg-purple-50 dark:gba:bg-purple-950/30',
+    border: 'gba:border-purple-200 dark:gba:border-purple-800',
+    text: 'gba:text-purple-700 dark:gba:text-purple-300'
+  },
   // Employees - Green theme
-  employee: { bg: 'gba:bg-emerald-50 dark:gba:bg-emerald-950/30', border: 'gba:border-emerald-200 dark:gba:border-emerald-800', text: 'gba:text-emerald-700 dark:gba:text-emerald-300' },
+  employee: {
+    bg: 'gba:bg-emerald-50 dark:gba:bg-emerald-950/30',
+    border: 'gba:border-emerald-200 dark:gba:border-emerald-800',
+    text: 'gba:text-emerald-700 dark:gba:text-emerald-300'
+  },
   // Content - Amber theme
-  news_article: { bg: 'gba:bg-amber-50 dark:gba:bg-amber-950/30', border: 'gba:border-amber-200 dark:gba:border-amber-800', text: 'gba:text-amber-700 dark:gba:text-amber-300' },
-  knowledge_article: { bg: 'gba:bg-amber-50 dark:gba:bg-amber-950/30', border: 'gba:border-amber-200 dark:gba:border-amber-800', text: 'gba:text-amber-700 dark:gba:text-amber-300' },
-  intranet_article: { bg: 'gba:bg-amber-50 dark:gba:bg-amber-950/30', border: 'gba:border-amber-200 dark:gba:border-amber-800', text: 'gba:text-amber-700 dark:gba:text-amber-300' },
-  document_article: { bg: 'gba:bg-amber-50 dark:gba:bg-amber-950/30', border: 'gba:border-amber-200 dark:gba:border-amber-800', text: 'gba:text-amber-700 dark:gba:text-amber-300' },
+  news_article: {
+    bg: 'gba:bg-amber-50 dark:gba:bg-amber-950/30',
+    border: 'gba:border-amber-200 dark:gba:border-amber-800',
+    text: 'gba:text-amber-700 dark:gba:text-amber-300'
+  },
+  knowledge_article: {
+    bg: 'gba:bg-amber-50 dark:gba:bg-amber-950/30',
+    border: 'gba:border-amber-200 dark:gba:border-amber-800',
+    text: 'gba:text-amber-700 dark:gba:text-amber-300'
+  },
+  intranet_article: {
+    bg: 'gba:bg-amber-50 dark:gba:bg-amber-950/30',
+    border: 'gba:border-amber-200 dark:gba:border-amber-800',
+    text: 'gba:text-amber-700 dark:gba:text-amber-300'
+  },
+  document_article: {
+    bg: 'gba:bg-amber-50 dark:gba:bg-amber-950/30',
+    border: 'gba:border-amber-200 dark:gba:border-amber-800',
+    text: 'gba:text-amber-700 dark:gba:text-amber-300'
+  },
   // AI - Gradient/special
-  ai_assistant: { bg: 'gba:bg-gradient-to-r gba:from-violet-50 gba:to-fuchsia-50 dark:gba:from-violet-950/30 dark:gba:to-fuchsia-950/30', border: 'gba:border-violet-200 dark:gba:border-violet-800', text: 'gba:text-violet-700 dark:gba:text-violet-300' },
-  every_expert: { bg: 'gba:bg-gradient-to-r gba:from-violet-50 gba:to-fuchsia-50 dark:gba:from-violet-950/30 dark:gba:to-fuchsia-950/30', border: 'gba:border-violet-200 dark:gba:border-violet-800', text: 'gba:text-violet-700 dark:gba:text-violet-300' },
+  ai_assistant: {
+    bg: 'gba:bg-gradient-to-r gba:from-violet-50 gba:to-fuchsia-50 dark:gba:from-violet-950/30 dark:gba:to-fuchsia-950/30',
+    border: 'gba:border-violet-200 dark:gba:border-violet-800',
+    text: 'gba:text-violet-700 dark:gba:text-violet-300'
+  },
+  every_expert: {
+    bg: 'gba:bg-gradient-to-r gba:from-violet-50 gba:to-fuchsia-50 dark:gba:from-violet-950/30 dark:gba:to-fuchsia-950/30',
+    border: 'gba:border-violet-200 dark:gba:border-violet-800',
+    text: 'gba:text-violet-700 dark:gba:text-violet-300'
+  },
   // Other
-  campaign: { bg: 'gba:bg-rose-50 dark:gba:bg-rose-950/30', border: 'gba:border-rose-200 dark:gba:border-rose-800', text: 'gba:text-rose-700 dark:gba:text-rose-300' },
-  expense_request: { bg: 'gba:bg-slate-50 dark:gba:bg-slate-950/30', border: 'gba:border-slate-200 dark:gba:border-slate-800', text: 'gba:text-slate-700 dark:gba:text-slate-300' },
+  campaign: {
+    bg: 'gba:bg-rose-50 dark:gba:bg-rose-950/30',
+    border: 'gba:border-rose-200 dark:gba:border-rose-800',
+    text: 'gba:text-rose-700 dark:gba:text-rose-300'
+  },
+  expense_request: {
+    bg: 'gba:bg-slate-50 dark:gba:bg-slate-950/30',
+    border: 'gba:border-slate-200 dark:gba:border-slate-800',
+    text: 'gba:text-slate-700 dark:gba:text-slate-300'
+  },
   // Default
   default: { bg: 'gba:bg-muted/50', border: 'gba:border-border', text: 'gba:text-foreground' }
 }
@@ -191,7 +265,7 @@ export const getEntityUrl = (entity: { id: string; type: string }): string => {
   }
 
   const isContentType = ['news_article', 'knowledge_article', 'intranet_article', 'document_article'].includes(type)
-  
+
   // Build URL with query params
   const params = new URLSearchParams()
   if (queryParam && entity.id) {
@@ -222,7 +296,7 @@ export const EntityMentionCard: React.FC<EntityMentionCardProps> = ({ entity, on
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    
+
     if (onClick) {
       onClick()
     } else {
@@ -242,7 +316,11 @@ export const EntityMentionCard: React.FC<EntityMentionCardProps> = ({ entity, on
     >
       {showAvatar ? (
         <img
-          src={entity.pictureThumbnail?.startsWith('data:') ? entity.pictureThumbnail : `data:image/png;base64,${entity.pictureThumbnail}`}
+          src={
+            entity.pictureThumbnail?.startsWith('data:')
+              ? entity.pictureThumbnail
+              : `data:image/png;base64,${entity.pictureThumbnail}`
+          }
           alt={entity.name}
           className="gba:w-4 gba:h-4 gba:rounded-full gba:object-cover"
         />
@@ -270,14 +348,18 @@ export interface MentionSuggestionListRef {
 
 export const MentionSuggestionList = forwardRef<MentionSuggestionListRef, MentionSuggestionListProps>(
   ({ items, command, isLoading, query }, ref) => {
+    const { t } = useTranslation(translations)
     const [selectedIndex, setSelectedIndex] = useState(0)
 
-    const selectItem = useCallback((index: number) => {
-      const item = items[index]
-      if (item) {
-        command(item)
-      }
-    }, [items, command])
+    const selectItem = useCallback(
+      (index: number) => {
+        const item = items[index]
+        if (item) {
+          command(item)
+        }
+      },
+      [items, command]
+    )
 
     useEffect(() => {
       setSelectedIndex(0)
@@ -286,11 +368,11 @@ export const MentionSuggestionList = forwardRef<MentionSuggestionListRef, Mentio
     useImperativeHandle(ref, () => ({
       onKeyDown: ({ event }) => {
         if (event.key === 'ArrowUp') {
-          setSelectedIndex((prev) => (prev + items.length - 1) % items.length)
+          setSelectedIndex(prev => (prev + items.length - 1) % items.length)
           return true
         }
         if (event.key === 'ArrowDown') {
-          setSelectedIndex((prev) => (prev + 1) % items.length)
+          setSelectedIndex(prev => (prev + 1) % items.length)
           return true
         }
         if (event.key === 'Enter') {
@@ -306,7 +388,7 @@ export const MentionSuggestionList = forwardRef<MentionSuggestionListRef, Mentio
         <div className="gba:bg-popover gba:border gba:rounded-lg gba:shadow-lg gba:p-4 gba:min-w-[280px]">
           <div className="gba:flex gba:items-center gba:gap-2 gba:text-muted-foreground">
             <Loader2 className="gba:w-4 gba:h-4 gba:animate-spin" />
-            <span>Searching...</span>
+            <span>{t('entity-searching')}</span>
           </div>
         </div>
       )
@@ -318,7 +400,7 @@ export const MentionSuggestionList = forwardRef<MentionSuggestionListRef, Mentio
           <div className="gba:flex gba:flex-col gba:items-center gba:gap-2 gba:text-muted-foreground">
             <Search className="gba:w-5 gba:h-5" />
             <span className="gba:text-sm">
-              {query ? `No results for "${query}"` : 'Type to search entities'}
+              {query ? t('entity-no-results', { query }) : t('entity-type-to-search')}
             </span>
           </div>
         </div>
@@ -329,7 +411,7 @@ export const MentionSuggestionList = forwardRef<MentionSuggestionListRef, Mentio
       <div className="gba:bg-popover gba:border gba:rounded-lg gba:shadow-xl gba:overflow-hidden gba:min-w-[320px] gba:max-h-[400px] gba:overflow-y-auto">
         <div className="gba:px-3 gba:py-2 gba:border-b gba:bg-muted/30">
           <span className="gba:text-xs gba:font-medium gba:text-muted-foreground">
-            {items.length} result{items.length !== 1 ? 's' : ''} • Use ↑↓ to navigate, Enter to select
+            {t('entity-results-hint', { count: items.length })}
           </span>
         </div>
         <div className="gba:py-1">
@@ -339,7 +421,7 @@ export const MentionSuggestionList = forwardRef<MentionSuggestionListRef, Mentio
             const colors = ENTITY_COLORS[type] || ENTITY_COLORS.default
             // Show picture for employees and accounts
             const hasPicture = item.pictureThumbnail && (type === 'employee' || type === 'account')
-            
+
             // Format picture URL - handles base64, data URLs, and regular URLs
             const getPictureUrl = (url: string | undefined) => {
               if (!url) return null
@@ -354,21 +436,21 @@ export const MentionSuggestionList = forwardRef<MentionSuggestionListRef, Mentio
                 key={`${item.type}-${item.id}`}
                 onClick={() => selectItem(index)}
                 className={`gba:w-full gba:flex gba:items-center gba:gap-3 gba:px-3 gba:py-2.5 gba:transition-colors gba:text-left ${
-                  index === selectedIndex
-                    ? 'gba:bg-accent gba:text-accent-foreground'
-                    : 'hover:gba:bg-muted/50'
+                  index === selectedIndex ? 'gba:bg-accent gba:text-accent-foreground' : 'hover:gba:bg-muted/50'
                 }`}
               >
                 {/* Icon/Avatar/Logo */}
-                <div className={`gba:w-9 gba:h-9 gba:rounded-lg gba:flex gba:items-center gba:justify-center gba:shrink-0 ${colors.bg} ${colors.border} gba:border gba:overflow-hidden`}>
+                <div
+                  className={`gba:w-9 gba:h-9 gba:rounded-lg gba:flex gba:items-center gba:justify-center gba:shrink-0 ${colors.bg} ${colors.border} gba:border gba:overflow-hidden`}
+                >
                   {hasPicture && pictureUrl ? (
                     <img
                       src={pictureUrl}
                       alt={item.name}
                       className="gba:w-9 gba:h-9 gba:rounded-lg gba:object-cover"
-                      onError={(e) => {
+                      onError={e => {
                         // Hide broken images and show icon instead
-                        (e.target as HTMLImageElement).style.display = 'none'
+                        ;(e.target as HTMLImageElement).style.display = 'none'
                       }}
                     />
                   ) : (
@@ -380,14 +462,14 @@ export const MentionSuggestionList = forwardRef<MentionSuggestionListRef, Mentio
                 <div className="gba:flex-1 gba:min-w-0">
                   <div className="gba:font-medium gba:text-sm gba:truncate">{item.name}</div>
                   {item.subtitle && (
-                    <div className="gba:text-xs gba:text-muted-foreground gba:truncate">
-                      {item.subtitle}
-                    </div>
+                    <div className="gba:text-xs gba:text-muted-foreground gba:truncate">{item.subtitle}</div>
                   )}
                 </div>
 
                 {/* Type badge */}
-                <div className={`gba:text-[10px] gba:font-medium gba:px-1.5 gba:py-0.5 gba:rounded ${colors.bg} ${colors.text} gba:uppercase gba:tracking-wide`}>
+                <div
+                  className={`gba:text-[10px] gba:font-medium gba:px-1.5 gba:py-0.5 gba:rounded ${colors.bg} ${colors.text} gba:uppercase gba:tracking-wide`}
+                >
                   {type.replace('_', ' ').split(' ')[0]}
                 </div>
               </button>
@@ -675,16 +757,16 @@ export const createMentionSuggestion = (accessToken: string) => {
 
   return {
     char: '@',
-    
+
     items: async ({ query }: { query: string }): Promise<EntityReference[]> => {
       if (!accessToken) {
         console.warn('[EntityMention] No access token provided')
         return []
       }
-      
+
       const searchPattern = query ? `%${query}%` : '%%'
       console.log('[EntityMention] Searching for:', query, 'pattern:', searchPattern)
-      
+
       try {
         const result = await graphQLClient.request<SearchResponse>(SEARCH_ENTITIES_QUERY, {
           searchPattern,
@@ -703,7 +785,7 @@ export const createMentionSuggestion = (accessToken: string) => {
       // Insert the mention node with all entity attributes for beautiful card rendering
       // props contains the EntityReference fields: id, name, type, subtitle, pictureThumbnail, etc.
       console.log('[EntityMention] Inserting entity:', props)
-      
+
       editor
         .chain()
         .focus()
@@ -730,7 +812,7 @@ export const createMentionSuggestion = (accessToken: string) => {
       return {
         onStart: (props: any) => {
           console.log('[EntityMention] Suggestion started', props)
-          
+
           componentRef = new ReactRenderer(MentionSuggestionList, {
             props: {
               ...props,
@@ -756,7 +838,7 @@ export const createMentionSuggestion = (accessToken: string) => {
 
         onUpdate: (props: any) => {
           console.log('[EntityMention] Suggestion updated', props.items?.length, 'items')
-          
+
           componentRef?.updateProps({
             ...props,
             isLoading: false

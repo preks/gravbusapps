@@ -6,6 +6,7 @@
  */
 
 import React, { useState, useCallback, useEffect, useMemo } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import {
   Dialog,
   DialogContent,
@@ -28,6 +29,7 @@ import { Send, Search, User, X, Calendar, AlertCircle, CheckCircle } from 'lucid
 import { toast } from 'sonner'
 import { useEmployeeSearch, type EmployeeLiteOption } from '@/common/data/employee/useEmployeeSearch'
 import { env } from '@/common/env/EnvUtils'
+import translations from '../_i18n'
 
 export interface SendForApprovalDialogProps {
   open: boolean
@@ -75,8 +77,11 @@ interface ApproverInfo {
   userPicture?: string
 }
 
+type TranslationFn = (key: string, vars?: Record<string, string | number>) => string
+
 const sendApprovalRequest = async (
   accessToken: string,
+  t: TranslationFn,
   payload: {
     documentId: string
     documentTitle: string
@@ -134,20 +139,25 @@ const sendApprovalRequest = async (
       }
 
       // Build the message
+      const initiator = payload.initiatorName || t('approval-task-someone')
       const taskMessage = payload.message
-        ? `${payload.initiatorName || 'Someone'} requested your approval for the document "${payload.documentTitle}".\n\nMessage: ${payload.message}\n\nClick the link below to review and approve or reject.`
-        : `${payload.initiatorName || 'Someone'} requested your approval for the document "${payload.documentTitle}". Click the link below to review and approve or reject.`
+        ? t('approval-task-requested-with-message', {
+            initiator,
+            title: payload.documentTitle,
+            message: payload.message
+          })
+        : t('approval-task-requested', { initiator, title: payload.documentTitle })
 
       const requestPayload = {
         templateDefinition: {
           type: 'TEMPLATE',
-          name: `Document Approval: ${payload.documentTitle}`,
-          description: `Document Approval Request: ${payload.documentTitle}`,
+          name: t('approval-task-title', { title: payload.documentTitle }),
+          description: t('approval-task-description', { title: payload.documentTitle }),
           version: 1,
           steps: [
             {
               type: 'TASK',
-              title: `Document Approval: ${payload.documentTitle}`,
+              title: t('approval-task-title', { title: payload.documentTitle }),
               message: taskMessage,
               form: [],
               links: [entityLink],
@@ -185,7 +195,7 @@ const sendApprovalRequest = async (
       if (!response.ok) {
         const errorText = await response.text()
         console.error('[SendForApproval] Failed to create approval task:', response.status, errorText)
-        throw new Error(`Failed to create approval task: ${response.statusText}`)
+        throw new Error(t('approval-task-error-create', { status: response.statusText }))
       }
 
       const data = await response.json()
@@ -203,7 +213,7 @@ const sendApprovalRequest = async (
     return { success: true, workflowIds, approverWorkflows }
   } catch (err) {
     console.error('[SendForApproval] Error sending approval request:', err)
-    return { success: false, error: err instanceof Error ? err.message : 'Failed to send approval request' }
+    return { success: false, error: err instanceof Error ? err.message : t('approval-task-error-send') }
   }
 }
 
@@ -223,6 +233,7 @@ export const SendForApprovalDialog: React.FC<SendForApprovalDialogProps> = ({
   shareDocument,
   'data-testid': testId = 'send-approval-dialog'
 }) => {
+  const { t } = useTranslation(translations)
   // Form state
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedUsers, setSelectedUsers] = useState<EmployeeLiteOption[]>([])
@@ -314,7 +325,7 @@ export const SendForApprovalDialog: React.FC<SendForApprovalDialogProps> = ({
    */
   const handleSubmit = useCallback(async () => {
     if (selectedUsers.length === 0) {
-      setError('Please select at least one approver')
+      setError(t('approval-dialog-error-select'))
       return
     }
 
@@ -332,7 +343,7 @@ export const SendForApprovalDialog: React.FC<SendForApprovalDialogProps> = ({
         }))
 
       if (approvers.length === 0) {
-        setError('No valid users selected')
+        setError(t('approval-dialog-error-valid'))
         return
       }
 
@@ -348,7 +359,7 @@ export const SendForApprovalDialog: React.FC<SendForApprovalDialogProps> = ({
         }
       }
 
-      const result = await sendApprovalRequest(accessToken, {
+      const result = await sendApprovalRequest(accessToken, t, {
         documentId,
         documentTitle,
         documentPath,
@@ -364,18 +375,18 @@ export const SendForApprovalDialog: React.FC<SendForApprovalDialogProps> = ({
         onApprovalSent?.(approverUserIds, result.approverWorkflows)
 
         const count = selectedUsers.length
-        toast.success(`Approval request sent to ${count} ${count === 1 ? 'person' : 'people'}!`)
+        toast.success(t('approval-dialog-toast', { count }))
 
         // Close dialog after a short delay
         setTimeout(() => {
           onOpenChange(false)
         }, 1500)
       } else {
-        setError(result.error || 'Failed to send approval request')
+        setError(result.error || t('approval-dialog-error-send'))
       }
     } catch (err) {
       console.error('[SendForApproval] Submit failed:', err)
-      setError(err instanceof Error ? err.message : 'Failed to send for approval. Please try again.')
+      setError(err instanceof Error ? err.message : t('approval-dialog-error-send'))
     } finally {
       setIsSubmitting(false)
     }
@@ -391,7 +402,8 @@ export const SendForApprovalDialog: React.FC<SendForApprovalDialogProps> = ({
     accessToken,
     onApprovalSent,
     onOpenChange,
-    shareDocument
+    shareDocument,
+    t
   ])
 
   // Calculate minimum date (today)
@@ -403,9 +415,9 @@ export const SendForApprovalDialog: React.FC<SendForApprovalDialogProps> = ({
         <DialogHeader>
           <DialogTitle className="gba:flex gba:items-center gba:gap-2">
             <Send className="gba:w-5 gba:h-5 gba:text-primary" />
-            Send for Approval
+            {t('approval-dialog-title')}
           </DialogTitle>
-          <DialogDescription>Select approvers for "{documentTitle}" and send it for review.</DialogDescription>
+          <DialogDescription>{t('approval-dialog-description', { title: documentTitle })}</DialogDescription>
         </DialogHeader>
 
         {sentSuccess ? (
@@ -413,16 +425,14 @@ export const SendForApprovalDialog: React.FC<SendForApprovalDialogProps> = ({
             <div className="gba:w-16 gba:h-16 gba:rounded-full gba:bg-success/10 gba:flex gba:items-center gba:justify-center gba:mx-auto gba:mb-4">
               <CheckCircle className="gba:w-8 gba:h-8 gba:text-success" />
             </div>
-            <h3 className="gba:text-lg gba:font-semibold gba:mb-2">Approval Request Sent!</h3>
-            <p className="gba:text-muted-foreground">
-              The selected approvers will be notified and can review your document.
-            </p>
+            <h3 className="gba:text-lg gba:font-semibold gba:mb-2">{t('approval-dialog-success-title')}</h3>
+            <p className="gba:text-muted-foreground">{t('approval-dialog-success-message')}</p>
           </div>
         ) : (
           <div className="gba:space-y-6 gba:py-4">
             {/* Approvers section */}
             <div className="gba:space-y-3">
-              <Label>Approvers *</Label>
+              <Label>{t('approval-dialog-approvers')}</Label>
 
               {/* Selected users */}
               {selectedUsers.length > 0 && (
@@ -448,7 +458,7 @@ export const SendForApprovalDialog: React.FC<SendForApprovalDialogProps> = ({
               <div className="gba:relative">
                 <Search className="gba:absolute gba:left-3 gba:top-1/2 gba:-translate-y-1/2 gba:w-4 gba:h-4 gba:text-muted-foreground" />
                 <Input
-                  placeholder="Search for approvers..."
+                  placeholder={t('approval-dialog-search-placeholder')}
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
                   className="gba:pl-10"
@@ -498,17 +508,17 @@ export const SendForApprovalDialog: React.FC<SendForApprovalDialogProps> = ({
               {/* No results message */}
               {searchQuery.length >= 2 && !isSearching && filteredResults.length === 0 && (
                 <p className="gba:text-sm gba:text-muted-foreground gba:text-center gba:py-4">
-                  No users found matching "{searchQuery}"
+                  {t('approval-dialog-no-users', { query: searchQuery })}
                 </p>
               )}
             </div>
 
             {/* Message section */}
             <div className="gba:space-y-2">
-              <Label htmlFor="approval-message">Message (optional)</Label>
+              <Label htmlFor="approval-message">{t('approval-dialog-message-label')}</Label>
               <Textarea
                 id="approval-message"
-                placeholder="Add a message for the approvers..."
+                placeholder={t('approval-dialog-message-placeholder')}
                 value={message}
                 onChange={e => setMessage(e.target.value)}
                 rows={3}
@@ -519,7 +529,7 @@ export const SendForApprovalDialog: React.FC<SendForApprovalDialogProps> = ({
             <div className="gba:space-y-2">
               <Label htmlFor="due-date" className="gba:flex gba:items-center gba:gap-2">
                 <Calendar className="gba:w-4 gba:h-4" />
-                Due Date (optional)
+                {t('approval-dialog-due-date')}
               </Label>
               <Input
                 id="due-date"
@@ -542,8 +552,8 @@ export const SendForApprovalDialog: React.FC<SendForApprovalDialogProps> = ({
             <div className="gba:flex gba:items-start gba:gap-2 gba:p-3 gba:bg-primary/5 gba:rounded-md gba:text-sm">
               <CheckCircle className="gba:w-4 gba:h-4 gba:text-primary gba:flex-shrink-0 gba:mt-0.5" />
               <div className="gba:text-muted-foreground">
-                <p>Approvers will receive a task in their inbox to review and approve or reject the document.</p>
-                <p className="gba:mt-1">You'll be notified when a decision is made.</p>
+                <p>{t('approval-dialog-info-1')}</p>
+                <p className="gba:mt-1">{t('approval-dialog-info-2')}</p>
               </div>
             </div>
           </div>
@@ -552,18 +562,18 @@ export const SendForApprovalDialog: React.FC<SendForApprovalDialogProps> = ({
         {!sentSuccess && (
           <DialogFooter>
             <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
-              Cancel
+              {t('common-cancel')}
             </Button>
             <Button onClick={handleSubmit} disabled={isSubmitting || selectedUsers.length === 0}>
               {isSubmitting ? (
                 <>
                   <Spinner size="sm" className="gba:mr-2" />
-                  Sending...
+                  {t('approval-dialog-sending')}
                 </>
               ) : (
                 <>
                   <Send className="gba:w-4 gba:h-4 gba:mr-2" />
-                  Send for Approval
+                  {t('approval-dialog-send-button')}
                 </>
               )}
             </Button>

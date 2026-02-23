@@ -4,7 +4,15 @@
  */
 
 import React, { useState, useCallback, useRef, useEffect } from 'react'
-import { Button, Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@newwork/nw-design-system'
+import {
+  Button,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  useTranslation
+} from '@newwork/nw-design-system'
 import { ArrowLeft, Check, AlertCircle, X, Save, ListTodo, RefreshCw } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 
@@ -23,10 +31,10 @@ import type { TransformType } from './handwriting/TransformMenu'
 import { TransformService } from '../services/TransformService'
 import type { NoteActionItemFlow } from '../types'
 import type { NoteTranslation, TranslationLanguage } from '../types/translation'
-import { TRANSLATION_LANGUAGE_NAMES } from '../types/translation'
 import { useActionItemFlowStatusSync } from '../hooks/useActionItemFlowStatusSync'
 import { useActionItemAssigneeEnrichment } from '../hooks/useActionItemAssigneeEnrichment'
 import { FlowEngineApiService } from '../services/FlowEngineApiService'
+import translations from '../_i18n'
 
 export interface HandwritingNoteUserInfo {
   id?: string
@@ -76,8 +84,9 @@ export const HandwritingNote: React.FC<HandwritingNoteProps> = ({
   userInfo,
   'data-testid': testId = 'handwriting-note'
 }) => {
+  const { t } = useTranslation(translations)
   // State
-  const [noteTitle, setNoteTitle] = useState(initialTitle || 'Untitled')
+  const [noteTitle, setNoteTitle] = useState(initialTitle || t('handwriting-untitled'))
   const [strokes, setStrokes] = useState<StrokeData[]>(initialStrokes)
   const [penColor, setPenColor] = useState('#000000')
   const [penWidth, setPenWidth] = useState(4)
@@ -180,7 +189,7 @@ export const HandwritingNote: React.FC<HandwritingNoteProps> = ({
         lastPersistSignatureRef.current = signature
       } catch (error) {
         console.error('[HandwritingNote] Persist failed:', error)
-        showFeedback('error', 'Failed to save')
+        showFeedback('error', t('handwriting-save-failed'))
       } finally {
         if (showBusy) setIsSaving(false)
       }
@@ -273,7 +282,7 @@ export const HandwritingNote: React.FC<HandwritingNoteProps> = ({
         const recovered = await service.listBlinksForNote({ noteId, entityType: 'handwriting-note-action' })
         if (recovered.length > 0) {
           setActionItemFlows(recovered)
-          showFeedback('success', `Loaded ${recovered.length} existing action item${recovered.length > 1 ? 's' : ''}`)
+          showFeedback('success', t('handwriting-loaded-existing', { count: recovered.length }))
         }
       } catch {
         // ignore (best-effort)
@@ -303,7 +312,7 @@ export const HandwritingNote: React.FC<HandwritingNoteProps> = ({
         return next
       })
       queuePersist(0)
-      showFeedback('success', '✓ Translation deleted')
+      showFeedback('success', t('handwriting-translation-deleted'))
     },
     [queuePersist, showFeedback]
   )
@@ -346,21 +355,21 @@ export const HandwritingNote: React.FC<HandwritingNoteProps> = ({
 
   // Handle clear
   const handleClear = useCallback(() => {
-    if (strokes.length > 0 && confirm('Clear all handwriting?')) {
+    if (strokes.length > 0 && confirm(t('handwriting-clear-confirm'))) {
       setStrokes([])
     }
-  }, [strokes])
+  }, [strokes, t])
 
   // Handle transform
   const handleTransform = useCallback(
     async (type: TransformType, options?: { targetLanguage?: TranslationLanguage }) => {
       if (!accessToken) {
-        showFeedback('error', 'Not authenticated')
+        showFeedback('error', t('handwriting-not-authenticated'))
         return
       }
 
       if (strokesRef.current.length === 0) {
-        showFeedback('error', 'No handwriting to transform')
+        showFeedback('error', t('handwriting-no-content'))
         return
       }
 
@@ -368,17 +377,13 @@ export const HandwritingNote: React.FC<HandwritingNoteProps> = ({
 
       try {
         const transformService = new TransformService(accessToken)
-        const result = await transformService.transform(
-          noteId,
-          type,
-          strokesRef.current,
-          CANVAS_WIDTH,
-          CANVAS_HEIGHT,
-          options as Parameters<typeof transformService.transform>[5]
-        )
+        const result = await transformService.transform(noteId, type, strokesRef.current, CANVAS_WIDTH, CANVAS_HEIGHT, {
+          ...(options as object),
+          translate: t
+        } as Parameters<typeof transformService.transform>[5])
 
         if (!result.success) {
-          showFeedback('error', result.error || 'Transform failed')
+          showFeedback('error', result.error || t('handwriting-transform-failed'))
           return
         }
 
@@ -387,15 +392,15 @@ export const HandwritingNote: React.FC<HandwritingNoteProps> = ({
         switch (type) {
           case 'copy-text':
             await navigator.clipboard.writeText(result.transformedContent)
-            showFeedback('success', '✓ Copied to clipboard!')
+            showFeedback('success', t('handwriting-copied'))
             break
 
           case 'to-text':
             if (onConvertToText) {
               await onConvertToText(result.transformedContent)
-              showFeedback('success', '✓ Converted to text!')
+              showFeedback('success', t('handwriting-converted'))
             } else {
-              showFeedback('success', '✓ Text extracted!')
+              showFeedback('success', t('handwriting-text-extracted'))
               await navigator.clipboard.writeText(result.transformedContent)
             }
             break
@@ -403,10 +408,10 @@ export const HandwritingNote: React.FC<HandwritingNoteProps> = ({
           case 'create-text-note':
             if (onCreateTextNote) {
               await onCreateTextNote(result.transformedContent, `${noteTitle} (Text)`)
-              showFeedback('success', '✓ Text note created!')
+              showFeedback('success', t('handwriting-note-created'))
             } else {
               await navigator.clipboard.writeText(result.transformedContent)
-              showFeedback('success', '✓ Copied (note creation not available)')
+              showFeedback('success', t('handwriting-copied-not-available'))
             }
             break
 
@@ -416,7 +421,7 @@ export const HandwritingNote: React.FC<HandwritingNoteProps> = ({
             setCurrentSummary(result.transformedContent)
             // Persist immediately so navigating away doesn't lose it
             queuePersist(0)
-            showFeedback('success', '✓ Summary generated!')
+            showFeedback('success', t('handwriting-summary-generated'))
             break
 
           case 'action-items':
@@ -424,19 +429,16 @@ export const HandwritingNote: React.FC<HandwritingNoteProps> = ({
             if (result.actionItems && result.actionItems.length > 0) {
               setCurrentActionItems(result.actionItems)
               setActionItemsModalOpen(true)
-              showFeedback(
-                'success',
-                `✓ Found ${result.actionItems.length} action item${result.actionItems.length > 1 ? 's' : ''}!`
-              )
+              showFeedback('success', t('handwriting-action-items-found', { count: result.actionItems.length }))
             } else {
-              showFeedback('success', 'No action items found in the note.')
+              showFeedback('success', t('handwriting-no-action-items'))
             }
             break
 
           case 'translate':
             setTranslations(prev => {
               const targetLang = (options?.targetLanguage || 'en') as TranslationLanguage
-              const targetLanguageName = TRANSLATION_LANGUAGE_NAMES[targetLang] || 'English'
+              const targetLanguageName = t(`translation-language-${targetLang}`)
               const entry: NoteTranslation = {
                 id: `tr_${Date.now()}`,
                 targetLanguage: targetLang,
@@ -449,7 +451,7 @@ export const HandwritingNote: React.FC<HandwritingNoteProps> = ({
               return next
             })
             queuePersist(0)
-            showFeedback('success', '✓ Translation created!')
+            showFeedback('success', t('handwriting-translation-created'))
             break
 
           default:
@@ -457,12 +459,12 @@ export const HandwritingNote: React.FC<HandwritingNoteProps> = ({
         }
       } catch (error) {
         console.error('[HandwritingNote] Transform failed:', error)
-        showFeedback('error', error instanceof Error ? error.message : 'Transform failed')
+        showFeedback('error', error instanceof Error ? error.message : t('handwriting-transform-failed'))
       } finally {
         setIsTransforming(false)
       }
     },
-    [accessToken, noteId, noteTitle, onConvertToText, onCreateTextNote, queuePersist, showFeedback]
+    [accessToken, noteId, noteTitle, onConvertToText, onCreateTextNote, queuePersist, showFeedback, t]
   )
 
   // Prevent selection globally while in this component
@@ -521,7 +523,11 @@ export const HandwritingNote: React.FC<HandwritingNoteProps> = ({
             )}
             <span>{transformFeedback.message}</span>
           </div>
-          <button onClick={dismissFeedback} className="gba:p-1 gba:rounded gba:hover:opacity-80" aria-label="Dismiss">
+          <button
+            onClick={dismissFeedback}
+            className="gba:p-1 gba:rounded gba:hover:opacity-80"
+            aria-label={t('handwriting-dismiss-aria')}
+          >
             <X className="gba:w-4 gba:h-4" />
           </button>
         </div>
@@ -537,7 +543,7 @@ export const HandwritingNote: React.FC<HandwritingNoteProps> = ({
           type="text"
           value={noteTitle}
           onChange={handleTitleChange}
-          placeholder="Untitled"
+          placeholder={t('handwriting-untitled')}
           className="gba:flex-1 gba:text-xl gba:font-semibold gba:bg-transparent gba:border-0 gba:outline-none"
           style={{ userSelect: 'text', WebkitUserSelect: 'text' }}
           data-testid={`${testId}-title`}
@@ -554,7 +560,7 @@ export const HandwritingNote: React.FC<HandwritingNoteProps> = ({
               data-testid={`${testId}-action-items-open`}
             >
               <ListTodo className="gba:w-4 gba:h-4" />
-              Tasks ({actionItemFlows.length})
+              {t('handwriting-tasks', { count: actionItemFlows.length })}
             </Button>
           )}
 
@@ -562,7 +568,7 @@ export const HandwritingNote: React.FC<HandwritingNoteProps> = ({
 
           <Button variant="default" size="sm" onClick={handleSave} disabled={isSaving} data-testid={`${testId}-save`}>
             <Save className="gba:w-4 gba:h-4 gba:mr-1" />
-            {isSaving ? 'Saving...' : 'Save'}
+            {isSaving ? t('handwriting-saving') : t('handwriting-save-title')}
           </Button>
         </div>
       </div>
@@ -631,7 +637,7 @@ export const HandwritingNote: React.FC<HandwritingNoteProps> = ({
         {actionItemFlows.length > 0 && (
           <div className="gba:hidden gba:lg:block gba:w-80 gba:border-l gba:border-border gba:bg-card gba:overflow-y-auto gba:p-4">
             <div className="gba:flex gba:items-center gba:justify-between gba:mb-3">
-              <div className="gba:text-sm gba:font-semibold gba:text-foreground">Action Items</div>
+              <div className="gba:text-sm gba:font-semibold gba:text-foreground">{t('handwriting-action-items')}</div>
               <div className="gba:flex gba:items-center gba:gap-2">
                 <div className="gba:text-xs gba:text-muted-foreground">{actionItemFlows.length}</div>
                 <Button
@@ -657,7 +663,7 @@ export const HandwritingNote: React.FC<HandwritingNoteProps> = ({
           <DialogContent className="gba:sm:max-w-[650px] gba:max-h-[80vh] gba:overflow-y-auto">
             <DialogHeader>
               <div className="gba:flex gba:items-center gba:justify-between gba:gap-2">
-                <DialogTitle>Action Items</DialogTitle>
+                <DialogTitle>{t('handwriting-action-items')}</DialogTitle>
                 <Button
                   variant="ghost"
                   size="sm"
@@ -669,7 +675,7 @@ export const HandwritingNote: React.FC<HandwritingNoteProps> = ({
                   <RefreshCw className={`gba:w-4 gba:h-4 ${isFlowStatusSyncing ? 'gba:animate-spin' : ''}`} />
                 </Button>
               </div>
-              <DialogDescription>Status of blinks created from this note.</DialogDescription>
+              <DialogDescription>{t('handwriting-action-items-desc')}</DialogDescription>
             </DialogHeader>
             <ActionItemsList flows={actionItemFlows} data-testid={`${testId}-action-items-list-dialog`} />
           </DialogContent>

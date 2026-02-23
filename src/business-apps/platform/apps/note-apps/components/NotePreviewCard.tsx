@@ -21,7 +21,8 @@ import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-  TooltipProvider
+  TooltipProvider,
+  useTranslation
 } from '@newwork/nw-design-system'
 import {
   MoreHorizontal,
@@ -37,6 +38,7 @@ import {
   Folder
 } from 'lucide-react'
 import type { NoteSummary, NoteColor } from '../types'
+import translations from '../_i18n'
 
 export interface SharedUserInfo {
   userId: string
@@ -98,7 +100,7 @@ function getInitials(name: string): string {
     .slice(0, 2)
 }
 
-function formatRelativeTime(dateString: string): string {
+function formatRelativeTime(dateString: string, t: (key: string, vars?: Record<string, unknown>) => string): string {
   const date = new Date(dateString)
   const now = new Date()
   const diffMs = now.getTime() - date.getTime()
@@ -106,10 +108,10 @@ function formatRelativeTime(dateString: string): string {
   const diffHours = Math.floor(diffMs / 3600000)
   const diffDays = Math.floor(diffMs / 86400000)
 
-  if (diffMinutes < 1) return 'Just now'
-  if (diffMinutes < 60) return `${diffMinutes}m ago`
-  if (diffHours < 24) return `${diffHours}h ago`
-  if (diffDays < 7) return `${diffDays}d ago`
+  if (diffMinutes < 1) return t('time-just-now')
+  if (diffMinutes < 60) return t('time-minutes-ago', { count: diffMinutes })
+  if (diffHours < 24) return t('time-hours-ago', { count: diffHours })
+  if (diffDays < 7) return t('time-days-ago', { count: diffDays })
   return date.toLocaleDateString()
 }
 
@@ -129,6 +131,7 @@ export const NotePreviewCard: React.FC<NotePreviewCardProps> = ({
   onMove,
   'data-testid': testId = 'note-preview-card'
 }) => {
+  const { t } = useTranslation(translations)
   const isOwner = note.ownerId === currentUserId || note.permission === 'owner'
   const canEdit = isOwner || note.permission === 'edit' || note.permission === 'admin'
   const noteColor = note.color || 'default'
@@ -153,7 +156,7 @@ export const NotePreviewCard: React.FC<NotePreviewCardProps> = ({
       onKeyDown={handleKeyDown}
       tabIndex={0}
       role="button"
-      aria-label={`Open note: ${note.title || 'Untitled'}`}
+      aria-label={`Open note: ${note.title || t('title-untitled')}`}
       data-testid={testId}
     >
       {/* Pin indicator */}
@@ -177,9 +180,9 @@ export const NotePreviewCard: React.FC<NotePreviewCardProps> = ({
           </div>
           <div className="gba:flex-1 gba:min-w-0">
             <h3 className="gba:font-semibold gba:text-foreground gba:truncate gba:pr-6">
-              {note.title || 'Untitled'}
+              {note.title || t('title-untitled')}
             </h3>
-            <p className="gba:text-xs gba:text-muted-foreground">{formatRelativeTime(note.updatedAt)}</p>
+            <p className="gba:text-xs gba:text-muted-foreground">{formatRelativeTime(note.updatedAt, t)}</p>
           </div>
         </div>
 
@@ -219,11 +222,13 @@ export const NotePreviewCard: React.FC<NotePreviewCardProps> = ({
                           {getInitials(sharedByUser.userName)}
                         </AvatarFallback>
                       </Avatar>
-                      <span className="gba:text-xs gba:text-muted-foreground">Shared by {sharedByUser.userName}</span>
+                      <span className="gba:text-xs gba:text-muted-foreground">
+                        {t('preview-shared-by', { name: sharedByUser.userName })}
+                      </span>
                     </div>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>Shared by {sharedByUser.userName}</p>
+                    <p>{t('preview-shared-by', { name: sharedByUser.userName })}</p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
@@ -250,7 +255,7 @@ export const NotePreviewCard: React.FC<NotePreviewCardProps> = ({
                     </div>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>Shared with {sharedUsers.length} {sharedUsers.length === 1 ? 'person' : 'people'}</p>
+                    <p>{t('shared-with-count', { count: sharedUsers.length })}</p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
@@ -258,7 +263,7 @@ export const NotePreviewCard: React.FC<NotePreviewCardProps> = ({
 
             {!isSharedWithMe && !hasSharedUsers && note.hasChildren && (
               <span className="gba:text-xs gba:text-muted-foreground">
-                {note.childCount} {note.childCount === 1 ? 'note' : 'notes'}
+                {t('preview-notes-count', { count: note.childCount })}
               </span>
             )}
           </div>
@@ -266,11 +271,7 @@ export const NotePreviewCard: React.FC<NotePreviewCardProps> = ({
           {/* Actions */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild onClick={e => e.stopPropagation()}>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="gba:h-7 gba:w-7"
-              >
+              <Button variant="ghost" size="icon" className="gba:h-7 gba:w-7">
                 <MoreHorizontal className="gba:w-4 gba:h-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -278,7 +279,7 @@ export const NotePreviewCard: React.FC<NotePreviewCardProps> = ({
               {canEdit && onEdit && (
                 <DropdownMenuItem onClick={() => onEdit(note.id)}>
                   <FileText className="gba:w-4 gba:h-4 gba:mr-2" />
-                  Edit
+                  {t('preview-menu-edit')}
                 </DropdownMenuItem>
               )}
 
@@ -287,12 +288,12 @@ export const NotePreviewCard: React.FC<NotePreviewCardProps> = ({
                   {note.isPinned ? (
                     <>
                       <PinOff className="gba:w-4 gba:h-4 gba:mr-2" />
-                      Unpin
+                      {t('menu-unpin')}
                     </>
                   ) : (
                     <>
                       <Pin className="gba:w-4 gba:h-4 gba:mr-2" />
-                      Pin
+                      {t('menu-pin')}
                     </>
                   )}
                 </DropdownMenuItem>
@@ -301,14 +302,14 @@ export const NotePreviewCard: React.FC<NotePreviewCardProps> = ({
               {onDuplicate && (
                 <DropdownMenuItem onClick={() => onDuplicate(note.id)}>
                   <Copy className="gba:w-4 gba:h-4 gba:mr-2" />
-                  Duplicate
+                  {t('menu-duplicate')}
                 </DropdownMenuItem>
               )}
 
               {onMove && (
                 <DropdownMenuItem onClick={() => onMove(note.id)}>
                   <FolderInput className="gba:w-4 gba:h-4 gba:mr-2" />
-                  Move to...
+                  {t('preview-menu-move-to')}
                 </DropdownMenuItem>
               )}
 
@@ -317,14 +318,14 @@ export const NotePreviewCard: React.FC<NotePreviewCardProps> = ({
               {isOwner && onShare && (
                 <DropdownMenuItem onClick={() => onShare(note.id)}>
                   <Share2 className="gba:w-4 gba:h-4 gba:mr-2" />
-                  Share
+                  {t('menu-share')}
                 </DropdownMenuItem>
               )}
 
               {isOwner && hasSharedUsers && onManageShares && (
                 <DropdownMenuItem onClick={() => onManageShares(note.id)}>
                   <Users className="gba:w-4 gba:h-4 gba:mr-2" />
-                  Manage Shares
+                  {t('preview-menu-manage-shares')}
                 </DropdownMenuItem>
               )}
 
@@ -333,7 +334,7 @@ export const NotePreviewCard: React.FC<NotePreviewCardProps> = ({
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => onArchive(note.id)}>
                     <Archive className="gba:w-4 gba:h-4 gba:mr-2" />
-                    Archive
+                    {t('menu-archive')}
                   </DropdownMenuItem>
                 </>
               )}
@@ -344,7 +345,7 @@ export const NotePreviewCard: React.FC<NotePreviewCardProps> = ({
                   className="gba:text-destructive focus:gba:text-destructive"
                 >
                   <Trash2 className="gba:w-4 gba:h-4 gba:mr-2" />
-                  Delete
+                  {t('menu-delete')}
                 </DropdownMenuItem>
               )}
             </DropdownMenuContent>
@@ -362,7 +363,10 @@ export const NoNotesState: React.FC<{
   onCreateNew: () => void
   title?: string
   description?: string
-}> = ({ onCreateNew, title = 'No notes yet', description = 'Create your first note to get started' }) => {
+}> = ({ onCreateNew, title, description }) => {
+  const { t } = useTranslation(translations)
+  const resolvedTitle = title ?? t('empty-default-title')
+  const resolvedDesc = description ?? t('empty-default-description')
   return (
     <Card className="gba:p-12 gba:text-center">
       <div className="gba:flex gba:flex-col gba:items-center gba:gap-4">
@@ -370,11 +374,11 @@ export const NoNotesState: React.FC<{
           <FileText className="gba:w-10 gba:h-10 gba:text-primary" />
         </div>
         <div className="gba:space-y-2">
-          <h3 className="gba:text-xl gba:font-semibold gba:text-foreground">{title}</h3>
-          <p className="gba:text-muted-foreground gba:max-w-md">{description}</p>
+          <h3 className="gba:text-xl gba:font-semibold gba:text-foreground">{resolvedTitle}</h3>
+          <p className="gba:text-muted-foreground gba:max-w-md">{resolvedDesc}</p>
         </div>
         <Button onClick={onCreateNew} className="gba:mt-4">
-          Create Note
+          {t('empty-create-note')}
         </Button>
       </div>
     </Card>

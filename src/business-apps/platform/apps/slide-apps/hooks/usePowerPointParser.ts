@@ -22,7 +22,10 @@ export interface ParsedPowerPointDocument {
 
 export interface ParserMessage {
   type: 'error' | 'warning' | 'info'
+  /** i18n key or fallback string */
   message: string
+  /** Optional variables for Fluent interpolation (e.g. { number: '1' }) */
+  params?: Record<string, string>
 }
 
 interface UsePowerPointParserState {
@@ -207,10 +210,16 @@ function extractImagesFromSlideXml(
   return images
 }
 
+export interface UsePowerPointParserOptions {
+  /** Translation function for user-facing strings (e.g. default slide title) */
+  t?: (key: string) => string
+}
+
 /**
  * Hook for parsing PowerPoint documents
  */
-export function usePowerPointParser(): UsePowerPointParserResult {
+export function usePowerPointParser(options?: UsePowerPointParserOptions): UsePowerPointParserResult {
+  const t = options?.t
   const [state, setState] = useState<UsePowerPointParserState>({
     isLoading: false,
     progress: 0,
@@ -221,176 +230,181 @@ export function usePowerPointParser(): UsePowerPointParserResult {
   /**
    * Parse a PowerPoint file
    */
-  const parseFile = useCallback(async (file: File): Promise<ParsedPowerPointDocument | null> => {
-    // Validate file type
-    const isValidType =
-      file.type === 'application/vnd.openxmlformats-officedocument.presentationml.presentation' ||
-      file.name.toLowerCase().endsWith('.pptx')
+  const parseFile = useCallback(
+    async (file: File): Promise<ParsedPowerPointDocument | null> => {
+      const tFn = t
+      // Validate file type
+      const isValidType =
+        file.type === 'application/vnd.openxmlformats-officedocument.presentationml.presentation' ||
+        file.name.toLowerCase().endsWith('.pptx')
 
-    if (!isValidType) {
-      setState(prev => ({
-        ...prev,
-        error: 'Invalid file type. Please upload a .pptx file (PowerPoint 2007 or later).'
-      }))
-      return null
-    }
-
-    setState({
-      isLoading: true,
-      progress: 10,
-      error: null,
-      parsedDocument: null
-    })
-
-    try {
-      // Read file as ArrayBuffer
-      setState(prev => ({ ...prev, progress: 20 }))
-      const arrayBuffer = await file.arrayBuffer()
-
-      // Unzip the .pptx file
-      setState(prev => ({ ...prev, progress: 30 }))
-      const zip = await JSZip.loadAsync(arrayBuffer)
-
-      // Get presentation.xml to find slide count
-      const presentationFile = zip.file('ppt/presentation.xml')
-      if (!presentationFile) {
-        throw new Error('Invalid PowerPoint file: missing presentation.xml')
-      }
-
-      const presentationContent = await presentationFile.async('text')
-      const presentationXml = parseXML(presentationContent)
-      const slideIds = presentationXml.getElementsByTagName('p:sldId')
-      const slideCount = slideIds.length
-
-      setState(prev => ({ ...prev, progress: 40 }))
-
-      // Extract all images first
-      const imageData = await extractImagesFromPptx(zip)
-
-      setState(prev => ({ ...prev, progress: 50 }))
-
-      // Parse each slide
-      const slides: SlideData[] = []
-      const messages: ParserMessage[] = []
-
-      for (let i = 0; i < slideCount; i++) {
-        const slideNumber = i + 1
-        const slidePath = `ppt/slides/slide${slideNumber}.xml`
-        const slideFile = zip.file(slidePath)
-
-        if (!slideFile) {
-          messages.push({
-            type: 'warning',
-            message: `Slide ${slideNumber} not found`
-          })
-          continue
-        }
-
-        const slideContent = await slideFile.async('text')
-        const slideXml = parseXML(slideContent)
-
-        // Get relationships for this slide
-        const relationships = await getSlideRelationships(zip, slideNumber)
-
-        // Extract text elements
-        const textElements = extractTextFromSlideXml(slideXml)
-
-        // Extract images
-        const imageElements = extractImagesFromSlideXml(slideXml, relationships, imageData)
-
-        // Create slide data
-        const slideData: SlideData = {
-          id: `slide-${Date.now()}-${i}`,
-          elements: [],
-          background: { type: 'solid', color: '#ffffff' },
-          notes: ''
-        }
-
-        // Convert text to our format
-        textElements.forEach((text, idx) => {
-          slideData.elements.push(
-            createTextElement({
-              id: `text-${Date.now()}-${i}-${idx}`,
-              content: text.text,
-              position: { x: Math.max(0, text.x), y: Math.max(0, text.y) },
-              size: { width: Math.max(100, text.width), height: Math.max(40, text.height) },
-              fontSize: 32,
-              color: '#1e293b'
-            })
-          )
-        })
-
-        // Convert images to our format
-        imageElements.forEach((img, idx) => {
-          slideData.elements.push(
-            createImageElement(img.src, {
-              id: `image-${Date.now()}-${i}-${idx}`,
-              position: { x: Math.max(0, img.x), y: Math.max(0, img.y) },
-              size: { width: Math.max(100, img.width), height: Math.max(100, img.height) }
-            })
-          )
-        })
-
-        slides.push(slideData)
-
-        setState(prev => ({ ...prev, progress: 50 + ((i + 1) / slideCount) * 40 }))
-      }
-
-      if (slides.length === 0) {
-        // Create one default slide if parsing resulted in empty
-        slides.push({
-          id: `slide-${Date.now()}`,
-          elements: [
-            createTextElement({
-              id: `title-${Date.now()}`,
-              content: 'Imported Slide',
-              position: { x: 80, y: 280 },
-              size: { width: 1120, height: 100 },
-              fontSize: 64,
-              fontWeight: 'bold',
-              textAlign: 'center',
-              color: '#1e293b'
-            })
-          ],
-          background: { type: 'solid', color: '#ffffff' }
-        })
-
-        messages.push({
-          type: 'warning',
-          message: 'No slides could be parsed. Created a blank slide.'
-        })
-      }
-
-      const parsedDocument: ParsedPowerPointDocument = {
-        fileName: file.name,
-        fileSize: file.size,
-        slides,
-        slideCount: slides.length,
-        messages
+      if (!isValidType) {
+        setState(prev => ({
+          ...prev,
+          error: 'parser-invalid-type'
+        }))
+        return null
       }
 
       setState({
-        isLoading: false,
-        progress: 100,
+        isLoading: true,
+        progress: 10,
         error: null,
-        parsedDocument
-      })
-
-      return parsedDocument
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to parse PowerPoint file'
-      console.error('[PowerPointParser] Parse error:', error)
-
-      setState({
-        isLoading: false,
-        progress: 0,
-        error: errorMessage,
         parsedDocument: null
       })
 
-      return null
-    }
-  }, [])
+      try {
+        // Read file as ArrayBuffer
+        setState(prev => ({ ...prev, progress: 20 }))
+        const arrayBuffer = await file.arrayBuffer()
+
+        // Unzip the .pptx file
+        setState(prev => ({ ...prev, progress: 30 }))
+        const zip = await JSZip.loadAsync(arrayBuffer)
+
+        // Get presentation.xml to find slide count
+        const presentationFile = zip.file('ppt/presentation.xml')
+        if (!presentationFile) {
+          throw new Error('parser-invalid-file')
+        }
+
+        const presentationContent = await presentationFile.async('text')
+        const presentationXml = parseXML(presentationContent)
+        const slideIds = presentationXml.getElementsByTagName('p:sldId')
+        const slideCount = slideIds.length
+
+        setState(prev => ({ ...prev, progress: 40 }))
+
+        // Extract all images first
+        const imageData = await extractImagesFromPptx(zip)
+
+        setState(prev => ({ ...prev, progress: 50 }))
+
+        // Parse each slide
+        const slides: SlideData[] = []
+        const messages: ParserMessage[] = []
+
+        for (let i = 0; i < slideCount; i++) {
+          const slideNumber = i + 1
+          const slidePath = `ppt/slides/slide${slideNumber}.xml`
+          const slideFile = zip.file(slidePath)
+
+          if (!slideFile) {
+            messages.push({
+              type: 'warning',
+              message: 'parser-slide-not-found',
+              params: { number: String(slideNumber) }
+            })
+            continue
+          }
+
+          const slideContent = await slideFile.async('text')
+          const slideXml = parseXML(slideContent)
+
+          // Get relationships for this slide
+          const relationships = await getSlideRelationships(zip, slideNumber)
+
+          // Extract text elements
+          const textElements = extractTextFromSlideXml(slideXml)
+
+          // Extract images
+          const imageElements = extractImagesFromSlideXml(slideXml, relationships, imageData)
+
+          // Create slide data
+          const slideData: SlideData = {
+            id: `slide-${Date.now()}-${i}`,
+            elements: [],
+            background: { type: 'solid', color: '#ffffff' },
+            notes: ''
+          }
+
+          // Convert text to our format
+          textElements.forEach((text, idx) => {
+            slideData.elements.push(
+              createTextElement({
+                id: `text-${Date.now()}-${i}-${idx}`,
+                content: text.text,
+                position: { x: Math.max(0, text.x), y: Math.max(0, text.y) },
+                size: { width: Math.max(100, text.width), height: Math.max(40, text.height) },
+                fontSize: 32,
+                color: '#1e293b'
+              })
+            )
+          })
+
+          // Convert images to our format
+          imageElements.forEach((img, idx) => {
+            slideData.elements.push(
+              createImageElement(img.src, {
+                id: `image-${Date.now()}-${i}-${idx}`,
+                position: { x: Math.max(0, img.x), y: Math.max(0, img.y) },
+                size: { width: Math.max(100, img.width), height: Math.max(100, img.height) }
+              })
+            )
+          })
+
+          slides.push(slideData)
+
+          setState(prev => ({ ...prev, progress: 50 + ((i + 1) / slideCount) * 40 }))
+        }
+
+        if (slides.length === 0) {
+          // Create one default slide if parsing resulted in empty
+          slides.push({
+            id: `slide-${Date.now()}`,
+            elements: [
+              createTextElement({
+                id: `title-${Date.now()}`,
+                content: tFn ? tFn('parser-imported-slide') : 'Imported Slide',
+                position: { x: 80, y: 280 },
+                size: { width: 1120, height: 100 },
+                fontSize: 64,
+                fontWeight: 'bold',
+                textAlign: 'center',
+                color: '#1e293b'
+              })
+            ],
+            background: { type: 'solid', color: '#ffffff' }
+          })
+
+          messages.push({
+            type: 'warning',
+            message: 'parser-no-slides-parsed'
+          })
+        }
+
+        const parsedDocument: ParsedPowerPointDocument = {
+          fileName: file.name,
+          fileSize: file.size,
+          slides,
+          slideCount: slides.length,
+          messages
+        }
+
+        setState({
+          isLoading: false,
+          progress: 100,
+          error: null,
+          parsedDocument
+        })
+
+        return parsedDocument
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'parser-failed'
+        console.error('[PowerPointParser] Parse error:', error)
+
+        setState({
+          isLoading: false,
+          progress: 0,
+          error: errorMessage,
+          parsedDocument: null
+        })
+
+        return null
+      }
+    },
+    [t]
+  )
 
   /**
    * Reset parser state

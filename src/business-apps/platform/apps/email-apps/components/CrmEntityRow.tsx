@@ -6,6 +6,8 @@
 
 import React, { useCallback, useState } from 'react'
 import { toast } from 'sonner'
+import { useTranslation } from '@newwork/nw-design-system'
+import translations from '../_i18n'
 import {
   Button,
   Badge,
@@ -37,11 +39,11 @@ const ENTITY_ICONS: Record<string, React.FC<any>> = {
   lead: TargetIcon
 }
 
-const ENTITY_LABELS: Record<string, string> = {
-  account: 'Account',
-  contact: 'Contact',
-  opportunity: 'Opportunity',
-  lead: 'Lead'
+const ENTITY_LABEL_KEYS: Record<string, string> = {
+  account: 'crm-entity-account',
+  contact: 'crm-entity-contact',
+  opportunity: 'crm-entity-opportunity',
+  lead: 'crm-entity-lead'
 }
 
 /* ---------- Helpers ---------- */
@@ -53,13 +55,16 @@ export const buildActivityPayload = (
   description?: string,
   employeeId?: string,
   /** Pass threadId when recording a full thread instead of a single message */
-  threadId?: string
+  threadId?: string,
+  /** Translated fallback when message has no subject */
+  noSubjectFallback?: string
 ): Record<string, any> => {
   const entityIdKey = `${entity.type}Id`
+  const subjectFallback = noSubjectFallback ?? ''
 
   return {
     salesActivity: {
-      title: message.subject || '(No subject)',
+      title: message.subject || subjectFallback,
       description: description || message.textBody || message.snippet || '',
       occurredAt: message.date || new Date().toISOString(),
       activityTypeRef: EMAIL_ACTIVITY_TYPE_REF,
@@ -128,6 +133,7 @@ export const CrmEntityRow: React.FC<CrmEntityRowProps> = ({
   threadId,
   'data-testid': testId = 'crm-entity-row'
 }) => {
+  const { t } = useTranslation(translations)
   const Icon = ENTITY_ICONS[entity.type] || UserIcon
   const initials = getInitials(entity.name)
   const [recorded, setRecorded] = useState(false)
@@ -136,18 +142,18 @@ export const CrmEntityRow: React.FC<CrmEntityRowProps> = ({
   const handleSuccess = useCallback(() => {
     setRecorded(true)
     linkEmailToCrm(message.id, entity.type, entity.id, accessToken)
-    toast.success(`Activity recorded for ${entity.name}`, {
-      description: message.subject || '(No subject)'
+    toast.success(t('crm-activity-recorded', { name: entity.name }), {
+      description: message.subject || t('list-no-subject')
     })
-  }, [entity, message, accessToken])
+  }, [entity, message, accessToken, t])
 
   const handleError = useCallback(
     (error: Error) => {
       setSummarizing(false)
       console.error('Failed to record activity:', error)
-      toast.error(`Failed to record activity for ${entity.name}`)
+      toast.error(t('crm-activity-recorded-failed', { name: entity.name }))
     },
-    [entity.name]
+    [entity.name, t]
   )
 
   /**
@@ -179,14 +185,28 @@ export const CrmEntityRow: React.FC<CrmEntityRowProps> = ({
         setSummarizing(false)
       }
 
-      const payload = buildActivityPayload(entity, message, description || undefined, employeeId, threadId)
+      const payload = buildActivityPayload(
+        entity,
+        message,
+        description || undefined,
+        employeeId,
+        threadId,
+        t('reader-no-subject')
+      )
       execute(payload)
     },
     [recorded, aiSummary, accessToken, message, entity, employeeId, threadId]
   )
 
   // Initial context data for AppActionProvider (used as fallback)
-  const initialContextData = buildActivityPayload(entity, message, aiSummary || undefined, employeeId, threadId)
+  const initialContextData = buildActivityPayload(
+    entity,
+    message,
+    aiSummary || undefined,
+    employeeId,
+    threadId,
+    t('reader-no-subject')
+  )
 
   return (
     <div
@@ -212,7 +232,9 @@ export const CrmEntityRow: React.FC<CrmEntityRowProps> = ({
       <div className="gba:flex-1 gba:min-w-0">
         <div className="gba:flex gba:items-center gba:gap-1.5">
           <p className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate">{entity.name}</p>
-          <Badge className="gba:text-[10px] gba:flex-shrink-0">{ENTITY_LABELS[entity.type]}</Badge>
+          <Badge className="gba:text-[10px] gba:flex-shrink-0">
+            {t(ENTITY_LABEL_KEYS[entity.type] || 'crm-entity-account')}
+          </Badge>
         </div>
         {entity.email && <p className="gba:text-xs gba:text-muted-foreground gba:truncate">{entity.email}</p>}
       </div>
@@ -247,21 +269,21 @@ export const CrmEntityRow: React.FC<CrmEntityRowProps> = ({
                   ) : recorded ? (
                     <>
                       <CheckIcon className="gba:w-3.5 gba:h-3.5 gba:mr-1" weight="bold" />
-                      Recorded
+                      {t('crm-recorded')}
                     </>
                   ) : ctx.isLoading ? (
                     <Spinner size="sm" />
                   ) : (
-                    'Record'
+                    t('crm-record')
                   )}
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
                 {summarizing
-                  ? 'Summarizing email with AI...'
+                  ? t('crm-tooltip-summarizing')
                   : recorded
-                    ? 'Activity recorded'
-                    : `Record email as activity for ${entity.name}`}
+                    ? t('crm-tooltip-recorded')
+                    : t('crm-tooltip-record', { name: entity.name })}
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>

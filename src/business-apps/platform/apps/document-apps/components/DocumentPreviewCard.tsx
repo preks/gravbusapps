@@ -44,6 +44,7 @@ import {
   FileType
 } from 'lucide-react'
 import type { DocumentSummary, DocumentStatus, DocumentApprovalRequest } from '../types'
+import translations from '../_i18n'
 
 /** User info for shared users display */
 export interface SharedUserInfo {
@@ -76,24 +77,51 @@ export interface DocumentPreviewCardProps {
 /**
  * Get status badge variant and label
  */
-function getStatusBadge(status: DocumentStatus): {
+function getStatusBadge(
+  status: DocumentStatus,
+  t: (k: string) => string
+): {
   variant: 'default' | 'secondary' | 'destructive' | 'outline'
   label: string
   icon: React.ReactNode
 } {
   switch (status) {
     case 'draft':
-      return { variant: 'secondary', label: 'Draft', icon: <Pencil className="gba:w-3 gba:h-3" /> }
+      return {
+        variant: 'secondary',
+        label: t('preview-card-status-draft'),
+        icon: <Pencil className="gba:w-3 gba:h-3" />
+      }
     case 'saved':
-      return { variant: 'outline', label: 'Saved', icon: <FileText className="gba:w-3 gba:h-3" /> }
+      return {
+        variant: 'outline',
+        label: t('preview-card-status-saved'),
+        icon: <FileText className="gba:w-3 gba:h-3" />
+      }
     case 'pending_approval':
-      return { variant: 'default', label: 'Pending Approval', icon: <Clock className="gba:w-3 gba:h-3" /> }
+      return {
+        variant: 'default',
+        label: t('preview-card-status-pending'),
+        icon: <Clock className="gba:w-3 gba:h-3" />
+      }
     case 'approved':
-      return { variant: 'default', label: 'Approved', icon: <CheckCircle className="gba:w-3 gba:h-3" /> }
+      return {
+        variant: 'default',
+        label: t('preview-card-status-approved'),
+        icon: <CheckCircle className="gba:w-3 gba:h-3" />
+      }
     case 'rejected':
-      return { variant: 'destructive', label: 'Rejected', icon: <XCircle className="gba:w-3 gba:h-3" /> }
+      return {
+        variant: 'destructive',
+        label: t('preview-card-status-rejected'),
+        icon: <XCircle className="gba:w-3 gba:h-3" />
+      }
     case 'archived':
-      return { variant: 'secondary', label: 'Archived', icon: <FileUp className="gba:w-3 gba:h-3" /> }
+      return {
+        variant: 'secondary',
+        label: t('preview-card-status-archived'),
+        icon: <FileUp className="gba:w-3 gba:h-3" />
+      }
     default:
       return { variant: 'secondary', label: status, icon: null }
   }
@@ -102,7 +130,7 @@ function getStatusBadge(status: DocumentStatus): {
 /**
  * Format date for display
  */
-function formatDate(dateString: string): string {
+function formatDate(dateString: string, t: (k: string, vars?: Record<string, number | string>) => string): string {
   const date = new Date(dateString)
   const now = new Date()
   const diffMs = now.getTime() - date.getTime()
@@ -112,13 +140,13 @@ function formatDate(dateString: string): string {
     const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
     if (diffHours === 0) {
       const diffMinutes = Math.floor(diffMs / (1000 * 60))
-      return diffMinutes <= 1 ? 'Just now' : `${diffMinutes} minutes ago`
+      return diffMinutes <= 1 ? t('preview-card-just-now') : t('preview-card-minutes-ago', { count: diffMinutes })
     }
-    return diffHours === 1 ? '1 hour ago' : `${diffHours} hours ago`
+    return diffHours === 1 ? t('preview-card-hour-ago') : t('preview-card-hours-ago', { count: diffHours })
   }
 
-  if (diffDays === 1) return 'Yesterday'
-  if (diffDays < 7) return `${diffDays} days ago`
+  if (diffDays === 1) return t('preview-card-yesterday')
+  if (diffDays < 7) return t('preview-card-days-ago', { count: diffDays })
 
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
@@ -181,7 +209,8 @@ export const DocumentPreviewCard: React.FC<DocumentPreviewCardProps> = ({
   onSendForApproval,
   'data-testid': testId = 'document-preview-card'
 }) => {
-  const statusBadge = getStatusBadge(document.status)
+  const { t } = useTranslation(translations)
+  const statusBadge = getStatusBadge(document.status, t)
   const canEdit = document.isOwner || document.permission === 'edit'
   const canShare = document.isOwner
   const canSendForApproval =
@@ -264,43 +293,43 @@ export const DocumentPreviewCard: React.FC<DocumentPreviewCardProps> = ({
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => onOpen(document.id)}>
                 <FileText className="gba:w-4 gba:h-4 gba:mr-2" />
-                Open
+                {t('preview-card-open')}
               </DropdownMenuItem>
               {canEdit && onEdit && (
                 <DropdownMenuItem onClick={() => onEdit(document.id)}>
                   <Pencil className="gba:w-4 gba:h-4 gba:mr-2" />
-                  Edit
+                  {t('preview-card-edit')}
                 </DropdownMenuItem>
               )}
               {onDuplicate && (
                 <DropdownMenuItem onClick={() => onDuplicate(document.id)}>
                   <Copy className="gba:w-4 gba:h-4 gba:mr-2" />
-                  Duplicate
+                  {t('preview-card-duplicate')}
                 </DropdownMenuItem>
               )}
               {onExport && (
                 <DropdownMenuItem onClick={() => onExport(document.id)}>
                   <Download className="gba:w-4 gba:h-4 gba:mr-2" />
-                  Export
+                  {t('preview-card-export')}
                 </DropdownMenuItem>
               )}
               <DropdownMenuSeparator />
               {canShare && onShare && (
                 <DropdownMenuItem onClick={() => onShare(document.id)}>
                   <Share2 className="gba:w-4 gba:h-4 gba:mr-2" />
-                  Share
+                  {t('preview-card-share')}
                 </DropdownMenuItem>
               )}
               {canShare && onManageShares && (sharedUsers.length > 0 || document.sharedWithCount) && (
                 <DropdownMenuItem onClick={() => onManageShares(document.id)}>
                   <Settings className="gba:w-4 gba:h-4 gba:mr-2" />
-                  Manage Sharing
+                  {t('preview-card-manage-sharing')}
                 </DropdownMenuItem>
               )}
               {canSendForApproval && (
                 <DropdownMenuItem onClick={() => onSendForApproval!(document.id)}>
                   <Send className="gba:w-4 gba:h-4 gba:mr-2" />
-                  Send for Approval
+                  {t('preview-card-send-approval')}
                 </DropdownMenuItem>
               )}
               {canDelete && onDelete && (
@@ -311,7 +340,7 @@ export const DocumentPreviewCard: React.FC<DocumentPreviewCardProps> = ({
                     className="gba:text-destructive focus:gba:text-destructive"
                   >
                     <Trash2 className="gba:w-4 gba:h-4 gba:mr-2" />
-                    Delete
+                    {t('preview-card-delete')}
                   </DropdownMenuItem>
                 </>
               )}
@@ -334,7 +363,9 @@ export const DocumentPreviewCard: React.FC<DocumentPreviewCardProps> = ({
           </div>
 
           {document.wordCount && (
-            <span className="gba:text-xs gba:text-muted-foreground">{document.wordCount.toLocaleString()} words</span>
+            <span className="gba:text-xs gba:text-muted-foreground">
+              {t('preview-card-words', { count: document.wordCount })}
+            </span>
           )}
         </div>
 
@@ -362,7 +393,7 @@ export const DocumentPreviewCard: React.FC<DocumentPreviewCardProps> = ({
               <div className="gba:flex gba:items-center gba:gap-2 gba:text-warning">
                 <AlertCircle className="gba:w-4 gba:h-4" />
                 <span className="gba:text-xs gba:font-medium">
-                  Awaiting approval from {pendingApprovers.length} {pendingApprovers.length === 1 ? 'person' : 'people'}
+                  {t('preview-card-awaiting', { count: pendingApprovers.length })}
                 </span>
               </div>
             )}
@@ -372,12 +403,15 @@ export const DocumentPreviewCard: React.FC<DocumentPreviewCardProps> = ({
               <div className="gba:space-y-2">
                 <div className="gba:flex gba:items-center gba:gap-2 gba:text-success">
                   <CheckCircle className="gba:w-4 gba:h-4" />
-                  <span className="gba:text-xs gba:font-medium">Approved</span>
+                  <span className="gba:text-xs gba:font-medium">{t('preview-card-status-approved')}</span>
                 </div>
                 {approvedBy.map((approver, idx) => (
                   <div key={idx} className="gba:flex gba:items-center gba:gap-2 gba:ml-6">
                     <Avatar className="gba:w-5 gba:h-5">
-                      <AvatarImage src={getAvatarUrl(approver.userPicture)} alt={approver.userName || 'Approver'} />
+                      <AvatarImage
+                        src={getAvatarUrl(approver.userPicture)}
+                        alt={approver.userName || t('editor-approval-approver-alt')}
+                      />
                       <AvatarFallback className="gba:text-[8px] gba:bg-success/20 gba:text-success">
                         {approver.userName ? getInitials(approver.userName) : <UserCheck className="gba:w-3 gba:h-3" />}
                       </AvatarFallback>
@@ -402,12 +436,15 @@ export const DocumentPreviewCard: React.FC<DocumentPreviewCardProps> = ({
               <div className="gba:space-y-2">
                 <div className="gba:flex gba:items-center gba:gap-2 gba:text-destructive">
                   <XCircle className="gba:w-4 gba:h-4" />
-                  <span className="gba:text-xs gba:font-medium">Rejected</span>
+                  <span className="gba:text-xs gba:font-medium">{t('preview-card-status-rejected')}</span>
                 </div>
                 {rejectedBy.map((approver, idx) => (
                   <div key={idx} className="gba:flex gba:items-start gba:gap-2 gba:ml-6">
                     <Avatar className="gba:w-5 gba:h-5 gba:mt-0.5">
-                      <AvatarImage src={getAvatarUrl(approver.userPicture)} alt={approver.userName || 'Rejector'} />
+                      <AvatarImage
+                        src={getAvatarUrl(approver.userPicture)}
+                        alt={approver.userName || t('editor-approval-rejector-alt')}
+                      />
                       <AvatarFallback className="gba:text-[8px] gba:bg-destructive/20 gba:text-destructive">
                         {approver.userName ? getInitials(approver.userName) : <User className="gba:w-3 gba:h-3" />}
                       </AvatarFallback>
@@ -457,7 +494,7 @@ export const DocumentPreviewCard: React.FC<DocumentPreviewCardProps> = ({
                       </Avatar>
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p>Owner: {sharedByUser.userName || 'Unknown'}</p>
+                      <p>{t('preview-card-owner', { name: sharedByUser.userName || t('owner-unknown') })}</p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
@@ -465,9 +502,13 @@ export const DocumentPreviewCard: React.FC<DocumentPreviewCardProps> = ({
                 <Users className="gba:w-4 gba:h-4 gba:text-primary" />
               )}
               <div className="gba:flex-1 gba:min-w-0">
-                <span className="gba:text-xs gba:font-medium gba:text-primary">Shared with you</span>
+                <span className="gba:text-xs gba:font-medium gba:text-primary">
+                  {t('preview-card-shared-with-you')}
+                </span>
                 {sharedByUser?.userName && (
-                  <span className="gba:text-xs gba:text-muted-foreground gba:ml-1">by {sharedByUser.userName}</span>
+                  <span className="gba:text-xs gba:text-muted-foreground gba:ml-1">
+                    {t('preview-card-by', { name: sharedByUser.userName })}
+                  </span>
                 )}
               </div>
               {/* Always show permission badge for shared documents */}
@@ -476,10 +517,10 @@ export const DocumentPreviewCard: React.FC<DocumentPreviewCardProps> = ({
                 className="gba:text-[10px] gba:px-1.5 gba:py-0 gba:shrink-0"
               >
                 {document.permission === 'edit'
-                  ? 'Can edit'
+                  ? t('preview-card-can-edit')
                   : document.permission === 'comment'
-                    ? 'Can comment'
-                    : 'View only'}
+                    ? t('preview-card-can-comment')
+                    : t('preview-card-view-only')}
               </Badge>
             </div>
           </div>
@@ -489,7 +530,7 @@ export const DocumentPreviewCard: React.FC<DocumentPreviewCardProps> = ({
         <div className="gba:flex gba:items-center gba:justify-between gba:mt-4 gba:pt-3 gba:border-t gba:border-border">
           <div className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:text-muted-foreground">
             <Clock className="gba:w-3 gba:h-3" />
-            <span>{formatDate(document.updatedAt)}</span>
+            <span>{formatDate(document.updatedAt, t)}</span>
           </div>
 
           <div className="gba:flex gba:items-center gba:gap-3">
@@ -497,7 +538,7 @@ export const DocumentPreviewCard: React.FC<DocumentPreviewCardProps> = ({
             {document.isOwner && (
               <div className="gba:flex gba:items-center gba:gap-1 gba:text-xs gba:text-muted-foreground">
                 <User className="gba:w-3 gba:h-3" />
-                <span>Owner</span>
+                <span>{t('preview-card-owner-label')}</span>
               </div>
             )}
 
@@ -519,13 +560,13 @@ export const DocumentPreviewCard: React.FC<DocumentPreviewCardProps> = ({
                         </Avatar>
                       </TooltipTrigger>
                       <TooltipContent>
-                        <p className="gba:font-medium">{user.userName || 'Unknown'}</p>
+                        <p className="gba:font-medium">{user.userName || t('owner-unknown')}</p>
                         <p className="gba:text-xs gba:text-muted-foreground">
                           {user.permission === 'edit'
-                            ? 'Can edit'
+                            ? t('preview-card-can-edit')
                             : user.permission === 'comment'
-                              ? 'Can comment'
-                              : 'Can view'}
+                              ? t('preview-card-can-comment')
+                              : t('preview-card-can-view')}
                         </p>
                       </TooltipContent>
                     </Tooltip>
@@ -540,7 +581,7 @@ export const DocumentPreviewCard: React.FC<DocumentPreviewCardProps> = ({
                         </Avatar>
                       </TooltipTrigger>
                       <TooltipContent>
-                        <p>{sharedUsers.length - 4} more people</p>
+                        <p>{t('preview-card-more-people', { count: sharedUsers.length - 4 })}</p>
                       </TooltipContent>
                     </Tooltip>
                   )}
@@ -558,7 +599,7 @@ export const DocumentPreviewCard: React.FC<DocumentPreviewCardProps> = ({
                   onClick={() => onManageShares?.(document.id)}
                 >
                   <Users className="gba:w-3 gba:h-3" />
-                  <span>Shared with {document.sharedWithCount}</span>
+                  <span>{t('preview-card-shared-with', { count: document.sharedWithCount })}</span>
                 </div>
               )}
           </div>
@@ -572,6 +613,7 @@ export const DocumentPreviewCard: React.FC<DocumentPreviewCardProps> = ({
  * Empty state component
  */
 export const NoDocumentsState: React.FC<{ onCreateNew: () => void }> = ({ onCreateNew }) => {
+  const { t } = useTranslation(translations)
   return (
     <Card className="gba:p-12 gba:text-center">
       <div className="gba:flex gba:flex-col gba:items-center gba:gap-4">
@@ -579,13 +621,11 @@ export const NoDocumentsState: React.FC<{ onCreateNew: () => void }> = ({ onCrea
           <FileText className="gba:w-10 gba:h-10 gba:text-primary" />
         </div>
         <div className="gba:space-y-2">
-          <h3 className="gba:text-xl gba:font-semibold gba:text-foreground">No documents yet</h3>
-          <p className="gba:text-muted-foreground gba:max-w-md">
-            Create your first document or upload an existing Word file to get started.
-          </p>
+          <h3 className="gba:text-xl gba:font-semibold gba:text-foreground">{t('preview-card-no-documents')}</h3>
+          <p className="gba:text-muted-foreground gba:max-w-md">{t('preview-card-create-first')}</p>
         </div>
         <Button onClick={onCreateNew} className="gba:mt-2">
-          Create New Document
+          {t('preview-card-create-new')}
         </Button>
       </div>
     </Card>
