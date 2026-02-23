@@ -488,145 +488,153 @@ export const QuickActions: React.FC<QuickActionsProps> = ({
           >
             {/* Content */}
             <div className="gba:relative">
-              {isLoading ? (
-                <div className="gba:px-4 gba:py-8 gba:text-center">
-                  <div className="gba:inline-flex gba:items-center gba:gap-2 gba:text-muted-foreground">
-                    <div className="gba:w-4 gba:h-4 gba:border-2 gba:border-border gba:border-t-primary gba:rounded-full gba:animate-spin" />
-                    <span className="gba:text-sm">{t('search-searching')}</span>
-                  </div>
-                </div>
-              ) : limitedResults.length === 0 ? (
-                <div className="gba:px-4 gba:py-8 gba:text-center">
-                  <Search className="gba:w-6 gba:h-6 gba:text-muted-foreground/40 gba:mx-auto gba:mb-2" />
-                  <p className="gba:text-sm gba:text-muted-foreground">
-                    {t('search-no-results', { query: searchQuery })}
-                  </p>
-                </div>
-              ) : (
-                <>
-                  <div className="gba:max-h-72 gba:overflow-y-auto gba:overscroll-contain">
-                    {groupedResults.map(group => {
-                      const config = typeConfig[group.type]
-                      const GroupIcon = config.icon
+              {(() => {
+                if (isLoading) {
+                  return (
+                    <div className="gba:px-4 gba:py-8 gba:text-center">
+                      <div className="gba:inline-flex gba:items-center gba:gap-2 gba:text-muted-foreground">
+                        <div className="gba:w-4 gba:h-4 gba:border-2 gba:border-border gba:border-t-primary gba:rounded-full gba:animate-spin" />
+                        <span className="gba:text-sm">{t('search-searching')}</span>
+                      </div>
+                    </div>
+                  )
+                }
+                if (limitedResults.length === 0) {
+                  return (
+                    <div className="gba:px-4 gba:py-8 gba:text-center">
+                      <Search className="gba:w-6 gba:h-6 gba:text-muted-foreground/40 gba:mx-auto gba:mb-2" />
+                      <p className="gba:text-sm gba:text-muted-foreground">
+                        {t('search-no-results', { query: searchQuery })}
+                      </p>
+                    </div>
+                  )
+                }
+                return (
+                  <>
+                    <div className="gba:max-h-72 gba:overflow-y-auto gba:overscroll-contain">
+                      {groupedResults.map(group => {
+                        const config = typeConfig[group.type]
+                        const GroupIcon = config.icon
 
-                      return (
-                        <div key={group.type}>
-                          {/* Group header */}
-                          <div
-                            className="gba:px-4 gba:py-2 gba:sticky gba:top-0 gba:border-b gba:border-border/20"
-                            style={{
-                              // eslint-disable-next-line newwork-local/no-hardcoded-colors
-                              backgroundColor: 'rgba(248, 250, 252, 0.95)',
-                              backdropFilter: 'blur(10px)',
-                              WebkitBackdropFilter: 'blur(10px)'
-                            }}
-                          >
-                            <div className="gba:flex gba:items-center gba:gap-2">
-                              <GroupIcon className={`gba:w-3.5 gba:h-3.5 ${config.color}`} />
-                              <span className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wide">
-                                {t(group.type === 'slide' ? 'type-slides' : `type-${group.type}s`)}
-                              </span>
-                              <span className="gba:ml-auto gba:text-xs gba:text-muted-foreground/60">
-                                {group.items.length}
-                              </span>
-                            </div>
-                          </div>
-
-                          {/* Group items - clean design */}
-                          {group.items.map(item => {
-                            const itemConfig = typeConfig[item.type]
-                            const Icon = itemConfig.icon
-                            const currentFlatIndex = flatIndex++
-                            const isSelected = currentFlatIndex === selectedIndex
-
-                            return (
-                              <div
-                                key={`${item.type}-${item.id}`}
-                                className="gba:px-4 gba:py-2.5 gba:flex gba:items-center gba:gap-3 gba:cursor-pointer gba:transition-all gba:duration-150 gba:border-l-2"
-                                style={{
-                                  background: isSelected ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
-                                  borderLeftColor: isSelected ? 'rgb(59, 130, 246)' : 'transparent'
-                                }}
-                                onClick={() => handleItemClick(item)}
-                                onMouseEnter={() => setSelectedIndex(currentFlatIndex)}
-                              >
-                                {/* Icon */}
-                                <div
-                                  className={`gba:w-9 gba:h-9 gba:rounded-lg ${itemConfig.bg} gba:flex gba:items-center gba:justify-center gba:flex-shrink-0`}
-                                >
-                                  <Icon className={`gba:w-4 gba:h-4 ${itemConfig.color}`} />
-                                </div>
-
-                                {/* Content */}
-                                <div className="gba:flex-1 gba:min-w-0">
-                                  <h4 className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate">
-                                    <HighlightedText text={item.title || t('untitled')} query={searchQuery} />
-                                  </h4>
-                                  <div className="gba:flex gba:items-center gba:gap-1.5 gba:mt-0.5">
-                                    <Clock className="gba:w-3 gba:h-3 gba:text-muted-foreground/50" />
-                                    <span className="gba:text-xs gba:text-muted-foreground">
-                                      {formatRelativeTime(item.updatedAt, t)}
-                                    </span>
-                                    {item.isShared && (
-                                      <>
-                                        <span className="gba:text-muted-foreground/30">·</span>
-                                        <span className="gba:text-xs gba:text-muted-foreground">{t('shared')}</span>
-                                      </>
-                                    )}
-                                  </div>
-                                </div>
-
-                                {/* Presence indicator - shows who's currently in the document */}
-                                {hasActiveUsers(item.type, item.id) && (
-                                  <MiniPresence participants={getPresence(item.type, item.id)} t={t} />
-                                )}
-
-                                {/* Arrow */}
-                                <ArrowRight
-                                  className={`gba:w-4 gba:h-4 gba:transition-all ${isSelected ? 'gba:text-primary gba:translate-x-0.5' : 'gba:text-muted-foreground/30'}`}
-                                />
+                        return (
+                          <div key={group.type}>
+                            {/* Group header */}
+                            <div
+                              className="gba:px-4 gba:py-2 gba:sticky gba:top-0 gba:border-b gba:border-border/20"
+                              style={{
+                                // eslint-disable-next-line newwork-local/no-hardcoded-colors
+                                backgroundColor: 'rgba(248, 250, 252, 0.95)',
+                                backdropFilter: 'blur(10px)',
+                                WebkitBackdropFilter: 'blur(10px)'
+                              }}
+                            >
+                              <div className="gba:flex gba:items-center gba:gap-2">
+                                <GroupIcon className={`gba:w-3.5 gba:h-3.5 ${config.color}`} />
+                                <span className="gba:text-xs gba:font-medium gba:text-muted-foreground gba:uppercase gba:tracking-wide">
+                                  {t(group.type === 'slide' ? 'type-slides' : `type-${group.type}s`)}
+                                </span>
+                                <span className="gba:ml-auto gba:text-xs gba:text-muted-foreground/60">
+                                  {group.items.length}
+                                </span>
                               </div>
-                            )
-                          })}
-                        </div>
-                      )
-                    })}
-                  </div>
+                            </div>
 
-                  {/* Footer */}
-                  <div
-                    className="gba:px-4 gba:py-2.5 gba:border-t gba:border-border/20 gba:flex gba:items-center gba:justify-between"
-                    style={{
-                      // eslint-disable-next-line newwork-local/no-hardcoded-colors
-                      backgroundColor: 'rgba(248, 250, 252, 0.95)'
-                    }}
-                  >
-                    <div className="gba:flex gba:items-center gba:gap-4 gba:text-xs gba:text-muted-foreground/70">
-                      <span className="gba:flex gba:items-center gba:gap-1">
-                        <kbd className="gba:px-1 gba:py-0.5 gba:rounded gba:bg-background gba:text-[10px] gba:border gba:border-border/50">
-                          ↑↓
-                        </kbd>
-                        {t('search-navigate')}
-                      </span>
-                      <span className="gba:flex gba:items-center gba:gap-1">
-                        <kbd className="gba:px-1.5 gba:py-0.5 gba:rounded gba:bg-background gba:text-[10px] gba:border gba:border-border/50">
-                          ↵
-                        </kbd>
-                        {t('search-open')}
-                      </span>
-                      <span className="gba:flex gba:items-center gba:gap-1">
-                        <kbd className="gba:px-1.5 gba:py-0.5 gba:rounded gba:bg-background gba:text-[10px] gba:border gba:border-border/50">
-                          esc
-                        </kbd>
-                        {t('search-close')}
+                            {/* Group items - clean design */}
+                            {group.items.map(item => {
+                              const itemConfig = typeConfig[item.type]
+                              const Icon = itemConfig.icon
+                              const currentFlatIndex = flatIndex++
+                              const isSelected = currentFlatIndex === selectedIndex
+
+                              return (
+                                <div
+                                  key={`${item.type}-${item.id}`}
+                                  className="gba:px-4 gba:py-2.5 gba:flex gba:items-center gba:gap-3 gba:cursor-pointer gba:transition-all gba:duration-150 gba:border-l-2"
+                                  style={{
+                                    background: isSelected ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
+                                    borderLeftColor: isSelected ? 'rgb(59, 130, 246)' : 'transparent'
+                                  }}
+                                  onClick={() => handleItemClick(item)}
+                                  onMouseEnter={() => setSelectedIndex(currentFlatIndex)}
+                                >
+                                  {/* Icon */}
+                                  <div
+                                    className={`gba:w-9 gba:h-9 gba:rounded-lg ${itemConfig.bg} gba:flex gba:items-center gba:justify-center gba:flex-shrink-0`}
+                                  >
+                                    <Icon className={`gba:w-4 gba:h-4 ${itemConfig.color}`} />
+                                  </div>
+
+                                  {/* Content */}
+                                  <div className="gba:flex-1 gba:min-w-0">
+                                    <h4 className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate">
+                                      <HighlightedText text={item.title || t('untitled')} query={searchQuery} />
+                                    </h4>
+                                    <div className="gba:flex gba:items-center gba:gap-1.5 gba:mt-0.5">
+                                      <Clock className="gba:w-3 gba:h-3 gba:text-muted-foreground/50" />
+                                      <span className="gba:text-xs gba:text-muted-foreground">
+                                        {formatRelativeTime(item.updatedAt, t)}
+                                      </span>
+                                      {item.isShared && (
+                                        <>
+                                          <span className="gba:text-muted-foreground/30">·</span>
+                                          <span className="gba:text-xs gba:text-muted-foreground">{t('shared')}</span>
+                                        </>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  {/* Presence indicator - shows who's currently in the document */}
+                                  {hasActiveUsers(item.type, item.id) && (
+                                    <MiniPresence participants={getPresence(item.type, item.id)} t={t} />
+                                  )}
+
+                                  {/* Arrow */}
+                                  <ArrowRight
+                                    className={`gba:w-4 gba:h-4 gba:transition-all ${isSelected ? 'gba:text-primary gba:translate-x-0.5' : 'gba:text-muted-foreground/30'}`}
+                                  />
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )
+                      })}
+                    </div>
+
+                    {/* Footer */}
+                    <div
+                      className="gba:px-4 gba:py-2.5 gba:border-t gba:border-border/20 gba:flex gba:items-center gba:justify-between"
+                      style={{
+                        // eslint-disable-next-line newwork-local/no-hardcoded-colors
+                        backgroundColor: 'rgba(248, 250, 252, 0.95)'
+                      }}
+                    >
+                      <div className="gba:flex gba:items-center gba:gap-4 gba:text-xs gba:text-muted-foreground/70">
+                        <span className="gba:flex gba:items-center gba:gap-1">
+                          <kbd className="gba:px-1 gba:py-0.5 gba:rounded gba:bg-background gba:text-[10px] gba:border gba:border-border/50">
+                            ↑↓
+                          </kbd>
+                          {t('search-navigate')}
+                        </span>
+                        <span className="gba:flex gba:items-center gba:gap-1">
+                          <kbd className="gba:px-1.5 gba:py-0.5 gba:rounded gba:bg-background gba:text-[10px] gba:border gba:border-border/50">
+                            ↵
+                          </kbd>
+                          {t('search-open')}
+                        </span>
+                        <span className="gba:flex gba:items-center gba:gap-1">
+                          <kbd className="gba:px-1.5 gba:py-0.5 gba:rounded gba:bg-background gba:text-[10px] gba:border gba:border-border/50">
+                            esc
+                          </kbd>
+                          {t('search-close')}
+                        </span>
+                      </div>
+                      <span className="gba:text-xs gba:text-muted-foreground">
+                        {t('search-results-count', { count: searchResults.length })}
                       </span>
                     </div>
-                    <span className="gba:text-xs gba:text-muted-foreground">
-                      {t('search-results-count', { count: searchResults.length })}
-                    </span>
-                  </div>
-                </>
-              )}
+                  </>
+                )
+              })()}
             </div>
           </div>
         )}

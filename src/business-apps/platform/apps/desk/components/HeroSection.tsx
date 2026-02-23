@@ -9,10 +9,9 @@ import { Layers } from 'lucide-react'
 import { SpaceHeroBackground } from '@/business-apps/platform/apps/spaces/components/SpaceHeroBackground'
 import deskTranslations from '../_i18n'
 
-const deskHostedVideoUrl = typeof import.meta !== 'undefined' && import.meta.env?.VITE_SPACE_HERO_VIDEO_URL
+const deskHostedVideoUrl = import.meta.env?.VITE_SPACE_HERO_VIDEO_URL
 const deskLocalVideoUrl = '/space-hero-background.mp4'
-const deskUseVideo =
-  deskHostedVideoUrl || (typeof import.meta !== 'undefined' && import.meta.env?.DEV && deskLocalVideoUrl)
+const deskUseVideo = deskHostedVideoUrl || (import.meta.env?.DEV ? deskLocalVideoUrl : false)
 const deskVideoSrc = deskHostedVideoUrl || deskLocalVideoUrl
 
 interface HeroSectionProps {
