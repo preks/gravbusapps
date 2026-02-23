@@ -11,8 +11,9 @@ import { ScreenPreview } from '../preview/ScreenPreview'
 import { CanvasTabHeader } from '../canvas/CanvasTabHeader'
 import { ComponentPlaceholderList } from './ComponentPlaceholderList'
 import { AppIconBadge } from '../ui/AppIconBadge'
+import { AppAboutView } from './AppAboutView'
 import type { ComponentSpec, CanvasTab } from '../../types'
-import type { AppMetadata } from '../../types/build'
+import type { AppMetadata, BuildAnalysis, UserSummary } from '../../types/build'
 
 export interface CompleteViewProps {
   components: ComponentSpec[]
@@ -24,6 +25,9 @@ export interface CompleteViewProps {
   /** Incremented by the chat panel when an AI fix modifies screen code */
   previewRefreshToken?: number
   appMetadata?: AppMetadata
+  analysis?: BuildAnalysis
+  userSummary?: UserSummary
+  createdAt?: string
   isPublishing?: boolean
   publishSuccess?: boolean
   publishError?: string | null
@@ -41,6 +45,10 @@ export const CompleteView: React.FC<CompleteViewProps> = ({
   userInfo,
   previewRefreshToken,
   appMetadata,
+  analysis,
+  userSummary,
+  createdAt,
+  prompt,
   isPublishing,
   publishSuccess,
   publishError,
@@ -101,6 +109,20 @@ export const CompleteView: React.FC<CompleteViewProps> = ({
             components={components.filter(c => c.type === 'flow')}
             typeLabel="Flow"
             emptyMessage="No flows were built."
+          />
+        )
+
+      case 'about':
+        return (
+          <AppAboutView
+            appMetadata={appMetadata}
+            components={components}
+            analysis={analysis}
+            userSummary={userSummary}
+            originalPrompt={prompt}
+            createdAt={createdAt}
+            userInfo={userInfo}
+            accessToken={accessToken}
           />
         )
 
