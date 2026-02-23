@@ -30,6 +30,7 @@ interface MessageListProps {
   scrollToMessageId?: string | null
   onScrollToMessageDone?: () => void
   highlightedMessageId?: string | null
+  onReplyWithQuote?: (message: Message) => void
 }
 
 /**
@@ -63,7 +64,8 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
     onUpdateMessage,
     scrollToMessageId,
     onScrollToMessageDone,
-    highlightedMessageId
+    highlightedMessageId,
+    onReplyWithQuote
   }) => {
     // OPTIMIZATION: Call useTranslation once and memoize the result
     const t = useChatTranslation()
@@ -541,6 +543,7 @@ export const MessageList: React.FC<MessageListProps> = React.memo(
                           compact={compact}
                           apiClient={apiClient}
                           onUpdateMessage={onUpdateMessage}
+                          onReplyWithQuote={onReplyWithQuote}
                         />
                       </div>
                     )

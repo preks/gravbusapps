@@ -76,6 +76,25 @@ chat-input-emoji = Emoji hinzufügen
 chat-attach = Datei anhängen
 chat-mention = Jemanden erwähnen
 
+# Quoted messages (reply = reply with quote)
+chat-reply = Antworten
+chat-reply-with-quote = Mit Zitat antworten
+chat-quoting-name = Zitat von {$name}
+chat-cancel-quote = Zitat abbrechen
+chat-quoted-message-unavailable = Nachricht nicht verfügbar
+
+# Edit message
+chat-edit-message = Nachricht bearbeiten
+chat-save = Speichern
+chat-cancel = Abbrechen
+chat-edited = Bearbeitet
+chat-edited-at = Bearbeitet um { $time }
+
+# Reactions
+chat-reaction-picker-full = Reaktion wählen
+chat-reaction-search-placeholder = Emoji suchen…
+chat-react-with-emoji = Reagieren mit {$emoji}
+
 # Typing Indicator
 chat-someone = Jemand
 chat-isTyping = {$user} schreibt

@@ -124,6 +124,9 @@ export function ChatConversationView({
   const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [searchResultAvatarMap, setSearchResultAvatarMap] = useState<Map<string, string>>(new Map())
+  const [quotedMessage, setQuotedMessage] = useState<Message | null>(null)
+  const onCancelQuote = () => setQuotedMessage(null)
+  const onReplyWithQuote = (msg: Message) => setQuotedMessage(msg)
   const { fetchAvatars } = useEmployeeAvatars(accessToken ?? '')
   const messageSearch = useMessageSearch({
     apiClient,
@@ -154,6 +157,7 @@ export function ChatConversationView({
   useEffect(() => {
     setIsSearchOpen(false)
     setHighlightedMessageId(null)
+    setQuotedMessage(null)
     if (highlightTimeoutRef.current) {
       clearTimeout(highlightTimeoutRef.current)
       highlightTimeoutRef.current = null
@@ -239,6 +243,7 @@ export function ChatConversationView({
           scrollToMessageId={scrollToMessageId}
           onScrollToMessageDone={() => setScrollToMessageId(null)}
           highlightedMessageId={highlightedMessageId}
+          onReplyWithQuote={onReplyWithQuote}
         />
         {isAIProcessing && (
           <div className="gba:px-4 gba:py-2 gba:border-t gba:border-border/30 gba:bg-muted/20">
@@ -278,7 +283,11 @@ export function ChatConversationView({
           </div>
         )}
         <MessageInput
-          onSend={onSendMessageInput}
+          onSend={(content, entityRefs?, attachments?, parentId?, quotedMessageId?) => {
+            const qId = quotedMessage?.id ?? quotedMessageId
+            setQuotedMessage(null)
+            onSendMessageInput(content, entityRefs, attachments, parentId, qId)
+          }}
           onTypingStart={onTypingStart}
           onTypingStop={onTypingStop}
           disabled={false}
@@ -290,6 +299,8 @@ export function ChatConversationView({
           onFocusReady={onFocusReady}
           activeExperts={activeExperts}
           t={t}
+          quotedMessage={quotedMessage}
+          onCancelQuote={onCancelQuote}
         />
       </>
     )

@@ -9,6 +9,7 @@ import type {
   SetUserStatusPayload
 } from '../types'
 import type { CallSignal, CallType, CallParticipant } from './webrtcClient'
+import { normalizeMessage } from './chatApiClient'
 
 // Client version for tracking
 const CLIENT_VERSION = '2'
@@ -175,13 +176,15 @@ export class ChatWebSocketClient {
 
   // Event listeners
   onNewMessage(handler: (message: Message) => void) {
-    this.socket?.on('new_message', (message: Message) => {
-      handler(message)
+    this.socket?.on('new_message', (raw: unknown) => {
+      handler(normalizeMessage(raw))
     })
   }
 
   onMessageUpdated(handler: (message: Message) => void) {
-    this.socket?.on('message:updated', handler)
+    this.socket?.on('message:updated', (raw: unknown) => {
+      handler(normalizeMessage(raw))
+    })
   }
 
   onMessageDeleted(handler: (data: { messageId: string; conversationId: string }) => void) {
@@ -289,7 +292,8 @@ export class ChatWebSocketClient {
     content: string,
     senderId: string,
     parentId?: string,
-    metadata?: Record<string, any>
+    metadata?: Record<string, any>,
+    quotedMessageId?: string
   ) {
     if (!this.socket) {
       console.warn('[ChatWebSocket] ❌ Cannot send message - socket not initialized')
@@ -306,7 +310,8 @@ export class ChatWebSocketClient {
       content,
       senderId,
       ...(parentId && { parentId }),
-      ...(metadata && { metadata })
+      ...(metadata && { metadata }),
+      ...(quotedMessageId && { quotedMessageId })
     }
 
     this.socket.emit('send_message', payload)

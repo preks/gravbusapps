@@ -99,6 +99,7 @@ export interface Message {
   metadata?: Record<string, any>
   parentId?: string
   isEdited: boolean
+  editedAt?: Date | string
   isDeleted: boolean
   createdAt: Date | string
   updatedAt: Date | string
@@ -107,6 +108,9 @@ export interface Message {
   reactions?: Record<string, string[]>
   replies?: Message[]
   status?: 'sending' | 'sent' | 'delivered' | 'read'
+  /** Reply with quote on main timeline */
+  quotedMessageId?: string
+  quotedMessage?: Message
 }
 
 export interface MessageReaction {
