@@ -70,11 +70,15 @@ export interface CycleEditorRatingScaleOption {
   values: string[]
 }
 
-interface CycleEditorModalProps {
+export interface CycleEditorModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSave: (values: CycleEditorValues) => void
+  onSave: (values: CycleEditorValues) => void | Promise<void>
   initialValues?: CycleEditorValues
+  /** Shown under date fields when cycle dates overlap with an existing cycle. */
+  dateOverlapError?: string | null
+  /** Called when start or end date changes to clear the overlap error. */
+  onClearDateError?: () => void
   /** Values for the Valori dropdown (from DB). When provided, localStorage is not used. */
   availableValues?: CycleEditorValueOption[]
   /** Rating scales from the database (not localStorage). */
@@ -94,10 +98,13 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
   onOpenChange,
   onSave,
   initialValues,
+  dateOverlapError = null,
+  onClearDateError,
   availableValues: availableValuesProp = [],
   availableRatingScales: availableRatingScalesProp = []
 }) => {
   const { t } = useTranslation(translations)
+  const [isSaving, setIsSaving] = useState(false)
   const [name, setName] = useState(initialValues?.name || '')
   const [startDate, setStartDate] = useState(initialValues?.startDate || '')
   const [endDate, setEndDate] = useState(initialValues?.endDate || '')
@@ -196,11 +203,10 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
 
   const selectedParticipants = useMemo(() => participantOptions.filter(p => participantsState[p]), [participantsState])
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!name.trim() || !startDate || !endDate) return
-    // Send only the currently selected value IDs (deduped) so backend receives exact selection
     const valueIdsToSave = [...new Set(selectedValueIds)]
-    onSave({
+    const values: CycleEditorValues = {
       id: initialValues?.id,
       version: initialValues?.version,
       name: name.trim(),
@@ -211,11 +217,18 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
       stages: initialStages,
       ratingScaleId: selectedScaleId,
       valueIds: valueIdsToSave,
-      // Preserve API metadata for optimistic locking
       _apiParticipants: initialValues?._apiParticipants,
       _apiCompanyValues: initialValues?._apiCompanyValues
-    })
-    onOpenChange(false)
+    }
+    try {
+      setIsSaving(true)
+      await onSave(values)
+      onOpenChange(false)
+    } catch {
+      // Overlap or other error: parent sets dateOverlapError; keep modal open
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   const handleCancel = () => onOpenChange(false)
@@ -272,6 +285,7 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
                 type="date"
                 value={startDate}
                 onChange={(value: string | [string | null, string | null] | null) => {
+                  onClearDateError?.()
                   const raw = typeof value === 'string' ? value : Array.isArray(value) ? (value[0] ?? '') : ''
                   const parsed = parseStartDate(raw)
                   if (parsed) {
@@ -302,9 +316,9 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
                 type="date"
                 value={endDate}
                 onChange={(value: string | [string | null, string | null] | null) => {
+                  onClearDateError?.()
                   const raw = typeof value === 'string' ? value : Array.isArray(value) ? (value[0] ?? '') : ''
                   setEndDate(raw)
-                  // If end date is manually changed, set frequency to Custom
                   if (frequency !== 'Custom') {
                     setFrequency('Custom')
                   }
@@ -313,6 +327,11 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
               />
             </div>
           </div>
+          {dateOverlapError && (
+            <p className="gba:text-sm gba:text-destructive gba:col-span-full" role="alert">
+              {dateOverlapError}
+            </p>
+          )}
 
           <Separator />
 
@@ -380,7 +399,14 @@ export const CycleEditorModal: React.FC<CycleEditorModalProps> = ({
               type="button"
               variant="default"
               onClick={handleSave}
-              disabled={!name.trim() || !startDate || !endDate || !selectedScaleId || selectedParticipants.length === 0}
+              disabled={
+                !name.trim() ||
+                !startDate ||
+                !endDate ||
+                !selectedScaleId ||
+                selectedParticipants.length === 0 ||
+                isSaving
+              }
             >
               {t('button-save')}
             </Button>

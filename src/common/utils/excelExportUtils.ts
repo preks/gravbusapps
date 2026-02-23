@@ -99,9 +99,12 @@ export const buildExcelWorkbook = (
 
   // Add data rows
   data.forEach(row => {
-    const rowData: Record<string, string> = {}
+    const rowData: Record<string, unknown> = {}
     columns.forEach(col => {
-      rowData[col.key] = formatCellValue(row[col.key])
+      const rawValue = row[col.key]
+      // Keep real numbers as numeric Excel cells; stringify all other values.
+      rowData[col.key] =
+        typeof rawValue === 'number' && Number.isFinite(rawValue) ? rawValue : formatCellValue(rawValue)
     })
     worksheet.addRow(rowData)
   })
