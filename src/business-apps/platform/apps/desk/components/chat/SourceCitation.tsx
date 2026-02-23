@@ -1,16 +1,14 @@
 import React, { useMemo, useState } from 'react'
-import { Badge, useTranslation } from '@newwork/nw-design-system'
+import { Badge } from '@newwork/nw-design-system'
 import { ChevronDown, ChevronUp, FileText, StickyNote, Table } from 'lucide-react'
 import { ChatSource } from '../../types/chat.types'
 import { buildPlatformUrl, navigateTo } from '@/common/utils/navigationUtils'
-import deskTranslations from '../../_i18n'
 
 interface SourceCitationProps {
   sources: ChatSource[]
 }
 
 export const SourceCitation: React.FC<SourceCitationProps> = ({ sources }) => {
-  const { t } = useTranslation(deskTranslations)
   const [isExpanded, setIsExpanded] = useState(false)
 
   if (sources.length === 0) {
@@ -75,7 +73,7 @@ export const SourceCitation: React.FC<SourceCitationProps> = ({ sources }) => {
         className="gba:flex gba:items-center gba:gap-1.5 gba:text-xs gba:text-muted-foreground gba:hover:text-foreground gba:transition-colors"
         data-testid="source-citation-toggle"
       >
-        <span className="gba:font-medium">{t('sources-label')}</span>
+        <span className="gba:font-medium">Sources</span>
         <Badge variant="secondary" className="gba:text-[10px] gba:px-1.5 gba:py-0 gba:h-4">
           {uniqueSources.length}
         </Badge>
@@ -99,7 +97,7 @@ export const SourceCitation: React.FC<SourceCitationProps> = ({ sources }) => {
                     {source.title}
                   </span>
                   <Badge variant="secondary" className="gba:text-[10px] gba:px-1.5 gba:py-0 gba:h-4 gba:capitalize">
-                    {t(`content-type-${source.contentType}` as 'content-type-document')}
+                    {source.contentType}
                   </Badge>
                   <span className="gba:text-[10px] gba:text-muted-foreground gba:ml-auto">
                     {Math.round(source.similarity * 100)}%

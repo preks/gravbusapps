@@ -1,10 +1,9 @@
 import React from 'react'
-import { Avatar, AvatarFallback, AvatarImage, useTranslation } from '@newwork/nw-design-system'
+import { Avatar, AvatarFallback, AvatarImage } from '@newwork/nw-design-system'
 import { User } from 'lucide-react'
 import { ChatMessage as ChatMessageType } from '../../types/chat.types'
 import { SourceCitation } from './SourceCitation'
 import { MarkdownWithChipsRenderer } from '@/common/components/markdown'
-import deskTranslations from '../../_i18n'
 
 interface ChatMessageProps {
   message: ChatMessageType
@@ -21,7 +20,6 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
   userAvatarSrc,
   accessToken
 }) => {
-  const { t } = useTranslation(deskTranslations)
   const isUser = message.role === 'user'
   const showAnsweringPlaceholder = isStreaming && !message.content.trim()
   const assistantContent = showAnsweringPlaceholder ? '' : message.content
@@ -36,9 +34,9 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
           </div>
         </div>
         <Avatar className="gba:w-7 gba:h-7 gba:flex-shrink-0">
-          {userAvatarSrc ? <AvatarImage src={userAvatarSrc} alt={userName || t('chat-you')} /> : null}
+          {userAvatarSrc ? <AvatarImage src={userAvatarSrc} alt={userName || 'You'} /> : null}
           <AvatarFallback className="gba:bg-muted gba:text-muted-foreground gba:text-xs gba:font-medium">
-            {(userName || t('chat-you'))
+            {(userName || 'You')
               .split(' ')
               .filter(Boolean)
               .slice(0, 2)
@@ -60,7 +58,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
             <span className="gba:w-1.5 gba:h-1.5 gba:bg-primary gba:rounded-full gba:animate-bounce gba:[animation-delay:150ms]" />
             <span className="gba:w-1.5 gba:h-1.5 gba:bg-primary gba:rounded-full gba:animate-bounce gba:[animation-delay:300ms]" />
           </div>
-          <span className="gba:text-sm gba:text-muted-foreground">{t('chat-thinking')}</span>
+          <span className="gba:text-sm gba:text-muted-foreground">Thinking...</span>
         </div>
       ) : (
         <div className="gba:max-w-none gba:overflow-x-auto gba:overflow-y-visible">
@@ -80,7 +78,7 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
       {isStreaming && !showAnsweringPlaceholder && (
         <div className="gba:flex gba:items-center gba:gap-1.5 gba:mt-1">
           <div className="gba:w-1.5 gba:h-1.5 gba:bg-primary gba:rounded-full gba:animate-pulse" />
-          <span className="gba:text-xs gba:text-muted-foreground">{t('chat-generating')}</span>
+          <span className="gba:text-xs gba:text-muted-foreground">Generating...</span>
         </div>
       )}
     </div>

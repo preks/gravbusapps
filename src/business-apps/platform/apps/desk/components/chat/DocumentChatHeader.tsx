@@ -7,12 +7,10 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuTrigger,
-  useTranslation
+  DropdownMenuTrigger
 } from '@newwork/nw-design-system'
 import { Cpu, History, Plus, Sparkles, Trash2, X } from 'lucide-react'
 import type { ChatSession } from '../../types/chat.types'
-import deskTranslations from '../../_i18n'
 
 export interface DocumentChatHeaderProps {
   title?: string
@@ -45,7 +43,6 @@ export const DocumentChatHeader: React.FC<DocumentChatHeaderProps> = ({
   onLlmProviderChange,
   'data-testid': testId = 'document-chat-header'
 }) => {
-  const { t } = useTranslation(deskTranslations)
   return (
     <div className="gba:relative gba:flex gba:flex-col gba:border-b gba:border-border/50" data-testid={testId}>
       {/* Header background with gradient */}
@@ -70,11 +67,11 @@ export const DocumentChatHeader: React.FC<DocumentChatHeaderProps> = ({
                 animateTitle ? 'gba:animate-pulse' : ''
               ].join(' ')}
             >
-              {title || t('chat-title-default')}
+              {title || 'Ask your content'}
             </h3>
             <div className="gba:flex gba:items-center gba:gap-1.5">
               <Badge variant="secondary" className="gba:text-[10px] gba:px-1.5 gba:py-0 gba:h-4 gba:font-normal">
-                {llmProvider === 'groq' ? t('chat-badge-fast') : t('chat-badge-smart')}
+                {llmProvider === 'groq' ? 'Fast' : 'Smart'}
               </Badge>
             </div>
           </div>
@@ -95,16 +92,16 @@ export const DocumentChatHeader: React.FC<DocumentChatHeaderProps> = ({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="gba:w-56" data-testid="chat-llm-provider-menu-content">
-              <DropdownMenuLabel className="gba:text-xs">{t('chat-llm-provider')}</DropdownMenuLabel>
+              <DropdownMenuLabel className="gba:text-xs">LLM provider</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={() => onLlmProviderChange('openai')}
                 data-testid="chat-llm-provider-option-openai"
               >
-                {t('chat-badge-smart')} {llmProvider !== 'groq' ? '✓' : ''}
+                Smart {llmProvider !== 'groq' ? '✓' : ''}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => onLlmProviderChange('groq')} data-testid="chat-llm-provider-option-groq">
-                {t('chat-badge-fast')} {llmProvider === 'groq' ? '✓' : ''}
+                Fast {llmProvider === 'groq' ? '✓' : ''}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -123,11 +120,11 @@ export const DocumentChatHeader: React.FC<DocumentChatHeaderProps> = ({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="gba:w-72" data-testid="chat-session-menu-content">
               {sessions.length === 0 ? (
-                <div className="gba:px-3 gba:py-2 gba:text-sm gba:text-muted-foreground">{t('chat-no-sessions')}</div>
+                <div className="gba:px-3 gba:py-2 gba:text-sm gba:text-muted-foreground">No sessions yet</div>
               ) : (
                 <>
                   <div className="gba:px-3 gba:py-2">
-                    <p className="gba:text-xs gba:font-medium gba:text-muted-foreground">{t('chat-recent-chats')}</p>
+                    <p className="gba:text-xs gba:font-medium gba:text-muted-foreground">Recent chats</p>
                   </div>
                   {sessions.map(s => (
                     <DropdownMenuItem
@@ -135,7 +132,7 @@ export const DocumentChatHeader: React.FC<DocumentChatHeaderProps> = ({
                       onClick={() => onSelectSession(s.id)}
                       data-testid={`chat-session-option-${s.id}`}
                     >
-                      <span className="gba:truncate">{s.title || t('chat-new-chat')}</span>
+                      <span className="gba:truncate">{s.title || 'New chat'}</span>
                     </DropdownMenuItem>
                   ))}
                   <DropdownMenuSeparator />
@@ -146,7 +143,7 @@ export const DocumentChatHeader: React.FC<DocumentChatHeaderProps> = ({
                     data-testid="chat-session-option-new"
                   >
                     <Plus className="gba:h-4 gba:w-4" />
-                    {t('chat-new-chat')}
+                    New chat
                   </DropdownMenuItem>
                 </>
               )}
