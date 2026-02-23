@@ -227,13 +227,14 @@ export const TemplateGallery: React.FC<TemplateGalleryProps> = ({
       <Tabs value={activeCategory} onValueChange={v => setActiveCategory(v as 'all' | TemplateCategory)}>
         <TabsList className="gba:flex-wrap gba:h-auto gba:gap-1">
           <TabsTrigger value="all" startIcon={<LayoutTemplate className="gba:w-4 gba:h-4" />}>
-            All Templates
+            {t('templates-all')}
           </TabsTrigger>
           {availableCategories.map(category => {
-            const config = CATEGORY_CONFIG[category]
+            const icon = CATEGORY_ICONS[category] || CATEGORY_ICONS.other
+            const label = getCategoryLabel(category)
             return (
-              <TabsTrigger key={category} value={category} startIcon={config.icon}>
-                {config.label}
+              <TabsTrigger key={category} value={category} startIcon={icon}>
+                {label}
               </TabsTrigger>
             )
           })}
