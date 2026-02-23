@@ -459,6 +459,10 @@ export class ChatApiClient {
     await this.client.post(`/messages/conversation/${conversationId}/mark-read`)
   }
 
+  async markAsUnread(conversationId: string) {
+    await this.client.post(`/messages/conversation/${conversationId}/mark-unread`)
+  }
+
   // WebRTC endpoints
   /**
    * Get ICE servers configuration from the backend
