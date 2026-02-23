@@ -319,6 +319,7 @@ hr-analytics-gap-rate-by-organizational-unit = Rata de gol pe unitate organizaț
 hr-analytics-probation-rate-by-organizational-unit = Rata de probă pe unitate organizațională
 hr-analytics-data-points = { $count } puncte de date
 hr-analytics-employment-error = Eroare la încărcarea datelor de ocupare. Încercați din nou.
+hr-analytics-compensation-error = Eroare la încărcarea datelor de compensație
 hr-analytics-data-table = Tabel de date: { $title }
 hr-analytics-total-entries = { $count } înregistrări
 hr-analytics-total-label = Total

@@ -64,6 +64,9 @@ export interface Conversation {
   lastMessageAt?: Date | string // Timestamp of the last message (from backend)
   lastReadAt?: Date | string // Timestamp when current user last read this conversation (from backend)
   unreadCount?: number
+  isMuted?: boolean
+  isPinned?: boolean
+  pinnedOrder?: number | null
   activeCall?: ActiveCall | null
   activeExperts?: string[] // Array of Every Expert prompt IDs
   metadata?: {
@@ -81,6 +84,9 @@ export interface ConversationParticipant {
   role: 'admin' | 'member'
   joinedAt: Date | string
   lastReadAt?: Date | string
+  isMuted?: boolean
+  isPinned?: boolean
+  pinnedOrder?: number | null
   user?: User
 }
 
@@ -97,7 +103,8 @@ export interface Message {
   createdAt: Date | string
   updatedAt: Date | string
   sender?: User
-  reactions?: MessageReaction[]
+  /** emoji -> userId[] (matches chat-service API) */
+  reactions?: Record<string, string[]>
   replies?: Message[]
   status?: 'sending' | 'sent' | 'delivered' | 'read'
 }

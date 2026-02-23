@@ -99,36 +99,59 @@ export const AdvancedTab: React.FC<TabProps> = ({ state, actions, catalogs }) =>
           <CardDescription>Define how the agent should structure responses</CardDescription>
         </CardHeader>
         <CardContent className="gba:space-y-4">
-          <div className="gba:flex gba:gap-3">
-            <Button
-              variant={state.responseType === 'text' ? 'default' : 'outline'}
-              onClick={() => actions.setResponseType('text')}
-              data-testid="agent-builder-response-text"
-            >
-              Text
-            </Button>
-            <Button
-              variant={state.responseType === 'json' ? 'default' : 'outline'}
-              onClick={() => actions.setResponseType('json')}
-              data-testid="agent-builder-response-json"
-            >
-              JSON
-            </Button>
-          </div>
+          {state.agentType === 'decision' ? (
+            <>
+              <p className="gba:text-xs gba:text-muted-foreground">
+                Decision Experts always respond with JSON. Configure the allowed decision options in the Behavior tab.
+              </p>
 
-          {state.responseType === 'json' && (
-            <div className="gba:space-y-2">
-              <Label>JSON Schema</Label>
-              <Textarea
-                rows={8}
-                value={state.responseSchema}
-                onChange={e => actions.setResponseSchema(e.target.value)}
-                placeholder='{"type": "object", "properties": {...}}'
-                className="gba:font-mono gba:text-sm"
-                data-testid="agent-builder-response-schema"
-              />
-              <p className="gba:text-xs gba:text-muted-foreground">Define the expected JSON structure for responses</p>
-            </div>
+              <div className="gba:space-y-2">
+                <Label>Generated JSON schema</Label>
+                <Textarea
+                  rows={8}
+                  value={state.responseSchema}
+                  readOnly
+                  className="gba:font-mono gba:text-sm"
+                  data-testid="agent-builder-decision-schema-preview"
+                />
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="gba:flex gba:gap-3">
+                <Button
+                  variant={state.responseType === 'text' ? 'default' : 'outline'}
+                  onClick={() => actions.setResponseType('text')}
+                  data-testid="agent-builder-response-text"
+                >
+                  Text
+                </Button>
+                <Button
+                  variant={state.responseType === 'json' ? 'default' : 'outline'}
+                  onClick={() => actions.setResponseType('json')}
+                  data-testid="agent-builder-response-json"
+                >
+                  JSON
+                </Button>
+              </div>
+
+              {state.responseType === 'json' && (
+                <div className="gba:space-y-2">
+                  <Label>JSON Schema</Label>
+                  <Textarea
+                    rows={8}
+                    value={state.responseSchema}
+                    onChange={e => actions.setResponseSchema(e.target.value)}
+                    placeholder='{"type": "object", "properties": {...}}'
+                    className="gba:font-mono gba:text-sm"
+                    data-testid="agent-builder-response-schema"
+                  />
+                  <p className="gba:text-xs gba:text-muted-foreground">
+                    Define the expected JSON structure for responses
+                  </p>
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>

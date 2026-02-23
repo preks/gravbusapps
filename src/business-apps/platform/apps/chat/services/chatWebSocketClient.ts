@@ -9,7 +9,6 @@ import type {
   SetUserStatusPayload
 } from '../types'
 import type { CallSignal, CallType, CallParticipant } from './webrtcClient'
-import { rtkDebug } from '../utils/rtkDebug'
 
 // Client version for tracking
 const CLIENT_VERSION = '2'
@@ -234,6 +233,10 @@ export class ChatWebSocketClient {
     this.socket?.on('conversation_created', handler)
   }
 
+  onParticipantRemoved(handler: (data: { conversationId: string }) => void) {
+    this.socket?.on('participant_removed', handler)
+  }
+
   onConversationRead(handler: (data: { conversationId: string; userId: string; readAt: string }) => void) {
     this.socket?.on('conversation:read', handler)
   }
@@ -244,6 +247,13 @@ export class ChatWebSocketClient {
 
   onConversationCallEnded(handler: (data: { conversationId: string; roomId: string }) => void) {
     this.socket?.on('conversation:call-ended', handler)
+  }
+
+  onCallHistoryMissedCount(handler: (data: { count: number }) => void): () => void {
+    this.socket?.on('call_history:missed_count', handler)
+    return () => {
+      this.socket?.off('call_history:missed_count', handler)
+    }
   }
 
   onConversationActiveCalls(handler: (data: ActiveCall[]) => void) {
@@ -349,9 +359,7 @@ export class ChatWebSocketClient {
         return
       }
 
-      rtkDebug.log('[ChatWebSocket] 📤 Sending user:set_status:', payload)
       this.socket.emit('user:set_status', payload, (response: any) => {
-        rtkDebug.log('[ChatWebSocket] ✅ Received response from user:set_status:', response)
         if (response?.success) {
           resolve(response)
         } else {
@@ -404,9 +412,7 @@ export class ChatWebSocketClient {
         return
       }
 
-      rtkDebug.log('[ChatWebSocket] 📤 Requesting all user statuses')
       this.socket.emit('user:request_all_statuses', (response: { success: boolean; userCount: number }) => {
-        rtkDebug.log('[ChatWebSocket] ✅ Received response from user:request_all_statuses:', response)
         resolve(response)
       })
     })

@@ -154,6 +154,7 @@ export const useRealtimeKitMedia = ({
   const isTogglingRnnoiseRef = useRef(false) // Prevent continuous sync from interfering during toggle
   const hasJustJoinedRef = useRef(false)
   const hasAppliedInitialBackgroundRef = useRef(false)
+  const hasSyncedInitialBackgroundForJoinRef = useRef(false)
   const previousCallTypeRef = useRef<'audio' | 'video'>(callType)
   const hasInitializedFromSDKRef = useRef(false)
   const previousMeetingRef = useRef(meeting)
@@ -286,6 +287,20 @@ export const useRealtimeKitMedia = ({
       }
     }
   }, [callType, meeting, callStatus, isVideoEnabled])
+
+  // Sync initialBackgroundEnabled when entering joining (invite/pre-call preferences)
+  // useState(initialBackgroundEnabled) only runs on first mount; hook may already be mounted with default true
+  useEffect(() => {
+    if (callStatus === 'joining' && !hasSyncedInitialBackgroundForJoinRef.current) {
+      hasSyncedInitialBackgroundForJoinRef.current = true
+      if (backgroundEnabled !== initialBackgroundEnabled) {
+        setBackgroundEnabled(initialBackgroundEnabled)
+      }
+    }
+    if (callStatus === 'idle' || callStatus === 'ended') {
+      hasSyncedInitialBackgroundForJoinRef.current = false
+    }
+  }, [callStatus, initialBackgroundEnabled, backgroundEnabled])
 
   // CRITICAL: Continuously sync video state from SDK (not just on initial mount)
   // This ensures UI buttons reflect actual SDK state when navigating back
@@ -842,6 +857,7 @@ export const useRealtimeKitMedia = ({
   useEffect(() => {
     if (callStatus === 'idle' || callStatus === 'ended') {
       hasAppliedInitialBackgroundRef.current = false
+      hasSyncedInitialBackgroundForJoinRef.current = false
       hasJustJoinedRef.current = false
       hasInitializedFromSDKRef.current = false
     }
@@ -1022,7 +1038,7 @@ export const useRealtimeKitMedia = ({
     if (
       actualSettings.echoCancellation === true &&
       actualSettings.autoGainControl === true &&
-      actualSettings.noiseSuppression === false
+      actualSettings.noiseSuppression === true
     ) {
       // Perfect! All settings are correct
     } else if (

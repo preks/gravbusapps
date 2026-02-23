@@ -2,8 +2,8 @@
  * DocumentView Component for Company Record
  * Displays company documents in the documents tab
  */
-import React, { useMemo, useState } from 'react'
-import { useTranslation } from '@newwork/nw-design-system'
+import React, { useMemo, useState, useCallback } from 'react'
+import { useTranslation, toast } from '@newwork/nw-design-system'
 import { UploadIcon, FolderIcon } from '@phosphor-icons/react'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils' // Fallback for document actions
 import { useCompanyDocuments } from '@/common/data/orgchart/hooks/useCompanyDocuments'
@@ -12,6 +12,8 @@ import { DocumentSection } from '@/components/document-section'
 import { createDocumentSectionActions } from '@/common/utils/documentSectionActions'
 import { CompanyDocumentUploadPopup } from '@/business-apps/mdm/forms/company-document-upload-popup'
 import { CompanyFolderCreatePopup } from '@/business-apps/mdm/forms/company-folder-create-popup'
+import { useRestClient } from '@/common/network/rest/useRestClient'
+import { env } from '@/common/env/EnvUtils'
 import type { DocumentViewProps } from '../../types'
 import translations from '../../_i18n'
 
@@ -37,11 +39,79 @@ export const DocumentView: React.FC<DocumentViewProps> = ({ companyId, ...contex
 
   // State for popups
   const [uploadPopupOpen, setUploadPopupOpen] = useState(false)
+  const [updatePopupOpen, setUpdatePopupOpen] = useState(false)
   const [folderPopupOpen, setFolderPopupOpen] = useState(false)
+  const [folderUpdatePopupOpen, setFolderUpdatePopupOpen] = useState(false)
+  const [selectedDocument, setSelectedDocument] = useState<any>(null)
+  const [selectedFolder, setSelectedFolder] = useState<any>(null)
+
+  // REST client for document operations
+  const restClient = useRestClient(env('NEXT_PUBLIC_ORGCHART_API_URL'))
 
   // Icons - created once to prevent re-renders
   const uploadIcon = useMemo(() => <UploadIcon className="gba:h-4 gba:w-4" />, [])
   const folderIcon = useMemo(() => <FolderIcon className="gba:h-4 gba:w-4" />, [])
+
+  /**
+   * Custom delete handler for MDM using updateCompany endpoint with changeMode: 'DELETE'
+   */
+  const handleDeleteDocument = useCallback(
+    async (documentId: string, _document: any, entityId: string, accessToken?: string) => {
+      if (!accessToken) {
+        toast.error(getTranslationFromI18nKeyAndLabel('document.error.missing-token', 'Access token is required'))
+        return
+      }
+
+      if (!company) {
+        toast.error(getTranslationFromI18nKeyAndLabel('document.error.company-not-loaded', 'Company data not loaded'))
+        return
+      }
+
+      try {
+        // Build payload with changeMode: 'DELETE'
+        const payload = {
+          structureId: company.structureId,
+          code: company.code,
+          documents: [
+            {
+              id: documentId,
+              companyId: entityId,
+              changeMode: 'DELETE'
+            }
+          ]
+        }
+
+        // Call updateCompany endpoint
+        await restClient.put(`/orgchart/api/v1/companies/${entityId}`, payload, {
+          headers: { Authorization: `Bearer ${accessToken}` }
+        })
+
+        toast.success(getTranslationFromI18nKeyAndLabel('document.success.delete', 'Document deleted successfully'))
+
+        // Refresh documents list
+        refetch()
+      } catch (error) {
+        console.error('Error deleting document:', error)
+        toast.error(getTranslationFromI18nKeyAndLabel('document.error.delete.failed', 'Failed to delete document'))
+      }
+    },
+    [company, restClient, refetch]
+  )
+
+  /**
+   * Custom update handler for MDM - opens appropriate popup based on folder flag
+   */
+  const handleUpdateDocument = useCallback((_documentId: string, document: any) => {
+    if (document.folder) {
+      // Open folder popup for folders
+      setSelectedFolder(document)
+      setFolderUpdatePopupOpen(true)
+    } else {
+      // Open document popup for documents
+      setSelectedDocument(document)
+      setUpdatePopupOpen(true)
+    }
+  }, [])
 
   // Toolbar actions for upload and folder buttons
   const toolbarActions = useMemo(
@@ -73,8 +143,10 @@ export const DocumentView: React.FC<DocumentViewProps> = ({ companyId, ...contex
         domain: 'mdm',
         documentFieldName: 'companyDocument',
         entityType: 'company',
-        updateProcessName: 'updateCompanyDocument',
-        deleteEndpoint: '/mdm/deleteCompanyDocument',
+        updateProcessName: 'updateCompanyDocument', // Not used when customUpdateHandler is provided
+        deleteEndpoint: '/mdm/deleteCompanyDocument', // Not used when customDeleteHandler is provided
+        customUpdateHandler: handleUpdateDocument, // Use custom update handler to open popup
+        customDeleteHandler: handleDeleteDocument, // Use custom delete handler with changeMode: 'DELETE'
         getTranslation: (key: string, fallback: string) => {
           // Try to get translation from local translations first
           try {
@@ -86,7 +158,7 @@ export const DocumentView: React.FC<DocumentViewProps> = ({ companyId, ...contex
           return getTranslationFromI18nKeyAndLabel(key, fallback)
         }
       }),
-    [t]
+    [t, handleUpdateDocument, handleDeleteDocument]
   )
 
   return (
@@ -99,6 +171,15 @@ export const DocumentView: React.FC<DocumentViewProps> = ({ companyId, ...contex
           error={error}
           onRefresh={refetch}
           apiConfig={getCompanyDocumentApiConfig()}
+          restClient={restClient}
+          companyData={
+            company?.structureId && company?.code
+              ? {
+                  structureId: company.structureId,
+                  code: company.code
+                }
+              : undefined
+          }
           toolbarActions={toolbarActions}
           customActions={customActions}
           data-testid="company-document-section"
@@ -119,6 +200,27 @@ export const DocumentView: React.FC<DocumentViewProps> = ({ companyId, ...contex
             setUploadPopupOpen(false)
             refetch()
           }}
+          mode="create"
+        />
+      )}
+
+      {/* Document Update Popup */}
+      {updatePopupOpen && company && selectedDocument && (
+        <CompanyDocumentUploadPopup
+          open={updatePopupOpen}
+          company={company}
+          accessToken={context.accessToken}
+          onClose={() => {
+            setUpdatePopupOpen(false)
+            setSelectedDocument(null)
+          }}
+          onSuccess={() => {
+            setUpdatePopupOpen(false)
+            setSelectedDocument(null)
+            refetch()
+          }}
+          mode="update"
+          document={selectedDocument}
         />
       )}
 
@@ -133,6 +235,27 @@ export const DocumentView: React.FC<DocumentViewProps> = ({ companyId, ...contex
             setFolderPopupOpen(false)
             refetch()
           }}
+          mode="create"
+        />
+      )}
+
+      {/* Folder Update Popup */}
+      {folderUpdatePopupOpen && company && selectedFolder && (
+        <CompanyFolderCreatePopup
+          open={folderUpdatePopupOpen}
+          company={company}
+          accessToken={context.accessToken}
+          onClose={() => {
+            setFolderUpdatePopupOpen(false)
+            setSelectedFolder(null)
+          }}
+          onSuccess={() => {
+            setFolderUpdatePopupOpen(false)
+            setSelectedFolder(null)
+            refetch()
+          }}
+          mode="update"
+          folder={selectedFolder}
         />
       )}
     </>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { usePromptManagerClient } from '@/common/network/ai/prompt-manager/usePromptManagerClient'
 import type {
@@ -82,9 +82,67 @@ export const useAgentBuilderState = (
   const [temperature, setTemperature] = useState(0)
   const [responseType, setResponseType] = useState<'text' | 'json'>('text')
   const [responseSchema, setResponseSchema] = useState('')
+  const [decisionOptions, setDecisionOptions] = useState<string[]>([])
   const [knowledgeSources, setKnowledgeSources] = useState<KnowledgeSource[]>([])
+  const [agentCardDivision, setAgentCardDivision] = useState('')
+  const [agentCardDataDomains, setAgentCardDataDomains] = useState('')
+  const [agentCardCapabilities, setAgentCardCapabilities] = useState('')
+  const [agentCardAccessPolicy, setAgentCardAccessPolicy] = useState('public')
   const [didApplyInitial, setDidApplyInitial] = useState(false)
 
+  const normalizeEscapedNewlines = (v: string): string => {
+    // Previous versions accidentally stored literal "\n" sequences.
+    // Normalize to real newlines for display/editing.
+    return String(v || '').replace(/\\n/g, '\n')
+  }
+
+  const getDecisionOptionsCanonical = (opts: string[]): string[] =>
+    Array.from(new Set(opts.map(o => String(o ?? '').trim()).filter(Boolean)))
+
+  const buildDecisionSystemContent = (opts: string[]): string => {
+    const canonical = getDecisionOptionsCanonical(opts)
+    const optionLines = canonical.length > 0 ? canonical.map(o => `- ${o}`).join('\n') : '- (no options configured)'
+
+    return [
+      'You are a Decision Expert for workflow branching.',
+      '',
+      'You will receive Decision instructions from the user. You MUST follow them.',
+      '',
+      'Allowed decisionResult values:',
+      optionLines,
+      '',
+      'Return a JSON object that matches the provided JSON Schema.',
+      '',
+      'Rules:',
+      '- decisionResult must be one of the allowed values',
+      '- If you cannot decide from the context, set escalate=true and explain why in reasoning',
+      '- Keep reasoning concise (1-3 sentences)'
+    ].join('\n')
+  }
+
+  const buildDecisionSchema = (opts: string[]): string => {
+    const enumVals = getDecisionOptionsCanonical(opts)
+    const schema = {
+      type: 'object',
+      properties: {
+        decisionResult: { type: 'string', enum: enumVals },
+        reasoning: { type: 'string' },
+        escalate: { type: 'boolean' }
+      },
+      required: ['decisionResult'],
+      additionalProperties: false
+    }
+    return JSON.stringify(schema, null, 2)
+  }
+
+  const extractDecisionOptions = (schema: unknown): string[] => {
+    if (!schema || typeof schema !== 'object') return []
+    const props = (schema as any).properties
+    const dr = props && typeof props === 'object' ? (props as any).decisionResult : null
+    const en = dr && typeof dr === 'object' ? (dr as any).enum : null
+    if (!Array.isArray(en)) return []
+    return en.map(v => (typeof v === 'string' ? v : '')).filter(v => v !== '')
+  }
   // Catalogs
   const [workspaces, setWorkspaces] = useState<WorkspaceODM[]>([])
   const [services, setServices] = useState<AIServiceODM[]>([])
@@ -179,8 +237,17 @@ export const useAgentBuilderState = (
           setDescription(loadedPrompt.description || '')
           setWorkspaceId(loadedPrompt.workspace?.id || '')
           setModelId(loadedPrompt.model?.id || '')
-          setUserContent(loadedPrompt.user_content?.template || '')
-          setSystemContent(loadedPrompt.system_content?.template || '')
+          const loadedAgentType = loadedPrompt.agent_type || 'flow'
+          setUserContent(
+            loadedAgentType === 'decision'
+              ? normalizeEscapedNewlines(loadedPrompt.user_content?.template || '')
+              : loadedPrompt.user_content?.template || ''
+          )
+          setSystemContent(
+            loadedAgentType === 'decision'
+              ? normalizeEscapedNewlines(loadedPrompt.system_content?.template || '')
+              : loadedPrompt.system_content?.template || ''
+          )
           setAgentType(loadedPrompt.agent_type || 'flow')
           setSpecialty(loadedPrompt.specialty || '')
           setResponseStyle(loadedPrompt.response_style || 'conversational')
@@ -191,9 +258,22 @@ export const useAgentBuilderState = (
           setTags(loadedPrompt.tags || [])
           setToolPolicies((loadedPrompt.toolPolicies || {}) as ToolPolicies)
 
+          // Load Agent Card fields
+          if (loadedPrompt.agent_card) {
+            setAgentCardDivision(loadedPrompt.agent_card.division || '')
+            setAgentCardDataDomains((loadedPrompt.agent_card.data_domains || []).join(', '))
+            setAgentCardCapabilities((loadedPrompt.agent_card.capabilities || []).join(', '))
+            setAgentCardAccessPolicy(loadedPrompt.agent_card.access_policy || 'public')
+          }
+
           if (loadedPrompt.response_schema) {
             setResponseType('json')
             setResponseSchema(JSON.stringify(loadedPrompt.response_schema, null, 2))
+          }
+          if (loadedPrompt.agent_type === 'decision') {
+            setDecisionOptions(extractDecisionOptions(loadedPrompt.response_schema))
+          } else {
+            setDecisionOptions([])
           }
 
           // Parse tool codes
@@ -219,13 +299,32 @@ export const useAgentBuilderState = (
       }
     }
   }, [mode, promptId, capabilities])
+  // Decision Expert enforcement (UI-level)
+  useEffect(() => {
+    if (agentType !== 'decision') return
+    if (responseType !== 'json') setResponseType('json')
+    if (decisionOptions.length === 0) setDecisionOptions([''])
+
+    const nextSystem = buildDecisionSystemContent(decisionOptions)
+    if (systemContent !== nextSystem) setSystemContent(nextSystem)
+
+    // Keep response schema canonical for decision experts.
+    setResponseSchema(buildDecisionSchema(decisionOptions))
+  }, [agentType, decisionOptions, responseType, systemContent])
 
   // Validation
   const isValid = useMemo(() => {
     if (!name || !workspaceId || !modelId || !userContent) return false
     if (agentType === 'everyai' && !specialty) return false
+    if (agentType === 'decision') {
+      if (responseType !== 'json') return false
+      const trimmed = decisionOptions.map(o => String(o ?? '').trim()).filter(Boolean)
+      if (trimmed.length === 0) return false
+      if (new Set(trimmed).size !== trimmed.length) return false
+      if (!userContent.includes('{context}')) return false
+    }
     return true
-  }, [name, workspaceId, modelId, userContent, agentType, specialty])
+  }, [name, workspaceId, modelId, userContent, agentType, specialty, responseType, decisionOptions])
 
   const state: AgentBuilderState = {
     name,
@@ -243,11 +342,16 @@ export const useAgentBuilderState = (
     selectedToolIds,
     selectedToolVersion,
     toolPolicies,
+    agentCardDivision,
+    agentCardDataDomains,
+    agentCardCapabilities,
+    agentCardAccessPolicy,
     serviceId,
     modelId,
     temperature,
     responseType,
     responseSchema,
+    decisionOptions,
     knowledgeSources
   }
 
@@ -267,13 +371,28 @@ export const useAgentBuilderState = (
     setSelectedToolIds,
     setSelectedToolVersion,
     setToolPolicies,
+    setAgentCardDivision,
+    setAgentCardDataDomains,
+    setAgentCardCapabilities,
+    setAgentCardAccessPolicy,
     setServiceId,
     setModelId,
     setTemperature,
     setResponseType,
     setResponseSchema,
+    setDecisionOptions,
     setKnowledgeSources
   }
+
+  const createWorkspace = useCallback(
+    async (wsName: string) => {
+      const created = await client.createWorkspace({ name: wsName, default: false })
+      setWorkspaces(prev => [...prev, created])
+      setWorkspaceId(String(created._id))
+      return created
+    },
+    [client]
+  )
 
   const catalogs = {
     workspaces,
@@ -282,7 +401,8 @@ export const useAgentBuilderState = (
     capabilities,
     capabilitiesLoading,
     capabilitiesError,
-    reloadCapabilities
+    reloadCapabilities,
+    createWorkspace
   }
 
   return { state, actions, catalogs, prompt, isLoadingPrompt, error, setError, isValid }

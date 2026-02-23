@@ -2,6 +2,7 @@
 
 # Modal
 modal-title = Upload Document
+modal-title-update = Update Document
 
 # Labels
 label-file = Select File
@@ -22,6 +23,8 @@ placeholder-no-parent = No parent (root level)
 button-cancel = Cancel
 button-upload = Upload
 button-uploading = Uploading...
+button-update = Update
+button-updating = Updating...
 
 # Messages
 message-required-field = *
@@ -30,3 +33,4 @@ message-required-field = *
 error-name-required = Document name is required
 error-file-required = Please select a file to upload
 error-upload-failed = Failed to upload document
+error-update-failed = Failed to update document

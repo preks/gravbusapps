@@ -58,7 +58,7 @@ const ValuesEditorModal: React.FC<ValuesEditorModalProps> = ({ open, onOpenChang
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent data-testid="performance-values-editor-modal">
+      <DialogContent data-testid="performance-values-editor-modal" onInteractOutside={e => e.preventDefault()}>
         <DialogHeader>
           <DialogTitle>{initialValues ? t('values-modal-title-edit') : t('values-modal-title-add')}</DialogTitle>
           <DialogDescription>{t('values-modal-description')}</DialogDescription>
@@ -84,13 +84,15 @@ const ValuesEditorModal: React.FC<ValuesEditorModalProps> = ({ open, onOpenChang
                 maxLength={PERFORMANCE_VALIDATION.VALUE_DESCRIPTION_MAX_LENGTH}
               />
             </div>
-            <label className="gba:flex gba:items-center gba:gap-2">
-              <Checkbox
-                checked={recordState?.toLowerCase() === 'active'}
-                onCheckedChange={(v: boolean) => setRecordState(v ? 'active' : 'inactive')}
-              />
-              <span>{t('field-active')}</span>
-            </label>
+            {initialValues && (
+              <label className="gba:flex gba:items-center gba:gap-2">
+                <Checkbox
+                  checked={recordState?.toLowerCase() === 'active'}
+                  onCheckedChange={(v: boolean) => setRecordState(v ? 'active' : 'inactive')}
+                />
+                <span>{t('field-active')}</span>
+              </label>
+            )}
           </div>
 
           <div className="gba:flex gba:justify-end gba:gap-2">

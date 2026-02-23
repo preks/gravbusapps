@@ -116,10 +116,7 @@ export const GET_ASSET_BY_ID = `
 export const GET_ASSET_STATISTICS = `
   query GetAssetStatistics {
     totalAssets: AssetAggregate(
-      where: {
-        isDeleted: { _eq: false }
-        assetStatus: { _neq: "${AssetStatus.RETIRED}" }
-      }
+      where: { isDeleted: { _eq: false } }
     ) {
       aggregate {
         count
@@ -149,6 +146,16 @@ export const GET_ASSET_STATISTICS = `
       where: {
         isDeleted: { _eq: false }
         assetStatus: { _eq: "${AssetStatus.UNDER_REPAIR}" }
+      }
+    ) {
+      aggregate {
+        count
+      }
+    }
+    retiredAssets: AssetAggregate(
+      where: {
+        isDeleted: { _eq: false }
+        assetStatus: { _eq: "${AssetStatus.RETIRED}" }
       }
     ) {
       aggregate {
@@ -259,6 +266,7 @@ export interface AssetStatisticsResponse {
   allocatedAssets: { aggregate: { count: number } }
   availableAssets: { aggregate: { count: number } }
   underRepairAssets: { aggregate: { count: number } }
+  retiredAssets: { aggregate: { count: number } }
 }
 
 export interface InsertAssetVariables {

@@ -4,6 +4,7 @@ import React from 'react'
 import { Card, Alert } from '@newwork/nw-design-system'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useTimeTrackingData } from '../../employee-record/components/tabs/hooks/useTimeTrackingData'
+import { useAbsenceData } from '../../employee-record/hooks/useAbsenceData'
 import AbsenceCalendar from '../../employee-record/components/tabs/components/AbsenceCalendar'
 import type { AbsenceListCardAbsence } from '../../employee-record/queries/types'
 import dayjs, { Dayjs } from 'dayjs'
@@ -23,8 +24,12 @@ const DailyLog: React.FC<DailyLogProps> = ({ employeeId, employee, accessToken }
   const [currentDate, setCurrentDate] = React.useState<Dayjs>(dayjs())
   const [selectedStartDate, setSelectedStartDate] = React.useState<any>(null)
   const [selectedEndDate, setSelectedEndDate] = React.useState<any>(null)
+
+  const { absenceList } = useAbsenceData(employeeId, accessToken, [])
+
   const {
-    entries,
+    allMonthEntries,
+    holidayDates,
     error,
     monthlyRequiredUntilYesterdayMinutes,
     monthlyWorkedUntilYesterdayMinutes,
@@ -38,6 +43,7 @@ const DailyLog: React.FC<DailyLogProps> = ({ employeeId, employee, accessToken }
   })
 
   const calendarAbsences = React.useMemo<AbsenceListCardAbsence[]>(() => {
+    const entries = allMonthEntries
     const parseMinutes = (text?: string): number => {
       if (!text) return 0
       let hours = 0
@@ -64,11 +70,11 @@ const DailyLog: React.FC<DailyLogProps> = ({ employeeId, employee, accessToken }
     const toKey = (d: Date) =>
       `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 
-    return entries.map(e => {
+    const timeEntries: AbsenceListCardAbsence[] = entries.map(e => {
       const dayKey = toKey(new Date(e.attendanceDateISO))
       const label = e.effectiveTime || e.recordedTime || '0h'
       const status = mapStatus(e.status)
-      const item: AbsenceListCardAbsence = {
+      return {
         type: label,
         typeId: 'TIME',
         status,
@@ -85,9 +91,10 @@ const DailyLog: React.FC<DailyLogProps> = ({ employeeId, employee, accessToken }
         plannedMinutes: parseMinutes(e.plannedTime),
         effectiveMinutes: parseMinutes(e.effectiveTime)
       }
-      return item
     })
-  }, [entries])
+
+    return [...absenceList, ...timeEntries]
+  }, [allMonthEntries, absenceList])
 
   return (
     <div data-testid="time-tracking-history-container">
@@ -117,6 +124,7 @@ const DailyLog: React.FC<DailyLogProps> = ({ employeeId, employee, accessToken }
           showFooter={false}
           showStatusInTooltip={false}
           showDurationInTooltip={false}
+          holidayDates={holidayDates}
           customLegend={
             <div className="gba:flex gba:items-center gba:gap-6 gba:flex-wrap">
               <div className="gba:flex gba:items-center gba:gap-2">

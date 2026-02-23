@@ -22,7 +22,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger
 } from '@newwork/nw-design-system'
-import { rtkDebug } from '../utils/rtkDebug'
 import {
   MicrophoneIcon,
   MicrophoneSlashIcon,
@@ -42,6 +41,7 @@ import { MicLevelIndicator } from './call/MicLevelIndicator'
 
 interface IncomingGroupCallDialogProps {
   invite: GroupCallInvite
+  playRingtone?: boolean
   userName?: string
   userAvatarUrl?: string
   onAccept: (preferences: {
@@ -79,7 +79,15 @@ const PulsingRing: React.FC<{ colorClass?: string }> = ({ colorClass = 'gba:bg-p
 )
 
 export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = memo(
-  ({ invite, userName, userAvatarUrl, onAccept, onDecline, prefixDataTestId = 'incoming-group-call-dialog' }) => {
+  ({
+    invite,
+    playRingtone = false,
+    userName,
+    userAvatarUrl,
+    onAccept,
+    onDecline,
+    prefixDataTestId = 'incoming-group-call-dialog'
+  }) => {
     const t = useChatTranslation()
     const [ringCount, setRingCount] = useState(0)
     const [isJoining, setIsJoining] = useState(false)
@@ -127,19 +135,21 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = m
 
     const callTitle = getCallTitle()
 
-    // Determine call type label (e.g., "Group video call", "1-on-1 audio call")
+    // Determine call type label (e.g., "Group video call", "1-on-1 audio call") – use full-phrase keys so the whole label is translatable.
     const getCallTypeLabel = (): string => {
-      const mediaType = isVideoCall ? t('call-video') || 'video' : t('call-audio') || 'audio'
-
-      switch (conversationType) {
-        case 'direct':
-          return `1-on-1 ${mediaType} call`
-        case 'meeting':
-          return `${t('chat-meeting') || 'Meeting'} ${mediaType} call`
-        case 'group':
-        default:
-          return `${t('chat-group') || 'Group'} ${mediaType} call`
+      let key: string
+      let fallback: string
+      if (conversationType === 'direct') {
+        key = isVideoCall ? 'call-typeLabelDirectVideo' : 'call-typeLabelDirectAudio'
+        fallback = isVideoCall ? '1-on-1 video call' : '1-on-1 audio call'
+      } else if (conversationType === 'meeting') {
+        key = isVideoCall ? 'call-typeLabelMeetingVideo' : 'call-typeLabelMeetingAudio'
+        fallback = isVideoCall ? 'Meeting video call' : 'Meeting audio call'
+      } else {
+        key = isVideoCall ? 'call-typeLabelGroupVideo' : 'call-typeLabelGroupAudio'
+        fallback = isVideoCall ? 'Group video call' : 'Group audio call'
       }
+      return t(key) || fallback
     }
 
     const callTypeLabel = getCallTypeLabel()
@@ -148,12 +158,6 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = m
     // This ensures fresh defaults for each new invite
     useEffect(() => {
       if (invite) {
-        rtkDebug.log('[IncomingGroupCallDialog] Invite received - resetting to defaults', {
-          callType: invite.callType,
-          willSetMic: true,
-          willSetCamera: invite.callType === 'video',
-          willSetBackground: true
-        })
         setRingCount(0)
         setIsJoining(false)
         setMicEnabled(true)
@@ -167,16 +171,10 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = m
 
     const handleAccept = () => {
       if (isJoining) {
-        rtkDebug.log('[IncomingGroupCallDialog] Already joining, ignoring duplicate click')
         return
       }
 
       setIsJoining(true)
-      rtkDebug.log('[IncomingGroupCallDialog] Joining with preferences:', {
-        micEnabled,
-        cameraEnabled,
-        backgroundEnabled
-      })
 
       // Cleanup preview stream before joining
       cleanupPreview()
@@ -192,7 +190,6 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = m
 
     const handleDecline = () => {
       if (isJoining) {
-        rtkDebug.log('[IncomingGroupCallDialog] Already joining, ignoring decline')
         return
       }
 
@@ -202,8 +199,6 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = m
 
     // Cleanup preview stream
     const cleanupPreview = useCallback(() => {
-      rtkDebug.log('[IncomingGroupCallDialog] Cleaning up preview')
-
       // Stop all tracks
       streamTracksRef.current.forEach(track => {
         track.stop()
@@ -229,8 +224,6 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = m
 
       const initPreview = async () => {
         try {
-          rtkDebug.log('[IncomingGroupCallDialog] Requesting camera access for preview')
-
           const stream = await navigator.mediaDevices.getUserMedia({
             video: selectedVideoInputId
               ? { deviceId: { exact: selectedVideoInputId }, width: 640, height: 360 }
@@ -254,8 +247,6 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = m
           if (videoRef.current) {
             videoRef.current.srcObject = stream
           }
-
-          rtkDebug.log('[IncomingGroupCallDialog] Camera preview ready')
         } catch (error) {
           console.error('[IncomingGroupCallDialog] Failed to access camera:', error)
         } finally {
@@ -282,31 +273,44 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = m
       return () => clearInterval(interval)
     }, [])
 
-    // Play ringtone effect
+    // Play ringtone effect only in the ringing-leader tab (one tab per invite).
+    // One AudioContext + oscillator per beep (original behavior); all cleaned up to avoid leaks.
+    const MAX_OPEN_CONTEXTS = 6
+
     useEffect(() => {
-      let audioContext: AudioContext | null = null
-      let oscillator: OscillatorNode | null = null
-      let gainNode: GainNode | null = null
+      if (!playRingtone) return
+      const contexts: AudioContext[] = []
+      const pendingTimeouts: ReturnType<typeof setTimeout>[] = []
 
       const playRing = () => {
         try {
-          audioContext = new AudioContext()
-          oscillator = audioContext.createOscillator()
-          gainNode = audioContext.createGain()
-
+          while (contexts.length >= MAX_OPEN_CONTEXTS) {
+            const old = contexts.shift()
+            if (old) {
+              old.close().catch(() => {
+                // Already closed or failed
+              })
+            }
+          }
+          const audioContext = new AudioContext()
+          contexts.push(audioContext)
+          const oscillator = audioContext.createOscillator()
+          const gainNode = audioContext.createGain()
           oscillator.connect(gainNode)
           gainNode.connect(audioContext.destination)
-
           oscillator.type = 'sine'
           oscillator.frequency.value = 440
-
           gainNode.gain.value = 0.1
-
           oscillator.start()
 
-          setTimeout(() => {
-            if (oscillator) oscillator.stop()
+          const id = setTimeout(() => {
+            try {
+              oscillator.stop()
+            } catch {
+              // Already stopped
+            }
           }, 200)
+          pendingTimeouts.push(id)
         } catch (e) {
           console.debug('Could not play ringtone:', e)
         }
@@ -317,18 +321,14 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = m
 
       return () => {
         clearInterval(ringInterval)
-        if (oscillator) {
-          try {
-            oscillator.stop()
-          } catch {
-            // Already stopped
-          }
-        }
-        if (audioContext) {
-          audioContext.close()
-        }
+        pendingTimeouts.forEach(id => clearTimeout(id))
+        contexts.forEach(ctx => {
+          ctx.close().catch(() => {
+            // Already closed or failed
+          })
+        })
       }
-    }, [])
+    }, [playRingtone])
 
     return (
       <Dialog open={true} onOpenChange={() => {}}>
@@ -672,12 +672,12 @@ export const IncomingGroupCallDialog: React.FC<IncomingGroupCallDialogProps> = m
     )
   },
   (prevProps, nextProps) => {
-    // Only re-render if invite or testId changes
     return (
       prevProps.invite.roomId === nextProps.invite.roomId &&
       prevProps.invite.callType === nextProps.invite.callType &&
       prevProps.invite.from.id === nextProps.invite.from.id &&
       prevProps.invite.conversationName === nextProps.invite.conversationName &&
+      prevProps.playRingtone === nextProps.playRingtone &&
       prevProps.prefixDataTestId === nextProps.prefixDataTestId
     )
   }

@@ -67,6 +67,7 @@ export const CompanyValues: React.FC<CompanyValuesProps> = ({
   }
 
   const handleDeactivateValue = (id: string) => {
+    // Client-side guard: requires cycles to have valueIds populated (from GraphQL performanceCycleCompanyValue)
     const usedInActiveCycle = cycles.some(c => c.status === 'Active' && (c.valueIds ?? []).includes(id))
     if (usedInActiveCycle) {
       toast.warning(t('values-error-cannot-deactivate-active-cycle'), {

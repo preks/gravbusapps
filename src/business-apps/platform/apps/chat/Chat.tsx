@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo, memo } from 'react'
+import React, { useState, useEffect, useRef, useMemo, useCallback, memo } from 'react'
 import { Alert, AlertDescription, Spinner, Toaster } from '@newwork/nw-design-system'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { useChatClient } from './hooks/useChatClient'
@@ -19,6 +19,7 @@ import { useEmployeeAvatars } from './hooks/useEmployeeAvatars'
 import { ChatConversationView } from './components/ChatConversationView'
 import { ChatLayout } from './components/ChatLayout'
 import { ConversationList } from './components/ConversationList'
+import { CallHistory } from './components/CallHistory/CallHistory'
 import { ChatModals } from './components/ChatModals'
 import { playNudgeSound, applyShakeAnimation, injectNudgeStyles } from './utils/nudgeUtils'
 // import { initGlobalMinimizedCallRenderer } from './components/GlobalMinimizedCall'
@@ -26,7 +27,6 @@ import type { User } from './types'
 import type { CallParticipant } from './services/webrtcClient'
 import type { GroupCallParticipant } from './services/groupWebrtcClient'
 import { TranslationProvider, useChatTranslation } from './contexts/TranslationContext'
-import { rtkDebug } from './utils/rtkDebug'
 import { seedTestParticipants, TestParticipantPresets } from './utils/seedTestParticipants'
 
 // Presence info type for sharing with other components
@@ -35,11 +35,20 @@ export interface PresenceInfo {
   lastSeen?: string
 }
 
+export interface InitialOpenWithUserPayload {
+  userId: string
+  userName?: string
+  prefilledMessage?: string
+  metadata?: Record<string, unknown>
+}
+
 interface ChatProps extends BusinessAppContextProps {
   prefixDataTestId?: string
   onPresenceMapChange?: (presenceMap: Map<string, PresenceInfo>) => void
   onActiveCallsChange?: (activeCalls: Record<string, any>) => void
   calendarApiClient?: any | null // CalendarApiClient type
+  /** When set, open this user's conversation on mount without showing the list (e.g. from sidepanel pending open) */
+  initialOpenWithUser?: InitialOpenWithUserPayload | null
 }
 
 const ChatInner: React.FC<ChatProps> = memo(
@@ -49,12 +58,20 @@ const ChatInner: React.FC<ChatProps> = memo(
     prefixDataTestId = 'chat',
     onPresenceMapChange,
     onActiveCallsChange,
-    calendarApiClient
+    calendarApiClient,
+    initialOpenWithUser
   }) => {
     const t = useChatTranslation()
     const containerRef = useRef<HTMLDivElement>(null)
     const chatViewRef = useRef<HTMLDivElement>(null)
-    const [showConversationList, setShowConversationList] = useState(true)
+    const [showConversationList, setShowConversationList] = useState(!initialOpenWithUser)
+    const getShowCallHistoryFromUrl = useCallback((): boolean => {
+      if (typeof globalThis.window === 'undefined') return false
+      return new URLSearchParams(globalThis.window.location.search).get('view') === 'call-history'
+    }, [])
+    const [showCallHistory, setShowCallHistory] = useState(getShowCallHistoryFromUrl)
+    const [missedCallsCount, setMissedCallsCount] = useState(0)
+    const [callHistoryRefreshTrigger, setCallHistoryRefreshTrigger] = useState(0)
     const [showCreateGroupModal, setShowCreateGroupModal] = useState(false)
     const [showGroupSettingsModal, setShowGroupSettingsModal] = useState(false)
     const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -81,7 +98,7 @@ const ChatInner: React.FC<ChatProps> = memo(
     // Reset URL processing refs on mount to allow restoration after hard refresh
     useEffect(() => {
       // Only reset if there's a conversationId in URL (user refreshed with a conversation open)
-      const urlParams = new URLSearchParams(window.location.search)
+      const urlParams = new URLSearchParams(globalThis.window.location.search)
       if (urlParams.get('conversationId')) {
         conversationIdFromUrlProcessed.current = false
       }
@@ -148,14 +165,49 @@ const ChatInner: React.FC<ChatProps> = memo(
       loadMoreMessages,
       loadMoreConversations,
       refreshConversations,
+      updateConversation,
+      updateMessage,
       startTyping,
       stopTyping,
       sendNudge,
       registerNudgeCallback,
       apiClient,
-      wsClient
+      wsClient,
+      conversationSearch,
+      conversationFilterKind,
+      conversationUnreadOnly,
+      setConversationSearch,
+      setConversationFilterKind,
+      setConversationUnreadOnly
       // Note: activeCalls is now provided by useRealtimeKitGroupCall hook as activeConversationCalls
     } = chatClient
+
+    // Fetch unseen missed-calls count for badge (when user and apiClient available)
+    useEffect(() => {
+      if (!apiClient || !currentUser?.id) return
+      apiClient
+        .getMissedCallsCount()
+        .then(setMissedCallsCount)
+        .catch(() => setMissedCallsCount(0))
+    }, [apiClient, currentUser?.id])
+
+    // Subscribe to real-time missed-count updates from WebSocket
+    useEffect(() => {
+      if (!wsClient) return
+      const unsubscribe = wsClient.onCallHistoryMissedCount((data: { count: number }) => {
+        setMissedCallsCount(data.count)
+        setCallHistoryRefreshTrigger(prev => prev + 1)
+      })
+      return unsubscribe
+    }, [wsClient])
+
+    // Refresh call history list when a call ends (outcomes may have been recorded)
+    useEffect(() => {
+      if (!wsClient) return
+      wsClient.onConversationCallEnded(() => {
+        setCallHistoryRefreshTrigger(prev => prev + 1)
+      })
+    }, [wsClient])
 
     useChatPresenceSync({
       presenceMap,
@@ -223,7 +275,7 @@ const ChatInner: React.FC<ChatProps> = memo(
       containerRef,
       isEmbeddedMobile,
       showConversationList,
-      hasConversation: !!stableActiveConversation
+      hasConversation: !!stableActiveConversation || showCallHistory
     })
 
     // Render tracking (after stableActiveConversation is defined)
@@ -241,6 +293,23 @@ const ChatInner: React.FC<ChatProps> = memo(
       prevRenderDataRef.current = currentData
     }
 
+    // Sync call history view with URL (bookmarkable; pushState on open so back closes panel)
+    const updateCallHistoryUrl = useCallback((show: boolean, push = false) => {
+      if (typeof globalThis.window === 'undefined') return
+      const urlParams = new URLSearchParams(globalThis.window.location.search)
+      if (show) urlParams.set('view', 'call-history')
+      else urlParams.delete('view')
+      const query = urlParams.toString()
+      const newUrl = query ? `${globalThis.window.location.pathname}?${query}` : globalThis.window.location.pathname
+      if (push) globalThis.window.history.pushState({}, '', newUrl)
+      else globalThis.window.history.replaceState({}, '', newUrl)
+    }, [])
+    useEffect(() => {
+      const handlePopState = () => setShowCallHistory(getShowCallHistoryFromUrl())
+      globalThis.window.addEventListener('popstate', handlePopState)
+      return () => globalThis.window.removeEventListener('popstate', handlePopState)
+    }, [getShowCallHistoryFromUrl])
+
     // Track active conversation changes
     useEffect(() => {
       // Diagnostics removed
@@ -253,6 +322,32 @@ const ChatInner: React.FC<ChatProps> = memo(
       isConnected,
       setShowConversationList
     })
+
+    // Open conversation on mount when opened from sidepanel (pending open) so user doesn't see list → conversation transition
+    const initialOpenProcessedRef = useRef(false)
+    useEffect(() => {
+      if (!initialOpenWithUser || !isConnected || initialOpenProcessedRef.current) return
+      initialOpenProcessedRef.current = true
+      const { userId, prefilledMessage } = initialOpenWithUser
+      createDirectConversation(userId)
+        .then(() => {
+          setShowConversationList(false)
+          if (prefilledMessage) {
+            setTimeout(() => setDraftMessage(prefilledMessage), 200)
+          }
+          try {
+            window.dispatchEvent(new CustomEvent('chat:conversation-ready'))
+            if (window.parent !== window) {
+              window.parent.postMessage({ type: 'CHAT_CONVERSATION_READY' }, '*')
+            }
+          } catch {
+            // ignore
+          }
+        })
+        .catch(() => {
+          initialOpenProcessedRef.current = false
+        })
+    }, [initialOpenWithUser, isConnected, createDirectConversation, setShowConversationList, setDraftMessage])
 
     // Register nudge callback to handle incoming nudges from OTHER users
     useEffect(() => {
@@ -346,82 +441,41 @@ const ChatInner: React.FC<ChatProps> = memo(
         ;(window as any).TestParticipantPresets = TestParticipantPresets
         ;(window as any).seedTestParticipants = seedTestParticipants
         ;(window as any).setTestParticipants = (countOrPreset: number | string) => {
-          rtkDebug.log('[TEST] setTestParticipants called with:', countOrPreset)
           try {
             let participants: GroupCallParticipant[]
             if (typeof countOrPreset === 'number') {
               participants = seedTestParticipants(countOrPreset)
-              rtkDebug.log(
-                `✅ Test participants set to ${countOrPreset}, generated ${participants.length} participants`
-              )
             } else if (
               typeof countOrPreset === 'string' &&
               TestParticipantPresets[countOrPreset as keyof typeof TestParticipantPresets]
             ) {
               const preset = TestParticipantPresets[countOrPreset as keyof typeof TestParticipantPresets]
               participants = preset()
-              rtkDebug.log(
-                `✅ Test participants set to preset: ${countOrPreset}, generated ${participants.length} participants`
-              )
             } else {
               console.error(
                 `❌ Invalid preset: ${countOrPreset}. Available: two, four, six, nine, twelve, mixed, allMuted, allVideoOff`
               )
               return
             }
-            // Use ref to ensure we have the latest setter
             setTestParticipantsOverrideRef.current(participants)
-            rtkDebug.log(
-              '[TEST] State updated, participants:',
-              participants.map(p => p.odName)
-            )
           } catch (error) {
             console.error('[TEST] Error setting test participants:', error)
           }
         }
         ;(window as any).clearTestParticipants = () => {
-          rtkDebug.log('[TEST] Clearing test participants')
           setTestParticipantsOverrideRef.current(null)
-          rtkDebug.log('✅ Test participants cleared, using real participants')
         }
         ;(window as any).getTestParticipants = () => {
-          rtkDebug.log('[TEST] Current test participants override:', testParticipantsOverride)
-          rtkDebug.log('[TEST] Current real participants count:', groupParticipantsRaw.length)
           return testParticipantsOverride
         }
         ;(window as any).testParticipantsDebug = () => {
-          rtkDebug.log('🔍 Test Participants Debug Info:')
-          rtkDebug.log('  - Function exists:', typeof (window as any).setTestParticipants === 'function')
-          rtkDebug.log('  - Current override:', testParticipantsOverride)
-          rtkDebug.log('  - Current override count:', testParticipantsOverride?.length || 0)
-          rtkDebug.log('  - Real participants count:', groupParticipantsRaw.length)
-          rtkDebug.log('  - Is in call:', groupCallState.status !== 'idle')
-          rtkDebug.log('  - Call status:', groupCallState.status)
+          // Test participant debug helper (no logging per plan)
         }
-        rtkDebug.log('🎮 Test participant utilities available:')
-        rtkDebug.log('  - window.setTestParticipants(5)')
-        rtkDebug.log('  - window.setTestParticipants("nine")')
-        rtkDebug.log('  - window.clearTestParticipants()')
-        rtkDebug.log('  - window.getTestParticipants()')
-        rtkDebug.log('  - window.testParticipantsDebug()')
       }
     }, [])
 
     // Use test participants if override is set, otherwise use real participants
     const groupParticipants = testParticipantsOverride || groupParticipantsRaw
-
-    // Debug log when participants change
-    useEffect(() => {
-      if (testParticipantsOverride) {
-        rtkDebug.log(
-          '[TEST] ✅ Using test participants:',
-          testParticipantsOverride.length,
-          testParticipantsOverride.map(p => p.odName)
-        )
-      } else {
-        rtkDebug.log('[TEST] Using real participants:', groupParticipantsRaw.length)
-      }
-    }, [testParticipantsOverride, groupParticipantsRaw.length])
 
     // Combined in-call state (RTK only; P2P removed)
     const isInAnyCall = isInGroupCall
@@ -556,6 +610,39 @@ const ChatInner: React.FC<ChatProps> = memo(
       NUDGE_COOLDOWN_MS
     })
 
+    const handlePinConversation = useCallback(() => {
+      const id = activeConversationId
+      if (!id || !apiClient || !updateConversation) return
+      const currentlyPinned = activeConversation?.isPinned ?? false
+      apiClient
+        .updateConversationPreferences(id, {
+          isPinned: !currentlyPinned,
+          pinnedOrder: currentlyPinned ? null : undefined
+        })
+        .then(prefs => {
+          updateConversation(id, {
+            isPinned: prefs.isPinned,
+            pinnedOrder: prefs.pinnedOrder
+          })
+          refreshConversations?.()
+        })
+        .catch(() => {})
+    }, [activeConversationId, activeConversation?.isPinned, apiClient, updateConversation, refreshConversations])
+
+    const handleMuteConversation = useCallback(
+      (muted: boolean) => {
+        const id = activeConversationId
+        if (!id || !apiClient || !updateConversation) return
+        apiClient
+          .updateConversationPreferences(id, { isMuted: muted })
+          .then(prefs => {
+            updateConversation(id, { isMuted: prefs.isMuted })
+          })
+          .catch(() => {})
+      },
+      [activeConversationId, apiClient, updateConversation]
+    )
+
     // Keep ref in sync with activeConversationId for stable callbacks
     useEffect(() => {
       activeConversationIdRef.current = activeConversationId
@@ -604,6 +691,80 @@ const ChatInner: React.FC<ChatProps> = memo(
           })
       }
     }, [conversations, setActiveConversation, activeConversationId, apiClient, conversationsLoading])
+
+    // Handle in-app "open chat with conversation" (e.g. from calendar meeting "Open Chat" - same as dashboard)
+    useEffect(() => {
+      const handleOpenWithConversation = async (event: Event) => {
+        const customEvent = event as CustomEvent<{ conversationId: string }>
+        const conversationIdParam = customEvent.detail?.conversationId
+        if (!conversationIdParam) return
+
+        const conversation = conversations.find(c => c.id === conversationIdParam)
+        if (conversation) {
+          setActiveConversation(conversation)
+          setShowConversationList(false)
+          try {
+            globalThis.dispatchEvent(new CustomEvent('chat:conversation-ready'))
+            const g = globalThis as unknown as Window
+            if (g.parent !== g) {
+              g.parent.postMessage({ type: 'CHAT_CONVERSATION_READY' }, '*')
+            }
+          } catch {
+            // ignore
+          }
+          return
+        }
+
+        if (apiClient) {
+          try {
+            const fetchedConversation = await apiClient.getConversationById(conversationIdParam)
+            if (fetchedConversation) {
+              setActiveConversation(fetchedConversation)
+              setShowConversationList(false)
+              try {
+                globalThis.dispatchEvent(new CustomEvent('chat:conversation-ready'))
+                const g = globalThis as unknown as Window
+                if (g.parent !== g) {
+                  g.parent.postMessage({ type: 'CHAT_CONVERSATION_READY' }, '*')
+                }
+              } catch {
+                // ignore
+              }
+            }
+          } catch {
+            // ignore
+          }
+        }
+      }
+
+      globalThis.addEventListener('chat:open-with-conversation', handleOpenWithConversation)
+      return () => {
+        globalThis.removeEventListener('chat:open-with-conversation', handleOpenWithConversation)
+      }
+    }, [conversations, setActiveConversation, setShowConversationList, apiClient])
+
+    // Notify calendar to refresh when a meeting is created (so other participants see it without reload)
+    useEffect(() => {
+      const socket = wsClient?.getSocket()
+      if (!socket) return
+      const onMeetingCreated = () => {
+        globalThis.dispatchEvent(new CustomEvent('calendar:refresh'))
+      }
+      const onMeetingUpdated = () => {
+        globalThis.dispatchEvent(new CustomEvent('calendar:refresh'))
+      }
+      const onMeetingDeleted = () => {
+        globalThis.dispatchEvent(new CustomEvent('calendar:refresh'))
+      }
+      socket.on('meeting_created', onMeetingCreated)
+      socket.on('meeting_updated', onMeetingUpdated)
+      socket.on('meeting_deleted', onMeetingDeleted)
+      return () => {
+        socket.off('meeting_created', onMeetingCreated)
+        socket.off('meeting_updated', onMeetingUpdated)
+        socket.off('meeting_deleted', onMeetingDeleted)
+      }
+    }, [wsClient])
 
     // Handle URL parameters for context and AI agent conversations (only once)
     useEffect(() => {
@@ -709,208 +870,266 @@ const ChatInner: React.FC<ChatProps> = memo(
       currentUserId: currentUser?.id ?? null
     })
 
-    // Error state
-    if (error) {
-      const getErrorMessage = () => {
-        const errorKey = error.name || 'chat.connectionError'
-        const errorMessages: Record<string, string> = {
-          'chat.serviceUnavailable': t('chat-serviceUnavailable'),
-          'chat.serviceNotFound': t('chat-serviceNotFound'),
-          'chat.authenticationFailed': t('chat-authenticationFailed'),
-          'chat.connectionError': t('chat-connectionError')
-        }
-        return errorMessages[errorKey] || errorMessages['chat.connectionError']
-      }
+    const connectionError = error
+    const isLoading = !isConnected && conversationsLoading
 
-      return (
-        <div
-          ref={containerRef}
-          className="gba:h-full gba:flex gba:items-center gba:justify-center gba:p-4 gba:bg-background"
-          data-testid={`${prefixDataTestId}-error`}
-        >
-          <Alert variant="destructive" className="gba:max-w-sm">
-            <AlertDescription>{getErrorMessage()}</AlertDescription>
-          </Alert>
-        </div>
-      )
-    }
-
-    // Loading state
-    if (!isConnected && conversationsLoading) {
-      return (
-        <div
-          ref={containerRef}
-          className="gba:h-full gba:flex gba:flex-col gba:items-center gba:justify-center gba:gap-3 gba:bg-background"
-          data-testid={`${prefixDataTestId}-loading`}
-        >
-          <Spinner size="lg" />
-          <span className="gba:text-sm gba:text-muted-foreground">{t('chat-connecting')}</span>
-        </div>
-      )
+    const getConnectionErrorLabel = (name: string): string => {
+      if (name === 'chat.serviceUnavailable') return t('chat-serviceUnavailable')
+      if (name === 'chat.serviceNotFound') return t('chat-serviceNotFound')
+      if (name === 'chat.authenticationFailed') return t('chat-authenticationFailed')
+      return t('chat-connectionError')
     }
 
     return (
-      <>
-        <ChatLayout
-          containerRef={containerRef}
-          prefixDataTestId={prefixDataTestId}
-          errorMessage={errorMessage}
-          onDismissError={() => setErrorMessage(null)}
-          isOffline={isOffline}
-          offlineLabel={t('chat-offline')}
-          conversationId={activeConversationId}
-          messageCount={messages.length}
-          showListView={showListView}
-          showChatView={showChatView}
-          isSingleViewMode={isSingleViewMode}
-          chatViewRef={chatViewRef}
-          listSlot={
-            <ConversationList
-              conversations={conversations}
-              activeConversationId={activeConversationId}
-              onConversationSelect={handleConversationSelect}
-              onRemoveConversation={async conversationId => {
-                try {
-                  setErrorMessage(null)
-                  await closeConversation(conversationId)
-                } catch (error: any) {
-                  const errorMsg = error?.response?.data?.message || error?.message || ''
-                  if (errorMsg.toLowerCase().includes('last owner')) {
-                    setErrorMessage(t('chat-cannotLeaveAsLastOwner'))
-                    // Select the conversation and open group settings
-                    const conv = conversations.find(c => c.id === conversationId)
-                    if (conv) {
-                      handleConversationSelect(conv)
-                      setShowGroupSettingsModal(true)
-                    }
-                  } else {
-                    setErrorMessage(t('chat-failedToLeave'))
-                  }
-                }
-              }}
-              onCreateConversation={handleCreateConversation}
-              onCreateGroup={handleCreateGroup}
-              isLoading={conversationsLoading}
-              isLoadingMore={conversationsLoadingMore}
-              hasMore={conversationsHasMore}
-              onLoadMore={loadMoreConversations}
-              currentUserId={currentUser?.id || null}
-              accessToken={accessToken}
-              compact={viewMode === 'compact'}
-              presenceMap={presenceMap}
-              presenceVersion={presenceVersion}
-              conversationExpertCounts={conversationExpertCounts}
-              wsClient={wsClient}
-              isConnected={isConnected}
-            />
-          }
-          chatViewSlot={
-            <ChatConversationView
+      <div
+        ref={containerRef}
+        className="gba:h-full gba:flex gba:flex-col gba:bg-background gba:overflow-hidden"
+        data-testid={`${prefixDataTestId}-container`}
+      >
+        {connectionError && (
+          <div
+            className="gba:h-full gba:flex gba:items-center gba:justify-center gba:p-4 gba:bg-background"
+            data-testid={`${prefixDataTestId}-error`}
+          >
+            <Alert variant="destructive" className="gba:max-w-sm">
+              <AlertDescription>{getConnectionErrorLabel(connectionError.name)}</AlertDescription>
+            </Alert>
+          </div>
+        )}
+        {!connectionError && isLoading && (
+          <div
+            className="gba:h-full gba:flex gba:flex-col gba:items-center gba:justify-center gba:gap-3 gba:bg-background"
+            data-testid={`${prefixDataTestId}-loading`}
+          >
+            <Spinner size="lg" />
+            <span className="gba:text-sm gba:text-muted-foreground">{t('chat-connecting')}</span>
+          </div>
+        )}
+        {!connectionError && !isLoading && (
+          <>
+            <ChatLayout
               prefixDataTestId={prefixDataTestId}
-              stableActiveConversation={stableActiveConversation}
+              errorMessage={errorMessage}
+              onDismissError={() => setErrorMessage(null)}
+              isOffline={isOffline}
+              offlineLabel={t('chat-offline')}
+              conversationId={activeConversationId}
+              messageCount={messages.length}
+              showListView={showListView}
+              showChatView={showChatView}
               isSingleViewMode={isSingleViewMode}
-              viewMode={viewMode}
-              onBack={handleBack}
-              onCloseConversation={handleCloseConversation}
-              onRemoveConversation={handleRemoveConversation}
-              onShowGroupSettings={handleShowGroupSettings}
-              onShowExpertSelector={() => setShowExpertSelector(true)}
-              onNudge={handleNudge}
-              onAudioCall={handleAudioCall}
-              onVideoCall={handleVideoCall}
-              onJoinCall={handleJoinActiveCall}
-              currentUserId={currentUser?.id || null}
-              otherUserPresence={otherUserPresence as UserPresence | undefined}
-              isCallEnabled={isConnected}
-              isInCall={isInAnyCall}
-              isStartingCall={isStartingCall}
-              activeCall={activeCallInfo}
-              t={t}
-              activeExperts={activeExperts}
-              onRemoveExpert={expertId => removeExpert(expertId, sendMessageVoid)}
-              messages={messages}
-              messagesLoading={messagesLoading}
-              hasMoreMessages={hasMoreMessages}
-              onLoadMoreMessages={loadMoreMessages}
-              activeConversationId={activeConversationId}
-              typingUsers={Object.values(typingUsers || {}).flat()}
-              onReplyToAI={handleReplyToAI}
-              accessToken={accessToken}
-              onSendMessage={handleAISendMessage}
-              apiClient={apiClient}
-              isAIProcessing={isAIProcessing}
-              aiStreamingText={aiStreamingText}
-              isExpertProcessing={isExpertProcessing}
-              processingExpert={processingExpert}
-              onSendMessageInput={handleSendMessage as (content: string, ...args: unknown[]) => Promise<void>}
-              onTypingStart={handleTypingStart}
-              onTypingStop={handleTypingStop}
-              draftMessage={draftMessage}
-              onDraftChange={setDraftMessage}
-              onRegisterMentionReady={fn => {
-                registerMentionEntityRef.current = fn
-              }}
-              onFocusReady={fn => {
-                focusInputRef.current = fn
-              }}
+              chatViewRef={chatViewRef}
+              listSlot={
+                <ConversationList
+                  conversations={conversations}
+                  activeConversationId={activeConversationId}
+                  onConversationSelect={conv => {
+                    setShowCallHistory(false)
+                    handleConversationSelect(conv)
+                  }}
+                  onRemoveConversation={async conversationId => {
+                    try {
+                      setErrorMessage(null)
+                      await closeConversation(conversationId)
+                    } catch (error: any) {
+                      const errorMsg = error?.response?.data?.message || error?.message || ''
+                      if (errorMsg.toLowerCase().includes('last owner')) {
+                        setErrorMessage(t('chat-cannotLeaveAsLastOwner'))
+                        const conv = conversations.find(c => c.id === conversationId)
+                        if (conv) {
+                          handleConversationSelect(conv)
+                          setShowGroupSettingsModal(true)
+                        }
+                      } else {
+                        setErrorMessage(t('chat-failedToLeave'))
+                      }
+                    }
+                  }}
+                  onCreateConversation={handleCreateConversation}
+                  onCreateGroup={handleCreateGroup}
+                  isLoading={conversationsLoading}
+                  isLoadingMore={conversationsLoadingMore}
+                  hasMore={conversationsHasMore}
+                  onLoadMore={loadMoreConversations}
+                  currentUserId={currentUser?.id || null}
+                  accessToken={accessToken}
+                  compact={viewMode === 'compact'}
+                  presenceMap={presenceMap}
+                  presenceVersion={presenceVersion}
+                  conversationExpertCounts={conversationExpertCounts}
+                  wsClient={wsClient}
+                  isConnected={isConnected}
+                  search={conversationSearch}
+                  filterKind={conversationFilterKind}
+                  unreadOnly={conversationUnreadOnly}
+                  onSearchChange={setConversationSearch}
+                  onFilterKindChange={setConversationFilterKind}
+                  onUnreadOnlyChange={setConversationUnreadOnly}
+                  missedCallsCount={missedCallsCount}
+                  onOpenCallHistory={() => {
+                    setShowCallHistory(true)
+                    setShowConversationList(false)
+                    updateCallHistoryUrl(true, true)
+                    if (apiClient) {
+                      apiClient.markCallHistorySeen().catch(() => {})
+                      setMissedCallsCount(0)
+                    }
+                  }}
+                />
+              }
+              chatViewSlot={
+                showCallHistory && apiClient && currentUser ? (
+                  <CallHistory
+                    apiClient={apiClient}
+                    accessToken={accessToken}
+                    currentUserId={currentUser.id}
+                    showBackButton={isSingleViewMode}
+                    iconOnlyFilters={isSingleViewMode}
+                    refreshTrigger={callHistoryRefreshTrigger}
+                    presenceMap={presenceMap}
+                    onBack={() => {
+                      setShowCallHistory(false)
+                      setShowConversationList(true)
+                      updateCallHistoryUrl(false)
+                      if (apiClient) {
+                        apiClient
+                          .getMissedCallsCount()
+                          .then(setMissedCallsCount)
+                          .catch(() => {})
+                      }
+                    }}
+                    onOpenConversation={conversationId => {
+                      const conv = conversations.find(c => c.id === conversationId)
+                      if (conv) {
+                        setActiveConversation(conv)
+                        setShowConversationList(false)
+                      } else {
+                        apiClient
+                          .getConversationById(conversationId)
+                          .then((c: any) => {
+                            setActiveConversation(c)
+                            setShowConversationList(false)
+                          })
+                          .catch(() => {})
+                      }
+                      setShowCallHistory(false)
+                      updateCallHistoryUrl(false)
+                    }}
+                  />
+                ) : (
+                  <ChatConversationView
+                    prefixDataTestId={prefixDataTestId}
+                    stableActiveConversation={stableActiveConversation}
+                    isPinned={stableActiveConversation?.isPinned}
+                    isMuted={stableActiveConversation?.isMuted}
+                    onPin={handlePinConversation}
+                    onMute={handleMuteConversation}
+                    isSingleViewMode={isSingleViewMode}
+                    viewMode={viewMode}
+                    onBack={handleBack}
+                    onCloseConversation={handleCloseConversation}
+                    onRemoveConversation={handleRemoveConversation}
+                    onShowGroupSettings={handleShowGroupSettings}
+                    onShowExpertSelector={() => setShowExpertSelector(true)}
+                    onNudge={handleNudge}
+                    onAudioCall={handleAudioCall}
+                    onVideoCall={handleVideoCall}
+                    onJoinCall={handleJoinActiveCall}
+                    currentUserId={currentUser?.id || null}
+                    otherUserPresence={otherUserPresence as UserPresence | undefined}
+                    isCallEnabled={isConnected}
+                    isInCall={isInAnyCall}
+                    isStartingCall={isStartingCall}
+                    activeCall={activeCallInfo}
+                    t={t}
+                    activeExperts={activeExperts}
+                    onRemoveExpert={expertId => removeExpert(expertId, sendMessageVoid)}
+                    messages={messages}
+                    messagesLoading={messagesLoading}
+                    hasMoreMessages={hasMoreMessages}
+                    onLoadMoreMessages={loadMoreMessages}
+                    activeConversationId={activeConversationId}
+                    typingUsers={Object.values(typingUsers || {}).flat()}
+                    onReplyToAI={handleReplyToAI}
+                    accessToken={accessToken}
+                    onSendMessage={handleAISendMessage}
+                    apiClient={apiClient}
+                    onUpdateMessage={updateMessage}
+                    isAIProcessing={isAIProcessing}
+                    aiStreamingText={aiStreamingText}
+                    isExpertProcessing={isExpertProcessing}
+                    processingExpert={processingExpert}
+                    onSendMessageInput={handleSendMessage as (content: string, ...args: unknown[]) => Promise<void>}
+                    onTypingStart={handleTypingStart}
+                    onTypingStop={handleTypingStop}
+                    draftMessage={draftMessage}
+                    onDraftChange={setDraftMessage}
+                    onRegisterMentionReady={fn => {
+                      registerMentionEntityRef.current = fn
+                    }}
+                    onFocusReady={fn => {
+                      focusInputRef.current = fn
+                    }}
+                  />
+                )
+              }
             />
-          }
-        />
-
-        <ChatModals
-          prefixDataTestId={prefixDataTestId}
-          accessToken={accessToken}
-          apiClient={apiClient}
-          currentUserId={currentUser?.id || null}
-          currentUser={currentUser}
-          activeConversation={activeConversation}
-          showCreateGroupModal={showCreateGroupModal}
-          onCloseCreateGroupModal={() => setShowCreateGroupModal(false)}
-          onCreateGroup={
-            handleCreateGroupSubmit as (
-              name: string,
-              participantIds: string[],
-              description?: string,
-              dimensionContext?: unknown
-            ) => Promise<void>
-          }
-          showGroupSettingsModal={showGroupSettingsModal}
-          onCloseGroupSettingsModal={handleCloseGroupSettings}
-          onRefreshConversations={refreshConversations}
-          showExpertSelector={showExpertSelector}
-          onCloseExpertSelector={() => setShowExpertSelector(false)}
-          availableExperts={availableExperts}
-          expertsLoading={expertsLoading}
-          activeExperts={activeExperts}
-          onAddExpert={(expert, sendMessageVoid) =>
-            addExpert(
-              expert as never,
-              sendMessageVoid as (
-                conversationId: string,
-                content: string,
-                metadata?: Record<string, unknown>
-              ) => Promise<void>
-            )
-          }
-          sendMessageVoid={
-            sendMessageVoid as (
-              conversationId: string,
-              content: string,
-              metadata?: Record<string, unknown>
-            ) => void | Promise<void>
-          }
-          incomingGroupCallInvite={incomingGroupCallInvite}
-          currentUserAsParticipant={currentUserAsParticipant}
-          onAcceptGroupInvite={acceptGroupInvite}
-          onDeclineGroupInvite={declineGroupInvite}
-          rejoinModalState={rejoinModalState}
-          onRejoinWithPreferences={handleRejoinWithPreferences}
-          onRejoinCancel={handleRejoinCancel}
-          groupCallState={groupCallState}
-          realtimeKitGroupCall={realtimeKitGroupCall}
-          groupParticipants={groupParticipants}
-        />
-      </>
+            <ChatModals
+              prefixDataTestId={prefixDataTestId}
+              accessToken={accessToken}
+              apiClient={apiClient}
+              currentUserId={currentUser?.id || null}
+              currentUser={currentUser}
+              activeConversation={activeConversation}
+              showCreateGroupModal={showCreateGroupModal}
+              onCloseCreateGroupModal={() => setShowCreateGroupModal(false)}
+              onCreateGroup={
+                handleCreateGroupSubmit as (
+                  name: string,
+                  participantIds: string[],
+                  description?: string,
+                  dimensionContext?: unknown
+                ) => Promise<void>
+              }
+              showGroupSettingsModal={showGroupSettingsModal}
+              onCloseGroupSettingsModal={handleCloseGroupSettings}
+              onRefreshConversations={refreshConversations}
+              showExpertSelector={showExpertSelector}
+              onCloseExpertSelector={() => setShowExpertSelector(false)}
+              availableExperts={availableExperts}
+              expertsLoading={expertsLoading}
+              activeExperts={activeExperts}
+              onAddExpert={(expert, sendMessageVoid) =>
+                addExpert(
+                  expert as never,
+                  sendMessageVoid as (
+                    conversationId: string,
+                    content: string,
+                    metadata?: Record<string, unknown>
+                  ) => Promise<void>
+                )
+              }
+              sendMessageVoid={
+                sendMessageVoid as (
+                  conversationId: string,
+                  content: string,
+                  metadata?: Record<string, unknown>
+                ) => void | Promise<void>
+              }
+              incomingGroupCallInvite={incomingGroupCallInvite}
+              currentUserAsParticipant={currentUserAsParticipant}
+              onAcceptGroupInvite={acceptGroupInvite}
+              onDeclineGroupInvite={declineGroupInvite}
+              rejoinModalState={rejoinModalState}
+              onRejoinWithPreferences={handleRejoinWithPreferences}
+              onRejoinCancel={handleRejoinCancel}
+              groupCallState={groupCallState}
+              realtimeKitGroupCall={realtimeKitGroupCall}
+              groupParticipants={groupParticipants}
+            />
+          </>
+        )}
+      </div>
     )
   },
   (prevProps, nextProps) => {

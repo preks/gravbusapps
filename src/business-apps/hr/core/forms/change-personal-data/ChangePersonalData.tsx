@@ -14,7 +14,8 @@ import {
   useTranslation,
   FormLabel,
   FormControl,
-  Combobox
+  Combobox,
+  Button
 } from '@newwork/nw-design-system'
 import flowIconUrl from '@/assets/icons/flowSmall.svg'
 import { ChangePersonalDataProvider, useChangePersonalData } from './ChangePersonalDataContext'
@@ -27,6 +28,7 @@ import QualificationFields from './components/QualificationFields'
 import { useFileClient } from '@/common/network/files/useFileClient'
 import { env } from '@/common/env/EnvUtils'
 import { AppActionForm } from '@/components/app-action-form/AppActionForm'
+import { dispatchProcessContinueEvent } from '@/common/utils/processEventUtils'
 import translations from '../../apps/employee-record/_i18n'
 
 const ChangePersonalDataContent: React.FC<BusinessAppContextProps> = ({ accessToken, additionalData }) => {
@@ -224,13 +226,13 @@ const ChangePersonalDataForm: React.FC<ChangePersonalDataFormProps> = ({ accessT
   const filteredDocumentTypes = useMemo(
     () =>
       (catalogs.documentType || []).filter(
-        t => !selectedDocumentGroupId || t.parentEntryId === selectedDocumentGroupId
+        (docType: CatalogEntry) => !selectedDocumentGroupId || docType.parentEntryId === selectedDocumentGroupId
       ),
     [catalogs.documentType, selectedDocumentGroupId]
   )
 
   useEffect(() => {
-    const subscription = form.watch((value, { name }) => {
+    const subscription = form.watch((_value, { name }) => {
       if (name) {
         hasUserInteractedRef.current = true
       }
@@ -261,6 +263,49 @@ const ChangePersonalDataForm: React.FC<ChangePersonalDataFormProps> = ({ accessT
       ),
     []
   )
+
+  const isEmployeePending = useMemo(() => {
+    const state = (employee?.status ?? '').toString().toUpperCase()
+    return state === 'PENDING'
+  }, [employee?.status])
+
+  if (isEmployeePending) {
+    return (
+      <div
+        className="gba:mx-auto gba:font-primary gba:flex gba:flex-col gba:w-[100%] gba:max-w-[800px]"
+        data-testid="flw_changePersonalData_screenContentLayout"
+      >
+        <FormHeader
+          title={title}
+          flowIconUrl={flowIconUrl}
+          employee={
+            employee
+              ? {
+                  firstName: employee.firstName,
+                  lastName: employee.lastName,
+                  pictureThumbnail: employee.pictureThumbnail,
+                  jobTitle: employeePosition?.jobPosition?.name
+                }
+              : undefined
+          }
+        />
+        <div className="gba:flex gba:flex-col gba:gap-4 gba:pt-4" data-testid="change-personal-data-pending-message">
+          <p className="gba:text-muted-foreground gba:text-sm">{t('change-personal-data-pending-message')}</p>
+          <div className="gba:flex gba:justify-end gba:pt-4">
+            <Button
+              data-testid="change-personal-data-pending-ok"
+              variant="default"
+              onClick={() => {
+                dispatchProcessContinueEvent('pse_abort', {})
+              }}
+            >
+              {t('change-personal-data-pending-ok')}
+            </Button>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div
@@ -497,7 +542,7 @@ const ChangePersonalDataForm: React.FC<ChangePersonalDataFormProps> = ({ accessT
                         <FormControl>
                           <Combobox
                             className="gba:w-full"
-                            options={(catalogs.documentGroup || []).map(g => ({
+                            options={(catalogs.documentGroup || []).map((g: CatalogEntry) => ({
                               value: String(g.id),
                               label: getCatalogValue(g)
                             }))}
@@ -531,9 +576,9 @@ const ChangePersonalDataForm: React.FC<ChangePersonalDataFormProps> = ({ accessT
                         <FormControl>
                           <Combobox
                             className="gba:w-full"
-                            options={(filteredDocumentTypes || []).map(t => ({
-                              value: String(t.id),
-                              label: getCatalogValue(t)
+                            options={(filteredDocumentTypes || []).map((docType: CatalogEntry) => ({
+                              value: String(docType.id),
+                              label: getCatalogValue(docType)
                             }))}
                             value={field.value || ''}
                             onValueChange={v => field.onChange(v)}

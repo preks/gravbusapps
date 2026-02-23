@@ -22,7 +22,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger
 } from '@newwork/nw-design-system'
-import { rtkDebug } from '../utils/rtkDebug'
 import {
   MicrophoneIcon,
   MicrophoneSlashIcon,
@@ -47,6 +46,7 @@ interface PreCallSetupDialogProps {
   participantCount?: number
   userName?: string
   userAvatarUrl?: string
+  otherParticipantName?: string
   onStart: (preferences: {
     micEnabled: boolean
     cameraEnabled: boolean
@@ -90,6 +90,7 @@ export const PreCallSetupDialog: React.FC<PreCallSetupDialogProps> = memo(
     participantCount = 0,
     userName,
     userAvatarUrl,
+    otherParticipantName,
     onStart,
     onCancel,
     prefixDataTestId = 'pre-call-setup-dialog',
@@ -124,27 +125,31 @@ export const PreCallSetupDialog: React.FC<PreCallSetupDialogProps> = memo(
     // Determine the call title based on conversation type
     const getCallTitle = (): string => {
       switch (conversationType) {
-        case 'direct':
-          // 1-on-1 call - show "Call with {participant name}"
-          if (userName) {
-            return t('chat-callWith', { name: userName }) || `Call with ${userName}`
+        case 'direct': {
+          const nameForTitle =
+            otherParticipantName ||
+            (conversationName && conversationName !== t('chat-directCall') ? conversationName : undefined)
+          if (nameForTitle) {
+            return t('chat-callWith', { name: nameForTitle }) || `Call with ${nameForTitle}`
           }
 
           // Try to parse the conversationName if it's in "Call {Name A} | {Name B}" format
           const participants = parseDirectCallName(conversationName)
-          if (participants && participants.length === 2) {
-            // For now, just show the first participant (we don't know which one is "other")
-            // In a real scenario, you'd filter out the current user's name
+          if (participants?.length === 2 && userName) {
+            const other = participants.find(p => p !== userName)
+            const name = other ?? participants[0]
+            return t('chat-callWith', { name }) || `Call with ${name}`
+          }
+          if (participants?.length === 2) {
             return t('chat-callWith', { name: participants[0] }) || `Call with ${participants[0]}`
           }
 
           return conversationName || t('chat-directCall') || '1-on-1 Call'
+        }
         case 'meeting':
-          // Calendar meeting
           return conversationName || t('chat-meeting') || 'Meeting'
         case 'group':
         default:
-          // Group call
           return conversationName || t('chat-groupCall') || 'Group Call'
       }
     }
@@ -155,12 +160,6 @@ export const PreCallSetupDialog: React.FC<PreCallSetupDialogProps> = memo(
     // This ensures fresh defaults for each new call
     useEffect(() => {
       if (isOpen) {
-        rtkDebug.log('[PreCallSetupDialog] Dialog opened - resetting to defaults', {
-          callType,
-          willSetMic: true,
-          willSetCamera: callType === 'video',
-          willSetBackground: true
-        })
         setIsStarting(false)
         setMicEnabled(true)
         setCameraEnabled(callType === 'video')
@@ -173,16 +172,10 @@ export const PreCallSetupDialog: React.FC<PreCallSetupDialogProps> = memo(
 
     const handleStart = () => {
       if (isStarting) {
-        rtkDebug.log('[PreCallSetupDialog] Already starting, ignoring duplicate click')
         return
       }
 
       setIsStarting(true)
-      rtkDebug.log('[PreCallSetupDialog] Starting call with preferences:', {
-        micEnabled,
-        cameraEnabled,
-        backgroundEnabled
-      })
 
       // Cleanup preview stream before starting
       cleanupPreview()
@@ -198,7 +191,6 @@ export const PreCallSetupDialog: React.FC<PreCallSetupDialogProps> = memo(
 
     const handleCancel = () => {
       if (isStarting) {
-        rtkDebug.log('[PreCallSetupDialog] Already starting, ignoring cancel')
         return
       }
 
@@ -208,8 +200,6 @@ export const PreCallSetupDialog: React.FC<PreCallSetupDialogProps> = memo(
 
     // Cleanup preview stream
     const cleanupPreview = useCallback(() => {
-      rtkDebug.log('[PreCallSetupDialog] Cleaning up preview')
-
       // Stop all tracks
       streamTracksRef.current.forEach(track => {
         track.stop()
@@ -235,8 +225,6 @@ export const PreCallSetupDialog: React.FC<PreCallSetupDialogProps> = memo(
 
       const initPreview = async () => {
         try {
-          rtkDebug.log('[PreCallSetupDialog] Requesting camera access for preview')
-
           const stream = await navigator.mediaDevices.getUserMedia({
             video: selectedVideoInputId
               ? { deviceId: { exact: selectedVideoInputId }, width: 640, height: 360 }
@@ -260,8 +248,6 @@ export const PreCallSetupDialog: React.FC<PreCallSetupDialogProps> = memo(
           if (videoRef.current) {
             videoRef.current.srcObject = stream
           }
-
-          rtkDebug.log('[PreCallSetupDialog] Camera preview ready')
         } catch (error) {
           console.error('[PreCallSetupDialog] Failed to access camera:', error)
         } finally {
@@ -609,6 +595,7 @@ export const PreCallSetupDialog: React.FC<PreCallSetupDialogProps> = memo(
       prevProps.callType === nextProps.callType &&
       prevProps.conversationName === nextProps.conversationName &&
       prevProps.participantCount === nextProps.participantCount &&
+      prevProps.otherParticipantName === nextProps.otherParticipantName &&
       prevProps.prefixDataTestId === nextProps.prefixDataTestId
     )
   }

@@ -77,6 +77,7 @@ import {
   useDocumentEditorShortcuts,
   useVersionUserDisplays
 } from '../../hooks'
+import { useEditorKeyboardIsolation } from '../../../shared/hooks/useEditorKeyboardIsolation'
 import { PageBreak } from './extensions/PageBreak'
 import { createYjsCursorExtension } from './extensions/YjsCursor'
 import { EditorToolbar } from './EditorToolbar'
@@ -1132,6 +1133,8 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       editor,
       editorContainerRef
     })
+
+    useEditorKeyboardIsolation(editorContainerRef)
 
     // Export to Word
     const handleExportWord = useCallback(async () => {
