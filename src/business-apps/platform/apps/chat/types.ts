@@ -99,6 +99,7 @@ export interface Message {
   metadata?: Record<string, any>
   parentId?: string
   isEdited: boolean
+  editedAt?: Date | string
   isDeleted: boolean
   createdAt: Date | string
   updatedAt: Date | string
@@ -107,6 +108,15 @@ export interface Message {
   reactions?: Record<string, string[]>
   replies?: Message[]
   status?: 'sending' | 'sent' | 'delivered' | 'read'
+  /** Reply with quote on main timeline */
+  quotedMessageId?: string
+  quotedMessage?: Message
+  /** Snapshot of quoted message at reply time (content, date, sender name) so edits to source don't change the quote */
+  quotedMessageSnapshot?: {
+    content: string
+    createdAt?: string
+    senderDisplayName?: string
+  }
 }
 
 export interface MessageReaction {

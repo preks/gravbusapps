@@ -76,6 +76,25 @@ chat-input-emoji = Adaugă emoji
 chat-attach = Atașează fișier
 chat-mention = Menționează pe cineva
 
+# Quoted messages (reply = reply with quote)
+chat-reply = Răspunde
+chat-reply-with-quote = Răspunde cu citat
+chat-quoting-name = Citat de la {$name}
+chat-cancel-quote = Anulează citatul
+chat-quoted-message-unavailable = Mesaj indisponibil
+
+# Edit message
+chat-edit-message = Editează mesajul
+chat-save = Salvează
+chat-cancel = Anulează
+chat-edited = Editat
+chat-edited-at = Editat la { $time }
+
+# Reactions
+chat-reaction-picker-full = Alege o reacție
+chat-reaction-search-placeholder = Caută emoji…
+chat-react-with-emoji = Reacționează cu {$emoji}
+
 # Typing Indicator
 chat-someone = Cineva
 chat-isTyping = {$user} scrie

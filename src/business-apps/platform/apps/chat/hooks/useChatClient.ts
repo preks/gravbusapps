@@ -802,7 +802,13 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
   }, [activeConversationId, isConnected])
 
   const sendMessage = useCallback(
-    async (conversationId: string, content: string, metadata?: Record<string, any>) => {
+    async (
+      conversationId: string,
+      content: string,
+      metadata?: Record<string, any>,
+      parentId?: string,
+      quotedMessageId?: string
+    ) => {
       if (!currentUser) {
         throw new Error('User not authenticated')
       }
@@ -823,6 +829,7 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
             metadata,
+            ...(quotedMessageId && { quotedMessageId }),
             sender: {
               id: currentUser.id,
               keycloakId: currentUser.keycloakId || '',
@@ -845,12 +852,10 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
           })
 
           // Send via WebSocket - the gateway will create the message and broadcast it
-          wsClientRef.current.sendMessage(conversationId, content, currentUser.id, undefined, metadata)
+          wsClientRef.current.sendMessage(conversationId, content, currentUser.id, parentId, metadata, quotedMessageId)
 
           // The real message will be received via WebSocket 'new_message' event
           // and will replace the optimistic one
-          // Note: Backend should persist the message to database when received via WebSocket
-          // If message doesn't appear after refresh, backend persistence may be failing
           return optimisticMessage
         } catch {
           // Fall through to REST API fallback
@@ -858,7 +863,6 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
       }
 
       // Fallback to REST API if WebSocket is not available
-
       if (!apiClientRef.current) {
         throw new Error('Chat client not initialized')
       }
@@ -868,8 +872,9 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
           conversationId,
           content,
           currentUser.id,
-          undefined,
-          metadata
+          parentId,
+          metadata,
+          quotedMessageId
         )
         messagesHook.addMessage(message)
         typingHook.stopTyping(conversationId)
@@ -1198,6 +1203,7 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
       updateConversation: conversationsHook.updateConversation,
       refreshMessages: messagesHook.refresh,
       updateMessage: messagesHook.updateMessage,
+      ensureMessageInList: messagesHook.ensureMessageInList,
       startTyping: typingHook.startTyping,
       stopTyping: typingHook.stopTyping,
       sendNudge,
@@ -1253,6 +1259,7 @@ export function useChatClient({ accessToken, apiUrl, wsUrl, wsSocketPath }: UseC
       conversationsHook.loadConversations,
       messagesHook.refresh,
       messagesHook.updateMessage,
+      messagesHook.ensureMessageInList,
       typingHook.startTyping,
       typingHook.stopTyping,
       sendNudge,

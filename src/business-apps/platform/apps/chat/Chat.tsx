@@ -167,6 +167,7 @@ const ChatInner: React.FC<ChatProps> = memo(
       refreshConversations,
       updateConversation,
       updateMessage,
+      ensureMessageInList,
       startTyping,
       stopTyping,
       sendNudge,
@@ -1055,6 +1056,7 @@ const ChatInner: React.FC<ChatProps> = memo(
                     onSendMessage={handleAISendMessage}
                     apiClient={apiClient}
                     onUpdateMessage={updateMessage}
+                    ensureMessageInList={ensureMessageInList}
                     isAIProcessing={isAIProcessing}
                     aiStreamingText={aiStreamingText}
                     isExpertProcessing={isExpertProcessing}
