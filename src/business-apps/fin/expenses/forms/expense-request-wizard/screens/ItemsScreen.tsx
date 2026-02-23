@@ -17,6 +17,17 @@ import RejectionComment from '../components/RejectionComment'
 import { getLatestRejectComment } from '../utils/tripScreenUtils'
 import { REQUEST_STATUS, DEFAULT_ITEM_LIST_LIMIT, DEFAULT_CURRENCY_FALLBACK } from '../constants/constants'
 
+function getItemCurrencyForFetch(
+  currentCurrency: string | null,
+  expenseRequestData: { ExpenseItem?: Array<{ currencyRef?: string }> } | null,
+  expenseItems: Array<{ currencyRef?: string }>
+): string | null {
+  if (currentCurrency) return currentCurrency
+  if (expenseRequestData?.ExpenseItem?.length) return expenseRequestData.ExpenseItem[0].currencyRef ?? null
+  if (expenseItems?.length) return expenseItems[0].currencyRef || null
+  return null
+}
+
 interface ItemsScreenProps extends BusinessAppContextProps {
   additionalData?: {
     mdi_modulePayload?: {
@@ -121,14 +132,7 @@ const ItemsScreen: React.FC<ItemsScreenProps> = props => {
       // API should also exclude payload items and locally deleted items to prevent duplicates
       const excludedIdsForApi = [...excludedIdsBase, ...payloadItemIds, ...deletedItems.map((d: any) => d.id)]
 
-      let itemCurrency = null
-      if (currentCurrency) {
-        itemCurrency = currentCurrency
-      } else if (expenseRequestData.ExpenseItem && expenseRequestData.ExpenseItem.length > 0) {
-        itemCurrency = expenseRequestData.ExpenseItem[0].currencyRef
-      } else if (expenseItems && expenseItems.length > 0) {
-        itemCurrency = expenseItems[0].currencyRef || ''
-      }
+      const itemCurrency = getItemCurrencyForFetch(currentCurrency, expenseRequestData, expenseItems ?? [])
 
       const userLocale = getCurrentActiveUserLocale()
       const ruleIdForFilter = typeof employeeRuleId === 'string' && employeeRuleId ? employeeRuleId : null

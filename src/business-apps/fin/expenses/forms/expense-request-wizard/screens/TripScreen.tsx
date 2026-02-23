@@ -11,15 +11,16 @@ import LocationForm from '../components/LocationForm/LocationForm'
 
 import { DestinationLimit, LocationData, TripScreenProps } from '../utils/types'
 import { getMaxLimits, getMinLimits, getMinMaxLimits, validateAndSanitizeLocation } from '../utils/locationTimeUtils'
-import { getRequestsAbsences, fetchEmployeeExpenseItemsFromPayloadForRuleCheck } from '../ExpenseRequestWizardQueries'
+import {
+  getRequestsAbsences,
+  fetchEmployeeExpenseItemsFromPayloadForRuleCheck,
+  fetchEmployeeRule
+} from '../ExpenseRequestWizardQueries'
 import { useExpenseRequestWizardContext } from '../context/ExpenseRequestWizardContext'
 import { showToast } from '../../../utils/notificationUtils'
 import LoadScreen from './LoadScreen'
-import { fetchEmployeeRule } from '../ExpenseRequestWizardQueries'
-import { REQUEST_STATUS } from '../constants/constants'
-import { getOverlapWarningMessage } from '../utils/dateOverlapUtils'
-import { combineDateTimeToISOString } from '../utils/locationTimeUtils'
 import {
+  REQUEST_STATUS,
   ABSENCE_STATUS,
   defaultDestination,
   defaultEndLocation,
@@ -27,6 +28,8 @@ import {
   EXCLUDED_STATUSES,
   TRIP_REQUEST_TYPE
 } from '../constants/constants'
+import { getOverlapWarningMessage } from '../utils/dateOverlapUtils'
+import { combineDateTimeToISOString } from '../utils/locationTimeUtils'
 import RejectionComment from '../components/RejectionComment'
 import { EVENTS } from '../../../utils/constants'
 import { mergeUniqueById } from '../../../utils/functionUtils'
@@ -40,6 +43,20 @@ import expenseRequestWizardTranslations from '../_i18n'
  * @param otherRules - All available travel regions
  * @returns Filtered travel regions and flag indicating if all items use the same currency
  */
+/**
+ * Returns trip data array from expense request (from request trip or from plan).
+ * Reduces cognitive complexity in loadInitialTripData.
+ */
+function getTripDataArrayFromRequest(expenseRequestData: any): any[] {
+  const byPk = expenseRequestData?.ExpenseRequestByPk
+  if (!byPk) return []
+  const tripFromRequest =
+    byPk.expenseRequestTrip && Array.isArray(byPk.expenseRequestTrip) && byPk.expenseRequestTrip.length > 0
+  if (tripFromRequest) return byPk.expenseRequestTrip
+  if (byPk.expensePlan?.expenseRequestTrip) return byPk.expensePlan.expenseRequestTrip
+  return []
+}
+
 const filterRules = (items: any[], mainRule: any, otherRules: any[]) => {
   if (!items || !items.length || !mainRule || !otherRules) {
     return { sameRuleCurrency: false, valuesArray: otherRules || [] }
@@ -202,150 +219,76 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
     }
   }
 
-  const checkRuleConflicts = async (newRuleId: string): Promise<string | null> => {
-    if (!expenseRequestData) {
-      return null
-    }
-
-    const requestValue = expenseRequestData.ExpenseRequestByPk
-    if (!requestValue) {
-      return null
-    }
-
-    if (requestValue.expensePlan) {
-      const planValue = requestValue.expensePlan
-
-      if (planValue.expenseRuleId && planValue.expenseRuleId !== newRuleId) {
-        try {
-          const getRuleDetailsQuery = `query getRuleDetails($requestRuleId: uuid!, $planRuleId: uuid!) {
-            requestRule: ExpenseRuleByPk(id: $requestRuleId) {
-              code
-              name
-            }
-            planRule: ExpenseRuleByPk(id: $planRuleId) {
-              code
-              name
-            }
+  const checkPlanRuleConflict = useCallback(
+    async (newRuleId: string, planValue: { expenseRuleId?: string }): Promise<string | null> => {
+      if (!planValue.expenseRuleId || planValue.expenseRuleId === newRuleId) return null
+      try {
+        const getRuleDetailsQuery = `query getRuleDetails($requestRuleId: uuid!, $planRuleId: uuid!) {
+            requestRule: ExpenseRuleByPk(id: $requestRuleId) { code name }
+            planRule: ExpenseRuleByPk(id: $planRuleId) { code name }
           }`
-          const ruleDetailsCacheKey = `ruleDetailsPlan:${[newRuleId, planValue.expenseRuleId].sort().join(':')}`
-          const ruleDetails = await getCachedOrFetch(ruleDetailsCacheKey, () =>
-            graphqlClient.request(getRuleDetailsQuery, {
-              requestRuleId: newRuleId,
-              planRuleId: planValue.expenseRuleId
-            })
-          )
-
-          const requestRuleCode = ruleDetails?.requestRule?.code || newRuleId
-          const requestRuleName = ruleDetails?.requestRule?.name || ''
-          const planRuleCode = ruleDetails?.planRule?.code || planValue.expenseRuleId
-          const planRuleName = ruleDetails?.planRule?.name || ''
-
-          const errorMessage = getTranslationFromI18nKeyAndLabel(
-            'lowcoder:modify_expense_request.request_and_plan_rule_conflict_message',
-            `The expense request uses the rule ${requestRuleCode} ${requestRuleName}, but the expense plan uses the rule ${planRuleCode} ${planRuleName}. They don't fit. Please reach out to your supervisor or expense expert.`,
-            {
-              codeRequest: requestRuleCode,
-              nameRequest: requestRuleName,
-              codePlan: planRuleCode,
-              namePlan: planRuleName,
-              interpolation: {
-                escapeValue: false
-              }
-            }
-          )
-          return errorMessage
-        } catch {
-          // Fallback to using rule IDs if fetching fails
-          const errorMessage = getTranslationFromI18nKeyAndLabel(
-            'lowcoder:modify_expense_request.request_and_plan_rule_conflict_message',
-            `The expense request uses the rule ${newRuleId}, but the expense plan uses the rule ${planValue.expenseRuleId}. They don't fit. Please reach out to your supervisor or expense expert.`,
-            {
-              codeRequest: newRuleId,
-              nameRequest: '',
-              codePlan: planValue.expenseRuleId,
-              namePlan: '',
-              interpolation: {
-                escapeValue: false
-              }
-            }
-          )
-          return errorMessage
-        }
-      }
-    }
-
-    const requestItems: Array<{ id: string; code: string; title: string; ruleId: string; ruleLabel?: string }> = []
-    if (expenseRequestData.ExpenseItem && Array.isArray(expenseRequestData.ExpenseItem)) {
-      expenseRequestData.ExpenseItem.forEach((item: any) => {
-        if (item) {
-          const itemRuleLabel = [item?.expenseRule?.code, item?.expenseRule?.name].filter(Boolean).join(' ')
-          requestItems.push({
-            id: item.id,
-            code: item.code || '',
-            title: item.title || '',
-            ruleId: item.expenseRuleId || '',
-            ruleLabel: itemRuleLabel || undefined
+        const ruleDetailsCacheKey = `ruleDetailsPlan:${[newRuleId, planValue.expenseRuleId]
+          .sort((a, b) => String(a).localeCompare(String(b)))
+          .join(':')}`
+        const ruleDetails = await getCachedOrFetch(ruleDetailsCacheKey, () =>
+          graphqlClient.request(getRuleDetailsQuery, {
+            requestRuleId: newRuleId,
+            planRuleId: planValue.expenseRuleId
           })
-        }
-      })
-    }
+        )
+        const requestRuleCode = ruleDetails?.requestRule?.code || newRuleId
+        const requestRuleName = ruleDetails?.requestRule?.name || ''
+        const planRuleCode = ruleDetails?.planRule?.code || planValue.expenseRuleId
+        const planRuleName = ruleDetails?.planRule?.name || ''
+        return getTranslationFromI18nKeyAndLabel(
+          'lowcoder:modify_expense_request.request_and_plan_rule_conflict_message',
+          `The expense request uses the rule ${requestRuleCode} ${requestRuleName}, but the expense plan uses the rule ${planRuleCode} ${planRuleName}. They don't fit. Please reach out to your supervisor or expense expert.`,
+          {
+            codeRequest: requestRuleCode,
+            nameRequest: requestRuleName,
+            codePlan: planRuleCode,
+            namePlan: planRuleName,
+            interpolation: { escapeValue: false }
+          }
+        )
+      } catch {
+        return getTranslationFromI18nKeyAndLabel(
+          'lowcoder:modify_expense_request.request_and_plan_rule_conflict_message',
+          `The expense request uses the rule ${newRuleId}, but the expense plan uses the rule ${planValue.expenseRuleId}. They don't fit. Please reach out to your supervisor or expense expert.`,
+          {
+            codeRequest: newRuleId,
+            nameRequest: '',
+            codePlan: planValue.expenseRuleId,
+            namePlan: '',
+            interpolation: { escapeValue: false }
+          }
+        )
+      }
+    },
+    [getCachedOrFetch, graphqlClient]
+  )
 
-    const additionalItems: Array<{ id: string; code: string; title: string; ruleId: string; ruleLabel?: string }> = []
-    if (
-      additionalData?.psi_taskPayload?.psi_initialParameters?.expenseItems &&
-      Array.isArray(additionalData.psi_taskPayload.psi_initialParameters.expenseItems)
-    ) {
-      additionalData.psi_taskPayload.psi_initialParameters.expenseItems.forEach((item: any) => {
-        const itemId = item.itemId || item.id
-        if (!itemId) return
-        const itemRuleLabel = [item?.expenseRule?.code, item?.expenseRule?.name].filter(Boolean).join(' ')
-        additionalItems.push({
-          id: itemId,
-          code: item.code || '',
-          title: item.title || '',
-          ruleId: item.expenseRuleId || '',
-          ruleLabel: itemRuleLabel || undefined
-        })
-      })
-    }
-
-    // Merge items from request, initial params, and fetched payload items (for rule check when payload only has IDs)
-    let items = mergeUniqueById(requestItems, additionalItems)
-    if (payloadItemsForRuleCheck.length > 0) {
-      items = mergeUniqueById(items, payloadItemsForRuleCheck)
-    }
-
-    const mismatchedItem = items.find(
-      (item: { id: string; code: string; title: string; ruleId: string; ruleLabel?: string }) =>
-        item.ruleId && item.ruleId !== newRuleId
-    )
-
-    if (mismatchedItem) {
+  const checkItemRuleConflict = useCallback(
+    async (newRuleId: string, mismatchedItem: { ruleId: string; ruleLabel?: string }): Promise<string | null> => {
       try {
         const getRuleDetailsItemQuery = `query getRuleDetails($requestRuleId: uuid!, $itemRuleId: uuid!) {
-          requestRule: ExpenseRuleByPk(id: $requestRuleId) {
-            code
-            name
-          }
-          itemRule: ExpenseRuleByPk(id: $itemRuleId) {
-            code
-            name
-          }
-        }`
-        const ruleDetailsCacheKey = `ruleDetailsItem:${[newRuleId, mismatchedItem.ruleId].sort().join(':')}`
+            requestRule: ExpenseRuleByPk(id: $requestRuleId) { code name }
+            itemRule: ExpenseRuleByPk(id: $itemRuleId) { code name }
+          }`
+        const ruleDetailsCacheKey = `ruleDetailsItem:${[newRuleId, mismatchedItem.ruleId]
+          .sort((a, b) => String(a).localeCompare(String(b)))
+          .join(':')}`
         const ruleDetails = await getCachedOrFetch(ruleDetailsCacheKey, () =>
           graphqlClient.request(getRuleDetailsItemQuery, {
             requestRuleId: newRuleId,
             itemRuleId: mismatchedItem.ruleId
           })
         )
-
         const requestRuleCode = ruleDetails?.requestRule?.code || newRuleId
         const requestRuleName = ruleDetails?.requestRule?.name || ''
         const itemRuleCode = ruleDetails?.itemRule?.code || mismatchedItem.ruleLabel || mismatchedItem.ruleId
         const itemRuleName = ruleDetails?.itemRule?.name || ''
-
-        const errorMessage = getTranslationFromI18nKeyAndLabel(
+        return getTranslationFromI18nKeyAndLabel(
           'lowcoder:modify_expense_request.request_and_item_rule_conflict_message',
           `The expense request uses the rule ${requestRuleCode} ${requestRuleName}, but the expense item uses the rule ${itemRuleCode} ${itemRuleName}. They don't fit. Please reach out to your supervisor or expense expert.`,
           {
@@ -353,16 +296,11 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
             nameRequest: requestRuleName,
             codeItem: itemRuleCode,
             nameItem: itemRuleName,
-            interpolation: {
-              escapeValue: false
-            }
+            interpolation: { escapeValue: false }
           }
         )
-
-        return errorMessage
       } catch {
-        // Fallback to using rule IDs if fetching fails
-        const errorMessage = getTranslationFromI18nKeyAndLabel(
+        return getTranslationFromI18nKeyAndLabel(
           'lowcoder:modify_expense_request.request_and_item_rule_conflict_message',
           `The expense request uses the rule ${newRuleId}, but the expense item uses the rule ${mismatchedItem.ruleId}. They don't fit. Please reach out to your supervisor or expense expert.`,
           {
@@ -370,46 +308,35 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
             nameRequest: '',
             codeItem: mismatchedItem.ruleId,
             nameItem: '',
-            interpolation: {
-              escapeValue: false
-            }
+            interpolation: { escapeValue: false }
           }
         )
-
-        return errorMessage
       }
-    }
+    },
+    [getCachedOrFetch, graphqlClient]
+  )
 
-    const requestStoredRuleId = requestValue.expenseRuleId
-    const employeeRuleChanged = !!requestStoredRuleId && requestStoredRuleId !== newRuleId
-
-    // Request rule no longer matches current employee rule.
-    if (employeeRuleChanged) {
+  const checkEmployeeRuleConflict = useCallback(
+    async (newRuleId: string, requestStoredRuleId: string): Promise<string | null> => {
       try {
         const getRuleDetailsQuery = `query getRuleDetails($requestRuleId: uuid!, $employeeRuleId: uuid!) {
-          requestRule: ExpenseRuleByPk(id: $requestRuleId) {
-            code
-            name
-          }
-          employeeRule: ExpenseRuleByPk(id: $employeeRuleId) {
-            code
-            name
-          }
-        }`
-        const ruleDetailsCacheKey = `ruleDetailsRequestVsEmployee:${[requestStoredRuleId, newRuleId].sort().join(':')}`
+            requestRule: ExpenseRuleByPk(id: $requestRuleId) { code name }
+            employeeRule: ExpenseRuleByPk(id: $employeeRuleId) { code name }
+          }`
+        const ruleDetailsCacheKey = `ruleDetailsRequestVsEmployee:${[requestStoredRuleId, newRuleId]
+          .sort((a, b) => String(a).localeCompare(String(b)))
+          .join(':')}`
         const ruleDetails = await getCachedOrFetch(ruleDetailsCacheKey, () =>
           graphqlClient.request(getRuleDetailsQuery, {
             requestRuleId: requestStoredRuleId,
             employeeRuleId: newRuleId
           })
         )
-
         const requestRuleLabel =
           [ruleDetails?.requestRule?.code, ruleDetails?.requestRule?.name].filter(Boolean).join(' ') ||
           requestStoredRuleId
         const employeeRuleLabel =
           [ruleDetails?.employeeRule?.code, ruleDetails?.employeeRule?.name].filter(Boolean).join(' ') || newRuleId
-
         return getTranslationFromI18nKeyAndLabel(
           'lowcoder:modify_expense_request.request_rule_vs_employee_rule_message',
           tWizard('request-rule-vs-employee-rule-message', {
@@ -426,10 +353,82 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
           })
         )
       }
-    }
+    },
+    [getCachedOrFetch, graphqlClient, tWizard]
+  )
 
-    return null
-  }
+  const checkRuleConflicts = useCallback(
+    async (newRuleId: string): Promise<string | null> => {
+      const requestValue = expenseRequestData?.ExpenseRequestByPk
+      if (!requestValue) return null
+
+      if (requestValue.expensePlan) {
+        const planError = await checkPlanRuleConflict(newRuleId, requestValue.expensePlan)
+        if (planError) return planError
+      }
+
+      const requestItems: Array<{ id: string; code: string; title: string; ruleId: string; ruleLabel?: string }> = []
+      if (expenseRequestData?.ExpenseItem && Array.isArray(expenseRequestData.ExpenseItem)) {
+        expenseRequestData.ExpenseItem.forEach((item: any) => {
+          if (item) {
+            const itemRuleLabel = [item?.expenseRule?.code, item?.expenseRule?.name].filter(Boolean).join(' ')
+            requestItems.push({
+              id: item.id,
+              code: item.code || '',
+              title: item.title || '',
+              ruleId: item.expenseRuleId || '',
+              ruleLabel: itemRuleLabel || undefined
+            })
+          }
+        })
+      }
+
+      const additionalItems: Array<{ id: string; code: string; title: string; ruleId: string; ruleLabel?: string }> = []
+      if (
+        additionalData?.psi_taskPayload?.psi_initialParameters?.expenseItems &&
+        Array.isArray(additionalData.psi_taskPayload.psi_initialParameters.expenseItems)
+      ) {
+        additionalData.psi_taskPayload.psi_initialParameters.expenseItems.forEach((item: any) => {
+          const itemId = item.itemId || item.id
+          if (!itemId) return
+          const itemRuleLabel = [item?.expenseRule?.code, item?.expenseRule?.name].filter(Boolean).join(' ')
+          additionalItems.push({
+            id: itemId,
+            code: item.code || '',
+            title: item.title || '',
+            ruleId: item.expenseRuleId || '',
+            ruleLabel: itemRuleLabel || undefined
+          })
+        })
+      }
+
+      let items = mergeUniqueById(requestItems, additionalItems)
+      if (payloadItemsForRuleCheck.length > 0) {
+        items = mergeUniqueById(items, payloadItemsForRuleCheck)
+      }
+
+      const mismatchedItem = items.find((item: { ruleId: string }) => item.ruleId && item.ruleId !== newRuleId)
+      if (mismatchedItem) {
+        const itemError = await checkItemRuleConflict(newRuleId, mismatchedItem)
+        if (itemError) return itemError
+      }
+
+      const requestStoredRuleId = requestValue.expenseRuleId
+      if (requestStoredRuleId && requestStoredRuleId !== newRuleId) {
+        return await checkEmployeeRuleConflict(newRuleId, requestStoredRuleId)
+      }
+
+      return null
+    },
+    [
+      expenseRequestData,
+      additionalData,
+      payloadItemsForRuleCheck,
+      checkPlanRuleConflict,
+      checkItemRuleConflict,
+      checkEmployeeRuleConflict
+    ]
+  )
 
   const checkAbsencesAndRequests = async (
     startDate: Date | undefined,
@@ -630,105 +629,91 @@ export const TripScreen: React.FC<TripScreenProps> = props => {
    */
   const loadInitialTripData = async (rulesAlreadyFetched?: any) => {
     try {
-      if (
-        (expenseRequestData?.ExpenseRequestByPk?.expenseRequestTrip &&
-          Array.isArray(expenseRequestData.ExpenseRequestByPk.expenseRequestTrip) &&
-          expenseRequestData.ExpenseRequestByPk.expenseRequestTrip.length !== 0) ||
-        expenseRequestData.ExpenseRequestByPk.expensePlan
-      ) {
-        let myData: any = []
-        if (
-          expenseRequestData?.ExpenseRequestByPk?.expenseRequestTrip &&
-          Array.isArray(expenseRequestData.ExpenseRequestByPk.expenseRequestTrip) &&
-          expenseRequestData.ExpenseRequestByPk.expenseRequestTrip.length !== 0
-        ) {
-          myData = expenseRequestData.ExpenseRequestByPk.expenseRequestTrip
-        } else if (expenseRequestData.ExpenseRequestByPk.expensePlan) {
-          myData = expenseRequestData.ExpenseRequestByPk.expensePlan.expenseRequestTrip
+      const myData = getTripDataArrayFromRequest(expenseRequestData)
+      if (myData.length === 0) {
+        setLocalitiesDefault(expenseRequestData, setStartLocation, setEndLocation, setLocationsAreSynced)
+        return
+      }
+      const startObject = myData.find((item: any) => item.pointType === 'START_POINT')
+      const endObject = myData.find((item: any) => item.pointType === 'END_POINT')
+
+      if (startObject?.tripDateTime && dayjs(startObject.tripDateTime).isValid()) {
+        const formattedDate = dayjs(startObject.tripDateTime).format('YYYY-MM-DDTHH:mm:ss.SSSZZ')
+
+        const employeeId = userInfo?.employeeDetails?.employeeId
+        if (!employeeId) {
+          showToast(
+            getTranslationFromI18nKeyAndLabel(
+              'lowcoder:modify_expense_request.missing_employee_id',
+              'Missing employee ID'
+            ),
+            'error'
+          )
+          return
         }
-        const startObject = myData.find((item: any) => item.pointType === 'START_POINT')
-        const endObject = myData.find((item: any) => item.pointType === 'END_POINT')
 
-        if (startObject && startObject.tripDateTime && dayjs(startObject.tripDateTime).isValid()) {
-          const formattedDate = dayjs(startObject.tripDateTime).format('YYYY-MM-DDTHH:mm:ss.SSSZZ')
+        const employeeRuleData = await fetchEmployeeRule(employeeId, formattedDate, accessToken)
+        const ruleIdForTripDate = employeeRuleData?.expenseRuleId ?? employeeRuleData?.id
 
-          const employeeId = userInfo?.employeeDetails?.employeeId
-          if (!employeeId) {
-            showToast(
-              getTranslationFromI18nKeyAndLabel(
-                'lowcoder:modify_expense_request.missing_employee_id',
-                'Missing employee ID'
-              ),
-              'error'
+        if (ruleIdForTripDate) {
+          const canReuseRules = rulesAlreadyFetched && employeeRuleId && ruleIdForTripDate === employeeRuleId
+
+          if (canReuseRules) {
+            setByExternalCustomComponent(
+              expenseRequestData,
+              rulesAlreadyFetched,
+              setStartLocation,
+              setDestinations,
+              setEndLocation
             )
-            return
-          }
-
-          const employeeRuleData = await fetchEmployeeRule(employeeId, formattedDate, accessToken)
-          const ruleIdForTripDate = employeeRuleData?.expenseRuleId ?? employeeRuleData?.id
-
-          if (ruleIdForTripDate) {
-            const canReuseRules = rulesAlreadyFetched && employeeRuleId && ruleIdForTripDate === employeeRuleId
-
-            if (canReuseRules) {
-              setByExternalCustomComponent(
-                expenseRequestData,
-                rulesAlreadyFetched,
-                setStartLocation,
-                setDestinations,
-                setEndLocation
-              )
-            } else {
-              setEmployeeRuleId(ruleIdForTripDate)
-              const activeUserLocale = getCurrentActiveUserLocale()
-              const rulesResponse = await getExpenseRulesDataCached(ruleIdForTripDate, activeUserLocale)
-              setExpenseRulesData(rulesResponse)
-              setByExternalCustomComponent(
-                expenseRequestData,
-                rulesResponse,
-                setStartLocation,
-                setDestinations,
-                setEndLocation
-              )
-            }
           } else {
-            setByExternalCustomComponent(expenseRequestData, null, setStartLocation, setDestinations, setEndLocation)
+            setEmployeeRuleId(ruleIdForTripDate)
+            const activeUserLocale = getCurrentActiveUserLocale()
+            const rulesResponse = await getExpenseRulesDataCached(ruleIdForTripDate, activeUserLocale)
+            setExpenseRulesData(rulesResponse)
+            setByExternalCustomComponent(
+              expenseRequestData,
+              rulesResponse,
+              setStartLocation,
+              setDestinations,
+              setEndLocation
+            )
           }
+        } else {
+          setByExternalCustomComponent(expenseRequestData, null, setStartLocation, setDestinations, setEndLocation)
+        }
 
-          // Initialize accommodation considering stored value priority when version != 0
-          try {
-            const startDate = startObject?.tripDateTime ? dayjs(startObject.tripDateTime).startOf('day') : null
-            const endDate = endObject?.tripDateTime ? dayjs(endObject.tripDateTime).startOf('day') : null
-            const stored = expenseRequestData?.ExpenseRequestByPk?.overnightAccommodation
-            const version = expenseRequestData?.ExpenseRequestByPk?.version ?? 0
-            if (startDate && endDate) {
-              const diffDays = endDate.diff(startDate, 'day')
-              const versionZero = version === 0
-              if (diffDays < 1) {
-                setOvernightAccommodation(false)
-              } else if (diffDays > 1) {
-                setOvernightAccommodation(true)
+        // Initialize accommodation considering stored value priority when version != 0
+        try {
+          const startDate = startObject?.tripDateTime ? dayjs(startObject.tripDateTime).startOf('day') : null
+          const endDate = endObject?.tripDateTime ? dayjs(endObject.tripDateTime).startOf('day') : null
+          const stored = expenseRequestData?.ExpenseRequestByPk?.overnightAccommodation
+          const version = expenseRequestData?.ExpenseRequestByPk?.version ?? 0
+          if (startDate && endDate) {
+            const diffDays = endDate.diff(startDate, 'day')
+            const versionZero = version === 0
+            if (diffDays < 1) {
+              setOvernightAccommodation(false)
+            } else if (diffDays > 1) {
+              setOvernightAccommodation(true)
+            } else {
+              // Exactly 2 days
+              if ((versionZero || version !== 0) && typeof stored === 'boolean') {
+                setOvernightAccommodation(stored)
               } else {
-                // Exactly 2 days
-                if ((versionZero || version !== 0) && typeof stored === 'boolean') {
-                  setOvernightAccommodation(stored)
-                } else {
-                  setOvernightAccommodation(true) // default checked for 2 days
-                }
+                setOvernightAccommodation(true) // default checked for 2 days
               }
             }
-          } catch {}
-        } else {
-          setByExternalCustomComponent(
-            expenseRequestData,
-            rulesAlreadyFetched ?? null,
-            setStartLocation,
-            setDestinations,
-            setEndLocation
-          )
-        }
+          }
+        } catch {}
       } else {
-        setLocalitiesDefault(expenseRequestData, setStartLocation, setEndLocation, setLocationsAreSynced)
+        setByExternalCustomComponent(
+          expenseRequestData,
+          rulesAlreadyFetched ?? null,
+          setStartLocation,
+          setDestinations,
+          setEndLocation
+        )
       }
     } catch {
       showToast(

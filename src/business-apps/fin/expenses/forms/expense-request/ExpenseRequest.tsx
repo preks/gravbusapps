@@ -12,9 +12,35 @@ import { getCatalogTypeTransformer, transformPlansToCardData } from './utils/pla
 import { useProcessEventState } from '@/business-apps/fin/expenses/utils/useProcessEventState'
 import { formatDateToISO, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { showToast } from '../../utils/notificationUtils'
-import { FORM_STEPS, REQUEST_TYPES, REQUEST_STATUS, DISABLED_FLAG, PLAN_TYPE_ENUM } from './constants/constants'
+import {
+  FORM_STEPS,
+  REQUEST_TYPES,
+  REQUEST_STATUS,
+  DISABLED_FLAG,
+  PLAN_TYPE_ENUM,
+  type FormStepType
+} from './constants/constants'
 import { EVENTS } from '../../utils/constants'
 import { FormHeaderTitle } from './components'
+
+function getExpenseFormHeaderTitle(step: FormStepType): string {
+  if (step === FORM_STEPS.PLAN) {
+    return getTranslationFromI18nKeyAndLabel(
+      'lowcoder:create_expense_request.initial_expense_plan_select_placeholder',
+      'Select Expense Plan'
+    )
+  }
+  if (step === REQUEST_TYPES.EXPENSE) {
+    return getTranslationFromI18nKeyAndLabel(
+      'lowcoder:create_expense_request.expense_request_container.create_expense_header',
+      'New Expense Request'
+    )
+  }
+  return getTranslationFromI18nKeyAndLabel(
+    'lowcoder:create_expense_request.expense_request_container.create_expense_header_trip',
+    'New Expense Request for Trip'
+  )
+}
 
 interface ExpenseRequestContentProps {
   accessToken?: string
@@ -390,22 +416,7 @@ const ExpenseRequestContent: React.FC<ExpenseRequestContentProps> = ({ accessTok
               />
             </Button>
             <FormHeaderTitle
-              title={
-                step === FORM_STEPS.PLAN
-                  ? getTranslationFromI18nKeyAndLabel(
-                      'lowcoder:create_expense_request.initial_expense_plan_select_placeholder',
-                      'Select Expense Plan'
-                    )
-                  : step === REQUEST_TYPES.EXPENSE
-                    ? getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:create_expense_request.expense_request_container.create_expense_header',
-                        'New Expense Request'
-                      )
-                    : getTranslationFromI18nKeyAndLabel(
-                        'lowcoder:create_expense_request.expense_request_container.create_expense_header_trip',
-                        'New Expense Request for Trip'
-                      )
-              }
+              title={getExpenseFormHeaderTitle(step)}
               titleContainerTestId="expense-form-title-container"
               headerTitleTestId="expense-form-header-title"
             />

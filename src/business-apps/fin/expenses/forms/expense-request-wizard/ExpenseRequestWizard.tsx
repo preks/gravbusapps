@@ -209,8 +209,8 @@ const ExpenseRequestWizardContent: React.FC<BusinessAppContextProps> = ({ access
   // Safety: clear next loading after 30s in case the action fails and screen never changes
   useEffect(() => {
     if (!isNextLoading) return
-    const timeoutId = window.setTimeout(() => setIsNextLoading(false), 30000)
-    return () => window.clearTimeout(timeoutId)
+    const timeoutId = globalThis.setTimeout(() => setIsNextLoading(false), 30000)
+    return () => globalThis.clearTimeout(timeoutId)
   }, [isNextLoading])
 
   // Listen for process events (Next/Back button clicks) to navigate
@@ -759,16 +759,20 @@ const ExpenseRequestWizardContent: React.FC<BusinessAppContextProps> = ({ access
                     }
                   }}
                 >
-                  {isNextLoading ? (
-                    <span className="gba:inline-flex gba:items-center gba:gap-2">
-                      <Spinner size="sm" />
-                      {getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.submit_button', 'Next')}
-                    </span>
-                  ) : currentScreen === SCREEN_NAMES_ENUM.SUMMARY_TAB ? (
-                    getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_request.btn_submit', 'Submit')
-                  ) : (
-                    getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.submit_button', 'Next')
-                  )}
+                  {(() => {
+                    if (isNextLoading) {
+                      return (
+                        <span className="gba:inline-flex gba:items-center gba:gap-2">
+                          <Spinner size="sm" />
+                          {getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.submit_button', 'Next')}
+                        </span>
+                      )
+                    }
+                    if (currentScreen === SCREEN_NAMES_ENUM.SUMMARY_TAB) {
+                      return getTranslationFromI18nKeyAndLabel('lowcoder:modify_expense_request.btn_submit', 'Submit')
+                    }
+                    return getTranslationFromI18nKeyAndLabel('lowcoder:add_items_to_plan.submit_button', 'Next')
+                  })()}
                 </Button>
               </div>
             </>

@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useRef, useState, ReactNode } from 'react'
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, ReactNode } from 'react'
 import { Form } from 'antd'
 import { getCurrentActiveUserLocale, getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useGraphqlClient } from '@/common/network/graphql/useGraphQLClient'
@@ -74,7 +74,7 @@ export interface ExpenseRequestWizardContextProps {
    * Fetches and caches allowance period rule by expenseRuleId.
    * Returns the first matching rule or null.
    */
-  getAllowancePeriodRuleCached: (expenseRuleId: string) => Promise<any | null>
+  getAllowancePeriodRuleCached: (expenseRuleId: string) => Promise<unknown | null>
   /**
    * Fetches and caches travel regions + employee position by (expenseRuleId, employeeId, locale).
    */
@@ -233,7 +233,10 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
 
   const getUserProjectsCached = useCallback(
     async (structureIdArray: string[]) => {
-      const normalized = [...(structureIdArray || [])].filter(Boolean).sort().join(',')
+      const normalized = [...(structureIdArray || [])]
+        .filter(Boolean)
+        .sort((a, b) => String(a).localeCompare(String(b)))
+        .join(',')
       const cacheKey = `userProjects:${normalized}`
       return await getCachedOrFetch(cacheKey, () =>
         graphqlClient.request(getUserProjects, {
@@ -510,49 +513,67 @@ export const ExpenseRequestWizardProvider: React.FC<ExpenseRequestWizardProvider
     }
   }
 
-  // Context value
-  const contextValue: ExpenseRequestWizardContextProps = {
-    loading,
-    employeeRuleId,
-    setEmployeeRuleId,
-    isFormValid,
-    updateTripFormValidation,
-    expenseRuleError,
-    setExpenseRuleError,
-    expenseRequestData,
-    setExpenseRequestData,
-    form,
-    userInfo,
-    currentTitle,
-    setCurrentTitle,
-    currentCurrency,
-    setCurrentCurrency,
-    submitActionTripData,
-    // New properties for ExpenseItem integration
-    showExpenseItem,
-    setShowExpenseItem,
-    expenseItemParams,
-    setExpenseItemParams,
-    showCreateItem,
-    hideExpenseItem,
-    refetchExpenseData: fetchExpenseData,
-    // Deleted items management
-    deletedItems,
-    setDeletedItems,
-    // Payload items tracking
-    payloadItemsLoaded,
-    setPayloadItemsLoaded,
-    payloadItemIds,
-    setPayloadItemIds,
-    showSelectItems,
-    setShowSelectItems,
-    getExpenseRulesDataCached,
-    getAllowancePeriodRuleCached,
-    getTravelRegionsAndUserCached,
-    getUserCostCentersCached,
-    getUserProjectsCached,
-    getAllowanceDataCached
-  }
+  // Context value (memoized to avoid unnecessary re-renders of consumers)
+  const contextValue = useMemo<ExpenseRequestWizardContextProps>(
+    () => ({
+      loading,
+      employeeRuleId,
+      setEmployeeRuleId,
+      isFormValid,
+      updateTripFormValidation,
+      expenseRuleError,
+      setExpenseRuleError,
+      expenseRequestData,
+      setExpenseRequestData,
+      form,
+      userInfo,
+      currentTitle,
+      setCurrentTitle,
+      currentCurrency,
+      setCurrentCurrency,
+      submitActionTripData,
+      showExpenseItem,
+      setShowExpenseItem,
+      expenseItemParams,
+      setExpenseItemParams,
+      showCreateItem,
+      hideExpenseItem,
+      refetchExpenseData: fetchExpenseData,
+      deletedItems,
+      setDeletedItems,
+      payloadItemsLoaded,
+      setPayloadItemsLoaded,
+      payloadItemIds,
+      setPayloadItemIds,
+      showSelectItems,
+      setShowSelectItems,
+      getExpenseRulesDataCached,
+      getAllowancePeriodRuleCached,
+      getTravelRegionsAndUserCached,
+      getUserCostCentersCached,
+      getUserProjectsCached,
+      getAllowanceDataCached
+    }),
+    [
+      loading,
+      employeeRuleId,
+      isFormValid,
+      expenseRuleError,
+      expenseRequestData,
+      form,
+      userInfo,
+      currentTitle,
+      currentCurrency,
+      submitActionTripData,
+      showExpenseItem,
+      expenseItemParams,
+      deletedItems,
+      payloadItemsLoaded,
+      payloadItemIds,
+      showSelectItems,
+      fetchExpenseData
+    ]
+  )
 
   return <ExpenseRequestWizardContext.Provider value={contextValue}>{children}</ExpenseRequestWizardContext.Provider>
 }

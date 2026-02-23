@@ -344,7 +344,10 @@ const AllowanceScreen: React.FC<AllowanceScreenProps> = props => {
     }
 
     try {
-      const normalized = [...structureIds].filter(Boolean).sort().join(',')
+      const normalized = [...structureIds]
+        .filter(Boolean)
+        .sort((a, b) => String(a).localeCompare(String(b)))
+        .join(',')
       const projectsCacheKey = `userProjects:${normalized}`
       const projectsResponse = await getCachedOrFetch(projectsCacheKey, () =>
         graphQLClient.request(getUserProjects, {
