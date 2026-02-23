@@ -610,12 +610,12 @@ export const PagedDocumentEditor = forwardRef<PagedDocumentEditorRef, PagedDocum
       try {
         const stored = window.localStorage.getItem(autocompleteToggleStorageKey)
         if (stored === null) {
-          setIsAutocompleteToggleEnabled(true)
+          setIsAutocompleteToggleEnabled(false)
         } else {
           setIsAutocompleteToggleEnabled(stored === 'true')
         }
       } catch {
-        setIsAutocompleteToggleEnabled(true)
+        setIsAutocompleteToggleEnabled(false)
       }
     }, [autocompleteRolloutEnabled, autocompleteToggleStorageKey])
 

@@ -62,6 +62,7 @@ import {
 } from 'lucide-react'
 import type { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { navigateTo } from '@/common/utils/navigationUtils'
+import { buildDocumentCreatePrompt } from '@/common/utils/buildDocumentCreatePrompt'
 
 // Components
 import { WordUploader } from './components/WordUploader'
@@ -74,6 +75,7 @@ import { ShareDocumentDialog } from './components/ShareDocumentDialog'
 import { ManageSharesDialog } from './components/ManageSharesDialog'
 import type { PagedDocumentEditorRef } from './components/PagedDocumentEditor'
 import { DocumentAppsHubEditorView } from './components/DocumentAppsHubEditorView'
+import { EmbeddedFlowbotChatPanel } from '../shared/components/EmbeddedFlowbotChatPanel'
 
 // Hooks
 import { useDocumentApps } from './hooks/useDocumentApps'
@@ -183,6 +185,8 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
   const [documentForManageShares, setDocumentForManageShares] = useState<string | null>(null)
   const [createTemplateDialogOpen, setCreateTemplateDialogOpen] = useState(false)
   const [templateBeingEdited, setTemplateBeingEdited] = useState<DocumentTemplate | null>(null)
+  const [showCreateWithAiChat, setShowCreateWithAiChat] = useState(false)
+  const [pendingCreateWithAiPrompt, setPendingCreateWithAiPrompt] = useState<string | null>(null)
   /** Context chosen in create modal; used only to pick entities in the editor (not sent to API). */
   const [sessionEntityContext, setSessionEntityContext] = useState<string | null>(null)
   const templateEditorRef = useRef<PagedDocumentEditorRef>(null)
@@ -314,6 +318,24 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
       updateUrl(newDoc.id, 'editor')
     }
   }, [createDocument, currentUserId, updateUrl])
+
+  const handleCreateWithAi = useCallback(() => {
+    const titleInput = globalThis.window.prompt('Document title (optional):', 'Untitled Document')
+    const instructionInput = globalThis.window.prompt(
+      'What document should AI create for you?'
+    )
+    const instruction = instructionInput?.trim() ?? ''
+    if (!instruction) {
+      return
+    }
+
+    const prompt = buildDocumentCreatePrompt({
+      title: titleInput?.trim() || undefined,
+      userInstruction: instruction
+    })
+    setPendingCreateWithAiPrompt(prompt)
+    setShowCreateWithAiChat(true)
+  }, [])
 
   /**
    * Handle template selection
@@ -671,6 +693,15 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                 <div>
                   <div className="gba:font-medium">Blank Document</div>
                   <div className="gba:text-xs gba:text-muted-foreground">Start from scratch</div>
+                </div>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleCreateWithAi}>
+                <Sparkles className="gba:w-4 gba:h-4 gba:mr-2 gba:text-purple-500" />
+                <div>
+                  <div className="gba:font-medium">Create with AI</div>
+                  <div className="gba:text-xs gba:text-muted-foreground">
+                    Draft a new document with Flowbot
+                  </div>
                 </div>
               </DropdownMenuItem>
               <DropdownMenuItem onClick={handleStartUpload}>
@@ -1183,6 +1214,10 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
                         <Plus className="gba:w-4 gba:h-4 gba:mr-2" />
                         Create Document
                       </Button>
+                      <Button variant="outline" onClick={handleCreateWithAi}>
+                        <Sparkles className="gba:w-4 gba:h-4 gba:mr-2" />
+                        Create with AI
+                      </Button>
                       <Button variant="outline" onClick={handleStartUpload}>
                         <Upload className="gba:w-4 gba:h-4 gba:mr-2" />
                         Upload Word
@@ -1631,6 +1666,18 @@ export const DocumentAppsHub: React.FC<DocumentAppsHubProps> = ({
             setShareDialogOpen(true)
           }}
           data-testid={`${testId}-manage-shares-dialog`}
+        />
+      )}
+
+      {showCreateWithAiChat && (
+        <EmbeddedFlowbotChatPanel
+          accessToken={accessToken}
+          onClose={() => setShowCreateWithAiChat(false)}
+          title="Create Document with AI"
+          initialPrompt={pendingCreateWithAiPrompt}
+          onInitialPromptConsumed={() => setPendingCreateWithAiPrompt(null)}
+          currentUserAvatar={userInfo?.avatar ?? null}
+          data-testid="document-apps-hub-create-with-ai-chat"
         />
       )}
     </div>
