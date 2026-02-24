@@ -86,7 +86,7 @@ export const Canvas: React.FC<CanvasProps> = ({
           />
           <GradientFadeOverlay
             gradient={GRADIENT_BOTTOM}
-            className="gba:absolute gba:bottom-0 gba:left-0 gba:right-0 gba:h-64 gba:pointer-events-none gba:z-10 gba:bg-background"
+            className="gba:absolute gba:bottom-0 gba:left-0 gba:right-0 gba:h-32 gba:pointer-events-none gba:z-10 gba:bg-background"
           />
         </>
       )}

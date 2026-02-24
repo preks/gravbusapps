@@ -7,7 +7,13 @@
 
 export { SlidesAppsHub } from './SlidesAppsHub'
 export { SlidesApiService } from './services'
-export { useSlides, useSlidesHubUrlState, useSlidesHubFavorites, useSlidesHubFiltering, useSlidesHubUserLookup } from './hooks'
+export {
+  useSlides,
+  useSlidesHubUrlState,
+  useSlidesHubFavorites,
+  useSlidesHubFiltering,
+  useSlidesHubUserLookup
+} from './hooks'
 export { SlideEditor, ShareSlideDialog, ManageSharesDialog, PresentMode, VersionHistoryPanel } from './components'
 export type { Slide, SlideSummary, SlidePermission } from './types'
 

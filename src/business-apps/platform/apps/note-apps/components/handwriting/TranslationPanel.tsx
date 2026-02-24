@@ -4,9 +4,10 @@
  */
 
 import React, { useState } from 'react'
-import { Button } from '@newwork/nw-design-system'
+import { Button, useTranslation } from '@newwork/nw-design-system'
 import { ChevronDown, ChevronUp, Languages, Copy, Trash2, Check } from 'lucide-react'
 import type { NoteTranslation } from '../../types'
+import translations from '../../_i18n'
 
 export interface TranslationPanelProps {
   translation: NoteTranslation
@@ -21,6 +22,7 @@ export const TranslationPanel: React.FC<TranslationPanelProps> = ({
   defaultExpanded = false,
   'data-testid': testId = 'translation-panel'
 }) => {
+  const { t } = useTranslation(translations)
   const [isExpanded, setIsExpanded] = useState(defaultExpanded)
   const [copied, setCopied] = useState(false)
 
@@ -65,9 +67,9 @@ export const TranslationPanel: React.FC<TranslationPanelProps> = ({
 
           <div className="gba:flex-1 gba:min-w-0 gba:overflow-hidden">
             <div className="gba:flex gba:items-center gba:gap-2">
-              <span className="gba:text-sm gba:font-semibold gba:text-foreground">Translation</span>
+              <span className="gba:text-sm gba:font-semibold gba:text-foreground">{t('translation-title')}</span>
               <span className="gba:text-xs gba:text-muted-foreground gba:truncate">
-                to {translation.targetLanguageName}
+                {t('translation-to', { language: translation.targetLanguageName })}
               </span>
             </div>
             {!isExpanded && (
@@ -84,7 +86,7 @@ export const TranslationPanel: React.FC<TranslationPanelProps> = ({
               className="gba:h-8 gba:w-8 gba:rounded-lg gba:text-muted-foreground gba:hover:text-foreground gba:hover:bg-card/80"
               onClick={handleCopy}
               data-testid={`${testId}-copy`}
-              aria-label="Copy translation"
+              aria-label={t('translation-copy-aria')}
             >
               {copied ? <Check className="gba:w-4 gba:h-4 gba:text-success" /> : <Copy className="gba:w-4 gba:h-4" />}
             </Button>
@@ -94,7 +96,7 @@ export const TranslationPanel: React.FC<TranslationPanelProps> = ({
               className="gba:h-8 gba:w-8 gba:rounded-lg gba:text-muted-foreground gba:hover:text-destructive gba:hover:bg-destructive/10"
               onClick={handleDelete}
               data-testid={`${testId}-delete`}
-              aria-label="Delete translation"
+              aria-label={t('translation-delete-aria')}
             >
               <Trash2 className="gba:w-4 gba:h-4" />
             </Button>
@@ -108,7 +110,7 @@ export const TranslationPanel: React.FC<TranslationPanelProps> = ({
                 setIsExpanded(v => !v)
               }}
               data-testid={`${testId}-toggle`}
-              aria-label={isExpanded ? 'Collapse translation' : 'Expand translation'}
+              aria-label={isExpanded ? t('translation-collapse-aria') : t('translation-expand-aria')}
             >
               {isExpanded ? <ChevronUp className="gba:w-4 gba:h-4" /> : <ChevronDown className="gba:w-4 gba:h-4" />}
             </Button>

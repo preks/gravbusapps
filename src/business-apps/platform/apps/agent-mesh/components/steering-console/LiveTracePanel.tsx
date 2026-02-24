@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { Badge, Button } from '@newwork/nw-design-system'
-import { ChevronUp, ChevronDown, CheckCircle2, Loader2, XCircle, Zap, Clock, ArrowRight, Activity } from 'lucide-react'
+import { ChevronUp, ChevronDown, CheckCircle2, Loader2, XCircle, Zap, Clock, Activity, GitBranch } from 'lucide-react'
 import type { ExecutionTrace, ExecutionTraceNode } from '../../types/agentMesh'
 
 interface LiveEvent {
@@ -95,32 +95,88 @@ const LiveEventCard = ({ event, index }: { event: LiveEvent; index: number }) =>
   )
 }
 
-const TraceTreeNode = ({ node, level = 0 }: { node: ExecutionTraceNode; level?: number }) => {
+const TraceTreeNode = ({
+  node,
+  level = 0,
+  siblingCount = 1,
+  siblingIndex = 0
+}: {
+  node: ExecutionTraceNode
+  level?: number
+  siblingCount?: number
+  siblingIndex?: number
+}) => {
   const isSuccess = node.status === 'success'
   const isError = node.status === 'error' || node.status === 'timeout'
+  const hasChildren = node.children && node.children.length > 0
+  const isParallelSibling = siblingCount > 1
+  const isLastSibling = siblingIndex === siblingCount - 1
+  const dispatchesInParallel = hasChildren && node.children.length > 1
 
   return (
-    <div data-testid={`trace-node-${node.execution_id}`}>
-      <div className="gba:flex gba:items-center gba:gap-2 gba:py-1.5">
+    <div className="gba:relative" data-testid={`trace-node-${node.execution_id}`}>
+      {/* Node row */}
+      <div className="gba:flex gba:items-center gba:gap-2 gba:py-1.5 gba:min-w-0">
+        {/* Tree branch glyph for non-root nodes */}
         {level > 0 && (
-          <div className="gba:flex gba:items-center gba:gap-1 gba:text-muted-foreground">
-            <ArrowRight className="gba:w-3 gba:h-3" />
-          </div>
+          <span className="gba:text-xs gba:font-mono gba:text-border gba:flex-shrink-0 gba:select-none">
+            {isLastSibling ? '└─' : '├─'}
+          </span>
         )}
+
+        {/* Status dot */}
         <div
-          className={`gba:w-2 gba:h-2 gba:rounded-full ${isSuccess ? 'gba:bg-success' : isError ? 'gba:bg-destructive' : 'gba:bg-primary gba:animate-pulse'}`}
+          className={`gba:w-2 gba:h-2 gba:rounded-full gba:flex-shrink-0 ${
+            isSuccess ? 'gba:bg-success' : isError ? 'gba:bg-destructive' : 'gba:bg-primary gba:animate-pulse'
+          }`}
         />
-        <span className="gba:text-sm gba:font-medium gba:text-foreground">{node.prompt_name}</span>
-        <Badge variant={isSuccess ? 'success' : isError ? 'destructive' : 'info'} className="gba:text-xs">
+
+        {/* Parallel badge */}
+        {isParallelSibling && (
+          <span className="gba:text-[9px] gba:font-semibold gba:uppercase gba:tracking-wide gba:px-1.5 gba:py-0.5 gba:rounded gba:bg-info-secondary gba:text-info-secondary-foreground gba:flex-shrink-0">
+            parallel
+          </span>
+        )}
+
+        <span className="gba:text-sm gba:font-medium gba:text-foreground gba:truncate">{node.prompt_name}</span>
+
+        <Badge
+          variant={isSuccess ? 'success' : isError ? 'destructive' : 'info'}
+          className="gba:text-xs gba:flex-shrink-0"
+        >
           {node.status}
         </Badge>
-        <span className="gba:text-xs gba:text-muted-foreground">{formatDuration(node.duration_ms)}</span>
+
+        <span className="gba:text-xs gba:text-muted-foreground gba:flex-shrink-0">
+          {formatDuration(node.duration_ms)}
+        </span>
       </div>
-      {node.children && node.children.length > 0 && (
-        <div className="gba:ml-6 gba:border-l gba:border-border gba:pl-3">
-          {node.children.map(child => (
-            <TraceTreeNode key={child.execution_id} node={child} level={level + 1} />
-          ))}
+
+      {/* Children */}
+      {hasChildren && (
+        <div className={level === 0 ? 'gba:ml-3' : 'gba:ml-6'}>
+          {/* Parallel dispatch label */}
+          {dispatchesInParallel && (
+            <div className="gba:flex gba:items-center gba:gap-1.5 gba:py-0.5 gba:mb-0.5 gba:pl-1">
+              <GitBranch className="gba:w-3 gba:h-3 gba:text-info gba:flex-shrink-0" />
+              <span className="gba:text-[10px] gba:font-medium gba:text-info">
+                Dispatched {node.children.length} agents in parallel
+              </span>
+            </div>
+          )}
+
+          {/* Child nodes indented under a vertical line */}
+          <div className="gba:border-l gba:border-border/60 gba:pl-3">
+            {node.children.map((child, idx) => (
+              <TraceTreeNode
+                key={child.execution_id}
+                node={child}
+                level={level + 1}
+                siblingCount={node.children.length}
+                siblingIndex={idx}
+              />
+            ))}
+          </div>
         </div>
       )}
     </div>

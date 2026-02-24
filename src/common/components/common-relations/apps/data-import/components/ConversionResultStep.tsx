@@ -23,7 +23,8 @@ import {
   PhoneIcon,
   BuildingsIcon,
   MapPinIcon,
-  ArrowCounterClockwiseIcon
+  ArrowCounterClockwiseIcon,
+  MegaphoneSimpleIcon
 } from '@phosphor-icons/react'
 import {
   ConvertedEntity,
@@ -40,6 +41,8 @@ export interface ConversionResultStepProps<T = ConvertedEntity> {
   entityType: string
   isLoading: boolean
   importResult: ImportResult | null
+  /** Name of the campaign to associate with the import (CRM only) */
+  campaignName?: string
   onDownloadJSON: () => void
   onImportToBackend: () => Promise<void>
   onReset: () => void
@@ -52,6 +55,7 @@ export const ConversionResultStep = <T = ConvertedEntity,>({
   entityType,
   isLoading,
   importResult,
+  campaignName,
   onDownloadJSON,
   onImportToBackend,
   onReset,
@@ -133,6 +137,17 @@ export const ConversionResultStep = <T = ConvertedEntity,>({
               <div className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-success">
                 <CheckCircleIcon className="gba:w-5 gba:h-5 gba:text-success" weight="fill" />
                 {t('conversion-success-message', { count: convertedEntities.length, entityType: entityLabel })}
+              </div>
+            )}
+
+            {/* Selected campaign indicator */}
+            {!importResult && campaignName && (
+              <div
+                className="gba:flex gba:items-center gba:gap-2 gba:text-sm gba:text-muted-foreground"
+                data-testid={`${testId}-campaign-label`}
+              >
+                <MegaphoneSimpleIcon className="gba:w-4 gba:h-4 gba:flex-shrink-0" />
+                <span>{t('campaign-label', { name: campaignName })}</span>
               </div>
             )}
 

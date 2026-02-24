@@ -27,6 +27,8 @@ export interface GenerationOptions {
   references?: ContentReference[]
   useWebSearch?: boolean
   theme?: SlideTheme
+  /** Optional i18n function for user-visible fallbacks (e.g. Option A/B, Thank You) */
+  getMessage?: (key: string, params?: Record<string, string>) => string
 }
 
 export interface GenerationResult {
@@ -36,7 +38,11 @@ export interface GenerationResult {
   researchData?: ResearchResult
 }
 
-export type GenerationProgressCallback = (phase: 'research' | 'generation' | 'validation', message: string) => void
+export type GenerationProgressCallback = (
+  phase: 'research' | 'generation' | 'validation',
+  message: string,
+  params?: Record<string, string>
+) => void
 
 // Slide count ranges
 const SLIDE_COUNT_RANGES = {
@@ -117,9 +123,23 @@ async function callDocumentServiceAPI(
 }
 
 /**
+ * Resolve localized fallback using getMessage if available
+ */
+function resolveFallback(
+  key: string,
+  fallback: string,
+  getMessage?: (key: string, params?: Record<string, string>) => string
+): string {
+  return getMessage ? getMessage(key) : fallback
+}
+
+/**
  * Map backend slide spec to layout content for the layout service
  */
-function mapToLayoutContent(spec: BackendSlideSpec): SlideLayoutContent {
+function mapToLayoutContent(
+  spec: BackendSlideSpec,
+  getMessage?: (key: string, params?: Record<string, string>) => string
+): SlideLayoutContent {
   const layout = spec.layout as SlideLayoutType
 
   switch (layout) {
@@ -207,9 +227,9 @@ function mapToLayoutContent(spec: BackendSlideSpec): SlideLayoutContent {
         layout: 'comparison',
         content: {
           title: spec.title,
-          leftTitle: spec.leftTitle || 'Option A',
+          leftTitle: spec.leftTitle || resolveFallback('generation-option-a', 'Option A', getMessage),
           leftItems: spec.leftColumn || [],
-          rightTitle: spec.rightTitle || 'Option B',
+          rightTitle: spec.rightTitle || resolveFallback('generation-option-b', 'Option B', getMessage),
           rightItems: spec.rightColumn || []
         }
       }
@@ -322,7 +342,7 @@ function mapToLayoutContent(spec: BackendSlideSpec): SlideLayoutContent {
         layout: 'quote',
         content: {
           quote: spec.quote || spec.content || '',
-          attribution: spec.attribution || 'Unknown',
+          attribution: spec.attribution || resolveFallback('generation-unknown', 'Unknown', getMessage),
           source: spec.source
         }
       }
@@ -341,7 +361,7 @@ function mapToLayoutContent(spec: BackendSlideSpec): SlideLayoutContent {
       return {
         layout: 'thank-you',
         content: {
-          title: spec.title || 'Thank You',
+          title: spec.title || resolveFallback('generation-thank-you', 'Thank You', getMessage),
           subtitle: spec.subtitle
         }
       }
@@ -372,7 +392,7 @@ export async function generateSlides(
 
   // Phase 1: Research (if web search enabled)
   if (options.useWebSearch) {
-    onProgress?.('research', 'Searching the web for information...')
+    onProgress?.('research', 'progress-search-info')
 
     try {
       researchData = await SlideResearchService.gatherResearch(
@@ -382,7 +402,7 @@ export async function generateSlides(
           slideCount: SLIDE_COUNT_RANGES[options.length].target
         },
         accessToken,
-        msg => onProgress?.('research', msg)
+        (msg, params) => onProgress?.('research', msg, params)
       )
 
       // Collect sources from research
@@ -402,12 +422,12 @@ export async function generateSlides(
       }
     } catch (err) {
       console.error('[SlideGeneration] Research phase failed:', err)
-      onProgress?.('research', 'Web search failed, continuing without research data')
+      onProgress?.('research', 'progress-web-search-failed')
     }
   }
 
   // Phase 2: Generate slides via document-service
-  onProgress?.('generation', 'Generating presentation...')
+  onProgress?.('generation', 'progress-generating')
 
   const apiResponse = await callDocumentServiceAPI(options, accessToken)
 
@@ -419,10 +439,10 @@ export async function generateSlides(
   }
 
   // Phase 3: Convert to slide data using layout service
-  onProgress?.('validation', 'Building slides...')
+  onProgress?.('validation', 'progress-building')
 
   const slides: SlideData[] = apiResponse.slides.map((spec, index) => {
-    const layoutContent = mapToLayoutContent(spec)
+    const layoutContent = mapToLayoutContent(spec, options.getMessage)
     return generateSlideFromLayout(layoutContent, index, options.theme)
   })
 

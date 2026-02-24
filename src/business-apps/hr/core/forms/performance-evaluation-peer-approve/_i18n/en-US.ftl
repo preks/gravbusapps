@@ -1,5 +1,6 @@
 # Performance Evaluation Peer Approve
 
+header-title = Performance Evaluation
 title = Approve Nominated Peers
 peers-label = Nominated peers
 no-peers = No nominated peers to display.

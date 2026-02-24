@@ -73,6 +73,7 @@ export interface AssetStatistics {
   availableAssets: number
   allocatedAssets: number
   underRepairAssets: number
+  retiredAssets: number
 }
 
 export interface AssetFilter {

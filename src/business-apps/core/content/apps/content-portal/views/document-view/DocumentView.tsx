@@ -15,6 +15,8 @@ import { DocumentSection, type DocumentItem } from '@/components/document-sectio
 import { EmployeeHoverCard } from '@/common/components/employee'
 import { getEntityTypeFromContentGroup, buildContentRecordUrl } from '@/business-apps/core/content/utils/shareUtils'
 import DocumentCreator from '@/business-apps/core/documents/apps/document-creator'
+import { useRestClient } from '@/common/network/rest/useRestClient'
+import { env } from '@/common/env/EnvUtils'
 
 interface DocumentViewProps extends BusinessAppContextProps {
   hideBanner?: boolean
@@ -42,6 +44,9 @@ const DocumentView: React.FC<DocumentViewProps> = ({
   const navigation = useDocumentNavigation()
   const [searchQuery, setSearchQuery] = useState('')
   const [showDocumentCreator, setShowDocumentCreator] = useState(false)
+
+  // REST client for document operations (Content uses Kogito processes)
+  const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'))
 
   // Fetch document areas (ContentEntries with DOCUMENT group)
   const {
@@ -362,6 +367,7 @@ const DocumentView: React.FC<DocumentViewProps> = ({
               onRefresh={refetchContents}
               accessToken={accessToken}
               userInfo={userInfo}
+              restClient={restClient}
               apiConfig={{
                 baseEndpoint: '/content',
                 entityFieldName: 'contentEntry',

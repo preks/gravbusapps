@@ -6,7 +6,8 @@
  */
 
 import React, { useState, useEffect, useCallback, useRef } from 'react'
-import { Card, Button, Spinner, Badge } from '@newwork/nw-design-system'
+import { Card, Button, Spinner, Badge, useTranslation } from '@newwork/nw-design-system'
+import translations from '../_i18n'
 import { ChevronLeft, FileText, Download, ExternalLink, AlertCircle, RefreshCw } from 'lucide-react'
 import { fileClient } from '@/common/network/files/FileClient'
 import type { Document } from '../types'
@@ -36,6 +37,7 @@ export const PdfDocumentViewer: React.FC<PdfDocumentViewerProps> = ({
   onBack,
   'data-testid': testId = 'pdf-document-viewer'
 }) => {
+  const { t } = useTranslation(translations)
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -57,7 +59,7 @@ export const PdfDocumentViewer: React.FC<PdfDocumentViewerProps> = ({
    */
   const loadPdf = useCallback(async () => {
     if (!document.sourceFile?.path) {
-      setError('PDF file path not found')
+      setError(t('pdf-error-path-not-found'))
       setIsLoading(false)
       return
     }
@@ -82,14 +84,14 @@ export const PdfDocumentViewer: React.FC<PdfDocumentViewerProps> = ({
       setPdfUrl(url)
     } catch (err) {
       if (!isMounted.current) return
-      const errorMessage = err instanceof Error ? err.message : 'Failed to load PDF'
+      const errorMessage = err instanceof Error ? err.message : t('pdf-error-load-failed')
       setError(errorMessage)
     } finally {
       if (isMounted.current) {
         setIsLoading(false)
       }
     }
-  }, [document.sourceFile?.path, accessToken, pdfUrl])
+  }, [document.sourceFile?.path, accessToken, pdfUrl, t])
 
   // Load PDF on mount
   useEffect(() => {
@@ -125,7 +127,7 @@ export const PdfDocumentViewer: React.FC<PdfDocumentViewerProps> = ({
         <div className="gba:flex gba:items-center gba:gap-3">
           <Button variant="ghost" size="sm" onClick={onBack} data-testid={`${testId}-back-button`}>
             <ChevronLeft className="gba:w-4 gba:h-4 gba:mr-1" />
-            Back
+            {t('pdf-back')}
           </Button>
 
           <div className="gba:flex gba:items-center gba:gap-3">
@@ -150,7 +152,7 @@ export const PdfDocumentViewer: React.FC<PdfDocumentViewerProps> = ({
             <>
               <Button variant="outline" size="sm" onClick={handleDownload} data-testid={`${testId}-download-button`}>
                 <Download className="gba:w-4 gba:h-4 gba:mr-2" />
-                Download
+                {t('pdf-download')}
               </Button>
               <Button
                 variant="outline"
@@ -159,7 +161,7 @@ export const PdfDocumentViewer: React.FC<PdfDocumentViewerProps> = ({
                 data-testid={`${testId}-open-new-tab-button`}
               >
                 <ExternalLink className="gba:w-4 gba:h-4 gba:mr-2" />
-                Open in New Tab
+                {t('pdf-open-new-tab')}
               </Button>
             </>
           )}
@@ -175,7 +177,7 @@ export const PdfDocumentViewer: React.FC<PdfDocumentViewerProps> = ({
             data-testid={`${testId}-loading`}
           >
             <Spinner size="lg" />
-            <p className="gba:text-muted-foreground">Loading PDF...</p>
+            <p className="gba:text-muted-foreground">{t('pdf-loading')}</p>
           </div>
         )}
 
@@ -189,11 +191,11 @@ export const PdfDocumentViewer: React.FC<PdfDocumentViewerProps> = ({
               <div className="gba:w-16 gba:h-16 gba:rounded-full gba:bg-destructive/10 gba:flex gba:items-center gba:justify-center gba:mx-auto gba:mb-4">
                 <AlertCircle className="gba:w-8 gba:h-8 gba:text-destructive" />
               </div>
-              <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-2">Failed to load PDF</h3>
+              <h3 className="gba:text-lg gba:font-semibold gba:text-foreground gba:mb-2">{t('pdf-error-title')}</h3>
               <p className="gba:text-sm gba:text-muted-foreground gba:mb-4">{error}</p>
               <Button variant="outline" onClick={loadPdf}>
                 <RefreshCw className="gba:w-4 gba:h-4 gba:mr-2" />
-                Try Again
+                {t('pdf-try-again')}
               </Button>
             </Card>
           </div>
@@ -214,11 +216,16 @@ export const PdfDocumentViewer: React.FC<PdfDocumentViewerProps> = ({
       <footer className="gba:px-4 gba:py-2 gba:border-t gba:bg-card">
         <div className="gba:flex gba:items-center gba:gap-4 gba:text-xs gba:text-muted-foreground">
           <span>
-            Uploaded: {document.sourceFile?.uploadedAt && new Date(document.sourceFile.uploadedAt).toLocaleString()}
+            {t('pdf-uploaded')}:{' '}
+            {document.sourceFile?.uploadedAt && new Date(document.sourceFile.uploadedAt).toLocaleString()}
           </span>
-          {document.sourceFile?.originalName && <span>Original: {document.sourceFile.originalName}</span>}
+          {document.sourceFile?.originalName && (
+            <span>
+              {t('pdf-original')}: {document.sourceFile.originalName}
+            </span>
+          )}
           <Badge variant="outline" className="gba:text-[10px]">
-            Read-only
+            {t('pdf-read-only')}
           </Badge>
         </div>
       </footer>

@@ -8,7 +8,9 @@
 
 import { useState, useCallback, useEffect } from 'react'
 import { toast } from 'sonner'
+import { useTranslation } from '@newwork/nw-design-system'
 import { DocumentApiService } from '../services/DocumentApiService'
+import translations from '../_i18n'
 import type { Document, DocumentTemplate, TemplateSummary, TemplateCategory } from '../types'
 
 interface UseDocumentTemplatesState {
@@ -48,6 +50,7 @@ function useDocumentTemplatesImpl(
   // eslint-disable-next-line @typescript-eslint/no-unused-vars -- kept for API compatibility with useDocumentTemplates(accessToken, userId)
   _userId?: string
 ): UseDocumentTemplatesResult {
+  const { t } = useTranslation(translations)
   const [state, setState] = useState<UseDocumentTemplatesState>({
     templates: [],
     isLoading: true,
@@ -69,10 +72,10 @@ function useDocumentTemplatesImpl(
       setState(prev => ({
         ...prev,
         isLoading: false,
-        error: 'Failed to load templates'
+        error: t('doc-templates-error-load-templates')
       }))
     }
-  }, [accessToken])
+  }, [accessToken, t])
 
   useEffect(() => {
     refreshTemplates()
@@ -85,11 +88,11 @@ function useDocumentTemplatesImpl(
         return await DocumentApiService.getTemplate(id)
       } catch (error) {
         console.error('[useDocumentTemplates] Failed to load template:', error)
-        toast.error('Failed to load template')
+        toast.error(t('doc-templates-toast-load-failed'))
         return null
       }
     },
-    [accessToken]
+    [accessToken, t]
   )
 
   const createTemplate = useCallback(
@@ -97,21 +100,21 @@ function useDocumentTemplatesImpl(
       template: Omit<DocumentTemplate, 'id' | 'createdAt' | 'updatedAt' | 'usageCount'>
     ): Promise<DocumentTemplate | null> => {
       if (!accessToken) {
-        toast.error('Please sign in to create templates')
+        toast.error(t('doc-templates-toast-sign-in-create'))
         return null
       }
       try {
         const newTemplate = await DocumentApiService.createTemplate(template)
-        toast.success('Template created successfully')
+        toast.success(t('doc-templates-toast-created'))
         await refreshTemplates()
         return newTemplate
       } catch (error) {
         console.error('[useDocumentTemplates] Failed to create template:', error)
-        toast.error('Failed to create template')
+        toast.error(t('doc-templates-toast-create-failed'))
         return null
       }
     },
-    [accessToken, refreshTemplates]
+    [accessToken, refreshTemplates, t]
   )
 
   const updateTemplate = useCallback(
@@ -123,11 +126,11 @@ function useDocumentTemplatesImpl(
         return updated
       } catch (error) {
         console.error('[useDocumentTemplates] Failed to update template:', error)
-        toast.error('Failed to update template')
+        toast.error(t('doc-templates-toast-update-failed'))
         return null
       }
     },
-    [accessToken, refreshTemplates]
+    [accessToken, refreshTemplates, t]
   )
 
   const deleteTemplate = useCallback(
@@ -136,17 +139,17 @@ function useDocumentTemplatesImpl(
       try {
         const success = await DocumentApiService.deleteTemplate(id)
         if (success) {
-          toast.success('Template deleted')
+          toast.success(t('doc-templates-toast-deleted'))
           await refreshTemplates()
         }
         return success
       } catch (error) {
         console.error('[useDocumentTemplates] Failed to delete template:', error)
-        toast.error('Failed to delete template')
+        toast.error(t('doc-templates-toast-delete-failed'))
         return false
       }
     },
-    [accessToken, refreshTemplates]
+    [accessToken, refreshTemplates, t]
   )
 
   const createDocumentFromTemplate = useCallback(
@@ -154,15 +157,15 @@ function useDocumentTemplatesImpl(
       if (!accessToken) return null
       try {
         const newDocument = await DocumentApiService.createDocumentFromTemplate(templateId, title)
-        if (newDocument) toast.success('Document created from template')
+        if (newDocument) toast.success(t('doc-templates-toast-document-created'))
         return newDocument
       } catch (error) {
         console.error('[useDocumentTemplates] Failed to create document:', error)
-        toast.error('Failed to create document')
+        toast.error(t('doc-templates-toast-document-create-failed'))
         return null
       }
     },
-    [accessToken]
+    [accessToken, t]
   )
 
   const saveDocumentAsTemplate = useCallback(
@@ -173,13 +176,13 @@ function useDocumentTemplatesImpl(
       isPublic: boolean
     ): Promise<DocumentTemplate | null> => {
       if (!accessToken) {
-        toast.error('Please sign in to save templates')
+        toast.error(t('doc-templates-toast-sign-in-save'))
         return null
       }
       try {
         const document = await DocumentApiService.getDocument(documentId)
         if (!document) {
-          toast.error('Document not found')
+          toast.error(t('doc-templates-toast-document-not-found'))
           return null
         }
         const newTemplate = await DocumentApiService.createTemplate({
@@ -192,21 +195,21 @@ function useDocumentTemplatesImpl(
           isPublic,
           createdBy: document.createdBy
         })
-        toast.success('Document saved as template')
+        toast.success(t('doc-templates-toast-saved-as-template'))
         await refreshTemplates()
         return newTemplate
       } catch (error) {
         console.error('[useDocumentTemplates] Failed to save as template:', error)
-        toast.error('Failed to save as template')
+        toast.error(t('doc-templates-toast-save-as-template-failed'))
         return null
       }
     },
-    [accessToken, refreshTemplates]
+    [accessToken, refreshTemplates, t]
   )
 
   const getTemplatesByCategory = useCallback(
     (category: TemplateCategory): TemplateSummary[] => {
-      return state.templates.filter(t => t.category === category)
+      return state.templates.filter(tmpl => tmpl.category === category)
     },
     [state.templates]
   )

@@ -6,8 +6,10 @@
  */
 
 import { useState, useCallback } from 'react'
+import { useTranslation } from '@newwork/nw-design-system'
 import mammoth from 'mammoth'
 import type { ParsedWordDocument, WordParserMessage, WordImage } from '../types'
+import translations from '../_i18n'
 
 interface UseWordParserState {
   isLoading: boolean
@@ -45,6 +47,7 @@ const STYLE_MAP = [
  * Hook for parsing Word documents
  */
 export function useWordParser(): UseWordParserResult {
+  const { t } = useTranslation(translations)
   const [state, setState] = useState<UseWordParserState>({
     isLoading: false,
     progress: 0,
@@ -86,8 +89,7 @@ export function useWordParser(): UseWordParserResult {
       if (isOldDocFormat) {
         setState(prev => ({
           ...prev,
-          error:
-            'The older .doc format is not supported. Please save your document as .docx (Word 2007 or later) and try again.'
+          error: t('upload-word-error-old-doc')
         }))
         return null
       }
@@ -100,7 +102,7 @@ export function useWordParser(): UseWordParserResult {
       if (!isValidType) {
         setState(prev => ({
           ...prev,
-          error: 'Invalid file type. Please upload a .docx file (Word 2007 or later).'
+          error: t('upload-word-error-invalid-type')
         }))
         return null
       }
@@ -183,7 +185,7 @@ export function useWordParser(): UseWordParserResult {
 
         return parsedDocument
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Failed to parse document'
+        const errorMessage = error instanceof Error ? error.message : t('upload-word-error-parse')
         console.error('[WordParser] Parse error:', error)
 
         setState({
@@ -196,7 +198,7 @@ export function useWordParser(): UseWordParserResult {
         return null
       }
     },
-    [convertMessages]
+    [convertMessages, t]
   )
 
   /**

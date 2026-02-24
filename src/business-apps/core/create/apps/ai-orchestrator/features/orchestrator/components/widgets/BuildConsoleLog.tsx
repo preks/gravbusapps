@@ -5,7 +5,7 @@
 
 import React, { useEffect, useRef } from 'react'
 import { Info, CheckCircle2, XCircle, AlertTriangle, Loader2 } from 'lucide-react'
-import { Card, CardHeader, CardTitle, CardContent, cn } from '@newwork/nw-design-system'
+import { cn } from '@newwork/nw-design-system'
 
 export interface BuildLogEntry {
   timestamp: string
@@ -56,86 +56,70 @@ export const BuildConsoleLog: React.FC<BuildConsoleLogProps> = ({
   }, [logs.length])
 
   return (
-    <Card className={cn('gba:font-mono', className)} data-testid={testId}>
-      <CardHeader className="gba:py-2.5 gba:border-b gba:border-border">
-        <CardTitle className="gba:text-sm gba:font-medium gba:flex gba:items-center gba:gap-2">
-          <span className="gba:flex gba:h-2 gba:w-2">
-            <span
-              className={cn(
-                'gba:animate-ping gba:absolute gba:inline-flex gba:h-2 gba:w-2 gba:rounded-full gba:opacity-75 gba:bg-foreground'
-              )}
-            ></span>
-            <span
-              className={cn('gba:relative gba:inline-flex gba:rounded-full gba:h-2 gba:w-2 gba:bg-foreground')}
-            ></span>
-          </span>
-          Build Log
-          {isBuilding && <span className="gba:text-xs gba:text-muted-foreground gba:font-normal">(live)</span>}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="gba:p-0">
-        <div
-          ref={logContainerRef}
-          className="gba:overflow-y-auto gba:bg-muted/30 gba:scrollbar-thin"
-          style={{ maxHeight }}
-        >
-          <div className="gba:p-3 gba:space-y-1">
-            {logs.length === 0 && (
-              <div className="gba:text-sm gba:text-muted-foreground gba:italic">Waiting for build to start...</div>
-            )}
+    <div
+      className={cn('gba:font-mono gba:border gba:border-border gba:rounded-lg gba:overflow-hidden', className)}
+      data-testid={testId}
+    >
+      {/* Compact header */}
+      <div className="gba:flex gba:items-center gba:gap-2 gba:px-3 gba:py-1 gba:bg-muted/50 gba:border-b gba:border-border">
+        <span className="gba:flex gba:h-1.5 gba:w-1.5">
+          <span className="gba:animate-ping gba:absolute gba:inline-flex gba:h-1.5 gba:w-1.5 gba:rounded-full gba:opacity-75 gba:bg-foreground"></span>
+          <span className="gba:relative gba:inline-flex gba:rounded-full gba:h-1.5 gba:w-1.5 gba:bg-foreground"></span>
+        </span>
+        <span className="gba:text-xs gba:font-medium">Build Log</span>
+        {isBuilding && <span className="gba:text-[10px] gba:text-muted-foreground">(live)</span>}
+      </div>
 
-            {logs.map((log, index) => {
-              const Icon = logIcons[log.type]
-              const colorClass = logColors[log.type]
-              const logKey = `${log.timestamp}-${log.type}-${index}`
+      {/* Log content */}
+      <div
+        ref={logContainerRef}
+        className="gba:overflow-y-auto gba:bg-background gba:scrollbar-thin"
+        style={{ maxHeight }}
+      >
+        <div className="gba:p-2 gba:space-y-0.5">
+          {logs.length === 0 && (
+            <div className="gba:text-xs gba:text-muted-foreground gba:italic">Waiting for build to start...</div>
+          )}
 
-              return (
-                <div
-                  key={logKey}
-                  className={cn(
-                    'gba:flex gba:items-start gba:gap-2 gba:text-xs gba:leading-relaxed gba:animate-in gba:slide-in-from-left-2 gba:duration-200',
-                    index === logs.length - 1 && 'gba:opacity-100',
-                    index < logs.length - 1 && 'gba:opacity-70'
-                  )}
-                  style={{ animationDelay: `${index * 50}ms` }}
-                >
-                  <span className="gba:text-muted-foreground gba:shrink-0 gba:w-20">{log.timestamp}</span>
-                  <Icon className={cn('gba:w-3 gba:h-3 gba:mt-0.5 gba:shrink-0', colorClass)} />
-                  <span className="gba:text-foreground gba:flex-1">
-                    {log.componentName && <span className="gba:text-info">[{log.componentName}]</span>} {log.message}
-                  </span>
-                  {log.duration && (
-                    <span className="gba:text-muted-foreground gba:shrink-0 gba:text-[10px]">+{log.duration}ms</span>
-                  )}
-                </div>
-              )
-            })}
+          {logs.map((log, index) => {
+            const Icon = logIcons[log.type]
+            const colorClass = logColors[log.type]
+            const logKey = `${log.timestamp}-${log.type}-${index}`
 
-            {/* Current operation with typing indicator */}
-            {isBuilding && currentOperation && (
-              <div className="gba:flex gba:items-start gba:gap-2 gba:text-xs gba:leading-relaxed gba:animate-pulse">
-                <span className="gba:text-muted-foreground gba:shrink-0 gba:w-20">
-                  {new Date().toLocaleTimeString('en-US', { hour12: false })}
+            return (
+              <div
+                key={logKey}
+                className={cn(
+                  'gba:flex gba:items-start gba:gap-2 gba:text-xs gba:leading-snug',
+                  index === logs.length - 1 && 'gba:opacity-100',
+                  index < logs.length - 1 && 'gba:opacity-70'
+                )}
+              >
+                <span className="gba:text-muted-foreground gba:shrink-0 gba:w-16 gba:text-[10px]">{log.timestamp}</span>
+                <Icon className={cn('gba:w-3 gba:h-3 gba:mt-0.5 gba:shrink-0', colorClass)} />
+                <span className="gba:text-foreground gba:flex-1 gba:text-[11px]">
+                  {log.componentName && <span className="gba:text-info">[{log.componentName}]</span>} {log.message}
                 </span>
-                <Loader2 className="gba:w-3 gba:h-3 gba:mt-0.5 gba:shrink-0 gba:text-foreground gba:animate-spin" />
-                <span className="gba:text-muted-foreground gba:flex-1">{currentOperation}</span>
-                <span className="gba:flex gba:gap-0.5">
-                  <span className="gba:w-1 gba:h-1 gba:bg-current gba:rounded-full gba:animate-bounce"></span>
-                  <span
-                    className="gba:w-1 gba:h-1 gba:bg-current gba:rounded-full gba:animate-bounce"
-                    style={{ animationDelay: '0.1s' }}
-                  ></span>
-                  <span
-                    className="gba:w-1 gba:h-1 gba:bg-current gba:rounded-full gba:animate-bounce"
-                    style={{ animationDelay: '0.2s' }}
-                  ></span>
-                </span>
+                {log.duration && (
+                  <span className="gba:text-muted-foreground gba:shrink-0 gba:text-[10px]">+{log.duration}ms</span>
+                )}
               </div>
-            )}
-          </div>
+            )
+          })}
+
+          {/* Current operation with typing indicator */}
+          {isBuilding && currentOperation && (
+            <div className="gba:flex gba:items-start gba:gap-2 gba:text-xs gba:leading-snug gba:animate-pulse">
+              <span className="gba:text-muted-foreground gba:shrink-0 gba:w-16 gba:text-[10px]">
+                {new Date().toLocaleTimeString('en-US', { hour12: false })}
+              </span>
+              <Loader2 className="gba:w-3 gba:h-3 gba:mt-0.5 gba:shrink-0 gba:text-foreground gba:animate-spin" />
+              <span className="gba:text-muted-foreground gba:flex-1 gba:text-[11px]">{currentOperation}</span>
+            </div>
+          )}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   )
 }
 

@@ -58,7 +58,7 @@ export const useInvestmentLiquidFundReportCatalog = (params: UseInvestmentLiquid
         (liquidFundType: InvestmentLiquidFundTypeEntry) => {
           // Generate dynamic columns from the form field definition
           const dynamicColumns = liquidFundType.objectValue
-            ? transformFormFieldsToTableColumns(liquidFundType.objectValue, 'EUR')
+            ? transformFormFieldsToTableColumns(liquidFundType.objectValue)
             : []
 
           // Dynamic columns generated from form field definitions
@@ -109,7 +109,7 @@ export const useInvestmentLiquidFundReportCatalog = (params: UseInvestmentLiquid
       const liquidFundType = catalogData.investmentLiquidFundTypes.find(type => type.code === liquidFundTypeCode)
 
       if (liquidFundType?.objectValue) {
-        return transformFormFieldsToTableColumns(liquidFundType.objectValue, 'EUR')
+        return transformFormFieldsToTableColumns(liquidFundType.objectValue)
       }
 
       return []

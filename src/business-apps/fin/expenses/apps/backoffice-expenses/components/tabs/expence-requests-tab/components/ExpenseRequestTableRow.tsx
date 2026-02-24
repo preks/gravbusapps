@@ -17,6 +17,7 @@ interface ExpenseRequestTableRowProps {
   onTransferPayment: (record: ExpenseData) => void
   isSelected?: boolean
   onSelectRecord?: (record: ExpenseData, checked: boolean) => void
+  transferInProgress?: boolean
 }
 
 const ExpenseRequestTableRow: React.FC<ExpenseRequestTableRowProps> = ({
@@ -29,7 +30,8 @@ const ExpenseRequestTableRow: React.FC<ExpenseRequestTableRowProps> = ({
   onPrintExpenseRequest,
   onTransferPayment,
   isSelected = false,
-  onSelectRecord
+  onSelectRecord,
+  transferInProgress = false
 }) => {
   // Extract ISO currency code from record.currency.code (handles "Currency:v1:EUR" format)
   const currencyCode = record.currency?.code?.split(':').pop() || 'EUR'
@@ -53,6 +55,7 @@ const ExpenseRequestTableRow: React.FC<ExpenseRequestTableRowProps> = ({
         <ExpenseRequestTableActions
           record={record}
           accessToken={accessToken}
+          transferInProgress={transferInProgress}
           onNavigateToExpenseRequest={onNavigateToExpenseRequest}
           onDownloadAccountingNote={onDownloadAccountingNote}
           onTriggerCSV={onTriggerCSV}

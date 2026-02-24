@@ -9,7 +9,7 @@ import { AppActionForm } from '@/components/app-action-form'
 import { UseFormReturn } from 'react-hook-form'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
-import { Investment } from '@/common/data/investment/types'
+import type { Investment } from '@/common/data/investment/types/investmentTypes'
 
 interface InvestmentPopupFormWrapperProps {
   loading: boolean

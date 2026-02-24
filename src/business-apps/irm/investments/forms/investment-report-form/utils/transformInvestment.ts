@@ -85,6 +85,10 @@ export const transformInvestment = (
     ;(mappedValues.investment as any).investmentTypeId = investmentTypeId
   }
 
+  if (groupId && mappedValues.investment) {
+    ;(mappedValues.investment as any).investmentGroupRef = groupId
+  }
+
   // Ensure investmentStatus has a default if missing
   if (!mappedValues.investment?.investmentStatus) {
     mappedValues.investment = {

@@ -58,7 +58,7 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
   const [allocationError, setAllocationError] = React.useState<string | null>(null)
 
   const { t } = useTranslation(assetsTranslations)
-  const { getAllocationsForAsset } = useAssetService(context)
+  const { getAllocationsForAsset, deallocateAsset } = useAssetService(context)
 
   useEffect(() => {
     const checkLocale = () => {
@@ -618,6 +618,19 @@ const AllocateAssetContent: React.FC<BusinessAppContextProps> = (context: Busine
                     }
 
                     const currentAssetVersion = await resolveAssetVersion()
+
+                    // Close any active allocation so only one person has the asset at a time
+                    const allocations = await getAllocationsForAsset(assetId)
+                    const newStartDate = values.startDate
+                    const endDateForPrevious =
+                      newStartDate && dayjs(newStartDate).isValid()
+                        ? dayjs(newStartDate).subtract(1, 'day').format('YYYY-MM-DD')
+                        : new Date().toISOString().slice(0, 10)
+                    for (const alloc of allocations) {
+                      if (!alloc.endDate) {
+                        await deallocateAsset(alloc.id, alloc.version, endDateForPrevious)
+                      }
+                    }
 
                     const employeeAssetPayload: CreateEmployeeAssetPayload = {
                       startDate: values.startDate,

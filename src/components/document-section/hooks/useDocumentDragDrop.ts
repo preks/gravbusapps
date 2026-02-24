@@ -23,6 +23,11 @@ interface UseDocumentDragDropProps {
   setMouseDownPos: (pos: { x: number; y: number } | null) => void
   setIsDragging: (dragging: boolean) => void
   isFolderDescendant: (targetId: string, ancestorId: string) => boolean
+  /**
+   * Optional company data for MDM move operations
+   * Required when using MDM domain to provide structureId and code
+   */
+  companyData?: { structureId: string; code: string }
 }
 
 export function useDocumentDragDrop({
@@ -40,7 +45,8 @@ export function useDocumentDragDrop({
   mouseDownPos,
   setMouseDownPos,
   setIsDragging,
-  isFolderDescendant
+  isFolderDescendant,
+  companyData
 }: UseDocumentDragDropProps) {
   // Use mouse drag detection hook
   const mouseDrag = useMouseDragDetection({
@@ -245,7 +251,8 @@ export function useDocumentDragDrop({
         apiConfig,
         accessToken,
         restClient,
-        onRefresh
+        onRefresh,
+        companyData // Pass company data for MDM operations
       })
 
       const itemType = document.folder ? 'Folder' : 'Document'
@@ -289,7 +296,8 @@ export function useDocumentDragDrop({
         apiConfig,
         accessToken,
         restClient,
-        onRefresh
+        onRefresh,
+        companyData // Pass company data for MDM operations
       })
 
       const itemType = document.folder ? 'Folder' : 'Document'

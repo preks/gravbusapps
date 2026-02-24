@@ -1038,7 +1038,7 @@ export const useRealtimeKitMedia = ({
     if (
       actualSettings.echoCancellation === true &&
       actualSettings.autoGainControl === true &&
-      actualSettings.noiseSuppression === false
+      actualSettings.noiseSuppression === true
     ) {
       // Perfect! All settings are correct
     } else if (

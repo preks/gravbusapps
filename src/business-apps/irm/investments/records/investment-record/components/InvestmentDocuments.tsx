@@ -5,6 +5,8 @@ import { FlowContextName } from '@/common/types/FlowRegistryTypes'
 import { getTranslationFromI18nKeyAndLabel } from '@/common/utils/windowUtils'
 import { useInvestmentDocuments } from '@/common/data/investment/hooks/useInvestmentDocuments'
 import { getIrmDocumentApiConfig, useGetIrmDocuments } from '@/business-apps/irm/common/utils/documentUtils'
+import { useRestClient } from '@/common/network/rest/useRestClient'
+import { env } from '@/common/env/EnvUtils'
 
 interface InvestmentDocumentsProps {
   investmentId: string
@@ -22,6 +24,9 @@ const InvestmentDocuments: React.FC<InvestmentDocumentsProps> = ({ investmentId,
     fetchDocuments,
     errorMessage: getTranslationFromI18nKeyAndLabel('error.loading.documents', 'Failed to load documents')
   })
+
+  // REST client for document operations (IRM uses Kogito processes)
+  const restClient = useRestClient(env('NEXT_PUBLIC_KOGITO_PROCESSES_ENDPOINT'))
 
   // Memoized action props for document operations - EXACTLY like opportunity record
   const documentCreateFolderActionProps = useMemo(
@@ -73,6 +78,7 @@ const InvestmentDocuments: React.FC<InvestmentDocumentsProps> = ({ investmentId,
       error={error}
       onRefresh={refetch}
       apiConfig={getIrmDocumentApiConfig('investment')}
+      restClient={restClient}
       createFolderActionProps={documentCreateFolderActionProps}
       uploadActionProps={documentUploadActionProps}
       updateActionProps={documentUpdateActionProps}

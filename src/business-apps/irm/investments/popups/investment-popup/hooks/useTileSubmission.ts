@@ -5,7 +5,7 @@
 
 import { useCallback } from 'react'
 import { BusinessAppContextProps } from '@/common/BusinessAppContext'
-import { Investment } from '@/common/data/investment/types'
+import type { Investment } from '@/common/data/investment/types/investmentTypes'
 import {
   TileData,
   TILE_TYPES,

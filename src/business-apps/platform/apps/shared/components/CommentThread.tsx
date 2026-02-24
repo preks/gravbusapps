@@ -14,28 +14,30 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger
+  DropdownMenuTrigger,
+  useTranslation
 } from '@newwork/nw-design-system'
 import { MoreVertical, Reply, CheckCircle, Trash2, Edit2, User, Quote } from 'lucide-react'
 import type { Comment } from '../types/versioning'
 import { formatDistanceToNow } from 'date-fns'
 import { CommentEditor } from './CommentEditor'
+import sharedTranslations from '../_i18n'
 
 /**
  * ReplyItem - Individual reply (avatar comes from backend)
  */
-const ReplyItem: React.FC<{ reply: Comment }> = ({ reply }) => {
+const ReplyItem: React.FC<{ reply: Comment; userFallback: string }> = ({ reply, userFallback }) => {
   return (
     <div className="gba:flex gba:items-start gba:gap-2.5">
       <Avatar className="gba:h-7 gba:w-7 gba:ring-1 gba:ring-background">
-        {reply.createdByAvatar && <AvatarImage src={reply.createdByAvatar} alt={reply.createdByName || 'User'} />}
+        {reply.createdByAvatar && <AvatarImage src={reply.createdByAvatar} alt={reply.createdByName || userFallback} />}
         <AvatarFallback className="gba:bg-muted gba:text-muted-foreground">
           <User className="gba:h-3.5 gba:w-3.5" />
         </AvatarFallback>
       </Avatar>
       <div className="gba:flex-1 gba:min-w-0">
         <div className="gba:flex gba:items-center gba:gap-2 gba:mb-1">
-          <span className="gba:font-semibold gba:text-xs">{reply.createdByName || 'User'}</span>
+          <span className="gba:font-semibold gba:text-xs">{reply.createdByName || userFallback}</span>
           <span className="gba:text-xs gba:text-muted-foreground">
             {formatDistanceToNow(new Date(reply.createdAt), { addSuffix: true })}
           </span>
@@ -44,6 +46,17 @@ const ReplyItem: React.FC<{ reply: Comment }> = ({ reply }) => {
       </div>
     </div>
   )
+}
+
+export interface CommentThreadMessages {
+  reply?: string
+  edit?: string
+  resolve?: string
+  delete?: string
+  resolved?: string
+  confirmDelete?: string
+  editPlaceholder?: string
+  replyPlaceholder?: string
 }
 
 export interface CommentThreadProps {
@@ -56,6 +69,7 @@ export interface CommentThreadProps {
   currentUserId?: string
   onUnhighlight?: (commentId: string) => void
   onScrollToHighlight?: (commentId: string) => void
+  messages?: CommentThreadMessages
   'data-testid'?: string
 }
 
@@ -72,8 +86,22 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
   currentUserId,
   onUnhighlight,
   onScrollToHighlight,
+  messages: messagesProp,
   'data-testid': testId = 'comment-thread'
 }) => {
+  const { t } = useTranslation(sharedTranslations)
+  const defaultCommentThreadMessages = {
+    reply: t('comment-thread-reply'),
+    edit: t('comment-thread-edit'),
+    resolve: t('comment-thread-resolve'),
+    delete: t('comment-thread-delete'),
+    resolved: t('comment-thread-resolved'),
+    confirmDelete: t('comment-thread-confirm-delete'),
+    editPlaceholder: t('comment-thread-edit-placeholder'),
+    replyPlaceholder: t('comment-thread-reply-placeholder')
+  }
+  const messages = { ...defaultCommentThreadMessages, ...messagesProp }
+  const userFallback = t('comment-thread-user-fallback')
   const [showReplyInput, setShowReplyInput] = useState(false)
   const [isReplying, setIsReplying] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
@@ -93,7 +121,7 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
   }
 
   const handleDeleteAndUnhighlight = async () => {
-    if (window.confirm('Are you sure you want to delete this comment?')) {
+    if (window.confirm(messages.confirmDelete)) {
       await onDelete()
       if (isInlineComment && onUnhighlight) {
         onUnhighlight(comment.id)
@@ -129,7 +157,7 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
       <div className="gba:flex gba:items-start gba:gap-3 gba:mb-3">
         <Avatar className="gba:h-9 gba:w-9 gba:ring-2 gba:ring-background">
           {comment.createdByAvatar && (
-            <AvatarImage src={comment.createdByAvatar} alt={comment.createdByName || 'User'} />
+            <AvatarImage src={comment.createdByAvatar} alt={comment.createdByName || userFallback} />
           )}
           <AvatarFallback className="gba:bg-gradient-to-br gba:from-primary gba:to-primary/70 gba:text-primary-foreground">
             <User className="gba:h-4 gba:w-4" />
@@ -138,14 +166,14 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
 
         <div className="gba:flex-1 gba:min-w-0">
           <div className="gba:flex gba:items-center gba:gap-2 gba:mb-2">
-            <span className="gba:font-semibold gba:text-sm">{comment.createdByName || 'User'}</span>
+            <span className="gba:font-semibold gba:text-sm">{comment.createdByName || userFallback}</span>
             <span className="gba:text-xs gba:text-muted-foreground">
               {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}
             </span>
             {isResolved && (
               <Badge variant="success" className="gba:text-xs gba:h-5">
                 <CheckCircle className="gba:h-3 gba:w-3 gba:mr-1" />
-                Resolved
+                {messages.resolved}
               </Badge>
             )}
           </div>
@@ -185,7 +213,7 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
               onSubmit={handleUpdate}
               onCancel={() => setIsEditing(false)}
               isSubmitting={false}
-              placeholder="Edit comment..."
+              placeholder={messages.editPlaceholder}
             />
           ) : (
             <p className="gba:text-sm gba:leading-relaxed gba:text-foreground/90">{comment.content}</p>
@@ -208,25 +236,25 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
             {!isResolved && (
               <DropdownMenuItem onClick={() => setShowReplyInput(!showReplyInput)}>
                 <Reply className="gba:h-4 gba:w-4 gba:mr-2" />
-                Reply
+                {messages.reply}
               </DropdownMenuItem>
             )}
             {isOwnComment && !isResolved && (
               <DropdownMenuItem onClick={() => setIsEditing(true)}>
                 <Edit2 className="gba:h-4 gba:w-4 gba:mr-2" />
-                Edit
+                {messages.edit}
               </DropdownMenuItem>
             )}
             {!isResolved && (
               <DropdownMenuItem onClick={handleResolveAndUnhighlight}>
                 <CheckCircle className="gba:h-4 gba:w-4 gba:mr-2" />
-                Resolve
+                {messages.resolve}
               </DropdownMenuItem>
             )}
             {isOwnComment && (
               <DropdownMenuItem onClick={handleDeleteAndUnhighlight} className="gba:text-destructive">
                 <Trash2 className="gba:h-4 gba:w-4 gba:mr-2" />
-                Delete
+                {messages.delete}
               </DropdownMenuItem>
             )}
           </DropdownMenuContent>
@@ -237,7 +265,7 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
       {replies.length > 0 && (
         <div className="gba:ml-12 gba:mt-3 gba:space-y-3 gba:border-l-2 gba:border-primary/20 gba:pl-4">
           {replies.map(reply => (
-            <ReplyItem key={reply.id} reply={reply} />
+            <ReplyItem key={reply.id} reply={reply} userFallback={userFallback} />
           ))}
         </div>
       )}
@@ -249,7 +277,7 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
             onSubmit={handleReply}
             onCancel={() => setShowReplyInput(false)}
             isSubmitting={isReplying}
-            placeholder="Write a reply..."
+            placeholder={messages.replyPlaceholder}
             data-testid={`reply-editor-${comment.id}`}
           />
         </div>

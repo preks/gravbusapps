@@ -45,8 +45,8 @@ const baseInvestmentSchema = z.object({
             .catchall(z.any())
         )
         .optional(),
-      // Investment type field (leaf InvestmentType ID)
-      investmentTypeId: z.string().min(1, 'Investment type is required'),
+      // Investment type field (leaf InvestmentType ID) - optional for create flow
+      investmentTypeId: z.string().nullable().optional(),
       // Optional opportunity ID (when creating investment from opportunity)
       investmentOpportunityId: z.string().nullable().optional(),
       // Optional company ID
